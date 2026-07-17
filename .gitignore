@@ -1,0 +1,12 @@
+# virtualenv / python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Signalyst reference material — copyrighted, not redistributable
+hqplayer6desktop-manual.pdf
+hqplayerd-readme.txt

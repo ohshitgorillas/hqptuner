@@ -1,0 +1,246 @@
+{
+  "_comment": "Static shaper metadata overlay. Keys are engine-reported names (join by name at runtime; engine enumerations are the sole authority for names/IDs/order — outline §2). Prose from HQPlayer Desktop 6.0.0 manual §4.4 (dither) / §4.5 (modulator); rate thresholds from manual statements. All rate constraints are manufacturer recommendations ('optimized for', 'recommended') — the UI grays with reason text, never hides (outline §5).",
+  "_join_note": "Match engine name to key case-sensitively. If no exact match, normalize both sides (casefold, collapse spaces) before declaring a gap.",
+  "_source": "hqplayer6desktop-manual.pdf §4.4/§4.5; hqplayerd v6 readme.txt §1.5/§1.6",
+  "guidance": {
+    "order": "Fifth order modulators suit DACs with simple analog reconstruction filters (typically one switching element); seventh order modulators offer better technical performance but demand more of the DAC's analog reconstruction filter (multi-element switching arrays). For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
+    "type": "DSD* modulators are fixed configuration; ASDM* modulators adapt in various ways based on the source signal.",
+    "source": "manual §4.5"
+  },
+  "sdm_modulators": {
+    "DSD5": {
+      "order": 5, "type": "fixed",
+      "min_rate_hz": null,
+      "description": "Rate adaptive fifth order one-bit delta-sigma modulator."
+    },
+    "DSD5v2": {
+      "order": 5, "type": "fixed",
+      "min_rate_hz": null,
+      "description": "Revised fifth order one-bit delta-sigma modulator."
+    },
+    "DSD5v2 256+fs": {
+      "order": 5, "type": "fixed",
+      "min_rate_hz": 10240000, "min_rate_label": "≥ DSD256",
+      "description": "Revised fifth order one-bit delta-sigma modulator optimized for rates >= 10.24 MHz."
+    },
+    "DSD5EC": {
+      "order": 5, "type": "fixed",
+      "min_rate_hz": null,
+      "description": "Rate adaptive fifth order one-bit delta-sigma modulator with extended compensation."
+    },
+    "ASDM5": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive fifth order one-bit delta-sigma modulator."
+    },
+    "ASDM5EC": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation."
+    },
+    "ASDM5ECv2": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Second generation of ASDM5EC with minor improvements."
+    },
+    "ASDM5ECv3": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Third generation of ASDM5EC with minor improvements."
+    },
+    "ASDM5EC-ul": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Ultralight version."
+    },
+    "ASDM5EC-light": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Light version."
+    },
+    "ASDM5EC-fast": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Transient and load optimized version."
+    },
+    "ASDM5EC-super": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Super version."
+    },
+    "ASDM5EC-ul 512+fs": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Ultralight version."
+    },
+    "ASDM5EC-light 512+fs": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Light version."
+    },
+    "ASDM5EC-fast 512+fs": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Transient and load optimized version."
+    },
+    "ASDM5EC-super 512+fs": {
+      "order": 5, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive fifth order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Super version."
+    },
+    "DSD7": {
+      "order": 7, "type": "fixed",
+      "min_rate_hz": null,
+      "description": "Seventh order one-bit delta-sigma modulator."
+    },
+    "DSD7 256+fs": {
+      "order": 7, "type": "fixed",
+      "min_rate_hz": 10240000, "min_rate_label": "≥ DSD256",
+      "description": "Seventh order one-bit delta-sigma modulator optimized for rates >= 10.24 MHz."
+    },
+    "ASDM7": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive seventh order one-bit delta-sigma modulator."
+    },
+    "ASDM7EC": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation."
+    },
+    "ASDM7ECv2": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Second generation of ASDM7EC with minor improvements."
+    },
+    "ASDM7ECv3": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Third generation of ASDM7EC with minor improvements."
+    },
+    "ASDM7EC-ul": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Ultralight version."
+    },
+    "ASDM7EC-light": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Light version."
+    },
+    "ASDM7EC-fast": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Transient and load optimized version."
+    },
+    "ASDM7EC-super": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": null,
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Super version."
+    },
+    "ASDM7EC-ul 512+fs": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Ultralight version."
+    },
+    "ASDM7EC-light 512+fs": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Light version."
+    },
+    "ASDM7EC-fast 512+fs": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Transient and load optimized version."
+    },
+    "ASDM7EC-super 512+fs": {
+      "order": 7, "type": "adaptive",
+      "min_rate_hz": 22579200, "min_rate_label": "≥ DSD512",
+      "description": "Adaptive seventh order one-bit delta-sigma modulator with extended compensation. Optimized for 512x and higher rates. Super version."
+    },
+    "AMSDM7 512+fs": {
+      "order": 7, "type": "adaptive-multibit",
+      "min_rate_hz": 20480000, "min_rate_label": "≥ DSD512",
+      "description": "Special adaptive seventh order \"pseudo-multi-bit\" modulator optimized for rates >= 20.48 MHz."
+    },
+    "AMSDM7EC 512+fs": {
+      "order": 7, "type": "adaptive-multibit",
+      "min_rate_hz": 20480000, "min_rate_label": "≥ DSD512",
+      "description": "Special adaptive seventh order \"pseudo-multi-bit\" modulator with extended compensation for rates >= 20.48 MHz."
+    },
+    "AHM5EC5L": {
+      "order": 5, "type": "hybrid-5-level",
+      "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
+      "description": "Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz.",
+      "notes": "Limited SNR compared to other modulators; best suited for loudspeaker systems and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
+    },
+    "AHM7EC5L": {
+      "order": 7, "type": "hybrid-5-level",
+      "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
+      "description": "Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz.",
+      "notes": "Limited SNR compared to other modulators; best suited for loudspeaker systems and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
+    },
+    "AHM5EC8B": {
+      "order": 5, "type": "hybrid-8-bit",
+      "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
+      "description": "Fifth order 8-bit hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz. Bandwidth optimized to provide enough flat noise floor bandwidth for practically all hires content."
+    },
+    "AHM7EC8B": {
+      "order": 7, "type": "hybrid-8-bit",
+      "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
+      "description": "Seventh order 8-bit hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz. Bandwidth optimized to provide enough flat noise floor bandwidth for practically all hires content."
+    }
+  },
+  "pcm_dithers": {
+    "none": {
+      "min_rate_hz": null, "max_rate_hz": null,
+      "description": "No noise-shaping or dithering, only rounding. Mostly suitable for testing cases together with the 'none' filter selection, where bit-perfect output is needed. Not recommended."
+    },
+    "NS1": {
+      "min_rate_hz": 176400, "min_rate_label": "≥ 4x (176.4/192 kHz)",
+      "max_rate_hz": null,
+      "description": "Simple first order noise-shaping. Sample values are rounded and the quantization error is shaped so the error energy is pushed to higher frequencies. Suitable mostly for 176.4/192 kHz upsampling.",
+      "notes": "Not recommended with equipment sensitive to ultrasonic noise."
+    },
+    "NS4": {
+      "min_rate_hz": 88200, "min_rate_label": "≥ 2x (88.2/96 kHz)",
+      "max_rate_hz": null,
+      "description": "Fourth order noise-shaping. Similar in shape to 'shaped' dither. Suitable for all rates equal or higher than 88.2 kHz."
+    },
+    "NS5": {
+      "min_rate_hz": 192000, "min_rate_label": "≥ 192 kHz (designed for 8x/16x)",
+      "max_rate_hz": null,
+      "description": "Fifth order noise-shaping. Fairly aggressive noise-shaping designed for 8x and 16x rates (352.8/384/705.6/768 kHz). Not recommended for rates below 192 kHz.",
+      "notes": "Especially good for PCM1704 at the highest rates."
+    },
+    "NS9": {
+      "min_rate_hz": 176400, "min_rate_label": "≥ 4x (176.4/192 kHz)",
+      "max_rate_hz": null,
+      "description": "Ninth order noise-shaping. Very aggressive noise-shaping designed especially for 4x rates (176.4/192 kHz) and recommended for these rates.",
+      "notes": "Especially good for older 16-bit 4x-rate capable multibit DACs like TDA154x."
+    },
+    "LNS15": {
+      "min_rate_hz": 352800, "min_rate_label": "≥ 8x (352.8/384 kHz); designed for 16x",
+      "max_rate_hz": null,
+      "description": "15th order linear noise shaping. Smooth noise-shaping slope designed especially for 16x rates (705.6/768 kHz) and recommended for these higher PCM rates. Can also be used at 8x rates (352.8/384 kHz), but not recommended for rates below."
+    },
+    "RPDF": {
+      "min_rate_hz": null, "max_rate_hz": null,
+      "description": "Rectangular Probability Density Function. White noise dither. Computationally lightweight, but only suitable for 24-bit or higher output hardware."
+    },
+    "TPDF": {
+      "min_rate_hz": null, "max_rate_hz": null,
+      "description": "Triangular Probability Density Function. The industry standard simple dither mechanism. Suitable for any rate and recommended if playback rate is 44.1/48 kHz. Recommended for general purpose use."
+    },
+    "Gauss1": {
+      "min_rate_hz": null,
+      "max_rate_hz": 96000, "max_rate_label": "≤ 96 kHz",
+      "description": "Gaussian Probability Density Function. High quality flat frequency dither recommended for rates at or below 96 kHz where noise-shaping is not suitable."
+    },
+    "shaped": {
+      "min_rate_hz": 88200, "min_rate_label": "≥ 88.2/96 kHz",
+      "max_rate_hz": null,
+      "description": "Shaped dither. Noise used in this dither has a shaped frequency distribution to lower the audibility of the dither noise. Suitable for playback rates of 88.2/96 kHz or higher."
+    }
+  }
+}
