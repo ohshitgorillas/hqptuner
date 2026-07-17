@@ -27,539 +27,539 @@
       "name": "IIR",
       "value": "64",
       "arg": "1",
-      "description": "2/5 ⥣ Int"
+      "description": "2/5 \u2963 Int"
     },
     {
       "index": "1",
       "name": "IIR2",
       "value": "65",
       "arg": "1",
-      "description": "4/5 ⥣ Int"
+      "description": "4/5 \u2963 Int"
     },
     {
       "index": "2",
       "name": "FIR",
       "value": "61",
       "arg": "1",
-      "description": "3/5 ⥣ Int"
+      "description": "3/5 \u2963 Int"
     },
     {
       "index": "3",
       "name": "asymFIR",
       "value": "62",
       "arg": "1",
-      "description": "3/5 ⥣ Int"
+      "description": "3/5 \u2963 Int"
     },
     {
       "index": "4",
       "name": "minphaseFIR",
       "value": "63",
       "arg": "1",
-      "description": "3/5 ⥣ Int"
+      "description": "3/5 \u2963 Int"
     },
     {
       "index": "5",
       "name": "FFT",
       "value": "60",
       "arg": "1",
-      "description": "4/5 ⥣ 2^x"
+      "description": "4/5 \u2963 2^x"
     },
     {
       "index": "6",
       "name": "poly-sinc-lp",
       "value": "0",
       "arg": "2",
-      "description": "4/5 space ⥣ Any"
+      "description": "4/5 space \u2963 Any"
     },
     {
       "index": "7",
       "name": "poly-sinc-mp",
       "value": "1",
       "arg": "2",
-      "description": "4/5 transients ⥣ Any"
+      "description": "4/5 transients \u2963 Any"
     },
     {
       "index": "8",
       "name": "poly-sinc-short-lp",
       "value": "2",
       "arg": "2",
-      "description": "3/5 transients, space ⥣ Any"
+      "description": "3/5 transients, space \u2963 Any"
     },
     {
       "index": "9",
       "name": "poly-sinc-short-mp",
       "value": "3",
       "arg": "2",
-      "description": "3/5 transients ⥣ Any"
+      "description": "3/5 transients \u2963 Any"
     },
     {
       "index": "10",
       "name": "poly-sinc-long-lp",
       "value": "24",
       "arg": "1",
-      "description": "4/5 space ⥣ Any"
+      "description": "4/5 space \u2963 Any"
     },
     {
       "index": "11",
       "name": "poly-sinc-long-ip",
       "value": "25",
       "arg": "1",
-      "description": "4/5 space, transients ⥣ Any"
+      "description": "4/5 space, transients \u2963 Any"
     },
     {
       "index": "12",
       "name": "poly-sinc-long-mp",
       "value": "26",
       "arg": "1",
-      "description": "4/5 transients ⥣ Any"
+      "description": "4/5 transients \u2963 Any"
     },
     {
       "index": "13",
       "name": "poly-sinc-hb",
       "value": "5",
       "arg": "0",
-      "description": "4/5 ⥣ Any"
+      "description": "4/5 \u2963 Any"
     },
     {
       "index": "14",
       "name": "poly-sinc-hb-xs-2s",
       "value": "56",
       "arg": "0",
-      "description": "2/5 ⥣ Any"
+      "description": "2/5 \u2963 Any"
     },
     {
       "index": "15",
       "name": "poly-sinc-hb-s-2s",
       "value": "57",
       "arg": "0",
-      "description": "3/5 ⥣ Any"
+      "description": "3/5 \u2963 Any"
     },
     {
       "index": "16",
       "name": "poly-sinc-hb-m-2s",
       "value": "58",
       "arg": "0",
-      "description": "3/5 ⥣ Any"
+      "description": "3/5 \u2963 Any"
     },
     {
       "index": "17",
       "name": "poly-sinc-hb-l-2s",
       "value": "59",
       "arg": "0",
-      "description": "4/5 ⥣ Any"
+      "description": "4/5 \u2963 Any"
     },
     {
       "index": "18",
       "name": "poly-sinc-ext",
       "value": "11",
       "arg": "2",
-      "description": "3/5 ⥣ Int"
+      "description": "3/5 \u2963 Int"
     },
     {
       "index": "19",
       "name": "poly-sinc-ext2",
       "value": "22",
       "arg": "1",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "20",
       "name": "poly-sinc-ext2-short",
       "value": "70",
       "arg": "2",
-      "description": "4/5 timbre ⥣ Int"
+      "description": "4/5 timbre \u2963 Int"
     },
     {
       "index": "21",
       "name": "poly-sinc-ext2-medium",
       "value": "71",
       "arg": "1",
-      "description": "4/5 timbre ⥣ Any"
+      "description": "4/5 timbre \u2963 Any"
     },
     {
       "index": "22",
       "name": "poly-sinc-ext2-long",
       "value": "72",
       "arg": "1",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "23",
       "name": "poly-sinc-ext2-xla",
       "value": "32",
       "arg": "1",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "24",
       "name": "poly-sinc-ext2-xl",
       "value": "73",
       "arg": "0",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "25",
       "name": "poly-sinc-ext2-hires-lp",
       "value": "74",
       "arg": "1",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "26",
       "name": "poly-sinc-ext2-hires-ip",
       "value": "75",
       "arg": "1",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "27",
       "name": "poly-sinc-ext2-hires-mp",
       "value": "76",
       "arg": "1",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "28",
       "name": "poly-sinc-mqa/mp3-lp",
       "value": "14",
       "arg": "1",
-      "description": "4/5 transients ⥣ Any"
+      "description": "4/5 transients \u2963 Any"
     },
     {
       "index": "29",
       "name": "poly-sinc-mqa/mp3-mp",
       "value": "15",
       "arg": "1",
-      "description": "4/5 transients ⥣ Any"
+      "description": "4/5 transients \u2963 Any"
     },
     {
       "index": "30",
       "name": "poly-sinc-xtr-lp",
       "value": "17",
       "arg": "2",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "31",
       "name": "poly-sinc-xtr-mp",
       "value": "18",
       "arg": "2",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "32",
       "name": "poly-sinc-xtr-short-lp",
       "value": "34",
       "arg": "1",
-      "description": "5/5 timbre, transients ⥣ Any"
+      "description": "5/5 timbre, transients \u2963 Any"
     },
     {
       "index": "33",
       "name": "poly-sinc-xtr-short-mp",
       "value": "35",
       "arg": "1",
-      "description": "5/5 timbre, transients ⥣ Any"
+      "description": "5/5 timbre, transients \u2963 Any"
     },
     {
       "index": "34",
       "name": "poly-sinc-lp-2s",
       "value": "6",
       "arg": "2",
-      "description": "4/5 space ⥣ Any"
+      "description": "4/5 space \u2963 Any"
     },
     {
       "index": "35",
       "name": "poly-sinc-mp-2s",
       "value": "7",
       "arg": "2",
-      "description": "4/5 transients ⥣ Any"
+      "description": "4/5 transients \u2963 Any"
     },
     {
       "index": "36",
       "name": "poly-sinc-short-lp-2s",
       "value": "8",
       "arg": "2",
-      "description": "3/5 transients, space ⥣ Any"
+      "description": "3/5 transients, space \u2963 Any"
     },
     {
       "index": "37",
       "name": "poly-sinc-short-mp-2s",
       "value": "9",
       "arg": "2",
-      "description": "3/5 transients ⥣ Any"
+      "description": "3/5 transients \u2963 Any"
     },
     {
       "index": "38",
       "name": "poly-sinc-long-lp-2s",
       "value": "27",
       "arg": "1",
-      "description": "4/5 space ⥣ Any"
+      "description": "4/5 space \u2963 Any"
     },
     {
       "index": "39",
       "name": "poly-sinc-long-ip-2s",
       "value": "28",
       "arg": "1",
-      "description": "4/5 space, transients ⥣ Any"
+      "description": "4/5 space, transients \u2963 Any"
     },
     {
       "index": "40",
       "name": "poly-sinc-long-mp-2s",
       "value": "29",
       "arg": "1",
-      "description": "4/5 transients ⥣ Any"
+      "description": "4/5 transients \u2963 Any"
     },
     {
       "index": "41",
       "name": "poly-sinc-hb-2s",
       "value": "10",
       "arg": "0",
-      "description": "4/5 ⥣ Any"
+      "description": "4/5 \u2963 Any"
     },
     {
       "index": "42",
       "name": "poly-sinc-xtr-lp-2s",
       "value": "19",
       "arg": "2",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "43",
       "name": "poly-sinc-xtr-mp-2s",
       "value": "20",
       "arg": "2",
-      "description": "5/5 timbre ⥣ Any"
+      "description": "5/5 timbre \u2963 Any"
     },
     {
       "index": "44",
       "name": "poly-sinc-xtr-short-lp-2s",
       "value": "36",
       "arg": "1",
-      "description": "5/5 timbre, transients ⥣ Any"
+      "description": "5/5 timbre, transients \u2963 Any"
     },
     {
       "index": "45",
       "name": "poly-sinc-xtr-short-mp-2s",
       "value": "37",
       "arg": "1",
-      "description": "5/5 timbre, transients ⥣ Any"
+      "description": "5/5 timbre, transients \u2963 Any"
     },
     {
       "index": "46",
       "name": "poly-sinc-gauss-short",
       "value": "38",
       "arg": "2",
-      "description": "3/5 transients ⥣ Int"
+      "description": "3/5 transients \u2963 Int"
     },
     {
       "index": "47",
       "name": "poly-sinc-gauss-medium",
       "value": "39",
       "arg": "1",
-      "description": "4/5 transients, timbre ⥣ Any"
+      "description": "4/5 transients, timbre \u2963 Any"
     },
     {
       "index": "48",
       "name": "poly-sinc-gauss-long",
       "value": "40",
       "arg": "1",
-      "description": "5/5 transients, timbre, space ⥣ Any"
+      "description": "5/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "49",
       "name": "poly-sinc-gauss-xla",
       "value": "42",
       "arg": "1",
-      "description": "5/5 transients, timbre, space ⥣ Any"
+      "description": "5/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "50",
       "name": "poly-sinc-gauss-xl",
       "value": "41",
       "arg": "0",
-      "description": "5/5 transients, timbre, space ⥣ Any"
+      "description": "5/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "51",
       "name": "poly-sinc-gauss-hires-lp",
       "value": "43",
       "arg": "1",
-      "description": "5/5 transients, timbre, space ⥣ Any"
+      "description": "5/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "52",
       "name": "poly-sinc-gauss-hires-ip",
       "value": "44",
       "arg": "1",
-      "description": "5/5 transients, timbre, space ⥣ Any"
+      "description": "5/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "53",
       "name": "poly-sinc-gauss-hires-mp",
       "value": "45",
       "arg": "1",
-      "description": "5/5 transients, timbre, space ⥣ Any"
+      "description": "5/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "54",
       "name": "poly-sinc-gauss-halfband",
       "value": "54",
       "arg": "0",
-      "description": "4/5 transients, timbre, space ⥣ Any"
+      "description": "4/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "55",
       "name": "poly-sinc-gauss-halfband-s",
       "value": "55",
       "arg": "0",
-      "description": "3/5 transients, timbre, space ⥣ Any"
+      "description": "3/5 transients, timbre, space \u2963 Any"
     },
     {
       "index": "56",
       "name": "polynomial-1",
       "value": "66",
       "arg": "0",
-      "description": "1/5 ⥣ Int"
+      "description": "1/5 \u2963 Int"
     },
     {
       "index": "57",
       "name": "polynomial-2",
       "value": "67",
       "arg": "0",
-      "description": "1/5 ⥣ Int"
+      "description": "1/5 \u2963 Int"
     },
     {
       "index": "58",
       "name": "minringFIR-lp",
       "value": "4",
       "arg": "0",
-      "description": "2/5 transients ⥣ Int"
+      "description": "2/5 transients \u2963 Int"
     },
     {
       "index": "59",
       "name": "minringFIR-mp",
       "value": "16",
       "arg": "0",
-      "description": "2/5 transients ⥣ Int"
+      "description": "2/5 transients \u2963 Int"
     },
     {
       "index": "60",
       "name": "closed-form",
       "value": "12",
       "arg": "0",
-      "description": "3/5 ⥣ 2^x"
+      "description": "3/5 \u2963 2^x"
     },
     {
       "index": "61",
       "name": "closed-form-fast",
       "value": "13",
       "arg": "0",
-      "description": "2/5 ⥣ 2^x"
+      "description": "2/5 \u2963 2^x"
     },
     {
       "index": "62",
       "name": "closed-form-16M",
       "value": "21",
       "arg": "0",
-      "description": "3/5 ⥣ 2^x"
+      "description": "3/5 \u2963 2^x"
     },
     {
       "index": "63",
       "name": "sinc-S",
       "value": "30",
       "arg": "1",
-      "description": "4/5 space, timbre ⥣ 2^x"
+      "description": "4/5 space, timbre \u2963 2^x"
     },
     {
       "index": "64",
       "name": "sinc-M",
       "value": "23",
       "arg": "1",
-      "description": "4/5 space, timbre ⥣ 2^x"
+      "description": "4/5 space, timbre \u2963 2^x"
     },
     {
       "index": "65",
       "name": "sinc-Mx",
       "value": "33",
       "arg": "1",
-      "description": "4/5 space, timbre ⥣ 2^x"
+      "description": "4/5 space, timbre \u2963 2^x"
     },
     {
       "index": "66",
       "name": "sinc-MG",
       "value": "49",
       "arg": "0",
-      "description": "4/5 transients, timbre, space ⥣ 2^x"
+      "description": "4/5 transients, timbre, space \u2963 2^x"
     },
     {
       "index": "67",
       "name": "sinc-MGa",
       "value": "50",
       "arg": "1",
-      "description": "4/5 transients, timbre, space ⥣ 2^x"
+      "description": "4/5 transients, timbre, space \u2963 2^x"
     },
     {
       "index": "68",
       "name": "sinc-L",
       "value": "31",
       "arg": "0",
-      "description": "3/5 ⥣ 2^x"
+      "description": "3/5 \u2963 2^x"
     },
     {
       "index": "69",
       "name": "sinc-Ls",
       "value": "46",
       "arg": "0",
-      "description": "2/5 ⥣ 2^x"
+      "description": "2/5 \u2963 2^x"
     },
     {
       "index": "70",
       "name": "sinc-Lm",
       "value": "47",
       "arg": "0",
-      "description": "2/5 ⥣ 2^x"
+      "description": "2/5 \u2963 2^x"
     },
     {
       "index": "71",
       "name": "sinc-Ll",
       "value": "48",
       "arg": "0",
-      "description": "3/5 ⥣ 2^x"
+      "description": "3/5 \u2963 2^x"
     },
     {
       "index": "72",
       "name": "sinc-Lh",
       "value": "68",
       "arg": "0",
-      "description": "4/5 ⥣ 2^x"
+      "description": "4/5 \u2963 2^x"
     },
     {
       "index": "73",
       "name": "sinc-short",
       "value": "51",
       "arg": "0",
-      "description": "2/5 ⥣ Any"
+      "description": "2/5 \u2963 Any"
     },
     {
       "index": "74",
       "name": "sinc-medium",
       "value": "52",
       "arg": "0",
-      "description": "2/5 ⥣ Any"
+      "description": "2/5 \u2963 Any"
     },
     {
       "index": "75",
       "name": "sinc-long",
       "value": "53",
       "arg": "0",
-      "description": "3/5 ⥣ Any"
+      "description": "3/5 \u2963 Any"
     },
     {
       "index": "76",
       "name": "sinc-long-h",
       "value": "69",
       "arg": "0",
-      "description": "4/5 ⥣ Any"
+      "description": "4/5 \u2963 Any"
     }
   ],
   "shapers_sdm": [
@@ -832,6 +832,582 @@
       "value": "7"
     }
   ],
-  "filters_pcm": "_UNCAPTURED: engine in SDM mode + active playback at capture; mode switch is a write. Capture when idle (Phase 2 backend can do it).",
-  "shapers_pcm": "_UNCAPTURED: engine in SDM mode + active playback at capture; mode switch is a write. Capture when idle (Phase 2 backend can do it)."
+  "filters_pcm": [
+    {
+      "arg": "0",
+      "description": "1/5 \u296e 1:1",
+      "index": "0",
+      "name": "none",
+      "value": "0"
+    },
+    {
+      "arg": "1",
+      "description": "2/5 \u296e Int",
+      "index": "1",
+      "name": "IIR",
+      "value": "1"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 \u296e Int",
+      "index": "2",
+      "name": "IIR2",
+      "value": "57"
+    },
+    {
+      "arg": "1",
+      "description": "3/5 \u296e Int",
+      "index": "3",
+      "name": "FIR",
+      "value": "2"
+    },
+    {
+      "arg": "1",
+      "description": "3/5 \u296e Int",
+      "index": "4",
+      "name": "asymFIR",
+      "value": "3"
+    },
+    {
+      "arg": "1",
+      "description": "3/5 \u296e Int",
+      "index": "5",
+      "name": "minphaseFIR",
+      "value": "4"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 \u296e 2^x",
+      "index": "6",
+      "name": "FFT",
+      "value": "5"
+    },
+    {
+      "arg": "2",
+      "description": "4/5 space \u296e Any",
+      "index": "7",
+      "name": "poly-sinc-lp",
+      "value": "6"
+    },
+    {
+      "arg": "2",
+      "description": "4/5 transients \u296e Any",
+      "index": "8",
+      "name": "poly-sinc-mp",
+      "value": "7"
+    },
+    {
+      "arg": "2",
+      "description": "3/5 space, transients \u296e Any",
+      "index": "9",
+      "name": "poly-sinc-short-lp",
+      "value": "8"
+    },
+    {
+      "arg": "2",
+      "description": "3/5 transients \u296e Any",
+      "index": "10",
+      "name": "poly-sinc-short-mp",
+      "value": "9"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 space, \u296e Any",
+      "index": "11",
+      "name": "poly-sinc-long-lp",
+      "value": "26"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 space, transients \u296e Any",
+      "index": "12",
+      "name": "poly-sinc-long-ip",
+      "value": "27"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 transients, \u296e Any",
+      "index": "13",
+      "name": "poly-sinc-long-mp",
+      "value": "28"
+    },
+    {
+      "arg": "0",
+      "description": "4/5 \u296e Any",
+      "index": "14",
+      "name": "poly-sinc-hb",
+      "value": "14"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e Any",
+      "index": "15",
+      "name": "poly-sinc-hb-xs",
+      "value": "53"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e Any",
+      "index": "16",
+      "name": "poly-sinc-hb-s",
+      "value": "54"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e Any",
+      "index": "17",
+      "name": "poly-sinc-hb-m",
+      "value": "55"
+    },
+    {
+      "arg": "0",
+      "description": "4/5 \u296e Any",
+      "index": "18",
+      "name": "poly-sinc-hb-l",
+      "value": "56"
+    },
+    {
+      "arg": "2",
+      "description": "3/5 \u296e Int",
+      "index": "19",
+      "name": "poly-sinc-ext",
+      "value": "15"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "20",
+      "name": "poly-sinc-ext2",
+      "value": "24"
+    },
+    {
+      "arg": "2",
+      "description": "4/5 timbre \u296e Int up",
+      "index": "21",
+      "name": "poly-sinc-ext2-short",
+      "value": "60"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 timbre \u296e Any",
+      "index": "22",
+      "name": "poly-sinc-ext2-medium",
+      "value": "61"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "23",
+      "name": "poly-sinc-ext2-long",
+      "value": "62"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "24",
+      "name": "poly-sinc-ext2-xla",
+      "value": "32"
+    },
+    {
+      "arg": "0",
+      "description": "5/5 timbre \u296e Any",
+      "index": "25",
+      "name": "poly-sinc-ext2-xl",
+      "value": "63"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "26",
+      "name": "poly-sinc-ext2-hires-lp",
+      "value": "64"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "27",
+      "name": "poly-sinc-ext2-hires-ip",
+      "value": "65"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "28",
+      "name": "poly-sinc-ext2-hires-mp",
+      "value": "66"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 transients \u296e Int up",
+      "index": "29",
+      "name": "poly-sinc-mqa/mp3-lp",
+      "value": "18"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 transients \u296e Int up",
+      "index": "30",
+      "name": "poly-sinc-mqa/mp3-mp",
+      "value": "19"
+    },
+    {
+      "arg": "2",
+      "description": "5/5 timbre \u296e Any",
+      "index": "31",
+      "name": "poly-sinc-xtr-lp",
+      "value": "21"
+    },
+    {
+      "arg": "2",
+      "description": "5/5 timbre \u296e Any",
+      "index": "32",
+      "name": "poly-sinc-xtr-mp",
+      "value": "22"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "33",
+      "name": "poly-sinc-xtr-short-lp",
+      "value": "33"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 timbre \u296e Any",
+      "index": "34",
+      "name": "poly-sinc-xtr-short-mp",
+      "value": "34"
+    },
+    {
+      "arg": "2",
+      "description": "3/5 transients, \u296e Int up",
+      "index": "35",
+      "name": "poly-sinc-gauss-short",
+      "value": "35"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 transients, timbre \u296e Any",
+      "index": "36",
+      "name": "poly-sinc-gauss-medium",
+      "value": "36"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 transients, timbre, space \u296e Any",
+      "index": "37",
+      "name": "poly-sinc-gauss-long",
+      "value": "37"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 transients, timbre, space \u296e Any",
+      "index": "38",
+      "name": "poly-sinc-gauss-xla",
+      "value": "39"
+    },
+    {
+      "arg": "0",
+      "description": "5/5 transients, timbre, space \u296e Any",
+      "index": "39",
+      "name": "poly-sinc-gauss-xl",
+      "value": "38"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 transients, timbre, space \u296e Any",
+      "index": "40",
+      "name": "poly-sinc-gauss-hires-lp",
+      "value": "40"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 transients, timbre, space \u296e Any",
+      "index": "41",
+      "name": "poly-sinc-gauss-hires-ip",
+      "value": "41"
+    },
+    {
+      "arg": "1",
+      "description": "5/5 transients, timbre, space \u296e Any",
+      "index": "42",
+      "name": "poly-sinc-gauss-hires-mp",
+      "value": "42"
+    },
+    {
+      "arg": "0",
+      "description": "4/5 transients, timbre, space \u296e Any",
+      "index": "43",
+      "name": "poly-sinc-gauss-halfband",
+      "value": "51"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 transients, timbre, space \u296e Any",
+      "index": "44",
+      "name": "poly-sinc-gauss-halfband-s",
+      "value": "52"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e Any",
+      "index": "45",
+      "name": "ASRC",
+      "value": "10"
+    },
+    {
+      "arg": "0",
+      "description": "1/5 \u296e Int up",
+      "index": "46",
+      "name": "polynomial-1",
+      "value": "11"
+    },
+    {
+      "arg": "0",
+      "description": "1/5 \u296e Int up",
+      "index": "47",
+      "name": "polynomial-2",
+      "value": "12"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 transients \u296e Int up",
+      "index": "48",
+      "name": "minringFIR-lp",
+      "value": "13"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 transients \u296e Int up",
+      "index": "49",
+      "name": "minringFIR-mp",
+      "value": "20"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e 2^x up",
+      "index": "50",
+      "name": "closed-form",
+      "value": "16"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e 2^x up",
+      "index": "51",
+      "name": "closed-form-fast",
+      "value": "17"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e 2^x up",
+      "index": "52",
+      "name": "closed-form-M",
+      "value": "23"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 space, timbre \u296e 2^x up",
+      "index": "53",
+      "name": "sinc-S",
+      "value": "29"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 space, timbre \u296e 2^x up",
+      "index": "54",
+      "name": "sinc-M",
+      "value": "25"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 space, timbre \u296e 2^x up",
+      "index": "55",
+      "name": "sinc-Mx",
+      "value": "31"
+    },
+    {
+      "arg": "0",
+      "description": "4/5 transients, timbre, space \u296e 2^x up",
+      "index": "56",
+      "name": "sinc-MG",
+      "value": "46"
+    },
+    {
+      "arg": "1",
+      "description": "4/5 transients, timbre, space \u296e 2^x up",
+      "index": "57",
+      "name": "sinc-MGa",
+      "value": "47"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e 2^x up",
+      "index": "58",
+      "name": "sinc-L",
+      "value": "30"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e 2^x up",
+      "index": "59",
+      "name": "sinc-Ls",
+      "value": "43"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e 2^x up",
+      "index": "60",
+      "name": "sinc-Lm",
+      "value": "44"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e 2^x up",
+      "index": "61",
+      "name": "sinc-Ll",
+      "value": "45"
+    },
+    {
+      "arg": "0",
+      "description": "4/5 \u296e 2^x up",
+      "index": "62",
+      "name": "sinc-Lh",
+      "value": "58"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e Any",
+      "index": "63",
+      "name": "sinc-short",
+      "value": "48"
+    },
+    {
+      "arg": "0",
+      "description": "2/5 \u296e Any",
+      "index": "64",
+      "name": "sinc-medium",
+      "value": "49"
+    },
+    {
+      "arg": "0",
+      "description": "3/5 \u296e Any",
+      "index": "65",
+      "name": "sinc-long",
+      "value": "50"
+    },
+    {
+      "arg": "0",
+      "description": "4/5 \u296e Any",
+      "index": "66",
+      "name": "sinc-long-h",
+      "value": "59"
+    }
+  ],
+  "shapers_pcm": [
+    {
+      "index": "0",
+      "name": "none",
+      "value": "0"
+    },
+    {
+      "index": "1",
+      "name": "NS1",
+      "value": "1"
+    },
+    {
+      "index": "2",
+      "name": "NS4",
+      "value": "2"
+    },
+    {
+      "index": "3",
+      "name": "NS5",
+      "value": "7"
+    },
+    {
+      "index": "4",
+      "name": "NS9",
+      "value": "3"
+    },
+    {
+      "index": "5",
+      "name": "LNS15",
+      "value": "9"
+    },
+    {
+      "index": "6",
+      "name": "RPDF",
+      "value": "4"
+    },
+    {
+      "index": "7",
+      "name": "TPDF",
+      "value": "5"
+    },
+    {
+      "index": "8",
+      "name": "Gauss1",
+      "value": "8"
+    },
+    {
+      "index": "9",
+      "name": "shaped",
+      "value": "6"
+    }
+  ],
+  "rates_pcm": [
+    {
+      "index": "0",
+      "rate": "0"
+    },
+    {
+      "index": "1",
+      "rate": "44100"
+    },
+    {
+      "index": "2",
+      "rate": "48000"
+    },
+    {
+      "index": "3",
+      "rate": "88200"
+    },
+    {
+      "index": "4",
+      "rate": "96000"
+    },
+    {
+      "index": "5",
+      "rate": "176400"
+    },
+    {
+      "index": "6",
+      "rate": "192000"
+    },
+    {
+      "index": "7",
+      "rate": "352800"
+    },
+    {
+      "index": "8",
+      "rate": "384000"
+    },
+    {
+      "index": "9",
+      "rate": "705600"
+    },
+    {
+      "index": "10",
+      "rate": "768000"
+    },
+    {
+      "index": "11",
+      "rate": "1411200"
+    },
+    {
+      "index": "12",
+      "rate": "1536000"
+    }
+  ],
+  "pcm_captured": "2026-07-17"
 }
