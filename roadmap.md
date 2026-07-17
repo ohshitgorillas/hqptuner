@@ -96,6 +96,8 @@ Primary path is the port-8088 HTTP interface, not direct file parsing:
 - Backend runs continuously against production hqplayerd without disturbing it; status endpoint tracks stock-UI state changes live
 - Kill and restart hqplayerd by hand: backend flags unreachable within the heartbeat interval, reconnects on its own, and serves freshly-loaded state
 
+**Status (2026-07-17): complete.** All exit criteria validated against live hqplayerd 6.0.4 on Opal: round-trip test green against captured real config; all read endpoints serving; hand-restart test — backend flagged the outage and auto-reconnected with a full fresh reload 9.6 s after `systemctl restart` (under the 15 s alarm threshold). PCM-mode enumerations captured into `data/engine-enums.json` via `scripts/capture_pcm_enums.py` (idle-gated, restore verified by State readback) — Phase 1 validator now passes with zero warnings.
+
 ## Phase 3 — Write path
 
 Shape confirmed by Phase 0: persistent writes go through the port-8088 HTTP interface, not a manual XML writer.
