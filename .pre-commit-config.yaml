@@ -1,0 +1,42 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: .venv/bin/ruff check
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format --check
+        entry: .venv/bin/ruff format --check
+        language: system
+        types: [python]
+      - id: xenon
+        name: xenon complexity gate
+        entry: .venv/bin/xenon --max-absolute B --max-average A --max-modules A hqptuner
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: mypy
+        name: mypy (strict)
+        entry: .venv/bin/mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: file-length
+        name: max 500 lines per source file
+        entry: .venv/bin/python scripts/check_file_length.py
+        language: system
+        types: [python]
+      - id: single-assertion
+        name: one assertion per test
+        entry: .venv/bin/python scripts/check_test_assertions.py
+        language: system
+        types: [python]
+        files: ^tests/
+      - id: pytest-offline
+        name: pytest (offline suite)
+        entry: .venv/bin/pytest -m "not live" -q
+        language: system
+        pass_filenames: false
+        always_run: true

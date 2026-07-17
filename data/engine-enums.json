@@ -1,0 +1,837 @@
+{
+  "_comment": "Reference snapshot only - the running engine is the sole runtime authority (outline s2). Captured for extraction join-target names; never ship indices/IDs from here as authority.",
+  "engine": "6.0.4",
+  "captured": "2026-07-16",
+  "mode_at_capture": "SDM",
+  "state_mode_index": "2",
+  "modes": [
+    {
+      "index": "0",
+      "name": "[source]",
+      "value": "-1"
+    },
+    {
+      "index": "1",
+      "name": "PCM",
+      "value": "0"
+    },
+    {
+      "index": "2",
+      "name": "SDM (DSD)",
+      "value": "1"
+    }
+  ],
+  "filters_sdm": [
+    {
+      "index": "0",
+      "name": "IIR",
+      "value": "64",
+      "arg": "1",
+      "description": "2/5 ⥣ Int"
+    },
+    {
+      "index": "1",
+      "name": "IIR2",
+      "value": "65",
+      "arg": "1",
+      "description": "4/5 ⥣ Int"
+    },
+    {
+      "index": "2",
+      "name": "FIR",
+      "value": "61",
+      "arg": "1",
+      "description": "3/5 ⥣ Int"
+    },
+    {
+      "index": "3",
+      "name": "asymFIR",
+      "value": "62",
+      "arg": "1",
+      "description": "3/5 ⥣ Int"
+    },
+    {
+      "index": "4",
+      "name": "minphaseFIR",
+      "value": "63",
+      "arg": "1",
+      "description": "3/5 ⥣ Int"
+    },
+    {
+      "index": "5",
+      "name": "FFT",
+      "value": "60",
+      "arg": "1",
+      "description": "4/5 ⥣ 2^x"
+    },
+    {
+      "index": "6",
+      "name": "poly-sinc-lp",
+      "value": "0",
+      "arg": "2",
+      "description": "4/5 space ⥣ Any"
+    },
+    {
+      "index": "7",
+      "name": "poly-sinc-mp",
+      "value": "1",
+      "arg": "2",
+      "description": "4/5 transients ⥣ Any"
+    },
+    {
+      "index": "8",
+      "name": "poly-sinc-short-lp",
+      "value": "2",
+      "arg": "2",
+      "description": "3/5 transients, space ⥣ Any"
+    },
+    {
+      "index": "9",
+      "name": "poly-sinc-short-mp",
+      "value": "3",
+      "arg": "2",
+      "description": "3/5 transients ⥣ Any"
+    },
+    {
+      "index": "10",
+      "name": "poly-sinc-long-lp",
+      "value": "24",
+      "arg": "1",
+      "description": "4/5 space ⥣ Any"
+    },
+    {
+      "index": "11",
+      "name": "poly-sinc-long-ip",
+      "value": "25",
+      "arg": "1",
+      "description": "4/5 space, transients ⥣ Any"
+    },
+    {
+      "index": "12",
+      "name": "poly-sinc-long-mp",
+      "value": "26",
+      "arg": "1",
+      "description": "4/5 transients ⥣ Any"
+    },
+    {
+      "index": "13",
+      "name": "poly-sinc-hb",
+      "value": "5",
+      "arg": "0",
+      "description": "4/5 ⥣ Any"
+    },
+    {
+      "index": "14",
+      "name": "poly-sinc-hb-xs-2s",
+      "value": "56",
+      "arg": "0",
+      "description": "2/5 ⥣ Any"
+    },
+    {
+      "index": "15",
+      "name": "poly-sinc-hb-s-2s",
+      "value": "57",
+      "arg": "0",
+      "description": "3/5 ⥣ Any"
+    },
+    {
+      "index": "16",
+      "name": "poly-sinc-hb-m-2s",
+      "value": "58",
+      "arg": "0",
+      "description": "3/5 ⥣ Any"
+    },
+    {
+      "index": "17",
+      "name": "poly-sinc-hb-l-2s",
+      "value": "59",
+      "arg": "0",
+      "description": "4/5 ⥣ Any"
+    },
+    {
+      "index": "18",
+      "name": "poly-sinc-ext",
+      "value": "11",
+      "arg": "2",
+      "description": "3/5 ⥣ Int"
+    },
+    {
+      "index": "19",
+      "name": "poly-sinc-ext2",
+      "value": "22",
+      "arg": "1",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "20",
+      "name": "poly-sinc-ext2-short",
+      "value": "70",
+      "arg": "2",
+      "description": "4/5 timbre ⥣ Int"
+    },
+    {
+      "index": "21",
+      "name": "poly-sinc-ext2-medium",
+      "value": "71",
+      "arg": "1",
+      "description": "4/5 timbre ⥣ Any"
+    },
+    {
+      "index": "22",
+      "name": "poly-sinc-ext2-long",
+      "value": "72",
+      "arg": "1",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "23",
+      "name": "poly-sinc-ext2-xla",
+      "value": "32",
+      "arg": "1",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "24",
+      "name": "poly-sinc-ext2-xl",
+      "value": "73",
+      "arg": "0",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "25",
+      "name": "poly-sinc-ext2-hires-lp",
+      "value": "74",
+      "arg": "1",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "26",
+      "name": "poly-sinc-ext2-hires-ip",
+      "value": "75",
+      "arg": "1",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "27",
+      "name": "poly-sinc-ext2-hires-mp",
+      "value": "76",
+      "arg": "1",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "28",
+      "name": "poly-sinc-mqa/mp3-lp",
+      "value": "14",
+      "arg": "1",
+      "description": "4/5 transients ⥣ Any"
+    },
+    {
+      "index": "29",
+      "name": "poly-sinc-mqa/mp3-mp",
+      "value": "15",
+      "arg": "1",
+      "description": "4/5 transients ⥣ Any"
+    },
+    {
+      "index": "30",
+      "name": "poly-sinc-xtr-lp",
+      "value": "17",
+      "arg": "2",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "31",
+      "name": "poly-sinc-xtr-mp",
+      "value": "18",
+      "arg": "2",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "32",
+      "name": "poly-sinc-xtr-short-lp",
+      "value": "34",
+      "arg": "1",
+      "description": "5/5 timbre, transients ⥣ Any"
+    },
+    {
+      "index": "33",
+      "name": "poly-sinc-xtr-short-mp",
+      "value": "35",
+      "arg": "1",
+      "description": "5/5 timbre, transients ⥣ Any"
+    },
+    {
+      "index": "34",
+      "name": "poly-sinc-lp-2s",
+      "value": "6",
+      "arg": "2",
+      "description": "4/5 space ⥣ Any"
+    },
+    {
+      "index": "35",
+      "name": "poly-sinc-mp-2s",
+      "value": "7",
+      "arg": "2",
+      "description": "4/5 transients ⥣ Any"
+    },
+    {
+      "index": "36",
+      "name": "poly-sinc-short-lp-2s",
+      "value": "8",
+      "arg": "2",
+      "description": "3/5 transients, space ⥣ Any"
+    },
+    {
+      "index": "37",
+      "name": "poly-sinc-short-mp-2s",
+      "value": "9",
+      "arg": "2",
+      "description": "3/5 transients ⥣ Any"
+    },
+    {
+      "index": "38",
+      "name": "poly-sinc-long-lp-2s",
+      "value": "27",
+      "arg": "1",
+      "description": "4/5 space ⥣ Any"
+    },
+    {
+      "index": "39",
+      "name": "poly-sinc-long-ip-2s",
+      "value": "28",
+      "arg": "1",
+      "description": "4/5 space, transients ⥣ Any"
+    },
+    {
+      "index": "40",
+      "name": "poly-sinc-long-mp-2s",
+      "value": "29",
+      "arg": "1",
+      "description": "4/5 transients ⥣ Any"
+    },
+    {
+      "index": "41",
+      "name": "poly-sinc-hb-2s",
+      "value": "10",
+      "arg": "0",
+      "description": "4/5 ⥣ Any"
+    },
+    {
+      "index": "42",
+      "name": "poly-sinc-xtr-lp-2s",
+      "value": "19",
+      "arg": "2",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "43",
+      "name": "poly-sinc-xtr-mp-2s",
+      "value": "20",
+      "arg": "2",
+      "description": "5/5 timbre ⥣ Any"
+    },
+    {
+      "index": "44",
+      "name": "poly-sinc-xtr-short-lp-2s",
+      "value": "36",
+      "arg": "1",
+      "description": "5/5 timbre, transients ⥣ Any"
+    },
+    {
+      "index": "45",
+      "name": "poly-sinc-xtr-short-mp-2s",
+      "value": "37",
+      "arg": "1",
+      "description": "5/5 timbre, transients ⥣ Any"
+    },
+    {
+      "index": "46",
+      "name": "poly-sinc-gauss-short",
+      "value": "38",
+      "arg": "2",
+      "description": "3/5 transients ⥣ Int"
+    },
+    {
+      "index": "47",
+      "name": "poly-sinc-gauss-medium",
+      "value": "39",
+      "arg": "1",
+      "description": "4/5 transients, timbre ⥣ Any"
+    },
+    {
+      "index": "48",
+      "name": "poly-sinc-gauss-long",
+      "value": "40",
+      "arg": "1",
+      "description": "5/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "49",
+      "name": "poly-sinc-gauss-xla",
+      "value": "42",
+      "arg": "1",
+      "description": "5/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "50",
+      "name": "poly-sinc-gauss-xl",
+      "value": "41",
+      "arg": "0",
+      "description": "5/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "51",
+      "name": "poly-sinc-gauss-hires-lp",
+      "value": "43",
+      "arg": "1",
+      "description": "5/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "52",
+      "name": "poly-sinc-gauss-hires-ip",
+      "value": "44",
+      "arg": "1",
+      "description": "5/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "53",
+      "name": "poly-sinc-gauss-hires-mp",
+      "value": "45",
+      "arg": "1",
+      "description": "5/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "54",
+      "name": "poly-sinc-gauss-halfband",
+      "value": "54",
+      "arg": "0",
+      "description": "4/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "55",
+      "name": "poly-sinc-gauss-halfband-s",
+      "value": "55",
+      "arg": "0",
+      "description": "3/5 transients, timbre, space ⥣ Any"
+    },
+    {
+      "index": "56",
+      "name": "polynomial-1",
+      "value": "66",
+      "arg": "0",
+      "description": "1/5 ⥣ Int"
+    },
+    {
+      "index": "57",
+      "name": "polynomial-2",
+      "value": "67",
+      "arg": "0",
+      "description": "1/5 ⥣ Int"
+    },
+    {
+      "index": "58",
+      "name": "minringFIR-lp",
+      "value": "4",
+      "arg": "0",
+      "description": "2/5 transients ⥣ Int"
+    },
+    {
+      "index": "59",
+      "name": "minringFIR-mp",
+      "value": "16",
+      "arg": "0",
+      "description": "2/5 transients ⥣ Int"
+    },
+    {
+      "index": "60",
+      "name": "closed-form",
+      "value": "12",
+      "arg": "0",
+      "description": "3/5 ⥣ 2^x"
+    },
+    {
+      "index": "61",
+      "name": "closed-form-fast",
+      "value": "13",
+      "arg": "0",
+      "description": "2/5 ⥣ 2^x"
+    },
+    {
+      "index": "62",
+      "name": "closed-form-16M",
+      "value": "21",
+      "arg": "0",
+      "description": "3/5 ⥣ 2^x"
+    },
+    {
+      "index": "63",
+      "name": "sinc-S",
+      "value": "30",
+      "arg": "1",
+      "description": "4/5 space, timbre ⥣ 2^x"
+    },
+    {
+      "index": "64",
+      "name": "sinc-M",
+      "value": "23",
+      "arg": "1",
+      "description": "4/5 space, timbre ⥣ 2^x"
+    },
+    {
+      "index": "65",
+      "name": "sinc-Mx",
+      "value": "33",
+      "arg": "1",
+      "description": "4/5 space, timbre ⥣ 2^x"
+    },
+    {
+      "index": "66",
+      "name": "sinc-MG",
+      "value": "49",
+      "arg": "0",
+      "description": "4/5 transients, timbre, space ⥣ 2^x"
+    },
+    {
+      "index": "67",
+      "name": "sinc-MGa",
+      "value": "50",
+      "arg": "1",
+      "description": "4/5 transients, timbre, space ⥣ 2^x"
+    },
+    {
+      "index": "68",
+      "name": "sinc-L",
+      "value": "31",
+      "arg": "0",
+      "description": "3/5 ⥣ 2^x"
+    },
+    {
+      "index": "69",
+      "name": "sinc-Ls",
+      "value": "46",
+      "arg": "0",
+      "description": "2/5 ⥣ 2^x"
+    },
+    {
+      "index": "70",
+      "name": "sinc-Lm",
+      "value": "47",
+      "arg": "0",
+      "description": "2/5 ⥣ 2^x"
+    },
+    {
+      "index": "71",
+      "name": "sinc-Ll",
+      "value": "48",
+      "arg": "0",
+      "description": "3/5 ⥣ 2^x"
+    },
+    {
+      "index": "72",
+      "name": "sinc-Lh",
+      "value": "68",
+      "arg": "0",
+      "description": "4/5 ⥣ 2^x"
+    },
+    {
+      "index": "73",
+      "name": "sinc-short",
+      "value": "51",
+      "arg": "0",
+      "description": "2/5 ⥣ Any"
+    },
+    {
+      "index": "74",
+      "name": "sinc-medium",
+      "value": "52",
+      "arg": "0",
+      "description": "2/5 ⥣ Any"
+    },
+    {
+      "index": "75",
+      "name": "sinc-long",
+      "value": "53",
+      "arg": "0",
+      "description": "3/5 ⥣ Any"
+    },
+    {
+      "index": "76",
+      "name": "sinc-long-h",
+      "value": "69",
+      "arg": "0",
+      "description": "4/5 ⥣ Any"
+    }
+  ],
+  "shapers_sdm": [
+    {
+      "index": "0",
+      "name": "DSD5",
+      "value": "0"
+    },
+    {
+      "index": "1",
+      "name": "DSD5v2",
+      "value": "1"
+    },
+    {
+      "index": "2",
+      "name": "DSD5v2 256+fs",
+      "value": "3"
+    },
+    {
+      "index": "3",
+      "name": "DSD5EC",
+      "value": "9"
+    },
+    {
+      "index": "4",
+      "name": "ASDM5",
+      "value": "5"
+    },
+    {
+      "index": "5",
+      "name": "ASDM5EC",
+      "value": "10"
+    },
+    {
+      "index": "6",
+      "name": "ASDM5ECv2",
+      "value": "13"
+    },
+    {
+      "index": "7",
+      "name": "ASDM5ECv3",
+      "value": "15"
+    },
+    {
+      "index": "8",
+      "name": "ASDM5EC-ul",
+      "value": "28"
+    },
+    {
+      "index": "9",
+      "name": "ASDM5EC-light",
+      "value": "17"
+    },
+    {
+      "index": "10",
+      "name": "ASDM5EC-fast",
+      "value": "32"
+    },
+    {
+      "index": "11",
+      "name": "ASDM5EC-super",
+      "value": "19"
+    },
+    {
+      "index": "12",
+      "name": "ASDM5EC-ul 512+fs",
+      "value": "30"
+    },
+    {
+      "index": "13",
+      "name": "ASDM5EC-light 512+fs",
+      "value": "21"
+    },
+    {
+      "index": "14",
+      "name": "ASDM5EC-fast 512+fs",
+      "value": "34"
+    },
+    {
+      "index": "15",
+      "name": "ASDM5EC-super 512+fs",
+      "value": "23"
+    },
+    {
+      "index": "16",
+      "name": "DSD7",
+      "value": "2"
+    },
+    {
+      "index": "17",
+      "name": "DSD7 256+fs",
+      "value": "4"
+    },
+    {
+      "index": "18",
+      "name": "ASDM7",
+      "value": "6"
+    },
+    {
+      "index": "19",
+      "name": "ASDM7EC",
+      "value": "11"
+    },
+    {
+      "index": "20",
+      "name": "ASDM7ECv2",
+      "value": "14"
+    },
+    {
+      "index": "21",
+      "name": "ASDM7ECv3",
+      "value": "16"
+    },
+    {
+      "index": "22",
+      "name": "ASDM7EC-ul",
+      "value": "29"
+    },
+    {
+      "index": "23",
+      "name": "ASDM7EC-light",
+      "value": "18"
+    },
+    {
+      "index": "24",
+      "name": "ASDM7EC-fast",
+      "value": "33"
+    },
+    {
+      "index": "25",
+      "name": "ASDM7EC-super",
+      "value": "20"
+    },
+    {
+      "index": "26",
+      "name": "ASDM7EC-ul 512+fs",
+      "value": "31"
+    },
+    {
+      "index": "27",
+      "name": "ASDM7EC-light 512+fs",
+      "value": "22"
+    },
+    {
+      "index": "28",
+      "name": "ASDM7EC-fast 512+fs",
+      "value": "35"
+    },
+    {
+      "index": "29",
+      "name": "ASDM7EC-super 512+fs",
+      "value": "24"
+    },
+    {
+      "index": "30",
+      "name": "AMSDM7 512+fs",
+      "value": "7"
+    },
+    {
+      "index": "31",
+      "name": "AMSDM7EC 512+fs",
+      "value": "12"
+    },
+    {
+      "index": "32",
+      "name": "AHM5EC5L",
+      "value": "26"
+    },
+    {
+      "index": "33",
+      "name": "AHM7EC5L",
+      "value": "8"
+    },
+    {
+      "index": "34",
+      "name": "AHM5EC8B",
+      "value": "27"
+    },
+    {
+      "index": "35",
+      "name": "AHM7EC8B",
+      "value": "25"
+    }
+  ],
+  "rates_sdm": [
+    {
+      "index": "0",
+      "rate": "0"
+    },
+    {
+      "index": "1",
+      "rate": "2822400"
+    },
+    {
+      "index": "2",
+      "rate": "3072000"
+    },
+    {
+      "index": "3",
+      "rate": "5644800"
+    },
+    {
+      "index": "4",
+      "rate": "6144000"
+    },
+    {
+      "index": "5",
+      "rate": "11289600"
+    },
+    {
+      "index": "6",
+      "rate": "12288000"
+    },
+    {
+      "index": "7",
+      "rate": "22579200"
+    },
+    {
+      "index": "8",
+      "rate": "24576000"
+    },
+    {
+      "index": "9",
+      "rate": "45158400"
+    },
+    {
+      "index": "10",
+      "rate": "49152000"
+    }
+  ],
+  "junk_filters": [
+    {
+      "index": "0",
+      "name": "none",
+      "value": "0"
+    },
+    {
+      "index": "1",
+      "name": "20k",
+      "value": "1"
+    },
+    {
+      "index": "2",
+      "name": "30k",
+      "value": "2"
+    },
+    {
+      "index": "3",
+      "name": "40k",
+      "value": "3"
+    },
+    {
+      "index": "4",
+      "name": "50k",
+      "value": "4"
+    },
+    {
+      "index": "5",
+      "name": "2x",
+      "value": "5"
+    },
+    {
+      "index": "6",
+      "name": "4x",
+      "value": "6"
+    },
+    {
+      "index": "7",
+      "name": "8x",
+      "value": "7"
+    }
+  ],
+  "filters_pcm": "_UNCAPTURED: engine in SDM mode + active playback at capture; mode switch is a write. Capture when idle (Phase 2 backend can do it).",
+  "shapers_pcm": "_UNCAPTURED: engine in SDM mode + active playback at capture; mode switch is a write. Capture when idle (Phase 2 backend can do it)."
+}

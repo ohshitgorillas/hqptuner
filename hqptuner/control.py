@@ -1,0 +1,152 @@
+"""HQPlayer Control API (TCP 4321) client.
+
+Wire behavior per docs/protocol.md §1/§4: each request is a complete XML
+document; responses are XML documents with newline as a flush hint, so the
+receiver accumulates and parses until a document is valid. Lenient in both
+directions: bare '&' in attribute values is re-escaped before parsing
+(hqpexporter-observed daemon quirk), and entity-escaped-twice attribute
+values are unescaped once more after parsing (reference-client behavior).
+"""
+
+import asyncio
+import logging
+import re
+import socket
+import xml.etree.ElementTree as ET
+
+from defusedxml.ElementTree import fromstring as _safe_fromstring
+
+log = logging.getLogger(__name__)
+
+XML_HDR = '<?xml version="1.0" encoding="UTF-8"?>'
+MAX_RESPONSE = 4 * 1024 * 1024
+
+_BARE_AMP = re.compile(r"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)")
+_ENTITIES = (("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&apos;", "'"), ("&amp;", "&"))
+
+ENUM_COMMANDS = {
+    "modes": "GetModes",
+    "filters": "GetFilters",
+    "shapers": "GetShapers",
+    "rates": "GetRates",
+    "junk_filters": "GetJunkFilters",
+}
+
+
+class ControlError(Exception):
+    pass
+
+
+class CommandError(ControlError):
+    """Daemon answered result="Error"."""
+
+
+def _lenient_fromstring(body: str) -> ET.Element:
+    try:
+        root: ET.Element = _safe_fromstring(body)
+    except ET.ParseError:
+        root = _safe_fromstring(_BARE_AMP.sub("&amp;", body))
+    return root
+
+
+def _unescape_attrs(root: ET.Element) -> ET.Element:
+    for el in root.iter():
+        for key, val in el.attrib.items():
+            if "&" in val:
+                for ent, ch in _ENTITIES:
+                    val = val.replace(ent, ch)
+                el.attrib[key] = val
+    return root
+
+
+class ControlClient:
+    def __init__(self, host: str = "127.0.0.1", port: int = 4321, timeout: float = 5.0):
+        self._host = host
+        self._port = port
+        self._timeout = timeout
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._lock = asyncio.Lock()
+
+    @property
+    def connected(self) -> bool:
+        return self._writer is not None
+
+    async def connect(self) -> None:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(self._host, self._port), self._timeout
+        )
+        self._reader, self._writer = reader, writer
+        sock = writer.get_extra_info("socket")
+        if sock is not None:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+    async def close(self) -> None:
+        if self._writer is not None:
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except OSError:
+                pass
+            self._reader = self._writer = None
+
+    async def request(self, element: str) -> ET.Element:
+        """Send one XML command document, return the parsed response root."""
+        if self._writer is None:
+            raise ControlError("not connected")
+        async with self._lock:
+            self._writer.write((XML_HDR + element).encode())
+            await asyncio.wait_for(self._writer.drain(), self._timeout)
+            return await self._recv_document()
+
+    async def _recv_document(self) -> ET.Element:
+        reader = self._reader
+        if reader is None:
+            raise ControlError("not connected")
+        data = b""
+        while True:
+            chunk = await asyncio.wait_for(reader.read(65536), self._timeout)
+            if not chunk:
+                raise ControlError("connection closed by daemon")
+            data += chunk
+            text = data.decode("utf-8", errors="replace")
+            body = text.split("?>", 1)[-1].strip() if "?>" in text else text.strip()
+            if body:
+                try:
+                    return _unescape_attrs(_lenient_fromstring(body))
+                except ET.ParseError:
+                    pass  # incomplete document — keep reading
+            if len(data) > MAX_RESPONSE:
+                raise ControlError("response exceeds size limit")
+
+    # --- typed helpers -------------------------------------------------
+
+    async def get_info(self) -> dict[str, str]:
+        return dict((await self.request("<GetInfo/>")).attrib)
+
+    async def get_state(self) -> dict[str, str]:
+        return dict((await self.request("<State/>")).attrib)
+
+    async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
+        root = await self.request('<Status subscribe="0"/>')
+        meta = root.find("metadata")
+        return dict(root.attrib), (dict(meta.attrib) if meta is not None else None)
+
+    async def get_enumeration(self, command: str) -> list[dict[str, str]]:
+        root = await self.request(f"<{command}/>")
+        return [dict(item.attrib) for item in root]
+
+    async def get_all_enumerations(self) -> dict[str, list[dict[str, str]]]:
+        return {key: await self.get_enumeration(cmd) for key, cmd in ENUM_COMMANDS.items()}
+
+    async def set_command(self, element_name: str, **attrs: str) -> ET.Element:
+        """Setter with result check. result="OK" or absent (SetAdaptiveVolume
+        quirk, protocol.md §9.9) passes; result="Error" raises with the reason.
+        Note result="OK" is not proof of application — callers verify by State
+        readback (protocol.md §6 caveat)."""
+        attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
+        root = await self.request(f"<{element_name}{attr_str}/>")
+        result = root.get("result")
+        if result is not None and result != "OK":
+            raise CommandError(f"{element_name}: {result}: {(root.text or '').strip()}")
+        return root

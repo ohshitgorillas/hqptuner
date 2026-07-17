@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+<meta charset="UTF-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta name="google" content="notranslate"/>
+<link rel="stylesheet" type="text/css" href="/files/default.css" media="screen"/>
+<title>Signalyst HQPlayer Embedded - Adam Goldsmith</title>
+</head>
+<body>
+<div class="container">
+<div class="content">
+<div class="header"><div class="title"><h1>Signalyst HQPlayer Embedded</h1></div></div>
+<div class="menubar"><table style="width:100%"><tr><td><a href="/">Main</a></td><td><a href="/input">Input</a></td><td><a href="/library">Library</a></td><td><a href="/config">Configuration</a></td><td><a href="/speakers">Speakers</a></td><td><a href="/convolution">Convolution</a></td><td><a href="/matrix">Matrix</a></td><td><a href="/backup">Backup</a></td><td><a href="/restore">Restore</a></td><td><a href="/about">About</a></td><td><a href="/auth">Authentication</a></td><td><a href="/key">Key</a></td><td><a href="/log">Log</a></td></tr></table></div>
+<form method="post">
+<div class="help"><a href="files/config.html">Help</a></div>
+<h2>Generic</h2>
+<div class="item">
+<h3>Title</h3>
+<input type="text" name="title" value="Opal" required/>
+</div>
+<div class="item">
+<h3>Backend</h3>
+<br><select name="backend">
+<option value="alsa">ALSA</option>
+<option value="network" selected>Network Audio</option>
+<option value="combo">Combo</option>
+</select>
+</div>
+<div class="item">
+<h3>Output mode</h3>
+<br><select name="mode">
+<option value="auto">Auto</option>
+<option value="pcm">PCM</option>
+<option value="sdm" selected>SDM</option>
+</select>
+</div>
+<div class="item">
+<h3>Fixed volume (dBFS)</h3>
+<input type="checkbox" name="volume_fixed" value="1" checked/> optimal ISO<br>
+<input type="checkbox" name="fixed_volume_enabled" value="1"/> enabled<br>
+<input type="number" name="fixed_volume" value="-3" min="-60" max="0"/>
+</div>
+<div class="item">
+<h3>Max volume (dBFS)</h3>
+<input type="number" name="volume_max" value="0" min="-120" max="12"/><br>
+<h3>Min volume (dBFS)</h3>
+<input type="number" name="volume_min" value="-60" min="-120" max="0"/>
+</div>
+<div class="item">
+<h3>Startup volume (dBFS)</h3>
+<input type="number" name="defaults_volume" value="-3" min="-60" max="0"/>
+</div>
+<div class="item">
+<h3>PCM gain compensation (dB)</h3>
+<input type="number" name="gain_comp" value="0" min="-12" max="0" step="0.1"/>
+</div>
+<div class="item">
+<h3>Adaptive volume</h3>
+<input type="checkbox" name="adaptive_volume" value="1"/> enabled<br>
+<h3>Playlist album gain</h3>
+<input type="checkbox" name="playlist_album_gain" value="1"/> enabled<br>
+</div>
+<div class="item">
+<h3>Channels</h3>
+<input type="number" name="channels" value="2" min="2" max="32"/>
+</div>
+<div class="item">
+<h3>FFT filter length</h3>
+<br><select name="fft_size">
+<option value="128">128</option>
+<option value="256">256</option>
+<option value="512" selected>512</option>
+<option value="1024">1024</option>
+<option value="2048">2048</option>
+<option value="4096">4096</option>
+<option value="8192">8192</option>
+<option value="16384">16384</option>
+</select>
+</div>
+<div class="item">
+<h3>Idle time</h3>
+<br><select name="idle_time">
+<option value="0" selected>Default</option>
+<option value="10000">10</option>
+<option value="20000">20</option>
+<option value="30000">30</option>
+<option value="60000">60</option>
+</select>
+</div>
+<div class="item">
+<h3>DSP pipelines</h3>
+<br><select name="pipelines">
+<option value="2" selected>2</option>
+<option value="4">4</option>
+<option value="8">8</option>
+<option value="16">16</option>
+<option value="24">24</option>
+<option value="32">32</option>
+<option value="40">40</option>
+<option value="48">48</option>
+<option value="56">56</option>
+<option value="64">64</option>
+<option value="72">72</option>
+<option value="80">80</option>
+<option value="88">88</option>
+<option value="96">96</option>
+<option value="104">104</option>
+<option value="112">112</option>
+<option value="120">120</option>
+<option value="128">128</option>
+</select>
+</div>
+<div class="item">
+<h3>Options</h3>
+<input type="checkbox" name="pre_before_meter" value="1"/> Pre before meter<br>
+<input type="checkbox" name="auto_family" value="1"/> Auto rate family<br>
+<input type="checkbox" name="quick_pause" value="1"/> Quick pause<br>
+Short buffer<br>
+<select name="short_buffer">
+<option value="0" selected>Normal</option>
+<option value="1">Short</option>
+<option value="2">Minimum</option>
+</select><br>
+</div>
+<div class="item">
+<h3>UPnP</h3>
+<input type="checkbox" name="upnp_freewheel" value="1"/> Freewheel<br>
+</div>
+<div class="item">
+<h3>Log file</h3>
+<input type="checkbox" name="log_enabled" value="1" checked/> enabled
+<br><input type="text" name="log_file" value="/tmp/hqplayerd.log" maxlength="256"/>
+</div>
+<div class="clear"><span></span></div>
+<h2>DSD sources</h2>
+<div class="item">
+<input type="checkbox" name="direct_sdm" value="1" checked/> Direct SDM
+<br><h3>Integrator</h3>
+<br><select name="integrator">
+<option value="0">IIR</option>
+<option value="3">IIR2</option>
+<option value="4">IIR3</option>
+<option value="1">FIR</option>
+<option value="5" selected>FIR2</option>
+<option value="6">FIR-bl</option>
+<option value="7">FIR-bw</option>
+<option value="2">CIC</option>
+</select>
+<br><h3>SDM-SDM Conversion</h3>
+<br><select name="sdm_conversion">
+<option value="0">wide</option>
+<option value="1">narrow</option>
+<option value="2" selected>XFi</option>
+</select>
+</div>
+<div class="item">
+<input type="checkbox" name="dsd_6db" value="1" checked/> Gain +6 dB
+<br><h3>Noise filter</h3>
+<br><select name="noise_filter">
+<option value="0">standard</option>
+<option value="1">low</option>
+<option value="10">high-order</option>
+<option value="7">sac</option>
+<option value="8">wec</option>
+<option value="11">wec2</option>
+<option value="2">slow-lp</option>
+<option value="3">slow-mp</option>
+<option value="12" selected>medium</option>
+<option value="6">medium-high</option>
+<option value="4">fast-lp</option>
+<option value="5">fast-mp</option>
+<option value="13">brickwall</option>
+</select>
+<br><h3>SDM-PCM Conversion</h3>
+<br><select name="pcm_conversion">
+<option value="0">traditional</option>
+<option value="1">single-steep</option>
+<option value="2">single-short</option>
+<option value="10">sinc-S</option>
+<option value="9">sinc-M</option>
+<option value="3">poly-lp</option>
+<option value="4">poly-mp</option>
+<option value="5">poly-short-lp</option>
+<option value="6">poly-short-mp</option>
+<option value="7">poly-xtr</option>
+<option value="11">poly-xtr-short</option>
+<option value="8" selected>poly-ext2</option>
+<option value="12">poly-gauss-long</option>
+<option value="254">none</option>
+</select>
+</div>
+<div class="clear"><span></span></div>
+<h2>PCM settings</h2>
+<div class="item">
+<h3>1x Filter</h3>
+<br><select name="filter1x">
+<option value="0">none</option>
+<option value="1">IIR</option>
+<option value="57">IIR2</option>
+<option value="2">FIR</option>
+<option value="3">asymFIR</option>
+<option value="4">minphaseFIR</option>
+<option value="5">FFT</option>
+<option value="6">poly-sinc-lp</option>
+<option value="7">poly-sinc-mp</option>
+<option value="8">poly-sinc-short-lp</option>
+<option value="9">poly-sinc-short-mp</option>
+<option value="26">poly-sinc-long-lp</option>
+<option value="27">poly-sinc-long-ip</option>
+<option value="28">poly-sinc-long-mp</option>
+<option value="14">poly-sinc-hb</option>
+<option value="53">poly-sinc-hb-xs</option>
+<option value="54">poly-sinc-hb-s</option>
+<option value="55">poly-sinc-hb-m</option>
+<option value="56">poly-sinc-hb-l</option>
+<option value="15">poly-sinc-ext</option>
+<option value="24">poly-sinc-ext2</option>
+<option value="60">poly-sinc-ext2-short</option>
+<option value="61">poly-sinc-ext2-medium</option>
+<option value="62">poly-sinc-ext2-long</option>
+<option value="32">poly-sinc-ext2-xla</option>
+<option value="63">poly-sinc-ext2-xl</option>
+<option value="64">poly-sinc-ext2-hires-lp</option>
+<option value="65">poly-sinc-ext2-hires-ip</option>
+<option value="66">poly-sinc-ext2-hires-mp</option>
+<option value="18">poly-sinc-mqa/mp3-lp</option>
+<option value="19">poly-sinc-mqa/mp3-mp</option>
+<option value="21">poly-sinc-xtr-lp</option>
+<option value="22">poly-sinc-xtr-mp</option>
+<option value="33">poly-sinc-xtr-short-lp</option>
+<option value="34">poly-sinc-xtr-short-mp</option>
+<option value="35">poly-sinc-gauss-short</option>
+<option value="36">poly-sinc-gauss-medium</option>
+<option value="37" selected>poly-sinc-gauss-long</option>
+<option value="39">poly-sinc-gauss-xla</option>
+<option value="38">poly-sinc-gauss-xl</option>
+<option value="40">poly-sinc-gauss-hires-lp</option>
+<option value="41">poly-sinc-gauss-hires-ip</option>
+<option value="42">poly-sinc-gauss-hires-mp</option>
+<option value="51">poly-sinc-gauss-halfband</option>
+<option value="52">poly-sinc-gauss-halfband-s</option>
+<option value="10">ASRC</option>
+<option value="11">polynomial-1</option>
+<option value="12">polynomial-2</option>
+<option value="13">minringFIR-lp</option>
+<option value="20">minringFIR-mp</option>
+<option value="16">closed-form</option>
+<option value="17">closed-form-fast</option>
+<option value="23">closed-form-M</option>
+<option value="29">sinc-S</option>
+<option value="25">sinc-M</option>
+<option value="31">sinc-Mx</option>
+<option value="46">sinc-MG</option>
+<option value="47">sinc-MGa</option>
+<option value="30">sinc-L</option>
+<option value="43">sinc-Ls</option>
+<option value="44">sinc-Lm</option>
+<option value="45">sinc-Ll</option>
+<option value="58">sinc-Lh</option>
+<option value="48">sinc-short</option>
+<option value="49">sinc-medium</option>
+<option value="50">sinc-long</option>
+<option value="59">sinc-long-h</option>
+</select>
+</div>
+<div class="item">
+<h3>Nx Filter</h3>
+<br><select name="filter">
+<option value="0">none</option>
+<option value="1">IIR</option>
+<option value="57">IIR2</option>
+<option value="2">FIR</option>
+<option value="3">asymFIR</option>
+<option value="4">minphaseFIR</option>
+<option value="5">FFT</option>
+<option value="6">poly-sinc-lp</option>
+<option value="7">poly-sinc-mp</option>
+<option value="8">poly-sinc-short-lp</option>
+<option value="9">poly-sinc-short-mp</option>
+<option value="26">poly-sinc-long-lp</option>
+<option value="27">poly-sinc-long-ip</option>
+<option value="28">poly-sinc-long-mp</option>
+<option value="14">poly-sinc-hb</option>
+<option value="53">poly-sinc-hb-xs</option>
+<option value="54">poly-sinc-hb-s</option>
+<option value="55">poly-sinc-hb-m</option>
+<option value="56">poly-sinc-hb-l</option>
+<option value="15">poly-sinc-ext</option>
+<option value="24">poly-sinc-ext2</option>
+<option value="60">poly-sinc-ext2-short</option>
+<option value="61">poly-sinc-ext2-medium</option>
+<option value="62">poly-sinc-ext2-long</option>
+<option value="32">poly-sinc-ext2-xla</option>
+<option value="63">poly-sinc-ext2-xl</option>
+<option value="64">poly-sinc-ext2-hires-lp</option>
+<option value="65">poly-sinc-ext2-hires-ip</option>
+<option value="66">poly-sinc-ext2-hires-mp</option>
+<option value="18">poly-sinc-mqa/mp3-lp</option>
+<option value="19">poly-sinc-mqa/mp3-mp</option>
+<option value="21">poly-sinc-xtr-lp</option>
+<option value="22">poly-sinc-xtr-mp</option>
+<option value="33">poly-sinc-xtr-short-lp</option>
+<option value="34">poly-sinc-xtr-short-mp</option>
+<option value="35">poly-sinc-gauss-short</option>
+<option value="36">poly-sinc-gauss-medium</option>
+<option value="37">poly-sinc-gauss-long</option>
+<option value="39">poly-sinc-gauss-xla</option>
+<option value="38">poly-sinc-gauss-xl</option>
+<option value="40" selected>poly-sinc-gauss-hires-lp</option>
+<option value="41">poly-sinc-gauss-hires-ip</option>
+<option value="42">poly-sinc-gauss-hires-mp</option>
+<option value="51">poly-sinc-gauss-halfband</option>
+<option value="52">poly-sinc-gauss-halfband-s</option>
+<option value="10">ASRC</option>
+<option value="11">polynomial-1</option>
+<option value="12">polynomial-2</option>
+<option value="13">minringFIR-lp</option>
+<option value="20">minringFIR-mp</option>
+<option value="16">closed-form</option>
+<option value="17">closed-form-fast</option>
+<option value="23">closed-form-M</option>
+<option value="29">sinc-S</option>
+<option value="25">sinc-M</option>
+<option value="31">sinc-Mx</option>
+<option value="46">sinc-MG</option>
+<option value="47">sinc-MGa</option>
+<option value="30">sinc-L</option>
+<option value="43">sinc-Ls</option>
+<option value="44">sinc-Lm</option>
+<option value="45">sinc-Ll</option>
+<option value="58">sinc-Lh</option>
+<option value="48">sinc-short</option>
+<option value="49">sinc-medium</option>
+<option value="50">sinc-long</option>
+<option value="59">sinc-long-h</option>
+</select>
+</div>
+<div class="item">
+<h3>Dither</h3>
+<br><select name="dither">
+<option value="0">none</option>
+<option value="1">NS1</option>
+<option value="2">NS4</option>
+<option value="7">NS5</option>
+<option value="3" selected>NS9</option>
+<option value="9">LNS15</option>
+<option value="4">RPDF</option>
+<option value="5">TPDF</option>
+<option value="8">Gauss1</option>
+<option value="6">shaped</option>
+</select>
+</div>
+<div class="item">
+<h3>Sample rate</h3>
+<br><select name="samplerate">
+<option value="0" selected>Auto</option>
+<option value="32000">32000</option>
+<option value="44100">44100</option>
+<option value="48000">48000</option>
+<option value="64000">64000</option>
+<option value="88200">88200</option>
+<option value="96000">96000</option>
+<option value="128000">128000</option>
+<option value="176400">176400</option>
+<option value="192000">192000</option>
+<option value="256000">256000</option>
+<option value="352800">352800</option>
+<option value="384000">384000</option>
+<option value="512000">512000</option>
+<option value="705600">705600</option>
+<option value="768000">768000</option>
+<option value="1024000">1024000</option>
+<option value="1411200">1411200</option>
+<option value="1536000">1536000</option>
+</select>
+</div>
+<div class="item">
+<h3>Rate limit</h3>
+<br><select name="defaults_samplerate">
+<option value="32000">32000</option>
+<option value="44100">44100</option>
+<option value="48000">48000</option>
+<option value="64000">64000</option>
+<option value="88200">88200</option>
+<option value="96000">96000</option>
+<option value="128000">128000</option>
+<option value="176400">176400</option>
+<option value="192000" selected>192000</option>
+<option value="256000">256000</option>
+<option value="352800">352800</option>
+<option value="384000">384000</option>
+<option value="512000">512000</option>
+<option value="705600">705600</option>
+<option value="768000">768000</option>
+<option value="1024000">1024000</option>
+<option value="1411200">1411200</option>
+<option value="1536000">1536000</option>
+</select>
+</div>
+<div class="clear"><span></span></div>
+<h2>SDM settings</h2>
+<div class="item">
+<h3>1x Oversampling</h3>
+<br><select name="oversampling1x">
+<option value="64">IIR</option>
+<option value="65">IIR2</option>
+<option value="61">FIR</option>
+<option value="62">asymFIR</option>
+<option value="63">minphaseFIR</option>
+<option value="60">FFT</option>
+<option value="0">poly-sinc-lp</option>
+<option value="1">poly-sinc-mp</option>
+<option value="2">poly-sinc-short-lp</option>
+<option value="3">poly-sinc-short-mp</option>
+<option value="24">poly-sinc-long-lp</option>
+<option value="25">poly-sinc-long-ip</option>
+<option value="26">poly-sinc-long-mp</option>
+<option value="5">poly-sinc-hb</option>
+<option value="56">poly-sinc-hb-xs-2s</option>
+<option value="57">poly-sinc-hb-s-2s</option>
+<option value="58">poly-sinc-hb-m-2s</option>
+<option value="59">poly-sinc-hb-l-2s</option>
+<option value="11">poly-sinc-ext</option>
+<option value="22">poly-sinc-ext2</option>
+<option value="70">poly-sinc-ext2-short</option>
+<option value="71">poly-sinc-ext2-medium</option>
+<option value="72">poly-sinc-ext2-long</option>
+<option value="32">poly-sinc-ext2-xla</option>
+<option value="73">poly-sinc-ext2-xl</option>
+<option value="74">poly-sinc-ext2-hires-lp</option>
+<option value="75">poly-sinc-ext2-hires-ip</option>
+<option value="76">poly-sinc-ext2-hires-mp</option>
+<option value="14">poly-sinc-mqa/mp3-lp</option>
+<option value="15">poly-sinc-mqa/mp3-mp</option>
+<option value="17">poly-sinc-xtr-lp</option>
+<option value="18">poly-sinc-xtr-mp</option>
+<option value="34">poly-sinc-xtr-short-lp</option>
+<option value="35">poly-sinc-xtr-short-mp</option>
+<option value="6">poly-sinc-lp-2s</option>
+<option value="7">poly-sinc-mp-2s</option>
+<option value="8">poly-sinc-short-lp-2s</option>
+<option value="9">poly-sinc-short-mp-2s</option>
+<option value="27">poly-sinc-long-lp-2s</option>
+<option value="28">poly-sinc-long-ip-2s</option>
+<option value="29">poly-sinc-long-mp-2s</option>
+<option value="10">poly-sinc-hb-2s</option>
+<option value="19">poly-sinc-xtr-lp-2s</option>
+<option value="20">poly-sinc-xtr-mp-2s</option>
+<option value="36">poly-sinc-xtr-short-lp-2s</option>
+<option value="37">poly-sinc-xtr-short-mp-2s</option>
+<option value="38">poly-sinc-gauss-short</option>
+<option value="39">poly-sinc-gauss-medium</option>
+<option value="40" selected>poly-sinc-gauss-long</option>
+<option value="42">poly-sinc-gauss-xla</option>
+<option value="41">poly-sinc-gauss-xl</option>
+<option value="43">poly-sinc-gauss-hires-lp</option>
+<option value="44">poly-sinc-gauss-hires-ip</option>
+<option value="45">poly-sinc-gauss-hires-mp</option>
+<option value="54">poly-sinc-gauss-halfband</option>
+<option value="55">poly-sinc-gauss-halfband-s</option>
+<option value="66">polynomial-1</option>
+<option value="67">polynomial-2</option>
+<option value="4">minringFIR-lp</option>
+<option value="16">minringFIR-mp</option>
+<option value="12">closed-form</option>
+<option value="13">closed-form-fast</option>
+<option value="21">closed-form-16M</option>
+<option value="30">sinc-S</option>
+<option value="23">sinc-M</option>
+<option value="33">sinc-Mx</option>
+<option value="49">sinc-MG</option>
+<option value="50">sinc-MGa</option>
+<option value="31">sinc-L</option>
+<option value="46">sinc-Ls</option>
+<option value="47">sinc-Lm</option>
+<option value="48">sinc-Ll</option>
+<option value="68">sinc-Lh</option>
+<option value="51">sinc-short</option>
+<option value="52">sinc-medium</option>
+<option value="53">sinc-long</option>
+<option value="69">sinc-long-h</option>
+</select>
+</div>
+<div class="item">
+<h3>Nx Oversampling</h3>
+<br><select name="oversampling">
+<option value="64">IIR</option>
+<option value="65">IIR2</option>
+<option value="61">FIR</option>
+<option value="62">asymFIR</option>
+<option value="63">minphaseFIR</option>
+<option value="60">FFT</option>
+<option value="0">poly-sinc-lp</option>
+<option value="1">poly-sinc-mp</option>
+<option value="2">poly-sinc-short-lp</option>
+<option value="3">poly-sinc-short-mp</option>
+<option value="24">poly-sinc-long-lp</option>
+<option value="25">poly-sinc-long-ip</option>
+<option value="26">poly-sinc-long-mp</option>
+<option value="5">poly-sinc-hb</option>
+<option value="56">poly-sinc-hb-xs-2s</option>
+<option value="57">poly-sinc-hb-s-2s</option>
+<option value="58">poly-sinc-hb-m-2s</option>
+<option value="59">poly-sinc-hb-l-2s</option>
+<option value="11">poly-sinc-ext</option>
+<option value="22">poly-sinc-ext2</option>
+<option value="70">poly-sinc-ext2-short</option>
+<option value="71">poly-sinc-ext2-medium</option>
+<option value="72">poly-sinc-ext2-long</option>
+<option value="32">poly-sinc-ext2-xla</option>
+<option value="73">poly-sinc-ext2-xl</option>
+<option value="74">poly-sinc-ext2-hires-lp</option>
+<option value="75">poly-sinc-ext2-hires-ip</option>
+<option value="76">poly-sinc-ext2-hires-mp</option>
+<option value="14">poly-sinc-mqa/mp3-lp</option>
+<option value="15">poly-sinc-mqa/mp3-mp</option>
+<option value="17">poly-sinc-xtr-lp</option>
+<option value="18">poly-sinc-xtr-mp</option>
+<option value="34">poly-sinc-xtr-short-lp</option>
+<option value="35">poly-sinc-xtr-short-mp</option>
+<option value="6">poly-sinc-lp-2s</option>
+<option value="7">poly-sinc-mp-2s</option>
+<option value="8">poly-sinc-short-lp-2s</option>
+<option value="9">poly-sinc-short-mp-2s</option>
+<option value="27">poly-sinc-long-lp-2s</option>
+<option value="28">poly-sinc-long-ip-2s</option>
+<option value="29">poly-sinc-long-mp-2s</option>
+<option value="10">poly-sinc-hb-2s</option>
+<option value="19">poly-sinc-xtr-lp-2s</option>
+<option value="20">poly-sinc-xtr-mp-2s</option>
+<option value="36">poly-sinc-xtr-short-lp-2s</option>
+<option value="37">poly-sinc-xtr-short-mp-2s</option>
+<option value="38">poly-sinc-gauss-short</option>
+<option value="39">poly-sinc-gauss-medium</option>
+<option value="40">poly-sinc-gauss-long</option>
+<option value="42">poly-sinc-gauss-xla</option>
+<option value="41">poly-sinc-gauss-xl</option>
+<option value="43" selected>poly-sinc-gauss-hires-lp</option>
+<option value="44">poly-sinc-gauss-hires-ip</option>
+<option value="45">poly-sinc-gauss-hires-mp</option>
+<option value="54">poly-sinc-gauss-halfband</option>
+<option value="55">poly-sinc-gauss-halfband-s</option>
+<option value="66">polynomial-1</option>
+<option value="67">polynomial-2</option>
+<option value="4">minringFIR-lp</option>
+<option value="16">minringFIR-mp</option>
+<option value="12">closed-form</option>
+<option value="13">closed-form-fast</option>
+<option value="21">closed-form-16M</option>
+<option value="30">sinc-S</option>
+<option value="23">sinc-M</option>
+<option value="33">sinc-Mx</option>
+<option value="49">sinc-MG</option>
+<option value="50">sinc-MGa</option>
+<option value="31">sinc-L</option>
+<option value="46">sinc-Ls</option>
+<option value="47">sinc-Lm</option>
+<option value="48">sinc-Ll</option>
+<option value="68">sinc-Lh</option>
+<option value="51">sinc-short</option>
+<option value="52">sinc-medium</option>
+<option value="53">sinc-long</option>
+<option value="69">sinc-long-h</option>
+</select>
+</div>
+<div class="item">
+<h3>Modulator</h3>
+<br><select name="modulator">
+<option value="0">DSD5</option>
+<option value="1">DSD5v2</option>
+<option value="3">DSD5v2 256+fs</option>
+<option value="9">DSD5EC</option>
+<option value="5">ASDM5</option>
+<option value="10">ASDM5EC</option>
+<option value="13">ASDM5ECv2</option>
+<option value="15">ASDM5ECv3</option>
+<option value="28">ASDM5EC-ul</option>
+<option value="17">ASDM5EC-light</option>
+<option value="32">ASDM5EC-fast</option>
+<option value="19">ASDM5EC-super</option>
+<option value="30">ASDM5EC-ul 512+fs</option>
+<option value="21">ASDM5EC-light 512+fs</option>
+<option value="34">ASDM5EC-fast 512+fs</option>
+<option value="23">ASDM5EC-super 512+fs</option>
+<option value="2">DSD7</option>
+<option value="4">DSD7 256+fs</option>
+<option value="6">ASDM7</option>
+<option value="11">ASDM7EC</option>
+<option value="14">ASDM7ECv2</option>
+<option value="16">ASDM7ECv3</option>
+<option value="29">ASDM7EC-ul</option>
+<option value="18">ASDM7EC-light</option>
+<option value="33">ASDM7EC-fast</option>
+<option value="20">ASDM7EC-super</option>
+<option value="31">ASDM7EC-ul 512+fs</option>
+<option value="22">ASDM7EC-light 512+fs</option>
+<option value="35">ASDM7EC-fast 512+fs</option>
+<option value="24">ASDM7EC-super 512+fs</option>
+<option value="7">AMSDM7 512+fs</option>
+<option value="12" selected>AMSDM7EC 512+fs</option>
+<option value="26">AHM5EC5L</option>
+<option value="8">AHM7EC5L</option>
+<option value="27">AHM5EC8B</option>
+<option value="25">AHM7EC8B</option>
+</select>
+</div>
+<div class="item">
+<h3>Bit rate</h3>
+<br><select name="bitrate">
+<option value="0" selected>Auto</option>
+<option value="2048000">2048000</option>
+<option value="2822400">2822400</option>
+<option value="3072000">3072000</option>
+<option value="4096000">4096000</option>
+<option value="5644800">5644800</option>
+<option value="6144000">6144000</option>
+<option value="8192000">8192000</option>
+<option value="11289600">11289600</option>
+<option value="12000000">12000000</option>
+<option value="12288000">12288000</option>
+<option value="16384000">16384000</option>
+<option value="22579200">22579200</option>
+<option value="24000000">24000000</option>
+<option value="24576000">24576000</option>
+<option value="32768000">32768000</option>
+<option value="45158400">45158400</option>
+<option value="48000000">48000000</option>
+<option value="49152000">49152000</option>
+<option value="65536000">65536000</option>
+<option value="90316800">90316800</option>
+<option value="96000000">96000000</option>
+<option value="98304000">98304000</option>
+</select>
+</div>
+<div class="item">
+<h3>Rate limit</h3>
+<br><select name="defaults_bitrate">
+<option value="2048000">2048000</option>
+<option value="2822400">2822400</option>
+<option value="3072000">3072000</option>
+<option value="4096000">4096000</option>
+<option value="5644800">5644800</option>
+<option value="6144000">6144000</option>
+<option value="8192000">8192000</option>
+<option value="11289600">11289600</option>
+<option value="12000000">12000000</option>
+<option value="12288000">12288000</option>
+<option value="16384000">16384000</option>
+<option value="22579200">22579200</option>
+<option value="24000000">24000000</option>
+<option value="24576000" selected>24576000</option>
+<option value="32768000">32768000</option>
+<option value="45158400">45158400</option>
+<option value="48000000">48000000</option>
+<option value="49152000">49152000</option>
+<option value="65536000">65536000</option>
+<option value="90316800">90316800</option>
+<option value="96000000">96000000</option>
+<option value="98304000">98304000</option>
+</select>
+</div>
+<div class="clear"><span></span></div>
+<h2>ALSA backend</h2>
+<div class="item">
+<h3>Device</h3>
+<br><select name="alsa_device">
+<option value="hw:CARD=NVidia,DEV=3" selected>HDA NVidia: HDMI 0</option>
+<option value="hw:CARD=NVidia,DEV=7">HDA NVidia: HDMI 1</option>
+<option value="hw:CARD=NVidia,DEV=8">HDA NVidia: HDMI 2</option>
+<option value="hw:CARD=NVidia,DEV=9">HDA NVidia: HDMI 3</option>
+</select>
+</div>
+<div class="item">
+<h3>Channel offset</h3>
+<input type="number" name="alsa_offset" value="0" min="0" max="31"/>
+</div>
+<div class="item">
+<h3>DAC bits</h3>
+<input type="number" name="alsa_bits" value="24" min="0" max="32"/> (0 = default)
+</div>
+<div class="item">
+<h3>Buffer time</h3>
+<input type="number" name="alsa_period" value="100" min="-1" max="250"/> ms (0 = default, -1 = minimum)
+</div>
+<div class="item">
+<input type="checkbox" name="alsa_dop" value="1"/> DoP<br>
+</div>
+<div class="item">
+<input type="checkbox" name="alsa_anydsd" value="1"/> 48k DSD<br>
+</div>
+<div class="clear"><span></span></div>
+<h2>Network Audio backend</h2>
+<div class="item">
+<h3>Device</h3>
+<br><select name="net_device">
+<option value="S26/hw:CARD=Output,DEV=0">S26: Gustard Digital Output: USB Audio</option>
+<option value="naa-7bdbb6cb/hw:CARD=RED,DEV=0">naa-7bdbb6cb: Holo Audio UAC2.0 Gen2 - RED: USB Audio</option>
+<option value="naa-7bdbb6cb/hw:CARD=Standa,DEV=0" selected>naa-7bdbb6cb: Holo Audio UAC2.0 Gen2.1 Standa: USB Audio</option>
+<option value="naa-office/hw:CARD=sndrpihifiberry,DEV=0">naa-office: snd_rpi_hifiberry_digi: HiFiBerry Digi+ Pro HiFi wm8804-spdif-0</option>
+</select>
+</div>
+<div class="item">
+<h3>DAC bits</h3>
+<input type="number" name="net_bits" value="20" min="0" max="32"/> (0 = default)
+</div>
+<div class="item">
+<h3>Buffer time</h3>
+<input type="number" name="net_period" value="0" min="-1" max="250"/> ms (0 = default, -1 = minimum)
+</div>
+<div class="item">
+<input type="checkbox" name="net_dop" value="1"/> DoP<br>
+</div>
+<div class="item">
+<input type="checkbox" name="net_anydsd" value="1" checked/> 48k DSD<br>
+</div>
+<div class="item">
+<input type="checkbox" name="net_ipv6" value="1" checked/> IPv6<br>
+</div>
+<div class="clear"><span></span></div>
+<br><input formaction="/config" type="submit" value="Apply"/>
+</form>
+<form method="get">
+<br><input formaction="/config/refresh" type="submit" value="Refresh devices"/></form>
+<br><hr><br>
+<form method="post">
+<div class="item">
+<h3>Profiles</h3>
+<br><select name="profile">
+<option value="">[default]</option>
+<option value="Headphones - DSD256">Headphones - DSD256</option>
+<option value="Headphones - DSD512">Headphones - DSD512</option>
+<option value="Office">Office</option>
+<option value="Speakers">Speakers</option>
+</select>
+</div>
+<div class="item">
+<h3>Profile name</h3>
+<br><input type="text" name="profile_name"/>
+</div>
+<div class="clear"><span></span></div>
+<br><input formaction="/config/profile/load" type="submit" value="Load"/>&emsp;<input formaction="/config/profile/save" type="submit" value="Save"/>&emsp;<input formaction="/config/profile/delete" type="submit" value="Delete"/></form>
+<div class="clear"><span></span></div>
+<div class="menubar"><table style="width:100%"><tr><td><a href="/">Main</a></td><td><a href="/input">Input</a></td><td><a href="/library">Library</a></td><td><a href="/config">Configuration</a></td><td><a href="/speakers">Speakers</a></td><td><a href="/convolution">Convolution</a></td><td><a href="/matrix">Matrix</a></td><td><a href="/backup">Backup</a></td><td><a href="/restore">Restore</a></td><td><a href="/about">About</a></td><td><a href="/auth">Authentication</a></td><td><a href="/key">Key</a></td><td><a href="/log">Log</a></td></tr></table></div>
+<div class="clear"><span></span></div>
+<div class="footer">Copyright (C) 1998-2026 Jussi Laako / Signalyst. All rights reserved.</div>
+</div>
+</div>
+</body>
+</html>
