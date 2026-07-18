@@ -108,7 +108,8 @@ async def live_client(live_daemon_port: int) -> AsyncIterator[ControlClient]:
 # would accept, so a serialization fault makes the fake reject and readback fail.
 
 _HTTP_TEXT = ("title", "backend")  # required, non-checkbox
-_HTTP_CHECK = ("dsd_6db", "net_dop")
+_HTTP_CHECK = ("dsd_6db", "net_dop", "auto_family")
+_HTTP_VALUE = ("samplerate", "bitrate")  # value fields the friendly-rate UI pins to Auto
 
 
 def _http_render(state: dict[str, Any]) -> str:
@@ -117,6 +118,7 @@ def _http_render(state: dict[str, Any]) -> str:
         f'<option value="{v}"{" selected" if state["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
     )
     rows.append(f'<select name="backend">{options}</select>')
+    rows += [f'<input type="text" name="{n}" value="{state[n]}"/>' for n in _HTTP_VALUE]
     rows += [f'<input type="checkbox" name="{cb}" value="1"{" checked" if state[cb] else ""}/>' for cb in _HTTP_CHECK]
     rows.append('<input formaction="/config" type="submit" value="Apply"/>')
     return '<form method="post">' + "".join(rows) + "</form>"
@@ -158,9 +160,12 @@ def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
             length = int(self.headers.get("Content-Length", "0"))
             data = dict(urllib.parse.parse_qsl(self.rfile.read(length).decode()))
             if _http_accepts(data):
-                state["_snapshot"] = {k: state[k] for k in (*_HTTP_TEXT, *_HTTP_CHECK)}
+                state["_snapshot"] = {k: state[k] for k in (*_HTTP_TEXT, *_HTTP_VALUE, *_HTTP_CHECK)}
                 state["title"] = data["title"]
                 state["backend"] = data["backend"]
+                for n in _HTTP_VALUE:
+                    if n in data:
+                        state[n] = data[n]
                 for cb in _HTTP_CHECK:
                     state[cb] = cb in data
                 state["_stale"] = state.get("_lag", 0)
@@ -187,7 +192,19 @@ def _http_spawn(state: dict[str, Any]) -> Iterator[dict[str, Any]]:
 
 
 def _http_state(**extra: Any) -> dict[str, Any]:
-    return {"title": "Opal", "backend": "network", "dsd_6db": True, "net_dop": False, "_lag": 0, **extra}
+    # forced-field defaults deliberately DIFFER from what HQPTuner pins on write
+    # (auto_family off, rates non-zero), so a forcing test proves a real change.
+    return {
+        "title": "Opal",
+        "backend": "network",
+        "dsd_6db": True,
+        "net_dop": False,
+        "auto_family": False,
+        "samplerate": "192000",
+        "bitrate": "22579200",
+        "_lag": 0,
+        **extra,
+    }
 
 
 @pytest.fixture

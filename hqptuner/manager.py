@@ -36,6 +36,12 @@ log = logging.getLogger(__name__)
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
 
+# Fields HQPTuner pins on every config write so the friendly-rate UI holds: the
+# per-family Rate dropdown sets a ceiling (defaults_samplerate/defaults_bitrate)
+# and the engine follows the source's 44.1/48 base — which requires auto_family
+# on and the fixed sample/bit rate left on Auto. Not exposed in the UI.
+_FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
+
 
 def _http_field_matches(field: dict[str, Any] | None, want: str) -> bool:
     """Whether a persisted config field reflects a staged override, comparing in
@@ -183,7 +189,14 @@ class ConnectionManager:
             self.last_backup = backup
             backup_path = self._persist_backup(backup)  # survives a crash mid-apply
             fresh = await self._http.get_config()
-            await self._http.post_config(serialize_config_form(fresh["fields"], overrides))
+            # HQPTuner policy: the friendly-rate UI always drives the auto-family
+            # path — the user picks a per-family ceiling and the engine follows
+            # the source's 44.1/48 base. That only holds with auto_family on and
+            # the fixed sample/bit rate left on Auto, so every config write forces
+            # them regardless of what's staged. Enforced on write only (never a
+            # standalone POST), so it can't restart the daemon uninvited.
+            merged = {**overrides, **_FORCED_CONFIG}
+            await self._http.post_config(serialize_config_form(fresh["fields"], merged))
             verified = await self._verify_http(overrides)  # daemon restarts; read back
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}

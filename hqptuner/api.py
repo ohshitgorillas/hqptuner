@@ -4,10 +4,12 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import Config
@@ -216,4 +218,9 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.http_client = http_client
     app.state.pending = PendingStore()
     app.include_router(router)
+    # Serve the SPA. Mounted last and at "/", so the /api routes above win; the
+    # SPA's static assets and index.html fall through to here.
+    static_dir = Path(__file__).resolve().parent / "static"
+    if static_dir.is_dir():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
     return app
