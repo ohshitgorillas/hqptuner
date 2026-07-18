@@ -106,6 +106,9 @@ def parse_config_form(html: str) -> dict[str, Any]:
     return {"fields": fields, "profiles": profiles}
 
 
+_PROFILE_ACTIONS = ("load", "save", "delete")
+
+
 class HttpConfigClient:
     def __init__(self, host: str, port: int, username: str, password: str, timeout: float = 10.0):
         self._client = httpx.AsyncClient(
@@ -118,6 +121,27 @@ class HttpConfigClient:
         resp = await self._client.get("/config")
         resp.raise_for_status()
         return parse_config_form(resp.text)
+
+    async def post_config(self, fields: dict[str, str]) -> None:
+        """Apply persistent settings. The daemon writes hqplayerd.xml itself and
+        restarts (protocol.md §3.6); the submit button field is `Apply`. The
+        connection manager's outage path handles the restart/resync."""
+        resp = await self._client.post("/config", data={**fields, "Apply": "Apply"})
+        resp.raise_for_status()
+
+    async def post_profile(self, action: str, **fields: str) -> None:
+        """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`
+        also restarts the daemon."""
+        if action not in _PROFILE_ACTIONS:
+            raise ValueError(f"unknown profile action: {action}")
+        resp = await self._client.post(f"/config/profile/{action}", data=fields)
+        resp.raise_for_status()
+
+    async def backup(self) -> bytes:
+        """Daemon's own /backup route — a safety copy taken before an apply."""
+        resp = await self._client.get("/backup")
+        resp.raise_for_status()
+        return resp.content
 
     async def aclose(self) -> None:
         await self._client.aclose()

@@ -23,9 +23,12 @@ import logging
 import time
 from typing import Any
 
+import httpx
+
 from .config import Config
 from .control import ControlClient, ControlError
 from .httpconf import HttpConfigClient
+from .writer import apply_live
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +55,7 @@ class ConnectionManager:
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
         self.loaded_at: float | None = None
+        self.last_backup: bytes | None = None
 
     @property
     def alarm(self) -> bool:
@@ -62,6 +66,14 @@ class ConnectionManager:
 
     def stop(self) -> None:
         self._stop.set()
+
+    async def aclose(self) -> None:
+        """Clean shutdown: stop the loop and close the control connection so no
+        socket is left dangling. The caller awaits the run() task separately."""
+        self.stop()
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
 
     async def run(self) -> None:
         while not self._stop.is_set():
@@ -141,6 +153,48 @@ class ConnectionManager:
         status, meta = await client.get_status()
         self.state, self.status, self.status_metadata = state, status, meta
         self.loaded_at = time.time()
+
+    # --- write path (Phase 3) -----------------------------------------
+
+    async def apply(
+        self, live_edits: dict[str, dict[str, str]], http_fields: dict[str, str]
+    ) -> dict[str, Any]:
+        """Apply staged changes: live setters first (readback-verified), then
+        the http lane. The http POST restarts the daemon; the run loop's outage
+        path handles the drop and fresh reload. No idle gate."""
+        live_report: list[dict[str, Any]] = []
+        if live_edits:
+            client = self._client
+            if client is None:
+                raise ControlError("daemon not connected")
+            live_report = await apply_live(client, live_edits)
+        http_report = await self._apply_http(http_fields) if http_fields else None
+        return {"live": live_report, "http": http_report}
+
+    async def _apply_http(self, fields: dict[str, str]) -> dict[str, Any]:
+        if self._http is None:
+            return {"submitted": False, "error": "no credentials for HTTP config lane"}
+        try:
+            backup = await self._http.backup()  # safety copy before the write
+            self.last_backup = backup
+            await self._http.post_config(fields)  # daemon rewrites XML + restarts
+        except httpx.HTTPError as exc:
+            return {"submitted": False, "error": str(exc)}
+        return {"submitted": True, "restart": True, "backup_bytes": len(backup)}
+
+    async def load_profile(self, name: str) -> None:
+        await self._require_http().post_profile("load", profile=name)
+
+    async def save_profile(self, name: str) -> None:
+        await self._require_http().post_profile("save", profile_name=name)
+
+    async def delete_profile(self, name: str) -> None:
+        await self._require_http().post_profile("delete", profile=name)
+
+    def _require_http(self) -> HttpConfigClient:
+        if self._http is None:
+            raise ControlError("no credentials for HTTP config lane")
+        return self._http
 
     def current_mode_name(self) -> str:
         if not self.state or not self.enums:

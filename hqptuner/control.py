@@ -150,3 +150,39 @@ class ControlClient:
         if result is not None and result != "OK":
             raise CommandError(f"{element_name}: {result}: {(root.text or '').strip()}")
         return root
+
+    # --- typed setters (index domain; protocol.md §6) ------------------
+
+    async def set_mode(self, index: str) -> None:
+        await self.set_command("SetMode", value=index)
+
+    async def set_filter(self, nx: str, x1: str | None = None) -> None:
+        """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value,
+        1x=value1x). Reference client omits value1x when the 1x arg is < 0."""
+        if x1 is None:
+            await self.set_command("SetFilter", value=nx)
+        else:
+            await self.set_command("SetFilter", value=nx, value1x=x1)
+
+    async def set_shaping(self, index: str) -> None:
+        await self.set_command("SetShaping", value=index)
+
+    async def set_rate(self, index: str) -> None:
+        await self.set_command("SetRate", value=index)
+
+    async def set_junk_filter(self, index: str) -> None:
+        await self.set_command("SetJunkFilter", value=index)
+
+    async def set_adaptive_volume(self, on: str) -> None:
+        await self.set_command("SetAdaptiveVolume", value=on)
+
+    async def set_volume(self, db: str) -> None:
+        await self.set_command("Volume", value=db)
+
+    async def verify_state(self, expected: dict[str, str]) -> None:
+        """Re-read State and raise unless every expected attribute matches.
+        result="OK" is not proof of application (protocol.md §6) — this is."""
+        state = await self.get_state()
+        mismatch = {k: (want, state.get(k)) for k, want in expected.items() if state.get(k) != want}
+        if mismatch:
+            raise CommandError(f"State readback mismatch (want, got): {mismatch}")
