@@ -22,14 +22,21 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 | Backend (ALSA/Network) | http | field `backend` (`alsa`/`network`/`combo`) |
 | Rate | live | `SetRate` verified: `RatesItem` index; immediate effect even while stopped; index 0 = auto |
 | Auto rate family | http | live-adjacent: `SetRate` index 0 selects auto/source-based rate |
-| Output device | http | (device select field) |
-| DAC bits | http | no live setter |
-| DoP | http | no live setter |
-| 48k DSD | http | field `net_anydsd` (checkbox) |
-| Buffer time | http | no live setter |
-| IPv6 | http | field `net_ipv6` (checkbox) |
+| Output device | http | **per-backend**: `alsa_device` / `net_device` (select) |
+| DAC bits | http | **per-backend**: `alsa_bits` / `net_bits` (0–32). Independent values (live: `alsa_bits=24`, `net_bits=20`) |
+| DoP | http | **per-backend**: `alsa_dop` / `net_dop` (checkbox) |
+| 48k DSD | http | **per-backend**: `alsa_anydsd` / `net_anydsd` (checkbox) |
+| Buffer time | http | **per-backend**: `alsa_period` / `net_period` (−1–250 ms; −1=minimum, 0=default) |
+| Channel offset | http | ALSA only: `alsa_offset` (0–31) |
+| IPv6 | http | Network only: `net_ipv6` (checkbox) |
 | Idle time | http | field `idle_time` — **milliseconds** on the wire (0=default, 10000=10 s, … 60000) |
-| UPnP freewheel | http | no live setter |
+| UPnP freewheel | http | field `upnp_freewheel` (checkbox); input-side, backend-independent |
+
+**Correction (Phase 4, verified live 6.0.4): transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), with independent values — the outline §4/§5 "DAC bits grays in SDM / DoP grays in PCM" annotations describe the *desktop* app, not this form. HQPTuner surfaces these in collapsible ALSA / Network sections keyed on `backend` (Combo shows both), not via mode-graying.
+
+**Rate is per-family and friendly.** Persistent rate lives in two fields — `defaults_samplerate` (PCM) and `defaults_bitrate` (SDM) — each a target/ceiling. HQPTuner shows both as fixed friendly menus (`1x…32x` / `DSD64…DSD2048`) mapped to the **48k-base** ceiling value.
+
+**Forced on every write (HQPTuner policy).** `auto_family=1`, `samplerate=0`, `bitrate=0` are pinned on every `POST /config` (`_FORCED_CONFIG`), so the friendly per-family ceiling holds (auto-family follows the source's 44.1/48 base; the fixed sample/bit rate stays on Auto). Not exposed in the UI. Enforced on write only.
 
 ## DSP
 

@@ -56,6 +56,24 @@ async def test_enabling_a_checkbox_is_applied(
     assert (await _readback(http))["net_dop"] is True
 
 
+@pytest.mark.parametrize(
+    ("field", "expected"),
+    [("auto_family", True), ("samplerate", "0"), ("bitrate", "0")],
+)
+async def test_config_write_pins_the_field_regardless_of_staging(
+    apply_via: tuple[ConnectionManager, HttpConfigClient],
+    field: str,
+    expected: Any,
+) -> None:
+    # HQPTuner's friendly-rate UI only holds if every config write forces
+    # auto_family on and the fixed sample/bit rate to Auto (0). The daemon starts
+    # with the opposite values (see _http_state), and nothing here stages these
+    # fields — so seeing the pinned value proves the write forced it.
+    manager, http = apply_via
+    await manager.apply({}, {"title": "Renamed"})
+    assert (await _readback(http))[field] == expected
+
+
 async def test_apply_reports_failure_when_the_daemon_rejects(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:

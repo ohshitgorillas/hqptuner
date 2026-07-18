@@ -67,20 +67,28 @@ The interface consists of four sections:
 
 ### Output
 
-Main settings:
+*Structure updated in Phase 4 from the live `/config` form (see roadmap Phase 4 status, `docs/settings-classification.md`). The transport params turned out to be per-backend, not mode-gated as originally sketched.*
 
-- Output mode (PCM/SDM) — dropdown
-- Backend (ALSA/Network) — dropdown
-- Rate (for PCM use 4x, 8x, 16x; for DSD use DSD256, DSD512, DSD1024...) — dropdown
-- Auto rate family — checkbox
-- Output device — dropdown
-- DAC bits (grayed out in DSD mode) — integer box, 0–32, 0 = default
-- DoP (grayed out in PCM mode) — checkbox
-- 48k DSD (grayed out in PCM mode) — checkbox
-- Buffer time — integer box, 0–250, 0 = default
-- IPv6 (grayed out in ALSA mode) — checkbox
+Top row — three master cards:
+
+- **Mode** (segment) — PCM · SDM (DSD) · Auto
+- **Backend** (segment) — ALSA · Network · Combo
+- **Rate** (two friendly dropdowns, both shown, inactive one grayed by mode):
+  - PCM — `1x, 2x, 4x, 8x, 16x, 32x`
+  - SDM — `DSD64, DSD128, DSD256, DSD512, DSD1024, DSD2048`
+  - Fixed friendly menus mapped to the 48k-base ceiling; auto rate family is forced on internally (not a user control), so the multiplier tracks the source's 44.1/48 base.
+
+Independent (always shown):
+
 - Idle time — dropdown (Default, 10, 20, 30, 60)
-- UPnP freewheel — checkbox
+- UPnP freewheel — checkbox (input-side, backend-independent)
+
+Collapsible backend sections (reveal on Backend; Combo shows both):
+
+- **ALSA Backend** — device, channel offset (0–31), DAC bits (0–32), buffer time (−1–250 ms), DoP, 48k DSD
+- **Network Backend** — device, DAC bits, buffer time, DoP, 48k DSD, IPv6
+
+Device/bits/DoP/48k-DSD/buffer are **per-backend** (`alsa_*` / `net_*`, independent values); IPv6 is Network-only. Collapse (not gray) hides the unused backend; every field still persists (the daemon rejects a partial form).
 
 ### DSP
 
@@ -128,7 +136,7 @@ Main settings:
 
 Cross-cutting logic, in one place so it isn't lost in the section lists:
 
-- **Mode-dependent enable/gray** (per §4 annotations): DAC bits grays in SDM mode; DoP and 48k DSD gray in PCM mode; IPv6 grays on ALSA backend; FFT filter length grays when no FFT-family filter is selected.
+- **Mode/backend-dependent disclosure**: the per-family rate control grays for the inactive mode (Auto ungrays both); the ALSA / Network transport sections **collapse** by backend rather than gray (Phase 4 — device/bits/DoP/48k-DSD/buffer are per-backend, not mode-gated; the desktop app's "DAC bits grays in SDM / DoP grays in PCM" behavior does not apply to the Embedded form). FFT filter length grays when no FFT-family filter is selected.
 - **Rate-aware shaper list**: dither/modulator options invalid at the selected output rate are grayed with a short reason (e.g. "requires ≥ DSD1024"), not hidden — visible-but-disabled teaches the constraint.
 - **Mode switch coherence**: flipping PCM ↔ SDM swaps the Rate option set and the shaper card (label + option list) in the same interaction.
 - **Filter narrowing**: genre/focus/quality dropdowns AND-combine and apply to both 1x and Nx lists. Empty result shows an explicit "no filters match — widen criteria" state, never a stale selection.
