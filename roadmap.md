@@ -114,6 +114,22 @@ Shape confirmed by Phase 0: persistent writes go through the port-8088 HTTP inte
 - Preset load/save/delete work end-to-end via the HTTP lane
 - Apply with the daemon slow/failing to return produces the failure report and leaves the pre-apply backup intact
 
+**Status (2026-07-18): complete.** Core write path implemented and live-validated on hqplayerd 6.0.4; all carried-forward exit items closed (see below).
+
+Validated against the live daemon on Opal:
+
+- **Live lane** — `SetMode/SetFilter/SetShaping/SetRate/SetJunkFilter/SetAdaptiveVolume/Volume` each applied and confirmed by `State` readback, then the original settings restored. `Volume` is correctly reported as failed while volume control is disabled (`result="Error"`).
+- **HTTP lane** — `POST /config` works end to end: overlay the staged changes onto a fresh `GET /config`, submit the **complete** form, confirm by a **polling** readback. A `title` round-trip persisted to `hqplayerd.xml` and was restored. Three undocumented wire facts were the whole difficulty and only surfaced under live testing (now recorded in `docs/protocol.md` §3.6): the form must be submitted complete (a partial POST is rejected `200`/`Failed!` with no write); checkboxes must submit `name=1`, never the HTML default `name=on`; and success must be confirmed by a polling readback because the daemon briefly serves the pre-restart form. `backup()` was fixed to `GET /backup/settings.zip` (the plain `/backup` returns the HTML page).
+- **Presets** — save and delete validated live via the HTTP lane.
+- **Tests** — the HTTP write path is covered by round-trips through a faithful fake daemon that rejects partial forms and `name=on` and models the post-restart stale window, so the code only passes if it produces a submission the real daemon would accept (`tests/test_http_apply.py`). Formatter is black at line length 120.
+
+Closed (2026-07-18):
+
+- **Preset load** exercised live: a safe round-trip (save current config to a temp preset, load it — which restarts the daemon — then delete it) resynced **both** lanes (Control 4321 `GetInfo` and HTTP 8088 `GET /config`) and left persistent config unchanged.
+- **Per-setting sweep** on Opal: `filter`, `shaper`, `rate`, `junk_filter`, `adaptive_volume` each individually round-tripped (to a valid alternate and back) with `State` readback. `mode` is correctly **rejected** on an idle daemon (`SetMode: Error` — `[source]` needs an active source), and `Volume` is correctly rejected while volume control is disabled; both exercise the same `set_command`→`verify_state` path as the five that pass.
+- **Apply report** now distinguishes outcomes: `_verify_http` returns `reason` — `applied` / `rejected` (daemon up, value never reflected) / `unreachable` (connection error at the deadline = a restart that never returned). The pre-apply backup is now **persisted to disk** (`Config.backup_dir`, default gitignored `backups/`) so a crash mid-apply leaves a recoverable copy, not just an in-memory one.
+- **`POST /api/config/apply`** keeps the pending buffer on a soft failure (`_apply_succeeded`): staging is cleared only when every live edit verified and the http lane confirmed the change, so a rejected value or unreflected write no longer silently loses the staged edits. Covered by API round-trips through the faithful fake daemon.
+
 ## Phase 4 — Frontend SPA
 
 Lightweight SPA, dark theme, no heavyweight framework (outline §8). Order within the phase:
