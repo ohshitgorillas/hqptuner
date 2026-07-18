@@ -5,6 +5,8 @@ path is validated live on Opal (roadmap Phase 3 exit criteria)."""
 
 import socket
 from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +26,24 @@ def _closed_port() -> int:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     cfg = Config(hqp_host="127.0.0.1", hqp_control_port=_closed_port())
+    with TestClient(create_app(cfg)) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def http_client(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[TestClient]:
+    # http lane wired to the faithful fake daemon; control lane at a closed port
+    # (an http-only apply never touches it). Small alarm so a rejected apply
+    # times out fast; backup lands in tmp, not the repo.
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=_closed_port(),
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",  # noqa: S106 — fake daemon credential, not a secret
+        alarm_threshold=1.0,
+        backup_dir=tmp_path,
+    )
     with TestClient(create_app(cfg)) as test_client:
         yield test_client
 
@@ -54,6 +74,20 @@ def test_failed_apply_preserves_the_staged_edits(client: TestClient) -> None:
     client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
     client.post("/api/config/apply")
     assert client.get("/api/config/pending").json()["live"]["shaper"]["value"] == "5"
+
+
+def test_soft_failed_http_apply_preserves_staging(http_client: TestClient) -> None:
+    # daemon answers 200 but rejects the value (no exception) → apply reports
+    # not-applied; staging must survive so the user can retry, not vanish
+    http_client.post("/api/config/stage", json={"http": {"title": "REJECT"}})
+    http_client.post("/api/config/apply")
+    assert http_client.get("/api/config/pending").json()["http"]["title"] == "REJECT"
+
+
+def test_successful_http_apply_clears_staging(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    http_client.post("/api/config/apply")
+    assert http_client.get("/api/config/pending").json()["http"] == {}
 
 
 def test_unknown_profile_action_is_not_found(client: TestClient) -> None:

@@ -10,3 +10,6 @@ __pycache__/
 # Signalyst reference material — copyrighted, not redistributable
 hqplayer6desktop-manual.pdf
 hqplayerd-readme.txt
+
+# runtime pre-apply settings backups
+backups/

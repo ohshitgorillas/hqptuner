@@ -121,6 +121,18 @@ def _pending(request: Request) -> PendingStore:
     return store
 
 
+def _apply_succeeded(report: dict[str, Any]) -> bool:
+    """Whether every staged change actually took. A live edit counts only if its
+    readback verified (`ok`); the http lane only if the daemon reflected the
+    change after its restart (`verified.applied`). A soft failure — daemon
+    answered but rejected, or a value never reflected — returns False here so the
+    caller keeps the pending buffer instead of silently dropping the edits."""
+    if any(not entry.get("ok") for entry in report.get("live", [])):
+        return False
+    http = report.get("http")
+    return not (http is not None and not http.get("verified", {}).get("applied"))
+
+
 @router.post("/config/stage")
 def stage(body: StageBody, request: Request) -> dict[str, Any]:
     unknown = set(body.live) - set(known_live_settings())
@@ -152,7 +164,8 @@ async def apply(request: Request) -> dict[str, Any]:
         report = await _mgr(request).apply(store.live, store.http)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    store.clear()
+    if _apply_succeeded(report):
+        store.clear()  # keep staging on a soft failure so the user can retry
     return report
 
 

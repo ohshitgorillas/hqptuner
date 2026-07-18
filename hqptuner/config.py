@@ -24,3 +24,6 @@ class Config:
     data_dir: Path = field(
         default_factory=lambda: Path(_env("DATA_DIR", str(Path(__file__).resolve().parent.parent / "data")))
     )
+    backup_dir: Path = field(
+        default_factory=lambda: Path(_env("BACKUP_DIR", str(Path(__file__).resolve().parent.parent / "backups")))
+    )

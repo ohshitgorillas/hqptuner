@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -180,34 +181,62 @@ class ConnectionManager:
         try:
             backup = await self._http.backup()  # safety copy before the write
             self.last_backup = backup
+            backup_path = self._persist_backup(backup)  # survives a crash mid-apply
             fresh = await self._http.get_config()
             await self._http.post_config(serialize_config_form(fresh["fields"], overrides))
             verified = await self._verify_http(overrides)  # daemon restarts; read back
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
-        return {"submitted": True, "verified": verified, "backup_bytes": len(backup)}
+        return {
+            "submitted": True,
+            "verified": verified,
+            "backup_bytes": len(backup),
+            "backup_path": str(backup_path) if backup_path else None,
+        }
+
+    def _persist_backup(self, data: bytes) -> Path | None:
+        """Write the pre-apply settings backup to disk so a crash mid-apply still
+        leaves a recoverable copy (memory-only last_backup does not survive one).
+        Best-effort: a write failure must not block the apply itself."""
+        path = self._cfg.backup_dir / "pre-apply-settings.zip"
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        except OSError as exc:
+            log.warning("could not persist pre-apply backup to %s: %s", path, exc)
+            return None
+        return path
 
     async def _verify_http(self, overrides: dict[str, str]) -> dict[str, Any]:
         """Poll GET /config until it REFLECTS the overrides, not merely until it
         responds: right after the POST the daemon still serves the pre-restart
         form for a moment, then drops, then returns with the new config. Retrying
         only on connection error would read that stale form and false-negative.
-        A genuine rejection never reflects, so it times out as not-applied."""
+        A genuine rejection never reflects, so it times out as not-applied.
+
+        On timeout the failure reason is read off the LAST poll: a daemon still
+        serving a clean form that never reflects the change was a "rejected"
+        apply; one that ends unreachable (connection error at the deadline) is
+        "unreachable" — it accepted the POST and never came back. The caller
+        needs that split to tell a bad value from a crashed restart."""
         http = self._require_http()
         deadline = time.monotonic() + self._cfg.alarm_threshold
         mismatches = dict(overrides)
+        last_error: str | None = None
         while time.monotonic() < deadline:
             try:
                 after = {f["name"]: f for f in (await http.get_config())["fields"]}
+                last_error = None
                 mismatches = {
                     name: want for name, want in overrides.items() if not _http_field_matches(after.get(name), want)
                 }
                 if not mismatches:
-                    return {"applied": True, "mismatches": {}}
-            except (httpx.HTTPError, OSError):
-                pass  # daemon mid-restart — keep polling
+                    return {"applied": True, "mismatches": {}, "reason": "applied"}
+            except (httpx.HTTPError, OSError) as exc:
+                last_error = str(exc)  # daemon mid-restart — keep polling
             await self._sleep(RECONNECT_FAST)
-        return {"applied": False, "mismatches": mismatches}
+        reason = "unreachable" if last_error is not None else "rejected"
+        return {"applied": False, "mismatches": mismatches, "reason": reason, "error": last_error}
 
     async def load_profile(self, name: str) -> None:
         await self._require_http().post_profile("load", profile=name)
