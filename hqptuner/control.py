@@ -125,6 +125,12 @@ class ControlClient:
     async def get_state(self) -> dict[str, str]:
         return dict((await self.request("<State/>")).attrib)
 
+    async def get_volume_range(self) -> dict[str, str]:
+        """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
+        The authority for live-volume slider bounds and whether volume control is
+        active at all (protocol.md §7.3)."""
+        return dict((await self.request("<VolumeRange/>")).attrib)
+
     async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
         root = await self.request('<Status subscribe="0"/>')
         meta = root.find("metadata")

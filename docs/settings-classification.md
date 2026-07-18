@@ -65,6 +65,8 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 | Adaptive volume | live | `SetAdaptiveVolume` verified: `adaptive` flag toggles and reads back; `VolumeRange adaptive` mirrors it. Response is a bare `<SetAdaptiveVolume/>` with no `result` attribute. HTTP field `adaptive_volume` for the persistent value |
 | Playlist album gain | http | field `playlist_album_gain` |
 
+**Live playback volume (Phase 4).** Beyond the persistent volume config above, the running engine's current volume is a real-time control on its own lane: `Volume` (4321) writes immediately, `VolumeRange` reports the live bounds + `enabled` flag, `State.volume` the current level. HQPTuner exposes this as `GET/POST /api/volume` — a dedicated immediate-write path, never staged and never restarting. It's usable only when `VolumeRange enabled=1` (volume control active — not fixed volume, and an active stream); the UI grays the slider otherwise.
+
 ## System
 
 | Control | Lane | Evidence / notes |

@@ -25,6 +25,15 @@
 const isSdm = (ctx) => String(ctx.effective("output_mode")) === "2";
 const isPcm = (ctx) => String(ctx.effective("output_mode")) === "1";
 
+// checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
+const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+// the fixed-volume level + Optimal ISO only apply when fixed volume is enabled.
+const fixedOff = (ctx) => (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "requires fixed volume");
+// Optimal ISO supersedes the manual level with an auto-optimized one (manual
+// §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
+const isoOn = (ctx) => truthy(ctx.effective("optimal_iso"));
+const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level" : "");
+
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
 const PCM_RATES = [
   { value: "48000", label: "1x" },
@@ -86,7 +95,18 @@ export const schema = {
   shaper: { group: "dsp", widget: "dropdown", lane: "live", stateField: "shaper", liveKey: "shaper", optionsFrom: "shapers" },
   channels: { group: "dsp", widget: "number", lane: "http", field: "channels" },
 
-  // --- Volume (step-1 subset; full set next) ---
-  fixed_volume: { group: "volume", widget: "number", lane: "http", field: "fixed_volume" },
-  adaptive_volume: { group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume" },
+  // --- Volume ---
+  // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"
+  // (inter-sample-overs-optimized fixed volume, readme §1.9), fixed_volume is the
+  // dBFS level (readme §1.13 <fixed><volume>), fixed_volume_enabled gates both.
+  // Only adaptive_volume is live (SetAdaptiveVolume); the rest are http/restart.
+  fixed_volume_enabled: { label: "Fixed volume", group: "volume", widget: "checkbox", lane: "http", field: "fixed_volume_enabled" },
+  fixed_volume: { label: "Fixed volume level", group: "volume", widget: "number", lane: "http", field: "fixed_volume", unit: "dBFS", grayWhen: levelGray },
+  optimal_iso: { label: "Optimal ISO", group: "volume", widget: "checkbox", lane: "http", field: "volume_fixed", grayWhen: fixedOff },
+  volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS" },
+  volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS" },
+  startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS" },
+  gain_comp: { label: "PCM gain compensation", group: "volume", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
+  adaptive_volume: { label: "Adaptive volume", group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume" },
+  playlist_album_gain: { label: "Playlist album gain", group: "volume", widget: "checkbox", lane: "http", field: "playlist_album_gain" },
 };

@@ -339,6 +339,15 @@ input[type="text"] {
 }
 input[type="number"] {
   width: 100px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+/* native spin buttons render black-on-dark and aren't reliably styleable — drop them */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
 }
 /* Device is the one full-width control (long endpoint strings) */
 .field.wide .control,
@@ -385,6 +394,173 @@ input[type="checkbox"]:disabled {
   display: inline-flex;
   gap: 0.5rem;
   align-items: center;
+}
+.slidernum {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.range-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+}
+.range-wrap input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  cursor: pointer;
+}
+.range-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fg);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.range-wrap input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fg);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.range-wrap input[type="range"]::-moz-range-track {
+  background: transparent;
+}
+.tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 11px;
+  background: var(--muted);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.slidernum-box {
+  width: 72px;
+}
+
+/* live playback volume — the tab's dominant element, styled distinctly from the
+   staged-config cards (accent-forward, no card chrome) to signal "writes live". */
+.playback {
+  margin-bottom: 1.2rem;
+  padding: 1rem 1.2rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--bg-2)), var(--bg-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-radius: 0.6rem;
+}
+.playback.off {
+  opacity: 0.5;
+}
+.playback-head {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+.playback-row {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+.playback-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-3);
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.playback-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+.playback-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+.playback-readout {
+  min-width: 5.5rem;
+  text-align: right;
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.playback-hint {
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* non-collapsible grouping card — mirrors the Output backend-section look */
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.card-head {
+  background: var(--bg-2);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+}
+.card-body {
+  flex: 1;
+  padding: 0.6rem 0.6rem;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+/* hierarchical controls nested under a parent toggle */
+.indent {
+  margin-left: 1.25rem;
+  border-left: 2px solid var(--line);
+  padding-left: 0.6rem;
+}
+/* tab subheads — group labels within a flat tab */
+.subhead {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 1.1rem 0 0.3rem;
+}
+.subhead:first-child {
+  margin-top: 0.2rem;
 }
 .radio-group {
   display: inline-flex;

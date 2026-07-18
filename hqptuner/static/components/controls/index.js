@@ -82,6 +82,49 @@ export function Slider({ value, min, max, step, disabled, onChange }) {
   `;
 }
 
+// Slider + number box bound to one value: slider for coarse feel, box for the
+// exact figure (a fine step over a wide range is unusable on a slider alone).
+// The fill is anchored at the MAX end, so its length reads as the amount moved
+// away from max (e.g. attenuation for a −12…0 dB range: 0 = empty, −12 = full),
+// not the misleading "full track = maxed" of a default range. Optional `ticks`
+// (values) draw reference marks.
+const pctOf = (v, lo, hi) => (hi === lo ? 0 : Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) * 100);
+
+export function SliderNumber({ value, min, max, step, ticks, disabled, onChange }) {
+  const st = step == null ? 1 : step;
+  const lo = Number(min);
+  const hi = Number(max);
+  const pct = pctOf(value, lo, hi);
+  const fill = `background:linear-gradient(to right, var(--bg-3) 0%, var(--bg-3) ${pct}%, var(--accent) ${pct}%, var(--accent) 100%)`;
+  return html`
+    <span class="slidernum">
+      <span class="range-wrap">
+        <input
+          type="range"
+          value=${s(value)}
+          min=${min}
+          max=${max}
+          step=${st}
+          disabled=${disabled}
+          style=${fill}
+          onInput=${(e) => onChange(e.target.value)}
+        />
+        ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(t, lo, hi)}%`}></span>`)}
+      </span>
+      <input
+        type="number"
+        class="slidernum-box"
+        value=${s(value)}
+        min=${min}
+        max=${max}
+        step=${st}
+        disabled=${disabled}
+        onChange=${(e) => onChange(e.target.value)}
+      />
+    </span>
+  `;
+}
+
 export function RadioGroup({ value, options, disabled, onChange }) {
   return html`
     <span class="radio-group">

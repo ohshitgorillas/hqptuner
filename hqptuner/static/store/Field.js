@@ -8,9 +8,9 @@ import { schema } from "./schema.js";
 import { effective, isDirty, edit, metadata, configByName } from "./state.js";
 import { optionsFor } from "./options.js";
 import { grayReason } from "./graying.js";
-import { Segment, Dropdown, NumberBox, Checkbox, Slider, RadioGroup } from "../components/controls/index.js";
+import { Segment, Dropdown, NumberBox, Checkbox, Slider, SliderNumber, RadioGroup } from "../components/controls/index.js";
 
-const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, checkbox: Checkbox, slider: Slider, radio: RadioGroup };
+const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup };
 
 function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
@@ -46,6 +46,7 @@ export function Field({ k }) {
           min=${cfgConstraint(entry, "min")}
           max=${cfgConstraint(entry, "max")}
           step=${cfgConstraint(entry, "step")}
+          ticks=${entry.ticks}
           disabled=${!!reason}
           onChange=${(v) => edit(k, v)}
         />
