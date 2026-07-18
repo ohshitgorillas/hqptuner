@@ -27,13 +27,23 @@ import httpx
 
 from .config import Config
 from .control import ControlClient, ControlError
-from .httpconf import HttpConfigClient
+from .httpconf import HttpConfigClient, is_checked, serialize_config_form
 from .writer import apply_live
 
 log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
+
+
+def _http_field_matches(field: dict[str, Any] | None, want: str) -> bool:
+    """Whether a persisted config field reflects a staged override, comparing in
+    the field's own domain (checkbox → bool, everything else → string)."""
+    if field is None:
+        return False
+    if field.get("type") == "checkbox":
+        return bool(field.get("value")) == is_checked(want)
+    return str(field.get("value")) == str(want)
 
 
 class ConnectionManager:
@@ -59,10 +69,7 @@ class ConnectionManager:
 
     @property
     def alarm(self) -> bool:
-        return (
-            not self.reachable
-            and time.monotonic() - self._unreachable_mono > self._cfg.alarm_threshold
-        )
+        return not self.reachable and time.monotonic() - self._unreachable_mono > self._cfg.alarm_threshold
 
     def stop(self) -> None:
         self._stop.set()
@@ -108,9 +115,7 @@ class ConnectionManager:
             self._client = None
 
     async def _connect_and_load(self) -> None:
-        client = ControlClient(
-            self._cfg.hqp_host, self._cfg.hqp_control_port, self._cfg.request_timeout
-        )
+        client = ControlClient(self._cfg.hqp_host, self._cfg.hqp_control_port, self._cfg.request_timeout)
         await client.connect()
         info = await client.get_info()  # the handshake — this defines "reachable"
         state = await client.get_state()
@@ -134,9 +139,7 @@ class ConnectionManager:
         self.loaded_at = time.time()
         self.reachable = True
         self.unreachable_since = None
-        log.info(
-            "connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version")
-        )
+        log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
     async def _poll(self) -> None:
         client = self._client
@@ -146,9 +149,7 @@ class ConnectionManager:
         # mode switch swaps the enumeration lists wholesale (outline §5) —
         # re-enumerate rather than serve stale lists
         if self.state is not None and state.get("mode") != self.state.get("mode"):
-            log.info(
-                "mode changed (%s -> %s), re-enumerating", self.state.get("mode"), state.get("mode")
-            )
+            log.info("mode changed (%s -> %s), re-enumerating", self.state.get("mode"), state.get("mode"))
             self.enums = await client.get_all_enumerations()
         status, meta = await client.get_status()
         self.state, self.status, self.status_metadata = state, status, meta
@@ -156,9 +157,7 @@ class ConnectionManager:
 
     # --- write path (Phase 3) -----------------------------------------
 
-    async def apply(
-        self, live_edits: dict[str, dict[str, str]], http_fields: dict[str, str]
-    ) -> dict[str, Any]:
+    async def apply(self, live_edits: dict[str, dict[str, str]], http_fields: dict[str, str]) -> dict[str, Any]:
         """Apply staged changes: live setters first (readback-verified), then
         the http lane. The http POST restarts the daemon; the run loop's outage
         path handles the drop and fresh reload. No idle gate."""
@@ -171,16 +170,44 @@ class ConnectionManager:
         http_report = await self._apply_http(http_fields) if http_fields else None
         return {"live": live_report, "http": http_report}
 
-    async def _apply_http(self, fields: dict[str, str]) -> dict[str, Any]:
+    async def _apply_http(self, overrides: dict[str, str]) -> dict[str, Any]:
+        """POST /config applies the WHOLE form, so overlay the staged changes on
+        a fresh read and submit the complete form. The daemon answers 200 even
+        when it rejects ("Failed!"), so success is confirmed by reading the
+        config back after the restart — never by the POST alone."""
         if self._http is None:
             return {"submitted": False, "error": "no credentials for HTTP config lane"}
         try:
             backup = await self._http.backup()  # safety copy before the write
             self.last_backup = backup
-            await self._http.post_config(fields)  # daemon rewrites XML + restarts
+            fresh = await self._http.get_config()
+            await self._http.post_config(serialize_config_form(fresh["fields"], overrides))
+            verified = await self._verify_http(overrides)  # daemon restarts; read back
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
-        return {"submitted": True, "restart": True, "backup_bytes": len(backup)}
+        return {"submitted": True, "verified": verified, "backup_bytes": len(backup)}
+
+    async def _verify_http(self, overrides: dict[str, str]) -> dict[str, Any]:
+        """Poll GET /config until it REFLECTS the overrides, not merely until it
+        responds: right after the POST the daemon still serves the pre-restart
+        form for a moment, then drops, then returns with the new config. Retrying
+        only on connection error would read that stale form and false-negative.
+        A genuine rejection never reflects, so it times out as not-applied."""
+        http = self._require_http()
+        deadline = time.monotonic() + self._cfg.alarm_threshold
+        mismatches = dict(overrides)
+        while time.monotonic() < deadline:
+            try:
+                after = {f["name"]: f for f in (await http.get_config())["fields"]}
+                mismatches = {
+                    name: want for name, want in overrides.items() if not _http_field_matches(after.get(name), want)
+                }
+                if not mismatches:
+                    return {"applied": True, "mismatches": {}}
+            except (httpx.HTTPError, OSError):
+                pass  # daemon mid-restart — keep polling
+            await self._sleep(RECONNECT_FAST)
+        return {"applied": False, "mismatches": mismatches}
 
     async def load_profile(self, name: str) -> None:
         await self._require_http().post_profile("load", profile=name)

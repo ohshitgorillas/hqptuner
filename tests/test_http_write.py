@@ -60,14 +60,6 @@ async def http_client(
     await client.aclose()
 
 
-async def test_post_config_carries_the_apply_button(
-    http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
-) -> None:
-    client, captured = http_client
-    await client.post_config({"channels": "2"})
-    assert "Apply=Apply" in captured[0][1]
-
-
 async def test_post_config_carries_the_field_value(
     http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
 ) -> None:

@@ -59,7 +59,6 @@ def merge_enumerations(
         for item in enums.get("filters", [])
     ]
     merged["shapers"] = [
-        {**item, "static": static.shaper_entry(item["name"], mode_name)}
-        for item in enums.get("shapers", [])
+        {**item, "static": static.shaper_entry(item["name"], mode_name)} for item in enums.get("shapers", [])
     ]
     return merged

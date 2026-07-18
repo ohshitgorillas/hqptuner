@@ -79,7 +79,7 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 | Route | Method | Purpose | Fields |
 |---|---|---|---|
 | `/config` | GET | Full persistent-settings form with current values + min/max/enum constraints baked into the HTML — the read side of persistent config (no need to parse `hqplayerd.xml` for current values) | — |
-| `/config` | POST | Apply all persistent settings; the daemon writes `hqplayerd.xml` itself and restarts. Submit button is `value="Apply"` | see below |
+| `/config` | POST | Apply all persistent settings; the daemon writes `hqplayerd.xml` itself and restarts. **Submit the complete form** (submission contract below) | see below |
 | `/config/refresh` | POST | Re-scan output devices | — |
 | `/config/profile/load` | POST | Switch to a named configuration | `profile=<name>` |
 | `/config/profile/save` | POST | Create/overwrite a named configuration from current settings | `profile_name=<text>` |
@@ -88,6 +88,8 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 | `/input`, `/library`, `/speakers`, `/convolution`, `/matrix`, `/log`, `/about`, `/auth`, `/key` | GET | Other stock UI pages (per-config device page, logs, etc.) | — |
 
 Observed `POST /config` field names (representative, not exhaustive — the live page is the authoritative source of the persistent-settings surface and its constraints): `title`, `backend` (`alsa`/`network`/`combo`), `mode` (`auto`/`pcm`/`sdm`), `volume_fixed`, `fixed_volume_enabled`, `fixed_volume`, `volume_max`, `volume_min`, `defaults_volume`, `gain_comp` (step 0.1), `adaptive_volume`, `playlist_album_gain`, `channels`, `fft_size` (128–16384), `idle_time` (**milliseconds**: 0=default, 10000=10 s, … 60000), `pipelines` (2–128), `net_anydsd` (= 48k DSD checkbox), `net_ipv6`.
+
+**`POST /config` submission contract (verified on 6.0.4, the hard way).** The Apply button is *nameless* (`<input formaction="/config" type="submit" value="Apply"/>`), so the browser sends no submit field — the route alone signals Apply. The form must be submitted **complete**: a partial POST (a subset of fields) is silently rejected — the daemon answers HTTP **200** with `Failed!` in the body and writes nothing. So an apply overlays the staged changes onto a fresh `GET /config` and re-submits every field. **Checkboxes** submit `name=1` (their `value` attribute) when checked and are **omitted** when unchecked; sending the HTML default `name=on` makes the daemon reject the whole form. Because a rejection is still HTTP 200, success cannot be inferred from the POST — it must be confirmed by reading `/config` back, and that readback must **poll**: right after the POST the daemon keeps serving the pre-restart form for a moment, then drops (~0.3 s) and returns (~3 s) serving the new config, so a single readback can catch the stale form and false-negative.
 
 The `/config/profile/load` select observed on Opal: `[default]` (empty `value=""` — the unnamed base configuration) plus `Headphones - DSD256`, `Headphones - DSD512`, `Office`, `Speakers`. This is the same profile set the 4321 `ConfigurationList` returns; the HTTP route is the writable path.
 
