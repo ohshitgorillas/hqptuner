@@ -46,6 +46,7 @@ Rules:
 - **XML preservation** (fallback lane only): if HQPTuner ever writes `hqplayerd.xml` directly instead of via `POST /config`, every setting the UI does not expose (matrix pipelines, convolution config, inputs, etc.) must survive a rewrite byte-faithfully. The HTTP lane sidesteps this entirely — the daemon serializes its own file.
 - **Live vs restart split**: every control is classified as live (Control API) or restart-required (HTTP `/config` POST lane). The pending-changes bar reports the split before Apply.
 - **Enumeration volatility**: filter/modulator names and list ordering change between HQPlayer versions (per Jussi); the configuration file stores numeric enumeration IDs. The running engine's enumeration queries are the sole authority for current names and IDs. Static metadata joins by name at runtime; engine entries with no metadata match still render (name only, no description). XML writes use engine-reported IDs, never shipped constants.
+- **Mode-relative enumerations, no pre-capture**: the engine returns only the current mode's filter/shaper/rate lists (SDM lists in SDM, PCM lists in PCM). HQPTuner captures the current mode's lists for free on connect and re-enumerates on every mode switch (the daemon hands over the new mode's lists the moment `SetMode` takes effect). The other mode's lists are never needed while not in that mode, so HQPTuner never flips modes to pre-capture them. `data/engine-enums.json` is a development reference snapshot only — never the runtime authority.
 
 ## 3. Global UI
 

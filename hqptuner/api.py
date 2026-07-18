@@ -6,16 +6,49 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, FastAPI, HTTPException, Request
+from pydantic import BaseModel
 
 from .config import Config
+from .control import ControlError
 from .httpconf import HttpConfigClient
 from .manager import ConnectionManager
 from .metadata import StaticMetadata, merge_enumerations
+from .writer import known_live_settings
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
+
+
+class StageBody(BaseModel):
+    live: dict[str, dict[str, str]] = {}
+    http: dict[str, str] = {}
+
+
+class ProfileBody(BaseModel):
+    name: str = ""
+
+
+class PendingStore:
+    """Server-side staged-changes buffer. Survives browser reloads because it
+    lives on the backend, not the client (roadmap Phase 3)."""
+
+    def __init__(self) -> None:
+        self.live: dict[str, dict[str, str]] = {}
+        self.http: dict[str, str] = {}
+
+    def stage(self, live: dict[str, dict[str, str]], http: dict[str, str]) -> None:
+        self.live.update(live)
+        self.http.update(http)
+
+    def clear(self) -> None:
+        self.live = {}
+        self.http = {}
+
+    def snapshot(self) -> dict[str, Any]:
+        return {"live": self.live, "http": self.http}
 
 
 def _mgr(request: Request) -> ConnectionManager:
@@ -83,6 +116,67 @@ def metadata(request: Request) -> dict[str, Any]:
     return static.raw
 
 
+def _pending(request: Request) -> PendingStore:
+    store: PendingStore = request.app.state.pending
+    return store
+
+
+@router.post("/config/stage")
+def stage(body: StageBody, request: Request) -> dict[str, Any]:
+    unknown = set(body.live) - set(known_live_settings())
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
+    store = _pending(request)
+    store.stage(body.live, body.http)
+    return store.snapshot()
+
+
+@router.get("/config/pending")
+def pending(request: Request) -> dict[str, Any]:
+    return _pending(request).snapshot()
+
+
+@router.delete("/config/pending")
+def discard(request: Request) -> dict[str, Any]:
+    store = _pending(request)
+    store.clear()
+    return store.snapshot()
+
+
+@router.post("/config/apply")
+async def apply(request: Request) -> dict[str, Any]:
+    store = _pending(request)
+    if not store.live and not store.http:
+        raise HTTPException(status_code=400, detail="nothing staged")
+    try:
+        report = await _mgr(request).apply(store.live, store.http)
+    except ControlError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    store.clear()
+    return report
+
+
+@router.post("/profile/{action}")
+async def profile(action: str, body: ProfileBody, request: Request) -> dict[str, Any]:
+    manager = _mgr(request)
+    methods = {
+        "load": manager.load_profile,
+        "save": manager.save_profile,
+        "delete": manager.delete_profile,
+    }
+    if action not in methods:
+        raise HTTPException(status_code=404, detail=f"unknown profile action: {action}")
+    if not body.name:
+        raise HTTPException(status_code=422, detail="profile name required")
+    try:
+        await methods[action](body.name)
+    except ControlError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"action": action, "name": body.name, "submitted": True}
+
+
 def create_app(cfg: Config | None = None) -> FastAPI:
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
@@ -101,6 +195,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
         yield
         manager.stop()
         await task
+        await manager.aclose()
         if http_client is not None:
             await http_client.aclose()
 
@@ -108,5 +203,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.manager = manager
     app.state.static = static
     app.state.http_client = http_client
+    app.state.pending = PendingStore()
     app.include_router(router)
     return app
