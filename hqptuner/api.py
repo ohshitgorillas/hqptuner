@@ -182,9 +182,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     static = StaticMetadata(cfg.data_dir)
     http_client = None
     if cfg.hqp_username and cfg.hqp_password:
-        http_client = HttpConfigClient(
-            cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password
-        )
+        http_client = HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password)
     else:
         log.warning("no HQPTUNER_HQP_USERNAME/PASSWORD — /api/config unavailable")
     manager = ConnectionManager(cfg, http_client)

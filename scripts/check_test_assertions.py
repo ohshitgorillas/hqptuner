@@ -17,11 +17,7 @@ _FUNCS = (ast.FunctionDef, ast.AsyncFunctionDef)
 def _is_raises(node: ast.With | ast.AsyncWith) -> bool:
     for item in node.items:
         call = item.context_expr
-        if (
-            isinstance(call, ast.Call)
-            and isinstance(call.func, ast.Attribute)
-            and call.func.attr == "raises"
-        ):
+        if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == "raises":
             return True
     return False
 
@@ -33,9 +29,7 @@ def _count_assertions(body: list[ast.stmt], in_loop: bool = False) -> tuple[int,
     for node in body:
         if isinstance(node, _FUNCS):
             continue
-        hit = isinstance(node, ast.Assert) or (
-            isinstance(node, (ast.With, ast.AsyncWith)) and _is_raises(node)
-        )
+        hit = isinstance(node, ast.Assert) or (isinstance(node, (ast.With, ast.AsyncWith)) and _is_raises(node))
         if hit:
             count += 1
             looped = looped or in_loop

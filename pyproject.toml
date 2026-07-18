@@ -19,6 +19,7 @@ dev = [
     "mypy",
     "xenon",
     "pre-commit",
+    "black",
     "types-beautifulsoup4",
 ]
 
@@ -27,8 +28,12 @@ asyncio_mode = "auto"
 markers = ["live: requires a reachable hqplayerd (deselect with '-m \"not live\"')"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
+
+[tool.black]
+line-length = 120
+target-version = ["py312"]
 
 [tool.ruff.lint]
 select = [

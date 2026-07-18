@@ -4,7 +4,7 @@ VENV := .venv/bin
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
-	$(VENV)/ruff format --check hqptuner tests scripts
+	$(VENV)/black --check hqptuner tests scripts
 	$(VENV)/xenon --max-absolute B --max-average A --max-modules A hqptuner
 	$(VENV)/mypy
 	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')

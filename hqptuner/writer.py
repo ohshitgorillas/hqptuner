@@ -82,9 +82,7 @@ def known_live_settings() -> tuple[str, ...]:
     return _ORDER
 
 
-async def apply_live(
-    client: ControlClient, edits: dict[str, dict[str, str]]
-) -> list[dict[str, Any]]:
+async def apply_live(client: ControlClient, edits: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     """Apply each live edit in the safe order, verifying by readback. One edit
     failing does not abort the rest — each reports its own outcome."""
     report: list[dict[str, Any]] = []

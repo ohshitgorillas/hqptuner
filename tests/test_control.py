@@ -31,8 +31,7 @@ async def _serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
             await writer.drain()
             await asyncio.sleep(0.05)
             writer.write(
-                b'value="64" arg="1"/><FiltersItem index="1" name="poly-sinc" value="1" arg="0"/>'
-                b"</GetFilters>\n"
+                b'value="64" arg="1"/><FiltersItem index="1" name="poly-sinc" value="1" arg="0"/>' b"</GetFilters>\n"
             )
         elif body.startswith(b"<Status"):
             # bare '&' (album) and double-escaped entity (artist) in one doc
