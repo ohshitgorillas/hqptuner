@@ -138,8 +138,10 @@ class HttpConfigClient:
         resp.raise_for_status()
 
     async def backup(self) -> bytes:
-        """Daemon's own /backup route — a safety copy taken before an apply."""
-        resp = await self._client.get("/backup")
+        """Daemon's settings backup (a zip) — a safety copy taken before an
+        apply. The plain /backup route is only the HTML page; the actual
+        settings archive is /backup/settings.zip (verified on 6.0.4)."""
+        resp = await self._client.get("/backup/settings.zip")
         resp.raise_for_status()
         return resp.content
 
