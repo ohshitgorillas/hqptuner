@@ -6,11 +6,24 @@ import { signal, computed } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { Field } from "../store/Field.js";
 import { effective } from "../store/state.js";
+import { PlaybackVolume } from "./PlaybackVolume.js";
 
 const active = signal("output");
 
-function Section({ title, children }) {
-  return html`<section class="tab-body"><h2>${title}</h2>${children}</section>`;
+// No per-tab page heading — the active tab in the nav already names it.
+function Section({ children }) {
+  return html`<section class="tab-body">${children}</section>`;
+}
+
+// Non-collapsible card, same visual as the Output backend sections (shared title
+// style) — used to group controls within a tab.
+function Card({ title, children }) {
+  return html`
+    <section class="card">
+      <div class="card-head">${title}</div>
+      <div class="card-body">${children}</div>
+    </section>
+  `;
 }
 
 // A backend section reveals itself when its backend is selected (or Combo, which
@@ -81,9 +94,29 @@ const Dsp = () =>
   <//>`;
 
 const Volume = () =>
-  html`<${Section} title="Volume">
-    <${Field} k="fixed_volume" />
-    <${Field} k="adaptive_volume" />
+  html`<${Section}>
+    <${PlaybackVolume} />
+    <div class="card-grid">
+      <${Card} title="Fixed volume">
+        <${Field} k="fixed_volume_enabled" />
+        <div class="indent">
+          <${Field} k="fixed_volume" />
+          <${Field} k="optimal_iso" />
+        </div>
+      <//>
+      <${Card} title="Range">
+        <${Field} k="volume_max" />
+        <${Field} k="volume_min" />
+        <${Field} k="startup_volume" />
+      <//>
+      <${Card} title="Gain">
+        <${Field} k="gain_comp" />
+      <//>
+      <${Card} title="Automatic">
+        <${Field} k="adaptive_volume" />
+        <${Field} k="playlist_album_gain" />
+      <//>
+    </div>
   <//>`;
 
 const System = () => html`<${Section} title="System"><p class="muted">System controls arrive in step 3.</p><//>`;

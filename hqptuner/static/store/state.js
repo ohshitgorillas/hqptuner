@@ -22,6 +22,11 @@ export const config = signal(null); // /api/config data {fields, profiles}
 export const metadata = signal(null); // static: {filters, shapers, settings}
 export const staged = signal({ live: {}, http: {} }); // mirrors server pending
 
+// live playback volume — NOT a staged control: it lives in its own signals and
+// writes immediately via the Control API (never through the staged/apply flow).
+export const volume = signal(null); // engine-reported current volume (dB, string)
+export const volumeRange = signal(null); // {min, max, enabled, adaptive} from VolumeRange
+
 // --- derived: connection ---
 export const reachable = computed(() => !!(health.value && health.value.reachable));
 export const alarm = computed(() => !!(health.value && health.value.alarm));
@@ -57,11 +62,19 @@ export function effective(key) {
   return sv !== undefined ? sv : baseline(e);
 }
 
+// checkbox values cross domains: config baseline is a bool, staged is "1"/"0".
+// Compare in the control's own domain so a checkbox toggled back to its original
+// stops reading as dirty (else it stays highlighted until Discard).
+const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+
 export function isDirty(key) {
   const e = schema[key];
   if (!e) return false;
   const sv = stagedValue(e);
-  return sv !== undefined && String(sv) !== String(baseline(e));
+  if (sv === undefined) return false;
+  const base = baseline(e);
+  if (e.widget === "checkbox") return truthy(sv) !== truthy(base);
+  return String(sv) !== String(base);
 }
 
 // --- derived: the pending-changes bar ---
@@ -145,6 +158,19 @@ async function refreshFast() {
   if (s) engineState.value = s.data;
   const st = await safe(api.status);
   if (st) engineStatus.value = st.data;
+  const v = await safe(api.volume);
+  if (v) {
+    volume.value = v.volume;
+    volumeRange.value = v;
+  }
+}
+
+// Immediate live-volume write. Echoes the readback level into `volume` so the
+// slider reflects the applied value without waiting for the next poll.
+export async function setVolume(level) {
+  const r = await api.setVolume(level);
+  if (r && r.volume != null) volume.value = r.volume;
+  return r;
 }
 
 export async function refreshConfig() {

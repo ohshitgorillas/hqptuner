@@ -68,6 +68,7 @@ class ConnectionManager:
         self.state: dict[str, str] | None = None
         self.status: dict[str, str] | None = None
         self.status_metadata: dict[str, str] | None = None
+        self.volume_range: dict[str, str] | None = None
         self.enums: dict[str, list[dict[str, str]]] | None = None
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
@@ -127,6 +128,7 @@ class ConnectionManager:
         info = await client.get_info()  # the handshake — this defines "reachable"
         state = await client.get_state()
         status, meta = await client.get_status()
+        vrange = await client.get_volume_range()
         enums = await client.get_all_enumerations()
 
         config_form = None
@@ -141,6 +143,7 @@ class ConnectionManager:
 
         self._client = client
         self.info, self.state, self.status, self.status_metadata = info, state, status, meta
+        self.volume_range = vrange
         self.enums = enums
         self.config_form, self.config_error = config_form, config_error
         self.loaded_at = time.time()
@@ -160,7 +163,20 @@ class ConnectionManager:
             self.enums = await client.get_all_enumerations()
         status, meta = await client.get_status()
         self.state, self.status, self.status_metadata = state, status, meta
+        self.volume_range = await client.get_volume_range()
         self.loaded_at = time.time()
+
+    async def set_volume(self, db: str) -> dict[str, Any]:
+        """Live playback-volume write — immediate, outside the staged-config
+        apply flow. Raises CommandError when volume control is disabled (fixed
+        volume / no-volume path; VolumeRange enabled=0). Returns the readback
+        level so the caller echoes the applied value."""
+        client = self._client
+        if client is None:
+            raise ControlError("daemon not connected")
+        await client.set_volume(db)
+        self.state = await client.get_state()
+        return {"volume": self.state.get("volume")}
 
     # --- write path (Phase 3) -----------------------------------------
 

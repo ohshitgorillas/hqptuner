@@ -31,4 +31,6 @@ export const api = {
   discard: () => send("/api/config/pending", "DELETE"),
   apply: () => send("/api/config/apply", "POST", {}),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
+  volume: () => getJSON("/api/volume"),
+  setVolume: (level) => send("/api/volume", "POST", { level: String(level) }),
 };

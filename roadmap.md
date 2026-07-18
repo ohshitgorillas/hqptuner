@@ -145,7 +145,7 @@ Lightweight SPA, dark theme, no heavyweight framework (outline §8). Order withi
 - All outline §4 controls present and functional against the Phase 3 backend on Opal
 - Full apply cycle (stage → split shown → apply → restart → resync) usable from the browser with no dev tooling
 
-**Status (2026-07-18): in progress — scaffold, chrome, and the Output tab complete; DSP/Volume/System still the scaffold subset.**
+**Status (2026-07-18): in progress — scaffold, chrome, and the Output + Volume tabs complete; DSP/System still the scaffold subset.**
 
 Frontend stack (decided 2026-07-18): Preact + htm + `@preact/signals`, no build step — vendored ESM modules shared through an HTML importmap (CSP-clean, offline, one Preact instance). Three-tree store (engine-live 4321 / http-config 8088 / staged) with `effective(key)` = staged ?? baseline; dumb control primitives bound by a single `Field` that wires value/options/gray/dirty/label from the store. Reactive render is load-bearing: the cross-control graying/collapse graph falls out of `render(state)`.
 
@@ -156,6 +156,14 @@ Output tab — implemented and hand-walked on Opal:
 - **Transport params are per-backend, not mode-gated** — corrects outline §4/§5. The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values — verified live: `alsa_bits=24` vs `net_bits=20`, `alsa_anydsd=False` vs `net_anydsd=True`). The "DAC bits grays in SDM / DoP grays in PCM" annotations were the *desktop* app's behavior. IPv6 is Network-only. Graying carries **no caption** (a reason string would reflow the row on mode change).
 - **Two-family rate, friendly fixed menus.** PCM (`1x…32x`) and DSD (`DSD64…DSD2048`) both always shown, inactive one grayed by mode. Menus are literal, mapped to the **48k-base ceiling** wire values (`defaults_samplerate` / `defaults_bitrate`) so a source of either 44.1/48 family reaches its own Nx under the daemon's "equal or lower" auto rule (e.g. DSD512 = 24576000, not the naive `/44100` = "DSD557").
 - **Friendly-rate invariant forced on write.** Every `POST /config` pins `auto_family=1`, `samplerate=0`, `bitrate=0` (`_FORCED_CONFIG` in `manager._apply_http`) — the per-family ceiling only holds with auto-family on and the fixed rates on Auto. Enforced on write only (never a standalone POST → cannot restart the daemon uninvited). Covered by a parametrized round-trip through the faithful fake daemon, mutation-verified (disable the forcing → all three cases fail).
+
+Volume tab — implemented and hand-walked on Opal:
+
+- **Layout**: no page heading (the tab nav names it — applies to every tab now); a 2×2 card grid (Fixed volume · Range / Gain · Automatic) using the same card style as the Output backend sections. Fixed-volume level + Optimal ISO are indented under the enable checkbox.
+- **Field mapping** (live `/config` + readme): `volume_fixed` is **Optimal ISO** (inter-sample-overs-optimized fixed volume), `fixed_volume` is the dBFS level, `fixed_volume_enabled` gates both. Doc-verified exclusivity: the level grays when fixed-volume is off **or** Optimal ISO is on (ISO supersedes the manual level). Only `adaptive_volume` is live; the rest are http/restart.
+- **PCM gain compensation** is a slider **+** number box (120 fine steps are unusable on a slider alone), with the fill anchored at the 0 dB (max) end so its length reads as attenuation, plus ticks at 0 and −6.
+- **Checkbox dirty-highlight bug fixed**: `isDirty` compared a checkbox's staged `"1"/"0"` against a bool baseline as strings, so a touched checkbox read dirty forever — now compared in-domain.
+- **Live playback volume** — the tab's dominant control and the app's first real-time-write control. New lane: `GET/POST /api/volume` + `manager.set_volume` + `control.get_volume_range`, entirely outside the staged-diff/Apply flow (no dirty flag, no pending count). Reads `State.volume` + `VolumeRange` (bounds + `enabled`), writes immediately (throttled ~100 ms), grays on `VolumeRange enabled=0` (fixed volume / no active stream). The `<input type=range>` is **uncontrolled** (ref-driven, synced from the engine only when idle) so the 2 s poll can't yank the thumb mid-drag; when idle it tracks changes from other clients (Roon, HQPlayer Client). Covered by 4321-lane tests through the fake daemon (VolumeRange parse, set→State.volume readback, rejected-when-disabled).
 
 ## Phase 5 — Behavior rules, presets, polish
 

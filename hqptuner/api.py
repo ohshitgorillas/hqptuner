@@ -33,6 +33,10 @@ class ProfileBody(BaseModel):
     name: str = ""
 
 
+class VolumeBody(BaseModel):
+    level: str
+
+
 class PendingStore:
     """Server-side staged-changes buffer. Survives browser reloads because it
     lives on the backend, not the client (roadmap Phase 3)."""
@@ -116,6 +120,32 @@ def config(request: Request) -> dict[str, Any]:
 def metadata(request: Request) -> dict[str, Any]:
     static: StaticMetadata = request.app.state.static
     return static.raw
+
+
+@router.get("/volume")
+def volume_get(request: Request) -> dict[str, Any]:
+    """Live volume + its live bounds/enabled (VolumeRange). Separate from the
+    staged-config surface — this is the runtime playback-volume lane."""
+    manager = _mgr(request)
+    vr = manager.volume_range or {}
+    return {
+        "volume": (manager.state or {}).get("volume"),
+        "min": vr.get("min"),
+        "max": vr.get("max"),
+        "enabled": vr.get("enabled"),
+        "adaptive": vr.get("adaptive"),
+    }
+
+
+@router.post("/volume")
+async def volume_set(body: VolumeBody, request: Request) -> dict[str, Any]:
+    """Immediate live-volume write — never staged, never restarts. 503 when
+    volume control is disabled (the slider grays on that state, so this is the
+    race backstop)."""
+    try:
+        return await _mgr(request).set_volume(body.level)
+    except ControlError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 def _pending(request: Request) -> PendingStore:

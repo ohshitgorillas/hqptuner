@@ -10,6 +10,7 @@ resets `rate` to `0` (mode swaps the lists rate is relative to), which lets a
 test prove apply order (mode before rate)."""
 
 import asyncio
+import functools
 import threading
 import urllib.parse
 from collections.abc import AsyncIterator, Iterator
@@ -33,6 +34,11 @@ _DEFAULTS = {
     "filter_junk": "0",
     "adaptive": "0",
     "volume": "-10.0",
+    # underscore keys are internal to the fake (VolumeRange source), not emitted in State
+    "_vol_min": "-60",
+    "_vol_max": "0",
+    "_vol_enabled": "1",
+    "_vol_adaptive": "0",
 }
 
 
@@ -62,7 +68,14 @@ def _handle(body: str, state: dict[str, str]) -> str:
     if name == "GetInfo":
         return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
     if name == "State":
-        return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items()) + "/>"
+        return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items() if not k.startswith("_")) + "/>"
+    if name == "VolumeRange":
+        return (
+            f'<VolumeRange min="{state["_vol_min"]}" max="{state["_vol_max"]}" '
+            f'enabled="{state["_vol_enabled"]}" adaptive="{state["_vol_adaptive"]}"/>'
+        )
+    if name == "Volume" and state["_vol_enabled"] == "0":
+        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §7.3)
     value = attrs.get("value")
     if value == "err":
         return f'<{name} result="Error">bad value</{name}>'
@@ -71,8 +84,12 @@ def _handle(body: str, state: dict[str, str]) -> str:
     return f'<{name} result="OK"/>'
 
 
-async def _serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    state = dict(_DEFAULTS)
+async def _serve(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    overrides: dict[str, str] | None = None,
+) -> None:
+    state = {**_DEFAULTS, **(overrides or {})}
     while True:
         data = await reader.read(4096)
         if not data:
@@ -97,6 +114,21 @@ async def live_client(live_daemon_port: int) -> AsyncIterator[ControlClient]:
     await client.connect()
     yield client
     await client.close()
+
+
+@pytest.fixture
+async def disabled_volume_client() -> AsyncIterator[ControlClient]:
+    """A fake daemon with volume control disabled (VolumeRange enabled=0), so a
+    Volume write is rejected — the live-slider gray/error case."""
+    serve = functools.partial(_serve, overrides={"_vol_enabled": "0"})
+    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    port: int = server.sockets[0].getsockname()[1]
+    client = ControlClient("127.0.0.1", port, timeout=2.0)
+    await client.connect()
+    yield client
+    await client.close()
+    server.close()
+    await server.wait_closed()
 
 
 # --- faithful fake HTTP config daemon (port 8088 lane) --------------------
