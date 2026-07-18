@@ -25,9 +25,13 @@ def _handler(captured: list[tuple[str, str]]) -> type[BaseHTTPRequestHandler]:
 
         def do_GET(self) -> None:
             captured.append((self.path, ""))
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(BACKUP_BLOB)
+            if self.path == "/backup/settings.zip":  # only the real backup route serves the blob
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(BACKUP_BLOB)
+            else:
+                self.send_response(404)
+                self.end_headers()
 
         def log_message(self, *_: object) -> None:
             pass
