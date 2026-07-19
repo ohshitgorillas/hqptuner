@@ -550,6 +550,53 @@ input[type="checkbox"]:disabled {
   align-items: stretch;
   margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
 }
+/* System · About — read-only key/value list */
+.about {
+  margin: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+.about > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.about dt {
+  color: var(--fg-2);
+}
+.about dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+/* System · Backup — download link styled as a button */
+.btn {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-3);
+  color: var(--fg-1);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--accent);
+}
+.hw-apply {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+.hw-all {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.hw-status {
+  color: var(--fg-2);
+}
 /* hierarchical controls nested under a parent toggle */
 .indent {
   margin-left: 1.25rem;

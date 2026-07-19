@@ -155,6 +155,14 @@ class ControlClient:
     async def get_info(self) -> dict[str, str]:
         return dict((await self.request("<GetInfo/>")).attrib)
 
+    async def get_license(self) -> dict[str, str]:
+        return dict((await self.request("<GetLicense/>")).attrib)
+
+    async def get_active_config(self) -> str:
+        """The active configuration/preset name (empty string = the unnamed
+        ``[default]`` base). Response carries it in the ``value`` attribute."""
+        return (await self.request("<ConfigurationGet/>")).attrib.get("value", "")
+
     async def get_state(self) -> dict[str, str]:
         return dict((await self.request("<State/>")).attrib)
 

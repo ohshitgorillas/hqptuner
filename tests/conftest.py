@@ -11,9 +11,11 @@ test prove apply order (mode before rate)."""
 
 import asyncio
 import functools
+import io
 import re
 import threading
 import urllib.parse
+import zipfile
 from collections.abc import AsyncIterator, Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
@@ -69,6 +71,10 @@ def _handle(body: str, state: dict[str, str]) -> str:
     name, attrs = el.tag, el.attrib
     if name == "GetInfo":
         return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
+    if name == "GetLicense":
+        return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
+    if name == "ConfigurationGet":
+        return f'<ConfigurationGet result="OK" value="{state.get("_active_config", "")}"/>'
     if name == "State":
         return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items() if not k.startswith("_")) + "/>"
     if name == "VolumeRange":
@@ -219,7 +225,7 @@ def _http_get_response(state: dict[str, Any], path: str) -> tuple[int, bytes]:
     if path == "/matrix":
         return 200, _matrix_render(state).encode()
     if path == "/backup/settings.zip":
-        return 200, b"PK\x03\x04"
+        return 200, _backup_zip(state)
     return 404, b""
 
 
@@ -260,6 +266,12 @@ def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
+            if self.path == "/restore":
+                _restore_engine(state, self.headers.get("Content-Type", ""), raw)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"<html>Restore</html>")
+                return
             if self.path == "/matrix":
                 # only a multipart submission applies; urlencoded is ignored (200,
                 # no change) exactly as the real daemon does.
@@ -305,8 +317,39 @@ def _http_state(**extra: Any) -> dict[str, Any]:
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
         "_lag": 0,
+        # engine hardware-accel attrs, carried in the /backup archive's <engine>
+        # tag; POST /restore rewrites them (the file-only lane).
+        "_engine": {"cuda": "1", "multicore": "1", "nblocks": "16"},
         **extra,
     }
+
+
+def _backup_zip(state: dict[str, Any]) -> bytes:
+    e = state["_engine"]
+    xml = (
+        f'<config><engine auto_family="1" cuda="{e["cuda"]}" '
+        f'multicore="{e["multicore"]}" nblocks="{e["nblocks"]}"/>'
+        f'<matrix keep="me"/></config>'
+    ).encode()
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("hqplayerd.xml", xml)
+    return out.getvalue()
+
+
+def _restore_engine(state: dict[str, Any], content_type: str, raw: bytes) -> None:
+    # extract the uploaded cfgfile (a zip) from the multipart body, read its
+    # <engine> attributes, and adopt them — the daemon re-reads config on restore.
+    boundary = content_type.split("boundary=")[1].encode()
+    zbytes = b""
+    for part in raw.split(b"--" + boundary):
+        if b'name="cfgfile"' in part:
+            zbytes = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]
+    xml = zipfile.ZipFile(io.BytesIO(zbytes)).read("hqplayerd.xml")
+    for attr in ("cuda", "multicore", "nblocks"):
+        m = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', xml)
+        if m:
+            state["_engine"][attr] = m.group(1).decode()
 
 
 @pytest.fixture

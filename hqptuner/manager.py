@@ -28,6 +28,7 @@ from typing import Any
 
 import httpx
 
+from . import engineconf
 from .config import Config
 from .control import ControlClient, ControlError
 from .httpconf import HttpConfigClient, is_checked, serialize_config_form
@@ -67,10 +68,13 @@ class ConnectionManager:
         self._unreachable_mono: float = time.monotonic()
 
         self.info: dict[str, str] | None = None
+        self.license: dict[str, str] | None = None
         self.state: dict[str, str] | None = None
         self.status: dict[str, str] | None = None
         self.status_metadata: dict[str, str] | None = None
         self.volume_range: dict[str, str] | None = None
+        self.engine: dict[str, str] | None = None
+        self.active_config: str | None = None
         self.enums: dict[str, list[dict[str, str]]] | None = None
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
@@ -130,6 +134,8 @@ class ConnectionManager:
         client = ControlClient(self._cfg.hqp_host, self._cfg.hqp_control_port, self._cfg.request_timeout)
         await client.connect()
         info = await client.get_info()  # the handshake — this defines "reachable"
+        license_info = await client.get_license()  # static; licensee + valid flag
+        active_config = await client.get_active_config()  # active preset name
         state = await client.get_state()
         status, meta = await client.get_status()
         vrange = await client.get_volume_range()
@@ -154,6 +160,8 @@ class ConnectionManager:
 
         self._client = client
         self.info, self.state, self.status, self.status_metadata = info, state, status, meta
+        self.license = license_info
+        self.active_config = active_config
         self.volume_range = vrange
         self.enums = enums
         self.config_form, self.config_error = config_form, config_error
@@ -287,6 +295,63 @@ class ConnectionManager:
             return {"submitted": False, "error": str(exc)}
         return {"submitted": True, "verified": verified, "backup_bytes": len(backup)}
 
+    async def read_engine(self) -> dict[str, str]:
+        """Current hardware-accel engine attributes, parsed from a fresh backup's
+        base config (the only lane that carries them — they are not on the form).
+        Fetched on demand, not per poll, since the backup archive is large."""
+        engine = engineconf.read_engine_attrs(engineconf.base_config_xml(await self._require_http().backup()))
+        self.engine = engine
+        return engine
+
+    async def restore_config(self, data: bytes, scope: str = "system") -> None:
+        """Restore a user-supplied settings archive as-is (System-tab restore
+        action). The daemon self-restarts; the caller idle-gates."""
+        await self._require_http().restore(data, scope=scope)
+
+    async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
+        """Apply hardware-acceleration engine attributes (cuda/multicore/ecores/
+        nblocks) — the config-file-only lane. Edit a fresh ``/backup`` archive and
+        push it via ``POST /restore``; the daemon self-restarts and re-reads it,
+        preserving the active preset (grounded on 6.0.4). ``all_presets`` edits
+        every snapshot; otherwise just the active preset plus the base config.
+
+        No idle gate is enforced here — the restart interrupts playback, so the
+        caller (API) must idle-gate. Success is confirmed by reading the engine
+        attributes back from a fresh backup after the restart."""
+        engineconf.validate_overrides(overrides)
+        if self._http is None:
+            return {"submitted": False, "error": "no credentials for HTTP config lane"}
+        try:
+            active = self.active_config  # cached at connect; the currently-loaded preset
+            backup = await self._http.backup()
+            self.last_backup = backup
+            self._persist_backup(backup)
+            members = engineconf.config_members(backup, active or None, all_presets)
+            modified = engineconf.edit_config_zip(backup, members, overrides)
+            await self._http.restore(modified, scope="system")
+            verified = await self._verify_engine(overrides)
+        except httpx.HTTPError as exc:
+            return {"submitted": False, "error": str(exc)}
+        return {"submitted": True, "verified": verified, "members": members, "backup_bytes": len(backup)}
+
+    async def _verify_engine(self, overrides: dict[str, str]) -> dict[str, Any]:
+        """Read the engine attributes back from a fresh backup's base config after
+        the restore/restart and report whether each override is reflected."""
+        got: dict[str, str] = {}
+        for _ in range(20):
+            await self._sleep(0.5)
+            try:
+                fresh = await self._require_http().backup()
+            except httpx.HTTPError:
+                continue
+            if fresh[:4] != b"PK\x03\x04":
+                continue
+            got = engineconf.read_engine_attrs(engineconf.base_config_xml(fresh))
+            if all(got.get(k) == v for k, v in overrides.items()):
+                self.engine = got
+                return {"applied": True, "engine": got}
+        return {"applied": False, "engine": got}
+
     def _persist_backup(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk so a crash mid-apply still
         leaves a recoverable copy (memory-only last_backup does not survive one).
@@ -341,6 +406,10 @@ class ConnectionManager:
 
     async def delete_profile(self, name: str) -> None:
         await self._require_http().post_profile("delete", profile=name)
+
+    async def backup(self) -> bytes:
+        """The daemon's current settings archive (a zip) for download."""
+        return await self._require_http().backup()
 
     def _require_http(self) -> HttpConfigClient:
         if self._http is None:

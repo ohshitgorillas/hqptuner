@@ -36,6 +36,7 @@ const fixedOff = (ctx) => (truthy(ctx.effective("fixed_volume_enabled")) ? "" : 
 // §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
 const isoOn = (ctx) => truthy(ctx.effective("optimal_iso"));
 const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level" : "");
+const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "logging disabled");
 
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
 const PCM_RATES = [
@@ -152,4 +153,8 @@ export const schema = {
   gain_comp: { label: "PCM gain compensation", group: "volume", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
   adaptive_volume: { label: "Adaptive volume", group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume" },
   playlist_album_gain: { label: "Playlist album gain", group: "volume", widget: "checkbox", lane: "http", field: "playlist_album_gain" },
+
+  // --- System ---
+  log_enabled: { label: "Enable logging", group: "system", widget: "checkbox", lane: "http", field: "log_enabled" },
+  log_file: { label: "Log file", group: "system", widget: "text", lane: "http", field: "log_file", grayWhen: logOff, wide: true },
 };
