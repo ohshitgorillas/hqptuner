@@ -19,6 +19,7 @@ export const engineState = signal(null); // /api/state data (live indices)
 export const engineStatus = signal(null); // /api/status data
 export const enums = signal(null); // /api/enumerations data (merged w/ static)
 export const config = signal(null); // /api/config data {fields, profiles}
+export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
 export const metadata = signal(null); // static: {filters, shapers, settings}
 export const staged = signal({ live: {}, http: {} }); // mirrors server pending
 
@@ -38,10 +39,23 @@ export const configByName = computed(() => {
   return map;
 });
 
+// /matrix fields, keyed by name — the baseline/constraint source for the
+// crossfeed/DAC-correction controls (endpoint "matrix" in the schema).
+export const matrixByName = computed(() => {
+  const map = {};
+  for (const f of (matrixConfig.value && matrixConfig.value.fields) || []) map[f.name] = f;
+  return map;
+});
+
+// http-lane field source: /matrix for endpoint "matrix", /config otherwise.
+export function httpFieldMap(entry) {
+  return entry.endpoint === "matrix" ? matrixByName.value : configByName.value;
+}
+
 // --- three-tree resolution ---
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
-  const f = configByName.value[entry.field];
+  const f = httpFieldMap(entry)[entry.field];
   return f ? f.value : undefined;
 }
 
@@ -178,6 +192,8 @@ export async function refreshConfig() {
   if (e) enums.value = e.data;
   const c = await safe(api.config);
   if (c) config.value = c.data;
+  const m = await safe(api.matrix);
+  if (m) matrixConfig.value = m.data;
   const p = await safe(api.pending);
   if (p) staged.value = p;
 }

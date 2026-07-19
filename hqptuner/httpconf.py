@@ -131,6 +131,11 @@ def serialize_config_form(fields: list[dict[str, Any]], overrides: dict[str, str
         name = field.get("name")
         if not name or name in _SKIP_FIELDS:
             continue
+        if field.get("type") == "file":
+            # file inputs (matrix/convolution filter uploads) have no readable
+            # value to round-trip; omitting them leaves the loaded file intact
+            # (verified on 6.0.4). Never emit name="" — that would clear it.
+            continue
         value = overrides.get(name, field.get("value"))
         if field.get("type") == "checkbox":
             if is_checked(value):
@@ -155,6 +160,21 @@ class HttpConfigClient:
         resp = await self._client.get("/config")
         resp.raise_for_status()
         return parse_config_form(resp.text)
+
+    async def get_matrix(self) -> dict[str, Any]:
+        """GET /matrix — the pipeline/post-processing form (Bauer crossfeed, DAC
+        correction, loudness). Same parser as /config; the daemon rejects a
+        partial POST here too, so writes overlay a fresh read (manager)."""
+        resp = await self._client.get("/matrix")
+        resp.raise_for_status()
+        return parse_config_form(resp.text)
+
+    async def post_matrix(self, fields: dict[str, str]) -> None:
+        """Apply the /matrix form. Like /config it applies the WHOLE form and
+        confirms by readback (200 even on reject); `fields` must be complete
+        with file inputs omitted (serialize_config_form drops them)."""
+        resp = await self._client.post("/matrix", data=fields)
+        resp.raise_for_status()
 
     async def post_config(self, fields: dict[str, str]) -> None:
         """Apply persistent settings. The daemon writes hqplayerd.xml itself and

@@ -5,8 +5,9 @@
 
 import { html } from "./dom.js";
 import { schema } from "./schema.js";
-import { effective, isDirty, edit, metadata, configByName } from "./state.js";
-import { optionsFor } from "./options.js";
+import { effective, isDirty, edit, metadata, httpFieldMap } from "./state.js";
+import { optionsFor, grayShapersByRate } from "./options.js";
+import { narrowOptions } from "./narrowing.js";
 import { grayReason } from "./graying.js";
 import { Segment, Dropdown, NumberBox, Checkbox, Slider, SliderNumber, RadioGroup } from "../components/controls/index.js";
 
@@ -17,11 +18,30 @@ function describe(entry, key) {
   return g[key] || { label: key, tooltip: "" };
 }
 
+// Inline manual description for the current selection — the name-keyed prose from
+// the metadata overlay (filters.json / shapers.json). desc = filter|dither|modulator.
+function selectionDescription(entry, value, options) {
+  if (!entry.desc) return "";
+  const opt = (options || []).find((o) => String(o.value) === String(value));
+  const name = opt && opt.label;
+  if (!name) return "";
+  const md = metadata.value || {};
+  if (entry.desc === "filter") {
+    const fdb = (md.filters && md.filters.filters) || {};
+    const aliases = (md.filters && md.filters.aliases) || {};
+    const e = fdb[name] || fdb[aliases[name]];
+    return (e && e.description) || "";
+  }
+  const shapers = md.shapers || {};
+  const db = entry.desc === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
+  return (db && db[name] && db[name].description) || "";
+}
+
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds).
 function cfgConstraint(entry, name) {
   if (entry.lane !== "http") return undefined;
-  const f = configByName.value[entry.field];
+  const f = httpFieldMap(entry)[entry.field];
   return f ? f[name] : undefined;
 }
 
@@ -32,7 +52,11 @@ export function Field({ k }) {
   const meta = describe(entry, k);
   const label = entry.label || meta.label;
   const reason = grayReason(k);
-  const options = entry.optionsFrom ? optionsFor(entry.optionsFrom, entry.field) : entry.options;
+  let options = entry.optionsFrom ? optionsFor(entry.optionsFrom, entry.field) : entry.options;
+  // filter selects narrow their (large) option list by the active facets
+  if (entry.narrow) options = narrowOptions(options, effective(k), entry.narrow);
+  // shaper selects gray options the current output rate can't use
+  if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
 
   // A grayed control shows disabled state only — no explanatory caption (it would
   // reflow the row on mode change); graying is the whole signal.
@@ -52,6 +76,7 @@ export function Field({ k }) {
         />
         ${entry.unit ? html`<span class="unit">${entry.unit}</span>` : null}
       </div>
+      ${entry.desc ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options)}</div>` : null}
     </div>
   `;
 }

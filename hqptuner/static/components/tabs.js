@@ -7,6 +7,7 @@ import { html } from "../store/dom.js";
 import { Field } from "../store/Field.js";
 import { effective } from "../store/state.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
+import { NarrowBar } from "./NarrowBar.js";
 
 const active = signal("output");
 
@@ -34,6 +35,15 @@ const alsaOpen = computed(() => ["alsa", "combo"].includes(effective("backend"))
 const netOpen = computed(() => ["network", "combo"].includes(effective("backend")));
 const alsaOverride = signal(null);
 const netOverride = signal(null);
+
+// DSP chain cards auto-open by mode (auto shows both). PCM chain is irrelevant
+// in pure SDM mode and vice-versa; DSD-source decoding is irrelevant in PCM.
+const pcmOpen = computed(() => effective("output_mode") !== "sdm");
+const sdmOpen = computed(() => effective("output_mode") !== "pcm");
+const dsdOpen = computed(() => effective("output_mode") !== "pcm");
+const pcmOverride = signal(null);
+const sdmOverride = signal(null);
+const dsdOverride = signal(null);
 
 function Collapsible({ title, auto, override, children }) {
   const open = override.value === null ? auto.value : override.value;
@@ -87,10 +97,47 @@ const Output = () =>
   </section>`;
 
 const Dsp = () =>
-  html`<${Section} title="DSP">
-    <${Field} k="filter_nx" />
-    <${Field} k="shaper" />
-    <${Field} k="channels" />
+  html`<${Section}>
+    <div class="filter-group">
+      <${NarrowBar} />
+      <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
+        <${Field} k="pcm_filter_1x" />
+        <${Field} k="pcm_filter_nx" />
+        <${Field} k="pcm_dither" />
+      <//>
+      <${Collapsible} title="SDM" auto=${sdmOpen} override=${sdmOverride}>
+        <${Field} k="sdm_filter_1x" />
+        <${Field} k="sdm_filter_nx" />
+        <${Field} k="sdm_modulator" />
+      <//>
+    </div>
+    <${Collapsible} title="DSD sources" auto=${dsdOpen} override=${dsdOverride}>
+      <${Field} k="direct_sdm" />
+      <${Field} k="dsd_gain_6db" />
+      <${Field} k="sdm_integrator" />
+      <${Field} k="sdm_conversion" />
+      <${Field} k="noise_filter" />
+      <${Field} k="pcm_conversion" />
+    <//>
+    <div class="card-grid">
+      <${Card} title="Processing">
+        <${Field} k="channels" />
+        <${Field} k="fft_size" />
+        <${Field} k="pipelines" />
+      <//>
+      <${Card} title="Post-processing">
+        <${Field} k="crossfeed_enabled" />
+        <div class="indent">
+          <${Field} k="crossfeed_preset" />
+          <${Field} k="crossfeed_frequency" />
+          <${Field} k="crossfeed_level" />
+        </div>
+        <${Field} k="dac_correction_enabled" />
+        <div class="indent">
+          <${Field} k="dac_correction_profile" />
+        </div>
+      <//>
+    </div>
   <//>`;
 
 const Volume = () =>

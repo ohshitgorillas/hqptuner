@@ -25,6 +25,7 @@ export const api = {
   status: () => getJSON("/api/status"),
   enumerations: () => getJSON("/api/enumerations"),
   config: () => getJSON("/api/config"),
+  matrix: () => getJSON("/api/matrix"),
   metadata: () => getJSON("/api/metadata"),
   pending: () => getJSON("/api/config/pending"),
   stage: (body) => send("/api/config/stage", "POST", body),

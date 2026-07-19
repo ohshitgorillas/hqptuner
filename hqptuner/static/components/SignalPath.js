@@ -17,18 +17,23 @@ function Chip({ label, value }) {
 }
 
 export function SignalPath() {
+  // /api/status payload is { status: {active_*...}, metadata: {track tags} } —
+  // the active running chain lives on the Status root (status.*), the track
+  // info on the metadata child. Reading them off the top level (the old bug)
+  // left every chip blank.
   const s = engineStatus.value || {};
+  const st = s.status || {};
   const md = s.metadata || {};
-  const source = md.samplerate ? `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit` : s.active_mode || "—";
+  const source = md.samplerate ? `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit` : st.active_mode || "—";
   return html`
     <div class="signal-path">
       <${Chip} label="Source" value=${source} />
       <span class="arrow">→</span>
-      <${Chip} label="Filter" value=${s.active_filter} />
+      <${Chip} label="Filter" value=${st.active_filter} />
       <span class="arrow">→</span>
-      <${Chip} label="Shaper" value=${s.active_shaper} />
+      <${Chip} label="Shaper" value=${st.active_shaper} />
       <span class="arrow">→</span>
-      <${Chip} label="Rate" value=${fmtRate(s.active_rate)} />
+      <${Chip} label="Rate" value=${fmtRate(st.active_rate)} />
     </div>
   `;
 }
