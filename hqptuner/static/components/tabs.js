@@ -98,19 +98,17 @@ const Output = () =>
 
 const Dsp = () =>
   html`<${Section}>
-    <div class="filter-group">
-      <${NarrowBar} />
-      <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
-        <${Field} k="pcm_filter_1x" />
-        <${Field} k="pcm_filter_nx" />
-        <${Field} k="pcm_dither" />
-      <//>
-      <${Collapsible} title="SDM" auto=${sdmOpen} override=${sdmOverride}>
-        <${Field} k="sdm_filter_1x" />
-        <${Field} k="sdm_filter_nx" />
-        <${Field} k="sdm_modulator" />
-      <//>
-    </div>
+    <${NarrowBar} />
+    <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
+      <${Field} k="pcm_filter_1x" />
+      <${Field} k="pcm_filter_nx" />
+      <${Field} k="pcm_dither" />
+    <//>
+    <${Collapsible} title="SDM" auto=${sdmOpen} override=${sdmOverride}>
+      <${Field} k="sdm_filter_1x" />
+      <${Field} k="sdm_filter_nx" />
+      <${Field} k="sdm_modulator" />
+    <//>
     <${Collapsible} title="DSD sources" auto=${dsdOpen} override=${dsdOverride}>
       <${Field} k="direct_sdm" />
       <${Field} k="dsd_gain_6db" />
@@ -125,19 +123,19 @@ const Dsp = () =>
         <${Field} k="fft_size" />
         <${Field} k="pipelines" />
       <//>
-      <${Card} title="Post-processing">
-        <${Field} k="crossfeed_enabled" />
-        <div class="indent">
-          <${Field} k="crossfeed_preset" />
-          <${Field} k="crossfeed_frequency" />
-          <${Field} k="crossfeed_level" />
-        </div>
-        <${Field} k="dac_correction_enabled" />
-        <div class="indent">
-          <${Field} k="dac_correction_profile" />
-        </div>
-      <//>
     </div>
+    <${Card} title="Post-processing">
+      <${Field} k="crossfeed_enabled" />
+      <div class="indent">
+        <${Field} k="crossfeed_preset" />
+        <${Field} k="crossfeed_frequency" />
+        <${Field} k="crossfeed_level" />
+      </div>
+      <${Field} k="dac_correction_enabled" />
+      <div class="indent">
+        <${Field} k="dac_correction_profile" />
+      </div>
+    <//>
   <//>`;
 
 const Volume = () =>

@@ -77,6 +77,7 @@ export function Field({ k }) {
         ${entry.unit ? html`<span class="unit">${entry.unit}</span>` : null}
       </div>
       ${entry.desc ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options)}</div>` : null}
+      ${entry.hint ? html`<div class="field-hint">${entry.hint}</div>` : null}
     </div>
   `;
 }

@@ -169,11 +169,15 @@ class HttpConfigClient:
         resp.raise_for_status()
         return parse_config_form(resp.text)
 
-    async def post_matrix(self, fields: dict[str, str]) -> None:
-        """Apply the /matrix form. Like /config it applies the WHOLE form and
-        confirms by readback (200 even on reject); `fields` must be complete
-        with file inputs omitted (serialize_config_form drops them)."""
-        resp = await self._client.post("/matrix", data=fields)
+    async def post_matrix(self, fields: dict[str, str], file_names: tuple[str, ...] = ()) -> None:
+        """Apply the /matrix form. Because the form carries `<input type=file>`
+        inputs, the daemon expects **multipart/form-data** — a urlencoded POST
+        returns 200 but is silently ignored (verified on 6.0.4), so the file
+        inputs must be sent as empty parts (filename="" = keep existing). The
+        apply restarts the daemon; success is confirmed by readback, never the
+        POST. `fields` is the complete form minus file inputs (serialized)."""
+        files = {name: ("", b"", "application/octet-stream") for name in file_names}
+        resp = await self._client.post("/matrix", data=fields, files=files or None)
         resp.raise_for_status()
 
     async def post_config(self, fields: dict[str, str]) -> None:
