@@ -19,6 +19,11 @@ export const engineState = signal(null); // /api/state data (live indices)
 export const engineStatus = signal(null); // /api/status data
 export const enums = signal(null); // /api/enumerations data (merged w/ static)
 export const config = signal(null); // /api/config data {fields, profiles}
+// Preset preview: picking a preset loads its saved settings into the editor as
+// the baseline (no daemon touch) so they can be tweaked before Apply commits the
+// switch. pendingPreset = the previewed name; previewConfig = its field values.
+export const pendingPreset = signal(null);
+export const previewConfig = signal(null);
 export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
 export const metadata = signal(null); // static: {filters, shapers, settings}
 export const staged = signal({ live: {}, http: {} }); // mirrors server pending
@@ -55,6 +60,10 @@ export function httpFieldMap(entry) {
 // --- three-tree resolution ---
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
+  // a previewed preset's values are the baseline for its grounded fields, so the
+  // editor shows the preset before it's applied and tweaks read as dirty over it
+  const preview = previewConfig.value;
+  if (preview && entry.field in preview) return preview[entry.field];
   const f = httpFieldMap(entry)[entry.field];
   return f ? f.value : undefined;
 }
@@ -94,6 +103,8 @@ export function isDirty(key) {
 // --- derived: the pending-changes bar ---
 export const dirtyKeys = computed(() => Object.keys(schema).filter(isDirty));
 export const stagedCount = computed(() => dirtyKeys.value.length);
+// Apply is warranted by staged tweaks OR a previewed preset waiting to commit.
+export const hasPending = computed(() => stagedCount.value > 0 || pendingPreset.value !== null);
 export const split = computed(() => {
   let live = 0;
   let restart = 0;
@@ -119,7 +130,21 @@ export async function edit(key, value) {
 }
 
 export async function discardAll() {
+  clearPreview();
   staged.value = await api.discard();
+}
+
+// Load a preset's saved settings into the editor as the baseline (no daemon
+// touch) — the user tweaks, then Apply commits the switch.
+export async function previewPreset(name) {
+  const r = await api.preset(name);
+  previewConfig.value = (r && r.config) || {};
+  pendingPreset.value = name;
+}
+
+export function clearPreview() {
+  pendingPreset.value = null;
+  previewConfig.value = null;
 }
 
 // apply lifecycle, shared so the pill and the pending bar both reflect it
@@ -133,24 +158,38 @@ function summarize(report, count) {
   const live = report.live || [];
   const fails = live.filter((x) => !x.ok);
   if (fails.length) return { ok: false, text: `Failed: ${fails.map((f) => f.setting).join(", ")}` };
-  for (const lane of [report.http, report.matrix]) {
-    if (lane && lane.verified && !lane.verified.applied) {
-      return { ok: false, text: `Config not applied (${lane.verified.reason})` };
-    }
+  const sw = report.switched;
+  if (sw && !sw.active) return { ok: false, text: `Switch to "${sw.name}" did not take` };
+  const p = report.persistent;
+  if (p && !p.applied) {
+    const nd = p.unfixable && p.unfixable.net_device;
+    if (nd) return { ok: false, text: `Endpoint "${nd.want}" not present — config not applied` };
+    if (p.error) return { ok: false, text: `Config not applied: ${p.error}` };
+    return { ok: false, text: `Config not applied (${p.reason || "unconfirmed"})` };
   }
-  return { ok: true, text: `Applied ${count} change${count === 1 ? "" : "s"}` };
+  const changes = count ? `${count} change${count === 1 ? "" : "s"}` : "";
+  const base = sw ? `Switched to "${sw.name}"${changes ? ` + ${changes}` : ""}` : `Applied ${changes || "no changes"}`;
+  const saved = report.saved;
+  if (saved && !saved.ok) return { ok: false, text: `${base} — save to "${saved.name}" failed: ${saved.error}` };
+  if (saved) return { ok: true, text: `${base} · saved to "${saved.name}"` };
+  return { ok: true, text: base };
 }
 
 // Apply the staged set. The backend keeps staging on a soft failure, so on
 // return we re-mirror it: a failed/held edit stays staged and — once the poll
 // loop marks the daemon reachable again — the Apply button re-enables itself.
-export async function applyAll() {
+export async function applyAll(save) {
   applying.value = true;
   const count = stagedCount.value; // capture before apply clears the staged set
+  const switchTo = pendingPreset.value;
   try {
-    const report = await api.apply();
-    await refreshConfig(); // re-mirror pending + fresh values
+    const body = {};
+    if (save) body.save = save;
+    if (switchTo) body.switch_to = switchTo;
+    const report = await api.apply(Object.keys(body).length ? body : undefined);
+    await refreshConfig(); // re-mirror pending + fresh values (dropdown picks up a new preset)
     lastApply.value = summarize(report, count);
+    if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
     return report;
   } catch (e) {
     lastApply.value = { ok: false, text: `Apply failed: ${e.message}` };

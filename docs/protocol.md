@@ -84,7 +84,7 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 | `/config/profile/load` | POST | Switch to a named configuration | `profile=<name>` |
 | `/config/profile/save` | POST | Create/overwrite a named configuration from current settings | `profile_name=<text>` |
 | `/config/profile/delete` | POST | Delete the selected configuration | `profile=<name>` |
-| `/backup/settings.zip` | GET | Full settings archive (zip): base `hqplayerd.xml` + every preset snapshot under `data/cfgs/` + library | — |
+| `/backup/settings.zip` | GET | Full settings archive (zip): base `hqplayerd.xml` + every preset snapshot under `data/cfgs/` + library. **⚠ Returns empty after a named `profile/load` — see the daemon-bug note under §3.6** | — |
 | `/restore` | POST | Restore a settings archive; **multipart/form-data**, self-restarts the daemon (§restore below) | `scope` (`system`/`user`), `cfgfile` (zip or xml), `libfile` (xml) |
 | `/input`, `/library`, `/speakers`, `/convolution`, `/matrix`, `/log`, `/about`, `/auth`, `/key` | GET | Other stock UI pages (per-config device page, logs, etc.) | — |
 
@@ -100,11 +100,29 @@ The `/config/profile/load` select observed on Opal: `[default]` (empty `value=""
 
 The daemon keeps a **working config** (`hqplayerd.xml`) plus saved **snapshots** (`data/cfgs/<name>.xml`), all loaded into memory at startup. The lanes behave differently, which matters for reaching settings the `/config` form does not expose (the `<engine>` hardware-acceleration attributes `cuda`/`multicore`/`ecores`/`nblocks` — manual §1.2):
 
-- **`POST /config/profile/load`** copies a snapshot into the working config **from memory** — it does **not** re-read the snapshot file from disk. A disk edit followed by `load` has no effect (probed: edited a snapshot's `nblocks` on disk, loaded it, working config unchanged). Only a full daemon restart re-reads disk.
+- **`POST /config/profile/load`** copies a snapshot into the working config **from memory** — it does **not** re-read the snapshot file from disk. A disk edit followed by `load` has no effect (probed: edited a snapshot's `nblocks` on disk, loaded it, working config unchanged). Only a full daemon restart re-reads disk. **Side effect (daemon bug):** a named `load` leaves `/backup/settings.zip` empty until a service restart — see the bug note below.
 - **`POST /config`** writes the working file and **preserves** the active preset — it does *not* reset to `[default]` (probed: active stayed on a named preset across the POST). Only a full `systemctl restart` drops the active label to `[default]`.
 - **`POST /restore`** is the write path for form-absent settings and for backup restore. Multipart form: `scope` (radio; `system` = the running config under `/etc/hqplayer`, `user` = `~/.hqplayer`), `cfgfile` (a `/backup` zip **or** a single config xml), optional `libfile`. **`scope=system`** writes the archive to disk and the daemon **self-restarts (~5.6 s** — lighter than `systemctl restart`'s 9.3 s, heavier than `profile/load`'s 3.4 s**), re-reading from disk while keeping the active preset** (probed: `cuda`/`nblocks` edits in an uploaded zip took effect on both the base config and the active snapshot; active preset unchanged). `scope=user` did not affect the running config on Opal. The 200 response body is the HTML restore page — success is confirmed by a `/backup` readback, never by the POST.
 
 HQPTuner's engine-attribute write path (`hqptuner/engineconf.py`, `manager.apply_engine`) is therefore: fetch `/backup`, surgically edit the `<engine>` tag (byte-faithful) in the base config plus the active (or all) snapshot, `POST /restore` `scope=system`, verify by reading the `<engine>` tag back from a fresh `/backup`.
+
+### DAEMON BUG — `profile/load` empties `/backup/settings.zip` (6.0.4)
+
+**Confirmed deterministic on Opal, 2026-07-19 (engine 6.0.4, version 6, Linux).** After `POST /config/profile/load` with a **named** configuration, `GET /backup/settings.zip` returns an empty archive — **160 bytes, a single bare `data/` entry** (no `hqplayerd.xml`, no `data/cfgs/*.xml`) — instead of the normal ~4.69 MB / 23-entry archive. State persists indefinitely; only a **service restart** (`systemctl restart hqplayerd`) restores generation.
+
+Isolation matrix (each trial from a clean service restart, backup verified healthy first, one action, re-check):
+
+| Action | `settings.zip` after |
+|---|---|
+| idle / Control-API (4321) setting change | healthy |
+| `POST /config` (self-restarts) | healthy |
+| `POST /restore` `scope=system` (self-restarts) | healthy |
+| `profile/load` → **named** preset (×3) | **BROKEN, 3/3** |
+| `profile/load` → `[default]` (empty name) | healthy |
+
+So it is **not** a restart side effect (`/config` and `/restore` both restart and stay healthy) — it's specific to loading a *named* profile. Scope is `settings.zip` **only**: `GET /backup/library.xml` still returns 200 (2,362,439 bytes) afterward. Not a path redirection either — marker files placed in both the home data dir and a preset's own subdir both appear in a healthy archive; **neither** appears in the broken one, so the archive is genuinely empty, not pointed elsewhere. Nothing is logged; config/playback/presets are unaffected. Reported to Signalyst (Jussi).
+
+**Workaround (`manager._backup_or_cached`, remove when fixed):** the snapshots inside `/backup` don't change across a `profile/load`, and `POST /restore`'s restart **recovers** backup generation. So HQPTuner caches the last healthy archive, warms that cache **before** the switching load (`apply()` with `switch_to`), and falls back to it when the live `/backup` comes back empty; the subsequent `/restore` both applies the edit and heals the daemon. `_verify_persistent` still reads the **live** `/backup` (healthy post-restore) so verification is never against stale cache.
 
 ## 4. Response conventions
 

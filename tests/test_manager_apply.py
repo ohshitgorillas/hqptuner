@@ -47,4 +47,4 @@ async def test_live_edit_without_connection_raises() -> None:
 async def test_http_edit_without_credentials_reports_error() -> None:
     manager = ConnectionManager(Config())  # no http client configured
     report = await manager.apply({}, {"channels": "2"})
-    assert report["http"]["submitted"] is False
+    assert report["persistent"]["submitted"] is False

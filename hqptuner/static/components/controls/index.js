@@ -2,6 +2,7 @@
 // onChange and renders — no store knowledge. The Field binder wires them to the
 // three-tree store by control key. Reusable and independently testable.
 
+import { useRef, useEffect } from "preact/hooks";
 import { html } from "../../store/dom.js";
 
 const s = (v) => (v == null ? "" : String(v));
@@ -40,11 +41,27 @@ export function Dropdown({ value, options, disabled, onChange }) {
   `;
 }
 
+// Typed inputs are UNCONTROLLED while focused. `onChange` is the native change
+// event (commit on blur), so a half-typed value lives only in the DOM until then
+// — and the 2 s poll re-renders constantly. A controlled `value=` would reset the
+// field mid-edit (typing "-1" snapped straight back to "0"). So sync from the
+// store by ref, and only when the user isn't in the field. Same rule the live
+// volume slider follows.
+function useSyncWhenIdle(value) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && document.activeElement !== el) el.value = s(value);
+  });
+  return ref;
+}
+
 export function NumberBox({ value, min, max, step, disabled, onChange }) {
+  const ref = useSyncWhenIdle(value);
   return html`
     <input
       type="number"
-      value=${s(value)}
+      ref=${ref}
       min=${min}
       max=${max}
       step=${step == null ? 1 : step}
@@ -55,9 +72,8 @@ export function NumberBox({ value, min, max, step, disabled, onChange }) {
 }
 
 export function TextBox({ value, disabled, onChange }) {
-  return html`
-    <input type="text" value=${s(value)} disabled=${disabled} onChange=${(e) => onChange(e.target.value)} />
-  `;
+  const ref = useSyncWhenIdle(value);
+  return html`<input type="text" ref=${ref} disabled=${disabled} onChange=${(e) => onChange(e.target.value)} />`;
 }
 
 export function Checkbox({ value, disabled, onChange }) {

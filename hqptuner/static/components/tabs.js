@@ -9,6 +9,7 @@ import { effective, health } from "../store/state.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { HardwareCard, RestoreCard } from "./SystemHardware.js";
+import { accent, applyAccent, ACCENTS } from "../store/theme.js";
 
 const active = signal("output");
 
@@ -189,6 +190,29 @@ const About = () => {
   `;
 };
 
+const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber" };
+
+const AccentPicker = () =>
+  html`
+    <div class="field">
+      <label>Accent color</label>
+      <div class="control accent-swatches">
+        ${ACCENTS.map(
+          (a) => html`
+            <button
+              type="button"
+              class="swatch ${a} ${accent.value === a ? "active" : ""}"
+              title=${ACCENT_LABELS[a]}
+              aria-label=${ACCENT_LABELS[a]}
+              aria-pressed=${accent.value === a}
+              onClick=${() => applyAccent(a)}
+            ></button>
+          `,
+        )}
+      </div>
+    </div>
+  `;
+
 const System = () =>
   html`<${Section}>
     <div class="card-grid">
@@ -207,6 +231,9 @@ const System = () =>
       <//>
       <${RestoreCard} />
     </div>
+    <${Card} title="HQPTuner">
+      <${AccentPicker} />
+    <//>
   <//>`;
 
 const TABS = [

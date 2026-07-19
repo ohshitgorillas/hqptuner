@@ -61,7 +61,7 @@ export function Field({ k }) {
   // A grayed control shows disabled state only — no explanatory caption (it would
   // reflow the row on mode change); graying is the whole signal.
   return html`
-    <div class="field ${entry.wide ? "wide" : ""} ${isDirty(k) ? "dirty" : ""}" title=${meta.tooltip}>
+    <div class="field ${entry.wide ? "wide" : ""} ${isDirty(k) ? "dirty" : ""}" title=${reason || meta.tooltip}>
       <label>${label}</label>
       <div class="control">
         <${W}

@@ -11,13 +11,28 @@ import httpx
 from fastapi import APIRouter, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.types import Scope
 
 from .config import Config
 from .control import ControlError
 from .httpconf import HttpConfigClient
 from .manager import ConnectionManager
 from .metadata import StaticMetadata, merge_enumerations
+from .presetconf import UNGROUNDED
 from .writer import known_live_settings
+
+
+class NoCacheStaticFiles(StaticFiles):
+    """Serve the SPA with revalidation forced. Browsers cache ES modules
+    aggressively; on a local config tool that's not worth a stale build shadowing
+    an edit, so every asset carries `Cache-Control: no-cache` — the browser must
+    revalidate (a cheap 304 via ETag/Last-Modified) instead of blindly reusing."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +42,20 @@ router = APIRouter(prefix="/api")
 class StageBody(BaseModel):
     live: dict[str, dict[str, str]] = {}
     http: dict[str, str] = {}
+
+
+class SaveTarget(BaseModel):
+    name: str
+
+
+class ApplyBody(BaseModel):
+    # optional: after a successful apply, persist the (now clean) working config
+    # into this preset snapshot — the active one (Apply & Save) or a new name
+    # (Save as New). Absent = ephemeral apply (working config only).
+    save: SaveTarget | None = None
+    # optional: the user previewed this preset in the editor; apply loads it first
+    # so it becomes active, then applies the staged tweaks on top of its snapshot.
+    switch_to: str | None = None
 
 
 class ProfileBody(BaseModel):
@@ -119,7 +148,11 @@ def config(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
     if manager.config_form is None and manager.config_error:
         raise HTTPException(status_code=502, detail=f"GET /config failed: {manager.config_error}")
-    return _snapshot(manager, manager.config_form)
+    if manager.config_form is None:
+        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
+    # `active` is the truly-loaded preset (ConfigurationGet), which the profile
+    # form's own default select does not reliably reflect — the header shows this.
+    return _snapshot(manager, {**manager.config_form, "active": manager.active_config})
 
 
 @router.get("/matrix")
@@ -130,6 +163,19 @@ def matrix(request: Request) -> dict[str, Any]:
     if manager.matrix_form is None and manager.matrix_error:
         raise HTTPException(status_code=502, detail=f"GET /matrix failed: {manager.matrix_error}")
     return _snapshot(manager, manager.matrix_form)
+
+
+@router.get("/preset/{name}")
+async def preset(name: str, request: Request) -> dict[str, Any]:
+    """A preset's saved settings, read from its snapshot without loading it — the
+    editor previews these when the user picks a preset, before any apply."""
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    try:
+        return {"name": name, "config": await manager.read_preset(name)}
+    except (ControlError, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail=f"read preset failed: {exc}") from exc
 
 
 @router.get("/backup")
@@ -187,14 +233,17 @@ def _pending(request: Request) -> PendingStore:
 
 def _apply_succeeded(report: dict[str, Any]) -> bool:
     """Whether every staged change actually took. A live edit counts only if its
-    readback verified (`ok`); the http lane only if the daemon reflected the
-    change after its restart (`verified.applied`). A soft failure — daemon
-    answered but rejected, or a value never reflected — returns False here so the
+    readback verified (`ok`); the persistent lane only if the running config
+    reflected the change after the restart (`applied`). A soft failure — a value
+    never converged, or a preset's endpoint is gone — returns False here so the
     caller keeps the pending buffer instead of silently dropping the edits."""
     if any(not entry.get("ok") for entry in report.get("live", [])):
         return False
-    http = report.get("http")
-    return not (http is not None and not http.get("verified", {}).get("applied"))
+    switched = report.get("switched")
+    if switched is not None and not switched.get("active"):
+        return False  # the preset switch never took — don't clear the preview
+    persistent = report.get("persistent")
+    return not (persistent is not None and not persistent.get("applied"))
 
 
 @router.post("/config/stage")
@@ -202,6 +251,11 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
+    ungrounded = set(body.http) & UNGROUNDED
+    if ungrounded:
+        # the corrective XML apply has no verified location for these yet, so it
+        # refuses them rather than write a guessed attribute to a live daemon.
+        raise HTTPException(status_code=422, detail=f"not yet applicable via config apply: {sorted(ungrounded)}")
     store = _pending(request)
     store.stage(body.live, body.http)
     return store.snapshot()
@@ -219,17 +273,33 @@ def discard(request: Request) -> dict[str, Any]:
     return store.snapshot()
 
 
-@router.post("/config/apply")
-async def apply(request: Request) -> dict[str, Any]:
-    store = _pending(request)
-    if not store.live and not store.http:
-        raise HTTPException(status_code=400, detail="nothing staged")
+async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, Any]:
+    """Persist a clean, successful apply into a snapshot. profile/save writes the
+    working config (already the preset ⊕ edits) into the named snapshot; no
+    restart. Only called when the apply itself succeeded."""
     try:
-        report = await _mgr(request).apply(store.live, store.http)
+        await manager.save_profile(name)
+    except (ControlError, httpx.HTTPError) as exc:
+        return {"name": name, "ok": False, "error": str(exc)}
+    return {"name": name, "ok": True}
+
+
+@router.post("/config/apply")
+async def apply(request: Request, body: ApplyBody | None = None) -> dict[str, Any]:
+    store = _pending(request)
+    switch_to = body.switch_to if body else None
+    if not store.live and not store.http and switch_to is None:
+        raise HTTPException(status_code=400, detail="nothing staged")
+    manager = _mgr(request)
+    try:
+        report = await manager.apply(store.live, store.http, switch_to)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    if _apply_succeeded(report):
-        store.clear()  # keep staging on a soft failure so the user can retry
+    if not _apply_succeeded(report):
+        return report  # soft failure — keep staging so the user can retry
+    if body is not None and body.save is not None:
+        report["saved"] = await _save_after_apply(manager, body.save.name)
+    store.clear()
     return report
 
 
@@ -333,5 +403,5 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     # SPA's static assets and index.html fall through to here.
     static_dir = Path(__file__).resolve().parent / "static"
     if static_dir.is_dir():
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
+        app.mount("/", NoCacheStaticFiles(directory=static_dir, html=True), name="spa")
     return app
