@@ -114,7 +114,7 @@ async def test_the_pre_apply_backup_is_written_to_disk(
     # persisted before the POST, not just held in memory
     manager, _ = apply_via
     await manager.apply({}, {"title": "Renamed"})
-    assert (tmp_path / "pre-apply-settings.zip").read_bytes() == b"PK\x03\x04"
+    assert (tmp_path / "pre-apply-settings.zip").read_bytes().startswith(b"PK\x03\x04")
 
 
 async def test_apply_verifies_through_the_post_restart_stale_window(

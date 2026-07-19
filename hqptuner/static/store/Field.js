@@ -9,9 +9,9 @@ import { effective, isDirty, edit, metadata, httpFieldMap } from "./state.js";
 import { optionsFor, grayShapersByRate } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { grayReason } from "./graying.js";
-import { Segment, Dropdown, NumberBox, Checkbox, Slider, SliderNumber, RadioGroup } from "../components/controls/index.js";
+import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "../components/controls/index.js";
 
-const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup };
+const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, text: TextBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup };
 
 function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};

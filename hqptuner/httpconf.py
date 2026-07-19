@@ -198,6 +198,20 @@ class HttpConfigClient:
         resp = await self._client.post(f"/config/profile/{action}", data=fields)
         resp.raise_for_status()
 
+    async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
+        """Restore a full settings archive via multipart ``POST /restore``.
+        ``scope="system"`` targets the running config (``/etc/hqplayer``);
+        ``"user"`` targets ``~/.hqplayer``. Grounded on 6.0.4: ``scope=system``
+        writes the archive and the daemon self-restarts (~5.6 s), **preserving
+        the active preset** — the connection manager's outage path handles the
+        restart/resync. ``cfgfile`` is a ``/backup`` settings.zip (or config xml)."""
+        resp = await self._client.post(
+            "/restore",
+            data={"scope": scope},
+            files={"cfgfile": ("settings.zip", cfgfile, "application/zip")},
+        )
+        resp.raise_for_status()
+
     async def backup(self) -> bytes:
         """Daemon's settings backup (a zip) — a safety copy taken before an
         apply. The plain /backup route is only the HTML page; the actual

@@ -9,6 +9,7 @@ dependencies = [
     "httpx",
     "beautifulsoup4",
     "defusedxml",
+    "python-multipart",
 ]
 
 [project.optional-dependencies]

@@ -19,8 +19,19 @@ async function send(path, method, body) {
   return r.json();
 }
 
+async function upload(path, field, file) {
+  const fd = new FormData();
+  fd.append(field, file);
+  const r = await fetch(path, { method: "POST", body: fd });
+  if (!r.ok) throw new Error(`${path} -> ${r.status}`);
+  return r.json();
+}
+
 export const api = {
   health: () => getJSON("/api/health"),
+  engine: () => getJSON("/api/engine"),
+  applyEngine: (body) => send("/api/engine", "POST", body),
+  restore: (file) => upload("/api/restore", "cfgfile", file),
   state: () => getJSON("/api/state"),
   status: () => getJSON("/api/status"),
   enumerations: () => getJSON("/api/enumerations"),

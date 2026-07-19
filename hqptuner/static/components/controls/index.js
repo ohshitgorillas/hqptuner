@@ -54,6 +54,12 @@ export function NumberBox({ value, min, max, step, disabled, onChange }) {
   `;
 }
 
+export function TextBox({ value, disabled, onChange }) {
+  return html`
+    <input type="text" value=${s(value)} disabled=${disabled} onChange=${(e) => onChange(e.target.value)} />
+  `;
+}
+
 export function Checkbox({ value, disabled, onChange }) {
   return html`
     <input

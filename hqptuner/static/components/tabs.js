@@ -5,9 +5,10 @@
 import { signal, computed } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { Field } from "../store/Field.js";
-import { effective } from "../store/state.js";
+import { effective, health } from "../store/state.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { NarrowBar } from "./NarrowBar.js";
+import { HardwareCard, RestoreCard } from "./SystemHardware.js";
 
 const active = signal("output");
 
@@ -164,7 +165,49 @@ const Volume = () =>
     </div>
   <//>`;
 
-const System = () => html`<${Section} title="System"><p class="muted">System controls arrive in step 3.</p><//>`;
+const info = computed(() => (health.value && health.value.info) || {});
+const license = computed(() => (health.value && health.value.license) || {});
+
+const licenseLabel = (l) => {
+  if (!l || l.valid == null) return "";
+  const licensed = l.valid === "1" || l.valid === 1 || l.valid === true;
+  return licensed ? "Licensed" : "Unlicensed (trial)";
+};
+
+const About = () => {
+  const i = info.value;
+  const rows = [
+    ["Product", i.product],
+    ["Engine", i.engine],
+    ["License", licenseLabel(license.value)],
+    ["Platform", i.platform],
+  ].filter((r) => r[1]);
+  return html`
+    <dl class="about">
+      ${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}
+    </dl>
+  `;
+};
+
+const System = () =>
+  html`<${Section}>
+    <div class="card-grid">
+      <${Card} title="Logging">
+        <${Field} k="log_enabled" />
+        <${Field} k="log_file" />
+      <//>
+      <${Card} title="About">
+        <${About} />
+      <//>
+    </div>
+    <${HardwareCard} />
+    <div class="card-grid">
+      <${Card} title="Backup">
+        <a class="btn" href="/api/backup" download>Download settings backup</a>
+      <//>
+      <${RestoreCard} />
+    </div>
+  <//>`;
 
 const TABS = [
   ["output", "Output", Output],

@@ -5,10 +5,10 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -35,6 +35,11 @@ class ProfileBody(BaseModel):
 
 class VolumeBody(BaseModel):
     level: str
+
+
+class EngineBody(BaseModel):
+    overrides: dict[str, str] = {}
+    all_presets: bool = False
 
 
 class PendingStore:
@@ -78,6 +83,7 @@ def health(request: Request) -> dict[str, Any]:
         "unreachable_since": manager.unreachable_since,
         "alarm": manager.alarm,
         "info": manager.info,
+        "license": manager.license,
     }
 
 
@@ -124,6 +130,22 @@ def matrix(request: Request) -> dict[str, Any]:
     if manager.matrix_form is None and manager.matrix_error:
         raise HTTPException(status_code=502, detail=f"GET /matrix failed: {manager.matrix_error}")
     return _snapshot(manager, manager.matrix_form)
+
+
+@router.get("/backup")
+async def backup(request: Request) -> Response:
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    try:
+        data = await manager.backup()
+    except ControlError as exc:
+        raise HTTPException(status_code=502, detail=f"backup failed: {exc}") from exc
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="hqplayer-settings.zip"'},
+    )
 
 
 @router.get("/metadata")
@@ -209,6 +231,55 @@ async def apply(request: Request) -> dict[str, Any]:
     if _apply_succeeded(report):
         store.clear()  # keep staging on a soft failure so the user can retry
     return report
+
+
+def _require_idle(manager: ConnectionManager) -> None:
+    """A restart-based apply interrupts playback — refuse unless the daemon is
+    idle (State state="0"). The user stops playback and retries."""
+    state = (manager.state or {}).get("state")
+    if state != "0":
+        raise HTTPException(status_code=409, detail="daemon is not idle (stop playback first)")
+
+
+@router.get("/engine")
+async def engine_get(request: Request) -> dict[str, Any]:
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    try:
+        return {"engine": await manager.read_engine(), "active_config": manager.active_config}
+    except (ControlError, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail=f"read engine failed: {exc}") from exc
+
+
+@router.post("/engine")
+async def engine_apply(body: EngineBody, request: Request) -> dict[str, Any]:
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    if not body.overrides:
+        raise HTTPException(status_code=400, detail="no engine overrides given")
+    _require_idle(manager)
+    try:
+        return await manager.apply_engine(body.overrides, body.all_presets)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ControlError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/restore")
+async def restore(request: Request, cfgfile: Annotated[UploadFile, File()]) -> dict[str, Any]:
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    _require_idle(manager)
+    data = await cfgfile.read()
+    try:
+        await manager.restore_config(data)
+    except (ControlError, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail=f"restore failed: {exc}") from exc
+    return {"restored": True, "bytes": len(data)}
 
 
 @router.post("/profile/{action}")
