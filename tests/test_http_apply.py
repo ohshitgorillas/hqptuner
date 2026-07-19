@@ -2,10 +2,9 @@
 (docs/testing.md). The fake (conftest `http_daemon` and its variants) speaks the
 real wire contract discovered on 6.0.4: it rejects a partial form, rejects a
 checkbox sent as anything but "1", answers HTTP 200 even when it rejects, and
-its GET reflects persisted state. So a change only "round-trips" if
-`manager.apply` produced a submission the real daemon would accept — any
-serialization fault (dropped field, `on`, partial) makes the fake reject and
-the readback fail."""
+its GET renders the running state. So a change only round-trips if
+`manager.apply` built a restore archive the real daemon would accept — a wrong
+form->XML mapping in the writer surfaces as a failed readback."""
 
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -52,8 +51,8 @@ async def test_enabling_a_checkbox_is_applied(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
     manager, http = apply_via
-    await manager.apply({}, {"net_dop": "1"})
-    assert (await _readback(http))["net_dop"] is True
+    await manager.apply({}, {"net_ipv6": "1"})
+    assert (await _readback(http))["net_ipv6"] is True
 
 
 @pytest.mark.parametrize(
@@ -74,36 +73,28 @@ async def test_config_write_pins_the_field_regardless_of_staging(
     assert (await _readback(http))[field] == expected
 
 
-async def test_apply_reports_failure_when_the_daemon_rejects(
+async def test_a_value_the_daemon_refuses_reports_not_applied(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
+    # the daemon refuses the value on restore, so the running config never
+    # reflects it — the apply must report not-applied, never a silent success
     manager, _ = apply_via
     report = await manager.apply({}, {"title": "REJECT"})
-    assert report["http"]["verified"]["applied"] is False
+    assert report["persistent"]["applied"] is False
 
 
-async def test_a_rejected_apply_is_reported_as_rejected(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
-) -> None:
-    # the daemon stays up and keeps serving the old form — a bad value, not a
-    # crashed restart, so the reason must be "rejected"
-    manager, _ = apply_via
-    report = await manager.apply({}, {"title": "REJECT"})
-    assert report["http"]["verified"]["reason"] == "rejected"
-
-
-async def test_a_daemon_that_never_returns_is_reported_as_unreachable(
+async def test_a_daemon_that_never_returns_reports_not_applied(
     dying_http_daemon: dict[str, Any],
     tmp_path: Path,
 ) -> None:
-    # the daemon accepts the POST then never comes back; a rejection would keep
-    # serving, so the end-state connection failure must read as "unreachable"
+    # the daemon accepts the restore then never comes back; the apply must report
+    # not-applied so the caller keeps the staging, not a false success
     manager, http = _manager(dying_http_daemon, tmp_path, alarm=1.0)
     try:
         report = await manager.apply({}, {"title": "Renamed"})
     finally:
         await http.aclose()
-    assert report["http"]["verified"]["reason"] == "unreachable"
+    assert report["persistent"]["applied"] is False
 
 
 async def test_the_pre_apply_backup_is_written_to_disk(
@@ -128,4 +119,4 @@ async def test_apply_verifies_through_the_post_restart_stale_window(
         report = await manager.apply({}, {"title": "Renamed"})
     finally:
         await http.aclose()
-    assert report["http"]["verified"]["applied"] is True
+    assert report["persistent"]["applied"] is True

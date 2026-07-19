@@ -1,15 +1,35 @@
 // Global header: daemon identity + live state, presets dropdown, status pill.
+// Picking a preset does NOT touch the daemon — it previews that preset's saved
+// settings into the editor (previewPreset) so they can be tweaked first; the
+// header then shows "(pending apply)" until Apply commits the switch. The active
+// preset comes from config.active (the truly-loaded ConfigurationGet name).
+import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
-import { health, engineState, config } from "../store/state.js";
+import { health, engineState, config, pendingPreset, previewPreset } from "../store/state.js";
 import { StatusPill } from "./StatusPill.js";
 
 const PLAY = { 0: "Stopped", 1: "Paused", 2: "Playing", 3: "Stopping" };
 
+const pickStatus = signal(""); // "", "Loading…", or an error line
+
+async function onPick(e) {
+  const name = e.target.value;
+  pickStatus.value = "Loading…";
+  try {
+    await previewPreset(name);
+    pickStatus.value = "";
+  } catch (err) {
+    pickStatus.value = `Failed: ${err}`;
+  }
+}
+
 export function Header() {
   const info = (health.value && health.value.info) || {};
   const st = engineState.value || {};
-  const profiles = config.value && config.value.profiles;
-  const active = profiles && profiles.value;
+  const cfg = config.value || {};
+  const profiles = cfg.profiles;
+  const active = cfg.active || (profiles && profiles.value) || "";
+  const pending = pendingPreset.value;
 
   return html`
     <header class="chrome-header">
@@ -23,11 +43,13 @@ export function Header() {
         ${profiles
           ? html`
               <label class="muted">Config</label>
-              <select value=${active || ""} disabled>
+              <select value=${pending || active} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
                 ${(profiles.options || []).map(
                   (o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`,
                 )}
               </select>
+              ${pending ? html`<span class="preset-status pending-apply">(pending apply)</span>` : null}
+              ${pickStatus.value && !pending ? html`<span class="preset-status muted">${pickStatus.value}</span>` : null}
             `
           : null}
       </div>

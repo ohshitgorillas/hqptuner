@@ -14,7 +14,6 @@ import functools
 import io
 import re
 import threading
-import urllib.parse
 import zipfile
 from collections.abc import AsyncIterator, Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -168,96 +167,163 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
 
 # --- faithful fake HTTP config daemon (port 8088 lane) --------------------
 #
-# Speaks the POST /config wire contract discovered on 6.0.4 (docs/protocol.md
-# §3.6): it rejects a partial form, rejects a checkbox sent as anything but "1",
-# answers HTTP 200 even when it rejects, and its GET reflects persisted state.
-# A change only round-trips if the client produced a submission the real daemon
-# would accept, so a serialization fault makes the fake reject and readback fail.
-
-_HTTP_TEXT = ("title", "backend")  # required, non-checkbox
-_HTTP_CHECK = ("dsd_6db", "net_dop", "auto_family")
-_HTTP_VALUE = ("samplerate", "bitrate")  # value fields the friendly-rate UI pins to Auto
+# Speaks the restore/XML write contract (docs/protocol.md §3.6): GET /backup
+# serves a real hqplayerd.xml the daemon would produce, POST /restore adopts the
+# uploaded working config, and GET /config + /matrix render the current state.
+# The XML schema here is authored to match 6.0.4 INDEPENDENTLY of presetconf, so
+# a wrong form->XML mapping in the writer surfaces as a failed readback — not a
+# self-confirming round-trip. A change only lands if manager.apply produced a
+# restore archive the real daemon would accept.
 
 
-def _http_render(state: dict[str, Any]) -> str:
-    rows = [f'<input type="text" name="title" value="{state["title"]}" required/>']
-    options = "".join(
-        f'<option value="{v}"{" selected" if state["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
+def _b(v: Any) -> str:
+    return "1" if v in (True, "1", 1) else "0"
+
+
+def _cfg_xml(st: dict[str, Any]) -> bytes:
+    """The working hqplayerd.xml a /backup would carry, rendered from state."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<hqplayerd>'
+        f'<output type="{st["backend"]}"/>'
+        f'<title value="{st["title"]}"/>'
+        '<mode value="sdm"/>'
+        f'<pcm filter="{st["filter"]}" filter1x="47" dither="3" samplerate="{st["samplerate"]}"/>'
+        f'<sdm oversampling="41" oversampling1x="42" modulator="12" bitrate="{st["bitrate"]}"/>'
+        f'<engine auto_family="{_b(st["auto_family"])}" channels="{st["channels"]}" '
+        f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}"/>'
+        '<defaults samplerate="192000" bitrate="24576000" volume="-3"/>'
+        f'<network address="S26" device="hw:CARD=Output,DEV=0" ipv6="{_b(st["net_ipv6"])}" '
+        'dac_bits="15" period_time="0"/>'
+        '<alsa device="hw:CARD=NVidia,DEV=3" dac_bits="24" period_time="100"/>'
+        '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
+        "<post_process>"
+        '<plugin type="correction" enabled="0" dac0=""/>'
+        f'<plugin type="bauer" enabled="{_b(st["post_bauer_enabled"])}" '
+        f'frequency="{st["post_bauer_frequency"]}" preset="default" level="4.5"/>'
+        "</post_process>"
+        "</hqplayerd>"
+    ).encode()
+
+
+def _elem_attr(xml: bytes, tag: str, attr: str) -> str | None:
+    m = re.search(rb"<" + tag.encode() + rb"\b[^>]*?>", xml)
+    if not m:
+        return None
+    a = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', m.group(0))
+    return a.group(1).decode() if a else None
+
+
+def _adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
+    """Update state from an uploaded working hqplayerd.xml — the daemon re-reading
+    its config on restore. Reads the schema independently of the writer."""
+
+    def take(key: str, tag: str, attr: str) -> None:
+        v = _elem_attr(xml, tag, attr)
+        if v is not None:
+            st[key] = v
+
+    for key, tag, attr in (
+        ("backend", "output", "type"),
+        ("title", "title", "value"),
+        ("filter", "pcm", "filter"),
+        ("samplerate", "pcm", "samplerate"),
+        ("bitrate", "sdm", "bitrate"),
+        ("channels", "engine", "channels"),
+        ("cuda", "engine", "cuda"),
+        ("multicore", "engine", "multicore"),
+        ("nblocks", "engine", "nblocks"),
+    ):
+        take(key, tag, attr)
+    af = _elem_attr(xml, "engine", "auto_family")
+    if af is not None:
+        st["auto_family"] = af == "1"
+    ipv6 = _elem_attr(xml, "network", "ipv6")
+    if ipv6 is not None:
+        st["net_ipv6"] = ipv6 == "1"
+    for m in re.finditer(rb"<plugin\b[^>]*?>", xml):
+        if b'type="bauer"' in m.group(0):
+            freq = re.search(rb'\bfrequency="([^"]*)"', m.group(0))
+            enabled = re.search(rb'\benabled="([^"]*)"', m.group(0))
+            if freq:
+                st["post_bauer_frequency"] = freq.group(1).decode()
+            if enabled:
+                st["post_bauer_enabled"] = enabled.group(1) == b"1"
+
+
+def _backup_zip(st: dict[str, Any]) -> bytes:
+    xml = _cfg_xml(st)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("hqplayerd.xml", xml)
+        z.writestr("data/cfgs/Test.xml", xml)
+        z.writestr("data/library.xml", b"<library/>")
+    return out.getvalue()
+
+
+def _http_render(st: dict[str, Any]) -> str:
+    """GET /config form — the read side, rendered from state."""
+    opts = "".join(
+        f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
     )
-    rows.append(f'<select name="backend">{options}</select>')
-    rows += [f'<input type="text" name="{n}" value="{state[n]}"/>' for n in _HTTP_VALUE]
-    rows += [f'<input type="checkbox" name="{cb}" value="1"{" checked" if state[cb] else ""}/>' for cb in _HTTP_CHECK]
-    rows.append('<input formaction="/config" type="submit" value="Apply"/>')
-    return '<form method="post">' + "".join(rows) + "</form>"
-
-
-def _http_accepts(data: dict[str, str]) -> bool:
-    if any(t not in data for t in _HTTP_TEXT):  # partial form
-        return False
-    if any(data.get(cb, "1") != "1" for cb in _HTTP_CHECK):  # checkbox must be "1", never "on"
-        return False
-    return data["title"] != "REJECT"  # models a value-level rejection
-
-
-def _matrix_render(state: dict[str, Any]) -> str:
-    # the /matrix post-processing form: a crossfeed field + a file input that a
-    # correct serializer must omit (no readable value to round-trip).
     rows = [
-        f'<input type="checkbox" name="post_bauer_enabled" value="1"'
-        f'{" checked" if state["post_bauer_enabled"] else ""}/>',
-        f'<input type="number" name="post_bauer_frequency" value="{state["post_bauer_frequency"]}"/>',
-        '<input type="file" name="filter_0"/>',
-        '<input formaction="/matrix" type="submit" value="Apply"/>',
+        f'<input type="text" name="title" value="{st["title"]}"/>',
+        f'<select name="backend">{opts}</select>',
+        f'<input type="text" name="filter" value="{st["filter"]}"/>',
+        f'<input type="text" name="samplerate" value="{st["samplerate"]}"/>',
+        f'<input type="text" name="bitrate" value="{st["bitrate"]}"/>',
+        f'<input type="text" name="channels" value="{st["channels"]}"/>',
+        f'<input type="checkbox" name="auto_family" value="1"{" checked" if st["auto_family"] else ""}/>',
+        f'<input type="checkbox" name="net_ipv6" value="1"{" checked" if st["net_ipv6"] else ""}/>',
     ]
     return '<form method="post">' + "".join(rows) + "</form>"
 
 
-def _http_get_response(state: dict[str, Any], path: str) -> tuple[int, bytes]:
-    if state.get("_down"):  # accepted the POST, then never came back
+def _matrix_render(st: dict[str, Any]) -> str:
+    rows = [
+        f'<input type="checkbox" name="post_bauer_enabled" value="1"{" checked" if st["post_bauer_enabled"] else ""}/>',
+        f'<input type="number" name="post_bauer_frequency" value="{st["post_bauer_frequency"]}"/>',
+        '<input type="file" name="filter_0"/>',
+    ]
+    return '<form method="post">' + "".join(rows) + "</form>"
+
+
+def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
+    if st.get("_down"):  # restore accepted, daemon never came back
         return 503, b""
     if path == "/config":
-        # right after an accepted POST the real daemon keeps serving the
-        # pre-restart form for a few reads before it reloads
-        if state.get("_stale", 0) > 0:
-            state["_stale"] -= 1
-            return 200, _http_render(state["_snapshot"]).encode()
-        return 200, _http_render(state).encode()
+        return 200, _http_render(st).encode()
     if path == "/matrix":
-        return 200, _matrix_render(state).encode()
+        return 200, _matrix_render(st).encode()
     if path == "/backup/settings.zip":
-        return 200, _backup_zip(state)
+        # after a restore the daemon serves the pre-restart archive for a read or
+        # two before catching up — the restart window verify must ride through
+        if st.get("_stale", 0) > 0:
+            st["_stale"] -= 1
+            return 200, st["_pre_backup"]
+        return 200, _backup_zip(st)
     return 404, b""
 
 
-def _http_apply_matrix(state: dict[str, Any], raw: bytes) -> None:
-    # the /matrix form has file inputs, so the daemon applies only a multipart
-    # submission; the value fields arrive as multipart parts (regex-extracted).
-    m = re.search(rb'name="post_bauer_frequency"\r\n\r\n([^\r\n]*)', raw)
-    if m:
-        state["post_bauer_frequency"] = m.group(1).decode()
-        state["post_bauer_enabled"] = b'name="post_bauer_enabled"' in raw
+def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
+    boundary = content_type.split("boundary=")[1].encode()
+    zbytes = b""
+    for part in raw.split(b"--" + boundary):
+        if b'name="cfgfile"' in part:
+            zbytes = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]
+    xml = zipfile.ZipFile(io.BytesIO(zbytes)).read("hqplayerd.xml")
+    if _elem_attr(xml, "title", "value") == "REJECT":
+        return  # modeled value-level rejection: the daemon refuses, state unchanged
+    st["_pre_backup"] = _backup_zip(st)  # snapshot before adopting, for the stale window
+    _adopt_cfg(st, xml)
+    st["_stale"] = st.get("_lag", 0)
+    if st.get("_die"):
+        st["_down"] = True
 
 
-def _http_apply_config(state: dict[str, Any], data: dict[str, str]) -> None:
-    if not _http_accepts(data):
-        return
-    state["_snapshot"] = {k: state[k] for k in (*_HTTP_TEXT, *_HTTP_VALUE, *_HTTP_CHECK)}
-    state["title"] = data["title"]
-    state["backend"] = data["backend"]
-    for n in _HTTP_VALUE:
-        if n in data:
-            state[n] = data[n]
-    for cb in _HTTP_CHECK:
-        state[cb] = cb in data
-    state["_stale"] = state.get("_lag", 0)
-    if state.get("_die"):
-        state["_down"] = True  # restart that never recovers
-
-
-def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
+def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            status, body = _http_get_response(state, self.path)
+            status, body = _http_get_response(st, self.path)
             self.send_response(status)
             self.end_headers()
             if body:
@@ -267,25 +333,10 @@ def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
             if self.path == "/restore":
-                _restore_engine(state, self.headers.get("Content-Type", ""), raw)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"<html>Restore</html>")
-                return
-            if self.path == "/matrix":
-                # only a multipart submission applies; urlencoded is ignored (200,
-                # no change) exactly as the real daemon does.
-                if self.headers.get("Content-Type", "").startswith("multipart/form-data"):
-                    _http_apply_matrix(state, raw)
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"OK")
-                return
-            data = dict(urllib.parse.parse_qsl(raw.decode()))
-            _http_apply_config(state, data)
-            self.send_response(200)
+                _restore_config(st, self.headers.get("Content-Type", ""), raw)
+            self.send_response(200)  # /config, /matrix POST are unused by the restore lane
             self.end_headers()
-            self.wfile.write(b"OK" if _http_accepts(data) else b"Failed!")
+            self.wfile.write(b"<html>Restore</html>")
 
         def log_message(self, *_: object) -> None:
             pass
@@ -293,12 +344,12 @@ def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def _http_spawn(state: dict[str, Any]) -> Iterator[dict[str, Any]]:
-    server = HTTPServer(("127.0.0.1", 0), _http_handler(state))
+def _http_spawn(st: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    server = HTTPServer(("127.0.0.1", 0), _http_handler(st))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    state["_port"] = server.server_address[1]
-    yield state
+    st["_port"] = server.server_address[1]
+    yield st
     server.shutdown()
     thread.join()
 
@@ -309,47 +360,20 @@ def _http_state(**extra: Any) -> dict[str, Any]:
     return {
         "title": "Opal",
         "backend": "network",
-        "dsd_6db": True,
-        "net_dop": False,
-        "auto_family": False,
+        "filter": "40",
         "samplerate": "192000",
         "bitrate": "22579200",
+        "channels": "2",
+        "auto_family": False,
+        "net_ipv6": False,
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
+        "cuda": "1",
+        "multicore": "1",
+        "nblocks": "16",
         "_lag": 0,
-        # engine hardware-accel attrs, carried in the /backup archive's <engine>
-        # tag; POST /restore rewrites them (the file-only lane).
-        "_engine": {"cuda": "1", "multicore": "1", "nblocks": "16"},
         **extra,
     }
-
-
-def _backup_zip(state: dict[str, Any]) -> bytes:
-    e = state["_engine"]
-    xml = (
-        f'<config><engine auto_family="1" cuda="{e["cuda"]}" '
-        f'multicore="{e["multicore"]}" nblocks="{e["nblocks"]}"/>'
-        f'<matrix keep="me"/></config>'
-    ).encode()
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w") as z:
-        z.writestr("hqplayerd.xml", xml)
-    return out.getvalue()
-
-
-def _restore_engine(state: dict[str, Any], content_type: str, raw: bytes) -> None:
-    # extract the uploaded cfgfile (a zip) from the multipart body, read its
-    # <engine> attributes, and adopt them — the daemon re-reads config on restore.
-    boundary = content_type.split("boundary=")[1].encode()
-    zbytes = b""
-    for part in raw.split(b"--" + boundary):
-        if b'name="cfgfile"' in part:
-            zbytes = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]
-    xml = zipfile.ZipFile(io.BytesIO(zbytes)).read("hqplayerd.xml")
-    for attr in ("cuda", "multicore", "nblocks"):
-        m = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', xml)
-        if m:
-            state["_engine"][attr] = m.group(1).decode()
 
 
 @pytest.fixture
@@ -359,11 +383,11 @@ def http_daemon() -> Iterator[dict[str, Any]]:
 
 @pytest.fixture
 def stale_http_daemon() -> Iterator[dict[str, Any]]:
-    # serves the pre-restart form for one read before catching up, like a restart
+    # serves the pre-restart archive for one backup read before catching up
     yield from _http_spawn(_http_state(_lag=1))
 
 
 @pytest.fixture
 def dying_http_daemon() -> Iterator[dict[str, Any]]:
-    # accepts the POST, then goes unreachable and never returns — a failed restart
+    # accepts the restore, then goes unreachable and never returns
     yield from _http_spawn(_http_state(_die=True))

@@ -41,8 +41,9 @@ export const api = {
   pending: () => getJSON("/api/config/pending"),
   stage: (body) => send("/api/config/stage", "POST", body),
   discard: () => send("/api/config/pending", "DELETE"),
-  apply: () => send("/api/config/apply", "POST", {}),
+  apply: (body) => send("/api/config/apply", "POST", body || {}),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
+  preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   volume: () => getJSON("/api/volume"),
   setVolume: (level) => send("/api/volume", "POST", { level: String(level) }),
 };

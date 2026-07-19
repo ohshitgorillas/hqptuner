@@ -129,9 +129,11 @@ export const schema = {
   noise_filter: { label: "Noise filter", group: "dsp", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true },
   pcm_conversion: { label: "SDM → PCM", group: "dsp", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true },
 
-  // --- DSP: post-processing (the /matrix form, not /config — endpoint:"matrix").
-  // Bauer crossfeed + DAC correction. Applied through the same staged/Apply flow;
-  // the manager routes these field names to POST /matrix (manager._split_http).
+  // --- DSP: post-processing (crossfeed + DAC correction). endpoint:"matrix"
+  // marks these as /matrix form-read fields (their baseline/options come from
+  // GET /matrix). On apply they ride the same snapshot-XML restore lane as every
+  // other persistent field — the manager edits their <post_process><plugin> nodes
+  // (presetconf.PLUGIN_MAP), so a stray crossfeed can't survive a preset re-assert.
   crossfeed_enabled: { label: "Bauer crossfeed", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_bauer_enabled" },
   crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true },
   crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz" },

@@ -1,18 +1,71 @@
 /* HQPTuner — dark theme. Deliberately restrained: this is a configurator, the
-   controls are the content. */
+   controls are the content. Typography: Inter for UI, JetBrains Mono for every
+   *value* (rates, dB, Hz, version) — instrument-readout convention, and it kills
+   number-width jitter on live updates. Both vendored, offline, CSP-clean. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/inter-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/inter-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/jbmono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/jbmono-500.woff2") format("woff2");
+}
+
 :root {
+  /* elevation scale: page → card → header/control → inset. Warm-neutral base
+     (off the old blue-gray) reads richer under the accent. */
   --bg: #14161a;
   --bg-2: #1c1f26;
   --bg-3: #242833;
   --fg: #d7dbe3;
+  --fg-2: #9299a5; /* secondary text (label keys, hints) */
   --muted: #7f8794;
   --line: #2e333f;
+  /* signature accent — default blue; overridden per :root[data-accent]. --glow
+     is the brighter sibling reserved for the one hero spot (active signal
+     stage), so "active" pops without repainting the stingy accent everywhere. */
   --accent: #4f9dde;
+  --accent-glow: #74b6ec;
   --green: #3fa66a;
   --amber: #d1a13a;
   --red: #d4574e;
   --dirty: #3a3320;
+  /* aliases kept for existing rules that named these before they were defined */
+  --bg-1: var(--bg-3);
+  --fg-1: var(--fg);
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace;
   font-size: 15px;
+  font-family: var(--font-ui);
+}
+
+:root[data-accent="green"] {
+  --accent: #3fe0a0; /* phosphor — oscilloscope readout */
+  --accent-glow: #6affc0;
+}
+:root[data-accent="amber"] {
+  --accent: #e0a63a; /* VU-meter warmth */
+  --accent-glow: #f5c14a;
 }
 
 * {
@@ -22,7 +75,19 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
+}
+
+/* every *value* renders tabular mono — measurement-equipment convention, and
+   fixed-width stops live numbers from reflowing as they change */
+.mono,
+.chip-val,
+.about dd,
+.unit,
+.slidernum-box,
+.playback-readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .muted {
   color: var(--muted);
@@ -52,18 +117,26 @@ body {
 .brand {
   font-weight: 700;
   letter-spacing: 0.02em;
+  font-size: 1.25rem;
 }
 .daemon {
   display: flex;
   gap: 0.6rem;
   align-items: baseline;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 .presets {
   margin-left: auto;
   display: flex;
   gap: 0.4rem;
   align-items: center;
+}
+.preset-status {
+  font-size: 0.8rem;
+}
+.preset-status.pending-apply {
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .pill {
@@ -85,34 +158,70 @@ body {
   color: var(--red);
 }
 
-/* signal path */
+/* signal path — the front panel. Stages read as one continuous chain: chips
+   threaded by a connector line (not floating arrows). Playing lights the thread
+   with the accent and glows the output Rate chip; idle dims the bar as a unit. */
 .signal-path {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: stretch;
   flex-wrap: wrap;
-  padding: 0.6rem 1rem;
+  gap: 0;
+  padding: 0.7rem 1rem;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
+}
+.signal-path.idle {
+  opacity: 0.45;
 }
 .chip {
   display: inline-flex;
   flex-direction: column;
+  gap: 0.05rem;
   background: var(--bg-3);
   border: 1px solid var(--line);
-  border-radius: 0.4rem;
-  padding: 0.25rem 0.55rem;
+  border-radius: 0.35rem;
+  padding: 0.22rem 0.5rem;
 }
 .chip-label {
-  font-size: 0.65rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .chip-val {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--fg);
 }
-.arrow {
+/* a bypassed post-processing stage (crossfeed/correction off) reads muted */
+.chip-off {
+  opacity: 0.55;
+}
+.chip-off .chip-val {
   color: var(--muted);
+  font-weight: 400;
+}
+/* connector thread — flex-grows to fill the gap so the chain stays continuous */
+.link {
+  flex: 1 1 0.6rem;
+  min-width: 0.45rem;
+  align-self: center;
+  height: 2px;
+  background: var(--line);
+}
+.signal-path.live .link {
+  background: var(--accent); /* signal flowing through the chain */
+}
+/* output stage — the headline readout, the one accent focal point */
+.signal-path.live .chip-hero {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 10px color-mix(in srgb, var(--accent-glow) 55%, transparent);
+}
+.signal-path.live .chip-hero .chip-val {
+  color: var(--accent-glow);
+  font-weight: 500;
 }
 
 /* tabs */
@@ -619,6 +728,11 @@ input[type="checkbox"]:disabled {
   display: inline-flex;
   gap: 0.9rem;
 }
+/* native radios (hardware-accel card) render the browser-default blue dot —
+   pull them onto the signature accent like every other control */
+input[type="radio"] {
+  accent-color: var(--accent);
+}
 
 /* pending bar */
 .pending-bar {
@@ -791,4 +905,36 @@ button:disabled {
   opacity: 0.85;
   margin-top: -0.1rem;
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
+}
+
+/* System · HQPTuner — accent picker. Each swatch shows its OWN color (a live
+   preview) regardless of the active theme, so the values are hard-coded here,
+   not driven by var(--accent). */
+.accent-swatches {
+  display: flex;
+  gap: 0.7rem;
+}
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  cursor: pointer;
+}
+.swatch.blue {
+  background: #4f9dde;
+}
+.swatch.green {
+  background: #3fe0a0;
+}
+.swatch.amber {
+  background: #e0a63a;
+}
+.swatch:hover {
+  border-color: var(--fg-2);
+}
+.swatch.active {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 2px var(--bg-2);
 }
