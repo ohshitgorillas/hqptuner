@@ -6,10 +6,14 @@
 
 import { configByName, matrixByName, metadata, effective } from "./state.js";
 
-// Gray shaper (dither/modulator) options the selected output rate can't use.
-// Rate limits live in the static shapers overlay (min_rate_hz/max_rate_hz per
-// name); the target rate is the per-family ceiling the user picked (pcm_rate /
-// sdm_rate). Native <option disabled> — the reason is appended by the Dropdown.
+// Gray shaper (dither/modulator) options the selected output rate can't reach.
+// Only the minimum-rate floor is enforced (min_rate_hz in the static shapers
+// overlay): those are the meaningful "needs a higher rate" cases the user can
+// fix by raising the ceiling. A max-rate cap is deliberately NOT grayed — a
+// shaper whose max is below any realistic ceiling (e.g. Gauss1 at 96 kHz) would
+// be permanently unselectable, which is worse than leaving it pickable. The
+// target rate is the per-family ceiling (pcm_rate / sdm_rate). Native <option
+// disabled> — the reason is appended by the Dropdown.
 function fmtRate(hz, kind) {
   return kind === "sdm" ? `${(hz / 1e6).toFixed(1)} MHz` : `${(hz / 1000).toFixed(1)} kHz`;
 }
@@ -22,9 +26,9 @@ export function grayShapersByRate(options, kind) {
   if (!db || !rate) return options;
   return options.map((o) => {
     const e = db[o.label];
-    if (!e) return o;
-    if (e.min_rate_hz && rate < e.min_rate_hz) return { ...o, disabled: true, reason: `needs ≥ ${fmtRate(e.min_rate_hz, kind)}` };
-    if (e.max_rate_hz && rate > e.max_rate_hz) return { ...o, disabled: true, reason: `≤ ${fmtRate(e.max_rate_hz, kind)} only` };
+    if (e && e.min_rate_hz && rate < e.min_rate_hz) {
+      return { ...o, disabled: true, reason: `needs ≥ ${fmtRate(e.min_rate_hz, kind)}` };
+    }
     return o;
   });
 }

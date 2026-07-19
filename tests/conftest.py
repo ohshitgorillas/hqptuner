@@ -11,6 +11,7 @@ test prove apply order (mode before rate)."""
 
 import asyncio
 import functools
+import re
 import threading
 import urllib.parse
 from collections.abc import AsyncIterator, Iterator
@@ -222,11 +223,13 @@ def _http_get_response(state: dict[str, Any], path: str) -> tuple[int, bytes]:
     return 404, b""
 
 
-def _http_apply_matrix(state: dict[str, Any], data: dict[str, str]) -> None:
-    # a correct submission carries the value field and omits the file input.
-    if "post_bauer_frequency" in data and "filter_0" not in data:
-        state["post_bauer_frequency"] = data["post_bauer_frequency"]
-        state["post_bauer_enabled"] = "post_bauer_enabled" in data
+def _http_apply_matrix(state: dict[str, Any], raw: bytes) -> None:
+    # the /matrix form has file inputs, so the daemon applies only a multipart
+    # submission; the value fields arrive as multipart parts (regex-extracted).
+    m = re.search(rb'name="post_bauer_frequency"\r\n\r\n([^\r\n]*)', raw)
+    if m:
+        state["post_bauer_frequency"] = m.group(1).decode()
+        state["post_bauer_enabled"] = b'name="post_bauer_enabled"' in raw
 
 
 def _http_apply_config(state: dict[str, Any], data: dict[str, str]) -> None:
@@ -256,16 +259,21 @@ def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
-            data = dict(urllib.parse.parse_qsl(self.rfile.read(length).decode()))
+            raw = self.rfile.read(length)
             if self.path == "/matrix":
-                _http_apply_matrix(state, data)
-                body = b"OK"
-            else:
-                _http_apply_config(state, data)
-                body = b"OK" if _http_accepts(data) else b"Failed!"
+                # only a multipart submission applies; urlencoded is ignored (200,
+                # no change) exactly as the real daemon does.
+                if self.headers.get("Content-Type", "").startswith("multipart/form-data"):
+                    _http_apply_matrix(state, raw)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"OK")
+                return
+            data = dict(urllib.parse.parse_qsl(raw.decode()))
+            _http_apply_config(state, data)
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(body)
+            self.wfile.write(b"OK" if _http_accepts(data) else b"Failed!")
 
         def log_message(self, *_: object) -> None:
             pass

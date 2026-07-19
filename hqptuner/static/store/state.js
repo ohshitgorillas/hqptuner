@@ -126,16 +126,19 @@ export async function discardAll() {
 export const applying = signal(false);
 export const lastApply = signal(null); // {ok, text} of the most recent apply
 
-function summarize(report) {
+// `count` is the number of staged edits captured before apply — the http/matrix
+// lanes each collapse many field edits into a single POST, so counting reports
+// (the old bug: "2 staged" -> "Applied 1 change") undercounts the real changes.
+function summarize(report, count) {
   const live = report.live || [];
   const fails = live.filter((x) => !x.ok);
   if (fails.length) return { ok: false, text: `Failed: ${fails.map((f) => f.setting).join(", ")}` };
-  const http = report.http;
-  if (http && http.verified && !http.verified.applied) {
-    return { ok: false, text: `Config not applied (${http.verified.reason})` };
+  for (const lane of [report.http, report.matrix]) {
+    if (lane && lane.verified && !lane.verified.applied) {
+      return { ok: false, text: `Config not applied (${lane.verified.reason})` };
+    }
   }
-  const n = live.length + (http ? 1 : 0);
-  return { ok: true, text: `Applied ${n} change${n === 1 ? "" : "s"}` };
+  return { ok: true, text: `Applied ${count} change${count === 1 ? "" : "s"}` };
 }
 
 // Apply the staged set. The backend keeps staging on a soft failure, so on
@@ -143,10 +146,11 @@ function summarize(report) {
 // loop marks the daemon reachable again — the Apply button re-enables itself.
 export async function applyAll() {
   applying.value = true;
+  const count = stagedCount.value; // capture before apply clears the staged set
   try {
     const report = await api.apply();
     await refreshConfig(); // re-mirror pending + fresh values
-    lastApply.value = summarize(report);
+    lastApply.value = summarize(report, count);
     return report;
   } catch (e) {
     lastApply.value = { ok: false, text: `Apply failed: ${e.message}` };

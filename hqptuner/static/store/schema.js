@@ -86,15 +86,15 @@ export const schema = {
   // --- Output: ALSA backend section (backend alsa|combo) ---
   alsa_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true },
   alsa_offset: { label: "Channel offset", group: "output", widget: "number", lane: "http", field: "alsa_offset" },
-  alsa_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "alsa_bits" },
-  alsa_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "alsa_period", unit: "ms" },
+  alsa_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
+  alsa_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
   alsa_dop: { label: "DoP", group: "output", widget: "checkbox", lane: "http", field: "alsa_dop" },
   alsa_anydsd: { label: "48k DSD", group: "output", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
   net_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true },
-  net_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "net_bits" },
-  net_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "net_period", unit: "ms" },
+  net_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
+  net_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
   net_dop: { label: "DoP", group: "output", widget: "checkbox", lane: "http", field: "net_dop" },
   net_anydsd: { label: "48k DSD", group: "output", widget: "checkbox", lane: "http", field: "net_anydsd" },
   net_ipv6: { label: "IPv6", group: "output", widget: "checkbox", lane: "http", field: "net_ipv6" },
@@ -108,8 +108,8 @@ export const schema = {
   // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
   // Mode graying is handled by the PCM/SDM collapsibles auto-closing (tabs.js),
   // not per-field grayWhen. desc drives the inline manual description line.
-  pcm_filter_1x: { label: "1x filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
-  pcm_filter_nx: { label: "Nx filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  pcm_filter_1x: { label: "1x oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  pcm_filter_nx: { label: "Nx oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
   pcm_dither: { label: "Dither", group: "dsp", widget: "dropdown", lane: "http", field: "dither", optionsFrom: "config", wide: true, rateGray: "pcm", desc: "dither" },
   sdm_filter_1x: { label: "1x oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "oversampling1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
   sdm_filter_nx: { label: "Nx oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "oversampling", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
@@ -134,7 +134,7 @@ export const schema = {
   crossfeed_enabled: { label: "Bauer crossfeed", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_bauer_enabled" },
   crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true },
   crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz" },
-  crossfeed_level: { label: "Level", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB" },
+  crossfeed_level: { label: "Level", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", wide: true },
   dac_correction_enabled: { label: "DAC correction", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
   dac_correction_profile: { label: "Profile", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_correction_dac0", optionsFrom: "matrix", wide: true },
 

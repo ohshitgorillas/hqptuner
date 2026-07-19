@@ -1,7 +1,7 @@
-// Filter narrowing bar — the header for the PCM/SDM filter cards. Genre /
-// quality / focus (multi-select) / phase facets trim the filter dropdowns
-// (store/narrowing.js); the apodizing toggle (1x only) with a ½-apodizing
-// sub-toggle sits at the right. Presentational only.
+// Filter narrowing bar — a titled panel ABOVE the PCM/SDM filter cards. The
+// "Narrow filters" heading sits on its own line; the genre / quality / focus
+// (multi-select) / phase facets and the apodizing toggle (1x only, with a
+// ½-apodizing sub-toggle) sit on the control row below it. Presentational only.
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { nGenre, nQuality, nFocus, nPhase, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
@@ -42,51 +42,53 @@ function focusLabel() {
 export function NarrowBar() {
   return html`
     <div class="narrow-bar">
-      <span class="narrow-title">Narrow filters</span>
-      <select value=${nGenre.value} onChange=${(e) => (nGenre.value = e.target.value)}>
-        ${GENRES.map((g) => html`<option value=${g}>${g ? g[0].toUpperCase() + g.slice(1) : "Any genre"}</option>`)}
-      </select>
-      <select value=${String(nQuality.value)} onChange=${(e) => (nQuality.value = Number(e.target.value))}>
-        ${QUALITY.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
-      </select>
-      <div class="multi">
-        <button type="button" class="multi-btn" onClick=${() => (focusOpen.value = !focusOpen.value)}>
-          ${focusLabel()} <span class="multi-caret">▾</span>
-        </button>
-        ${focusOpen.value
-          ? html`<div class="multi-pop">
-              ${FOCUS.map(
-                ([v, l]) => html`
-                  <label>
-                    <input type="checkbox" checked=${nFocus.value.includes(v)} onChange=${() => toggleFocus(v)} />
-                    ${l}
-                  </label>
-                `,
-              )}
-            </div>`
-          : null}
-      </div>
-      <select value=${nPhase.value} onChange=${(e) => (nPhase.value = e.target.value)}>
-        ${PHASES.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
-      </select>
-      <div class="narrow-right">
-        ${narrowingActive.value
-          ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
-          : null}
-        <div class="apod-stack">
-          <label class="narrow-apod">
-            <input type="checkbox" checked=${nApod.value} onChange=${(e) => (nApod.value = e.target.checked)} />
-            Apodizing only (1x)
-          </label>
-          <label class="narrow-apod apod-sub ${nApod.value ? "" : "off"}">
-            <input
-              type="checkbox"
-              checked=${nApodHalf.value}
-              disabled=${!nApod.value}
-              onChange=${(e) => (nApodHalf.value = e.target.checked)}
-            />
-            Show ½ apodizing filters
-          </label>
+      <div class="narrow-header">Narrow filters</div>
+      <div class="narrow-controls">
+        <select value=${nGenre.value} onChange=${(e) => (nGenre.value = e.target.value)}>
+          ${GENRES.map((g) => html`<option value=${g}>${g ? g[0].toUpperCase() + g.slice(1) : "Any genre"}</option>`)}
+        </select>
+        <select value=${String(nQuality.value)} onChange=${(e) => (nQuality.value = Number(e.target.value))}>
+          ${QUALITY.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
+        </select>
+        <div class="multi">
+          <button type="button" class="multi-btn" onClick=${() => (focusOpen.value = !focusOpen.value)}>
+            ${focusLabel()} <span class="multi-caret">▾</span>
+          </button>
+          ${focusOpen.value
+            ? html`<div class="multi-pop">
+                ${FOCUS.map(
+                  ([v, l]) => html`
+                    <label>
+                      <input type="checkbox" checked=${nFocus.value.includes(v)} onChange=${() => toggleFocus(v)} />
+                      ${l}
+                    </label>
+                  `,
+                )}
+              </div>`
+            : null}
+        </div>
+        <select value=${nPhase.value} onChange=${(e) => (nPhase.value = e.target.value)}>
+          ${PHASES.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
+        </select>
+        <div class="narrow-right">
+          ${narrowingActive.value
+            ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
+            : null}
+          <div class="apod-stack">
+            <label class="narrow-apod">
+              <input type="checkbox" checked=${nApod.value} onChange=${(e) => (nApod.value = e.target.checked)} />
+              Show apodizing only (1x)
+            </label>
+            <label class="narrow-apod apod-sub ${nApod.value ? "" : "off"}">
+              <input
+                type="checkbox"
+                checked=${nApodHalf.value}
+                disabled=${!nApod.value}
+                onChange=${(e) => (nApodHalf.value = e.target.checked)}
+              />
+              Show ½ apodizing filters
+            </label>
+          </div>
         </div>
       </div>
     </div>

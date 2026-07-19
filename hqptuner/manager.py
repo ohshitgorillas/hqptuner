@@ -11,10 +11,11 @@ Roadmap Phase 2.2 rules:
   Status, enumerations, GET /config — no cached pre-outage state
 - API reads never touch the socket; they serve the last snapshot (fail-fast)
 
-Persistent config only changes through a daemon restart (POST /config and
-profile load both restart it), and any restart drops the 4321 connection —
-so refreshing the /config snapshot on reconnect keeps it consistent without
-periodic refetching.
+Persistent config can change without an HQPTuner apply — an external preset
+load, the output DAC changing, or HQPlayer's own web UI all rewrite the forms —
+so the /config and /matrix snapshots are refetched every poll (best-effort on
+the 8088 lane), not only on reconnect, and the frontend tracks reality instead
+of a connect-time cache.
 """
 
 import asyncio
@@ -175,7 +176,25 @@ class ConnectionManager:
         status, meta = await client.get_status()
         self.state, self.status, self.status_metadata = state, status, meta
         self.volume_range = await client.get_volume_range()
+        # external changes (preset loads, the DAC changing, HQPlayer's own UI)
+        # rewrite the http forms without any HQPTuner apply — refetch each poll so
+        # the config/matrix snapshots track reality instead of only connect-time.
+        await self._refresh_http_forms()
         self.loaded_at = time.time()
+
+    async def _refresh_http_forms(self) -> None:
+        """Best-effort refresh of the /config and /matrix snapshots. A failure on
+        the 8088 lane must never fail the 4321 poll — keep the last-good form."""
+        if self._http is None:
+            return
+        try:
+            self.config_form, self.config_error = await self._http.get_config(), None
+        except Exception as exc:
+            self.config_error = str(exc)
+        try:
+            self.matrix_form, self.matrix_error = await self._http.get_matrix(), None
+        except Exception as exc:
+            self.matrix_error = str(exc)
 
     async def set_volume(self, db: str) -> dict[str, Any]:
         """Live playback-volume write — immediate, outside the staged-config
@@ -261,7 +280,8 @@ class ConnectionManager:
             self.last_backup = backup
             self._persist_backup(backup)
             fresh = await self._http.get_matrix()
-            await self._http.post_matrix(serialize_config_form(fresh["fields"], overrides))
+            file_names = tuple(f["name"] for f in fresh["fields"] if f.get("type") == "file" and f.get("name"))
+            await self._http.post_matrix(serialize_config_form(fresh["fields"], overrides), file_names)
             verified = await self._verify_form(self._require_http().get_matrix, overrides)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
