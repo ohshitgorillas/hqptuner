@@ -1,23 +1,22 @@
 // Live playback volume — the Volume tab's dominant control and the app's only
-// real-time-write control. It is deliberately NOT a schema/Field control: it
-// reads engine-reported volume + VolumeRange and writes immediately over the
-// Control API, never touching the staged-diff/Apply flow (no dirty flag, no
-// pending count). Grays when volume control is disabled (VolumeRange enabled=0
-// — fixed volume, direct SDM, no active stream).
+// real-time-write control. Deliberately NOT a schema/Field control: it reads
+// engine-reported volume + VolumeRange and writes immediately over the Control
+// API, never touching the staged-diff/Apply flow (no dirty flag, no pending
+// count). Grays when volume control is disabled (VolumeRange enabled=0 — fixed
+// volume, direct SDM, no active stream).
 //
-// The <input type=range> is UNCONTROLLED (driven by ref), not value-bound: a
-// controlled range re-applies its value on every render, and the 2 s poll would
-// re-render mid-drag and yank the thumb (reset-then-snap). Instead an effect
-// syncs the DOM value from the engine ONLY when the user isn't dragging, so a
-// poll never disturbs an in-progress drag; when idle the slider tracks changes
-// from other clients (Roon, HQPlayer Client). Writes are throttled (~100 ms).
+// Rendered as the large knob variant. onLive fires continuously while dragging
+// (throttled live writes so playback tracks the knob); onCommit lands the final
+// value and optimistically adopts it so the next 2 s poll doesn't snap the dial
+// back. Double-click resets to a moderate -20 dB (a deliberate safe default, not
+// a daemon value, so a reset never jumps to full volume).
 import { signal } from "@preact/signals";
-import { useRef, useEffect } from "preact/hooks";
 import { html } from "../store/dom.js";
 import { volume, volumeRange, setVolume } from "../store/state.js";
+import { Knob } from "./Knob.js";
 
 const dragging = signal(false); // ignore engine syncs while true
-const display = signal(0); // drives the dB readout (the input itself is uncontrolled)
+const display = signal(0); // live value shown while dragging
 
 // throttle: send the first move immediately, then at most once per 100 ms, with
 // a trailing send so the released value always lands.
@@ -30,7 +29,7 @@ function flush() {
   }
   const v = pending;
   pending = null;
-  setVolume(v).catch(() => {}); // grayed slider means this shouldn't fire; ignore races
+  setVolume(v).catch(() => {}); // grayed knob means this shouldn't fire; ignore races
   timer = setTimeout(flush, 100);
 }
 function throttleSend(v) {
@@ -39,53 +38,42 @@ function throttleSend(v) {
 }
 
 export function PlaybackVolume() {
-  const ref = useRef(null);
   const vr = volumeRange.value || {};
   const enabled = vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true;
   const min = Number(vr.min != null ? vr.min : -60);
   const max = Number(vr.max != null ? vr.max : 0);
   const engine = volume.value != null ? Number(volume.value) : min;
-  const isDragging = dragging.value;
+  const val = dragging.value ? display.value : engine;
 
-  // Sync the uncontrolled input + readout from the engine, but never mid-drag.
-  useEffect(() => {
-    if (!isDragging && ref.current) {
-      ref.current.value = String(engine);
-      display.value = engine;
-    }
-  }, [engine, enabled, isDragging]);
-
-  const onInput = (e) => {
+  const onLive = (v) => {
     dragging.value = true;
-    display.value = Number(e.target.value);
-    throttleSend(e.target.value);
+    display.value = Number(v);
+    throttleSend(String(v));
   };
-  // Commit: stop ignoring polls; optimistically adopt the local value so the
-  // next poll doesn't snap. Fires on pointer release and on keyboard commit.
-  const commit = () => {
-    if (!dragging.value) return;
-    volume.value = String(display.value);
+  const onCommit = (v) => {
+    display.value = Number(v);
+    throttleSend(String(v));
+    volume.value = String(v); // optimistic adopt so the next poll doesn't snap
     dragging.value = false;
   };
 
   return html`
     <section class="playback ${enabled ? "" : "off"}">
       <div class="playback-head">Playback volume</div>
-      <div class="playback-row">
-        <input
-          type="range"
-          class="playback-slider"
-          ref=${ref}
+      <div class="playback-knob">
+        <${Knob}
+          value=${val}
           min=${min}
           max=${max}
-          step="0.5"
+          step=${0.5}
+          def=${-20}
+          unit="dB"
+          size="lg"
+          label="Playback volume"
           disabled=${!enabled}
-          onInput=${onInput}
-          onChange=${commit}
-          onPointerUp=${commit}
-          onPointerCancel=${commit}
+          onLive=${onLive}
+          onCommit=${onCommit}
         />
-        <span class="playback-readout">${enabled ? `${display.value.toFixed(1)} dB` : "—"}</span>
       </div>
       ${enabled
         ? null

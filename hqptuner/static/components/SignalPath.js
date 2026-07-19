@@ -57,7 +57,13 @@ export function SignalPath() {
   // crossfeed sits before the filter (input-side), DAC correction after the
   // shaper (output-rate-dependent).
   const stages = [{ label: "Source", value: source }];
-  if (on(effective("crossfeed_enabled"))) stages.push({ label: "Crossfeed", value: "On" });
+  // one combined post-process indicator instead of a chip per feature (avoids
+  // crowding the front panel): both on -> "DSP", else the single active one.
+  const cf = on(effective("crossfeed_enabled"));
+  const loud = on(effective("loudness_enabled"));
+  if (cf && loud) stages.push({ label: "DSP", value: "On" });
+  else if (cf) stages.push({ label: "Crossfeed", value: "On" });
+  else if (loud) stages.push({ label: "Loudness", value: "On" });
   stages.push({ label: "Filter", value: st.active_filter });
   stages.push({ label: "Shaper", value: st.active_shaper });
   if (st.correction === "1") stages.push({ label: "Correction", value: "On" });

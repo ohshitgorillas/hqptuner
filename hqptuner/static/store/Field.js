@@ -6,13 +6,14 @@
 import { signal } from "@preact/signals";
 import { html } from "./dom.js";
 import { schema } from "./schema.js";
-import { effective, isDirty, edit, metadata, httpFieldMap, refreshDevices } from "./state.js";
+import { effective, isDirty, edit, setLive, metadata, httpFieldMap, refreshDevices } from "./state.js";
 import { optionsFor, grayShapersByRate } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { grayReason } from "./graying.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "../components/controls/index.js";
+import { Knob } from "../components/Knob.js";
 
-const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, text: TextBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup };
+const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, text: TextBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup, knob: Knob };
 
 function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
@@ -79,7 +80,7 @@ export function Field({ k }) {
   // A grayed control shows disabled state only — no explanatory caption (it would
   // reflow the row on mode change); graying is the whole signal.
   return html`
-    <div class="field ${entry.wide ? "wide" : ""} ${isDirty(k) ? "dirty" : ""}" title=${reason || meta.tooltip}>
+    <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${isDirty(k) ? "dirty" : ""}" title=${reason || meta.tooltip}>
       <label>${label}</label>
       <div class="control">
         <${W}
@@ -89,10 +90,16 @@ export function Field({ k }) {
           max=${cfgConstraint(entry, "max")}
           step=${cfgConstraint(entry, "step")}
           ticks=${entry.ticks}
+          def=${entry.def}
+          slider=${entry.slider}
+          unit=${entry.unit}
+          label=${label}
           disabled=${!!reason}
           onChange=${(v) => edit(k, v)}
+          onLive=${(v) => setLive(k, v)}
+          onCommit=${(v) => edit(k, v)}
         />
-        ${entry.unit ? html`<span class="unit">${entry.unit}</span>` : null}
+        ${entry.unit && entry.widget !== "knob" ? html`<span class="unit">${entry.unit}</span>` : null}
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
