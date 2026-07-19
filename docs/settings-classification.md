@@ -4,6 +4,7 @@ Phase 0.2 deliverable. Every outline §4 control tagged with its lane:
 
 - **live** — a Control API (4321) setter exists; the change takes effect immediately, no daemon restart.
 - **http** — no live setter; the setting is applied via `POST /config` on the port-8088 HTTP interface (Digest auth), which makes the daemon rewrite `hqplayerd.xml` and restart itself. (Formerly called the "restart / XML lane"; the daemon owns the file write — HQPTuner just POSTs the form. See `protocol.md` §3.6.) Observed `POST /config` form field name given where known.
+- **file (restore)** — no `/config` form field **and** no live setter; the setting lives only in the `<engine>` element of the config XML (hardware acceleration). Applied by editing a `/backup` archive's `<engine>` tag (surgical, byte-faithful) and pushing it via `POST /restore` (`scope=system`), which the daemon re-reads on a self-restart (~5.6 s) that **preserves the active preset** — no `systemctl`, plain Digest auth. Grounded on 6.0.4 on Opal (idle-gated probe, 2026-07-18). See `protocol.md` §3.6.
 
 Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state=0`), 2026-07-16. Wire details in `protocol.md`.
 
@@ -71,14 +72,16 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 
 | Control | Lane | Evidence / notes |
 |---|---|---|
-| CUDA offload | http | no live setter |
-| Multicore DSP | http | no live setter |
-| E-core allocation | http | no live setter |
-| Blocks/cycle | http | no live setter |
-| Backup/restore config | http | daemon's own `/backup` / `/restore` routes (Digest auth) |
-| Trial/license/version | read-only | `GetLicense` / `GetInfo` (4321), verified |
-| Enable log / log path | http | no live setter |
+| CUDA offload | file (restore) | `<engine cuda>` (`0`/`1`/`convolution`) — **not** on the `/config` form; verified 2026-07-18 |
+| Multicore DSP | file (restore) | `<engine multicore>` (`auto`/`0`/`1`) |
+| E-core allocation | file (restore) | `<engine ecores>` (`default`/`pool`/`filter`) |
+| Blocks/cycle | file (restore) | `<engine nblocks>` (int, `0`=default) |
+| Backup/restore config | http | daemon's own `/backup/settings.zip` (GET) / `/restore` (multipart POST, Digest auth) |
+| Trial/license/version | read-only | `GetLicense` (`valid`/`name`/`fingerprint`) / `GetInfo` (4321), verified |
+| Enable log / log path | http | fields `log_enabled` (checkbox) / `log_file` (text), verified |
 | Live log tail | n/a | file/journal stream, not a daemon setting |
+
+**Config model (verified 2026-07-18, idle-gated probes on 6.0.4).** `hqplayerd.xml` is the live **working** config; `data/cfgs/<name>.xml` are saved **snapshots**. `POST /config/profile/load` copies a snapshot into the working config **from memory** — it does *not* re-read the snapshot file from disk (a disk edit followed by `load` has no effect; only a full daemon restart re-reads disk). `POST /config` writes the working file and **preserves** the active preset — it does *not* reset to `[default]`; only a full `systemctl restart` drops the active label to `[default]`. `POST /restore` (`scope=system`) writes the whole archive and triggers a self-restart that re-reads from disk **while keeping the active preset** — this is the lane HQPTuner uses for the form-absent `<engine>` hardware settings and for user-initiated backup restore. `scope=user` writes `~/.hqplayer`, which is not the running config on Opal, so it has no effect there.
 
 ## Additional live controls on the wire (not in outline §4)
 

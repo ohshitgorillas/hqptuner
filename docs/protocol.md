@@ -84,7 +84,8 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 | `/config/profile/load` | POST | Switch to a named configuration | `profile=<name>` |
 | `/config/profile/save` | POST | Create/overwrite a named configuration from current settings | `profile_name=<text>` |
 | `/config/profile/delete` | POST | Delete the selected configuration | `profile=<name>` |
-| `/backup`, `/restore` | GET/POST | Config backup / restore | — |
+| `/backup/settings.zip` | GET | Full settings archive (zip): base `hqplayerd.xml` + every preset snapshot under `data/cfgs/` + library | — |
+| `/restore` | POST | Restore a settings archive; **multipart/form-data**, self-restarts the daemon (§restore below) | `scope` (`system`/`user`), `cfgfile` (zip or xml), `libfile` (xml) |
 | `/input`, `/library`, `/speakers`, `/convolution`, `/matrix`, `/log`, `/about`, `/auth`, `/key` | GET | Other stock UI pages (per-config device page, logs, etc.) | — |
 
 Observed `POST /config` field names (representative, not exhaustive — the live page is the authoritative source of the persistent-settings surface and its constraints): `title`, `backend` (`alsa`/`network`/`combo`), `mode` (`auto`/`pcm`/`sdm`), `volume_fixed`, `fixed_volume_enabled`, `fixed_volume`, `volume_max`, `volume_min`, `defaults_volume`, `gain_comp` (step 0.1), `adaptive_volume`, `playlist_album_gain`, `channels`, `fft_size` (128–16384), `idle_time` (**milliseconds**: 0=default, 10000=10 s, … 60000), `pipelines` (2–128), `net_anydsd` (= 48k DSD checkbox), `net_ipv6`.
@@ -94,6 +95,16 @@ Observed `POST /config` field names (representative, not exhaustive — the live
 The `/config/profile/load` select observed on Opal: `[default]` (empty `value=""` — the unnamed base configuration) plus `Headphones - DSD256`, `Headphones - DSD512`, `Office`, `Speakers`. This is the same profile set the 4321 `ConfigurationList` returns; the HTTP route is the writable path.
 
 **`/config/profile/load` restarts the daemon** (**verified** on 6.0.4): the POST returned HTTP 200 immediately, then 4321 refused connections ~0.3 s later and answered `GetInfo` again ~3.4 s later. This is a lighter internal config-reload restart than a full `systemctl restart` (~9.3 s), but it is a restart — the Control API connection drops and must reconnect, and it routes through the same restart-resync path as `POST /config`. After the load, `ConfigurationGet`/`ConfigurationList` report the loaded profile as `active`.
+
+### Configuration model + `POST /restore` (**verified 2026-07-18, idle-gated probes on 6.0.4**)
+
+The daemon keeps a **working config** (`hqplayerd.xml`) plus saved **snapshots** (`data/cfgs/<name>.xml`), all loaded into memory at startup. The lanes behave differently, which matters for reaching settings the `/config` form does not expose (the `<engine>` hardware-acceleration attributes `cuda`/`multicore`/`ecores`/`nblocks` — manual §1.2):
+
+- **`POST /config/profile/load`** copies a snapshot into the working config **from memory** — it does **not** re-read the snapshot file from disk. A disk edit followed by `load` has no effect (probed: edited a snapshot's `nblocks` on disk, loaded it, working config unchanged). Only a full daemon restart re-reads disk.
+- **`POST /config`** writes the working file and **preserves** the active preset — it does *not* reset to `[default]` (probed: active stayed on a named preset across the POST). Only a full `systemctl restart` drops the active label to `[default]`.
+- **`POST /restore`** is the write path for form-absent settings and for backup restore. Multipart form: `scope` (radio; `system` = the running config under `/etc/hqplayer`, `user` = `~/.hqplayer`), `cfgfile` (a `/backup` zip **or** a single config xml), optional `libfile`. **`scope=system`** writes the archive to disk and the daemon **self-restarts (~5.6 s** — lighter than `systemctl restart`'s 9.3 s, heavier than `profile/load`'s 3.4 s**), re-reading from disk while keeping the active preset** (probed: `cuda`/`nblocks` edits in an uploaded zip took effect on both the base config and the active snapshot; active preset unchanged). `scope=user` did not affect the running config on Opal. The 200 response body is the HTML restore page — success is confirmed by a `/backup` readback, never by the POST.
+
+HQPTuner's engine-attribute write path (`hqptuner/engineconf.py`, `manager.apply_engine`) is therefore: fetch `/backup`, surgically edit the `<engine>` tag (byte-faithful) in the base config plus the active (or all) snapshot, `POST /restore` `scope=system`, verify by reading the `<engine>` tag back from a fresh `/backup`.
 
 ## 4. Response conventions
 
