@@ -543,6 +543,7 @@ input[type="checkbox"]:disabled {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   align-items: stretch;
+  margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
 }
 /* hierarchical controls nested under a parent toggle */
 .indent {
@@ -615,4 +616,126 @@ button.primary {
 button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* DSP filter group — narrow bar bracketed as the header of the PCM/SDM cards */
+.filter-group {
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: 8px;
+  margin-bottom: 0.9rem;
+  overflow: hidden;
+}
+.filter-group .collapsible {
+  border: 0;
+  border-top: 1px solid var(--bg-3);
+  border-radius: 0;
+  margin: 0;
+}
+.narrow-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+}
+.narrow-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+  margin-right: 0.2rem;
+  white-space: nowrap;
+}
+.narrow-bar select {
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-1);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+}
+.narrow-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.narrow-apod {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.narrow-reset {
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* multi-select focus dropdown (checkbox hybrid) */
+.multi {
+  position: relative;
+}
+.multi-btn {
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-1);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.multi-caret {
+  color: var(--muted);
+}
+.multi-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.25rem;
+  z-index: 20;
+  background: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.multi-pop label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+/* apodizing stack — ½-apodizing tabbed under the main toggle, grayed unless on */
+.apod-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.apod-sub {
+  margin-left: 1.4rem;
+}
+.apod-sub.off {
+  opacity: 0.4;
+}
+
+/* inline manual description — under the dropdown (grid col 2), not the label */
+.field-desc {
+  grid-column: 2;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--fg-2);
+  opacity: 0.85;
+  margin-top: -0.1rem;
+  min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }

@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,8 @@ class ConnectionManager:
         self.enums: dict[str, list[dict[str, str]]] | None = None
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
+        self.matrix_form: dict[str, Any] | None = None
+        self.matrix_error: str | None = None
         self.loaded_at: float | None = None
         self.last_backup: bytes | None = None
 
@@ -133,6 +136,8 @@ class ConnectionManager:
 
         config_form = None
         config_error = None
+        matrix_form = None
+        matrix_error = None
         if self._http is not None:
             # 8088 lane failing must not take down the 4321 lane
             try:
@@ -140,12 +145,18 @@ class ConnectionManager:
             except Exception as exc:
                 config_error = str(exc)
                 log.warning("GET /config failed: %s", exc)
+            try:
+                matrix_form = await self._http.get_matrix()
+            except Exception as exc:
+                matrix_error = str(exc)
+                log.warning("GET /matrix failed: %s", exc)
 
         self._client = client
         self.info, self.state, self.status, self.status_metadata = info, state, status, meta
         self.volume_range = vrange
         self.enums = enums
         self.config_form, self.config_error = config_form, config_error
+        self.matrix_form, self.matrix_error = matrix_form, matrix_error
         self.loaded_at = time.time()
         self.reachable = True
         self.unreachable_since = None
@@ -190,8 +201,23 @@ class ConnectionManager:
             if client is None:
                 raise ControlError("daemon not connected")
             live_report = await apply_live(client, live_edits)
-        http_report = await self._apply_http(http_fields) if http_fields else None
-        return {"live": live_report, "http": http_report}
+        config_fields, matrix_fields = self._split_http(http_fields)
+        http_report = await self._apply_http(config_fields) if config_fields else None
+        matrix_report = await self._apply_matrix(matrix_fields) if matrix_fields else None
+        return {"live": live_report, "http": http_report, "matrix": matrix_report}
+
+    def _split_http(self, fields: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
+        """Route staged http-lane fields to their form: names in the /matrix form
+        go to /matrix, the rest to /config. Field names are unique across the two
+        forms, so membership is unambiguous."""
+        if not fields:
+            return {}, {}
+        matrix_names = {f.get("name") for f in (self.matrix_form or {}).get("fields", [])}
+        config: dict[str, str] = {}
+        matrix: dict[str, str] = {}
+        for name, val in fields.items():
+            (matrix if name in matrix_names else config)[name] = val
+        return config, matrix
 
     async def _apply_http(self, overrides: dict[str, str]) -> dict[str, Any]:
         """POST /config applies the WHOLE form, so overlay the staged changes on
@@ -213,7 +239,7 @@ class ConnectionManager:
             # standalone POST), so it can't restart the daemon uninvited.
             merged = {**overrides, **_FORCED_CONFIG}
             await self._http.post_config(serialize_config_form(fresh["fields"], merged))
-            verified = await self._verify_http(overrides)  # daemon restarts; read back
+            verified = await self._verify_form(self._require_http().get_config, overrides)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         return {
@@ -222,6 +248,24 @@ class ConnectionManager:
             "backup_bytes": len(backup),
             "backup_path": str(backup_path) if backup_path else None,
         }
+
+    async def _apply_matrix(self, overrides: dict[str, str]) -> dict[str, Any]:
+        """POST /matrix (Bauer crossfeed / DAC correction). Same full-form,
+        readback-verified contract as /config, minus the forced auto-family
+        fields (matrix has none) and with file inputs dropped by the serializer
+        so a loaded matrix/convolution filter is never cleared."""
+        if self._http is None:
+            return {"submitted": False, "error": "no credentials for HTTP config lane"}
+        try:
+            backup = await self._http.backup()  # safety copy before the write
+            self.last_backup = backup
+            self._persist_backup(backup)
+            fresh = await self._http.get_matrix()
+            await self._http.post_matrix(serialize_config_form(fresh["fields"], overrides))
+            verified = await self._verify_form(self._require_http().get_matrix, overrides)
+        except httpx.HTTPError as exc:
+            return {"submitted": False, "error": str(exc)}
+        return {"submitted": True, "verified": verified, "backup_bytes": len(backup)}
 
     def _persist_backup(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk so a crash mid-apply still
@@ -236,25 +280,27 @@ class ConnectionManager:
             return None
         return path
 
-    async def _verify_http(self, overrides: dict[str, str]) -> dict[str, Any]:
-        """Poll GET /config until it REFLECTS the overrides, not merely until it
-        responds: right after the POST the daemon still serves the pre-restart
-        form for a moment, then drops, then returns with the new config. Retrying
-        only on connection error would read that stale form and false-negative.
-        A genuine rejection never reflects, so it times out as not-applied.
+    async def _verify_form(
+        self, fetch: Callable[[], Awaitable[dict[str, Any]]], overrides: dict[str, str]
+    ) -> dict[str, Any]:
+        """Poll the form (GET /config or /matrix via `fetch`) until it REFLECTS
+        the overrides, not merely until it responds: right after the POST the
+        daemon still serves the pre-restart form for a moment, then drops, then
+        returns with the new config. Retrying only on connection error would read
+        that stale form and false-negative. A genuine rejection never reflects,
+        so it times out as not-applied.
 
         On timeout the failure reason is read off the LAST poll: a daemon still
         serving a clean form that never reflects the change was a "rejected"
         apply; one that ends unreachable (connection error at the deadline) is
         "unreachable" — it accepted the POST and never came back. The caller
         needs that split to tell a bad value from a crashed restart."""
-        http = self._require_http()
         deadline = time.monotonic() + self._cfg.alarm_threshold
         mismatches = dict(overrides)
         last_error: str | None = None
         while time.monotonic() < deadline:
             try:
-                after = {f["name"]: f for f in (await http.get_config())["fields"]}
+                after = {f["name"]: f for f in (await fetch())["fields"]}
                 last_error = None
                 mismatches = {
                     name: want for name, want in overrides.items() if not _http_field_matches(after.get(name), want)

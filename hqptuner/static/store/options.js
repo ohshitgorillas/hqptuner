@@ -1,53 +1,38 @@
-// Dropdown option builders. Live-lane dropdowns take their options from the
-// engine enumeration lists (the sole authority for names/IDs/order — outline
-// §2); the control value is the list *index* (State/Set* use indices). Static
-// prose is already merged onto each item by the backend.
+// Dropdown option builders. Filter/shaper/DSD selects take their options from
+// the daemon's own form (/config or /matrix) — the sole authority for the
+// per-field option set. Live-lane menus (mode/backend/rate) are fixed lists in
+// schema.js; the mode segment is the http `mode` field, not the volatile live
+// enumeration, so no enum-derived option building lives here anymore.
 
-import { enums, configByName } from "./state.js";
+import { configByName, matrixByName, metadata, effective } from "./state.js";
 
-function rateLabel(item) {
-  const hz = Number(item.rate);
-  if (!hz) return "Auto";
-  if (hz >= 2822400) return `DSD${Math.round(hz / 44100)}`; // SDM rates
-  return hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`;
+// Gray shaper (dither/modulator) options the selected output rate can't use.
+// Rate limits live in the static shapers overlay (min_rate_hz/max_rate_hz per
+// name); the target rate is the per-family ceiling the user picked (pcm_rate /
+// sdm_rate). Native <option disabled> — the reason is appended by the Dropdown.
+function fmtRate(hz, kind) {
+  return kind === "sdm" ? `${(hz / 1e6).toFixed(1)} MHz` : `${(hz / 1000).toFixed(1)} kHz`;
 }
 
-// Mode display: fixed order + friendly labels keyed on the live index (the mode
-// indices are documented-stable — 0=[source], 1=PCM, 2=SDM — outline §5), not on
-// the engine's name string (which is not what we sort against). Order is
-// PCM · SDM (DSD) · Auto; only modes the engine actually reports are shown.
-// index is a string on the wire ("0"/"1"/"2"); compare as strings.
-const MODE_DISPLAY = [
-  { index: "1", label: "PCM" },
-  { index: "2", label: "SDM (DSD)" },
-  { index: "0", label: "Auto" },
-];
-
-function orderedModes(list) {
-  const present = new Set(list.map((it) => String(it.index)));
-  return MODE_DISPLAY.filter((d) => present.has(d.index)).map((d) => ({
-    value: d.index,
-    label: d.label,
-    disabled: false,
-    reason: "",
-  }));
+export function grayShapersByRate(options, kind) {
+  const shapers = metadata.value && metadata.value.shapers;
+  if (!shapers) return options;
+  const db = kind === "sdm" ? shapers.sdm_modulators : shapers.pcm_dithers;
+  const rate = Number(effective(kind === "sdm" ? "sdm_rate" : "pcm_rate"));
+  if (!db || !rate) return options;
+  return options.map((o) => {
+    const e = db[o.label];
+    if (!e) return o;
+    if (e.min_rate_hz && rate < e.min_rate_hz) return { ...o, disabled: true, reason: `needs ≥ ${fmtRate(e.min_rate_hz, kind)}` };
+    if (e.max_rate_hz && rate > e.max_rate_hz) return { ...o, disabled: true, reason: `≤ ${fmtRate(e.max_rate_hz, kind)} only` };
+    return o;
+  });
 }
 
-// optionsFor(kind) -> [{value, label, disabled, reason}]
-// kind: 'filters' | 'shapers' | 'rates' | 'modes' (live) or 'config' (a form field).
-// The rate + backend menus are NOT here — they're fixed lists in schema.js.
+// optionsFor(kind, field) -> [{value, label, disabled, reason}]
+// kind: 'config' (a /config form field) | 'matrix' (a /matrix form field).
 export function optionsFor(kind, field) {
-  const e = enums.value;
-  if (kind === "config") {
-    const f = configByName.value[field];
-    return ((f && f.options) || []).map((o) => ({ value: o.value, label: o.label, disabled: false, reason: "" }));
-  }
-  const list = (e && e[kind]) || [];
-  if (kind === "modes") return orderedModes(list);
-  return list.map((it) => ({
-    value: String(it.index),
-    label: kind === "rates" ? rateLabel(it) : it.name,
-    disabled: false, // per-option graying (rate constraints) lands in Phase 5
-    reason: "",
-  }));
+  const map = kind === "matrix" ? matrixByName.value : configByName.value;
+  const f = map[field];
+  return ((f && f.options) || []).map((o) => ({ value: o.value, label: o.label, disabled: false, reason: "" }));
 }

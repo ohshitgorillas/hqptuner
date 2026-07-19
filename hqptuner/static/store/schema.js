@@ -22,8 +22,11 @@
 // 2=SDM). auto_family/samplerate/bitrate are forced by the apply layer, not
 // exposed here (friendly rate always assumes auto-family follow).
 
-const isSdm = (ctx) => String(ctx.effective("output_mode")) === "2";
-const isPcm = (ctx) => String(ctx.effective("output_mode")) === "1";
+// Mode is the http `mode` field (auto/pcm/sdm) — stable values, always all three.
+// (The live GetModes enum is device-dependent: it drops SDM when the active
+// device can't do DSD, so it's the wrong source for a persistent config choice.)
+const isSdm = (ctx) => String(ctx.effective("output_mode")) === "sdm";
+const isPcm = (ctx) => String(ctx.effective("output_mode")) === "pcm";
 
 // checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
@@ -58,10 +61,16 @@ const BACKENDS = [
   { value: "network", label: "Network" },
   { value: "combo", label: "Combo" },
 ];
+// Fixed mode segment — order PCM / SDM (DSD) / Auto, stable http `mode` values.
+const MODES = [
+  { value: "pcm", label: "PCM" },
+  { value: "sdm", label: "SDM (DSD)" },
+  { value: "auto", label: "Auto" },
+];
 
 export const schema = {
   // --- Output: always-visible masters + independents ---
-  output_mode: { label: "Mode", group: "output", widget: "segment", lane: "live", stateField: "mode", liveKey: "mode", optionsFrom: "modes" },
+  output_mode: { label: "Mode", group: "output", widget: "segment", lane: "http", field: "mode", options: MODES },
   backend: { label: "Backend", group: "output", widget: "segment", lane: "http", field: "backend", options: BACKENDS },
   idle_time: { label: "Idle time", group: "output", widget: "dropdown", lane: "http", field: "idle_time", optionsFrom: "config" },
   upnp_freewheel: { label: "UPnP freewheel", group: "output", widget: "checkbox", lane: "http", field: "upnp_freewheel" },
@@ -90,10 +99,44 @@ export const schema = {
   net_anydsd: { label: "48k DSD", group: "output", widget: "checkbox", lane: "http", field: "net_anydsd" },
   net_ipv6: { label: "IPv6", group: "output", widget: "checkbox", lane: "http", field: "net_ipv6" },
 
-  // --- DSP (step-1 subset; full set next) ---
-  filter_nx: { group: "dsp", widget: "dropdown", lane: "live", stateField: "filterNx", liveKey: "filter", arg: "value", optionsFrom: "filters" },
-  shaper: { group: "dsp", widget: "dropdown", lane: "live", stateField: "shaper", liveKey: "shaper", optionsFrom: "shapers" },
-  channels: { group: "dsp", widget: "number", lane: "http", field: "channels" },
+  // --- DSP: two persistent filter chains (both shown, inactive grayed by mode) ---
+  // The Embedded /config form carries PCM (filter1x/filter/dither) and SDM
+  // (oversampling1x/oversampling/modulator) chains separately and persistently —
+  // distinct from the live SetFilter/SetShaping lane, which only writes the
+  // active mode. Basic pass uses the http form (option lists come from the live
+  // page via optionsFrom 'config'). Crossfeed / DAC correction / filter narrowing
+  // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
+  // Mode graying is handled by the PCM/SDM collapsibles auto-closing (tabs.js),
+  // not per-field grayWhen. desc drives the inline manual description line.
+  pcm_filter_1x: { label: "1x filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  pcm_filter_nx: { label: "Nx filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  pcm_dither: { label: "Dither", group: "dsp", widget: "dropdown", lane: "http", field: "dither", optionsFrom: "config", wide: true, rateGray: "pcm", desc: "dither" },
+  sdm_filter_1x: { label: "1x oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "oversampling1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  sdm_filter_nx: { label: "Nx oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "oversampling", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  sdm_modulator: { label: "Sigma-delta modulator", group: "dsp", widget: "dropdown", lane: "http", field: "modulator", optionsFrom: "config", wide: true, rateGray: "sdm", desc: "modulator" },
+
+  // --- DSP: generic processing ---
+  channels: { label: "Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
+  fft_size: { label: "FFT filter length", group: "dsp", widget: "dropdown", lane: "http", field: "fft_size", optionsFrom: "config" },
+  pipelines: { label: "DSP pipelines", group: "dsp", widget: "dropdown", lane: "http", field: "pipelines", optionsFrom: "config" },
+
+  // --- DSP: DSD source decoding (SDM input processing) ---
+  direct_sdm: { label: "Direct SDM", group: "dsp", widget: "checkbox", lane: "http", field: "direct_sdm" },
+  dsd_gain_6db: { label: "Gain +6 dB", group: "dsp", widget: "checkbox", lane: "http", field: "dsd_6db" },
+  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true },
+  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true },
+  noise_filter: { label: "Noise filter", group: "dsp", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true },
+  pcm_conversion: { label: "SDM → PCM", group: "dsp", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true },
+
+  // --- DSP: post-processing (the /matrix form, not /config — endpoint:"matrix").
+  // Bauer crossfeed + DAC correction. Applied through the same staged/Apply flow;
+  // the manager routes these field names to POST /matrix (manager._split_http).
+  crossfeed_enabled: { label: "Bauer crossfeed", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_bauer_enabled" },
+  crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true },
+  crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz" },
+  crossfeed_level: { label: "Level", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB" },
+  dac_correction_enabled: { label: "DAC correction", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
+  dac_correction_profile: { label: "Profile", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_correction_dac0", optionsFrom: "matrix", wide: true },
 
   // --- Volume ---
   // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"

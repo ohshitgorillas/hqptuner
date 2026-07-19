@@ -59,6 +59,34 @@ def _unescape_attrs(root: ET.Element) -> ET.Element:
     return root
 
 
+def _document_complete(body: str, tag: str) -> bool:
+    """True once the root element is closed — self-closing (`<Tag .../>`) or its
+    end tag arrived (`</Tag>`). Distinguishes a still-arriving frame (keep
+    reading) from a fully-received one that simply won't parse."""
+    if re.match(rf"<{re.escape(tag)}\b[^>]*/>\s*$", body, re.S):
+        return True
+    return re.search(rf"</{re.escape(tag)}>\s*$", body) is not None
+
+
+def _recover_root(body: str) -> ET.Element | None:
+    """Salvage a COMPLETE frame whose children won't parse. The daemon emits
+    track `<metadata>` with unescaped `<`/`"` in artist/song tags that the
+    bare-`&` repair can't fix (hqpexporter-observed) — which would otherwise
+    hang the receive loop until timeout on every poll while a track is loaded.
+    The live fields we need (active_filter/active_shaper/active_rate) are ROOT
+    attributes, so drop the children and parse the root open-tag alone. Returns
+    None when the frame is merely still-arriving (caller keeps reading)."""
+    m = re.match(r"<([A-Za-z][\w-]*)\b[^>]*", body, re.S)
+    if m is None:
+        return None
+    if not _document_complete(body, m.group(1)):
+        return None
+    try:
+        return _lenient_fromstring(m.group(0).rstrip("/") + "/>")
+    except ET.ParseError as exc:
+        raise ControlError("unparseable response document") from exc
+
+
 class ControlClient:
     def __init__(self, host: str = "127.0.0.1", port: int = 4321, timeout: float = 5.0):
         self._host = host
@@ -113,7 +141,12 @@ class ControlClient:
                 try:
                     return _unescape_attrs(_lenient_fromstring(body))
                 except ET.ParseError:
-                    pass  # incomplete document — keep reading
+                    # Either still arriving, or complete-but-malformed (child
+                    # metadata with unescaped chars). Recover the root if the
+                    # frame is complete; otherwise keep reading.
+                    recovered = _recover_root(body)
+                    if recovered is not None:
+                        return _unescape_attrs(recovered)
             if len(data) > MAX_RESPONSE:
                 raise ControlError("response exceeds size limit")
 

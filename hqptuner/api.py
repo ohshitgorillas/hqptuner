@@ -116,6 +116,16 @@ def config(request: Request) -> dict[str, Any]:
     return _snapshot(manager, manager.config_form)
 
 
+@router.get("/matrix")
+def matrix(request: Request) -> dict[str, Any]:
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    if manager.matrix_form is None and manager.matrix_error:
+        raise HTTPException(status_code=502, detail=f"GET /matrix failed: {manager.matrix_error}")
+    return _snapshot(manager, manager.matrix_form)
+
+
 @router.get("/metadata")
 def metadata(request: Request) -> dict[str, Any]:
     static: StaticMetadata = request.app.state.static

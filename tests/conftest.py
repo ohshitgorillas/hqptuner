@@ -39,6 +39,7 @@ _DEFAULTS = {
     "_vol_max": "0",
     "_vol_enabled": "1",
     "_vol_adaptive": "0",
+    "_metadata": "",  # optional <metadata> child injected into the Status frame
 }
 
 
@@ -73,6 +74,15 @@ def _handle(body: str, state: dict[str, str]) -> str:
         return (
             f'<VolumeRange min="{state["_vol_min"]}" max="{state["_vol_max"]}" '
             f'enabled="{state["_vol_enabled"]}" adaptive="{state["_vol_adaptive"]}"/>'
+        )
+    if name == "Status":
+        # active_* live on the Status root; the track <metadata> child is where the
+        # daemon emits unescaped chars mid-playback (_metadata override).
+        return (
+            f'<Status state="{state["state"]}" active_mode="PCM" '
+            f'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
+            f'active_rate="192000" volume="{state["volume"]}">'
+            f'{state["_metadata"]}</Status>'
         )
     if name == "Volume" and state["_vol_enabled"] == "0":
         return '<Volume result="Error"/>'  # volume control disabled (protocol.md §7.3)
@@ -114,6 +124,24 @@ async def live_client(live_daemon_port: int) -> AsyncIterator[ControlClient]:
     await client.connect()
     yield client
     await client.close()
+
+
+@pytest.fixture
+async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
+    """Daemon whose Status carries a track <metadata> child with unescaped chars
+    — the real 6.0.4 quirk that hangs a strict receiver during playback. A bare
+    '<' inside an attribute can't be repaired by the bare-'&' fix, so the root's
+    active_* must be recovered by dropping the child (control.py _recover_root)."""
+    bad = '<metadata artist="A&B" album="Foo <Bar> Baz"/>'
+    serve = functools.partial(_serve, overrides={"_metadata": bad})
+    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    port: int = server.sockets[0].getsockname()[1]
+    client = ControlClient("127.0.0.1", port, timeout=2.0)
+    await client.connect()
+    yield client
+    await client.close()
+    server.close()
+    await server.wait_closed()
 
 
 @pytest.fixture
@@ -164,6 +192,19 @@ def _http_accepts(data: dict[str, str]) -> bool:
     return data["title"] != "REJECT"  # models a value-level rejection
 
 
+def _matrix_render(state: dict[str, Any]) -> str:
+    # the /matrix post-processing form: a crossfeed field + a file input that a
+    # correct serializer must omit (no readable value to round-trip).
+    rows = [
+        f'<input type="checkbox" name="post_bauer_enabled" value="1"'
+        f'{" checked" if state["post_bauer_enabled"] else ""}/>',
+        f'<input type="number" name="post_bauer_frequency" value="{state["post_bauer_frequency"]}"/>',
+        '<input type="file" name="filter_0"/>',
+        '<input formaction="/matrix" type="submit" value="Apply"/>',
+    ]
+    return '<form method="post">' + "".join(rows) + "</form>"
+
+
 def _http_get_response(state: dict[str, Any], path: str) -> tuple[int, bytes]:
     if state.get("_down"):  # accepted the POST, then never came back
         return 503, b""
@@ -174,9 +215,34 @@ def _http_get_response(state: dict[str, Any], path: str) -> tuple[int, bytes]:
             state["_stale"] -= 1
             return 200, _http_render(state["_snapshot"]).encode()
         return 200, _http_render(state).encode()
+    if path == "/matrix":
+        return 200, _matrix_render(state).encode()
     if path == "/backup/settings.zip":
         return 200, b"PK\x03\x04"
     return 404, b""
+
+
+def _http_apply_matrix(state: dict[str, Any], data: dict[str, str]) -> None:
+    # a correct submission carries the value field and omits the file input.
+    if "post_bauer_frequency" in data and "filter_0" not in data:
+        state["post_bauer_frequency"] = data["post_bauer_frequency"]
+        state["post_bauer_enabled"] = "post_bauer_enabled" in data
+
+
+def _http_apply_config(state: dict[str, Any], data: dict[str, str]) -> None:
+    if not _http_accepts(data):
+        return
+    state["_snapshot"] = {k: state[k] for k in (*_HTTP_TEXT, *_HTTP_VALUE, *_HTTP_CHECK)}
+    state["title"] = data["title"]
+    state["backend"] = data["backend"]
+    for n in _HTTP_VALUE:
+        if n in data:
+            state[n] = data[n]
+    for cb in _HTTP_CHECK:
+        state[cb] = cb in data
+    state["_stale"] = state.get("_lag", 0)
+    if state.get("_die"):
+        state["_down"] = True  # restart that never recovers
 
 
 def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
@@ -191,21 +257,15 @@ def _http_handler(state: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
             data = dict(urllib.parse.parse_qsl(self.rfile.read(length).decode()))
-            if _http_accepts(data):
-                state["_snapshot"] = {k: state[k] for k in (*_HTTP_TEXT, *_HTTP_VALUE, *_HTTP_CHECK)}
-                state["title"] = data["title"]
-                state["backend"] = data["backend"]
-                for n in _HTTP_VALUE:
-                    if n in data:
-                        state[n] = data[n]
-                for cb in _HTTP_CHECK:
-                    state[cb] = cb in data
-                state["_stale"] = state.get("_lag", 0)
-                if state.get("_die"):
-                    state["_down"] = True  # restart that never recovers
+            if self.path == "/matrix":
+                _http_apply_matrix(state, data)
+                body = b"OK"
+            else:
+                _http_apply_config(state, data)
+                body = b"OK" if _http_accepts(data) else b"Failed!"
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b"OK" if _http_accepts(data) else b"Failed!")
+            self.wfile.write(body)
 
         def log_message(self, *_: object) -> None:
             pass
@@ -234,6 +294,8 @@ def _http_state(**extra: Any) -> dict[str, Any]:
         "auto_family": False,
         "samplerate": "192000",
         "bitrate": "22579200",
+        "post_bauer_enabled": True,
+        "post_bauer_frequency": "700",
         "_lag": 0,
         **extra,
     }
