@@ -90,6 +90,21 @@ PLUGIN_MAP: dict[str, tuple[str, str]] = {
     "post_bauer_level": ("bauer", "level"),
     "post_correction_enabled": ("correction", "enabled"),
     "post_correction_dac0": ("correction", "dac0"),
+    # loudness plugin — form field -> XML attr, grounded by value-correlation: the
+    # live /matrix form defaults uniquely match the snapshot's <plugin
+    # type="loudness"> attributes (lowfreq=80<->low_frequency, lowtype=lshelf<->
+    # low_type, rangehigh=-20<->range_high, ...). readme §1.11.2.1 documents them.
+    "post_loudness_enabled": ("loudness", "enabled"),
+    "post_loudness_lowfreq": ("loudness", "low_frequency"),
+    "post_loudness_lowlevel": ("loudness", "low_level"),
+    "post_loudness_lowsteep": ("loudness", "low_steepness"),
+    "post_loudness_lowtype": ("loudness", "low_type"),
+    "post_loudness_highfreq": ("loudness", "high_frequency"),
+    "post_loudness_highlevel": ("loudness", "high_level"),
+    "post_loudness_highsteep": ("loudness", "high_steepness"),
+    "post_loudness_hightype": ("loudness", "high_type"),
+    "post_loudness_rangelow": ("loudness", "range_low"),
+    "post_loudness_rangehigh": ("loudness", "range_high"),
 }
 
 # net_device fuses two XML attributes: value "S26/hw:CARD=Output,DEV=0" splits on

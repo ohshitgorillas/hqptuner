@@ -140,6 +140,21 @@ export const schema = {
   crossfeed_level: { label: "Level", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", wide: true },
   dac_correction_enabled: { label: "DAC correction", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
   dac_correction_profile: { label: "Profile", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_correction_dac0", optionsFrom: "matrix", wide: true },
+  // Loudness plugin (bass/treble shelf-or-peak + loudness range). Fields read
+  // from GET /matrix; on apply they ride the restore/XML lane via presetconf's
+  // PLUGIN_MAP into <post_process><plugin type="loudness">. Number bounds/steps
+  // come from the form itself (cfgConstraint), so they track the daemon.
+  loudness_enabled: { label: "Loudness", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled" },
+  loudness_low_freq: { label: "Bass frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz" },
+  loudness_low_level: { label: "Bass level", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB" },
+  loudness_low_steep: { label: "Bass steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep" },
+  loudness_low_type: { label: "Bass type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_lowtype", optionsFrom: "matrix" },
+  loudness_high_freq: { label: "Treble frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highfreq", unit: "Hz" },
+  loudness_high_level: { label: "Treble level", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highlevel", unit: "dB" },
+  loudness_high_steep: { label: "Treble steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep" },
+  loudness_high_type: { label: "Treble type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_hightype", optionsFrom: "matrix" },
+  loudness_range_low: { label: "Range lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB" },
+  loudness_range_high: { label: "Range higher bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB" },
 
   // --- Volume ---
   // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"

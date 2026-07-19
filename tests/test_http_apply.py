@@ -143,6 +143,18 @@ async def test_a_net_device_the_daemon_no_longer_offers_is_reported_unfixable(
     assert "net_device" in report["persistent"]["unfixable"]
 
 
+async def test_loudness_edit_persists_to_the_loudness_plugin(
+    apply_via: tuple[ConnectionManager, HttpConfigClient],
+) -> None:
+    # a staged loudness bass-frequency change must ride the restore/XML lane into
+    # <plugin type="loudness"> low_frequency — proving the post_loudness_lowfreq ->
+    # low_frequency mapping, not just that some field moved
+    manager, http = apply_via
+    await manager.apply({}, {"post_loudness_enabled": "1", "post_loudness_lowfreq": "120"})
+    matrix = {f["name"]: f["value"] for f in (await http.get_matrix())["fields"]}
+    assert matrix["post_loudness_lowfreq"] == 120
+
+
 async def test_rescan_surfaces_a_newly_present_output_device(
     http_daemon: dict[str, Any],
     tmp_path: Path,
