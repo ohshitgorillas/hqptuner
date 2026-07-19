@@ -178,6 +178,19 @@ async def preset(name: str, request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"read preset failed: {exc}") from exc
 
 
+@router.post("/config/refresh")
+async def config_refresh(request: Request) -> dict[str, Any]:
+    """Re-scan output devices on the daemon and refetch the config forms, so a
+    device that was absent (a powered-off NAA endpoint) appears in the dropdown."""
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    try:
+        return await manager.refresh_devices()
+    except (ControlError, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail=f"device refresh failed: {exc}") from exc
+
+
 @router.get("/backup")
 async def backup(request: Request) -> Response:
     manager = _mgr(request)

@@ -42,6 +42,7 @@ export const api = {
   stage: (body) => send("/api/config/stage", "POST", body),
   discard: () => send("/api/config/pending", "DELETE"),
   apply: (body) => send("/api/config/apply", "POST", body || {}),
+  refreshDevices: () => send("/api/config/refresh", "POST"),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   volume: () => getJSON("/api/volume"),

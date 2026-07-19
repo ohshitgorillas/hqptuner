@@ -444,6 +444,15 @@ class ConnectionManager:
             return None
         return path
 
+    async def refresh_devices(self) -> dict[str, Any]:
+        """Trigger a daemon output-device re-scan, then refetch the /config and
+        /matrix forms so the device dropdowns serve the new endpoint list (an NAA
+        powered back on, a DAC replugged). No restart, no idle gate — a rescan is
+        read-only on the audio path."""
+        await self._require_http().refresh_devices()
+        await self._refresh_http_forms()
+        return {"refreshed": True}
+
     async def load_profile(self, name: str) -> None:
         await self._require_http().post_profile("load", profile=name)
 

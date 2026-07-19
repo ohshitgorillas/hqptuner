@@ -143,6 +143,24 @@ async def test_a_net_device_the_daemon_no_longer_offers_is_reported_unfixable(
     assert "net_device" in report["persistent"]["unfixable"]
 
 
+async def test_rescan_surfaces_a_newly_present_output_device(
+    http_daemon: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    # an endpoint that was powered off is absent from the device list until a
+    # rescan; refresh_devices must trigger it AND refetch the form so the new
+    # device is actually offered — a bare POST that skipped the refetch would not
+    manager, http = _manager(http_daemon, tmp_path, alarm=1.0)
+    http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
+    try:
+        await manager.refresh_devices()
+        fields = (manager.config_form or {}).get("fields", [])
+        offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
+    finally:
+        await http.aclose()
+    assert "S99/hw:CARD=WokeUp,DEV=0" in offered
+
+
 async def test_read_preset_falls_back_to_cache_when_the_backup_goes_empty(
     http_daemon: dict[str, Any],
     tmp_path: Path,

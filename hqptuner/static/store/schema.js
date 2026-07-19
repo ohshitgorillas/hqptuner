@@ -85,7 +85,7 @@ export const schema = {
   sdm_rate: { label: "SDM", group: "output", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm },
 
   // --- Output: ALSA backend section (backend alsa|combo) ---
-  alsa_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true },
+  alsa_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true },
   alsa_offset: { label: "Channel offset", group: "output", widget: "number", lane: "http", field: "alsa_offset" },
   alsa_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
   alsa_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
@@ -93,7 +93,7 @@ export const schema = {
   alsa_anydsd: { label: "48k DSD", group: "output", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
-  net_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true },
+  net_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true },
   net_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
   net_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
   net_dop: { label: "DoP", group: "output", widget: "checkbox", lane: "http", field: "net_dop" },

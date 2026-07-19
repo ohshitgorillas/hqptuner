@@ -319,6 +319,9 @@ def _matrix_render(st: dict[str, Any]) -> str:
 def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
     if st.get("_down"):  # restore accepted, daemon never came back
         return 503, b""
+    if path == "/config/refresh":  # webUI: a bare GET in a method=get form
+        _refresh_devices(st)
+        return 200, b""
     if path == "/config":
         return 200, _http_render(st).encode()
     if path == "/matrix":
@@ -349,6 +352,16 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     st["_stale"] = st.get("_lag", 0)
     if st.get("_die"):
         st["_down"] = True
+
+
+def _refresh_devices(st: dict[str, Any]) -> None:
+    """POST /config/refresh — re-scan output devices. Endpoints that were powered
+    off (staged in _hidden_endpoints) become bindable and join the offered set,
+    modelling a NAA that came back on since the last form read."""
+    for ep in st.get("_hidden_endpoints", []):
+        if ep not in st["_net_endpoints"]:
+            st["_net_endpoints"].append(ep)
+    st["_hidden_endpoints"] = []
 
 
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:
@@ -411,6 +424,8 @@ def _http_state(**extra: Any) -> dict[str, Any]:
         # endpoints the daemon can bind; a net_device outside this set is refused
         # on restore (endpoint gone) — the unfixable-divergence case
         "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
+        # powered-off endpoints a /config/refresh rescan makes bindable
+        "_hidden_endpoints": [],
         "_saved": {},
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
