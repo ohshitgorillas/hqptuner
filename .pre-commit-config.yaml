@@ -17,6 +17,12 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      - id: vulture
+        name: vulture dead-code gate
+        entry: .venv/bin/vulture
+        language: system
+        pass_filenames: false
+        types: [python]
       - id: mypy
         name: mypy (strict)
         entry: .venv/bin/mypy
