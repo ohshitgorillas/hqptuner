@@ -10,6 +10,7 @@ import { optionsFor } from "../store/options.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { HardwareCard, RestoreCard } from "./SystemHardware.js";
+import { CrossfeedPlot, LoudnessPlot } from "./plots.js";
 import { accent, applyAccent, ACCENTS } from "../store/theme.js";
 
 const active = signal("output");
@@ -127,6 +128,71 @@ const Output = () =>
     <//>
   </section>`;
 
+const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+
+// Post-processing cards: controls on top, a full-width response plot across the
+// bottom. When the feature checkbox is off, the body (sub-controls + plot) dims
+// as a unit — the sub-controls also go non-interactive via their grayWhen.
+export function CrossfeedCard() {
+  const on = truthy(effective("crossfeed_enabled"));
+  return html`
+    <${Card} title="Crossfeed">
+      <div class="dsp-card">
+        <${Field} k="crossfeed_enabled" />
+        <div class="dsp-body ${on ? "" : "off"}">
+          <div class="dsp-controls">
+            <${Field} k="crossfeed_preset" />
+            <div class="knob-cluster">
+              <${Field} k="crossfeed_frequency" />
+              <${Field} k="crossfeed_level" />
+            </div>
+          </div>
+          <div class="dsp-plot"><${CrossfeedPlot} /></div>
+        </div>
+      </div>
+    <//>
+  `;
+}
+
+export function LoudnessCard() {
+  const on = truthy(effective("loudness_enabled"));
+  return html`
+    <${Card} title="Loudness">
+      <div class="dsp-card">
+        <${Field} k="loudness_enabled" />
+        <div class="dsp-body ${on ? "" : "off"}">
+          <div class="dsp-controls">
+            <div class="cluster-row">
+              <div class="cluster">
+                <div class="cluster-head">Bass</div>
+                <${Field} k="loudness_low_level" />
+                <${Field} k="loudness_low_freq" />
+                <${Field} k="loudness_low_steep" />
+                <${Field} k="loudness_low_type" />
+              </div>
+              <div class="cluster">
+                <div class="cluster-head">Treble</div>
+                <${Field} k="loudness_high_level" />
+                <${Field} k="loudness_high_freq" />
+                <${Field} k="loudness_high_steep" />
+                <${Field} k="loudness_high_type" />
+              </div>
+            </div>
+            <div class="range-group">
+              <div class="cluster-head">Range</div>
+              <div class="range-row">
+                <${Field} k="loudness_range_low" />
+                <${Field} k="loudness_range_high" />
+              </div>
+            </div>
+          </div>
+          <div class="dsp-plot"><${LoudnessPlot} /></div>
+        </div>
+      </div>
+    <//>
+  `;
+}
+
 const Dsp = () =>
   html`<${Section}>
     <${NarrowBar} />
@@ -155,31 +221,14 @@ const Dsp = () =>
         <${Field} k="pipelines" />
       <//>
     </div>
-    <${Card} title="Post-processing">
-      <${Field} k="crossfeed_enabled" />
-      <div class="indent">
-        <${Field} k="crossfeed_preset" />
-        <${Field} k="crossfeed_frequency" />
-        <${Field} k="crossfeed_level" />
-      </div>
+    <${CrossfeedCard} />
+    <${Card} title="DAC correction">
       <${Field} k="dac_correction_enabled" />
       <div class="indent">
         <${Field} k="dac_correction_profile" />
       </div>
-      <${Field} k="loudness_enabled" />
-      <div class="indent">
-        <${Field} k="loudness_low_freq" />
-        <${Field} k="loudness_low_level" />
-        <${Field} k="loudness_low_steep" />
-        <${Field} k="loudness_low_type" />
-        <${Field} k="loudness_high_freq" />
-        <${Field} k="loudness_high_level" />
-        <${Field} k="loudness_high_steep" />
-        <${Field} k="loudness_high_type" />
-        <${Field} k="loudness_range_low" />
-        <${Field} k="loudness_range_high" />
-      </div>
     <//>
+    <${LoudnessCard} />
   <//>`;
 
 const Volume = () =>

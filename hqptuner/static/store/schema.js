@@ -37,6 +37,9 @@ const fixedOff = (ctx) => (truthy(ctx.effective("fixed_volume_enabled")) ? "" : 
 const isoOn = (ctx) => truthy(ctx.effective("optimal_iso"));
 const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level" : "");
 const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "logging disabled");
+// a post-process card's sub-controls gray out until the feature is enabled
+const crossfeedOff = (ctx) => (truthy(ctx.effective("crossfeed_enabled")) ? "" : "enable crossfeed");
+const loudnessOff = (ctx) => (truthy(ctx.effective("loudness_enabled")) ? "" : "enable loudness");
 
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
 const PCM_RATES = [
@@ -134,27 +137,27 @@ export const schema = {
   // GET /matrix). On apply they ride the same snapshot-XML restore lane as every
   // other persistent field — the manager edits their <post_process><plugin> nodes
   // (presetconf.PLUGIN_MAP), so a stray crossfeed can't survive a preset re-assert.
-  crossfeed_enabled: { label: "Bauer crossfeed", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_bauer_enabled" },
-  crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true },
-  crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz" },
-  crossfeed_level: { label: "Level", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", wide: true },
-  dac_correction_enabled: { label: "DAC correction", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
+  crossfeed_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_bauer_enabled" },
+  crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true, grayWhen: crossfeedOff },
+  crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz", def: 700, grayWhen: crossfeedOff },
+  crossfeed_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", def: 4.5, grayWhen: crossfeedOff },
+  dac_correction_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
   dac_correction_profile: { label: "Profile", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_correction_dac0", optionsFrom: "matrix", wide: true },
   // Loudness plugin (bass/treble shelf-or-peak + loudness range). Fields read
   // from GET /matrix; on apply they ride the restore/XML lane via presetconf's
   // PLUGIN_MAP into <post_process><plugin type="loudness">. Number bounds/steps
   // come from the form itself (cfgConstraint), so they track the daemon.
-  loudness_enabled: { label: "Loudness", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled" },
-  loudness_low_freq: { label: "Bass frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz" },
-  loudness_low_level: { label: "Bass level", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB" },
-  loudness_low_steep: { label: "Bass steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep" },
-  loudness_low_type: { label: "Bass type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_lowtype", optionsFrom: "matrix" },
-  loudness_high_freq: { label: "Treble frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highfreq", unit: "Hz" },
-  loudness_high_level: { label: "Treble level", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highlevel", unit: "dB" },
-  loudness_high_steep: { label: "Treble steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep" },
-  loudness_high_type: { label: "Treble type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_hightype", optionsFrom: "matrix" },
-  loudness_range_low: { label: "Range lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB" },
-  loudness_range_high: { label: "Range higher bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB" },
+  loudness_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled" },
+  loudness_low_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB", def: 20, grayWhen: loudnessOff },
+  loudness_low_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz", grayWhen: loudnessOff },
+  loudness_low_steep: { label: "Steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep", grayWhen: loudnessOff },
+  loudness_low_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_lowtype", optionsFrom: "matrix", grayWhen: loudnessOff },
+  loudness_high_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_highlevel", unit: "dB", def: 10, grayWhen: loudnessOff },
+  loudness_high_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highfreq", unit: "Hz", grayWhen: loudnessOff },
+  loudness_high_steep: { label: "Steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep", grayWhen: loudnessOff },
+  loudness_high_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_hightype", optionsFrom: "matrix", grayWhen: loudnessOff },
+  loudness_range_low: { label: "Lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB", grayWhen: loudnessOff },
+  loudness_range_high: { label: "Upper bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB", grayWhen: loudnessOff },
 
   // --- Volume ---
   // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"

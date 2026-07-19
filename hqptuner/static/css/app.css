@@ -938,6 +938,243 @@ button:disabled {
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
 
+/* ── Visual-language token ─────────────────────────────────────────────
+   DASHED + muted  = POTENTIAL / maximum / reference (a "ghost" trace).
+   SOLID  + accent = APPLIED right now.
+   Used by the response-plot traces and the knob value-fill arc, and
+   reusable anywhere a "what could be" vs "what is" distinction is drawn. */
+
+/* ── Knob + slider + box trio (continuous, audible params only) ───────── */
+.knob {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.knob-dial {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  cursor: ns-resize;
+  touch-action: none; /* vertical drag owns the gesture */
+  border-radius: 50%;
+  outline: none;
+}
+.knob-lg .knob-dial {
+  width: 96px;
+  height: 96px;
+}
+.knob-dial:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.knob-face {
+  fill: var(--bg-3);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.knob-track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 7;
+  stroke-linecap: round;
+} /* full 270° muted track */
+.knob-value {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+} /* accent value-fill arc = position in range */
+.knob-inner {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+} /* light gray inner ring (outline only) */
+.knob-notch {
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+} /* accent notch sticking through the inner disc = position */
+.knob.off .knob-dial {
+  cursor: default;
+}
+.knob-slider {
+  flex: 1 1 160px;
+  min-width: 140px;
+  accent-color: var(--accent);
+}
+.knob-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+}
+/* .knob prefix raises specificity above the global input[type=text]{width:240px} */
+.knob .knob-box {
+  width: 3.6rem;
+  text-align: center;
+  background: var(--bg-1);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  padding: 0.15rem 0.25rem;
+  font-size: 0.9rem;
+}
+.knob-lg .knob-box {
+  width: 4.4rem;
+  font-size: 1rem;
+}
+.knob-unit {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+/* knob field: small label on top, the trio row filling the width below */
+.field-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  min-height: 0;
+  padding: 0.3rem 0.4rem;
+}
+.field-knob > label {
+  font-size: 0.82rem;
+  color: var(--fg-2);
+}
+.field-knob .control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.field-knob .knob {
+  flex: 1;
+}
+
+/* ── DSP card: controls on top, full-width response plot across bottom ── */
+.dsp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.dsp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: opacity 0.15s;
+}
+.dsp-body.off {
+  opacity: 0.4;
+} /* disabled feature: sub-controls + plot dim as a unit */
+.dsp-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.dsp-plot {
+  width: 100%;
+}
+.knob-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+.knob-cluster > .field {
+  flex: 1 1 260px;
+}
+/* loudness: bass / treble grouped side by side under their level knob */
+.cluster-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+}
+.cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-left: 2px solid var(--line);
+  padding-left: 0.8rem;
+}
+.cluster-head {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+.range-group {
+  margin-top: 0.7rem;
+}
+.range-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem;
+}
+/* compact fields inside clusters / range: shorter label column */
+.cluster .field:not(.field-knob),
+.range-row .field {
+  grid-template-columns: 8rem 1fr;
+}
+
+/* ── Response plot (client-side SVG, log-freq axis) ───────────────────── */
+.plot {
+  background: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+}
+.plot-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.plot-grid {
+  stroke: var(--line);
+  stroke-width: 0.5;
+  opacity: 0.35;
+} /* hairline, quieter than traces */
+.plot-zero {
+  stroke: var(--muted);
+  stroke-width: 0.8;
+  opacity: 0.6;
+}
+.plot-lbl {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  fill: var(--muted);
+}
+.plot-trace {
+  fill: none;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+.plot-trace.ghost {
+  stroke: var(--muted);
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+}
+.plot-trace.applied {
+  stroke: var(--accent);
+}
+.plot-tlbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.plot-tlbl.ghost {
+  fill: var(--muted);
+}
+.plot-tlbl.applied {
+  fill: var(--accent);
+}
+.plot-caption {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--fg-2);
+  text-align: center;
+}
+.playback-knob {
+  display: flex;
+  justify-content: center;
+  padding: 0.4rem 0;
+}
+
 /* System · HQPTuner — accent picker. Each swatch shows its OWN color (a live
    preview) regardless of the active theme, so the values are hard-coded here,
    not driven by var(--accent). */

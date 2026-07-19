@@ -27,6 +27,10 @@ export const previewConfig = signal(null);
 export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
 export const metadata = signal(null); // static: {filters, shapers, settings}
 export const staged = signal({ live: {}, http: {} }); // mirrors server pending
+// Transient client-only overrides, set live while a knob is dragged so controls
+// and response plots update instantly with no server round-trip per pointer move.
+// Committed to `staged` on release, then cleared. Highest priority in effective().
+export const liveOverride = signal({});
 
 // live playback volume — NOT a staged control: it lives in its own signals and
 // writes immediately via the Control API (never through the staged/apply flow).
@@ -81,6 +85,8 @@ function stagedValue(entry) {
 export function effective(key) {
   const e = schema[key];
   if (!e) return undefined;
+  const lo = liveOverride.value[key];
+  if (lo !== undefined) return lo; // active knob drag wins
   const sv = stagedValue(e);
   return sv !== undefined ? sv : baseline(e);
 }
@@ -116,6 +122,36 @@ export const split = computed(() => {
 // Stage one edit. Live edits merge into their liveKey bucket (so a control that
 // shares a setter — e.g. filter 1x/Nx — keeps its sibling's arg). Pushes to the
 // server pending store so staging survives a browser reload, then re-mirrors it.
+// Live knob-drag override (see liveOverride): setLive updates instantly with no
+// server hit; the commit path (edit) stages the value then clears the override.
+export function setLive(key, value) {
+  liveOverride.value = { ...liveOverride.value, [key]: String(value) };
+}
+
+function clearLive(key) {
+  if (!(key in liveOverride.value)) return;
+  const next = { ...liveOverride.value };
+  delete next[key];
+  liveOverride.value = next;
+}
+
+// Bauer crossfeed preset <-> params coupling: selecting a named preset loads its
+// frequency/level (so the graph shows that preset); adjusting either param
+// switches the preset to "custom". Values are the libbs2b canonical parameter
+// sets HQPlayer's Bauer plugin is built on. Applied within the same stage POST
+// as the primary edit, so the coupled fields move together.
+const BAUER_PRESETS = { default: ["700", "4.5"], cmoy: ["700", "6.0"], jmeier: ["650", "9.5"] };
+
+function applyBauerCoupling(key, value, http) {
+  if (key === "crossfeed_preset" && BAUER_PRESETS[value]) {
+    const [f, l] = BAUER_PRESETS[value];
+    http.post_bauer_frequency = f;
+    http.post_bauer_level = l;
+  } else if (key === "crossfeed_frequency" || key === "crossfeed_level") {
+    http.post_bauer_preset = "custom";
+  }
+}
+
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
@@ -126,6 +162,14 @@ export async function edit(key, value) {
   } else {
     body.http[e.field] = String(value);
   }
+  applyBauerCoupling(key, value, body.http);
+  // optimistic local merge so a knob release reflects instantly (no flicker to
+  // baseline during the stage round-trip), then drop the live-drag override.
+  staged.value = {
+    live: { ...staged.value.live, ...body.live },
+    http: { ...staged.value.http, ...body.http },
+  };
+  clearLive(key);
   staged.value = await api.stage(body);
 }
 
