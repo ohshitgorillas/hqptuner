@@ -18,6 +18,7 @@ import zipfile
 from collections.abc import AsyncIterator, Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
+from urllib.parse import parse_qs
 
 import pytest
 from defusedxml.ElementTree import fromstring as _fromstring
@@ -182,6 +183,7 @@ def _b(v: Any) -> str:
 
 def _cfg_xml(st: dict[str, Any]) -> bytes:
     """The working hqplayerd.xml a /backup would carry, rendered from state."""
+    net_addr, _, net_dev = st["net_device"].partition("/")
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n<hqplayerd>'
         f'<output type="{st["backend"]}"/>'
@@ -192,7 +194,7 @@ def _cfg_xml(st: dict[str, Any]) -> bytes:
         f'<engine auto_family="{_b(st["auto_family"])}" channels="{st["channels"]}" '
         f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}"/>'
         '<defaults samplerate="192000" bitrate="24576000" volume="-3"/>'
-        f'<network address="S26" device="hw:CARD=Output,DEV=0" ipv6="{_b(st["net_ipv6"])}" '
+        f'<network address="{net_addr}" device="{net_dev}" ipv6="{_b(st["net_ipv6"])}" '
         'dac_bits="15" period_time="0"/>'
         '<alsa device="hw:CARD=NVidia,DEV=3" dac_bits="24" period_time="100"/>'
         '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
@@ -211,6 +213,16 @@ def _elem_attr(xml: bytes, tag: str, attr: str) -> str | None:
         return None
     a = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', m.group(0))
     return a.group(1).decode() if a else None
+
+
+def _adopt_net_device(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the uploaded net_device only when it is an endpoint the daemon can
+    bind; a device outside the offered set is refused (endpoint gone), which no
+    restart conjures back — the unfixable-divergence case."""
+    addr = _elem_attr(xml, "network", "address")
+    dev = _elem_attr(xml, "network", "device")
+    if addr is not None and dev is not None and f"{addr}/{dev}" in st["_net_endpoints"]:
+        st["net_device"] = f"{addr}/{dev}"
 
 
 def _adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
@@ -240,6 +252,7 @@ def _adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
     ipv6 = _elem_attr(xml, "network", "ipv6")
     if ipv6 is not None:
         st["net_ipv6"] = ipv6 == "1"
+    _adopt_net_device(st, xml)
     for m in re.finditer(rb"<plugin\b[^>]*?>", xml):
         if b'type="bauer"' in m.group(0):
             freq = re.search(rb'\bfrequency="([^"]*)"', m.group(0))
@@ -257,6 +270,18 @@ def _backup_zip(st: dict[str, Any]) -> bytes:
         z.writestr("hqplayerd.xml", xml)
         z.writestr("data/cfgs/Test.xml", xml)
         z.writestr("data/library.xml", b"<library/>")
+        # presets saved via POST /config/profile/save appear as their own snapshot
+        for name, saved in st.get("_saved", {}).items():
+            z.writestr(f"data/cfgs/{name}.xml", saved)
+    return out.getvalue()
+
+
+def _empty_backup_zip() -> bytes:
+    """The archive hqplayerd 6.0.4 serves after a named profile/load until it is
+    restarted — a bare data/ with no base config (docs/protocol.md §3.6 bug)."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("data/", b"")
     return out.getvalue()
 
 
@@ -265,9 +290,13 @@ def _http_render(st: dict[str, Any]) -> str:
     opts = "".join(
         f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
     )
+    dev_opts = "".join(
+        f'<option value="{v}"{" selected" if st["net_device"] == v else ""}>{v}</option>' for v in st["_net_endpoints"]
+    )
     rows = [
         f'<input type="text" name="title" value="{st["title"]}"/>',
         f'<select name="backend">{opts}</select>',
+        f'<select name="net_device">{dev_opts}</select>',
         f'<input type="text" name="filter" value="{st["filter"]}"/>',
         f'<input type="text" name="samplerate" value="{st["samplerate"]}"/>',
         f'<input type="text" name="bitrate" value="{st["bitrate"]}"/>',
@@ -295,6 +324,8 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
     if path == "/matrix":
         return 200, _matrix_render(st).encode()
     if path == "/backup/settings.zip":
+        if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
+            return 200, _empty_backup_zip()
         # after a restore the daemon serves the pre-restart archive for a read or
         # two before catching up — the restart window verify must ride through
         if st.get("_stale", 0) > 0:
@@ -320,6 +351,14 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
         st["_down"] = True
 
 
+def _save_profile(st: dict[str, Any], raw: bytes) -> None:
+    """POST /config/profile/save — freeze the current working config as a named
+    preset snapshot, so a later /backup carries it as data/cfgs/<name>.xml."""
+    name = parse_qs(raw.decode()).get("profile_name", [""])[0]
+    if name:
+        st.setdefault("_saved", {})[name] = _cfg_xml(st)
+
+
 def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -334,6 +373,8 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
             raw = self.rfile.read(length)
             if self.path == "/restore":
                 _restore_config(st, self.headers.get("Content-Type", ""), raw)
+            elif self.path == "/config/profile/save":
+                _save_profile(st, raw)
             self.send_response(200)  # /config, /matrix POST are unused by the restore lane
             self.end_headers()
             self.wfile.write(b"<html>Restore</html>")
@@ -366,6 +407,11 @@ def _http_state(**extra: Any) -> dict[str, Any]:
         "channels": "2",
         "auto_family": False,
         "net_ipv6": False,
+        "net_device": "S26/hw:CARD=Output,DEV=0",
+        # endpoints the daemon can bind; a net_device outside this set is refused
+        # on restore (endpoint gone) — the unfixable-divergence case
+        "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
+        "_saved": {},
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
         "cuda": "1",

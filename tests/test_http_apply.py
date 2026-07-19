@@ -120,3 +120,40 @@ async def test_apply_verifies_through_the_post_restart_stale_window(
     finally:
         await http.aclose()
     assert report["persistent"]["applied"] is True
+
+
+async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
+    apply_via: tuple[ConnectionManager, HttpConfigClient],
+) -> None:
+    # Save as New = apply the working config, then save it under a fresh name; the
+    # new preset's own snapshot must carry the change, distinct from the active one
+    manager, _ = apply_via
+    await manager.apply({}, {"title": "Renamed"})
+    await manager.save_profile("Fresh")
+    assert (await manager.read_preset("Fresh"))["title"] == "Renamed"
+
+
+async def test_a_net_device_the_daemon_no_longer_offers_is_reported_unfixable(
+    apply_via: tuple[ConnectionManager, HttpConfigClient],
+) -> None:
+    # the staged endpoint is not among the daemon's bindable devices, so no restart
+    # can converge it — the apply must surface it as unfixable, never a false success
+    manager, _ = apply_via
+    report = await manager.apply({}, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"})
+    assert "net_device" in report["persistent"]["unfixable"]
+
+
+async def test_read_preset_falls_back_to_cache_when_the_backup_goes_empty(
+    http_daemon: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    # a named profile/load empties /backup on 6.0.4 until restart (protocol §3.6);
+    # the cache warmed by the first read must still serve the preset for a preview
+    manager, http = _manager(http_daemon, tmp_path, alarm=1.0)
+    try:
+        await manager.read_preset("Test")  # warms the healthy-backup cache
+        http_daemon["_empty"] = True
+        cfg = await manager.read_preset("Test")
+    finally:
+        await http.aclose()
+    assert cfg["title"] == "Opal"

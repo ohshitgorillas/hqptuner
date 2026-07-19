@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api import create_app
 from hqptuner.config import Config
+from hqptuner.presetconf import UNGROUNDED
 
 
 def _closed_port() -> int:
@@ -50,6 +51,14 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[TestCli
 
 def test_stage_rejects_unknown_live_setting(client: TestClient) -> None:
     resp = client.post("/api/config/stage", json={"live": {"bogus": {"value": "1"}}})
+    assert resp.status_code == 422
+
+
+@pytest.mark.parametrize("field", sorted(UNGROUNDED))
+def test_stage_rejects_an_ungrounded_config_field(client: TestClient, field: str) -> None:
+    # the corrective XML apply has no verified location for these yet, so staging
+    # one is refused rather than letting a guessed attribute reach a live daemon
+    resp = client.post("/api/config/stage", json={"http": {field: "1"}})
     assert resp.status_code == 422
 
 
