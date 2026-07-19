@@ -74,8 +74,8 @@ const MODES = [
 
 export const schema = {
   // --- Output: always-visible masters + independents ---
-  output_mode: { label: "Mode", group: "output", widget: "segment", lane: "http", field: "mode", options: MODES },
-  backend: { label: "Backend", group: "output", widget: "segment", lane: "http", field: "backend", options: BACKENDS },
+  output_mode: { label: "Mode", group: "output", widget: "segment", lane: "http", field: "mode", options: MODES, hoverNote: true },
+  backend: { label: "Backend", group: "output", widget: "segment", lane: "http", field: "backend", options: BACKENDS, hoverNote: true },
   idle_time: { label: "Idle time", group: "output", widget: "dropdown", lane: "http", field: "idle_time", optionsFrom: "config" },
   upnp_freewheel: { label: "UPnP freewheel", group: "output", widget: "checkbox", lane: "http", field: "upnp_freewheel" },
 
@@ -84,24 +84,24 @@ export const schema = {
   // forces auto-family, so a per-family Nx/DSDx multiplier is the whole UX; each
   // maps to the 48k-base ceiling value (the higher of the 44.1/48 pair) so a
   // source of either family reaches its own Nx under the "equal or lower" cap.
-  pcm_rate: { label: "PCM", group: "output", widget: "dropdown", lane: "http", field: "defaults_samplerate", options: PCM_RATES, grayWhen: isSdm },
-  sdm_rate: { label: "SDM", group: "output", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm },
+  pcm_rate: { label: "PCM", group: "output", note: "rate", widget: "dropdown", lane: "http", field: "defaults_samplerate", options: PCM_RATES, grayWhen: isSdm, hoverNote: true },
+  sdm_rate: { label: "SDM", group: "output", note: "rate", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, hoverNote: true },
 
   // --- Output: ALSA backend section (backend alsa|combo) ---
-  alsa_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true },
-  alsa_offset: { label: "Channel offset", group: "output", widget: "number", lane: "http", field: "alsa_offset" },
-  alsa_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
-  alsa_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
-  alsa_dop: { label: "DoP", group: "output", widget: "checkbox", lane: "http", field: "alsa_dop" },
-  alsa_anydsd: { label: "48k DSD", group: "output", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
+  alsa_device: { label: "Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true },
+  alsa_offset: { label: "Channel offset", group: "output", note: "channel_offset", widget: "number", lane: "http", field: "alsa_offset" },
+  alsa_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
+  alsa_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
+  alsa_dop: { label: "DoP", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "alsa_dop" },
+  alsa_anydsd: { label: "48k DSD", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
-  net_device: { label: "Device", group: "output", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true },
-  net_bits: { label: "DAC bits", group: "output", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
-  net_period: { label: "Buffer time", group: "output", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
-  net_dop: { label: "DoP", group: "output", widget: "checkbox", lane: "http", field: "net_dop" },
-  net_anydsd: { label: "48k DSD", group: "output", widget: "checkbox", lane: "http", field: "net_anydsd" },
-  net_ipv6: { label: "IPv6", group: "output", widget: "checkbox", lane: "http", field: "net_ipv6" },
+  net_device: { label: "Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true },
+  net_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
+  net_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
+  net_dop: { label: "DoP", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "net_dop" },
+  net_anydsd: { label: "48k DSD", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "net_anydsd" },
+  net_ipv6: { label: "IPv6", group: "output", note: "ipv6", widget: "checkbox", lane: "http", field: "net_ipv6" },
 
   // --- DSP: two persistent filter chains (both shown, inactive grayed by mode) ---
   // The Embedded /config form carries PCM (filter1x/filter/dither) and SDM
@@ -112,25 +112,25 @@ export const schema = {
   // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
   // Mode graying is handled by the PCM/SDM collapsibles auto-closing (tabs.js),
   // not per-field grayWhen. desc drives the inline manual description line.
-  pcm_filter_1x: { label: "1x oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
-  pcm_filter_nx: { label: "Nx oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
-  pcm_dither: { label: "Dither", group: "dsp", widget: "dropdown", lane: "http", field: "dither", optionsFrom: "config", wide: true, rateGray: "pcm", desc: "dither" },
-  sdm_filter_1x: { label: "1x oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "oversampling1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
-  sdm_filter_nx: { label: "Nx oversampling filter", group: "dsp", widget: "dropdown", lane: "http", field: "oversampling", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
-  sdm_modulator: { label: "Sigma-delta modulator", group: "dsp", widget: "dropdown", lane: "http", field: "modulator", optionsFrom: "config", wide: true, rateGray: "sdm", desc: "modulator" },
+  pcm_filter_1x: { label: "1x oversampling filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  pcm_filter_nx: { label: "Nx oversampling filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  pcm_dither: { label: "Dither", group: "dsp", note: "shaper", widget: "dropdown", lane: "http", field: "dither", optionsFrom: "config", wide: true, rateGray: "pcm", desc: "dither" },
+  sdm_filter_1x: { label: "1x oversampling filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "oversampling1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  sdm_filter_nx: { label: "Nx oversampling filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "oversampling", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  sdm_modulator: { label: "Sigma-delta modulator", group: "dsp", note: "shaper", widget: "dropdown", lane: "http", field: "modulator", optionsFrom: "config", wide: true, rateGray: "sdm", desc: "modulator" },
 
   // --- DSP: generic processing ---
   channels: { label: "Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
-  fft_size: { label: "FFT filter length", group: "dsp", widget: "dropdown", lane: "http", field: "fft_size", optionsFrom: "config" },
+  fft_size: { label: "FFT filter length", group: "dsp", note: "fft_length", widget: "dropdown", lane: "http", field: "fft_size", optionsFrom: "config" },
   pipelines: { label: "DSP pipelines", group: "dsp", widget: "dropdown", lane: "http", field: "pipelines", optionsFrom: "config" },
 
   // --- DSP: DSD source decoding (SDM input processing) ---
   direct_sdm: { label: "Direct SDM", group: "dsp", widget: "checkbox", lane: "http", field: "direct_sdm" },
   dsd_gain_6db: { label: "Gain +6 dB", group: "dsp", widget: "checkbox", lane: "http", field: "dsd_6db" },
-  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true },
-  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true },
-  noise_filter: { label: "Noise filter", group: "dsp", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true },
-  pcm_conversion: { label: "SDM → PCM", group: "dsp", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true },
+  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true, desc: "config" },
+  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true, desc: "config" },
+  noise_filter: { label: "Noise filter", group: "dsp", note: "pdm_filter", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true, desc: "config" },
+  pcm_conversion: { label: "SDM → PCM", group: "dsp", note: "pdm_conversion", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true, desc: "config" },
 
   // --- DSP: post-processing (crossfeed + DAC correction). endpoint:"matrix"
   // marks these as /matrix form-read fields (their baseline/options come from
@@ -141,7 +141,7 @@ export const schema = {
   crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true, grayWhen: crossfeedOff },
   crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz", def: 700, grayWhen: crossfeedOff },
   crossfeed_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", def: 4.5, grayWhen: crossfeedOff },
-  dac_correction_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
+  dac_correction_enabled: { label: "Enable", group: "dsp", note: "dac_correction", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
   dac_correction_profile: { label: "Profile", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_correction_dac0", optionsFrom: "matrix", wide: true },
   // Loudness plugin (bass/treble shelf-or-peak + loudness range). Fields read
   // from GET /matrix; on apply they ride the restore/XML lane via presetconf's
@@ -170,11 +170,11 @@ export const schema = {
   volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS" },
   volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS" },
   startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS" },
-  gain_comp: { label: "PCM gain compensation", group: "volume", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
+  gain_comp: { label: "PCM gain compensation", group: "volume", note: "gain_compensation", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
   adaptive_volume: { label: "Adaptive volume", group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume" },
   playlist_album_gain: { label: "Playlist album gain", group: "volume", widget: "checkbox", lane: "http", field: "playlist_album_gain" },
 
   // --- System ---
   log_enabled: { label: "Enable logging", group: "system", widget: "checkbox", lane: "http", field: "log_enabled" },
-  log_file: { label: "Log file", group: "system", widget: "text", lane: "http", field: "log_file", grayWhen: logOff, wide: true },
+  log_file: { label: "Log file", group: "system", note: "log_path", widget: "text", lane: "http", field: "log_file", grayWhen: logOff, wide: true },
 };

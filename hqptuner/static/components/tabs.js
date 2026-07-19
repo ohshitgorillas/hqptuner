@@ -12,6 +12,13 @@ import { NarrowBar } from "./NarrowBar.js";
 import { HardwareCard, RestoreCard } from "./SystemHardware.js";
 import { CrossfeedPlot, LoudnessPlot } from "./plots.js";
 import { accent, applyAccent, ACCENTS } from "../store/theme.js";
+import { Checkbox } from "./controls/index.js";
+import {
+  showDescriptions,
+  keepOptionDescriptions,
+  setShowDescriptions,
+  setKeepOptionDescriptions,
+} from "../store/prefs.js";
 
 const active = signal("output");
 
@@ -281,6 +288,31 @@ const About = () => {
   `;
 };
 
+// Inline-description visibility prefs. The master hides both the static feature
+// notes and the per-selection option descriptions; the second checkbox — only
+// live while the master is off — keeps the filter / DSD-source option
+// descriptions visible even then.
+const DescriptionPrefs = () => html`
+  <div class="field">
+    <label>Feature descriptions</label>
+    <div class="control">
+      <${Checkbox} value=${showDescriptions.value ? "1" : "0"} onChange=${(v) => setShowDescriptions(v === "1")} />
+      <span class="unit">Show a manual note under each control</span>
+    </div>
+  </div>
+  <div class="field">
+    <label>Option descriptions</label>
+    <div class="control">
+      <${Checkbox}
+        value=${keepOptionDescriptions.value ? "1" : "0"}
+        disabled=${showDescriptions.value}
+        onChange=${(v) => setKeepOptionDescriptions(v === "1")}
+      />
+      <span class="unit">Keep filter and DSD source option descriptions when feature descriptions are hidden</span>
+    </div>
+  </div>
+`;
+
 const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber" };
 
 const AccentPicker = () =>
@@ -323,6 +355,7 @@ const System = () =>
       <${RestoreCard} />
     </div>
     <${Card} title="HQPTuner">
+      <${DescriptionPrefs} />
       <${AccentPicker} />
     <//>
   <//>`;

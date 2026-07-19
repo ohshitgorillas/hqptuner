@@ -31,6 +31,11 @@
       "tooltip": "Number of significant bits the DAC accepts — this is the dithering level. 0 = auto-detect. Important to set correctly on unidirectional interfaces (S/PDIF, AES/EBU, I2S), and recommended for USB DACs with less than 32-bit input resolution. Known-good values: Holo Audio Cyan 2/Spring/May = 20, Denafrips = 19, LAiV Harmony = 18. With a suitable noise-shaper (LNS15, NS9, NS5) at high output rates, R2R linearity errors can be corrected, lowering low-level distortion.",
       "source": "manual §4.4 (Bits), readme §1.3 (dac_bits)"
     },
+    "channel_offset": {
+      "label": "Channel offset",
+      "tooltip": "Base channel offset used to transform channel maps — the index of the first hardware channel this backend drives. Left at 0 for a normal stereo or multichannel device; raised only to place output on higher channels of a multi-channel interface (e.g. offset 2 sends stereo to channels 3–4).",
+      "source": "readme §1.3.2 (channel_offset)"
+    },
     "dop": {
       "label": "DoP",
       "tooltip": "Pack SDM (DSD) into a PCM container using the DoP v1.1 standard, for DACs that accept DSD only over PCM frames. PCM mode does not use this setting.",
@@ -128,6 +133,66 @@
       "tooltip": "Performs corrections for the output signal of the selected DAC. Corrections are specific to a DAC model and output rate. Applied to the output mix bus. With the Combo backend there may be multiple corrections, one per sub-device DAC.",
       "source": "manual §7, readme §1.11 (correction)"
     },
+    "dac_correction_profile": {
+      "label": "DAC correction profile",
+      "tooltip": "Selects which DAC model's correction profile is applied. Corrections are specific to a DAC model and to the output rate. With the Combo backend, each sub-device DAC has its own profile.",
+      "source": "manual §7, readme §1.11 (correction)"
+    },
+    "loudness_enabled": {
+      "label": "Loudness",
+      "tooltip": "Volume-adaptive tone compensation applied to the output mix bus. Boosts bass (and optionally treble) more at low listening volumes and less as volume rises, following the ear's reduced low-frequency sensitivity at quiet levels (Fletcher–Munson equal-loudness). The amount applied scales with the current volume between the loudness-range bounds.",
+      "source": "manual §7, readme §1.11.2.1 (loudness)"
+    },
+    "loudness_low_level": {
+      "label": "Bass level",
+      "tooltip": "Maximum bass adjustment level in dB, reached at or below the loudness range's lower bound. Scales down toward zero as volume rises to the upper bound.",
+      "source": "readme §1.11.2.1 (low_level)"
+    },
+    "loudness_low_freq": {
+      "label": "Bass frequency",
+      "tooltip": "Corner frequency in Hz for the bass adjustment — the shelf or peak center where the bass boost is applied.",
+      "source": "readme §1.11.2.1 (low_frequency)"
+    },
+    "loudness_low_steep": {
+      "label": "Bass steepness / Q",
+      "tooltip": "Slope factor of the bass filter: shelf steepness for a low shelf, or bandwidth/Q for a peak filter. Higher values give a sharper transition.",
+      "source": "readme §1.11.2.1 (low_steepness)"
+    },
+    "loudness_low_type": {
+      "label": "Bass type",
+      "tooltip": "Bass filter shape: low shelf (lifts everything below the corner), peak with bandwidth, or peak with Q (a bump centered on the corner frequency).",
+      "source": "readme §1.11.2.1 (low_type)"
+    },
+    "loudness_high_level": {
+      "label": "Treble level",
+      "tooltip": "Maximum treble adjustment level in dB, reached at or below the loudness range's lower bound. Set to 0 for bass-only loudness compensation.",
+      "source": "readme §1.11.2.1 (high_level)"
+    },
+    "loudness_high_freq": {
+      "label": "Treble frequency",
+      "tooltip": "Corner frequency in Hz for the treble adjustment — the shelf or peak center where the treble boost is applied.",
+      "source": "readme §1.11.2.1 (high_frequency)"
+    },
+    "loudness_high_steep": {
+      "label": "Treble steepness / Q",
+      "tooltip": "Slope factor of the treble filter: shelf steepness for a high shelf, or bandwidth/Q for a peak filter.",
+      "source": "readme §1.11.2.1 (high_steepness)"
+    },
+    "loudness_high_type": {
+      "label": "Treble type",
+      "tooltip": "Treble filter shape: high shelf (lifts everything above the corner), peak with bandwidth, or peak with Q.",
+      "source": "readme §1.11.2.1 (high_type)"
+    },
+    "loudness_range_low": {
+      "label": "Range lower bound",
+      "tooltip": "Volume level (dB) at or below which the full bass/treble adjustment is applied. Below this point loudness compensation is at maximum.",
+      "source": "readme §1.11.2.1 (range_low)"
+    },
+    "loudness_range_high": {
+      "label": "Range upper bound",
+      "tooltip": "Volume level (dB) at or above which no adjustment is applied. Between the two bounds the applied amount scales linearly with the current volume.",
+      "source": "readme §1.11.2.1 (range_high)"
+    },
     "direct_sdm": {
       "label": "Direct SDM",
       "tooltip": "Disables all processing when the source is DSD content and output is SDM to a DSD device. Enabling it disables volume control and sets PCM volume to a fixed -3 dBFS value.",
@@ -140,23 +205,69 @@
     },
     "sdm_integrator": {
       "label": "Integrator",
-      "tooltip": "Delta-sigma integrator type for SDM→SDM remodulation. Affects mostly frequency and phase response at the highest frequencies. Bandwidths re DSD64 (scale with source rate): IIR = 50 kHz; IIR2 = 25 kHz (minimizes residual noise); IIR3 = 30 kHz (high order); FIR = weighted FIR; FIR2 = 50 kHz; FIR-bl = 24 kHz band-limited (cut by 45 kHz); FIR-bw = 21.5 kHz brickwall (cut by 30 kHz); CIC = cascade comb.",
+      "tooltip": "Delta-sigma integrator type for SDM→SDM remodulation. Affects mostly frequency and phase response at the highest frequencies. Bandwidths are quoted relative to DSD64 and scale with the source rate.",
+      "options": {
+        "0": "IIR — 50 kHz bandwidth (re DSD64).",
+        "3": "IIR2 — 25 kHz bandwidth; minimizes residual noise.",
+        "4": "IIR3 — 30 kHz bandwidth, high order.",
+        "1": "FIR — weighted FIR response.",
+        "5": "FIR2 — 50 kHz bandwidth.",
+        "6": "FIR-bl — 24 kHz band-limited (cut by 45 kHz).",
+        "7": "FIR-bw — 21.5 kHz brickwall (cut by 30 kHz).",
+        "2": "CIC — cascade comb integrator."
+      },
       "source": "manual §4.5"
     },
     "sdm_conversion": {
       "label": "SDM → SDM conversion",
-      "tooltip": "Frequency aperture assumed to contain useful signal in SDM rate conversions. 'narrow' suits content without high-frequency harmonics (e.g. piano); 'wide' suits high-level HF content (e.g. close-miked percussion); 'XFi' (extreme fidelity, medium bandwidth) is suitable for all cases and is the default.",
+      "tooltip": "Frequency aperture assumed to contain useful signal in SDM rate conversions.",
+      "options": {
+        "0": "Wide — suits high-level high-frequency content (e.g. close-miked percussion).",
+        "1": "Narrow — suits content without high-frequency harmonics (e.g. piano).",
+        "2": "XFi — extreme fidelity, medium bandwidth; suitable for all cases (default)."
+      },
       "source": "manual §4.5"
     },
     "pdm_filter": {
       "label": "Noise filter",
-      "tooltip": "Noise filter for DSD→PCM conversion, reducing ultrasonic noise in the source. 'standard', 'low', 'high-order', 'wec2', and 'medium' are recommended variants; 'brickwall' passes no out-of-band noise (cut-off 25 kHz for DSD64, scaling with rate). At 88.2/96 kHz output extra filtering beyond 'standard' matters little; at 44.1/48 kHz it just reduces quality. Use 'medium-high' instead of 'medium' when PCM Conversion is 'none'.",
-      "source": "manual §4.4"
+      "tooltip": "Noise filter for DSD→PCM conversion, reducing ultrasonic noise in the source. 'standard', 'low', 'high-order', 'wec2', and 'medium' are the recommended variants. At 88.2/96 kHz output, extra filtering beyond 'standard' matters little; at 44.1/48 kHz it just reduces quality. Cut-off frequencies are quoted re DSD64 and scale with the rate.",
+      "options": {
+        "0": "Standard noise filter.",
+        "1": "Low corner — standard filter with a lower cut-off.",
+        "10": "High-order filter — a recommended variant.",
+        "7": "Moving-average filter.",
+        "8": "Weighted element.",
+        "11": "Weighted element 2 — a recommended variant.",
+        "2": "Slow roll-off, linear-phase.",
+        "3": "Slow roll-off, minimum-phase.",
+        "12": "Medium roll-off, linear-phase — a recommended variant.",
+        "6": "High-rate FIR — use instead of 'medium' when SDM→PCM conversion is 'none'.",
+        "4": "Fast roll-off, linear-phase.",
+        "5": "Fast roll-off, minimum-phase.",
+        "13": "Brickwall linear-phase — passes no out-of-band noise (25 kHz cut-off re DSD64)."
+      },
+      "source": "manual §4.4, readme §1.2 (pdm_filt)"
     },
     "pdm_conversion": {
       "label": "SDM → PCM conversion",
-      "tooltip": "DSD→PCM conversion algorithm. 'poly-short-lp' (linear-phase slow roll-off) is recommended; 'traditional' minimizes ringing via slow roll-off; 'sinc-M' is a million-tap sharp roll-off variant; 'poly-gauss-long' offers optimal time-frequency response; 'none' performs no decimation — intermediate rate equals the source DSD rate.",
-      "source": "manual §4.4"
+      "tooltip": "DSD→PCM conversion algorithm. 'poly-short-lp' (linear-phase slow roll-off) is recommended for most use.",
+      "options": {
+        "0": "Traditional multi-stage — minimizes ringing via slow roll-off.",
+        "1": "Single-pass steep.",
+        "2": "Single-pass normal.",
+        "3": "Linear-phase single-pass polyphase.",
+        "4": "Minimum-phase single-pass polyphase.",
+        "5": "Slow roll-off linear-phase polyphase — recommended.",
+        "6": "Slow roll-off minimum-phase polyphase.",
+        "7": "Extreme linear-phase polyphase.",
+        "11": "Slow roll-off extreme linear-phase polyphase.",
+        "8": "Extended very-high-attenuation linear-phase polyphase.",
+        "9": "Million-tap sinc — sharp roll-off.",
+        "10": "Sinc with adaptive number of taps (4096 × ratio).",
+        "12": "Very-high-attenuation Gaussian polyphase — optimal time/frequency response.",
+        "254": "None — no decimation; intermediate PCM rate equals the source DSD rate."
+      },
+      "source": "manual §4.4, readme §1.2 (pdm_conv)"
     }
   },
   "volume": {
