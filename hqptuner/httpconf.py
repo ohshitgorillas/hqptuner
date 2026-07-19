@@ -141,6 +141,16 @@ class HttpConfigClient:
         resp = await self._client.post(f"/config/profile/{action}", data=fields)
         resp.raise_for_status()
 
+    async def refresh_devices(self) -> None:
+        """Ask the daemon to re-scan its output devices. Verified against the live
+        6.0.4 web UI: the "Refresh devices" button is a submit in a ``method=get``
+        form with ``formaction="/config/refresh"``, i.e. a bare ``GET
+        /config/refresh`` (no body). A POST is silently ignored. Picks up an
+        endpoint (e.g. a NAA that was powered off) absent from the device list —
+        the caller re-reads the form afterwards to serve the new options."""
+        resp = await self._client.get("/config/refresh")
+        resp.raise_for_status()
+
     async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
         """Restore a full settings archive via multipart ``POST /restore``.
         ``scope="system"`` targets the running config (``/etc/hqplayer``);

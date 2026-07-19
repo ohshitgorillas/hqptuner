@@ -186,7 +186,7 @@ body {
   font-size: 0.9rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--fg);
 }
 .chip-val {
   font-size: 0.95rem;
@@ -889,13 +889,44 @@ button:disabled {
   opacity: 0.4;
 }
 
-/* static field hint (e.g. buffer time "−1 = minimum") — under the control */
+/* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of
+   the unit label, not stacked under the control */
 .field-hint {
-  grid-column: 2;
   font-size: 0.75rem;
   color: var(--muted);
-  margin-top: 0.1rem;
+  margin-left: 0.5rem;
+  white-space: nowrap;
 }
+/* absent-output-device warning — a loaded preset's endpoint isn't present */
+.device-alert {
+  background: color-mix(in srgb, var(--warn, #e0a030) 15%, var(--bg-1));
+  border: 1px solid var(--warn, #e0a030);
+  border-radius: 6px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.8rem;
+  color: var(--fg);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+/* rescan-devices button — grid column 2 of the device field, directly under the
+   device dropdown (not under the label) */
+.rescan-btn {
+  grid-column: 2;
+  justify-self: start;
+  margin: 0.1rem 0 0.2rem;
+  padding: 0.25rem 0.6rem;
+  background: var(--bg-1);
+  color: var(--accent);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.rescan-btn:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
 /* inline manual description — under the dropdown (grid col 2), not the label */
 .field-desc {
   grid-column: 2;

@@ -6,6 +6,7 @@ import { signal, computed } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { Field } from "../store/Field.js";
 import { effective, health } from "../store/state.js";
+import { optionsFor } from "../store/options.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { HardwareCard, RestoreCard } from "./SystemHardware.js";
@@ -59,8 +60,36 @@ function Collapsible({ title, auto, override, children }) {
   `;
 }
 
+// A device dropdown is "missing" when its selected value is blank, or points at
+// an endpoint no longer in the form's option set — the silent empty entry the
+// daemon leaves when a preset's output device (e.g. a powered-off NAA) is absent.
+// (Empty option set = form not loaded yet; not an alarm.)
+function deviceMissing(key) {
+  const opts = optionsFor("config", key);
+  if (!opts.length) return false;
+  const val = effective(key);
+  if (val == null || String(val).trim() === "") return true;
+  const match = opts.find((o) => String(o.value) === String(val));
+  return !match || String(match.label).trim() === "";
+}
+
+// Warn when the active backend has no real output device selected — a loaded
+// preset referenced an endpoint that isn't present. Combo runs both backends.
+function DeviceAlert() {
+  const b = effective("backend");
+  const bad = [];
+  if (["alsa", "combo"].includes(b) && deviceMissing("alsa_device")) bad.push("ALSA");
+  if (["network", "combo"].includes(b) && deviceMissing("net_device")) bad.push("Network");
+  if (!bad.length) return null;
+  return html`<div class="device-alert">
+    ⚠ No output device for the ${bad.join(" and ")} backend — the loaded preset's endpoint isn't present. Power the
+    device on, then Rescan devices.
+  </div>`;
+}
+
 const Output = () =>
   html`<section class="tab-body">
+    <${DeviceAlert} />
     <div class="top-row">
       <div class="box seg-box">
         <div class="box-title">Mode</div>

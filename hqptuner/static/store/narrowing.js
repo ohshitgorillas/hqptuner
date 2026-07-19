@@ -5,7 +5,7 @@
 import { signal, computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 
-export const nGenre = signal(""); // "" = any
+export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] = any)
 export const nQuality = signal(0); // 0 = any, else minimum quality (3 | 4 | 5)
 export const nFocus = signal([]); // multi-select: transients | timbre | space
 export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)
@@ -13,11 +13,11 @@ export const nApod = signal(false); // apodizing-only (1x filters only)
 export const nApodHalf = signal(false); // also show ½-apodizing (only with nApod)
 
 export const narrowingActive = computed(
-  () => !!(nGenre.value || nQuality.value || nFocus.value.length || nPhase.value || nApod.value),
+  () => !!(nGenre.value.length || nQuality.value || nFocus.value.length || nPhase.value || nApod.value),
 );
 
 export function resetNarrowing() {
-  nGenre.value = "";
+  nGenre.value = [];
   nQuality.value = 0;
   nFocus.value = [];
   nPhase.value = "";
@@ -38,13 +38,13 @@ export function narrowOptions(options, current, stage) {
   const ph = nPhase.value;
   const ap = nApod.value && stage === "1x";
   const half = nApodHalf.value;
-  if (!(g || q || fo.length || ph || ap)) return options;
+  if (!(g.length || q || fo.length || ph || ap)) return options;
   const facets = filterFacets.value;
   return options.filter((o) => {
     if (String(o.value) === String(current)) return true;
     const f = facets[o.label];
     if (!f) return true;
-    if (g && !(f.genre.includes(g) || f.genre.includes("any"))) return false;
+    if (g.length && !g.some((x) => f.genre.includes(x)) && !f.genre.includes("any")) return false;
     if (q && !(f.quality != null && f.quality >= q)) return false;
     if (fo.length && !fo.some((x) => f.focus.includes(x))) return false;
     if (ph && f.phase !== ph) return false;

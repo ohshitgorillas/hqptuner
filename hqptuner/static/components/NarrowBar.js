@@ -6,7 +6,7 @@ import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { nGenre, nQuality, nFocus, nPhase, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
 
-const GENRES = ["", "pop", "rock", "jazz", "blues", "classical", "electronic"];
+const GENRES = ["pop", "rock", "jazz", "blues", "classical", "electronic"];
 const QUALITY = [
   [0, "Any quality"],
   [3, "Quality ≥ 3"],
@@ -26,11 +26,15 @@ const PHASES = [
 ];
 
 const focusOpen = signal(false);
+const genreOpen = signal(false);
 
-function toggleFocus(v) {
-  const cur = nFocus.value;
-  nFocus.value = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
+// toggle a value in a multi-select signal (add if absent, remove if present)
+function toggleIn(sig, v) {
+  const cur = sig.value;
+  sig.value = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
 }
+
+const cap = (g) => g[0].toUpperCase() + g.slice(1);
 
 function focusLabel() {
   const sel = nFocus.value;
@@ -39,34 +43,47 @@ function focusLabel() {
   return `${sel.length} focuses`;
 }
 
+function genreLabel() {
+  const sel = nGenre.value;
+  if (!sel.length) return "Any genre";
+  if (sel.length === 1) return cap(sel[0]);
+  return `${sel.length} genres`;
+}
+
+// a checkbox-dropdown multi-select (the shared genre/focus pattern): a button
+// showing the summary label, a popover of checkboxes toggling `sig`'s array.
+function MultiSelect({ open, label, items, sig }) {
+  return html`
+    <div class="multi">
+      <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
+        ${label} <span class="multi-caret">▾</span>
+      </button>
+      ${open.value
+        ? html`<div class="multi-pop">
+            ${items.map(
+              ([v, l]) => html`
+                <label>
+                  <input type="checkbox" checked=${sig.value.includes(v)} onChange=${() => toggleIn(sig, v)} />
+                  ${l}
+                </label>
+              `,
+            )}
+          </div>`
+        : null}
+    </div>
+  `;
+}
+
 export function NarrowBar() {
   return html`
     <div class="narrow-bar">
       <div class="narrow-header">Narrow filters</div>
       <div class="narrow-controls">
-        <select value=${nGenre.value} onChange=${(e) => (nGenre.value = e.target.value)}>
-          ${GENRES.map((g) => html`<option value=${g}>${g ? g[0].toUpperCase() + g.slice(1) : "Any genre"}</option>`)}
-        </select>
+        <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES.map((g) => [g, cap(g)])} sig=${nGenre} />
         <select value=${String(nQuality.value)} onChange=${(e) => (nQuality.value = Number(e.target.value))}>
           ${QUALITY.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
         </select>
-        <div class="multi">
-          <button type="button" class="multi-btn" onClick=${() => (focusOpen.value = !focusOpen.value)}>
-            ${focusLabel()} <span class="multi-caret">▾</span>
-          </button>
-          ${focusOpen.value
-            ? html`<div class="multi-pop">
-                ${FOCUS.map(
-                  ([v, l]) => html`
-                    <label>
-                      <input type="checkbox" checked=${nFocus.value.includes(v)} onChange=${() => toggleFocus(v)} />
-                      ${l}
-                    </label>
-                  `,
-                )}
-              </div>`
-            : null}
-        </div>
+        <${MultiSelect} open=${focusOpen} label=${focusLabel()} items=${FOCUS} sig=${nFocus} />
         <select value=${nPhase.value} onChange=${(e) => (nPhase.value = e.target.value)}>
           ${PHASES.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
         </select>

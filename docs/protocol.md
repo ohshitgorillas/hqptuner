@@ -80,7 +80,7 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 |---|---|---|---|
 | `/config` | GET | Full persistent-settings form with current values + min/max/enum constraints baked into the HTML — the read side of persistent config (no need to parse `hqplayerd.xml` for current values) | — |
 | `/config` | POST | Apply all persistent settings; the daemon writes `hqplayerd.xml` itself and restarts. **Submit the complete form** (submission contract below) | see below |
-| `/config/refresh` | POST | Re-scan output devices | — |
+| `/config/refresh` | GET | Re-scan output devices — **verified** against the live 6.0.4 web UI: the "Refresh devices" button is a submit inside a `method="get"` form (`formaction="/config/refresh"`), so it is a bare `GET` with no body. A `POST` to this route hangs (unhandled). After it, re-read `/config` to pick up a now-present endpoint. | — |
 | `/config/profile/load` | POST | Switch to a named configuration | `profile=<name>` |
 | `/config/profile/save` | POST | Create/overwrite a named configuration from current settings | `profile_name=<text>` |
 | `/config/profile/delete` | POST | Delete the selected configuration | `profile=<name>` |

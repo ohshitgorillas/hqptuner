@@ -3,9 +3,10 @@
 // dirty highlight, tooltip, option source) lives HERE, once, instead of being
 // copy-pasted into every control. A tab is then just a list of <Field k="..."/>.
 
+import { signal } from "@preact/signals";
 import { html } from "./dom.js";
 import { schema } from "./schema.js";
-import { effective, isDirty, edit, metadata, httpFieldMap } from "./state.js";
+import { effective, isDirty, edit, metadata, httpFieldMap, refreshDevices } from "./state.js";
 import { optionsFor, grayShapersByRate } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { grayReason } from "./graying.js";
@@ -45,6 +46,23 @@ function cfgConstraint(entry, name) {
   return f ? f[name] : undefined;
 }
 
+// Rescan-devices affordance for the output-device dropdowns (schema `rescan`).
+// Sits in the field's grid column 2, directly under the device list.
+const rescanning = signal(false);
+async function doRescan() {
+  rescanning.value = true;
+  try {
+    await refreshDevices();
+  } finally {
+    rescanning.value = false;
+  }
+}
+function RescanButton() {
+  return html`<button type="button" class="rescan-btn" disabled=${rescanning.value} onClick=${doRescan}>
+    ${rescanning.value ? "Rescanning…" : "⟳ Rescan devices"}
+  </button>`;
+}
+
 export function Field({ k }) {
   const entry = schema[k];
   if (!entry) return null;
@@ -75,9 +93,10 @@ export function Field({ k }) {
           onChange=${(v) => edit(k, v)}
         />
         ${entry.unit ? html`<span class="unit">${entry.unit}</span>` : null}
+        ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
       </div>
+      ${entry.rescan ? html`<${RescanButton} />` : null}
       ${entry.desc ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options)}</div>` : null}
-      ${entry.hint ? html`<div class="field-hint">${entry.hint}</div>` : null}
     </div>
   `;
 }

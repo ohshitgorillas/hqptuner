@@ -230,6 +230,13 @@ export async function setVolume(level) {
   return r;
 }
 
+// Trigger a daemon output-device rescan, then re-pull the config forms so the
+// device dropdowns show a newly-present endpoint (an NAA powered back on).
+export async function refreshDevices() {
+  await api.refreshDevices();
+  await refreshConfig();
+}
+
 export async function refreshConfig() {
   const e = await safe(api.enumerations);
   if (e) enums.value = e.data;
