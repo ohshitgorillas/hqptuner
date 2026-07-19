@@ -202,6 +202,10 @@ def _cfg_xml(st: dict[str, Any]) -> bytes:
         '<plugin type="correction" enabled="0" dac0=""/>'
         f'<plugin type="bauer" enabled="{_b(st["post_bauer_enabled"])}" '
         f'frequency="{st["post_bauer_frequency"]}" preset="default" level="4.5"/>'
+        f'<plugin type="loudness" enabled="{_b(st["post_loudness_enabled"])}" '
+        f'low_frequency="{st["post_loudness_lowfreq"]}" low_level="20" low_steepness="0.5" low_type="lshelf" '
+        'high_frequency="5000" high_level="10" high_steepness="1.0" high_type="hshelf" '
+        'range_low="-60" range_high="-20"/>'
         "</post_process>"
         "</hqplayerd>"
     ).encode()
@@ -223,6 +227,29 @@ def _adopt_net_device(st: dict[str, Any], xml: bytes) -> None:
     dev = _elem_attr(xml, "network", "device")
     if addr is not None and dev is not None and f"{addr}/{dev}" in st["_net_endpoints"]:
         st["net_device"] = f"{addr}/{dev}"
+
+
+def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt post_process plugin attrs from an uploaded config — the daemon
+    re-reading its <plugin> nodes. Reads by XML attribute name (low_frequency,
+    frequency, ...) independently of presetconf, so a wrong form->XML mapping in
+    the writer surfaces here as a value that never lands."""
+    for m in re.finditer(rb"<plugin\b[^>]*?>", xml):
+        tag = m.group(0)
+        if b'type="bauer"' in tag:
+            freq = re.search(rb'\bfrequency="([^"]*)"', tag)
+            enabled = re.search(rb'\benabled="([^"]*)"', tag)
+            if freq:
+                st["post_bauer_frequency"] = freq.group(1).decode()
+            if enabled:
+                st["post_bauer_enabled"] = enabled.group(1) == b"1"
+        elif b'type="loudness"' in tag:
+            lowfreq = re.search(rb'\blow_frequency="([^"]*)"', tag)
+            enabled = re.search(rb'\benabled="([^"]*)"', tag)
+            if lowfreq:
+                st["post_loudness_lowfreq"] = lowfreq.group(1).decode()
+            if enabled:
+                st["post_loudness_enabled"] = enabled.group(1) == b"1"
 
 
 def _adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
@@ -253,14 +280,7 @@ def _adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
     if ipv6 is not None:
         st["net_ipv6"] = ipv6 == "1"
     _adopt_net_device(st, xml)
-    for m in re.finditer(rb"<plugin\b[^>]*?>", xml):
-        if b'type="bauer"' in m.group(0):
-            freq = re.search(rb'\bfrequency="([^"]*)"', m.group(0))
-            enabled = re.search(rb'\benabled="([^"]*)"', m.group(0))
-            if freq:
-                st["post_bauer_frequency"] = freq.group(1).decode()
-            if enabled:
-                st["post_bauer_enabled"] = enabled.group(1) == b"1"
+    _adopt_plugins(st, xml)
 
 
 def _backup_zip(st: dict[str, Any]) -> bytes:
@@ -311,6 +331,9 @@ def _matrix_render(st: dict[str, Any]) -> str:
     rows = [
         f'<input type="checkbox" name="post_bauer_enabled" value="1"{" checked" if st["post_bauer_enabled"] else ""}/>',
         f'<input type="number" name="post_bauer_frequency" value="{st["post_bauer_frequency"]}"/>',
+        f'<input type="checkbox" name="post_loudness_enabled" value="1"'
+        f'{" checked" if st["post_loudness_enabled"] else ""}/>',
+        f'<input type="number" name="post_loudness_lowfreq" value="{st["post_loudness_lowfreq"]}"/>',
         '<input type="file" name="filter_0"/>',
     ]
     return '<form method="post">' + "".join(rows) + "</form>"
@@ -429,6 +452,8 @@ def _http_state(**extra: Any) -> dict[str, Any]:
         "_saved": {},
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
+        "post_loudness_enabled": False,
+        "post_loudness_lowfreq": "80",
         "cuda": "1",
         "multicore": "1",
         "nblocks": "16",

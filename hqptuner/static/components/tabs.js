@@ -166,6 +166,19 @@ const Dsp = () =>
       <div class="indent">
         <${Field} k="dac_correction_profile" />
       </div>
+      <${Field} k="loudness_enabled" />
+      <div class="indent">
+        <${Field} k="loudness_low_freq" />
+        <${Field} k="loudness_low_level" />
+        <${Field} k="loudness_low_steep" />
+        <${Field} k="loudness_low_type" />
+        <${Field} k="loudness_high_freq" />
+        <${Field} k="loudness_high_level" />
+        <${Field} k="loudness_high_steep" />
+        <${Field} k="loudness_high_type" />
+        <${Field} k="loudness_range_low" />
+        <${Field} k="loudness_range_high" />
+      </div>
     <//>
   <//>`;
 
