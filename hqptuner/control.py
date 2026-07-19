@@ -96,10 +96,6 @@ class ControlClient:
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
 
-    @property
-    def connected(self) -> bool:
-        return self._writer is not None
-
     async def connect(self) -> None:
         reader, writer = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), self._timeout)
         self._reader, self._writer = reader, writer

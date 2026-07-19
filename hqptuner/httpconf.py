@@ -109,42 +109,6 @@ def parse_config_form(html: str) -> dict[str, Any]:
     return {"fields": fields, "profiles": profiles}
 
 
-_SKIP_FIELDS = frozenset({"profile", "profile_name"})  # profile-save inputs, not config
-_CHECKBOX_TRUE = frozenset({True, "1", "on", "true", "True"})
-
-
-def is_checked(value: Any) -> bool:
-    """Whether a checkbox override/current-value counts as checked."""
-    return value in _CHECKBOX_TRUE
-
-
-def serialize_config_form(fields: list[dict[str, Any]], overrides: dict[str, str] | None = None) -> dict[str, str]:
-    """Render a parsed config model back into a COMPLETE POST /config form,
-    applying `overrides` by field name. Checkboxes submit their on-value ("1")
-    when truthy and are omitted when not (browser semantics — the daemon needs
-    `name=1`, not `name=on`, verified on 6.0.4); other fields submit their
-    value. The profile-save inputs are skipped. A partial form is rejected by
-    the daemon, so every config field is emitted here."""
-    overrides = overrides or {}
-    out: dict[str, str] = {}
-    for field in fields:
-        name = field.get("name")
-        if not name or name in _SKIP_FIELDS:
-            continue
-        if field.get("type") == "file":
-            # file inputs (matrix/convolution filter uploads) have no readable
-            # value to round-trip; omitting them leaves the loaded file intact
-            # (verified on 6.0.4). Never emit name="" — that would clear it.
-            continue
-        value = overrides.get(name, field.get("value"))
-        if field.get("type") == "checkbox":
-            if is_checked(value):
-                out[name] = str(field.get("on_value", "1"))
-        else:
-            out[name] = "" if value is None else str(value)
-    return out
-
-
 _PROFILE_ACTIONS = ("load", "save", "delete")
 
 
@@ -168,27 +132,6 @@ class HttpConfigClient:
         resp = await self._client.get("/matrix")
         resp.raise_for_status()
         return parse_config_form(resp.text)
-
-    async def post_matrix(self, fields: dict[str, str], file_names: tuple[str, ...] = ()) -> None:
-        """Apply the /matrix form. Because the form carries `<input type=file>`
-        inputs, the daemon expects **multipart/form-data** — a urlencoded POST
-        returns 200 but is silently ignored (verified on 6.0.4), so the file
-        inputs must be sent as empty parts (filename="" = keep existing). The
-        apply restarts the daemon; success is confirmed by readback, never the
-        POST. `fields` is the complete form minus file inputs (serialized)."""
-        files = {name: ("", b"", "application/octet-stream") for name in file_names}
-        resp = await self._client.post("/matrix", data=fields, files=files or None)
-        resp.raise_for_status()
-
-    async def post_config(self, fields: dict[str, str]) -> None:
-        """Apply persistent settings. The daemon writes hqplayerd.xml itself and
-        restarts (protocol.md §3.6); the connection manager's outage path handles
-        the restart/resync. The Apply submit button is nameless, so the form
-        carries field values alone — no synthetic submit field. `fields` MUST be
-        the complete form (see serialize_config_form); the daemon rejects a
-        partial form ("Failed!", no write). Verified on 6.0.4."""
-        resp = await self._client.post("/config", data=fields)
-        resp.raise_for_status()
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`

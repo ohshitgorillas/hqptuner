@@ -76,7 +76,6 @@ class ConnectionManager:
         self.matrix_form: dict[str, Any] | None = None
         self.matrix_error: str | None = None
         self.loaded_at: float | None = None
-        self.last_backup: bytes | None = None
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
 
     @property
@@ -320,7 +319,6 @@ class ConnectionManager:
         push it, and return the intended config it should produce. Raises
         GroundingError (bad edit) or httpx.HTTPError (daemon dropped mid-write)."""
         backup = await self._backup_or_cached()
-        self.last_backup = backup
         self._persist_backup(backup)  # survives a crash mid-apply
         restore_zip, intended_xml = presetconf.restore_zip_from_snapshot(backup, self.active_config, merged)
         await self._require_http().restore(restore_zip, scope="system")
@@ -406,7 +404,6 @@ class ConnectionManager:
         try:
             active = self.active_config  # cached at connect; the currently-loaded preset
             backup = await self._backup_or_cached()
-            self.last_backup = backup
             self._persist_backup(backup)
             members = engineconf.config_members(backup, active or None, all_presets)
             modified = engineconf.edit_config_zip(backup, members, overrides)

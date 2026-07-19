@@ -21,12 +21,21 @@ dev = [
     "xenon",
     "pre-commit",
     "black",
+    "vulture",
     "types-beautifulsoup4",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = ["live: requires a reachable hqplayerd (deselect with '-m \"not live\"')"]
+
+[tool.vulture]
+# Dead-code gate. FastAPI route handlers are invoked via their decorators, not
+# called by name, so ignore those decorators or every @router.* endpoint reads
+# as unused. min_confidence 60 is vulture's floor for unused module-level defs.
+paths = ["hqptuner"]
+min_confidence = 60
+ignore_decorators = ["@router.get", "@router.post", "@router.delete"]
 
 [tool.ruff]
 line-length = 120

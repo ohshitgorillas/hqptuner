@@ -60,14 +60,6 @@ async def http_client(
     await client.aclose()
 
 
-async def test_post_config_carries_the_field_value(
-    http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
-) -> None:
-    client, captured = http_client
-    await client.post_config({"channels": "2"})
-    assert "channels=2" in captured[0][1]
-
-
 async def test_post_profile_load_hits_the_load_route(
     http_client: tuple[HttpConfigClient, list[tuple[str, str]]],
 ) -> None:
