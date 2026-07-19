@@ -10,20 +10,32 @@ import { effective, isDirty, edit, setLive, metadata, httpFieldMap, refreshDevic
 import { optionsFor, grayShapersByRate } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { grayReason } from "./graying.js";
+import { notesVisible, descVisible } from "./prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "../components/controls/index.js";
 import { Knob } from "../components/Knob.js";
 
 const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, text: TextBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup, knob: Knob };
 
+// Static per-control prose from settings.json (Phase 1 manual/readme extraction),
+// keyed by tab group. `entry.note` names the settings.json key when it differs
+// from the control key (e.g. alsa_bits + net_bits both -> "dac_bits", the rate
+// split -> "rate"); it defaults to the control key.
 function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
-  return g[key] || { label: key, tooltip: "" };
+  return g[entry.note || key] || { label: key, tooltip: "" };
 }
 
-// Inline manual description for the current selection — the name-keyed prose from
-// the metadata overlay (filters.json / shapers.json). desc = filter|dither|modulator.
-function selectionDescription(entry, value, options) {
+// Inline manual description for the current selection.
+//   desc = filter|dither|modulator -> name-keyed prose from the metadata overlay
+//     (filters.json / shapers.json), joined by the selected option's label.
+//   desc = config -> per-value prose from this control's settings.json `options`
+//     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
+//     conversion — enums whose meaning is per-value, not per-control).
+function selectionDescription(entry, value, options, meta) {
   if (!entry.desc) return "";
+  if (entry.desc === "config") {
+    return (meta && meta.options && meta.options[String(value)]) || "";
+  }
   const opt = (options || []).find((o) => String(o.value) === String(value));
   const name = opt && opt.label;
   if (!name) return "";
@@ -103,7 +115,8 @@ export function Field({ k }) {
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
-      ${entry.desc ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options)}</div>` : null}
+      ${entry.desc && descVisible.value ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options, meta)}</div>` : null}
+      ${!entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value ? html`<div class="field-note">${meta.tooltip}</div>` : null}
     </div>
   `;
 }

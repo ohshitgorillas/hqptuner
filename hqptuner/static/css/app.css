@@ -938,6 +938,20 @@ button:disabled {
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
 
+/* static per-control note (settings.json manual/readme prose) — same voice as
+   .field-desc but the text never changes, so no reflow-reserve min-height. Sits
+   under the control (grid col 2 on grid fields; a plain stacked block on the
+   flex .field-knob rows). Mode/Backend/Rate opt out (hoverNote) — tooltip only. */
+.field-note {
+  grid-column: 2;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--fg-2);
+  opacity: 0.8;
+  margin-top: 0.05rem;
+  max-width: 46rem;
+}
+
 /* ── Visual-language token ─────────────────────────────────────────────
    DASHED + muted  = POTENTIAL / maximum / reference (a "ghost" trace).
    SOLID  + accent = APPLIED right now.
