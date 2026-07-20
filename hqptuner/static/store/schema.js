@@ -101,7 +101,7 @@ export const schema = {
   // --- Output: always-visible masters + independents ---
   output_mode: { label: "Mode", group: "output", widget: "segment", lane: "http", field: "mode", options: MODES, hoverNote: true },
   backend: { label: "Backend", group: "output", widget: "segment", lane: "http", field: "backend", options: BACKENDS, hoverNote: true },
-  idle_time: { label: "Idle time", group: "output", widget: "dropdown", lane: "http", field: "idle_time", optionsFrom: "config" },
+  idle_time: { label: "Engine idle time", group: "output", widget: "dropdown", lane: "http", field: "idle_time", optionsFrom: "config" },
   upnp_freewheel: { label: "UPnP freewheel", group: "output", widget: "checkbox", lane: "http", field: "upnp_freewheel" },
   quick_pause: { label: "Quick pause", group: "output", widget: "checkbox", lane: "http", field: "quick_pause" },
   short_buffer: { label: "Short buffer", group: "output", widget: "dropdown", lane: "http", field: "short_buffer", optionsFrom: "config" },
@@ -115,20 +115,20 @@ export const schema = {
   sdm_rate: { label: "SDM", group: "output", note: "rate", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, hoverNote: true },
 
   // --- Output: ALSA backend section (backend alsa|combo) ---
-  alsa_device: { label: "Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true },
+  alsa_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true },
   alsa_offset: { label: "Channel offset", group: "output", note: "channel_offset", widget: "number", lane: "http", field: "alsa_offset" },
   alsa_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
   alsa_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
-  alsa_dop: { label: "DoP", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "alsa_dop" },
-  alsa_anydsd: { label: "48k DSD", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
+  alsa_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "alsa_dop" },
+  alsa_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
-  net_device: { label: "Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true },
+  net_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true },
   net_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
   net_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
-  net_dop: { label: "DoP", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "net_dop" },
-  net_anydsd: { label: "48k DSD", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "net_anydsd" },
-  net_ipv6: { label: "IPv6", group: "output", note: "ipv6", widget: "checkbox", lane: "http", field: "net_ipv6" },
+  net_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "net_dop" },
+  net_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "net_anydsd" },
+  net_ipv6: { label: "IPv6 discovery", group: "output", note: "ipv6", widget: "checkbox", lane: "http", field: "net_ipv6" },
 
   // --- DSP: two persistent filter chains (both shown, inactive grayed by mode) ---
   // The Embedded /config form carries PCM (filter1x/filter/dither) and SDM
@@ -147,7 +147,7 @@ export const schema = {
   sdm_modulator: { label: "Sigma-delta modulator", group: "dsp", note: "shaper", widget: "dropdown", lane: "http", field: "modulator", optionsFrom: "config", wide: true, rateGray: "sdm", desc: "modulator" },
 
   // --- DSP: generic processing ---
-  channels: { label: "Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
+  channels: { label: "Output Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
   fft_size: { label: "FFT filter length", group: "dsp", note: "fft_length", widget: "dropdown", lane: "http", field: "fft_size", optionsFrom: "config" },
   pipelines: { label: "DSP pipelines", group: "dsp", widget: "dropdown", lane: "http", field: "pipelines", optionsFrom: "config" },
 

@@ -71,7 +71,7 @@ export function SignalPath() {
   stages.push({ label: "Filter", value: st.active_filter });
   stages.push({ label: "Shaper", value: st.active_shaper });
   if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
-  stages.push({ label: "Rate", value: outRate, hero: true });
+  stages.push({ label: "Output", value: outRate, hero: true });
 
   const nodes = [];
   stages.forEach((stage, i) => {
