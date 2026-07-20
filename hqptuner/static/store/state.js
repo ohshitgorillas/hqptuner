@@ -68,6 +68,9 @@ export function httpFieldMap(entry) {
 // entries flagged `fileTruth` take their baseline from here.
 export const fileConfig = computed(() => (config.value && config.value.file) || {});
 
+// The truly-loaded preset name (ConfigurationGet), as the daemon reports it.
+export const activePreset = computed(() => (config.value && config.value.active) || "");
+
 // --- three-tree resolution ---
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
@@ -196,7 +199,17 @@ export async function discardAll() {
 
 // Load a preset's saved settings into the editor as the baseline (no daemon
 // touch) — the user tweaks, then Apply commits the switch.
+//
+// Selecting the ALREADY-ACTIVE preset is not a switch: its values are already
+// the baseline, so pending it would light Apply for a no-op and — worse — Apply
+// would then fire a destructive `switch_to` reload of the preset already loaded.
+// Treat it as clearing the preview instead. Any staged field edits stand on
+// their own and still read as dirty over the active baseline.
 export async function previewPreset(name) {
+  if (name === activePreset.value) {
+    clearPreview();
+    return;
+  }
   const r = await api.preset(name);
   previewConfig.value = (r && r.config) || {};
   pendingPreset.value = name;
@@ -241,7 +254,9 @@ function summarize(report, count) {
 export async function applyAll(save) {
   applying.value = true;
   const count = stagedCount.value; // capture before apply clears the staged set
-  const switchTo = pendingPreset.value;
+  // never send a switch to the preset already loaded — that reload is a no-op
+  // that trips the daemon's empty-/backup bug and leaves Apply stuck lit
+  const switchTo = pendingPreset.value && pendingPreset.value !== activePreset.value ? pendingPreset.value : null;
   try {
     const body = {};
     if (save) body.save = save;
