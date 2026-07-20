@@ -33,7 +33,13 @@ export function Header() {
 
   return html`
     <header class="chrome-header">
-      <div class="brand">HQPTuner</div>
+      <div class="brand">
+        <svg class="brand-glyph" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" />
+          <line x1="12" y1="12" x2="17.2" y2="6.8" />
+        </svg>
+        <span>HQPTuner</span>
+      </div>
       <div class="daemon">
         <span>${info.name || "hqplayerd"}</span>
         <span class="muted">${info.engine ? `v${info.engine}` : ""}</span>

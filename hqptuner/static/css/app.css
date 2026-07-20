@@ -50,6 +50,9 @@
   --amber: #d1a13a;
   --red: #d4574e;
   --dirty: #3a3320;
+  /* motion: one duration + ease-out curve for every state change (never live drag) */
+  --dur: 120ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
   /* aliases kept for existing rules that named these before they were defined */
   --bg-1: var(--bg-3);
   --fg-1: var(--fg);
@@ -1033,7 +1036,7 @@ button:disabled {
 /* inline manual description — under the dropdown (grid col 2), not the label */
 .field-desc {
   grid-column: 2;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   line-height: 1.3;
   color: var(--fg-2);
   opacity: 0.85;
@@ -1336,4 +1339,105 @@ button:disabled {
 .swatch.active {
   border-color: var(--fg);
   box-shadow: 0 0 0 2px var(--bg-2);
+}
+
+/* ══ Aesthetic layer ══════════════════════════════════════════════════════
+   Motion, focus, hover, type — the "machined" feel. Motion is for discrete
+   STATE changes only; the live knob/plot repaint stays instant (easing a
+   real-time instrument just reads as latency). */
+
+/* ── Motion ── */
+button,
+.seg,
+select,
+input,
+.multi-btn,
+.swatch,
+.tab-nav button,
+.field {
+  transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+.dsp-body,
+.indent,
+.playback {
+  transition: opacity var(--dur) var(--ease);
+}
+/* the disable→muted colour fade on the fancy controls (NOT their geometry) */
+.knob-value,
+.knob-notch,
+.knob-face,
+.plot-trace.applied,
+.plot-tlbl.applied {
+  transition:
+    stroke var(--dur) var(--ease),
+    fill var(--dur) var(--ease);
+}
+
+/* ── Focus: accent ring, never browser-blue ── */
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+.seg:focus-visible,
+.multi-btn:focus-visible,
+.swatch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ── Hover: row tint + interactive lift ── */
+.field:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.field.dirty:hover {
+  background: var(--dirty);
+}
+button:not(:disabled):hover,
+.multi-btn:hover {
+  border-color: var(--accent);
+}
+.seg:not(.active):hover,
+.tab-nav button:not(.active):hover {
+  color: var(--accent);
+}
+.knob-dial:hover .knob-face {
+  fill: var(--bg-2);
+}
+
+/* ── Type: tabular mono numerals on every value ── */
+input[type="number"],
+input[type="text"],
+.slidernum-box,
+.knob-box,
+.slider-val,
+.about dd,
+.playback-readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Wordmark: knob-dial glyph beside the logotype ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.brand-glyph {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+}
+.brand-glyph circle {
+  fill: none;
+  stroke: var(--fg-2);
+  stroke-width: 2;
+}
+.brand-glyph line {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
 }

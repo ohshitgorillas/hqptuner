@@ -145,7 +145,7 @@ Lightweight SPA, dark theme, no heavyweight framework (outline §8). Order withi
 - All outline §4 controls present and functional against the Phase 3 backend on Opal
 - Full apply cycle (stage → split shown → apply → restart → resync) usable from the browser with no dev tooling
 
-**Status (2026-07-19): in progress — all five tabs (Output · Resampling · DSP · Volume · System) built and live-walked on Opal; inline manual notes, a System-tab log tail, and a visual-layer pass landed. Remaining Phase 4 polish (aesthetic upgrades: custom selects, motion, focus/hover) + the Phase 5 behavior rules are the open work.**
+**Status (2026-07-19): in progress — all five tabs (Output · Resampling · DSP · Volume · System) built and live-walked on Opal; inline manual notes, a System-tab log tail, and a visual-layer pass, and an aesthetic pass (motion, focus/hover, tabular-mono type, header wordmark) landed. Remaining Phase 4 polish (custom selects — the one big aesthetic item) + the Phase 5 behavior rules are the open work.**
 
 Frontend stack (decided 2026-07-18): Preact + htm + `@preact/signals`, no build step — vendored ESM modules shared through an HTML importmap (CSP-clean, offline, one Preact instance). Three-tree store (engine-live 4321 / http-config 8088 / staged) with `effective(key)` = staged ?? baseline; dumb control primitives bound by a single `Field` that wires value/options/gray/dirty/label from the store. Reactive render is load-bearing: the cross-control graying/collapse graph falls out of `render(state)`.
 
