@@ -70,9 +70,9 @@ export function PlaybackVolume() {
   };
 
   return html`
-    <section class="playback ${enabled ? "" : "off"}">
-      <div class="playback-head">Playback volume</div>
-      <div class="playback-knob">
+    <section class="card playback ${enabled ? "" : "off"}">
+      <div class="card-head">Playback volume</div>
+      <div class="card-body playback-knob">
         <${Knob}
           value=${val}
           min=${min}
