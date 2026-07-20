@@ -139,11 +139,11 @@ export const schema = {
   // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
   // Mode graying is handled by the PCM/SDM collapsibles auto-closing (tabs.js),
   // not per-field grayWhen. desc drives the inline manual description line.
-  pcm_filter_1x: { label: "1x oversampling filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
-  pcm_filter_nx: { label: "Nx oversampling filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  pcm_filter_1x: { label: "1x filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  pcm_filter_nx: { label: "Nx filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
   pcm_dither: { label: "Dither", group: "dsp", note: "shaper", widget: "dropdown", lane: "http", field: "dither", optionsFrom: "config", wide: true, rateGray: "pcm", desc: "dither" },
-  sdm_filter_1x: { label: "1x oversampling filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "oversampling1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
-  sdm_filter_nx: { label: "Nx oversampling filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "oversampling", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
+  sdm_filter_1x: { label: "1x filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "oversampling1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
+  sdm_filter_nx: { label: "Nx filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "oversampling", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
   sdm_modulator: { label: "Sigma-delta modulator", group: "dsp", note: "shaper", widget: "dropdown", lane: "http", field: "modulator", optionsFrom: "config", wide: true, rateGray: "sdm", desc: "modulator" },
 
   // --- DSP: generic processing ---
