@@ -9,11 +9,24 @@ export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] =
 export const nQuality = signal(0); // 0 = any, else minimum quality (3 | 4 | 5)
 export const nFocus = signal([]); // multi-select: transients | timbre | space
 export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)
-export const nApod = signal(false); // apodizing-only (1x filters only)
+// apodizing-only (1x filters only) — on by default: apodizing is the sane
+// starting point for 1x, and the unfiltered 1x list is 60-77 entries deep.
+export const nApod = signal(true);
 export const nApodHalf = signal(false); // also show ½-apodizing (only with nApod)
 
+// "narrowing is on" = the facets differ from their defaults, not merely that
+// some facet is set. nApod defaults ON, so comparing it against `true` keeps a
+// fresh page from reading as already-narrowed.
 export const narrowingActive = computed(
-  () => !!(nGenre.value.length || nQuality.value || nFocus.value.length || nPhase.value || nApod.value),
+  () =>
+    !!(
+      nGenre.value.length ||
+      nQuality.value ||
+      nFocus.value.length ||
+      nPhase.value ||
+      !nApod.value ||
+      nApodHalf.value
+    ),
 );
 
 export function resetNarrowing() {
@@ -21,7 +34,7 @@ export function resetNarrowing() {
   nQuality.value = 0;
   nFocus.value = [];
   nPhase.value = "";
-  nApod.value = false;
+  nApod.value = true; // matches the default above, not a bare clear
   nApodHalf.value = false;
 }
 

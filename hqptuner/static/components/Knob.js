@@ -42,6 +42,15 @@ function arcPath(a0, a1, r) {
   return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
+// Dial gradations for the large variant, drawn on the face between the inner
+// ring (r=22) and the face edge (r=40) — outside the face there is no room, the
+// value track already occupies r=44 with a 7-wide stroke.
+const DIAL_TICKS = [-135, -90, -45, 0, 45, 90, 135].map((a) => {
+  const [x1, y1] = pol(a, 33);
+  const [x2, y2] = pol(a, 37);
+  return [x1.toFixed(2), y1.toFixed(2), x2.toFixed(2), y2.toFixed(2)];
+});
+
 export function Knob({ value, min, max, step, def, size, slider, disabled, unit, label, onLive, onCommit }) {
   const lo = num(min, 0);
   const hi = num(max, 100);
@@ -143,6 +152,7 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
         <path class="knob-track" d=${arcPath(FROM, TO, 44)} />
         <path class="knob-value" d=${arcPath(FROM, angle, 44)} />
         <circle class="knob-face" cx="50" cy="50" r="40" />
+        ${size === "lg" ? DIAL_TICKS.map((t) => html`<line class="knob-tick" x1=${t[0]} y1=${t[1]} x2=${t[2]} y2=${t[3]} />`) : null}
         <circle class="knob-inner" cx="50" cy="50" r="22" />
         <line class="knob-notch" x1=${nx1.toFixed(2)} y1=${ny1.toFixed(2)} x2=${nx2.toFixed(2)} y2=${ny2.toFixed(2)} />
       </svg>

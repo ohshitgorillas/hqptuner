@@ -326,48 +326,57 @@ main {
   width: 100%;
   flex: 1;
 }
-/* segment boxes: full-width vertical button stack; field's own label hidden */
+/* segment boxes: full-width horizontal button row; field's own label hidden */
 .seg-box .field > label {
   display: none;
 }
 .seg-box .segment {
-  flex-direction: column;
+  flex-direction: row;
   width: 100%;
   height: 100%;
 }
 .seg-box .segment .seg {
   flex: 1;
-  border-left: none;
-  border-top: 1px solid var(--line);
+  border-top: none;
+  border-left: 1px solid var(--line);
   text-align: center;
   padding: 0.6rem 0.8rem;
   font-size: 0.95rem;
   color: var(--fg);
 }
 .seg-box .segment .seg:first-child {
-  border-top: none;
+  border-left: none;
 }
-/* rate box: PCM / SDM stacked, filling the box height so there's no bottom gap */
+/* rate box: PCM / SDM side by side, each label+select pair sharing the width */
 .rate-stack {
   display: flex;
   flex: 1;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   justify-content: center;
   gap: 0.9rem;
   width: 100%;
 }
 .rate-stack .field {
-  display: grid;
-  grid-template-columns: 2.8rem 1fr;
-  align-items: center;
-  gap: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
   min-height: 0;
   padding: 0;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+/* hairline divider between the PCM and SDM halves */
+.rate-stack .field + .field {
+  border-left: 1px solid var(--line);
+  padding-left: 0.9rem;
 }
 .rate-stack .field > label {
   font-size: 1rem;
   color: var(--fg);
+  text-align: center;
 }
 .rate-stack select {
   width: 100%;
@@ -584,14 +593,6 @@ input[type="checkbox"]:disabled {
 .playback.off {
   opacity: 0.5;
 }
-.playback-head {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  margin-bottom: 0.6rem;
-}
 .playback-row {
   display: flex;
   align-items: center;
@@ -664,7 +665,7 @@ input[type="checkbox"]:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  align-items: stretch;
+  align-items: start; /* each card sizes to its content — shorter one doesn't stretch */
   margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
 }
 /* two equal columns INSIDE one card body (e.g. Automatic's two checkboxes) */
@@ -1057,10 +1058,11 @@ button:disabled {
 .field-desc {
   grid-column: 2;
   font-size: 0.78rem;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--fg-2);
-  opacity: 0.85;
-  margin-top: -0.1rem;
+  opacity: 0.8;
+  max-width: 64ch;
+  margin-top: 0.05rem;
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
 
@@ -1075,7 +1077,7 @@ button:disabled {
   color: var(--fg-2);
   opacity: 0.8;
   margin-top: 0.05rem;
-  max-width: 46rem;
+  max-width: 64ch;
 }
 
 /* ── Visual-language token ─────────────────────────────────────────────
@@ -1460,4 +1462,267 @@ input[type="text"],
   stroke: var(--accent);
   stroke-width: 2.5;
   stroke-linecap: round;
+}
+
+/* ── Volume range bar: Min / Startup / Max on one shared dBFS axis ────────
+   Three <input type=range> stacked over one track. Each input is transparent
+   except its thumb, and only thumbs take pointer events, so the handles coexist
+   without the upper ones swallowing clicks meant for the lower. Track chrome
+   (bar, fill, ticks) is drawn by sibling elements underneath.
+
+   Vertical bands inside .vr-track:
+     0-26px   Startup pin (raised off the centerline so it stays grabbable when
+              its value equals Min or Max)
+     28-44px  the bar itself, carrying the Min/Max thumbs
+     46-54px  tick marks
+     56px+    tick labels */
+.vr-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.vr-track {
+  position: relative;
+  height: 74px;
+  margin: 0.2rem 0 0;
+}
+/* the bar */
+.vr-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--bg-3);
+}
+.vr-track.disabled {
+  opacity: 0.45;
+}
+/* the span actually reachable at runtime: Min..Max */
+.vr-fill {
+  position: absolute;
+  top: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  opacity: 0.3;
+  pointer-events: none;
+}
+.vr-tick {
+  position: absolute;
+  top: 46px;
+  width: 1px;
+  height: 8px;
+  background: var(--line);
+  pointer-events: none;
+}
+.vr-tick.strong {
+  height: 11px;
+  background: var(--fg);
+  opacity: 0.5;
+}
+.vr-tick-label {
+  position: absolute;
+  top: 58px;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* shared handle plumbing: full-width invisible input, grabbable thumb only */
+.vr-handle {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+}
+.vr-handle:focus {
+  outline: none;
+}
+.vr-handle::-moz-range-track {
+  background: none;
+  border: none;
+}
+/* Min / Max: solid rectangles seated on the bar — the pair defining the range */
+.vr-min,
+.vr-max {
+  top: 23px;
+  height: 26px;
+}
+.vr-min::-webkit-slider-thumb,
+.vr-max::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 26px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+.vr-min::-moz-range-thumb,
+.vr-max::-moz-range-thumb {
+  width: 14px;
+  height: 26px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+/* Startup: a hollow pin riding ABOVE the bar. Different shape, different fill,
+   different row — so it stays readable and draggable at Min or Max. */
+.vr-startup {
+  top: 0;
+  height: 26px;
+}
+.vr-startup::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 22px;
+  border-radius: 6px 6px 2px 2px;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+.vr-startup::-moz-range-thumb {
+  width: 12px;
+  height: 22px;
+  border-radius: 6px 6px 2px 2px;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+/* value bubble on hover/drag */
+.vr-bubble {
+  position: absolute;
+  top: -0.4rem;
+  transform: translate(-50%, -100%);
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.3rem;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  font-size: 0.75rem;
+  color: var(--fg);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.vr-boxes {
+  display: flex;
+  gap: 1.2rem;
+}
+.vr-box {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+/* legend swatch echoing each handle's shape, so the boxes name the handles */
+.vr-key {
+  flex: none;
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+.vr-key-startup {
+  border-radius: 5px 5px 2px 2px;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+}
+.vr-box.dirty > span {
+  color: var(--accent);
+}
+.vr-box input {
+  min-width: 0;
+  flex: 1;
+}
+
+/* ── Playback volume panel + large knob ───────────────────────────────────
+   The full-sweep track was var(--line), too low-contrast to read against the
+   panel, so only the accent value arc was visible and the dial looked
+   half-drawn. */
+.knob-lg .knob-track {
+  stroke: var(--muted);
+  opacity: 0.85;
+}
+/* in the lg column the slider is a horizontal control, not a flex child that
+   should claim 160px of VERTICAL space (its row-layout basis) — that stretch is
+   what made the panel read as mostly empty */
+.knob-lg .knob-slider {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 260px;
+}
+.knob-tick {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  opacity: 0.55;
+  stroke-linecap: round;
+}
+/* large knob stacks: dial, then the readout directly beneath it, so the value
+   belongs to the dial instead of drifting to the far right of the row */
+.knob-lg {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.knob-lg .knob-readout {
+  align-items: baseline;
+}
+.knob-lg .knob-box {
+  border-color: transparent;
+  background: none;
+  font-size: 1.5rem;
+  color: var(--fg);
+  width: 5rem;
+}
+.knob-lg .knob-unit {
+  font-size: 0.85rem;
+}
+/* .playback is a .card; the body centers the knob group + notice vertically so
+   the panel doesn't read as mostly empty space */
+.playback-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 0.8rem 0.6rem;
+}
+/* one uniform dimming treatment for the knob group when volume control is
+   unavailable — not a mix of muted strokes and gray text. The notice pill is a
+   sibling of .knob, so it stays full-strength while the dial dims. */
+.playback.off .knob {
+  opacity: 0.45;
+}
+/* the reason is a notice, not microtext at the panel's edge */
+.playback-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: center;
+  max-width: 68ch;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-3);
+  font-size: 0.8rem;
+  color: var(--fg);
+}
+.playback-hint::before {
+  content: "⚠";
+  color: var(--accent);
 }

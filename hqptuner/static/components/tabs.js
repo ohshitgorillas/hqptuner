@@ -8,6 +8,7 @@ import { Field } from "../store/Field.js";
 import { effective, health } from "../store/state.js";
 import { optionsFor } from "../store/options.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
+import { VolumeRangeBar } from "./VolumeRangeBar.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { HardwareCard, BackupRestoreCard } from "./SystemHardware.js";
 import { LogTail } from "./LogTail.js";
@@ -56,6 +57,26 @@ const dsdOpen = computed(() => effective("output_mode") !== "pcm");
 const pcmOverride = signal(null);
 const sdmOverride = signal(null);
 const dsdOverride = signal(null);
+
+// FFT filter length configures the FFT-based resampling filters only (readme
+// §1.2 fft_size), so the card follows the selection instead of sitting open
+// permanently. Any of the four filter slots can select an FFT filter, so all
+// four are checked. The stored value is the engine's list INDEX, which is
+// volatile (outline §2) — match on the option's name, never on the number.
+const FILTER_CONTROLS = [
+  ["pcm_filter_1x", "filter1x"],
+  ["pcm_filter_nx", "filter"],
+  ["sdm_filter_1x", "oversampling1x"],
+  ["sdm_filter_nx", "oversampling"],
+];
+const fftOpen = computed(() =>
+  FILTER_CONTROLS.some(([key, field]) => {
+    const v = String(effective(key));
+    const opt = optionsFor("config", field).find((o) => String(o.value) === v);
+    return !!opt && /\bFFT\b/i.test(opt.label);
+  }),
+);
+const fftOverride = signal(null);
 
 function Collapsible({ title, auto, override, children }) {
   const open = override.value === null ? auto.value : override.value;
@@ -230,7 +251,7 @@ const Resampling = () =>
       <${Field} k="noise_filter" />
       <${Field} k="pcm_conversion" />
     <//>
-    <${Card} title="Filter length">
+    <${Collapsible} title="Filter length" auto=${fftOpen} override=${fftOverride}>
       <${Field} k="fft_size" />
     <//>
   <//>`;
@@ -254,6 +275,7 @@ const Dsp = () => {
 const Volume = () =>
   html`<${Section}>
     <${PlaybackVolume} />
+    <${VolumeRangeBar} />
     <div class="card-grid">
       <${Card} title="Fixed volume">
         <${Field} k="fixed_volume_enabled" />
@@ -262,18 +284,11 @@ const Volume = () =>
           <${Field} k="optimal_iso" />
         </div>
       <//>
-      <${Card} title="Range">
-        <${Field} k="volume_max" />
-        <${Field} k="volume_min" />
-        <${Field} k="startup_volume" />
-      <//>
-    </div>
-    <${Card} title="Automatic">
-      <div class="card-cols2">
+      <${Card} title="Automatic">
         <${Field} k="adaptive_volume" />
         <${Field} k="playlist_album_gain" />
-      </div>
-    <//>
+      <//>
+    </div>
   <//>`;
 
 const info = computed(() => (health.value && health.value.info) || {});

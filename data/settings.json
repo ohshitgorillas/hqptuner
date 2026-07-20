@@ -217,14 +217,14 @@
       "label": "Integrator",
       "tooltip": "Delta-sigma integrator type for SDM→SDM remodulation. Affects mostly frequency and phase response at the highest frequencies. Bandwidths are quoted relative to DSD64 and scale with the source rate.",
       "options": {
-        "0": "IIR — 50 kHz bandwidth (re DSD64).",
-        "3": "IIR2 — 25 kHz bandwidth; minimizes residual noise.",
-        "4": "IIR3 — 30 kHz bandwidth, high order.",
-        "1": "FIR — weighted FIR response.",
-        "5": "FIR2 — 50 kHz bandwidth.",
-        "6": "FIR-bl — 24 kHz band-limited (cut by 45 kHz).",
-        "7": "FIR-bw — 21.5 kHz brickwall (cut by 30 kHz).",
-        "2": "CIC — cascade comb integrator."
+        "0": "50 kHz bandwidth (re DSD64).",
+        "3": "25 kHz bandwidth; minimizes residual noise.",
+        "4": "30 kHz bandwidth, high order.",
+        "1": "Weighted FIR response.",
+        "5": "50 kHz bandwidth.",
+        "6": "24 kHz band-limited (cut by 45 kHz).",
+        "7": "21.5 kHz brickwall (cut by 30 kHz).",
+        "2": "Cascade comb integrator."
       },
       "source": "manual §4.5"
     },
@@ -232,9 +232,9 @@
       "label": "SDM → SDM conversion",
       "tooltip": "Frequency aperture assumed to contain useful signal in SDM rate conversions.",
       "options": {
-        "0": "Wide — suits high-level high-frequency content (e.g. close-miked percussion).",
-        "1": "Narrow — suits content without high-frequency harmonics (e.g. piano).",
-        "2": "XFi — extreme fidelity, medium bandwidth; suitable for all cases (default)."
+        "0": "Suits high-level high-frequency content (e.g. close-miked percussion).",
+        "1": "Suits content without high-frequency harmonics (e.g. piano).",
+        "2": "Extreme fidelity, medium bandwidth; suitable for all cases (default)."
       },
       "source": "manual §4.5"
     },
