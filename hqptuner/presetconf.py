@@ -27,6 +27,8 @@ import io
 import re
 import zipfile
 
+from . import engineconf
+
 # form field name -> (element tag, attribute). Every tag here occurs once in a
 # snapshot; multi-instance <plugin> lives in PLUGIN_MAP, keyed by its type attr.
 FIELD_MAP: dict[str, tuple[str, str]] = {
@@ -338,24 +340,27 @@ def read_config(xml: bytes) -> dict[str, str]:
 
 def snapshot_member(zip_bytes: bytes, active: str | None) -> bytes:
     """The active preset's snapshot XML from a ``/backup`` archive. ``[default]``
-    (empty/absent name) has no ``cfgs`` snapshot — its definition *is* the base
-    working config, so fall back to ``hqplayerd.xml``."""
+    (empty/absent name) has no ``cfgs`` snapshot — its definition *is* the working
+    config, so fall back to the running-config member (``hqplayerd.xml``, or the
+    root ``<Profile>.xml`` when a named preset is active)."""
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         names = z.namelist()
         member = f"data/cfgs/{active}.xml" if active else ""
         if member in names:
             return z.read(member)
-        if "hqplayerd.xml" in names:
-            return z.read("hqplayerd.xml")
+        running = engineconf.running_config_name(names)
+        if running:
+            return z.read(running)
         raise GroundingError(
-            "backup archive has no base config (hqplayerd.xml) — the daemon returned an "
-            "incomplete/empty backup; cannot build a restore"
+            "backup archive has no working config (no hqplayerd.xml, no root-level preset XML) — "
+            "the daemon returned an incomplete/empty backup; cannot build a restore"
         )
 
 
 def restore_zip_from_running(zip_bytes: bytes, edits: dict[str, str]) -> tuple[bytes, bytes]:
-    """Build a ``POST /restore`` archive whose **working** ``hqplayerd.xml`` is
-    the CURRENT working config with ``edits`` applied — every other member,
+    """Build a ``POST /restore`` archive whose **working** config member
+    (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is
+    active) is the CURRENT working config with ``edits`` applied — every other member,
     including the ``cfgs`` snapshots, copied byte-for-byte. So the running config
     becomes ``{running config} ⊕ {edits}``, and the named preset's saved
     definition is left untouched (edits are ephemeral until the user Saves).
@@ -375,7 +380,11 @@ def restore_zip_from_running(zip_bytes: bytes, edits: dict[str, str]) -> tuple[b
         zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin,
         zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout,
     ):
+        # the live config is hqplayerd.xml, or the root <Profile>.xml when a named
+        # preset is active — rewrite THAT member, leave the cfgs snapshots (the
+        # preset's saved definition) untouched so edits stay ephemeral until Save
+        running = engineconf.running_config_name(zin.namelist())
         for item in zin.infolist():
-            raw = intended if item.filename == "hqplayerd.xml" else zin.read(item.filename)
+            raw = intended if item.filename == running else zin.read(item.filename)
             zout.writestr(item, raw)
     return out.getvalue(), intended

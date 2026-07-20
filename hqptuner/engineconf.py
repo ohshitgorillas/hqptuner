@@ -68,22 +68,39 @@ def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
     return xml[: m.start()] + tag + xml[m.end() :]
 
 
+def running_config_name(names: list[str]) -> str | None:
+    """The archive member that holds the live working config. Normally
+    ``hqplayerd.xml``. But when a named profile is the active one, the daemon
+    writes the live config to a root-level ``<Profile>.xml`` and omits
+    ``hqplayerd.xml`` entirely (observed on 6.0.4: a preset-active ``/backup`` has
+    ``Speakers.xml`` at the root, no ``hqplayerd.xml``). Returns that member, or
+    ``None`` when neither an ``hqplayerd.xml`` nor a single unambiguous root-level
+    ``.xml`` is present."""
+    if "hqplayerd.xml" in names:
+        return "hqplayerd.xml"
+    roots = [n for n in names if "/" not in n and n.endswith(".xml")]
+    return roots[0] if len(roots) == 1 else None
+
+
 def base_config_xml(zip_bytes: bytes) -> bytes:
-    """The base ``hqplayerd.xml`` member of a ``/backup`` archive (the working
-    config the running engine reflects). Empty if absent."""
+    """The working-config member of a ``/backup`` archive (the config the running
+    engine reflects): ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a
+    named preset is active. Empty if neither is present."""
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-        if "hqplayerd.xml" in z.namelist():
-            return z.read("hqplayerd.xml")
+        name = running_config_name(z.namelist())
+        if name:
+            return z.read(name)
     return b""
 
 
 def config_members(zip_bytes: bytes, active_snapshot: str | None, all_presets: bool) -> list[str]:
     """Which XML members of a ``/backup`` archive carry an ``<engine>`` to edit.
 
-    Always the base ``hqplayerd.xml``. Plus every preset snapshot when
-    ``all_presets`` is set, or just the active preset's snapshot otherwise."""
+    Always the running-config member (``hqplayerd.xml``, or the root
+    ``<Profile>.xml`` when a named preset is active). Plus every preset snapshot
+    when ``all_presets`` is set, or just the active preset's snapshot otherwise."""
     names = zipfile.ZipFile(io.BytesIO(zip_bytes)).namelist()
-    base = [n for n in names if n == "hqplayerd.xml"]
+    base = [n for n in [running_config_name(names)] if n]
     snaps = [n for n in names if n.startswith("data/cfgs/") and n.endswith(".xml")]
     if all_presets:
         return base + snaps
