@@ -28,7 +28,7 @@
     },
     "dac_bits": {
       "label": "DAC bits",
-      "tooltip": "Number of significant bits the DAC accepts — this is the dithering level. 0 = auto-detect. Important to set correctly on unidirectional interfaces (S/PDIF, AES/EBU, I2S), and recommended for USB DACs with less than 32-bit input resolution. Known-good values: Holo Audio Cyan 2/Spring/May = 20, Denafrips = 19, LAiV Harmony = 18. With a suitable noise-shaper (LNS15, NS9, NS5) at high output rates, R2R linearity errors can be corrected, lowering low-level distortion.",
+      "tooltip": "Number of significant bits the DAC accepts — this is the dithering level. 0 = auto-detect. Important on unidirectional interfaces (S/PDIF, AES/EBU, I2S) and recommended for USB DACs below 32-bit input resolution.",
       "source": "manual §4.4 (Bits), readme §1.3 (dac_bits)"
     },
     "channel_offset": {
@@ -303,7 +303,7 @@
     },
     "gain_compensation": {
       "label": "PCM gain compensation",
-      "tooltip": "Many DACs output different levels for 0 dBFS PCM vs 0 dB DSD; this compensates the difference. Known values: AKM AK4490 = -3.5, AK4493 = -1 to -3.5, AK4499 = -4.1, AK4499EX = -3; Cirrus Logic = -3; ESS Sabre = 0; ROHM BD34352 = -5.25; Holo Audio = -6; Denafrips = -3.2; Merging Hapi = -0.6; TI/Burr-Brown depends on selected AFIR.",
+      "tooltip": "Many DACs output different levels for 0 dBFS PCM vs 0 dB DSD; this compensates the difference.",
       "source": "manual §4.2"
     },
     "adaptive_volume": {

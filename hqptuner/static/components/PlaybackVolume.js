@@ -12,8 +12,20 @@
 // a daemon value, so a reset never jumps to full volume).
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
-import { volume, volumeRange, setVolume } from "../store/state.js";
+import { volume, volumeRange, setVolume, effective } from "../store/state.js";
 import { Knob } from "./Knob.js";
+
+const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+
+// The engine reports volume control disabled (VolumeRange enabled=0), but not
+// *why*. Name the actual cause from the same staged signals the checkboxes read,
+// so the banner and the toggles never contradict each other.
+function disabledReason() {
+  if (truthy(effective("direct_sdm"))) return "Direct SDM bypasses the volume control.";
+  if (truthy(effective("fixed_volume_enabled")) || truthy(effective("optimal_iso")))
+    return "Fixed volume in effect — turn off Fixed volume / Optimal ISO to adjust live.";
+  return "No active stream — volume adjusts live during playback.";
+}
 
 const dragging = signal(false); // ignore engine syncs while true
 const display = signal(0); // live value shown while dragging
@@ -75,9 +87,7 @@ export function PlaybackVolume() {
           onCommit=${onCommit}
         />
       </div>
-      ${enabled
-        ? null
-        : html`<div class="playback-hint">Volume control disabled — fixed volume in effect (turn off Optimal ISO / fixed volume to adjust live)</div>`}
+      ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
     </section>
   `;
 }

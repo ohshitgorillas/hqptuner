@@ -27,6 +27,8 @@ const PHASES = [
 
 const focusOpen = signal(false);
 const genreOpen = signal(false);
+const qualityOpen = signal(false);
+const phaseOpen = signal(false);
 
 // toggle a value in a multi-select signal (add if absent, remove if present)
 function toggleIn(sig, v) {
@@ -48,6 +50,40 @@ function genreLabel() {
   if (!sel.length) return "Any genre";
   if (sel.length === 1) return cap(sel[0]);
   return `${sel.length} genres`;
+}
+
+const oneLabel = (items, v, fallback) => (items.find(([iv]) => String(iv) === String(v)) || [null, fallback])[1];
+
+// single-select twin of MultiSelect — same button + popover chrome so genre,
+// quality, focus, and phase all render as one identical control (no native
+// <select> chrome mixed in). Picking a value closes the popover.
+function SingleSelect({ open, label, value, items, onPick }) {
+  return html`
+    <div class="multi">
+      <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
+        ${label} <span class="multi-caret">▾</span>
+      </button>
+      ${open.value
+        ? html`<div class="multi-pop">
+            ${items.map(
+              ([v, l]) => html`
+                <label>
+                  <input
+                    type="radio"
+                    checked=${String(v) === String(value)}
+                    onChange=${() => {
+                      onPick(v);
+                      open.value = false;
+                    }}
+                  />
+                  ${l}
+                </label>
+              `,
+            )}
+          </div>`
+        : null}
+    </div>
+  `;
 }
 
 // a checkbox-dropdown multi-select (the shared genre/focus pattern): a button
@@ -79,14 +115,24 @@ export function NarrowBar() {
     <div class="narrow-bar">
       <div class="narrow-header">Narrow filters</div>
       <div class="narrow-controls">
-        <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES.map((g) => [g, cap(g)])} sig=${nGenre} />
-        <select value=${String(nQuality.value)} onChange=${(e) => (nQuality.value = Number(e.target.value))}>
-          ${QUALITY.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
-        </select>
-        <${MultiSelect} open=${focusOpen} label=${focusLabel()} items=${FOCUS} sig=${nFocus} />
-        <select value=${nPhase.value} onChange=${(e) => (nPhase.value = e.target.value)}>
-          ${PHASES.map(([v, l]) => html`<option value=${v}>${l}</option>`)}
-        </select>
+        <div class="narrow-facets">
+          <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES.map((g) => [g, cap(g)])} sig=${nGenre} />
+          <${SingleSelect}
+            open=${qualityOpen}
+            label=${oneLabel(QUALITY, nQuality.value, "Any quality")}
+            value=${nQuality.value}
+            items=${QUALITY}
+            onPick=${(v) => (nQuality.value = Number(v))}
+          />
+          <${MultiSelect} open=${focusOpen} label=${focusLabel()} items=${FOCUS} sig=${nFocus} />
+          <${SingleSelect}
+            open=${phaseOpen}
+            label=${oneLabel(PHASES, nPhase.value, "Any phase")}
+            value=${nPhase.value}
+            items=${PHASES}
+            onPick=${(v) => (nPhase.value = v)}
+          />
+        </div>
         <div class="narrow-right">
           ${narrowingActive.value
             ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`

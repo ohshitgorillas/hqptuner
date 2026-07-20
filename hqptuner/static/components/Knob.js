@@ -142,7 +142,7 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
       >
         <path class="knob-track" d=${arcPath(FROM, TO, 44)} />
         <path class="knob-value" d=${arcPath(FROM, angle, 44)} />
-        <circle class="knob-face" cx="50" cy="50" r="36" />
+        <circle class="knob-face" cx="50" cy="50" r="40" />
         <circle class="knob-inner" cx="50" cy="50" r="22" />
         <line class="knob-notch" x1=${nx1.toFixed(2)} y1=${ny1.toFixed(2)} x2=${nx2.toFixed(2)} y2=${ny2.toFixed(2)} />
       </svg>
