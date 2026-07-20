@@ -1003,6 +1003,26 @@ button:disabled {
   margin-left: 0.5rem;
   white-space: nowrap;
 }
+/* CUDA device ids — two labelled number boxes on one row (DSP / convolution),
+   each a caption above its input so the pair reads as one control group */
+.cuda-devs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.cuda-dev {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.cuda-dev .unit {
+  margin: 0;
+}
+.cuda-dev input {
+  width: 5.5rem;
+}
+
 /* absent-output-device warning — a loaded preset's endpoint isn't present */
 .device-alert {
   background: color-mix(in srgb, var(--warn, #e0a030) 15%, var(--bg-1));

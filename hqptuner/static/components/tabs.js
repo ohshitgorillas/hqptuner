@@ -110,6 +110,8 @@ const Output = () =>
       <${Field} k="gain_comp" />
       <${Field} k="idle_time" />
       <${Field} k="upnp_freewheel" />
+      <${Field} k="quick_pause" />
+      <${Field} k="short_buffer" />
     <//>
     <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
       <${Field} k="alsa_device" />
@@ -370,6 +372,9 @@ const System = () =>
     <${HardwareCard} />
     <${Card} title="DSP pipelines">
       <${Field} k="pipelines" />
+    <//>
+    <${Card} title="Metering">
+      <${Field} k="pre_before_meter" />
     <//>
     <${Card} title="HQPTuner">
       <${DescriptionPrefs} />

@@ -27,6 +27,13 @@ ENGINE_DOMAINS: dict[str, tuple[str, ...]] = {
     "ecores": ("default", "pool", "filter"),
 }
 
+# Integer-valued engine attributes (validated as ints, not against a value set).
+# ``nblocks``: 0 = auto from CPU cache, else blocks per cycle.
+# ``cuda_dev`` / ``cuda_cdev``: CUDA device ids for general DSP and for
+# convolution respectively; -1 = automatic selection (readme §1.2). Setting them
+# to different GPUs splits the workload across two cards (manual §4.7).
+ENGINE_INTS: tuple[str, ...] = ("nblocks", "cuda_dev", "cuda_cdev")
+
 _ENGINE_TAG = re.compile(rb"<engine\b[^>]*>")
 
 
@@ -38,7 +45,7 @@ def read_engine_attrs(xml: bytes) -> dict[str, str]:
         return {}
     tag = m.group(0)
     out: dict[str, str] = {}
-    for attr in (*ENGINE_DOMAINS, "nblocks"):
+    for attr in (*ENGINE_DOMAINS, *ENGINE_INTS):
         am = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', tag)
         if am:
             out[attr] = am.group(1).decode()
@@ -99,9 +106,9 @@ def edit_config_zip(zip_bytes: bytes, members: list[str], overrides: dict[str, s
 
 
 def _validate_one(attr: str, value: str) -> None:
-    if attr == "nblocks":
+    if attr in ENGINE_INTS:
         if not value.lstrip("-").isdigit():
-            raise ValueError(f"nblocks must be an integer, got {value!r}")
+            raise ValueError(f"{attr} must be an integer, got {value!r}")
         return
     if attr not in ENGINE_DOMAINS:
         raise ValueError(f"not an editable engine attribute: {attr!r}")

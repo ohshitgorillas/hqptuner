@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 
-from . import engineconf, logtail, presetconf
+from . import engineconf, enginelane, logtail, presetconf
 from .config import Config
 from .control import ControlClient, ControlError
 from .httpconf import HttpConfigClient
@@ -77,6 +77,14 @@ class ConnectionManager:
         self.matrix_error: str | None = None
         self.loaded_at: float | None = None
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
+        # Running config read from the config FILE (the /backup archive's working
+        # hqplayerd.xml), in form-field terms. The /config form is lossy for
+        # settings whose XML domain is wider than the widget the daemon renders —
+        # volume_fixed is 0/1/2 in the XML but a plain checkbox on the form, so the
+        # form cannot distinguish -3 dB from -6 dB. Fields flagged `fileTruth` in
+        # the frontend schema read their baseline from here instead. Refreshed on
+        # connect and after every persistent apply (never per-poll: /backup is ~5 MB).
+        self.file_config: dict[str, str] | None = None
 
     @property
     def alarm(self) -> bool:
@@ -152,6 +160,11 @@ class ConnectionManager:
             except Exception as exc:
                 matrix_error = str(exc)
                 log.warning("GET /matrix failed: %s", exc)
+            try:
+                await self.load_file_config()
+            except Exception as exc:
+                # the form still carries every field; only the lossy ones degrade
+                log.warning("file-config read failed: %s", exc)
 
         self._client = client
         self.info, self.state, self.status, self.status_metadata = info, state, status, meta
@@ -354,6 +367,7 @@ class ConnectionManager:
             if fresh[:4] != b"PK\x03\x04":  # mid-restart: not a zip yet
                 continue
             realized = presetconf.read_config(engineconf.base_config_xml(fresh))
+            self.file_config = realized  # fresh file truth for the lossy-form fields
             if all(realized.get(key) == want for key, want in intended.items()):
                 return realized
         return realized
@@ -383,6 +397,16 @@ class ConnectionManager:
         self.engine = engine
         return engine
 
+    async def load_file_config(self) -> dict[str, str]:
+        """Running config read from the backup archive's working ``hqplayerd.xml``,
+        in form-field terms. Serves the fields the ``/config`` form renders lossily
+        (``volume_fixed``: 0/1/2 in XML, a bare checkbox on the form). Fetched on
+        connect and refreshed by the apply's verify step — never per poll, since
+        the archive is large."""
+        backup = await self._backup_or_cached()
+        self.file_config = presetconf.read_config(engineconf.base_config_xml(backup))
+        return self.file_config
+
     async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
         """Static tail of the hqplayerd log file for the System-tab live view. Not
         a stream — a fresh read per call. Reports `available` false (with a reason)
@@ -403,47 +427,22 @@ class ConnectionManager:
         await self._require_http().restore(data, scope=scope)
 
     async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
-        """Apply hardware-acceleration engine attributes (cuda/multicore/ecores/
-        nblocks) — the config-file-only lane. Edit a fresh ``/backup`` archive and
-        push it via ``POST /restore``; the daemon self-restarts and re-reads it,
-        preserving the active preset (grounded on 6.0.4). ``all_presets`` edits
-        every snapshot; otherwise just the active preset plus the base config.
-
-        No idle gate is enforced here — the restart interrupts playback, so the
-        caller (API) must idle-gate. Success is confirmed by reading the engine
-        attributes back from a fresh backup after the restart."""
+        """Apply hardware-acceleration engine attributes — the config-file-only
+        lane (`enginelane`). No idle gate is enforced here: the restore restarts
+        the daemon and interrupts playback, so the caller (API) must idle-gate."""
         engineconf.validate_overrides(overrides)
         if self._http is None:
             return {"submitted": False, "error": "no credentials for HTTP config lane"}
         try:
-            active = self.active_config  # cached at connect; the currently-loaded preset
             backup = await self._backup_or_cached()
             self._persist_backup(backup)
-            members = engineconf.config_members(backup, active or None, all_presets)
-            modified = engineconf.edit_config_zip(backup, members, overrides)
-            await self._http.restore(modified, scope="system")
-            verified = await self._verify_engine(overrides)
+            result = await enginelane.apply(self._http, backup, overrides, self.active_config, all_presets, self._sleep)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
-        return {"submitted": True, "verified": verified, "members": members, "backup_bytes": len(backup)}
-
-    async def _verify_engine(self, overrides: dict[str, str]) -> dict[str, Any]:
-        """Read the engine attributes back from a fresh backup's base config after
-        the restore/restart and report whether each override is reflected."""
-        got: dict[str, str] = {}
-        for _ in range(20):
-            await self._sleep(0.5)
-            try:
-                fresh = await self._require_http().backup()
-            except httpx.HTTPError:
-                continue
-            if fresh[:4] != b"PK\x03\x04":
-                continue
-            got = engineconf.read_engine_attrs(engineconf.base_config_xml(fresh))
-            if all(got.get(k) == v for k, v in overrides.items()):
-                self.engine = got
-                return {"applied": True, "engine": got}
-        return {"applied": False, "engine": got}
+        engine = result["verified"].get("engine")
+        if engine:
+            self.engine = engine
+        return result
 
     def _persist_backup(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk so a crash mid-apply still

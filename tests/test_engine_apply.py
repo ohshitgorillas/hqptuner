@@ -47,6 +47,16 @@ async def test_apply_engine_rejects_out_of_domain_value(engine_manager: Connecti
         await engine_manager.apply_engine({"cuda": "maybe"})
 
 
+async def test_applied_cuda_device_id_is_reflected_in_readback(engine_manager: ConnectionManager) -> None:
+    await engine_manager.apply_engine({"cuda_dev": "1"})
+    assert (await engine_manager.read_engine())["cuda_dev"] == "1"
+
+
+async def test_apply_engine_rejects_non_integer_device_id(engine_manager: ConnectionManager) -> None:
+    with pytest.raises(ValueError, match="must be an integer"):
+        await engine_manager.apply_engine({"cuda_dev": "auto"})
+
+
 async def test_restored_archive_is_reflected_in_readback(engine_manager: ConnectionManager) -> None:
     await engine_manager.restore_config(_archive_with_nblocks("4"))
     assert (await engine_manager.read_engine())["nblocks"] == "4"

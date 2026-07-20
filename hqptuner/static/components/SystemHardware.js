@@ -11,7 +11,7 @@ import { html } from "../store/dom.js";
 import { api } from "../store/api.js";
 import { metadata } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
-import { RadioGroup, Checkbox, Slider } from "./controls/index.js";
+import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
 
 // settings.json system-group prose (Phase 1 manual/readme extraction). These four
 // engine attributes live outside the schema/Field path, so pull their notes here.
@@ -38,13 +38,16 @@ const ECORES = [
   { value: "filter", label: "Resampling" },
 ];
 
-// daemon defaults when the attribute is absent from the config (manual §1.2)
-const DEFAULTS = { cuda: "0", multicore: "auto", ecores: "default", nblocks: "0" };
+// daemon defaults when the attribute is absent from the config (manual §1.2).
+// cuda_dev / cuda_cdev: -1 = automatic device selection.
+const DEFAULTS = { cuda: "0", multicore: "auto", ecores: "default", nblocks: "0", cuda_dev: "-1", cuda_cdev: "-1" };
 
 const cuda = signal(DEFAULTS.cuda);
 const multicore = signal(DEFAULTS.multicore);
 const ecores = signal(DEFAULTS.ecores);
 const nblocks = signal(DEFAULTS.nblocks);
+const cudaDev = signal(DEFAULTS.cuda_dev);
+const cudaCdev = signal(DEFAULTS.cuda_cdev);
 const allPresets = signal(false);
 const status = signal(""); // "", "applying", or a result message
 const loaded = signal(false);
@@ -56,6 +59,8 @@ async function load() {
   multicore.value = e.multicore ?? DEFAULTS.multicore;
   ecores.value = e.ecores ?? DEFAULTS.ecores;
   nblocks.value = e.nblocks ?? DEFAULTS.nblocks;
+  cudaDev.value = e.cuda_dev ?? DEFAULTS.cuda_dev;
+  cudaCdev.value = e.cuda_cdev ?? DEFAULTS.cuda_cdev;
   loaded.value = true;
 }
 
@@ -67,6 +72,8 @@ async function apply() {
       multicore: multicore.value,
       ecores: ecores.value,
       nblocks: nblocks.value,
+      cuda_dev: cudaDev.value,
+      cuda_cdev: cudaCdev.value,
     };
     const r = await api.applyEngine({ overrides, all_presets: allPresets.value });
     status.value = r && r.verified && r.verified.applied ? "Applied." : "Submitted — not confirmed.";
@@ -76,6 +83,8 @@ async function apply() {
 }
 
 const manual = () => nblocks.value !== "0";
+// Device ids only bite when something is actually offloaded to a GPU.
+const cudaOff = () => cuda.value === "0";
 
 export function HardwareCard() {
   useEffect(() => {
@@ -88,6 +97,30 @@ export function HardwareCard() {
         <div class="field"><label>CUDA offload</label>
           <div class="control"><${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(v) => (cuda.value = v)} /></div>
           <${Note} k="cuda_offload" />
+        </div>
+        <div class="field ${cudaOff() ? "off" : ""}"><label>CUDA devices</label>
+          <div class="control cuda-devs">
+            <span class="cuda-dev">
+              <span class="unit">DSP</span>
+              <${NumberBox}
+                value=${cudaDev.value}
+                min=${-1}
+                disabled=${cudaOff()}
+                onChange=${(v) => (cudaDev.value = String(v))}
+              />
+            </span>
+            <span class="cuda-dev">
+              <span class="unit">Convolution</span>
+              <${NumberBox}
+                value=${cudaCdev.value}
+                min=${-1}
+                disabled=${cudaOff()}
+                onChange=${(v) => (cudaCdev.value = String(v))}
+              />
+            </span>
+            <span class="field-hint">−1 = automatic</span>
+          </div>
+          <${Note} k="cuda_devices" />
         </div>
         <div class="field"><label>Multicore DSP</label>
           <div class="control"><${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(v) => (multicore.value = v)} /></div>
