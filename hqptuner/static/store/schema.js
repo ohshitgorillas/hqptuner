@@ -30,8 +30,14 @@ const isPcm = (ctx) => String(ctx.effective("output_mode")) === "pcm";
 
 // checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+// DirectSDM "will disable volume control and set PCM volume to fixed -3 dBFS
+// value" (manual §4.5). Every persistent control that sets a volume level is
+// therefore inert while it's on — the daemon accepts and stores the setting but
+// nothing reaches the output stage, so the UI has to say so. PlaybackVolume.js
+// already grays the live slider for the same reason.
+const directSdm = (ctx) => (truthy(ctx.effective("direct_sdm")) ? "Direct SDM bypasses the volume control" : "");
 // the fixed-volume level + Optimal ISO only apply when fixed volume is enabled.
-const fixedOff = (ctx) => (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "requires fixed volume");
+const fixedOff = (ctx) => directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "requires fixed volume");
 // Optimal ISO supersedes the manual level with an auto-optimized one (manual
 // §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
 // volume_fixed's XML domain is 0 = off / 1 = −3 dB / 2 = −6 dB (readme §1.2), but
@@ -185,7 +191,7 @@ export const schema = {
   // (inter-sample-overs-optimized fixed volume, readme §1.9), fixed_volume is the
   // dBFS level (readme §1.13 <fixed><volume>), fixed_volume_enabled gates both.
   // Only adaptive_volume is live (SetAdaptiveVolume); the rest are http/restart.
-  fixed_volume_enabled: { label: "Fixed volume", group: "volume", widget: "checkbox", lane: "http", field: "fixed_volume_enabled" },
+  fixed_volume_enabled: { label: "Fixed volume", group: "volume", widget: "checkbox", lane: "http", field: "fixed_volume_enabled", grayWhen: directSdm },
   fixed_volume: { label: "Fixed volume level", group: "volume", widget: "number", lane: "http", field: "fixed_volume", unit: "dBFS", grayWhen: levelGray },
   // volume_fixed's XML domain is wider than the daemon's own form: 0 = off /
   // 1 = −3 dB / 2 = −6 dB, but /config renders a bare checkbox that can only
@@ -193,9 +199,9 @@ export const schema = {
   // carries 2 — verified live on 6.0.4) and reads its true value from the config
   // file (fileTruth), since the form's bool cannot tell −3 from −6.
   optimal_iso: { label: "Optimal ISO", group: "volume", widget: "segment", lane: "http", field: "volume_fixed", fileTruth: true, options: ISO_LEVELS, grayWhen: fixedOff },
-  volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS" },
-  volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS" },
-  startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS" },
+  volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS", grayWhen: directSdm },
+  volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS", grayWhen: directSdm },
+  startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS", grayWhen: directSdm },
   gain_comp: { label: "PCM gain compensation", group: "volume", note: "gain_compensation", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
   adaptive_volume: { label: "Adaptive volume", group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume" },
   playlist_album_gain: { label: "Playlist album gain", group: "volume", widget: "checkbox", lane: "http", field: "playlist_album_gain" },
