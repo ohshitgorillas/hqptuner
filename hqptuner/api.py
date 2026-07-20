@@ -213,6 +213,14 @@ def metadata(request: Request) -> dict[str, Any]:
     return static.raw
 
 
+@router.get("/log")
+async def log_tail(request: Request, lines: int = 50) -> dict[str, Any]:
+    """Static tail of the daemon's log file (System-tab live view). Read-only,
+    no daemon socket — reads the file the running config points at."""
+    n = max(1, min(lines, 500))
+    return await _mgr(request).read_log_tail(n)
+
+
 @router.get("/volume")
 def volume_get(request: Request) -> dict[str, Any]:
     """Live volume + its live bounds/enabled (VolumeRange). Separate from the

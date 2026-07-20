@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 
-from . import engineconf, presetconf
+from . import engineconf, logtail, presetconf
 from .config import Config
 from .control import ControlClient, ControlError
 from .httpconf import HttpConfigClient
@@ -382,6 +382,20 @@ class ConnectionManager:
         engine = engineconf.read_engine_attrs(engineconf.base_config_xml(await self._backup_or_cached()))
         self.engine = engine
         return engine
+
+    async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
+        """Static tail of the hqplayerd log file for the System-tab live view. Not
+        a stream — a fresh read per call. Reports `available` false (with a reason)
+        when logging is off or the file can't be read."""
+        path, enabled = logtail.log_file_field(self.config_form)
+        if not path:
+            reason = "no log file configured"
+            return {"path": None, "enabled": enabled, "available": False, "reason": reason, "lines": []}
+        try:
+            tail = await asyncio.to_thread(logtail.tail_file, path, lines)
+        except OSError as exc:
+            return {"path": path, "enabled": enabled, "available": False, "reason": str(exc), "lines": []}
+        return {"path": path, "enabled": enabled, "available": True, "lines": tail}
 
     async def restore_config(self, data: bytes, scope: str = "system") -> None:
         """Restore a user-supplied settings archive as-is (System-tab restore

@@ -145,7 +145,7 @@ Lightweight SPA, dark theme, no heavyweight framework (outline §8). Order withi
 - All outline §4 controls present and functional against the Phase 3 backend on Opal
 - Full apply cycle (stage → split shown → apply → restart → resync) usable from the browser with no dev tooling
 
-**Status (2026-07-18): in progress — scaffold, chrome, and the Output + Volume tabs complete; DSP/System still the scaffold subset.**
+**Status (2026-07-19): in progress — all four tabs (Output · DSP · Volume · System) built and live-walked on Opal; inline manual notes + a System-tab log tail landed. Remaining Phase 4 polish + the Phase 5 behavior rules are the open work.**
 
 Frontend stack (decided 2026-07-18): Preact + htm + `@preact/signals`, no build step — vendored ESM modules shared through an HTML importmap (CSP-clean, offline, one Preact instance). Three-tree store (engine-live 4321 / http-config 8088 / staged) with `effective(key)` = staged ?? baseline; dumb control primitives bound by a single `Field` that wires value/options/gray/dirty/label from the store. Reactive render is load-bearing: the cross-control graying/collapse graph falls out of `render(state)`.
 
@@ -175,6 +175,14 @@ DSP post-processing — crossfeed + loudness cards with knobs and live response 
 - **Visual-language token** (in the CSS): **dashed + muted = potential/maximum ("ghost"), solid + accent = applied now.** Used by every plot trace (crossfeed `direct`/`cross-fed`, loudness `max`/`applied`, labelled at the right edge with collision-nudging) and reusable elsewhere.
 - **Bauer preset↔params coupling** (`state.edit`): selecting `default`/`cmoy`/`jmeier` loads that preset's frequency/level (libbs2b canonical: 700/4.5, 700/6.0, 650/9.5) so the graph shows the preset; adjusting either param switches the preset to `custom`. Lets the user inspect presets visually — HQPlayer's own UI does not auto-load them.
 - **Card layout**: controls on top, a full-width response plot across the bottom; feature-off dims the body (sub-controls + plot) as a unit while the enable checkbox stays live; loudness bass/treble grouped into clusters under their level knob. The front-panel signal path shows one combined post-process indicator (both → "DSP", else "Crossfeed"/"Loudness") rather than a chip per feature.
+
+System tab — implemented and browser-walked on Opal (2026-07-19):
+
+- **Layout**: About + a combined Backup & Restore card across the top row; Hardware acceleration; the HQPTuner prefs card (accent + description toggles); the Logging card full-width at the bottom. About renders read-only identity as `LABEL` (caps) → accent-colored mono value; the license row reads `TRUE`/`FALSE` off `GetLicense valid` (0/1).
+- **Hardware acceleration** (`cuda`/`multicore`/`ecores`/`nblocks`): the file-only `<engine>` lane via `POST /api/engine` (backup→edit→`/restore`, idle-gated). Blocks/cycle reworded to an explicit "Set manually" checkbox (unchecked = automatic from CPU cache); the slider is accent-tinted. The full engine-apply path was reproduced end-to-end against the live 6.0.4 daemon (curl both lanes + a headless-browser button click) — restore hot-applies the engine attrs in ~1 s with no outage, apply returns `applied:true`. (An earlier "Load failed" report did not reproduce on current code; it traced to a stale backend build.)
+- **Live log tail**: a checkbox-gated static 50-line view (`GET /api/log` → `hqptuner/logtail.py` tails the daemon's configured `log_file`), polled every 3 s while shown, pinned to the bottom. Decided against the SSE/WebSocket stream in the original sketch — a polled static window is simpler and sufficient for a config tool.
+
+Inline manual notes (2026-07-19, commit `cce8672`): the Phase 1 `settings.json` prose renders under each control (`.field-note`), keyed by a schema `note` map; the four DSD-source enum dropdowns show a per-value note that tracks the selected option (`desc:"config"` + per-value `options` maps). Two persisted System>HQPTuner toggles gate visibility: a master show/hide plus a keep-filter/DSD-source-option-descriptions switch (live only when the master is off). Tooltips also remain on hover. This supersedes the Phase 4 "tooltips on hover" item — they're inline by default.
 
 ## Phase 5 — Behavior rules, presets, polish
 

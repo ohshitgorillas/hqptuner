@@ -41,7 +41,7 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[TestCli
         hqp_control_port=_closed_port(),
         hqp_http_port=http_daemon["_port"],
         hqp_username="u",
-        hqp_password="p",  # noqa: S106 — fake daemon credential, not a secret
+        hqp_password="p",
         alarm_threshold=1.0,
         backup_dir=tmp_path,
     )

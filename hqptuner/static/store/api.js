@@ -47,4 +47,5 @@ export const api = {
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   volume: () => getJSON("/api/volume"),
   setVolume: (level) => send("/api/volume", "POST", { level: String(level) }),
+  log: (lines = 50) => getJSON(`/api/log?lines=${lines}`),
 };

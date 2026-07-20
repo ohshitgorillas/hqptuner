@@ -13,3 +13,6 @@ hqplayerd-readme.txt
 
 # runtime pre-apply settings backups
 backups/
+
+# local hqplayerd credentials — never commit
+.env

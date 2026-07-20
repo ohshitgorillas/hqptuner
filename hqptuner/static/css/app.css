@@ -504,6 +504,11 @@ input[type="checkbox"]:disabled {
   gap: 0.5rem;
   align-items: center;
 }
+/* the plain range primitive (e.g. Blocks/cycle) — tint the native track/thumb
+   with the accent instead of the browser default blue */
+.slider input[type="range"] {
+  accent-color: var(--accent);
+}
 .slidernum {
   display: flex;
   align-items: center;
@@ -672,10 +677,15 @@ input[type="checkbox"]:disabled {
 }
 .about dt {
   color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
 }
 .about dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 /* System · Backup — download link styled as a button */
 .btn {
@@ -711,6 +721,51 @@ input[type="checkbox"]:disabled {
   margin-left: 1.25rem;
   border-left: 2px solid var(--line);
   padding-left: 0.6rem;
+}
+/* System · combined backup/restore — both buttons on one row */
+.backup-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+/* System · Logging — the two log-config options side by side at the top */
+.log-opts {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+.log-opts > .field {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+/* inline checkbox + text (Blocks/cycle "Set manually", the log-tail toggle) */
+.inline-check,
+.log-tail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+/* live log tail — static 50-line window, monospace, scrolls internally */
+.log-tail {
+  margin: 0.5rem 0 0;
+  max-height: 22rem;
+  overflow: auto;
+  background: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--fg-2);
+  white-space: pre;
+}
+.log-tail-msg {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 /* tab subheads — group labels within a flat tab */
 .subhead {
