@@ -9,7 +9,8 @@ import { effective, health } from "../store/state.js";
 import { optionsFor } from "../store/options.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { NarrowBar } from "./NarrowBar.js";
-import { HardwareCard, RestoreCard } from "./SystemHardware.js";
+import { HardwareCard, BackupRestoreCard } from "./SystemHardware.js";
+import { LogTail } from "./LogTail.js";
 import { CrossfeedPlot, LoudnessPlot } from "./plots.js";
 import { accent, applyAccent, ACCENTS } from "../store/theme.js";
 import { Checkbox } from "./controls/index.js";
@@ -269,8 +270,10 @@ const license = computed(() => (health.value && health.value.license) || {});
 
 const licenseLabel = (l) => {
   if (!l || l.valid == null) return "";
-  const licensed = l.valid === "1" || l.valid === 1 || l.valid === true;
-  return licensed ? "Licensed" : "Unlicensed (trial)";
+  // anything that isn't an explicit false/trial reads as licensed -> TRUE
+  const v = String(l.valid).toLowerCase();
+  const trial = v === "" || v === "0" || v === "false" || v === "trial";
+  return trial ? "FALSE" : "TRUE";
 };
 
 const About = () => {
@@ -336,28 +339,31 @@ const AccentPicker = () =>
     </div>
   `;
 
+// Logging card — full width at the bottom of the tab. The two log-config options
+// sit side by side at the top; the live tail view (checkbox-gated) sits below.
+const LoggingCard = () =>
+  html`<${Card} title="Logging">
+    <div class="log-opts">
+      <${Field} k="log_enabled" />
+      <${Field} k="log_file" />
+    </div>
+    <${LogTail} />
+  <//>`;
+
 const System = () =>
   html`<${Section}>
     <div class="card-grid">
-      <${Card} title="Logging">
-        <${Field} k="log_enabled" />
-        <${Field} k="log_file" />
-      <//>
       <${Card} title="About">
         <${About} />
       <//>
+      <${BackupRestoreCard} />
     </div>
     <${HardwareCard} />
-    <div class="card-grid">
-      <${Card} title="Backup">
-        <a class="btn" href="/api/backup" download>Download settings backup</a>
-      <//>
-      <${RestoreCard} />
-    </div>
     <${Card} title="HQPTuner">
       <${DescriptionPrefs} />
       <${AccentPicker} />
     <//>
+    <${LoggingCard} />
   <//>`;
 
 const TABS = [

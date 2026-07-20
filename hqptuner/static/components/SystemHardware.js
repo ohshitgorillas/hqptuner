@@ -99,11 +99,13 @@ export function HardwareCard() {
         </div>
         <div class="field"><label>Blocks / cycle</label>
           <div class="control">
-            <${Checkbox} value=${manual()} onChange=${(v) => (nblocks.value = v === "1" ? "8" : "0")} />
-            <span class="unit">Manual</span>
+            <label class="inline-check">
+              <${Checkbox} value=${manual()} onChange=${(v) => (nblocks.value = v === "1" ? "8" : "0")} />
+              Set manually
+            </label>
             ${manual()
               ? html`<${Slider} value=${nblocks.value} min=${1} max=${16} step=${1} onChange=${(v) => (nblocks.value = String(v))} />`
-              : html`<span class="unit">Default (auto)</span>`}
+              : html`<span class="unit">Automatic — chosen from CPU cache size</span>`}
           </div>
           <${Note} k="blocks_per_cycle" />
         </div>
@@ -131,13 +133,16 @@ async function onRestore(e) {
   }
 }
 
-export function RestoreCard() {
+export function BackupRestoreCard() {
   return html`
     <section class="card">
-      <div class="card-head">Restore</div>
+      <div class="card-head">Backup & restore</div>
       <div class="card-body">
-        <label class="btn">Upload settings backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore} /></label>
-        ${restoreStatus.value ? html`<span class="hw-status">${restoreStatus.value}</span>` : null}
+        <div class="backup-row">
+          <a class="btn" href="/api/backup" download>Download backup</a>
+          <label class="btn">Upload backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore} /></label>
+        </div>
+        ${restoreStatus.value ? html`<div class="hw-status">${restoreStatus.value}</div>` : null}
       </div>
     </section>
   `;
