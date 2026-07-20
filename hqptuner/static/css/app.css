@@ -285,17 +285,17 @@ main {
   font-size: 0.85rem;
 }
 
-/* Output top boxes — MODE · BACKEND · RATE, equal visual weight, centered. */
+/* Hero boxes — MODE · BACKEND · RATE. A real grid: N boxes each fill 1/N of the
+   content width (one box = full width), equal heights, no dead flanks. */
 .top-row {
-  display: flex;
-  justify-content: space-evenly;
-  align-items: stretch;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 1rem;
   margin-bottom: 1.2rem;
 }
 .box {
-  flex: 1 1 0;
-  max-width: 15rem;
+  max-width: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -664,6 +664,12 @@ input[type="checkbox"]:disabled {
   align-items: stretch;
   margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
 }
+/* two equal columns INSIDE one card body (e.g. Automatic's two checkboxes) */
+.card-cols2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
 /* System · About — read-only key/value list */
 .about {
   margin: 0;
@@ -722,6 +728,11 @@ input[type="checkbox"]:disabled {
   border-left: 2px solid var(--line);
   padding-left: 0.6rem;
 }
+/* nested control whose parent toggle is off: dim but legible + non-interactive */
+.indent.off {
+  opacity: 0.6;
+  pointer-events: none;
+}
 /* System · combined backup/restore — both buttons on one row */
 .backup-row {
   display: flex;
@@ -760,7 +771,9 @@ input[type="checkbox"]:disabled {
   font-size: 0.72rem;
   line-height: 1.4;
   color: var(--fg-2);
-  white-space: pre;
+  white-space: pre-wrap; /* wrap long lines — vertical scroll only, no horizontal bar */
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
 }
 .log-tail-msg {
   margin-top: 0.5rem;
@@ -781,12 +794,21 @@ input[type="checkbox"]:disabled {
 }
 .radio-group {
   display: inline-flex;
-  gap: 0.9rem;
+  gap: 1rem;
+}
+/* each radio + its label on one baseline-aligned row */
+.radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 /* native radios (hardware-accel card) render the browser-default blue dot —
-   pull them onto the signature accent like every other control */
+   pull them onto the signature accent and match the checkbox's visual weight */
 input[type="radio"] {
   accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
 }
 
 /* pending bar */
@@ -834,6 +856,12 @@ button.primary {
   color: #08121c;
   font-weight: 600;
 }
+/* a disabled primary must read as inert, not a dimmed-but-lit Apply */
+button.primary:disabled {
+  background: var(--bg-3);
+  border-color: var(--line);
+  color: var(--muted);
+}
 button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -860,6 +888,26 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+}
+/* the four facets share one grid: equal widths, one select style across all */
+.narrow-facets {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+.narrow-facets > *,
+.narrow-facets .multi,
+.narrow-facets select {
+  min-width: 0;
+  width: 100%;
+}
+.narrow-facets .multi-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .narrow-bar select {
   padding: 0.3rem 0.5rem;
@@ -1130,8 +1178,22 @@ button:disabled {
   transition: opacity 0.15s;
 }
 .dsp-body.off {
-  opacity: 0.4;
-} /* disabled feature: sub-controls + plot dim as a unit */
+  opacity: 0.7;
+} /* disabled feature: text stays legible... */
+/* ...but the saturated accent controls (knob arc, slider, plot trace) must drop
+   to muted, or 0.7-alpha blue still reads "on" next to greyed-out text. */
+.dsp-body.off .knob-value,
+.dsp-body.off .knob-notch,
+.dsp-body.off .plot-trace.applied {
+  stroke: var(--muted);
+}
+.dsp-body.off .plot-tlbl.applied {
+  fill: var(--muted);
+}
+.dsp-body.off .knob-slider,
+.dsp-body.off input[type="range"] {
+  accent-color: var(--muted);
+}
 .dsp-controls {
   display: flex;
   flex-direction: column;

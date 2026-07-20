@@ -1,7 +1,7 @@
-// Tab navigation + the four section bodies. Order per decision: Output, DSP,
-// Volume, System (outline §3). Step 1 places a representative Field in each of
-// the first three to prove both lanes and every widget end-to-end; step 3 fills
-// the full outline §4 control set per tab.
+// Tab navigation + the section bodies. Order: Output, Resampling, DSP, Volume,
+// System. Output picks endpoint/backend/channels; Resampling holds mode, rate,
+// and the PCM/SDM/DSD filter chains; DSP is DAC correction + crossfeed/loudness;
+// Volume and System follow.
 import { signal, computed } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { Field } from "../store/Field.js";
@@ -101,23 +101,16 @@ const Output = () =>
     <${DeviceAlert} />
     <div class="top-row">
       <div class="box seg-box">
-        <div class="box-title">Mode</div>
-        <${Field} k="output_mode" />
-      </div>
-      <div class="box seg-box">
         <div class="box-title">Backend</div>
         <${Field} k="backend" />
       </div>
-      <div class="box">
-        <div class="box-title">Rate</div>
-        <div class="rate-stack">
-          <${Field} k="pcm_rate" />
-          <${Field} k="sdm_rate" />
-        </div>
-      </div>
     </div>
-    <${Field} k="idle_time" />
-    <${Field} k="upnp_freewheel" />
+    <${Card} title="General">
+      <${Field} k="channels" />
+      <${Field} k="gain_comp" />
+      <${Field} k="idle_time" />
+      <${Field} k="upnp_freewheel" />
+    <//>
     <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
       <${Field} k="alsa_device" />
       <${Field} k="alsa_offset" />
@@ -201,8 +194,21 @@ export function LoudnessCard() {
   `;
 }
 
-const Dsp = () =>
+const Resampling = () =>
   html`<${Section}>
+    <div class="top-row">
+      <div class="box seg-box">
+        <div class="box-title">Mode</div>
+        <${Field} k="output_mode" />
+      </div>
+      <div class="box">
+        <div class="box-title">Rate</div>
+        <div class="rate-stack">
+          <${Field} k="pcm_rate" />
+          <${Field} k="sdm_rate" />
+        </div>
+      </div>
+    </div>
     <${NarrowBar} />
     <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
       <${Field} k="pcm_filter_1x" />
@@ -222,22 +228,26 @@ const Dsp = () =>
       <${Field} k="noise_filter" />
       <${Field} k="pcm_conversion" />
     <//>
-    <div class="card-grid">
-      <${Card} title="Processing">
-        <${Field} k="channels" />
-        <${Field} k="fft_size" />
-        <${Field} k="pipelines" />
-      <//>
-    </div>
-    <${CrossfeedCard} />
+    <${Card} title="Filter length">
+      <${Field} k="fft_size" />
+    <//>
+  <//>`;
+
+// DAC correction leads the DSP page; the profile dims to non-interactive when
+// correction is off (property has no effect until enabled).
+const Dsp = () => {
+  const dacOn = truthy(effective("dac_correction_enabled"));
+  return html`<${Section}>
     <${Card} title="DAC correction">
       <${Field} k="dac_correction_enabled" />
-      <div class="indent">
+      <div class="indent ${dacOn ? "" : "off"}">
         <${Field} k="dac_correction_profile" />
       </div>
     <//>
+    <${CrossfeedCard} />
     <${LoudnessCard} />
   <//>`;
+};
 
 const Volume = () =>
   html`<${Section}>
@@ -255,14 +265,13 @@ const Volume = () =>
         <${Field} k="volume_min" />
         <${Field} k="startup_volume" />
       <//>
-      <${Card} title="Gain">
-        <${Field} k="gain_comp" />
-      <//>
-      <${Card} title="Automatic">
+    </div>
+    <${Card} title="Automatic">
+      <div class="card-cols2">
         <${Field} k="adaptive_volume" />
         <${Field} k="playlist_album_gain" />
-      <//>
-    </div>
+      </div>
+    <//>
   <//>`;
 
 const info = computed(() => (health.value && health.value.info) || {});
@@ -281,7 +290,7 @@ const About = () => {
   const rows = [
     ["Product", i.product],
     ["Engine", i.engine],
-    ["License", licenseLabel(license.value)],
+    ["Licensed", licenseLabel(license.value)],
     ["Platform", i.platform],
   ].filter((r) => r[1]);
   return html`
@@ -359,6 +368,9 @@ const System = () =>
       <${BackupRestoreCard} />
     </div>
     <${HardwareCard} />
+    <${Card} title="DSP pipelines">
+      <${Field} k="pipelines" />
+    <//>
     <${Card} title="HQPTuner">
       <${DescriptionPrefs} />
       <${AccentPicker} />
@@ -368,6 +380,7 @@ const System = () =>
 
 const TABS = [
   ["output", "Output", Output],
+  ["resampling", "Resampling", Resampling],
   ["dsp", "DSP", Dsp],
   ["volume", "Volume", Volume],
   ["system", "System", System],
