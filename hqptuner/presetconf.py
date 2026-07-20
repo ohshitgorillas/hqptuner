@@ -11,11 +11,14 @@ package (device, filters, volume, and the ``<post_process>`` plugins) in one
 file — no two-form round-trip.
 
 ``FIELD_MAP`` was derived empirically (value-correlation of a live ``GET /config``
-form against a real snapshot on 6.0.4), not guessed. Five form fields whose XML
-attributes are absent/default in the correlation snapshot could not be grounded
-(``UNGROUNDED``); an edit naming one is **refused**, never written with a guessed
-attribute — corrupting a live audio daemon's config is the failure we exist to
-prevent. Those five stay editable through the form lane until grounded.
+form against a real snapshot on 6.0.4), then completed against the daemon manual
+(``hqplayerd-readme.txt``) and a live config dump — every form field has a
+verified XML location, so nothing is refused-because-ungrounded. The five that the
+value-correlation alone could not place (their attribute sat at default/absent in
+that snapshot) are grounded here from the manual: ``idle_time`` → ``<engine
+idle_time>``, DoP → ``<alsa|network pack_sdm>``, and the fixed-volume pair onto the
+top-level ``<fixed>`` element (below). An edit whose target element/plugin is
+genuinely absent from a snapshot is still refused rather than guessed.
 """
 
 from __future__ import annotations
@@ -50,14 +53,17 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
     "alsa_period": ("alsa", "period_time"),
     "alsa_offset": ("alsa", "channel_offset"),
     "alsa_anydsd": ("alsa", "any_dsd"),
+    "alsa_dop": ("alsa", "pack_sdm"),  # readme §1.3.2: pack_sdm 0=None, 1=DoP v1.1
     # Network backend section (net_device is special — see NET_DEVICE)
     "net_bits": ("network", "dac_bits"),
     "net_period": ("network", "period_time"),
     "net_anydsd": ("network", "any_dsd"),
     "net_ipv6": ("network", "ipv6"),
+    "net_dop": ("network", "pack_sdm"),  # readme §1.3.5: pack_sdm 0=None, 1=DoP v1.1
     # engine (name drift: integrator->sdm_integrator, pcm_conversion->pdm_conv,
     # noise_filter->pdm_filt, alsa_offset->channel_offset handled above)
     "auto_family": ("engine", "auto_family"),
+    "idle_time": ("engine", "idle_time"),  # readme §1.3: engine idle-hold, in ms
     "channels": ("engine", "channels"),
     "fft_size": ("engine", "fft_size"),
     "pipelines": ("engine", "pipelines"),
@@ -76,6 +82,8 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
     "volume_min": ("engine", "volume_min"),
     "volume_fixed": ("engine", "volume_fixed"),
     "adaptive_volume": ("engine", "volume_adaptive"),
+    # matrix processing — the carrier element for the <post_process> plugin chain
+    "matrix_enabled": ("matrix", "enabled"),
     # logging / upnp
     "log_enabled": ("log", "enabled"),
     "log_file": ("log", "file"),
@@ -111,14 +119,17 @@ PLUGIN_MAP: dict[str, tuple[str, str]] = {
 # the first "/" into <network address="S26" device="hw:CARD=Output,DEV=0">.
 NET_DEVICE = "net_device"
 
-# Fields whose XML attribute was absent/default in the grounding snapshot, so its
-# location is not yet verified. Editing one is refused rather than guessed.
-UNGROUNDED: frozenset[str] = frozenset({"idle_time", "alsa_dop", "net_dop", "fixed_volume", "fixed_volume_enabled"})
+# Fixed volume is a top-level ``<fixed volume="X"/>`` element whose PRESENCE means
+# "enabled" — there is no ``enabled`` attribute (readme §1.13 + live config). The
+# two form fields fold onto that one element, reconciled together (_reconcile_fixed).
+FIXED_ENABLED = "fixed_volume_enabled"
+FIXED_LEVEL = "fixed_volume"
+_TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
 class GroundingError(ValueError):
-    """An edit named a field with no verified XML location (UNGROUNDED) or one
-    whose target element is absent from this snapshot."""
+    """An edit whose target element or plugin is absent from this snapshot — a
+    guessed write is never attempted."""
 
 
 def _set_attr(tag: bytes, attr: str, value: str) -> bytes:
@@ -155,26 +166,128 @@ def _edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
     raise GroundingError(f'<plugin type="{plugin_type}"> absent from this snapshot')
 
 
+def _in_comment(xml: bytes, pos: int) -> bool:
+    """True when byte offset ``pos`` sits inside an XML ``<!-- -->`` comment."""
+    return xml.rfind(b"<!--", 0, pos) > xml.rfind(b"-->", 0, pos)
+
+
+def _find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
+    """The single uncommented ``<fixed .../>`` element, or None. A commented
+    ``<!--<fixed .../>-->`` (the daemon parks the remembered level there when the
+    feature is off) is deliberately ignored."""
+    for m in re.finditer(rb"<fixed\b[^>]*?/?>", xml):
+        if not _in_comment(xml, m.start()):
+            return m
+    return None
+
+
+def _fixed_level_of(tag: bytes) -> str | None:
+    m = re.search(rb'volume="([^"]*)"', tag)
+    return m.group(1).decode() if m else None
+
+
+def _remembered_level(xml: bytes) -> str:
+    """Last-known fixed-volume level — the active element, else a commented one
+    (the daemon's memory when off), else 0 dBFS."""
+    for m in re.finditer(rb"<fixed\b[^>]*?/?>", xml):
+        lvl = _fixed_level_of(m.group(0))
+        if lvl is not None:
+            return lvl
+    return "0"
+
+
+def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[bytes] | None) -> tuple[bool, str]:
+    """Desired (enabled, level) for ``<fixed>``: an unstaged half falls back to the
+    snapshot's current state, so editing one field never clobbers the other."""
+    if FIXED_ENABLED in fixed_edits:
+        enabled = fixed_edits[FIXED_ENABLED].strip().lower() in _TRUTHY
+    else:
+        enabled = active is not None
+    current = _fixed_level_of(active.group(0)) if active is not None else None
+    return enabled, fixed_edits.get(FIXED_LEVEL) or current or _remembered_level(xml)
+
+
+def _strip_active_fixed(xml: bytes, active: re.Match[bytes]) -> bytes:
+    """Remove the active ``<fixed/>`` element plus its own indentation, so toggling
+    the feature doesn't accrete blank lines."""
+    start = active.start()
+    while start > 0 and xml[start - 1 : start] in (b" ", b"\t"):
+        start -= 1
+    if start > 0 and xml[start - 1 : start] == b"\n":
+        start -= 1
+    return xml[:start] + xml[active.end() :]
+
+
+def _insert_fixed(xml: bytes, level: str) -> bytes:
+    """Insert ``<fixed volume="level"/>`` as the first child of ``<hqplayerd>``,
+    where the daemon itself writes it."""
+    open_tag = re.search(rb"<hqplayerd\b[^>]*>", xml)
+    if open_tag is None:
+        raise GroundingError("<hqplayerd> root element absent from this snapshot")
+    cut = open_tag.end()
+    return xml[:cut] + b"\n\t" + f'<fixed volume="{level}"/>'.encode() + xml[cut:]
+
+
+def _reconcile_fixed(xml: bytes, fixed_edits: dict[str, str]) -> bytes:
+    """Fold the ``fixed_volume_enabled`` / ``fixed_volume`` pair onto the top-level
+    ``<fixed>`` element: enabled ⇒ ensure ``<fixed volume="level"/>`` exists,
+    disabled ⇒ remove it. Comment-safe; every other byte is preserved."""
+    active = _find_active_fixed(xml)
+    enabled, level = _fixed_target(xml, fixed_edits, active)
+    if active is not None:
+        xml = _strip_active_fixed(xml, active)
+    return _insert_fixed(xml, level) if enabled else xml
+
+
+def _enables_post_process(edits: dict[str, str]) -> bool:
+    """True when any staged edit switches a ``<post_process>`` plugin ON."""
+    return any(
+        PLUGIN_MAP.get(field, ("", ""))[1] == "enabled" and value.strip().lower() in _TRUTHY
+        for field, value in edits.items()
+    )
+
+
+def _enable_matrix(xml: bytes) -> bytes:
+    """Switch ``<matrix enabled="1">`` on. A no-op when the snapshot carries no
+    ``<matrix>`` element — this is a coherence step taken on the user's behalf, so
+    it must never abort the edit they actually asked for."""
+    if re.search(rb"<matrix\b[^>]*?/?>", xml) is None:
+        return xml
+    return _edit_element(xml, "matrix", "enabled", "1")
+
+
+def _apply_one(xml: bytes, field: str, value: str) -> bytes:
+    """Route one staged edit to its grounded XML location."""
+    if field == NET_DEVICE:
+        address, _, device = value.partition("/")
+        xml = _edit_element(xml, "network", "address", address)
+        return _edit_element(xml, "network", "device", device)
+    if field in PLUGIN_MAP:
+        return _edit_plugin(xml, *PLUGIN_MAP[field], value)
+    if field in FIELD_MAP:
+        return _edit_element(xml, *FIELD_MAP[field], value)
+    raise GroundingError(f"unknown config field: {field!r}")
+
+
 def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
     """Return ``xml`` with each staged form-field edit applied surgically.
 
-    Refuses (``GroundingError``) any UNGROUNDED field, or any edit whose target
-    element/plugin is absent — never writes a guessed attribute. All other bytes
-    of the snapshot are preserved exactly."""
-    refused = set(edits) & UNGROUNDED
-    if refused:
-        raise GroundingError(f"no grounded XML location for: {sorted(refused)}")
-    for field, value in edits.items():
-        if field == NET_DEVICE:
-            address, _, device = value.partition("/")
-            xml = _edit_element(xml, "network", "address", address)
-            xml = _edit_element(xml, "network", "device", device)
-        elif field in PLUGIN_MAP:
-            xml = _edit_plugin(xml, *PLUGIN_MAP[field], value)
-        elif field in FIELD_MAP:
-            xml = _edit_element(xml, *FIELD_MAP[field], value)
-        else:
-            raise GroundingError(f"unknown config field: {field!r}")
+    Every form field has a grounded location; an edit whose target element/plugin
+    is absent from this snapshot is refused (``GroundingError``) rather than
+    guessed. All other bytes of the snapshot are preserved exactly."""
+    remaining = dict(edits)
+    fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
+    if fixed_edits:
+        xml = _reconcile_fixed(xml, fixed_edits)
+    # <post_process> lives INSIDE <matrix>, and matrix processing must be on for any
+    # plugin to run at all (readme §1.11 / §1.11.2) — a preset with matrix enabled="0"
+    # silently swallows crossfeed/loudness/correction. So switching a post-process
+    # feature on also switches the matrix on. Deliberately never auto-OFF: matrix also
+    # carries channel routing, and disabling it would break a user's pipeline setup.
+    if _enables_post_process(remaining):
+        xml = _enable_matrix(xml)
+    for field, value in remaining.items():
+        xml = _apply_one(xml, field, value)
     return xml
 
 
@@ -213,6 +326,13 @@ def read_config(xml: bytes) -> dict[str, str]:
     device = _read_attr(xml, "network", "device")
     if address is not None and device is not None:
         out[NET_DEVICE] = f"{address}/{device}"
+    # fixed volume: presence of the top-level <fixed> element is the "enabled" flag
+    active_fixed = _find_active_fixed(xml)
+    out[FIXED_ENABLED] = "1" if active_fixed is not None else "0"
+    if active_fixed is not None:
+        level = _fixed_level_of(active_fixed.group(0))
+        if level is not None:
+            out[FIXED_LEVEL] = level
     return out
 
 

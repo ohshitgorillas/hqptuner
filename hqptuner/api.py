@@ -18,7 +18,6 @@ from .control import ControlError
 from .httpconf import HttpConfigClient
 from .manager import ConnectionManager
 from .metadata import StaticMetadata, merge_enumerations
-from .presetconf import UNGROUNDED
 from .writer import known_live_settings
 
 
@@ -272,11 +271,6 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
-    ungrounded = set(body.http) & UNGROUNDED
-    if ungrounded:
-        # the corrective XML apply has no verified location for these yet, so it
-        # refuses them rather than write a guessed attribute to a live daemon.
-        raise HTTPException(status_code=422, detail=f"not yet applicable via config apply: {sorted(ungrounded)}")
     store = _pending(request)
     store.stage(body.live, body.http)
     return store.snapshot()

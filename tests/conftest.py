@@ -191,13 +191,19 @@ def _cfg_xml(st: dict[str, Any]) -> bytes:
         '<mode value="sdm"/>'
         f'<pcm filter="{st["filter"]}" filter1x="47" dither="3" samplerate="{st["samplerate"]}"/>'
         f'<sdm oversampling="41" oversampling1x="42" modulator="12" bitrate="{st["bitrate"]}"/>'
+        '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
         f'<engine auto_family="{_b(st["auto_family"])}" channels="{st["channels"]}" '
-        f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}"/>'
+        f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}">'
         '<defaults samplerate="192000" bitrate="24576000" volume="-3"/>'
         f'<network address="{net_addr}" device="{net_dev}" ipv6="{_b(st["net_ipv6"])}" '
         'dac_bits="15" period_time="0"/>'
         '<alsa device="hw:CARD=NVidia,DEV=3" dac_bits="24" period_time="100"/>'
-        '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
+        # <post_process> nests INSIDE <matrix>, exactly as 6.0.4 writes it (readme
+        # §1.11 / §1.11.2). The matrix switch gates the whole plugin chain, so a
+        # writer that enables a plugin without enabling the matrix produces an inert
+        # config — modelled here so that failure surfaces in tests, not in a listening
+        # room. Default OFF: the real-world preset that exposed this had matrix="0".
+        f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="1" expand_hf="0" iir2fir="0">'
         "<post_process>"
         '<plugin type="correction" enabled="0" dac0=""/>'
         f'<plugin type="bauer" enabled="{_b(st["post_bauer_enabled"])}" '
@@ -207,6 +213,8 @@ def _cfg_xml(st: dict[str, Any]) -> bytes:
         'high_frequency="5000" high_level="10" high_steepness="1.0" high_type="hshelf" '
         'range_low="-60" range_high="-20"/>'
         "</post_process>"
+        "</matrix>"
+        "</engine>"
         "</hqplayerd>"
     ).encode()
 
@@ -227,6 +235,14 @@ def _adopt_net_device(st: dict[str, Any], xml: bytes) -> None:
     dev = _elem_attr(xml, "network", "device")
     if addr is not None and dev is not None and f"{addr}/{dev}" in st["_net_endpoints"]:
         st["net_device"] = f"{addr}/{dev}"
+
+
+def _adopt_matrix(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the uploaded ``<matrix enabled>`` — the carrier switch for the whole
+    post-process chain. Read independently of presetconf."""
+    enabled = _elem_attr(xml, "matrix", "enabled")
+    if enabled is not None:
+        st["matrix_enabled"] = enabled == "1"
 
 
 def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
@@ -280,6 +296,7 @@ def _adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
     if ipv6 is not None:
         st["net_ipv6"] = ipv6 == "1"
     _adopt_net_device(st, xml)
+    _adopt_matrix(st, xml)
     _adopt_plugins(st, xml)
 
 
@@ -450,6 +467,8 @@ def _http_state(**extra: Any) -> dict[str, Any]:
         # powered-off endpoints a /config/refresh rescan makes bindable
         "_hidden_endpoints": [],
         "_saved": {},
+        # the plugin chain lives inside <matrix>; on because bauer below is on
+        "matrix_enabled": True,
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
         "post_loudness_enabled": False,
