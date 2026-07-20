@@ -272,7 +272,7 @@ main {
   border-radius: 0.4rem;
 }
 .field.dirty {
-  background: var(--dirty);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 .field > label {
   color: var(--fg);
@@ -1416,7 +1416,7 @@ button:focus-visible,
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 .field.dirty:hover {
-  background: var(--dirty);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 button:not(:disabled):hover,
 .multi-btn:hover {
