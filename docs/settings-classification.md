@@ -4,6 +4,7 @@ Phase 0.2 deliverable. Every outline §4 control tagged with its lane:
 
 - **live** — a Control API (4321) setter exists; the change takes effect immediately, no daemon restart.
 - **http** — no live setter; the setting is applied via `POST /config` on the port-8088 HTTP interface (Digest auth), which makes the daemon rewrite `hqplayerd.xml` and restart itself. (Formerly called the "restart / XML lane"; the daemon owns the file write — HQPTuner just POSTs the form. See `protocol.md` §3.6.) Observed `POST /config` form field name given where known.
+- **file (read)** — the `/config` form carries the field but renders it with a widget narrower than its XML domain, so the form's value is lossy. The write still goes through the http lane; only the **baseline read** comes from the config file (`manager.file_config`, exposed as `file` on `GET /api/config`). `volume_fixed` is the only such field today.
 - **file (restore)** — no `/config` form field **and** no live setter; the setting lives only in the `<engine>` element of the config XML (hardware acceleration). Applied by editing a `/backup` archive's `<engine>` tag (surgical, byte-faithful) and pushing it via `POST /restore` (`scope=system`), which the daemon re-reads on a self-restart (~5.6 s) that **preserves the active preset** — no `systemctl`, plain Digest auth. Grounded on 6.0.4 on Opal (idle-gated probe, 2026-07-18). See `protocol.md` §3.6.
 
 Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state=0`), 2026-07-16. Wire details in `protocol.md`.
@@ -32,6 +33,8 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 | IPv6 | http | Network only: `net_ipv6` (checkbox) |
 | Idle time | http | field `idle_time` — **milliseconds** on the wire (0=default, 10000=10 s, … 60000) |
 | UPnP freewheel | http | field `upnp_freewheel` (checkbox); input-side, backend-independent |
+| Quick pause | http | field `quick_pause` (checkbox) → `<engine quick_pause>` |
+| Short buffer | http | field `short_buffer` (select 0/1/2 = Normal/Short/Minimum) → `<engine short_buffer>` |
 
 **Correction (Phase 4, verified live 6.0.4): transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), with independent values — the outline §4/§5 "DAC bits grays in SDM / DoP grays in PCM" annotations describe the *desktop* app, not this form. HQPTuner surfaces these in collapsible ALSA / Network sections keyed on `backend` (Combo shows both), not via mode-graying.
 
@@ -59,12 +62,19 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 |---|---|---|
 | Fixed volume level | live* | `Volume` verified to respond; errors (`result="Error"`, level unchanged) while volume control is disabled (`VolumeRange enabled="0"`) — live only when volume control is enabled. HTTP fields `volume_fixed` / `fixed_volume` for the persistent value |
 | Volume enabled | http | field `fixed_volume_enabled`; gates the live `Volume` command |
-| Optimal ISO | http | no live setter |
+| Optimal ISO | http (write) + file (read) | field `volume_fixed` → `<engine volume_fixed>`. **Domain is 0/1/2** (off / −3 dB / −6 dB, readme §1.2) but the daemon's `/config` form renders a bare **checkbox**, so the form can neither express nor report `2`. See the note below |
 | Max/min volume | http | fields `volume_max` / `volume_min`; `VolumeRange` (4321) is read-only |
 | Startup volume | http | field `defaults_volume` |
 | PCM gain compensation | http | field `gain_comp` (step 0.1) |
 | Adaptive volume | live | `SetAdaptiveVolume` verified: `adaptive` flag toggles and reads back; `VolumeRange adaptive` mirrors it. Response is a bare `<SetAdaptiveVolume/>` with no `result` attribute. HTTP field `adaptive_volume` for the persistent value |
 | Playlist album gain | http | field `playlist_album_gain` |
+
+**Optimal ISO is a lossy-form field (verified live on 6.0.4, 2026-07-19).** `volume_fixed` is the one owned setting whose XML domain is wider than the widget hqplayerd renders for it. Consequences, both load-bearing:
+
+- **Write.** `2` (−6 dB) is writable **only because the persistent lane is `POST /restore` with surgically-edited snapshot XML**, not a `/config` form POST — a form submit cannot carry a third state. Verified live: applied `volume_fixed="2"`, read back `2` from a fresh `/backup`, restored to `1`, restore confirmed, no collateral config changes. If the persistent lane ever reverts to form-posting, −6 dB silently becomes unwritable (`tests/test_file_config.py` fails in that case, by design).
+- **Read.** The form reports only a bool, so `1` and `2` are indistinguishable there. The baseline comes instead from `manager.file_config` — the running config parsed from the `/backup` archive's working `hqplayerd.xml`, served on `GET /api/config` as `file` and preferred by frontend schema entries flagged `fileTruth`. Refreshed on connect and by the apply's verify step; never per poll (the archive is ~5 MB).
+
+HQPTuner therefore exposes it as a three-way control (Off · −3 dB · −6 dB) rather than the tri-state checkbox HQPlayer Desktop uses.
 
 **Live playback volume (Phase 4).** Beyond the persistent volume config above, the running engine's current volume is a real-time control on its own lane: `Volume` (4321) writes immediately, `VolumeRange` reports the live bounds + `enabled` flag, `State.volume` the current level. HQPTuner exposes this as `GET/POST /api/volume` — a dedicated immediate-write path, never staged and never restarting. It's usable only when `VolumeRange enabled=1` (volume control active — not fixed volume, and an active stream); the UI grays the slider otherwise.
 
@@ -76,6 +86,8 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 | Multicore DSP | file (restore) | `<engine multicore>` (`auto`/`0`/`1`) |
 | E-core allocation | file (restore) | `<engine ecores>` (`default`/`pool`/`filter`) |
 | Blocks/cycle | file (restore) | `<engine nblocks>` (int, `0`=default) |
+| CUDA device ids | file (restore) | `<engine cuda_dev>` / `<engine cuda_cdev>` (int, `-1`=automatic) — the GPU used for filters/general DSP and the one used for convolution; different values split the workload across two cards (manual §4.7) |
+| Pre-process before metering | http | field `pre_before_meter` (checkbox) → `<engine pre_before_meter>` |
 | Backup/restore config | http | daemon's own `/backup/settings.zip` (GET) / `/restore` (multipart POST, Digest auth) |
 | Trial/license/version | read-only | `GetLicense` (`valid`/`name`/`fingerprint`) / `GetInfo` (4321), verified |
 | Enable log / log path | http | fields `log_enabled` (checkbox) / `log_file` (text), verified |

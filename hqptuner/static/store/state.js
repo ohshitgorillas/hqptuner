@@ -61,6 +61,13 @@ export function httpFieldMap(entry) {
   return entry.endpoint === "matrix" ? matrixByName.value : configByName.value;
 }
 
+// Running config read from the config XML, in form-field terms (manager.file_config).
+// The /config form is lossy where a setting's XML domain is wider than the widget
+// the daemon renders for it: volume_fixed is 0/1/2 in the XML (off / −3 dB / −6 dB)
+// but a bare checkbox on the form, so the form cannot tell −3 from −6. Schema
+// entries flagged `fileTruth` take their baseline from here.
+export const fileConfig = computed(() => (config.value && config.value.file) || {});
+
 // --- three-tree resolution ---
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
@@ -68,8 +75,17 @@ function baseline(entry) {
   // editor shows the preset before it's applied and tweaks read as dirty over it
   const preview = previewConfig.value;
   if (preview && entry.field in preview) return preview[entry.field];
+  if (entry.fileTruth) {
+    const fv = fileConfig.value[entry.field];
+    if (fv !== undefined) return fv;
+  }
   const f = httpFieldMap(entry)[entry.field];
-  return f ? f.value : undefined;
+  if (!f) return undefined;
+  // no file truth available (no credentials, or the backup read failed): fall back
+  // to the form's boolean, normalized into the field's own domain so a staged
+  // "1" doesn't read as dirty against a baseline of `true`
+  if (entry.fileTruth && typeof f.value === "boolean") return f.value ? "1" : "0";
+  return f.value;
 }
 
 function stagedValue(entry) {

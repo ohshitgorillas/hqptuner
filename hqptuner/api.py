@@ -151,7 +151,12 @@ def config(request: Request) -> dict[str, Any]:
         return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
     # `active` is the truly-loaded preset (ConfigurationGet), which the profile
     # form's own default select does not reliably reflect — the header shows this.
-    return _snapshot(manager, {**manager.config_form, "active": manager.active_config})
+    # `file` is the running config read from the config XML, in form-field terms.
+    # The frontend prefers it for fields the form renders lossily (volume_fixed).
+    return _snapshot(
+        manager,
+        {**manager.config_form, "active": manager.active_config, "file": manager.file_config or {}},
+    )
 
 
 @router.get("/matrix")
