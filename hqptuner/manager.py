@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 
-from . import engineconf, enginelane, logtail, presetconf
+from . import engineconf, enginelane, httplane, logtail, presetconf
 from .config import Config
 from .control import ControlClient, ControlError
 from .httpconf import HttpConfigClient
@@ -37,18 +37,6 @@ log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
-_PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable divergence
-
-# Fields HQPTuner pins on every config write so the friendly-rate UI holds: the
-# per-family Rate dropdown sets a ceiling (defaults_samplerate/defaults_bitrate)
-# and the engine follows the source's 44.1/48 base — which requires auto_family
-# on and the fixed sample/bit rate left on Auto. Not exposed in the UI.
-_FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
-
-
-def _config_diff(intended: dict[str, str], realized: dict[str, str]) -> dict[str, dict[str, str | None]]:
-    """Fields where the running config didn't match what the apply intended."""
-    return {k: {"want": v, "got": realized.get(k)} for k, v in intended.items() if realized.get(k) != v}
 
 
 class ConnectionManager:
@@ -251,7 +239,7 @@ class ConnectionManager:
             if client is None:
                 raise ControlError("daemon not connected")
             live_report = await apply_live(client, live_edits)
-        persistent = await self._apply_persistent(http_fields) if http_fields else None
+        persistent = await httplane.apply(self, http_fields) if http_fields else None
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def _switch_preset(self, name: str) -> dict[str, Any]:
@@ -267,17 +255,26 @@ class ConnectionManager:
                 return {"name": name, "active": True}
         return {"name": name, "active": self.active_config == name}
 
-    async def _backup_or_cached(self) -> bytes:
+    async def _backup_or_cached(self, *, for_write: bool = False) -> bytes:
         """Fetch ``/backup``, caching it whenever it's a usable archive. WORKAROUND
         (docs/protocol.md): hqplayerd 6.0.4 serves an EMPTY ``settings.zip`` after a
-        named ``profile/load`` until the service is restarted. When that happens,
-        fall back to the last healthy archive we saw — a load doesn't modify the
-        snapshots inside it, so it stays current. ``apply`` warms this cache before
-        the switch, while ``/backup`` still works. Remove once the daemon is fixed."""
+        named ``profile/load`` (and after ``profile/save`` — observed live) until
+        the service is restarted. When that happens, fall back to the last healthy
+        archive we saw.
+
+        ``for_write=True`` refuses that fallback. The cached archive carries a
+        stale working config, and a restore built on it silently resurrects
+        whatever the user changed since it was cached — writing old values back
+        over new ones. A read may be stale; a write may not."""
         backup = await self._require_http().backup()
         if engineconf.base_config_xml(backup):  # has hqplayerd.xml → usable
             self.last_healthy_backup = backup
             return backup
+        if for_write:
+            raise presetconf.GroundingError(
+                "daemon returned an unusable /backup (known 6.0.4 bug after a profile load/save); "
+                "refusing to build a restore from a stale cached archive — restart hqplayerd, then retry"
+            )
         if self.last_healthy_backup is not None:
             log.warning("empty /backup from daemon (post-profile-load bug) — using cached archive")
             return self.last_healthy_backup
@@ -290,52 +287,33 @@ class ConnectionManager:
         backup = await self._backup_or_cached()
         return presetconf.read_config(presetconf.snapshot_member(backup, name))
 
-    async def _apply_persistent(self, edits: dict[str, str]) -> dict[str, Any]:
-        """Re-assert the active preset's snapshot ⊕ edits via POST /restore, then
-        verify + self-correct. Each pass: fetch a fresh /backup, build a restore
-        archive whose working config is the snapshot with edits applied (plus the
-        forced auto-family fields), restore, and read the running config back.
-        Converged → done. Diverged but correctable → retry. Diverged on a
-        net_device the daemon no longer offers (endpoint gone) → unfixable:
-        surface and stop, since no restart conjures absent hardware."""
-        if self._http is None:
-            return {"submitted": False, "error": "no credentials for HTTP config lane"}
-        merged = {**edits, **_FORCED_CONFIG}
-        diff: dict[str, dict[str, str | None]] = {}
-        last_error: str | None = None
-        for attempt in range(_PERSIST_RETRIES + 1):
-            # a preset switch (or a prior attempt) just restarted the daemon and the
-            # active label flips before the restart finishes — wait for the HTTP lane
-            # to actually serve before writing, rather than racing it
-            await self._await_http_ready()
-            try:
-                intended = await self._restore_once(merged)
-            except presetconf.GroundingError as exc:
-                return {"submitted": False, "error": str(exc)}
-            except httpx.HTTPError as exc:
-                last_error = str(exc)  # daemon dropped mid-write: transient, retry
-                await self._sleep(RECONNECT_FAST)
-                continue
-            diff = _config_diff(intended, await self._verify_persistent(intended))
-            if not diff:
-                return {"submitted": True, "applied": True, "attempts": attempt + 1, "active": self.active_config}
-            unfixable = await self._unfixable_device(diff)
-            if unfixable:
-                result = {"applied": False, "reason": "unavailable", "unfixable": unfixable, "diff": diff}
-                return {"submitted": True, **result}
-        if last_error is not None and not diff:
-            return {"submitted": False, "error": last_error}  # never got a write through
-        return {"submitted": True, "applied": False, "reason": "unconverged", "diff": diff}
+    # --- accessors for the extracted write lanes (httplane) ---------------
 
-    async def _restore_once(self, merged: dict[str, str]) -> dict[str, str]:
-        """Build a restore archive (active snapshot ⊕ edits) from a fresh backup,
-        push it, and return the intended config it should produce. Raises
-        GroundingError (bad edit) or httpx.HTTPError (daemon dropped mid-write)."""
-        backup = await self._backup_or_cached()
-        self._persist_backup(backup)  # survives a crash mid-apply
-        restore_zip, intended_xml = presetconf.restore_zip_from_snapshot(backup, self.active_config, merged)
-        await self._require_http().restore(restore_zip, scope="system")
-        return presetconf.read_config(intended_xml)
+    @property
+    def http_client(self) -> HttpConfigClient | None:
+        return self._http
+
+    @property
+    def alarm_threshold(self) -> float:
+        return self._cfg.alarm_threshold
+
+    def require_http(self) -> HttpConfigClient:
+        return self._require_http()
+
+    def persist_backup(self, backup: bytes) -> None:
+        self._persist_backup(backup)
+
+    def monotonic(self) -> float:
+        return time.monotonic()
+
+    async def sleep(self, seconds: float) -> None:
+        await self._sleep(seconds)
+
+    async def await_http_ready(self) -> bool:
+        return await self._await_http_ready()
+
+    async def backup_for_write(self) -> bytes:
+        return await self._backup_or_cached(for_write=True)
 
     async def _await_http_ready(self) -> bool:
         """Wait until the HTTP config lane serves again. The daemon restarts on a
@@ -351,43 +329,6 @@ class ConnectionManager:
                 continue
             return True
         return False
-
-    async def _verify_persistent(self, intended: dict[str, str]) -> dict[str, str]:
-        """Poll a fresh /backup until the running config reflects every intended
-        field, or the alarm deadline passes. Returns the last realized config
-        (read from the backup's base hqplayerd.xml) so the caller can diff it."""
-        deadline = time.monotonic() + self._cfg.alarm_threshold
-        realized: dict[str, str] = {}
-        while time.monotonic() < deadline:
-            await self._sleep(RECONNECT_FAST)
-            try:
-                fresh = await self._require_http().backup()
-            except httpx.HTTPError:
-                continue
-            if fresh[:4] != b"PK\x03\x04":  # mid-restart: not a zip yet
-                continue
-            realized = presetconf.read_config(engineconf.base_config_xml(fresh))
-            self.file_config = realized  # fresh file truth for the lossy-form fields
-            if all(realized.get(key) == want for key, want in intended.items()):
-                return realized
-        return realized
-
-    async def _unfixable_device(self, diff: dict[str, dict[str, str | None]]) -> dict[str, Any]:
-        """A divergence is unfixable only when the intended net_device is no
-        longer in the daemon's endpoint list — the target NAA endpoint is gone,
-        and no restart brings it back. Everything else is correctable by retry."""
-        if presetconf.NET_DEVICE not in diff:
-            return {}
-        want = diff[presetconf.NET_DEVICE]["want"]
-        try:
-            form = await self._require_http().get_config()
-        except httpx.HTTPError:
-            return {}
-        field = next((f for f in form["fields"] if f.get("name") == "net_device"), None)
-        options = {o.get("value") for o in (field or {}).get("options", [])}
-        if want in options:
-            return {}
-        return {"net_device": {"want": want, "available": sorted(o for o in options if o)}}
 
     async def read_engine(self) -> dict[str, str]:
         """Current hardware-accel engine attributes, parsed from a fresh backup's

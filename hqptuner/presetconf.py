@@ -353,14 +353,23 @@ def snapshot_member(zip_bytes: bytes, active: str | None) -> bytes:
         )
 
 
-def restore_zip_from_snapshot(zip_bytes: bytes, active: str | None, edits: dict[str, str]) -> tuple[bytes, bytes]:
+def restore_zip_from_running(zip_bytes: bytes, edits: dict[str, str]) -> tuple[bytes, bytes]:
     """Build a ``POST /restore`` archive whose **working** ``hqplayerd.xml`` is
-    the active preset's snapshot with ``edits`` applied — every other member,
+    the CURRENT working config with ``edits`` applied — every other member,
     including the ``cfgs`` snapshots, copied byte-for-byte. So the running config
-    becomes exactly ``{clean snapshot} ⊕ {edits}`` (no drift survives), while the
-    named preset's saved definition is left untouched (edits are ephemeral until
-    the user Saves). Returns ``(restore_zip, intended_working_xml)``."""
-    intended = apply_edits(snapshot_member(zip_bytes, active), edits)
+    becomes ``{running config} ⊕ {edits}``, and the named preset's saved
+    definition is left untouched (edits are ephemeral until the user Saves).
+    Returns ``(restore_zip, intended_working_xml)``.
+
+    This used to rebuild from the active preset's SNAPSHOT so that daemon-side
+    drift never survived an apply. That reset every field the user had not
+    staged in this particular apply back to the preset's stored value, so two
+    sequential applies clobbered each other: staging direct_sdm reverted
+    volume_fixed, staging volume_fixed reverted direct_sdm (both reproduced
+    against the live 6.0.4 daemon). Applies must be incremental against what is
+    actually running; discarding drift is not worth discarding the user's own
+    previous edits."""
+    intended = apply_edits(snapshot_member(zip_bytes, None), edits)
     out = io.BytesIO()
     with (
         zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin,
