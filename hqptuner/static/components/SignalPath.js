@@ -16,7 +16,7 @@
 // effective: the front panel reflects the active state, so a previewed preset
 // or a staged-but-unapplied edit must not move these chips).
 import { html } from "../lib/dom.js";
-import { engineStatus, engineState, runningValue } from "../store/state.js";
+import { engineStatus, engineState, runningValue, matrixActiveProfile } from "../store/state.js";
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
@@ -66,16 +66,24 @@ export function SignalPath() {
   // crossfeed sits before the filter (input-side), DAC correction after the
   // shaper (output-rate-dependent).
   const stages = [{ label: "Source", value: source }];
-  // one combined post-process indicator instead of a chip per feature (avoids
-  // crowding the front panel): more than one active -> "DSP", else the single
-  // active one. Matrix (routing / pipeline EQ) folds in here too.
+  // The matrix (pipeline routing/EQ) always gets its own chip — it's the
+  // most-toggled processing stage, and its value carries the ACTIVE profile
+  // name so A/B switches read straight off the front panel ("[Default]" and
+  // over-long names fall back to a plain "On"/truncated form). It runs on the
+  // source-rate pipelines, ahead of the post-process mix bus.
+  const mtx = on(runningValue("matrix_enabled"));
+  if (mtx) {
+    const prof = matrixActiveProfile.value;
+    const val = prof === "[Default]" ? "On" : prof.length > 20 ? `${prof.slice(0, 19)}…` : prof;
+    stages.push({ label: "Matrix", value: val });
+  }
+  // crossfeed + loudness share one post-process slot (both active -> "DSP")
+  // instead of a chip per feature, to avoid crowding the front panel.
   const cf = on(runningValue("crossfeed_enabled"));
   const loud = on(runningValue("loudness_enabled"));
-  const mtx = on(runningValue("matrix_enabled"));
-  if (cf + loud + mtx > 1) stages.push({ label: "DSP", value: "On" });
+  if (cf && loud) stages.push({ label: "DSP", value: "On" });
   else if (cf) stages.push({ label: "Crossfeed", value: "On" });
   else if (loud) stages.push({ label: "Loudness", value: "On" });
-  else if (mtx) stages.push({ label: "Matrix", value: "On" });
   stages.push({ label: "Filter", value: st.active_filter });
   stages.push({ label: "Shaper", value: st.active_shaper });
   if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
