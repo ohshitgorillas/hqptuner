@@ -14,5 +14,8 @@ hqplayerd-readme.txt
 # runtime pre-apply settings backups
 backups/
 
+# HQPTuner-owned preset store — user data, not source
+presets/
+
 # local hqplayerd credentials — never commit
 .env

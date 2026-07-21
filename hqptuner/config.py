@@ -27,3 +27,8 @@ class Config:
     backup_dir: Path = field(
         default_factory=lambda: Path(_env("BACKUP_DIR", str(Path(__file__).resolve().parent.parent / "backups")))
     )
+    # HQPTuner-owned preset store (see presetstore) — full-config XML snapshots we
+    # manage ourselves instead of hqplayerd's unreliable named-profile subsystem.
+    preset_dir: Path = field(
+        default_factory=lambda: Path(_env("PRESET_DIR", str(Path(__file__).resolve().parent.parent / "presets")))
+    )

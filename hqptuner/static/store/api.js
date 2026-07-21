@@ -45,6 +45,7 @@ export const api = {
   refreshDevices: () => send("/api/config/refresh", "POST"),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
+  deletePreset: (name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
   volume: () => getJSON("/api/volume"),
   setVolume: (level) => send("/api/volume", "POST", { level: String(level) }),
   log: (lines = 50) => getJSON(`/api/log?lines=${lines}`),

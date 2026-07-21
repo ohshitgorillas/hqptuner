@@ -141,6 +141,19 @@ body {
   color: var(--accent);
   font-weight: 500;
 }
+.preset-del {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--bg-3);
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+.preset-del:hover {
+  color: #e06c6c;
+  border-color: #e06c6c;
+}
 
 .pill {
   padding: 0.15rem 0.6rem;

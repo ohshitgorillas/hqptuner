@@ -19,9 +19,10 @@ from hqptuner.manager import ConnectionManager
 
 def _manager(daemon: dict[str, Any], tmp_path: Path, alarm: float) -> tuple[ConnectionManager, HttpConfigClient]:
     http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
-    # backup lands in a tmp dir, not the repo; small alarm so a rejected apply
-    # polls only briefly before it times out
-    manager = ConnectionManager(Config(alarm_threshold=alarm, backup_dir=tmp_path), http)
+    # backup + preset store land in a tmp dir, not the repo; small alarm so a
+    # rejected apply polls only briefly before it times out
+    cfg = Config(alarm_threshold=alarm, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
+    manager = ConnectionManager(cfg, http)
     return manager, http
 
 
@@ -125,11 +126,11 @@ async def test_apply_verifies_through_the_post_restart_stale_window(
 async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
-    # Save as New = apply the working config, then save it under a fresh name; the
-    # new preset's own snapshot must carry the change, distinct from the active one
+    # Save as New = apply the working config, then persist it under a fresh preset
+    # in the HQPTuner store; reading that preset back carries the change
     manager, _ = apply_via
     await manager.apply({}, {"title": "Renamed"})
-    await manager.save_profile("Fresh")
+    await manager.save_preset("Fresh")
     assert (await manager.read_preset("Fresh"))["title"] == "Renamed"
 
 
@@ -173,17 +174,17 @@ async def test_rescan_surfaces_a_newly_present_output_device(
     assert "S99/hw:CARD=WokeUp,DEV=0" in offered
 
 
-async def test_read_preset_falls_back_to_cache_when_the_backup_goes_empty(
+async def test_read_preset_reads_the_store_and_survives_an_empty_backup(
     http_daemon: dict[str, Any],
     tmp_path: Path,
 ) -> None:
-    # a named profile/load empties /backup on 6.0.4 until restart (protocol §3.6);
-    # the cache warmed by the first read must still serve the preset for a preview
+    # a preview reads the HQPTuner store, never the daemon — so it still works when
+    # the daemon's /backup goes empty (the 6.0.4 post-load bug, protocol §3.6)
     manager, http = _manager(http_daemon, tmp_path, alarm=1.0)
     try:
-        await manager.read_preset("Test")  # warms the healthy-backup cache
+        await manager.save_preset("Kept")  # snapshot the running config into the store
         http_daemon["_empty"] = True
-        cfg = await manager.read_preset("Test")
+        cfg = await manager.read_preset("Kept")
     finally:
         await http.aclose()
     assert cfg["title"] == "Opal"

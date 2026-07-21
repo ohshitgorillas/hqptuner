@@ -18,6 +18,7 @@ from .control import ControlError
 from .httpconf import HttpConfigClient
 from .manager import ConnectionManager
 from .metadata import StaticMetadata, merge_enumerations
+from .presetstore import PresetError
 from .writer import known_live_settings
 
 
@@ -149,13 +150,19 @@ def config(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"GET /config failed: {manager.config_error}")
     if manager.config_form is None:
         return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
-    # `active` is the truly-loaded preset (ConfigurationGet), which the profile
-    # form's own default select does not reliably reflect — the header shows this.
-    # `file` is the running config read from the config XML, in form-field terms.
-    # The frontend prefers it for fields the form renders lossily (volume_fixed).
+    # `profiles` and `active` come from HQPTuner's own preset store — the source of
+    # truth — not the daemon's (unreliable) profile subsystem, which under our
+    # restore-only model always reports [default]. `file` is the running config read
+    # from the config XML; the frontend prefers it for lossy fields (volume_fixed).
+    presets = manager.presets()
     return _snapshot(
         manager,
-        {**manager.config_form, "active": manager.active_config, "file": manager.file_config or {}},
+        {
+            **manager.config_form,
+            "profiles": {"value": presets["value"], "options": presets["options"]},
+            "active": presets["active"],
+            "file": manager.file_config or {},
+        },
     )
 
 
@@ -178,6 +185,8 @@ async def preset(name: str, request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
     try:
         return {"name": name, "config": await manager.read_preset(name)}
+    except PresetError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
         raise HTTPException(status_code=502, detail=f"read preset failed: {exc}") from exc
 
@@ -294,14 +303,10 @@ def discard(request: Request) -> dict[str, Any]:
 
 
 async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, Any]:
-    """Persist a clean, successful apply into a snapshot. profile/save writes the
-    working config (already the preset ⊕ edits) into the named snapshot; no
-    restart. Only called when the apply itself succeeded."""
-    try:
-        await manager.save_profile(name)
-    except (ControlError, httpx.HTTPError) as exc:
-        return {"name": name, "ok": False, "error": str(exc)}
-    return {"name": name, "ok": True}
+    """Persist a clean, successful apply into the named preset (store + daemon
+    mirror). Only called when the apply itself succeeded, so the running config
+    already carries the edits. ``save_preset`` reports its own failure."""
+    return await manager.save_preset(name)
 
 
 @router.post("/config/apply")
@@ -376,21 +381,37 @@ async def restore(request: Request, cfgfile: Annotated[UploadFile, File()]) -> d
 async def profile(action: str, body: ProfileBody, request: Request) -> dict[str, Any]:
     manager = _mgr(request)
     methods = {
-        "load": manager.load_profile,
-        "save": manager.save_profile,
-        "delete": manager.delete_profile,
+        "load": manager.load_preset,
+        "save": manager.save_preset,
+        "delete": manager.delete_preset,
     }
     if action not in methods:
         raise HTTPException(status_code=404, detail=f"unknown profile action: {action}")
     if not body.name:
         raise HTTPException(status_code=422, detail="profile name required")
     try:
-        await methods[action](body.name)
+        return await methods[action](body.name)
+    except PresetError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return {"action": action, "name": body.name, "submitted": True}
+
+
+@router.delete("/preset/{name}")
+async def delete_preset(name: str, request: Request) -> dict[str, Any]:
+    """Delete a preset from the store and remove its daemon mirror (Delete button
+    on the preset picker)."""
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    try:
+        return await manager.delete_preset(name)
+    except PresetError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ControlError, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail=f"delete preset failed: {exc}") from exc
 
 
 def create_app(cfg: Config | None = None) -> FastAPI:
