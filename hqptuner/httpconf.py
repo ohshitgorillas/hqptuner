@@ -7,6 +7,7 @@ structure. This is the sole persistent-config read path (roadmap §2.1
 decision — no direct hqplayerd.xml parsing).
 """
 
+import re
 from typing import Any
 
 import httpx
@@ -109,6 +110,71 @@ def parse_config_form(html: str) -> dict[str, Any]:
     return {"fields": fields, "profiles": profiles}
 
 
+# /matrix pipeline-table fields are indexed per row: source_0, gain_0, ... The
+# `plot` checkbox is a client-side toggle and `filter` the upload slot — neither
+# carries config state, so rows keep only the five value-bearing columns.
+_MATRIX_ROW_RE = re.compile(r"^(source|gain|gainunit|mixdown|process|plot|filter)_(\d+)$")
+_MATRIX_ROW_SKIP = ("plot", "filter")
+
+
+def _matrix_active(soup: BeautifulSoup) -> str:
+    """The active matrix profile name, printed as ``<b>Active: </b>NAME`` on the
+    form (``[Default]`` = the unnamed default)."""
+    for b in soup.find_all("b"):
+        if b.get_text(strip=True).startswith("Active:"):
+            text = b.next_sibling
+            if isinstance(text, str):
+                return text.strip()
+    return ""
+
+
+def _matrix_profiles(soup: BeautifulSoup, profile_field: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The profile text input joined with its ``<datalist>`` options (the saved
+    matrix profiles). The generic parser sees only a bare text input — the
+    options live in a datalist the input references by id."""
+    if profile_field is None:
+        return None
+    datalist = soup.find("datalist")
+    options = [
+        {"value": opt.get("value", ""), "label": opt.get_text(strip=True)}
+        for opt in (datalist.find_all("option") if isinstance(datalist, Tag) else [])
+    ]
+    return {**profile_field, "options": options}
+
+
+def parse_matrix_form(html: str) -> dict[str, Any]:
+    """The /matrix form parsed into ``{fields, rows, profiles, active}``.
+
+    ``fields`` are the flat controls (enabled/engine/expand_hf/iir2fir + the
+    post-process plugin table); ``rows`` groups the indexed pipeline-table fields
+    (``source_N``/``gain_N``/``gainunit_N``/``mixdown_N``/``process_N``) into one
+    dict per pipeline; ``profiles`` is the profile input with its datalist
+    options; ``active`` the printed active-profile name. Tolerates the daemon's
+    malformed gainunit markup (``value="dB""`` — stray quote), which the HTML
+    parser reads as a normal value plus a junk attribute."""
+    base = parse_config_form(html)
+    soup = BeautifulSoup(html, "html.parser")
+    rows: dict[int, dict[str, Any]] = {}
+    fields: list[dict[str, Any]] = []
+    profile_field: dict[str, Any] | None = None
+    for f in base["fields"]:
+        m = _MATRIX_ROW_RE.match(f.get("name") or "")
+        if m:
+            if m.group(1) not in _MATRIX_ROW_SKIP:
+                rows.setdefault(int(m.group(2)), {})[m.group(1)] = f.get("value")
+            continue
+        if f.get("name") == "profile":
+            profile_field = f
+            continue
+        fields.append(f)
+    return {
+        "fields": fields,
+        "rows": [{"index": i, **rows[i]} for i in sorted(rows)],
+        "profiles": _matrix_profiles(soup, profile_field),
+        "active": _matrix_active(soup),
+    }
+
+
 _PROFILE_ACTIONS = ("load", "save", "delete")
 
 
@@ -126,12 +192,13 @@ class HttpConfigClient:
         return parse_config_form(resp.text)
 
     async def get_matrix(self) -> dict[str, Any]:
-        """GET /matrix — the pipeline/post-processing form (Bauer crossfeed, DAC
-        correction, loudness). Same parser as /config; the daemon rejects a
-        partial POST here too, so writes overlay a fresh read (manager)."""
+        """GET /matrix — the pipeline/post-processing form (pipeline rows, matrix
+        profiles, Bauer crossfeed, DAC correction, loudness). The daemon silently
+        ignores a partial POST here too (docs/matrix-spec.md probe findings), so
+        writes overlay a fresh read (manager)."""
         resp = await self._client.get("/matrix")
         resp.raise_for_status()
-        return parse_config_form(resp.text)
+        return parse_matrix_form(resp.text)
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`

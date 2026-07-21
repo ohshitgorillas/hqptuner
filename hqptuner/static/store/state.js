@@ -61,6 +61,21 @@ export function httpFieldMap(entry) {
   return entry.endpoint === "matrix" ? matrixByName.value : configByName.value;
 }
 
+// Matrix tab read model: pipeline rows (grouped by the backend parser), saved
+// profile names (4321 MatrixListProfiles, falling back to the form datalist),
+// and the active profile ("" / "[Default]" = the unnamed default).
+export const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows) || []);
+export const matrixProfiles = computed(() => {
+  const m = matrixConfig.value || {};
+  if (m.live_profiles && m.live_profiles.length) return m.live_profiles;
+  return ((m.profiles && m.profiles.options) || []).map((o) => o.value).filter(Boolean);
+});
+export const matrixActiveProfile = computed(() => {
+  const m = matrixConfig.value || {};
+  const name = m.live_active || (m.active !== "[Default]" ? m.active : "");
+  return name || "[Default]";
+});
+
 // Running config read from the config XML, in form-field terms (manager.file_config).
 // The /config form is lossy where a setting's XML domain is wider than the widget
 // the daemon renders for it: volume_fixed is 0/1/2 in the XML (off / −3 dB / −6 dB)

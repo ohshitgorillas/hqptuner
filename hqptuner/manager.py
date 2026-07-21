@@ -29,7 +29,7 @@ import httpx
 
 from . import engineconf, enginelane, httplane, logtail, presetconf, presetlane
 from .config import Config
-from .control import ControlClient, ControlError
+from .control import CommandError, ControlClient, ControlError
 from .httpconf import HttpConfigClient
 from .presetstore import PresetStore
 from .writer import apply_live
@@ -69,6 +69,9 @@ class ConnectionManager:
         self.config_error: str | None = None
         self.matrix_form: dict[str, Any] | None = None
         self.matrix_error: str | None = None
+        # Saved matrix profile names from the live 4321 lane (MatrixListProfiles —
+        # unauthenticated, no reload). The active one is State.matrix_profile.
+        self.matrix_profiles: list[str] | None = None
         self.loaded_at: float | None = None
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
         # Running config read from the config FILE (the /backup archive's working
@@ -137,6 +140,9 @@ class ConnectionManager:
         status, meta = await client.get_status()
         vrange = await client.get_volume_range()
         enums = await client.get_all_enumerations()
+        matrix_profiles: list[str] | None = None
+        with contextlib.suppress(CommandError):  # older engines may not speak Matrix*
+            matrix_profiles = await client.get_matrix_profiles()
 
         config_form = None
         config_error = None
@@ -170,6 +176,7 @@ class ConnectionManager:
         self.active_config = active_config
         self.volume_range = vrange
         self.enums = enums
+        self.matrix_profiles = matrix_profiles
         self.config_form, self.config_error = config_form, config_error
         self.matrix_form, self.matrix_error = matrix_form, matrix_error
         self.loaded_at = time.time()
@@ -190,6 +197,8 @@ class ConnectionManager:
         status, meta = await client.get_status()
         self.state, self.status, self.status_metadata = state, status, meta
         self.volume_range = await client.get_volume_range()
+        with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
+            self.matrix_profiles = await client.get_matrix_profiles()
         # external changes (preset loads, the DAC changing, HQPlayer's own UI)
         # rewrite the http forms without any HQPTuner apply — refetch each poll so
         # the config/matrix snapshots track reality instead of only connect-time.

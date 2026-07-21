@@ -12,6 +12,7 @@ import { VolumeRangeBar } from "./VolumeRangeBar.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { HardwareCard, BackupRestoreCard } from "./SystemHardware.js";
 import { LogTail } from "./LogTail.js";
+import { MatrixTab } from "./MatrixTab.js";
 import { CrossfeedPlot, LoudnessPlot } from "./plots.js";
 import { accent, applyAccent, ACCENTS } from "../store/theme.js";
 import { Checkbox } from "./controls/index.js";
@@ -421,6 +422,7 @@ const TABS = [
   ["resampling", "Resampling", Resampling],
   ["dsp", "DSP", Dsp],
   ["volume", "Volume", Volume],
+  ["matrix", "Matrix", MatrixTab],
   ["system", "System", System],
 ];
 

@@ -173,6 +173,13 @@ class ControlClient:
         meta = root.find("metadata")
         return dict(root.attrib), (dict(meta.attrib) if meta is not None else None)
 
+    async def get_matrix_profiles(self) -> list[str]:
+        """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile`
+        children). Verified live on 6.0.4 (docs/matrix-spec.md probe findings):
+        unauthenticated, live lane, no reload."""
+        root = await self.request("<MatrixListProfiles/>")
+        return [item.attrib.get("name", "") for item in root]
+
     async def get_enumeration(self, command: str) -> list[dict[str, str]]:
         root = await self.request(f"<{command}/>")
         return [dict(item.attrib) for item in root]
