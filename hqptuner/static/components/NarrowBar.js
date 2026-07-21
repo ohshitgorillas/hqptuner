@@ -4,7 +4,15 @@
 // ½-apodizing sub-toggle) sit on the control row below it. Presentational only.
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
+import { metadata } from "../store/state.js";
 import { nGenre, nQuality, nFocus, nPhase, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
+
+// manual prose for the apodizing toggle (settings.json dsp.show_apodizing_only)
+function apodTip() {
+  const s = (metadata.value && metadata.value.settings) || {};
+  const e = s.dsp && s.dsp.show_apodizing_only;
+  return (e && e.tooltip) || "";
+}
 
 const GENRES = ["pop", "rock", "jazz", "blues", "classical", "electronic"];
 const QUALITY = [
@@ -138,7 +146,7 @@ export function NarrowBar() {
             ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
             : null}
           <div class="apod-stack">
-            <label class="narrow-apod">
+            <label class="narrow-apod" title=${apodTip()}>
               <input type="checkbox" checked=${nApod.value} onChange=${(e) => (nApod.value = e.target.checked)} />
               Show apodizing only (1x)
             </label>

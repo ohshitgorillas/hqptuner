@@ -15,6 +15,7 @@ import {
   split,
   discardAll,
   applyAll,
+  savePresetOnly,
   reachable,
   applying,
   lastApply,
@@ -43,25 +44,27 @@ async function onApply() {
   }
 }
 
-async function onApplySave() {
-  const name = saveTarget();
-  if (!name) return;
+// With nothing staged, saving still works: it persists the CURRENT running
+// config to the preset (no arbitrary edit needed to light the button).
+async function saveVia(name, pend) {
   try {
-    await applyAll({ name });
+    if (pend) await applyAll({ name });
+    else await savePresetOnly(name);
   } catch {
     /* surfaced via lastApply */
   }
 }
 
-async function onSaveNew() {
+async function onApplySave(pend) {
+  const name = saveTarget();
+  if (name) await saveVia(name, pend);
+}
+
+async function onSaveNew(pend) {
   const name = (prompt("Save current settings as a new preset:") || "").trim();
   if (!name) return;
   if (existingPresets().includes(name) && !confirm(`Preset "${name}" already exists. Overwrite it?`)) return;
-  try {
-    await applyAll({ name });
-  } catch {
-    /* surfaced via lastApply */
-  }
+  await saveVia(name, pend);
 }
 
 function statusLine(n, sp, busy, reach, result, switchName) {
@@ -94,13 +97,17 @@ export function PendingBar() {
       <button onClick=${discardAll} disabled=${busy || !pend}>Discard</button>
       <button class="primary" onClick=${onApply} disabled=${!canApply}>${busy ? "Applying…" : "Apply"}</button>
       <button
-        onClick=${onApplySave}
-        disabled=${!canApply || !target}
-        title=${target ? `Apply and save to "${target}"` : "No named preset to save to ([default])"}
+        onClick=${() => onApplySave(pend)}
+        disabled=${busy || !reach || !target}
+        title=${target
+          ? pend
+            ? `Apply and save to "${target}"`
+            : `Save the current settings to "${target}"`
+          : "No named preset to save to ([default])"}
       >
-        Apply & Save
+        ${pend ? "Apply & Save" : "Save"}
       </button>
-      <button onClick=${onSaveNew} disabled=${!canApply}>Save as New…</button>
+      <button onClick=${() => onSaveNew(pend)} disabled=${busy || !reach}>Save as New…</button>
     </footer>
   `;
 }

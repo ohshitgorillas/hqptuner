@@ -360,6 +360,26 @@ export async function applyAll(save) {
   }
 }
 
+// Standalone save — persist the CURRENT running config to a named preset with
+// nothing staged (the "I like this, keep it" path). Reuses the applying signal:
+// the save lane POSTs /restore, so the daemon briefly restarts just like an apply.
+export async function savePresetOnly(name) {
+  applying.value = true;
+  try {
+    const r = await api.profile("save", name);
+    lastApply.value = r.ok
+      ? { ok: true, text: `Saved to "${r.name}"` }
+      : { ok: false, text: `Save to "${r.name}" failed: ${r.error}` };
+    await refreshConfig();
+    return r;
+  } catch (e) {
+    lastApply.value = { ok: false, text: `Save failed: ${e.message}` };
+    throw e;
+  } finally {
+    applying.value = false;
+  }
+}
+
 // --- polling: mirror the backend's already-polled snapshots ---
 async function safe(fn) {
   try {

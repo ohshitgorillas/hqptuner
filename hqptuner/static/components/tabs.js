@@ -118,13 +118,27 @@ function DeviceAlert() {
   </div>`;
 }
 
-const Output = () =>
-  html`<section class="tab-body">
+// Mode / Backend / Rate lead the tab as the three master switches; DAC
+// correction lives here too (it corrects the selected output device's signal).
+const Output = () => {
+  const dacOn = truthy(effective("dac_correction_enabled"));
+  return html`<section class="tab-body">
     <${DeviceAlert} />
     <div class="top-row">
       <div class="box seg-box">
+        <div class="box-title">Mode</div>
+        <${Field} k="output_mode" />
+      </div>
+      <div class="box seg-box">
         <div class="box-title">Backend</div>
         <${Field} k="backend" />
+      </div>
+      <div class="box">
+        <div class="box-title">Rate</div>
+        <div class="rate-stack">
+          <${Field} k="pcm_rate" />
+          <${Field} k="sdm_rate" />
+        </div>
       </div>
     </div>
     <${Card} title="General">
@@ -157,7 +171,16 @@ const Output = () =>
         <${Field} k="net_ipv6" />
       </div>
     <//>
+    <${Card} title="DAC correction">
+      <div class="pack">
+        <${Field} k="dac_correction_enabled" />
+        <div class="indent ${dacOn ? "" : "off"}">
+          <${Field} k="dac_correction_profile" />
+        </div>
+      </div>
+    <//>
   </section>`;
+};
 
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
@@ -226,19 +249,6 @@ export function LoudnessCard() {
 
 const Resampling = () =>
   html`<${Section}>
-    <div class="top-row">
-      <div class="box seg-box">
-        <div class="box-title">Mode</div>
-        <${Field} k="output_mode" />
-      </div>
-      <div class="box">
-        <div class="box-title">Rate</div>
-        <div class="rate-stack">
-          <${Field} k="pcm_rate" />
-          <${Field} k="sdm_rate" />
-        </div>
-      </div>
-    </div>
     <${NarrowBar} />
     <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
       <div class="pack chain">
@@ -269,23 +279,13 @@ const Resampling = () =>
     <//>
   <//>`;
 
-// DAC correction leads the DSP page; the profile dims to non-interactive when
-// correction is off (property has no effect until enabled).
-const Dsp = () => {
-  const dacOn = truthy(effective("dac_correction_enabled"));
-  return html`<${Section}>
-    <${Card} title="DAC correction">
-      <div class="pack">
-        <${Field} k="dac_correction_enabled" />
-        <div class="indent ${dacOn ? "" : "off"}">
-          <${Field} k="dac_correction_profile" />
-        </div>
-      </div>
-    <//>
+// DSP is the post-processing pair; DAC correction moved to Output (it belongs
+// to the selected output device).
+const Dsp = () =>
+  html`<${Section}>
     <${CrossfeedCard} />
     <${LoudnessCard} />
   <//>`;
-};
 
 const Volume = () =>
   html`<${Section}>
