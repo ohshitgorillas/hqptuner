@@ -94,7 +94,7 @@ function Selection({ applyText }) {
       <span class="mtx-lib-model">${p.model}</span>
       <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
       <span class="mtx-lib-bands">${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on the Response card</span>
-      <button type="button" class="mtx-tool mtx-primary" onClick=${() => applyText(p.text)}>Apply to pipelines</button>
+      <button type="button" class="mtx-tool mtx-primary" onClick=${() => applyText(p.text)}>Load for import</button>
       <button type="button" class="mtx-tool" onClick=${clearLibrarySelection}>Clear</button>
     </div>
   `;

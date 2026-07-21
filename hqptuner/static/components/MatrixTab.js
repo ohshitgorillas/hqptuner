@@ -380,7 +380,7 @@ function RawEditor({ row, update }) {
   `;
 }
 
-function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
+function FlowRow({ row, index, dirty, summing, canRemove, update, remove, importHere }) {
   const stages = parseProcess(row.process);
   const raw = !!rawRows.value[index];
   const sel = selected.value;
@@ -428,6 +428,15 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
           ${summing ? html`<span class="psum" title="mixed with other pipelines on this output">Σ</span>` : null}
         </div>
         <div class="mtx-row-tools">
+          <button
+            type="button"
+            class="mtx-tool"
+            disabled=${!importText.value.trim()}
+            title=${importText.value.trim()
+              ? "Append the loaded EQ to this pipeline"
+              : "Load or paste EQ text first (Headphone AutoEQ card)"}
+            onClick=${importHere}
+          >Import EQ</button>
           <button type="button" class="mtx-tool ${raw ? "active" : ""}" title="Edit the raw process string" onClick=${toggleRaw}>{ }</button>
           <button
             type="button"
@@ -468,17 +477,19 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
 // stagePipelines op, Discard undoes it.
 const eqCardOpen = signal(false);
 const importText = signal("");
-const importTarget = signal(0);
 const importMirror = signal(true);
 const importNote = signal("");
 
-function doImport(rows) {
+// Import is PER PIPELINE: every source (paste / .txt load / library profile)
+// only fills importText; the append happens from the target row's own
+// "Import EQ" tool (+ optional stereo-pair mirror).
+function doImport(rows, targetIndex) {
   const { preamp, stages, skipped } = parseEqText(importText.value);
   if (!stages.length) {
     importNote.value = `no filters found${skipped.length ? ` — ${skipped.length} line(s) skipped` : ""}`;
     return;
   }
-  const target = Math.min(importTarget.value, rows.length - 1);
+  const target = Math.min(targetIndex, rows.length - 1);
   const pair = importMirror.value && rows.length > 1 ? (target % 2 === 0 ? target + 1 : target - 1) : null;
   const targets = new Set(pair !== null && pair < rows.length ? [target, pair] : [target]);
   const addition = serializeProcess(stages);
@@ -494,22 +505,30 @@ function doImport(rows) {
     (skipped.length ? ` · skipped: ${skipped.join("; ")}` : "");
 }
 
-function ImportPanel({ rows }) {
-  const onFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    file.text().then((t) => (importText.value = t));
-  };
-  // Library apply routes through the EXACT paste path: the profile's verbatim
-  // ParametricEQ.txt lands in the textarea and goes through doImport, so the
-  // staged stages are identical to pasting the file (acceptance criterion).
-  const applyText = (text) => {
+// Shared by the panel and the always-visible header button: load a .txt into
+// the import textarea and make sure the card is open so the next step (target
+// pick + Import) is in view. Input value resets so the same file re-fires.
+function loadEqFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  file.text().then((t) => {
+    importText.value = t;
+    eqCardOpen.value = true;
+  });
+  e.target.value = "";
+}
+
+function ImportPanel() {
+  // Library "load" routes through the EXACT paste path: the profile's verbatim
+  // ParametricEQ.txt lands in the textarea, and the row-level Import EQ tool
+  // runs it through doImport — identical to pasting the file.
+  const loadText = (text) => {
     importText.value = text;
-    doImport(rows);
+    importNote.value = "profile loaded — press a pipeline's Import EQ tool to apply it";
   };
   return html`
     <div class="mtx-import">
-      <${LibraryPicker} applyText=${applyText} />
+      <${LibraryPicker} applyText=${loadText} />
       <textarea
         rows="5"
         placeholder=${"Paste an AutoEq ParametricEQ.txt or a REW Generic EQ export…\nFilter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41"}
@@ -517,12 +536,6 @@ function ImportPanel({ rows }) {
         onInput=${(e) => (importText.value = e.target.value)}
       ></textarea>
       <div class="mtx-profile-row">
-        <label class="btn mtx-file-btn">
-          Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${onFile} />
-        </label>
-        <select value=${String(importTarget.value)} onChange=${(e) => (importTarget.value = Number(e.target.value))}>
-          ${rows.map((_, i) => html`<option value=${String(i)}>pipeline ${i + 1}</option>`)}
-        </select>
         <label class="mtx-import-mirror">
           <input
             type="checkbox"
@@ -531,9 +544,6 @@ function ImportPanel({ rows }) {
           />
           mirror to stereo pair
         </label>
-        <button type="button" class="mtx-tool" disabled=${!importText.value.trim()} onClick=${() => doImport(rows)}>
-          Import
-        </button>
       </div>
       ${importNote.value ? html`<div class="mtx-issues">${importNote.value}</div>` : null}
     </div>
@@ -541,7 +551,6 @@ function ImportPanel({ rows }) {
 }
 
 function HeadphoneEqCard() {
-  const rows = effectivePipelines.value;
   const open = eqCardOpen.value;
   const toggle = () => {
     eqCardOpen.value = !open;
@@ -552,7 +561,7 @@ function HeadphoneEqCard() {
       <button type="button" class="card-head mtx-eq-head" onClick=${toggle}>
         <span class="tri">${open ? "▾" : "▸"}</span> Headphone AutoEQ
       </button>
-      ${open ? html`<div class="card-body"><${ImportPanel} rows=${rows} /></div>` : null}
+      ${open ? html`<div class="card-body"><${ImportPanel} /></div>` : null}
     </section>
   `;
 }
@@ -592,12 +601,18 @@ function PipelinesCard() {
               canRemove=${rows.length > 1}
               update=${(patch) => update(i, patch)}
               remove=${() => remove(i)}
+              importHere=${() => doImport(rows, i)}
             />
           `,
         )}
-        <button type="button" class="mtx-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>
-          + Add pipeline
-        </button>
+        <div class="mtx-pipelines-actions">
+          <button type="button" class="mtx-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>
+            + Add pipeline
+          </button>
+          <label class="btn mtx-file-btn">
+            Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
+          </label>
+        </div>
       </div>
     </section>
   `;
