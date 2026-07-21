@@ -114,9 +114,11 @@ export function Field({ k }) {
   // inline note is hidden (visible note + identical hover would be duplication).
   const hoverTip = entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
   // hoverNote fields (the rate pair): hover is their ONLY prose surface, so the
-  // tooltip outranks the gray reason; everywhere else the reason explains the
-  // disabled control and wins.
-  const title = entry.hoverNote ? hoverTip || reason : reason || hoverTip;
+  // tooltip outranks the gray reason. Elsewhere the reason takes the hover only
+  // when its visible caption is suppressed (quietGray) — a visible caption plus
+  // the same text on hover is duplication.
+  const captionVisible = !!reason && !entry.quietGray;
+  const title = entry.hoverNote ? hoverTip || reason : captionVisible ? hoverTip : reason || hoverTip;
   return html`
     <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}" title=${title}>
       <label>${label}</label>
@@ -143,7 +145,7 @@ export function Field({ k }) {
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${entry.desc && descVisible.value ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options, meta)}</div>` : null}
       ${!entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value ? html`<div class="field-note">${meta.tooltip}</div>` : null}
-      ${reason && !entry.quietGray ? html`<div class="field-gray-reason">${reason}</div>` : null}
+      ${captionVisible ? html`<div class="field-gray-reason">${reason}</div>` : null}
     </div>
   `;
 }
