@@ -31,14 +31,16 @@ import {
 import { parseEqText } from "../store/eqimport.js";
 import { registerIr } from "../store/dsp.js";
 import { notesVisible } from "../store/prefs.js";
-import { MatrixPlot, plottedRows, togglePlotted } from "./MatrixPlot.js";
+import { MatrixPlot, plottedRows, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
 
 const MAX_CH = 128;
 const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
 
-// selection: {row, stage} of the docked editor; rawRows: row-index -> raw view
-const selected = signal(null);
+// selection: {row, stage} of the docked editor — the shared signal from
+// MatrixPlot, so the selected chip's plot dot highlights in step.
+// rawRows: row-index -> raw view
+const selected = selectedStage;
 const rawRows = signal({});
 const dragFrom = signal(null); // {row, stage} of a chip drag in progress
 // A conv stage with no file serializes to an empty raw and would vanish from
@@ -499,6 +501,9 @@ function doImport(rows, targetIndex) {
     return { ...r, process, ...(preamp !== null ? { gain: preamp, gainunit: "dB" } : {}) };
   });
   stagePipelines(next);
+  // auto-plot the rows the EQ just landed on, so the response curve (and its
+  // drag dots) appears without hunting for the ◉ toggle
+  plottedRows.value = new Set([...plottedRows.value, ...targets]);
   importNote.value =
     `${stages.length} filter(s) → pipeline ${[...targets].map((i) => i + 1).join(" + ")}` +
     (preamp !== null ? `, preamp ${preamp} dB → gain` : "") +
@@ -518,13 +523,14 @@ function loadEqFile(e) {
   e.target.value = "";
 }
 
-function ImportPanel() {
-  // Library "load" routes through the EXACT paste path: the profile's verbatim
-  // ParametricEQ.txt lands in the textarea, and the row-level Import EQ tool
-  // runs it through doImport — identical to pasting the file.
+function ImportPanel({ rows }) {
+  // Library "Load profile" is ONE click: the profile's verbatim ParametricEQ.txt
+  // lands in the textarea and applies immediately to pipeline 1 (+ its stereo
+  // pair per the mirror checkbox) — the standard headphone case. The paste /
+  // .txt lanes stay per-row (arbitrary EQ needs an explicit target).
   const loadText = (text) => {
     importText.value = text;
-    importNote.value = "profile loaded — press a pipeline's Import EQ tool to apply it";
+    doImport(rows, 0);
   };
   return html`
     <div class="mtx-import">
@@ -561,7 +567,7 @@ function HeadphoneEqCard() {
       <button type="button" class="card-head mtx-eq-head" onClick=${toggle}>
         <span class="tri">${open ? "▾" : "▸"}</span> Headphone Auto EQ
       </button>
-      ${open ? html`<div class="card-body"><${ImportPanel} /></div>` : null}
+      ${open ? html`<div class="card-body"><${ImportPanel} rows=${effectivePipelines.value} /></div>` : null}
     </section>
   `;
 }

@@ -109,10 +109,10 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
         ${(handles || []).map(
           (h) => html`
             <circle
-              class="plot-dot"
+              class="plot-dot ${h.kind || ""} ${h.active ? "active" : ""}"
               cx=${xOf(clamp(h.f, F0, F1)).toFixed(1)}
               cy=${yOf(h.db).toFixed(1)}
-              r="7"
+              r=${h.active ? "9" : "7"}
               onPointerDown=${startDrag(h)}
             />
           `,
