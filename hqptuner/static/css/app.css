@@ -263,7 +263,16 @@ body {
   font-weight: 500;
 }
 
-/* tabs */
+/* sticky chrome — header + signal path + tab bar stay pinned while the tab
+   body scrolls beneath; opaque background so content never shows through. */
+.chrome-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg);
+}
+
+/* tabs — spread across the full container width, one equal cell each */
 .tab-nav {
   display: flex;
   gap: 0.25rem;
@@ -271,13 +280,14 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .tab-nav button {
+  flex: 1;
   background: none;
   border: none;
   color: var(--muted);
   padding: 0.5rem 0.9rem;
   border-radius: 0.4rem 0.4rem 0 0;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
 }
 .tab-nav button.active {
   color: var(--fg);
@@ -786,6 +796,12 @@ input[type="checkbox"]:disabled {
      the column itself is the cap (label + gap + control always fits the track). */
   .pack > .span {
     grid-column: 1 / -1;
+  }
+  /* a "split" pack draws a hairline between its two tracks (crossfeed
+     Enable | Preset) so the pair reads as two distinct controls. */
+  .pack.split > .field + .field {
+    border-left: 1px solid var(--line);
+    padding-left: var(--sp-4);
   }
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
      (column-first over two rows) with the secondary control in the right track,

@@ -27,13 +27,18 @@ class StaticMetadata:
     def filter_entry(self, name: str) -> dict[str, Any] | None:
         db: dict[str, dict[str, Any]] = self._filters_db["filters"]
         aliases: dict[str, str] = self._filters_db.get("aliases", {})
+        two_stage = False
         while True:
-            if name in db:
-                return db[name]
-            if name in aliases and aliases[name] in db:
-                return db[aliases[name]]
+            entry = db.get(name) or db.get(aliases.get(name, ""))
+            if entry is not None:
+                if not two_stage:
+                    return entry
+                note = self._filters_db.get("two_stage_note", "")
+                desc = entry.get("description", "")
+                return {**entry, "description": f"{desc} {note}".strip()}
             if name.endswith("-2s"):
                 name = name[: -len("-2s")]
+                two_stage = True
                 continue
             return None
 

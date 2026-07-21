@@ -41,10 +41,22 @@ function selectionDescription(entry, value, options, meta) {
   if (!name) return "";
   const md = metadata.value || {};
   if (entry.desc === "filter") {
+    // Join rules (data/filters.json _join_rules): exact -> alias -> strip a
+    // '-2s' suffix and append the two-stage note to the base description.
     const fdb = (md.filters && md.filters.filters) || {};
     const aliases = (md.filters && md.filters.aliases) || {};
-    const e = fdb[name] || fdb[aliases[name]];
-    return (e && e.description) || "";
+    let n = name;
+    let twoStage = false;
+    for (;;) {
+      const e = fdb[n] || fdb[aliases[n]];
+      if (e) {
+        const desc = e.description || "";
+        return twoStage ? `${desc} ${md.filters.two_stage_note || ""}`.trim() : desc;
+      }
+      if (!n.endsWith("-2s")) return "";
+      n = n.slice(0, -3);
+      twoStage = true;
+    }
   }
   const shapers = md.shapers || {};
   const db = entry.desc === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;

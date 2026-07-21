@@ -169,7 +169,7 @@ export function CrossfeedCard() {
   return html`
     <${Card} title="Crossfeed">
       <div class="dsp-card">
-        <div class="pack">
+        <div class="pack split">
           <${Field} k="crossfeed_enabled" />
           <${Field} k="crossfeed_preset" />
         </div>
@@ -426,8 +426,9 @@ const TABS = [
   ["system", "System", System],
 ];
 
-export function TabNav() {
-  const Body = (TABS.find((t) => t[0] === active.value) || TABS[0])[2];
+// Bar and body render separately so the bar can live inside the sticky chrome
+// wrapper (App.js) while the body scrolls beneath it.
+export function TabBar() {
   return html`
     <nav class="tab-nav">
       ${TABS.map(
@@ -436,6 +437,10 @@ export function TabNav() {
         `,
       )}
     </nav>
-    <${Body} />
   `;
+}
+
+export function TabBody() {
+  const Body = (TABS.find((t) => t[0] === active.value) || TABS[0])[2];
+  return html`<${Body} />`;
 }
