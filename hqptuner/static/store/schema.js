@@ -159,7 +159,7 @@ export const schema = {
   // active mode. Basic pass uses the http form (option lists come from the live
   // page via optionsFrom 'config'). Crossfeed / DAC correction / filter narrowing
   // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
-  // Mode graying is handled by the PCM/SDM collapsibles auto-closing (tabs.js),
+  // Mode graying is handled by the PCM/SDM collapsibles auto-closing (ResamplingTab.js),
   // not per-field grayWhen. desc drives the inline manual description line.
   pcm_filter_1x: { label: "1x filter", group: "dsp", note: "filter_1x", widget: "dropdown", lane: "http", field: "filter1x", optionsFrom: "config", wide: true, narrow: "1x", desc: "filter" },
   pcm_filter_nx: { label: "Nx filter", group: "dsp", note: "filter_nx", widget: "dropdown", lane: "http", field: "filter", optionsFrom: "config", wide: true, narrow: "nx", desc: "filter" },
