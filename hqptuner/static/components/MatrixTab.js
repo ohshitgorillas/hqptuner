@@ -516,7 +516,9 @@ function ImportPanel({ rows }) {
         onInput=${(e) => (importText.value = e.target.value)}
       ></textarea>
       <div class="mtx-profile-row">
-        <input type="file" accept=".txt" onChange=${onFile} />
+        <label class="btn mtx-file-btn">
+          Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${onFile} />
+        </label>
         <select value=${String(importTarget.value)} onChange=${(e) => (importTarget.value = Number(e.target.value))}>
           ${rows.map((_, i) => html`<option value=${String(i)}>pipeline ${i + 1}</option>`)}
         </select>

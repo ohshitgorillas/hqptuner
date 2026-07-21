@@ -9,6 +9,7 @@ export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] =
 export const nQuality = signal(0); // 0 = any, else minimum quality (3 | 4 | 5)
 export const nFocus = signal([]); // multi-select: transients | timbre | space
 export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)
+export const nLength = signal([]); // multi-select: short | medium | long ([] = any)
 // apodizing-only (1x filters only) — on by default: apodizing is the sane
 // starting point for 1x, and the unfiltered 1x list is 60-77 entries deep.
 export const nApod = signal(true);
@@ -24,6 +25,7 @@ export const narrowingActive = computed(
       nQuality.value ||
       nFocus.value.length ||
       nPhase.value ||
+      nLength.value.length ||
       !nApod.value ||
       nApodHalf.value
     ),
@@ -34,6 +36,7 @@ export function resetNarrowing() {
   nQuality.value = 0;
   nFocus.value = [];
   nPhase.value = "";
+  nLength.value = [];
   nApod.value = true; // matches the default above, not a bare clear
   nApodHalf.value = false;
 }
@@ -49,9 +52,10 @@ export function narrowOptions(options, current, stage) {
   const q = Number(nQuality.value);
   const fo = nFocus.value;
   const ph = nPhase.value;
+  const len = nLength.value;
   const ap = nApod.value && stage === "1x";
   const half = nApodHalf.value;
-  if (!(g.length || q || fo.length || ph || ap)) return options;
+  if (!(g.length || q || fo.length || ph || len.length || ap)) return options;
   const facets = filterFacets.value;
   return options.filter((o) => {
     if (String(o.value) === String(current)) return true;
@@ -61,6 +65,7 @@ export function narrowOptions(options, current, stage) {
     if (q && !(f.quality != null && f.quality >= q)) return false;
     if (fo.length && !fo.some((x) => f.focus.includes(x))) return false;
     if (ph && f.phase !== ph) return false;
+    if (len.length && !len.includes(f.length)) return false;
     if (ap && !(f.apodizing || (half && f.apodizingHalf))) return false;
     return true;
   });

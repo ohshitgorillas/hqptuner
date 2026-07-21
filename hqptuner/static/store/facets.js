@@ -32,6 +32,17 @@ function phase(name) {
   return "";
 }
 
+// length — short / medium / long from explicit name tokens (short/shrt, hb-xs/
+// hb-s, long, xl/xla, hb-l, the million-tap closed-form-M/16M); names carrying
+// no length token read as medium. Verified against the manual's own wording
+// ("Short … halfband" for hb-s, "Long …" for hb-l, "8-times-longer" for -xl).
+function length(name) {
+  const n = name || "";
+  if (/short|shrt|-hb-xs(-|$)|-hb-s(-|$)/.test(n)) return "short";
+  if (/long|-xla?(-|$)|-hb-l(-|$)|16M|-M$/.test(n)) return "long";
+  return "medium";
+}
+
 // name -> {genre:[], quality:int|null, focus:[], phase:string, apodizing:bool}
 export const filterFacets = computed(() => {
   const map = {};
@@ -41,6 +52,7 @@ export const filterFacets = computed(() => {
       quality: quality(it.description),
       focus: focus(it.description),
       phase: phase(it.name),
+      length: length(it.name),
       apodizing: !!it.apodizing,
       apodizingHalf: (Number(it.arg) & 2) === 2,
     };
