@@ -15,8 +15,6 @@
 services:
   hqptuner:
     image: ghcr.io/ohshitgorillas/hqptuner:latest
-    # To build locally instead: comment `image:` above, uncomment:
-    # build: .
     container_name: hqptuner
     restart: unless-stopped
 
@@ -24,13 +22,6 @@ services:
       - "8090:8090"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
-    # --- Host-network alternative ---------------------------------------
-    # Escape hatch if the bridged path doesn't work in your setup (e.g. a
-    # firewall dropping traffic from the Docker bridge): comment `ports:`
-    # and `extra_hosts:` above, uncomment the next line, and set
-    # HQPTUNER_HQP_HOST to 127.0.0.1 (or the remote daemon's address).
-    # network_mode: host
 
     environment:
       HQPTUNER_HQP_HOST: host.docker.internal
@@ -41,8 +32,4 @@ services:
 
     volumes:
       - ./state:/state
-      # Log tail (System tab): HQPTuner reads hqplayerd's log file straight
-      # from the filesystem, so mount it read-only at the SAME path your
-      # daemon's log setting names (<log file="..."/> in hqplayerd.xml).
-      # Optional — everything else works without it.
       - /tmp/hqplayerd.log:/tmp/hqplayerd.log:ro

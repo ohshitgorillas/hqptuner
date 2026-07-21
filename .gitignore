@@ -22,3 +22,7 @@ presets/
 
 # agent instructions — private, local only
 CLAUDE.md
+
+# local docker test stack + its state
+docker-compose.yaml
+state/
