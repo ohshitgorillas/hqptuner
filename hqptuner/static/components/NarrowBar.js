@@ -5,7 +5,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
 import { metadata } from "../store/state.js";
-import { nGenre, nQuality, nFocus, nPhase, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
+import { nGenre, nQuality, nFocus, nPhase, nLength, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
 
 // manual prose for the apodizing toggle (settings.json dsp.show_apodizing_only)
 function apodTip() {
@@ -32,11 +32,17 @@ const PHASES = [
   ["minimum", "Minimum"],
   ["intermediate", "Intermediate"],
 ];
+const LENGTHS = [
+  ["short", "Short"],
+  ["medium", "Medium"],
+  ["long", "Long"],
+];
 
 const focusOpen = signal(false);
 const genreOpen = signal(false);
 const qualityOpen = signal(false);
 const phaseOpen = signal(false);
+const lengthOpen = signal(false);
 
 // toggle a value in a multi-select signal (add if absent, remove if present)
 function toggleIn(sig, v) {
@@ -58,6 +64,13 @@ function genreLabel() {
   if (!sel.length) return "Any genre";
   if (sel.length === 1) return cap(sel[0]);
   return `${sel.length} genres`;
+}
+
+function lengthLabel() {
+  const sel = nLength.value;
+  if (!sel.length) return "Any length";
+  if (sel.length === 1) return cap(sel[0]);
+  return `${sel.length} lengths`;
 }
 
 const oneLabel = (items, v, fallback) => (items.find(([iv]) => String(iv) === String(v)) || [null, fallback])[1];
@@ -140,6 +153,7 @@ export function NarrowBar() {
             items=${PHASES}
             onPick=${(v) => (nPhase.value = v)}
           />
+          <${MultiSelect} open=${lengthOpen} label=${lengthLabel()} items=${LENGTHS} sig=${nLength} />
         </div>
         <div class="narrow-right">
           ${narrowingActive.value

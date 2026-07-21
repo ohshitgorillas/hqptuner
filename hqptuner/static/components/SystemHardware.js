@@ -168,17 +168,16 @@ async function onRestore(e) {
   }
 }
 
-export function BackupRestoreCard() {
+// Backup & restore folded into the About card as a maintenance row (its own
+// card was two buttons in a half-track of empty surface).
+export function BackupRestoreRow() {
   return html`
-    <section class="card">
-      <div class="card-head">Backup & restore</div>
-      <div class="card-body">
-        <div class="backup-row">
-          <a class="btn" href="/api/backup" download>Download backup</a>
-          <label class="btn">Upload backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore} /></label>
-        </div>
-        ${restoreStatus.value ? html`<div class="hw-status">${restoreStatus.value}</div>` : null}
+    <div class="about-maint">
+      <div class="backup-row">
+        <a class="btn" href="/api/backup" download>Download backup</a>
+        <label class="btn">Upload backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore} /></label>
       </div>
-    </section>
+      ${restoreStatus.value ? html`<div class="hw-status">${restoreStatus.value}</div>` : null}
+    </div>
   `;
 }

@@ -1043,12 +1043,12 @@ button:disabled {
   align-items: center;
   gap: 0.6rem;
 }
-/* the four facets share one grid: equal widths, one select style across all */
+/* the five facets share one grid row: equal widths, one select style across all */
 .narrow-facets {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.6rem;
 }
 .narrow-facets > *,
@@ -2368,6 +2368,17 @@ select.mtx-ch {
    ("Search headphone model — e.g. HD 650…") clips there */
 .mtx-lib .mtx-profile-row input[type="text"] {
   max-width: var(--w-select);
+}
+/* named file-load button (replaces the browser's bare "Choose file" chrome) */
+.mtx-file-btn {
+  flex: none;
+  white-space: nowrap;
+}
+/* maintenance row inside the About card — hairline-separated from the identity list */
+.about-maint {
+  border-top: 1px solid var(--line);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
 }
 .mtx-lib-credit {
   font-size: 0.75rem;

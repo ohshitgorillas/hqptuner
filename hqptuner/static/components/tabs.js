@@ -10,7 +10,7 @@ import { optionsFor } from "../store/options.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { VolumeRangeBar } from "./VolumeRangeBar.js";
 import { NarrowBar } from "./NarrowBar.js";
-import { HardwareCard, BackupRestoreCard } from "./SystemHardware.js";
+import { HardwareCard, BackupRestoreRow } from "./SystemHardware.js";
 import { LogTail } from "./LogTail.js";
 import { MatrixTab } from "./MatrixTab.js";
 import { CrossfeedPlot, LoudnessPlot } from "./plots.js";
@@ -396,24 +396,22 @@ const System = () =>
     <div class="card-grid">
       <${Card} title="About">
         <${About} />
+        <${BackupRestoreRow} />
       <//>
-      <${BackupRestoreCard} />
+      <${Card} title="Metering">
+        <${Field} k="pre_before_meter" />
+      <//>
     </div>
     <${HardwareCard} />
     <div class="card-grid">
       <${Card} title="DSP pipelines">
         <${Field} k="pipelines" />
       <//>
-      <${Card} title="Metering">
-        <${Field} k="pre_before_meter" />
-      <//>
-    </div>
-    <${Card} title="HQPTuner">
-      <div class="pack">
+      <${Card} title="HQPTuner">
         <${DescriptionPrefs} />
         <${AccentPicker} />
-      </div>
-    <//>
+      <//>
+    </div>
     <${LoggingCard} />
   <//>`;
 
