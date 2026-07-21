@@ -155,7 +155,7 @@ function ProfileCard() {
 function GlobalCard() {
   return html`
     <section class="card">
-      <div class="card-head">Matrix</div>
+      <div class="card-head">General</div>
       <div class="card-body">
         <div class="mtx-global">
           <${Field} k="matrix_enabled" />
@@ -559,7 +559,7 @@ function HeadphoneEqCard() {
   return html`
     <section class="card">
       <button type="button" class="card-head mtx-eq-head" onClick=${toggle}>
-        <span class="tri">${open ? "▾" : "▸"}</span> Headphone AutoEQ
+        <span class="tri">${open ? "▾" : "▸"}</span> Headphone Auto EQ
       </button>
       ${open ? html`<div class="card-body"><${ImportPanel} /></div>` : null}
     </section>

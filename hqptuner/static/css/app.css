@@ -1373,6 +1373,20 @@ button:disabled {
 .dsp-body.off .plot-tlbl.applied {
   fill: var(--muted);
 }
+.dsp-body.off .plot-dot {
+  fill: var(--muted);
+  pointer-events: none;
+}
+/* draggable EQ handle on the response plot (loudness frequency + level) */
+.plot-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  cursor: grab;
+}
+.plot-dot:active {
+  cursor: grabbing;
+}
 .dsp-body.off .knob-slider,
 .dsp-body.off input[type="range"] {
   accent-color: var(--muted);
@@ -2387,7 +2401,10 @@ select.mtx-ch {
 }
 .mtx-eq-head .tri {
   color: var(--accent);
-  margin-right: 0.45rem;
+  margin-right: 0.55rem;
+  font-size: 1.9rem; /* match .collapsible-head .tri */
+  line-height: 1;
+  vertical-align: -0.2em;
 }
 
 /* ── AutoEq profile library (Import-EQ panel) ────────────────────────────── */
