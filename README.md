@@ -88,7 +88,21 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 ## Install & run
 
-Not yet packaged (Docker + compose are planned for release). From a clone:
+### Docker (recommended)
+
+Grab [`compose.yaml`](compose.yaml), put your hqplayerd management credentials in a `.env` file next to it, and start:
+
+```sh
+mkdir -p state   # backups + presets live here; create it first so it's owned by you
+printf 'HQPTUNER_HQP_USERNAME=<user>\nHQPTUNER_HQP_PASSWORD=<pass>\n' > .env
+docker compose up -d
+```
+
+Then open `http://<serverIP>:8090`.
+
+Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) — `latest` tracks master, version tags track releases.
+
+### From a clone (no Docker)
 
 ```sh
 python3 -m venv .venv
@@ -96,8 +110,6 @@ python3 -m venv .venv
 
 HQPTUNER_HQP_USERNAME=<user> HQPTUNER_HQP_PASSWORD=<pass> .venv/bin/python -m hqptuner
 ```
-
-Then open `http://<serverIP>:8090`.
 
 ## Configuration reference
 
@@ -137,7 +149,7 @@ Design and reference docs:
 
 ## Status
 
-**Beta.** Backend and frontend are feature-complete and live-validated against hqplayerd 6.0.4; packaging (Docker + compose) is still to come. Testers welcome — especially advanced matrix users: pipeline setups beyond stereo EQ (multichannel routing, crossovers, per-stage convolution chains) have had far less real-world exercise than the rest of the app. Expect rough edges; back up your config (System → About → Backup) before experimenting. Bug reports with the raw pipeline strings involved are gold.
+**Beta.** Backend and frontend are feature-complete and live-validated against hqplayerd 6.0.4, and Docker packaging is in. Testers welcome — especially advanced matrix users: pipeline setups beyond stereo EQ (multichannel routing, crossovers, per-stage convolution chains) have had far less real-world exercise than the rest of the app. Expect rough edges; back up your config (System → About → Backup) before experimenting. Bug reports with the raw pipeline strings involved are gold.
 
 ## License
 

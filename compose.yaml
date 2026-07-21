@@ -1,0 +1,35 @@
+# HQPTuner — compose deployment.
+#
+# Default assumes hqplayerd runs on the SAME machine (bare metal): standard
+# bridge networking, daemon reached via the Docker host gateway. HQPTuner is a
+# plain TCP client of hqplayerd (4321 + 8088) — no multicast/discovery — so it
+# does not need host networking.
+#
+# Credentials: put HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD in a .env file
+# next to this compose file (never commit it).
+#
+# State: ./state holds config backups and the preset store. Create it before
+# first start (`mkdir -p state`) so it's owned by you, not root — the container
+# runs as uid 1000.
+
+services:
+  hqptuner:
+    image: ghcr.io/ohshitgorillas/hqptuner:latest
+    container_name: hqptuner
+    restart: unless-stopped
+
+    ports:
+      - "8090:8090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    environment:
+      HQPTUNER_HQP_HOST: host.docker.internal
+      HQPTUNER_HQP_USERNAME: ${HQPTUNER_HQP_USERNAME:-}
+      HQPTUNER_HQP_PASSWORD: ${HQPTUNER_HQP_PASSWORD:-}
+      # HQPTUNER_LISTEN_PORT: "8090"
+      # HQPTUNER_HQP_HOME: /var/lib/hqplayer/home
+
+    volumes:
+      - ./state:/state
+      - /tmp/hqplayerd.log:/tmp/hqplayerd.log:ro
