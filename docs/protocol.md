@@ -126,6 +126,24 @@ So it is **not** a restart side effect (`/config` and `/restore` both restart an
 
 **Workaround (`manager._backup_or_cached`, remove when fixed):** the snapshots inside `/backup` don't change across a `profile/load`, and `POST /restore`'s restart **recovers** backup generation. So HQPTuner caches the last healthy archive, warms that cache **before** the switching load (`apply()` with `switch_to`), and falls back to it when the live `/backup` comes back empty; the subsequent `/restore` both applies the edit and heals the daemon. `_verify_persistent` still reads the **live** `/backup` (healthy post-restore) so verification is never against stale cache.
 
+### Preset system — HQPTuner-owned (**verified 2026-07-20**, idle-gated REST-driven probes on 6.0.4)
+
+hqplayerd's named-profile subsystem is unreliable enough that HQPTuner does **not** use `profile/load` or `profile/save` for its preset feature. Findings, all reproduced live:
+
+- **`profile/save` to an existing profile is a silent no-op.** The `/config` profile form carries a `profile` select (existing profiles) *and* a `profile_name` text box (save-as-new). A `save` whose `profile_name` already exists neither errors nor updates `data/cfgs/<name>.xml` — HTTP 200, snapshot unchanged. So "Apply & Save" never persisted to a named preset: the edit landed in the working config (live), the snapshot kept its old value, and the next load reverted it — the "save doesn't take / profiles get confused" bug.
+- **`POST /restore scope=system` lands the daemon on `[default]`.** After a restore the running config is `hqplayerd.xml` (the `/backup` root member is `hqplayerd.xml`, not a named `<Profile>.xml`), and an edit to a root-renamed `<Name>.xml` working member in the uploaded archive is **discarded**. Restore is the one reliable write primitive, but it is `[default]`-centric — it does not restore a named active profile. (This corrects the earlier "keeps the active preset" note above for the restore lane.)
+- **Restore writes members additively.** A `data/cfgs/<name>.xml` in the uploaded zip is written to disk and appears in the daemon's native profile list; a member *omitted* from the zip is **not** removed (restore merges, it does not replace). A snapshot can be created/updated via restore but not deleted — deletion needs `profile/delete` (which does work cleanly).
+
+**HQPTuner's model (`presetstore.py` + `manager` preset methods):** presets are full-config XML files in a store HQPTuner owns (`HQPTUNER_PRESET_DIR`, default `<repo>/presets`, gitignored — user data), which is the source of truth.
+
+- **Load** = restore the preset's config as `hqplayerd.xml` (runs on `[default]`) + mirror it to `data/cfgs/<name>.xml`. Never `profile/load`.
+- **Save / Save-as-New** = snapshot the current running config into the store *and* mirror it to `data/cfgs/<name>.xml` via restore. Never `profile/save`.
+- **Delete** = remove from the store + `profile/delete` for the daemon mirror.
+- **Ephemeral Apply** = edit the running config + restore, touching neither store nor snapshot → reverts on the next preset load (experiment freely without losing a preset).
+- **Migration** = on first connect, import the daemon's existing `data/cfgs/*.xml` into the store (idempotent; store presets win), seeding the active pointer from the daemon's reported active config.
+
+The daemon's `data/cfgs` stays mirrored so its native web UI keeps showing the presets, but it is never HQPTuner's load/save path. Validated live: save → load-away → load-back preserves the change (the old bug evaporated it); back-to-back loads survive the restart window.
+
 ## 4. Response conventions
 
 - **Simple commands** (setters, transport actions): the daemon echoes the command element with a `result` attribute — `"OK"` or `"Error"`. On error, the element text carries a reason message. **Verified** on 6.0.4:

@@ -155,9 +155,12 @@ class HttpConfigClient:
         """Restore a full settings archive via multipart ``POST /restore``.
         ``scope="system"`` targets the running config (``/etc/hqplayer``);
         ``"user"`` targets ``~/.hqplayer``. Grounded on 6.0.4: ``scope=system``
-        writes the archive and the daemon self-restarts (~5.6 s), **preserving
-        the active preset** — the connection manager's outage path handles the
-        restart/resync. ``cfgfile`` is a ``/backup`` settings.zip (or config xml)."""
+        writes every archive member to disk (**additively** — a member omitted
+        from the zip is not deleted) and the daemon self-restarts (~5.6 s), landing
+        on the ``[default]`` config (``hqplayerd.xml``); it does **not** restore a
+        named active profile (docs/protocol.md §3.6). The connection manager's
+        outage path handles the restart/resync. ``cfgfile`` is a ``/backup``
+        settings.zip (or config xml)."""
         resp = await self._client.post(
             "/restore",
             data={"scope": scope},

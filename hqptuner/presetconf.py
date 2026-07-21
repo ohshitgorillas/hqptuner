@@ -388,3 +388,56 @@ def restore_zip_from_running(zip_bytes: bytes, edits: dict[str, str]) -> tuple[b
             raw = intended if item.filename == running else zin.read(item.filename)
             zout.writestr(item, raw)
     return out.getvalue(), intended
+
+
+def restore_zip_with_working(
+    zip_bytes: bytes,
+    working_xml: bytes,
+    mirror_name: str | None = None,
+    mirror_xml: bytes | None = None,
+) -> bytes:
+    """Build a ``POST /restore`` archive whose ``[default]`` working config
+    (``hqplayerd.xml``) is ``working_xml`` — the config the daemon actually runs,
+    since a restore always lands the daemon on ``[default]`` (docs/protocol.md).
+
+    When ``mirror_name`` is given, also (over)write ``data/cfgs/<mirror_name>.xml``
+    = ``mirror_xml`` (defaulting to ``working_xml``), so hqplayerd's own native
+    profile list mirrors HQPTuner's preset store. Every other member is copied
+    byte-for-byte. ``hqplayerd.xml`` is inserted when the source archive lacks it
+    (a named profile was active, so its working member was root-renamed)."""
+    mirror_member = f"data/cfgs/{mirror_name}.xml" if mirror_name else None
+    mirror_body = mirror_xml if mirror_xml is not None else working_xml
+    written: set[str] = set()
+    out = io.BytesIO()
+    with (
+        zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin,
+        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout,
+    ):
+        for item in zin.infolist():
+            if item.filename == "hqplayerd.xml":
+                zout.writestr(item, working_xml)
+            elif mirror_member is not None and item.filename == mirror_member:
+                zout.writestr(item, mirror_body)
+            else:
+                zout.writestr(item, zin.read(item.filename))
+            written.add(item.filename)
+        if "hqplayerd.xml" not in written:
+            zout.writestr("hqplayerd.xml", working_xml)
+        if mirror_member is not None and mirror_member not in written:
+            zout.writestr(mirror_member, mirror_body)
+    return out.getvalue()
+
+
+def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
+    """Every named preset snapshot in a ``/backup`` archive, keyed by preset name
+    (the ``data/cfgs/<name>.xml`` members). Powers the one-time migration of
+    hqplayerd's presets into the HQPTuner-owned store."""
+    out: dict[str, bytes] = {}
+    prefix, suffix = "data/cfgs/", ".xml"
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+        for name in z.namelist():
+            if name.startswith(prefix) and name.endswith(suffix):
+                stem = name[len(prefix) : -len(suffix)]
+                if stem:
+                    out[stem] = z.read(name)
+    return out

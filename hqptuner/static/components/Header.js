@@ -5,7 +5,7 @@
 // preset comes from config.active (the truly-loaded ConfigurationGet name).
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
-import { health, engineState, config, pendingPreset, previewPreset } from "../store/state.js";
+import { health, engineState, config, pendingPreset, previewPreset, deletePreset } from "../store/state.js";
 import { StatusPill } from "./StatusPill.js";
 
 const PLAY = { 0: "Stopped", 1: "Paused", 2: "Playing", 3: "Stopping" };
@@ -17,6 +17,18 @@ async function onPick(e) {
   pickStatus.value = "Loading…";
   try {
     await previewPreset(name);
+    pickStatus.value = "";
+  } catch (err) {
+    pickStatus.value = `Failed: ${err}`;
+  }
+}
+
+async function onDelete(name) {
+  // eslint-disable-next-line no-alert -- a destructive action wants an explicit OK
+  if (!name || !confirm(`Delete preset "${name}"? This cannot be undone.`)) return;
+  pickStatus.value = "Deleting…";
+  try {
+    await deletePreset(name);
     pickStatus.value = "";
   } catch (err) {
     pickStatus.value = `Failed: ${err}`;
@@ -54,6 +66,15 @@ export function Header() {
                   (o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`,
                 )}
               </select>
+              ${pending || active
+                ? html`<button
+                    class="preset-del"
+                    title=${`Delete preset "${pending || active}"`}
+                    onClick=${() => onDelete(pending || active)}
+                  >
+                    Delete
+                  </button>`
+                : null}
               ${pending ? html`<span class="preset-status pending-apply">(pending apply)</span>` : null}
               ${pickStatus.value && !pending ? html`<span class="preset-status muted">${pickStatus.value}</span>` : null}
             `

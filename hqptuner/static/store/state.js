@@ -220,6 +220,15 @@ export function clearPreview() {
   previewConfig.value = null;
 }
 
+// Delete a stored preset (store + daemon mirror), then refresh so the picker
+// drops it. Clears the preview if the deleted preset was the one being previewed.
+export async function deletePreset(name) {
+  if (!name) return;
+  await api.deletePreset(name);
+  if (pendingPreset.value === name) clearPreview();
+  await refreshConfig();
+}
+
 // apply lifecycle, shared so the pill and the pending bar both reflect it
 export const applying = signal(false);
 export const lastApply = signal(null); // {ok, text} of the most recent apply

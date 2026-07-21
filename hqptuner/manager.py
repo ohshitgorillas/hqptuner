@@ -27,10 +27,11 @@ from typing import Any
 
 import httpx
 
-from . import engineconf, enginelane, httplane, logtail, presetconf
+from . import engineconf, enginelane, httplane, logtail, presetconf, presetlane
 from .config import Config
 from .control import ControlClient, ControlError
 from .httpconf import HttpConfigClient
+from .presetstore import PresetStore
 from .writer import apply_live
 
 log = logging.getLogger(__name__)
@@ -45,6 +46,11 @@ class ConnectionManager:
         self._http = http_client
         self._client: ControlClient | None = None
         self._stop = asyncio.Event()
+        # HQPTuner-owned preset store (presetstore) — the source of truth for
+        # presets. hqplayerd's own named-profile subsystem is unreliable, so we
+        # drive it only through restore-onto-[default] and keep data/cfgs mirrored.
+        self._store = PresetStore(cfg.preset_dir)
+        self._migrated = False
 
         self.reachable = False
         self.unreachable_since: float | None = time.time()
@@ -153,6 +159,10 @@ class ConnectionManager:
             except Exception as exc:
                 # the form still carries every field; only the lossy ones degrade
                 log.warning("file-config read failed: %s", exc)
+            try:
+                await self._migrate_presets(active_config)
+            except Exception as exc:
+                log.warning("preset migration skipped: %s", exc)
 
         self._client = client
         self.info, self.state, self.status, self.status_metadata = info, state, status, meta
@@ -243,17 +253,10 @@ class ConnectionManager:
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def _switch_preset(self, name: str) -> dict[str, Any]:
-        """Load a preset so it becomes the active one, then wait for the active
-        label to reflect it (the load restarts the daemon; the run loop reconnects
-        and re-reads it). Reported so the caller can tell the switch took."""
-        await self.load_profile(name)
-        deadline = time.monotonic() + self._cfg.alarm_threshold
-        while time.monotonic() < deadline:
-            await self._sleep(RECONNECT_FAST)
-            if self.active_config == name:
-                await self._await_http_ready()  # label flips before the restart finishes
-                return {"name": name, "active": True}
-        return {"name": name, "active": self.active_config == name}
+        """Load a previewed preset so it becomes active before the staged edits
+        apply on top — restore-onto-[default] + mirror (``load_preset``), never
+        hqplayerd's ``profile/load``."""
+        return await self.load_preset(name)
 
     async def _backup_or_cached(self, *, for_write: bool = False) -> bytes:
         """Fetch ``/backup``, caching it whenever it's a usable archive. WORKAROUND
@@ -281,11 +284,12 @@ class ConnectionManager:
         return backup  # no cache yet — let the caller fail with a clear message
 
     async def read_preset(self, name: str) -> dict[str, str]:
-        """A preset's saved settings in form-field terms, read from its snapshot in
-        a fresh /backup — WITHOUT loading it (no daemon touch, no restart). Powers
-        the preview: picking a preset shows its values in the editor before apply."""
-        backup = await self._backup_or_cached()
-        return presetconf.read_config(presetconf.snapshot_member(backup, name))
+        """A preset's saved settings in form-field terms, for the editor preview —
+        no daemon touch, no restart. A named preset reads from the HQPTuner store;
+        the empty (``[default]``) selection reads the current running config."""
+        if not name:
+            return dict(self.file_config or await self.load_file_config())
+        return presetconf.read_config(self._store.read(name))
 
     # --- accessors for the extracted write lanes (httplane) ---------------
 
@@ -407,14 +411,37 @@ class ConnectionManager:
         await self._refresh_http_forms()
         return {"refreshed": True}
 
-    async def load_profile(self, name: str) -> None:
-        await self._require_http().post_profile("load", profile=name)
+    # --- preset lane (presetlane) — thin delegators over the store + restore ---
 
-    async def save_profile(self, name: str) -> None:
-        await self._require_http().post_profile("save", profile_name=name)
+    @property
+    def store(self) -> PresetStore:
+        return self._store
 
-    async def delete_profile(self, name: str) -> None:
-        await self._require_http().post_profile("delete", profile=name)
+    async def refresh_http_forms(self) -> None:
+        await self._refresh_http_forms()
+
+    async def backup_or_cached(self) -> bytes:
+        return await self._backup_or_cached()
+
+    def presets(self) -> dict[str, Any]:
+        return presetlane.listing(self)
+
+    async def load_preset(self, name: str) -> dict[str, Any]:
+        return await presetlane.load(self, name)
+
+    async def save_preset(self, name: str) -> dict[str, Any]:
+        return await presetlane.save(self, name)
+
+    async def delete_preset(self, name: str) -> dict[str, Any]:
+        return await presetlane.delete(self, name)
+
+    async def _migrate_presets(self, active_hint: str | None = None) -> None:
+        if self._migrated or self._http is None:
+            return
+        self._migrated = True
+        imported = await presetlane.migrate(self, active_hint)
+        if imported:
+            log.info("migrated presets into store: %s", ", ".join(imported))
 
     async def backup(self) -> bytes:
         """The daemon's current settings archive (a zip) for download."""
