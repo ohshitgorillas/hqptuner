@@ -5,6 +5,7 @@
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
+import { grayReason } from "../../store/graying.js";
 import { CrossfeedPlot, LoudnessPlot } from "../plots.js";
 import { Section, Card, truthy } from "./common.js";
 
@@ -30,7 +31,9 @@ export function CrossfeedCard() {
 }
 
 export function LoudnessCard() {
-  const on = truthy(effective("loudness_enabled"));
+  // dim the body when disabled OR gated (volume control bypassed — loudness
+  // can't adapt; the enable field's caption carries the reason)
+  const on = truthy(effective("loudness_enabled")) && !grayReason("loudness_enabled");
   return html`
     <${Card} title="Loudness">
       <div class="dsp-card">
