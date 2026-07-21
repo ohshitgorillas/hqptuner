@@ -2224,11 +2224,13 @@ select.mtx-ch {
 .mtx-profile-row .field-note {
   margin: 0;
 }
+/* accent-role element (design pass item 1): tracks the switchable accent,
+   unlike the fixed chip-kind hues */
 .mtx-live-tag {
   font-family: var(--font-mono);
   font-size: 0.7rem;
-  color: var(--green);
-  border: 1px solid var(--green);
+  color: var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
   white-space: nowrap;
@@ -2283,3 +2285,49 @@ select.mtx-ch {
 .plot-tlbl.r1 { fill: var(--chip-iir); }
 .plot-tlbl.r2 { fill: var(--chip-conv); }
 .plot-tlbl.r3 { fill: var(--fg-2); }
+
+/* ── Matrix tab design pass ──────────────────────────────────────────────
+   Content-sized flow controls: the global select width token (--w-select) is
+   for form fields, not chips — a chip-shaped control fits its label plus
+   padding, nothing more (item 3). A stage-less row must read as one line:
+   In 1 → + stage → 0 dB → Out 1. */
+.mtx-flow select.mtx-ch {
+  width: auto;
+  padding-right: 1.1rem; /* room for the (hidden-appearance) caret side */
+}
+.mtx-gain select {
+  width: auto;
+}
+.mtx-gain input[type="number"] {
+  width: 3.6rem;
+}
+.mtx-editor-head select {
+  width: auto;
+}
+/* Matrix card: single column, selects sized to their longest option (item 4) —
+   overrides the half-card 100% stretch. */
+.mtx-global {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.card-grid .mtx-global .field select {
+  width: auto;
+  max-width: 100%;
+}
+/* Profile card lanes (item 5): the live switch row is primary — accent button,
+   hairline separation from the reload lane below; captions sit under their row
+   at caption measure with tight control→caption rhythm. */
+.mtx-tool.mtx-primary {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.mtx-profile .field-note {
+  margin: calc(-1 * var(--sp-1)) 0 var(--sp-1);
+}
+.mtx-profile .mtx-profile-row:not(.mtx-profile-primary) {
+  padding-top: var(--sp-1);
+}
+.mtx-pipelines-note {
+  margin-bottom: var(--sp-3);
+}
