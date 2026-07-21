@@ -1,0 +1,48 @@
+# HQPTuner — compose deployment.
+#
+# Default assumes hqplayerd runs on the SAME machine (bare metal): standard
+# bridge networking, daemon reached via the Docker host gateway. HQPTuner is a
+# plain TCP client of hqplayerd (4321 + 8088) — no multicast/discovery — so it
+# does not need host networking.
+#
+# Credentials: put HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD in a .env file
+# next to this compose file (never commit it).
+#
+# State: ./state holds config backups and the preset store. Create it before
+# first start (`mkdir -p state`) so it's owned by you, not root — the container
+# runs as uid 1000.
+
+services:
+  hqptuner:
+    image: ghcr.io/ohshitgorillas/hqptuner:latest
+    # To build locally instead: comment `image:` above, uncomment:
+    # build: .
+    container_name: hqptuner
+    restart: unless-stopped
+
+    ports:
+      - "8090:8090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # --- Host-network alternative ---------------------------------------
+    # Escape hatch if the bridged path doesn't work in your setup (e.g. a
+    # firewall dropping traffic from the Docker bridge): comment `ports:`
+    # and `extra_hosts:` above, uncomment the next line, and set
+    # HQPTUNER_HQP_HOST to 127.0.0.1 (or the remote daemon's address).
+    # network_mode: host
+
+    environment:
+      HQPTUNER_HQP_HOST: host.docker.internal
+      HQPTUNER_HQP_USERNAME: ${HQPTUNER_HQP_USERNAME:-}
+      HQPTUNER_HQP_PASSWORD: ${HQPTUNER_HQP_PASSWORD:-}
+      # HQPTUNER_LISTEN_PORT: "8090"
+      # HQPTUNER_HQP_HOME: /var/lib/hqplayer/home
+
+    volumes:
+      - ./state:/state
+      # Log tail (System tab): HQPTuner reads hqplayerd's log file straight
+      # from the filesystem, so mount it read-only at the SAME path your
+      # daemon's log setting names (<log file="..."/> in hqplayerd.xml).
+      # Optional — everything else works without it.
+      - /tmp/hqplayerd.log:/tmp/hqplayerd.log:ro

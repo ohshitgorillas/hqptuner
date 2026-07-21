@@ -1,0 +1,24 @@
+# build context = pyproject.toml, README.md, hqptuner/, data/ — exclude the rest
+.git
+.github
+.venv
+__pycache__
+*.pyc
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+tests
+scripts
+docs
+backups
+presets
+.env
+CLAUDE.md
+hqplayer6desktop-manual.pdf
+hqplayerd-readme.txt
+*.md
+!README.md
+Dockerfile
+compose.yaml
+Makefile
