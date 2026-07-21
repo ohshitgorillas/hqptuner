@@ -115,7 +115,7 @@ export const schema = {
   sdm_rate: { label: "SDM", group: "output", note: "rate", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, hoverNote: true },
 
   // --- Output: ALSA backend section (backend alsa|combo) ---
-  alsa_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true },
+  alsa_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true, span: true },
   alsa_offset: { label: "Channel offset", group: "output", note: "channel_offset", widget: "number", lane: "http", field: "alsa_offset" },
   alsa_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
   alsa_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
@@ -123,7 +123,7 @@ export const schema = {
   alsa_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
-  net_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true },
+  net_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true, span: true },
   net_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
   net_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
   net_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "net_dop" },
@@ -209,5 +209,5 @@ export const schema = {
   // --- System ---
   pre_before_meter: { label: "Pre-process before metering", group: "system", widget: "checkbox", lane: "http", field: "pre_before_meter" },
   log_enabled: { label: "Enable logging", group: "system", widget: "checkbox", lane: "http", field: "log_enabled" },
-  log_file: { label: "Log file", group: "system", note: "log_path", widget: "text", lane: "http", field: "log_file", grayWhen: logOff, wide: true },
+  log_file: { label: "Log file", group: "system", note: "log_path", widget: "text", lane: "http", field: "log_file", grayWhen: logOff, wide: true, span: true },
 };
