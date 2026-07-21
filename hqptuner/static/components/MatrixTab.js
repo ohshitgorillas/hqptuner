@@ -437,6 +437,16 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
           <button
             type="button"
             class="mtx-tool mtx-remove"
+            disabled=${!row.process && Number(row.gain) === 0}
+            title="Clear all processing stages and reset gain to 0 dB (keeps routing)"
+            onClick=${() => {
+              setSelected(null);
+              update({ process: "", gain: "0", gainunit: "dB" });
+            }}
+          >∅</button>
+          <button
+            type="button"
+            class="mtx-tool mtx-remove"
             disabled=${!canRemove}
             title=${canRemove ? "Remove pipeline" : "At least one pipeline is required"}
             onClick=${remove}
@@ -448,12 +458,14 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
   `;
 }
 
-// --- AutoEq / REW import (step 6) --------------------------------------------
-// Docked panel under the Pipelines header: paste or pick a .txt, choose a target
-// pipeline (+ optional stereo-pair mirror = the adjacent row), preview, import.
-// Import appends the parsed iir stages to the target row(s) and maps a Preamp
-// line onto the row gain (dB) — one atomic stagePipelines op, Discard undoes it.
-const importOpen = signal(false);
+// --- Headphone AutoEQ card (step 6 + library pass) ---------------------------
+// Standing collapsible card between PIPELINES and RESPONSE. Default collapsed —
+// not everyone is listening to headphones. Two lanes: the AutoEq library picker
+// (search → preview on RESPONSE → apply) and the paste/.txt import; both append
+// the parsed iir stages to the target row(s) (+ optional stereo-pair mirror =
+// the adjacent row) and map a Preamp line onto the row gain (dB) — one atomic
+// stagePipelines op, Discard undoes it.
+const eqCardOpen = signal(false);
 const importText = signal("");
 const importTarget = signal(0);
 const importMirror = signal(true);
@@ -525,6 +537,23 @@ function ImportPanel({ rows }) {
   `;
 }
 
+function HeadphoneEqCard() {
+  const rows = effectivePipelines.value;
+  const open = eqCardOpen.value;
+  const toggle = () => {
+    eqCardOpen.value = !open;
+    if (open) clearLibrarySelection(); // collapsing drops selection + preview — no residue
+  };
+  return html`
+    <section class="card">
+      <button type="button" class="card-head mtx-eq-head" onClick=${toggle}>
+        <span class="tri">${open ? "▾" : "▸"}</span> Headphone AutoEQ
+      </button>
+      ${open ? html`<div class="card-body"><${ImportPanel} rows=${rows} /></div>` : null}
+    </section>
+  `;
+}
+
 function PipelinesCard() {
   const rows = effectivePipelines.value;
   const baseline = pipelineBaseline.value;
@@ -545,20 +574,11 @@ function PipelinesCard() {
     <section class="card">
       <div class="card-head">
         Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>
-        <button
-          type="button"
-          class="mtx-tool mtx-import-toggle ${importOpen.value ? "active" : ""}"
-          onClick=${() => {
-            importOpen.value = !importOpen.value;
-            if (!importOpen.value) clearLibrarySelection(); // closing the panel drops the preview — no residue
-          }}
-        >Import EQ</button>
       </div>
       <div class="card-body">
         ${notesVisible.value
           ? html`<div class="field-note mtx-pipelines-note">Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert polarity (e.g. for M/S processing).</div>`
           : null}
-        ${importOpen.value ? html`<${ImportPanel} rows=${rows} />` : null}
         ${rows.map(
           (r, i) => html`
             <${FlowRow}
@@ -587,6 +607,7 @@ export function MatrixTab() {
       <${ProfileCard} />
     </div>
     <${PipelinesCard} />
+    <${HeadphoneEqCard} />
     <${MatrixPlot} />
   </section>`;
 }
