@@ -247,10 +247,12 @@ Also recorded: HQPlayer **Desktop has no web UI** — no port-8088 lane, so HQPT
 
 ## Phase 6 — Packaging + release
 
-- Dockerfile + compose example; config surface: XML path, hqplayerd host:port, service-controller command
-- README: setup, config reference, screenshots
-- MIT license; provenance note for the protocol implementation (derived from Jussi's MIT-licensed `hqp-control` source, with attribution)
-- Publish and announce; feedback loop with the HQPlayer community drives whatever comes next
+**Status (2026-07-21): Docker packaging shipped (0.3.0).** Dockerfile + compose.yaml (bridge networking via host gateway, `./state` volume, log-tail mount) and GHCR multi-arch publish workflow, all live-verified against the production daemon. Beta announced on Head-Fi and Audiophile Style. Remaining below.
+
+- ~~Dockerfile + compose example~~ — done 0.3.0 (config surface ended up all-env-var: `HQPTUNER_*`, no XML path / service-controller command needed)
+- ~~README: setup, config reference, screenshots~~ — done (beta README, 2026-07-21)
+- MIT license **file** (README announces MIT; `LICENSE` not yet in repo); provenance note for the protocol implementation (derived from Jussi's MIT-licensed `hqp-control` source, with attribution)
+- Publish and announce; feedback loop with the HQPlayer community drives whatever comes next — beta announce done, release announce pending
 
 ### Exit criteria
 
