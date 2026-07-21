@@ -30,7 +30,7 @@ HQPTuner is an improvement over the stock web configuration UI in many ways:
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the rate selection menu.
 * **Every feature has a description**: All of the information from the manual is optionally surfaced with explanations and descriptions for every feature and filter.
 * **Filter narrowing**: Narrow the filter lists by quality, genre, focus, phase, and length, with an option to only show apodizing filters for 1x material.
-* **Smart option availability**: Only see options that are appropriate for the settings you've selected; e.g., PCM options gray out/collapse in SDM output mode, and modulators are grayed below their minimum rate.
+* **Smart option availability**: Only see options that are appropriate for the settings you've selected; e.g., PCM options gray out/collapse in SDM output mode, DSD options in PCM mode, and modulators below their minimum rate — each grayed control carries a caption explaining why.
 * **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots. See below.
 * **Headphone EQ made easy**: A built-in AutoEq library (8850+ headphone models) — search your headphones, preview the correction curve, load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.

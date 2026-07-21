@@ -13,7 +13,8 @@ import { configByName, matrixByName, metadata, effective } from "./state.js";
 // shaper whose max is below any realistic ceiling (e.g. Gauss1 at 96 kHz) would
 // be permanently unselectable, which is worse than leaving it pickable. The
 // target rate is the per-family ceiling (pcm_rate / sdm_rate). Native <option
-// disabled> — the reason is appended by the Dropdown.
+// disabled> — the Dropdown appends the reason to the option label (title attrs
+// on <option> don't hover reliably cross-browser).
 function fmtRate(hz, kind) {
   return kind === "sdm" ? `${(hz / 1e6).toFixed(1)} MHz` : `${(hz / 1000).toFixed(1)} kHz`;
 }

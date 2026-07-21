@@ -7,6 +7,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Added
 
 - MIT `LICENSE` file.
+- Mode-aware graying for more controls: DSD over PCM (DoP) and 48k DSD rates gray in PCM output mode; Direct SDM, Integrator, and SDM → SDM conversion gray in PCM mode; Gain +6 dB, Noise filter, and SDM → PCM conversion gray in SDM mode; Adaptive volume grays whenever the volume control is bypassed (Direct SDM, fixed volume / Optimal ISO, or volume min = max = 0).
+- The live volume knob now names the "volume min and max both 0" bypass case instead of falling through to "no active stream".
+
+### Changed
+
+- Grayed controls now show their reason as a visible caption under the control (previously hover-only); dither/modulator options unusable at the selected rate carry the reason in the option label.
 
 ## [0.3.0] — 2026-07-21
 
