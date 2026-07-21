@@ -12,9 +12,11 @@
 //
 // Data sources differ by stage: the active filter/shaper/rate come off the live
 // Status frame (st.*), DAC correction from its live `correction` 0/1 flag, and
-// crossfeed — which has no live readback (no live setter) — from the config lane.
+// crossfeed/loudness/matrix from the RUNNING config forms (runningValue — never
+// effective: the front panel reflects the active state, so a previewed preset
+// or a staged-but-unapplied edit must not move these chips).
 import { html } from "../store/dom.js";
-import { engineStatus, engineState, effective } from "../store/state.js";
+import { engineStatus, engineState, runningValue } from "../store/state.js";
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
@@ -62,12 +64,15 @@ export function SignalPath() {
   // shaper (output-rate-dependent).
   const stages = [{ label: "Source", value: source }];
   // one combined post-process indicator instead of a chip per feature (avoids
-  // crowding the front panel): both on -> "DSP", else the single active one.
-  const cf = on(effective("crossfeed_enabled"));
-  const loud = on(effective("loudness_enabled"));
-  if (cf && loud) stages.push({ label: "DSP", value: "On" });
+  // crowding the front panel): more than one active -> "DSP", else the single
+  // active one. Matrix (routing / pipeline EQ) folds in here too.
+  const cf = on(runningValue("crossfeed_enabled"));
+  const loud = on(runningValue("loudness_enabled"));
+  const mtx = on(runningValue("matrix_enabled"));
+  if (cf + loud + mtx > 1) stages.push({ label: "DSP", value: "On" });
   else if (cf) stages.push({ label: "Crossfeed", value: "On" });
   else if (loud) stages.push({ label: "Loudness", value: "On" });
+  else if (mtx) stages.push({ label: "Matrix", value: "On" });
   stages.push({ label: "Filter", value: st.active_filter });
   stages.push({ label: "Shaper", value: st.active_shaper });
   if (st.correction === "1") stages.push({ label: "Correction", value: "On" });

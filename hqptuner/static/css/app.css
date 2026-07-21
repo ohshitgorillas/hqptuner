@@ -2364,6 +2364,11 @@ select.mtx-ch {
   border-bottom: 1px solid var(--line);
   padding-bottom: var(--sp-3);
 }
+/* the model search box outgrows the generic 18rem row cap — its placeholder
+   ("Search headphone model — e.g. HD 650…") clips there */
+.mtx-lib .mtx-profile-row input[type="text"] {
+  max-width: var(--w-select);
+}
 .mtx-lib-credit {
   font-size: 0.75rem;
   color: var(--fg-2);
