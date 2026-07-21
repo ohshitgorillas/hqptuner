@@ -181,11 +181,14 @@ export const schema = {
   loudness_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled" },
   loudness_low_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB", def: 20, grayWhen: loudnessOff },
   loudness_low_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz", grayWhen: loudnessOff },
-  loudness_low_steep: { label: "Steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep", grayWhen: loudnessOff },
+  // Steepness sliders: the /matrix form ships no min/max for the slope factor
+  // (readme documents none), so the schema carries a pragmatic 0.1–10 slider
+  // range covering all three type domains (shelf slope, Q, bandwidth).
+  loudness_low_steep: { label: "Steepness / Q", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep", min: 0.1, max: 10, step: 0.1, grayWhen: loudnessOff },
   loudness_low_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_lowtype", optionsFrom: "matrix", grayWhen: loudnessOff },
   loudness_high_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_highlevel", unit: "dB", def: 10, grayWhen: loudnessOff },
   loudness_high_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highfreq", unit: "Hz", grayWhen: loudnessOff },
-  loudness_high_steep: { label: "Steepness / Q", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep", grayWhen: loudnessOff },
+  loudness_high_steep: { label: "Steepness / Q", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep", min: 0.1, max: 10, step: 0.1, grayWhen: loudnessOff },
   loudness_high_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_hightype", optionsFrom: "matrix", grayWhen: loudnessOff },
   loudness_range_low: { label: "Lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB", grayWhen: loudnessOff },
   loudness_range_high: { label: "Upper bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB", grayWhen: loudnessOff },

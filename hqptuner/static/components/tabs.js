@@ -126,12 +126,12 @@ const Output = () => {
     <${DeviceAlert} />
     <div class="top-row">
       <div class="box seg-box">
-        <div class="box-title">Mode</div>
-        <${Field} k="output_mode" />
-      </div>
-      <div class="box seg-box">
         <div class="box-title">Backend</div>
         <${Field} k="backend" />
+      </div>
+      <div class="box seg-box">
+        <div class="box-title">Mode</div>
+        <${Field} k="output_mode" />
       </div>
       <div class="box">
         <div class="box-title">Rate</div>
@@ -425,9 +425,9 @@ const System = () =>
 
 const TABS = [
   ["output", "Output", Output],
+  ["volume", "Volume", Volume],
   ["resampling", "Resampling", Resampling],
   ["dsp", "DSP", Dsp],
-  ["volume", "Volume", Volume],
   ["matrix", "Matrix", MatrixTab],
   ["system", "System", System],
 ];

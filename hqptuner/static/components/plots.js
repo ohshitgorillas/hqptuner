@@ -9,7 +9,7 @@
 // is legible: crossfeed "direct" vs "cross-fed", loudness "max" vs "applied".
 
 import { html } from "../store/dom.js";
-import { effective, volume } from "../store/state.js";
+import { effective, volume, setLive, edit } from "../store/state.js";
 import { logFreqs, crossfeedMagDb, loudnessMagDb, shelfScale } from "../store/dsp.js";
 
 const W = 640;
@@ -33,11 +33,36 @@ const xOf = (f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 
 // Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
 // traces flagged `y2: true` (phase) map through it instead of the dB scale.
-export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max }) {
+export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max, handles }) {
   const plotH = height - PADT - PADB;
   const yOf = (db) => PADT + (1 - (clamp(db, yMin, yMax) - yMin) / (yMax - yMin)) * plotH;
   const yOf2 = (v) => PADT + (1 - (clamp(v, y2Min, y2Max) - y2Min) / (y2Max - y2Min)) * plotH;
   const scaleOf = (t) => (t.y2 ? yOf2 : yOf);
+  // draggable EQ handles: a dot at (f, db); a pointer drag maps viewport px back
+  // through the inverse axis transforms and streams (f, db) to onDrag, then
+  // lands the release on onEnd. Values clamp to the visible plot domain.
+  const dbOf = (y) => yMin + (1 - (y - PADT) / plotH) * (yMax - yMin);
+  const fOf = (x) => F0 * Math.exp(((x - PADL) / (W - PADL - PADR)) * LOGSPAN);
+  const startDrag = (h) => (e) => {
+    const svg = e.target.ownerSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const pt = (ev) => ({
+      f: clamp(fOf((ev.clientX - rect.left) * (W / rect.width)), F0, F1),
+      db: clamp(dbOf((ev.clientY - rect.top) * (height / rect.height)), yMin, yMax),
+    });
+    const move = (ev) => {
+      const q = pt(ev);
+      h.onDrag(q.f, q.db);
+    };
+    const up = (ev) => {
+      window.removeEventListener("pointermove", move);
+      const q = pt(ev);
+      h.onEnd(q.f, q.db);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+    e.preventDefault();
+  };
   const poly = (pts, sc) => pts.map(([f, d]) => `${xOf(f).toFixed(1)},${sc(d).toFixed(1)}`).join(" ");
   const dbLines = [];
   for (let db = Math.ceil(yMin / dbStep) * dbStep; db <= yMax; db += dbStep) dbLines.push(db);
@@ -81,6 +106,17 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
             (it) => html`<text class="plot-tlbl ${it.kind}" x=${it.x.toFixed(1)} y=${it.y.toFixed(1)}>${it.text}</text>`,
           );
         })()}
+        ${(handles || []).map(
+          (h) => html`
+            <circle
+              class="plot-dot"
+              cx=${xOf(clamp(h.f, F0, F1)).toFixed(1)}
+              cy=${yOf(h.db).toFixed(1)}
+              r="7"
+              onPointerDown=${startDrag(h)}
+            />
+          `,
+        )}
       </svg>
       ${caption ? html`<div class="plot-caption mono">${caption}</div>` : null}
     </div>
@@ -125,6 +161,22 @@ export function LoudnessPlot() {
   const scale = shelfScale(vol, rangeLow, rangeHigh);
   const freqs = logFreqs(F0, F1, 160);
   const pct = Math.round(scale * 100);
+  // REW-style drag handles at each band's (frequency, level) corner — dragging
+  // streams live overrides (instant repaint) and stages both params on release.
+  // Steepness/Q/type stay on their own controls.
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const handle = (fk, lk, f, lvl) => ({
+    f,
+    db: lvl,
+    onDrag: (nf, ndb) => {
+      setLive(fk, Math.round(nf));
+      setLive(lk, r1(ndb));
+    },
+    onEnd: (nf, ndb) => {
+      edit(fk, Math.round(nf));
+      edit(lk, r1(ndb));
+    },
+  });
   return PlotFrame({
     traces: [
       { points: freqs.map((f) => [f, loudnessMagDb(p, f, LOUDNESS_FS, 1)]), kind: "ghost", label: "max", dy: -3 },
@@ -135,5 +187,9 @@ export function LoudnessPlot() {
     dbStep: 6,
     height: 210,
     caption: `at ${vol.toFixed(1)} dB volume: ${pct}% of maximum shelving applied`,
+    handles: [
+      handle("loudness_low_freq", "loudness_low_level", p.lowFreq, p.lowLevel),
+      handle("loudness_high_freq", "loudness_high_level", p.highFreq, p.highLevel),
+    ],
   });
 }

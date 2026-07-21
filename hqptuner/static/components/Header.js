@@ -60,7 +60,7 @@ export function Header() {
       <div class="presets">
         ${profiles
           ? html`
-              <label class="muted">Config</label>
+              <label class="muted">Preset</label>
               <select value=${pending || active} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
                 ${(profiles.options || []).map(
                   (o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`,

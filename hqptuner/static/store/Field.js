@@ -64,11 +64,14 @@ function selectionDescription(entry, value, options, meta) {
 }
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
-// form (the daemon is the authority for its own bounds).
+// form (the daemon is the authority for its own bounds). A schema entry may
+// carry fallback min/max/step for fields whose form gives none (loudness
+// steepness) — the form's value wins whenever it exists.
 function cfgConstraint(entry, name) {
-  if (entry.lane !== "http") return undefined;
+  if (entry.lane !== "http") return entry[name];
   const f = httpFieldMap(entry)[formFieldName(entry)];
-  return f ? f[name] : undefined;
+  const v = f ? f[name] : undefined;
+  return v == null ? entry[name] : v;
 }
 
 // Rescan-devices affordance for the output-device dropdowns (schema `rescan`).

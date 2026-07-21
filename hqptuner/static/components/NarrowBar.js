@@ -137,6 +137,21 @@ export function NarrowBar() {
     <div class="narrow-bar">
       <div class="narrow-header">Narrow filters</div>
       <div class="narrow-controls">
+        <div class="apod-stack">
+          <label class="narrow-apod" title=${apodTip()}>
+            <input type="checkbox" checked=${nApod.value} onChange=${(e) => (nApod.value = e.target.checked)} />
+            Show apodizing only (1x)
+          </label>
+          <label class="narrow-apod apod-sub ${nApod.value ? "" : "off"}">
+            <input
+              type="checkbox"
+              checked=${nApodHalf.value}
+              disabled=${!nApod.value}
+              onChange=${(e) => (nApodHalf.value = e.target.checked)}
+            />
+            Show ½ apodizing filters
+          </label>
+        </div>
         <div class="narrow-facets">
           <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES.map((g) => [g, cap(g)])} sig=${nGenre} />
           <${SingleSelect}
@@ -160,21 +175,6 @@ export function NarrowBar() {
           ${narrowingActive.value
             ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
             : null}
-          <div class="apod-stack">
-            <label class="narrow-apod" title=${apodTip()}>
-              <input type="checkbox" checked=${nApod.value} onChange=${(e) => (nApod.value = e.target.checked)} />
-              Show apodizing only (1x)
-            </label>
-            <label class="narrow-apod apod-sub ${nApod.value ? "" : "off"}">
-              <input
-                type="checkbox"
-                checked=${nApodHalf.value}
-                disabled=${!nApod.value}
-                onChange=${(e) => (nApodHalf.value = e.target.checked)}
-              />
-              Show ½ apodizing filters
-            </label>
-          </div>
         </div>
       </div>
     </div>
