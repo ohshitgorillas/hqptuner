@@ -61,6 +61,14 @@ export function httpFieldMap(entry) {
   return entry.endpoint === "matrix" ? matrixByName.value : configByName.value;
 }
 
+// The form field a control READS its baseline/options/constraints from. Usually
+// entry.field (also the staged key), but the matrix globals stage under prefixed
+// names (matrix_engine — the write lane's namespace) while the daemon's form
+// field is bare (engine): entry.formField carries the read-side name.
+export function formFieldName(entry) {
+  return entry.formField || entry.field;
+}
+
 // Matrix tab read model: pipeline rows (grouped by the backend parser), saved
 // profile names (4321 MatrixListProfiles, falling back to the form datalist),
 // and the active profile ("" / "[Default]" = the unnamed default).
@@ -75,6 +83,54 @@ export const matrixActiveProfile = computed(() => {
   const name = m.live_active || (m.active !== "[Default]" ? m.active : "");
   return name || "[Default]";
 });
+
+// --- pipeline set (matrix-spec step 3): staged as ONE atomic canonical-JSON
+// field, matching the backend's read_pipelines serialization byte-for-byte
+// (alphabetical keys, compact, all-string values) so dirty-compare and the
+// apply's verify diff both reduce to string equality.
+const canonRow = (r) => ({
+  gain: String(r.gain ?? "0"),
+  gainunit: r.gainunit || "dB",
+  mixdown: String(r.mixdown ?? "0"),
+  process: r.process || "",
+  source: String(r.source ?? "0"),
+});
+export const canonPipelines = (rows) => JSON.stringify(rows.map(canonRow));
+
+// Baseline: the file-truth canonical JSON (read_config's matrix_pipelines) when
+// credentials allow it; the parsed /matrix form rows otherwise (read-only mode).
+export const pipelineBaseline = computed(() => {
+  const file = fileConfig.value.matrix_pipelines;
+  if (file) {
+    try {
+      return JSON.parse(file);
+    } catch {
+      /* fall through to the form rows */
+    }
+  }
+  return matrixRows.value.map(canonRow);
+});
+
+// What the pipeline editor renders: staged set if present, else baseline.
+export const effectivePipelines = computed(() => {
+  const stagedJson = staged.value.http.matrix_pipelines;
+  if (stagedJson !== undefined) {
+    try {
+      return JSON.parse(stagedJson);
+    } catch {
+      /* corrupt staged value — render baseline */
+    }
+  }
+  return pipelineBaseline.value;
+});
+
+// Stage the whole set (optimistic, like edit()). A set identical to baseline
+// still stages — isDirty's string compare then reads clean, same as any field.
+export async function stagePipelines(rows) {
+  const json = canonPipelines(rows);
+  staged.value = { live: staged.value.live, http: { ...staged.value.http, matrix_pipelines: json } };
+  staged.value = await api.stage({ live: {}, http: { matrix_pipelines: json } });
+}
 
 // Running config read from the config XML, in form-field terms (manager.file_config).
 // The /config form is lossy where a setting's XML domain is wider than the widget
@@ -97,7 +153,7 @@ function baseline(entry) {
     const fv = fileConfig.value[entry.field];
     if (fv !== undefined) return fv;
   }
-  const f = httpFieldMap(entry)[entry.field];
+  const f = httpFieldMap(entry)[formFieldName(entry)];
   if (!f) return undefined;
   // no file truth available (no credentials, or the backup read failed): fall back
   // to the form's boolean, normalized into the field's own domain so a staged

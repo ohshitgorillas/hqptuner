@@ -42,7 +42,7 @@ Seven phases (§8). The feature is not landed/complete/shipped until the step-7 
 
 - [x] **1 — probes** (findings below; all five questions closed)
 - [x] **2 — parser groundwork + read-only tab** (accepted 2026-07-20 with notes, resolved at step-3 start: bordered row containers with plot-toggle position reserved; delay/riaa chips amber — palette rule is channels blue / convolution green / gain neutral / all other processing amber; "In n"/"Out n" labels approved-keep)
-- [ ] **3 — editing + apply** (pipeline add/remove, source/target/gain edits, staged-lane apply → daemon-accepted XML, staged-bar counts matrix edits, restore-lane round-trip)
+- [x] **3 — editing + apply** (hand-back PASS 2026-07-20: row containers + plot slot reserved, delay/riaa amber, add/remove/gain/channel edits staging atomically — the set counts as ONE restart-lane edit in the bar, per-row dirty shown in-tab; 16-row mock at all three accents, hero-live mocked, no overflow; live apply on Opal verified by backend readback and restored. Lin gain shipped (probe un-deferred the spec §7 dB-only ruling). Operational note: a concurrent stock-`/matrix`-UI Apply submits its complete form and silently reverts a just-applied HQPTuner pipeline edit — daemon-level TOCTOU, same-instant multi-writer use is unsupported by the daemon itself; observed live during the hand-back)
 - [ ] **4 — stage editor** (inline docked panel, 11 IIR types + delay + riaa + convolution upload, live spec string, chip ↔ raw two-way sync on matrixspec.js)
 - [ ] **5 — profiles** (4321 live switch, Load/Save/Save-as-new/Delete, "applies live" indicator, read-only note removed)
 - [ ] **6 — AutoEq / REW import**

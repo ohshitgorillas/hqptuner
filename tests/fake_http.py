@@ -51,8 +51,17 @@ def _cfg_xml(st: dict[str, Any]) -> bytes:
         # writer that enables a plugin without enabling the matrix produces an inert
         # config — modelled here so that failure surfaces in tests, not in a listening
         # room. Default OFF: the real-world preset that exposed this had matrix="0".
-        f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="1" expand_hf="0" iir2fir="0">'
-        "<post_process>"
+        f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="{st["matrix_engine"]}" '
+        f'expand_hf="{st["matrix_expand_hf"]}" iir2fir="{st["matrix_iir2fir"]}">'
+        # pipeline rows render verbatim from adopted attr strings (incl. any "L"
+        # gain prefix or entity escapes) — the fake never interprets them, so a
+        # writer bug can't be laundered by a matching fake-side transform
+        + "".join(
+            f'<pipeline channel="{i}" gain="{p["gain"]}" mixdown="{p["mixdown"]}" '
+            f'process="{p["process"]}" source="{p["source"]}"/>'
+            for i, p in enumerate(st["_pipelines"])
+        )
+        + "<post_process>"
         '<plugin type="correction" enabled="0" dac0=""/>'
         f'<plugin type="bauer" enabled="{_b(st["post_bauer_enabled"])}" '
         f'frequency="{st["post_bauer_frequency"]}" preset="default" level="4.5"/>'
@@ -91,6 +100,26 @@ def _adopt_matrix(st: dict[str, Any], xml: bytes) -> None:
     enabled = _elem_attr(xml, "matrix", "enabled")
     if enabled is not None:
         st["matrix_enabled"] = enabled == "1"
+    for key, attr in (("matrix_engine", "engine"), ("matrix_expand_hf", "expand_hf"), ("matrix_iir2fir", "iir2fir")):
+        v = _elem_attr(xml, "matrix", attr)
+        if v is not None:
+            st[key] = v
+    _adopt_pipelines(st, xml)
+
+
+def _adopt_pipelines(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the ``<pipeline>`` rows inside ``<matrix>`` as raw attribute strings
+    — no interpretation, so the next /backup serves back exactly what the writer
+    produced (and only what it produced)."""
+    m = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.S)
+    if m is None:
+        return
+    rows = [
+        {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
+        for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(1))
+    ]
+    if rows:
+        st["_pipelines"] = rows
 
 
 def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
@@ -357,6 +386,14 @@ def state(**extra: Any) -> dict[str, Any]:
         "_saved": {},
         # the plugin chain lives inside <matrix>; on because bauer below is on
         "matrix_enabled": True,
+        "matrix_engine": "1",
+        "matrix_expand_hf": "0",
+        "matrix_iir2fir": "0",
+        # pipeline rows as raw attr strings (channel re-derived from position)
+        "_pipelines": [
+            {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
+            {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
+        ],
         # /matrix page state: saved profile names (datalist), the printed active
         # label, and pipeline 0's process chain
         "_matrix_profiles": ["", "Default", "Mch-to-Stereo mixdown"],
