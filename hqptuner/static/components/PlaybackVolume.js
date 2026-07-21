@@ -12,18 +12,27 @@
 // a daemon value, so a reset never jumps to full volume).
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
-import { volume, volumeRange, setVolume, effective } from "../store/state.js";
+import { volume, volumeRange, setVolume, effective, runningValue } from "../store/state.js";
 import { Knob } from "./Knob.js";
 
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
-// *why*. Name the actual cause from the same staged signals the checkboxes read,
-// so the banner and the toggles never contradict each other.
+// *why*. Name the actual cause from the RUNNING config — the engine is what is
+// holding the knob, so a staged-but-unapplied disable must not change the
+// message (it used to fall through to "no active stream" mid-playback). When
+// the user HAS staged the disable, say the missing step is Apply.
 function disabledReason() {
-  if (truthy(effective("direct_sdm"))) return "Direct SDM bypasses the volume control.";
-  if (truthy(effective("fixed_volume_enabled")) || truthy(effective("optimal_iso")))
-    return "Fixed volume in effect — turn off Fixed volume / Optimal ISO to adjust live.";
+  // running-on but edited-off = the user already staged the disable; the
+  // missing step is Apply, so say that instead of repeating the toggle advice
+  const pendingOff = (k) => truthy(runningValue(k)) && !truthy(effective(k));
+  const hint = (staged) => (staged ? " Apply the staged change to free the volume control." : "");
+  if (truthy(runningValue("direct_sdm")))
+    return `Direct SDM bypasses the volume control.${hint(pendingOff("direct_sdm"))}`;
+  if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
+    const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
+    return `Fixed volume in effect — turn off Fixed volume / Optimal ISO to adjust live.${hint(staged)}`;
+  }
   return "No active stream — volume adjusts live during playback.";
 }
 

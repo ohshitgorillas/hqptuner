@@ -177,6 +177,22 @@ function stagedValue(entry) {
   return st.http[entry.field];
 }
 
+// runningValue(key) — the ACTIVE engine/daemon value only: live state or the
+// running config forms, ignoring staged edits AND preset preview. For surfaces
+// that must reflect what is actually processing right now (signal path, the
+// live-volume banner), never the editor's pending picture.
+export function runningValue(key) {
+  const e = schema[key];
+  if (!e) return undefined;
+  if (e.lane === "live") return (engineState.value || {})[e.stateField];
+  if (e.fileTruth) {
+    const fv = fileConfig.value[e.field];
+    if (fv !== undefined) return fv;
+  }
+  const f = httpFieldMap(e)[formFieldName(e)];
+  return f ? f.value : undefined;
+}
+
 // effective(key) — what a control renders: staged edit if present, else baseline.
 export function effective(key) {
   const e = schema[key];
