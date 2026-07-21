@@ -2125,6 +2125,17 @@ select.mtx-ch {
 .mtx-add-stage:disabled {
   cursor: default;
 }
+/* action row under the pipeline list: add-pipeline left, EQ file load right */
+.mtx-pipelines-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.mtx-pipelines-actions .mtx-add-row {
+  margin-top: 0;
+}
 .mtx-add-row {
   margin-top: var(--sp-3);
   border: 1px dashed var(--line);
