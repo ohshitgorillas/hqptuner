@@ -94,6 +94,7 @@ export function HardwareCard() {
     <section class="card">
       <div class="card-head">Hardware acceleration</div>
       <div class="card-body">
+        <div class="pack">
         <div class="field"><label>CUDA offload</label>
           <div class="control"><${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(v) => (cuda.value = v)} /></div>
           <${Note} k="cuda_offload" />
@@ -130,7 +131,7 @@ export function HardwareCard() {
           <div class="control"><${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(v) => (ecores.value = v)} /></div>
           <${Note} k="ecore_allocation" />
         </div>
-        <div class="field"><label>Blocks / cycle</label>
+        <div class="field span"><label>Blocks / cycle</label>
           <div class="control">
             <label class="inline-check">
               <${Checkbox} value=${manual()} onChange=${(v) => (nblocks.value = v === "1" ? "8" : "0")} />
@@ -141,6 +142,7 @@ export function HardwareCard() {
               : html`<span class="unit">Automatic — chosen from CPU cache size</span>`}
           </div>
           <${Note} k="blocks_per_cycle" />
+        </div>
         </div>
         <div class="hw-apply">
           <label class="hw-all"><${Checkbox} value=${allPresets.value} onChange=${(v) => (allPresets.value = v === "1")} /> Apply to all presets</label>

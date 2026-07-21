@@ -50,6 +50,26 @@
   --amber: #d1a13a;
   --red: #d4574e;
   --dirty: #3a3320;
+  /* ── Layout system (aesthetics pass) ──────────────────────────────────
+     One spacing scale (4/8/12/24/32) and a small set of control-width
+     tokens, so empty space reads as intentional, not leftover. Every
+     intra-row / inter-row gap and every control width references these.
+     Two-col packing above --w-app needs real room (item 3); captions are
+     capped at --measure, so going wider than --w-app just reopens the void
+     this pass is closing. Below 1100px viewport the layout collapses back
+     to one column (the old 960 single-column form is the fallback). */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 24px;
+  --sp-5: 32px;
+  --w-label: 12rem; /* shared label column, pixel-identical across tabs */
+  --w-num: 6.5rem; /* short numerics: DAC bits, buffer time, dB bounds */
+  --w-select: 28rem; /* dropdowns / text — capped ~448px */
+  --w-select-wide: 30rem; /* long strings: endpoint, filter name */
+  --w-path: 32rem; /* log file path */
+  --measure: 68ch; /* one caption/description measure everywhere */
+  --w-app: 1200px; /* container cap */
   /* motion: one duration + ease-out curve for every state change (never live drag) */
   --dur: 120ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -97,7 +117,7 @@ body {
 }
 
 .app {
-  max-width: 960px;
+  max-width: var(--w-app);
   margin: 0 auto;
   min-height: 100vh;
   display: flex;
@@ -193,6 +213,8 @@ body {
   display: inline-flex;
   flex-direction: column;
   gap: 0.05rem;
+  /* content-sized (NOT stretched) — the connector threads absorb the width, so
+     chips stay compact with no dead space inside them. */
   background: var(--bg-3);
   border: 1px solid var(--line);
   border-radius: 0.35rem;
@@ -217,7 +239,8 @@ body {
   color: var(--muted);
   font-weight: 400;
 }
-/* connector thread — flex-grows to fill the gap so the chain stays continuous */
+/* connector thread — flex-grows to fill the gap so the chain stays continuous
+   and spans the bar with compact, content-sized chips (no dead space anywhere). */
 .link {
   flex: 1 1 0.6rem;
   min-width: 0.45rem;
@@ -277,15 +300,28 @@ main {
 /* fields */
 .field {
   display: grid;
-  grid-template-columns: 12rem 1fr;
+  grid-template-columns: var(--w-label) 1fr;
   align-items: center;
-  gap: 0.75rem;
+  /* tight row gap so a caption hugs its control; the wider inter-field rhythm
+     is owned by the stacking container (--sp-4), giving the ~1:3 proximity
+     that stops rows blurring together. */
+  gap: var(--sp-1) var(--sp-3);
   min-height: 2.4rem; /* uniform row rhythm across checkbox + dropdown rows */
   padding: 0.15rem 0.5rem;
   border-radius: 0.4rem;
 }
 .field.dirty {
   box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+/* inter-field rhythm — clear separation between stacked rows, paired with the
+   tight intra-row gap for the ~1:3 proximity that keeps rows from blurring.
+   Adjacent-sibling only, so it never fires inside horizontal groups (rate-stack)
+   or the grid packs, which manage their own gap. */
+.card-body > .field + .field,
+.collapsible-body > .field + .field,
+.indent > .field + .field,
+.dsp-controls > .field + .field {
+  margin-top: var(--sp-4);
 }
 .field > label {
   color: var(--fg);
@@ -306,6 +342,10 @@ main {
 .top-row {
   display: grid;
   grid-auto-flow: column;
+  /* hero cards divide the full row (one card = full width, two = 50/50) so the
+     row's right edge is flush with the container — no raw-background hole. The
+     control INSIDE a card is capped separately (.seg-box .segment) so a
+     full-width card doesn't turn its buttons into banners. */
   grid-auto-columns: 1fr;
   gap: 1rem;
   margin-bottom: 1.2rem;
@@ -345,7 +385,11 @@ main {
 }
 .seg-box .segment {
   flex-direction: row;
+  /* fill the card up to a cap and centre — a full-width Backend card keeps its
+     buttons button-sized instead of stretching them across the whole container. */
   width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
   height: 100%;
 }
 .seg-box .segment .seg {
@@ -469,10 +513,11 @@ input[type="text"] {
 }
 select,
 input[type="text"] {
-  width: 240px;
+  width: var(--w-select);
+  max-width: 100%;
 }
 input[type="number"] {
-  width: 100px;
+  width: var(--w-num);
   appearance: textfield;
   -moz-appearance: textfield;
 }
@@ -483,10 +528,15 @@ input[type="number"]::-webkit-inner-spin-button {
   appearance: none;
   margin: 0;
 }
-/* Device is the one full-width control (long endpoint strings) */
-.field.wide .control,
-.field.wide select {
+/* Wide controls (long endpoint / filter strings): fill the control column but
+   cap so they never span the whole card — the full-bleed empty-select problem. */
+.field.wide .control {
   width: 100%;
+}
+.field.wide select,
+.field.wide input[type="text"] {
+  width: 100%;
+  max-width: var(--w-select-wide);
 }
 input:disabled,
 select:disabled {
@@ -598,7 +648,7 @@ input[type="checkbox"]:disabled {
    staged-config cards (accent-forward, no card chrome) to signal "writes live". */
 .playback {
   margin-bottom: 1.2rem;
-  padding: 1rem 1.2rem;
+  padding: 0.3rem 1.2rem;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--bg-2)), var(--bg-2));
   border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
   border-radius: 0.6rem;
@@ -660,9 +710,15 @@ input[type="checkbox"]:disabled {
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   overflow: hidden;
+  /* a surface fill (not just a faint border) so a stretched card's empty area
+     reads as deliberate space INSIDE the frame, not a hole in the page bg */
+  background: var(--bg-2);
 }
 .card-head {
-  background: var(--bg-2);
+  /* lighter than the card body so the header still reads now that the body
+     carries a background too */
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--line);
   padding: 0.55rem 0.8rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -678,14 +734,78 @@ input[type="checkbox"]:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  align-items: start; /* each card sizes to its content — shorter one doesn't stretch */
+  align-items: stretch; /* cards in a row share height — the shorter card's spare
+                           space reads as deliberate margin inside its frame, not
+                           a hole in the page */
   margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
+}
+/* controls inside a half-width card-grid card must fit that half — the 28rem
+   select token overflows a 12rem-label + half-container row (same math as the
+   packs), so the column is the cap here too. */
+.card-grid .field {
+  min-width: 0;
+}
+.card-grid .field select,
+.card-grid .field input[type="text"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 /* two equal columns INSIDE one card body (e.g. Automatic's two checkboxes) */
 .card-cols2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+/* two-col packing (item 3) — short rows (numeric / checkbox / narrow select)
+   pack two-up above the breakpoint so the right half stops being dead air;
+   wide rows (long endpoint / filter strings, marked .field.wide or .span) keep
+   a full row. Below 1100px viewport it collapses to one column — the old
+   single-column form is the untouched fallback. */
+.pack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+@media (min-width: 1100px) {
+  .pack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3) var(--sp-4);
+    align-items: start;
+  }
+  /* grid items default to min-width:auto and won't shrink below their content —
+     that let wide selects / long captions overflow the track and clip. min-width:0
+     lets the track do the constraining. */
+  .pack > * {
+    min-width: 0;
+  }
+  /* spanning is opt-in — only the long-string rows (device dropdown, log path)
+     carry .span; everything else packs two-up. A packed control fills its half
+     column; the 28/30rem width tokens are legal only in a full-span row, so here
+     the column itself is the cap (label + gap + control always fits the track). */
+  .pack > .span {
+    grid-column: 1 / -1;
+  }
+  /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
+     (column-first over two rows) with the secondary control in the right track,
+     instead of splitting the chain across columns by raw source order. */
+  .pack.chain {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, auto);
+  }
+  .pack .field:not(.span) select,
+  .pack .field:not(.span) input[type="text"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .pack .span select,
+  .pack .span input[type="text"] {
+    width: 100%;
+    max-width: var(--w-select-wide);
+    min-width: 0;
+  }
 }
 /* System · About — read-only key/value list */
 .about {
@@ -774,6 +894,7 @@ input[type="checkbox"]:disabled {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  white-space: nowrap; /* keep "Set manually" on one line — no wrap crowding the status text */
 }
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
@@ -1074,7 +1195,7 @@ button:disabled {
   line-height: 1.35;
   color: var(--fg-2);
   opacity: 0.8;
-  max-width: 64ch;
+  max-width: var(--measure);
   margin-top: 0.05rem;
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
@@ -1090,7 +1211,7 @@ button:disabled {
   color: var(--fg-2);
   opacity: 0.8;
   margin-top: 0.05rem;
-  max-width: 64ch;
+  max-width: var(--measure);
 }
 
 /* ── Visual-language token ─────────────────────────────────────────────
@@ -1115,8 +1236,8 @@ button:disabled {
   outline: none;
 }
 .knob-lg .knob-dial {
-  width: 96px;
-  height: 96px;
+  width: 200px;
+  height: 200px;
 }
 .knob-dial:focus-visible {
   box-shadow: 0 0 0 2px var(--accent);
@@ -1162,9 +1283,10 @@ button:disabled {
   gap: 0.25rem;
   flex: 0 0 auto;
 }
-/* .knob prefix raises specificity above the global input[type=text]{width:240px} */
+/* .knob prefix raises specificity above the global input[type=text] width.
+   --w-num keeps every readout box the same width as the plain number inputs. */
 .knob .knob-box {
-  width: 3.6rem;
+  width: var(--w-num);
   text-align: center;
   background: var(--bg-1);
   color: var(--fg);
@@ -1272,14 +1394,38 @@ button:disabled {
   margin-top: 0.7rem;
 }
 .range-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.4rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3) var(--sp-4);
+}
+.range-row > * {
+  min-width: 0;
 }
 /* compact fields inside clusters / range: shorter label column */
 .cluster .field:not(.field-knob),
 .range-row .field {
   grid-template-columns: 8rem 1fr;
+}
+/* clusters / knob rows must shrink to their column too, or the knob slider and
+   the value box overflow and clip (item 1: Loudness Treble value box cut off). */
+.cluster,
+.cluster-row > *,
+.knob-cluster > * {
+  min-width: 0;
+}
+/* NB: only selects — a .cluster input[type=text] is the knob readout box, which
+   must keep its fixed --w-num width, not stretch to fill the cluster. */
+.cluster select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.knob,
+.knob-slider {
+  min-width: 0;
+}
+.knob-slider {
+  flex: 1 1 60px;
 }
 
 /* ── Response plot (client-side SVG, log-freq axis) ───────────────────── */
@@ -1633,11 +1779,12 @@ input[type="text"],
 }
 .vr-boxes {
   display: flex;
+  justify-content: space-between; /* Min flush left, Max flush right, Startup centred */
   gap: 1.2rem;
 }
 .vr-box {
   display: flex;
-  flex: 1;
+  flex: 0 1 auto; /* content-width groups (not a stretched third) so Max sits at the edge */
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
@@ -1659,9 +1806,13 @@ input[type="text"],
 .vr-box.dirty > span {
   color: var(--accent);
 }
+/* cap the Min/Startup/Max inputs at --w-num — they hold 3-char values, so a
+   flex:1 input was full-bleed internal dead space. The groups stay distributed
+   across the row (vr-box is flex:1); the slack now reads as gaps between groups. */
 .vr-box input {
   min-width: 0;
-  flex: 1;
+  width: var(--w-num);
+  flex: 0 0 auto;
 }
 
 /* ── Playback volume panel + large knob ───────────────────────────────────
@@ -1675,10 +1826,13 @@ input[type="text"],
 /* in the lg column the slider is a horizontal control, not a flex child that
    should claim 160px of VERTICAL space (its row-layout basis) — that stretch is
    what made the panel read as mostly empty */
+/* absolute width (not %) so the group is wider than the dial — the column
+   otherwise shrinks to the dial and the knob reads as a tiny island. The slider's
+   width sets the whole group's footprint; the dial centres within it. */
 .knob-lg .knob-slider {
   flex: 0 0 auto;
-  width: 100%;
-  max-width: 260px;
+  width: 460px;
+  max-width: 100%;
 }
 .knob-tick {
   stroke: var(--muted);
@@ -1712,8 +1866,11 @@ input[type="text"],
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.7rem;
-  padding: 0.8rem 0.6rem;
+  gap: 0.5rem;
+  /* hug the content (don't flex-grow into the card) so the group fills the card
+     instead of floating centered in a tall void */
+  flex: 0 0 auto;
+  padding: 0.3rem 0.6rem;
 }
 /* one uniform dimming treatment for the knob group when volume control is
    unavailable — not a mix of muted strokes and gray text. The notice pill is a

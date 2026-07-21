@@ -127,28 +127,34 @@ const Output = () =>
       </div>
     </div>
     <${Card} title="General">
-      <${Field} k="channels" />
-      <${Field} k="gain_comp" />
-      <${Field} k="idle_time" />
-      <${Field} k="upnp_freewheel" />
-      <${Field} k="quick_pause" />
-      <${Field} k="short_buffer" />
+      <div class="pack">
+        <${Field} k="channels" />
+        <${Field} k="gain_comp" />
+        <${Field} k="idle_time" />
+        <${Field} k="upnp_freewheel" />
+        <${Field} k="quick_pause" />
+        <${Field} k="short_buffer" />
+      </div>
     <//>
     <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
-      <${Field} k="alsa_device" />
-      <${Field} k="alsa_offset" />
-      <${Field} k="alsa_bits" />
-      <${Field} k="alsa_period" />
-      <${Field} k="alsa_dop" />
-      <${Field} k="alsa_anydsd" />
+      <div class="pack">
+        <${Field} k="alsa_device" />
+        <${Field} k="alsa_offset" />
+        <${Field} k="alsa_bits" />
+        <${Field} k="alsa_period" />
+        <${Field} k="alsa_dop" />
+        <${Field} k="alsa_anydsd" />
+      </div>
     <//>
     <${Collapsible} title="Network Backend" auto=${netOpen} override=${netOverride}>
-      <${Field} k="net_device" />
-      <${Field} k="net_bits" />
-      <${Field} k="net_period" />
-      <${Field} k="net_dop" />
-      <${Field} k="net_anydsd" />
-      <${Field} k="net_ipv6" />
+      <div class="pack">
+        <${Field} k="net_device" />
+        <${Field} k="net_bits" />
+        <${Field} k="net_period" />
+        <${Field} k="net_dop" />
+        <${Field} k="net_anydsd" />
+        <${Field} k="net_ipv6" />
+      </div>
     <//>
   </section>`;
 
@@ -162,14 +168,14 @@ export function CrossfeedCard() {
   return html`
     <${Card} title="Crossfeed">
       <div class="dsp-card">
-        <${Field} k="crossfeed_enabled" />
+        <div class="pack">
+          <${Field} k="crossfeed_enabled" />
+          <${Field} k="crossfeed_preset" />
+        </div>
         <div class="dsp-body ${on ? "" : "off"}">
-          <div class="dsp-controls">
-            <${Field} k="crossfeed_preset" />
-            <div class="knob-cluster">
-              <${Field} k="crossfeed_frequency" />
-              <${Field} k="crossfeed_level" />
-            </div>
+          <div class="knob-cluster">
+            <${Field} k="crossfeed_frequency" />
+            <${Field} k="crossfeed_level" />
           </div>
           <div class="dsp-plot"><${CrossfeedPlot} /></div>
         </div>
@@ -234,22 +240,28 @@ const Resampling = () =>
     </div>
     <${NarrowBar} />
     <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
-      <${Field} k="pcm_filter_1x" />
-      <${Field} k="pcm_filter_nx" />
-      <${Field} k="pcm_dither" />
+      <div class="pack chain">
+        <${Field} k="pcm_filter_1x" />
+        <${Field} k="pcm_filter_nx" />
+        <${Field} k="pcm_dither" />
+      </div>
     <//>
     <${Collapsible} title="SDM" auto=${sdmOpen} override=${sdmOverride}>
-      <${Field} k="sdm_filter_1x" />
-      <${Field} k="sdm_filter_nx" />
-      <${Field} k="sdm_modulator" />
+      <div class="pack chain">
+        <${Field} k="sdm_filter_1x" />
+        <${Field} k="sdm_filter_nx" />
+        <${Field} k="sdm_modulator" />
+      </div>
     <//>
     <${Collapsible} title="DSD sources" auto=${dsdOpen} override=${dsdOverride}>
-      <${Field} k="direct_sdm" />
-      <${Field} k="dsd_gain_6db" />
-      <${Field} k="sdm_integrator" />
-      <${Field} k="sdm_conversion" />
-      <${Field} k="noise_filter" />
-      <${Field} k="pcm_conversion" />
+      <div class="pack">
+        <${Field} k="direct_sdm" />
+        <${Field} k="dsd_gain_6db" />
+        <${Field} k="sdm_integrator" />
+        <${Field} k="sdm_conversion" />
+        <${Field} k="noise_filter" />
+        <${Field} k="pcm_conversion" />
+      </div>
     <//>
     <${Collapsible} title="Filter length" auto=${fftOpen} override=${fftOverride}>
       <${Field} k="fft_size" />
@@ -262,9 +274,11 @@ const Dsp = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
   return html`<${Section}>
     <${Card} title="DAC correction">
-      <${Field} k="dac_correction_enabled" />
-      <div class="indent ${dacOn ? "" : "off"}">
-        <${Field} k="dac_correction_profile" />
+      <div class="pack">
+        <${Field} k="dac_correction_enabled" />
+        <div class="indent ${dacOn ? "" : "off"}">
+          <${Field} k="dac_correction_profile" />
+        </div>
       </div>
     <//>
     <${CrossfeedCard} />
@@ -326,8 +340,8 @@ const DescriptionPrefs = () => html`
     <label>Feature descriptions</label>
     <div class="control">
       <${Checkbox} value=${showDescriptions.value ? "1" : "0"} onChange=${(v) => setShowDescriptions(v === "1")} />
-      <span class="unit">Show a manual note under each control</span>
     </div>
+    <div class="field-note">Show a manual note under each control</div>
   </div>
   <div class="field">
     <label>Option descriptions</label>
@@ -337,8 +351,8 @@ const DescriptionPrefs = () => html`
         disabled=${showDescriptions.value}
         onChange=${(v) => setKeepOptionDescriptions(v === "1")}
       />
-      <span class="unit">Keep filter and DSD source option descriptions when feature descriptions are hidden</span>
     </div>
+    <div class="field-note">Keep filter and DSD source option descriptions when feature descriptions are hidden</div>
   </div>
 `;
 
@@ -385,15 +399,19 @@ const System = () =>
       <${BackupRestoreCard} />
     </div>
     <${HardwareCard} />
-    <${Card} title="DSP pipelines">
-      <${Field} k="pipelines" />
-    <//>
-    <${Card} title="Metering">
-      <${Field} k="pre_before_meter" />
-    <//>
+    <div class="card-grid">
+      <${Card} title="DSP pipelines">
+        <${Field} k="pipelines" />
+      <//>
+      <${Card} title="Metering">
+        <${Field} k="pre_before_meter" />
+      <//>
+    </div>
     <${Card} title="HQPTuner">
-      <${DescriptionPrefs} />
-      <${AccentPicker} />
+      <div class="pack">
+        <${DescriptionPrefs} />
+        <${AccentPicker} />
+      </div>
     <//>
     <${LoggingCard} />
   <//>`;
