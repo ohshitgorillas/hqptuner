@@ -2,7 +2,9 @@
 
 *A polished, free web UI for HQPlayer Embedded's settings — filters, modulators, rates, volume, matrix pipelines, and hardware acceleration — with the manual's knowledge built in.*
 
-<img width="1202" height="1303" alt="image" src="https://github.com/user-attachments/assets/3b1cf017-d33f-4378-84f3-98f05975649e" />
+<img width="1202" height="1303" alt="HQPTuner's Output tab during DSD512 playback" src="https://github.com/user-attachments/assets/3b1cf017-d33f-4378-84f3-98f05975649e" />
+
+*The Output tab during DSD512 playback: live signal path across the top, Backend / Mode / Rate master switches, and every setting explained in place.*
 
 ## Inspiration
 
@@ -49,8 +51,9 @@ The Matrix tab replaces hqplayerd's `/matrix` page with a visual pipeline editor
 
 Known limits: convolution stages plot only when their impulse file was uploaded in the current session (the daemon offers no way to read impulses back); editing the same config from HQPTuner and the stock `/matrix` page at the same instant is unsupported (the stock page always submits its complete form and will silently revert concurrent edits — a daemon-level limitation).
 
-<img width="1213" height="1885" alt="image" src="https://github.com/user-attachments/assets/7a3d8e53-46c8-49dd-a5a4-7403a6aa352a" />
+<img width="1213" height="1885" alt="HQPTuner's Matrix tab with EQ pipelines, the AutoEq library, and the response plot" src="https://github.com/user-attachments/assets/7a3d8e53-46c8-49dd-a5a4-7403a6aa352a" />
 
+*The Matrix tab: a stereo pair of 10-band EQ pipelines with the inline stage editor open, the built-in AutoEq library previewing a Sennheiser HD 650 profile against the current curve, and draggable EQ dots on the response plot.*
 
 ## Drawbacks of HQPTuner
 
