@@ -32,6 +32,7 @@ import { parseEqText } from "../store/eqimport.js";
 import { registerIr } from "../store/dsp.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, togglePlotted } from "./MatrixPlot.js";
+import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
 
 const MAX_CH = 128;
 const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
@@ -486,8 +487,16 @@ function ImportPanel({ rows }) {
     if (!file) return;
     file.text().then((t) => (importText.value = t));
   };
+  // Library apply routes through the EXACT paste path: the profile's verbatim
+  // ParametricEQ.txt lands in the textarea and goes through doImport, so the
+  // staged stages are identical to pasting the file (acceptance criterion).
+  const applyText = (text) => {
+    importText.value = text;
+    doImport(rows);
+  };
   return html`
     <div class="mtx-import">
+      <${LibraryPicker} applyText=${applyText} />
       <textarea
         rows="5"
         placeholder=${"Paste an AutoEq ParametricEQ.txt or a REW Generic EQ export…\nFilter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41"}
@@ -539,7 +548,10 @@ function PipelinesCard() {
         <button
           type="button"
           class="mtx-tool mtx-import-toggle ${importOpen.value ? "active" : ""}"
-          onClick=${() => (importOpen.value = !importOpen.value)}
+          onClick=${() => {
+            importOpen.value = !importOpen.value;
+            if (!importOpen.value) clearLibrarySelection(); // closing the panel drops the preview — no residue
+          }}
         >Import EQ</button>
       </div>
       <div class="card-body">

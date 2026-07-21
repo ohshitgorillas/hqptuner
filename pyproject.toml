@@ -66,6 +66,7 @@ max-complexity = 10
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S106", "S108"]  # asserts are the point; hardcoded creds/paths are fake-daemon fixtures, not secrets
 "scripts/*" = ["S101"]
+"scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
 
 [tool.mypy]
 python_version = "3.12"
