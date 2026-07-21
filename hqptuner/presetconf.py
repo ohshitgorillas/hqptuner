@@ -372,7 +372,9 @@ def snapshot_member(zip_bytes: bytes, active: str | None) -> bytes:
         )
 
 
-def restore_zip_from_running(zip_bytes: bytes, edits: dict[str, str]) -> tuple[bytes, bytes]:
+def restore_zip_from_running(
+    zip_bytes: bytes, edits: dict[str, str], extra_members: dict[str, bytes] | None = None
+) -> tuple[bytes, bytes]:
     """Build a ``POST /restore`` archive whose **working** config member
     (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is
     active) is the CURRENT working config with ``edits`` applied — every other member,
@@ -399,9 +401,18 @@ def restore_zip_from_running(zip_bytes: bytes, edits: dict[str, str]) -> tuple[b
         # preset is active — rewrite THAT member, leave the cfgs snapshots (the
         # preset's saved definition) untouched so edits stay ephemeral until Save
         running = engineconf.running_config_name(zin.namelist())
+        extras = dict(extra_members or {})
         for item in zin.infolist():
-            raw = intended if item.filename == running else zin.read(item.filename)
+            if item.filename == running:
+                raw = intended
+            elif item.filename in extras:
+                raw = extras.pop(item.filename)  # re-upload replaces the member
+            else:
+                raw = zin.read(item.filename)
             zout.writestr(item, raw)
+        # new members (uploaded filter files) append; restore writes them to disk
+        for name, data in extras.items():
+            zout.writestr(name, data)
     return out.getvalue(), intended
 
 

@@ -105,7 +105,9 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     mid-write)."""
     backup = await mgr.backup_for_write()
     mgr.persist_backup(backup)  # survives a crash mid-apply
-    restore_zip, intended_xml = presetconf.restore_zip_from_running(backup, merged)
+    # parked filter uploads ride the same restore (data/<name> members land in
+    # the daemon's home dir, where staged process paths resolve)
+    restore_zip, intended_xml = presetconf.restore_zip_from_running(backup, merged, mgr.parked_filter_members())
     await mgr.require_http().restore(restore_zip, scope="system")
     return presetconf.read_config(intended_xml)
 

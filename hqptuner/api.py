@@ -310,7 +310,20 @@ def pending(request: Request) -> dict[str, Any]:
 def discard(request: Request) -> dict[str, Any]:
     store = _pending(request)
     store.clear()
+    # parked filter uploads belong to the staged process strings just discarded
+    _mgr(request).clear_parked_filters()
     return store.snapshot()
+
+
+@router.post("/matrix/filter")
+async def matrix_filter(request: Request, file: Annotated[UploadFile, File()]) -> dict[str, str]:
+    """Park an uploaded convolution filter (wav/txt) for the next apply, which
+    injects it into the restore archive; returns the daemon-side absolute path
+    the pipeline process string should reference (matrix-spec step 4)."""
+    try:
+        return _mgr(request).park_filter(file.filename or "", await file.read())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, Any]:
