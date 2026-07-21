@@ -14,8 +14,10 @@ class Config:
     hqp_host: str = field(default_factory=lambda: _env("HQP_HOST", "127.0.0.1"))
     hqp_control_port: int = field(default_factory=lambda: int(_env("HQP_CONTROL_PORT", "4321")))
     hqp_http_port: int = field(default_factory=lambda: int(_env("HQP_HTTP_PORT", "8088")))
-    hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", ""))
-    hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", ""))
+    # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
+    # override only if the daemon's auth was re-provisioned.
+    hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))
+    hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", "password"))
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
     listen_port: int = field(default_factory=lambda: int(_env("LISTEN_PORT", "8090")))
     poll_interval: float = field(default_factory=lambda: float(_env("POLL_INTERVAL", "2.0")))
