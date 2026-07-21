@@ -251,7 +251,7 @@ Also recorded: HQPlayer **Desktop has no web UI** — no port-8088 lane, so HQPT
 
 - ~~Dockerfile + compose example~~ — done 0.3.0 (config surface ended up all-env-var: `HQPTUNER_*`, no XML path / service-controller command needed)
 - ~~README: setup, config reference, screenshots~~ — done (beta README, 2026-07-21)
-- MIT license **file** (README announces MIT; `LICENSE` not yet in repo); provenance note for the protocol implementation (derived from Jussi's MIT-licensed `hqp-control` source, with attribution)
+- ~~MIT license file~~ — done 2026-07-21; provenance notes for `hqp-control` derivation + AutoEq live in README §License
 - Publish and announce; feedback loop with the HQPlayer community drives whatever comes next — beta announce done, release announce pending
 
 ### Exit criteria

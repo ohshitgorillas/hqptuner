@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- MIT `LICENSE` file.
+
 ## [0.3.0] — 2026-07-21
 
 ### Added
