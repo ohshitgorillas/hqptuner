@@ -2237,18 +2237,11 @@ select.mtx-ch {
 }
 
 /* ── Matrix tab step 6: AutoEq / REW import panel ────────────────────────── */
-.mtx-import-toggle {
-  float: right;
-  font-size: 0.75rem;
-}
+/* lives in the Headphone AutoEQ card body — the card is the container now */
 .mtx-import {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  border: 1px dashed var(--line);
-  border-radius: 6px;
-  padding: var(--sp-3);
-  margin-bottom: var(--sp-3);
 }
 .mtx-import textarea {
   width: 100%;
@@ -2330,6 +2323,21 @@ select.mtx-ch {
 }
 .mtx-pipelines-note {
   margin-bottom: var(--sp-3);
+}
+
+/* ── Headphone AutoEQ card ───────────────────────────────────────────────
+   Standing collapsible card (default collapsed) — the card-head doubles as
+   the toggle button, tri glyph in accent like the FFT collapsible. */
+.mtx-eq-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+}
+.mtx-eq-head .tri {
+  color: var(--accent);
+  margin-right: 0.45rem;
 }
 
 /* ── AutoEq profile library (Import-EQ panel) ────────────────────────────── */
