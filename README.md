@@ -100,8 +100,6 @@ docker compose up -d
 
 Then open `http://<serverIP>:8090`.
 
-The default compose file assumes hqplayerd runs on the same machine and reaches it through the Docker host gateway — no host networking needed. The file's comments cover the variants: a remote daemon, a host-networking fallback, and the optional read-only mount of hqplayerd's log file that powers the System tab's log tail.
-
 Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) — `latest` tracks master, version tags track releases.
 
 ### From a clone (no Docker)
