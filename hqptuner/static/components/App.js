@@ -4,7 +4,7 @@
 import { html } from "../lib/dom.js";
 import { Header } from "./Header.js";
 import { SignalPath } from "./SignalPath.js";
-import { TabBar, TabBody } from "./tabs.js";
+import { TabBar, TabBody } from "./tabs/index.js";
 import { PendingBar } from "./PendingBar.js";
 import { reachable } from "../store/state.js";
 
