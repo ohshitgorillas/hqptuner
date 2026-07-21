@@ -18,8 +18,8 @@ from typing import Any
 
 import httpx
 
-from . import engineconf
-from .httpconf import HttpConfigClient
+from ..conf import engineconf
+from ..conf.httpconf import HttpConfigClient
 
 # readback attempts after the restore, spaced by `sleep`, before reporting the
 # apply unconfirmed — the restore restart measured ~5.6 s on 6.0.4

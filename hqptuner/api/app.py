@@ -13,14 +13,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.types import Scope
 
+from ..conf.httpconf import HttpConfigClient
+from ..config import Config
+from ..control import ControlError
+from ..manager import ConnectionManager
+from ..metadata import StaticMetadata, merge_enumerations
+from ..presetstore import PresetError
+from ..writer import known_live_settings
 from . import matrixapi
-from .config import Config
-from .control import ControlError
-from .httpconf import HttpConfigClient
-from .manager import ConnectionManager
-from .metadata import StaticMetadata, merge_enumerations
-from .presetstore import PresetError
-from .writer import known_live_settings
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -439,7 +439,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(matrixapi.router)
     # Serve the SPA. Mounted last and at "/", so the /api routes above win; the
     # SPA's static assets and index.html fall through to here.
-    static_dir = Path(__file__).resolve().parent / "static"
+    static_dir = Path(__file__).resolve().parent.parent / "static"
     if static_dir.is_dir():
         app.mount("/", NoCacheStaticFiles(directory=static_dir, html=True), name="spa")
     return app

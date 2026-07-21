@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from hqptuner.httpconf import HttpConfigClient
+from hqptuner.conf.httpconf import HttpConfigClient
 
 BACKUP_BLOB = b"BACKUP-BLOB"
 

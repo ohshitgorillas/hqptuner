@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.httpconf import parse_config_form
+from hqptuner.conf.httpconf import parse_config_form
 
 FIXTURE = Path(__file__).parent / "fixtures" / "config-form-6.0.4.html"
 _HTML = FIXTURE.read_text()

@@ -10,12 +10,12 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from .control import ControlError
-from .manager import ConnectionManager
+from ..control import ControlError
+from ..manager import ConnectionManager
 
 router = APIRouter(prefix="/api")
 
-_AUTOEQ_BLOB = Path(__file__).resolve().parent / "static" / "vendor" / "autoeq.json.gz"
+_AUTOEQ_BLOB = Path(__file__).resolve().parent.parent / "static" / "vendor" / "autoeq.json.gz"
 
 
 @router.get("/autoeq")

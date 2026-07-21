@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from .control import CommandError, ControlError
+from ..control import CommandError, ControlError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from .manager import ConnectionManager
+    from ..manager import ConnectionManager
 
 _PROFILE_POLL = 0.5  # cadence for polling the 4321 lane back after a reload
 
