@@ -14,6 +14,9 @@
 //                or 'config' (the form field's own <option> set)
 //   grayWhen     optional fn(ctx) -> reason string | ''; ctx.effective(key) reads
 //                the *staged* value, so graying reacts before Apply (outline §5)
+//   quietGray    suppress the visible gray caption (hover title only) — for
+//                controls whose graying is already explained by context (the
+//                rate pair, dimmed post-process card bodies)
 //
 // Output is the full outline §4 set. DSP/Volume/System still carry the step-1
 // subset — filled next, tab by tab.
@@ -26,17 +29,11 @@
 // (The live GetModes enum is device-dependent: it drops SDM when the active
 // device can't do DSD, so it's the wrong source for a persistent config choice.)
 // grayWhen contract: return a reason STRING (rendered as a visible caption on
-// the grayed field and as the hover title), '' when enabled — a bare boolean
-// leaks "true" into the title attribute.
+// the grayed field unless quietGray, and as the hover title), '' when enabled —
+// a bare boolean leaks "true" into the title attribute.
 const inMode = (ctx, m) => String(ctx.effective("output_mode")) === m;
 const isSdm = (ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
 const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
-// DSD-source decoding splits by output family (manual §4.4/§4.5): the SDM→SDM
-// remodulation controls (integrator, conversion aperture) only run when a DSD
-// source goes to SDM output; the DSD→PCM controls (noise filter, SDM→PCM
-// conversion, +6 dB gain) only run when a DSD source goes to PCM output.
-const sdmToSdm = (ctx) => (inMode(ctx, "pcm") ? "Only used for SDM-to-SDM conversion (SDM output mode)." : "");
-const dsdToPcm = (ctx) => (inMode(ctx, "sdm") ? "Only used for DSD-to-PCM conversion (PCM output mode)." : "");
 // Direct SDM "disables all processing when source is DSD content and output
 // format is SDM" (manual §4.5) — meaningless without SDM output.
 const needsSdmOut = (ctx) => (inMode(ctx, "pcm") ? "Requires SDM output mode." : "");
@@ -135,8 +132,9 @@ export const schema = {
   // forces auto-family, so a per-family Nx/DSDx multiplier is the whole UX; each
   // maps to the 48k-base ceiling value (the higher of the 44.1/48 pair) so a
   // source of either family reaches its own Nx under the "equal or lower" cap.
-  pcm_rate: { label: "PCM", group: "output", widget: "dropdown", lane: "http", field: "defaults_samplerate", options: PCM_RATES, grayWhen: isSdm, hoverNote: true },
-  sdm_rate: { label: "SDM", group: "output", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, hoverNote: true },
+  // quietGray: the PCM/SDM pair next to the Mode segment explains itself.
+  pcm_rate: { label: "PCM", group: "output", widget: "dropdown", lane: "http", field: "defaults_samplerate", options: PCM_RATES, grayWhen: isSdm, quietGray: true, hoverNote: true },
+  sdm_rate: { label: "SDM", group: "output", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, quietGray: true, hoverNote: true },
 
   // --- Output: ALSA backend section (backend alsa|combo) ---
   alsa_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true, span: true },
@@ -176,24 +174,26 @@ export const schema = {
   pipelines: { label: "DSP pipelines", group: "dsp", widget: "dropdown", lane: "http", field: "pipelines", optionsFrom: "config" },
 
   // --- DSP: DSD source decoding (SDM input processing) ---
-  // Each control here serves exactly one of the two DSD-source paths (manual
-  // §4.4 "DSD sources" vs §4.5) — grayed with the reason in the other mode.
+  // Each control serves exactly one of the two DSD-source paths (manual §4.4
+  // DSD→PCM vs §4.5 SDM→SDM) — grayed in the mode that doesn't use it.
   direct_sdm: { label: "Direct SDM", group: "dsp", widget: "checkbox", lane: "http", field: "direct_sdm", grayWhen: needsSdmOut },
-  dsd_gain_6db: { label: "Gain +6 dB", group: "dsp", widget: "checkbox", lane: "http", field: "dsd_6db", grayWhen: dsdToPcm },
-  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true, desc: "config", grayWhen: sdmToSdm },
-  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true, desc: "config", grayWhen: sdmToSdm },
-  noise_filter: { label: "Noise filter", group: "dsp", note: "pdm_filter", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true, desc: "config", grayWhen: dsdToPcm },
-  pcm_conversion: { label: "SDM → PCM", group: "dsp", note: "pdm_conversion", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true, desc: "config", grayWhen: dsdToPcm },
+  dsd_gain_6db: { label: "Gain +6 dB", group: "dsp", widget: "checkbox", lane: "http", field: "dsd_6db", grayWhen: isSdm },
+  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true, desc: "config", grayWhen: isPcm },
+  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true, desc: "config", grayWhen: isPcm },
+  noise_filter: { label: "Noise filter", group: "dsp", note: "pdm_filter", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true, desc: "config", grayWhen: isSdm },
+  pcm_conversion: { label: "SDM → PCM", group: "dsp", note: "pdm_conversion", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true, desc: "config", grayWhen: isSdm },
 
   // --- DSP: post-processing (crossfeed + DAC correction). endpoint:"matrix"
   // marks these as /matrix form-read fields (their baseline/options come from
   // GET /matrix). On apply they ride the same snapshot-XML restore lane as every
   // other persistent field — the manager edits their <post_process><plugin> nodes
   // (presetconf.PLUGIN_MAP), so a stray crossfeed can't survive a preset re-assert.
+  // Sub-controls are quietGray: the dimmed card body + enable checkbox already
+  // say why; per-control captions would repeat it a dozen times.
   crossfeed_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_bauer_enabled" },
-  crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true, grayWhen: crossfeedOff },
-  crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz", def: 700, grayWhen: crossfeedOff },
-  crossfeed_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", def: 4.5, grayWhen: crossfeedOff },
+  crossfeed_preset: { label: "Preset", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_bauer_preset", optionsFrom: "matrix", wide: true, grayWhen: crossfeedOff, quietGray: true },
+  crossfeed_frequency: { label: "Frequency", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_frequency", unit: "Hz", def: 700, grayWhen: crossfeedOff, quietGray: true },
+  crossfeed_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_bauer_level", unit: "dB", def: 4.5, grayWhen: crossfeedOff, quietGray: true },
   dac_correction_enabled: { label: "Enable", group: "dsp", note: "dac_correction", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_correction_enabled" },
   dac_correction_profile: { label: "Profile", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_correction_dac0", optionsFrom: "matrix", wide: true },
   // Loudness plugin (bass/treble shelf-or-peak + loudness range). Fields read
@@ -201,19 +201,19 @@ export const schema = {
   // PLUGIN_MAP into <post_process><plugin type="loudness">. Number bounds/steps
   // come from the form itself (cfgConstraint), so they track the daemon.
   loudness_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled" },
-  loudness_low_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB", def: 20, grayWhen: loudnessOff },
-  loudness_low_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz", grayWhen: loudnessOff },
+  loudness_low_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB", def: 20, grayWhen: loudnessOff, quietGray: true },
+  loudness_low_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz", grayWhen: loudnessOff, quietGray: true },
   // Steepness sliders: the /matrix form ships no min/max for the slope factor
   // (readme documents none), so the schema carries a pragmatic 0.1–10 slider
   // range covering all three type domains (shelf slope, Q, bandwidth).
-  loudness_low_steep: { label: "Steepness / Q", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep", min: 0.1, max: 10, step: 0.1, grayWhen: loudnessOff },
-  loudness_low_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_lowtype", optionsFrom: "matrix", grayWhen: loudnessOff },
-  loudness_high_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_highlevel", unit: "dB", def: 10, grayWhen: loudnessOff },
-  loudness_high_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highfreq", unit: "Hz", grayWhen: loudnessOff },
-  loudness_high_steep: { label: "Steepness / Q", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep", min: 0.1, max: 10, step: 0.1, grayWhen: loudnessOff },
-  loudness_high_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_hightype", optionsFrom: "matrix", grayWhen: loudnessOff },
-  loudness_range_low: { label: "Lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB", grayWhen: loudnessOff },
-  loudness_range_high: { label: "Upper bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB", grayWhen: loudnessOff },
+  loudness_low_steep: { label: "Steepness / Q", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_loudness_lowsteep", min: 0.1, max: 10, step: 0.1, grayWhen: loudnessOff, quietGray: true },
+  loudness_low_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_lowtype", optionsFrom: "matrix", grayWhen: loudnessOff, quietGray: true },
+  loudness_high_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_highlevel", unit: "dB", def: 10, grayWhen: loudnessOff, quietGray: true },
+  loudness_high_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_highfreq", unit: "Hz", grayWhen: loudnessOff, quietGray: true },
+  loudness_high_steep: { label: "Steepness / Q", group: "dsp", widget: "slidernum", lane: "http", endpoint: "matrix", field: "post_loudness_highsteep", min: 0.1, max: 10, step: 0.1, grayWhen: loudnessOff, quietGray: true },
+  loudness_high_type: { label: "Type", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "post_loudness_hightype", optionsFrom: "matrix", grayWhen: loudnessOff, quietGray: true },
+  loudness_range_low: { label: "Lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB", grayWhen: loudnessOff, quietGray: true },
+  loudness_range_high: { label: "Upper bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB", grayWhen: loudnessOff, quietGray: true },
 
   // --- Matrix tab (matrix-spec step 3): global controls + the atomic pipeline
   // set. Staged keys are the write lane's prefixed names (presetconf.FIELD_MAP);

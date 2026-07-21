@@ -143,7 +143,7 @@ export function Field({ k }) {
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${entry.desc && descVisible.value ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options, meta)}</div>` : null}
       ${!entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value ? html`<div class="field-note">${meta.tooltip}</div>` : null}
-      ${reason ? html`<div class="field-gray-reason">${reason}</div>` : null}
+      ${reason && !entry.quietGray ? html`<div class="field-gray-reason">${reason}</div>` : null}
     </div>
   `;
 }
