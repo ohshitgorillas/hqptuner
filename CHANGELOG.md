@@ -8,6 +8,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - The signal-path bar gives the matrix its own permanent chip showing the active profile name (previously it folded into an anonymous "DSP: On" whenever crossfeed or loudness was also active). Crossfeed + loudness still share the combined "DSP" slot.
 
+### Added
+
+- Favicon (there was none — every tab showed the generic globe and `/favicon.ico` 404'd): a level-slider glyph that follows the active preset — 🎧 when the preset name contains "headphone", 🔊 for "speaker", 🎚️ otherwise.
+
 ## [0.3.2] — 2026-07-21
 
 ### Changed
