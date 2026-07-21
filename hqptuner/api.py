@@ -173,7 +173,18 @@ def matrix(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
     if manager.matrix_form is None and manager.matrix_error:
         raise HTTPException(status_code=502, detail=f"GET /matrix failed: {manager.matrix_error}")
-    return _snapshot(manager, manager.matrix_form)
+    if manager.matrix_form is None:
+        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
+    # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
+    # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
+    return _snapshot(
+        manager,
+        {
+            **manager.matrix_form,
+            "live_profiles": manager.matrix_profiles or [],
+            "live_active": (manager.state or {}).get("matrix_profile", ""),
+        },
+    )
 
 
 @router.get("/preset/{name}")

@@ -197,16 +197,49 @@ def _http_render(st: dict[str, Any]) -> str:
     return '<form method="post">' + "".join(rows) + "</form>"
 
 
+def _matrix_pipeline_row(i: int, source: str, mixdown: str, process: str) -> str:
+    """One pipeline table row, markup-faithful to 6.0.4 — including the daemon's
+    malformed gainunit options (`value="dB""`, a stray quote the browser and any
+    tolerant parser read as value dB plus a junk attribute)."""
+    ch = "".join(f'<option value="{v}"{" selected" if str(v) == source else ""}>{v + 1}</option>' for v in range(4))
+    mix = "".join(f'<option value="{v}"{" selected" if str(v) == mixdown else ""}>{v + 1}</option>' for v in range(4))
+    return (
+        f"<tr><td>{i + 1}</td>"
+        f'<td><select name="source_{i}">{ch}</select></td>'
+        f'<td><input type="number" name="gain_{i}" value="0" step="0.01"/></td>'
+        f'<td><select name="gainunit_{i}"><option value="dB"" selected>dB</option>'
+        f'<option value="Lin"">Lin</option></select></td>'
+        f'<td><select name="mixdown_{i}">{mix}</select></td>'
+        f'<td><input type="text" size="128" name="process_{i}" value="{process}"></td>'
+        f'<td><input type="checkbox" name="plot_{i}" value="1"/></td>'
+        f'<td><input type="file" accept="wav,txt" name="filter_{i}" multiple/></td></tr>'
+    )
+
+
 def _matrix_render(st: dict[str, Any]) -> str:
-    rows = [
+    """GET /matrix — markup-faithful to the real 6.0.4 page: global controls,
+    profile input + datalist + active label, indexed pipeline table, post-process
+    plugin fields."""
+    profs = "".join(f'<option value="{p}">{p}</option>' for p in st["_matrix_profiles"])
+    pipelines = _matrix_pipeline_row(0, "0", "0", st["process_0"]) + _matrix_pipeline_row(1, "1", "1", "")
+    parts = [
+        '<h2>Matrix pipeline</h2><input type="checkbox" name="enabled" value="1" checked/>',
+        '<select name="engine"><option value="0">overlap-save</option>'
+        '<option value="1" selected>overlap-add</option></select>',
+        '<input type="checkbox" name="expand_hf" value="1"/>',
+        '<select name="iir2fir"><option value="0" selected>none</option>'
+        '<option value="1">direct</option><option value="2">linear</option></select>',
+        f'<b>Active: </b>{st["matrix_active"]}<br>',
+        f'<input type="text" size="64" name="profile" list="profile_items"/><datalist id="profile_items">{profs}'
+        "</datalist>",
+        f"<table>{pipelines}</table>",
         f'<input type="checkbox" name="post_bauer_enabled" value="1"{" checked" if st["post_bauer_enabled"] else ""}/>',
         f'<input type="number" name="post_bauer_frequency" value="{st["post_bauer_frequency"]}"/>',
         f'<input type="checkbox" name="post_loudness_enabled" value="1"'
         f'{" checked" if st["post_loudness_enabled"] else ""}/>',
         f'<input type="number" name="post_loudness_lowfreq" value="{st["post_loudness_lowfreq"]}"/>',
-        '<input type="file" name="filter_0"/>',
     ]
-    return '<form method="post">' + "".join(rows) + "</form>"
+    return '<form method="post" enctype="multipart/form-data">' + "".join(parts) + "</form>"
 
 
 def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
@@ -324,6 +357,11 @@ def state(**extra: Any) -> dict[str, Any]:
         "_saved": {},
         # the plugin chain lives inside <matrix>; on because bauer below is on
         "matrix_enabled": True,
+        # /matrix page state: saved profile names (datalist), the printed active
+        # label, and pipeline 0's process chain
+        "_matrix_profiles": ["", "Default", "Mch-to-Stereo mixdown"],
+        "matrix_active": "[Default]",
+        "process_0": "",
         "post_bauer_enabled": True,
         "post_bauer_frequency": "700",
         "post_loudness_enabled": False,

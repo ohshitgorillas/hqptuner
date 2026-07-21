@@ -1896,3 +1896,101 @@ input[type="text"],
   content: "⚠";
   color: var(--accent);
 }
+
+/* ── Matrix tab (read-only phase) ─────────────────────────────────────────
+   Pipeline flow rows: chips joined by connectors, one row per pipeline.
+   Chip hue encodes stage kind (matrix-spec §3) with FIXED hues, deliberately
+   independent of the switchable accent so the kinds stay distinguishable
+   under every accent theme: channel endpoints blue, IIR amber, convolution
+   green, other plugins + gain neutral. */
+:root {
+  --chip-ch: #4f9dde;
+  --chip-iir: #d1a13a;
+  --chip-conv: #3fa66a;
+}
+.mtx-read {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: 0;
+}
+.mtx-read-row {
+  display: grid;
+  grid-template-columns: var(--w-label) 1fr;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.mtx-read-row dt {
+  color: var(--fg-2);
+}
+.mtx-read-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.mtx-count {
+  margin-left: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--fg-2);
+}
+.mtx-flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* long chains wrap inside the row — never horizontal scroll */
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-2) 0;
+  min-width: 0;
+}
+.mtx-flow + .mtx-flow {
+  border-top: 1px solid var(--line);
+}
+.mtx-flow-idx {
+  width: 1.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: right;
+  margin-right: var(--sp-1);
+}
+.pchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-3);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.pchip-ch {
+  border-color: var(--chip-ch);
+  color: var(--chip-ch);
+}
+.pchip-iir {
+  border-color: var(--chip-iir);
+  color: var(--chip-iir);
+}
+.pchip-conv {
+  border-color: var(--chip-conv);
+  color: var(--chip-conv);
+}
+.pchip-plug {
+  color: var(--fg);
+}
+.pchip-gain {
+  color: var(--fg-2);
+}
+.pconn {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.psum {
+  font-size: 0.7rem;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 0.2rem;
+  line-height: 1.1;
+}

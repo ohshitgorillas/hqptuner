@@ -36,6 +36,20 @@ Extend the form parser for grouped indexed row fields, datalist capture, and the
 
 **8. Delivery order.** Probes → parser groundwork + read-only Matrix tab rendering existing config as flow rows → editing + apply → stage editor with raw sync → profiles → import → plots. Each phase lands with the standard PASS/FAIL hand-back.
 
+## Delivery status (active checklist — update at every phase hand-back)
+
+Seven phases (§8). The feature is not landed/complete/shipped until the step-7 hand-back passes.
+
+- [x] **1 — probes** (findings below; all five questions closed)
+- [x] **2 — parser groundwork + read-only tab** (accepted 2026-07-20 with notes, resolved at step-3 start: bordered row containers with plot-toggle position reserved; delay/riaa chips amber — palette rule is channels blue / convolution green / gain neutral / all other processing amber; "In n"/"Out n" labels approved-keep)
+- [ ] **3 — editing + apply** (pipeline add/remove, source/target/gain edits, staged-lane apply → daemon-accepted XML, staged-bar counts matrix edits, restore-lane round-trip)
+- [ ] **4 — stage editor** (inline docked panel, 11 IIR types + delay + riaa + convolution upload, live spec string, chip ↔ raw two-way sync on matrixspec.js)
+- [ ] **5 — profiles** (4321 live switch, Load/Save/Save-as-new/Delete, "applies live" indicator, read-only note removed)
+- [ ] **6 — AutoEq / REW import**
+- [ ] **7 — response plots** (dsp.js extensions; client-side FFT for convolution per probe ruling)
+
+Standing hand-back requirements (every phase from 3 on): fresh 1280 screenshots, DOM-measured PASS/FAIL, **both accent themes + both hero states measured — never "by construction"**, and both live daemon state **and** the 16-row / 8-stage worst-case mock via `/api/matrix` route interception (standing fixture, established at step 2).
+
 ## Investigation report (2026-07-20)
 
 ### Feature inventory (live 6.0.4 form, captured)

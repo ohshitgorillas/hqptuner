@@ -63,15 +63,19 @@ def _apply(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
         state["volume"] = value
 
 
-def _handle(body: str, state: dict[str, str]) -> str:
-    el = _fromstring(body)
-    name, attrs = el.tag, el.attrib
+def _query(name: str, state: dict[str, str]) -> str | None:
+    """Read-only commands answered from state; None for setters."""
     if name == "GetInfo":
         return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
     if name == "GetLicense":
         return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
     if name == "ConfigurationGet":
         return f'<ConfigurationGet result="OK" value="{state.get("_active_config", "")}"/>'
+    if name == "MatrixListProfiles":
+        items = "".join(f'<MatrixProfile name="{n}"/>' for n in ("Default", "Mch-to-Stereo mixdown"))
+        return f'<MatrixListProfiles result="OK">{items}</MatrixListProfiles>'
+    if name == "MatrixGetProfile":
+        return f'<MatrixGetProfile result="OK" value="{state.get("_matrix_profile", "")}"/>'
     if name == "State":
         return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items() if not k.startswith("_")) + "/>"
     if name == "VolumeRange":
@@ -88,6 +92,15 @@ def _handle(body: str, state: dict[str, str]) -> str:
             f'active_rate="192000" volume="{state["volume"]}">'
             f'{state["_metadata"]}</Status>'
         )
+    return None
+
+
+def _handle(body: str, state: dict[str, str]) -> str:
+    el = _fromstring(body)
+    name, attrs = el.tag, el.attrib
+    answer = _query(name, state)
+    if answer is not None:
+        return answer
     if name == "Volume" and state["_vol_enabled"] == "0":
         return '<Volume result="Error"/>'  # volume control disabled (protocol.md §7.3)
     value = attrs.get("value")
