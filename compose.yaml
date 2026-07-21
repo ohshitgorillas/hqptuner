@@ -5,8 +5,10 @@
 # plain TCP client of hqplayerd (4321 + 8088) — no multicast/discovery — so it
 # does not need host networking.
 #
-# Credentials: put HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD in a .env file
-# next to this compose file (never commit it).
+# Credentials: defaults match hqplayerd's stock management credential
+# (hqplayer / password). If your daemon's auth was re-provisioned, put
+# HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD in a .env file next to this
+# compose file (never commit it).
 #
 # State: ./state holds config backups and the preset store. Create it before
 # first start (`mkdir -p state`) so it's owned by you, not root — the container
@@ -25,8 +27,8 @@ services:
 
     environment:
       HQPTUNER_HQP_HOST: host.docker.internal
-      HQPTUNER_HQP_USERNAME: ${HQPTUNER_HQP_USERNAME:-}
-      HQPTUNER_HQP_PASSWORD: ${HQPTUNER_HQP_PASSWORD:-}
+      HQPTUNER_HQP_USERNAME: ${HQPTUNER_HQP_USERNAME:-hqplayer}
+      HQPTUNER_HQP_PASSWORD: ${HQPTUNER_HQP_PASSWORD:-password}
       # HQPTUNER_LISTEN_PORT: "8090"
       # HQPTUNER_HQP_HOME: /var/lib/hqplayer/home
 

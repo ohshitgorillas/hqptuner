@@ -90,12 +90,17 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 ### Docker (recommended)
 
-Grab [`compose.yaml`](compose.yaml), put your hqplayerd management credentials in a `.env` file next to it, and start:
+Grab [`compose.yaml`](compose.yaml) and start:
 
 ```sh
 mkdir -p state   # backups + presets live here; create it first so it's owned by you
-printf 'HQPTUNER_HQP_USERNAME=<user>\nHQPTUNER_HQP_PASSWORD=<pass>\n' > .env
 docker compose up -d
+```
+
+Credentials default to hqplayerd's stock management credential (`hqplayer` / `password`). If your daemon's auth was re-provisioned, put yours in a `.env` file next to the compose file:
+
+```sh
+printf 'HQPTUNER_HQP_USERNAME=<user>\nHQPTUNER_HQP_PASSWORD=<pass>\n' > .env
 ```
 
 Then open `http://<serverIP>:8090`.
@@ -108,7 +113,9 @@ Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) — `l
 python3 -m venv .venv
 .venv/bin/pip install -e .
 
-HQPTUNER_HQP_USERNAME=<user> HQPTUNER_HQP_PASSWORD=<pass> .venv/bin/python -m hqptuner
+.venv/bin/python -m hqptuner
+# non-stock daemon credential:
+# HQPTUNER_HQP_USERNAME=<user> HQPTUNER_HQP_PASSWORD=<pass> .venv/bin/python -m hqptuner
 ```
 
 ## Configuration reference
@@ -120,8 +127,8 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_HQP_HOST` | `127.0.0.1` | hqplayerd host |
 | `HQPTUNER_HQP_CONTROL_PORT` | `4321` | Control API port |
 | `HQPTUNER_HQP_HTTP_PORT` | `8088` | hqplayerd web config port |
-| `HQPTUNER_HQP_USERNAME` | *(empty)* | Management username (Digest auth) |
-| `HQPTUNER_HQP_PASSWORD` | *(empty)* | Management password |
+| `HQPTUNER_HQP_USERNAME` | `hqplayer` | Management username (Digest auth); default is hqplayerd's stock credential |
+| `HQPTUNER_HQP_PASSWORD` | `password` | Management password; default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_HOME` | `/var/lib/hqplayer/home` | hqplayerd's data/home directory on the daemon host (uploaded convolution impulses land here) |
 | `HQPTUNER_LISTEN_HOST` | `127.0.0.1` | HQPTuner bind address |
 | `HQPTUNER_LISTEN_PORT` | `8090` | HQPTuner port |
