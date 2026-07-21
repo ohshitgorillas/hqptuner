@@ -2,16 +2,34 @@
 operations, and convolution filter uploads. Split out of ``api`` by the
 file-length gate — a self-contained feature surface mounted alongside it."""
 
+from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from .control import ControlError
 from .manager import ConnectionManager
 
 router = APIRouter(prefix="/api")
+
+_AUTOEQ_BLOB = Path(__file__).resolve().parent / "static" / "vendor" / "autoeq.json.gz"
+
+
+@router.get("/autoeq")
+def autoeq_db() -> FileResponse:
+    """Vendored AutoEq parametric-EQ library (built by scripts/build_autoeq_db.py,
+    upstream MIT). Pre-gzipped on disk and served with Content-Encoding so the
+    browser's fetch decompresses transparently; lazy-loaded on first picker open."""
+    if not _AUTOEQ_BLOB.exists():
+        raise HTTPException(status_code=404, detail="AutoEq library not built (scripts/build_autoeq_db.py)")
+    return FileResponse(
+        _AUTOEQ_BLOB,
+        media_type="application/json",
+        headers={"Content-Encoding": "gzip", "Cache-Control": "no-cache"},
+    )
 
 
 def _mgr(request: Request) -> ConnectionManager:
