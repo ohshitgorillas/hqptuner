@@ -191,10 +191,10 @@ export const schema = {
   // formField is the daemon's bare form-field name for baseline/options reads.
   // matrix_pipelines is staged by the pipeline editor (stagePipelines), never
   // rendered as a Field — the entry exists so the pending bar counts and lanes it.
-  matrix_enabled: { label: "Enable matrix", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "matrix_enabled", formField: "enabled" },
-  matrix_engine: { label: "Engine", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "matrix_engine", formField: "engine", optionsFrom: "matrix" },
+  matrix_enabled: { label: "Enabled", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "matrix_enabled", formField: "enabled" },
+  matrix_engine: { label: "Engine", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "matrix_engine", formField: "engine", optionsFrom: "matrix", desc: "config" },
   matrix_expand_hf: { label: "Expand HF", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "matrix_expand_hf", formField: "expand_hf" },
-  matrix_iir2fir: { label: "IIR to FIR", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "matrix_iir2fir", formField: "iir2fir", optionsFrom: "matrix" },
+  matrix_iir2fir: { label: "IIR to FIR", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "matrix_iir2fir", formField: "iir2fir", optionsFrom: "matrix", desc: "config" },
   matrix_pipelines: { label: "Pipelines", group: "dsp", widget: "text", lane: "http", field: "matrix_pipelines", fileTruth: true },
 
   // --- Volume ---

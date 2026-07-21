@@ -30,6 +30,7 @@ import {
 } from "../store/matrixspec.js";
 import { parseEqText } from "../store/eqimport.js";
 import { registerIr } from "../store/dsp.js";
+import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, togglePlotted } from "./MatrixPlot.js";
 
 const MAX_CH = 128;
@@ -75,35 +76,51 @@ async function profileAct(action, name) {
   }
 }
 
+// Two lanes, two visually distinct rows (design-pass item 5): the primary row is
+// the live 4321 switch (zero reload); the secondary row is the form-lane
+// load/delete (~3 s engine reload, idle-gated). Captions sit BELOW their row at
+// caption measure, gated by the Feature-descriptions toggle like every tab.
 function ProfileCard() {
   const saved = matrixProfiles.value;
   const active = matrixActiveProfile.value;
   const sel = profileSel.value ?? (active === "[Default]" ? "" : active);
   const busy = profileBusy.value;
+  const newName = profileNewName.value.trim();
   return html`
     <section class="card">
       <div class="card-head">Profile</div>
       <div class="card-body mtx-profile">
-        <div class="mtx-profile-row">
+        <div class="mtx-read-row"><dt>Active</dt><dd>${active}</dd></div>
+        <div class="mtx-profile-row mtx-profile-primary">
           <select value=${sel} disabled=${!!busy} onChange=${(e) => (profileSel.value = e.target.value)}>
             <option value="">[Default]</option>
             ${saved.map((n) => html`<option value=${n}>${n}</option>`)}
           </select>
-          <button type="button" class="mtx-tool" disabled=${!!busy} onClick=${() => profileAct("switch", sel)}>
-            Switch
-          </button>
-          <span class="mtx-live-tag" title="MatrixSetProfile — switches without an engine reload; reverts to the saved config on a daemon restart">live — no reload</span>
+          <button
+            type="button"
+            class="mtx-tool mtx-primary"
+            disabled=${!!busy}
+            title="Switch the running matrix to this profile — live, no engine reload"
+            onClick=${() => profileAct("switch", sel)}
+          >Switch</button>
+          <span class="mtx-live-tag">live — no reload</span>
         </div>
+        ${notesVisible.value
+          ? html`<div class="field-note">Profiles can be switched at any time, during playback as well — no engine reload. The switch is live-only: the daemon reverts to its saved configuration on restart.</div>`
+          : null}
         <div class="mtx-profile-row">
-          <button type="button" class="mtx-tool" disabled=${!!busy} onClick=${() => profileAct("load", sel)}>Load</button>
+          <button type="button" class="mtx-tool" disabled=${!!busy} title="Load this saved profile into the matrix configuration (~3 s engine reload)" onClick=${() => profileAct("load", sel)}>Load</button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
             disabled=${!!busy || !sel}
+            title="Delete this saved profile"
             onClick=${() => profileAct("delete", sel)}
           >Delete</button>
-          <span class="field-note">Load reloads the matrix context — pipelines <em>and</em> post-processing (~3 s, engine must be idle)</span>
         </div>
+        ${notesVisible.value
+          ? html`<div class="field-note">Load replaces the whole matrix context — pipelines <em>and</em> post-processing (~3 s engine reload, engine must be idle).</div>`
+          : null}
         <div class="mtx-profile-row">
           <input
             type="text"
@@ -115,26 +132,31 @@ function ProfileCard() {
           <button
             type="button"
             class="mtx-tool"
-            disabled=${!!busy || !profileNewName.value.trim() || saved.includes(profileNewName.value.trim())}
-            title=${saved.includes(profileNewName.value.trim())
+            disabled=${!!busy || !newName || saved.includes(newName)}
+            title=${saved.includes(newName)
               ? "That name exists — the daemon silently ignores a save to an existing profile (delete it first)"
               : "Save the current matrix as a new profile"}
-            onClick=${() => profileAct("save", profileNewName.value.trim())}
+            onClick=${() => profileAct("save", newName)}
           >Save as new</button>
         </div>
-        <div class="mtx-read-row"><dt>Active</dt><dd>${active}</dd></div>
+        ${notesVisible.value
+          ? html`<div class="field-note">Saves the current matrix as a new named profile. The daemon silently ignores a save to an existing name — delete the old profile first.</div>`
+          : null}
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
       </div>
     </section>
   `;
 }
 
+// Single column — a .pack's two tracks inside a half-width card would starve
+// the selects below their longest option (the "over ⌄" defect). Selects here
+// are content-sized via .mtx-global.
 function GlobalCard() {
   return html`
     <section class="card">
       <div class="card-head">Matrix</div>
       <div class="card-body">
-        <div class="pack">
+        <div class="mtx-global">
           <${Field} k="matrix_enabled" />
           <${Field} k="matrix_engine" />
           <${Field} k="matrix_expand_hf" />
@@ -410,7 +432,7 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
             class="mtx-tool ${plottedRows.value.has(index) ? "active" : ""}"
             title="Plot this pipeline's response"
             onClick=${() => togglePlotted(index)}
-          >∿</button>
+          >${plottedRows.value.has(index) ? "◉" : "○"}</button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
@@ -521,6 +543,9 @@ function PipelinesCard() {
         >Import EQ</button>
       </div>
       <div class="card-body">
+        ${notesVisible.value
+          ? html`<div class="field-note mtx-pipelines-note">Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert polarity (e.g. for M/S processing).</div>`
+          : null}
         ${importOpen.value ? html`<${ImportPanel} rows=${rows} />` : null}
         ${rows.map(
           (r, i) => html`

@@ -118,6 +118,35 @@
       "tooltip": "In PCM mode: the word-length reduction (noise-shaping / dither) algorithm — at least TPDF dither is always recommended, and the selected algorithm significantly affects digital volume control quality. In SDM mode: the delta-sigma modulator producing DSD output — fifth order modulators suit DACs with simple analog reconstruction filters (ESS Sabre: fifth order recommended); seventh order modulators offer better technical performance on DACs with multi-element switching arrays. Options unsuitable for the selected output rate are grayed with the reason.",
       "source": "manual §4.4/§4.5"
     },
+    "matrix_enabled": {
+      "label": "Matrix processing",
+      "tooltip": "Matrix processing offers a way to copy, route, filter and mix down channels with specified gains. It consists of up to 128 virtual channels — pipelines. Not recommended simultaneously with the simple convolution engine; if convolution is needed with matrix processing, configure the convolution here as a pipeline stage.",
+      "source": "manual §7, readme §1.11"
+    },
+    "matrix_engine": {
+      "label": "Engine",
+      "tooltip": "Convolution engine applied to filter(s) defined in Process.",
+      "options": {
+        "0": "Overlap-save — the alternative convolution method.",
+        "1": "Overlap-add — the default and recommended convolution method."
+      },
+      "source": "manual §7, readme §1.11"
+    },
+    "matrix_expand_hf": {
+      "label": "Expand HF",
+      "tooltip": "For filters using a low sampling rate, extends the filter's frequency response beyond the Nyquist frequency of the filter's sampling rate. Unnecessary when using extended-response 352.8 kHz convolution filters.",
+      "source": "manual §7, readme §1.11"
+    },
+    "matrix_iir2fir": {
+      "label": "IIR to FIR",
+      "tooltip": "Chooses whether parametric EQs are converted to a convolution EQ — in some cases, like GPU offloading, computing a set of parametric EQs as a convolution filter is more efficient.",
+      "options": {
+        "0": "No conversion — parametric EQs run as IIR biquads.",
+        "1": "Direct conversion to FIR, retaining the original minimum-phase response.",
+        "2": "Conversion to a linear-phase filter. Introduces some pre-ringing in the audio band — higher Q and dB values ring more, so this works best with gentle EQ setups."
+      },
+      "source": "manual §7, readme §1.11"
+    },
     "crossfeed_enabled": {
       "label": "Bauer crossfeed",
       "tooltip": "Headphone crossfeed processing intended to make listening more natural and spacious, applied to the output mix bus (after matrix processing, before oversampling). A very simple model with three presets plus custom.",

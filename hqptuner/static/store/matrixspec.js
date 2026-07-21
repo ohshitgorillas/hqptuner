@@ -11,10 +11,13 @@ export function parseProcess(str) {
   if (!str || !str.trim()) return [];
   return str.split(",").map((raw) => {
     const colon = raw.indexOf(":");
-    const head = colon === -1 ? "" : raw.slice(0, colon);
+    // Head is trimmed for CLASSIFICATION only — `raw` stays byte-identical for
+    // the round-trip. A bare plugin name with no colon ("riaa") is a legal
+    // zero-arg spec, not a convolution filename.
+    const head = (colon === -1 ? raw : raw.slice(0, colon)).trim();
     if (PLUGINS.has(head)) {
       const args = {};
-      for (const part of raw.slice(colon + 1).split(";")) {
+      for (const part of (colon === -1 ? "" : raw.slice(colon + 1)).split(";")) {
         if (!part) continue;
         const eq = part.indexOf("=");
         if (eq === -1) args[part] = "";
