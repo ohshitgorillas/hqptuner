@@ -9,8 +9,8 @@
 // their IR was uploaded this session (registerIr); otherwise marked partial.
 import { signal } from "@preact/signals";
 import { html } from "../store/dom.js";
-import { effectivePipelines } from "../store/state.js";
-import { parseProcess } from "../store/matrixspec.js";
+import { effectivePipelines, stagePipelines } from "../store/state.js";
+import { parseProcess, serializeProcess } from "../store/matrixspec.js";
 import { chainResponse, logFreqs } from "../store/dsp.js";
 import { PlotFrame } from "./plots.js";
 
@@ -20,6 +20,10 @@ const FS = 48000;
 const HUES = ["r0", "r1", "r2", "r3"];
 
 export const plottedRows = signal(new Set());
+// Stage selection ({row, stage}) shared with the pipeline editor (it lives here
+// so MatrixTab -> MatrixPlot stays a one-way import): the selected chip's dot
+// renders highlighted, so the editor and the plot point at the same band.
+export const selectedStage = signal(null);
 // Library-picker preview: { label, stages } or null. Set by MatrixLibrary on
 // selection, cleared on deselect/panel close — never touches pipeline state.
 export const previewEq = signal(null);
@@ -31,12 +35,74 @@ export function togglePlotted(index) {
   plottedRows.value = next;
 }
 
+// --- draggable EQ handles (peak/lshelf/hshelf stages of plotted rows) --------
+// In-flight drag override: {row, stage, f, g}, client-only — merged into the
+// plotted stage list so the curve tracks the cursor with zero server traffic;
+// the release commits through stagePipelines like any pipeline edit.
+const GAIN_TYPES = new Set(["peak", "lshelf", "hshelf"]);
+const dragEq = signal(null);
+
+function withDrag(i, stages) {
+  const d = dragEq.value;
+  if (!d || d.row !== i) return stages;
+  return stages.map((s, j) =>
+    j === d.stage ? { ...s, args: { ...s.args, f: String(d.f), g: String(d.g) }, raw: undefined } : s,
+  );
+}
+
+// Release: rewrite the dragged stage's f/g (other args untouched). Stereo-pair
+// sync: if the adjacent pair row carries a byte-identical stage at the same
+// position (how AutoEq imports land), it moves too; a diverged pair is left alone.
+function commitDrag(rows, row, stageIdx, f, g) {
+  dragEq.value = null;
+  const orig = parseProcess(rows[row].process)[stageIdx];
+  const origKey = JSON.stringify({ kind: orig.kind, args: orig.args });
+  const pair = row % 2 === 0 ? row + 1 : row - 1;
+  const next = rows.map((r, i) => {
+    if (i !== row && i !== pair) return r;
+    const stages = parseProcess(r.process);
+    const s = stages[stageIdx];
+    if (!s) return r;
+    if (i !== row && JSON.stringify({ kind: s.kind, args: s.args }) !== origKey) return r;
+    stages[stageIdx] = { ...s, args: { ...s.args, f: String(f), g: String(g) }, raw: undefined };
+    return { ...r, process: serializeProcess(stages) };
+  });
+  stagePipelines(next);
+}
+
+function rowHandles(rows, plotted) {
+  const handles = [];
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const sel = selectedStage.value;
+  plotted.forEach((i, k) => {
+    withDrag(i, parseProcess(rows[i].process)).forEach((s, j) => {
+      if (s.kind !== "iir" || !GAIN_TYPES.has(s.args.type)) return;
+      const f = Number(s.args.f);
+      const g = Number(s.args.g);
+      if (!Number.isFinite(f) || !Number.isFinite(g)) return;
+      handles.push({
+        f,
+        db: g,
+        kind: HUES[k % HUES.length],
+        active: !!(sel && sel.row === i && sel.stage === j),
+        onDrag: (nf, ndb) => {
+          dragEq.value = { row: i, stage: j, f: Math.round(nf), g: r1(ndb) };
+        },
+        onEnd: (nf, ndb) => commitDrag(rows, i, j, Math.round(nf), r1(ndb)),
+      });
+    });
+  });
+  // stereo-pair dots overlap exactly — draw the highlighted one last so the
+  // selection ring is never occluded by its twin
+  return handles.sort((a, b) => (a.active ? 1 : 0) - (b.active ? 1 : 0));
+}
+
 function rowTraces(rows, plotted, bounds) {
   const freqs = logFreqs(20, 20000, 160);
   const traces = [];
   let anyPartial = false;
   plotted.forEach((i, k) => {
-    const stages = parseProcess(rows[i].process);
+    const stages = withDrag(i, parseProcess(rows[i].process));
     const mag = [];
     const ph = [];
     let partial = false;
@@ -93,6 +159,7 @@ export function MatrixPlot() {
           y2Min=${-180}
           y2Max=${180}
           caption=${caption}
+          handles=${rowHandles(rows, plotted)}
         />
       </div>
     </section>

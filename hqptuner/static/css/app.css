@@ -1387,6 +1387,12 @@ button:disabled {
 .plot-dot:active {
   cursor: grabbing;
 }
+/* the stage selected in the pipeline editor: accent ring so plot + editor
+   visibly point at the same band */
+.plot-dot.active {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
 .dsp-body.off .knob-slider,
 .dsp-body.off input[type="range"] {
   accent-color: var(--muted);
@@ -2342,6 +2348,11 @@ select.mtx-ch {
 .plot-tlbl.r1 { fill: var(--chip-iir); }
 .plot-tlbl.r2 { fill: var(--chip-conv); }
 .plot-tlbl.r3 { fill: var(--fg-2); }
+/* drag handles inherit their pipeline's trace hue */
+.plot-dot.r0 { fill: var(--chip-ch); }
+.plot-dot.r1 { fill: var(--chip-iir); }
+.plot-dot.r2 { fill: var(--chip-conv); }
+.plot-dot.r3 { fill: var(--fg-2); }
 
 /* ── Matrix tab design pass ──────────────────────────────────────────────
    Content-sized flow controls: the global select width token (--w-select) is
