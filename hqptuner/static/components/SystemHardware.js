@@ -7,8 +7,8 @@
 
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
-import { html } from "../store/dom.js";
-import { api } from "../store/api.js";
+import { html } from "../lib/dom.js";
+import { api } from "../lib/api.js";
 import { metadata } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";

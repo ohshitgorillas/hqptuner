@@ -7,7 +7,7 @@
 //   idle          — no pending changes
 // Staging is never dropped on a soft failure, so multiple applies and the
 // restart→reconnect cycle both work without stranding the user.
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import {
   stagedCount,
   hasPending,

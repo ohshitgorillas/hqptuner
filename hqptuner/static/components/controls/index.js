@@ -3,7 +3,7 @@
 // three-tree store by control key. Reusable and independently testable.
 
 import { useRef, useEffect } from "preact/hooks";
-import { html } from "../../store/dom.js";
+import { html } from "../../lib/dom.js";
 
 const s = (v) => (v == null ? "" : String(v));
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";

@@ -4,14 +4,14 @@
 // (solid, dB left axis) + phase (dashed, ±180° second axis) for every
 // plot-toggled pipeline, log 20 Hz–20 kHz; a library-picker preview overlays as
 // a dashed accent magnitude trace so candidate-vs-current is a visual A/B.
-// Pure client math (store/dsp.js), recomputed per render off the staged
+// Pure client math (lib/dsp.js), recomputed per render off the staged
 // pipeline signals — no server round-trip. Convolution stages plot only when
 // their IR was uploaded this session (registerIr); otherwise marked partial.
 import { signal } from "@preact/signals";
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { effectivePipelines, stagePipelines } from "../store/state.js";
-import { parseProcess, serializeProcess } from "../store/matrixspec.js";
-import { chainResponse, logFreqs } from "../store/dsp.js";
+import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
+import { chainResponse, logFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad

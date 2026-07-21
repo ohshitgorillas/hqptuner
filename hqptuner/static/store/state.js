@@ -10,7 +10,7 @@
 // same setting — that divergence is why these are separate trees (outline §2).
 
 import { signal, computed } from "@preact/signals";
-import { api } from "./api.js";
+import { api } from "../lib/api.js";
 import { schema } from "./schema.js";
 
 // --- source signals ---

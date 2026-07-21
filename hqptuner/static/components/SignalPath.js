@@ -15,7 +15,7 @@
 // crossfeed/loudness/matrix from the RUNNING config forms (runningValue — never
 // effective: the front panel reflects the active state, so a previewed preset
 // or a staged-but-unapplied edit must not move these chips).
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { engineStatus, engineState, runningValue } from "../store/state.js";
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
