@@ -29,6 +29,8 @@ import {
   DELAY_ARGS,
 } from "../store/matrixspec.js";
 import { parseEqText } from "../store/eqimport.js";
+import { registerIr } from "../store/dsp.js";
+import { MatrixPlot, plottedRows, togglePlotted } from "./MatrixPlot.js";
 
 const MAX_CH = 128;
 const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
@@ -193,6 +195,7 @@ function ConvEditor({ stage, commit }) {
     try {
       const r = await api.uploadFilter(file);
       const sr = await wavSampleRate(file);
+      registerIr(r.path, await file.arrayBuffer()); // enables the client-side response preview
       uploadNote.value =
         sr && sr !== 352800
           ? `uploaded · ${(sr / 1000).toFixed(1)} kHz — 352.8 kHz is recommended for full-band use`
@@ -402,7 +405,12 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
         </div>
         <div class="mtx-row-tools">
           <button type="button" class="mtx-tool ${raw ? "active" : ""}" title="Edit the raw process string" onClick=${toggleRaw}>{ }</button>
-          <button type="button" class="mtx-tool" disabled title="Response plots land in a later phase">∿</button>
+          <button
+            type="button"
+            class="mtx-tool ${plottedRows.value.has(index) ? "active" : ""}"
+            title="Plot this pipeline's response"
+            onClick=${() => togglePlotted(index)}
+          >∿</button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
@@ -542,5 +550,6 @@ export function MatrixTab() {
       <${ProfileCard} />
     </div>
     <${PipelinesCard} />
+    <${MatrixPlot} />
   </section>`;
 }

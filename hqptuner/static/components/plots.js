@@ -31,10 +31,14 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fmtHz = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 const xOf = (f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 
-function PlotFrame({ traces, yMin, yMax, dbStep, height, caption }) {
+// Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
+// traces flagged `y2: true` (phase) map through it instead of the dB scale.
+export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max }) {
   const plotH = height - PADT - PADB;
   const yOf = (db) => PADT + (1 - (clamp(db, yMin, yMax) - yMin) / (yMax - yMin)) * plotH;
-  const poly = (pts) => pts.map(([f, d]) => `${xOf(f).toFixed(1)},${yOf(d).toFixed(1)}`).join(" ");
+  const yOf2 = (v) => PADT + (1 - (clamp(v, y2Min, y2Max) - y2Min) / (y2Max - y2Min)) * plotH;
+  const scaleOf = (t) => (t.y2 ? yOf2 : yOf);
+  const poly = (pts, sc) => pts.map(([f, d]) => `${xOf(f).toFixed(1)},${sc(d).toFixed(1)}`).join(" ");
   const dbLines = [];
   for (let db = Math.ceil(yMin / dbStep) * dbStep; db <= yMax; db += dbStep) dbLines.push(db);
   return html`
@@ -55,7 +59,7 @@ function PlotFrame({ traces, yMin, yMax, dbStep, height, caption }) {
         ${yMin < 0 && yMax > 0
           ? html`<line class="plot-zero" x1=${PADL} y1=${yOf(0).toFixed(1)} x2=${W - PADR} y2=${yOf(0).toFixed(1)} />`
           : null}
-        ${traces.map((t) => html`<polyline class="plot-trace ${t.kind}" points=${poly(t.points)} />`)}
+        ${traces.map((t) => html`<polyline class="plot-trace ${t.kind}" points=${poly(t.points, scaleOf(t))} />`)}
         ${(() => {
           // labels sit at their trace's endpoint y, but nudge apart when traces
           // converge at the right edge so they never stack on top of each other
@@ -63,7 +67,7 @@ function PlotFrame({ traces, yMin, yMax, dbStep, height, caption }) {
           const maxY = PADT + plotH;
           const items = traces.map((t) => {
             const [f, d] = t.points[t.points.length - 1];
-            return { x: xOf(f) + 4, y: yOf(d), text: t.label, kind: t.kind };
+            return { x: xOf(f) + 4, y: scaleOf(t)(d), text: t.label, kind: t.kind };
           });
           items.sort((a, b) => a.y - b.y);
           for (let i = 1; i < items.length; i += 1) {

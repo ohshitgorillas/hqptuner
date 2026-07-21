@@ -119,3 +119,294 @@ export function logFreqs(f0, f1, n) {
   for (let i = 0; i < n; i += 1) out[i] = f0 * Math.exp(k * i);
   return out;
 }
+
+// --- matrix pipeline stage responses (matrix-spec step 7) --------------------
+// Same RBJ cookbook discipline as the loudness bands: exact coefficients, no
+// approximation. A pipeline chain's response is the per-stage sum (dB / deg).
+
+const DEG = 180 / Math.PI;
+
+// Phase in degrees of a normalized biquad at f (same transfer function as
+// biquadMagDb, atan2 instead of magnitude; wrapped to ±180 by construction).
+export function biquadPhaseDeg(c, f, fs) {
+  const w = (TAU * f) / fs;
+  const cw = Math.cos(w);
+  const c2w = Math.cos(2 * w);
+  const sw = Math.sin(w);
+  const s2w = Math.sin(2 * w);
+  const numRe = c.b0 + c.b1 * cw + c.b2 * c2w;
+  const numIm = -(c.b1 * sw + c.b2 * s2w);
+  const denRe = 1 + c.a1 * cw + c.a2 * c2w;
+  const denIm = -(c.a1 * sw + c.a2 * s2w);
+  return (Math.atan2(numIm, numRe) - Math.atan2(denIm, denRe)) * DEG;
+}
+
+// RBJ alpha from whichever shape parameter the iir spec carries: q, bandwidth
+// (octaves), or shelf slope S (shelves only; A is the shelf amplitude). The
+// manual allows s on lp/hp too — approximated at Butterworth there (flagged).
+function rbjAlpha(w0, args, A = 1) {
+  const sw = Math.sin(w0);
+  if (args.q !== undefined) return sw / (2 * Number(args.q));
+  if (args.bw !== undefined) return sw * Math.sinh((LN2_2 * Number(args.bw) * w0) / sw);
+  if (args.s !== undefined) return (sw / 2) * Math.sqrt((A + 1 / A) * (1 / Number(args.s) - 1) + 2);
+  return sw / (2 * 0.7071); // unspecified — Butterworth
+}
+
+function firstOrder(type, f0, fs) {
+  const K = Math.tan((Math.PI * f0) / fs);
+  const a0 = 1 + K;
+  if (type === "lp1") return { b0: K / a0, b1: K / a0, b2: 0, a1: (K - 1) / a0, a2: 0 };
+  return { b0: 1 / a0, b1: -1 / a0, b2: 0, a1: (K - 1) / a0, a2: 0 }; // hp1
+}
+
+// RBJ shelf coefficients from an explicit alpha (q- or slope-shaped alike).
+function shelfFromAlpha(type, f0, dbGain, alpha, fs) {
+  const A = 10 ** (dbGain / 40);
+  const cw = Math.cos((TAU * f0) / fs);
+  const t = 2 * Math.sqrt(A) * alpha;
+  if (type === "lshelf") {
+    const a0 = A + 1 + (A - 1) * cw + t;
+    return {
+      b0: (A * (A + 1 - (A - 1) * cw + t)) / a0,
+      b1: (2 * A * (A - 1 - (A + 1) * cw)) / a0,
+      b2: (A * (A + 1 - (A - 1) * cw - t)) / a0,
+      a1: (-2 * (A - 1 + (A + 1) * cw)) / a0,
+      a2: (A + 1 + (A - 1) * cw - t) / a0,
+    };
+  }
+  const a0 = A + 1 - (A - 1) * cw + t;
+  return {
+    b0: (A * (A + 1 + (A - 1) * cw + t)) / a0,
+    b1: (-2 * A * (A - 1 + (A + 1) * cw)) / a0,
+    b2: (A * (A + 1 + (A - 1) * cw - t)) / a0,
+    a1: (2 * (A - 1 - (A + 1) * cw)) / a0,
+    a2: (A + 1 - (A - 1) * cw - t) / a0,
+  };
+}
+
+// RBJ lp/hp/bp(0 dB peak)/notch/ap from an explicit alpha.
+function plainBiquad(type, w0, alpha) {
+  const cw = Math.cos(w0);
+  const a0 = 1 + alpha;
+  const a1 = (-2 * cw) / a0;
+  const a2 = (1 - alpha) / a0;
+  if (type === "lp") return { b0: (1 - cw) / 2 / a0, b1: (1 - cw) / a0, b2: (1 - cw) / 2 / a0, a1, a2 };
+  if (type === "hp") return { b0: (1 + cw) / 2 / a0, b1: -(1 + cw) / a0, b2: (1 + cw) / 2 / a0, a1, a2 };
+  if (type === "bp") return { b0: alpha / a0, b1: 0, b2: -alpha / a0, a1, a2 };
+  if (type === "notch") return { b0: 1 / a0, b1: (-2 * cw) / a0, b2: 1 / a0, a1, a2 };
+  return { b0: (1 - alpha) / a0, b1: (-2 * cw) / a0, b2: (1 + alpha) / a0, a1, a2 }; // ap
+}
+
+// One iir-plugin stage -> normalized biquad coefficients (null = unplottable).
+export function iirStageCoeffs(args, fs) {
+  const type = args.type;
+  if (type === "biquad") {
+    const a0 = Number(args.a0 ?? 1) || 1;
+    return {
+      b0: Number(args.b0 ?? 0) / a0,
+      b1: Number(args.b1 ?? 0) / a0,
+      b2: Number(args.b2 ?? 0) / a0,
+      a1: Number(args.a1 ?? 0) / a0,
+      a2: Number(args.a2 ?? 0) / a0,
+    };
+  }
+  const f0 = Number(args.f);
+  if (!Number.isFinite(f0) || f0 <= 0 || f0 >= fs / 2) return null;
+  if (type === "lp1" || type === "hp1") return firstOrder(type, f0, fs);
+  const g = Number(args.g ?? 0);
+  const w0 = (TAU * f0) / fs;
+  const A = 10 ** (g / 40);
+  if (type === "peak") {
+    const alpha = rbjAlpha(w0, args, A);
+    const a0 = 1 + alpha / A;
+    return {
+      b0: (1 + alpha * A) / a0,
+      b1: (-2 * Math.cos(w0)) / a0,
+      b2: (1 - alpha * A) / a0,
+      a1: (-2 * Math.cos(w0)) / a0,
+      a2: (1 - alpha / A) / a0,
+    };
+  }
+  if (type === "lshelf" || type === "hshelf") return shelfFromAlpha(type, f0, g, rbjAlpha(w0, args, A), fs);
+  if (["lp", "hp", "bp", "notch", "ap"].includes(type)) return plainBiquad(type, w0, rbjAlpha(w0, args, 1));
+  return null;
+}
+
+// --- non-IIR stages ----------------------------------------------------------
+
+const SPEED_OF_SOUND = 343.956;
+
+function delaySeconds(args, fs) {
+  if (args.t !== undefined) return Number(args.t);
+  if (args.s !== undefined) return Number(args.s) / fs;
+  if (args.d !== undefined) return Number(args.d) / (Number(args.v) || SPEED_OF_SOUND);
+  return 0;
+}
+
+const wrapDeg = (x) => ((x % 360) + 540) % 360 - 180;
+
+// RIAA de-emphasis: zero at 318 µs, poles at 3180 µs and 75 µs, normalized to
+// 0 dB at 1 kHz; optional first-order 20 Hz subsonic pole.
+function riaaRaw(f) {
+  const w = TAU * f;
+  const db =
+    20 * Math.log10(Math.hypot(1, w * 318e-6)) -
+    20 * Math.log10(Math.hypot(1, w * 3180e-6)) -
+    20 * Math.log10(Math.hypot(1, w * 75e-6));
+  const deg = (Math.atan2(w * 318e-6, 1) - Math.atan2(w * 3180e-6, 1) - Math.atan2(w * 75e-6, 1)) * DEG;
+  return { db, deg };
+}
+const RIAA_REF_DB = riaaRaw(1000).db;
+
+function riaaResponse(f, subsonic) {
+  const r = riaaRaw(f);
+  let db = r.db - RIAA_REF_DB;
+  let deg = r.deg;
+  if (subsonic) {
+    const w = TAU * f;
+    const w0 = TAU * 20;
+    db += 20 * Math.log10(w / Math.hypot(w, w0));
+    deg += (Math.PI / 2 - Math.atan2(w, w0)) * DEG;
+  }
+  return { db, deg: wrapDeg(deg) };
+}
+
+// --- convolution preview (client FFT of a session-uploaded IR) ---------------
+
+const IR_GRID = logFreqs(20, 20000, 256);
+export const irCache = new Map(); // daemon path -> {freqs, dbs, degs} | null while unpreviewable
+
+function fftRadix2(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (-TAU / len) * 1;
+    const wr = Math.cos(ang);
+    const wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1;
+      let ci = 0;
+      for (let j = 0; j < len / 2; j += 1) {
+        const ur = re[i + j];
+        const ui = im[i + j];
+        const vr = re[i + j + len / 2] * cr - im[i + j + len / 2] * ci;
+        const vi = re[i + j + len / 2] * ci + im[i + j + len / 2] * cr;
+        re[i + j] = ur + vr;
+        im[i + j] = ui + vi;
+        re[i + j + len / 2] = ur - vr;
+        im[i + j + len / 2] = ui - vi;
+        const ncr = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr;
+        cr = ncr;
+      }
+    }
+  }
+}
+
+// Minimal WAV reader: PCM16 / PCM24 / PCM32 / float32, first channel only.
+function wavSamples(buf) {
+  const v = new DataView(buf);
+  if (v.getUint32(0, false) !== 0x52494646 || v.getUint32(8, false) !== 0x57415645) return null;
+  let off = 12;
+  let fmt = null;
+  let data = null;
+  while (off + 8 <= v.byteLength) {
+    const id = v.getUint32(off, false);
+    const size = v.getUint32(off + 4, true);
+    if (id === 0x666d7420) fmt = { at: off + 8 };
+    if (id === 0x64617461) data = { at: off + 8, size };
+    off += 8 + size + (size & 1);
+  }
+  if (!fmt || !data) return null;
+  const audioFormat = v.getUint16(fmt.at, true);
+  const channels = v.getUint16(fmt.at + 2, true);
+  const rate = v.getUint32(fmt.at + 4, true);
+  const bits = v.getUint16(fmt.at + 14, true);
+  const frame = (bits / 8) * channels;
+  const n = Math.floor(data.size / frame);
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i += 1) {
+    const at = data.at + i * frame;
+    if (audioFormat === 3 && bits === 32) out[i] = v.getFloat32(at, true);
+    else if (bits === 16) out[i] = v.getInt16(at, true) / 32768;
+    else if (bits === 24) {
+      const raw = v.getUint8(at) | (v.getUint8(at + 1) << 8) | (v.getUint8(at + 2) << 16);
+      out[i] = (raw >= 0x800000 ? raw - 0x1000000 : raw) / 8388608;
+    } else if (bits === 32) out[i] = v.getInt32(at, true) / 2147483648;
+    else return null;
+  }
+  return { rate, samples: out };
+}
+
+// Register a just-uploaded IR so conv stages referencing `path` can plot.
+// Truncates/zero-pads to <=65536 points; response sampled onto the log grid.
+export function registerIr(path, arrayBuffer) {
+  const wav = wavSamples(arrayBuffer);
+  if (!wav) {
+    irCache.set(path, null);
+    return;
+  }
+  let n = 1;
+  while (n < wav.samples.length && n < 65536) n <<= 1;
+  const re = new Float64Array(n);
+  const im = new Float64Array(n);
+  re.set(wav.samples.subarray(0, n));
+  fftRadix2(re, im);
+  const dbs = new Array(IR_GRID.length);
+  const degs = new Array(IR_GRID.length);
+  for (let i = 0; i < IR_GRID.length; i += 1) {
+    const bin = Math.min(n / 2 - 1, Math.max(0, Math.round((IR_GRID[i] / wav.rate) * n)));
+    const mag = Math.hypot(re[bin], im[bin]);
+    dbs[i] = 20 * Math.log10(Math.max(mag, 1e-9));
+    degs[i] = wrapDeg(Math.atan2(im[bin], re[bin]) * DEG);
+  }
+  irCache.set(path, { freqs: IR_GRID, dbs, degs });
+}
+
+function convResponse(file, f) {
+  const entry = irCache.get(file);
+  if (!entry) return null;
+  // nearest log-grid point — the grid is denser than the plot's sampling
+  const k = Math.log(entry.freqs[1] / entry.freqs[0]);
+  const idx = Math.max(0, Math.min(entry.freqs.length - 1, Math.round(Math.log(f / entry.freqs[0]) / k)));
+  return { db: entry.dbs[idx], deg: entry.degs[idx] };
+}
+
+// One stage's response at f. null = unplottable (bad args, or a conv file not
+// uploaded this session — the plot marks the row partial).
+export function stageResponse(stage, f, fs) {
+  if (stage.kind === "iir") {
+    const c = iirStageCoeffs(stage.args, fs);
+    return c && { db: biquadMagDb(c, f, fs), deg: biquadPhaseDeg(c, f, fs) };
+  }
+  if (stage.kind === "delay") {
+    return { db: 0, deg: wrapDeg(-360 * f * delaySeconds(stage.args, fs)) };
+  }
+  if (stage.kind === "riaa") return riaaResponse(f, stage.args.subsonic !== "0");
+  if (stage.kind === "conv") return convResponse(stage.file, f);
+  return null;
+}
+
+// Whole-chain response: per-stage sum; `partial` when any stage is unplottable.
+export function chainResponse(stages, f, fs) {
+  let db = 0;
+  let deg = 0;
+  let partial = false;
+  for (const s of stages) {
+    const r = stageResponse(s, f, fs);
+    if (r === null) partial = true;
+    else {
+      db += r.db;
+      deg += r.deg;
+    }
+  }
+  return { db, deg: wrapDeg(deg), partial };
+}
