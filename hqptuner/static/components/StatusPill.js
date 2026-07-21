@@ -3,7 +3,7 @@
 //   green  — reachable, idle
 //   amber  — apply in flight (daemon may be restarting), or an outage alarm
 //   red    — unreachable
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { reachable, alarm, applying } from "../store/state.js";
 
 export function StatusPill() {

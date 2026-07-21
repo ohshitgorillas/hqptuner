@@ -11,7 +11,7 @@
 // back. Double-click resets to a moderate -20 dB (a deliberate safe default, not
 // a daemon value, so a reset never jumps to full volume).
 import { signal } from "@preact/signals";
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { volume, volumeRange, setVolume, effective, runningValue } from "../store/state.js";
 import { Knob } from "./Knob.js";
 

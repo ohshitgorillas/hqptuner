@@ -6,9 +6,9 @@
 // verbatim and flagged — never dropped, never rewritten. Profile card stays
 // read-only (step 5); plots stay reserved (step 7).
 import { signal } from "@preact/signals";
-import { html } from "../store/dom.js";
-import { Field } from "../store/Field.js";
-import { api } from "../store/api.js";
+import { html } from "../lib/dom.js";
+import { Field } from "./Field.js";
+import { api } from "../lib/api.js";
 import {
   matrixProfiles,
   matrixActiveProfile,
@@ -27,9 +27,9 @@ import {
   editedStage,
   IIR_TYPES,
   DELAY_ARGS,
-} from "../store/matrixspec.js";
-import { parseEqText } from "../store/eqimport.js";
-import { registerIr } from "../store/dsp.js";
+} from "../lib/matrixspec.js";
+import { parseEqText } from "../lib/eqimport.js";
+import { registerIr } from "../lib/dsp.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";

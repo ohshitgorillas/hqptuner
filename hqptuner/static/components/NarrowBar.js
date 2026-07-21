@@ -3,7 +3,7 @@
 // (multi-select) / phase facets and the apodizing toggle (1x only, with a
 // ½-apodizing sub-toggle) sit on the control row below it. Presentational only.
 import { signal } from "@preact/signals";
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { metadata } from "../store/state.js";
 import { nGenre, nQuality, nFocus, nPhase, nLength, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
 

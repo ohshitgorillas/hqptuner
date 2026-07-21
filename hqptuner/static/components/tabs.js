@@ -3,8 +3,8 @@
 // and the PCM/SDM/DSD filter chains; DSP is DAC correction + crossfeed/loudness;
 // Volume and System follow.
 import { signal, computed } from "@preact/signals";
-import { html } from "../store/dom.js";
-import { Field } from "../store/Field.js";
+import { html } from "../lib/dom.js";
+import { Field } from "./Field.js";
 import { effective, health } from "../store/state.js";
 import { optionsFor } from "../store/options.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";

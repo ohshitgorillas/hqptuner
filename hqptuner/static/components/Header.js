@@ -4,7 +4,7 @@
 // header then shows "(pending apply)" until Apply commits the switch. The active
 // preset comes from config.active (the truly-loaded ConfigurationGet name).
 import { signal } from "@preact/signals";
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { health, engineState, config, pendingPreset, previewPreset, deletePreset } from "../store/state.js";
 import { StatusPill } from "./StatusPill.js";
 

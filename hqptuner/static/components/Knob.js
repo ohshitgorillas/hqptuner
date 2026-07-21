@@ -14,7 +14,7 @@
 // edit and persists through the store's optimistic edit.
 
 import { useRef, useEffect, useCallback } from "preact/hooks";
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 
 const num = (v, d = 0) => {
   const n = Number(v);

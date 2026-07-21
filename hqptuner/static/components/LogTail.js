@@ -6,8 +6,8 @@
 // backgrounded tab isn't hitting the file lane.
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { html } from "../store/dom.js";
-import { api } from "../store/api.js";
+import { html } from "../lib/dom.js";
+import { api } from "../lib/api.js";
 import { effective } from "../store/state.js";
 import { Checkbox } from "./controls/index.js";
 

@@ -14,7 +14,7 @@
 // the number boxes they replace: same dirty highlight, same Apply, same
 // restart. Nothing here writes to the daemon directly.
 import { signal } from "@preact/signals";
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { effective, edit, isDirty } from "../store/state.js";
 import { grayReason } from "../store/graying.js";
 import { NumberBox } from "./controls/index.js";

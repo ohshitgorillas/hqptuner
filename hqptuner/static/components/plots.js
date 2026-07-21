@@ -8,9 +8,9 @@
 // *actually applied* now. Traces are labelled at the right edge so the language
 // is legible: crossfeed "direct" vs "cross-fed", loudness "max" vs "applied".
 
-import { html } from "../store/dom.js";
+import { html } from "../lib/dom.js";
 import { effective, volume, setLive, edit } from "../store/state.js";
-import { logFreqs, crossfeedMagDb, loudnessMagDb, shelfScale } from "../store/dsp.js";
+import { logFreqs, crossfeedMagDb, loudnessMagDb, shelfScale } from "../lib/dsp.js";
 
 const W = 640;
 const PADL = 34;
