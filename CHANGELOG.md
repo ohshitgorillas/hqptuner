@@ -4,6 +4,11 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- Docker packaging: `Dockerfile` (python:3.12-slim, non-root, healthcheck on `/api/health`) and `compose.yaml` — bridge networking by default (hqplayerd reached via the Docker host gateway; host-network variant documented for loopback-only daemons), `./state` volume for backups + presets, optional read-only log-file mount for the System-tab log tail.
+- GHCR publishing via GitHub Actions: multi-arch (amd64 + arm64) images at `ghcr.io/ohshitgorillas/hqptuner`, `latest` from master and semver tags from `v*` releases.
+
 ## [0.2.0] — 2026-07-21
 
 First public beta. Everything below is the state of the app at beta start.
