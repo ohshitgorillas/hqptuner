@@ -75,7 +75,14 @@ const volumeBypassed = (ctx) =>
 const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.");
 // a post-process card's sub-controls gray out until the feature is enabled
 const crossfeedOff = (ctx) => (truthy(ctx.effective("crossfeed_enabled")) ? "" : "Enable crossfeed to adjust.");
-const loudnessOff = (ctx) => (truthy(ctx.effective("loudness_enabled")) ? "" : "Enable loudness to adjust.");
+// Loudness is volume-ADAPTIVE (manual §7): the applied fraction follows the
+// live volume across the loudness range. A bypassed/fixed volume pins it —
+// at −3/−6 dB (above any sane range upper bound) that means 0% applied, ever.
+const loudnessGated = (ctx) => {
+  const r = volumeBypassed(ctx);
+  return r ? `${r} Volume-adaptive loudness cannot adapt — use a Matrix EQ for a volume-agnostic equivalent.` : "";
+};
+const loudnessOff = (ctx) => loudnessGated(ctx) || (truthy(ctx.effective("loudness_enabled")) ? "" : "Enable loudness to adjust.");
 
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
 // Frequency-carrying labels ("1x (44.1 / 48 kHz)") were tried and dropped —
@@ -200,7 +207,7 @@ export const schema = {
   // from GET /matrix; on apply they ride the restore/XML lane via presetconf's
   // PLUGIN_MAP into <post_process><plugin type="loudness">. Number bounds/steps
   // come from the form itself (cfgConstraint), so they track the daemon.
-  loudness_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled" },
+  loudness_enabled: { label: "Enable", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "post_loudness_enabled", grayWhen: loudnessGated },
   loudness_low_level: { label: "Level", group: "dsp", widget: "knob", slider: true, lane: "http", endpoint: "matrix", field: "post_loudness_lowlevel", unit: "dB", def: 20, grayWhen: loudnessOff, quietGray: true },
   loudness_low_freq: { label: "Frequency", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_lowfreq", unit: "Hz", grayWhen: loudnessOff, quietGray: true },
   // Steepness sliders: the /matrix form ships no min/max for the slope factor
