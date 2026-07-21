@@ -59,23 +59,23 @@ const crossfeedOff = (ctx) => (truthy(ctx.effective("crossfeed_enabled")) ? "" :
 const loudnessOff = (ctx) => (truthy(ctx.effective("loudness_enabled")) ? "" : "enable loudness");
 
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
-// Labels carry both family frequencies (auto-family: a 44.1k source reaches the
-// 44.1-base rate, a 48k source the 48-base one — the stored value is the ceiling).
+// Frequency-carrying labels ("1x (44.1 / 48 kHz)") were tried and dropped —
+// they clip in the third-width Rate box (user decision 2026-07-21).
 const PCM_RATES = [
-  { value: "48000", label: "1x (44.1 / 48 kHz)" },
-  { value: "96000", label: "2x (88.2 / 96 kHz)" },
-  { value: "192000", label: "4x (176.4 / 192 kHz)" },
-  { value: "384000", label: "8x (352.8 / 384 kHz)" },
-  { value: "768000", label: "16x (705.6 / 768 kHz)" },
-  { value: "1536000", label: "32x (1411.2 / 1536 kHz)" },
+  { value: "48000", label: "1x" },
+  { value: "96000", label: "2x" },
+  { value: "192000", label: "4x" },
+  { value: "384000", label: "8x" },
+  { value: "768000", label: "16x" },
+  { value: "1536000", label: "32x" },
 ];
 const DSD_RATES = [
-  { value: "3072000", label: "DSD64 (2.82 / 3.07 MHz)" },
-  { value: "6144000", label: "DSD128 (5.64 / 6.14 MHz)" },
-  { value: "12288000", label: "DSD256 (11.29 / 12.29 MHz)" },
-  { value: "24576000", label: "DSD512 (22.58 / 24.58 MHz)" },
-  { value: "49152000", label: "DSD1024 (45.16 / 49.15 MHz)" },
-  { value: "98304000", label: "DSD2048 (90.32 / 98.3 MHz)" },
+  { value: "3072000", label: "DSD64" },
+  { value: "6144000", label: "DSD128" },
+  { value: "12288000", label: "DSD256" },
+  { value: "24576000", label: "DSD512" },
+  { value: "49152000", label: "DSD1024" },
+  { value: "98304000", label: "DSD2048" },
 ];
 // Backend http-field values are stable strings (not volatile enum indices), so
 // the segment order + labels are fixed here — ALSA / Network / Combo.

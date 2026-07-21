@@ -103,8 +103,13 @@ export function Field({ k }) {
 
   // A grayed control shows disabled state only — no explanatory caption (it would
   // reflow the row on mode change); graying is the whole signal.
+  // Hover title: desc-carrying fields (filters, DSD sources) render the
+  // per-selection prose inline, so their hover always carries the OVERALL
+  // feature description; other fields hover the tooltip only when the inline
+  // note is hidden (visible note + identical hover would be duplication).
+  const hoverTip = entry.desc || !notesVisible.value ? meta.tooltip : "";
   return html`
-    <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}" title=${reason || (notesVisible.value ? "" : meta.tooltip)}>
+    <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}" title=${reason || hoverTip}>
       <label>${label}</label>
       <div class="control">
         <${W}
