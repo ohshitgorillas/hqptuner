@@ -1,17 +1,22 @@
-// Live view of the hqplayerd log tail — off by default, revealed by a checkbox.
-// Deliberately a STATIC 50-line window (not a growing stream): each poll replaces
-// the whole buffer with the current last-50 lines. Polls every 3 s only while
-// shown, and stops on unmount so a backgrounded tab isn't hitting the file lane.
+// Live view of the hqplayerd log tail, revealed by a checkbox that DEFAULTS to
+// the logging state: log_enabled on -> tail shown until the user unchecks it
+// (shown=null means "follow the config"). Deliberately a STATIC 50-line window
+// (not a growing stream): each poll replaces the whole buffer with the current
+// last-50 lines. Polls every 3 s only while shown, and stops on unmount so a
+// backgrounded tab isn't hitting the file lane.
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../store/dom.js";
 import { api } from "../store/api.js";
+import { effective } from "../store/state.js";
 import { Checkbox } from "./controls/index.js";
 
 const LINES = 50;
 const POLL_MS = 3000;
 
-const shown = signal(false);
+const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+
+const shown = signal(null); // null = follow log_enabled; true/false = user choice
 const lines = signal([]);
 const message = signal(""); // reason when the tail isn't available (logging off, unreadable)
 let timer = null;
@@ -39,18 +44,18 @@ function stop() {
   }
 }
 
-function toggle(on) {
-  shown.value = on;
-  stop();
-  if (on) {
-    refresh();
-    timer = setInterval(refresh, POLL_MS);
-  }
-}
-
 export function LogTail() {
   const pre = useRef(null);
-  useEffect(() => stop, []); // clear the interval if the tab unmounts
+  const on = shown.value === null ? truthy(effective("log_enabled")) : shown.value;
+  // poll while shown; stop when hidden or the tab unmounts
+  useEffect(() => {
+    stop();
+    if (on) {
+      refresh();
+      timer = setInterval(refresh, POLL_MS);
+    }
+    return stop;
+  }, [on]);
   // newest lines are at the bottom — keep the view pinned there on every refresh
   useEffect(() => {
     const el = pre.current;
@@ -59,10 +64,10 @@ export function LogTail() {
   return html`
     <div class="log-tail-block">
       <label class="log-tail-toggle">
-        <${Checkbox} value=${shown.value ? "1" : "0"} onChange=${(v) => toggle(v === "1")} />
+        <${Checkbox} value=${on ? "1" : "0"} onChange=${(v) => (shown.value = v === "1")} />
         Show live log tail (last ${LINES} lines)
       </label>
-      ${shown.value
+      ${on
         ? message.value
           ? html`<div class="log-tail-msg">${message.value}</div>`
           : html`<pre class="log-tail" ref=${pre}>${lines.value.join("\n")}</pre>`

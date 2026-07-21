@@ -162,6 +162,7 @@ function GlobalCard() {
           <${Field} k="matrix_engine" />
           <${Field} k="matrix_expand_hf" />
           <${Field} k="matrix_iir2fir" />
+          <${Field} k="pipelines" />
         </div>
       </div>
     </section>

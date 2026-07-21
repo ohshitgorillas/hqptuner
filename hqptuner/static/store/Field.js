@@ -105,11 +105,16 @@ export function Field({ k }) {
   // reflow the row on mode change); graying is the whole signal.
   // Hover title: desc-carrying fields (filters, DSD sources) render the
   // per-selection prose inline, so their hover always carries the OVERALL
-  // feature description; other fields hover the tooltip only when the inline
-  // note is hidden (visible note + identical hover would be duplication).
-  const hoverTip = entry.desc || !notesVisible.value ? meta.tooltip : "";
+  // feature description; hoverNote fields never render an inline note, so
+  // hover is their only surface; other fields hover the tooltip only when the
+  // inline note is hidden (visible note + identical hover would be duplication).
+  const hoverTip = entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
+  // hoverNote fields (the rate pair): hover is their ONLY prose surface, so the
+  // tooltip outranks the gray reason; everywhere else the reason explains the
+  // disabled control and wins.
+  const title = entry.hoverNote ? hoverTip || reason : reason || hoverTip;
   return html`
-    <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}" title=${reason || hoverTip}>
+    <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}" title=${title}>
       <label>${label}</label>
       <div class="control">
         <${W}

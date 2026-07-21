@@ -32,14 +32,42 @@ function phase(name) {
   return "";
 }
 
-// length — short / medium / long from explicit name tokens (short/shrt, hb-xs/
-// hb-s, long, xl/xla, hb-l, the million-tap closed-form-M/16M); names carrying
-// no length token read as medium. Verified against the manual's own wording
-// ("Short … halfband" for hb-s, "Long …" for hb-l, "8-times-longer" for -xl).
+// length — short / medium / long / xlong. Letter-coded names don't carry a
+// readable token, so they get explicit entries grounded in the manual /
+// filters.json tap counts: the sinc letter series (S=4096×ratio, M/Mx/MG/MGa =
+// million taps and "variants of poly-sinc-ext2-xla / gauss-xl(a)" → xlong,
+// L=131070×, Ls=4096×, Lm/Lh=16384×, Ll=65536×), the million-tap closed-forms
+// (xlong), gauss-halfband-s ("Short … Gaussian"), the polynomial interpolators
+// and minringFIR ("ringing between polynomial and poly-sinc-short"). Everything
+// else classifies by name token — xl/xla ("8-times-longer" variants) are xlong;
+// short / long / hb-s / hb-xs / hb-l as written — with the -2s two-stage suffix
+// stripped first; unmarked names read as medium.
+const LENGTH_OVERRIDES = {
+  "sinc-S": "short",
+  "sinc-M": "xlong",
+  "sinc-Mx": "xlong",
+  "sinc-MG": "xlong",
+  "sinc-MGa": "xlong",
+  "sinc-L": "long",
+  "sinc-Ls": "short",
+  "sinc-Lm": "medium",
+  "sinc-Ll": "long",
+  "sinc-Lh": "medium",
+  "closed-form-M": "xlong",
+  "closed-form-16M": "xlong",
+  "poly-sinc-gauss-halfband-s": "short",
+  "polynomial-1": "short",
+  "polynomial-2": "short",
+  "minringFIR-lp": "short",
+  "minringFIR-mp": "short",
+};
 function length(name) {
   const n = name || "";
-  if (/short|shrt|-hb-xs(-|$)|-hb-s(-|$)/.test(n)) return "short";
-  if (/long|-xla?(-|$)|-hb-l(-|$)|16M|-M$/.test(n)) return "long";
+  const base = n.endsWith("-2s") ? n.slice(0, -3) : n;
+  if (LENGTH_OVERRIDES[base]) return LENGTH_OVERRIDES[base];
+  if (/short|shrt|-hb-xs$|-hb-s$/.test(base)) return "short";
+  if (/-xla?$/.test(base)) return "xlong";
+  if (/long|-hb-l$/.test(base)) return "long";
   return "medium";
 }
 

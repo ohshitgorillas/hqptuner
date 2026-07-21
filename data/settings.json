@@ -16,6 +16,16 @@
       "tooltip": "Output sample rate request, or upper limit. Available choices depend on the selected filter and device capabilities. With [source] mode or auto rate family enabled, this is a default and upper limit — the engine picks the specific rate during playback based on available rates and filter conversion capabilities; otherwise the selected rate is the static output rate.",
       "source": "manual §4.4"
     },
+    "pcm_rate": {
+      "label": "PCM rate",
+      "tooltip": "Pulse Code Modulation — conventional multi-bit audio sampling.",
+      "source": "manual §2 (PCM)"
+    },
+    "sdm_rate": {
+      "label": "SDM rate",
+      "tooltip": "Sigma Delta Modulation — 1-bit high-rate bitstream (DSD).",
+      "source": "manual §2 (DSD/PDM)"
+    },
     "auto_rate_family": {
       "label": "Auto rate family",
       "tooltip": "When automatic rate selection is enabled, select only output rates that are multiples of the source rate's base family (44.1k vs 48k). Unchecked, automatic selection may pick a default or lower rate based on filter and DAC capabilities.",

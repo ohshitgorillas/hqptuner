@@ -25,8 +25,10 @@
 // Mode is the http `mode` field (auto/pcm/sdm) — stable values, always all three.
 // (The live GetModes enum is device-dependent: it drops SDM when the active
 // device can't do DSD, so it's the wrong source for a persistent config choice.)
-const isSdm = (ctx) => String(ctx.effective("output_mode")) === "sdm";
-const isPcm = (ctx) => String(ctx.effective("output_mode")) === "pcm";
+// grayWhen contract: return a reason STRING (shown as the hover title), '' when
+// enabled — a bare boolean leaks "true" into the title attribute.
+const isSdm = (ctx) => (String(ctx.effective("output_mode")) === "sdm" ? "inactive in SDM mode" : "");
+const isPcm = (ctx) => (String(ctx.effective("output_mode")) === "pcm" ? "inactive in PCM mode" : "");
 
 // checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
@@ -113,8 +115,8 @@ export const schema = {
   // forces auto-family, so a per-family Nx/DSDx multiplier is the whole UX; each
   // maps to the 48k-base ceiling value (the higher of the 44.1/48 pair) so a
   // source of either family reaches its own Nx under the "equal or lower" cap.
-  pcm_rate: { label: "PCM", group: "output", note: "rate", widget: "dropdown", lane: "http", field: "defaults_samplerate", options: PCM_RATES, grayWhen: isSdm, hoverNote: true },
-  sdm_rate: { label: "SDM", group: "output", note: "rate", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, hoverNote: true },
+  pcm_rate: { label: "PCM", group: "output", widget: "dropdown", lane: "http", field: "defaults_samplerate", options: PCM_RATES, grayWhen: isSdm, hoverNote: true },
+  sdm_rate: { label: "SDM", group: "output", widget: "dropdown", lane: "http", field: "defaults_bitrate", options: DSD_RATES, grayWhen: isPcm, hoverNote: true },
 
   // --- Output: ALSA backend section (backend alsa|combo) ---
   alsa_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "alsa_device", optionsFrom: "config", wide: true, rescan: true, span: true },
