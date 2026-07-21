@@ -4,16 +4,19 @@
 import { html } from "../store/dom.js";
 import { Header } from "./Header.js";
 import { SignalPath } from "./SignalPath.js";
-import { TabNav } from "./tabs.js";
+import { TabBar, TabBody } from "./tabs.js";
 import { PendingBar } from "./PendingBar.js";
 import { reachable } from "../store/state.js";
 
 export function App() {
   return html`
     <div class="app ${reachable.value ? "" : "offline"}">
-      <${Header} />
-      <${SignalPath} />
-      <main><${TabNav} /></main>
+      <div class="chrome-top">
+        <${Header} />
+        <${SignalPath} />
+        <${TabBar} />
+      </div>
+      <main><${TabBody} /></main>
       <${PendingBar} />
     </div>
   `;
