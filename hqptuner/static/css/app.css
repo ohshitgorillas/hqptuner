@@ -1236,6 +1236,18 @@ button:disabled {
   margin-top: 0.05rem;
   max-width: var(--measure);
 }
+/* Grayed-control explanation — appended after the manual note (schema grayWhen
+   reason). Italic + dimmer than .field-note so it reads as state, not prose. */
+.field-gray-reason {
+  grid-column: 2;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-style: italic;
+  color: var(--fg-2);
+  opacity: 0.65;
+  margin-top: 0.05rem;
+  max-width: var(--measure);
+}
 
 /* ── Visual-language token ─────────────────────────────────────────────
    DASHED + muted  = POTENTIAL / maximum / reference (a "ghost" trace).

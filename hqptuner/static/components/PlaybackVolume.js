@@ -33,6 +33,11 @@ function disabledReason() {
     const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
     return `Fixed volume in effect — turn off Fixed volume / Optimal ISO to adjust live.${hint(staged)}`;
   }
+  // volume min = max = 0 bypasses volume control completely (manual §4.2)
+  if (Number(runningValue("volume_min")) === 0 && Number(runningValue("volume_max")) === 0) {
+    const staged = !(Number(effective("volume_min")) === 0 && Number(effective("volume_max")) === 0);
+    return `Volume min and max are both 0 — volume control is bypassed.${hint(staged)}`;
+  }
   return "No active stream — volume adjusts live during playback.";
 }
 

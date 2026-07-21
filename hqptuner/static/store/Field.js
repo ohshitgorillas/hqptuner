@@ -104,8 +104,9 @@ export function Field({ k }) {
   // shaper selects gray options the current output rate can't use
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
 
-  // A grayed control shows disabled state only — no explanatory caption (it would
-  // reflow the row on mode change); graying is the whole signal.
+  // A grayed control names WHY, visibly — the reason renders as a caption
+  // appended after the manual note (user decision 2026-07-21; hover-only
+  // reasons proved undiscoverable), and doubles as the hover title.
   // Hover title: desc-carrying fields (filters, DSD sources) render the
   // per-selection prose inline, so their hover always carries the OVERALL
   // feature description; hoverNote fields never render an inline note, so
@@ -142,6 +143,7 @@ export function Field({ k }) {
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${entry.desc && descVisible.value ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options, meta)}</div>` : null}
       ${!entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value ? html`<div class="field-note">${meta.tooltip}</div>` : null}
+      ${reason ? html`<div class="field-gray-reason">${reason}</div>` : null}
     </div>
   `;
 }

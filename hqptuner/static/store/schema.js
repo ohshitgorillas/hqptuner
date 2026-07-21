@@ -25,10 +25,21 @@
 // Mode is the http `mode` field (auto/pcm/sdm) — stable values, always all three.
 // (The live GetModes enum is device-dependent: it drops SDM when the active
 // device can't do DSD, so it's the wrong source for a persistent config choice.)
-// grayWhen contract: return a reason STRING (shown as the hover title), '' when
-// enabled — a bare boolean leaks "true" into the title attribute.
-const isSdm = (ctx) => (String(ctx.effective("output_mode")) === "sdm" ? "inactive in SDM mode" : "");
-const isPcm = (ctx) => (String(ctx.effective("output_mode")) === "pcm" ? "inactive in PCM mode" : "");
+// grayWhen contract: return a reason STRING (rendered as a visible caption on
+// the grayed field and as the hover title), '' when enabled — a bare boolean
+// leaks "true" into the title attribute.
+const inMode = (ctx, m) => String(ctx.effective("output_mode")) === m;
+const isSdm = (ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
+const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
+// DSD-source decoding splits by output family (manual §4.4/§4.5): the SDM→SDM
+// remodulation controls (integrator, conversion aperture) only run when a DSD
+// source goes to SDM output; the DSD→PCM controls (noise filter, SDM→PCM
+// conversion, +6 dB gain) only run when a DSD source goes to PCM output.
+const sdmToSdm = (ctx) => (inMode(ctx, "pcm") ? "Only used for SDM-to-SDM conversion (SDM output mode)." : "");
+const dsdToPcm = (ctx) => (inMode(ctx, "sdm") ? "Only used for DSD-to-PCM conversion (PCM output mode)." : "");
+// Direct SDM "disables all processing when source is DSD content and output
+// format is SDM" (manual §4.5) — meaningless without SDM output.
+const needsSdmOut = (ctx) => (inMode(ctx, "pcm") ? "Requires SDM output mode." : "");
 
 // checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
@@ -37,9 +48,9 @@ const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === 
 // therefore inert while it's on — the daemon accepts and stores the setting but
 // nothing reaches the output stage, so the UI has to say so. PlaybackVolume.js
 // already grays the live slider for the same reason.
-const directSdm = (ctx) => (truthy(ctx.effective("direct_sdm")) ? "Direct SDM bypasses the volume control" : "");
+const directSdm = (ctx) => (truthy(ctx.effective("direct_sdm")) ? "Direct SDM bypasses the volume control." : "");
 // the fixed-volume level + Optimal ISO only apply when fixed volume is enabled.
-const fixedOff = (ctx) => directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "requires fixed volume");
+const fixedOff = (ctx) => directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "Requires Fixed volume to be enabled.");
 // Optimal ISO supersedes the manual level with an auto-optimized one (manual
 // §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
 // volume_fixed's XML domain is 0 = off / 1 = −3 dB / 2 = −6 dB (readme §1.2), but
@@ -54,11 +65,20 @@ const isoLevel = (v) => {
   return s === "0" || s === "" || s === "false" ? "0" : "1";
 };
 const isoOn = (ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
-const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level" : "");
-const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "logging disabled");
+const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level automatically." : "");
+// The live volume control is bypassed in three documented cases (manual §4.2,
+// §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
+// Adaptive volume offsets the live volume, so it is inert in all three.
+const volumeBypassed = (ctx) =>
+  directSdm(ctx) ||
+  (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? "Fixed volume bypasses the volume control." : "") ||
+  (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0
+    ? "Volume min and max are both 0 — volume control is bypassed."
+    : "");
+const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.");
 // a post-process card's sub-controls gray out until the feature is enabled
-const crossfeedOff = (ctx) => (truthy(ctx.effective("crossfeed_enabled")) ? "" : "enable crossfeed");
-const loudnessOff = (ctx) => (truthy(ctx.effective("loudness_enabled")) ? "" : "enable loudness");
+const crossfeedOff = (ctx) => (truthy(ctx.effective("crossfeed_enabled")) ? "" : "Enable crossfeed to adjust.");
+const loudnessOff = (ctx) => (truthy(ctx.effective("loudness_enabled")) ? "" : "Enable loudness to adjust.");
 
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
 // Frequency-carrying labels ("1x (44.1 / 48 kHz)") were tried and dropped —
@@ -123,15 +143,15 @@ export const schema = {
   alsa_offset: { label: "Channel offset", group: "output", note: "channel_offset", widget: "number", lane: "http", field: "alsa_offset" },
   alsa_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "alsa_bits", grayWhen: isSdm },
   alsa_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "alsa_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
-  alsa_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "alsa_dop" },
-  alsa_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "alsa_anydsd" },
+  alsa_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "alsa_dop", grayWhen: isPcm },
+  alsa_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "alsa_anydsd", grayWhen: isPcm },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
   net_device: { label: "Output Device", group: "output", note: "output_device", widget: "dropdown", lane: "http", field: "net_device", optionsFrom: "config", wide: true, rescan: true, span: true },
   net_bits: { label: "DAC bits", group: "output", note: "dac_bits", widget: "number", lane: "http", field: "net_bits", grayWhen: isSdm },
   net_period: { label: "Buffer time", group: "output", note: "buffer_time", widget: "number", lane: "http", field: "net_period", unit: "ms", hint: "−1 = minimum, 0 = default" },
-  net_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "net_dop" },
-  net_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "net_anydsd" },
+  net_dop: { label: "DSD over PCM (DoP)", group: "output", note: "dop", widget: "checkbox", lane: "http", field: "net_dop", grayWhen: isPcm },
+  net_anydsd: { label: "48kHz DSD rates", group: "output", note: "dsd_48k", widget: "checkbox", lane: "http", field: "net_anydsd", grayWhen: isPcm },
   net_ipv6: { label: "IPv6 discovery", group: "output", note: "ipv6", widget: "checkbox", lane: "http", field: "net_ipv6" },
 
   // --- DSP: two persistent filter chains (both shown, inactive grayed by mode) ---
@@ -156,12 +176,14 @@ export const schema = {
   pipelines: { label: "DSP pipelines", group: "dsp", widget: "dropdown", lane: "http", field: "pipelines", optionsFrom: "config" },
 
   // --- DSP: DSD source decoding (SDM input processing) ---
-  direct_sdm: { label: "Direct SDM", group: "dsp", widget: "checkbox", lane: "http", field: "direct_sdm" },
-  dsd_gain_6db: { label: "Gain +6 dB", group: "dsp", widget: "checkbox", lane: "http", field: "dsd_6db" },
-  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true, desc: "config" },
-  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true, desc: "config" },
-  noise_filter: { label: "Noise filter", group: "dsp", note: "pdm_filter", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true, desc: "config" },
-  pcm_conversion: { label: "SDM → PCM", group: "dsp", note: "pdm_conversion", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true, desc: "config" },
+  // Each control here serves exactly one of the two DSD-source paths (manual
+  // §4.4 "DSD sources" vs §4.5) — grayed with the reason in the other mode.
+  direct_sdm: { label: "Direct SDM", group: "dsp", widget: "checkbox", lane: "http", field: "direct_sdm", grayWhen: needsSdmOut },
+  dsd_gain_6db: { label: "Gain +6 dB", group: "dsp", widget: "checkbox", lane: "http", field: "dsd_6db", grayWhen: dsdToPcm },
+  sdm_integrator: { label: "Integrator", group: "dsp", widget: "dropdown", lane: "http", field: "integrator", optionsFrom: "config", wide: true, desc: "config", grayWhen: sdmToSdm },
+  sdm_conversion: { label: "SDM → SDM", group: "dsp", widget: "dropdown", lane: "http", field: "sdm_conversion", optionsFrom: "config", wide: true, desc: "config", grayWhen: sdmToSdm },
+  noise_filter: { label: "Noise filter", group: "dsp", note: "pdm_filter", widget: "dropdown", lane: "http", field: "noise_filter", optionsFrom: "config", wide: true, desc: "config", grayWhen: dsdToPcm },
+  pcm_conversion: { label: "SDM → PCM", group: "dsp", note: "pdm_conversion", widget: "dropdown", lane: "http", field: "pcm_conversion", optionsFrom: "config", wide: true, desc: "config", grayWhen: dsdToPcm },
 
   // --- DSP: post-processing (crossfeed + DAC correction). endpoint:"matrix"
   // marks these as /matrix form-read fields (their baseline/options come from
@@ -220,8 +242,8 @@ export const schema = {
   volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS", grayWhen: directSdm },
   volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS", grayWhen: directSdm },
   startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS", grayWhen: directSdm },
-  gain_comp: { label: "PCM gain compensation", group: "volume", note: "gain_compensation", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
-  adaptive_volume: { label: "Adaptive volume", group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume" },
+  gain_comp: { label: "PCM gain compensation", group: "volume", widget: "slidernum", lane: "http", field: "gain_comp", unit: "dB", ticks: [0, -6] },
+  adaptive_volume: { label: "Adaptive volume", group: "volume", widget: "checkbox", lane: "live", stateField: "adaptive", liveKey: "adaptive_volume", grayWhen: volumeBypassed },
   playlist_album_gain: { label: "Playlist album gain", group: "volume", widget: "checkbox", lane: "http", field: "playlist_album_gain" },
 
   // --- System ---
