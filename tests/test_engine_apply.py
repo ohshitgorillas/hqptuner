@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
+from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
-from hqptuner.httpconf import HttpConfigClient
 from hqptuner.manager import ConnectionManager
 
 

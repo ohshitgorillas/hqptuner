@@ -22,7 +22,7 @@ ROW1 = {"source": "1", "gain": "0", "gainunit": "dB", "mixdown": "1", "process":
 
 @pytest.fixture
 async def manager(http_daemon: dict[str, Any], tmp_path: Path) -> AsyncIterator[ConnectionManager]:
-    from hqptuner.httpconf import HttpConfigClient
+    from hqptuner.conf.httpconf import HttpConfigClient
 
     http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
     mgr = ConnectionManager(Config(alarm_threshold=1.0, backup_dir=tmp_path), http)

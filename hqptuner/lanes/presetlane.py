@@ -19,12 +19,12 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from . import engineconf, presetconf
-from .control import ControlError
-from .presetstore import PresetError
+from ..conf import engineconf, presetconf
+from ..control import ControlError
+from ..presetstore import PresetError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from .manager import ConnectionManager
+    from ..manager import ConnectionManager
 
 
 def listing(mgr: ConnectionManager) -> dict[str, Any]:

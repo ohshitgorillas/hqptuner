@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from . import engineconf, presetconf
+from ..conf import engineconf, presetconf
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from .manager import ConnectionManager
+    from ..manager import ConnectionManager
 
 RECONNECT_FAST = 1.0
 _PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable divergence
