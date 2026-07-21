@@ -553,13 +553,15 @@ select:disabled {
   opacity: 0.45;
 }
 
-/* checkbox: one unmistakable style, consistent size, clear checked state */
+/* checkbox: one unmistakable style, consistent size, clear checked state.
+   Unchecked border uses --muted, not --line — the line hairline vanished
+   against a card background. */
 input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 1.2rem;
   height: 1.2rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--muted);
   border-radius: 0.25rem;
   background: var(--bg-3);
   position: relative;
@@ -860,12 +862,17 @@ input[type="checkbox"]:disabled {
 .btn:hover {
   border-color: var(--accent);
 }
+/* card action row — hairline-separated and right-aligned (the pending-bar
+   convention), so the button reads as "applies THIS card", not page-global */
 .hw-apply {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
 }
 .hw-all {
   display: flex;
@@ -1511,7 +1518,23 @@ button:disabled {
    not driven by var(--accent). */
 .accent-swatches {
   display: flex;
+  align-items: center;
   gap: 0.7rem;
+}
+/* custom-hex box beside the swatches — mono, sized to #rrggbb. The swatch
+   circles are shrink-proof so a tight track can't squash them into ovals. */
+/* specificity must beat `.pack .field:not(.span) input[type="text"]`, whose
+   width:100% / max-width:100% would stretch the box across the track */
+.pack .field .accent-swatches input.accent-hex[type="text"],
+.accent-hex {
+  width: 5rem;
+  max-width: 5rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.accent-swatches .swatch {
+  flex: none;
 }
 .swatch {
   width: 1.6rem;

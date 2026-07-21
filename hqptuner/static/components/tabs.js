@@ -14,7 +14,7 @@ import { HardwareCard, BackupRestoreRow } from "./SystemHardware.js";
 import { LogTail } from "./LogTail.js";
 import { MatrixTab } from "./MatrixTab.js";
 import { CrossfeedPlot, LoudnessPlot } from "./plots.js";
-import { accent, applyAccent, ACCENTS } from "../store/theme.js";
+import { accent, accentHex, applyAccent, applyAccentHex, ACCENTS, ACCENT_HEX } from "../store/theme.js";
 import { Checkbox } from "./controls/index.js";
 import {
   showDescriptions,
@@ -359,6 +359,9 @@ const DescriptionPrefs = () => html`
 
 const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber" };
 
+// Swatches pick a preset; the hex box beside them holds that preset's value
+// (auto-filled on pick) and accepts any custom #rrggbb, which overrides the
+// preset until a swatch is picked again.
 const AccentPicker = () =>
   html`
     <div class="field">
@@ -368,14 +371,22 @@ const AccentPicker = () =>
           (a) => html`
             <button
               type="button"
-              class="swatch ${a} ${accent.value === a ? "active" : ""}"
+              class="swatch ${a} ${accent.value === a && !accentHex.value ? "active" : ""}"
               title=${ACCENT_LABELS[a]}
               aria-label=${ACCENT_LABELS[a]}
-              aria-pressed=${accent.value === a}
+              aria-pressed=${accent.value === a && !accentHex.value}
               onClick=${() => applyAccent(a)}
             ></button>
           `,
         )}
+        <input
+          type="text"
+          class="accent-hex"
+          maxlength="7"
+          value=${accentHex.value || ACCENT_HEX[accent.value]}
+          onChange=${(e) => applyAccentHex(e.target.value)}
+          aria-label="Custom accent hex"
+        />
       </div>
     </div>
   `;
@@ -403,15 +414,12 @@ const System = () =>
       <//>
     </div>
     <${HardwareCard} />
-    <div class="card-grid">
-      <${Card} title="DSP pipelines">
-        <${Field} k="pipelines" />
-      <//>
-      <${Card} title="HQPTuner">
+    <${Card} title="HQPTuner">
+      <div class="pack">
         <${DescriptionPrefs} />
         <${AccentPicker} />
-      <//>
-    </div>
+      </div>
+    <//>
     <${LoggingCard} />
   <//>`;
 

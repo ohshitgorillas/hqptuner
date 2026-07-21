@@ -51,13 +51,16 @@ export function SignalPath() {
   const md = s.metadata || {};
   const playing = Number((engineState.value || {}).state) === PLAYING;
 
-  // Source describes the incoming stream, so it only means anything while one
-  // exists. Idle used to fall back to st.active_mode — the configured OUTPUT
-  // mode, which reads as a claim about the source and is wrong ("SDM (DSD)"
-  // with nothing playing).
-  const source = !playing ? "N/A" : md.samplerate ? `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit` : "—";
+  // Source describes the incoming stream and Output the actual output rate, so
+  // both only mean anything while a stream exists — idle shows a plain dash
+  // (not "N/A", not the engine's remembered/assumed rate).
+  const source = !playing ? "—" : md.samplerate ? `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit` : "—";
   // output stage: a DSD bitstream is always 1-bit, so pair the MHz with "/ 1bit"
-  const outRate = Number(st.active_rate) >= DSD_FLOOR ? `${fmtRate(st.active_rate)} / 1bit` : fmtRate(st.active_rate);
+  const outRate = !playing
+    ? "—"
+    : Number(st.active_rate) >= DSD_FLOOR
+      ? `${fmtRate(st.active_rate)} / 1bit`
+      : fmtRate(st.active_rate);
 
   // build the chain in processing order, omitting disabled post-process stages:
   // crossfeed sits before the filter (input-side), DAC correction after the

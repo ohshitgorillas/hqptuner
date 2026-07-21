@@ -36,6 +36,7 @@ const LENGTHS = [
   ["short", "Short"],
   ["medium", "Medium"],
   ["long", "Long"],
+  ["xlong", "Extra long"],
 ];
 
 const focusOpen = signal(false);
@@ -69,7 +70,7 @@ function genreLabel() {
 function lengthLabel() {
   const sel = nLength.value;
   if (!sel.length) return "Any length";
-  if (sel.length === 1) return cap(sel[0]);
+  if (sel.length === 1) return oneLabel(LENGTHS, sel[0], sel[0]);
   return `${sel.length} lengths`;
 }
 
