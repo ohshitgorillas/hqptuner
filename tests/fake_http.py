@@ -299,7 +299,9 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     for part in raw.split(b"--" + boundary):
         if b'name="cfgfile"' in part:
             zbytes = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]
-    xml = zipfile.ZipFile(io.BytesIO(zbytes)).read("hqplayerd.xml")
+    archive = zipfile.ZipFile(io.BytesIO(zbytes))
+    st["_restore_members"] = archive.namelist()  # what the restore carried (filter uploads land as data/*)
+    xml = archive.read("hqplayerd.xml")
     if _elem_attr(xml, "title", "value") == "REJECT":
         return  # modeled value-level rejection: the daemon refuses, state unchanged
     st["_pre_backup"] = _backup_zip(st)  # snapshot before adopting, for the stale window

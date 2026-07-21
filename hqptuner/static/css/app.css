@@ -2100,3 +2100,105 @@ select.mtx-ch {
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* ── Matrix tab step 4: stage editor ─────────────────────────────────────── */
+.mtx-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.mtx-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+.mtx-stage {
+  cursor: pointer;
+}
+.mtx-stage.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.mtx-stage.bad {
+  border-color: var(--red);
+  color: var(--red);
+}
+.mtx-tool.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.mtx-editor {
+  margin-top: var(--sp-2);
+  border-top: 1px solid var(--line);
+  padding: var(--sp-3) var(--sp-2) var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.mtx-editor-head {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.mtx-editor-args {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  align-items: end;
+}
+.mtx-arg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mtx-arg span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--fg-2);
+}
+.mtx-arg input,
+.mtx-arg select {
+  width: 6rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.mtx-arg-wide input {
+  width: 26rem;
+  max-width: 100%;
+}
+.mtx-editor-raw {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.mtx-editor-raw span {
+  color: var(--fg-2);
+  font-size: 0.7rem;
+}
+.mtx-editor-raw code {
+  color: var(--fg);
+  word-break: break-all;
+}
+.mtx-issues {
+  font-size: 0.78rem;
+  color: var(--amber);
+  max-width: var(--measure);
+}
+.mtx-raw {
+  flex: 1;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.mtx-raw-input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.mtx-upload input[type="file"] {
+  font-size: 0.75rem;
+  color: var(--fg-2);
+}

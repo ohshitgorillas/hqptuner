@@ -46,6 +46,7 @@ export const api = {
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   deletePreset: (name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
+  uploadFilter: (file) => upload("/api/matrix/filter", "file", file),
   volume: () => getJSON("/api/volume"),
   setVolume: (level) => send("/api/volume", "POST", { level: String(level) }),
   log: (lines = 50) => getJSON(`/api/log?lines=${lines}`),

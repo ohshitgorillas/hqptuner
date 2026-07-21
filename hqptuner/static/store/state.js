@@ -126,10 +126,16 @@ export const effectivePipelines = computed(() => {
 
 // Stage the whole set (optimistic, like edit()). A set identical to baseline
 // still stages — isDirty's string compare then reads clean, same as any field.
+// Latest-wins: rapid successive edits (stage editor keystrokes) each POST; an
+// EARLIER request's response must not clobber a LATER optimistic value, so only
+// the newest in-flight call is allowed to adopt the server's echo.
+let stageSeq = 0;
 export async function stagePipelines(rows) {
   const json = canonPipelines(rows);
   staged.value = { live: staged.value.live, http: { ...staged.value.http, matrix_pipelines: json } };
-  staged.value = await api.stage({ live: {}, http: { matrix_pipelines: json } });
+  const seq = ++stageSeq;
+  const echo = await api.stage({ live: {}, http: { matrix_pipelines: json } });
+  if (seq === stageSeq) staged.value = echo;
 }
 
 // Running config read from the config XML, in form-field terms (manager.file_config).

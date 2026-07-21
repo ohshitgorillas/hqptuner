@@ -30,6 +30,7 @@ import httpx
 from . import engineconf, enginelane, httplane, logtail, presetconf, presetlane
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
+from .filterpark import FilterPark
 from .httpconf import HttpConfigClient
 from .presetstore import PresetStore
 from .writer import apply_live
@@ -50,6 +51,7 @@ class ConnectionManager:
         # presets. hqplayerd's own named-profile subsystem is unreliable, so we
         # drive it only through restore-onto-[default] and keep data/cfgs mirrored.
         self._store = PresetStore(cfg.preset_dir)
+        self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
 
         self.reachable = False
@@ -259,6 +261,10 @@ class ConnectionManager:
                 raise ControlError("daemon not connected")
             live_report = await apply_live(client, live_edits)
         persistent = await httplane.apply(self, http_fields) if http_fields else None
+        if persistent is not None and persistent.get("applied"):
+            # the restore that just applied carried the parked filter files —
+            # they live on the daemon now, so the parking area is done with them
+            self.clear_parked_filters()
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def _switch_preset(self, name: str) -> dict[str, Any]:
@@ -397,6 +403,17 @@ class ConnectionManager:
         if engine:
             self.engine = engine
         return result
+
+    # --- convolution filter uploads (filterpark, matrix-spec step 4) -------
+
+    def park_filter(self, name: str, data: bytes) -> dict[str, str]:
+        return self._filters.park(name, data)
+
+    def parked_filter_members(self) -> dict[str, bytes]:
+        return self._filters.members()
+
+    def clear_parked_filters(self) -> None:
+        self._filters.clear()
 
     def _persist_backup(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk so a crash mid-apply still
