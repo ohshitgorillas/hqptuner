@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 
-from . import engineconf, enginelane, httplane, logtail, presetconf, presetlane
+from . import engineconf, enginelane, httplane, logtail, matrixlane, presetconf, presetlane
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
 from .filterpark import FilterPark
@@ -253,7 +253,8 @@ class ConnectionManager:
             # and the persistent apply below needs the archive (docs/protocol.md)
             with contextlib.suppress(httpx.HTTPError):
                 await self._backup_or_cached()
-            switched = await self._switch_preset(switch_to)
+            # restore-onto-[default] + mirror (load_preset), never hqplayerd's profile/load
+            switched = await self.load_preset(switch_to)
         live_report: list[dict[str, Any]] = []
         if live_edits:
             client = self._client
@@ -266,12 +267,6 @@ class ConnectionManager:
             # they live on the daemon now, so the parking area is done with them
             self.clear_parked_filters()
         return {"live": live_report, "persistent": persistent, "switched": switched}
-
-    async def _switch_preset(self, name: str) -> dict[str, Any]:
-        """Load a previewed preset so it becomes active before the staged edits
-        apply on top — restore-onto-[default] + mirror (``load_preset``), never
-        hqplayerd's ``profile/load``."""
-        return await self.load_preset(name)
 
     async def _backup_or_cached(self, *, for_write: bool = False) -> bytes:
         """Fetch ``/backup``, caching it whenever it's a usable archive. WORKAROUND
@@ -403,6 +398,19 @@ class ConnectionManager:
         if engine:
             self.engine = engine
         return result
+
+    # --- matrix profiles (matrixlane, matrix-spec step 5) ------------------
+
+    @property
+    def control(self) -> ControlClient | None:
+        """The live 4321 client, for the extracted lanes (None while unreachable)."""
+        return self._client
+
+    async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
+        return await matrixlane.switch_profile(self, name)
+
+    async def matrix_profile_action(self, action: str, name: str) -> dict[str, Any]:
+        return await matrixlane.profile_action(self, action, name)
 
     # --- convolution filter uploads (filterpark, matrix-spec step 4) -------
 

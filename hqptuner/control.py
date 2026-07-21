@@ -173,6 +173,13 @@ class ControlClient:
         meta = root.find("metadata")
         return dict(root.attrib), (dict(meta.attrib) if meta is not None else None)
 
+    async def set_matrix_profile(self, name: str) -> None:
+        """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty
+        = the unnamed [Default]). Probe-verified on 6.0.4: unauthenticated, zero
+        reload, playback uninterrupted; memory-only, reverts on daemon restart
+        (docs/matrix-spec.md probe findings)."""
+        await self.set_command("MatrixSetProfile", value=name)
+
     async def get_matrix_profiles(self) -> list[str]:
         """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile`
         children). Verified live on 6.0.4 (docs/matrix-spec.md probe findings):

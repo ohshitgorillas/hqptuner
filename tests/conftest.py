@@ -34,6 +34,7 @@ _DEFAULTS = {
     "filter_junk": "0",
     "adaptive": "0",
     "volume": "-10.0",
+    "matrix_profile": "",
     # underscore keys are internal to the fake (VolumeRange source), not emitted in State
     "_vol_min": "-60",
     "_vol_max": "0",
@@ -61,6 +62,8 @@ def _apply(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
         state["adaptive"] = value
     elif name == "Volume":
         state["volume"] = value
+    elif name == "MatrixSetProfile":
+        state["matrix_profile"] = value  # live switch; State reports it back
 
 
 def _query(name: str, state: dict[str, str]) -> str | None:
