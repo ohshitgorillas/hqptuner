@@ -16,8 +16,8 @@ Core goals:
 
 Explicit non-goals:
 
-- Convolution engine access (cut)
-- Matrix pipeline editing / raw matrix filter input (cut — too complex)
+- Convolution engine access (cut — the standalone convolution engine page; convolution *within* matrix pipelines is in scope per the matrix spec)
+- ~~Matrix pipeline editing / raw matrix filter input (cut — too complex)~~ **Un-cut 2026-07-20**: full matrix pipeline editing is in scope. Design of record: `docs/matrix-spec.md`.
 - Playback, library, or media control of any kind
 
 ## 2. Architecture
