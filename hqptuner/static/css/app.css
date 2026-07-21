@@ -2233,3 +2233,37 @@ select.mtx-ch {
   padding: 0.1rem 0.5rem;
   white-space: nowrap;
 }
+
+/* ── Matrix tab step 6: AutoEq / REW import panel ────────────────────────── */
+.mtx-import-toggle {
+  float: right;
+  font-size: 0.75rem;
+}
+.mtx-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.mtx-import textarea {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: var(--sp-2);
+  resize: vertical;
+}
+.mtx-import-mirror {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}

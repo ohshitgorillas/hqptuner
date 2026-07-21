@@ -28,6 +28,7 @@ import {
   IIR_TYPES,
   DELAY_ARGS,
 } from "../store/matrixspec.js";
+import { parseEqText } from "../store/eqimport.js";
 
 const MAX_CH = 128;
 const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
@@ -416,6 +417,75 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove }) {
   `;
 }
 
+// --- AutoEq / REW import (step 6) --------------------------------------------
+// Docked panel under the Pipelines header: paste or pick a .txt, choose a target
+// pipeline (+ optional stereo-pair mirror = the adjacent row), preview, import.
+// Import appends the parsed iir stages to the target row(s) and maps a Preamp
+// line onto the row gain (dB) — one atomic stagePipelines op, Discard undoes it.
+const importOpen = signal(false);
+const importText = signal("");
+const importTarget = signal(0);
+const importMirror = signal(true);
+const importNote = signal("");
+
+function doImport(rows) {
+  const { preamp, stages, skipped } = parseEqText(importText.value);
+  if (!stages.length) {
+    importNote.value = `no filters found${skipped.length ? ` — ${skipped.length} line(s) skipped` : ""}`;
+    return;
+  }
+  const target = Math.min(importTarget.value, rows.length - 1);
+  const pair = importMirror.value && rows.length > 1 ? (target % 2 === 0 ? target + 1 : target - 1) : null;
+  const targets = new Set(pair !== null && pair < rows.length ? [target, pair] : [target]);
+  const addition = serializeProcess(stages);
+  const next = rows.map((r, i) => {
+    if (!targets.has(i)) return r;
+    const process = r.process ? `${r.process},${addition}` : addition;
+    return { ...r, process, ...(preamp !== null ? { gain: preamp, gainunit: "dB" } : {}) };
+  });
+  stagePipelines(next);
+  importNote.value =
+    `${stages.length} filter(s) → pipeline ${[...targets].map((i) => i + 1).join(" + ")}` +
+    (preamp !== null ? `, preamp ${preamp} dB → gain` : "") +
+    (skipped.length ? ` · skipped: ${skipped.join("; ")}` : "");
+}
+
+function ImportPanel({ rows }) {
+  const onFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    file.text().then((t) => (importText.value = t));
+  };
+  return html`
+    <div class="mtx-import">
+      <textarea
+        rows="5"
+        placeholder=${"Paste an AutoEq ParametricEQ.txt or a REW Generic EQ export…\nFilter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41"}
+        value=${importText.value}
+        onInput=${(e) => (importText.value = e.target.value)}
+      ></textarea>
+      <div class="mtx-profile-row">
+        <input type="file" accept=".txt" onChange=${onFile} />
+        <select value=${String(importTarget.value)} onChange=${(e) => (importTarget.value = Number(e.target.value))}>
+          ${rows.map((_, i) => html`<option value=${String(i)}>pipeline ${i + 1}</option>`)}
+        </select>
+        <label class="mtx-import-mirror">
+          <input
+            type="checkbox"
+            checked=${importMirror.value}
+            onChange=${(e) => (importMirror.value = e.target.checked)}
+          />
+          mirror to stereo pair
+        </label>
+        <button type="button" class="mtx-tool" disabled=${!importText.value.trim()} onClick=${() => doImport(rows)}>
+          Import
+        </button>
+      </div>
+      ${importNote.value ? html`<div class="mtx-issues">${importNote.value}</div>` : null}
+    </div>
+  `;
+}
+
 function PipelinesCard() {
   const rows = effectivePipelines.value;
   const baseline = pipelineBaseline.value;
@@ -434,8 +504,16 @@ function PipelinesCard() {
   };
   return html`
     <section class="card">
-      <div class="card-head">Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span></div>
+      <div class="card-head">
+        Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>
+        <button
+          type="button"
+          class="mtx-tool mtx-import-toggle ${importOpen.value ? "active" : ""}"
+          onClick=${() => (importOpen.value = !importOpen.value)}
+        >Import EQ</button>
+      </div>
       <div class="card-body">
+        ${importOpen.value ? html`<${ImportPanel} rows=${rows} />` : null}
         ${rows.map(
           (r, i) => html`
             <${FlowRow}
