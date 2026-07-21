@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.types import Scope
 
+from . import matrixapi
 from .config import Config
 from .control import ControlError
 from .httpconf import HttpConfigClient
@@ -166,27 +167,6 @@ def config(request: Request) -> dict[str, Any]:
     )
 
 
-@router.get("/matrix")
-def matrix(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    if manager.matrix_form is None and manager.matrix_error:
-        raise HTTPException(status_code=502, detail=f"GET /matrix failed: {manager.matrix_error}")
-    if manager.matrix_form is None:
-        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
-    # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
-    # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
-    return _snapshot(
-        manager,
-        {
-            **manager.matrix_form,
-            "live_profiles": manager.matrix_profiles or [],
-            "live_active": (manager.state or {}).get("matrix_profile", ""),
-        },
-    )
-
-
 @router.get("/preset/{name}")
 async def preset(name: str, request: Request) -> dict[str, Any]:
     """A preset's saved settings, read from its snapshot without loading it — the
@@ -315,15 +295,7 @@ def discard(request: Request) -> dict[str, Any]:
     return store.snapshot()
 
 
-@router.post("/matrix/filter")
-async def matrix_filter(request: Request, file: Annotated[UploadFile, File()]) -> dict[str, str]:
-    """Park an uploaded convolution filter (wav/txt) for the next apply, which
-    injects it into the restore archive; returns the daemon-side absolute path
-    the pipeline process string should reference (matrix-spec step 4)."""
-    try:
-        return _mgr(request).park_filter(file.filename or "", await file.read())
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+# /api/matrix* routes live in matrixapi (mounted in create_app)
 
 
 async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, Any]:
@@ -464,6 +436,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.http_client = http_client
     app.state.pending = PendingStore()
     app.include_router(router)
+    app.include_router(matrixapi.router)
     # Serve the SPA. Mounted last and at "/", so the /api routes above win; the
     # SPA's static assets and index.html fall through to here.
     static_dir = Path(__file__).resolve().parent / "static"

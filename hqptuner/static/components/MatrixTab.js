@@ -16,6 +16,7 @@ import {
   effectivePipelines,
   canonPipelines,
   stagePipelines,
+  refreshConfig,
 } from "../store/state.js";
 import {
   parseProcess,
@@ -45,17 +46,81 @@ function setSelected(v) {
   convDraft.value = null;
 }
 
+// Profile card (step 5): the picker + Switch rides the live 4321 lane (zero
+// reload — the one lane the "applies live" indicator is true for, probe
+// findings); Load/Save-as-new/Delete ride the form lane, which reloads the
+// engine ~3 s and is idle-gated server-side. A named Load also replaces the
+// post-process state — captioned, since the daemon gives no warning.
+const profileSel = signal(null); // picker value; null = follow the active profile
+const profileNewName = signal("");
+const profileBusy = signal("");
+const profileNote = signal("");
+
+async function profileAct(action, name) {
+  profileBusy.value = action;
+  profileNote.value = "";
+  try {
+    await api.matrixProfile(action, name);
+    profileNote.value = action === "switch" ? `switched — live, no reload` : `${action} done`;
+    if (action === "delete") profileSel.value = null;
+    if (action === "save") profileNewName.value = "";
+    await refreshConfig();
+  } catch (e) {
+    profileNote.value = `${action} failed: ${e.message}`;
+  } finally {
+    profileBusy.value = "";
+  }
+}
+
 function ProfileCard() {
   const saved = matrixProfiles.value;
+  const active = matrixActiveProfile.value;
+  const sel = profileSel.value ?? (active === "[Default]" ? "" : active);
+  const busy = profileBusy.value;
   return html`
     <section class="card">
       <div class="card-head">Profile</div>
-      <div class="card-body">
-        <dl class="mtx-read">
-          <div class="mtx-read-row"><dt>Active</dt><dd>${matrixActiveProfile.value}</dd></div>
-          <div class="mtx-read-row"><dt>Saved</dt><dd>${saved.length ? saved.join(" · ") : "none"}</dd></div>
-        </dl>
-        <div class="field-note">Profile switching lands in a later phase.</div>
+      <div class="card-body mtx-profile">
+        <div class="mtx-profile-row">
+          <select value=${sel} disabled=${!!busy} onChange=${(e) => (profileSel.value = e.target.value)}>
+            <option value="">[Default]</option>
+            ${saved.map((n) => html`<option value=${n}>${n}</option>`)}
+          </select>
+          <button type="button" class="mtx-tool" disabled=${!!busy} onClick=${() => profileAct("switch", sel)}>
+            Switch
+          </button>
+          <span class="mtx-live-tag" title="MatrixSetProfile — switches without an engine reload; reverts to the saved config on a daemon restart">live — no reload</span>
+        </div>
+        <div class="mtx-profile-row">
+          <button type="button" class="mtx-tool" disabled=${!!busy} onClick=${() => profileAct("load", sel)}>Load</button>
+          <button
+            type="button"
+            class="mtx-tool mtx-remove"
+            disabled=${!!busy || !sel}
+            onClick=${() => profileAct("delete", sel)}
+          >Delete</button>
+          <span class="field-note">Load reloads the matrix context — pipelines <em>and</em> post-processing (~3 s, engine must be idle)</span>
+        </div>
+        <div class="mtx-profile-row">
+          <input
+            type="text"
+            placeholder="new profile name"
+            value=${profileNewName.value}
+            disabled=${!!busy}
+            onInput=${(e) => (profileNewName.value = e.target.value)}
+          />
+          <button
+            type="button"
+            class="mtx-tool"
+            disabled=${!!busy || !profileNewName.value.trim() || saved.includes(profileNewName.value.trim())}
+            title=${saved.includes(profileNewName.value.trim())
+              ? "That name exists — the daemon silently ignores a save to an existing profile (delete it first)"
+              : "Save the current matrix as a new profile"}
+            onClick=${() => profileAct("save", profileNewName.value.trim())}
+          >Save as new</button>
+        </div>
+        <div class="mtx-read-row"><dt>Active</dt><dd>${active}</dd></div>
+        ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
       </div>
     </section>
   `;

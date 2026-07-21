@@ -2202,3 +2202,34 @@ select.mtx-ch {
   font-size: 0.75rem;
   color: var(--fg-2);
 }
+
+/* ── Matrix tab step 5: profile card ─────────────────────────────────────── */
+.mtx-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.mtx-profile-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.mtx-profile-row select,
+.mtx-profile-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  max-width: 18rem;
+}
+.mtx-profile-row .field-note {
+  margin: 0;
+}
+.mtx-live-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}

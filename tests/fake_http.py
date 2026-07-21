@@ -321,6 +321,36 @@ def _refresh_devices(st: dict[str, Any]) -> None:
     st["_hidden_endpoints"] = []
 
 
+def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
+    """Non-file fields of a multipart POST (or urlencoded fallback)."""
+    if "boundary=" not in content_type:
+        return {k: v[0] for k, v in parse_qs(raw.decode()).items()}
+    boundary = content_type.split("boundary=")[1].encode()
+    fields: dict[str, str] = {}
+    for part in raw.split(b"--" + boundary):
+        head, _, body = part.partition(b"\r\n\r\n")
+        m = re.search(rb'name="([^"]+)"', head)
+        if m is None or b"filename=" in head:
+            continue
+        fields[m.group(1).decode()] = body.rsplit(b"\r\n", 1)[0].decode()
+    return fields
+
+
+def _matrix_profile_post(st: dict[str, Any], action: str, fields: dict[str, str]) -> None:
+    """POST /matrix/{load,save,delete} — mutate the profile list / active label
+    and record the posted fields verbatim, so tests can assert the complete-form
+    contract and the checkbox encoding the real daemon demands."""
+    st["_matrix_post"] = fields
+    name = fields.get("profile", "")
+    profiles: list[str] = st["_matrix_profiles"]
+    if action == "save" and name and name not in profiles:
+        profiles.append(name)
+    elif action == "delete" and name in profiles:
+        profiles.remove(name)
+    elif action == "load":
+        st["matrix_active"] = name or "[Default]"
+
+
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:
     """POST /config/profile/save — freeze the current working config as a named
     preset snapshot, so a later /backup carries it as data/cfgs/<name>.xml."""
@@ -345,6 +375,9 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
                 _restore_config(st, self.headers.get("Content-Type", ""), raw)
             elif self.path == "/config/profile/save":
                 _save_profile(st, raw)
+            elif self.path.startswith("/matrix/"):
+                action = self.path.rsplit("/", 1)[1]
+                _matrix_profile_post(st, action, _parse_multipart_fields(self.headers.get("Content-Type", ""), raw))
             self.send_response(200)  # /config, /matrix POST are unused by the restore lane
             self.end_headers()
             self.wfile.write(b"<html>Restore</html>")

@@ -175,6 +175,50 @@ def parse_matrix_form(html: str) -> dict[str, Any]:
     }
 
 
+def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
+    """Complete, browser-faithful serialization of the /matrix form: checked
+    checkboxes only (submitting their ``value`` attr — the daemon persists a
+    stray ``on`` verbatim into its XML and wedges engine init, matrix-spec probe
+    findings), the selected option per select, text/number values as-is.
+    Returns ``(fields, file_input_names)`` — the daemon silently ignores any
+    partial POST, so every write must carry the whole thing."""
+    soup = BeautifulSoup(html, "html.parser")
+    form = soup.find("form")
+    fields: dict[str, str] = {}
+    files: list[str] = []
+    for el in form.find_all(["input", "select"]) if isinstance(form, Tag) else []:
+        name = el.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+        if el.name == "select":
+            fields[name] = _selected_value(el)
+        elif el.get("type") == "file":
+            files.append(name)
+        else:
+            value = _submitted_value(el)
+            if value is not None:
+                fields[name] = value
+    return fields, files
+
+
+def _selected_value(el: Tag) -> str:
+    opts = el.find_all("option")
+    sel = next((o for o in opts if o.has_attr("selected")), opts[0] if opts else None)
+    return (_attr(sel, "value") or "") if isinstance(sel, Tag) else ""
+
+
+def _submitted_value(el: Tag) -> str | None:
+    """What a browser submits for an input — None for buttons and unchecked
+    checkboxes; a checked checkbox submits its value attr (never 'on')."""
+    itype = el.get("type", "text")
+    if itype in ("submit", "button"):
+        return None
+    if itype == "checkbox":
+        return (_attr(el, "value") or "on") if el.has_attr("checked") else None
+    return _attr(el, "value") or ""
+
+
+_MATRIX_ACTIONS = ("load", "save", "delete")
 _PROFILE_ACTIONS = ("load", "save", "delete")
 
 
@@ -199,6 +243,22 @@ class HttpConfigClient:
         resp = await self._client.get("/matrix")
         resp.raise_for_status()
         return parse_matrix_form(resp.text)
+
+    async def matrix_profile_action(self, action: str, name: str) -> None:
+        """``POST /matrix/{load,save,delete}`` with the COMPLETE current form
+        (fresh GET, serialized browser-faithfully — a partial POST is silently
+        ignored) and the ``profile`` field set to ``name``. save/delete reload
+        the engine ~3 s; a named load applies live but replaces the whole matrix
+        context including post-process (docs/matrix-spec.md probe findings)."""
+        if action not in _MATRIX_ACTIONS:
+            raise ValueError(f"unknown matrix profile action: {action}")
+        resp = await self._client.get("/matrix")
+        resp.raise_for_status()
+        fields, file_names = serialize_matrix_form(resp.text)
+        fields["profile"] = name
+        files = [(n, ("", b"", "application/octet-stream")) for n in file_names]
+        resp = await self._client.post(f"/matrix/{action}", data=fields, files=files)
+        resp.raise_for_status()
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`
