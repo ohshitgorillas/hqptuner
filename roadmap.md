@@ -145,7 +145,7 @@ Lightweight SPA, dark theme, no heavyweight framework (outline §8). Order withi
 - All outline §4 controls present and functional against the Phase 3 backend on Opal
 - Full apply cycle (stage → split shown → apply → restart → resync) usable from the browser with no dev tooling
 
-**Status (2026-07-19): in progress — all five tabs (Output · Resampling · DSP · Volume · System) built and live-walked on Opal; inline manual notes, a System-tab log tail, and a visual-layer pass, and an aesthetic pass (motion, focus/hover, tabular-mono type, header wordmark) landed. Remaining Phase 4 polish (custom selects — the one big aesthetic item) + the Phase 5 behavior rules are the open work.**
+**Status (2026-07-21): complete.** All six tabs (Output · Volume · Resampling · DSP · Matrix · System) built and live-walked on Opal; inline manual notes, a System-tab log tail, a visual-layer pass, and an aesthetic pass (motion, focus/hover, tabular-mono type, header wordmark) landed. Custom selects — the one remaining aesthetic item — moved to the Phase 5 polish backlog; everything else in this phase's scope shipped (much of it via the feature passes recorded after Phase 4M below).
 
 Frontend stack (decided 2026-07-18): Preact + htm + `@preact/signals`, no build step — vendored ESM modules shared through an HTML importmap (CSP-clean, offline, one Preact instance). Three-tree store (engine-live 4321 / http-config 8088 / staged) with `effective(key)` = staged ?? baseline; dumb control primitives bound by a single `Field` that wires value/options/gray/dirty/label from the store. Reactive render is load-bearing: the cross-control graying/collapse graph falls out of `render(state)`.
 
@@ -218,11 +218,27 @@ Matrix editing is **un-cut** (reverses outline §1's non-goal; user decision). D
 
 Delivery order (each phase lands with the standard PASS/FAIL hand-back): idle-gated probes (POST /matrix contract, /matrix/plot, Lin gain XML, filter upload destination, /matrix/load restart) → parser groundwork + read-only tab → editing + apply → stage editor → profiles → import → plots. Probe findings get appended to `docs/matrix-spec.md`; any spec adjustment they force is flagged, never silent. Gain unit ships dB-only; Lin is an explicit follow-up pending its probe.
 
+### Post-4M feature passes (2026-07-20 → 2026-07-21)
+
+Two user-driven feature lists (`features.md`, now empty) plus chat nitpick rounds, delivered across `799fb7b..83b18fc`. Highlights:
+
+- **AutoEq profile library** (`af7d9c4`, `e827094`): vendored AutoEq database (`scripts/build_autoeq_db.py` → `GET /api/autoeq`, upstream MIT), client-side search, dashed-preview on the standing RESPONSE card, one-click "Load profile" (applies to pipeline 1 + stereo mirror, auto-plots). Collapsible "Headphone Auto EQ" card, per-row Import EQ / clear tools.
+- **Draggable EQ dots** (`d7bd8b0`, `83b18fc`): REW-style drag handles on the loudness plot (frequency/level per shelf) and the Matrix response plot (gain-carrying biquads — peak/lshelf/hshelf). Drag streams client-only overrides for instant repaint; release commits through the normal staging lanes. Matrix dots sync a byte-identical stereo-pair stage, leave diverged pairs alone, and highlight the chip-selected stage.
+- **Filter metadata polish**: `-2s` two-stage descriptions joined into filter prose (`hqptuner/metadata.py`), length narrowing facet with a grounded overrides table + Extra long tier, apodizing checkboxes, rate-box hover notes.
+- **Layout/IA rounds**: tab order Output · Volume · Resampling · DSP · Matrix · System; Backend | Mode | Rate top row; sticky chrome; DAC correction to Output; Backup & Restore folded into About; running-state signal path; standalone preset Save; steepness sliders; sundry token-system spacing fixes.
+
+Also recorded: HQPlayer **Desktop has no web UI** — no port-8088 lane, so HQPTuner is effectively Embedded-only. Gets a README note in Phase 6.
+
 ## Phase 5 — Behavior rules, presets, polish
 
 - **Behavior rules** (outline §5): mode-dependent graying, rate-aware shaper constraints with visible-but-disabled reasons, filter narrowing with empty-state, mode-switch coherence
 - **Presets** (outline §7): ~~hqplayerd's built-in named configurations — no custom snapshot store.~~ **Superseded 2026-07-20 (see the preset-system rewrite above): HQPTuner owns presets in its own store** because the daemon's `profile/save` to an existing name is a silent no-op and `POST /restore` is `[default]`-centric. Load/save/delete drive `POST /restore` onto `[default]` with a `data/cfgs` mirror; `profile/delete` handles mirror removal. Full CRUD works from the browser including a Delete button.
 - **Polish**: empty states, error surfaces, restart-in-progress UX, anything the Phase 4 hand-walk turned up
+
+**Status (2026-07-21): mostly absorbed by Phases 4/4M and the post-4M feature passes.** Presets: done (2026-07-20 rewrite — HQPTuner-owned store, full CRUD including Delete — satisfies the preset exit criterion). Behavior rules: shipped incrementally (mode graying, rate-aware constraints, filter narrowing with facets + empty states, matrix gating, restart-in-progress UX, error surfaces). Remaining before this phase closes:
+
+- **§5 hand-walk**: walk each outline §5 behavior case by hand as a formal checklist pass — the rules exist but were never verified as a sweep
+- **Custom selects** (carried from Phase 4): replace native `<select>` chrome with the facet-popover-style control, or explicitly cut it
 
 ### Exit criteria
 
