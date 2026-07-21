@@ -186,6 +186,17 @@ export const schema = {
   loudness_range_low: { label: "Lower bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangelow", unit: "dB", grayWhen: loudnessOff },
   loudness_range_high: { label: "Upper bound", group: "dsp", widget: "number", lane: "http", endpoint: "matrix", field: "post_loudness_rangehigh", unit: "dB", grayWhen: loudnessOff },
 
+  // --- Matrix tab (matrix-spec step 3): global controls + the atomic pipeline
+  // set. Staged keys are the write lane's prefixed names (presetconf.FIELD_MAP);
+  // formField is the daemon's bare form-field name for baseline/options reads.
+  // matrix_pipelines is staged by the pipeline editor (stagePipelines), never
+  // rendered as a Field — the entry exists so the pending bar counts and lanes it.
+  matrix_enabled: { label: "Enable matrix", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "matrix_enabled", formField: "enabled" },
+  matrix_engine: { label: "Engine", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "matrix_engine", formField: "engine", optionsFrom: "matrix" },
+  matrix_expand_hf: { label: "Expand HF", group: "dsp", widget: "checkbox", lane: "http", endpoint: "matrix", field: "matrix_expand_hf", formField: "expand_hf" },
+  matrix_iir2fir: { label: "IIR to FIR", group: "dsp", widget: "dropdown", lane: "http", endpoint: "matrix", field: "matrix_iir2fir", formField: "iir2fir", optionsFrom: "matrix" },
+  matrix_pipelines: { label: "Pipelines", group: "dsp", widget: "text", lane: "http", field: "matrix_pipelines", fileTruth: true },
+
   // --- Volume ---
   // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"
   // (inter-sample-overs-optimized fixed volume, readme §1.9), fixed_volume is the

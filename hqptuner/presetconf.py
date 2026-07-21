@@ -28,6 +28,9 @@ import re
 import zipfile
 
 from . import engineconf
+from .matrixconf import MATRIX_PIPELINES, GroundingError, read_pipelines, replace_pipelines
+
+__all__ = ["MATRIX_PIPELINES", "GroundingError"]  # re-exported for existing importers
 
 # form field name -> (element tag, attribute). Every tag here occurs once in a
 # snapshot; multi-instance <plugin> lives in PLUGIN_MAP, keyed by its type attr.
@@ -85,7 +88,11 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
     "volume_fixed": ("engine", "volume_fixed"),
     "adaptive_volume": ("engine", "volume_adaptive"),
     # matrix processing — the carrier element for the <post_process> plugin chain
+    # and the pipeline table (pipelines themselves ride MATRIX_PIPELINES below)
     "matrix_enabled": ("matrix", "enabled"),
+    "matrix_engine": ("matrix", "engine"),
+    "matrix_expand_hf": ("matrix", "expand_hf"),
+    "matrix_iir2fir": ("matrix", "iir2fir"),
     # logging / upnp
     "log_enabled": ("log", "enabled"),
     "log_file": ("log", "file"),
@@ -127,11 +134,6 @@ NET_DEVICE = "net_device"
 FIXED_ENABLED = "fixed_volume_enabled"
 FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
-
-
-class GroundingError(ValueError):
-    """An edit whose target element or plugin is absent from this snapshot — a
-    guessed write is never attempted."""
 
 
 def _set_attr(tag: bytes, attr: str, value: str) -> bytes:
@@ -281,6 +283,8 @@ def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
     fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
     if fixed_edits:
         xml = _reconcile_fixed(xml, fixed_edits)
+    if MATRIX_PIPELINES in remaining:
+        xml = replace_pipelines(xml, remaining.pop(MATRIX_PIPELINES))
     # <post_process> lives INSIDE <matrix>, and matrix processing must be on for any
     # plugin to run at all (readme §1.11 / §1.11.2) — a preset with matrix enabled="0"
     # silently swallows crossfeed/loudness/correction. So switching a post-process
@@ -324,10 +328,21 @@ def read_config(xml: bytes) -> dict[str, str]:
         val = _read_plugin_attr(xml, ptype, attr)
         if val is not None:
             out[field] = val
+    out.update(_read_special(xml))
+    return out
+
+
+def _read_special(xml: bytes) -> dict[str, str]:
+    """The fields that don't fit the one-tag-one-attr maps: the fused net_device,
+    the atomic pipeline set, and presence-means-enabled fixed volume."""
+    out: dict[str, str] = {}
     address = _read_attr(xml, "network", "address")
     device = _read_attr(xml, "network", "device")
     if address is not None and device is not None:
         out[NET_DEVICE] = f"{address}/{device}"
+    pipelines = read_pipelines(xml)
+    if pipelines is not None:
+        out[MATRIX_PIPELINES] = pipelines
     # fixed volume: presence of the top-level <fixed> element is the "enabled" flag
     active_fixed = _find_active_fixed(xml)
     out[FIXED_ENABLED] = "1" if active_fixed is not None else "0"

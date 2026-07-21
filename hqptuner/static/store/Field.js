@@ -6,7 +6,7 @@
 import { signal } from "@preact/signals";
 import { html } from "./dom.js";
 import { schema } from "./schema.js";
-import { effective, isDirty, edit, setLive, metadata, httpFieldMap, refreshDevices } from "./state.js";
+import { effective, isDirty, edit, setLive, metadata, httpFieldMap, formFieldName, refreshDevices } from "./state.js";
 import { optionsFor, grayShapersByRate } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { grayReason } from "./graying.js";
@@ -55,7 +55,7 @@ function selectionDescription(entry, value, options, meta) {
 // form (the daemon is the authority for its own bounds).
 function cfgConstraint(entry, name) {
   if (entry.lane !== "http") return undefined;
-  const f = httpFieldMap(entry)[entry.field];
+  const f = httpFieldMap(entry)[formFieldName(entry)];
   return f ? f[name] : undefined;
 }
 
@@ -83,7 +83,7 @@ export function Field({ k }) {
   const meta = describe(entry, k);
   const label = entry.label || meta.label;
   const reason = grayReason(k);
-  let options = entry.optionsFrom ? optionsFor(entry.optionsFrom, entry.field) : entry.options;
+  let options = entry.optionsFrom ? optionsFor(entry.optionsFrom, formFieldName(entry)) : entry.options;
   // filter selects narrow their (large) option list by the active facets
   if (entry.narrow) options = narrowOptions(options, effective(k), entry.narrow);
   // shaper selects gray options the current output rate can't use
