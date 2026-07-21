@@ -19,3 +19,6 @@ presets/
 
 # local hqplayerd credentials — never commit
 .env
+
+# agent instructions — private, local only
+CLAUDE.md
