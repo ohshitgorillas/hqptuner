@@ -31,7 +31,7 @@ import {
 import { parseEqText } from "../lib/eqimport.js";
 import { registerIr } from "../lib/dsp.js";
 import { notesVisible } from "../store/prefs.js";
-import { MatrixPlot, plottedRows, togglePlotted, selectedStage } from "./MatrixPlot.js";
+import { MatrixPlot, plottedRows, isPlotted, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
 import { XfeedBadge, XfeedCompCard } from "./XfeedComp.js";
 import { effective } from "../store/state.js";
@@ -446,10 +446,10 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove, import
           <button type="button" class="mtx-tool ${raw ? "active" : ""}" title="Edit the raw process string" onClick=${toggleRaw}>{ }</button>
           <button
             type="button"
-            class="mtx-tool ${plottedRows.value.has(index) ? "active" : ""}"
+            class="mtx-tool ${isPlotted(index) ? "active" : ""}"
             title="Plot this pipeline's response"
             onClick=${() => togglePlotted(index)}
-          >${plottedRows.value.has(index) ? "◉" : "○"}</button>
+          >${isPlotted(index) ? "◉" : "○"}</button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
@@ -506,8 +506,10 @@ function doImport(rows, targetIndex) {
   });
   stagePipelines(next);
   // auto-plot the rows the EQ just landed on, so the response curve (and its
-  // drag dots) appears without hunting for the ◉ toggle
-  plottedRows.value = new Set([...plottedRows.value, ...targets]);
+  // drag dots) appears without hunting for the ◉ toggle. In default mode the
+  // rows now carry stages, so they auto-plot already — only an explicit toggle
+  // selection needs extending, or it would hide the freshly-imported rows.
+  if (plottedRows.value.size) plottedRows.value = new Set([...plottedRows.value, ...targets]);
   importNote.value =
     `${stages.length} filter(s) → pipeline ${[...targets].map((i) => i + 1).join(" + ")}` +
     (preamp !== null ? `, preamp ${preamp} dB → gain` : "") +

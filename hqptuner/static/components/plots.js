@@ -31,9 +31,15 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fmtHz = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 const xOf = (f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 
+// Evenly-spaced hue per trace index: N traces => N hues 360/N apart, so any count
+// stays maximally separated and auto-rebalances when a trace is added/removed —
+// no fixed palette to exhaust. Fixed S/L keeps every hue legible on the dark bg.
+// Opt-in via PlotFrame's `autoColor`; the 2-tone plots keep their kind-class CSS.
+const hueOf = (i, n) => `hsl(${Math.round((i * 360) / Math.max(n, 1))}, 68%, 62%)`;
+
 // Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
 // traces flagged `y2: true` (phase) map through it instead of the dB scale.
-export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max, handles }) {
+export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max, handles, autoColor }) {
   const plotH = height - PADT - PADB;
   const yOf = (db) => PADT + (1 - (clamp(db, yMin, yMax) - yMin) / (yMax - yMin)) * plotH;
   const yOf2 = (v) => PADT + (1 - (clamp(v, y2Min, y2Max) - y2Min) / (y2Max - y2Min)) * plotH;
@@ -87,7 +93,13 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
         ${yMin < 0 && yMax > 0
           ? html`<line class="plot-zero" x1=${PADL} y1=${yOf(0).toFixed(1)} x2=${W - PADR} y2=${yOf(0).toFixed(1)} />`
           : null}
-        ${traces.map((t) => html`<polyline class="plot-trace ${t.kind}" points=${poly(t.points, scaleOf(t))} />`)}
+        ${traces.map(
+          (t, i) => html`<polyline
+            class="plot-trace ${t.kind}"
+            style=${autoColor ? `stroke:${hueOf(i, traces.length)}` : ""}
+            points=${poly(t.points, scaleOf(t))}
+          />`,
+        )}
         ${(() => {
           // labels sit at their trace's endpoint y, but nudge apart when traces
           // converge at the right edge so they never stack on top of each other
@@ -95,9 +107,9 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           const maxY = PADT + plotH;
           // right-aligned at the frame edge (long labels would clip the 52 px
           // margin); the CSS halo keeps them legible over the curve tails
-          const items = traces.map((t) => {
+          const items = traces.map((t, i) => {
             const [, d] = t.points[t.points.length - 1];
-            return { x: W - 2, y: scaleOf(t)(d), text: t.label, kind: t.kind };
+            return { x: W - 2, y: scaleOf(t)(d), text: t.label, kind: t.kind, color: autoColor ? hueOf(i, traces.length) : null };
           });
           items.sort((a, b) => a.y - b.y);
           for (let i = 1; i < items.length; i += 1) {
@@ -109,7 +121,13 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           }
           return items.map(
             (it) =>
-              html`<text class="plot-tlbl ${it.kind}" x=${it.x.toFixed(1)} y=${it.y.toFixed(1)} text-anchor="end">${it.text}</text>`,
+              html`<text
+                class="plot-tlbl ${it.kind}"
+                style=${it.color ? `fill:${it.color}` : ""}
+                x=${it.x.toFixed(1)}
+                y=${it.y.toFixed(1)}
+                text-anchor="end"
+              >${it.text}</text>`,
           );
         })()}
         ${(handles || []).map(

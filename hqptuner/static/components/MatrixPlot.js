@@ -13,7 +13,7 @@ import { effectivePipelines, stagePipelines } from "../store/state.js";
 import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
 import { chainResponse, logFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
-import { xfeedLensTraces } from "./XfeedComp.js";
+import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
@@ -29,8 +29,47 @@ export const selectedStage = signal(null);
 // selection, cleared on deselect/panel close — never touches pipeline state.
 export const previewEq = signal(null);
 
+// Rows the plot draws when the user has toggled nothing yet: every pipeline that
+// carries processing, EXCEPT a recognized 8-row crossfeed comp block. That block
+// is an internal mid/side decomposition — plotting its 8 near-identical rows is
+// meaningless noise; MatrixPlot instead draws the single headphone-EQ curve it
+// was built from (eqOverviewTrace). Empty result here means genuinely nothing to
+// plot as rows (no profile / bare passthrough / block-only — the last still
+// draws the EQ overview).
+function autoDefaultRows(rows) {
+  const { rec } = xfeedBlock(rows);
+  const out = new Set();
+  rows.forEach((r, i) => {
+    if (rec && i < 8) return; // internal crossfeed block — drawn as one EQ curve
+    if (parseProcess(r.process).length > 0) out.add(i);
+  });
+  return out;
+}
+
+// The set of rows actually on the plot: the user's explicit toggle selection if
+// any, else the auto-default, plus the selected stage's row so picking a chip
+// always draws its curve.
+function shownRows(rows) {
+  const explicit = plottedRows.value;
+  const base = explicit.size ? new Set(explicit) : autoDefaultRows(rows);
+  const sel = selectedStage.value;
+  if (sel && sel.row < rows.length) base.add(sel.row);
+  return base;
+}
+
+// True when row `index` is currently drawn (drives the ◉/○ toggle indicator so
+// it reflects the plot, including auto-defaulted rows).
+export function isPlotted(index) {
+  return shownRows(effectivePipelines.value).has(index);
+}
+
+// Toggle materializes the current plotted base (explicit set, or the auto-default
+// on first click) then flips this row — so "what you see is what's toggled". The
+// live stage selection is deliberately not baked in here.
 export function togglePlotted(index) {
-  const next = new Set(plottedRows.value);
+  const rows = effectivePipelines.value;
+  const explicit = plottedRows.value;
+  const next = explicit.size ? new Set(explicit) : autoDefaultRows(rows);
   if (next.has(index)) next.delete(index);
   else next.add(index);
   plottedRows.value = next;
@@ -100,15 +139,31 @@ function rowHandles(rows, plotted) {
 
 function rowTraces(rows, plotted, bounds) {
   const freqs = logFreqs(20, 20000, 160);
+  // Collapse rows with an identical processing chain (stereo pairs land byte-
+  // identical) into one curve, labeled with every pipeline number it covers —
+  // so a stereo EQ is a single "1+2" trace, not two overlapping ones with
+  // doubled legends.
+  const groups = [];
+  const byKey = new Map();
+  plotted.forEach((i) => {
+    const stages = withDrag(i, parseProcess(rows[i].process));
+    const key = serializeProcess(stages);
+    let g = byKey.get(key);
+    if (!g) {
+      g = { stages, idxs: [] };
+      byKey.set(key, g);
+      groups.push(g);
+    }
+    g.idxs.push(i);
+  });
   const traces = [];
   let anyPartial = false;
-  plotted.forEach((i, k) => {
-    const stages = withDrag(i, parseProcess(rows[i].process));
+  groups.forEach((g, k) => {
     const mag = [];
     const ph = [];
     let partial = false;
     for (const f of freqs) {
-      const r = chainResponse(stages, f, FS);
+      const r = chainResponse(g.stages, f, FS);
       mag.push([f, r.db]);
       ph.push([f, r.deg]);
       partial ||= r.partial;
@@ -117,10 +172,35 @@ function rowTraces(rows, plotted, bounds) {
     }
     anyPartial ||= partial;
     const hue = HUES[k % HUES.length];
-    traces.push({ points: mag, kind: `mag ${hue}`, label: `${i + 1}${partial ? " ·part" : ""}` });
-    traces.push({ points: ph, kind: `ph ${hue}`, label: `${i + 1} φ`, y2: true });
+    const name = g.idxs.map((i) => i + 1).join("+");
+    traces.push({ points: mag, kind: `mag ${hue}`, label: `${name}${partial ? " ·part" : ""}` });
+    traces.push({ points: ph, kind: `ph ${hue}`, label: `${name} φ`, y2: true });
   });
   return { traces, anyPartial };
+}
+
+// A recognized crossfeed block is data, but its 8 internal pipelines aren't worth
+// plotting individually. Draw the single headphone-EQ curve the block was built
+// from (msRecognize recovers it) as the block-only overview.
+function eqOverviewTrace(rows, bounds) {
+  const { rec } = xfeedBlock(rows);
+  if (!rec) return null;
+  const stages = parseProcess(rec.eqProcess);
+  if (!stages.length) return null;
+  const freqs = logFreqs(20, 20000, 160);
+  const mag = [];
+  const ph = [];
+  for (const f of freqs) {
+    const r = chainResponse(stages, f, FS);
+    mag.push([f, r.db]);
+    ph.push([f, r.deg]);
+    bounds.min = Math.min(bounds.min, r.db);
+    bounds.max = Math.max(bounds.max, r.db);
+  }
+  return [
+    { points: mag, kind: "mag", label: "EQ" },
+    { points: ph, kind: "ph", label: "EQ φ", y2: true },
+  ];
 }
 
 function previewTrace(preview, bounds) {
@@ -137,17 +217,28 @@ function previewTrace(preview, bounds) {
 
 export function MatrixPlot() {
   const rows = effectivePipelines.value;
-  const plotted = [...plottedRows.value].filter((i) => i < rows.length).sort((a, b) => a - b);
+  const plotted = [...shownRows(rows)].filter((i) => i < rows.length).sort((a, b) => a - b);
   const preview = previewEq.value;
   const bounds = { min: -6, max: 6 };
   const { traces, anyPartial } = rowTraces(rows, plotted, bounds);
+  // block-only: no plain rows plotted, but a recognized crossfeed block IS data —
+  // draw the single headphone-EQ curve it was built from instead of its 8 rows
+  let eqOverview = false;
+  if (!traces.length) {
+    const eq = eqOverviewTrace(rows, bounds);
+    if (eq) {
+      traces.push(...eq);
+      eqOverview = true;
+    }
+  }
   if (preview) traces.push(previewTrace(preview, bounds));
   traces.push(...xfeedLensTraces(rows, bounds));
   const caption = traces.length
     ? "magnitude solid (dB, left axis) · phase dashed (°, ±180)" +
+      (eqOverview ? " · EQ = your headphone EQ; the crossfeed pipelines are hidden — use ∿ what you hear" : "") +
       (preview ? ` · preview dashed: ${preview.label}` : "") +
       (anyPartial ? " · partial: a convolution stage has no preview — re-upload its file to plot it" : "")
-    : "Toggle ◉ on a pipeline to plot its response";
+    : "No pipeline processing to plot yet — load a profile or add EQ / stages above";
   return html`
     <section class="card">
       <div class="card-head">Response</div>
@@ -162,6 +253,7 @@ export function MatrixPlot() {
           y2Max=${180}
           caption=${caption}
           handles=${rowHandles(rows, plotted)}
+          autoColor=${true}
         />
       </div>
     </section>
