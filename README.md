@@ -26,7 +26,7 @@ Filter narrowing is just one example, and that same philosophy runs through the 
 
 HQPTuner is an improvement over the stock web configuration UI in many ways:
 
-* **More sensible organization**: Settings are organized into six tabs: Output, Volume, Resampling, DSP, Matrix, and System.
+* **More sensible organization**: Settings are organized into five tabs: Output, Volume, Resampling, DSP, and System.
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the rate selection menu.
 * **Every feature has a description**: All of the information from the manual is optionally surfaced with explanations and descriptions for every feature and filter.
 * **Filter narrowing**: Narrow the filter lists by quality, genre, focus, phase, and length, with an option to only show apodizing filters for 1x material.
@@ -48,6 +48,7 @@ The Matrix tab replaces hqplayerd's `/matrix` page with a visual pipeline editor
 * **EQ import**: paste or upload AutoEq / REW ParametricEQ text; preamp lines map to pipeline gain, and stereo mirroring targets an adjacent channel pair in one step. Or skip the file entirely and load a profile straight from the built-in AutoEq library with search and A/B preview.
 * **Response card**: overlaid magnitude + phase for any plot-toggled pipelines, computed client-side (RBJ biquads, analytic RIAA, FFT of uploaded convolution impulses) and validated numerically against an independent reference. Gain-carrying EQ stages appear as draggable dots — drag to retune frequency and gain, with stereo pairs kept in sync.
 * **Matrix profiles**: switch profiles live over the Control API (no restart, playback undisturbed); save-as-new and delete via the config lane. Plain overwrite-save is deliberately absent — the daemon's own `/matrix/save` to an existing name is a silent no-op, so the honest overwrite recipe is delete-then-save.
+* **Crossfeed EQ compensation**: headphone EQ profiles assume no crossfeed, but Bauer crossfeed dulls centered sound by ~1–2.7 dB toward the treble (bs2b model, verified against the libbs2b source). One click rebuilds the stereo EQ pair into an eight-pipeline mid/side block that corrects only the center — the crossfeed's stereo width effect stays untouched — with a strength slider and a "what you hear" overlay on the response plot. The block is literal, badged, hand-editable pipelines.
 
 Known limits: convolution stages plot only when their impulse file was uploaded in the current session (the daemon offers no way to read impulses back); editing the same config from HQPTuner and the stock `/matrix` page at the same instant is unsupported (the stock page always submits its complete form and will silently revert concurrent edits — a daemon-level limitation).
 

@@ -13,6 +13,7 @@ import { effectivePipelines, stagePipelines } from "../store/state.js";
 import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
 import { chainResponse, logFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
+import { xfeedLensTraces } from "./XfeedComp.js";
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
@@ -141,6 +142,7 @@ export function MatrixPlot() {
   const bounds = { min: -6, max: 6 };
   const { traces, anyPartial } = rowTraces(rows, plotted, bounds);
   if (preview) traces.push(previewTrace(preview, bounds));
+  traces.push(...xfeedLensTraces(rows, bounds));
   const caption = traces.length
     ? "magnitude solid (dB, left axis) · phase dashed (°, ±180)" +
       (preview ? ` · preview dashed: ${preview.label}` : "") +

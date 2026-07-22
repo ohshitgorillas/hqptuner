@@ -249,16 +249,41 @@ class HttpConfigClient:
         (fresh GET, serialized browser-faithfully — a partial POST is silently
         ignored) and the ``profile`` field set to ``name``. save/delete reload
         the engine ~3 s; a named load applies live but replaces the whole matrix
-        context including post-process (docs/matrix-spec.md probe findings)."""
+        context including post-process (docs/matrix-spec.md probe findings) —
+        the matrixlane preserves post-process around it via ``matrix_apply``."""
         if action not in _MATRIX_ACTIONS:
             raise ValueError(f"unknown matrix profile action: {action}")
+        fields, files = await self._matrix_form_payload()
+        fields["profile"] = name
+        resp = await self._client.post(f"/matrix/{action}", data=fields, files=files)
+        resp.raise_for_status()
+
+    async def matrix_post_process_fields(self) -> dict[str, str]:
+        """The post-process slice of the current /matrix form, in wire encoding
+        (checked checkboxes present as their value attr, unchecked absent) — the
+        snapshot the load lane restores afterwards."""
+        resp = await self._client.get("/matrix")
+        resp.raise_for_status()
+        fields, _ = serialize_matrix_form(resp.text)
+        return {k: v for k, v in fields.items() if k.startswith("post_")}
+
+    async def matrix_apply(self, post_process: dict[str, str]) -> None:
+        """Plain ``POST /matrix`` (Apply) of the complete current form with its
+        post-process slice replaced by ``post_process`` — the restore half of
+        load-preservation. Wire-encoded overlay: dropping every fresh ``post_*``
+        key before merging keeps the daemon's checkbox contract intact (present
+        = value attr, absent = off; a stray value wedges engine init)."""
+        fields, files = await self._matrix_form_payload()
+        fields = {k: v for k, v in fields.items() if not k.startswith("post_")}
+        fields.update(post_process)
+        resp = await self._client.post("/matrix", data=fields, files=files)
+        resp.raise_for_status()
+
+    async def _matrix_form_payload(self) -> tuple[dict[str, str], list[tuple[str, tuple[str, bytes, str]]]]:
         resp = await self._client.get("/matrix")
         resp.raise_for_status()
         fields, file_names = serialize_matrix_form(resp.text)
-        fields["profile"] = name
-        files = [(n, ("", b"", "application/octet-stream")) for n in file_names]
-        resp = await self._client.post(f"/matrix/{action}", data=fields, files=files)
-        resp.raise_for_status()
+        return fields, [(n, ("", b"", "application/octet-stream")) for n in file_names]
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`

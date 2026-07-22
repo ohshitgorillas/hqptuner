@@ -339,7 +339,9 @@ def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
 def _matrix_profile_post(st: dict[str, Any], action: str, fields: dict[str, str]) -> None:
     """POST /matrix/{load,save,delete} — mutate the profile list / active label
     and record the posted fields verbatim, so tests can assert the complete-form
-    contract and the checkbox encoding the real daemon demands."""
+    contract and the checkbox encoding the real daemon demands. ``load``
+    replaces the whole matrix context INCLUDING post-process — bauer/loudness
+    enables cleared — exactly as the live 6.0.4 does (probe finding)."""
     st["_matrix_post"] = fields
     name = fields.get("profile", "")
     profiles: list[str] = st["_matrix_profiles"]
@@ -349,6 +351,20 @@ def _matrix_profile_post(st: dict[str, Any], action: str, fields: dict[str, str]
         profiles.remove(name)
     elif action == "load":
         st["matrix_active"] = name or "[Default]"
+        st["post_bauer_enabled"] = False
+        st["post_loudness_enabled"] = False
+
+
+def _matrix_apply_post(st: dict[str, Any], fields: dict[str, str]) -> None:
+    """Plain POST /matrix (Apply) — adopt the submitted post-process fields into
+    the working state, browser-faithful checkbox semantics (present = on)."""
+    st["_matrix_apply_post"] = fields
+    st["post_bauer_enabled"] = "post_bauer_enabled" in fields
+    st["post_loudness_enabled"] = "post_loudness_enabled" in fields
+    if "post_bauer_frequency" in fields:
+        st["post_bauer_frequency"] = fields["post_bauer_frequency"]
+    if "post_loudness_lowfreq" in fields:
+        st["post_loudness_lowfreq"] = fields["post_loudness_lowfreq"]
 
 
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:
@@ -378,7 +394,9 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
             elif self.path.startswith("/matrix/"):
                 action = self.path.rsplit("/", 1)[1]
                 _matrix_profile_post(st, action, _parse_multipart_fields(self.headers.get("Content-Type", ""), raw))
-            self.send_response(200)  # /config, /matrix POST are unused by the restore lane
+            elif self.path == "/matrix":
+                _matrix_apply_post(st, _parse_multipart_fields(self.headers.get("Content-Type", ""), raw))
+            self.send_response(200)  # /config POST is unused by the restore lane
             self.end_headers()
             self.wfile.write(b"<html>Restore</html>")
 
