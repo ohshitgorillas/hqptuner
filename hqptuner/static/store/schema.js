@@ -66,7 +66,7 @@ const isoLevel = (v) => {
   return s === "0" || s === "" || s === "false" ? "0" : "1";
 };
 const isoOn = (ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
-const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level automatically." : "");
+const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
 // The live volume control is bypassed in three documented cases (manual §4.2,
 // §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
 // Adaptive volume offsets the live volume, so it is inert in all three.
@@ -250,7 +250,7 @@ export const schema = {
   // express 0/1. HQPTuner writes it on the snapshot-XML restore lane (which
   // carries 2 — verified live on 6.0.4) and reads its true value from the config
   // file (fileTruth), since the form's bool cannot tell −3 from −6.
-  optimal_iso: { label: "Optimal ISO", group: "volume", widget: "segment", lane: "http", field: "volume_fixed", fileTruth: true, options: ISO_LEVELS, grayWhen: directSdm },
+  optimal_iso: { label: "Auto headroom", sublabel: "(Optimal ISO)", size: "lg", group: "volume", widget: "segment", lane: "http", field: "volume_fixed", fileTruth: true, options: ISO_LEVELS, grayWhen: directSdm },
   volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS", grayWhen: directSdm },
   volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS", grayWhen: directSdm },
   startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS", grayWhen: directSdm },

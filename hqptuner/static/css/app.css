@@ -496,6 +496,18 @@ main {
   color: var(--fg);
   font-size: 0.9rem;
 }
+/* secondary line under a control's label — HQPlayer's own name for a control
+   HQPTuner renames for clarity, so anyone cross-referencing the daemon's page
+   or the manual still lands on the same setting. Prose weight (matches
+   .field-note), never label weight, so it reads as a gloss and not a second
+   control. */
+.label-alt {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--fg-2);
+  opacity: 0.8;
+}
 .control {
   display: flex;
   align-items: center;
@@ -664,6 +676,15 @@ main {
   background: var(--accent);
   color: #08121c;
   font-weight: 600;
+}
+/* schema `size: "lg"` — a control that selects an operating MODE rather than a
+   value gets a segment 1.1x the standard one, so it carries a little more weight
+   without shouting. Both numbers are the base segment's scaled by 1.1
+   (0.35/0.9rem padding; the 13.33px UA button default = 0.833rem type), not
+   free-chosen pixels. */
+.field-lg .segment .seg {
+  padding: 0.385rem 0.99rem;
+  font-size: 0.917rem;
 }
 .segment .seg:disabled {
   opacity: 0.4;
