@@ -237,13 +237,11 @@ export function XfeedStrip() {
       <span class="xfc-scale">Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or hard-panned material (early stereo, live and orchestral recordings) starts slightly thin under crossfeed, so it sits better around 50–75%.</span>
       ${notesVisible.value
         ? html`<div class="field-note xfc-note">
-            Headphone EQ profiles are made for listening without crossfeed. Bauer crossfeed blends the
-            channels below ~${bs.fc} Hz, which leaves centered sound — vocals, bass, most of the mix —
-            about ${tilt.toFixed(1)} dB duller in the treble than your EQ intends. Turning this on rebuilds
-            the stereo pair into eight mid/side pipelines that brighten only the centered part of the mix;
-            the crossfeed's stereo width effect is left untouched. 100% restores a neutral center exactly,
-            lower keeps some of the warmth, higher overshoots brighter. Applies together with your other
-            pending changes.
+            Bauer crossfeed blends the channels below ~${bs.fc} Hz, which leaves centered sound — vocals,
+            bass, most of the mix — about ${tilt.toFixed(1)} dB duller in the treble than the sides.
+            Turning this on rebuilds pipelines 1+2 into eight mid/side pipelines that brighten only the
+            centered part of the mix; the crossfeed's stereo width effect is left untouched. 100% restores
+            a neutral center exactly, lower keeps some of the warmth, higher overshoots brighter.
           </div>`
         : null}
     </div>
@@ -295,15 +293,16 @@ export function XfeedCompCard() {
       <button
         type="button"
         class="card-head mtx-eq-head"
-        title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller than your EQ intends. This corrects that, without touching the crossfeed's stereo effect."
+        title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides. This corrects that, without touching the crossfeed's stereo effect."
         onClick=${() => (compCardOpen.value = !open)}
       >
-        <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed EQ compensation
+        <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed compensation
       </button>
       ${open
         ? html`<div class="card-body">
             <div class="xfc-cols">
               <div class="xfc-controls"><${XfeedStrip} /></div>
+              <span class="col-rule" aria-hidden="true"></span>
               <${CompMiniPlot} />
             </div>
           </div>`

@@ -28,6 +28,7 @@ export function LoudnessCard() {
                 <${Field} k="loudness_low_steep" />
                 <${Field} k="loudness_low_type" />
               </div>
+              <span class="col-rule" aria-hidden="true"></span>
               <div class="cluster">
                 <div class="cluster-head">Treble</div>
                 <${Field} k="loudness_high_level" />
