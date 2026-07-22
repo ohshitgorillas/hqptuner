@@ -2683,3 +2683,88 @@ select.mtx-ch {
 .plot-tlbl.prev {
   fill: var(--accent);
 }
+
+/* ── Crossfeed compensation (M/S) ────────────────────────────────────────
+   Strip on the RESPONSE card + badge on the Pipelines card. Lens traces:
+   compensated center = accent (the thing being controlled), raw center
+   reuses the ghost idiom (dashed muted reference), side = muted solid. */
+.xfc-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.xfc-strip.off .xfc-label {
+  color: var(--muted);
+}
+.xfc-label {
+  color: var(--fg-2);
+}
+.xfc-slider {
+  flex: 0 1 var(--w-num);
+  min-width: 0;
+  flex-basis: calc(2 * var(--w-num));
+}
+.xfc-pct {
+  min-width: 3.5ch;
+  text-align: right;
+}
+.xfc-tilt {
+  color: var(--fg-2);
+}
+.xfc-note {
+  flex-basis: 100%;
+  max-width: var(--measure);
+}
+.xfc-scale {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.85em;
+  max-width: var(--measure);
+}
+/* comp card: controls left, mini correction plot right; single column when narrow */
+.xfc-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: flex-start;
+}
+.xfc-controls {
+  flex: 1 1 24rem;
+  min-width: 0;
+}
+.xfc-mini {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+/* hairline between the crossfeed knobs */
+.knob-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--line);
+  margin: 0 var(--sp-3);
+}
+.xfc-badge {
+  color: var(--fg-2);
+  margin-bottom: var(--sp-2);
+}
+.xfc-badge .xfc-stale,
+.xfc-badge.stale {
+  color: var(--amber);
+}
+.plot-trace.xfm {
+  stroke: var(--accent);
+  fill: none;
+}
+.plot-tlbl.xfm {
+  fill: var(--accent);
+}
+.plot-trace.xfs {
+  stroke: var(--muted);
+  fill: none;
+  opacity: 0.8;
+}
+.plot-tlbl.xfs {
+  fill: var(--muted);
+}

@@ -4,7 +4,17 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- Crossfeed EQ compensation (DSP tab, own card): headphone EQ profiles assume listening without crossfeed, but Bauer crossfeed dulls centered sound — vocals, bass, most of the mix — by ~1–2.7 dB toward the treble (bs2b model, math verified against the libbs2b source; HQPlayer's bauer matches its presets and parameter ranges exactly). One click rebuilds the stereo EQ pair into eight mid/side pipelines that correct only the centered part, leaving the crossfeed's stereo width effect untouched. Strength slider (0 % off · 100 % neutral · up to 150 %, with a content guide: center-heavy mixes take 100 %+, wide/hard-panned material sits better at 50–75 %), a mini correction plot in the card (crossfeed dip, correction, net result), a "what you hear" overlay on the Response plot (corrected center, uncorrected center, stereo sides), and staleness detection with one-click rebuild when the crossfeed settings change. The compensated block is literal, badged pipelines — fully hand-editable; edits that break the pattern gracefully return it to plain rows. Compensation cascade accurate to ≤0.05 dB against the exact inverse.
+
+### Fixed
+
+- Loading a matrix profile no longer loses the post-process settings. HQPlayer's own `/matrix/load` replaces the whole matrix context — crossfeed, DAC correction, and loudness were silently cleared. HQPTuner now snapshots the post-process state before the load and re-applies it afterwards, verified by readback (at the cost of a second ~3 s engine reload per load).
+
 ### Changed
+
+- Tab reorganization: Loudness moved to the Volume tab (it is volume-adaptive); Crossfeed moved to the pipeline-matrix tab as its own collapsible card with a collapsible response plot, a hairline between its two knobs, and a note that HQPlayer does not carry crossfeed in matrix profiles; that tab is now named DSP and its General card is now named Matrix. The old post-process DSP tab is gone — five tabs total. Headphone Auto EQ, Crossfeed, and Crossfeed EQ compensation cards are all collapsible and open by default.
 
 - The CUDA DSP-device id grays out in Convolution-only offload mode (the manual's device split: `cuda_dev` drives filters/DSP tasks, which convolution-only mode never offloads), with the reason captioned.
 - The System tab's Engine health card is now a full-width meter cluster: a VU-style needle gauge for process speed (red zone below 1.00×, amber to 1.05×, needle pegs past 4×), tick-marked bar meters for input/output buffer fill (amber under 15%), and clip / apodizing-event counters with per-track deltas. Values sweep between polls instead of jumping.

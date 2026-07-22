@@ -121,4 +121,87 @@ Row count follows `channels` (2 on Opal). Source/mixdown selects span wire 0–1
 
 **4321 `MatrixSetProfile` — the clean live lane.** `MatrixListProfiles` / `MatrixGetProfile` / `MatrixSetProfile` work **unauthenticated, live, zero reload**; `State.matrix_profile` and the stock UI's active label track the switch; the working XML is untouched (memory-only — reverts on daemon restart, standard Control API semantics). **Spec §2 adjustment (flagged): the "applies live — no restart" indicator is correct for this lane only**; form-lane Apply is a ~3 s reload (4321 drops ~2.9 s after POST, back ~6.5 s — consistent across all probes) and interrupts playback.
 
+---
+
+# Crossfeed compensation (M/S) — design of record
+
+Approved 2026-07-21 (user decision; forks resolved: literal badged wire rows, exact cascaded-parametric inverse). Extends the Matrix tab; the round-6 spacing system, hand-back protocol, and testing policy all apply.
+
+## Motivation
+
+AutoEq/REW profiles are measured and targeted for raw headphone drive. The Bauer post-process re-tilts the perceived response, so an imported EQ never lands on its target while crossfeed is enabled. Compensation restores EQ-target tonality for correlated (center) content while preserving crossfeed's intended spatial effect (LF stereo-width narrowing).
+
+## Model (verified against libbs2b source)
+
+Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is an inference, flagged:** Signalyst does not publish internals, but the preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and the parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) match bs2b's constants and valid ranges exactly.
+
+From `(fc, feed)`:
+
+```
+GB_lo = -5·feed/6 - 3        (dB, crossfeed path LF gain)
+GB_hi =  feed/6  - 3         (dB, direct path LF gain; GB_hi - GB_lo = feed)
+G_lo  = 10^(GB_lo/20)
+G_hi  = 1 - 10^(GB_hi/20)
+Fc_hi = fc · 2^((GB_lo - 20·log10(G_hi))/12)
+norm  = 1/(1 - G_hi + G_lo)
+```
+
+Structure per channel: crossfeed = 1st-order lowpass @ `fc`, DC gain `G_lo`; direct = 1st-order highboost @ `Fc_hi` (DC `1-G_hi`, HF 1); everything scaled by `norm`. The 2×2 system is symmetric, so it diagonalizes exactly in M/S:
+
+```
+R_M(f) = norm · (H_hi + H_lo)    — center path: LF exactly 0 dB (by construction), HF 20·log10(norm)  → the warm tilt
+R_S(f) = norm · (H_hi - H_lo)    — side path: LF narrowed (the intended spatial effect), untouched by this feature
+```
+
+Default preset numbers: center tilt +1.81 dB (LF 0 / HF −1.81), transition ~700–1000 Hz; cmoy +1.53 dB; jmeier +1.08 dB.
+
+## Compensation
+
+`C(f) = (1/R_M(f))^s`, slider `s` = 0–150 % in 1 % steps, default 100 %, with the computed tilt shown (`bauer 700 Hz / 4.5 dB → +1.8 dB center tilt`). **LF-anchored at 0 dB (boost form)** so the M/S balance (center level vs width) is preserved at every `s`. Realized as **two cascaded parametric shelf stages** (analytic two-real-pole/two-real-zero decomposition of `R_M`, numerically fitted to the daemon's RBJ shelf primitives); acceptance: ≤0.05 dB error over 20 Hz–20 kHz at s=100 %, all three presets + custom range corners. Rate-independent parametrics only — raw biquads are sample-rate-bound and the matrix runs at source rate.
+
+## Wire shape
+
+Stereo pair (rows for channels i, i+1) compiles to 8 pipelines, `k = 10^(preamp_dB/20)`:
+
+| # | src | process | gain | out |
+|---|-----|---------|------|-----|
+| 1 | i   | EQ chain + comp | Lin +0.5k | i |
+| 2 | i+1 | EQ chain + comp | Lin +0.5k | i |
+| 3 | i   | EQ chain        | Lin +0.5k | i |
+| 4 | i+1 | EQ chain        | Lin −0.5k | i |
+| 5 | i   | EQ chain + comp | Lin +0.5k | i+1 |
+| 6 | i+1 | EQ chain + comp | Lin +0.5k | i+1 |
+| 7 | i   | EQ chain        | Lin −0.5k | i+1 |
+| 8 | i+1 | EQ chain        | Lin +0.5k | i+1 |
+
+(Out i = M′+S, out i+1 = M′−S; comp on M rows only.) **Literal rows, badged** (user fork decision): the Pipelines card shows the real 8 rows with a "crossfeed comp s %" badge; the slider regenerates the block as one staged op. Recognition is structural (row pattern + Lin gain magnitudes + shared EQ prefix + comp suffix on M rows); a hand-edit that breaks the pattern drops the badge/slider and the rows stand as ordinary pipelines — never blocked, never rewritten. Multichannel: out of scope v1 (stereo pair, same as AutoEQ mirror).
+
+## UI + visualization
+
+Control strip on the RESPONSE card, visible only when `post_bauer_enabled`; bauer off → grayed with reason caption (house graying rule). Traces (magnitude only; per-row hue system):
+
+1. **Center through crossfeed** — `EQ × R_M × C`: flattens live as the slider moves. The primary trace.
+2. **Side through crossfeed** — `EQ × R_S`, dimmed/dashed: visibly untouched — shows what is deliberately preserved.
+3. Ghost of uncompensated center (`s=0`) for before/after.
+
+## Delivery
+
+1. **Probes** (idle-gated): daemon form echo of preset fc/level on preset switch; generated 8-row set applied live — readback byte-exact, M/S reconstruction verified numerically, engine load sanity; restore verified pristine.
+2. **Pure lib + reference**: bs2b model, exact-inverse decomposition, cascade fit; validated against an independent pure-python reference (step-7 precedent).
+3. **UI**: badge/recognition, slider, staged block generation on the existing apply lane.
+4. **Plot lenses.**
+5. Hand-back per standing protocol (fresh 1280 shots, DOM-measured, both accents + hero states, worst-case mock).
+
+## Delivery status (active checklist)
+
+- [x] **1 — probes** (2026-07-21, idle-gated, restore-verified byte-exact). (a) The daemon accepts the full 8-row M/S block with `pipelines=8`: readback byte-exact including `Lin ±0.242086` gains (preamp −6.3 dB folded in). (b) **Preset internals are NOT surfaced**: switching bauer to cmoy leaves the form's frequency/level at their stored values — preset→(fc, feed) mapping must come from the vendored bs2b constants (700/4.5, 700/6.0, 650/9.5, verified from `bs2b.h`). (c) Matrix-form reads immediately after an apply are one poll behind (same transient class as the DAC-correction note above) — the UI must await postconditions, not read once.
+- [x] **2 — pure lib + reference** (2026-07-21): `static/lib/xfeed.js` — bs2b params/M-S responses, single-seed cascade fit (reference-validated: multi-start unnecessary, analytic seed `0.54·fc q .58 / 0.8·Fc_hi q .66` descends to ≤0.031 dB on all presets + range corners), `compProcess` (2-dp gains, matrixspec arg order), `msCompile`/`msRecognize` (structural, stale-detection on bauer change, s snapped to the slider's 1 % grid — wire quantization bound). **Slider = linear gain scaling of the 100 % fit, no refit** (≤0.046 dB vs exact `C^s` over 25–150 %, reference-checked). Cross-validated node-vs-python: 48/48 against golden anchors from the independent reference (`scratchpad/xfeed_reference.py` / `check_xfeed.mjs`, to be promoted into the repo at hand-back). Note for a later pass: `dsp.js` `crossfeedMagDb` models the feed path only with a flat direct path — now known inaccurate per the bs2b source; the DSP-tab crossfeed graph should eventually re-ground on `xfeed.js`.
+- [x] **3 — UI** (2026-07-21): `components/XfeedComp.js` — control strip (slider 0–150 % / 1 % steps with drag-preview + release-commit, tilt readout, Turn on / Turn off / Rebuild-when-stale, bauer-off graying with reason), badge on the Pipelines card, staged through `stagePipelines` + a `pipelines`-count edit. Pair detection accepts either row order (live configs arrive In 2-first — hand-back finding); compile always emits canonical In 1-first. **Language pass (user feedback):** plain-first wording — "Crossfeed tone correction/EQ compensation", "Turn on/off", "∿ what you hear", "crossfeed dulls the center by X dB", explicit slider scale line, badge in prose. **Post-delivery reorg (user decision 2026-07-21):** the old post-process DSP tab dissolved — Loudness → Volume tab, Crossfeed → this tab (own collapsible card, collapsible plot), tab renamed DSP, General card renamed Matrix; comp strip promoted from the Response card to its own collapsible "Crossfeed EQ compensation" card with a mini correction plot (crossfeed dip / correction / net result, ±3 dB) and a content guide (center-heavy → 100 %+, hard-panned → 50–75 %).
+- [x] **4 — plot lenses** (2026-07-21): three magnitude-only Response-plot traces — corrected center (accent, tracks the slider live mid-drag), uncorrected center (ghost), stereo sides (muted, shows the untouched width narrowing); rendered whenever bauer is enabled and either a block is recognized or the eligible pair exists (pre-apply preview).
+- [x] **5 — hand-back** (2026-07-21): 24/24 DOM-measured checks (plus one honest SKIP when the user's live daemon had crossfeed enabled, making the off-state unrenderable — measured in an earlier round): reorg structure (5 tabs, card order, collapsibles), staged-awareness, full compensate→slider→remove→discard cycle restoring a drift-proof baseline snapshot, green+amber accent tracking by measured rgb, hero-live via /api/state interception, zero horizontal overflow @1280. Staged-only throughout — every run discards; live config untouched. Gate green (201 tests).
+
+**Related fix shipped with this feature (user-reported, 2026-07-21): matrix-profile load preserves post-process.** The daemon's `/matrix/load` replaces the whole matrix context (probe finding above); that violated HQPTuner's "the settings you send are the settings you get back" contract. `matrixlane.profile_action("load")` now snapshots the form's `post_*` slice (wire-encoded, checkbox contract intact), re-applies it with a plain `POST /matrix` after the load settles, and readback-verifies past the post-reload transient (second ~3 s reload per load; fake models the daemon's clearing behavior; offline tests assert the preserved end state).
+
+Open items: bauer≡bs2b inference (flagged above); multichannel deferred; interaction with a hand-edited EQ chain inside a recognized block (recognition rules above must be exercised in tests).
+
 **Client-code note:** 4321 responses arrive prefixed with the `<?xml?>` declaration — round-2's recv loop initially choked on it. HQPTuner's `control.py` already handles this; any new Matrix* helper must go through it, not a fresh socket reader.

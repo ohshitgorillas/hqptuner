@@ -33,6 +33,10 @@ import { registerIr } from "../lib/dsp.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
+import { XfeedBadge, XfeedCompCard } from "./XfeedComp.js";
+import { effective } from "../store/state.js";
+import { CrossfeedPlot } from "./plots.js";
+import { truthy } from "./tabs/common.js";
 
 const MAX_CH = 128;
 const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
@@ -122,7 +126,7 @@ function ProfileCard() {
           >Delete</button>
         </div>
         ${notesVisible.value
-          ? html`<div class="field-note">Load replaces the whole matrix context — pipelines <em>and</em> post-processing (~3 s engine reload, engine must be idle).</div>`
+          ? html`<div class="field-note">Load replaces the pipelines (engine must be idle; two ~3 s engine reloads). HQPlayer's own load also clears the post-process settings — crossfeed, DAC correction, loudness — but HQPTuner restores them for you afterwards.</div>`
           : null}
         <div class="mtx-profile-row">
           <input
@@ -157,7 +161,7 @@ function ProfileCard() {
 function GlobalCard() {
   return html`
     <section class="card">
-      <div class="card-head">General</div>
+      <div class="card-head">Matrix</div>
       <div class="card-body">
         <div class="mtx-global">
           <${Field} k="matrix_enabled" />
@@ -477,7 +481,7 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove, import
 // the parsed iir stages to the target row(s) (+ optional stereo-pair mirror =
 // the adjacent row) and map a Preamp line onto the row gain (dB) — one atomic
 // stagePipelines op, Discard undoes it.
-const eqCardOpen = signal(false);
+const eqCardOpen = signal(true);
 const importText = signal("");
 const importMirror = signal(true);
 const importNote = signal("");
@@ -597,6 +601,7 @@ function PipelinesCard() {
         ${notesVisible.value
           ? html`<div class="field-note mtx-pipelines-note">Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert polarity (e.g. for M/S processing).</div>`
           : null}
+        <${XfeedBadge} />
         ${rows.map(
           (r, i) => html`
             <${FlowRow}
@@ -624,6 +629,51 @@ function PipelinesCard() {
   `;
 }
 
+// Crossfeed (Bauer) — moved here from the dissolved post-process tab
+// (2026-07-21 reorg). Its response plot is collapsible: the controls matter
+// daily, the static curve doesn't. The caption clarifies an HQPlayer (not
+// HQPTuner) behavior: crossfeed is a post-process outside the pipeline matrix,
+// so matrix profiles do not carry it.
+const xfPlotOpen = signal(false);
+const xfCardOpen = signal(true);
+
+function CrossfeedCard() {
+  const on = truthy(effective("crossfeed_enabled"));
+  const open = xfPlotOpen.value;
+  const cardOpen = xfCardOpen.value;
+  return html`
+    <section class="card">
+      <button type="button" class="card-head mtx-eq-head" onClick=${() => (xfCardOpen.value = !cardOpen)}>
+        <span class="tri">${cardOpen ? "▾" : "▸"}</span> Crossfeed
+      </button>
+      ${cardOpen
+        ? html`<div class="card-body">
+            <div class="dsp-card">
+              <div class="pack split">
+                <${Field} k="crossfeed_enabled" />
+                <${Field} k="crossfeed_preset" />
+              </div>
+              <div class="dsp-body ${on ? "" : "off"}">
+                <div class="knob-cluster">
+                  <${Field} k="crossfeed_frequency" />
+                  <span class="knob-divider" aria-hidden="true"></span>
+                  <${Field} k="crossfeed_level" />
+                </div>
+                <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (xfPlotOpen.value = !open)}>
+                  <span class="tri">${open ? "▾" : "▸"}</span> Response plot
+                </button>
+                ${open ? html`<div class="dsp-plot"><${CrossfeedPlot} /></div>` : null}
+              </div>
+              ${notesVisible.value
+                ? html`<div class="field-note">Crossfeed is a post-process outside the pipeline matrix — HQPlayer does not carry it in matrix profiles, and its own profile Load clears it. HQPTuner restores your crossfeed and other post-process settings after a profile load.</div>`
+                : null}
+            </div>
+          </div>`
+        : null}
+    </section>
+  `;
+}
+
 export function MatrixTab() {
   return html`<section class="tab-body">
     <div class="card-grid">
@@ -632,6 +682,8 @@ export function MatrixTab() {
     </div>
     <${PipelinesCard} />
     <${HeadphoneEqCard} />
+    <${CrossfeedCard} />
+    <${XfeedCompCard} />
     <${MatrixPlot} />
   </section>`;
 }

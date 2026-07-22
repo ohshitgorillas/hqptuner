@@ -61,6 +61,25 @@ async def test_profile_post_encodes_checkboxes_as_their_value_attr(
     assert http_daemon["_matrix_post"]["enabled"] == "1"
 
 
+async def test_load_preserves_the_crossfeed_enable(manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:
+    # the daemon's own load clears post-process (probe finding); HQPTuner restores it
+    await manager.matrix_profile_action("load", "Default")
+    assert http_daemon["post_bauer_enabled"] is True
+
+
+async def test_load_preserves_post_process_values(manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:
+    http_daemon["post_bauer_frequency"] = "900"
+    await manager.matrix_profile_action("load", "Default")
+    assert http_daemon["post_bauer_frequency"] == "900"
+
+
+async def test_save_does_not_reload_the_engine_twice(manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:
+    # only load needs the post-process re-apply; a leaked one on save would cost
+    # a gratuitous second ~3 s engine reload
+    await manager.matrix_profile_action("save", "New")
+    assert "_matrix_apply_post" not in http_daemon
+
+
 async def test_unknown_action_is_refused(manager: ConnectionManager) -> None:
     with pytest.raises(ValueError, match="unknown matrix profile action"):
         await manager.matrix_profile_action("rename", "X")
