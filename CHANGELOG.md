@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- Volume tab layout: the playback-volume knob now shares the top row with the Fixed volume card, the volume Range bar spans full-width below, and the Automatic card moved to full-width. Within Fixed volume, Optimal ISO sits at the top as an independent control with only the dBFS level indented under the Fixed-volume enable.
+
 ### Fixed
 
 - Disabling Fixed volume no longer traps the volume control in a locked state. Optimal ISO (`volume_fixed`) is an independent inter-sample-overs fixed-volume mode (readme attr `volume_fixed`, its own 0/−3/−6 dB enable), not a sub-option of Fixed volume — but its control was greyed whenever Fixed volume was off, on a wrong "Fixed volume enable gates both" assumption. So turning Fixed volume off left Optimal ISO stuck on (e.g. −3 dB), which kept bypassing the live volume control, while the one control that could clear it was greyed. Optimal ISO is now gated only by Direct SDM (which bypasses all volume), so it stays adjustable and the playback knob frees as expected.
