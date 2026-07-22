@@ -129,7 +129,9 @@ export const System = () =>
     <//>
     <${HardwareCard} />
     <${Card} title="HQPTuner">
-      <div class="pack">
+      <!-- chain: the two description toggles stack in the LEFT track (they gate
+           each other), leaving Accent color alone in the right. -->
+      <div class="pack chain">
         <${DescriptionPrefs} />
         <${AccentPicker} />
       </div>

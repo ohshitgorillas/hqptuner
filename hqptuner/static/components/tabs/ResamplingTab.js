@@ -58,6 +58,12 @@ export const Resampling = () =>
       <div class="pack">
         <${Field} k="direct_sdm" />
         <${Field} k="dsd_gain_6db" />
+      </div>
+      <!-- chain: each column is one conversion path, stacked in signal order —
+           SDM in (Integrator, then SDM → SDM) left, SDM out (Noise filter, then
+           SDM → PCM) right. Row order would pair them across the divider, which
+           reads as a relation they don't have. -->
+      <div class="pack chain">
         <${Field} k="sdm_integrator" />
         <${Field} k="sdm_conversion" />
         <${Field} k="noise_filter" />

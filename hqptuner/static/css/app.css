@@ -1018,6 +1018,12 @@ input[type="checkbox"]:disabled {
   .card .pack > .span {
     background: var(--bg-2);
   }
+  /* consecutive packs in one card are separate two-track groups (each draws its
+     own centred rule), so they need the same inter-field rhythm between them
+     that stacked rows get inside a pack. */
+  .pack + .pack {
+    margin-top: var(--sp-4);
+  }
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
      (column-first over two rows) with the secondary control in the right track,
      instead of splitting the chain across columns by raw source order. */
