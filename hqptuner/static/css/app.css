@@ -1397,6 +1397,11 @@ button:disabled {
 }
 /* Grayed-control explanation — appended after the manual note (schema grayWhen
    reason). Italic + dimmer than .field-note so it reads as state, not prose. */
+/* CUDA DSP-device id in convolution-only mode — unused, reads muted */
+.cuda-dev.off {
+  opacity: 0.55;
+}
+
 .field-gray-reason {
   grid-column: 2;
   font-size: 0.78rem;
