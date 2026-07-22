@@ -9,9 +9,10 @@
 // Live changes are never persisted, so engine and config can disagree for the
 // same setting — that divergence is why these are separate trees (outline §2).
 
-import { signal, computed } from "@preact/signals";
+import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { schema } from "./schema.js";
+import { fastPollMs } from "./ui.js";
 
 // --- source signals ---
 export const health = signal(null); // {reachable, alarm, unreachable_since, info}
@@ -451,6 +452,14 @@ export function startPolling(interval = 2000) {
   });
   refreshFast();
   refreshConfig();
-  setInterval(refreshFast, interval);
+  // The fast (status/volume) cadence is reactive: a page's "quick updates" opt-in
+  // drops it to 500 ms while that page is shown (store/ui.js). Reschedule the
+  // timer whenever the derived cadence changes; the config poll stays fixed.
+  let fastTimer;
+  effect(() => {
+    const ms = fastPollMs.value;
+    if (fastTimer) clearInterval(fastTimer);
+    fastTimer = setInterval(refreshFast, ms);
+  });
   setInterval(refreshConfig, interval * 2);
 }

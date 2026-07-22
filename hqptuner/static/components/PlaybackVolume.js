@@ -13,7 +13,9 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { volume, volumeRange, setVolume, effective, runningValue } from "../store/state.js";
+import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
 import { Knob } from "./Knob.js";
+import { Checkbox } from "./controls/index.js";
 
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
@@ -101,6 +103,14 @@ export function PlaybackVolume() {
           onCommit=${onCommit}
         />
       </div>
+      <label class="poll-quick inline-check">
+        <${Checkbox}
+          value=${fastVolumeUpdates.value ? "1" : "0"}
+          onChange=${(v) => setFastVolumeUpdates(v === "1")}
+        />
+        Faster volume updates
+        <span class="poll-quick-note">refresh twice a second while this page is open</span>
+      </label>
       ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
     </section>
   `;

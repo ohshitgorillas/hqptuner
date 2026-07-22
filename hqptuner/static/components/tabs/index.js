@@ -3,15 +3,13 @@
 // which took over the DSP name — the old post-process tab is gone). Bar and
 // body render separately so the bar can live inside the sticky chrome wrapper
 // (App.js) while the body scrolls beneath it.
-import { signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Output } from "./OutputTab.js";
 import { Volume } from "./VolumeTab.js";
 import { Resampling } from "./ResamplingTab.js";
 import { System } from "./SystemTab.js";
 import { MatrixTab } from "../MatrixTab.js";
-
-const active = signal("output");
+import { activeTab as active } from "../../store/ui.js";
 
 const TABS = [
   ["output", "Output", Output],

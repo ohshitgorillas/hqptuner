@@ -2,6 +2,16 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
+## [Unreleased]
+
+### Fixed
+
+- Disabling Fixed volume no longer traps the volume control in a locked state. Optimal ISO (`volume_fixed`) is an independent inter-sample-overs fixed-volume mode (readme attr `volume_fixed`, its own 0/−3/−6 dB enable), not a sub-option of Fixed volume — but its control was greyed whenever Fixed volume was off, on a wrong "Fixed volume enable gates both" assumption. So turning Fixed volume off left Optimal ISO stuck on (e.g. −3 dB), which kept bypassing the live volume control, while the one control that could clear it was greyed. Optimal ISO is now gated only by Direct SDM (which bypasses all volume), so it stays adjustable and the playback knob frees as expected.
+
+### Added
+
+- Per-page "quick updates" opt-ins that bump the live status/volume poll from 2 s to 0.5 s while the page is open: a "Quick updates" checkbox at the bottom of the System tab's Engine health card, and a "Faster volume updates" checkbox under the Volume tab's playback knob. Off by default, remembered per browser; the faster cadence only runs on the page you're looking at, so idle pages keep the light 2 s poll.
+
 ## [0.4.0] — 2026-07-21
 
 ### Added
