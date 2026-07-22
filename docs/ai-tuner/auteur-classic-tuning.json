@@ -1,0 +1,84 @@
+{
+  "headphone": "ZMF Auteur Classic",
+  "model": "claude-opus-4-8",
+  "eq_profile": "ZMF Auteur Classic (ZMF Auteur perforated lambskin earpads)",
+  "crossfeed": {"enabled": true, "frequency_hz": 700, "level_db": 4.5},
+  "turns": [
+    {
+      "complaint": "ease off the midrange suckout. the treble that results is insanely clear with a glorious soundstage, but the midrange is barely audible and that's where the auteur classic's magic is.",
+      "clarify": "How to ease off the midrange suckout (Filter 2: PK 107 Hz, −5.2 dB, Q 0.26)?"
+    },
+    {
+      "complaint": "listening test. it's... still bright and bass light.",
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 107,
+         "gain_delta_db": 1.2, "q": 0.70,
+         "rationale": "Ease cut and narrow it; Q0.26 gutted 200-800 Hz"},
+        {"kind": "amend_band", "type": "lshelf", "f_hz": 105,
+         "gain_delta_db": 0.8, "q": null,
+         "rationale": "Add bass weight against bass-light report"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 7959,
+         "gain_delta_db": -1.4, "q": null,
+         "rationale": "Pull back treble to address brightness"}
+      ]
+    },
+    {
+      "complaint": "That's... remarkably better. It needs more heft, though.",
+      "changes": [
+        {"kind": "amend_band", "type": "lshelf", "f_hz": 105,
+         "gain_delta_db": 0.5, "q": null,
+         "rationale": "More body through the 80-250 Hz heft region"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 107,
+         "gain_delta_db": 0.8, "q": null,
+         "rationale": "Cut sat atop the shelf, netting only ~+1.5 dB"}
+      ]
+    },
+    {
+      "complaint": "I think the mids are sounding a bit muffled after that last round.",
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 300,
+         "gain_db": -1.2, "q": 1.20,
+         "rationale": "Dip masking mud that the heft pass raised"}
+      ]
+    },
+    {
+      "complaint": "there's too much bass, it's sounding muddy now too. cut it down a hair.",
+      "changes": [
+        {"kind": "amend_band", "type": "lshelf", "f_hz": 105,
+         "gain_delta_db": -0.5, "q": null,
+         "rationale": "Pull the bass shelf back a hair; keep eased cut"}
+      ]
+    },
+    {
+      "complaint": "I'm hearing some peakiness in the upper mids e.g. higher vocals/guitar solos that needs to be tamed",
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 2096,
+         "gain_delta_db": -1.2, "q": null,
+         "rationale": "Narrow peak exactly where vocals and solos bite"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 3901,
+         "gain_delta_db": -0.6, "q": null,
+         "rationale": "Assisting peak lowered alongside 2.1k"}
+      ]
+    },
+    {
+      "complaint": "still just very very slightly hot up there",
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 2096,
+         "gain_delta_db": -0.5, "q": null,
+         "rationale": "Hair off the 2.1 kHz peak"}
+      ]
+    },
+    {
+      "complaint": "stopped. also, I think 1.5 dB might be a bit much, I mean like maybe 1dB",
+      "clarify": "2.1 kHz peak: original +6.2, you just heard +5.0 (−1.2) and called it very slightly hot. What lands next?"
+    },
+    {
+      "complaint": "power chords are sounding a bit restrained...",
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 300,
+         "gain_delta_db": 0.4, "q": 1.50,
+         "rationale": "Soften anti-mud dip, tighten Q; return chord body"}
+      ]
+    }
+  ]
+}
