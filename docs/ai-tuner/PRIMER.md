@@ -3,28 +3,60 @@
 A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md`
 (citations, verification tags, source disagreements) and `vocabulary.json` (the term map).
 
-> **Corrections applied 2026-07-22.** Two errors in the first draft of these assets were
-> found and fixed; both are called out in place below. (1) The crossfeed centre-tilt
-> direction was inverted. (2) AutoEq bands were described as untouchable; they are in
-> scope. If you find text anywhere that contradicts this file on either point, this file
-> is right and that text is stale.
+> **Revised 2026-07-22.** Three corrections and one structural change; all are called out
+> in place below. (1) The crossfeed centre-tilt direction was inverted — it *decreases* as
+> crossfeed level rises. (2) AutoEq bands were described as untouchable; they are in scope.
+> (3) The guardrail table was presented as enforced limits; almost all of it is guidance,
+> and **Q is deliberately unclamped**. (4) **Structural: a turn is a bounded tool loop, not
+> a single completion**, and the prose rule was loosened to permit prose anchored to the
+> numbers it describes. If you find text anywhere that contradicts this file on any of
+> these, this file is right and that text is stale.
 
 ## What it is
 
 A card at the bottom of HQPTuner's DSP tab: one text input plus a session history. The user
-types a plain-language listening complaint — "too boomy", "vocals sound distant", "it's all
-in my head" — and a language model turns it into a **structured diff** that is **staged**
-into the app's existing pending-changes buffer. The user batches several turns, reviews, and
-presses **Apply** once.
+types a plain-language listening complaint — "too boomy", "vocals sound distant", "half the
+time they're perfect, half the time slightly too quiet" — and the feature returns a
+**structured, measured diff** that is **staged** into the app's existing pending-changes
+buffer. The user batches several turns, reviews, and presses **Apply** once.
+
+**It is a bounded tool-using agent, not a single completion.** A turn runs:
+diagnose → compute the chain's actual response → generate candidate fixes → measure each →
+select. It has one tool:
+
+```
+evaluate_chain(base_bands[], candidate_changes[], at_frequencies[])
+    -> { hz: net_db }, band averages, spread
+```
+
+Pure computation — no daemon contact, no staging, callable many times per turn. **The loop
+is not optional and cannot be replaced by a bigger prompt**: measuring a candidate means
+evaluating a chain that does not exist yet, so nothing preloaded into context substitutes
+for it. Evaluate at *musical* frequencies — the note fundamentals of whatever the complaint
+names — not a uniform log grid. "E2 is fine, A2 is not" explains a symptom; "there is a
+trough at 168 Hz" does not.
 
 ## What it is not
 
-* **Not a chat client.** No freeform model prose is ever rendered. The history shows the
-  user's text and the resulting diff, never the model's reasoning.
+* **Not a chat client.** The loop is invisible; only the final structured answer reaches the
+  user. Prose is permitted **only as a field of a structured object carrying the numbers it
+  describes** — see the schema contract below. Free-form turns are banned.
 * **It never applies anything.** Staging only. Apply is a human action, always.
 * **It cannot enable or disable any feature.** It adjusts things that are already on. If
   crossfeed is off, a spatial complaint gets a `clarify`, not a diff that switches it on.
 * **It never deletes a band.** Setting a gain to 0 dB is the reversible equivalent.
+
+## The metric panel
+
+A session accumulates **model-coined metrics**, and they are session state. When a complaint
+names a quality that band arithmetic can capture, define it, name it, and carry it forward.
+The real session coined `v_db = mean(bass 50–150, treble 4k–10k) − mid 400–1500` from "I hate
+V-shaped", and two turns later that metric decided an unrelated bass fix was acceptable.
+
+Each metric stores a `definition` (band arithmetic as data), an `origin_turn`, and a `series`
+— its value after every turn since. **Every answer reports the whole panel**, not only the
+metric it was aiming at. That is the only way a side effect becomes detectable, and it makes
+"back off that last change" cheap because the numbers are already recorded.
 
 ## The three change types
 
@@ -139,23 +171,55 @@ intact. 0 % = off, 100 % = neutral centre, >100 % = brighter than neutral.
 
 ## The response schema contract
 
-The model's output must validate against a **union of exactly two branches**:
+The **final answer** must validate against a union of exactly two branches. Intermediate
+tool calls are not part of the union — they never reach the user, so they were never what it
+guarded against.
 
-```
-{ "changes": [ ... ] }          // a structured diff
-{ "clarify": "<one sentence>" } // a single clarifying question
+```jsonc
+// branch 1 — the model acted
+{
+  "diagnosis":   { "method", "finding", "explains_symptom", "measured": {...} },
+  "changes":     [ ... ],
+  "alternatives_rejected": [ /* candidates with measured figures + reason */ ],
+  "metrics":     { "<name>": { "before": <n>, "after": <n> } },
+  "side_effect": { "metric", "delta", "judgment", "remedy" }   // optional
+}
+
+// branch 2 — the model needs an answer before acting
+{ "clarify": "<one sentence>", "context": { /* optional measured values */ } }
 ```
 
-* **Never both.** No third branch. No extra top-level keys. The union is what stops the
-  model speaking *and* acting in one turn; a prose field alongside `changes` is a design
-  violation, not an enhancement.
-* **Rejection rule:** any response that fails validation is discarded outright. It is not
-  repaired, not partially applied, and its prose is never shown to the user. Surface a
-  generic failure and let the user retype.
-* **Deflection rule:** when the request is out of scope (a feature toggle, a filter/shaper
-  change, "make it louder", a hardware question), or when the vocabulary match is
-  low-confidence, or when the targeted feature is disabled, the model emits `clarify` — one
-  sentence, no diff. `clarify` is the correct answer far more often than a guessed diff.
+* **Never both.** No third branch, no extra top-level keys.
+* **`diagnosis`, `changes` and `metrics` are all required** on branch 1. A change with no
+  diagnosis, or one that reports only the metric it aimed at, is rejected.
+* **`side_effect` needs its `remedy`.** Flagging a regression without naming the fix is
+  rejected. The real session disclosed a `v_db` rise of +0.38 *before* applying and
+  pre-named the remedy (+0.4 on the 750 Hz band rather than reverting) — that is the bar.
+* **The anchoring rule is structural.** Prose may appear only as a field of an object that
+  also carries numbers; `explains_symptom` sits beside `measured` and cannot wander from it.
+  Nothing inspects what the prose *says* — the check is on shape, never on content.
+* **Rejection rule:** any answer that fails validation is discarded outright. Not repaired,
+  not partially applied, and its prose is never shown. Surface a generic failure and let the
+  user retype.
+* **`clarify` has three modes**, and the third is the most common in practice:
+  1. **Scope deflection** — out of surface (feature toggles, filters, "make it louder").
+  2. **Low-confidence inference** — the target comes from a named product rather than a
+     descriptor and recall is uncertain.
+  3. **Magnitude proposal** — direction is clear, amount is not, so surface the responsible
+     band's current value and ask what to aim for.
+
+  `clarify` is the correct answer far more often than a guessed diff.
+
+## Two rules the model must be told, because it will not infer them
+
+**Prefer additive fills to clawing back by-ear decisions.** Levels the user approved by
+listening in earlier turns are settled. Reaching a target by filling a hole beats revising an
+accepted value — the real session adopted this rule unprompted and it is right.
+
+**Compound complaints are handled jointly, and the interaction check is the work.** One
+utterance can carry two complaints. Separating them is step one; checking that the two fixes
+do not fight — against the standing metric panel, including metrics coined in earlier turns —
+is what the turn is actually for.
 
 ## The vocabulary map
 

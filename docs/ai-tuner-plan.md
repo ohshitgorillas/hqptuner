@@ -14,23 +14,55 @@ with no prior context), `docs/matrix-spec.md` (pipeline/matrix design of record)
 
 An **AI SOUND TUNER** card at the bottom of the DSP tab: one text input plus a
 session history. The user types a plain-language listening complaint ("too
-boomy", "vocals sound distant", "it's all in my head"); a language model returns
-a **structured diff** which is *staged* into the app's existing pending-changes
-buffer. The user batches several turns, then presses Apply once.
+boomy", "vocals sound distant", "half the time they're perfect, half the time
+slightly too quiet"); the feature returns a **structured, measured diff** which is
+*staged* into the app's existing pending-changes buffer. The user batches several
+turns, then presses Apply once.
 
-It is not a chat client. **No freeform model prose is ever rendered.**
+**It is a bounded tool-using agent, not a single completion** (F8). The model
+diagnoses by computing the chain's actual response, proposes candidate fixes,
+measures each one, and selects — iterating against a response-evaluation tool
+before it answers. A single-shot completion cannot do this: evaluating a
+candidate means evaluating a chain that does not exist yet, so no amount of
+context preloading substitutes for the loop.
+
+It is still not a chat client. The loop is invisible; only the final structured
+answer reaches the user.
 
 ### Response contract
 
-A strict schema union — `{changes: [...]}` **XOR** `{clarify: "<one sentence>"}`.
-Never both, no other branches. A non-validating turn is rejected wholesale with a
-stock message.
+A strict union at the **final answer** — an `outcome` object **XOR** a `clarify`
+object. Never both, no other branches. A non-validating answer is rejected
+wholesale with a stock message. Intermediate tool calls are not part of the
+union: they never reach the user, so they were never what it guarded against.
 
-The union is load-bearing, not stylistic: it is what prevents the model from
-speaking *and* acting in the same turn. Any proposal to add a prose field
-alongside `changes` is a violation of the design, not an enhancement of it.
+```jsonc
+// branch 1 — the model acted
+{
+  "diagnosis":   { "method", "finding", "explains_symptom", "measured": {...} },
+  "changes":     [ /* band / crossfeed / compensation changes */ ],
+  "alternatives_rejected": [ /* candidates with their measured numbers + reason */ ],
+  "metrics":     { "<name>": { "before": <n>, "after": <n> } },
+  "side_effect": { "metric", "delta", "judgment", "remedy" }   // optional
+}
 
-**`clarify` has three modes, not one.** The first draft specified only the first:
+// branch 2 — the model needs an answer before acting
+{ "clarify": "<one sentence>", "context": { /* optional measured values */ } }
+```
+
+**The prose rule, restated (revised — see F8).** The original wording was "no
+freeform model prose is ever rendered", and that is too strong: it would suppress
+the single most valuable output the feature produces. The rule is now:
+
+> **Prose is permitted only as a field of a structured object that carries the
+> numbers it describes. Free-form turns are still banned.**
+
+`diagnosis.explains_symptom` is anchored to `diagnosis.measured` and cannot
+wander from it; a chat reply can. That distinction is the whole rule.
+`alternatives_rejected` earns its place the same way — it is numeric, structured,
+and is precisely what a user needs to see under a change to judge it.
+
+**`clarify` has three modes**, and mode 3 is the most common in practice:
 
 1. **Scope deflection** — the request is outside the surface (a feature toggle, a
    filter/shaper change, "make it louder", a hardware question).
@@ -39,11 +71,8 @@ alongside `changes` is a violation of the design, not an enhancement of it.
 3. **Magnitude proposal** — the direction is clear but the amount is not, so the
    model surfaces the responsible band's current value and asks what to aim for.
 
-Mode 3 was found in the real session (F7) and is the most common of the three in
-practice. It reads as conversational but it is not prose-in-a-changes-turn: it is
-still a single `clarify` sentence and still carries no diff, so the union holds.
 The prompt must teach all three or the model will guess a magnitude rather than
-ask — which is the failure the union exists to prevent.
+ask.
 
 ### The adjustable surface
 
@@ -68,13 +97,32 @@ or URL entry anywhere in the UI; **the token never reaches the browser**. Model
 selection is a dropdown inside the card, populated from whatever the configured
 endpoint serves. Unset env → the feature is invisible and has zero footprint.
 
-### Session ledger
+### Session ledger, and the metric panel
 
-One entry per turn: complaint, resulting diff (EQ and/or crossfeed), model id,
-prompt version. Sent back as bounded context (last N turns) so "back off that
-last change" resolves. Persists across Apply, so post-listen iteration can
-reference now-live turns. Discard **marks turns discarded rather than deleting
-them**.
+One entry per turn: complaint, the full answer object above, model id, prompt
+version. Sent back as bounded context (last N turns) so "back off that last
+change" resolves. Persists across Apply, so post-listen iteration can reference
+now-live turns. Discard **marks turns discarded rather than deleting them**.
+
+**The session also accumulates a metric panel, and this is session state in its
+own right** (F8). A metric is *invented by the model* to operationalise a
+complaint — "I hate V-shaped" became
+`v_db = mean(bass 50–150, treble 4k–10k) − mid 400–1500` — and thereafter it is
+**standing regression state**: every later turn reports it, whether or not that
+turn was aiming at it. Two turns after it was coined, `v_db` was the number that
+decided an unrelated bass fix was acceptable.
+
+So the ledger stores, alongside the turns:
+
+| field | meaning |
+|---|---|
+| `metrics[name].definition` | the band arithmetic, as data — coined once, reused forever |
+| `metrics[name].origin_turn` | which complaint produced it |
+| `metrics[name].series` | value after every turn since, so regressions are visible |
+
+Every answer reports the **whole panel**, not just the metric it was aiming at.
+That is what makes a side effect detectable at all, and it is what makes "back
+off that last change" cheap — the numbers are already there, not just the intent.
 
 ---
 
@@ -296,6 +344,74 @@ the back-off pattern occurs naturally — turn 5 reverses turn 3's shelf raise a
 turn 9 partially undoes turn 4's appended dip, giving the ledger-referencing
 few-shot real examples.
 
+### F8 · The session continued, and broke the single-turn design
+
+Later turns in the same file (still Opus 4.8) are qualitatively different from
+the early ones, and they invalidate the single-completion contract outright.
+
+**A turn is a tool loop, not a completion.** The "half the time perfect, half
+slightly too quiet" turn ran: diagnose → compute the live chain's net response →
+generate four candidate fills → measure each at note fundamentals → select. The
+selection step is what forces the tool: **measuring a candidate means evaluating
+a chain that does not exist yet**, so no amount of context preloading substitutes
+for it. One tool, called in a loop:
+
+```
+evaluate_chain(candidate_changes[], at_frequencies[])
+    -> { hz: net_db }, plus band averages and a spread figure
+```
+
+**Frequencies are musical, not a log grid.** It evaluated at E1/E2/A2/D3/E3/A3/D4
+fundamentals, and that is what produced the actual insight — *"E2 sits in the
+boosted region and sounds right, A2 upward falls in the trough"* explains the
+symptom in a way a uniform grid does not. The tool takes arbitrary requested
+frequencies; the prompt teaches the note-fundamental framing.
+
+**Ripple is a diagnosis class the vocabulary cannot express.** "Half the time
+perfect, half slightly too quiet" is not thin, not recessed — it is
+*inconsistent*, and the fix is flattening rather than shifting. `vocabulary.json`
+maps term → region → direction, which cannot represent it. This is a missing
+category, not a missing term.
+
+**Metrics are invented, then become standing state.** See §1's metric panel. This
+is the largest gap between the observed behaviour and the original design.
+
+**Compound complaints are handled jointly, and the interaction check is the
+value.** One utterance carried both "no OOMPH" and "still a little forward"; the
+two fixes were checked against each other rather than applied independently,
+because the oomph fill raises the bass band while the presence trim lowers only
+1.8–4 kHz — and the net effect landed on `v_db`, a metric coined two turns
+earlier. The earlier tier-2 framing said the work was *separating* overlapping
+complaints. Separating them is step one; checking the fixes do not fight, against
+metrics from earlier turns, is the actual work.
+
+**Side effects are disclosed with a remedy named in advance.** `v_db` rose to
++0.38 from the oomph fill; the model judged it acceptable, disclosed it before
+applying, and pre-named the remedy (+0.4 on the 750 Hz band rather than
+reverting). The union had no slot for this and an ≤80-character rationale cannot
+hold it — hence the `side_effect` field in §1.
+
+**It adopted a policy nobody wrote.** Rejecting "lower the 2096 and 7959 peaks
+instead of filling": *"those levels were set by ear in earlier turns and
+validated; clawing them back would undo accepted decisions."* Prefer additive
+fills over revising values the user already signed off by ear. That belongs in
+the prompt rather than being rediscovered each session.
+
+**`alternatives_rejected` is first-class output.** Every later turn carries the
+candidates not taken, with measured numbers and reasons. It is structured and
+numeric, it renders safely, and it is what lets a user judge a change rather than
+take it on faith.
+
+**Consequence — the prose rule was too strict.** `diagnosis.explains_symptom` is
+the most valuable string the feature produces. §1 now permits prose *as a field
+of a structured object carrying the numbers it describes*, and continues to ban
+free-form turns. Decision taken 2026-07-22.
+
+**The file is the format spec.** `auteur-classic-tuning.json` now carries
+`base_bands`, and per turn `diagnosis`, `alternatives_rejected`, `measured`,
+`selected_*`, `side_effect_flagged`, `verification`, and `answer` on clarify
+turns. The schema is harvested from it, not designed in parallel with it.
+
 ---
 
 ## 3. Settled decisions
@@ -311,6 +427,11 @@ Recorded so they are not relitigated.
 | D4 | Plan lives here; **no `roadmap.md` entry** | User decision |
 | D5 | Validator is Python; client only compiles and stages | Per F6 — JS guardrails would be ungated |
 | D6 | Crossfeed bounds read from the served `/matrix` form | Per F1 — constants desync on a HQPlayer version bump |
+| D7 | **A turn is a bounded tool loop, not a completion.** The union constrains the final answer only; intermediate tool calls never reach the user | Per F8 — measuring a candidate means evaluating a chain that does not exist yet, which no context preloading can supply |
+| D8 | **Prose is permitted as a field of a structured object carrying the numbers it describes; free-form turns stay banned** | Per F8 — `explains_symptom` is the feature's most valuable output and is anchored to `measured`, so it cannot wander the way a chat reply can |
+| D9 | **The metric panel is session state.** Model-coined metrics carry a definition, an origin turn, and a series; every answer reports the whole panel | Per F8 — `v_db` decided an unrelated turn two steps after it was coined. Reporting only the targeted metric makes side effects undetectable |
+| D10 | **`lib/dsp.js` is the reference implementation; the Python port follows it**, pinned by a committed fixture | The plots are what the user has been trusting, so the curve they see is authoritative. Two implementations of RBJ that drift silently would have the model optimising against a curve nobody sees |
+| D11 | The evaluation loop runs **server-side** | The token lives there, and blocking a multi-iteration loop on a round-trip to a browser tab that may have closed is fragile |
 
 ---
 
@@ -379,6 +500,36 @@ route 404s; token set → model list served; ledger survives a process restart; 
 browser-served payload contains the token; Discard marks turns rather than
 removing them.
 
+### P2b · Response-evaluation tool — the loop's one instrument
+
+The tool that makes a turn possible (F8, D7). `hqptuner/ai/dsp.py` — an RBJ
+biquad chain-magnitude implementation, plus `hqptuner/ai/evaluate.py` exposing:
+
+```
+evaluate_chain(base_bands[], candidate_changes[], at_frequencies[])
+    -> { hz: net_db }, band averages, spread
+```
+
+Pure computation: no daemon contact, no staging, no side effects. Callable many
+times per turn.
+
+**`lib/dsp.js` is the reference and Python follows it** (D10). Ship
+`docs/ai-tuner/dsp-reference.json` — a fixture of chains × frequencies × expected
+dB, **generated from the JS implementation** — and assert the Python port against
+it in the offline suite. The repo has no JS runner, so the JS side cannot be
+auto-tested; the fixture is what makes drift detectable at all and gives a future
+JS test something to bind to. State that limitation rather than implying parity.
+
+Named-band arithmetic (`mud_200_400`, `oomph_80_160`, `v_db`) is expressed as
+data so a model-coined metric (D9) is stored and replayed rather than recomputed
+from prose.
+
+**Depends:** P2.
+**Accept:** Python matches the JS fixture within 0.01 dB across every case;
+evaluating a candidate leaves no staged state and touches no daemon; a
+model-coined metric definition round-trips through storage and reproduces its
+value; band averages and spread match hand-computed values for a known chain.
+
 ### P3 · Prompt assets, versioned as a unit
 
 `docs/ai-tuner/prompt/`: `system.md`, `vocabulary.json` (from P0),
@@ -403,9 +554,35 @@ nearest band is a narrow measurement correction that would be wrong to repurpose
 **Chain context is part of the assembled prompt.** Per F7 the model reasons over
 the summed response, not a band list, so `ASSEMBLY.md` must specify that each
 turn carries the current chain *and* its computed summed magnitude response
-(sampled on the same log grid the plots use), alongside the bounded ledger tail.
-Getting this wrong makes interaction effects invisible to the model and it will
-stack overlapping bands.
+(sampled on the same log grid the plots use), alongside the bounded ledger tail
+**and the standing metric panel with its definitions** (D9). Getting this wrong
+makes interaction effects invisible to the model and it will stack overlapping
+bands.
+
+**The prompt must teach the loop, not just the schema** (F8, D7). Four things
+the model will not infer from a tool signature:
+
+- **Measure before proposing, and measure candidates before choosing.** The tool
+  is cheap; guessing is not. A diff with no `evaluate_chain` call behind it is
+  the failure mode this prompt exists to prevent.
+- **Evaluate at musical frequencies.** Note fundamentals for the instruments the
+  complaint names — E1/E2/A2/D3 for bass and power chords, and so on — not a
+  uniform log grid. "E2 is fine, A2 is not" is what explains a symptom; "there is
+  a trough at 168 Hz" is not.
+- **Coin a metric when a complaint deserves one, then keep reporting it.** If the
+  user names a quality that band arithmetic can capture — V-shape, mud, oomph —
+  define it, name it, and carry it forward as a standing check (D9).
+- **Prefer additive fills to clawing back by-ear decisions.** Values the user
+  approved by listening in earlier turns are settled; reaching a target by
+  filling a hole beats revising an accepted level. The model adopted this rule on
+  its own (F8); state it so it does not have to.
+
+**Ripple and consistency complaints need their own vocabulary category.** "Half
+the time perfect, half the time slightly too quiet" is not a tonal descriptor —
+it names an *inconsistency*, and the fix is flattening rather than shifting.
+`vocabulary.json` is currently term → region → direction and cannot express it.
+Add a third category alongside `tonal` and `spatial`: symptom → net-curve
+property → structural fix, with ripple/register-dependence as the first entries.
 
 **Product-knowledge rule.** A complaint may name a headphone rather than a
 quality ("the midrange magic the Auteur Classic is known for"). Reaching a diff
@@ -424,8 +601,9 @@ budget.
 
 ### P4 · Validator and diff schema — the enforcing layer
 
-`hqptuner/ai/schema.py`, `hqptuner/ai/validate.py`. Strict union, non-validating
-turns rejected wholesale with the stock message.
+`hqptuner/ai/schema.py`, `hqptuner/ai/validate.py`. Validates the **final answer**
+only (D7); intermediate tool calls are unvalidated because they cannot reach the
+user and cannot stage anything.
 
 Per D2a the validator enforces three classes and nothing else. Anything not
 listed here is prompt guidance, applied by judgment and corrected by the user.
@@ -434,11 +612,20 @@ listed here is prompt guidance, applied by judgment and corrected by the user.
 
 | guard | value |
 |---|---|
-| response shape | `{changes}` XOR `{clarify}`; no third branch, no extra keys |
+| answer shape | `outcome` XOR `clarify` (§1); no third branch, no extra top-level keys |
+| `outcome` required fields | `diagnosis`, `changes`, `metrics` — a change with no diagnosis and no metric panel is rejected |
+| `diagnosis` | `method`, `finding`, `explains_symptom`, `measured`; every prose field must sit beside the numbers it describes (D8) |
+| `metrics` | reports the **whole** standing panel, not only the targeted metric (D9); a name absent from the panel it was handed is rejected |
+| `side_effect` | optional, but if present must carry `metric`, `delta`, `judgment`, `remedy` — a flagged side effect with no remedy is rejected |
+| `alternatives_rejected` | optional; each entry needs its measured figure and a reason |
 | crossfeed frequency / level | live `/matrix` form bounds (D6) |
 | compensation strength | 0–150 % |
 | field types | numeric fields parse as numbers; `type` is one of `peak`/`lshelf`/`hshelf` |
 | forbidden targets | any enable/disable; the compensation block's internal structure; `matrix_enabled` |
+
+Prose fields are length-bounded but not content-inspected. The anchoring rule
+(D8) is enforced **structurally** — prose may only appear as a field of an object
+that also carries numbers — never by trying to judge what the prose says.
 
 **Correctness** — derived by the client, never emitted by the model. The model's
 response is intent only; the staged diff is a superset carrying these
@@ -457,16 +644,21 @@ app's structural staleness check or clip.
 |---|---|
 | EQ gain delta, per turn | ±6 dB (D1) |
 
-**Depends:** P1, P3.
-**Accept:** fake OpenAI-compatible endpoint over real HTTP; each enforced item
-carries a rejection test and a boundary-accept test, one assertion each; a
-response carrying both `changes` and `clarify` is rejected; a response carrying
-neither is rejected; a response carrying an unknown top-level key is rejected; a
-model response that *emits* a derived value (a compensation block or a preamp
-figure) is rejected as out of contract; mutation check — disabling each check
-fails its own test. **No test asserts a taste judgment** — Q choice, band
-selection, and amend-vs-append are unenforced by design and are measured in P5's
-eval instead.
+**Depends:** P1, P2b, P3.
+**Accept:** fake OpenAI-compatible endpoint over real HTTP, speaking a tool loop
+(the fake must be able to answer an `evaluate_chain` call and then return a final
+answer, or the loop path is untested); each enforced item carries a rejection
+test and a boundary-accept test, one assertion each; an answer carrying both
+branches is rejected; one carrying neither is rejected; an unknown top-level key
+is rejected; an `outcome` missing its metric panel is rejected; a `side_effect`
+without a `remedy` is rejected; a model answer that *emits* a derived value (a
+compensation block or a preamp figure) is rejected as out of contract; mutation
+check — disabling each check fails its own test.
+
+**No test asserts a taste judgment** — Q choice, band selection, amend-vs-append,
+and whether the diagnosis is *correct* are unenforced by design and are measured
+in P5's eval instead. The validator checks that a diagnosis is present and
+anchored, never that it is right.
 
 Derivation itself is tested in P6, where the client owns it: a crossfeed change
 produces a rebuilt block, a positive gain produces a recomputed row gain.
@@ -495,6 +687,32 @@ only reaches for gain fails.
 **Q is a scored dimension, not a clamp** (F7, D2a). The runner scores whether a
 turn that needed a Q change made one, and whether Q choices land in a sane range
 for the move — measured, never enforced.
+
+#### Scoring a loop, not a completion
+
+A tool-using turn (D7) fails in ways a completion cannot, and the outcome alone
+does not reveal them — a model can reach a defensible diff by luck without ever
+measuring. So the runner scores **process alongside outcome**, using the tool
+call log:
+
+| dimension | pass condition |
+|---|---|
+| measured before proposing | at least one `evaluate_chain` call precedes the answer |
+| candidates compared | more than one candidate evaluated when the complaint admits several fixes |
+| diagnosis matches measurement | the `finding` is consistent with what the tool actually returned — checked numerically, not by reading the prose |
+| panel reported | the answer carries the whole standing metric panel (D9) |
+| side effects caught | a change that moves a standing metric past a threshold declares it, with a remedy |
+| iteration cost | tool calls per turn, reported not gated — it is the honest cost signal for the model comparison |
+
+The last one matters for the gate: a weaker model may reach the same answer with
+three times the iterations, and that is a real difference in cost and latency
+that a pass/fail score hides.
+
+**Regression corpus.** `auteur-classic-tuning.json` doubles as one: replay each
+turn from its recorded starting state and compare against the recorded outcome.
+Not an exact-match assertion — a different band that lands the same measured
+result is a pass — which is why the recorded `measured` / `selected_*` figures
+matter more than the recorded band values.
 
 #### Complexity tiers — the source of the user-guidance examples
 
@@ -539,26 +757,54 @@ headroom recompute via `chainResponse` across the whole chain. Diff application
 routes through `stagePipelines` / `stageBlock` / `edit` — the existing functions,
 per F4. A crossfeed change triggers the in-turn compensation rebuild per D3.
 
-**Depends:** P4, P5.
-**Accept:** a complaint whose region is already covered amends that band and
-leaves the band count unchanged; a complaint in an uncovered region appends
-exactly one band; band count never decreases; a crossfeed change leaves the
-compensation block non-stale (`msRecognize().stale === false`) with `sFraction`
-preserved; Discard restores the pre-turn chain exactly.
+Band resolution is thinner than the original sketch: the model now resolves its
+own targets through the tool (D7), so the client's job is turning a `match`
+(`{type, f_hz}`) into a stage index, applying the change, and persisting the
+answer's metric panel into the ledger series (D9) — not deciding which band to
+touch.
+
+**Depends:** P2b, P4, P5.
+**Accept:** a `match` resolves to exactly one stage, or the change is refused
+rather than applied to a guess; band count never decreases; a crossfeed change
+leaves the compensation block non-stale (`msRecognize().stale === false`) with
+`sFraction` preserved; applying an answer appends every panel metric to its
+series; Discard restores the pre-turn chain exactly **and** rolls the series back
+by one entry.
 
 Every criterion here is deterministic and needs no model in the loop. Chain
-*quality* is deliberately not asserted at this phase: the amend-before-append
-rule is enforced upstream in P4's validator, so a degenerate chain cannot form by
-construction, and any numeric proxy for "readable" (opposed gains in adjacent
-bands, band density, and so on) fails on perfectly legitimate curves — AutoEq's
-own presets routinely place opposed gains a fraction of an octave apart.
+*quality* is deliberately not asserted at this phase — it is measured in P5. Any
+numeric proxy for "readable" (opposed gains in adjacent bands, band density, and
+so on) fails on perfectly legitimate curves: AutoEq's own presets routinely place
+opposed gains a fraction of an octave apart, and the real session's fix for a
+ripple complaint was to *add* a band overlapping four existing ones.
 
 ### P7 · The card
 
 `static/components/AiTuner.js`, bottom of the DSP tab, rendering only when the
-env gate reports enabled. Single text input, model dropdown, session history
-rendering **structured diffs only**. The RESPONSE overlay reflects the cumulative
-staged result — the in-session feedback loop.
+env gate reports enabled. Single text input, model dropdown, session history.
+The RESPONSE overlay reflects the cumulative staged result — the in-session
+feedback loop.
+
+**A turn renders as four parts**, not one diff line (F8, D8):
+
+1. **Diagnosis** — `explains_symptom` beside the measured figures it describes.
+   This is the part that makes a change trustworthy rather than magic, and it is
+   why the prose rule was loosened.
+2. **Changes** — the staged diff, as now.
+3. **Alternatives rejected** — a small table of candidates with their measured
+   figures and the reason each lost. Structured and numeric, so it renders
+   safely; it is what lets the user judge a change instead of taking it on faith.
+   Collapsed by default.
+4. **Metric panel** — every standing metric with before/after and its delta, the
+   targeted one emphasised. A `side_effect` renders here, with its pre-named
+   remedy, since that is the surface where a regression becomes visible.
+
+The panel persists across turns as its own strip, so drift over a long session is
+readable at a glance rather than by scrubbing history.
+
+**Prose is rendered only from a field that sits beside its numbers** (D8). There
+is no code path that renders a model string on its own — a diagnosis without its
+`measured` block does not render, it fails validation upstream in P4.
 
 **Guidance examples.** An empty text box is the worst affordance for a feature
 whose whole difficulty is knowing what vocabulary lands, so the card shows
@@ -572,11 +818,14 @@ cannot advertise a capability the eval did not demonstrate.
 **Accept:** token unset → card absent from the DOM entirely, zero footprint;
 selecting a different model changes the shown examples; every shown example
 appears in `cases.json` at a tier that model passed; clicking one populates the
-input; the binding design-system criteria at 1280 (nothing clips or overlaps,
-both tracks filled or deliberately spanned, right edge flush with the container,
-no unnameable whitespace); a two-column split carries its rule on the card centre
-line; no raw model text reachable in any rendered path; screenshots and measured
-pixel numbers in the hand-back.
+input; a turn renders all four parts with alternatives collapsed by default; the
+metric panel shows before/after for every standing metric, not only the targeted
+one; a `side_effect` renders with its remedy; **no code path renders a model
+string that is not a field of an object carrying numbers** (D8); the binding
+design-system criteria at 1280 (nothing clips or overlaps, both tracks filled or
+deliberately spanned, right edge flush with the container, no unnameable
+whitespace); a two-column split carries its rule on the card centre line;
+screenshots and measured pixel numbers in the hand-back.
 
 ### P8 · Export, docs, packaging
 

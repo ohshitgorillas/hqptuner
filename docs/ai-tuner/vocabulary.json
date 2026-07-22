@@ -61,6 +61,7 @@
         0.0,
         150.0
       ],
+      "THIRD_CATEGORY": "The `consistency` array is a THIRD category alongside `tonal` and `spatial`, and it has a DIFFERENT SHAPE. Tonal and spatial entries map term -> region -> direction. Consistency entries map symptom -> net-curve property -> structural fix, because complaints like 'half the time perfect, half the time slightly too quiet' name an INCONSISTENCY rather than a region, and the remedy is flattening rather than shifting. Fields: symptom, aliases, curve_property (what is wrong with the net curve), diagnosis (how to measure it -- usually at NOTE FUNDAMENTALS, not a log grid), fix_class (fill / tame / trim), fix, measure (the metric to define and then carry forward as standing session state), `not` (the wrong fix that the naive reading suggests), worked_example. Check this category FIRST when a complaint describes variability, inconsistency, or something being present-but-not-right, since no tonal term will match and the tonal map will produce a flat level change that reproduces the complaint one register over.",
       "ENFORCEMENT": "Only three things are enforced: VALIDITY (type in peak/lshelf/hshelf, crossfeed bounds read from the live /matrix form, strength 0-150, the response union), CORRECTNESS (headroom recompute and compensation rebuild -- both derived by the CLIENT, never emitted by the model), and POLICY (eq_gain_db_per_turn_soft, +/-6 dB, the only policy clamp; there is NO absolute gain ceiling). Every other value in this object is GUIDANCE the model applies by judgment and the user corrects in plain language. eq_q_hard / eq_q_voicing_preferred / eq_q_narrowband_max / shelf_q_fixed are starting points, NOT limits: Q is deliberately unclamped because a real session's root fault was a band at Q 0.26 eating 200-800 Hz and the fix was Q 0.70, a factor of nearly three that any safe-feeling bound would have blocked. Taste is measured in the eval, never enforced in the validator.",
       "clamp_provenance": "eq gain hard bound matches AutoEq DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0 and both graphic-EQ configs. eq_q_hard matches AutoEq DEFAULT_PEAKING_FILTER_MIN_Q 0.18248 / MAX_Q 6.0. shelf_q_fixed matches AutoEq DEFAULT_SHELF_FILTER_MAX_Q 0.7 and every shipped oratory1990 shelf. crossfeed bounds are libbs2b BS2B_MINFCUT/MAXFCUT = 300/2000 Hz and BS2B_MINFEED/MAXFEED = 10/150 (dB x 10) = 1.0/15.0 dB. See SOURCES.md sections 1.1 and 3.1.",
       "band_scope": "All existing bands are amendable, AutoEq imports included. There is no protected segment and no provenance metadata in the wire format."
@@ -173,6 +174,67 @@
       "2026-07-22: AutoEq bands moved from untouchable to in-scope by user decision. The owned-segment premise and the max_ai_bands cap are withdrawn; amend-before-append replaces them."
     ]
   },
+  "consistency": [
+    {
+      "symptom": "register-dependent level",
+      "aliases": ["half the time perfect half slightly too quiet", "some notes quieter than others", "inconsistent level", "uneven across the register"],
+      "curve_property": "Ripple: a broad trough in the net response. Fundamentals landing inside it read quiet while neighbouring notes read correct, so the fault presents as inconsistency rather than as a level error.",
+      "diagnosis": "Evaluate the net response at the NOTE FUNDAMENTALS of the register the complaint names, not on a log grid. Compare trough depth against the neighbouring regions that sound right.",
+      "fix_class": "fill",
+      "fix": "Append a broad band centred on the trough minimum. Choose Q so the fill spans the affected register without reaching a region that has already drawn a complaint.",
+      "measure": "spread = max - min across the affected fundamentals; target under about 2 dB",
+      "not": "A flat level change. Raising everything preserves the ripple and reproduces the original complaint one register over.",
+      "worked_example": "auteur-classic-tuning.json — 'crunchy bass guitar and power chords ... half of the time they're perfect'",
+      "confidence": "high"
+    },
+    {
+      "symptom": "present but no bloom",
+      "aliases": ["no OOMPH", "doesn't fill the space", "there and balanced but not oversized", "lacks scale"],
+      "curve_property": "A notch between the sub-bass and the lower midrange. Fundamentals are at level -- hence 'there and balanced' -- but the body beneath them is missing, so the sound never blooms.",
+      "diagnosis": "Compare a sub-bass band average against a body band average (roughly 80-160 Hz). A notch shows as a body average far below both neighbours.",
+      "fix_class": "fill",
+      "fix": "Append a band centred in the notch. Score candidates by body-gain per unit of mud-band gain rather than by body gain alone.",
+      "measure": "body band average (80-160 Hz) against the mud band (200-400 Hz); maximise the ratio",
+      "not": "A bass shelf lift. The shortfall is a notch, not a deficit of bass, and a shelf raises the region that causes mud complaints.",
+      "worked_example": "auteur-classic-tuning.json — 'big fuzzy bloomy guitars don't fill the space'",
+      "confidence": "high"
+    },
+    {
+      "symptom": "scooped / V-shaped",
+      "aliases": ["V-shaped", "hollow middle", "bass and treble but nothing between"],
+      "curve_property": "Mid band average sitting below both the bass and treble band averages, usually because no band exists at all across 400-1500 Hz while peaks flank it on both sides.",
+      "diagnosis": "v_db = mean(bass 50-150, treble 4k-10k) - mid 400-1500. Positive means scooped.",
+      "fix_class": "fill",
+      "fix": "Append a broad mid band rather than lowering the flanking peaks, especially when those peak levels were set by ear in earlier turns and accepted.",
+      "measure": "v_db; target near zero, and do not overshoot negative -- the listener asked for not-V, not mid-humped",
+      "not": "Cutting the arms of the V. That claws back accepted by-ear decisions and tends to overshoot.",
+      "worked_example": "auteur-classic-tuning.json — 'now sounding a bit V-shaped ... and I hate V-shaped'",
+      "confidence": "high"
+    },
+    {
+      "symptom": "some notes jump out",
+      "aliases": ["one-note bass", "certain notes bloom", "uneven bass", "boomy on some notes only"],
+      "curve_property": "Ripple with the opposite sign: a narrow peak, so fundamentals landing on it are exaggerated while their neighbours are correct.",
+      "diagnosis": "Evaluate at fundamentals across the affected register and find the maximum rather than the minimum.",
+      "fix_class": "tame",
+      "fix": "Narrow the offending band or reduce its gain. Prefer narrowing when neighbouring notes are already correct.",
+      "measure": "spread across the affected fundamentals",
+      "not": "A broad cut, which drops the notes that were already right.",
+      "confidence": "medium"
+    },
+    {
+      "symptom": "forward but not harsh",
+      "aliases": ["a little forward", "slightly too present", "not hot or biting, just forward"],
+      "curve_property": "A moderate excess spread across a whole band rather than one narrow hot spot -- typically two or more presence peaks each modestly high.",
+      "diagnosis": "Band average across roughly 1.8-4 kHz, plus the individual peak heights within it. Several moderate peaks rather than one tall one.",
+      "fix_class": "trim",
+      "fix": "Trim each contributing peak lightly rather than cutting one deeply, and check the result against any standing V metric since the band sits on the mid side of it.",
+      "measure": "presence band average (1.8-4 kHz)",
+      "not": "A single deep cut, or a broad dip, which overshoots for 'a little' and can re-open a scoop that was just closed.",
+      "worked_example": "auteur-classic-tuning.json — 'aren't HOT or biting anymore per se, but they are a little bit forward'",
+      "confidence": "high"
+    }
+  ],
   "tonal": [
     {
       "term": "boomy",

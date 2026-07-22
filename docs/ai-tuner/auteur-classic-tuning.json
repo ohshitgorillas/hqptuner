@@ -3,17 +3,32 @@
   "model": "claude-opus-4-8",
   "eq_profile": "ZMF Auteur Classic (ZMF Auteur perforated lambskin earpads)",
   "crossfeed": {"enabled": true, "frequency_hz": 700, "level_db": 4.5},
+  "base_bands": [
+    {"type": "peak", "f_hz": 66, "gain_db": -0.7, "q": 1.93},
+    {"type": "peak", "f_hz": 99, "gain_db": 0.9, "q": 2.99},
+    {"type": "lshelf", "f_hz": 105, "gain_db": 4.7, "q": 0.70},
+    {"type": "peak", "f_hz": 107, "gain_db": -5.2, "q": 0.26},
+    {"type": "peak", "f_hz": 2096, "gain_db": 6.2, "q": 3.16},
+    {"type": "peak", "f_hz": 3161, "gain_db": -2.7, "q": 5.18},
+    {"type": "peak", "f_hz": 3901, "gain_db": 2.9, "q": 6.00},
+    {"type": "peak", "f_hz": 5575, "gain_db": -7.5, "q": 4.63},
+    {"type": "peak", "f_hz": 7959, "gain_db": 6.9, "q": 0.98},
+    {"type": "hshelf", "f_hz": 10000, "gain_db": -4.3, "q": 0.70}
+  ],
   "turns": [
     {
       "complaint": "ease off the midrange suckout. the treble that results is insanely clear with a glorious soundstage, but the midrange is barely audible and that's where the auteur classic's magic is.",
-      "clarify": "How to ease off the midrange suckout (Filter 2: PK 107 Hz, −5.2 dB, Q 0.26)?"
+      "clarify": "How to ease off the midrange suckout (Filter 2: PK 107 Hz, −5.2 dB, Q 0.26)?",
+      "answer": "Narrow Q to 0.70 and soften to −4.0 dB",
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 107,
+         "gain_delta_db": 1.2, "q": 0.70,
+         "rationale": "Ease cut and narrow it; Q0.26 gutted 200-800 Hz"}
+      ]
     },
     {
       "complaint": "listening test. it's... still bright and bass light.",
       "changes": [
-        {"kind": "amend_band", "type": "peak", "f_hz": 107,
-         "gain_delta_db": 1.2, "q": 0.70,
-         "rationale": "Ease cut and narrow it; Q0.26 gutted 200-800 Hz"},
         {"kind": "amend_band", "type": "lshelf", "f_hz": 105,
          "gain_delta_db": 0.8, "q": null,
          "rationale": "Add bass weight against bass-light report"},
@@ -70,7 +85,8 @@
     },
     {
       "complaint": "stopped. also, I think 1.5 dB might be a bit much, I mean like maybe 1dB",
-      "clarify": "2.1 kHz peak: original +6.2, you just heard +5.0 (−1.2) and called it very slightly hot. What lands next?"
+      "clarify": "2.1 kHz peak: original +6.2, you just heard +5.0 (−1.2) and called it very slightly hot. What lands next?",
+      "answer": "+4.5 (cut 0.5 more) — confirmed the value already queued from the prior turn"
     },
     {
       "complaint": "power chords are sounding a bit restrained...",
@@ -79,6 +95,100 @@
          "gain_delta_db": 0.4, "q": 1.50,
          "rationale": "Soften anti-mud dip, tighten Q; return chord body"}
       ]
+    },
+    {
+      "complaint": "this one is real subtle. things like crunchy bass guitar and power chords, even down to lower male vocals, are *almost* right. half of the time, they're perfect, the other half of the time, they're just slightly too quiet. how do we fix that?",
+      "diagnosis": {
+        "method": "computed net magnitude of the live chain, 40-600 Hz",
+        "finding": "Broad -1.5 dB trough spanning 120-350 Hz against +1 to +4 dB below 100 Hz; 5.09 dB ripple across 50-400 Hz, minimum -1.53 dB at 168 Hz.",
+        "explains_symptom": "Inconsistency was register-dependent, not random: E1/E2 roots (41-82 Hz) sat in the boosted region and sounded right, while A2 (110 Hz) upward - most power-chord roots, bass runs, higher male vocal fundamentals - fell into the trough and read slightly quiet.",
+        "measured_at_fundamentals_db": {"82": 1.13, "110": -0.21, "147": -1.45, "165": -1.53, "196": -1.48, "247": -1.41, "294": -1.32}
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 190,
+         "gain_db": 1.4, "q": 0.80,
+         "rationale": "Fill 120-350 Hz trough; quiet notes were register-dependent"}
+      ],
+      "alternatives_rejected": [
+        {"band": "peak 180 Hz +1.2 dB Q0.90", "spread_db": 2.15,
+         "reason": "Under-fills the trough, -0.67 dB residual at 294 Hz"},
+        {"band": "peak 170 Hz +1.5 dB Q1.00", "spread_db": 2.23,
+         "reason": "Worst spread of the four; centre too low, leaves 247-330 down"},
+        {"band": "peak 200 Hz +1.3 dB Q0.70", "spread_db": 1.92,
+         "reason": "Flattest, but +0.40 dB at 500 Hz risks re-muddying a profile already burned twice by mud/muffle"}
+      ],
+      "selected_spread_db": 1.96,
+      "verification": "applied idle-gated; matrix readback byte-exact; net_period buffer fix preserved through preset save"
+    },
+    {
+      "complaint": "not muddied, very clear, but now sounding a bit V-shaped... and I hate V-shaped.",
+      "diagnosis": {
+        "method": "computed full-range net magnitude 20 Hz - 20 kHz with band averages",
+        "metric": "v_db = mean(bass 50-150, treble 4k-10k) - mid 400-1500; positive = scooped mids",
+        "finding": "Mids averaged +0.82 dB against bass +1.45 and treble +2.33, a 1.07 dB scoop. The arms of the V were the existing 2096 peak (+5.35 at 2 kHz) and 7959 peak (+5.03 at 8 kHz), with no band at all between 400 and 1500 Hz.",
+        "octave_sweep_db": {"125": -0.06, "250": -0.24, "500": 0.32, "800": 0.82, "1000": 1.07, "2000": 5.35, "4000": 3.80, "8000": 5.03}
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 750,
+         "gain_db": 1.5, "q": 0.70,
+         "rationale": "Fill the 400-1500 Hz hole; lands band balance neutral"}
+      ],
+      "alternatives_rejected": [
+        {"approach": "lower the 2096 and 7959 peaks instead of filling",
+         "reason": "Those levels were set by ear in earlier turns and validated; clawing them back would undo accepted decisions"},
+        {"band": "peak 800 Hz +2.0 dB Q0.60", "v_db": -0.51,
+         "reason": "Overshoots into mids-forward; listener asked for not-V, not mid-humped"},
+        {"band": "peak 900 Hz +1.8 dB Q0.55", "v_db": -0.35,
+         "reason": "Overshoots and centres too high, leaving 500 Hz short"},
+        {"band": "peak 700 Hz +2.2 dB Q0.50", "v_db": -0.70,
+         "reason": "Largest overshoot; lifts lowmid to +0.85 back toward mud"}
+      ],
+      "selected_v_db": -0.07,
+      "verification": "applied idle-gated; matrix readback byte-exact; 13 EQ bands live"
+    },
+    {
+      "complaint": "that's vastly better, but two notes: big fuzzy bloomy guitars don't fill the space like they should, they're there and balanced but there's no OOMPH/wow/oversized feel to them. can we fix that without muddying things? also, I feel that there are peaks in the upper registers that haven't quite been tamed yet. female vocals and guitar solos aren't HOT or biting anymore per se, but they are a little bit forward.",
+      "note": "single utterance carrying two distinct complaints, diagnosed and fixed together in one pass; the two fixes interact and were checked against each other rather than applied independently",
+      "diagnosis": {
+        "method": "computed net magnitude with band averages; both complaints evaluated on the same sweep so their interaction was visible",
+        "finding_oomph": "Notch at 125-160 Hz (125 Hz +0.02, 160 Hz -0.08) sitting between the sub-bass (63 Hz +2.51) and the earlier 190 Hz fill. OOMPH band 80-160 averaged only +0.61.",
+        "explains_oomph": "Guitar fundamentals were present and level - hence 'there and balanced' - but the body beneath them was missing, so the sound never bloomed or read oversized. A notch, not a shortfall of bass.",
+        "finding_forward": "Net peaks at 2000 Hz (+5.76) and 4000 Hz (+3.90); FWD band 1.8-4 kHz averaged +3.24.",
+        "explains_forward": "'Forward but not hot or biting' matches a moderate excess spread across the whole presence band rather than one narrow hot spot - so two peaks trimmed lightly, not one cut deeply.",
+        "constraint": "listener explicitly required no added mud; mud band 200-400 Hz tracked at +0.22 before",
+        "interaction": "The oomph fill raises the bass band and the treble trim lowers only 1.8-4 kHz, so the two do not cancel; V metric moves +0.31 net and was surfaced to the listener before applying."
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 120,
+         "gain_db": 1.5, "q": 0.90,
+         "rationale": "Fill 125-160 Hz body notch; best oomph-per-mud ratio"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 2096,
+         "gain_delta_db": -0.7, "q": null,
+         "rationale": "Trim 2 kHz presence peak; forward rather than biting"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 3901,
+         "gain_delta_db": -0.9, "q": null,
+         "rationale": "Trim the second peak at 4 kHz alongside the 2 kHz one"}
+      ],
+      "alternatives_rejected": [
+        {"band": "peak 130 Hz +2.0 dB Q0.80", "oomph_db": 2.37, "mud_db": 0.97,
+         "reason": "More oomph but mud to +0.97, near the range that already drew two complaints"},
+        {"band": "peak 140 Hz +2.0 dB Q1.10", "oomph_db": 2.14, "mud_db": 0.82,
+         "reason": "Worse oomph-per-mud ratio than the 120 Hz fill"},
+        {"band": "peak 100 Hz +1.8 dB Q1.00", "oomph_db": 2.13, "mud_db": 0.51,
+         "reason": "Centre sits below the notch; lifts sub-bass more than guitar body"},
+        {"band": "trim 2096 only (to +3.8)", "fwd_db": 2.96,
+         "reason": "Addresses one of the two measured peaks, leaving 4 kHz untouched"},
+        {"band": "broad dip 2800 Hz -1.2 dB Q1.0", "fwd_db": 2.25,
+         "reason": "Overshoots for 'a little forward' and pulls mid back down to +1.87, re-opening the V just closed"}
+      ],
+      "measured": {
+        "oomph_80_160_db": {"before": 0.61, "after": 1.94},
+        "mud_200_400_db": {"before": 0.22, "after": 0.63},
+        "fwd_1800_4000_db": {"before": 3.24, "after": 2.79},
+        "v_db": {"before": -0.07, "after": 0.38}
+      },
+      "side_effect_flagged": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)",
+      "verification": "applied idle-gated; matrix readback byte-exact; preset saved with net_period fix intact"
     }
   ]
 }
