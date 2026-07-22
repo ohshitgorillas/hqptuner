@@ -124,6 +124,48 @@ Every answer reports the **whole panel**, not just the metric it was aiming at.
 That is what makes a side effect detectable at all, and it is what makes "back
 off that last change" cheap — the numbers are already there, not just the intent.
 
+### Session lifecycle — recovering from a bad session
+
+A model goes off the rails, or the ledger accumulates something wrong that later
+turns build on. These are **different failures** and they need different
+remedies, because the sound and the reasoning can each be bad independently:
+
+|  | **keep the chain** | **revert the chain** |
+|---|---|---|
+| **keep the ledger** | — | **Rewind** — undo the sound, keep the reasoning. "That last change was wrong, but you understood why." |
+| **prune the ledger** | **Amnesia** — keep the sound, forget how we got here. The context-poisoning fix. | **Reset** — back to session start. |
+
+**Amnesia is the one that matters and the one nobody builds.** When a model
+mis-diagnoses early and every later turn reasons from that finding, the *chain*
+may be perfectly good — it was corrected by ear along the way — while the
+*context* is poison. Throwing away the EQ to fix the conversation is the wrong
+trade; the user listened their way to that curve.
+
+**Every turn stores a checkpoint of the chain state before it** (bands, crossfeed,
+compensation strength). A dozen bands of JSON per turn — storage is irrelevant,
+and it buys three things:
+
+- **Rewind to turn N** without replaying anything.
+- **Metric redefinition with a recomputed history.** A badly-defined coined
+  metric can be redefined and its whole series recomputed over the stored
+  checkpoints, so the panel stays comparable instead of showing a discontinuity.
+  This is only possible because the checkpoints exist.
+- **Forensics** — the export shows what the chain looked like when each decision
+  was made.
+
+Three rules govern all of it:
+
+- **Revert stages, it never applies** (D12). A rewind puts the checkpoint into
+  the staging buffer and the user presses Apply, exactly like any other change.
+  Anything else is a second write lane past the Apply gate.
+- **Pruning marks, it never deletes** (D13). Excluded turns stop being sent as
+  context and stay in the export, flagged. If you are studying why a model went
+  off the rails, deleting the evidence is precisely wrong.
+- **Metric definitions outlive the context window.** The ledger is sent bounded
+  (last N turns), so a poisoned turn older than N is already out of context while
+  its coined metrics are still steering every answer. Pruning must reach metric
+  definitions separately from turns, or amnesia silently fails to work.
+
 ---
 
 ## 2. Verified findings
@@ -432,6 +474,10 @@ Recorded so they are not relitigated.
 | D9 | **The metric panel is session state.** Model-coined metrics carry a definition, an origin turn, and a series; every answer reports the whole panel | Per F8 — `v_db` decided an unrelated turn two steps after it was coined. Reporting only the targeted metric makes side effects undetectable |
 | D10 | **`lib/dsp.js` is the reference implementation; the Python port follows it**, pinned by a committed fixture | The plots are what the user has been trusting, so the curve they see is authoritative. Two implementations of RBJ that drift silently would have the model optimising against a curve nobody sees |
 | D11 | The evaluation loop runs **server-side** | The token lives there, and blocking a multi-iteration loop on a round-trip to a browser tab that may have closed is fragile |
+| D12 | **Revert stages, it never applies.** A rewind lands a stored checkpoint in the staging buffer and waits for Apply | Anything else is a second write lane past the Apply gate, which is the one invariant the whole feature is built on |
+| D13 | **Pruning marks, it never deletes.** Excluded turns leave the context window and stay in the export, flagged | Same rule as Discard. A session that went wrong is the most valuable thing to study; deleting the evidence to tidy it is backwards |
+| D14 | **Every turn stores a pre-turn chain checkpoint** | Cheap (a dozen bands of JSON), and it is what makes rewind-to-N, metric-redefinition-with-recomputed-history, and forensics all possible at once |
+| D15 | **The tool loop is capped per turn** and aborts with a stock message | An unbounded loop is a cost, latency and runaway hazard; a turn that cannot converge inside the cap is itself a signal worth surfacing |
 
 ---
 
@@ -490,15 +536,34 @@ as guidance rather than as a limit.
 Feature-enabled flag rides `/api/metadata`; the token never leaves the process.
 `GET /api/ai/models` proxies the endpoint's model list with a configured
 fallback. `hqptuner/ai/ledger.py` persists to `state/` (already a compose
-volume): turn id, timestamp, complaint, model, prompt version, validated
-response, resulting diff, status (`staged` / `applied` / `discarded`). Discard
-marks rather than deletes — needs a hook off `POST /api/discard`.
+volume): turn id, timestamp, complaint, model, prompt version, validated answer,
+resulting diff, status (`staged` / `applied` / `discarded` / `excluded`), **the
+pre-turn chain checkpoint** (D14), and the metric panel snapshot.
+
+`hqptuner/ai/session.py` — the lifecycle operations (§1):
+
+| route | effect |
+|---|---|
+| `POST /api/ai/session/rewind` `{to_turn}` | stages that turn's checkpoint; ledger untouched (D12) |
+| `POST /api/ai/session/prune` `{from_turn}` or `{turn_ids}` | marks turns `excluded`; chain untouched (D13) |
+| `POST /api/ai/session/reset` | both — stages the session-start checkpoint, excludes every turn |
+| `DELETE /api/ai/session/metric/{name}` | drops a coined metric from the panel |
+| `PUT /api/ai/session/metric/{name}` | redefines it and **recomputes its whole series** over the stored checkpoints |
+
+Turn 0 is written at session start so "revert to before any of this" is a rewind
+like any other, not a special case. Discard keeps its existing hook off
+`POST /api/discard`.
 
 **Depends:** none.
 **Accept:** token unset → `/api/metadata` reports disabled and every `/api/ai/*`
 route 404s; token set → model list served; ledger survives a process restart; no
 browser-served payload contains the token; Discard marks turns rather than
-removing them.
+removing them; a rewind stages and does not apply (the daemon is untouched until
+Apply); a prune leaves the chain byte-identical; an excluded turn is absent from
+assembled context and present in the export with its flag; a redefined metric's
+series is recomputed across every checkpoint rather than left discontinuous; a
+prune that removes the origin turn of a coined metric also removes that metric
+from the panel, or amnesia silently fails.
 
 ### P2b · Response-evaluation tool — the loop's one instrument
 
@@ -524,11 +589,19 @@ Named-band arithmetic (`mud_200_400`, `oomph_80_160`, `v_db`) is expressed as
 data so a model-coined metric (D9) is stored and replayed rather than recomputed
 from prose.
 
+**The loop is capped** (D15). A per-turn ceiling on `evaluate_chain` calls, with
+the turn aborting on a stock message rather than running away. A turn that cannot
+converge inside the cap is itself worth surfacing — it usually means the
+complaint was ambiguous and should have been a `clarify`. The cap is
+configuration, not a constant, and P5 reports observed iteration counts (which is
+how the ceiling gets set from data rather than guessed).
+
 **Depends:** P2.
 **Accept:** Python matches the JS fixture within 0.01 dB across every case;
 evaluating a candidate leaves no staged state and touches no daemon; a
 model-coined metric definition round-trips through storage and reproduces its
-value; band averages and spread match hand-computed values for a known chain.
+value; band averages and spread match hand-computed values for a known chain; a
+loop exceeding the cap aborts with the stock message and stages nothing.
 
 ### P3 · Prompt assets, versioned as a unit
 
@@ -800,7 +873,28 @@ feedback loop.
    remedy, since that is the surface where a regression becomes visible.
 
 The panel persists across turns as its own strip, so drift over a long session is
-readable at a glance rather than by scrubbing history.
+readable at a glance rather than by scrubbing history. Each metric carries a
+remove and a redefine affordance; redefining recomputes the series (P2) rather
+than starting a new one.
+
+**Lifecycle controls, and the history as a context inspector.** The session
+history is where §1's four operations surface:
+
+- **Per turn** — "rewind to before this" stages that turn's checkpoint. It is a
+  staged change like any other: the pending bar counts it, Discard undoes it, and
+  nothing reaches the daemon until Apply (D12).
+- **Session level** — *Forget context* (amnesia) and *Start over* (reset). Both
+  name what they keep, not just what they destroy: "keep the sound, forget how we
+  got here" is the whole point of the first and it has to read that way, or
+  nobody will use it and they will reset instead.
+- **Excluded turns stay visible**, struck through rather than removed (D13), with
+  an un-exclude. Vanishing them would hide the thing the user just did.
+
+The history therefore doubles as a **context inspector**: it must show which
+turns are actually in the model's window, since the ledger is sent bounded. Turns
+that have fallen out of the window naturally and turns pruned deliberately look
+different but are both marked. This is the surface that answers "why does it keep
+making that mistake" — the answer is usually visible here.
 
 **Prose is rendered only from a field that sits beside its numbers** (D8). There
 is no code path that renders a model string on its own — a diagnosis without its
@@ -820,7 +914,10 @@ selecting a different model changes the shown examples; every shown example
 appears in `cases.json` at a tier that model passed; clicking one populates the
 input; a turn renders all four parts with alternatives collapsed by default; the
 metric panel shows before/after for every standing metric, not only the targeted
-one; a `side_effect` renders with its remedy; **no code path renders a model
+one; a `side_effect` renders with its remedy; a per-turn rewind stages and counts
+in the pending bar rather than applying; an excluded turn renders struck through
+with an un-exclude rather than disappearing; the history distinguishes turns
+inside the model's context window from those outside it; **no code path renders a model
 string that is not a field of an object carrying numbers** (D8); the binding
 design-system criteria at 1280 (nothing clips or overlaps, both tracks filled or
 deliberately spanned, right edge flush with the container, no unnameable
