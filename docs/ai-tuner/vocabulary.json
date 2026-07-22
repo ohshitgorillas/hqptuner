@@ -1,0 +1,1242 @@
+{
+  "_meta": {
+    "name": "HQPTuner AI Sound Tuner — listening-complaint vocabulary map",
+    "version": "1.0.0+corrections.2026-07-22",
+    "compiled": "2026-07-22",
+    "purpose": "Concatenated into the AI Sound Tuner system prompt. Translates a plain-language listening complaint into a bounded, structured parameter diff. Companion documents: SOURCES.md (citations and disagreements), PRIMER.md (feature contract).",
+    "use_case": "A finished stereo master, reproduced on headphones, already corrected toward the Harman target by an AutoEq baseline. Every range below is calibrated for that context, NOT for mixing individual multitrack elements on loudspeakers.",
+    "direction_convention": "`direction` is what to do TO THE NAMED REGION to SATISFY THE USER. It is never 'what the word means'. If the user says 'it's too boomy', the boomy entry's direction is `cut`, because cutting 60-150 Hz relieves boominess. If the user says 'I want it warmer', the warm entry's direction is `boost`, because boosting 100-300 Hz delivers warmth. Read `named_quality` to know which reading the entry is written for.",
+    "named_quality_field": {
+      "unwanted": "The term names something the user is complaining about. The stored `direction` counteracts it.",
+      "wanted": "The term names something the user is asking for more of. The stored `direction` delivers it.",
+      "polarity_inversion_rule": "Users invert freely ('not bright enough', 'could use less warmth', 'less laid-back'). When the sentence inverts the stored polarity, INVERT `direction` and keep `region_hz`, `typical_q` and the magnitude of `typical_gain_db` unchanged. Do not look for a different entry."
+    },
+    "entry_schema": {
+      "term": "canonical lookup key",
+      "aliases": "other surface forms the user may type; match case-insensitively on substrings and simple morphology",
+      "region_hz": "[low, high] in Hz. The band the filter should act on. Centre frequency defaults to the geometric mean of the pair unless `suggested_fc_hz` is present.",
+      "suggested_fc_hz": "optional explicit centre/corner frequency to emit, overriding the geometric mean",
+      "suggested_type": "iir stage type to emit: peak | lshelf | hshelf",
+      "direction": "boost | cut — see direction_convention",
+      "definition": "one-line plain-language definition",
+      "typical_gain_db": "signed magnitude for ONE turn's adjustment. Positive means boost, negative means cut; sign already agrees with `direction`.",
+      "typical_q": "Q to emit. Shelves are always emitted at Q 0.7 regardless of this field.",
+      "named_quality": "unwanted | wanted",
+      "sources": "keys into the `sources` block below",
+      "confidence": "high | medium | low",
+      "notes": "one line naming any source disagreement or usage caveat"
+    },
+    "clamps": {
+      "eq_gain_db_hard": [
+        -12.0,
+        12.0
+      ],
+      "eq_gain_db_per_turn_soft": [
+        -6.0,
+        6.0
+      ],
+      "eq_q_hard": [
+        0.18,
+        6.0
+      ],
+      "eq_q_voicing_preferred": [
+        0.5,
+        1.6
+      ],
+      "eq_q_narrowband_max": 4.0,
+      "eq_fc_hz_hard": [
+        20.0,
+        20000.0
+      ],
+      "shelf_q_fixed": 0.7,
+      "crossfeed_level_db": [
+        1.0,
+        15.0
+      ],
+      "crossfeed_frequency_hz": [
+        300.0,
+        2000.0
+      ],
+      "crossfeed_compensation_strength_pct": [
+        0.0,
+        150.0
+      ],
+      "ENFORCEMENT": "Only three things are enforced: VALIDITY (type in peak/lshelf/hshelf, crossfeed bounds read from the live /matrix form, strength 0-150, the response union), CORRECTNESS (headroom recompute and compensation rebuild -- both derived by the CLIENT, never emitted by the model), and POLICY (eq_gain_db_per_turn_soft, +/-6 dB, the only policy clamp; there is NO absolute gain ceiling). Every other value in this object is GUIDANCE the model applies by judgment and the user corrects in plain language. eq_q_hard / eq_q_voicing_preferred / eq_q_narrowband_max / shelf_q_fixed are starting points, NOT limits: Q is deliberately unclamped because a real session's root fault was a band at Q 0.26 eating 200-800 Hz and the fix was Q 0.70, a factor of nearly three that any safe-feeling bound would have blocked. Taste is measured in the eval, never enforced in the validator.",
+      "clamp_provenance": "eq gain hard bound matches AutoEq DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0 and both graphic-EQ configs. eq_q_hard matches AutoEq DEFAULT_PEAKING_FILTER_MIN_Q 0.18248 / MAX_Q 6.0. shelf_q_fixed matches AutoEq DEFAULT_SHELF_FILTER_MAX_Q 0.7 and every shipped oratory1990 shelf. crossfeed bounds are libbs2b BS2B_MINFCUT/MAXFCUT = 300/2000 Hz and BS2B_MINFEED/MAXFEED = 10/150 (dB x 10) = 1.0/15.0 dB. See SOURCES.md sections 1.1 and 3.1.",
+      "band_scope": "All existing bands are amendable, AutoEq imports included. There is no protected segment and no provenance metadata in the wire format."
+    },
+    "ruling_policy_for_conflicting_ranges": [
+      "1. Use case wins. Headphone-listening sources (Olive/Harman, AutoEq, oratory1990 preset data) outrank multitrack-mixing sources (Owsinski) where they conflict.",
+      "2. Perceptual definition sets the kind, practitioner data sets the number. ITU-R BS.2399 / the FORCE SenseLab Sound Wheel says whether a term means low-bass resonance or upper-bass resonance; Owsinski supplies the Hz. Where inconsistent, the Sound Wheel's ordering constraint is preserved and the Hz range moves to satisfy it.",
+      "3. Broader beats narrower (Toole). Given a choice, take the wide/low-Q reading. Under-correcting is recoverable next turn; a surgical notch on the wrong frequency is not.",
+      "4. Never exceed the AutoEq envelope, because AI bands stack on AutoEq bands in the same chain and share one headroom budget.",
+      "5. Confidence is recorded, not hidden. A `low` confidence term is a candidate for the `clarify` response branch rather than a confident diff."
+    ],
+    "conflict_pairs": [
+      {
+        "terms": [
+          "warm",
+          "muddy"
+        ],
+        "overlap_hz": [
+          200,
+          300
+        ],
+        "rule": "Same region, opposite polarity. Never emit both in one turn — they cancel. If the user's sentence contains both senses ('warm but not muddy'), emit ONE stage: a low shelf boost at 120 Hz plus a narrower cut at 300 Hz is acceptable only if the two centre frequencies differ by at least one octave."
+      },
+      {
+        "terms": [
+          "warm",
+          "thin"
+        ],
+        "rule": "Both resolve to a lower-mid/upper-bass boost. Emit one stage, not two."
+      },
+      {
+        "terms": [
+          "forward",
+          "recessed"
+        ],
+        "rule": "Same region, opposite polarity. Never both in one turn."
+      },
+      {
+        "terms": [
+          "forward",
+          "harsh",
+          "piercing",
+          "laid-back"
+        ],
+        "rule": "All act in 2-6 kHz. Collapse to at most two stages, and keep their centre frequencies at least 2/3 octave apart."
+      },
+      {
+        "terms": [
+          "bright",
+          "airy",
+          "dark",
+          "dull",
+          "veiled"
+        ],
+        "rule": "All resolve to a treble shelf. Emit at most ONE high shelf per turn; if the request mixes them ('darker but still airy'), emit a broad hshelf cut at 6 kHz plus at most one narrow peak, never two shelves."
+      },
+      {
+        "terms": [
+          "boomy",
+          "tubby",
+          "muddy",
+          "thick"
+        ],
+        "rule": "A descending ladder of the same low-frequency complaint at rising centre frequencies (60-150 / 150-300 / 200-400 / 150-350). Pick the single entry the user's wording best matches; do not stack three overlapping cuts."
+      }
+    ],
+    "eq_emission_rules": [
+      "Emit `peak` for banded complaints, `lshelf` for global bass requests, `hshelf` for global treble requests.",
+      "Prefer a shelf when the user's complaint is about a whole end of the spectrum ('too dark', 'needs more bass'); prefer a peak when a specific artefact is named ('honky', 'sibilant').",
+      "Default Q 0.7-1.0 for shelf-like and bass moves, 1.0-1.6 for midrange, and only exceed 2.0 for the explicitly narrowband entries (sibilant, shrill, piercing).",
+      "AMEND BEFORE YOU APPEND. Every band already in the chain is in scope, including AutoEq imported bands -- they are the primary instrument, not a protected baseline. If any existing band's centre frequency falls in the target region, or within half an octave of the target centre, amend that band's gain instead of appending a new one.",
+      "Append a new band ONLY when no existing band covers the target region. Overlapping bands sum, so appending next to an existing band makes the net curve progressively harder to reason about and is the main way a session degenerates into a mess.",
+      "Never delete a band. Setting its gain to 0 dB is the reversible equivalent and keeps the chain shape stable across turns.",
+      "One turn amends at most 2 bands and appends at most 1.",
+      "Any turn whose net result includes a positive gain must also emit a recomputed headroom value: preamp = -max(summed magnitude response of the ENTIRE chain), not -sum(positive gains) and not -max(single band). See PRIMER.md."
+    ],
+    "tonal_spatial_interaction": {
+      "principle": "Crossfeed is not a width-only control, but its tonal side effect runs OPPOSITE to the common intuition. In bs2b the mid (centre) path is normalised to 0 dB at DC and rolls off to -tilt at high frequency, where tilt = 20*log10(1 - gHi + gLo), gLo = 10^((-5*feed/6 - 3)/20) and gHi = 1 - 10^((feed/6 - 3)/20). Tilt depends ONLY on feed -- the crossover frequency does not enter it -- and it DECREASES as feed rises: 2.70 dB at feed 1.0, 1.81 dB at 4.5 (default), 1.53 dB at 6.0, 1.09 dB at 9.5, 0.92 dB at 15.0. The relationship is compressive: the entire 14 dB feed range moves tilt by only 1.78 dB, so a +/-1.5 dB feed nudge near the default changes tilt by about 0.3 dB. Verified numerically against the shipped implementation in lib/xfeed.js, and corroborated by the app's own UI copy, which states a 1-2.7 dB range.",
+      "rules": [
+        "RAISING crossfeed level makes the image narrower and more centred, and slightly REDUCES the centre treble tilt, so the centre reads marginally brighter than before.",
+        "LOWERING crossfeed level widens the image and slightly INCREASES the centre treble tilt, so the centre reads marginally duller than before.",
+        "Crossfeed frequency does NOT change the tilt magnitude. It moves the corner at which blending stops. It DOES change the compensation fit, which is seeded from the crossover, so a recompile is mandatory for frequency changes too.",
+        "ANY change to crossfeed_level or crossfeed_frequency in a turn MUST be accompanied in the same turn by a recompiled crossfeed-compensation block at the PRESERVED strength percentage. Omitting it trips the app's structural staleness check.",
+        "Do not 'fix' the crossfeed tonal side effect with a voicing EQ band. That is the compensation block's job and doing both double-corrects.",
+        "The tilt change from a typical spatial nudge is around 0.3 dB, broad and at or below the threshold of audibility. It matters for keeping compensation consistent, not as an audible consequence -- do not narrate it to the user as a tonal change.",
+        "SEPARATE EFFECT, NOT THE SAME THING: crossfeed also sums correlated low-frequency content between the channels, which can raise perceived bass weight. That is distinct from the mid-path treble tilt and is NOT what the compensation block corrects. Do not conflate the two.",
+        "If the user's complaint is tonal in the centre only ('vocals are dull but the sides are fine'), prefer adjusting crossfeed_compensation_strength over an EQ band, because EQ bands act on both mid and side content."
+      ],
+      "compensation_strength_semantics": {
+        "0": "compensation off — the raw bs2b centre tilt is audible",
+        "100": "exactly neutral centre — the fitted high-shelf pair inverts the tilt",
+        "above_100": "centre brighter than neutral; 150 is the ceiling",
+        "typical_step_per_turn_pct": 10.0
+      }
+    },
+    "sources": {
+      "itu-bs2399": "Report ITU-R BS.2399-0 (03/2017), Methods for selecting and describing attributes and terms in the preparation of subjective tests — reproduces the FORCE Technology / SenseLab Sound Wheel lexicon (Pedersen & Zacharov, AES 138, Paper 9310, 2015). Standards body. Gives definitions, NO frequencies.",
+      "olive-harman": "Olive, S. E., 'The Perception and Measurement of Headphone Sound Quality: What Do Listeners Prefer?', Acoustics Today 18(1), Spring 2022, pp. 58-65; and Harman 'How to Listen' listener training. Peer-reviewed-adjacent / primary author.",
+      "audio-commons": "AudioCommons (EU H2020) timbral models, Pearce, Brookes & Mason, Univ. of Surrey — Deliverable D5.8 and github.com/AudioCommons/timbral_models. Project deliverable + source code.",
+      "owsinski": "Owsinski, B., The Mixing Engineer's Handbook; frequency-band and 'magic frequencies' tables as republished by the author on bobbyowsinski.blogspot.com and bobbyowsinskiblog.com. Practitioner heuristic, mixing-oriented.",
+      "toole": "Toole, F. E., 'Loudspeakers and Rooms for Sound Reproduction — A Scientific Review', JAES 54(6), June 2006; citing Toole & Olive, JAES 36, pp.122-142 (1988). Peer-reviewed. Source of the broad-beats-narrow ruling.",
+      "autoeq": "Pasanen, J., AutoEq (MIT). autoeq/constants.py, autoeq/frequency_response.py. Primary source code. Authority for all EQ clamps.",
+      "oratory1990-data": "oratory1990 headphone EQ presets as vendored in AutoEq results/oratory1990/. Observed preset DATA only — his written reasoning was not reachable (Reddit blocked). Community/practitioner.",
+      "bs2b": "Mikhaylov, B., Bauer stereophonic-to-binaural DSP; bs2b.sourceforge.net and libbs2b 3.1.0 src/bs2b.h, src/bs2b.c. Primary source code. Authority for all crossfeed bounds and the centre-tilt algebra.",
+      "meier": "Meier, J., 'A DIY Headphone Amplifier With Natural Crossfeed', HeadWize (mirrored at headwizememorial.wordpress.com). Designer's primary writing.",
+      "binaural-lit": "Binaural/crossfeed perception background: ILD, ITD and inter-channel coherence as the dominant externalization cues, ITD/ILD dominant below ~1.5 kHz, low ICC producing greater spaciousness. Read via secondary summary only — see SOURCES.md 3.3."
+    },
+    "corrections": [
+      "2026-07-22: centre-tilt direction was inverted throughout. Tilt DECREASES as feed rises and is independent of crossover frequency. Corrected against lib/xfeed.js.",
+      "2026-07-22: AutoEq bands moved from untouchable to in-scope by user decision. The owned-segment premise and the max_ai_bands cap are withdrawn; amend-before-append replaces them."
+    ]
+  },
+  "tonal": [
+    {
+      "term": "boomy",
+      "aliases": [
+        "boom",
+        "boomy bass",
+        "bloated",
+        "one-note bass",
+        "barrel",
+        "too much boom",
+        "bass overhang"
+      ],
+      "region_hz": [
+        60,
+        150
+      ],
+      "suggested_fc_hz": 90,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "A prominent, resonant, one-note low bass that rings on and blurs the beat.",
+      "typical_gain_db": -3.0,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "audio-commons",
+        "owsinski",
+        "olive-harman"
+      ],
+      "confidence": "high",
+      "notes": "Owsinski puts 'boomy' at 240 Hz and Audio Commons' booming index gates below 280 Hz; the Sound Wheel calls boomy LOW-bass resonance and reserves upper bass for boxy. Ruling: 60-150 Hz for headphone listening; the 150-300 Hz sense is `tubby`."
+    },
+    {
+      "term": "muddy",
+      "aliases": [
+        "mud",
+        "muddy",
+        "murky",
+        "soupy",
+        "cloudy",
+        "no clarity down low",
+        "wooly"
+      ],
+      "region_hz": [
+        200,
+        400
+      ],
+      "suggested_fc_hz": 280,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "Excess lower-midrange energy that smears detail and makes everything blend together.",
+      "typical_gain_db": -3.0,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "Owsinski fuses this with warmth ('250 Hz = fullness or mud'); the Sound Wheel has no 'muddy' attribute and lists muddy only as the antonym of Clean. Overlaps `warm` by design — polarity disambiguates."
+    },
+    {
+      "term": "warm",
+      "aliases": [
+        "warmer",
+        "warmth",
+        "richer",
+        "fuller",
+        "more body",
+        "needs body",
+        "cosier",
+        "meatier"
+      ],
+      "region_hz": [
+        100,
+        300
+      ],
+      "suggested_fc_hz": 160,
+      "suggested_type": "lshelf",
+      "direction": "boost",
+      "definition": "Pleasant weight and body in the upper bass and lower midrange.",
+      "typical_gain_db": 2.0,
+      "typical_q": 0.7,
+      "named_quality": "wanted",
+      "sources": [
+        "audio-commons",
+        "owsinski",
+        "olive-harman"
+      ],
+      "confidence": "medium",
+      "notes": "Audio Commons defines warmth only qualitatively (sensation 'analogous to a physical increase in temperature') and gates it near a ~260 Hz fundamental; Owsinski's 'fullness' sits at 120-250 Hz. Same region as `muddy`, opposite polarity — never emit both."
+    },
+    {
+      "term": "thin",
+      "aliases": [
+        "anaemic",
+        "anemic",
+        "weedy",
+        "no weight",
+        "lightweight",
+        "no body",
+        "skinny",
+        "bass-light"
+      ],
+      "region_hz": [
+        80,
+        250
+      ],
+      "suggested_fc_hz": 140,
+      "suggested_type": "lshelf",
+      "direction": "boost",
+      "definition": "Lacking low-frequency weight, so the music sounds insubstantial.",
+      "typical_gain_db": 2.5,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "olive-harman",
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "Olive's segmentation found bass level is the dominant individual-preference axis (15% of listeners want 4-6 dB more bass), so a shelf here is the highest-yield move in the whole map."
+    },
+    {
+      "term": "boxy",
+      "aliases": [
+        "cardboard",
+        "in a box",
+        "boxed in",
+        "carton",
+        "hollow box"
+      ],
+      "region_hz": [
+        300,
+        600
+      ],
+      "suggested_fc_hz": 420,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "A small-enclosure colouration, as if the music were played inside a cardboard box.",
+      "typical_gain_db": -2.5,
+      "typical_q": 1.4,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "Sound Wheel defines boxy as 'resonances in the upper bass' with no Hz; Owsinski's nearest datum is kick-drum 'hollowness at 400 Hz'. Ruling 300-600 Hz satisfies both."
+    },
+    {
+      "term": "honky",
+      "aliases": [
+        "honk",
+        "horn-like",
+        "hornlike",
+        "megaphone",
+        "telephone",
+        "cupped hands",
+        "quacky"
+      ],
+      "region_hz": [
+        500,
+        1200
+      ],
+      "suggested_fc_hz": 750,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "A pinched, horn-like midrange prominence that makes voices sound cupped.",
+      "typical_gain_db": -3.0,
+      "typical_q": 1.4,
+      "named_quality": "unwanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "Owsinski: boosting 500 Hz-1 kHz 'makes instruments sound horn like'. The Sound Wheel's nearest attribute is Canny ('played in a can or tube'), which it locates in the midrange without Hz."
+    },
+    {
+      "term": "nasal",
+      "aliases": [
+        "nasally",
+        "pinched",
+        "through the nose",
+        "honky vocals",
+        "closed sound"
+      ],
+      "region_hz": [
+        800,
+        2000
+      ],
+      "suggested_fc_hz": 1250,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "A closed, pronounced midrange that makes voices sound as if sung through the nose.",
+      "typical_gain_db": -2.5,
+      "typical_q": 1.4,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski",
+        "olive-harman"
+      ],
+      "confidence": "high",
+      "notes": "Definition is the Sound Wheel's verbatim sense. Owsinski's '1-2 kHz boost makes them sound tinny' brackets the upper half; Olive records 'harsh and nasal colorations' for the free-field target."
+    },
+    {
+      "term": "harsh",
+      "aliases": [
+        "harshness",
+        "abrasive",
+        "grating",
+        "edgy",
+        "aggressive treble",
+        "raw",
+        "gritty"
+      ],
+      "region_hz": [
+        2500,
+        5000
+      ],
+      "suggested_fc_hz": 3500,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "An abrasive upper-midrange edge that makes sustained listening uncomfortable.",
+      "typical_gain_db": -3.0,
+      "typical_q": 1.4,
+      "named_quality": "unwanted",
+      "sources": [
+        "olive-harman",
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "Anchored on Harman's 2-4 kHz upper-midrange axis (Lorho reduced the diffuse-field target's 12 dB 3 kHz peak to 3 dB); Owsinski instead flags 3 kHz boost as fatiguing. Overlaps `forward` but is always a cut and always narrower."
+    },
+    {
+      "term": "sibilant",
+      "aliases": [
+        "sibilance",
+        "essy",
+        "ess",
+        "spitty",
+        "sss",
+        "hissy esses",
+        "de-ess"
+      ],
+      "region_hz": [
+        5000,
+        9000
+      ],
+      "suggested_fc_hz": 6700,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "Exaggerated s and t consonants that spit out of the vocal.",
+      "typical_gain_db": -3.0,
+      "typical_q": 2.5,
+      "named_quality": "unwanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "Owsinski gives 4-7 kHz in the voice table but attributes sibilance to his 6-16 kHz Brilliance band; de-esser practice is 5-9 kHz. Ruling 5-9 kHz. The one deliberately narrow entry — the Sound Wheel classes Shrill as an artefact, not a timbre, so narrow is correct here."
+    },
+    {
+      "term": "bright",
+      "aliases": [
+        "too bright",
+        "bright",
+        "hot treble",
+        "tizzy",
+        "glary",
+        "too much treble",
+        "splashy"
+      ],
+      "region_hz": [
+        6000,
+        16000
+      ],
+      "suggested_fc_hz": 6000,
+      "suggested_type": "hshelf",
+      "direction": "cut",
+      "definition": "Excessive treble energy relative to the rest of the spectrum.",
+      "typical_gain_db": -2.5,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "audio-commons",
+        "olive-harman"
+      ],
+      "confidence": "high",
+      "notes": "Sound Wheel's Dark-Bright axis: 'Bright: Excessive treble. Either loud treble or weak bass' — so a bright complaint can equally be answered by a bass boost; prefer the treble shelf unless the user also mentions bass."
+    },
+    {
+      "term": "dark",
+      "aliases": [
+        "too dark",
+        "closed in",
+        "no treble",
+        "shut in",
+        "blanket over it",
+        "murky top"
+      ],
+      "region_hz": [
+        6000,
+        16000
+      ],
+      "suggested_fc_hz": 6000,
+      "suggested_type": "hshelf",
+      "direction": "boost",
+      "definition": "Too little treble relative to the rest of the spectrum.",
+      "typical_gain_db": 2.5,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "olive-harman"
+      ],
+      "confidence": "high",
+      "notes": "Sound Wheel: 'Dark: Excessive bass. Either loud bass or weak treble.' Symmetric with `bright`; the same caveat about answering with the opposite end applies."
+    },
+    {
+      "term": "dull",
+      "aliases": [
+        "lifeless",
+        "blunted",
+        "muffled",
+        "flat sounding",
+        "no sparkle",
+        "blunt"
+      ],
+      "region_hz": [
+        4000,
+        10000
+      ],
+      "suggested_fc_hz": 6300,
+      "suggested_type": "hshelf",
+      "direction": "boost",
+      "definition": "Blunted transients and missing high-frequency detail; the music sounds inert.",
+      "typical_gain_db": 2.0,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "olive-harman"
+      ],
+      "confidence": "medium",
+      "notes": "Genuine disagreement: the Sound Wheel places 'muffled, blurred or dull' at the low end of Brilliance (treble), but Olive's trained listeners called the Lorho target 'muffled and dull' for lacking 2-4 kHz. Ruling: treble shelf primary; if the user also says 'distant' or 'no presence', treat as `recessed` instead."
+    },
+    {
+      "term": "veiled",
+      "aliases": [
+        "veil",
+        "behind a curtain",
+        "covered",
+        "cloth over the drivers",
+        "obscured",
+        "not transparent"
+      ],
+      "region_hz": [
+        4000,
+        12000
+      ],
+      "suggested_fc_hz": 7000,
+      "suggested_type": "hshelf",
+      "direction": "boost",
+      "definition": "As if a light cloth sits over the drivers — detail is present but attenuated and unclear.",
+      "typical_gain_db": 2.0,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "Sound Wheel's Treble strength weak pole is 'Covered, unsharp', which is the closest defined anchor; no source supplies a frequency for 'veiled' specifically. Nearly synonymous with `dull` — do not emit both."
+    },
+    {
+      "term": "shrill",
+      "aliases": [
+        "screechy",
+        "screeching",
+        "ear-splitting",
+        "shrieky",
+        "razor treble"
+      ],
+      "region_hz": [
+        4000,
+        8000
+      ],
+      "suggested_fc_hz": 5600,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "Painfully sharp treble on s-sounds and cymbals, at the edge of distortion.",
+      "typical_gain_db": -3.5,
+      "typical_q": 2.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski"
+      ],
+      "confidence": "high",
+      "notes": "Sound Wheel classes Shrill under Artefacts, not Timbre: 'Treble Distortion. Very sharp s-sounds, cymbals etc.' That artefact classification is why a narrower Q than the voicing default is justified here."
+    },
+    {
+      "term": "thick",
+      "aliases": [
+        "heavy",
+        "stodgy",
+        "sluggish",
+        "congested low end",
+        "syrupy",
+        "too dense"
+      ],
+      "region_hz": [
+        150,
+        350
+      ],
+      "suggested_fc_hz": 230,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "Excess density in the upper bass that slows the music down.",
+      "typical_gain_db": -2.5,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "Sits between `tubby` and `muddy` with no source drawing a hard boundary between the three. If the user's wording is ambiguous, prefer `muddy` (higher confidence) and do not stack."
+    },
+    {
+      "term": "hollow",
+      "aliases": [
+        "scooped mids",
+        "phasey",
+        "missing middle",
+        "gutted",
+        "no midrange"
+      ],
+      "region_hz": [
+        400,
+        1000
+      ],
+      "suggested_fc_hz": 630,
+      "suggested_type": "peak",
+      "direction": "boost",
+      "definition": "A midrange dip that leaves a gap between the bass and the treble.",
+      "typical_gain_db": 2.0,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "Conflict: the Sound Wheel uses 'hollow' inside its definition of Boxy (an upper-BASS resonance, i.e. a boost). Ruling: `hollow` owns the midrange-deficit sense and `boxy` owns the upper-bass-resonance sense, because that is how headphone listeners use the two words. The Sound Wheel's Homogeneous attribute ('gaps between the tone ranges') is the better formal anchor for `hollow`."
+    },
+    {
+      "term": "congested",
+      "aliases": [
+        "cluttered",
+        "smeared",
+        "no separation",
+        "everything on top of each other",
+        "crowded"
+      ],
+      "region_hz": [
+        200,
+        500
+      ],
+      "suggested_fc_hz": 320,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "Instruments run together with no space between them.",
+      "typical_gain_db": -2.5,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "Partly a spatial complaint. If the user says the congestion is 'in the middle' or 'in the centre', route to the SPATIAL entry `congested-centre` instead of adding an EQ band."
+    },
+    {
+      "term": "forward",
+      "aliases": [
+        "shouty",
+        "in your face",
+        "too close",
+        "pushy",
+        "aggressive mids",
+        "shouting at me"
+      ],
+      "region_hz": [
+        2000,
+        5000
+      ],
+      "suggested_fc_hz": 3000,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "Voices and lead instruments pushed uncomfortably close to the listener.",
+      "typical_gain_db": -2.5,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "olive-harman",
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "Direct conflict: Owsinski's Presence band is 4-6 kHz ('boosting makes the music seem closer'), while Harman locates the forwardness problem at 2-4 kHz. Ruling: 2-5 kHz for the forward/recessed axis (headphone use case), 4-6 kHz retained separately as `present`."
+    },
+    {
+      "term": "recessed",
+      "aliases": [
+        "distant",
+        "vocals sound distant",
+        "buried",
+        "set back",
+        "far away",
+        "no presence",
+        "laid back vocals"
+      ],
+      "region_hz": [
+        2000,
+        5000
+      ],
+      "suggested_fc_hz": 3000,
+      "suggested_type": "peak",
+      "direction": "boost",
+      "definition": "Voices and lead instruments sound set back behind the rest of the mix.",
+      "typical_gain_db": 2.5,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "olive-harman",
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "Exact inverse of `forward`; same conflict and same ruling. Olive's listeners described the Lorho target's 2-4 kHz deficit as 'muffled and dull', confirming the region."
+    },
+    {
+      "term": "airy",
+      "aliases": [
+        "air",
+        "openness",
+        "sparkle",
+        "extension",
+        "breathy top",
+        "shimmer",
+        "more air"
+      ],
+      "region_hz": [
+        10000,
+        16000
+      ],
+      "suggested_fc_hz": 10000,
+      "suggested_type": "hshelf",
+      "direction": "boost",
+      "definition": "Open, spacious extension at the very top of the spectrum.",
+      "typical_gain_db": 2.0,
+      "typical_q": 0.7,
+      "named_quality": "wanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399",
+        "autoeq"
+      ],
+      "confidence": "high",
+      "notes": "Owsinski gives 10-15 kHz in the voice table and 16 kHz in the magic-frequency list. Ruling 10 kHz corner also matches AutoEq DEFAULT_TREBLE_BOOST_FC = 10000.0 and its shelf MAX_FC, so the stage is representable in the same grammar as an AutoEq shelf."
+    },
+    {
+      "term": "piercing",
+      "aliases": [
+        "stabbing",
+        "ice pick",
+        "painful highs",
+        "drilling",
+        "cuts right through"
+      ],
+      "region_hz": [
+        3000,
+        6000
+      ],
+      "suggested_fc_hz": 4200,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "A narrow, physically uncomfortable peak that stabs on loud passages.",
+      "typical_gain_db": -3.5,
+      "typical_q": 2.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "Owsinski's 'horns: piercing at 5 kHz' is the only direct anchor. Overlaps `harsh` and `shrill`; pick one. Narrow Q is justified only because the user named a stabbing, localised sensation."
+    },
+    {
+      "term": "tubby",
+      "aliases": [
+        "barrel",
+        "upper bass bloat",
+        "chesty",
+        "boxy bass",
+        "resonant bass"
+      ],
+      "region_hz": [
+        150,
+        300
+      ],
+      "suggested_fc_hz": 220,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "A hollow, resonant swell in the upper bass, like singing into a tube.",
+      "typical_gain_db": -3.0,
+      "typical_q": 1.0,
+      "named_quality": "unwanted",
+      "sources": [
+        "owsinski",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "This entry carries Owsinski's 240 Hz 'boomy' sense, which this map deliberately does NOT assign to `boomy` (see the boomy notes and SOURCES.md disagreement 1)."
+    },
+    {
+      "term": "scooped",
+      "aliases": [
+        "smiley face",
+        "v-shaped",
+        "mid-scooped",
+        "hollowed out",
+        "no mids"
+      ],
+      "region_hz": [
+        500,
+        2000
+      ],
+      "suggested_fc_hz": 1000,
+      "suggested_type": "peak",
+      "direction": "boost",
+      "definition": "A broad midrange dip with emphasised bass and treble either side.",
+      "typical_gain_db": 2.0,
+      "typical_q": 0.7,
+      "named_quality": "unwanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "The Sound Wheel's Homogeneous attribute is the formal anchor ('gaps between the tone ranges'). No source gives a scoop bandwidth; a broad low-Q boost is the Toole-conformant reading. If the user wants MORE scoop, invert per the polarity rule."
+    },
+    {
+      "term": "present",
+      "aliases": [
+        "presence",
+        "clarity",
+        "definition",
+        "closer",
+        "more upfront",
+        "cut through"
+      ],
+      "region_hz": [
+        4000,
+        6000
+      ],
+      "suggested_fc_hz": 4900,
+      "suggested_type": "peak",
+      "direction": "boost",
+      "definition": "Clarity and definition that brings voices and instruments closer to the listener.",
+      "typical_gain_db": 2.0,
+      "typical_q": 1.0,
+      "named_quality": "wanted",
+      "sources": [
+        "owsinski"
+      ],
+      "confidence": "medium",
+      "notes": "Owsinski's Presence band, kept because the WORD 'presence' is his and users use it his way. Distinct from `forward`/`recessed`, which sit an octave lower on Harman's upper-midrange axis. Positive gains here are the most headroom-expensive in the map — recompute the preamp."
+    },
+    {
+      "term": "laid-back",
+      "aliases": [
+        "laid back",
+        "relaxed",
+        "polite",
+        "easygoing",
+        "less fatiguing",
+        "gentler",
+        "smoother"
+      ],
+      "region_hz": [
+        2000,
+        5000
+      ],
+      "suggested_fc_hz": 3000,
+      "suggested_type": "peak",
+      "direction": "cut",
+      "definition": "An unhurried, non-aggressive presentation that is easy to listen to for long periods.",
+      "typical_gain_db": -2.0,
+      "typical_q": 1.0,
+      "named_quality": "wanted",
+      "sources": [
+        "olive-harman",
+        "toole"
+      ],
+      "confidence": "medium",
+      "notes": "Same region and mechanism as `forward` (cut), but framed as a request rather than a complaint. Toole's finding that repetition lowers detection thresholds for broad low-Q colourations is the reason a gentle 2 dB broad cut is the right size for a long-listening request."
+    }
+  ],
+  "spatial": [
+    {
+      "term": "in-head",
+      "aliases": [
+        "in my head",
+        "it's all in my head",
+        "inside my head",
+        "between my ears",
+        "not outside my head",
+        "no externalization",
+        "no externalisation"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "increase",
+      "typical_delta_db": 1.5,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "increase",
+        "typical_delta_hz": 50
+      },
+      "definition": "The whole performance is perceived inside the skull rather than out in front of the listener.",
+      "tonal_side_effect": "Raising feed slightly REDUCES the centre treble tilt (about 0.28 dB less at the default 4.5 dB), so the centre reads marginally brighter than before — not duller. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "meier",
+        "bs2b",
+        "binaural-lit",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "The Sound Wheel's Internality attribute names this percept ('Distinctly internal - Indistinct - Distinctly external'). Crossfeed reduces the super-stereo artefacts that force in-head localisation but CANNOT fully externalise without HRTF processing — do not promise externalisation, and cap the total move at +3 dB across a session."
+    },
+    {
+      "term": "too centred",
+      "aliases": [
+        "too centered",
+        "claustrophobic",
+        "mono-ish",
+        "monoish",
+        "everything in the middle",
+        "too mono",
+        "narrowed to the centre"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "decrease",
+      "typical_delta_db": -1.5,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "decrease",
+        "typical_delta_hz": -50
+      },
+      "definition": "The stereo image has pulled in toward a single point between the ears.",
+      "tonal_side_effect": "Lowering feed slightly INCREASES the centre treble tilt (about 0.34 dB more at the default), so the centre reads marginally duller. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "meier",
+        "bs2b",
+        "binaural-lit"
+      ],
+      "confidence": "high",
+      "notes": "Raising inter-channel coherence narrows and centres the image; lowering it restores spaciousness. Direct consequence of the bs2b blend, so the direction is not in dispute."
+    },
+    {
+      "term": "collapsed",
+      "aliases": [
+        "stage collapsed",
+        "squashed",
+        "flattened",
+        "imaging gone",
+        "no depth left",
+        "everything piled up"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "decrease",
+      "typical_delta_db": -2.0,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "decrease",
+        "typical_delta_hz": -100
+      },
+      "definition": "The soundstage has lost both width and depth and reads as a single flat plane.",
+      "tonal_side_effect": "Lowering feed increases the centre treble tilt by roughly 0.47 dB; the centre gets slightly duller, not brighter. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "meier",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "Usually a sign the crossfeed level is already high (jmeier's 9.5 dB collapses far more than the 4.5 dB default). Check the current level before moving; if it is already at or below 3 dB, prefer `clarify` — the complaint is probably not crossfeed."
+    },
+    {
+      "term": "narrow",
+      "aliases": [
+        "not wide enough",
+        "cramped",
+        "want more width",
+        "too narrow",
+        "want it wider",
+        "constricted"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "decrease",
+      "typical_delta_db": -1.5,
+      "secondary": null,
+      "definition": "The perceived left-to-right extent of the performance is smaller than desired.",
+      "tonal_side_effect": "Lowering feed increases the centre treble tilt by roughly 0.34 dB — a marginally duller centre. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "itu-bs2399",
+        "binaural-lit"
+      ],
+      "confidence": "high",
+      "notes": "Maps onto the Sound Wheel's Width attribute (Narrow - wide). Crossfeed cannot widen beyond the untreated signal: at feed = 1.0 dB the effect is nearly transparent and there is nothing further to give."
+    },
+    {
+      "term": "too wide",
+      "aliases": [
+        "over-wide",
+        "overwide",
+        "stretched",
+        "unnaturally wide",
+        "too spread out",
+        "exaggerated stereo"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "increase",
+      "typical_delta_db": 1.5,
+      "secondary": null,
+      "definition": "The stereo image extends past the sides of the head in a way that sounds artificial.",
+      "tonal_side_effect": "Raising feed reduces the centre treble tilt by roughly 0.28 dB; the centre reads marginally brighter. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "meier",
+        "itu-bs2399"
+      ],
+      "confidence": "high",
+      "notes": "This is the artefact crossfeed exists to fix — bs2b's stated purpose is removing the 'superstereo effect'."
+    },
+    {
+      "term": "blobby",
+      "aliases": [
+        "one big blob",
+        "smeared image",
+        "mushy imaging",
+        "everything blurred together spatially"
+      ],
+      "parameter": "crossfeed_frequency",
+      "direction": "decrease",
+      "typical_delta_hz": -100,
+      "secondary": {
+        "parameter": "crossfeed_level",
+        "direction": "decrease",
+        "typical_delta_db": -1.0
+      },
+      "definition": "Individual sources have no defined location; the image is one undifferentiated mass.",
+      "tonal_side_effect": "Crossover frequency does NOT change the tilt magnitude — tilt depends only on feed. Lowering it moves the corner where blending stops, narrowing the blended band. The compensation fit is seeded from the crossover, so the block still goes stale: Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "binaural-lit",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "Rationale: ITD/ILD localisation cues dominate below ~1.5 kHz, so blending that extends high into that band destroys them. Pulling fc down toward 300-500 Hz keeps the blend under the cues. Sound Wheel anchor: Localisability (Imprecise - Precise)."
+    },
+    {
+      "term": "diffuse",
+      "aliases": [
+        "washed out",
+        "vague",
+        "no anchor",
+        "hazy image",
+        "amorphous"
+      ],
+      "parameter": "crossfeed_frequency",
+      "direction": "decrease",
+      "typical_delta_hz": -100,
+      "secondary": null,
+      "definition": "Sources are spread out with no clear point of origin.",
+      "tonal_side_effect": "Crossover frequency does not change the tilt magnitude, only where the blend transition sits. The compensation fit still tracks the crossover, so Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "binaural-lit",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "Near-synonym of `blobby` and `unfocused`; pick one entry per turn. If the user also mentions reverb or 'roomy', the complaint is in the recording, not the crossfeed — deflect with `clarify`."
+    },
+    {
+      "term": "unfocused",
+      "aliases": [
+        "can't place instruments",
+        "cannot place instruments",
+        "wandering images",
+        "imprecise",
+        "no pinpoint imaging"
+      ],
+      "parameter": "crossfeed_frequency",
+      "direction": "decrease",
+      "typical_delta_hz": -150,
+      "secondary": {
+        "parameter": "crossfeed_level",
+        "direction": "decrease",
+        "typical_delta_db": -1.0
+      },
+      "definition": "The listener cannot confidently state where a source is or how large it is.",
+      "tonal_side_effect": "Crossover frequency does not change the tilt magnitude. The compensation fit is seeded from it regardless, so Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "itu-bs2399",
+        "bs2b",
+        "binaural-lit"
+      ],
+      "confidence": "medium",
+      "notes": "Sound Wheel's Localisability definition verbatim-ish: 'For a spatially imprecise sound the listener may be unable to identify the position (and extent) of the source'. The strongest single lever is fc, not level."
+    },
+    {
+      "term": "no soundstage",
+      "aliases": [
+        "dead stage",
+        "two speakers in my ears",
+        "flat stage",
+        "no stage at all",
+        "no space"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "decrease",
+      "typical_delta_db": -2.0,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "decrease",
+        "typical_delta_hz": -50
+      },
+      "definition": "No sense of a spatial scene at all; the two channels arrive as two separate feeds.",
+      "tonal_side_effect": "Lowering feed increases the centre treble tilt by roughly 0.47 dB — a slightly duller centre. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "meier",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "Ambiguous complaint — it can mean 'too much crossfeed' or 'this recording has no stage'. If crossfeed level is already at or below 3 dB, prefer `clarify` over a diff."
+    },
+    {
+      "term": "fatiguing",
+      "aliases": [
+        "hard-panned",
+        "hard panned",
+        "tiring",
+        "exhausting after an hour",
+        "bee in my ear",
+        "ear fatigue from panning",
+        "can't listen for long"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "increase",
+      "typical_delta_db": 2.0,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "increase",
+        "typical_delta_hz": 100
+      },
+      "definition": "Hard-panned material sits at one ear and becomes tiring over a long session.",
+      "tonal_side_effect": "Raising feed reduces the centre treble tilt by roughly 0.36 dB. The change is small and broad, at or below audibility on its own. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "meier",
+        "bs2b"
+      ],
+      "confidence": "high",
+      "notes": "Meier's founding case: 'some instruments are heard in one of the two audio channels only. This is most annoying, like a bee buzzing in one's ear.' If the fatigue is described as harshness or brightness rather than panning, it is a TONAL complaint — route to `harsh`."
+    },
+    {
+      "term": "ping-pong stereo",
+      "aliases": [
+        "ping pong",
+        "pingpong",
+        "bouncing channel to channel",
+        "extreme stereo",
+        "60s stereo",
+        "sixties stereo",
+        "drums hard left"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "increase",
+      "typical_delta_db": 2.5,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "increase",
+        "typical_delta_hz": 100
+      },
+      "definition": "Early-stereo production with whole instruments panned fully to one channel.",
+      "tonal_side_effect": "The largest spatial move in this map, and still only about 0.43 dB of tilt change — raising feed REDUCES tilt. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "meier",
+        "bs2b"
+      ],
+      "confidence": "high",
+      "notes": "The jmeier preset (650 Hz / 9.5 dB) exists precisely for this material; if the user asks repeatedly, converging toward 9.5 dB is legitimate rather than excessive."
+    },
+    {
+      "term": "congested-centre",
+      "aliases": [
+        "congested center",
+        "crowded middle",
+        "pile-up in the middle",
+        "cluttered centre",
+        "vocals and bass fighting in the middle"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "decrease",
+      "typical_delta_db": -1.5,
+      "secondary": {
+        "parameter": "crossfeed_compensation_strength",
+        "direction": "increase",
+        "typical_delta_pct": 10.0
+      },
+      "definition": "Centre-panned elements crowd each other while the sides stay clear.",
+      "tonal_side_effect": "Both spatial and tonal, and the two pull opposite ways: lowering feed relieves the centre pile-up but slightly INCREASES the centre treble tilt. Raise compensation strength to restore centre clarity without touching width. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "bs2b",
+        "meier",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "The one entry that legitimately moves two crossfeed-family parameters. Do NOT also add an EQ band here — compensation acts on the mid channel only, which is exactly what the user is complaining about, whereas an EQ band would act on mid and side alike."
+    },
+    {
+      "term": "externalized",
+      "aliases": [
+        "externalised",
+        "out of my head",
+        "outside my head",
+        "speaker-like",
+        "like speakers",
+        "in front of me",
+        "want it out front"
+      ],
+      "parameter": "crossfeed_level",
+      "direction": "increase",
+      "typical_delta_db": 1.5,
+      "secondary": {
+        "parameter": "crossfeed_frequency",
+        "direction": "increase",
+        "typical_delta_hz": 50
+      },
+      "definition": "The desired state in which the performance is perceived outside the head, in front of the listener.",
+      "tonal_side_effect": "Raising feed reduces the centre treble tilt by roughly 0.28 dB — marginally brighter centre. Recompile the compensation block at the preserved strength in the same turn.",
+      "sources": [
+        "meier",
+        "bs2b",
+        "binaural-lit",
+        "itu-bs2399"
+      ],
+      "confidence": "medium",
+      "notes": "A `wanted` term — the goal state, not a complaint; same handling as `in-head`. Honest limit: crossfeed alone reduces in-head artefacts but does not deliver true externalisation, which requires HRTF/BRIR convolution this feature cannot reach. If the user asks for full externalisation, prefer `clarify` and say what crossfeed can actually do."
+    }
+  ]
+}
