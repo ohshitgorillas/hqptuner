@@ -2707,8 +2707,13 @@ select.mtx-ch {
   flex-basis: calc(2 * var(--w-num));
 }
 .xfc-pct {
-  min-width: 3.5ch;
-  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.xfc-pct input {
+  width: var(--w-num);
+  min-width: 0;
 }
 .xfc-tilt {
   color: var(--fg-2);
