@@ -53,9 +53,8 @@ export function LoudnessCard() {
 
 export const Volume = () =>
   html`<${Section}>
-    <${PlaybackVolume} />
-    <${VolumeRangeBar} />
     <div class="card-grid">
+      <${PlaybackVolume} />
       <${Card} title="Fixed volume">
         <${Field} k="optimal_iso" />
         <${Field} k="fixed_volume_enabled" />
@@ -63,10 +62,13 @@ export const Volume = () =>
           <${Field} k="fixed_volume" />
         </div>
       <//>
-      <${Card} title="Automatic">
+    </div>
+    <${VolumeRangeBar} />
+    <${Card} title="Automatic">
+      <div class="pack">
         <${Field} k="adaptive_volume" />
         <${Field} k="playlist_album_gain" />
-      <//>
-    </div>
+      </div>
+    <//>
     <${LoudnessCard} />
   <//>`;
