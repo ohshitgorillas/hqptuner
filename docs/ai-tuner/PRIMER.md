@@ -58,6 +58,40 @@ Each metric stores a `definition` (band arithmetic as data), an `origin_turn`, a
 metric it was aiming at. That is the only way a side effect becomes detectable, and it makes
 "back off that last change" cheap because the numbers are already recorded.
 
+## Session recovery
+
+Models go off the rails and context gets poisoned. **The sound and the reasoning fail
+independently**, so there are four operations rather than one "clear session":
+
+|  | keep the chain | revert the chain |
+|---|---|---|
+| **keep the ledger** | — | **Rewind** — undo the sound, keep the reasoning |
+| **prune the ledger** | **Amnesia** — keep the sound, forget how we got here | **Reset** |
+
+**Amnesia is the important one.** When an early mis-diagnosis contaminates every later turn,
+the chain is often fine — the user corrected it by ear as they went — while the context is
+poison. Discarding a curve somebody listened their way to, in order to fix a conversation, is
+the wrong trade.
+
+Every turn stores a **pre-turn chain checkpoint**: bands, crossfeed, compensation strength.
+That is what makes rewind-to-any-turn instant, and it is also what lets a badly-coined metric
+be redefined with its whole series recomputed over history, so the panel stays comparable.
+
+Three rules:
+
+* **Revert stages, it never applies.** A rewind lands a checkpoint in the staging buffer and
+  waits for Apply, like every other change. Anything else is a write lane past the Apply gate.
+* **Pruning marks, it never deletes.** Excluded turns leave the context window, stay in the
+  export flagged, and stay visible struck through in the UI.
+* **Metric definitions outlive the context window.** The ledger is sent bounded, so a
+  poisoned turn older than the window is already out of context while its coined metrics
+  still steer every answer. Pruning must reach metric definitions separately from turns, or
+  amnesia will appear to work and will not.
+
+The tool loop is also **capped per turn**. A turn that cannot converge inside the cap aborts
+on a stock message and stages nothing — and is itself a signal, usually that the complaint
+was ambiguous and should have been a `clarify`.
+
 ## The three change types
 
 | # | Change | Parameter | Unit | Bounds |
