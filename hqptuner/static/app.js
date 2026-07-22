@@ -5,8 +5,10 @@ import { App } from "./components/App.js";
 import { startPolling } from "./store/state.js";
 import { initAccent } from "./store/theme.js";
 import { initFavicon } from "./store/favicon.js";
+import { initHealth } from "./store/health.js";
 
 initAccent();
 initFavicon();
+initHealth();
 startPolling();
 render(html`<${App} />`, document.getElementById("app"));

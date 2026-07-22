@@ -4,6 +4,7 @@
 import { html } from "../lib/dom.js";
 import { Header } from "./Header.js";
 import { SignalPath } from "./SignalPath.js";
+import { AlertStrip } from "./AlertStrip.js";
 import { TabBar, TabBody } from "./tabs/index.js";
 import { PendingBar } from "./PendingBar.js";
 import { reachable } from "../store/state.js";
@@ -14,6 +15,7 @@ export function App() {
       <div class="chrome-top">
         <${Header} />
         <${SignalPath} />
+        <${AlertStrip} />
         <${TabBar} />
       </div>
       <main><${TabBody} /></main>
