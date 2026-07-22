@@ -3,7 +3,8 @@
 import { computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
-import { health } from "../../store/state.js";
+import { health, engineStatus } from "../../store/state.js";
+import { trackCounters } from "../../store/health.js";
 import { HardwareCard, BackupRestoreRow } from "../SystemHardware.js";
 import { LogTail } from "../LogTail.js";
 import { Checkbox } from "../controls/index.js";
@@ -112,6 +113,48 @@ const LoggingCard = () =>
     <${LogTail} />
   <//>`;
 
+// Engine health — the always-visible home for the Status frame's health
+// numbers (the alert strip up top only appears when one crosses a threshold).
+// All values are playback-time readings, so idle shows dashes.
+const EngineHealth = () => {
+  const st = ((engineStatus.value || {}).status) || {};
+  const playing = Number(st.state) === 2;
+  const n = (v) => (playing && v != null && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
+  const speed = n(st.process_speed);
+  const fillRow = (label, v) => {
+    const f = n(v);
+    return html`
+      <div>
+        <dt>${label}</dt>
+        <dd>
+          ${f === null
+            ? "—"
+            : html`${Math.round(f * 100)}%<span class="meter"><span style="width: ${Math.round(f * 100)}%"></span></span>`}
+        </dd>
+      </div>
+    `;
+  };
+  const c = trackCounters.value;
+  const counterRow = (label, delta, total) => html`
+    <div>
+      <dt>${label}</dt>
+      <dd>${playing ? `${delta} this track (${n(total) ?? 0} total)` : "—"}</dd>
+    </div>
+  `;
+  return html`
+    <dl class="about">
+      <div>
+        <dt>Process speed</dt>
+        <dd>${speed === null ? "—" : `${speed.toFixed(2)}× realtime`}</dd>
+      </div>
+      ${fillRow("Input buffer", st.input_fill)}
+      ${fillRow("Output buffer", st.output_fill)}
+      ${counterRow("Clips", c.clips, st.clips)}
+      ${counterRow("Apodizing events", c.apod, st.apod)}
+    </dl>
+  `;
+};
+
 export const System = () =>
   html`<${Section}>
     <div class="card-grid">
@@ -121,6 +164,9 @@ export const System = () =>
       <//>
       <${Card} title="Metering">
         <${Field} k="pre_before_meter" />
+      <//>
+      <${Card} title="Engine health">
+        <${EngineHealth} />
       <//>
     </div>
     <${HardwareCard} />

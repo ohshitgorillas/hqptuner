@@ -251,6 +251,42 @@ body {
 .signal-path.live .link {
   background: var(--accent); /* signal flowing through the chain */
 }
+/* engine-health alert strip — warning row under the signal path; rendered only
+   while a condition is active, so healthy playback adds zero chrome. */
+.alert-strip {
+  display: flex;
+  flex-direction: column; /* one alert per line */
+  gap: var(--sp-1);
+  padding: 0.35rem 1rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.alert-warn {
+  color: var(--amber);
+}
+.alert-crit {
+  color: var(--red);
+}
+
+/* engine-health card — tiny inline buffer-fill meter next to the % readout */
+.meter {
+  display: inline-block;
+  width: 5rem;
+  height: 0.4rem;
+  margin-left: var(--sp-2);
+  vertical-align: middle;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 0.2rem;
+  overflow: hidden;
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
 /* output stage — the headline readout, the one accent focal point */
 .signal-path.live .chip-hero {
   border-color: var(--accent);
