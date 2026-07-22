@@ -133,7 +133,7 @@ AutoEq/REW profiles are measured and targeted for raw headphone drive. The Bauer
 
 ## Model (verified against libbs2b source)
 
-Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is an inference, flagged:** Signalyst does not publish internals, but the preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and the parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) match bs2b's constants and valid ranges exactly.
+Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is documented (upgraded from inference 2026-07-21):** the HQPlayer manual's third-party license list attributes bs2b verbatim (§11.8, "Copyright (c) 2005 Boris Mikhaylov", full MIT text) — HQPlayer embeds libbs2b. Corroborated independently by the preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and the parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) matching bs2b's constants and valid ranges exactly. Residual caveat: MIT permits modification, so a measurement-rig confirmation of the shipped curve remains the last word (open item).
 
 From `(fc, feed)`:
 
@@ -202,6 +202,6 @@ Control strip on the RESPONSE card, visible only when `post_bauer_enabled`; baue
 
 **Related fix shipped with this feature (user-reported, 2026-07-21): matrix-profile load preserves post-process.** The daemon's `/matrix/load` replaces the whole matrix context (probe finding above); that violated HQPTuner's "the settings you send are the settings you get back" contract. `matrixlane.profile_action("load")` now snapshots the form's `post_*` slice (wire-encoded, checkbox contract intact), re-applies it with a plain `POST /matrix` after the load settles, and readback-verifies past the post-reload transient (second ~3 s reload per load; fake models the daemon's clearing behavior; offline tests assert the preserved end state).
 
-Open items: bauer≡bs2b inference (flagged above); multichannel deferred; interaction with a hand-edited EQ chain inside a recognized block (recognition rules above must be exercised in tests).
+Open items: measurement-rig confirmation of the shipped bauer curve (bauer≡bs2b is manual-documented, §11.8 — see above — but MIT permits modification, so measuring closes it); multichannel deferred; interaction with a hand-edited EQ chain inside a recognized block (recognition rules above must be exercised in tests).
 
 **Client-code note:** 4321 responses arrive prefixed with the `<?xml?>` declaration — round-2's recv loop initially choked on it. HQPTuner's `control.py` already handles this; any new Matrix* helper must go through it, not a fresh socket reader.
