@@ -658,7 +658,7 @@ function CrossfeedCard() {
               <div class="dsp-body ${on ? "" : "off"}">
                 <div class="knob-cluster">
                   <${Field} k="crossfeed_frequency" />
-                  <span class="knob-divider" aria-hidden="true"></span>
+                  <span class="col-rule" aria-hidden="true"></span>
                   <${Field} k="crossfeed_level" />
                 </div>
                 <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (xfPlotOpen.value = !open)}>
