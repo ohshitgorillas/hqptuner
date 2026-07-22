@@ -2,7 +2,7 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
-## [Unreleased]
+## [0.4.0] — 2026-07-21
 
 ### Added
 
