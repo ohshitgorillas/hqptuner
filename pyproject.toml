@@ -1,6 +1,6 @@
 [project]
 name = "hqptuner"
-version = "0.3.2"
+version = "0.3.3"
 description = "Web configurator for HQPlayer Embedded — backend"
 requires-python = ">=3.12"
 dependencies = [
