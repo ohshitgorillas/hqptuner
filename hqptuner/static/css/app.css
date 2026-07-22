@@ -269,22 +269,145 @@ body {
   color: var(--red);
 }
 
-/* engine-health card — tiny inline buffer-fill meter next to the % readout */
-.meter {
-  display: inline-block;
-  width: 5rem;
-  height: 0.4rem;
-  margin-left: var(--sp-2);
-  vertical-align: middle;
+/* engine-health meter cluster — VU gauge (process speed) + buffer bar meters
+   + clip/apod counters, filling the full-width card. Idle dims the cluster
+   as a unit (same treatment as the idle signal path). */
+.eh-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+.eh-idle {
+  opacity: 0.45;
+}
+.vu {
+  width: 15rem;
+  text-align: center;
+}
+.vu svg {
+  width: 100%;
+  display: block;
+}
+.vu-zone-crit,
+.vu-zone-warn,
+.vu-zone-ok {
+  fill: none;
+  stroke-width: 5;
+}
+.vu-zone-crit {
+  stroke: var(--red);
+}
+.vu-zone-warn {
+  stroke: var(--amber);
+}
+.vu-zone-ok {
+  stroke: var(--line);
+}
+.vu-tick {
+  stroke: var(--fg-2);
+  stroke-width: 1;
+}
+.vu-label {
+  fill: var(--fg-2);
+  font-size: 9px;
+}
+.vu-needle {
+  stroke: var(--accent);
+  stroke-width: 2;
+  transition: transform 1s ease-out; /* damped sweep between the 2 s polls */
+}
+.vu-hub {
+  fill: var(--accent);
+}
+.vu-readout {
+  font-size: 1.1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.vu-caption {
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.eh-meters {
+  flex: 1 1 18rem;
+  min-width: 16rem;
+  display: grid;
+  gap: var(--sp-3);
+}
+.meter-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr var(--w-num);
+  align-items: center;
+  gap: var(--sp-2);
+}
+.meter-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.meter-lg {
+  position: relative;
+  display: block;
+  height: 0.8rem;
   background: var(--bg-3);
   border: 1px solid var(--line);
-  border-radius: 0.2rem;
+  border-radius: 0.25rem;
   overflow: hidden;
 }
-.meter > span {
+.meter-fill {
   display: block;
   height: 100%;
   background: var(--accent);
+  transition: width 1s ease-out;
+}
+.meter-lg.low .meter-fill {
+  background: var(--amber);
+}
+.meter-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+}
+.meter-val {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  color: var(--fg);
+  text-align: right;
+}
+.eh-counters {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 11rem;
+}
+.eh-counter {
+  display: grid;
+  gap: 0.1rem;
+}
+.eh-counter-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.eh-counter-val {
+  font-size: 1.1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.eh-counter.alert .eh-counter-val {
+  color: var(--amber);
+}
+.eh-counter-total {
+  font-size: 0.78rem;
+  color: var(--fg-2);
 }
 
 /* output stage — the headline readout, the one accent focal point */
