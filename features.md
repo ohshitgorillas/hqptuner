@@ -12,10 +12,4 @@ Startup vol is offset from its actual value/tickmark (which btw is unlabeled)
 tickmarks are nearly invisible
 -120 and +12 limits are jammed up against the sides of the card
 
-6. Integrator and SDM>SDM / Noise filter and SDM > PCM features should be stacked vertically (related) rather than horizontally and split by a divider.
-
-7. CUDA offload and CUDA devices should be stacked vertically (related), with Multicore DSP and E-core allocation on the other side. 
-
-8. Feature descriptions and Option descriptions should be vertically stacked, with Accent color off to the right.
-
-
+9. Now that Loudness belongs to the Volume tab, we should drop it :
