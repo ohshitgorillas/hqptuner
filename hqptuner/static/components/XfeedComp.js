@@ -60,12 +60,14 @@ function pairInfo(rows) {
 }
 
 const sliderDrag = signal(null); // % while the slider is being dragged
+const pendingPct = signal(null); // % chosen before any block exists — what Turn on uses
 export const lensOn = signal(false);
 
 function currentPct(rec) {
   const drag = sliderDrag.value;
   if (drag !== null) return drag;
-  return rec ? Math.round(rec.sFraction * 100) : 100;
+  if (rec) return Math.round(rec.sFraction * 100);
+  return pendingPct.value ?? 100;
 }
 
 function stageBlock(rows, eq, preampDb, pct, restFrom) {
@@ -162,7 +164,9 @@ export function XfeedStrip() {
   }
   const commit = (v) => {
     sliderDrag.value = null;
-    if (rec) stageBlock(rows, rec.eqProcess, rec.preampDb, v, 8);
+    const clamped = Math.max(0, Math.min(150, Math.round(v)));
+    if (rec) stageBlock(rows, rec.eqProcess, rec.preampDb, clamped, 8);
+    else pendingPct.value = clamped;
   };
   return html`
     <div class="xfc-strip">
@@ -177,7 +181,18 @@ export function XfeedStrip() {
         onInput=${(e) => (sliderDrag.value = Number(e.target.value))}
         onChange=${(e) => commit(Number(e.target.value))}
       />
-      <span class="xfc-pct mono">${pct}%</span>
+      <label class="xfc-pct">
+        <input
+          type="number"
+          min="0"
+          max="150"
+          step="1"
+          value=${pct}
+          disabled=${!rec && !!issue}
+          onChange=${(e) => commit(Number(e.target.value))}
+        />
+        <span>%</span>
+      </label>
       <span class="xfc-tilt" title="Bauer ${bs.fc} Hz / ${bs.feed} dB dulls centered sound by ${tilt.toFixed(2)} dB toward the treble (bs2b model)">
         crossfeed dulls the center by ${tilt.toFixed(1)} dB
       </span>
