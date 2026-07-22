@@ -265,6 +265,18 @@ function applyBauerCoupling(key, value, http) {
   }
 }
 
+// Fixed volume and Auto headroom (volume_fixed) are mutually exclusive fixed-
+// volume modes, and either one on bypasses the live volume control. Graying one
+// from the other is the trap that already shipped once: a grayed-but-nonzero
+// Auto headroom kept the volume control locked with no reachable control left to
+// clear it. So enabling either mode CLEARS the other, as a visible staged edit
+// in the same POST — the pending bar shows both moves, nothing happens silently.
+function applyFixedVolumeCoupling(key, value, http) {
+  const on = value === true || value === 1 || value === "1" || value === "on" || value === "true";
+  if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
+  else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
+}
+
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
@@ -276,6 +288,7 @@ export async function edit(key, value) {
     body.http[e.field] = String(value);
   }
   applyBauerCoupling(key, value, body.http);
+  applyFixedVolumeCoupling(key, value, body.http);
   // optimistic local merge so a knob release reflects instantly (no flicker to
   // baseline during the stage round-trip), then drop the live-drag override.
   staged.value = {

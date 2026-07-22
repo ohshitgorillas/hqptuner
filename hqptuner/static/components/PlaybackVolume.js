@@ -33,7 +33,7 @@ function disabledReason() {
     return `Direct SDM bypasses the volume control.${hint(pendingOff("direct_sdm"))}`;
   if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
     const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
-    return `Fixed volume in effect — turn off Fixed volume / Optimal ISO to adjust live.${hint(staged)}`;
+    return `Fixed volume in effect — turn off Fixed volume / Auto headroom to adjust live.${hint(staged)}`;
   }
   // volume min = max = 0 bypasses volume control completely (manual §4.2)
   if (Number(runningValue("volume_min")) === 0 && Number(runningValue("volume_max")) === 0) {

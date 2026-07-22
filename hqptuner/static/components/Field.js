@@ -120,8 +120,11 @@ export function Field({ k }) {
   const captionVisible = !!reason && !entry.quietGray;
   const title = entry.hoverNote ? hoverTip || reason : captionVisible ? hoverTip : reason || hoverTip;
   return html`
-    <div class="field field-${entry.widget} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}" title=${title}>
-      <label>${label}</label>
+    <div
+      class="field field-${entry.widget} ${entry.size === "lg" ? "field-lg" : ""} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}"
+      title=${title}
+    >
+      <label>${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}</label>
       <div class="control">
         <${W}
           value=${effective(k)}
