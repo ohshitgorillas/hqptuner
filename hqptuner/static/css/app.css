@@ -2743,6 +2743,17 @@ select.mtx-ch {
   flex: 1 1 20rem;
   min-width: 0;
 }
+/* axis unit labels — same size as tick labels, a step brighter so they read
+   as axis metadata rather than another tick */
+.plot-axis {
+  fill: var(--fg-2);
+}
+/* halo so right-aligned trace labels stay legible over curve tails */
+.plot-tlbl {
+  paint-order: stroke;
+  stroke: var(--bg-2);
+  stroke-width: 3px;
+}
 /* hairline between the crossfeed knobs */
 .knob-divider {
   align-self: stretch;

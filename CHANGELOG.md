@@ -10,6 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- All response plots now label their axes (dB / Hz, and ° on the phase scale), and trace labels right-align inside the frame with a background halo instead of clipping at the edge ("center, c…").
 - Loading a matrix profile no longer loses the post-process settings. HQPlayer's own `/matrix/load` replaces the whole matrix context — crossfeed, DAC correction, and loudness were silently cleared. HQPTuner now snapshots the post-process state before the load and re-applies it afterwards, verified by readback (at the cost of a second ~3 s engine reload per load).
 
 ### Changed

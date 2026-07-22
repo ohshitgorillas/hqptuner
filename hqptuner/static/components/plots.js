@@ -15,7 +15,7 @@ import { logFreqs, crossfeedMagDb, loudnessMagDb, shelfScale } from "../lib/dsp.
 const W = 640;
 const PADL = 34;
 const PADR = 52; // room for the right-edge trace labels
-const PADT = 10;
+const PADT = 16; // top band carries the y-axis unit labels
 const PADB = 20;
 const F0 = 20;
 const F1 = 20000;
@@ -81,6 +81,9 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
         ${FREQ_LABELS.map(
           (f) => html`<text class="plot-lbl" x=${xOf(f).toFixed(1)} y=${height - 6} text-anchor="middle">${fmtHz(f)}</text>`,
         )}
+        <text class="plot-lbl plot-axis" x=${PADL - 4} y="10" text-anchor="end">dB</text>
+        <text class="plot-lbl plot-axis" x=${(xOf(F1) + 14).toFixed(1)} y=${height - 6}>Hz</text>
+        ${y2Min !== undefined ? html`<text class="plot-lbl plot-axis" x=${W - PADR + 4} y="10">°</text>` : null}
         ${yMin < 0 && yMax > 0
           ? html`<line class="plot-zero" x1=${PADL} y1=${yOf(0).toFixed(1)} x2=${W - PADR} y2=${yOf(0).toFixed(1)} />`
           : null}
@@ -90,9 +93,11 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           // converge at the right edge so they never stack on top of each other
           const gap = 11;
           const maxY = PADT + plotH;
+          // right-aligned at the frame edge (long labels would clip the 52 px
+          // margin); the CSS halo keeps them legible over the curve tails
           const items = traces.map((t) => {
-            const [f, d] = t.points[t.points.length - 1];
-            return { x: xOf(f) + 4, y: scaleOf(t)(d), text: t.label, kind: t.kind };
+            const [, d] = t.points[t.points.length - 1];
+            return { x: W - 2, y: scaleOf(t)(d), text: t.label, kind: t.kind };
           });
           items.sort((a, b) => a.y - b.y);
           for (let i = 1; i < items.length; i += 1) {
@@ -103,7 +108,8 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
             if (items[i].y - items[i - 1].y < gap) items[i - 1].y = items[i].y - gap;
           }
           return items.map(
-            (it) => html`<text class="plot-tlbl ${it.kind}" x=${it.x.toFixed(1)} y=${it.y.toFixed(1)}>${it.text}</text>`,
+            (it) =>
+              html`<text class="plot-tlbl ${it.kind}" x=${it.x.toFixed(1)} y=${it.y.toFixed(1)} text-anchor="end">${it.text}</text>`,
           );
         })()}
         ${(handles || []).map(
