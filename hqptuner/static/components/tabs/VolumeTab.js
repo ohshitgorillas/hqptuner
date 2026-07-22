@@ -57,10 +57,10 @@ export const Volume = () =>
     <${VolumeRangeBar} />
     <div class="card-grid">
       <${Card} title="Fixed volume">
+        <${Field} k="optimal_iso" />
         <${Field} k="fixed_volume_enabled" />
         <div class="indent">
           <${Field} k="fixed_volume" />
-          <${Field} k="optimal_iso" />
         </div>
       <//>
       <${Card} title="Automatic">
