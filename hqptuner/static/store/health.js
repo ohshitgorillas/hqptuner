@@ -45,7 +45,8 @@ export function initHealth() {
     const next = {
       warn: playing && sp !== null && sp > 0 && sp < SPEED_WARN ? s.warn + 1 : 0,
       crit: playing && sp !== null && sp > 0 && sp < SPEED_CRIT ? s.crit + 1 : 0,
-      fill: playing && fill !== null && fill < FILL_LOW ? s.fill + 1 : 0,
+      // fill = -1 means "buffer doesn't apply" (observed live), not starvation
+      fill: playing && fill !== null && fill >= 0 && fill < FILL_LOW ? s.fill + 1 : 0,
     };
     if (next.warn !== s.warn || next.crit !== s.crit || next.fill !== s.fill) streak.value = next;
   });

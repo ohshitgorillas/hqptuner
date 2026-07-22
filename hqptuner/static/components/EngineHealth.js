@@ -98,6 +98,12 @@ export function EngineHealth() {
     const x = Number(v);
     return playing && v != null && v !== "" && Number.isFinite(x) ? x : null;
   };
+  // fills are 0.0–1.0, but the daemon reports -1 when a buffer doesn't apply
+  // (observed live: input_fill=-1 during NAA playback) — that's "n/a", not 0%.
+  const fill = (v) => {
+    const f = n(v);
+    return f === null || f < 0 ? null : Math.min(f, 1);
+  };
   const c = trackCounters.value;
   const clips = playing ? c.clips : null;
   const apod = playing ? c.apod : null;
@@ -105,8 +111,8 @@ export function EngineHealth() {
     <div class="eh-cluster ${playing ? "" : "eh-idle"}">
       <${VuGauge} speed=${n(st.process_speed)} />
       <div class="eh-meters">
-        <${Meter} label="Input buffer" frac=${n(st.input_fill)} />
-        <${Meter} label="Output buffer" frac=${n(st.output_fill)} />
+        <${Meter} label="Input buffer" frac=${fill(st.input_fill)} />
+        <${Meter} label="Output buffer" frac=${fill(st.output_fill)} />
       </div>
       <div class="eh-counters">
         <${Counter} label="Clips" delta=${clips} total=${n(st.clips)} alert=${!!clips} />

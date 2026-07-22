@@ -85,6 +85,9 @@ async function apply() {
 const manual = () => nblocks.value !== "0";
 // Device ids only bite when something is actually offloaded to a GPU.
 const cudaOff = () => cuda.value === "0";
+// Convolution-only mode offloads only convolution algorithms (manual, Advanced
+// tab): cuda_dev drives "filters and other DSP tasks", so it goes unused there.
+const convOnly = () => cuda.value === "convolution";
 
 export function HardwareCard() {
   useEffect(() => {
@@ -101,12 +104,12 @@ export function HardwareCard() {
         </div>
         <div class="field ${cudaOff() ? "off" : ""}"><label>CUDA devices</label>
           <div class="control cuda-devs">
-            <span class="cuda-dev">
+            <span class="cuda-dev ${convOnly() ? "off" : ""}">
               <span class="unit">DSP</span>
               <${NumberBox}
                 value=${cudaDev.value}
                 min=${-1}
-                disabled=${cudaOff()}
+                disabled=${cudaOff() || convOnly()}
                 onChange=${(v) => (cudaDev.value = String(v))}
               />
             </span>
@@ -121,6 +124,7 @@ export function HardwareCard() {
             </span>
             <span class="field-hint">−1 = automatic</span>
           </div>
+          ${convOnly() ? html`<div class="field-gray-reason">Convolution-only offload uses the convolution device only.</div>` : null}
           <${Note} k="cuda_devices" />
         </div>
         <div class="field"><label>Multicore DSP</label>
