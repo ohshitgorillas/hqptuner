@@ -11,6 +11,8 @@
 import { html } from "../lib/dom.js";
 import { engineStatus } from "../store/state.js";
 import { trackCounters } from "../store/health.js";
+import { quickSystemUpdates, setQuickSystemUpdates } from "../store/prefs.js";
+import { Checkbox } from "./controls/index.js";
 
 const TICKS = [0.5, 0.8, 1.0, 1.05, 1.2, 1.5, 2, 4];
 const A0 = -60;
@@ -119,5 +121,13 @@ export function EngineHealth() {
         <${Counter} label="Apodizing events" delta=${apod} total=${n(st.apod)} alert=${false} />
       </div>
     </div>
+    <label class="poll-quick inline-check">
+      <${Checkbox}
+        value=${quickSystemUpdates.value ? "1" : "0"}
+        onChange=${(v) => setQuickSystemUpdates(v === "1")}
+      />
+      Quick updates
+      <span class="poll-quick-note">refresh twice a second while this page is open</span>
+    </label>
   `;
 }

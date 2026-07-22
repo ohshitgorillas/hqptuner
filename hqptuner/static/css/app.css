@@ -1078,6 +1078,17 @@ input[type="checkbox"]:disabled {
   gap: 0.4rem;
   white-space: nowrap; /* keep "Set manually" on one line — no wrap crowding the status text */
 }
+/* per-page "quick updates" opt-in — a low-key footer row under a live card */
+.poll-quick {
+  margin-top: var(--sp-3);
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: normal;
+}
+.poll-quick-note {
+  color: var(--muted);
+  opacity: 0.8;
+}
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
   margin: 0.5rem 0 0;

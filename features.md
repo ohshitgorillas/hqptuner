@@ -10,9 +10,6 @@ a list of features and fixes the user has thought up while using HQPTuner
 
 4. Similar to 3, in Volume, have a checkbox under the master volume control "Faster volume updates" that bumps the sync rate to 0.5s on the volume page. 
 
-5. Adjust the readme to highlight the three flagship features: filter narrowing, headphone auto EQ integration, and (now) adjustable crossfeed EQ 
-compensation
-
 6. Let's incorporate my username somewhere not prominent. maybe a note in HQPTuner settings—by oh shit, gorillas!
 
 
