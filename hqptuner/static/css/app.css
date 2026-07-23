@@ -496,6 +496,18 @@ main {
   color: var(--fg);
   font-size: 0.9rem;
 }
+/* secondary line under a control's label — HQPlayer's own name for a control
+   HQPTuner renames for clarity, so anyone cross-referencing the daemon's page
+   or the manual still lands on the same setting. Prose weight (matches
+   .field-note), never label weight, so it reads as a gloss and not a second
+   control. */
+.label-alt {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--fg-2);
+  opacity: 0.8;
+}
 .control {
   display: flex;
   align-items: center;
@@ -664,6 +676,15 @@ main {
   background: var(--accent);
   color: #08121c;
   font-weight: 600;
+}
+/* schema `size: "lg"` — a control that selects an operating MODE rather than a
+   value gets a segment 1.1x the standard one, so it carries a little more weight
+   without shouting. Both numbers are the base segment's scaled by 1.1
+   (0.35/0.9rem padding; the 13.33px UA button default = 0.833rem type), not
+   free-chosen pixels. */
+.field-lg .segment .seg {
+  padding: 0.385rem 0.99rem;
+  font-size: 0.917rem;
 }
 .segment .seg:disabled {
   opacity: 0.4;
@@ -937,6 +958,7 @@ input[type="checkbox"]:disabled {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+  position: relative; /* anchors the centred two-column rule (see media query) */
 }
 @media (min-width: 1100px) {
   .pack {
@@ -959,10 +981,48 @@ input[type="checkbox"]:disabled {
     grid-column: 1 / -1;
   }
   /* a "split" pack draws a hairline between its two tracks (crossfeed
-     Enable | Preset) so the pair reads as two distinct controls. */
+     Enable | Preset) so the pair reads as two distinct controls. The border is
+     pulled back into the MIDDLE of the column gap: at a column edge it would sit
+     gap/2 off-centre and so miss the card centre line that every other in-card
+     rule uses (see the two-column divider rule in CLAUDE.md). Content is unmoved
+     — the negative margin and the padding cancel. */
   .pack.split > .field + .field {
     border-left: 1px solid var(--line);
-    padding-left: var(--sp-4);
+    margin-left: calc(var(--sp-4) / -2);
+    padding-left: calc(var(--sp-4) / 2);
+  }
+  /* Every two-track pack carries the centred hairline too (CLAUDE.md rule): one
+     full-height rule on the container's centre line, so it covers however many
+     rows the pack happens to have. .split is excluded — it already draws its own
+     centred border on the second field, and two rules would double up. */
+  .pack::before {
+    content: "";
+    position: absolute;
+    left: calc(50% - 0.5px);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--line);
+    pointer-events: none;
+  }
+  .pack.split::before {
+    content: none;
+  }
+  /* A full-span row is one control across both tracks — the rule must not strike
+     through it, so the row masks the line over its own height by painting its own
+     surface. Two surfaces exist: a card body (--bg-2) and the bare page (--bg). */
+  .pack > .span {
+    position: relative;
+    background: var(--bg);
+  }
+  .card .pack > .span {
+    background: var(--bg-2);
+  }
+  /* consecutive packs in one card are separate two-track groups (each draws its
+     own centred rule), so they need the same inter-field rhythm between them
+     that stacked rows get inside a pack. */
+  .pack + .pack {
+    margin-top: var(--sp-4);
   }
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
      (column-first over two rows) with the secondary control in the right track,
@@ -1041,7 +1101,13 @@ input[type="checkbox"]:disabled {
 .hw-status {
   color: var(--fg-2);
 }
-/* hierarchical controls nested under a parent toggle */
+/* hierarchical controls nested under a parent toggle. Inside a two-track .pack the
+   centred column rule is already the divider, so the nesting border would read as
+   a second line beside it (DAC correction) — there the indent is carried by the
+   margin alone. */
+.pack .indent {
+  border-left: none;
+}
 .indent {
   margin-left: 1.25rem;
   border-left: 2px solid var(--line);
@@ -1077,6 +1143,17 @@ input[type="checkbox"]:disabled {
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap; /* keep "Set manually" on one line — no wrap crowding the status text */
+}
+/* per-page "quick updates" opt-in — a low-key footer row under a live card */
+.poll-quick {
+  margin-top: var(--sp-3);
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: normal;
+}
+.poll-quick-note {
+  color: var(--muted);
+  opacity: 0.8;
 }
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
@@ -1425,6 +1502,33 @@ button:disabled {
   align-items: center;
   gap: 0.7rem;
 }
+/* Crossfeed / loudness knobs: the readout box sits BELOW the dial rather than to
+   the right of the slider, so the slider takes the freed horizontal width and the
+   trio fits a half-track cleanly. The large playback-volume dial (.knob-lg, no
+   slider) keeps the plain flex row. */
+.knob:not(.knob-lg) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "dial slider"
+    "readout slider";
+  align-items: center;
+  gap: 0.3rem 0.7rem;
+}
+.knob:not(.knob-lg) .knob-dial {
+  grid-area: dial;
+  /* the readout is wider than the dial and so sets the column width — centre the
+     dial in it too, or the dial reads as left-shifted above its own box */
+  justify-self: center;
+}
+.knob:not(.knob-lg) .knob-slider {
+  grid-area: slider;
+  align-self: center;
+}
+.knob:not(.knob-lg) .knob-readout {
+  grid-area: readout;
+  justify-self: center;
+}
 .knob-dial {
   width: 76px;
   height: 76px;
@@ -1481,6 +1585,10 @@ button:disabled {
   align-items: baseline;
   gap: 0.25rem;
   flex: 0 0 auto;
+  /* The unit ("Hz" / "dB") is taken out of flow (see .knob-unit) so this wrapper's
+     width is exactly the BOX. Centring the wrapper then centres the box under the
+     dial; with the unit in flow the box sat ~9px left (half the unit's width). */
+  position: relative;
 }
 /* .knob prefix raises specificity above the global input[type=text] width.
    --w-num keeps every readout box the same width as the plain number inputs. */
@@ -1492,7 +1600,7 @@ button:disabled {
   border: 1px solid var(--bg-3);
   border-radius: 4px;
   padding: 0.15rem 0.25rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 .knob-lg .knob-box {
   width: 4.4rem;
@@ -1501,6 +1609,14 @@ button:disabled {
 .knob-unit {
   font-size: 0.72rem;
   color: var(--muted);
+  /* out of flow, hanging to the right of the box — keeps it out of the readout's
+     width so the box alone is what gets centred under the dial */
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0.25rem;
+  white-space: nowrap;
 }
 /* knob field: small label on top, the trio row filling the width below */
 .field-knob {
@@ -1581,26 +1697,40 @@ button:disabled {
 .dsp-plot {
   width: 100%;
 }
-.knob-cluster {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-}
-.knob-cluster > .field {
-  flex: 1 1 260px;
-}
-/* loudness: bass / treble grouped side by side under their level knob */
+/* Two-column card splits (see CLAUDE.md): an explicit 1px rule TRACK puts the
+   hairline exactly on the card centre line, so every divider on the page lines
+   up. Narrow viewports collapse to one column and drop the rule. */
+.knob-cluster,
 .cluster-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
 }
+.col-rule {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .knob-cluster,
+  .cluster-row {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
+  .col-rule {
+    display: block;
+    align-self: stretch;
+    width: 1px;
+    background: var(--line);
+  }
+}
+/* No border-left here: the centred rule between the two tracks is the divider
+   (CLAUDE.md two-column rule). A per-cluster left border put a second line to the
+   left of BOTH Bass and Treble. */
 .cluster {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  border-left: 2px solid var(--line);
-  padding-left: 0.8rem;
 }
 .cluster-head {
   font-size: 0.78rem;
@@ -2705,6 +2835,9 @@ select.mtx-ch {
   flex: 0 1 var(--w-num);
   min-width: 0;
   flex-basis: calc(2 * var(--w-num));
+  /* bare range input — outside the `.slider` wrapper, so it needs the accent
+     tint explicitly or it renders in the browser's default blue */
+  accent-color: var(--accent);
 }
 .xfc-pct {
   display: inline-flex;
@@ -2731,16 +2864,22 @@ select.mtx-ch {
 /* comp card: controls left, mini correction plot right; single column when narrow */
 .xfc-cols {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--sp-4);
-  align-items: flex-start;
+}
+@media (min-width: 1100px) {
+  /* same centred 1px rule track as the other two-column cards */
+  .xfc-cols {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
 }
 .xfc-controls {
-  flex: 1 1 24rem;
   min-width: 0;
 }
 .xfc-mini {
-  flex: 1 1 20rem;
   min-width: 0;
 }
 /* axis unit labels — same size as tick labels, a step brighter so they read
@@ -2755,12 +2894,6 @@ select.mtx-ch {
   stroke-width: 3px;
 }
 /* hairline between the crossfeed knobs */
-.knob-divider {
-  align-self: stretch;
-  width: 1px;
-  background: var(--line);
-  margin: 0 var(--sp-3);
-}
 .xfc-badge {
   color: var(--fg-2);
   margin-bottom: var(--sp-2);

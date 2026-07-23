@@ -331,8 +331,8 @@
       "source": "manual §2.15/§4.2"
     },
     "optimal_iso": {
-      "label": "Optimal ISO level",
-      "tooltip": "Special fixed volume with an optimized level providing enough headroom for most typical inter-sample overs (ISO). Recommended when HQPlayer's digital volume control is not needed because an external volume control is used. -3 dB is the normal margin; -6 dB suits heavily clipped content where -3 dB doesn't give enough headroom.",
+      "label": "Auto headroom",
+      "tooltip": "Fixed output at a safety margin below full scale. Loud tracks can peak above 0 dBFS between samples after resampling, and the margin leaves room for those peaks instead of clipping them. Recommended when HQPlayer's own volume control is not needed because an external volume control is used. -3 dB is the normal margin; -6 dB suits heavily clipped content where -3 dB isn't enough.",
       "source": "manual §4.2, readme §1.3 (volume_fixed)"
     },
     "volume_max": {

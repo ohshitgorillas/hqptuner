@@ -4,17 +4,18 @@
 // volume. Everything else stays a dropdown or plain number box.
 //
 // Interaction (fixed contract, on the dial): VERTICAL drag adjusts (never
-// circular); Shift = fine; wheel steps; double-click resets to default; arrow
-// keys when focused (Shift fine, PageUp/Down coarse, Home/End to bounds). The
-// slider drags horizontally; the box is directly editable. All three reflect the
-// same value.
+// circular); Shift = fine; double-click resets to default; arrow keys when
+// focused (Shift fine, PageUp/Down coarse, Home/End to bounds). The slider drags
+// horizontally; the box is directly editable. All three reflect the same value.
+// The wheel is deliberately NOT bound (nor on the slider): scrolling the page
+// past a knob must never change its value.
 //
 // onLive(v) fires continuously during a drag (client-only, drives the plot with
-// no server hit); onCommit(v) fires on release / wheel / key / dbl-click / box
-// edit and persists through the store's optimistic edit.
+// no server hit); onCommit(v) fires on release / key / dbl-click / box edit and
+// persists through the store's optimistic edit.
 
 import { useRef, useEffect, useCallback } from "preact/hooks";
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 
 const num = (v, d = 0) => {
   const n = Number(v);
@@ -102,15 +103,6 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
     },
     [commit],
   );
-  const onWheel = useCallback(
-    (e) => {
-      if (disabled) return;
-      e.preventDefault();
-      const quantum = e.shiftKey ? fine : st;
-      commit(val + (e.deltaY < 0 ? quantum : -quantum));
-    },
-    [disabled, commit, val, st, fine],
-  );
   const onKeyDown = useCallback(
     (e) => {
       if (disabled) return;
@@ -145,7 +137,6 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
         onPointerDown=${onPointerDown}
         onPointerMove=${onPointerMove}
         onPointerUp=${onPointerUp}
-        onWheel=${onWheel}
         onKeyDown=${onKeyDown}
         onDblClick=${onDblClick}
       >
@@ -166,6 +157,7 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
             max=${hi}
             step=${st}
             disabled=${disabled}
+            onWheel=${wheelGuard}
             onInput=${(e) => live(snap(num(e.target.value, val), st))}
             onChange=${(e) => commit(num(e.target.value, val))}
           />`}

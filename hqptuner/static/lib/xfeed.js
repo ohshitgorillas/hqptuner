@@ -9,6 +9,12 @@
 // Compensation C = (1/R_M)^s is realized as two cascaded RBJ high-shelves
 // fitted numerically (reference-validated: fit <=0.031 dB at s=100%, linear
 // gain scaling <=0.046 dB over s=25..150%).
+//
+// The tilt is not an artifact of bs2b: Brown & Duda's structural head model at
+// +/-30 deg speaker azimuth gives a centre tilt of 1.80 dB, and bs2b's default
+// preset computes to 1.81 dB here. So compensation trades a loudspeaker-accurate
+// centre for a neutral one -- a tonal choice, not a bug fix. Independent of any
+// headphone EQ, which rides through untouched. See docs/crossfeed-math.md.
 
 export const BAUER_PRESETS = {
   default: { fc: 700, feed: 4.5 },
@@ -163,6 +169,23 @@ export function msCompile(eqProcess, preampDb, fit, s, srcA, srcB) {
     row(srcA, eqProcess, gm, srcB),
     row(srcB, eqProcess, gp, srcB),
   ];
+}
+
+// Route an EQ import INTO a recognized block instead of onto its individual rows.
+//
+// The block holds its EQ once, shared by all eight rows, and its gains are Lin
+// with the preamp folded in. Appending to a single row the way a plain pipeline
+// import does breaks both invariants at once: recognition dies on the first
+// gainunit check, and the touched rows end up carrying the EQ twice at a gain
+// meant for a dB row. Rows 1+2 are the left ear's centre path, so the damage is
+// a one-channel mid/side imbalance — silent, since the badge simply disappears.
+//
+// `addition` is the serialized new stages, `preamp` the profile's Preamp line as
+// a string (or null to keep the block's own). Returns the replacement rows.
+export function applyEqToBlock(rows, rec, fit, addition, preamp) {
+  const eqProcess = rec.eqProcess ? `${rec.eqProcess},${addition}` : addition;
+  const preampDb = preamp !== null && preamp !== undefined ? Number(preamp) : rec.preampDb;
+  return [...msCompile(eqProcess, preampDb, fit, rec.sFraction, 0, 1), ...rows.slice(8)];
 }
 
 // Recognize a compiled block at rows[at..at+7]. Purely structural — returns

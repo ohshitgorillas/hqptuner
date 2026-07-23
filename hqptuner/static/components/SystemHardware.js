@@ -21,6 +21,10 @@ const sysNote = (key) => {
   return (s && s[key] && s[key].tooltip) || "";
 };
 const Note = ({ k }) => (notesVisible.value && sysNote(k) ? html`<div class="field-note">${sysNote(k)}</div>` : null);
+// Hover tooltip for these hand-rolled fields (the Field component wires this
+// automatically; these live outside it). Mirrors Field: hover carries the prose
+// only when the inline note is hidden, so a visible note isn't duplicated.
+const hoverFor = (k) => (notesVisible.value ? "" : sysNote(k));
 
 const CUDA = [
   { value: "0", label: "Disabled" },
@@ -97,12 +101,15 @@ export function HardwareCard() {
     <section class="card">
       <div class="card-head">Hardware acceleration</div>
       <div class="card-body">
-        <div class="pack">
-        <div class="field"><label>CUDA offload</label>
+        <!-- chain: CUDA offload + its device ids stack in the LEFT track, the CPU
+             pair (Multicore DSP, E-core allocation) in the right, so each column
+             is one subsystem instead of splitting them by source order. -->
+        <div class="pack chain">
+        <div class="field" title=${hoverFor("cuda_offload")}><label>CUDA offload</label>
           <div class="control"><${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(v) => (cuda.value = v)} /></div>
           <${Note} k="cuda_offload" />
         </div>
-        <div class="field ${cudaOff() ? "off" : ""}"><label>CUDA devices</label>
+        <div class="field ${cudaOff() ? "off" : ""}" title=${hoverFor("cuda_devices")}><label>CUDA devices</label>
           <div class="control cuda-devs">
             <span class="cuda-dev ${convOnly() ? "off" : ""}">
               <span class="unit">DSP</span>
@@ -127,15 +134,18 @@ export function HardwareCard() {
           ${convOnly() ? html`<div class="field-gray-reason">Convolution-only offload uses the convolution device only.</div>` : null}
           <${Note} k="cuda_devices" />
         </div>
-        <div class="field"><label>Multicore DSP</label>
+        <div class="field" title=${hoverFor("multicore_dsp")}><label>Multicore DSP</label>
           <div class="control"><${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(v) => (multicore.value = v)} /></div>
           <${Note} k="multicore_dsp" />
         </div>
-        <div class="field"><label>E-core allocation</label>
+        <div class="field" title=${hoverFor("ecore_allocation")}><label>E-core allocation</label>
           <div class="control"><${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(v) => (ecores.value = v)} /></div>
           <${Note} k="ecore_allocation" />
         </div>
-        <div class="field span"><label>Blocks / cycle</label>
+        </div>
+        <!-- outside the chain pack: a full-span item in a column-flow grid has no
+             defined placement, so Blocks / cycle is a plain full-width row below. -->
+        <div class="field" title=${hoverFor("blocks_per_cycle")}><label>Blocks / cycle</label>
           <div class="control">
             <label class="inline-check">
               <${Checkbox} value=${manual()} onChange=${(v) => (nblocks.value = v === "1" ? "8" : "0")} />
@@ -146,7 +156,6 @@ export function HardwareCard() {
               : html`<span class="unit">Automatic — chosen from CPU cache size</span>`}
           </div>
           <${Note} k="blocks_per_cycle" />
-        </div>
         </div>
         <div class="hw-apply">
           <label class="hw-all"><${Checkbox} value=${allPresets.value} onChange=${(v) => (allPresets.value = v === "1")} /> Apply to all presets</label>

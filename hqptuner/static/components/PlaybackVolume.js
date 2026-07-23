@@ -13,7 +13,9 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { volume, volumeRange, setVolume, effective, runningValue } from "../store/state.js";
+import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
 import { Knob } from "./Knob.js";
+import { Checkbox } from "./controls/index.js";
 
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
@@ -31,7 +33,7 @@ function disabledReason() {
     return `Direct SDM bypasses the volume control.${hint(pendingOff("direct_sdm"))}`;
   if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
     const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
-    return `Fixed volume in effect — turn off Fixed volume / Optimal ISO to adjust live.${hint(staged)}`;
+    return `Fixed volume in effect — turn off Fixed volume / Auto headroom to adjust live.${hint(staged)}`;
   }
   // volume min = max = 0 bypasses volume control completely (manual §4.2)
   if (Number(runningValue("volume_min")) === 0 && Number(runningValue("volume_max")) === 0) {
@@ -101,6 +103,14 @@ export function PlaybackVolume() {
           onCommit=${onCommit}
         />
       </div>
+      <label class="poll-quick inline-check">
+        <${Checkbox}
+          value=${fastVolumeUpdates.value ? "1" : "0"}
+          onChange=${(v) => setFastVolumeUpdates(v === "1")}
+        />
+        Faster volume updates
+        <span class="poll-quick-note">refresh twice a second while this page is open</span>
+      </label>
       ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
     </section>
   `;

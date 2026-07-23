@@ -14,6 +14,8 @@ import { signal, computed } from "@preact/signals";
 
 const K_DESC = "hqptuner.showDescriptions";
 const K_KEEP = "hqptuner.keepOptionDescriptions";
+const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
+const K_FAST_VOL = "hqptuner.fastVolumeUpdates";
 
 function loadBool(key, dflt) {
   try {
@@ -43,6 +45,22 @@ export function setShowDescriptions(on) {
 export function setKeepOptionDescriptions(on) {
   keepOptionDescriptions.value = !!on;
   persist(K_KEEP, keepOptionDescriptions.value);
+}
+
+// Faster-poll opt-ins, per page. Off by default (the 2 s default is fine for
+// most use); a page's checkbox bumps its status poll to 500 ms while shown.
+// Consumed by store/ui.js (fastPollMs).
+export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
+export const fastVolumeUpdates = signal(loadBool(K_FAST_VOL, false));
+
+export function setQuickSystemUpdates(on) {
+  quickSystemUpdates.value = !!on;
+  persist(K_QUICK_SYS, quickSystemUpdates.value);
+}
+
+export function setFastVolumeUpdates(on) {
+  fastVolumeUpdates.value = !!on;
+  persist(K_FAST_VOL, fastVolumeUpdates.value);
 }
 
 // Static feature notes follow the master only.

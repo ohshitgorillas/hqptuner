@@ -115,11 +115,43 @@ Row count follows `channels` (2 on Opal). Source/mixdown selects span wire 0–1
 
 **Filter upload — mapped.** The daemon renames an upload to `impulse_<pipeline>-<n>.wav`, stores it under `/var/lib/hqplayer/home/`, and writes the **absolute path** into the pipeline's `process` attribute (the form shows the basename). The file also appears in `/backup/settings.zip` as `data/impulse_0-0.wav`, so **the restore lane can carry filter files as archive members** — upload does not require the form lane.
 
-**`/matrix/plot` — interstitial only.** The POST returns a "Success! Please wait 0 seconds…" refresh page (same pattern as Apply), no plot data, no image, no script. The actual plot is served after the refresh — unusable as a clean data source. **Spec §6 adjustment (flagged): pick client-side FFT for convolution stages; do not build the daemon-plot fallback.**
+**`/matrix/plot` — interstitial only.** The POST returns a "Success! Please wait 0 seconds…" refresh page (same pattern as Apply), no plot data, no image, no script. The actual plot is served after the refresh — unusable as a clean data source. **Spec §6 adjustment (flagged): pick client-side FFT for convolution stages; do not build the daemon-plot fallback.** — **PARTLY SUPERSEDED 2026-07-22, see round 3.** The refresh target is `/matrix`, which is byte-identical afterwards, so "the actual plot is served after the refresh" is wrong; there is no rendered plot anywhere. But the route is a usable *numeric* oracle, which this round concluded it was not. The client-FFT decision for convolution plotting stands unchanged.
 
 **Profile CRUD (form lane, `/matrix/{save,delete,load}`):** `save` adds the name (datalist confirms) and `delete` removes it, both under a ~3 s reload. Oddity: a freshly saved `matrix_profile` element is absent from the working config XML in `/backup` — stored elsewhere; open detail, non-blocking. **`load` applies live (no reload) but replaces the whole matrix context including post-process** — bauer/correction enable and `dac0` were cleared by loading a pipelines-only profile. HQPTuner must treat matrix-profile load as touching post-process settings, not just pipeline rows.
 
 **4321 `MatrixSetProfile` — the clean live lane.** `MatrixListProfiles` / `MatrixGetProfile` / `MatrixSetProfile` work **unauthenticated, live, zero reload**; `State.matrix_profile` and the stock UI's active label track the switch; the working XML is untouched (memory-only — reverts on daemon restart, standard Control API semantics). **Spec §2 adjustment (flagged): the "applies live — no restart" indicator is correct for this lane only**; form-lane Apply is a ~3 s reload (4321 drops ~2.9 s after POST, back ~6.5 s — consistent across all probes) and interrupts playback.
+
+## Probe findings, round 3 — `/matrix/plot` characterized (2026-07-22, idle-gated)
+
+Round 2 called this route unusable. It is usable, as a **numeric oracle** rather than a plot source. Nine POSTs, each readback-verified: form fields, matrix XML, and `GET /matrix` byte-identical every time; no reload, engine untouched throughout.
+
+**It computes from the SUBMITTED form, not from stored config.** Injecting a `process_0` the daemon has never seen changes the result — so an arbitrary chain can be evaluated by the daemon's own DSP without writing anything. This is what makes it an oracle rather than a readback.
+
+**There is no rendered plot in Embedded.** The POST interstitial refreshes to `/matrix`, which is unchanged. `GET /matrix/plot`, `/matrix/plot.html`, `/plot` all return the daemon's empty shell page (1978 B, identical before and after a plot POST); `/files/plot.*` 404s; `/var/lib/hqplayer/web/` is static (every file dated at package install). The Plot button computes and logs — the graph dialog the manual describes (§7, p.48) is Desktop-only.
+
+**The only output is the journal**, one line per plotted row:
+
+```
+plot magnitude value range: <min>,<max>      # the data
+plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
+```
+
+**The reported quantity is `row gain (dB) + chain magnitude`**, min and max over the plot grid. Verified against the client model:
+
+| submitted chain | predicted | daemon |
+|---|---|---|
+| `hshelf;f=1000;q=0.7;g=6` @ gain `Lin 0.242086` | −12.3205 → −6.3205 | −12.320555, −6.320863 |
+| `peak;f=2000;q=1;g=-9` @ same gain | −21.3205 → −12.3205 | −21.320607, −12.321677 |
+
+(`Lin 0.242086` = −12.3205 dB, and it lands in the plot exactly — the row gain is included.)
+
+**The daemon's `iir` is RBJ cookbook and `q` is RBJ Q — measured, not assumed.** Six chains (single peak, two overlapping peaks, high-Q, ultrasonic, `lp`, `hp`) fitted against `lib/dsp.js`'s math: **`q` → 0.019 dB RMS** over 12 numbers; `bw` → 2.66 dB; `s` → 0.18 dB. This retires the standing uncertainty between `dsp.js:5-7` ("validated against `/matrix/plot`") and this document's step-7 note (validated against an independent Python reference *instead*). The shelf/peak parameterization is now grounded.
+
+**Grid: 20 Hz – 20 kHz at a FIXED rate of ~96–99 kHz — not the source rate.** A `peak;f=30000` probe returned a valid result, which is impossible below ~60 kHz Nyquist, and the joint fit for (rate, grid bounds) lands at ~99 kHz / 20 Hz–20 kHz. **Consequence: this lane cannot answer what a filter does at the actual source rate.** Bilinear warping at the running rate remains unverified — negligible for LF work (a 700 Hz pole is sub-0.01 dB across every rate), potentially material near Nyquist.
+
+**Standing limitation.** Min/max only, no curve. It can verify a filter's *shape parameterization* via chains whose extremes encode the answer (overlapping peaks for Q, `lp`/`hp` skirts for the grid edges), but it cannot render a response and cannot replace the client-side FFT for convolution stages. Round 2's ruling on that point stands.
+
+**Use.** A validation harness for `lib/dsp.js` and any future Python port — the daemon becomes the ground truth instead of a second implementation of our own assumptions. Read-only, idle-gate not strictly required (nothing is written), journal read via `journalctl -u hqplayerd` or the daemon's own `/log`.
 
 ---
 
@@ -133,7 +165,7 @@ AutoEq/REW profiles are measured and targeted for raw headphone drive. The Bauer
 
 ## Model (verified against libbs2b source)
 
-Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is an inference, flagged:** Signalyst does not publish internals, but the preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and the parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) match bs2b's constants and valid ranges exactly.
+Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is documented (upgraded from inference 2026-07-21):** the HQPlayer manual's third-party license list attributes bs2b verbatim (§11.8, "Copyright (c) 2005 Boris Mikhaylov", full MIT text) — HQPlayer embeds libbs2b. Corroborated independently by the preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and the parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) matching bs2b's constants and valid ranges exactly. Residual caveat: MIT permits modification, so a measurement-rig confirmation of the shipped curve remains the last word (open item).
 
 From `(fc, feed)`:
 
@@ -202,6 +234,6 @@ Control strip on the RESPONSE card, visible only when `post_bauer_enabled`; baue
 
 **Related fix shipped with this feature (user-reported, 2026-07-21): matrix-profile load preserves post-process.** The daemon's `/matrix/load` replaces the whole matrix context (probe finding above); that violated HQPTuner's "the settings you send are the settings you get back" contract. `matrixlane.profile_action("load")` now snapshots the form's `post_*` slice (wire-encoded, checkbox contract intact), re-applies it with a plain `POST /matrix` after the load settles, and readback-verifies past the post-reload transient (second ~3 s reload per load; fake models the daemon's clearing behavior; offline tests assert the preserved end state).
 
-Open items: bauer≡bs2b inference (flagged above); multichannel deferred; interaction with a hand-edited EQ chain inside a recognized block (recognition rules above must be exercised in tests).
+Open items: measurement-rig confirmation of the shipped bauer curve (bauer≡bs2b is manual-documented, §11.8 — see above — but MIT permits modification, so measuring closes it); multichannel deferred; interaction with a hand-edited EQ chain inside a recognized block (recognition rules above must be exercised in tests).
 
 **Client-code note:** 4321 responses arrive prefixed with the `<?xml?>` declaration — round-2's recv loop initially choked on it. HQPTuner's `control.py` already handles this; any new Matrix* helper must go through it, not a fresh socket reader.

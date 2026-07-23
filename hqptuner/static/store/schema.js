@@ -46,7 +46,11 @@ const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === 
 // nothing reaches the output stage, so the UI has to say so. PlaybackVolume.js
 // already grays the live slider for the same reason.
 const directSdm = (ctx) => (truthy(ctx.effective("direct_sdm")) ? "Direct SDM bypasses the volume control." : "");
-// the fixed-volume level + Optimal ISO only apply when fixed volume is enabled.
+// The fixed-volume dBFS *level* (the <fixed> element) only applies when fixed
+// volume is enabled. Optimal ISO (volume_fixed) is NOT gated by this — it is an
+// independent fixed-volume mode with its own 0/1/2 enable (readme §1.2, attr
+// volume_fixed) — so it must not use fixedOff, or disabling fixed volume traps
+// a nonzero Optimal ISO the user can no longer clear.
 const fixedOff = (ctx) => directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "Requires Fixed volume to be enabled.");
 // Optimal ISO supersedes the manual level with an auto-optimized one (manual
 // §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
@@ -62,7 +66,7 @@ const isoLevel = (v) => {
   return s === "0" || s === "" || s === "false" ? "0" : "1";
 };
 const isoOn = (ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
-const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Optimal ISO sets the level automatically." : "");
+const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
 // The live volume control is bypassed in three documented cases (manual §4.2,
 // §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
 // Adaptive volume offsets the live volume, so it is inert in all three.
@@ -236,7 +240,8 @@ export const schema = {
   // --- Volume ---
   // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"
   // (inter-sample-overs-optimized fixed volume, readme §1.9), fixed_volume is the
-  // dBFS level (readme §1.13 <fixed><volume>), fixed_volume_enabled gates both.
+  // dBFS level (readme §1.13 <fixed><volume>); fixed_volume_enabled gates the
+  // dBFS level only. Optimal ISO (volume_fixed) is an independent mode (see below).
   // Only adaptive_volume is live (SetAdaptiveVolume); the rest are http/restart.
   fixed_volume_enabled: { label: "Fixed volume", group: "volume", widget: "checkbox", lane: "http", field: "fixed_volume_enabled", grayWhen: directSdm },
   fixed_volume: { label: "Fixed volume level", group: "volume", widget: "number", lane: "http", field: "fixed_volume", unit: "dBFS", grayWhen: levelGray },
@@ -245,7 +250,7 @@ export const schema = {
   // express 0/1. HQPTuner writes it on the snapshot-XML restore lane (which
   // carries 2 — verified live on 6.0.4) and reads its true value from the config
   // file (fileTruth), since the form's bool cannot tell −3 from −6.
-  optimal_iso: { label: "Optimal ISO", group: "volume", widget: "segment", lane: "http", field: "volume_fixed", fileTruth: true, options: ISO_LEVELS, grayWhen: fixedOff },
+  optimal_iso: { label: "Auto headroom", sublabel: "(Optimal ISO)", size: "lg", group: "volume", widget: "segment", lane: "http", field: "volume_fixed", fileTruth: true, options: ISO_LEVELS, grayWhen: directSdm },
   volume_max: { label: "Max volume", group: "volume", widget: "number", lane: "http", field: "volume_max", unit: "dBFS", grayWhen: directSdm },
   volume_min: { label: "Min volume", group: "volume", widget: "number", lane: "http", field: "volume_min", unit: "dBFS", grayWhen: directSdm },
   startup_volume: { label: "Startup volume", group: "volume", widget: "number", lane: "http", field: "defaults_volume", unit: "dBFS", grayWhen: directSdm },
