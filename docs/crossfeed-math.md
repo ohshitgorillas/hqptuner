@@ -19,7 +19,7 @@ Research phase output, 2026-07-22. Grounds the question "should HQPTuner bypass 
 
 ---
 
-## 1. What crossfeed is trying to reproduce
+## 1 · What crossfeed is trying to reproduce
 
 Headphones deliver each channel to one ear only. Loudspeakers do not: each ear hears both speakers, the far one **later** and **duller**. Crossfeed synthesizes that second path. Two cues matter, and they behave differently with frequency:
 
@@ -28,7 +28,7 @@ Headphones deliver each channel to one ear only. Loudspeakers do not: each ear h
 
 Below roughly 600 Hz the head is effectively transparent (no ILD) and the cue is almost purely ITD. Above a few kHz the shadow dominates. The transition is the whole design problem.
 
-## 2. ITD — the two limits
+## 2 · ITD — the two limits
 
 Brown & Duda work in **interaural-polar coordinates**: θ is measured from the interaural axis, not the median plane. θ = 0° points at the ear in question. A source at azimuth ±30° from front centre therefore sits at θ = 60° for the near ear and θ = 120° for the far ear.
 
@@ -45,7 +45,7 @@ At low frequency the delay is larger — Kuhn's result, quoted in the paper as "
 
 For a ±30° speaker pair: the near ear (θ=60°) sees a ray delay of −127.6 µs, the far ear (θ=120°) +133.6 µs, for an **ITD of 261.1 µs**. This is the number a fixed delay line would use. The LF value is larger — see §3.
 
-## 3. Head shadow — Brown & Duda's single-pole/single-zero filter
+## 3 · Head shadow — Brown & Duda's single-pole/single-zero filter
 
 Eq. (3), the head-shadow filter:
 
@@ -84,7 +84,7 @@ Total LF ITD = 261.1 + 91.7 + 43.8 = **396.6 µs**, i.e. **52 % above the HF val
 
 Two corroborations worth noting. Bauer's original 1961 network delayed the crossfeed signal "by about 0.4 ms below 1 kHz" — the LF figure above. And ω₀/2π = 623.9 Hz is the frequency at which the head starts to shadow at all, which is why every crossfeed design in the literature places its crossover between 650 and 900 Hz.
 
-## 4. What bs2b actually is, and its relation to this model
+## 4 · What bs2b actually is, and its relation to this model
 
 HQPlayer's `bauer` post-process is libbs2b (documented — see `matrix-spec.md`). Its structure is a first-order lowpass on the cross path plus a first-order high-boost on the direct path, with a scalar normalization. **It has no delay line**, but it is not delay-free: its filters are minimum-phase, so their phase response supplies a frequency-dependent delay — larger at LF, smaller at HF, which is qualitatively the right shape. bs2b's own documentation shows this as a "time delay response" curve.
 
@@ -94,7 +94,7 @@ Correcting an earlier claim in this repo's discussion: bs2b does not "lack ITD";
 
 **This reframes HQPTuner's existing compensation feature.** Crossfeed compensation does not correct an error — it trades a loudspeaker-accurate centre for a neutral one. That is a legitimate and useful choice, and it is a *tonal* choice, independent of any headphone EQ (which rides through untouched — the EQ framing was deliberately dropped in 0.4.0 and should stay dropped). What the feature's copy should not do is imply the tilt is a flaw. Worth a wording pass whatever else is decided.
 
-## 5. Realizability in HQPlayer's matrix — the key result
+## 5 · Realizability in HQPlayer's matrix — the key result
 
 The matrix sums pipeline rows into a shared mixdown, and `gainunit=Lin` accepts negative gains (phase inversion). That makes **parallel** structures expressible, not just cascades. Applying it to eq. (3):
 
@@ -130,11 +130,11 @@ Per-ear EQ appends to all four rows feeding that ear — EQ distributes over the
 
 Eight rows: the same budget the current compensation block spends, replacing a numerically-fitted correction with an exact structural model.
 
-## 6 · Candidate designs
+## 6 · The design — one topology, three controls, two ways to supply H
 
-### A · Structural, with the centre on a continuous control
+Earlier drafts of this document posed a series of forks: "literal loudspeaker simulation" versus "flat centre by construction", then "structural" versus "HRTF". Neither is a fork. The first pair are endpoints of one continuous parameter; the second pair are two ways of supplying the same two transfer functions into the same row structure. What follows is one design.
 
-An earlier draft of this document posed "literal loudspeaker simulation" and "flat centre by construction" as two competing designs. They are not — they are the endpoints of one parameter, and the blend is exact at every point on it.
+### 6.1 · Topology
 
 Hold the side path at its physical value and put only the **centre** on a control:
 
@@ -171,31 +171,54 @@ Substituting `H_n = α_n + (1−α_n)·P` and `H_f = D·[α_f + (1−α_f)·P]` 
 
 Cost of the generality: 16 rows against 8. The matrix allows 128, and the engine's `pipelines` setting has a 16 option, so this is free in practice.
 
-Two further controls fall out of the model rather than being invented: **speaker angle** θ (sets α_n, α_f and τ through eqs. 2 and 5) and **head radius** a (sets ω₀ and scales τ). Both are physically meaningful in a way bs2b's "level in dB" is not.
+### 6.2 · Controls
 
-### C · HRTF convolution
+Three continuous parameters, none of them invented — each falls out of the model:
 
-Put measured contralateral/ipsilateral impulse responses in the `process` chain as WAV convolution stages. Highest fidelity, includes pinna and torso cues that neither A nor B model.
-
-- Matrix supports convolution per row; HQPTuner already has the upload lane (`filterpark`, `POST /api/matrix/filter`).
-- HQPlayer's manual recommends 352.8/384 kHz impulses and provides `expand_hf` for lower-rate ones, which suggests one IR set can serve all source rates — **needs verification**.
-- Dataset licensing (all secondhand, verify before use): MIT KEMAR — free with citation; CIPIC — public-domain subset, redistribution permitted; HUTUBS — CC BY; ARI — CC BY-SA (viral, problematic for vendoring); 3D3A — CC BY; SADIE II — licence not established.
-- Caveat: non-individualized HRTFs are a well-known weak point. Generic pinna cues frequently produce front-back confusion and in-head localization, and without room reflections or head tracking, externalization is limited regardless of HRTF quality. A generic HRTF is not automatically better than a well-chosen structural model for this use case.
-
-## 7. Comparison
-
-| | A · structural | C · HRTF |
+| control | what it sets | range |
 |---|---|---|
-| rows | 16 (8 at λ=1) | 4+ (per-row conv) |
-| exactness | exact (algebraic) at every λ | exact (measured) |
-| centre | λ-controlled, −1.80 dB to flat | per dataset |
-| ITD | explicit, controllable | measured, includes pinna |
-| compensation feature | **subsumed** — it becomes λ | still wanted |
-| user-facing controls | speaker angle, head radius, λ | profile picker |
-| CPU | negligible | real (FIR per row) |
-| verification burden | model vs daemon | dataset provenance |
+| **θ** speaker angle | α_n and α_f via eq. (5), and the ITD via eq. (2). Physically this *is* the crossfeed amount: θ → 0° collapses toward mono, θ → 90° approaches no crossfeed at all | 0–90°, ±30° nominal |
+| **a** head radius | ω₀ = c/a, hence the `lp1` corner; also scales the ITD linearly | ~7–10 cm, 8.75 cm nominal |
+| **λ** centre character | literal loudspeaker centre (λ=1) ↔ flat centre (λ=0), side path untouched throughout | 0–150 % as `s = 1 − λ` |
 
-## 8. Open questions — probes needed before any implementation
+Nothing here needs to be decided at design time. That is the point: bs2b exposes "level in dB", which is a coefficient of its own internal filter and means nothing physically; these are quantities a listener can reason about.
+
+### 6.3 · Supplying H — modelled or measured
+
+`H_n` and `H_f` enter the algebra above as opaque transfer functions. Two realizations, same topology, same λ blend, same side-path arithmetic:
+
+**Modelled** — `H = α + (1−α)·lp1`, two rows each, α and τ derived from θ and a. Exact, negligible CPU, and θ is continuously sweepable because α and τ are closed-form in it.
+
+**Measured** — `H` is a convolution stage pointing at an HRTF impulse response, one row each. Captures pinna and torso cues the model omits.
+
+- Matrix supports convolution per row, and HQPTuner already has the upload lane (`filterpark`, `POST /api/matrix/filter`). This uses **matrix pipeline convolution**, not HQPlayer's separate convolution-engine page — a distinct subsystem HQPTuner deliberately does not expose, and one the manual advises against running alongside the matrix anyway.
+- The manual recommends 352.8/384 kHz impulses and provides `expand_hf` for lower-rate ones, suggesting one IR set can serve all source rates — **needs verification**.
+- Dataset licensing (all secondhand, verify before use): MIT KEMAR — free with citation; CIPIC — public-domain subset, redistribution permitted; HUTUBS — CC BY; ARI — CC BY-SA (viral, problematic for vendoring); 3D3A — CC BY; SADIE II — licence not established.
+
+These are not equivalent in every respect, and the differences are real rather than a matter of taste:
+
+| | modelled | measured |
+|---|---|---|
+| rows for H | 2 per path | 1 per path |
+| θ | continuous | per-angle lookup (datasets ship 5° increments) |
+| group delay | continuous, supplies the LF ITD excess | baked into the IR |
+| cost | negligible | FIR per row — real CPU, real latency |
+| fidelity | no pinna, no torso | includes both |
+
+The measured route is not automatically better. Non-individualized HRTFs are a known weak point — generic pinna cues frequently produce front-back confusion and in-head localization, and without room reflections or head tracking, externalization stays limited regardless of IR quality. A well-parameterized structural model can beat a stranger's ears.
+
+## 7 · What this replaces
+
+| | today (bauer + compensation) | this design |
+|---|---|---|
+| crossfeed | libbs2b post-process, 4 attributes | 16 matrix rows |
+| ITD | implicit in bs2b's minimum-phase filters | explicit, θ- and a-derived |
+| centre tilt | fixed by preset, corrected by a fitted 8-row block | λ, exact at every value |
+| compensation feature | separate, with staleness detection and a rebuild button | **subsumed** — it is λ |
+| controls | crossover Hz, level dB | speaker angle, head radius, λ |
+| lane | http (restart) | http (restart), plus live A/B via matrix profiles |
+
+## 8 · Open questions
 
 1. ~~**Does `delay:t=` quantize to whole samples?**~~ **Resolved from the manual (§7.2), not by probing** — the primitive is samples at source rate; see §5 for the resolution figure and why it lands where the ear cares least. Worth recording how this was mishandled: the question was chased through daemon probes when the authoritative answer was in `hqplayer6desktop-manual.pdf`, in the working directory, which `CLAUDE.md` names as the authority to consult *before* inferring wire behaviour. Read the manual section for a plugin before instrumenting it.
 2. **Does the daemon's `lp1` match the bilinear first-order lowpass** `dsp.js` implements? Live-checked only to the extent that it parses and produces a lowpass shape; the numeric match is *not* asserted. The `/matrix/plot` oracle (`matrix-spec.md` round 3) can settle it — it confirmed the RBJ shelf/peak family at 0.019 dB — but note the oracle evaluates at a fixed ~96–99 kHz, so it grounds coefficients, not source-rate warping. Low risk: `lp1` is the one primitive the whole head-shadow decomposition rests on, but it is also the least exotic filter in the set.
@@ -203,7 +226,7 @@ Put measured contralateral/ipsilateral impulse responses in the `process` chain 
 4. **Mutual exclusion with `bauer`.** The matrix runs *before* post-process, so a custom crossfeed with `post_bauer_enabled` still set is two crossfeeds in series. A UI concern rather than a modelling one, but whatever ships needs to make that state unreachable.
 5. **Listening.** The model says nothing about where on the λ scale anyone wants to sit, or whether a measured HRTF beats the structural model. Those are listening questions — but λ being continuous means they are settled by turning a knob rather than by picking an architecture up front.
 
-## 9. Sources
+## 9 · Sources
 
 - Brown, C. P. & Duda, R. O., "A Structural Model for Binaural Sound Synthesis", *IEEE Trans. Speech and Audio Processing* **6**(5), 1998, 476–488 — [PDF](https://www.ee.columbia.edu/~dpwe/papers/BrownD98-binsynth.pdf). Equations 1–5 and all constants above are from pp. 477–478.
 - Bauer, B. B., "Stereophonic Earphones and Binaural Loudspeakers", *JAES* **9**(2), April 1961, 148–151 — [AES e-lib](https://www.aes.org/e-lib/download.cfm?ID=471). The origin of the ~0.4 ms LF crossfeed delay.
