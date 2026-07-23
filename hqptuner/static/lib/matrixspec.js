@@ -41,6 +41,14 @@ export function serializeProcess(stages) {
   return stages.map((s) => (s.raw !== undefined ? s.raw : buildRaw(s))).join(",");
 }
 
+// Everything in a chain that ISN'T parametric EQ, order preserved. Loading a
+// headphone profile replaces the previous profile rather than stacking on it,
+// but "the previous profile" means the iir stages — a delay, a RIAA curve or a
+// convolution someone put in the same chain is not EQ and is not ours to drop.
+export function withoutEq(process) {
+  return serializeProcess(parseProcess(process).filter((s) => s.kind !== "iir"));
+}
+
 // --- stage editor support (matrix-spec step 4) -------------------------------
 
 // Per-plugin argument schema (manual §7.2–7.4, case-sensitive). IIR types list

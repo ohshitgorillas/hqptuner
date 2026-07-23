@@ -48,7 +48,8 @@ TOLERANCE = 1e-12
 WIRE_TOLERANCE = 1e-8
 
 DRIVER = """
-import {{ midSideResponse, compileRows, pathParams, recognizeRows, blockConflicts }} from "{lib}";
+import {{ midSideResponse, compileRows, pathParams, recognizeRows, blockConflicts, pairInfo,
+         PRESETS, matchPreset, magDb }} from "{lib}";
 
 const responses = {cases}.map(([f, lambda, angle]) => {{
   const r = midSideResponse(f, {{ lambda, angle }});
@@ -65,6 +66,19 @@ const roundTrip = [];
 for (const lambda of {lambdas}) {{
   for (const angle of {angles}) {{
     const opts = {{ lambda, angle, preampDb: -6, eqProcess: "iir:type=peak;f=1000;q=1;g=3" }};
+    // asymmetric: a measured per-ear correction, different chain AND preamp
+    const asym = {{ lambda, angle,
+      preampDb: {{ left: -6, right: -4.5 }},
+      eqProcess: {{ left: "iir:type=peak;f=1000;q=1;g=3", right: "iir:type=peak;f=900;q=1.2;g=2" }} }};
+    const asymRows = compileRows(asym);
+    const asymRec = recognizeRows(asymRows);
+    const asymBack = asymRec === null ? null : compileRows({{
+      lambda: asymRec.lambda, angle: asymRec.angle, headRadius: asymRec.headRadius,
+      preampDb: asymRec.preampDb, eqProcess: asymRec.eqProcess,
+    }});
+    roundTrip.push({{ lambda, angle, recognized: asymRec !== null,
+                      rec: asymRec,
+                      identical: JSON.stringify(asymRows) === JSON.stringify(asymBack) }});
     const rows = compileRows(opts);
     const rec = recognizeRows(rows);
     const again = rec === null ? null : compileRows({{
@@ -99,7 +113,63 @@ const conflicts = conflictCases.map(([cfg, want]) => ({{
   cfg, want, got: blockConflicts((k) => cfg[k]).length,
 }}));
 
-console.log(JSON.stringify({{ responses, dc, params: pathParams(30), roundTrip, tamper, conflicts }}));
+// pairInfo accepts what the block can round-trip and refuses only what is
+// structurally wrong — asymmetry between the ears is not wrong.
+const mkRow = (src, mix, process, gain, unit = "dB") =>
+  ({{ source: src, mixdown: mix, process, gain, gainunit: unit }});
+const EL = "iir:type=peak;f=1000;q=1;g=3";
+const ER = "iir:type=peak;f=900;q=1.2;g=2";
+const pairCases = [
+  ["symmetric", [mkRow("0", "0", EL, "-6"), mkRow("1", "1", EL, "-6")], true],
+  ["asymmetric chains", [mkRow("0", "0", EL, "-6"), mkRow("1", "1", ER, "-6")], true],
+  ["asymmetric preamps", [mkRow("0", "0", EL, "-6"), mkRow("1", "1", EL, "-4.5")], true],
+  ["asymmetric both", [mkRow("0", "0", EL, "-6"), mkRow("1", "1", ER, "-4.5")], true],
+  ["In 2 first", [mkRow("1", "1", ER, "-4.5"), mkRow("0", "0", EL, "-6")], true],
+  ["crossed routing set aside", [mkRow("0", "1", EL, "-6"), mkRow("1", "0", EL, "-6")], false],
+  ["Lin gains set aside", [mkRow("0", "0", EL, "0.5", "Lin"), mkRow("1", "1", EL, "0.5", "Lin")], false],
+];
+const pairs = pairCases.map(([label, rows, want]) => {{
+  const r = pairInfo(rows);
+  // pairInfo never refuses: `want` now means "readable as an EQ pair"
+  const ok = (r.setAside === undefined) === want;
+  // an accepted pair must also survive a compile -> recognize round trip
+  let survives = true;
+  if (r.setAside === undefined) {{
+    const built = compileRows({{ lambda: 0.5, angle: 30, eqProcess: r.eq, preampDb: r.gain }});
+    const back = recognizeRows(built);
+    survives = back !== null && back.eqProcess.left === r.eq.left && back.eqProcess.right === r.eq.right;
+  }}
+  return {{ label, ok: ok && survives }};
+}});
+
+// Presets: each must round-trip through matchPreset, must leave head size alone,
+// and must land within the centre ripple its value was chosen for.
+const rippleFreqs = Array.from({{ length: 400 }}, (_, i) => 20 * 1000 ** (i / 399));
+const ripple = (angle, lambda) => {{
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const f of rippleFreqs) {{
+    const db = magDb(midSideResponse(f, {{ angle, headRadius: 0.0875, lambda }}).mid);
+    if (db < lo) lo = db;
+    if (db > hi) hi = db;
+  }}
+  return hi - lo;
+}};
+const presets = PRESETS.map((x) => ({{
+  id: x.id,
+  matches: matchPreset({{ angle: x.angle, lambda: x.lambda }}) === x.id,
+  noHeadSize: !("headRadius" in x),
+  ripple: Number(ripple(x.angle, x.lambda).toFixed(2)),
+}}));
+presets.push({{
+  id: "custom on touch",
+  matches: matchPreset({{ angle: 31, lambda: 0.7 }}) === "custom"
+    && matchPreset({{ angle: 30, lambda: 0.72 }}) === "custom",
+  noHeadSize: true,
+  ripple: 0,
+}});
+
+console.log(JSON.stringify({{ responses, dc, params: pathParams(30), roundTrip, tamper, conflicts, pairs, presets }}));
 """
 
 
@@ -199,6 +269,10 @@ def main() -> int:
     still_recognized = [t for t in tamper if t["recognized"]]
     conflicts: list[dict[str, object]] = got["conflicts"]  # type: ignore[assignment]
     miscounted = [c for c in conflicts if c["got"] != c["want"]]
+    pairs: list[dict[str, object]] = got["pairs"]  # type: ignore[assignment]
+    bad_pairs = [p for p in pairs if not p["ok"]]
+    presets: list[dict[str, object]] = got["presets"]  # type: ignore[assignment]
+    bad_presets = [x for x in presets if not (x["matches"] and x["noHeadSize"])]
 
     results = [
         (f"rows realize G_M over {len(responses)} cases", worst_mid, TOLERANCE),
@@ -209,6 +283,8 @@ def main() -> int:
         ("compile -> recognize -> compile is byte-identical", float(len(not_identical)), 0.0),
         (f"edited rows stop being recognized ({len(tamper)} edits)", float(len(still_recognized)), 0.0),
         (f"invariant conflicts reported ({len(conflicts)} configs)", float(len(miscounted)), 0.0),
+        (f"pair shapes read or set aside, never refused ({len(pairs)} cases)", float(len(bad_pairs)), 0.0),
+        (f"presets round-trip and exclude head size ({len(presets)} cases)", float(len(bad_presets)), 0.0),
     ]
     failed = False
     for label, error, tolerance in results:
@@ -217,6 +293,8 @@ def main() -> int:
         print(f"[{'ok' if ok else 'FAIL'}] {label}: worst error {error:.3e} (tol {tolerance:.0e})")
 
     if verbose:
+        for x in presets[:-1]:
+            print(f"      preset {x['id']:<14} centre ripple {x['ripple']:5.2f} dB")
         params: dict[str, float] = got["params"]  # type: ignore[assignment]
         lf_itd = params["itd"] + params["groupDelayFar"] - params["groupDelayNear"]
         print(f"      alpha near {params['alphaNear']:.4f} / far {params['alphaFar']:.4f}")

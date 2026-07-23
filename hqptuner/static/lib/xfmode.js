@@ -20,7 +20,9 @@
 // configuration.
 
 import { signal } from "@preact/signals";
-import { compileRows, recognizeRows, blockConflicts, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
+
+export { pairInfo } from "./binaural.js";
+import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
 import { effective, stagePipelines, edit } from "../store/state.js";
 
 const KEY = "hqptuner.structuralCrossfeed";
@@ -72,29 +74,19 @@ export function structuralBlock(rows) {
   return rows.length >= 16 ? recognizeRows(rows, 0) : null;
 }
 
-// Live controls: the installed block's if there is one, otherwise what we
-// remember. Keeps the card's sliders meaningful before anything is installed.
+// In-flight slider position, shared rather than local to the card: the response
+// plot reads the same params, so a drag that only updated the card would leave
+// the plot stale until release. Null when nothing is being dragged.
+export const liveParams = signal(null);
+
+// Live controls, in precedence order: whatever is being dragged right now, then
+// the installed block's, then what we remember.
 export function structuralParams(rows) {
-  return structuralBlock(rows) ?? remembered.value;
+  return liveParams.value ?? structuralBlock(rows) ?? remembered.value;
 }
 
 export function mode(rows) {
   return structuralBlock(rows) ? "structural" : "bauer";
-}
-
-// A stereo EQ pair at rows 0+1 is what the structural block compiles from, and
-// what removing it returns to — the same shape the compensation block uses, so
-// an AutoEq import lands straight into either. Row order is not a contract
-// (live configs arrive In 2-first); the compiled block always emits In 1-first.
-export function pairInfo(rows) {
-  const [a, b] = rows;
-  if (!a || !b) return { issue: "needs pipelines 1+2" };
-  const straight = (x, ch) => x.source === ch && x.mixdown === ch;
-  const ok = (straight(a, "0") && straight(b, "1")) || (straight(a, "1") && straight(b, "0"));
-  if (!ok) return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
-  if (a.gainunit !== "dB" || b.gainunit !== "dB") return { issue: "pipelines 1+2 gains must be in dB" };
-  if (a.process !== b.process || a.gain !== b.gain) return { issue: "pipelines 1+2 are not a symmetric stereo pair" };
-  return { eq: a.process, gain: Number(a.gain) };
 }
 
 // What stands between the current config and an installed block. Reported, never
@@ -112,21 +104,24 @@ export function conflicts() {
 // profiles; the feature does not get to rewrite them to suit its own conventions.
 export const consumed = signal(loadConsumed());
 
-// Install or update the block. Returns an issue string and stages NOTHING when
-// the head rows are not a shape this can round-trip — the guard is here rather
-// than in the caller so no caller can skip it.
+// Install or update the block. Always installs — never refuses. Returns a note
+// when the rows it took over could not be read as a headphone EQ pair, so they
+// were stashed rather than carried in; Turn off restores them verbatim.
 export function stageStructural(rows, params) {
   const rec = structuralBlock(rows);
   let eqProcess;
   let preampDb;
+  let note = null;
   if (rec) {
     eqProcess = rec.eqProcess;
     preampDb = rec.preampDb;
   } else {
     const pair = pairInfo(rows);
-    if (pair.issue) return pair.issue;
     eqProcess = pair.eq;
     preampDb = pair.gain;
+    if (pair.setAside) {
+      note = `${pair.setAside} — they have been set aside, and Turn off restores them exactly.`;
+    }
     consumed.value = rows.slice(0, 2).map((r) => ({ ...r }));
     persist();
   }
@@ -138,19 +133,23 @@ export function stageStructural(rows, params) {
   edit("pipelines", String(next.length));
   for (const c of conflicts()) edit(c.key, c.required);
   remember(params);
-  return null;
+  return note;
 }
 
-// Put back exactly what the block was built over. Falls back to reconstructing a
-// symmetric pair only when the originals are unavailable — after an Apply and a
-// reload, say — and that fallback is the one path that can alter bytes the user
-// did not ask us to touch, so it is the one worth noticing in a bug report.
+// Put back exactly what the block was built over. Falls back to reconstructing
+// the pair only when the originals are unavailable — after an Apply and a reload,
+// say — and that fallback is the one path that can alter bytes the user did not
+// ask us to touch, so it is the one worth noticing in a bug report.
 export function removeStructural(rows, rec) {
   const original = consumed.value;
-  const head = original ?? [
-    { gain: String(Math.round(rec.preampDb * 100) / 100), gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },
-    { gain: String(Math.round(rec.preampDb * 100) / 100), gainunit: "dB", mixdown: "1", process: rec.eqProcess, source: "1" },
-  ];
+  const row = (ch, side) => ({
+    gain: String(Math.round(rec.preampDb[side] * 100) / 100),
+    gainunit: "dB",
+    mixdown: ch,
+    process: rec.eqProcess[side],
+    source: ch,
+  });
+  const head = original ?? [row("0", "left"), row("1", "right")];
   const next = [...head, ...rows.slice(16)];
   stagePipelines(next);
   edit("pipelines", String(Math.max(2, next.length)));

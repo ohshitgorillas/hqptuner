@@ -16,6 +16,8 @@
 // centre for a neutral one -- a tonal choice, not a bug fix. Independent of any
 // headphone EQ, which rides through untouched. See docs/crossfeed-math.md.
 
+import { withoutEq } from "./matrixspec.js";
+
 export const BAUER_PRESETS = {
   default: { fc: 700, feed: 4.5 },
   cmoy: { fc: 700, feed: 6.0 },
@@ -171,6 +173,19 @@ export function msCompile(eqProcess, preampDb, fit, s, srcA, srcB) {
   ];
 }
 
+// The plain stereo EQ pair a compensation block was built from, with the rest of
+// the row list intact. Switching to the structural crossfeed has to come through
+// here first: the block's rows are Lin, and the structural compiler builds from a
+// dB pair, so without this the mode toggle just refuses.
+export function uncompensatedRows(rows, rec) {
+  const g = String(Math.round(rec.preampDb * 100) / 100);
+  return [
+    { gain: g, gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },
+    { gain: g, gainunit: "dB", mixdown: "1", process: rec.eqProcess, source: "1" },
+    ...rows.slice(8),
+  ];
+}
+
 // Route an EQ import INTO a recognized block instead of onto its individual rows.
 //
 // The block holds its EQ once, shared by all eight rows, and its gains are Lin
@@ -181,9 +196,13 @@ export function msCompile(eqProcess, preampDb, fit, s, srcA, srcB) {
 // a one-channel mid/side imbalance — silent, since the badge simply disappears.
 //
 // `addition` is the serialized new stages, `preamp` the profile's Preamp line as
-// a string (or null to keep the block's own). Returns the replacement rows.
-export function applyEqToBlock(rows, rec, fit, addition, preamp) {
-  const eqProcess = rec.eqProcess ? `${rec.eqProcess},${addition}` : addition;
+// a string (or null to keep the block's own). `replace` drops the block's existing
+// EQ first — what loading a headphone profile from the library means, since two
+// stacked profiles are never what anyone wants. The crossfeed's own stages are
+// untouched either way: they are not part of eqProcess, msCompile re-adds them.
+export function applyEqToBlock(rows, rec, fit, addition, preamp, replace = false) {
+  const base = replace ? withoutEq(rec.eqProcess) : rec.eqProcess;
+  const eqProcess = base ? `${base},${addition}` : addition;
   const preampDb = preamp !== null && preamp !== undefined ? Number(preamp) : rec.preampDb;
   return [...msCompile(eqProcess, preampDb, fit, rec.sFraction, 0, 1), ...rows.slice(8)];
 }
