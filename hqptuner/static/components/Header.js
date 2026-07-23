@@ -24,7 +24,7 @@ async function onPick(e) {
 }
 
 async function onDelete(name) {
-  // eslint-disable-next-line no-alert -- a destructive action wants an explicit OK
+  // a destructive action wants an explicit OK
   if (!name || !confirm(`Delete preset "${name}"? This cannot be undone.`)) return;
   pickStatus.value = "Deleting…";
   try {
@@ -58,27 +58,31 @@ export function Header() {
         <span class="muted">${PLAY[st.state] || ""}</span>
       </div>
       <div class="presets">
-        ${profiles
-          ? html`
-              <label class="muted">Preset</label>
-              <select value=${pending || active} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
-                ${(profiles.options || []).map(
-                  (o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`,
-                )}
-              </select>
-              ${pending || active
-                ? html`<button
-                    class="preset-del"
-                    title=${`Delete preset "${pending || active}"`}
-                    onClick=${() => onDelete(pending || active)}
-                  >
-                    Delete
-                  </button>`
-                : null}
-              ${pending ? html`<span class="preset-status pending-apply">(pending apply)</span>` : null}
-              ${pickStatus.value && !pending ? html`<span class="preset-status muted">${pickStatus.value}</span>` : null}
-            `
-          : null}
+        ${
+          profiles
+            ? html`
+                <label class="muted">Preset</label>
+                <select value=${pending || active} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
+                  ${(profiles.options || []).map(
+                    (o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`,
+                  )}
+                </select>
+                ${
+                  pending || active
+                    ? html`<button
+                        class="preset-del"
+                        title=${`Delete preset "${pending || active}"`}
+                        onClick=${() => onDelete(pending || active)}
+                      >
+                        Delete
+                      </button>`
+                    : null
+                }
+                ${pending ? html`<span class="preset-status pending-apply">(pending apply)</span>` : null}
+                ${pickStatus.value && !pending ? html`<span class="preset-status muted">${pickStatus.value}</span>` : null}
+              `
+            : null
+        }
       </div>
       <${StatusPill} />
     </header>

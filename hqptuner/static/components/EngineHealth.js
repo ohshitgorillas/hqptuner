@@ -94,7 +94,7 @@ const Counter = ({ label, delta, total, alert }) => html`
 `;
 
 export function EngineHealth() {
-  const st = ((engineStatus.value || {}).status) || {};
+  const st = (engineStatus.value || {}).status || {};
   const playing = Number(st.state) === 2;
   const n = (v) => {
     const x = Number(v);
@@ -122,10 +122,7 @@ export function EngineHealth() {
       </div>
     </div>
     <label class="poll-quick inline-check">
-      <${Checkbox}
-        value=${quickSystemUpdates.value ? "1" : "0"}
-        onChange=${(v) => setQuickSystemUpdates(v === "1")}
-      />
+      <${Checkbox} value=${quickSystemUpdates.value ? "1" : "0"} onChange=${(v) => setQuickSystemUpdates(v === "1")} />
       Quick updates
       <span class="poll-quick-note">refresh twice a second while this page is open</span>
     </label>

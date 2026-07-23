@@ -26,7 +26,7 @@ import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HE
 import { effective, stagePipelines, edit } from "../store/state.js";
 
 const KEY = "hqptuner.structuralCrossfeed";
-export const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
+const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 
 function load() {
   try {
@@ -53,7 +53,7 @@ function loadConsumed() {
 }
 
 // The controls to use when no block is installed — last used, or the defaults.
-export const remembered = signal(load());
+const remembered = signal(load());
 
 function persist() {
   try {
@@ -102,7 +102,7 @@ export function conflicts() {
 // In 1-first (live configs arrive In 2-first), and any asymmetry between the ears
 // is not representable in the block at all. These are people's tuned headphone
 // profiles; the feature does not get to rewrite them to suit its own conventions.
-export const consumed = signal(loadConsumed());
+const consumed = signal(loadConsumed());
 
 // Install or update the block. Always installs — never refuses. Returns a note
 // when the rows it took over could not be read as a headphone EQ pair, so they
@@ -125,10 +125,7 @@ export function stageStructural(rows, params) {
     consumed.value = rows.slice(0, 2).map((r) => ({ ...r }));
     persist();
   }
-  const next = [
-    ...compileRows({ ...params, srcA: 0, srcB: 1, preampDb, eqProcess }),
-    ...rows.slice(rec ? 16 : 2),
-  ];
+  const next = [...compileRows({ ...params, srcA: 0, srcB: 1, preampDb, eqProcess }), ...rows.slice(rec ? 16 : 2)];
   stagePipelines(next);
   edit("pipelines", String(next.length));
   for (const c of conflicts()) edit(c.key, c.required);

@@ -105,60 +105,82 @@ export function HardwareCard() {
              pair (Multicore DSP, E-core allocation) in the right, so each column
              is one subsystem instead of splitting them by source order. -->
         <div class="pack chain">
-        <div class="field" title=${hoverFor("cuda_offload")}><label>CUDA offload</label>
-          <div class="control"><${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(v) => (cuda.value = v)} /></div>
-          <${Note} k="cuda_offload" />
-        </div>
-        <div class="field ${cudaOff() ? "off" : ""}" title=${hoverFor("cuda_devices")}><label>CUDA devices</label>
-          <div class="control cuda-devs">
-            <span class="cuda-dev ${convOnly() ? "off" : ""}">
-              <span class="unit">DSP</span>
-              <${NumberBox}
-                value=${cudaDev.value}
-                min=${-1}
-                disabled=${cudaOff() || convOnly()}
-                onChange=${(v) => (cudaDev.value = String(v))}
-              />
-            </span>
-            <span class="cuda-dev">
-              <span class="unit">Convolution</span>
-              <${NumberBox}
-                value=${cudaCdev.value}
-                min=${-1}
-                disabled=${cudaOff()}
-                onChange=${(v) => (cudaCdev.value = String(v))}
-              />
-            </span>
-            <span class="field-hint">−1 = automatic</span>
+          <div class="field" title=${hoverFor("cuda_offload")}>
+            <label>CUDA offload</label>
+            <div class="control">
+              <${RadioGroup} value=${cuda.value} options=${CUDA} onChange=${(v) => (cuda.value = v)} />
+            </div>
+            <${Note} k="cuda_offload" />
           </div>
-          ${convOnly() ? html`<div class="field-gray-reason">Convolution-only offload uses the convolution device only.</div>` : null}
-          <${Note} k="cuda_devices" />
-        </div>
-        <div class="field" title=${hoverFor("multicore_dsp")}><label>Multicore DSP</label>
-          <div class="control"><${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(v) => (multicore.value = v)} /></div>
-          <${Note} k="multicore_dsp" />
-        </div>
-        <div class="field" title=${hoverFor("ecore_allocation")}><label>E-core allocation</label>
-          <div class="control"><${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(v) => (ecores.value = v)} /></div>
-          <${Note} k="ecore_allocation" />
-        </div>
+          <div class="field ${cudaOff() ? "off" : ""}" title=${hoverFor("cuda_devices")}>
+            <label>CUDA devices</label>
+            <div class="control cuda-devs">
+              <span class="cuda-dev ${convOnly() ? "off" : ""}">
+                <span class="unit">DSP</span>
+                <${NumberBox}
+                  value=${cudaDev.value}
+                  min=${-1}
+                  disabled=${cudaOff() || convOnly()}
+                  onChange=${(v) => (cudaDev.value = String(v))}
+                />
+              </span>
+              <span class="cuda-dev">
+                <span class="unit">Convolution</span>
+                <${NumberBox}
+                  value=${cudaCdev.value}
+                  min=${-1}
+                  disabled=${cudaOff()}
+                  onChange=${(v) => (cudaCdev.value = String(v))}
+                />
+              </span>
+              <span class="field-hint">−1 = automatic</span>
+            </div>
+            ${convOnly() ? html`<div class="field-gray-reason">Convolution-only offload uses the convolution device only.</div>` : null}
+            <${Note} k="cuda_devices" />
+          </div>
+          <div class="field" title=${hoverFor("multicore_dsp")}>
+            <label>Multicore DSP</label>
+            <div class="control">
+              <${RadioGroup} value=${multicore.value} options=${MULTICORE} onChange=${(v) => (multicore.value = v)} />
+            </div>
+            <${Note} k="multicore_dsp" />
+          </div>
+          <div class="field" title=${hoverFor("ecore_allocation")}>
+            <label>E-core allocation</label>
+            <div class="control">
+              <${RadioGroup} value=${ecores.value} options=${ECORES} onChange=${(v) => (ecores.value = v)} />
+            </div>
+            <${Note} k="ecore_allocation" />
+          </div>
         </div>
         <!-- outside the chain pack: a full-span item in a column-flow grid has no
              defined placement, so Blocks / cycle is a plain full-width row below. -->
-        <div class="field" title=${hoverFor("blocks_per_cycle")}><label>Blocks / cycle</label>
+        <div class="field" title=${hoverFor("blocks_per_cycle")}>
+          <label>Blocks / cycle</label>
           <div class="control">
             <label class="inline-check">
               <${Checkbox} value=${manual()} onChange=${(v) => (nblocks.value = v === "1" ? "8" : "0")} />
               Set manually
             </label>
-            ${manual()
-              ? html`<${Slider} value=${nblocks.value} min=${1} max=${16} step=${1} onChange=${(v) => (nblocks.value = String(v))} />`
-              : html`<span class="unit">Automatic — chosen from CPU cache size</span>`}
+            ${
+              manual()
+                ? html`<${Slider}
+                    value=${nblocks.value}
+                    min=${1}
+                    max=${16}
+                    step=${1}
+                    onChange=${(v) => (nblocks.value = String(v))}
+                  />`
+                : html`<span class="unit">Automatic — chosen from CPU cache size</span>`
+            }
           </div>
           <${Note} k="blocks_per_cycle" />
         </div>
         <div class="hw-apply">
-          <label class="hw-all"><${Checkbox} value=${allPresets.value} onChange=${(v) => (allPresets.value = v === "1")} /> Apply to all presets</label>
+          <label class="hw-all"
+            ><${Checkbox} value=${allPresets.value} onChange=${(v) => (allPresets.value = v === "1")} /> Apply to all
+            presets</label
+          >
           <button type="button" class="btn" onClick=${apply}>Apply hardware settings</button>
           ${status.value ? html`<span class="hw-status">${status.value}</span>` : null}
         </div>
@@ -188,7 +210,9 @@ export function BackupRestoreRow() {
     <div class="about-maint">
       <div class="backup-row">
         <a class="btn" href="/api/backup" download>Download backup</a>
-        <label class="btn">Upload backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore} /></label>
+        <label class="btn"
+          >Upload backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore}
+        /></label>
       </div>
       ${restoreStatus.value ? html`<div class="hw-status">${restoreStatus.value}</div>` : null}
     </div>

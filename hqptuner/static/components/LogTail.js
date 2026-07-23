@@ -67,11 +67,13 @@ export function LogTail() {
         <${Checkbox} value=${on ? "1" : "0"} onChange=${(v) => (shown.value = v === "1")} />
         Show live log tail (last ${LINES} lines)
       </label>
-      ${on
-        ? message.value
-          ? html`<div class="log-tail-msg">${message.value}</div>`
-          : html`<pre class="log-tail" ref=${pre}>${lines.value.join("\n")}</pre>`
-        : null}
+      ${
+        on
+          ? message.value
+            ? html`<div class="log-tail-msg">${message.value}</div>`
+            : html`<pre class="log-tail" ref=${pre}>${lines.value.join("\n")}</pre>`
+          : null
+      }
     </div>
   `;
 }

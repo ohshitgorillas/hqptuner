@@ -10,7 +10,7 @@ import { grayReason } from "../../store/graying.js";
 import { LoudnessPlot } from "../plots.js";
 import { Section, Card, truthy } from "./common.js";
 
-export function LoudnessCard() {
+function LoudnessCard() {
   // dim the body when disabled OR gated (volume control bypassed — loudness
   // can't adapt; the enable field's caption carries the reason)
   const on = truthy(effective("loudness_enabled")) && !grayReason("loudness_enabled");

@@ -5,7 +5,17 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { metadata } from "../store/state.js";
-import { nGenre, nQuality, nFocus, nPhase, nLength, nApod, nApodHalf, narrowingActive, resetNarrowing } from "../store/narrowing.js";
+import {
+  nGenre,
+  nQuality,
+  nFocus,
+  nPhase,
+  nLength,
+  nApod,
+  nApodHalf,
+  narrowingActive,
+  resetNarrowing,
+} from "../store/narrowing.js";
 
 // manual prose for the apodizing toggle (settings.json dsp.show_apodizing_only)
 function apodTip() {
@@ -85,25 +95,27 @@ function SingleSelect({ open, label, value, items, onPick }) {
       <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
         ${label} <span class="multi-caret">▾</span>
       </button>
-      ${open.value
-        ? html`<div class="multi-pop">
-            ${items.map(
-              ([v, l]) => html`
-                <label>
-                  <input
-                    type="radio"
-                    checked=${String(v) === String(value)}
-                    onChange=${() => {
-                      onPick(v);
-                      open.value = false;
-                    }}
-                  />
-                  ${l}
-                </label>
-              `,
-            )}
-          </div>`
-        : null}
+      ${
+        open.value
+          ? html`<div class="multi-pop">
+              ${items.map(
+                ([v, l]) => html`
+                  <label>
+                    <input
+                      type="radio"
+                      checked=${String(v) === String(value)}
+                      onChange=${() => {
+                        onPick(v);
+                        open.value = false;
+                      }}
+                    />
+                    ${l}
+                  </label>
+                `,
+              )}
+            </div>`
+          : null
+      }
     </div>
   `;
 }
@@ -116,18 +128,20 @@ function MultiSelect({ open, label, items, sig }) {
       <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
         ${label} <span class="multi-caret">▾</span>
       </button>
-      ${open.value
-        ? html`<div class="multi-pop">
-            ${items.map(
-              ([v, l]) => html`
-                <label>
-                  <input type="checkbox" checked=${sig.value.includes(v)} onChange=${() => toggleIn(sig, v)} />
-                  ${l}
-                </label>
-              `,
-            )}
-          </div>`
-        : null}
+      ${
+        open.value
+          ? html`<div class="multi-pop">
+              ${items.map(
+                ([v, l]) => html`
+                  <label>
+                    <input type="checkbox" checked=${sig.value.includes(v)} onChange=${() => toggleIn(sig, v)} />
+                    ${l}
+                  </label>
+                `,
+              )}
+            </div>`
+          : null
+      }
     </div>
   `;
 }
@@ -153,7 +167,12 @@ export function NarrowBar() {
           </label>
         </div>
         <div class="narrow-facets">
-          <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES.map((g) => [g, cap(g)])} sig=${nGenre} />
+          <${MultiSelect}
+            open=${genreOpen}
+            label=${genreLabel()}
+            items=${GENRES.map((g) => [g, cap(g)])}
+            sig=${nGenre}
+          />
           <${SingleSelect}
             open=${qualityOpen}
             label=${oneLabel(QUALITY, nQuality.value, "Any quality")}
@@ -172,9 +191,11 @@ export function NarrowBar() {
           <${MultiSelect} open=${lengthOpen} label=${lengthLabel()} items=${LENGTHS} sig=${nLength} />
         </div>
         <div class="narrow-right">
-          ${narrowingActive.value
-            ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
-            : null}
+          ${
+            narrowingActive.value
+              ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
+              : null
+          }
         </div>
       </div>
     </div>

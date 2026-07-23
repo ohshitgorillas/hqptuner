@@ -24,14 +24,14 @@ export const config = signal(null); // /api/config data {fields, profiles}
 // the baseline (no daemon touch) so they can be tweaked before Apply commits the
 // switch. pendingPreset = the previewed name; previewConfig = its field values.
 export const pendingPreset = signal(null);
-export const previewConfig = signal(null);
-export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
+const previewConfig = signal(null);
+const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
 export const metadata = signal(null); // static: {filters, shapers, settings}
-export const staged = signal({ live: {}, http: {} }); // mirrors server pending
+const staged = signal({ live: {}, http: {} }); // mirrors server pending
 // Transient client-only overrides, set live while a knob is dragged so controls
 // and response plots update instantly with no server round-trip per pointer move.
 // Committed to `staged` on release, then cleared. Highest priority in effective().
-export const liveOverride = signal({});
+const liveOverride = signal({});
 
 // live playback volume — NOT a staged control: it lives in its own signals and
 // writes immediately via the Control API (never through the staged/apply flow).
@@ -73,7 +73,7 @@ export function formFieldName(entry) {
 // Matrix tab read model: pipeline rows (grouped by the backend parser), saved
 // profile names (4321 MatrixListProfiles, falling back to the form datalist),
 // and the active profile ("" / "[Default]" = the unnamed default).
-export const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows) || []);
+const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows) || []);
 export const matrixProfiles = computed(() => {
   const m = matrixConfig.value || {};
   if (m.live_profiles && m.live_profiles.length) return m.live_profiles;
@@ -144,7 +144,7 @@ export async function stagePipelines(rows) {
 // the daemon renders for it: volume_fixed is 0/1/2 in the XML (off / −3 dB / −6 dB)
 // but a bare checkbox on the form, so the form cannot tell −3 from −6. Schema
 // entries flagged `fileTruth` take their baseline from here.
-export const fileConfig = computed(() => (config.value && config.value.file) || {});
+const fileConfig = computed(() => (config.value && config.value.file) || {});
 
 // The truly-loaded preset name (ConfigurationGet), as the daemon reports it.
 export const activePreset = computed(() => (config.value && config.value.active) || "");
@@ -220,7 +220,7 @@ export function isDirty(key) {
 }
 
 // --- derived: the pending-changes bar ---
-export const dirtyKeys = computed(() => Object.keys(schema).filter(isDirty));
+const dirtyKeys = computed(() => Object.keys(schema).filter(isDirty));
 export const stagedCount = computed(() => dirtyKeys.value.length);
 // Apply is warranted by staged tweaks OR a previewed preset waiting to commit.
 export const hasPending = computed(() => stagedCount.value > 0 || pendingPreset.value !== null);

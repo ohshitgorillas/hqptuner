@@ -8,8 +8,6 @@ import { reachable, alarm, applying } from "../store/state.js";
 
 export function StatusPill() {
   const state = applying.value || alarm.value ? "amber" : !reachable.value ? "red" : "green";
-  const text = applying.value
-    ? "Applying…"
-    : { green: "Connected", amber: "Attention", red: "Unreachable" }[state];
+  const text = applying.value ? "Applying…" : { green: "Connected", amber: "Attention", red: "Unreachable" }[state];
   return html`<span class="pill pill-${state}">${text}</span>`;
 }

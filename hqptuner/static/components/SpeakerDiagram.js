@@ -55,13 +55,23 @@ export function SpeakerDiagram({ angle, headRadius }) {
   const earR = [CX + hr, CY];
   const path = (from, to) => `M${from[0].toFixed(1)} ${from[1].toFixed(1)} L${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
   return html`
-    <svg class="spk-diagram" viewBox="0 0 ${W} ${H}" role="img"
-         aria-label="Top-down view: two speakers at plus and minus ${angle.toFixed(0)} degrees, toed in toward the listener">
+    <svg
+      class="spk-diagram"
+      viewBox="0 0 ${W} ${H}"
+      role="img"
+      aria-label="Top-down view: two speakers at plus and minus ${angle.toFixed(0)} degrees, toed in toward the listener"
+    >
       <circle cx=${CX} cy=${CY} r=${R} class="spk-arc" />
       <line x1=${CX} y1=${CY} x2=${CX} y2=${CY - R - 6} class="spk-axis" />
       <path d=${angleArc(angle, 46)} class="spk-angle" />
-      <text x=${polar(angle / 2, 60)[0].toFixed(1)} y=${(polar(angle / 2, 60)[1] + 3).toFixed(1)}
-            class="spk-angle-label" text-anchor="middle">${angle.toFixed(0)}°</text>
+      <text
+        x=${polar(angle / 2, 60)[0].toFixed(1)}
+        y=${(polar(angle / 2, 60)[1] + 3).toFixed(1)}
+        class="spk-angle-label"
+        text-anchor="middle"
+      >
+        ${angle.toFixed(0)}°
+      </text>
 
       <path d=${path([lx, ly], earL)} class="spk-near" />
       <path d=${path([rx, ry], earR)} class="spk-near" />
@@ -74,8 +84,10 @@ export function SpeakerDiagram({ angle, headRadius }) {
       <circle cx=${CX} cy=${CY} r=${hr.toFixed(1)} class="spk-head" />
       <path d="M${(CX - hr).toFixed(1)} ${CY - 2} a3 3 0 0 0 0 5" class="spk-ear" />
       <path d="M${(CX + hr).toFixed(1)} ${CY - 2} a3 3 0 0 1 0 5" class="spk-ear" />
-      <path d="M${CX - 3} ${(CY - hr).toFixed(1)} L${CX} ${(CY - hr - 4).toFixed(1)} L${CX + 3} ${(CY - hr).toFixed(1)}"
-            class="spk-nose" />
+      <path
+        d="M${CX - 3} ${(CY - hr).toFixed(1)} L${CX} ${(CY - hr - 4).toFixed(1)} L${CX + 3} ${(CY - hr).toFixed(1)}"
+        class="spk-nose"
+      />
     </svg>
   `;
 }

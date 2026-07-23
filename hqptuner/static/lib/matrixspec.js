@@ -29,7 +29,7 @@ export function parseProcess(str) {
   });
 }
 
-export function buildRaw(stage) {
+function buildRaw(stage) {
   if (stage.kind === "conv") return stage.file;
   const args = Object.entries(stage.args)
     .map(([k, v]) => (v === "" ? k : `${k}=${v}`))
@@ -71,44 +71,66 @@ export const DELAY_ARGS = ["s", "t", "d", "v"];
 
 const NUM = /^-?\d+(\.\d+)?([eE]-?\d+)?$/;
 
-// Issues for one stage, as plain strings. A stage with issues still renders and
-// still serializes — validation informs, it never drops or rewrites user input.
-export function validateStage(stage) {
-  if (stage.kind === "conv") {
-    return stage.file.trim() ? [] : ["convolution stage has no file"];
-  }
-  if (stage.kind === "riaa") {
-    return Object.entries(stage.args).flatMap(([k, v]) => {
-      if (k !== "subsonic") return [`unknown riaa argument "${k}"`];
-      return v === "0" || v === "1" ? [] : ["subsonic must be 0 or 1"];
-    });
-  }
-  if (stage.kind === "delay") {
-    const issues = Object.entries(stage.args).flatMap(([k, v]) =>
-      !DELAY_ARGS.includes(k) ? [`unknown delay argument "${k}"`] : NUM.test(v) ? [] : [`${k} must be a number`],
-    );
-    if (!["s", "t", "d"].some((k) => k in stage.args)) issues.push("delay needs s, t, or d");
-    return issues;
-  }
-  // iir
-  const type = stage.args.type;
-  const schema = IIR_TYPES[type];
-  if (!schema) return [type ? `unknown iir type "${type}"` : "iir stage has no type"];
+// Per-kind validators. Private by design: the contract is validateStage's
+// return value, and tests/js/matrixspec.test.js reaches all of these through it.
+function convIssues(stage) {
+  return stage.file.trim() ? [] : ["convolution stage has no file"];
+}
+
+function riaaIssues(args) {
+  return Object.entries(args).flatMap(([k, v]) => {
+    if (k !== "subsonic") return [`unknown riaa argument "${k}"`];
+    return v === "0" || v === "1" ? [] : ["subsonic must be 0 or 1"];
+  });
+}
+
+function delayIssues(args) {
+  const issues = Object.entries(args).flatMap(([k, v]) =>
+    !DELAY_ARGS.includes(k) ? [`unknown delay argument "${k}"`] : NUM.test(v) ? [] : [`${k} must be a number`],
+  );
+  // v is a known argument but sets the speed of sound, not a delay quantity.
+  if (!["s", "t", "d"].some((k) => k in args)) issues.push("delay needs s, t, or d");
+  return issues;
+}
+
+// Arguments that don't belong to this iir type, and values that aren't numbers.
+function iirArgIssues(args, type, schema) {
   const known = new Set(["type", ...schema.args, ...(schema.oneOf || [])]);
-  const issues = Object.entries(stage.args).flatMap(([k, v]) => {
+  return Object.entries(args).flatMap(([k, v]) => {
     if (k === "type") return [];
     if (!known.has(k)) return [`"${k}" does not apply to ${type}`];
     return NUM.test(v) ? [] : [`${k} must be a number`];
   });
-  for (const req of schema.args) {
-    if (!(req in stage.args)) issues.push(`${type} needs ${req}`);
-  }
-  if (schema.oneOf) {
-    const present = schema.oneOf.filter((k) => k in stage.args);
-    if (present.length === 0) issues.push(`${type} needs ${schema.oneOf.join(" or ")}`);
-    if (present.length > 1) issues.push(`use only one of ${schema.oneOf.join("/")}`);
-  }
-  return issues;
+}
+
+// The one-of group (q OR bw OR s), per type. Types without a group skip it.
+function iirOneOfIssues(args, type, oneOf) {
+  if (!oneOf) return [];
+  const present = oneOf.filter((k) => k in args);
+  if (present.length === 0) return [`${type} needs ${oneOf.join(" or ")}`];
+  if (present.length > 1) return [`use only one of ${oneOf.join("/")}`];
+  return [];
+}
+
+function iirIssues(args) {
+  const type = args.type;
+  const schema = IIR_TYPES[type];
+  if (!schema) return [type ? `unknown iir type "${type}"` : "iir stage has no type"];
+  return [
+    ...iirArgIssues(args, type, schema),
+    ...schema.args.filter((req) => !(req in args)).map((req) => `${type} needs ${req}`),
+    ...iirOneOfIssues(args, type, schema.oneOf),
+  ];
+}
+
+// Any kind that isn't conv/riaa/delay validates as iir, as it always has.
+const KIND_ISSUES = { riaa: riaaIssues, delay: delayIssues, iir: iirIssues };
+
+// Issues for one stage, as plain strings. A stage with issues still renders and
+// still serializes — validation informs, it never drops or rewrites user input.
+export function validateStage(stage) {
+  if (stage.kind === "conv") return convIssues(stage);
+  return (KIND_ISSUES[stage.kind] || iirIssues)(stage.args);
 }
 
 // Fresh stage of a kind, with sensible defaults (add-stage lands editable).
@@ -144,23 +166,30 @@ export function editedStage(stage, patch) {
   return { ...next, raw: buildRaw(next) };
 }
 
+// Per-kind labellers, private for the same reason as the validators above.
+// A path with no basename ("impulses/") falls back to the whole string.
+function convLabel(file) {
+  return file.split("/").pop() || file;
+}
+
+function iirLabel(args) {
+  const bits = [args.type || "iir"];
+  if (args.f) bits.push(`${args.f} Hz`);
+  if (args.g) bits.push(`${args.g} dB`);
+  return bits.join(" · ");
+}
+
+// t wins over s wins over d; v alone carries no quantity and leaves it bare.
+function delayLabel(args) {
+  const v = args.t ? `${args.t} s` : args.s ? `${args.s} smp` : args.d ? `${args.d} m` : "";
+  return v ? `delay · ${v}` : "delay";
+}
+
+const KIND_LABEL = { iir: iirLabel, delay: delayLabel };
+
 // Chip label: the shortest string that identifies the stage at a glance.
 export function stageLabel(stage) {
-  if (stage.kind === "conv") {
-    const base = stage.file.split("/").pop();
-    return base || stage.file;
-  }
-  if (stage.kind === "iir") {
-    const a = stage.args;
-    const bits = [a.type || "iir"];
-    if (a.f) bits.push(`${a.f} Hz`);
-    if (a.g) bits.push(`${a.g} dB`);
-    return bits.join(" · ");
-  }
-  if (stage.kind === "delay") {
-    const a = stage.args;
-    const v = a.t ? `${a.t} s` : a.s ? `${a.s} smp` : a.d ? `${a.d} m` : "";
-    return v ? `delay · ${v}` : "delay";
-  }
-  return stage.kind; // riaa
+  if (stage.kind === "conv") return convLabel(stage.file);
+  const label = KIND_LABEL[stage.kind];
+  return label ? label(stage.args) : stage.kind; // riaa
 }

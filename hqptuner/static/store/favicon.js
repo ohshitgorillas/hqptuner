@@ -22,6 +22,6 @@ function pick(name) {
 export function initFavicon() {
   effect(() => {
     const link = document.getElementById("favicon");
-    if (link) link.href = svg(pick(activePreset.value));
+    if (link instanceof HTMLLinkElement) link.href = svg(pick(activePreset.value));
   });
 }

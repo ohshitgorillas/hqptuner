@@ -39,6 +39,12 @@ const hueOf = (i, n) => `hsl(${Math.round((i * 360) / Math.max(n, 1))}, 68%, 62%
 
 // Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
 // traces flagged `y2: true` (phase) map through it instead of the dB scale.
+/**
+ * @param {{
+ *   traces: any[], yMin: number, yMax: number, dbStep: number, height: number,
+ *   caption?: any, y2Min?: number, y2Max?: number, handles?: any[], autoColor?: boolean
+ * }} props
+ */
 export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max, handles, autoColor }) {
   const plotH = height - PADT - PADB;
   const yOf = (db) => PADT + (1 - (clamp(db, yMin, yMax) - yMin) / (yMax - yMin)) * plotH;
@@ -82,23 +88,34 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           `,
         )}
         ${FREQ_GRID.map(
-          (f) => html`<line class="plot-grid" x1=${xOf(f).toFixed(1)} y1=${PADT} x2=${xOf(f).toFixed(1)} y2=${PADT + plotH} />`,
+          (f) =>
+            html`<line
+              class="plot-grid"
+              x1=${xOf(f).toFixed(1)}
+              y1=${PADT}
+              x2=${xOf(f).toFixed(1)}
+              y2=${PADT + plotH}
+            />`,
         )}
         ${FREQ_LABELS.map(
-          (f) => html`<text class="plot-lbl" x=${xOf(f).toFixed(1)} y=${height - 6} text-anchor="middle">${fmtHz(f)}</text>`,
+          (f) =>
+            html`<text class="plot-lbl" x=${xOf(f).toFixed(1)} y=${height - 6} text-anchor="middle">${fmtHz(f)}</text>`,
         )}
         <text class="plot-lbl plot-axis" x=${PADL - 4} y="10" text-anchor="end">dB</text>
         <text class="plot-lbl plot-axis" x=${(xOf(F1) + 14).toFixed(1)} y=${height - 6}>Hz</text>
         ${y2Min !== undefined ? html`<text class="plot-lbl plot-axis" x=${W - PADR + 4} y="10">°</text>` : null}
-        ${yMin < 0 && yMax > 0
-          ? html`<line class="plot-zero" x1=${PADL} y1=${yOf(0).toFixed(1)} x2=${W - PADR} y2=${yOf(0).toFixed(1)} />`
-          : null}
+        ${
+          yMin < 0 && yMax > 0
+            ? html`<line class="plot-zero" x1=${PADL} y1=${yOf(0).toFixed(1)} x2=${W - PADR} y2=${yOf(0).toFixed(1)} />`
+            : null
+        }
         ${traces.map(
-          (t, i) => html`<polyline
-            class="plot-trace ${t.kind}"
-            style=${autoColor ? `stroke:${hueOf(i, traces.length)}` : ""}
-            points=${poly(t.points, scaleOf(t))}
-          />`,
+          (t, i) =>
+            html`<polyline
+              class="plot-trace ${t.kind}"
+              style=${autoColor ? `stroke:${hueOf(i, traces.length)}` : ""}
+              points=${poly(t.points, scaleOf(t))}
+            />`,
         )}
         ${(() => {
           // labels sit at their trace's endpoint y, but nudge apart when traces
@@ -109,7 +126,13 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           // margin); the CSS halo keeps them legible over the curve tails
           const items = traces.map((t, i) => {
             const [, d] = t.points[t.points.length - 1];
-            return { x: W - 2, y: scaleOf(t)(d), text: t.label, kind: t.kind, color: autoColor ? hueOf(i, traces.length) : null };
+            return {
+              x: W - 2,
+              y: scaleOf(t)(d),
+              text: t.label,
+              kind: t.kind,
+              color: autoColor ? hueOf(i, traces.length) : null,
+            };
           });
           items.sort((a, b) => a.y - b.y);
           for (let i = 1; i < items.length; i += 1) {
@@ -127,7 +150,8 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
                 x=${it.x.toFixed(1)}
                 y=${it.y.toFixed(1)}
                 text-anchor="end"
-              >${it.text}</text>`,
+                >${it.text}</text
+              >`,
           );
         })()}
         ${(handles || []).map(
@@ -204,7 +228,12 @@ export function LoudnessPlot() {
   return PlotFrame({
     traces: [
       { points: freqs.map((f) => [f, loudnessMagDb(p, f, LOUDNESS_FS, 1)]), kind: "ghost", label: "max", dy: -3 },
-      { points: freqs.map((f) => [f, loudnessMagDb(p, f, LOUDNESS_FS, scale)]), kind: "applied", label: "applied", dy: 3 },
+      {
+        points: freqs.map((f) => [f, loudnessMagDb(p, f, LOUDNESS_FS, scale)]),
+        kind: "applied",
+        label: "applied",
+        dy: 3,
+      },
     ],
     yMin: -3,
     yMax: 24,
