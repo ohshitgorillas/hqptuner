@@ -171,6 +171,23 @@ export function msCompile(eqProcess, preampDb, fit, s, srcA, srcB) {
   ];
 }
 
+// Route an EQ import INTO a recognized block instead of onto its individual rows.
+//
+// The block holds its EQ once, shared by all eight rows, and its gains are Lin
+// with the preamp folded in. Appending to a single row the way a plain pipeline
+// import does breaks both invariants at once: recognition dies on the first
+// gainunit check, and the touched rows end up carrying the EQ twice at a gain
+// meant for a dB row. Rows 1+2 are the left ear's centre path, so the damage is
+// a one-channel mid/side imbalance — silent, since the badge simply disappears.
+//
+// `addition` is the serialized new stages, `preamp` the profile's Preamp line as
+// a string (or null to keep the block's own). Returns the replacement rows.
+export function applyEqToBlock(rows, rec, fit, addition, preamp) {
+  const eqProcess = rec.eqProcess ? `${rec.eqProcess},${addition}` : addition;
+  const preampDb = preamp !== null && preamp !== undefined ? Number(preamp) : rec.preampDb;
+  return [...msCompile(eqProcess, preampDb, fit, rec.sFraction, 0, 1), ...rows.slice(8)];
+}
+
 // Recognize a compiled block at rows[at..at+7]. Purely structural — returns
 // {eqProcess, preampDb, sFraction, stale} or null. `stale` is true when the
 // comp stages' f/q don't match a fresh fit for the CURRENT bauer settings
