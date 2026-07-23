@@ -2,7 +2,7 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
-## [Unreleased]
+## [0.5.0] — 2026-07-22
 
 ### Changed
 
@@ -20,6 +20,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - The crossfeed / loudness knob readout box moved from the right of the slider to directly under the dial (centred on it, slightly larger type), which frees horizontal space for the slider.
 
 ### Fixed
+
+- Loading a headphone profile while Crossfeed compensation was on silently broke it. The compensation block is eight pipelines sharing one EQ chain, with Lin gains carrying the mid/side factor and the preamp folded in; importing appended the new filters to pipelines 1+2 only and overwrote their gain with the profile's preamp in dB. That dropped the mid/side factor, so centred sound came out roughly 6 dB louder in the left ear than the right while hard-panned material stayed put, those two rows carried the EQ twice, and the block stopped being recognized — badge, strength slider and Turn off all disappeared with no error shown. The one-click "Load profile" in the AutoEq library hit pipelines 1+2 by definition. Imports now route into the block when one is installed: the EQ joins the block's shared chain and the preamp folds into its gains, so the block survives with its strength intact. Importing onto pipelines past the block is unchanged.
 
 - The crossfeed-compensation strength slider was rendering in the browser's default blue instead of the accent colour — the accent rule was scoped to a `.slider` wrapper the bare input doesn't have, so it also ignored a custom accent.
 - Scrolling the mouse wheel over a control no longer changes its value while paging past it. The knob dials (crossfeed, loudness) no longer bind the wheel at all — adjust by drag, slider, number box, or arrow keys — and the range sliders / number boxes now let the wheel scroll the page instead of hijacking the value.

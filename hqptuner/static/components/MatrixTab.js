@@ -33,7 +33,8 @@ import { registerIr } from "../lib/dsp.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, isPlotted, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
-import { XfeedBadge, XfeedCompCard } from "./XfeedComp.js";
+import { XfeedBadge, XfeedCompCard, xfeedBlock } from "./XfeedComp.js";
+import { applyEqToBlock, fitComp } from "../lib/xfeed.js";
 import { effective } from "../store/state.js";
 import { CrossfeedPlot } from "./plots.js";
 import { truthy } from "./tabs/common.js";
@@ -496,9 +497,25 @@ function doImport(rows, targetIndex) {
     return;
   }
   const target = Math.min(targetIndex, rows.length - 1);
+  const addition = serializeProcess(stages);
+
+  // A recognized compensation block owns rows 0..7 as one unit: shared EQ, Lin
+  // gains with the preamp folded in. Appending to one of its rows would break
+  // recognition AND leave that row carrying the EQ twice at a dB gain — an
+  // audible one-channel imbalance with no error shown. Route into the block.
+  const { bs, rec } = xfeedBlock(rows);
+  if (rec && target < 8) {
+    stagePipelines(applyEqToBlock(rows, rec, fitComp(bs.fc, bs.feed), addition, preamp));
+    importNote.value =
+      `${stages.length} filter(s) → crossfeed compensation block (pipelines 1–8)` +
+      (preamp !== null ? `, preamp ${preamp} dB` : "") +
+      (rec.stale ? " · block was out of date and has been rebuilt at 100%" : "") +
+      (skipped.length ? ` · skipped: ${skipped.join("; ")}` : "");
+    return;
+  }
+
   const pair = importMirror.value && rows.length > 1 ? (target % 2 === 0 ? target + 1 : target - 1) : null;
   const targets = new Set(pair !== null && pair < rows.length ? [target, pair] : [target]);
-  const addition = serializeProcess(stages);
   const next = rows.map((r, i) => {
     if (!targets.has(i)) return r;
     const process = r.process ? `${r.process},${addition}` : addition;
