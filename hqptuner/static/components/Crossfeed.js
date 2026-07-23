@@ -37,6 +37,7 @@ const truthy = (v) => v === true || v === "1" || v === 1;
 const cardOpen = signal(true);
 const plotOpen = signal(false);
 const structPlotOpen = signal(false);
+const compOpen = signal(true);
 const issueNote = signal("");
 function params(rows) {
   return structuralParams(rows);
@@ -256,8 +257,15 @@ function BauerMode() {
         </button>
         ${open ? html`<div class="dsp-plot"><${CrossfeedPlot} /></div>` : null}
       </div>
-      <${XfeedStrip} />
-      <${CompMiniPlot} />
+      <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (compOpen.value = !compOpen.value)}>
+        <span class="tri">${compOpen.value ? "▾" : "▸"}</span> Crossfeed compensation
+      </button>
+      ${compOpen.value
+        ? html`
+            <${XfeedStrip} />
+            <${CompMiniPlot} />
+          `
+        : null}
     </div>
   `;
 }
