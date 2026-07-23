@@ -2,6 +2,12 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
+## [Unreleased]
+
+### Fixed
+
+- The Crossfeed compensation controls lost their label. Merging the crossfeed and compensation cards into one two-mode card inlined the compensation strip and its plot but dropped the card wrapper whose header carried the name, leaving a slider and buttons in Bauer mode with nothing saying what they were. It is now a "Crossfeed compensation" section header alongside "Response plot", collapsible and open by default.
+
 ## [0.6.0] — 2026-07-22
 
 ### Added
