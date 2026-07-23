@@ -148,7 +148,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_POLL_INTERVAL` | `2.0` | Status poll cadence (s) |
 | `HQPTUNER_ALARM_THRESHOLD` | `15.0` | Seconds unreachable before alarm |
 | `HQPTUNER_REQUEST_TIMEOUT` | `5.0` | Per-request timeout (s) |
-| `HQPTUNER_DATA_DIR` | `data/` | Static metadata JSON |
+| `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
 | `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
 

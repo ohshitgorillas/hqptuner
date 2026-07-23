@@ -24,7 +24,7 @@ class Config:
     alarm_threshold: float = field(default_factory=lambda: float(_env("ALARM_THRESHOLD", "15.0")))
     request_timeout: float = field(default_factory=lambda: float(_env("REQUEST_TIMEOUT", "5.0")))
     data_dir: Path = field(
-        default_factory=lambda: Path(_env("DATA_DIR", str(Path(__file__).resolve().parent.parent / "data")))
+        default_factory=lambda: Path(_env("DATA_DIR", str(Path(__file__).resolve().parent / "data")))
     )
     backup_dir: Path = field(
         default_factory=lambda: Path(_env("BACKUP_DIR", str(Path(__file__).resolve().parent.parent / "backups")))

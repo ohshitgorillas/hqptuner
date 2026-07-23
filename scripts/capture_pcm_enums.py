@@ -16,7 +16,7 @@ from pathlib import Path
 
 from hqptuner.control import ControlClient
 
-DATA = Path(__file__).resolve().parent.parent / "data"
+DATA = Path(__file__).resolve().parent.parent / "hqptuner" / "data"
 PCM_MODE_INDEX = "1"
 RESTORE_KEYS = ("mode", "filter1x", "filterNx", "shaper", "rate")
 
