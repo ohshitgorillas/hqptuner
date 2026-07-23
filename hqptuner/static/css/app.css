@@ -2861,24 +2861,6 @@ select.mtx-ch {
   font-size: 0.85em;
   max-width: var(--measure);
 }
-/* comp card: controls left, mini correction plot right; single column when narrow */
-.xfc-cols {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-}
-@media (min-width: 1100px) {
-  /* same centred 1px rule track as the other two-column cards */
-  .xfc-cols {
-    display: grid;
-    grid-template-columns: 1fr 1px 1fr;
-    gap: var(--sp-4);
-    align-items: start;
-  }
-}
-.xfc-controls {
-  min-width: 0;
-}
 .xfc-mini {
   min-width: 0;
 }

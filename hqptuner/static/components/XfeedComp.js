@@ -282,32 +282,6 @@ export function CompMiniPlot() {
   `;
 }
 
-// Own card on the DSP (ex-Matrix) tab, between Crossfeed and Response
-// (2026-07-21 reorg — previously embedded in the Response card). Collapsible,
-// open by default.
-const compCardOpen = signal(true);
-
-export function XfeedCompCard() {
-  const open = compCardOpen.value;
-  return html`
-    <section class="card">
-      <button
-        type="button"
-        class="card-head mtx-eq-head"
-        title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides, much as real speakers do. This brings the centered part back to neutral, without touching the crossfeed's stereo effect."
-        onClick=${() => (compCardOpen.value = !open)}
-      >
-        <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed compensation
-      </button>
-      ${open
-        ? html`<div class="card-body">
-            <div class="xfc-cols">
-              <div class="xfc-controls"><${XfeedStrip} /></div>
-              <span class="col-rule" aria-hidden="true"></span>
-              <${CompMiniPlot} />
-            </div>
-          </div>`
-        : null}
-    </section>
-  `;
-}
+// Compensation used to be its own card here (2026-07-21 reorg). It now renders
+// inside the Crossfeed card's Bauer mode from `XfeedStrip` + `CompMiniPlot`
+// directly, so there is no card wrapper in this file to keep in step with it.

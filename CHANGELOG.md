@@ -6,6 +6,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- Turning structural crossfeed off could rewrite rows without saying so. Removal normally restores the exact rows the block was built over, stashed when it was installed; when there is no stash — another browser, cleared storage, a block installed before the stash existed — it rebuilds the pair from the block instead, which canonicalizes row order to In 1-first and reformats the gains. Both paths looked identical from the outside. The rebuild path now says what it did and asks you to check rows 1 and 2 before applying. `docs/crossfeed-math.md` §8.1 also claimed the stash was lost after an Apply and a reload; it is persisted alongside the remembered controls and survives both, and the section now says so along with the consequence — a stash is browser-local and is not invalidated when the configuration changes under it.
+
+- The Crossfeed compensation section header lost the explanation the old card header carried; hovering it describes again what compensation does.
+
 - The Crossfeed compensation controls lost their label. Merging the crossfeed and compensation cards into one two-mode card inlined the compensation strip and its plot but dropped the card wrapper whose header carried the name, leaving a slider and buttons in Bauer mode with nothing saying what they were. It is now a "Crossfeed compensation" section header alongside "Response plot", collapsible and open by default.
 
 ## [0.6.0] — 2026-07-22
