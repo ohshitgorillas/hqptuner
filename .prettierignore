@@ -1,0 +1,3 @@
+# Vendored upstream (preact, htm, signals, AutoEq snapshot) — never ours to format.
+hqptuner/static/vendor/
+node_modules/
