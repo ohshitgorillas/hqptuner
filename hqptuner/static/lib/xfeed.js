@@ -173,6 +173,19 @@ export function msCompile(eqProcess, preampDb, fit, s, srcA, srcB) {
   ];
 }
 
+// The plain stereo EQ pair a compensation block was built from, with the rest of
+// the row list intact. Switching to the structural crossfeed has to come through
+// here first: the block's rows are Lin, and the structural compiler builds from a
+// dB pair, so without this the mode toggle just refuses.
+export function uncompensatedRows(rows, rec) {
+  const g = String(Math.round(rec.preampDb * 100) / 100);
+  return [
+    { gain: g, gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },
+    { gain: g, gainunit: "dB", mixdown: "1", process: rec.eqProcess, source: "1" },
+    ...rows.slice(8),
+  ];
+}
+
 // Route an EQ import INTO a recognized block instead of onto its individual rows.
 //
 // The block holds its EQ once, shared by all eight rows, and its gains are Lin

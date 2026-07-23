@@ -1,5 +1,5 @@
 // Structural crossfeed compiler (docs/crossfeed-math.md). Turns three physical
-// controls — speaker angle, head radius, and the centre-character blend λ — into
+// controls — speaker angle, head radius, and the center-character blend λ — into
 // matrix pipeline rows.
 //
 // The model is Brown & Duda's structural HRTF (IEEE TSAP 6(5), 1998), whose
@@ -12,10 +12,10 @@
 // parallel form is directly expressible as two rows — a flat one at gain α and
 // an lp1 one at gain (1−α). No fit, no rate-bound raw biquads.
 //
-// The centre is on a continuous control while the side path stays physical:
+// The center is on a continuous control while the side path stays physical:
 //
 //   G_S    = (H_n − H_f)/2                 side — never moves
-//   G_M(λ) = λ·(H_n + H_f)/2 + (1 − λ)     centre — λ=1 literal, λ=0 flat
+//   G_M(λ) = λ·(H_n + H_f)/2 + (1 − λ)     center — λ=1 literal, λ=0 flat
 //
 // Per-source coefficients follow, and expanding H_n and H_f over {flat, lp1} ×
 // {dry, delayed} gives four row types per source, eight per output ear:
@@ -32,19 +32,19 @@
 // across adults (+/-26 us) — which is why `a` is a control and c is not.
 export const SPEED_OF_SOUND = 343; // m/s — Brown & Duda §II.A
 export const HEAD_RADIUS = 0.0875; // m — Brown & Duda's stated average adult
-export const SPEAKER_ANGLE = 30; // degrees off centre — the stereo standard
+export const SPEAKER_ANGLE = 30; // degrees off center — the stereo standard
 
 const ALPHA_MIN = 0.1;
 const THETA_MIN = 150;
 
 // Eq. (5). `theta` is interaural-polar: measured from the interaural axis, so a
-// source at `angle` degrees off centre sits at 90−angle for the near ear and
+// source at `angle` degrees off center sits at 90−angle for the near ear and
 // 90+angle for the far one.
 export function alphaOf(theta) {
   return 1 + ALPHA_MIN / 2 + (1 - ALPHA_MIN / 2) * Math.cos((theta / THETA_MIN) * Math.PI);
 }
 
-// Eq. (2), Woodworth & Schlosberg: arrival time relative to the head centre,
+// Eq. (2), Woodworth & Schlosberg: arrival time relative to the head center,
 // in seconds. Negative = early (source on this side).
 export function rayDelay(theta, a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
   const rad = (Math.abs(theta) * Math.PI) / 180;
@@ -175,7 +175,7 @@ function delayResponse(f, seconds) {
 const mul = ([ar, ai], [br, bi]) => [ar * br - ai * bi, ar * bi + ai * br];
 
 // Sum of one ear's eight rows at frequency f, as [re, im]. `sameSide` picks
-// which source the signal arrived on: pass 1 for correlated (centre) content in
+// which source the signal arrived on: pass 1 for correlated (center) content in
 // both sources, or use midSideResponse below.
 function earResponse(f, coeffs, p, sourceGain) {
   let re = 0;
@@ -191,8 +191,8 @@ function earResponse(f, coeffs, p, sourceGain) {
   return [re, im];
 }
 
-// Centre and side transfer functions of the compiled block at frequency f.
-// Centre drives both sources in phase; side drives them in antiphase.
+// Center and side transfer functions of the compiled block at frequency f.
+// Center drives both sources in phase; side drives them in antiphase.
 export function midSideResponse(f, { lambda = 1, angle = SPEAKER_ANGLE, headRadius = HEAD_RADIUS, speedOfSound = SPEED_OF_SOUND } = {}) {
   const p = pathParams(angle, headRadius, speedOfSound);
   const coeffs = earCoefficients(lambda, p.alphaNear, p.alphaFar);
@@ -390,28 +390,62 @@ export function blockConflicts(effective) {
 
 // --- what the block compiles from -------------------------------------------
 
-// A stereo EQ pair at rows 0+1 is what the structural block compiles from, and
-// what removing it returns to. Row order is not a contract (live configs arrive
-// In 2-first), so either order is accepted and the compiled block always emits
-// In 1-first.
+// What the block should carry in from rows 0+1, and whether it could read them.
 //
-// The pair does NOT have to be symmetric. A measured headphone correction often
-// differs between the ears, and the block carries EQ and preamp per ear, so
-// there is nothing to refuse. What remains is a genuine structural precondition:
-// each row feeds its own channel straight through, in dB.
+// This NEVER refuses. An earlier version returned an issue and blocked the mode
+// switch, which was wrong twice: the guard was inherited from the compensation
+// block, where it protected a round trip that here is guaranteed by stashing the
+// original rows instead; and a control that silently declines to go where the
+// user pointed it is worse than one that goes and explains.
+//
+// A straight-through dB pair hands its chains and gains to the block, per ear.
+// Anything else is SET ASIDE — the block installs with no EQ of its own, the
+// original rows are stashed verbatim, and Turn off puts them back untouched.
 export function pairInfo(rows) {
   const [a, b] = rows;
-  if (!a || !b) return { issue: "needs pipelines 1+2" };
+  const aside = (why) => ({
+    eq: { left: "", right: "" },
+    gain: { left: 0, right: 0 },
+    setAside: why,
+  });
+  if (!a || !b) return aside("there was nothing on pipelines 1+2");
   const straight = (x, ch) => x.source === ch && x.mixdown === ch;
-  if (straight(a, "0") && straight(b, "1")) return pairOf(a, b);
-  if (straight(a, "1") && straight(b, "0")) return pairOf(b, a);
-  return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
+  const pair = (l, r) =>
+    l.gainunit === "dB" && r.gainunit === "dB"
+      ? { eq: { left: l.process, right: r.process }, gain: { left: Number(l.gain), right: Number(r.gain) } }
+      : aside("pipelines 1+2 use linear gain, which the block cannot carry as a preamp");
+  if (straight(a, "0") && straight(b, "1")) return pair(a, b);
+  if (straight(a, "1") && straight(b, "0")) return pair(b, a);
+  return aside("pipelines 1+2 do not route straight through");
 }
 
-function pairOf(left, right) {
-  if (left.gainunit !== "dB" || right.gainunit !== "dB") return { issue: "pipelines 1+2 gains must be in dB" };
-  return {
-    eq: { left: left.process, right: right.process },
-    gain: { left: Number(left.gain), right: Number(right.gain) },
-  };
+// --- presets -----------------------------------------------------------------
+// Angle and center character only. HEAD SIZE IS DELIBERATELY EXCLUDED and
+// persists across preset changes: it is anatomy, not taste, and it is the one
+// parameter with a physically correct per-person answer — it sets the lp1 corner
+// (w0 = c/a) and scales the ITD. A preset resizing the listener's skull would be
+// wrong, not merely presumptuous.
+//
+// Center values are picked from the measured ripple curve rather than by feel.
+// lambda controls the depth of the phantom-center comb the ITD produces, and it
+// does so almost independently of angle (<=3 dB ripple at lambda ~39% for every
+// angle tested, <=6 dB at ~67%). What angle moves is WHERE the notch sits:
+// 2039 Hz at 22 deg, 1426 Hz at 30 deg, 952 Hz at 45 deg. Wide gets a lower
+// center value not because its ripple is worse but because its notch lands on
+// vocal fundamentals — which is the wide-angle vocal oddity Phonitor users report.
+export const PRESETS = [
+  { id: "standard", label: "Standard", angle: 30, lambda: 0.7 },
+  { id: "anechoic", label: "Anechoic", angle: 30, lambda: 1.0 },
+  { id: "intimate", label: "Intimate", angle: 22, lambda: 0.7 },
+  { id: "wide", label: "Wide", angle: 45, lambda: 0.5 },
+  { id: "neutral", label: "Neutral center", angle: 30, lambda: 0.0 },
+];
+
+// Which preset the current controls correspond to, or "custom". Derived, never
+// stored — the same convention the Bauer preset dropdown follows, so any manual
+// touch of angle or center falls to Custom on its own.
+export function matchPreset({ angle, lambda }) {
+  const hit = PRESETS.find((p) => Math.abs(p.angle - angle) < 0.05 && Math.abs(p.lambda - lambda) < 0.005);
+  return hit ? hit.id : "custom";
 }
+
