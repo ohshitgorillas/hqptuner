@@ -98,6 +98,19 @@
   justify-content: space-between;
   gap: var(--sp-3);
 }
+/* the header is as tall as the ▾ tri (1.9rem), so a base segment floats inside it
+   looking undersized. Stretch it to the head's content box instead of naming a
+   height — the tri stays the one thing that sets this header's height — and match
+   the segment type to the card-head's, so mode labels read as a peer of the
+   title rather than as UA button text. */
+.xfs-head .segment {
+  align-self: stretch;
+}
+.xfs-head .segment .seg {
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+}
 .xfs-head-toggle {
   background: none;
   border: none;

@@ -13,6 +13,24 @@
 // Staged counts cannot be assigned: stagedCount and split are computed over the
 // schema and the staged buffer, so cases that need them stage real edits through
 // `edit()` against a faked wire (docs/testing.md rule 4).
+//
+// The bar asks for a new preset's name, and for permission to overwrite an
+// existing one, inline (store/ask.js) rather than through the native
+// prompt()/confirm(). What is asserted about that here is only what a user can
+// see: the question the bar is asking is on screen, it offers a way out, and it
+// leaves the screen when answered or withdrawn — never the resolved value, the
+// markup's class names, or which component the question is routed to. Those are
+// this week's implementation and would red the suite on a refactor that changed
+// no behavior.
+//
+// NOT reachable, deliberately untested: the "Save as New…" chain end to end —
+// click → name field → overwrite confirm → savePresetOnly, and the wire silence
+// that must follow a cancel at either step. render-to-string attaches no
+// handlers, so the button's onClick never runs, the field's Enter/Escape keys
+// never fire, and `autofocus` has no browser to act on. That chain — the
+// assertion actually worth having — belongs to the playwright hand-back
+// protocol, not to a faked unit test (docs/testing.md, "Branches that cannot be
+// reached").
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,6 +38,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { PendingBar } from "../../hqptuner/static/components/PendingBar.js";
+import { askName, askConfirm, answer, cancel } from "../../hqptuner/static/store/ask.js";
 import {
   health,
   config,
@@ -45,6 +64,7 @@ function wire(staged = { live: {}, http: {} }) {
 // Full reset every time — these signals outlive a test.
 async function reset({ reachable = true, active = "", profiles = null } = {}) {
   wire();
+  cancel();
   applying.value = false;
   lastApply.value = null;
   pendingPreset.value = null;
@@ -69,6 +89,8 @@ async function stageOne() {
 
 // Buttons in render order. Matching one by its label is not viable: "Apply" is a
 // substring of "Apply & Save", and "Save" of both that and "Save as New".
+// Positional, so these hold only while no question is open — the inline ask
+// renders its own two buttons ahead of Discard.
 const DISCARD = 0;
 const APPLY = 1;
 const SAVE = 2;
@@ -294,4 +316,56 @@ test("test_a_pending_switch_targets_the_previewed_preset_not_the_active_one", as
 test("test_save_as_new_is_disabled_while_the_daemon_is_unreachable", async () => {
   await reset({ reachable: false });
   assert.equal(disabled(bar(), SAVE_NEW), true);
+});
+
+// --- asking, in the bar instead of in a native dialog -----------------------
+
+const NAME_Q = "Save current settings as a new preset:";
+const OVERWRITE_Q = 'Preset "Night" already exists. Overwrite it?';
+
+test("test_the_bar_shows_the_name_it_is_asking_for", async () => {
+  await reset();
+  askName("pending", NAME_Q);
+  assert.ok(bar().includes(NAME_Q));
+});
+
+test("test_a_question_offers_a_way_out", async () => {
+  await reset();
+  askName("pending", NAME_Q);
+  assert.ok(bar().includes("Cancel"));
+});
+
+test("test_a_blank_name_does_not_dismiss_the_question", async () => {
+  // refusing it in place is what stops a stray Enter saving a nameless preset
+  await reset();
+  askName("pending", NAME_Q);
+  answer("   ");
+  assert.ok(bar().includes(NAME_Q));
+});
+
+test("test_a_named_answer_dismisses_the_question", async () => {
+  await reset();
+  askName("pending", NAME_Q);
+  answer("Night");
+  assert.equal(bar().includes(NAME_Q), false);
+});
+
+test("test_withdrawing_dismisses_the_name_question", async () => {
+  await reset();
+  askName("pending", NAME_Q);
+  cancel();
+  assert.equal(bar().includes(NAME_Q), false);
+});
+
+test("test_the_bar_shows_the_overwrite_it_is_asking_about", async () => {
+  await reset();
+  askConfirm("pending", OVERWRITE_Q);
+  assert.ok(bar().includes(OVERWRITE_Q));
+});
+
+test("test_withdrawing_dismisses_the_overwrite_question", async () => {
+  await reset();
+  askConfirm("pending", OVERWRITE_Q);
+  cancel();
+  assert.equal(bar().includes(OVERWRITE_Q), false);
 });

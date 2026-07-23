@@ -8,6 +8,8 @@
 // Staging is never dropped on a soft failure, so multiple applies and the
 // restart→reconnect cycle both work without stranding the user.
 import { html } from "../lib/dom.js";
+import { Ask } from "./Ask.js";
+import { askName, askConfirm } from "../store/ask.js";
 import {
   stagedCount,
   hasPending,
@@ -21,6 +23,9 @@ import {
   lastApply,
   config,
 } from "../store/state.js";
+
+// Questions this bar asks render inside it, not in a native dialog.
+const OWNER = "pending";
 
 // Where Apply & Save writes: the preset this apply lands on — the previewed one
 // when a switch is pending (the daemon's active hasn't changed yet), else the
@@ -60,10 +65,15 @@ async function onApplySave(pend) {
   if (name) await saveVia(name, pend);
 }
 
+// Both questions are asked INLINE in the bar (store/ask.js). Backing out of
+// either — Escape, Cancel, or an empty name — commits nothing.
 async function onSaveNew(pend) {
-  const name = (prompt("Save current settings as a new preset:") || "").trim();
+  const name = await askName(OWNER, "Save current settings as a new preset:");
   if (!name) return;
-  if (existingPresets().includes(name) && !confirm(`Preset "${name}" already exists. Overwrite it?`)) return;
+  if (existingPresets().includes(name)) {
+    const overwrite = await askConfirm(OWNER, `Preset "${name}" already exists. Overwrite it?`);
+    if (!overwrite) return;
+  }
   await saveVia(name, pend);
 }
 
@@ -123,6 +133,7 @@ export function PendingBar() {
     <footer class="pending-bar ${pend ? "active" : ""}">
       <span class="count">${n ? `${n} staged` : ""}</span>
       ${statusLine(n, split.value, busy, reach, lastApply.value, switchName)}
+      <${Ask} owner=${OWNER} />
       <span class="spacer"></span>
       <button onClick=${discardAll} disabled=${off.discard}>Discard</button>
       <button class="primary" onClick=${onApply} disabled=${off.apply}>${busy ? "Applying…" : "Apply"}</button>
