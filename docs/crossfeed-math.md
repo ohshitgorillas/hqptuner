@@ -267,6 +267,16 @@ Two behaviours worth recording because both were got wrong first:
 
 **EQ is carried per ear.** Chain and preamp both. A measured headphone correction is often asymmetric, and refusing those profiles would have excluded exactly the listeners most likely to want an accurate crossfeed. EQ distributes over each output ear independently, so this costs nothing structurally.
 
+### 8.1 · Set-aside, verified end to end (2026-07-22)
+
+Two restore paths, both exercised against the running app rather than reasoned about. Staged payloads were read off the wire from `POST /api/config/stage`, so what is recorded is what the app actually sent.
+
+**Stashed restore, same session.** Rows 1+2 set to crossed routing — legal pipelines the compiler cannot read as an EQ pair — with asymmetric gains (−6.3 / −4.5) and an unrelated `riaa` row sitting past them. Clicking Structural installed anyway and reported why: *"pipelines 1+2 do not route straight through — they have been set aside, and Turn off restores them exactly."* Seventeen rows staged, which is the sixteen compiled plus the untouched `riaa` row; the two unreadable rows were consumed into the stash rather than appended. Turn off returned all three original rows **byte-identical**, crossed routing and asymmetric gains included.
+
+**Fallback reconstruction, through the daemon.** The stash lives in `localStorage`, so after an Apply and a reload it is gone and removal reconstructs from the recognized block instead. Driven with real Applies: a fresh browser context (stash verified empty) turned the block off and applied; the daemon came back carrying two rows, In 1→Out 1 and In 2→Out 2, both at −6.3 dB with the full 546-character headphone chain intact on each ear; the original sixteen rows were then restored through the same stage/apply lanes and read back **byte-identical to the starting configuration**.
+
+**What the fallback cannot reproduce**, now measured rather than assumed: row order is canonicalized to In 1-first, so a pair that arrived In 2-first comes back swapped; the gain string is re-rounded to two decimals, so an original of `−6.534` returns as `−6.53`; and exactly two rows come back, so a head that was three rows or asymmetric in a way the block flattened is not recoverable. None of this engages while the stash exists, which is the whole reason it exists.
+
 ## 9 · Invariants
 
 States the implementation must make unreachable. These are not open questions — each follows from something already established, and probing them would only confirm a conclusion the maths already gives.
