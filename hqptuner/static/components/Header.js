@@ -35,14 +35,54 @@ async function onDelete(name) {
   }
 }
 
-export function Header() {
+// Daemon identity + live transport state.
+function daemonIdentity() {
   const info = (health.value && health.value.info) || {};
   const st = engineState.value || {};
+  return html`
+    <div class="daemon">
+      <span>${info.name || "hqplayerd"}</span>
+      <span class="muted">${info.engine ? `v${info.engine}` : ""}</span>
+      <span class="muted">${PLAY[st.state] || ""}</span>
+    </div>
+  `;
+}
+
+// Deleting is offered for whichever preset the picker is showing; the unnamed
+// default ("") is not a deletable target.
+function deleteButton(name) {
+  if (!name) return null;
+  return html`<button class="preset-del" title=${`Delete preset "${name}"`} onClick=${() => onDelete(name)}>
+    Delete
+  </button>`;
+}
+
+// One trailing note at most: a previewed preset's pending marker outranks the
+// pick status, which is what the "&& !pending" guard said when they were siblings.
+function presetNote(pending) {
+  if (pending) return html`<span class="preset-status pending-apply">(pending apply)</span>`;
+  if (!pickStatus.value) return null;
+  return html`<span class="preset-status muted">${pickStatus.value}</span>`;
+}
+
+function presetPicker() {
   const cfg = config.value || {};
   const profiles = cfg.profiles;
-  const active = cfg.active || (profiles && profiles.value) || "";
+  if (!profiles) return null;
   const pending = pendingPreset.value;
+  // the previewed preset wins the picker until Apply commits (or Discard drops) it
+  const shown = pending || cfg.active || profiles.value || "";
+  return html`
+    <label class="muted">Preset</label>
+    <select value=${shown} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
+      ${(profiles.options || []).map((o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`)}
+    </select>
+    ${deleteButton(shown)}
+    ${presetNote(pending)}
+  `;
+}
 
+export function Header() {
   return html`
     <header class="chrome-header">
       <div class="brand">
@@ -52,38 +92,8 @@ export function Header() {
         </svg>
         <span>HQPTuner</span>
       </div>
-      <div class="daemon">
-        <span>${info.name || "hqplayerd"}</span>
-        <span class="muted">${info.engine ? `v${info.engine}` : ""}</span>
-        <span class="muted">${PLAY[st.state] || ""}</span>
-      </div>
-      <div class="presets">
-        ${
-          profiles
-            ? html`
-                <label class="muted">Preset</label>
-                <select value=${pending || active} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
-                  ${(profiles.options || []).map(
-                    (o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`,
-                  )}
-                </select>
-                ${
-                  pending || active
-                    ? html`<button
-                        class="preset-del"
-                        title=${`Delete preset "${pending || active}"`}
-                        onClick=${() => onDelete(pending || active)}
-                      >
-                        Delete
-                      </button>`
-                    : null
-                }
-                ${pending ? html`<span class="preset-status pending-apply">(pending apply)</span>` : null}
-                ${pickStatus.value && !pending ? html`<span class="preset-status muted">${pickStatus.value}</span>` : null}
-              `
-            : null
-        }
-      </div>
+      ${daemonIdentity()}
+      <div class="presets">${presetPicker()}</div>
       <${StatusPill} />
     </header>
   `;

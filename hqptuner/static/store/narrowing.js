@@ -47,26 +47,42 @@ export function resetNarrowing() {
 // apodizing filter applies to 1x filters only (stage "1x"); Nx filters don't
 // need apodizing, so it's ignored there. With nApod on, full-apodizing filters
 // always pass; ½-apodizing ones pass only when nApodHalf is also on.
+// Does this filter satisfy one facet? Each entry reads "facet not engaged, or
+// the filter passes it", so an unset facet excludes nothing. A table rather than
+// a chain of ifs: six inline `active && !passes` guards in one function is the
+// shape that put this over the complexity ceiling.
+//
+// "any" is the genre escape hatch — a filter the manual marks as genre-agnostic
+// survives every genre selection.
+const FACET_CHECKS = [
+  (f, s) => !s.genre.length || s.genre.some((x) => f.genre.includes(x)) || f.genre.includes("any"),
+  (f, s) => !s.quality || (f.quality != null && f.quality >= s.quality),
+  (f, s) => !s.focus.length || s.focus.some((x) => f.focus.includes(x)),
+  (f, s) => !s.phase || f.phase === s.phase,
+  (f, s) => !s.length.length || s.length.includes(f.length),
+  (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
+];
+
+const facetPass = (f, sel) => FACET_CHECKS.every((check) => check(f, sel));
+
 export function narrowOptions(options, current, stage) {
-  const g = nGenre.value;
-  const q = Number(nQuality.value);
-  const fo = nFocus.value;
-  const ph = nPhase.value;
-  const len = nLength.value;
-  const ap = nApod.value && stage === "1x";
-  const half = nApodHalf.value;
-  if (!(g.length || q || fo.length || ph || len.length || ap)) return options;
+  const sel = {
+    genre: nGenre.value,
+    // Number() here and the raw signal in narrowingActive can disagree: a
+    // non-numeric value reads as active in the bar but narrows nothing.
+    quality: Number(nQuality.value),
+    focus: nFocus.value,
+    phase: nPhase.value,
+    length: nLength.value,
+    apod: nApod.value && stage === "1x",
+    half: nApodHalf.value,
+  };
+  const engaged = sel.genre.length || sel.quality || sel.focus.length || sel.phase || sel.length.length || sel.apod;
+  if (!engaged) return options;
   const facets = filterFacets.value;
   return options.filter((o) => {
     if (String(o.value) === String(current)) return true;
     const f = facets[o.label];
-    if (!f) return true;
-    if (g.length && !g.some((x) => f.genre.includes(x)) && !f.genre.includes("any")) return false;
-    if (q && !(f.quality != null && f.quality >= q)) return false;
-    if (fo.length && !fo.some((x) => f.focus.includes(x))) return false;
-    if (ph && f.phase !== ph) return false;
-    if (len.length && !len.includes(f.length)) return false;
-    if (ap && !(f.apodizing || (half && f.apodizingHalf))) return false;
-    return true;
+    return !f || facetPass(f, sel);
   });
 }

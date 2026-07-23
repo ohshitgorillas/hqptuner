@@ -10,8 +10,8 @@ export const activeTab = signal("output");
 // into quick updates AND is currently looking at it; the default 2 s otherwise.
 // Scoping the bump to the active page keeps the extra daemon load off pages the
 // user isn't watching.
-export const FAST_MS = 500;
-export const DEFAULT_MS = 2000;
+const FAST_MS = 500;
+const DEFAULT_MS = 2000;
 export const fastPollMs = computed(() => {
   const t = activeTab.value;
   if (t === "system" && quickSystemUpdates.value) return FAST_MS;

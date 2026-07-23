@@ -5,22 +5,21 @@
 // cross, and the filled span between Min and Max IS the range the daemon will
 // allow at runtime.
 //
-// Axis bounds come from the daemon's own /config form (volume_max -120..+12,
-// volume_min -120..0) — note the asymmetry: only Max may exceed 0 dBFS, because
-// only Max is documented as accepting positive gain (readme §1.2 volume_max
-// "Allows also positive values (gain)"). The scale is linear across that range.
+// The axis bounds and the cannot-cross rule live in lib/volume.js: they are the
+// daemon's contract rather than this bar's presentation, and keeping them out
+// there is what makes them testable at all (nothing can fire an onInput under
+// SSR). The scale is linear across that range.
 //
 // Staging goes through the ordinary edit() path, so these behave exactly like
 // the number boxes they replace: same dirty highlight, same Apply, same
 // restart. Nothing here writes to the daemon directly.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
+import { AXIS_MIN, AXIS_MAX, num, clampVolume } from "../lib/volume.js";
 import { effective, edit, isDirty } from "../store/state.js";
 import { grayReason } from "../store/graying.js";
 import { NumberBox } from "./controls/index.js";
 
-const AXIS_MIN = -120;
-const AXIS_MAX = 12;
 const SPAN = AXIS_MAX - AXIS_MIN;
 
 // dB -> percentage across the track.
@@ -59,20 +58,19 @@ function withLabelFlags(ticks) {
 
 const TICK_LAYOUT = withLabelFlags(TICKS);
 
-const num = (v, dflt) => (v === "" || v == null || Number.isNaN(Number(v)) ? dflt : Number(v));
-
 // Which handle is being dragged or hovered, for the value bubble. Null = none.
 const active = signal(null);
 
-// Clamp one handle against the axis, its own documented bound, and its
-// neighbours. Ordering is enforced here rather than by refusing the input, so a
-// handle dragged past its neighbour stops against it instead of jumping.
-function clamp(which, v, { min, startup, max }) {
-  const n = Math.round(num(v, 0));
-  if (which === "min") return Math.max(AXIS_MIN, Math.min(n, 0, startup, max));
-  if (which === "max") return Math.min(AXIS_MAX, Math.max(n, min, startup));
-  return Math.max(min, Math.min(n, max)); // startup rides between the two
-}
+// The three settings are one feature to the user, so the card speaks for the
+// group: whichever key grays first supplies the reason (DirectSDM grays the
+// lot), and any one staged edit lights the whole card. Declaration order below
+// IS the priority order for the reason.
+const KEYS = ["volume_max", "volume_min", "startup_volume"];
+const groupReason = () => KEYS.reduce((found, k) => found || grayReason(k), "");
+const groupDirty = () => KEYS.some(isDirty);
+
+// Per-control highlight: only the setting actually edited carries it.
+const dirtyClass = (key) => (isDirty(key) ? "dirty" : "");
 
 export function VolumeRangeBar() {
   const max = num(effective("volume_max"), 0);
@@ -80,17 +78,15 @@ export function VolumeRangeBar() {
   const startup = num(effective("startup_volume"), min);
   const cur = { min, startup, max };
 
-  // All three share a gray reason (same feature); take whichever fires —
-  // DirectSDM grays the lot.
-  const reason = grayReason("volume_max") || grayReason("volume_min") || grayReason("startup_volume");
-  const dirty = isDirty("volume_max") || isDirty("volume_min") || isDirty("startup_volume");
+  const reason = groupReason();
+  const dirty = groupDirty();
 
-  const set = (which, key) => (v) => edit(key, String(clamp(which, v, cur)));
+  const set = (which, key) => (v) => edit(key, String(clampVolume(which, v, cur)));
 
   const handle = (which, key, db, label) => html`
     <input
       type="range"
-      class="vr-handle vr-${which} ${isDirty(key) ? "dirty" : ""}"
+      class="vr-handle vr-${which} ${dirtyClass(key)}"
       min=${AXIS_MIN}
       max=${AXIS_MAX}
       step="1"
@@ -137,7 +133,7 @@ export function VolumeRangeBar() {
           }
         </div>
         <div class="vr-boxes">
-          <label class="vr-box ${isDirty("volume_min") ? "dirty" : ""}">
+          <label class="vr-box ${dirtyClass("volume_min")}">
             <span class="vr-key vr-key-min"></span>
             <span>Min</span>
             <${NumberBox}
@@ -149,7 +145,7 @@ export function VolumeRangeBar() {
               onChange=${set("min", "volume_min")}
             />
           </label>
-          <label class="vr-box ${isDirty("startup_volume") ? "dirty" : ""}">
+          <label class="vr-box ${dirtyClass("startup_volume")}">
             <span class="vr-key vr-key-startup"></span>
             <span>Startup</span>
             <${NumberBox}
@@ -161,7 +157,7 @@ export function VolumeRangeBar() {
               onChange=${set("startup", "startup_volume")}
             />
           </label>
-          <label class="vr-box ${isDirty("volume_max") ? "dirty" : ""}">
+          <label class="vr-box ${dirtyClass("volume_max")}">
             <span class="vr-key vr-key-max"></span>
             <span>Max</span>
             <${NumberBox}

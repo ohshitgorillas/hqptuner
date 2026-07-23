@@ -42,6 +42,52 @@ function Chip({ label, value, hero }) {
   `;
 }
 
+// Source describes the incoming stream, so it only means anything while one
+// exists — a bare dash otherwise (not "N/A", not the engine's remembered rate).
+function sourceLabel(md) {
+  if (!md.samplerate) return "—";
+  return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit`;
+}
+
+// A DSD bitstream is always 1-bit, so pair the MHz with "/ 1bit".
+function outputLabel(rate) {
+  if (Number(rate) >= DSD_FLOOR) return `${fmtRate(rate)} / 1bit`;
+  return fmtRate(rate);
+}
+
+// The matrix chip carries the ACTIVE profile name so A/B switches read straight
+// off the front panel; the unnamed default and over-long names fall back.
+function matrixLabel(prof) {
+  if (prof === "[Default]") return "On";
+  return prof.length > 20 ? `${prof.slice(0, 19)}…` : prof;
+}
+
+// Crossfeed and loudness share ONE post-process slot — both active collapses to
+// "DSP" rather than a chip each, which would crowd the panel.
+function postProcessStage(cf, loud) {
+  if (cf && loud) return { label: "DSP", value: "On" };
+  if (cf) return { label: "Crossfeed", value: "On" };
+  if (loud) return { label: "Loudness", value: "On" };
+  return null;
+}
+
+// The chain in processing order, omitting disabled post-process stages: matrix
+// and crossfeed are input-side and precede the filter; DAC correction is
+// output-rate-dependent and follows the shaper.
+function chainStages(st, md, playing) {
+  const stages = [{ label: "Source", value: playing ? sourceLabel(md) : "—" }];
+  if (on(runningValue("matrix_enabled"))) {
+    stages.push({ label: "Matrix", value: matrixLabel(matrixActiveProfile.value) });
+  }
+  const post = postProcessStage(on(runningValue("crossfeed_enabled")), on(runningValue("loudness_enabled")));
+  if (post) stages.push(post);
+  stages.push({ label: "Filter", value: st.active_filter });
+  stages.push({ label: "Shaper", value: st.active_shaper });
+  if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
+  stages.push({ label: "Output", value: playing ? outputLabel(st.active_rate) : "—", hero: true });
+  return stages;
+}
+
 export function SignalPath() {
   // /api/status payload is { status: {active_*...}, metadata: {track tags} } —
   // the active chain lives on the Status root (status.*), the track info on the
@@ -51,46 +97,8 @@ export function SignalPath() {
   const md = s.metadata || {};
   const playing = Number((engineState.value || {}).state) === PLAYING;
 
-  // Source describes the incoming stream and Output the actual output rate, so
-  // both only mean anything while a stream exists — idle shows a plain dash
-  // (not "N/A", not the engine's remembered/assumed rate).
-  const source = !playing ? "—" : md.samplerate ? `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit` : "—";
-  // output stage: a DSD bitstream is always 1-bit, so pair the MHz with "/ 1bit"
-  const outRate = !playing
-    ? "—"
-    : Number(st.active_rate) >= DSD_FLOOR
-      ? `${fmtRate(st.active_rate)} / 1bit`
-      : fmtRate(st.active_rate);
-
-  // build the chain in processing order, omitting disabled post-process stages:
-  // crossfeed sits before the filter (input-side), DAC correction after the
-  // shaper (output-rate-dependent).
-  const stages = [{ label: "Source", value: source }];
-  // The matrix (pipeline routing/EQ) always gets its own chip — it's the
-  // most-toggled processing stage, and its value carries the ACTIVE profile
-  // name so A/B switches read straight off the front panel ("[Default]" and
-  // over-long names fall back to a plain "On"/truncated form). It runs on the
-  // source-rate pipelines, ahead of the post-process mix bus.
-  const mtx = on(runningValue("matrix_enabled"));
-  if (mtx) {
-    const prof = matrixActiveProfile.value;
-    const val = prof === "[Default]" ? "On" : prof.length > 20 ? `${prof.slice(0, 19)}…` : prof;
-    stages.push({ label: "Matrix", value: val });
-  }
-  // crossfeed + loudness share one post-process slot (both active -> "DSP")
-  // instead of a chip per feature, to avoid crowding the front panel.
-  const cf = on(runningValue("crossfeed_enabled"));
-  const loud = on(runningValue("loudness_enabled"));
-  if (cf && loud) stages.push({ label: "DSP", value: "On" });
-  else if (cf) stages.push({ label: "Crossfeed", value: "On" });
-  else if (loud) stages.push({ label: "Loudness", value: "On" });
-  stages.push({ label: "Filter", value: st.active_filter });
-  stages.push({ label: "Shaper", value: st.active_shaper });
-  if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
-  stages.push({ label: "Output", value: outRate, hero: true });
-
   const nodes = [];
-  stages.forEach((stage, i) => {
+  chainStages(st, md, playing).forEach((stage, i) => {
     if (i) nodes.push(html`<span class="link"></span>`);
     nodes.push(html`<${Chip} label=${stage.label} value=${stage.value} hero=${stage.hero} />`);
   });
