@@ -72,6 +72,7 @@
   --w-select: 28rem; /* dropdowns / text — capped ~448px */
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-path: 32rem; /* log file path */
+  --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --measure: 68ch; /* one caption/description measure everywhere */
   --w-app: 1200px; /* container cap */
   /* motion: one duration + ease-out curve for every state change (never live drag) */

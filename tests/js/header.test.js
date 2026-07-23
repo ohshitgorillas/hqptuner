@@ -13,6 +13,14 @@
 // `.preset-status.muted` line — cannot be driven from the public surface.
 // Exporting the signal to reach them would be testing the implementation.
 //
+// Same limit, same treatment for the delete confirmation (store/ask.js, inline
+// instead of a native confirm()): the chain Delete-click → confirm →
+// deletePreset, and the wire silence that must follow a cancel, needs real event
+// dispatch and belongs to the playwright hand-back protocol. What is asserted
+// here is only what a user can see — the question is on screen, and it leaves
+// the screen when answered or withdrawn — never the resolved value or the
+// markup's class names.
+//
 // Assertions read the rendered markup as a user sees it. Note that
 // preact-render-to-string does NOT emit `value` on a <select>: it marks the
 // matching <option selected> instead, so the picker's current value is asserted
@@ -24,6 +32,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { Header } from "../../hqptuner/static/components/Header.js";
+import { askConfirm, answer, cancel } from "../../hqptuner/static/store/ask.js";
 import { health, engineState, config, pendingPreset } from "../../hqptuner/static/store/state.js";
 
 // The contract is the text a user reads — `Delete preset "Night"` — not its
@@ -42,12 +51,16 @@ const PROFILES = {
 // Full reset every time. `"key" in o` rather than a default so a case can pass
 // an explicitly absent snapshot (health: null) and still hit the fallbacks.
 function head(o = {}) {
+  cancel();
   health.value = "health" in o ? o.health : { reachable: true, info: {} };
   engineState.value = "engine" in o ? o.engine : {};
   config.value = "config" in o ? o.config : { fields: [], active: o.active || "", profiles: o.profiles || null };
   pendingPreset.value = o.pending || null;
   return decode(render(html`<${Header} />`));
 }
+
+// Re-render without resetting, for the cases that ask a question first.
+const again = () => decode(render(html`<${Header} />`));
 
 // The three identity spans, in render order.
 const NAME = 0;
@@ -166,6 +179,30 @@ test("test_the_delete_button_names_the_previewed_preset_over_the_active_one", ()
 
 test("test_the_default_preset_offers_no_delete_button", () => {
   assert.equal(head({ profiles: PROFILES }).includes('class="preset-del"'), false);
+});
+
+// --- confirming the delete, in the header instead of a native dialog --------
+
+const DELETE_Q = 'Delete preset "Night"? This cannot be undone.';
+
+test("test_the_header_shows_the_deletion_it_is_asking_about", () => {
+  head({ profiles: PROFILES, active: "Night" });
+  askConfirm("header", DELETE_Q);
+  assert.ok(again().includes(DELETE_Q));
+});
+
+test("test_confirming_dismisses_the_delete_question", () => {
+  head({ profiles: PROFILES, active: "Night" });
+  askConfirm("header", DELETE_Q);
+  answer();
+  assert.equal(again().includes(DELETE_Q), false);
+});
+
+test("test_withdrawing_dismisses_the_delete_question", () => {
+  head({ profiles: PROFILES, active: "Night" });
+  askConfirm("header", DELETE_Q);
+  cancel();
+  assert.equal(again().includes(DELETE_Q), false);
 });
 
 // --- pending apply ----------------------------------------------------------

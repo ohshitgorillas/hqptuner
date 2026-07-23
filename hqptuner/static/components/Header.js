@@ -6,9 +6,14 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { health, engineState, config, pendingPreset, previewPreset, deletePreset } from "../store/state.js";
+import { Ask } from "./Ask.js";
+import { askConfirm } from "../store/ask.js";
 import { StatusPill } from "./StatusPill.js";
 
 const PLAY = { 0: "Stopped", 1: "Paused", 2: "Playing", 3: "Stopping" };
+
+// Questions this header asks render beside the picker, not in a native dialog.
+const OWNER = "header";
 
 const pickStatus = signal(""); // "", "Loading…", or an error line
 
@@ -24,8 +29,8 @@ async function onPick(e) {
 }
 
 async function onDelete(name) {
-  // a destructive action wants an explicit OK
-  if (!name || !confirm(`Delete preset "${name}"? This cannot be undone.`)) return;
+  // a destructive action wants an explicit OK, asked inline beside the picker
+  if (!name || !(await askConfirm(OWNER, `Delete preset "${name}"? This cannot be undone.`))) return;
   pickStatus.value = "Deleting…";
   try {
     await deletePreset(name);
@@ -94,6 +99,7 @@ export function Header() {
       </div>
       ${daemonIdentity()}
       <div class="presets">${presetPicker()}</div>
+      <${Ask} owner=${OWNER} />
       <${StatusPill} />
     </header>
   `;

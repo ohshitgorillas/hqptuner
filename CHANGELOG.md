@@ -6,6 +6,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- Naming a preset and confirming an overwrite or a delete happen inline now, instead of through the browser's own `prompt()` and `confirm()` boxes. Those never matched the rest of the app, were awkward to back out of, and are blocked outright in some embedded browsers — in a wrapped webview, saving a preset simply did nothing. The name field opens in the pending bar where the action was taken: Enter commits, Escape cancels, and a blank name is refused in place rather than silently dismissing the question. The delete confirmation opens beside the preset picker. One question is open at a time, and asking a second supersedes the first rather than leaving it stranded.
+
+- The Bauer | Structural switch in the Crossfeed card header fills the header instead of sitting undersized in it — measured at 1280, it now occupies 96.9% of the header's content box and takes its type size from the header rather than the browser's default button font.
+
 - The Pipelines card on the DSP tab collapses. Once a matrix has rows in it the card ran most of the length of the page and pushed everything below it out of view; it now carries the same header toggle the Headphone Auto EQ and Crossfeed cards already use, open by default, and keeps the row count on the header so a collapsed card still says how many pipelines are configured.
 
 ### Fixed

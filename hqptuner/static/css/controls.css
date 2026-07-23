@@ -243,3 +243,26 @@ input[type="checkbox"]:disabled {
   color: var(--muted);
 }
 
+/* inline ask — the app's one prompt/confirm affordance (components/Ask.js).
+   Replaces the native prompt()/confirm(): styled with the app, always
+   cancellable, and it works in the embedded browsers that block the native
+   dialogs. It renders in the row that asked (pending bar, header), so it takes
+   that row's alignment and only sets its own internal gap. */
+.ask {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ask-msg {
+  color: var(--fg-2);
+  font-size: 0.85rem;
+}
+/* the shared text-input rule is 28rem (a full-width form field); an inline
+   chrome field takes the narrower name width instead */
+.ask input[type="text"] {
+  width: var(--w-name);
+}
+.ask button {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.85rem;
+}
