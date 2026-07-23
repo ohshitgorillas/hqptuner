@@ -20,3 +20,24 @@ Violations of this document are rejected in review regardless of whether the tes
 
 - Default suite is offline and deterministic; it must pass on a machine with no hqplayerd.
 - Tests needing the real daemon are marked `@pytest.mark.live` and must be read-only against it. Everything write-shaped runs against fakes until the roadmap phase that owns the write path.
+
+## Frontend
+
+The six core rules are language-independent and bind the JS suite identically. Runner is node's built-in `node --test`, via `make test-js`.
+
+- **One assertion per test is enforced, not merely asked for.** `eslint-rules/one-assertion-per-test.js` is the peer of `scripts/check_test_assertions.py`. It does not look inside nested functions, so an assertion wrapped in a helper or a `.then()` callback counts as **zero** and is flagged. That is deliberate: a gate you can defeat by moving the assert into a function is not a gate. Keep the assert at the call site — if a helper builds the condition, have it return `[ok, message]` and spread that into one `assert.ok(...)`.
+- **Fakes go at the wire, never over our own code.** Components and stores are driven by assigning exported signals and by faking `globalThis.fetch` on the real REST paths (`hqptuner/static/lib/api.js`) with real response shapes. No store function is ever stubbed.
+- **Components render through `preact-render-to-string`.** Assertions are on rendered output — classes, attributes, text — never on internal flags.
+
+### Harness facts, learned the hard way
+
+- **Module-level signals persist for the life of a test file.** Reset *every* source signal a test touches, not just the ones that case cares about, or tests pass alone and fail in sequence. `staged` is private — clear it with `await discardAll()`.
+- **Writing the same object reference to a signal does not notify.** Every simulated poll must be a fresh object.
+- **SSR escapes HTML entities** (`"` becomes `&quot;`, `&` becomes `&amp;`) and emits an empty-string attribute **bare** — an empty `title` renders as ` title`, never as an empty quoted pair. Decode before asserting on user-visible text.
+- **Substring-matching a class name needs a delimiter** — `class="vr-tick-label"` matches a naive `vr-tick` needle.
+- **`node --test` rejects a bare directory argument** here; pass an explicit file list.
+- Uncontrolled inputs (`NumberBox`, `TextBox`) sync by ref in `useEffect`, which never runs under SSR, so their *value* is not observable server-side. Their `min`/`max`/`step` are.
+
+### Branches that cannot be reached
+
+Several component branches are gated behind module-private signals written only from event handlers, which SSR never fires. **Do not export a private signal to reach one, and do not test through it.** Document the gap in the suite header instead — honest partial coverage beats coverage manufactured by widening the public surface. The pointer-driven cases that genuinely need a browser belong to the playwright hand-back protocol, not to a unit test.

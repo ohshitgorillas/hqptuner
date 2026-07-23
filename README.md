@@ -154,9 +154,16 @@ All knobs are environment variables (see `hqptuner/config.py`):
 
 ## Development
 
-* `make check` — full gate suite: ruff, black, xenon complexity, vulture, strict mypy, file-length and test-assertion checks, offline tests. Must be green before every commit (pre-commit enforces the same).
-* `make test` — offline test suite (fake daemons speaking the real wire protocol).
+Backend and frontend carry matching gate suites. Run `npm install` once alongside the venv — the JS tooling is dev-only and never ships.
+
+* `make check` — everything below. Must be green before every commit.
+* `make lint` — Python: ruff, black, xenon complexity, vulture, strict mypy, file-length and test-assertion checks.
+* `make lint-js` — frontend, one-for-one with the above: eslint (ruff), prettier (black), `tsc --checkJs` (mypy), knip (vulture), file-length. The complexity ceiling is 10, matching `xenon --max-absolute B`.
+* `make test` — offline Python suite (fake daemons speaking the real wire protocol).
 * `make test-live` — adds `live`-marked tests; needs a reachable hqplayerd.
+* `make test-js` — frontend suite on node's built-in runner. No browser, no bundler: a loader hook reads the importmap out of `index.html` so tests exercise the same vendored preact/htm the browser loads, and components render through `preact-render-to-string`.
+
+Pre-commit runs both lint suites and the Python tests; the JS suite is `make check` only, to keep the commit path from carrying two full suites.
 
 Design and reference docs:
 
