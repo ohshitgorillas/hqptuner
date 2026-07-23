@@ -277,6 +277,8 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
     if path == "/config/refresh":  # webUI: a bare GET in a method=get form
         _refresh_devices(st)
         return 200, b""
+    if path == "/log":
+        return 200, st["_log"].encode()
     if path == "/config":
         return 200, _http_render(st).encode()
     if path == "/matrix":
@@ -423,6 +425,8 @@ def state(**extra: Any) -> dict[str, Any]:
     # (auto_family off, rates non-zero), so a forcing test proves a real change.
     return {
         "title": "Opal",
+        # GET /log body — the 8088 web interface serves the daemon's log here
+        "_log": "\n".join(f"log line {i}" for i in range(1, 61)),
         "backend": "network",
         "filter": "40",
         "samplerate": "192000",
