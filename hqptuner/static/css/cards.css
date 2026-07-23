@@ -1,0 +1,317 @@
+/* cards — cards and card grids, the two-track .pack layout, about/backup/logging/log-tail, radios.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* non-collapsible grouping card — mirrors the Output backend-section look */
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  /* a surface fill (not just a faint border) so a stretched card's empty area
+     reads as deliberate space INSIDE the frame, not a hole in the page bg */
+  background: var(--bg-2);
+}
+.card-head {
+  /* lighter than the card body so the header still reads now that the body
+     carries a background too */
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+}
+.card-body {
+  flex: 1;
+  padding: 0.6rem 0.6rem;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch; /* cards in a row share height — the shorter card's spare
+                           space reads as deliberate margin inside its frame, not
+                           a hole in the page */
+  margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
+}
+/* controls inside a half-width card-grid card must fit that half — the 28rem
+   select token overflows a 12rem-label + half-container row (same math as the
+   packs), so the column is the cap here too. */
+.card-grid .field {
+  min-width: 0;
+}
+.card-grid .field select,
+.card-grid .field input[type="text"] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+/* two equal columns INSIDE one card body (e.g. Automatic's two checkboxes) */
+.card-cols2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+/* two-col packing (item 3) — short rows (numeric / checkbox / narrow select)
+   pack two-up above the breakpoint so the right half stops being dead air;
+   wide rows (long endpoint / filter strings, marked .field.wide or .span) keep
+   a full row. Below 1100px viewport it collapses to one column — the old
+   single-column form is the untouched fallback. */
+.pack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  position: relative; /* anchors the centred two-column rule (see media query) */
+}
+@media (min-width: 1100px) {
+  .pack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3) var(--sp-4);
+    align-items: start;
+  }
+  /* grid items default to min-width:auto and won't shrink below their content —
+     that let wide selects / long captions overflow the track and clip. min-width:0
+     lets the track do the constraining. */
+  .pack > * {
+    min-width: 0;
+  }
+  /* spanning is opt-in — only the long-string rows (device dropdown, log path)
+     carry .span; everything else packs two-up. A packed control fills its half
+     column; the 28/30rem width tokens are legal only in a full-span row, so here
+     the column itself is the cap (label + gap + control always fits the track). */
+  .pack > .span {
+    grid-column: 1 / -1;
+  }
+  /* a "split" pack draws a hairline between its two tracks (crossfeed
+     Enable | Preset) so the pair reads as two distinct controls. The border is
+     pulled back into the MIDDLE of the column gap: at a column edge it would sit
+     gap/2 off-centre and so miss the card centre line that every other in-card
+     rule uses (see the two-column divider rule in CLAUDE.md). Content is unmoved
+     — the negative margin and the padding cancel. */
+  .pack.split > .field + .field {
+    border-left: 1px solid var(--line);
+    margin-left: calc(var(--sp-4) / -2);
+    padding-left: calc(var(--sp-4) / 2);
+  }
+  /* Every two-track pack carries the centred hairline too (CLAUDE.md rule): one
+     full-height rule on the container's centre line, so it covers however many
+     rows the pack happens to have. .split is excluded — it already draws its own
+     centred border on the second field, and two rules would double up. */
+  .pack::before {
+    content: "";
+    position: absolute;
+    left: calc(50% - 0.5px);
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--line);
+    pointer-events: none;
+  }
+  .pack.split::before {
+    content: none;
+  }
+  /* A full-span row is one control across both tracks — the rule must not strike
+     through it, so the row masks the line over its own height by painting its own
+     surface. Two surfaces exist: a card body (--bg-2) and the bare page (--bg). */
+  .pack > .span {
+    position: relative;
+    background: var(--bg);
+  }
+  .card .pack > .span {
+    background: var(--bg-2);
+  }
+  /* consecutive packs in one card are separate two-track groups (each draws its
+     own centred rule), so they need the same inter-field rhythm between them
+     that stacked rows get inside a pack. */
+  .pack + .pack {
+    margin-top: var(--sp-4);
+  }
+  /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
+     (column-first over two rows) with the secondary control in the right track,
+     instead of splitting the chain across columns by raw source order. */
+  .pack.chain {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, auto);
+  }
+  .pack .field:not(.span) select,
+  .pack .field:not(.span) input[type="text"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .pack .span select,
+  .pack .span input[type="text"] {
+    width: 100%;
+    max-width: var(--w-select-wide);
+    min-width: 0;
+  }
+}
+/* System · About — read-only key/value list */
+.about {
+  margin: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+.about > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.about dt {
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+}
+.about dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+/* System · Backup — download link styled as a button */
+.btn {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-3);
+  color: var(--fg-1);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--accent);
+}
+/* card action row — hairline-separated and right-aligned (the pending-bar
+   convention), so the button reads as "applies THIS card", not page-global */
+.hw-apply {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+}
+.hw-all {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.hw-status {
+  color: var(--fg-2);
+}
+/* hierarchical controls nested under a parent toggle. Inside a two-track .pack the
+   centred column rule is already the divider, so the nesting border would read as
+   a second line beside it (DAC correction) — there the indent is carried by the
+   margin alone. */
+.pack .indent {
+  border-left: none;
+}
+.indent {
+  margin-left: 1.25rem;
+  border-left: 2px solid var(--line);
+  padding-left: 0.6rem;
+}
+/* nested control whose parent toggle is off: dim but legible + non-interactive */
+.indent.off {
+  opacity: 0.6;
+  pointer-events: none;
+}
+/* System · combined backup/restore — both buttons on one row */
+.backup-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+/* System · Logging — the two log-config options side by side at the top */
+.log-opts {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-bottom: 0.8rem;
+}
+.log-opts > .field {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+/* inline checkbox + text (Blocks/cycle "Set manually", the log-tail toggle) */
+.inline-check,
+.log-tail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap; /* keep "Set manually" on one line — no wrap crowding the status text */
+}
+/* per-page "quick updates" opt-in — a low-key footer row under a live card */
+.poll-quick {
+  margin-top: var(--sp-3);
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: normal;
+}
+.poll-quick-note {
+  color: var(--muted);
+  opacity: 0.8;
+}
+/* live log tail — static 50-line window, monospace, scrolls internally */
+.log-tail {
+  margin: 0.5rem 0 0;
+  max-height: 22rem;
+  overflow: auto;
+  background: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--fg-2);
+  white-space: pre-wrap; /* wrap long lines — vertical scroll only, no horizontal bar */
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+}
+.log-tail-msg {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+/* tab subheads — group labels within a flat tab */
+.subhead {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 1.1rem 0 0.3rem;
+}
+.subhead:first-child {
+  margin-top: 0.2rem;
+}
+.radio-group {
+  display: inline-flex;
+  gap: 1rem;
+}
+/* each radio + its label on one baseline-aligned row */
+.radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+/* native radios (hardware-accel card) render the browser-default blue dot —
+   pull them onto the signature accent and match the checkbox's visual weight */
+input[type="radio"] {
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+

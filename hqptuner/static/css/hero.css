@@ -1,0 +1,140 @@
+/* hero — hero boxes (MODE / BACKEND / RATE), segment boxes.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* Hero boxes — MODE · BACKEND · RATE. A real grid: N boxes each fill 1/N of the
+   content width (one box = full width), equal heights, no dead flanks. */
+.top-row {
+  display: grid;
+  grid-auto-flow: column;
+  /* hero cards divide the full row (one card = full width, two = 50/50) so the
+     row's right edge is flush with the container — no raw-background hole. The
+     control INSIDE a card is capped separately (.seg-box .segment) so a
+     full-width card doesn't turn its buttons into banners. */
+  grid-auto-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+.box {
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+/* one shared box-label / card-title style — deliberately LARGER than control text */
+.box-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+}
+.box .field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+  flex: 1;
+}
+/* segment boxes: full-width horizontal button row; field's own label hidden */
+.seg-box .field > label {
+  display: none;
+}
+.seg-box .segment {
+  flex-direction: row;
+  /* fill the card up to a cap and centre — a full-width Backend card keeps its
+     buttons button-sized instead of stretching them across the whole container. */
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
+  height: 100%;
+}
+.seg-box .segment .seg {
+  flex: 1;
+  border-top: none;
+  border-left: 1px solid var(--line);
+  text-align: center;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+  color: var(--fg);
+}
+.seg-box .segment .seg:first-child {
+  border-left: none;
+}
+/* rate box: PCM / SDM side by side, each label+select pair sharing the width */
+.rate-stack {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  width: 100%;
+}
+.rate-stack .field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-height: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+/* hairline divider between the PCM and SDM halves */
+.rate-stack .field + .field {
+  border-left: 1px solid var(--line);
+  padding-left: 0.9rem;
+}
+.rate-stack .field > label {
+  font-size: 1rem;
+  color: var(--fg);
+  text-align: center;
+}
+.rate-stack select {
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.5rem 0.6rem;
+}
+.collapsible {
+  margin-top: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.collapsible-head {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-2);
+  border: none;
+  border-radius: 0;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+}
+.collapsible.closed .collapsible-head {
+  color: var(--muted);
+}
+.collapsible-head .tri {
+  color: var(--accent);
+  margin-right: 0.55rem;
+  font-size: 1.9rem;
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+.collapsible-body {
+  padding: 0.5rem 0.4rem;
+}
+

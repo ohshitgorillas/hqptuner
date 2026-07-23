@@ -1,0 +1,245 @@
+/* controls — form controls — segmented, selects, text/number, checkbox, range, slidernum.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* segmented control */
+.segment {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+.segment .seg {
+  background: var(--bg-3);
+  border: none;
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+  padding: 0.35rem 0.9rem;
+  color: var(--muted);
+}
+.segment .seg:first-child {
+  border-left: none;
+}
+.segment .seg.active {
+  background: var(--accent);
+  color: #08121c;
+  font-weight: 600;
+}
+/* schema `size: "lg"` — a control that selects an operating MODE rather than a
+   value gets a segment 1.1x the standard one, so it carries a little more weight
+   without shouting. Both numbers are the base segment's scaled by 1.1
+   (0.35/0.9rem padding; the 13.33px UA button default = 0.833rem type), not
+   free-chosen pixels. */
+.field-lg .segment .seg {
+  padding: 0.385rem 0.99rem;
+  font-size: 0.917rem;
+}
+.segment .seg:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  background: var(--bg-3);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+}
+select,
+input[type="text"] {
+  width: var(--w-select);
+  max-width: 100%;
+}
+input[type="number"] {
+  width: var(--w-num);
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+/* native spin buttons render black-on-dark and aren't reliably styleable — drop them */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+/* Wide controls (long endpoint / filter strings): fill the control column but
+   cap so they never span the whole card — the full-bleed empty-select problem. */
+.field.wide .control {
+  width: 100%;
+}
+.field.wide select,
+.field.wide input[type="text"] {
+  width: 100%;
+  max-width: var(--w-select-wide);
+}
+input:disabled,
+select:disabled {
+  opacity: 0.45;
+}
+
+/* checkbox: one unmistakable style, consistent size, clear checked state.
+   Unchecked border uses --muted, not --line — the line hairline vanished
+   against a card background. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 1px solid var(--muted);
+  border-radius: 0.25rem;
+  background: var(--bg-3);
+  position: relative;
+  cursor: pointer;
+}
+input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #08121c;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.slider {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+/* the plain range primitive (e.g. Blocks/cycle) — tint the native track/thumb
+   with the accent instead of the browser default blue */
+.slider input[type="range"] {
+  accent-color: var(--accent);
+}
+.slidernum {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.range-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+}
+/* a wide slidernum field (e.g. crossfeed level) gets the full control width for
+   fine adjustment, not the compact 220px cap */
+.field.wide .range-wrap {
+  max-width: none;
+}
+.range-wrap input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-3);
+  cursor: pointer;
+}
+.range-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fg);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.range-wrap input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fg);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.range-wrap input[type="range"]::-moz-range-track {
+  background: transparent;
+}
+.tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 11px;
+  background: var(--muted);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.slidernum-box {
+  width: 72px;
+}
+
+/* live playback volume — the tab's dominant element, styled distinctly from the
+   staged-config cards (accent-forward, no card chrome) to signal "writes live". */
+.playback {
+  margin-bottom: 1.2rem;
+  padding: 0.3rem 1.2rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--bg-2)), var(--bg-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-radius: 0.6rem;
+}
+.playback.off {
+  opacity: 0.5;
+}
+.playback-row {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+.playback-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-3);
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.playback-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+.playback-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+.playback-readout {
+  min-width: 5.5rem;
+  text-align: right;
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.playback-hint {
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+

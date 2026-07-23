@@ -1,0 +1,60 @@
+/* pending-bar — pending-change bar and its buttons.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* pending bar */
+.pending-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-2);
+  border-top: 1px solid var(--line);
+}
+.pending-bar .spacer {
+  flex: 1;
+}
+.pending-bar .count {
+  font-weight: 600;
+}
+.pending-bar.active {
+  border-top-color: var(--accent);
+}
+.pending-bar .note.ok {
+  color: var(--green);
+}
+.pending-bar .note.err {
+  color: var(--red);
+}
+.pending-bar .note.warn {
+  color: var(--amber);
+}
+button {
+  background: var(--bg-3);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #08121c;
+  font-weight: 600;
+}
+/* a disabled primary must read as inert, not a dimmed-but-lit Apply */
+button.primary:disabled {
+  background: var(--bg-3);
+  border-color: var(--line);
+  color: var(--muted);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+

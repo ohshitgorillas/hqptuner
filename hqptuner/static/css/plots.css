@@ -1,0 +1,114 @@
+/* plots — response plot (SVG, log-freq axis), accent picker swatches.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* ── Response plot (client-side SVG, log-freq axis) ───────────────────── */
+.plot {
+  background: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+}
+.plot-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.plot-grid {
+  stroke: var(--line);
+  stroke-width: 0.5;
+  opacity: 0.35;
+} /* hairline, quieter than traces */
+.plot-zero {
+  stroke: var(--muted);
+  stroke-width: 0.8;
+  opacity: 0.6;
+}
+.plot-lbl {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  fill: var(--muted);
+}
+.plot-trace {
+  fill: none;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+.plot-trace.ghost {
+  stroke: var(--muted);
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+}
+.plot-trace.applied {
+  stroke: var(--accent);
+}
+.plot-tlbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+.plot-tlbl.ghost {
+  fill: var(--muted);
+}
+.plot-tlbl.applied {
+  fill: var(--accent);
+}
+.plot-caption {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--fg-2);
+  text-align: center;
+}
+.playback-knob {
+  display: flex;
+  justify-content: center;
+  padding: 0.4rem 0;
+}
+
+/* System · HQPTuner — accent picker. Each swatch shows its OWN color (a live
+   preview) regardless of the active theme, so the values are hard-coded here,
+   not driven by var(--accent). */
+.accent-swatches {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+/* custom-hex box beside the swatches — mono, sized to #rrggbb. The swatch
+   circles are shrink-proof so a tight track can't squash them into ovals. */
+/* specificity must beat `.pack .field:not(.span) input[type="text"]`, whose
+   width:100% / max-width:100% would stretch the box across the track */
+.pack .field .accent-swatches input.accent-hex[type="text"],
+.accent-hex {
+  width: 5rem;
+  max-width: 5rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.accent-swatches .swatch {
+  flex: none;
+}
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  cursor: pointer;
+}
+.swatch.blue {
+  background: #4f9dde;
+}
+.swatch.green {
+  background: #3fe0a0;
+}
+.swatch.amber {
+  background: #e0a63a;
+}
+.swatch:hover {
+  border-color: var(--fg-2);
+}
+.swatch.active {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 2px var(--bg-2);
+}
+

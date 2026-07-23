@@ -1,0 +1,291 @@
+/* knobs — knob/slider/box trio, DSP card layout, EQ drag handles, two-column cluster splits.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* ── Visual-language token ─────────────────────────────────────────────
+   DASHED + muted  = POTENTIAL / maximum / reference (a "ghost" trace).
+   SOLID  + accent = APPLIED right now.
+   Used by the response-plot traces and the knob value-fill arc, and
+   reusable anywhere a "what could be" vs "what is" distinction is drawn. */
+
+/* ── Knob + slider + box trio (continuous, audible params only) ───────── */
+.knob {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+/* Crossfeed / loudness knobs: the readout box sits BELOW the dial rather than to
+   the right of the slider, so the slider takes the freed horizontal width and the
+   trio fits a half-track cleanly. The large playback-volume dial (.knob-lg, no
+   slider) keeps the plain flex row. */
+.knob:not(.knob-lg) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "dial slider"
+    "readout slider";
+  align-items: center;
+  gap: 0.3rem 0.7rem;
+}
+.knob:not(.knob-lg) .knob-dial {
+  grid-area: dial;
+  /* the readout is wider than the dial and so sets the column width — centre the
+     dial in it too, or the dial reads as left-shifted above its own box */
+  justify-self: center;
+}
+.knob:not(.knob-lg) .knob-slider {
+  grid-area: slider;
+  align-self: center;
+}
+.knob:not(.knob-lg) .knob-readout {
+  grid-area: readout;
+  justify-self: center;
+}
+.knob-dial {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  cursor: ns-resize;
+  touch-action: none; /* vertical drag owns the gesture */
+  border-radius: 50%;
+  outline: none;
+}
+.knob-lg .knob-dial {
+  width: 200px;
+  height: 200px;
+}
+.knob-dial:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.knob-face {
+  fill: var(--bg-3);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.knob-track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 7;
+  stroke-linecap: round;
+} /* full 270° muted track */
+.knob-value {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+} /* accent value-fill arc = position in range */
+.knob-inner {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+} /* light gray inner ring (outline only) */
+.knob-notch {
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+} /* accent notch sticking through the inner disc = position */
+.knob.off .knob-dial {
+  cursor: default;
+}
+.knob-slider {
+  flex: 1 1 160px;
+  min-width: 140px;
+  accent-color: var(--accent);
+}
+.knob-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  /* The unit ("Hz" / "dB") is taken out of flow (see .knob-unit) so this wrapper's
+     width is exactly the BOX. Centring the wrapper then centres the box under the
+     dial; with the unit in flow the box sat ~9px left (half the unit's width). */
+  position: relative;
+}
+/* .knob prefix raises specificity above the global input[type=text] width.
+   --w-num keeps every readout box the same width as the plain number inputs. */
+.knob .knob-box {
+  width: var(--w-num);
+  text-align: center;
+  background: var(--bg-1);
+  color: var(--fg);
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  padding: 0.15rem 0.25rem;
+  font-size: 1rem;
+}
+.knob-lg .knob-box {
+  width: 4.4rem;
+  font-size: 1rem;
+}
+.knob-unit {
+  font-size: 0.72rem;
+  color: var(--muted);
+  /* out of flow, hanging to the right of the box — keeps it out of the readout's
+     width so the box alone is what gets centred under the dial */
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0.25rem;
+  white-space: nowrap;
+}
+/* knob field: small label on top, the trio row filling the width below */
+.field-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  min-height: 0;
+  padding: 0.3rem 0.4rem;
+}
+.field-knob > label {
+  font-size: 0.82rem;
+  color: var(--fg-2);
+}
+.field-knob .control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.field-knob .knob {
+  flex: 1;
+}
+
+/* ── DSP card: controls on top, full-width response plot across bottom ── */
+.dsp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.dsp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: opacity 0.15s;
+}
+.dsp-body.off {
+  opacity: 0.7;
+} /* disabled feature: text stays legible... */
+/* ...but the saturated accent controls (knob arc, slider, plot trace) must drop
+   to muted, or 0.7-alpha blue still reads "on" next to greyed-out text. */
+.dsp-body.off .knob-value,
+.dsp-body.off .knob-notch,
+.dsp-body.off .plot-trace.applied {
+  stroke: var(--muted);
+}
+.dsp-body.off .plot-tlbl.applied {
+  fill: var(--muted);
+}
+.dsp-body.off .plot-dot {
+  fill: var(--muted);
+  pointer-events: none;
+}
+/* draggable EQ handle on the response plot (loudness frequency + level) */
+.plot-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  cursor: grab;
+}
+.plot-dot:active {
+  cursor: grabbing;
+}
+/* the stage selected in the pipeline editor: accent ring so plot + editor
+   visibly point at the same band */
+.plot-dot.active {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.dsp-body.off .knob-slider,
+.dsp-body.off input[type="range"] {
+  accent-color: var(--muted);
+}
+.dsp-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.dsp-plot {
+  width: 100%;
+}
+/* Two-column card splits (see CLAUDE.md): an explicit 1px rule TRACK puts the
+   hairline exactly on the card centre line, so every divider on the page lines
+   up. Narrow viewports collapse to one column and drop the rule. */
+.knob-cluster,
+.cluster-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.col-rule {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .knob-cluster,
+  .cluster-row {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
+  .col-rule {
+    display: block;
+    align-self: stretch;
+    width: 1px;
+    background: var(--line);
+  }
+}
+/* No border-left here: the centred rule between the two tracks is the divider
+   (CLAUDE.md two-column rule). A per-cluster left border put a second line to the
+   left of BOTH Bass and Treble. */
+.cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.cluster-head {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+.range-group {
+  margin-top: 0.7rem;
+}
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3) var(--sp-4);
+}
+.range-row > * {
+  min-width: 0;
+}
+/* compact fields inside clusters / range: shorter label column */
+.cluster .field:not(.field-knob),
+.range-row .field {
+  grid-template-columns: 8rem 1fr;
+}
+/* clusters / knob rows must shrink to their column too, or the knob slider and
+   the value box overflow and clip (item 1: Loudness Treble value box cut off). */
+.cluster,
+.cluster-row > *,
+.knob-cluster > * {
+  min-width: 0;
+}
+/* NB: only selects — a .cluster input[type=text] is the knob readout box, which
+   must keep its fixed --w-num width, not stretch to fill the cluster. */
+.cluster select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.knob,
+.knob-slider {
+  min-width: 0;
+}
+.knob-slider {
+  flex: 1 1 60px;
+}
+

@@ -1,0 +1,60 @@
+/* chrome — output-stage readout, sticky chrome, tab bar.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* output stage — the headline readout, the one accent focal point */
+.signal-path.live .chip-hero {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 10px color-mix(in srgb, var(--accent-glow) 55%, transparent);
+}
+.signal-path.live .chip-hero .chip-val {
+  color: var(--accent-glow);
+  font-weight: 500;
+}
+
+/* sticky chrome — header + signal path + tab bar stay pinned while the tab
+   body scrolls beneath; opaque background so content never shows through. */
+.chrome-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg);
+}
+
+/* tabs — spread across the full container width, one equal cell each */
+.tab-nav {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.tab-nav button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.4rem 0.4rem 0 0;
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+.tab-nav button.active {
+  color: var(--fg);
+  background: var(--bg-2);
+  border-bottom: 2px solid var(--accent);
+}
+main {
+  flex: 1;
+}
+.tab-body {
+  padding: 1rem;
+}
+.tab-body h2 {
+  font-size: 1rem;
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+

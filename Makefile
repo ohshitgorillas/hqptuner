@@ -13,7 +13,9 @@ lint:
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
 # prettier (black), tsc --checkJs (mypy), knip (vulture). The complexity ceiling
-# lives in eslint.config.js and matches xenon --max-absolute B.
+# lives in eslint.config.js and matches xenon --max-absolute B. The length gate
+# also covers CSS: the stylesheet is split by concern under static/css/ and the
+# `<link>` order in index.html is the cascade order.
 #
 # store/schema.js is exempt from the length gate: it is a one-entry-per-line
 # control table rather than logic, and prettier at printWidth 120 is what pushed
@@ -23,7 +25,7 @@ lint-js:
 	npx prettier --check "hqptuner/static/**/*.js" "tests/js/*.js" "eslint-rules/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx knip
-	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js')
+	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
 
 test:
 	$(VENV)/pytest -m "not live" -q
