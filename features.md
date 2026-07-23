@@ -12,3 +12,4 @@ Startup vol is offset from its actual value/tickmark (which btw is unlabeled)
 tickmarks are nearly invisible
 -120 and +12 limits are jammed up against the sides of the card
 
+7. Output buffer starvation-check the network device? no, network connectivity has nothing to do with that output buffer. that's a "switch to a lighter filter or lower rate" issue

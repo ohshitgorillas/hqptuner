@@ -1,5 +1,8 @@
-// Resampling tab: filter narrowing bar, the PCM/SDM filter chains, DSD-source
-// decoding, and FFT filter length.
+// Resampling tab: filter narrowing bar, the PCM and SDM output cards, and FFT
+// filter length. Each output card is split by SOURCE type — a "PCM Sources"
+// subsection (how a PCM source is handled for that output) and an "SDM Sources"
+// subsection (how a DSD/SDM source is handled) — with a mode-mismatch note at
+// the top when the current output mode doesn't use the card.
 import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -12,10 +15,8 @@ import { Section, Collapsible } from "./common.js";
 // in pure SDM mode and vice-versa; DSD-source decoding is irrelevant in PCM.
 const pcmOpen = computed(() => effective("output_mode") !== "sdm");
 const sdmOpen = computed(() => effective("output_mode") !== "pcm");
-const dsdOpen = computed(() => effective("output_mode") !== "pcm");
 const pcmOverride = signal(null);
 const sdmOverride = signal(null);
-const dsdOverride = signal(null);
 
 // FFT filter length configures the FFT-based resampling filters only (readme
 // §1.2 fft_size), so the card follows the selection instead of sitting open
@@ -41,33 +42,33 @@ export const Resampling = () =>
   html`<${Section}>
     <${NarrowBar} />
     <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
+      ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
+      <div class="subhead">PCM Sources</div>
       <div class="pack chain">
         <${Field} k="pcm_filter_1x" />
         <${Field} k="pcm_filter_nx" />
         <${Field} k="pcm_dither" />
       </div>
+      <div class="subhead">SDM Sources</div>
+      <div class="pack chain">
+        <${Field} k="noise_filter" />
+        <${Field} k="pcm_conversion" />
+        <${Field} k="dsd_gain_6db" />
+      </div>
     <//>
     <${Collapsible} title="SDM" auto=${sdmOpen} override=${sdmOverride}>
+      ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
+      <div class="subhead">PCM Sources</div>
       <div class="pack chain">
         <${Field} k="sdm_filter_1x" />
         <${Field} k="sdm_filter_nx" />
         <${Field} k="sdm_modulator" />
       </div>
-    <//>
-    <${Collapsible} title="DSD sources" auto=${dsdOpen} override=${dsdOverride}>
-      <div class="pack">
-        <${Field} k="direct_sdm" />
-        <${Field} k="dsd_gain_6db" />
-      </div>
-      <!-- chain: each column is one conversion path, stacked in signal order —
-           SDM in (Integrator, then SDM → SDM) left, SDM out (Noise filter, then
-           SDM → PCM) right. Row order would pair them across the divider, which
-           reads as a relation they don't have. -->
+      <div class="subhead">SDM Sources</div>
       <div class="pack chain">
         <${Field} k="sdm_integrator" />
         <${Field} k="sdm_conversion" />
-        <${Field} k="noise_filter" />
-        <${Field} k="pcm_conversion" />
+        <${Field} k="direct_sdm" />
       </div>
     <//>
     <${Collapsible} title="Filter length" auto=${fftOpen} override=${fftOverride}>
