@@ -99,19 +99,23 @@ export const trackCounters = computed(() => {
 // One alert per category, or null. Order below is the order they render in.
 // Critical speed supersedes the warning rather than joining it — they describe
 // the same fault at two severities.
+// Both alerts below share this remedy: the output buffer is starving because
+// the DSP chain can't keep up, not because of the network path to the device
+// (network connectivity has nothing to do with the output buffer).
+const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
+
 function speedAlert(s, sp) {
-  const tail = "Use a lighter filter or a lower output rate.";
   if (s.crit >= SUSTAIN) {
-    return { sev: "crit", text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${tail}` };
+    return { sev: "crit", text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}` };
   }
-  if (s.warn >= SUSTAIN) return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${tail}` };
+  if (s.warn >= SUSTAIN) return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}` };
   return null;
 }
 
 function fillAlert(s, st) {
   if (s.fill < SUSTAIN) return null;
   const pct = Math.round((num(st.output_fill) || 0) * 100);
-  return { sev: "warn", text: `Output buffer at ${pct}% — starvation. Check the network path to the audio device.` };
+  return { sev: "warn", text: `Output buffer at ${pct}% — starvation. ${SLOW_DSP_TAIL}` };
 }
 
 function clipAlert(clips) {
