@@ -189,6 +189,140 @@
       },
       "side_effect_flagged": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)",
       "verification": "applied idle-gated; matrix readback byte-exact; preset saved with net_period fix intact"
+    },
+    {
+      "complaint": "certain elements in the treble are a touch spicy, but it's hard for me to put my finger on whether it's the peak at ~3kish or the one around 9-10k. advise.",
+      "clarify": "Which region: the 2 kHz peak (there is no 3 kHz peak - 3.2 kHz is a dip at -0.15, so a 2 kHz peak is likely being localized high), or the broad 7-10 kHz lift? Discriminator offered: 7-10 kHz shows on cymbals, hi-hats and sibilant tails as glassy sizzle riding over everything; 2 kHz shows on snare crack, brass and pick attack as forward projection in note attacks.",
+      "assistant_initial_hypothesis": "7-10 kHz, reasoning that its breadth (Q0.98, +4.42 dB average across nearly two octaves) reads as tonal character while a narrow 2 kHz peak reads as forward rather than spicy",
+      "answer": "Neither - the peak BETWEEN 2k and 8k, identified visually on the response graph. Rest of the treble reported as incredibly clear, clean and correct. Reference tracks given: Purity Ring 'Fineshrine' and 'Crawlersout' - high-pitched vocals and dense top-end energy, solidly spicy.",
+      "hypothesis_corrected_by_listener": true,
+      "reference_tracks": ["Purity Ring - Fineshrine", "Purity Ring - Crawlersout"],
+      "diagnosis": {
+        "method": "swept 3.2-5.2 kHz for the true local maximum, then simulated each candidate cut and tracked where the peak moved",
+        "finding": "Bump peaks at 3922 Hz (+3.13 dB), average +2.30 across 3.4-4.6 kHz. It is not a boost: it is the unattenuated gap between the existing 3161 Hz (-2.7) and 5575 Hz (-7.5) cuts, with the 3901 band sitting on top of it.",
+        "key_insight": "Cutting the 3901 band alone relocates the peak instead of flattening it - as the cut deepens the maximum migrates 3922 -> 3963 -> 4125 -> 4364 -> 4452 Hz, exposing the 4.3-4.5 kHz shoulder, which is exactly where high female vocals get edgy. The fix therefore needs a second stage to catch the shoulder.",
+        "constraint": "listener explicitly reported the rest of the treble as correct, so 2 kHz and 7-10 kHz had to be held"
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 3901,
+         "gain_delta_db": -1.4, "q": null,
+         "rationale": "Remove boost sitting on the gap between two cuts"},
+        {"kind": "append_band", "type": "peak", "f_hz": 4400,
+         "gain_db": -1.0, "q": 2.50,
+         "rationale": "Catch the 4.3-4.5k shoulder the cut would expose"}
+      ],
+      "alternatives_rejected": [
+        {"band": "trim 7959 +5.5 -> +4.5", "reason": "The assistant's own first hypothesis; ruled out by the listener, who reported 7-10 kHz as correct"},
+        {"band": "3901 -> +0.4", "peak_db": 2.14, "peak_hz": 3963, "reason": "Insufficient; bump still clearly present"},
+        {"band": "3901 -> -0.8", "peak_db": 1.45, "peak_hz": 4364, "reason": "Leaves the exposed shoulder at 4364 Hz"},
+        {"band": "3901 -> -1.6", "peak_db": 1.21, "peak_hz": 4452, "reason": "Lowest band average but relocates the peak to 4452 rather than flattening it"},
+        {"band": "add dip 4200 -1.2 Q2.0 alone", "peak_db": 2.03, "peak_hz": 3901, "reason": "Leaves the 3901 boost in place, so the original peak survives"}
+      ],
+      "measured": {
+        "peak_db": {"before": 3.13, "after": 1.01},
+        "peak_hz": {"before": 3922, "after": 3851},
+        "band_3400_4600_db": {"before": 2.30, "after": 0.79},
+        "held_2000_db": {"before": 5.12, "after": 5.06},
+        "held_8000_db": {"before": 5.04, "after": 4.95}
+      },
+      "verification": "applied idle-gated; matrix readback byte-exact; preset saved"
+    },
+    {
+      "complaint": "yeah, there's some spiciness up higher now",
+      "assistant_initial_hypothesis": "The 6.3-7.5 kHz climb out of the 5575 Hz dip into the 7959 Hz peak - reasoned as relative exposure, since that region was unchanged but had just had 1.5 dB removed below it. Proposed a dip at 6800 Hz.",
+      "listener_refinement": "ok, actually, I think that region might be fine. I'm looking at the spectrogram from the HQPlayer Client now, and the high parts that are bothering me are at 7-9k almost exactly",
+      "hypothesis_corrected_by_listener": true,
+      "evidence_type": "listener spectrogram (HQPlayer Client) overrode assistant curve-shape inference",
+      "diagnosis": {
+        "method": "after the spectrogram placed the problem at 7-9 kHz, measured that band directly and compared reducing the 7959 band's gain against notching it",
+        "finding": "7-9 kHz averaged +4.69 dB with the maximum at +4.96 dB at 7917 Hz - the 7959 band itself (+5.5, Q0.98), not the skirt below it.",
+        "assistant_error": "Inferring from curve shape, the assistant attributed the new spiciness to the 6.3-7.5 kHz climb because that slope was steep and had been newly exposed. The reasoning was self-consistent but wrong; only the listener's spectrogram distinguished the two candidate regions.",
+        "key_insight": "A notch deliberately narrower than the peak it sits on (Q2.2 against Q0.98) carves out the flagged band while leaving that peak's skirts intact - the air above 10 kHz and the 5.5-7 kHz region. Reducing the broad band's gain to reach the same 7-9 kHz level would have cost 0.39 dB more above 10 kHz.",
+        "constraint": "listener had repeatedly reported the upper treble as clear and correct; only the 7-9 kHz band was to move"
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 8000,
+         "gain_db": -1.2, "q": 2.20,
+         "rationale": "Notch 7-9k; narrower than the peak so its skirts survive"}
+      ],
+      "alternatives_rejected": [
+        {"band": "dip 6800 Hz -1.2 Q2.0", "reason": "The assistant's pre-spectrogram proposal; dropped once the listener confirmed 6.3-7.5 kHz was fine - it would have shaved the wrong side of the peak"},
+        {"band": "7959 +5.5 -> +4.5", "band_7_9k_db": 3.72, "band_10_16k_db": -0.56,
+         "reason": "Reaches the same 7-9 kHz level but costs 0.39 dB more above 10 kHz because the band is broad"},
+        {"band": "7959 +5.5 -> +4.0", "band_7_9k_db": 3.24, "band_10_16k_db": -0.76,
+         "reason": "Overshoots and takes still more air with it"},
+        {"band": "dip 8000 -1.5 Q1.6", "band_7_9k_db": 3.30,
+         "reason": "Larger cut held in reserve; undershooting preferred with the target this close"}
+      ],
+      "measured": {
+        "band_7000_9000_db": {"before": 4.69, "after": 3.64},
+        "peak_db": {"before": 4.96, "after": 3.77},
+        "peak_hz": {"before": 7917, "after": 7776},
+        "held_10000_16000_db": {"before": -0.17, "after": -0.33},
+        "held_5500_7000_db": {"before": 0.60, "after": 0.13},
+        "held_2000_db": {"before": 5.06, "after": 5.04}
+      },
+      "verification": "applied idle-gated after a paused-not-stopped abort (state 1 refused, state 0 required); matrix readback byte-exact; preset saved"
+    },
+    {
+      "complaint": "hmm... I'm not sure about that last one. it's a very fine line between sparkle and spice, but we'll find it. that said, this took away some of the magic and sparkle from the trebe in a way I'm having a hard time putting my finger on. it's not spicy anymore, but it's not quite as insanely clear or correct anymore. we've taken a step away from that. also, Purity Rings' vocals have taken a hit as well with the last round it sounds like",
+      "is_regression_report": true,
+      "regression_of": "the previous turn's 8000 Hz notch at -1.2 dB Q2.2, which fixed the reported spice but degraded two things that were previously correct",
+      "diagnosis": {
+        "method": "selectivity probe - measured peak reduction against band-average reduction across notch shapes from Q2.2 to Q8.0, seeking a cut that lowers the peak while preserving broadband energy",
+        "finding": "The -1.2 Q2.2 notch dropped the 7-9 kHz band average by 1.05 dB and the peak by only 1.19 - very nearly uniform. It turned the whole region down rather than targeting anything within it.",
+        "negative_result": "Selectivity (dB of peak removed per dB of band average lost) never exceeded about 1.2, and fell BELOW 1.0 as the notch tightened - Q6.0 gave 0.97 and Q8.0 gave 0.85, meaning a tighter notch costs more average than it removes peak. Narrow notches additionally relocated the maximum to 8.5-8.7 kHz, because the thing underneath is not a resonance but the 7959 band at Q0.98, which is genuinely broad. Carving a slot in it leaves the shoulder standing.",
+        "conclusion": "At 7-9 kHz sparkle and spice are the same energy; no filter shape separates them. The problem is therefore a level decision, not a shape decision, and the previous setting was simply too deep.",
+        "affected_content": "cymbal sparkle and the sheen on high female vocals both occupy 7-9 kHz, which is why one cut regressed both at once"
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 8000,
+         "gain_delta_db": 0.6, "q": null,
+         "rationale": "Halve the cut; level decision after shape approach disproved"}
+      ],
+      "alternatives_rejected": [
+        {"band": "7900 Hz -1.2 Q4.0", "selectivity": 1.20, "peak_moves_to_hz": 8560,
+         "reason": "Marginal selectivity gain and relocates the maximum to 8560 Hz"},
+        {"band": "7900 Hz -1.8 Q6.0", "selectivity": 0.97, "peak_moves_to_hz": 8699,
+         "reason": "Selectivity below 1.0 - removes more band average than peak"},
+        {"band": "7900 Hz -2.2 Q8.0", "selectivity": 0.85, "peak_moves_to_hz": 8683,
+         "reason": "Worst selectivity of all; tighter notches are actively counterproductive on a broad peak"}
+      ],
+      "measured": {
+        "band_7000_9000_db": {"unnotched": 4.69, "at_minus_1_2": 3.64, "after_halving": 4.16},
+        "peak_db": {"unnotched": 4.96, "at_minus_1_2": 3.77, "after_halving": 4.36},
+        "peak_hz": {"unnotched": 7917, "after_halving": 7877, "note": "shape preserved, peak not relocated"},
+        "band_9000_11000_db": {"at_minus_1_2": 2.38, "after_halving": 2.63}
+      },
+      "listener_option_left_open": "if -0.6 still dulls the treble, preferring a touch of spice over any loss of sparkle is a legitimate endpoint rather than a failure",
+      "verification": "applied idle-gated after a playing-state abort (state 2 refused); matrix readback byte-exact; preset saved"
+    },
+    {
+      "complaint": "let's knock that 2kish peak down just a hair now",
+      "diagnosis": {
+        "method": "swept trim options on the 2096 band and checked the surrounding bands for collateral movement",
+        "finding": "Net peak sat at +5.33 dB at 2090 Hz, 1.8-2.5 kHz averaging +4.39. The 2096 band is well isolated at Q3.16, so a trim moves almost nothing else: 1-1.5 kHz shifts 0.05 dB, 3-4 kHz 0.04 dB, and the 400-1500 Hz mid average holds at +2.01.",
+        "sizing": "'a hair' interpreted as -0.5 dB, matching the listener's own prior increments on this band (6.2 -> 4.5 -> 3.8, each accepted)"
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 2096,
+         "gain_delta_db": -0.5, "q": null,
+         "rationale": "Small trim on an isolated band; no collateral movement"}
+      ],
+      "alternatives_rejected": [
+        {"band": "2096 -> +3.0 (-0.8)", "peak_db": 4.53,
+         "reason": "Larger than 'a hair' warrants; easy to take as a second step if wanted"},
+        {"band": "2096 -> +2.5 (-1.3)", "peak_db": 4.03,
+         "reason": "Approaching the level that earlier drew a 'vocals recessed' risk"}
+      ],
+      "measured": {
+        "peak_db": {"before": 5.33, "after": 4.83},
+        "peak_hz": {"before": 2090, "after": 2089},
+        "band_1800_2500_db": {"before": 4.39, "after": 4.01},
+        "held_mid_400_1500_db": {"before": 2.03, "after": 2.01},
+        "held_3000_4000_db": {"before": 0.31, "after": 0.27}
+      },
+      "verification": "applied idle-gated; matrix readback byte-exact; preset saved"
     }
   ]
 }
