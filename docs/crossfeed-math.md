@@ -11,7 +11,7 @@ Research phase output, 2026-07-22. Grounds the question "should HQPTuner bypass 
 | Brown & Duda structural model (eqs. 1–5, numeric constants) | **Verified verbatim** from the paper (IEEE TSAP 6(5), 1998, pp. 476–480) |
 | Woodworth/Kuhn ITD limits | **Verified** — eq. (2) in the same paper, Kuhn's ~50 % LF excess quoted there |
 | bs2b parameter model | **Verified** previously against the libbs2b source; see `matrix-spec.md` |
-| Matrix realizability | **Derived here** from the wire grammar; the decomposition is algebra, not a fit — but it has **not been run against the daemon** |
+| Matrix realizability | **Derived here** from the wire grammar, then **validated live** — 24 rows applied and read back byte-exact, see §7b |
 | Numeric agreement between the structural model and bs2b's default preset | **Computed here** — see §4, worth an independent check |
 | HRTF dataset licences | **Secondhand** from search summaries; each needs reading before any vendoring |
 | Delay-stage resolution | **Verified** — HQPlayer manual §7.2, `s` = "delay in number of samples at source rate" |
