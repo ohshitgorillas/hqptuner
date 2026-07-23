@@ -218,15 +218,31 @@ The measured route is not automatically better. Non-individualized HRTFs are a k
 | controls | crossover Hz, level dB | speaker angle, head radius, λ |
 | lane | http (restart) | http (restart), plus live A/B via matrix profiles |
 
-## 8 · Open questions
+## 8 · Invariants
 
-1. ~~**Does `delay:t=` quantize to whole samples?**~~ **Resolved from the manual (§7.2), not by probing** — the primitive is samples at source rate; see §5 for the resolution figure and why it lands where the ear cares least. Worth recording how this was mishandled: the question was chased through daemon probes when the authoritative answer was in `hqplayer6desktop-manual.pdf`, in the working directory, which `CLAUDE.md` names as the authority to consult *before* inferring wire behaviour. Read the manual section for a plugin before instrumenting it.
-2. **Does the daemon's `lp1` match the bilinear first-order lowpass** `dsp.js` implements? Live-checked only to the extent that it parses and produces a lowpass shape; the numeric match is *not* asserted. The `/matrix/plot` oracle (`matrix-spec.md` round 3) can settle it — it confirmed the RBJ shelf/peak family at 0.019 dB — but note the oracle evaluates at a fixed ~96–99 kHz, so it grounds coefficients, not source-rate warping. Low risk: `lp1` is the one primitive the whole head-shadow decomposition rests on, but it is also the least exotic filter in the set.
-3. **Does `expand_hf` genuinely rate-adapt a convolution IR**, or does an IR need to match the source rate? Decides whether design C is one IR set or many. Only blocks the HRTF variant.
-4. **Mutual exclusion with `bauer`.** The matrix runs *before* post-process, so a custom crossfeed with `post_bauer_enabled` still set is two crossfeeds in series. A UI concern rather than a modelling one, but whatever ships needs to make that state unreachable.
-5. **Listening.** The model says nothing about where on the λ scale anyone wants to sit, or whether a measured HRTF beats the structural model. Those are listening questions — but λ being continuous means they are settled by turning a knob rather than by picking an architecture up front.
+States the implementation must make unreachable. These are not open questions — each follows from something already established, and probing them would only confirm a conclusion the maths already gives.
 
-## 9 · Sources
+| invariant | why |
+|---|---|
+| crossfeed block ⇒ `post_bauer_enabled = 0` | The matrix runs *before* post-process, so both at once is two crossfeeds in series. This is not a UI gray-out: preset snapshots carry `post_bauer_enabled`, and matrix-profile load clears post-process and then has it re-applied from a snapshot by `matrixlane.profile_action`. The state can arrive without anyone touching a control, so the invariant has to be re-asserted wherever those lanes land, not just enforced at the point of edit. |
+| crossfeed block ⇒ `iir2fir = 0` | `iir2fir = 2` converts the matrix's parametric stages to linear phase, and linear phase means **constant group delay** — which deletes the 135 µs of low-frequency ITD that §3's head-shadow filter supplies. The magnitude response stays correct while the spatial cue degrades, so nothing on a response plot would show it. `iir2fir = 1` claims to retain minimum phase and may well be safe, but that is a later relaxation with a probe attached, not a default. |
+
+Both are global `<matrix>` attributes that HQPTuner already exposes on the Matrix card, so both are reachable today by a user doing something otherwise reasonable — running linear-phase EQ, or loading a preset saved with crossfeed on.
+
+## 9 · Genuinely open
+
+Only two, and both bite the measured route alone:
+
+1. **Does `expand_hf` rate-adapt a convolution IR**, or must the IR match the source rate? Decides whether the measured route ships one IR set or many.
+2. **Dataset licences** (§6.3) — secondhand; each needs reading before anything is vendored.
+
+Not blocking, and honest about their status: the daemon's `lp1` has been live-checked only to the extent that it parses and produces a lowpass shape — the numeric match against `dsp.js` is *not* asserted. The `/matrix/plot` oracle (`matrix-spec.md` round 3) can settle it, having confirmed the RBJ shelf/peak family at 0.019 dB, though it evaluates at a fixed ~96–99 kHz and so grounds coefficients rather than source-rate warping. Low risk: `lp1` carries the whole head-shadow decomposition, but it is also the least exotic filter in the set.
+
+Where on the λ scale anyone wants to sit, and whether a measured HRTF beats the model, are listening questions. λ being continuous means they get settled by turning a knob rather than by committing to an architecture.
+
+**Process note, recorded deliberately.** Delay resolution (§5) was chased through daemon probes when the authoritative answer sat in `hqplayer6desktop-manual.pdf` in the working directory — which `CLAUDE.md` names as the authority to consult *before* inferring wire behaviour. Read the manual section for a plugin before instrumenting it.
+
+## 10 · Sources
 
 - Brown, C. P. & Duda, R. O., "A Structural Model for Binaural Sound Synthesis", *IEEE Trans. Speech and Audio Processing* **6**(5), 1998, 476–488 — [PDF](https://www.ee.columbia.edu/~dpwe/papers/BrownD98-binsynth.pdf). Equations 1–5 and all constants above are from pp. 477–478.
 - Bauer, B. B., "Stereophonic Earphones and Binaural Loudspeakers", *JAES* **9**(2), April 1961, 148–151 — [AES e-lib](https://www.aes.org/e-lib/download.cfm?ID=471). The origin of the ~0.4 ms LF crossfeed delay.
