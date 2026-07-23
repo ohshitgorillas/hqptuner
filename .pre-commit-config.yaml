@@ -46,3 +46,37 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # --- frontend gates, mirroring the Python ones above ---
+      # The JS test suite is deliberately NOT here: it lives in `make check`
+      # only, to keep the commit path from carrying two full suites.
+      - id: eslint
+        name: eslint
+        entry: npx eslint
+        language: system
+        types: [javascript]
+        exclude: ^hqptuner/static/vendor/
+      - id: prettier
+        name: prettier
+        entry: npx prettier --write
+        language: system
+        files: \.(js|json)$
+        exclude: ^(hqptuner/static/vendor/|package-lock\.json$)
+      - id: tsc
+        name: tsc (checkJs)
+        entry: npx tsc -p jsconfig.json
+        language: system
+        pass_filenames: false
+        types: [javascript]
+      - id: knip
+        name: knip dead-export gate
+        entry: npx knip
+        language: system
+        pass_filenames: false
+        types: [javascript]
+      - id: file-length-js
+        name: max 500 lines per source file (js)
+        entry: .venv/bin/python scripts/check_file_length.py
+        language: system
+        types: [javascript]
+        exclude: ^(hqptuner/static/vendor/|hqptuner/static/store/schema\.js$)

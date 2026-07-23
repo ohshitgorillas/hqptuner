@@ -29,3 +29,6 @@ state/
 
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
 node_modules/
+
+# setuptools build dir (pip wheel / python -m build)
+build/

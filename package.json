@@ -8,6 +8,7 @@
     "eslint": "^9.39.0",
     "globals": "^16.5.0",
     "knip": "^5.66.0",
+    "preact-render-to-string": "^6.7.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3"
   }
