@@ -32,13 +32,23 @@ import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
 import { logFreqs } from "../lib/dsp.js";
+import { truthy } from "./tabs/common.js";
 
-const truthy = (v) => v === true || v === "1" || v === 1;
 const cardOpen = signal(true);
 const plotOpen = signal(false);
 const structPlotOpen = signal(false);
 const compOpen = signal(true);
 const issueNote = signal("");
+
+// Removal has two paths and only one of them is lossless. When the stash is gone
+// the pair is rebuilt from the block instead, which is the single place this card
+// changes bytes the user did not ask it to touch — so it says so rather than
+// letting the rows quietly come back different.
+function noteFor({ restored }) {
+  return restored
+    ? ""
+    : "The rows this block was built over were no longer available, so they have been rebuilt from the block: one row per ear, In 1 first, gains rounded to two decimals. Check rows 1 and 2 before applying.";
+}
 function params(rows) {
   return structuralParams(rows);
 }
@@ -137,7 +147,13 @@ function StructuralMode({ rows }) {
             ${matchPreset(p0) === "custom" ? html`<option value="custom">Custom</option>` : null}
           </select>
           ${rec
-            ? html`<button type="button" class="mtx-tool mtx-remove" onClick=${() => removeStructural(rows, rec)}>Turn off</button>`
+            ? html`<button
+                type="button"
+                class="mtx-tool mtx-remove"
+                onClick=${() => (issueNote.value = noteFor(removeStructural(rows, rec)))}
+              >
+                Turn off
+              </button>`
             : html`<button type="button" class="mtx-tool mtx-primary" onClick=${install}>Turn on</button>`}
         </div>
         <${Control}
@@ -191,7 +207,7 @@ function StructuralMode({ rows }) {
           Turning this on will also ${blockers.map((b) => b.reason).join(" ")} These land as staged changes you can review before applying.
         </div>`
       : null}
-    <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (structPlotOpen.value = !structPlotOpen.value)}>
+    <button type="button" class="collapsible-head" onClick=${() => (structPlotOpen.value = !structPlotOpen.value)}>
       <span class="tri">${structPlotOpen.value ? "▾" : "▸"}</span> Crossfeed response
       ${structPlotOpen.value
         ? html`<span class="xfs-legend">
@@ -252,12 +268,17 @@ function BauerMode() {
           <span class="col-rule" aria-hidden="true"></span>
           <${Field} k="crossfeed_level" />
         </div>
-        <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (plotOpen.value = !open)}>
+        <button type="button" class="collapsible-head" onClick=${() => (plotOpen.value = !open)}>
           <span class="tri">${open ? "▾" : "▸"}</span> Response plot
         </button>
         ${open ? html`<div class="dsp-plot"><${CrossfeedPlot} /></div>` : null}
       </div>
-      <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (compOpen.value = !compOpen.value)}>
+      <button
+        type="button"
+        class="collapsible-head"
+        title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides, much as real speakers do. This brings the centered part back to neutral, without touching the crossfeed's stereo effect."
+        onClick=${() => (compOpen.value = !compOpen.value)}
+      >
         <span class="tri">${compOpen.value ? "▾" : "▸"}</span> Crossfeed compensation
       </button>
       ${compOpen.value
@@ -279,7 +300,7 @@ export function CrossfeedCard() {
   const rec = structuralBlock(rows);
 
   const toBauer = () => {
-    if (rec) removeStructural(rows, rec);
+    if (rec) issueNote.value = noteFor(removeStructural(rows, rec));
     edit("crossfeed_enabled", "1");
   };
   // A compensation block occupies the same rows and carries Lin gains, so it has

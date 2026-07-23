@@ -136,10 +136,13 @@ export function stageStructural(rows, params) {
   return note;
 }
 
-// Put back exactly what the block was built over. Falls back to reconstructing
-// the pair only when the originals are unavailable — after an Apply and a reload,
-// say — and that fallback is the one path that can alter bytes the user did not
-// ask us to touch, so it is the one worth noticing in a bug report.
+// Put back exactly what the block was built over. The stash is persisted with the
+// remembered controls, so it survives an Apply and a reload; the fallback that
+// reconstructs the pair engages only when there is no stash at all — another
+// browser, cleared storage, or a block installed before the stash existed. That
+// fallback is the one path that can alter bytes the user did not ask us to touch,
+// so callers surface `restored: false` rather than letting the rows come back
+// quietly different.
 export function removeStructural(rows, rec) {
   const original = consumed.value;
   const row = (ch, side) => ({
