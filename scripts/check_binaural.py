@@ -48,7 +48,7 @@ TOLERANCE = 1e-12
 WIRE_TOLERANCE = 1e-8
 
 DRIVER = """
-import {{ midSideResponse, compileRows, pathParams, recognizeRows }} from "{lib}";
+import {{ midSideResponse, compileRows, pathParams, recognizeRows, blockConflicts }} from "{lib}";
 
 const responses = {cases}.map(([f, lambda, angle]) => {{
   const r = midSideResponse(f, {{ lambda, angle }});
@@ -85,7 +85,21 @@ for (const i of [0, 1, 5, 7, 12]) {{
 const stageEdit = clean.map((r, j) => (j === 3 ? {{ ...r, process: "iir:type=peak;f=500;q=1;g=2" }} : r));
 tamper.push({{ row: "3-stages", recognized: recognizeRows(stageEdit) !== null }});
 
-console.log(JSON.stringify({{ responses, dc, params: pathParams(30), roundTrip, tamper }}));
+// Invariants: each incompatible setting must be reported, and a clean config must
+// report nothing. Values are the wire encodings the schema actually carries.
+const conflictCases = [
+  [{{ crossfeed_enabled: "0", matrix_iir2fir: "0" }}, 0],
+  [{{ crossfeed_enabled: "1", matrix_iir2fir: "0" }}, 1],
+  [{{ crossfeed_enabled: "0", matrix_iir2fir: "2" }}, 1],
+  [{{ crossfeed_enabled: "0", matrix_iir2fir: "1" }}, 0],  // minimum-phase: allowed
+  [{{ crossfeed_enabled: "1", matrix_iir2fir: "2" }}, 2],
+  [{{}}, 0],
+];
+const conflicts = conflictCases.map(([cfg, want]) => ({{
+  cfg, want, got: blockConflicts((k) => cfg[k]).length,
+}}));
+
+console.log(JSON.stringify({{ responses, dc, params: pathParams(30), roundTrip, tamper, conflicts }}));
 """
 
 
@@ -183,6 +197,8 @@ def main() -> int:
     unrecognized = [t for t in trips if not t["recognized"]]
     not_identical = [t for t in trips if not t["identical"]]
     still_recognized = [t for t in tamper if t["recognized"]]
+    conflicts: list[dict[str, object]] = got["conflicts"]  # type: ignore[assignment]
+    miscounted = [c for c in conflicts if c["got"] != c["want"]]
 
     results = [
         (f"rows realize G_M over {len(responses)} cases", worst_mid, TOLERANCE),
@@ -192,6 +208,7 @@ def main() -> int:
         (f"every compiled block recognized ({len(trips)} cases)", float(len(unrecognized)), 0.0),
         ("compile -> recognize -> compile is byte-identical", float(len(not_identical)), 0.0),
         (f"edited rows stop being recognized ({len(tamper)} edits)", float(len(still_recognized)), 0.0),
+        (f"invariant conflicts reported ({len(conflicts)} configs)", float(len(miscounted)), 0.0),
     ]
     failed = False
     for label, error, tolerance in results:

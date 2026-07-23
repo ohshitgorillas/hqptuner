@@ -304,3 +304,57 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
 
   return { lambda, angle, headRadius, preampDb, eqProcess };
 }
+
+// --- invariants --------------------------------------------------------------
+// Two settings elsewhere in the app are incompatible with this block, and both
+// are reachable today by a user doing something otherwise reasonable. Neither is
+// a matter of taste, so neither is left to the user to get right:
+//
+//   post_bauer_enabled — the matrix runs BEFORE post-process, so bauer on top of
+//     this block is two crossfeeds in series.
+//   matrix_iir2fir = 2 — converts the matrix's parametric stages to linear phase,
+//     and linear phase means constant group delay, which deletes the low-frequency
+//     ITD the head-shadow filter supplies (docs/crossfeed-math.md §3). The
+//     magnitude response stays correct, so nothing on a plot would show it.
+//
+// iir2fir = 1 is ALLOWED. The manual calls it "direct conversion, retain
+// minimum-phase", and minimum phase preserves group delay for a given magnitude —
+// which is exactly why T_g falls out of eq. (3) rather than being added on top. It
+// would be incoherent to trust that page for what 2 does and distrust it one line
+// up. (The setting exists for GPU offload; refusing it would lock those users out
+// for no measured reason.) Worth knowing if anyone reports oddities: the manual
+// scopes the conversion to "parametric EQs", so `delay` stages should be untouched
+// — if they were swept up, minimum-phase conversion of a pure delay would erase it
+// outright, since a delay has flat magnitude and its minimum-phase equivalent is a
+// unit impulse.
+//
+// This reports; it does not mutate. The caller stages the fixes so they appear in
+// the pending bar like any other change — the app never silently rewrites config
+// the user can see, and a conflict arriving via a preset load (whose snapshot
+// carries post_bauer_enabled) has to be visible for the same reason.
+
+export const BLOCK_CONFLICTS = [
+  {
+    key: "crossfeed_enabled",
+    required: "0",
+    conflicts: (value) => value === "1" || value === true,
+    reason: "HQPlayer's own crossfeed runs after the matrix, so both at once is two crossfeeds in series.",
+  },
+  {
+    key: "matrix_iir2fir",
+    required: "0",
+    conflicts: (value) => String(value) === "2",
+    reason: "Linear-phase conversion flattens the group delay, which is what carries the delay between your ears.",
+  },
+];
+
+// Conflicts standing between the current config and this block, as
+// [{ key, current, required, reason }]. Empty means the block is safe to install.
+export function blockConflicts(effective) {
+  return BLOCK_CONFLICTS.filter((c) => c.conflicts(effective(c.key))).map((c) => ({
+    key: c.key,
+    current: effective(c.key),
+    required: c.required,
+    reason: c.reason,
+  }));
+}
