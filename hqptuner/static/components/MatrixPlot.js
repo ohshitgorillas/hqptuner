@@ -14,6 +14,8 @@ import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
 import { chainResponse, logFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
+import { structuralLensTraces } from "./StructuralXfeed.js";
+import { structuralBlock } from "../lib/xfmode.js";
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
@@ -38,9 +40,11 @@ export const previewEq = signal(null);
 // draws the EQ overview).
 function autoDefaultRows(rows) {
   const { rec } = xfeedBlock(rows);
+  const structural = structuralBlock(rows);
   const out = new Set();
   rows.forEach((r, i) => {
     if (rec && i < 8) return; // internal crossfeed block — drawn as one EQ curve
+    if (structural && i < 16) return; // structural crossfeed — 16 internal rows, lens instead
     if (parseProcess(r.process).length > 0) out.add(i);
   });
   return out;
@@ -233,6 +237,7 @@ export function MatrixPlot() {
   }
   if (preview) traces.push(previewTrace(preview, bounds));
   traces.push(...xfeedLensTraces(rows, bounds));
+  traces.push(...structuralLensTraces(rows, bounds));
   const caption = traces.length
     ? "magnitude solid (dB, left axis) · phase dashed (°, ±180)" +
       (eqOverview ? " · EQ = your headphone EQ; the crossfeed pipelines are hidden — use ∿ what you hear" : "") +
