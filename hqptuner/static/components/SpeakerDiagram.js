@@ -8,7 +8,7 @@
 // ±30° reference ticks mark the stereo standard.
 import { html } from "../lib/dom.js";
 
-const W = 260;
+const W = 340;
 const H = 200;
 const CX = W / 2;
 const CY = 158; // listener sits low; the stage occupies the upper two thirds
@@ -17,7 +17,7 @@ const R = 104; // speaker distance, fixed — angle is the variable, not the rad
 // Head radius in metres to pixels. Real spread is ~7-10 cm and the difference
 // has to be visible without the head becoming a boulder, so the range is mapped
 // across a deliberately narrow band.
-const headPx = (metres) => 11 + ((Math.min(0.105, Math.max(0.065, metres)) - 0.065) / 0.04) * 7;
+const headPx = (metres) => 15 + ((Math.min(0.105, Math.max(0.065, metres)) - 0.065) / 0.04) * 10;
 
 const polar = (deg, r) => {
   const rad = (deg * Math.PI) / 180;
@@ -36,22 +36,32 @@ function Speaker({ deg }) {
   `;
 }
 
+// The angle itself, swept from the forward axis to a speaker ray at the listener.
+// Without this the control reads as moving the speakers wider and further away —
+// the constant radius is true but invisible, so the quantity being changed is not
+// the one the diagram appears to show.
+function angleArc(deg, r) {
+  const [sx, sy] = polar(0, r);
+  const [ex, ey] = polar(deg, r);
+  const sweep = deg > 0 ? 1 : 0;
+  return `M${sx.toFixed(1)} ${sy.toFixed(1)} A${r} ${r} 0 0 ${sweep} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+}
+
 export function SpeakerDiagram({ angle, headRadius }) {
   const hr = headPx(headRadius);
   const [lx, ly] = polar(-angle, R);
   const [rx, ry] = polar(angle, R);
   const earL = [CX - hr, CY];
   const earR = [CX + hr, CY];
-  const [t1x, t1y] = polar(-30, R + 13);
-  const [t2x, t2y] = polar(30, R + 13);
   const path = (from, to) => `M${from[0].toFixed(1)} ${from[1].toFixed(1)} L${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
   return html`
     <svg class="spk-diagram" viewBox="0 0 ${W} ${H}" role="img"
          aria-label="Top-down view: two speakers at plus and minus ${angle.toFixed(0)} degrees, toed in toward the listener">
       <circle cx=${CX} cy=${CY} r=${R} class="spk-arc" />
       <line x1=${CX} y1=${CY} x2=${CX} y2=${CY - R - 6} class="spk-axis" />
-      <text x=${t1x.toFixed(1)} y=${(t1y + 3).toFixed(1)} class="spk-ref" text-anchor="middle">30°</text>
-      <text x=${t2x.toFixed(1)} y=${(t2y + 3).toFixed(1)} class="spk-ref" text-anchor="middle">30°</text>
+      <path d=${angleArc(angle, 46)} class="spk-angle" />
+      <text x=${polar(angle / 2, 60)[0].toFixed(1)} y=${(polar(angle / 2, 60)[1] + 3).toFixed(1)}
+            class="spk-angle-label" text-anchor="middle">${angle.toFixed(0)}°</text>
 
       <path d=${path([lx, ly], earL)} class="spk-near" />
       <path d=${path([rx, ry], earR)} class="spk-near" />

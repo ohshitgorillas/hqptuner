@@ -14,8 +14,8 @@ import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
 import { chainResponse, logFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
-import { structuralLensTraces } from "./StructuralXfeed.js";
 import { structuralBlock } from "../lib/xfmode.js";
+import { structuralLensTraces } from "./StructuralXfeed.js";
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
@@ -186,7 +186,13 @@ function rowTraces(rows, plotted, bounds) {
 // A recognized crossfeed block is data, but its 8 internal pipelines aren't worth
 // plotting individually. Draw the single headphone-EQ curve the block was built
 // from (msRecognize recovers it) as the block-only overview.
+// The headphone EQ a crossfeed block carries, drawn in place of the block's own
+// near-identical internal rows. Both block types hide their rows from the plot,
+// so without this the EQ — the curve the user actually tuned — disappears and a
+// ~2 dB crossfeed response is left dominating the chart.
 function eqOverviewTrace(rows, bounds) {
+  const structural = structuralBlock(rows);
+  if (structural) return structuralEqTraces(structural, bounds);
   const { rec } = xfeedBlock(rows);
   if (!rec) return null;
   const stages = parseProcess(rec.eqProcess);
@@ -205,6 +211,32 @@ function eqOverviewTrace(rows, bounds) {
     { points: mag, kind: "mag", label: "EQ" },
     { points: ph, kind: "ph", label: "EQ φ", y2: true },
   ];
+}
+
+// Per ear, because the structural block carries a chain for each. One curve when
+// they agree, two labelled ones when they do not.
+function structuralEqTraces(rec, bounds) {
+  const sides = rec.eqProcess.left === rec.eqProcess.right
+    ? [["EQ", rec.eqProcess.left]]
+    : [["EQ left", rec.eqProcess.left], ["EQ right", rec.eqProcess.right]];
+  const freqs = logFreqs(20, 20000, 160);
+  const out = [];
+  for (const [label, chain] of sides) {
+    const stages = parseProcess(chain);
+    if (!stages.length) continue;
+    const mag = [];
+    const ph = [];
+    for (const f of freqs) {
+      const r = chainResponse(stages, f, FS);
+      mag.push([f, r.db]);
+      ph.push([f, r.deg]);
+      bounds.min = Math.min(bounds.min, r.db);
+      bounds.max = Math.max(bounds.max, r.db);
+    }
+    out.push({ points: mag, kind: "mag", label });
+    out.push({ points: ph, kind: "ph", label: `${label} φ`, y2: true });
+  }
+  return out.length ? out : null;
 }
 
 function previewTrace(preview, bounds) {

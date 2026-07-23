@@ -2917,3 +2917,282 @@ select.mtx-ch {
 .plot-tlbl.xfs {
   fill: var(--muted);
 }
+
+/* ── Structural crossfeed ────────────────────────────────────────────────
+   Card head carries the Bauer|Structural segment; the body is the binding
+   two-column split (1fr 1px 1fr + .col-rule) with controls left, geometry
+   right, so its rule stacks with every other card's down the page. */
+.xfs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.xfs-head-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  /* a button does not inherit the card-head typography on its own, and the other
+     collapsible cards dodge this by putting card-head ON the button. This header
+     also holds the mode segment, so the button is nested and has to be told. */
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+.xfs-head-toggle .tri {
+  color: var(--accent);
+  margin-right: 0.55rem;
+  font-size: 1.9rem;
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+.xfs-cols {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: var(--sp-4);
+  align-items: stretch;
+}
+.xfs-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.xfs-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.xfs-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+/* the instrument of this card — it fills its column rather than floating in it */
+.spk-diagram {
+  width: 100%;
+  height: auto;
+}
+
+.xfs-preset {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+}
+.xfs-preset select {
+  width: auto;
+  max-width: var(--w-select);
+}
+.xfs-preset .mtx-tool {
+  margin-left: auto;
+}
+
+/* one control: label, then slider + readout, then its caption at measure */
+.xfs-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.xfs-label {
+  color: var(--muted);
+}
+.xfs-input {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.xfs-input input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+.xfs-readbox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+/* a real input, because it looks like one: these were spans styled as boxes,
+   which is a promise the markup did not keep */
+.xfs-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2em;
+  width: var(--w-num);
+  flex: none;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  padding: 0.25rem 0.45rem;
+}
+.xfs-readout input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.xfs-readout input::-webkit-outer-spin-button,
+.xfs-readout input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+/* the figure the model works from, annotating the one you can measure — caption
+   toned and outside the box, so the boxed values stay one per control */
+.xfs-sub {
+  display: block;
+  width: var(--w-num);
+  flex: none;
+  margin-top: var(--sp-1);
+  font-size: 0.8em;
+  color: var(--muted);
+  text-align: right;
+}
+.xfs-unit {
+  color: var(--muted);
+}
+.xfs-caption {
+  max-width: var(--measure);
+}
+/* computed readouts — what makes the card an instrument rather than a form.
+   A content-sized grid centered under the diagram, NOT a full-width row: spreading
+   label and value to opposite edges of a 550 px column put ~400 px of nothing
+   between a stat and its number. */
+.xfs-readouts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  justify-content: stretch;
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-1);
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+.xfs-readouts > div {
+  display: contents;
+}
+.xfs-readouts dt {
+  color: var(--muted);
+}
+.xfs-readouts dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.xfs-readouts dd span {
+  color: var(--muted);
+}
+
+.xfs-legend {
+  display: inline-flex;
+  gap: var(--sp-3);
+  margin-left: var(--sp-3);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.xfs-legend .lg::before {
+  content: "—";
+  margin-right: 0.3em;
+}
+.lg-cur { color: var(--accent); }
+.lg-ghost { color: var(--muted); }
+.lg-side { color: var(--muted); opacity: 0.8; }
+
+.xfs-plot {
+  margin-top: var(--sp-4);
+}
+.xfs-blocked {
+  max-width: var(--measure);
+  margin-top: var(--sp-3);
+}
+.xfs-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+/* top-down geometry */
+.spk-arc {
+  fill: none;
+  stroke: var(--line);
+  stroke-dasharray: 2 4;
+}
+.spk-axis {
+  stroke: var(--line);
+  stroke-dasharray: 2 4;
+}
+.spk-ref {
+  fill: var(--muted);
+  font-size: 9px;
+}
+.spk-angle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+.spk-angle-label {
+  fill: var(--accent);
+  font-size: 10px;
+}
+.spk-near {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  fill: none;
+}
+.spk-far {
+  stroke: var(--muted);
+  stroke-width: 1.3;
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+  fill: none;
+}
+.spk rect {
+  fill: var(--bg-3);
+  stroke: var(--line);
+}
+.spk-baffle {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.spk-driver {
+  fill: var(--muted);
+}
+.spk-head {
+  fill: var(--bg-3);
+  stroke: var(--fg, #ccc);
+  stroke-width: 1.2;
+}
+.spk-ear,
+.spk-nose {
+  fill: none;
+  stroke: var(--fg, #ccc);
+  stroke-width: 1.2;
+}
+
+@media (max-width: 1100px) {
+  .xfs-cols {
+    grid-template-columns: 1fr;
+  }
+  .xfs-cols .col-rule {
+    display: none;
+  }
+}

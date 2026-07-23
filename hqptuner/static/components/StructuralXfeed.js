@@ -9,14 +9,20 @@
 // which is also the thing the three controls actually move.
 import { html } from "../lib/dom.js";
 import { effectivePipelines } from "../store/state.js";
-import { logFreqs } from "../lib/dsp.js";
+import { logFreqs, chainResponse } from "../lib/dsp.js";
+import { parseProcess } from "../lib/matrixspec.js";
 import { midSideResponse, magDb } from "../lib/binaural.js";
+
+const FS = 48000;
 import { structuralBlock, structuralParams } from "../lib/xfmode.js";
 
-// Centre at the current setting, centre at λ=1 as a reference, and the side path.
-// The side trace is the point of the whole design: it does not move when the
-// centre control does, and seeing that is how a user knows the stereo effect is
-// not being traded away for tone.
+// What centered sound and the sides actually get, EQ included.
+//
+// Bare crossfeed curves were the earlier version and they were wrong for the
+// shared chart: a ~2 dB response next to a tuned headphone EQ reads as noise, and
+// with the EQ hidden it read as the whole picture. Folding the EQ in is what the
+// compensation lens does, and why it works — the center shift shows as the gap
+// between the EQ alone and the EQ heard through the crossfeed.
 export function structuralLensTraces(rows, bounds) {
   const rec = structuralBlock(rows);
   if (!rec) return [];
@@ -29,21 +35,29 @@ export function structuralLensTraces(rows, bounds) {
       bounds.max = Math.max(bounds.max, db);
       return [f, db];
     });
-  const at = (lambda) => (f) => midSideResponse(f, { ...p, lambda });
-  const literal = at(1);
-  const current = at(p.lambda);
-  const traces = [
-    { points: mk((f) => magDb(current(f).mid)), kind: "xfm", label: `centre at ${Math.round(p.lambda * 100)}%` },
-    { points: mk((f) => magDb(current(f).side)), kind: "xfs", label: "sides" },
-  ];
-  if (Math.abs(p.lambda - 1) > 1e-6) {
-    traces.splice(1, 0, {
-      points: mk((f) => magDb(literal(f).mid)),
-      kind: "ghost",
-      label: "centre, speakers at this angle",
+  const eqDb = (chain) => {
+    const stages = parseProcess(chain);
+    return (f) => (stages.length ? chainResponse(stages, f, FS).db : 0);
+  };
+  const symmetric = rec.eqProcess.left === rec.eqProcess.right;
+  const ears = symmetric
+    ? [["", rec.eqProcess.left]]
+    : [[" left", rec.eqProcess.left], [" right", rec.eqProcess.right]];
+  const out = [];
+  for (const [suffix, chain] of ears) {
+    const eq = eqDb(chain);
+    out.push({
+      points: mk((f) => eq(f) + magDb(midSideResponse(f, { ...p, lambda: p.lambda }).mid)),
+      kind: "xfm",
+      label: `center${suffix} at ${Math.round(p.lambda * 100)}%`,
+    });
+    out.push({
+      points: mk((f) => eq(f) + magDb(midSideResponse(f, { ...p, lambda: p.lambda }).side)),
+      kind: "xfs",
+      label: `sides${suffix}`,
     });
   }
-  return traces;
+  return out;
 }
 
 // Badge on the Pipelines card, same convention as the compensation block: the
@@ -56,7 +70,7 @@ export function StructuralBadge() {
   return html`
     <div class="xfc-badge">
       ⇄ These 16 pipelines are the structural crossfeed — speakers at ±${rec.angle.toFixed(0)}°, ${(rec.headRadius * 100).toFixed(1)} cm head,
-      centre character ${Math.round(rec.lambda * 100)}%
+      center character ${Math.round(rec.lambda * 100)}%
       ${rec.eqProcess.left !== rec.eqProcess.right ? html` · <span class="xfc-stale">per-ear EQ</span>` : ""}
     </div>
   `;

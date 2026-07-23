@@ -2,6 +2,14 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
+## [Unreleased]
+
+### Added
+
+- **Structural crossfeed** — a second crossfeed implementation alongside HQPlayer's Bauer, selected by a segmented toggle in the Crossfeed card. Where Bauer exposes a crossover frequency and a level in dB — coefficients of its own filter — this models an actual head and an actual pair of speakers, and its controls are quantities you can picture: speaker angle, head circumference, and centre character. It compiles to sixteen literal matrix pipelines carrying an explicit interaural delay and a head-shadow filter, both derived from Brown & Duda's structural HRTF model; the head-shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. The rows stay hand-editable and badged, and an edit that breaks the pattern drops the badge rather than being blocked or rewritten. Derivation and measurements in the new `docs/crossfeed-math.md`.
+- Centre character, the third control, is the one with no hardware equivalent. Real speakers colour centred sound — vocals, bass, most of a mix — darker than the sides, and they put a notch in it: at 30° the centre response has an 11.6 dB dip at 1426 Hz. That is what speakers genuinely do, but in a room reflections fill it, and headphones reproduce it bare. The control scales that colouration continuously from literal to none, with the stereo image byte-identical at every setting — only centred tone changes. Presets take their values from the measured ripple curve rather than by feel: Standard 30°/70%, Anechoic 30°/100%, Intimate 22°/70%, Wide 45°/50%, Neutral center 30°/0%. Head size is deliberately excluded from presets and persists across them, being anatomy rather than taste.
+- The card shows a live top-down geometry diagram, the computed ear-to-ear delay (high- and low-frequency), far-ear treble level and centre shift, and a collapsible response plot. The headphone EQ rides through untouched and per ear, so asymmetric measured corrections are carried rather than refused.
+
 ## [0.5.0] — 2026-07-22
 
 ### Changed

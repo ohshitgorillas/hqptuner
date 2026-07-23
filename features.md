@@ -12,4 +12,5 @@ Startup vol is offset from its actual value/tickmark (which btw is unlabeled)
 tickmarks are nearly invisible
 -120 and +12 limits are jammed up against the sides of the card
 
-9. Now that Loudness belongs to the Volume tab, we should drop it :
+9. Playing DSD content back still shows "SHAPER" at the top incorrectly as AMSDM7EC 512+fs. Confirm how the SDM>SDM pipeline works and fix the top cards.
+

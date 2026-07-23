@@ -254,7 +254,7 @@ export function XfeedStrip() {
 // correction at the current slider (mirror boost), and their net result (flat
 // at 100%, visible residual elsewhere). Small ±3 dB scale so a ~2 dB story
 // reads large.
-function CompMiniPlot() {
+export function CompMiniPlot() {
   const rows = effectivePipelines.value;
   const { bs, rec } = xfeedBlock(rows);
   if (!bs.enabled && !rec) return null;
