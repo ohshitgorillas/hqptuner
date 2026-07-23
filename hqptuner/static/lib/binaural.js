@@ -188,3 +188,119 @@ export function midSideResponse(f, { lambda = 1, angle = SPEAKER_ANGLE, headRadi
 }
 
 export const magDb = ([re, im]) => 10 * Math.log10(re * re + im * im);
+
+// --- recognition -------------------------------------------------------------
+// Structural, exactly like msRecognize: no tag, no metadata, no stored flag. The
+// block is over-determined — alphaNear and alphaFar both derive from the speaker
+// angle, and three of the eight gains per ear are redundant — so the redundancy
+// IS the hand-edit detector. A block that fails any cross-check is not "broken",
+// it is simply not ours: it stands as ordinary rows and the card steps back.
+
+const ANGLE_TOLERANCE = 0.5; // degrees, between the two independent recoveries
+const GAIN_TOLERANCE = 1e-6; // on redundant gains, well above 9-decimal wire rounding
+
+// The (lowpass, delayed, opposite) signature each of an ear's eight rows carries,
+// in the order compileRows emits them.
+const EAR_PATTERN = [
+  [false, false, false], [true, false, false], [false, true, false], [true, true, false],
+  [false, false, true], [true, false, true], [false, true, true], [true, true, true],
+];
+
+// Split a row's chain into the block's own prefix stages and whatever EQ follows.
+function splitChain(process) {
+  const stages = process ? process.split(",") : [];
+  let i = 0;
+  let corner = null;
+  let delaySec = null;
+  const lp = /^iir:type=lp1;f=([\d.]+)$/.exec(stages[i] || "");
+  if (lp) {
+    corner = Number(lp[1]);
+    i += 1;
+  }
+  const dl = /^delay:t=([\d.]+)$/.exec(stages[i] || "");
+  if (dl) {
+    delaySec = Number(dl[1]);
+    i += 1;
+  }
+  return { corner, delaySec, eqProcess: stages.slice(i).join(",") };
+}
+
+// Invert eq. (5): the speaker angle that produces this alpha, or null if none does.
+export function angleFromAlpha(alpha, ear) {
+  const arg = (alpha - (1 + ALPHA_MIN / 2)) / (1 - ALPHA_MIN / 2);
+  if (!(arg >= -1 && arg <= 1)) return null;
+  const theta = (THETA_MIN / Math.PI) * Math.acos(arg);
+  return ear === "near" ? 90 - theta : theta - 90;
+}
+
+// Recognize a compiled block at rows[at..at+15]. Returns the controls that
+// produced it — {lambda, angle, headRadius, preampDb, eqProcess} — or null.
+export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
+  const block = rows.slice(at, at + 16);
+  if (block.length < 16 || block.some((r) => r.gainunit !== "Lin")) return null;
+
+  const parts = block.map((r) => splitChain(r.process));
+  const eqProcess = parts[0].eqProcess;
+  if (parts.some((p) => p.eqProcess !== eqProcess)) return null;
+  const corners = parts.filter((p) => p.corner !== null).map((p) => p.corner);
+  const delays = parts.filter((p) => p.delaySec !== null).map((p) => p.delaySec);
+  if (corners.length !== 8 || delays.length !== 8) return null;
+  if (corners.some((c) => c !== corners[0]) || delays.some((d) => d !== delays[0])) return null;
+
+  const ears = [block.slice(0, 8), block.slice(8, 16)];
+  const outs = [ears[0][0].mixdown, ears[1][0].mixdown];
+  const srcs = [ears[0][0].source, ears[1][0].source];
+  if (outs[0] === outs[1] || srcs[0] !== outs[0] || srcs[1] !== outs[1]) return null;
+
+  for (let e = 0; e < 2; e += 1) {
+    for (let i = 0; i < 8; i += 1) {
+      const [lp, delayed, opposite] = EAR_PATTERN[i];
+      const p = splitChain(ears[e][i].process);
+      if ((p.corner !== null) !== lp || (p.delaySec !== null) !== delayed) return null;
+      if (ears[e][i].mixdown !== outs[e] || ears[e][i].source !== srcs[opposite ? 1 - e : e]) return null;
+    }
+  }
+
+  const g = ears[0].map((r) => Number(r.gain));
+  const same = g[6] + g[7]; // (lambda+1)/4 * k
+  const cross = g[2] + g[3]; // (lambda-1)/4 * k
+  const diff = same - cross; // k/2
+  if (!(diff > 0)) return null;
+  const alphaFar = g[6] / same;
+  const alphaNear = 1 - g[1] / same;
+
+  const fromNear = angleFromAlpha(alphaNear, "near");
+  const fromFar = angleFromAlpha(alphaFar, "far");
+  if (fromNear === null || fromFar === null) return null;
+  if (Math.abs(fromNear - fromFar) > ANGLE_TOLERANCE) return null;
+
+  // Snap to the control grid before anything else. The gains arrive quantized to
+  // the wire's 9 decimals, so raw recovery lands a few ulps off the values that
+  // produced them; recompiling from those would differ in the last digit and the
+  // block would read as edited on every render. Snapping is what makes
+  // compile -> recognize -> compile byte-stable, the same reason msRecognize
+  // snaps its slider fraction to a 1 % grid.
+  const snap = (x, step) => Math.round(x / step) * step;
+  const lambda = snap((same + cross) / diff, 1e-4);
+  const angle = snap((fromNear + fromFar) / 2, 0.01);
+  const headRadius = snap(speedOfSound / (Math.PI * corners[0]), 1e-5);
+  const preampDb = snap(20 * Math.log10(2 * diff), 1e-3);
+
+  // Every one of the sixteen gains must match what those controls generate. This
+  // subsumes the per-ear redundancy check and, unlike it, covers the SECOND ear —
+  // an edit there would otherwise pass unnoticed, since recovery only reads the
+  // first. Cheap, total, and it is the whole hand-edit detector.
+  const p = pathParams(angle, headRadius, speedOfSound);
+  const k = 10 ** (preampDb / 20);
+  const coeffs = earCoefficients(lambda, p.alphaNear, p.alphaFar);
+  for (let e = 0; e < 2; e += 1) {
+    for (let i = 0; i < 8; i += 1) {
+      if (Math.abs(Number(ears[e][i].gain) - coeffs[i].gain * k) > GAIN_TOLERANCE) return null;
+    }
+  }
+
+  // corner and delay are independent routes to the head radius; require agreement
+  if (Math.abs(p.itd - delays[0]) > 2e-6) return null;
+
+  return { lambda, angle, headRadius, preampDb, eqProcess };
+}
