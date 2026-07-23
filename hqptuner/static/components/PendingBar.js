@@ -67,20 +67,48 @@ async function onSaveNew(pend) {
   await saveVia(name, pend);
 }
 
+const HELD = "Daemon unreachable — changes held, Apply resumes on reconnect";
+
+// A persistent edit or a preset switch both restart the daemon, so say so while
+// the apply is in flight rather than leaving a silent pause.
+const applyingLine = (sp, switchName) =>
+  html`<span class="note">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
+
+// What is waiting to go out, as a readable list.
+function pendingLine(n, sp, switchName) {
+  const parts = [];
+  if (switchName) parts.push(`switch to "${switchName}"`);
+  if (n) parts.push(`${sp.live} live · ${sp.restart} restart`);
+  return html`<span class="muted">${parts.join(" · ")}</span>`;
+}
+
+const resultLine = (result) =>
+  html`<span class="note ${result.ok ? "ok" : "err"}">${result.ok ? "✓" : "✗"} ${result.text}</span>`;
+
 function statusLine(n, sp, busy, reach, result, switchName) {
-  if (busy) return html`<span class="note">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
+  if (busy) return applyingLine(sp, switchName);
   const pend = n > 0 || !!switchName;
-  if (pend && !reach)
-    return html`<span class="note warn">Daemon unreachable — changes held, Apply resumes on reconnect</span>`;
-  if (pend) {
-    const parts = [];
-    if (switchName) parts.push(`switch to "${switchName}"`);
-    if (n) parts.push(`${sp.live} live · ${sp.restart} restart`);
-    return html`<span class="muted">${parts.join(" · ")}</span>`;
-  }
-  if (result)
-    return html`<span class="note ${result.ok ? "ok" : "err"}">${result.ok ? "✓" : "✗"} ${result.text}</span>`;
+  if (pend) return reach ? pendingLine(n, sp, switchName) : html`<span class="note warn">${HELD}</span>`;
+  if (result) return resultLine(result);
   return html`<span class="muted">No pending changes</span>`;
+}
+
+// Which buttons are inert. Discard is local, so it only wants something pending;
+// Apply additionally needs a reachable daemon; the save lane needs a reachable
+// daemon and a named target to write to.
+function inert(busy, pend, reach, target) {
+  return {
+    discard: busy || !pend,
+    apply: busy || !pend || !reach,
+    save: busy || !reach || !target,
+    saveNew: busy || !reach,
+  };
+}
+
+// Why the save button is offered, and where it writes.
+function saveTitle(target, pend) {
+  if (!target) return "No named preset to save to ([default])";
+  return pend ? `Apply and save to "${target}"` : `Save the current settings to "${target}"`;
 }
 
 export function PendingBar() {
@@ -89,29 +117,19 @@ export function PendingBar() {
   const reach = reachable.value;
   const pend = hasPending.value;
   const switchName = pendingPreset.value;
-  const canApply = !(busy || !pend || !reach);
   const target = saveTarget();
+  const off = inert(busy, pend, reach, target);
   return html`
     <footer class="pending-bar ${pend ? "active" : ""}">
       <span class="count">${n ? `${n} staged` : ""}</span>
       ${statusLine(n, split.value, busy, reach, lastApply.value, switchName)}
       <span class="spacer"></span>
-      <button onClick=${discardAll} disabled=${busy || !pend}>Discard</button>
-      <button class="primary" onClick=${onApply} disabled=${!canApply}>${busy ? "Applying…" : "Apply"}</button>
-      <button
-        onClick=${() => onApplySave(pend)}
-        disabled=${busy || !reach || !target}
-        title=${
-          target
-            ? pend
-              ? `Apply and save to "${target}"`
-              : `Save the current settings to "${target}"`
-            : "No named preset to save to ([default])"
-        }
-      >
+      <button onClick=${discardAll} disabled=${off.discard}>Discard</button>
+      <button class="primary" onClick=${onApply} disabled=${off.apply}>${busy ? "Applying…" : "Apply"}</button>
+      <button onClick=${() => onApplySave(pend)} disabled=${off.save} title=${saveTitle(target, pend)}>
         ${pend ? "Apply & Save" : "Save"}
       </button>
-      <button onClick=${() => onSaveNew(pend)} disabled=${busy || !reach}>Save as New…</button>
+      <button onClick=${() => onSaveNew(pend)} disabled=${off.saveNew}>Save as New…</button>
     </footer>
   `;
 }

@@ -13,6 +13,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { schema } from "./schema.js";
 import { fastPollMs } from "./ui.js";
+import { summarize } from "./apply-summary.js";
 
 // --- source signals ---
 export const health = signal(null); // {reachable, alarm, unreachable_since, info}
@@ -25,7 +26,9 @@ export const config = signal(null); // /api/config data {fields, profiles}
 // switch. pendingPreset = the previewed name; previewConfig = its field values.
 export const pendingPreset = signal(null);
 const previewConfig = signal(null);
-const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
+// exported as part of the store surface: components read it via runningValue,
+// and tests/js drive the matrix-fed chips by assigning it directly.
+export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
 export const metadata = signal(null); // static: {filters, shapers, settings}
 const staged = signal({ live: {}, http: {} }); // mirrors server pending
 // Transient client-only overrides, set live while a knob is dragged so controls
@@ -150,23 +153,40 @@ const fileConfig = computed(() => (config.value && config.value.file) || {});
 export const activePreset = computed(() => (config.value && config.value.active) || "");
 
 // --- three-tree resolution ---
-function baseline(entry) {
-  if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
-  // a previewed preset's values are the baseline for its grounded fields, so the
-  // editor shows the preset before it's applied and tweaks read as dirty over it
+// Each source returns a one-element BOX rather than the value itself: a preset
+// or a config file may legitimately ground a field to null or undefined, and
+// "grounded to nothing" has to stay distinguishable from "not grounded here".
+
+// A previewed preset's values are the baseline for its grounded fields, so the
+// editor shows the preset before it's applied and tweaks read as dirty over it.
+function previewedValue(entry) {
   const preview = previewConfig.value;
-  if (preview && entry.field in preview) return preview[entry.field];
-  if (entry.fileTruth) {
-    const fv = fileConfig.value[entry.field];
-    if (fv !== undefined) return fv;
-  }
+  return preview && entry.field in preview ? { value: preview[entry.field] } : null;
+}
+
+// The config XML is wider than the form for a few settings — volume_fixed is
+// 0/1/2 in the file but a bare checkbox on the form — so fileTruth entries take
+// the file when it has an answer.
+function fileValue(entry) {
+  if (!entry.fileTruth) return null;
+  const fv = fileConfig.value[entry.field];
+  return fv !== undefined ? { value: fv } : null;
+}
+
+// The daemon's own form, last. No file truth available (no credentials, or the
+// backup read failed) means falling back to the form's boolean, normalized into
+// the field's own domain so a staged "1" doesn't read as dirty against `true`.
+function formValue(entry) {
   const f = httpFieldMap(entry)[formFieldName(entry)];
   if (!f) return undefined;
-  // no file truth available (no credentials, or the backup read failed): fall back
-  // to the form's boolean, normalized into the field's own domain so a staged
-  // "1" doesn't read as dirty against a baseline of `true`
   if (entry.fileTruth && typeof f.value === "boolean") return f.value ? "1" : "0";
   return f.value;
+}
+
+function baseline(entry) {
+  if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
+  const grounded = previewedValue(entry) || fileValue(entry);
+  return grounded ? grounded.value : formValue(entry);
 }
 
 function stagedValue(entry) {
@@ -304,6 +324,7 @@ export async function discardAll() {
   staged.value = await api.discard();
 }
 
+/** @public — symmetric half of previewPreset; the clearer for a previewed preset. */
 // Load a preset's saved settings into the editor as the baseline (no daemon
 // touch) — the user tweaks, then Apply commits the switch.
 //
@@ -322,6 +343,9 @@ export async function previewPreset(name) {
   pendingPreset.value = name;
 }
 
+// Kept exported with no current caller: it is the symmetric half of the exported
+// previewPreset, and a preview API that can start but not clear is a trap.
+/** @public */
 export function clearPreview() {
   pendingPreset.value = null;
   previewConfig.value = null;
@@ -339,30 +363,6 @@ export async function deletePreset(name) {
 // apply lifecycle, shared so the pill and the pending bar both reflect it
 export const applying = signal(false);
 export const lastApply = signal(null); // {ok, text} of the most recent apply
-
-// `count` is the number of staged edits captured before apply — the http/matrix
-// lanes each collapse many field edits into a single POST, so counting reports
-// (the old bug: "2 staged" -> "Applied 1 change") undercounts the real changes.
-function summarize(report, count) {
-  const live = report.live || [];
-  const fails = live.filter((x) => !x.ok);
-  if (fails.length) return { ok: false, text: `Failed: ${fails.map((f) => f.setting).join(", ")}` };
-  const sw = report.switched;
-  if (sw && !sw.active) return { ok: false, text: `Switch to "${sw.name}" did not take` };
-  const p = report.persistent;
-  if (p && !p.applied) {
-    const nd = p.unfixable && p.unfixable.net_device;
-    if (nd) return { ok: false, text: `Endpoint "${nd.want}" not present — config not applied` };
-    if (p.error) return { ok: false, text: `Config not applied: ${p.error}` };
-    return { ok: false, text: `Config not applied (${p.reason || "unconfirmed"})` };
-  }
-  const changes = count ? `${count} change${count === 1 ? "" : "s"}` : "";
-  const base = sw ? `Switched to "${sw.name}"${changes ? ` + ${changes}` : ""}` : `Applied ${changes || "no changes"}`;
-  const saved = report.saved;
-  if (saved && !saved.ok) return { ok: false, text: `${base} — save to "${saved.name}" failed: ${saved.error}` };
-  if (saved) return { ok: true, text: `${base} · saved to "${saved.name}"` };
-  return { ok: true, text: base };
-}
 
 // Apply the staged set. The backend keeps staging on a soft failure, so on
 // return we re-mirror it: a failed/held edit stays staged and — once the poll

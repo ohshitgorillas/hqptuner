@@ -43,6 +43,20 @@ function disabledReason() {
   return "No active stream — volume adjusts live during playback.";
 }
 
+// The engine-reported VolumeRange, normalized into what the knob needs. The
+// enabled test is deliberately NARROWER than the module's truthy() above:
+// VolumeRange reports the flag as 1 / "1" / true and nothing else, and widening
+// it here would let an unrelated string un-gray a knob the engine is holding.
+// Defaults are the daemon's own (-60..0 dBFS) for a range it did not report.
+function knobRange() {
+  const vr = volumeRange.value || {};
+  return {
+    enabled: vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true,
+    min: Number(vr.min != null ? vr.min : -60),
+    max: Number(vr.max != null ? vr.max : 0),
+  };
+}
+
 const dragging = signal(false); // ignore engine syncs while true
 const display = signal(0); // live value shown while dragging
 
@@ -66,10 +80,7 @@ function throttleSend(v) {
 }
 
 export function PlaybackVolume() {
-  const vr = volumeRange.value || {};
-  const enabled = vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true;
-  const min = Number(vr.min != null ? vr.min : -60);
-  const max = Number(vr.max != null ? vr.max : 0);
+  const { enabled, min, max } = knobRange();
   const engine = volume.value != null ? Number(volume.value) : min;
   const val = dragging.value ? display.value : engine;
 

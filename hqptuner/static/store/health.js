@@ -30,26 +30,56 @@ const num = (v) => {
 
 // Streak/baseline bookkeeping. Subscribes to engineStatus ONLY — internal
 // signals are peek()ed so the effect never re-triggers itself.
+//
+// Registration is idempotent, and has to be: the effects share one `streak`, so
+// each extra registration advances it again per poll and an alert fires after
+// ceil(SUSTAIN/n) polls instead of SUSTAIN — a second call silently cuts the
+// sustain threshold to 2 polls, a third to 1. app.js calls this once, but
+// nothing enforced that, and the dispose handle was dropped so the duplicate
+// could never be unregistered. Returns the disposer for a caller that wants it.
+let dispose = null;
+
 export function initHealth() {
-  effect(() => {
+  if (dispose) return dispose;
+  dispose = effect(() => {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
-    const t = track.peek();
-    if (st.track_serial !== t.serial) {
-      track.value = { serial: st.track_serial, clips0: num(st.clips) || 0, apod0: num(st.apod) || 0 };
-    }
-    const playing = Number(st.state) === PLAYING;
-    const sp = num(st.process_speed);
-    const fill = num(st.output_fill);
+    rebaseline(st);
     const s = streak.peek();
-    const next = {
-      warn: playing && sp !== null && sp > 0 && sp < SPEED_WARN ? s.warn + 1 : 0,
-      crit: playing && sp !== null && sp > 0 && sp < SPEED_CRIT ? s.crit + 1 : 0,
-      // fill = -1 means "buffer doesn't apply" (observed live), not starvation
-      fill: playing && fill !== null && fill >= 0 && fill < FILL_LOW ? s.fill + 1 : 0,
-    };
+    const next = nextStreak(st, s);
     if (next.warn !== s.warn || next.crit !== s.crit || next.fill !== s.fill) streak.value = next;
   });
+  return dispose;
+}
+
+// Rebaseline the per-track counters when the track changes. Strict !== on the
+// raw value, so a serial that merely changes type still counts as a new track.
+function rebaseline(st) {
+  const t = track.peek();
+  if (st.track_serial === t.serial) return;
+  track.value = { serial: st.track_serial, clips0: num(st.clips) || 0, apod0: num(st.apod) || 0 };
+}
+
+// One streak step: count up while the reading qualifies, drop to zero the moment
+// it doesn't — recovery is immediate, never decayed.
+const step = (prev, qualifies) => (qualifies ? prev + 1 : 0);
+
+// A usable speed figure. 0 and negatives mean "no reading", not "infinitely
+// slow", so they reset the streak rather than tripping it.
+const usableSpeed = (sp) => sp !== null && sp > 0;
+// fill = -1 means "buffer doesn't apply" (observed live), not starvation.
+const usableFill = (f) => f !== null && f >= 0;
+
+function nextStreak(st, s) {
+  const playing = Number(st.state) === PLAYING;
+  const sp = num(st.process_speed);
+  const fill = num(st.output_fill);
+  const speedOk = playing && usableSpeed(sp);
+  return {
+    warn: step(s.warn, speedOk && sp < SPEED_WARN),
+    crit: step(s.crit, speedOk && sp < SPEED_CRIT),
+    fill: step(s.fill, playing && usableFill(fill) && fill < FILL_LOW),
+  };
 }
 
 // This track's counter deltas — the System-tab health card shows them alongside
@@ -66,42 +96,48 @@ export const trackCounters = computed(() => {
 
 // The alert list the strip renders: [{sev: "warn"|"crit", text}]. Empty when
 // healthy or idle — the strip contributes zero chrome then.
+// One alert per category, or null. Order below is the order they render in.
+// Critical speed supersedes the warning rather than joining it — they describe
+// the same fault at two severities.
+function speedAlert(s, sp) {
+  const tail = "Use a lighter filter or a lower output rate.";
+  if (s.crit >= SUSTAIN) {
+    return { sev: "crit", text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${tail}` };
+  }
+  if (s.warn >= SUSTAIN) return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${tail}` };
+  return null;
+}
+
+function fillAlert(s, st) {
+  if (s.fill < SUSTAIN) return null;
+  const pct = Math.round((num(st.output_fill) || 0) * 100);
+  return { sev: "warn", text: `Output buffer at ${pct}% — starvation. Check the network path to the audio device.` };
+}
+
+function clipAlert(clips) {
+  if (clips <= 0) return null;
+  return { sev: "warn", text: `Clipping ×${clips} this track — reduce volume or gain.` };
+}
+
+// Only worth raising when the running filter is one an apodizing swap would
+// help — silent for an unknown filter rather than guessing.
+function apodAlert(apod, filterName) {
+  if (apod <= 0) return null;
+  const f = filterFacets.value[filterName];
+  if (!f || f.apodizing || f.apodizingHalf) return null;
+  const text = `Apodizing events ×${apod} this track, but ${filterName} is non-apodizing — consider an apodizing filter.`;
+  return { sev: "warn", text };
+}
+
 export const engineAlerts = computed(() => {
   const st = (engineStatus.value || {}).status;
   if (!st || Number(st.state) !== PLAYING) return [];
-  const alerts = [];
   const s = streak.value;
-  const sp = num(st.process_speed);
-  if (s.crit >= SUSTAIN) {
-    alerts.push({
-      sev: "crit",
-      text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. Use a lighter filter or a lower output rate.`,
-    });
-  } else if (s.warn >= SUSTAIN) {
-    alerts.push({
-      sev: "warn",
-      text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. Use a lighter filter or a lower output rate.`,
-    });
-  }
-  if (s.fill >= SUSTAIN) {
-    const pct = Math.round((num(st.output_fill) || 0) * 100);
-    alerts.push({
-      sev: "warn",
-      text: `Output buffer at ${pct}% — starvation. Check the network path to the audio device.`,
-    });
-  }
   const counters = trackCounters.value;
-  if (counters.clips > 0) {
-    alerts.push({ sev: "warn", text: `Clipping ×${counters.clips} this track — reduce volume or gain.` });
-  }
-  if (counters.apod > 0) {
-    const f = filterFacets.value[st.active_filter];
-    if (f && !f.apodizing && !f.apodizingHalf) {
-      alerts.push({
-        sev: "warn",
-        text: `Apodizing events ×${counters.apod} this track, but ${st.active_filter} is non-apodizing — consider an apodizing filter.`,
-      });
-    }
-  }
-  return alerts;
+  return [
+    speedAlert(s, num(st.process_speed)),
+    fillAlert(s, st),
+    clipAlert(counters.clips),
+    apodAlert(counters.apod, st.active_filter),
+  ].filter(Boolean);
 });

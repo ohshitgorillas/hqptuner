@@ -44,6 +44,46 @@ function describe(entry, key) {
   return g[entry.note || key] || { label: key, tooltip: "" };
 }
 
+// The overlays are keyed by the ENGINE's own name, which reaches us as the
+// selected option's label (outline §2: enumerations are the sole authority for
+// names; static data joins by name).
+function selectedLabel(options, value) {
+  const opt = (options || []).find((o) => String(o.value) === String(value));
+  return (opt && opt.label) || "";
+}
+
+// Filter join rules (data/filters.json _join_rules): exact -> alias -> strip a
+// '-2s' suffix and retry, which flags the two-stage variant. Returns the joined
+// entry (null on a miss) plus that flag.
+function joinFilter(name, fdb, aliases) {
+  let n = name;
+  let twoStage = false;
+  for (;;) {
+    const e = fdb[n] || fdb[aliases[n]];
+    if (e) return { entry: e, twoStage };
+    if (!n.endsWith("-2s")) return { entry: null, twoStage };
+    n = n.slice(0, -3);
+    twoStage = true;
+  }
+}
+
+// A two-stage filter reads as its base description plus the shared two-stage note.
+function filterDescription(name, md) {
+  const f = md.filters || {};
+  const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
+  if (!entry) return "";
+  const desc = entry.description || "";
+  return twoStage ? `${desc} ${f.two_stage_note || ""}`.trim() : desc;
+}
+
+// desc = dither|modulator -> name-keyed prose from the shapers overlay.
+function shaperDescription(kind, name, md) {
+  const shapers = md.shapers || {};
+  const db = kind === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
+  const e = db && db[name];
+  return (e && e.description) || "";
+}
+
 // Inline manual description for the current selection.
 //   desc = filter|dither|modulator -> name-keyed prose from the metadata overlay
 //     (filters.json / shapers.json), joined by the selected option's label.
@@ -52,34 +92,12 @@ function describe(entry, key) {
 //     conversion — enums whose meaning is per-value, not per-control).
 function selectionDescription(entry, value, options, meta) {
   if (!entry.desc) return "";
-  if (entry.desc === "config") {
-    return (meta && meta.options && meta.options[String(value)]) || "";
-  }
-  const opt = (options || []).find((o) => String(o.value) === String(value));
-  const name = opt && opt.label;
+  if (entry.desc === "config") return (meta && meta.options && meta.options[String(value)]) || "";
+  const name = selectedLabel(options, value);
   if (!name) return "";
   const md = metadata.value || {};
-  if (entry.desc === "filter") {
-    // Join rules (data/filters.json _join_rules): exact -> alias -> strip a
-    // '-2s' suffix and append the two-stage note to the base description.
-    const fdb = (md.filters && md.filters.filters) || {};
-    const aliases = (md.filters && md.filters.aliases) || {};
-    let n = name;
-    let twoStage = false;
-    for (;;) {
-      const e = fdb[n] || fdb[aliases[n]];
-      if (e) {
-        const desc = e.description || "";
-        return twoStage ? `${desc} ${md.filters.two_stage_note || ""}`.trim() : desc;
-      }
-      if (!n.endsWith("-2s")) return "";
-      n = n.slice(0, -3);
-      twoStage = true;
-    }
-  }
-  const shapers = md.shapers || {};
-  const db = entry.desc === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
-  return (db && db[name] && db[name].description) || "";
+  if (entry.desc === "filter") return filterDescription(name, md);
+  return shaperDescription(entry.desc, name, md);
 }
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
@@ -110,6 +128,54 @@ function RescanButton() {
   </button>`;
 }
 
+// Widget kind + the layout opt-ins + the dirty highlight, in that order.
+function fieldClasses(entry, key) {
+  return `field field-${entry.widget} ${entry.size === "lg" ? "field-lg" : ""} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
+}
+
+// Option source: the schema's own list or the daemon form's, then the two
+// client-side transforms — filter selects narrow their (large) option list by
+// the active facets; shaper selects gray what the output rate can't reach.
+function fieldOptions(entry, key) {
+  let options = entry.optionsFrom ? optionsFor(entry.optionsFrom, formFieldName(entry)) : entry.options;
+  if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow);
+  if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
+  return options;
+}
+
+// A grayed control names WHY, visibly — the reason renders as a caption
+// appended after the manual note (user decision 2026-07-21; hover-only reasons
+// proved undiscoverable) unless the schema suppresses it (quietGray).
+const captionVisible = (entry, reason) => !!reason && !entry.quietGray;
+
+// Hover title. desc-carrying fields (filters, DSD sources) render the
+// per-selection prose inline, so their hover always carries the OVERALL feature
+// description; hoverNote fields never render an inline note, so hover is their
+// only surface; other fields hover the tooltip only when the inline note is
+// hidden (visible note + identical hover would be duplication).
+//
+// hoverNote fields (the rate pair): hover is their ONLY prose surface, so the
+// tooltip outranks the gray reason. Elsewhere the reason takes the hover only
+// when its visible caption is suppressed — a visible caption plus the same text
+// on hover is duplication.
+function hoverTitle(entry, meta, reason) {
+  const tip = entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
+  if (entry.hoverNote) return tip || reason;
+  return captionVisible(entry, reason) ? tip : reason || tip;
+}
+
+// The prose under the control, in reading order: per-selection manual text,
+// static feature note, gray reason.
+function fieldProse(entry, key, meta, reason, options) {
+  const showDesc = entry.desc && descVisible.value;
+  const showNote = !entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value;
+  return html`
+    ${showDesc ? html`<div class="field-desc">${selectionDescription(entry, effective(key), options, meta)}</div>` : null}
+    ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
+    ${captionVisible(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}
+  `;
+}
+
 export function Field({ k }) {
   const entry = schema[k];
   if (!entry) return null;
@@ -117,32 +183,9 @@ export function Field({ k }) {
   const meta = describe(entry, k);
   const label = entry.label || meta.label;
   const reason = grayReason(k);
-  let options = entry.optionsFrom ? optionsFor(entry.optionsFrom, formFieldName(entry)) : entry.options;
-  // filter selects narrow their (large) option list by the active facets
-  if (entry.narrow) options = narrowOptions(options, effective(k), entry.narrow);
-  // shaper selects gray options the current output rate can't use
-  if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
-
-  // A grayed control names WHY, visibly — the reason renders as a caption
-  // appended after the manual note (user decision 2026-07-21; hover-only
-  // reasons proved undiscoverable), and doubles as the hover title.
-  // Hover title: desc-carrying fields (filters, DSD sources) render the
-  // per-selection prose inline, so their hover always carries the OVERALL
-  // feature description; hoverNote fields never render an inline note, so
-  // hover is their only surface; other fields hover the tooltip only when the
-  // inline note is hidden (visible note + identical hover would be duplication).
-  const hoverTip = entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
-  // hoverNote fields (the rate pair): hover is their ONLY prose surface, so the
-  // tooltip outranks the gray reason. Elsewhere the reason takes the hover only
-  // when its visible caption is suppressed (quietGray) — a visible caption plus
-  // the same text on hover is duplication.
-  const captionVisible = !!reason && !entry.quietGray;
-  const title = entry.hoverNote ? hoverTip || reason : captionVisible ? hoverTip : reason || hoverTip;
+  const options = fieldOptions(entry, k);
   return html`
-    <div
-      class="field field-${entry.widget} ${entry.size === "lg" ? "field-lg" : ""} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(k) ? "dirty" : ""}"
-      title=${title}
-    >
+    <div class=${fieldClasses(entry, k)} title=${hoverTitle(entry, meta, reason)}>
       <label>${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}</label>
       <div class="control">
         <${W}
@@ -165,9 +208,7 @@ export function Field({ k }) {
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
-      ${entry.desc && descVisible.value ? html`<div class="field-desc">${selectionDescription(entry, effective(k), options, meta)}</div>` : null}
-      ${!entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value ? html`<div class="field-note">${meta.tooltip}</div>` : null}
-      ${captionVisible ? html`<div class="field-gray-reason">${reason}</div>` : null}
+      ${fieldProse(entry, k, meta, reason, options)}
     </div>
   `;
 }

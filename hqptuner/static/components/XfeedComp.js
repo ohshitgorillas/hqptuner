@@ -47,12 +47,18 @@ export function xfeedBlock(rows) {
 // (live configs arrive with In 2 first), so the pair is accepted either way;
 // the compiled block always emits canonical In 1-first order. Returns
 // {eq, gain} when eligible, else {issue}.
+const straightThrough = (x, ch) => x.source === ch && x.mixdown === ch;
+
+// In 1→Out 1 / In 2→Out 2, in either row order.
+function straightPair(a, b) {
+  const fwd = straightThrough(a, "0") && straightThrough(b, "1");
+  return fwd || (straightThrough(a, "1") && straightThrough(b, "0"));
+}
+
 function pairInfo(rows) {
   const [a, b] = rows;
   if (!a || !b) return { issue: "needs pipelines 1+2" };
-  const straight = (x, ch) => x.source === ch && x.mixdown === ch;
-  const ok = (straight(a, "0") && straight(b, "1")) || (straight(a, "1") && straight(b, "0"));
-  if (!ok) return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
+  if (!straightPair(a, b)) return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
   if (a.gainunit !== "dB" || b.gainunit !== "dB") return { issue: "pipeline 1+2 gains must be in dB" };
   if (a.process !== b.process || a.gain !== b.gain) return { issue: "pipelines 1+2 are not a symmetric stereo pair" };
   return { eq: a.process, gain: Number(a.gain) };
@@ -156,6 +162,56 @@ export function XfeedBadge() {
   `;
 }
 
+// The strip's primary action. An installed block offers Turn off (plus Rebuild
+// once the crossfeed settings have moved out from under it); an uninstalled one
+// offers Turn on, grayed with the reason when the stereo pair is not eligible.
+function xfcActions(rows, rec, pair, pct, issue) {
+  if (!rec) {
+    return html`<button
+      type="button"
+      class="mtx-tool mtx-primary"
+      disabled=${!!issue}
+      title=${issue || "Build the correction from pipelines 1+2 (they become 8 mid/side pipelines — see the Pipelines card)"}
+      onClick=${() => stageBlock(rows, pair.eq, pair.gain, pct, 2)}
+    >
+      Turn on
+    </button>`;
+  }
+  return html`
+    ${
+      rec.stale
+        ? html`<button
+            type="button"
+            class="mtx-tool mtx-primary"
+            title="The crossfeed settings changed after this correction was built — rebuild it to match them"
+            onClick=${() => stageBlock(rows, rec.eqProcess, rec.preampDb, pct, 8)}
+          >
+            Rebuild
+          </button>`
+        : null
+    }
+    <button
+      type="button"
+      class="mtx-tool mtx-remove"
+      title="Undo the correction — back to the plain stereo EQ pair"
+      onClick=${() => removeBlock(rows, rec)}
+    >
+      Turn off
+    </button>
+  `;
+}
+
+function xfcNote(bs, tilt) {
+  if (!notesVisible.value) return null;
+  return html`<div class="field-note xfc-note">
+    Bauer crossfeed blends the channels below ~${bs.fc} Hz. Centered sound — vocals, bass, most of the mix — comes out
+    about ${tilt.toFixed(1)} dB duller in the treble than the sides, close to what a real pair of speakers at ±30° does
+    to a centered image. Turning this on rebuilds pipelines 1+2 into eight mid/side pipelines that bring the centered
+    part back to neutral; the crossfeed's stereo width effect is left untouched. 100% restores a neutral center exactly,
+    lower keeps some of the speaker-like warmth, higher overshoots brighter.
+  </div>`;
+}
+
 // Control strip on the RESPONSE card.
 export function XfeedStrip() {
   const rows = effectivePipelines.value;
@@ -179,6 +235,8 @@ export function XfeedStrip() {
     if (rec) stageBlock(rows, rec.eqProcess, rec.preampDb, clamped, 8);
     else pendingPct.value = clamped;
   };
+  // nothing to aim at until there is a block or an eligible pair to build one from
+  const locked = !rec && !!issue;
   return html`
     <div class="xfc-strip">
       <input
@@ -188,7 +246,7 @@ export function XfeedStrip() {
         max="150"
         step="1"
         value=${pct}
-        disabled=${!rec && !!issue}
+        disabled=${locked}
         onWheel=${wheelGuard}
         onInput=${(e) => (sliderDrag.value = Number(e.target.value))}
         onChange=${(e) => commit(Number(e.target.value))}
@@ -200,7 +258,7 @@ export function XfeedStrip() {
           max="150"
           step="1"
           value=${pct}
-          disabled=${!rec && !!issue}
+          disabled=${locked}
           onWheel=${wheelGuard}
           onChange=${(e) => commit(Number(e.target.value))}
         />
@@ -212,40 +270,7 @@ export function XfeedStrip() {
       >
         crossfeed dulls the center by ${tilt.toFixed(1)} dB
       </span>
-      ${
-        rec
-          ? html`
-              ${
-                rec.stale
-                  ? html`<button
-                      type="button"
-                      class="mtx-tool mtx-primary"
-                      title="The crossfeed settings changed after this correction was built — rebuild it to match them"
-                      onClick=${() => stageBlock(rows, rec.eqProcess, rec.preampDb, pct, 8)}
-                    >
-                      Rebuild
-                    </button>`
-                  : null
-              }
-              <button
-                type="button"
-                class="mtx-tool mtx-remove"
-                title="Undo the correction — back to the plain stereo EQ pair"
-                onClick=${() => removeBlock(rows, rec)}
-              >
-                Turn off
-              </button>
-            `
-          : html`<button
-              type="button"
-              class="mtx-tool mtx-primary"
-              disabled=${!!issue}
-              title=${issue || "Build the correction from pipelines 1+2 (they become 8 mid/side pipelines — see the Pipelines card)"}
-              onClick=${() => stageBlock(rows, pair.eq, pair.gain, pct, 2)}
-            >
-              Turn on
-            </button>`
-      }
+      ${xfcActions(rows, rec, pair, pct, issue)}
       <button
         type="button"
         class="mtx-tool ${lensShown() ? "active" : ""}"
@@ -260,18 +285,7 @@ export function XfeedStrip() {
         hard-panned material (early stereo, live and orchestral recordings) starts slightly thin under crossfeed, so it
         sits better around 50–75%.</span
       >
-      ${
-        notesVisible.value
-          ? html`<div class="field-note xfc-note">
-              Bauer crossfeed blends the channels below ~${bs.fc} Hz. Centered sound — vocals, bass, most of the mix —
-              comes out about ${tilt.toFixed(1)} dB duller in the treble than the sides, close to what a real pair of
-              speakers at ±30° does to a centered image. Turning this on rebuilds pipelines 1+2 into eight mid/side
-              pipelines that bring the centered part back to neutral; the crossfeed's stereo width effect is left
-              untouched. 100% restores a neutral center exactly, lower keeps some of the speaker-like warmth, higher
-              overshoots brighter.
-            </div>`
-          : null
-      }
+      ${xfcNote(bs, tilt)}
     </div>
   `;
 }

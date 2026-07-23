@@ -21,7 +21,6 @@
 
 import { signal } from "@preact/signals";
 
-export { pairInfo } from "./binaural.js";
 import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
 import { effective, stagePipelines, edit } from "../store/state.js";
 
