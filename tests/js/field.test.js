@@ -1,151 +1,33 @@
 // Behavioral suite for components/Field.js — the schema<->store binder.
 // Written BEFORE the complexity refactor of Field (30) and selectionDescription (27).
 //
-// Rendered through preact-render-to-string against the VENDORED preact bundle
-// (tests/js/vendor-resolve.js maps the importmap specifiers), so this exercises
-// the code that ships rather than an npm substitute.
-//
-// `selectionDescription` is private and stays that way: it is a pure function of
-// the schema entry, the effective value, the option list and the settings.json
-// entry — all four of which the rendered `.field-desc` line exposes. Every
-// assertion below is on rendered output (classes, attributes, option text, the
-// three prose lines), never on a helper.
-//
 // Field's whole job is to turn ONE schema key into a bound control, so the
 // contract under test is: which widget, fed from which option source, disabled
 // for which reason, captioned how, and hovered with what. All of it observable.
 //
-// State is driven through the store's exported source signals plus a faked wire
-// for the staging round-trip (docs/testing.md rule 4 — no store function is ever
-// stubbed). `reset()` reassigns EVERY signal Field reads on every call rather
-// than only the ones a case cares about: module-level signals persist for the
-// life of the process, so a partial reset makes tests pass alone and fail in
-// sequence. `staged` is not exported, so it is cleared via discardAll().
+// The prose half of that contract — hover titles, inline notes and the
+// per-selection description — lives in fielddesc.test.js (split for the
+// file-length gate). The shared fixture, wire fake and HTML-extraction helpers
+// both suites run on live in field-harness.js.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../hqptuner/static/lib/dom.js";
-import { Field } from "../../hqptuner/static/components/Field.js";
+import { enums } from "../../hqptuner/static/store/state.js";
+import { nPhase, nApod } from "../../hqptuner/static/store/narrowing.js";
 import {
-  config,
-  matrixConfig,
-  metadata,
-  engineState,
-  enums,
-  discardAll,
-  edit,
-} from "../../hqptuner/static/store/state.js";
-import { showDescriptions, keepOptionDescriptions } from "../../hqptuner/static/store/prefs.js";
-import { nPhase, nApod, resetNarrowing } from "../../hqptuner/static/store/narrowing.js";
-
-// --- the wire ---------------------------------------------------------------
-// Real REST paths, real response shapes (hqptuner/static/lib/api.js).
-
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-
-function wire(staged = { live: {}, http: {} }) {
-  globalThis.fetch = async (path) => {
-    if (path === "/api/config/stage" || path === "/api/config/pending") return ok(staged);
-    return ok({});
-  };
-}
-
-// --- static metadata --------------------------------------------------------
-// The /api/metadata payload shape: settings.json prose keyed by group, plus the
-// filters.json / shapers.json name-keyed overlays.
-
-const META = {
-  settings: {
-    output: {
-      output_mode: { label: "Output mode", tooltip: "Mode prose." },
-      pcm_rate: { label: "PCM", tooltip: "Rate prose." },
-      buffer_time: { label: "Buffer time", tooltip: "Buffer prose." },
-      output_device: { label: "Output Device", tooltip: "Device prose." },
-    },
-    volume: {
-      volume_max: { label: "Max volume", tooltip: "Max prose." },
-    },
-    dsp: {
-      sdm_integrator: {
-        label: "Integrator",
-        tooltip: "Integrator prose.",
-        options: { 0: "Fast integrator.", 1: "Slow integrator." },
-      },
-      filter_1x: { label: "1x filter", tooltip: "Filter prose." },
-      shaper: { label: "Shaper", tooltip: "Shaper prose." },
-    },
-  },
-  filters: {
-    filters: { "sinc-M": { description: "A very long sinc." }, "xtr-mp": { description: "Extra transient." } },
-    aliases: { "poly-sinc-xtr-mp": "xtr-mp" },
-    two_stage_note: "Two stage oversampling.",
-  },
-  shapers: {
-    pcm_dithers: { TPDF: { description: "Triangular dither." }, NS9: { min_rate_hz: 352800 } },
-    sdm_modulators: { ASDM7: { description: "Seventh order modulator." } },
-  },
-};
-
-// --- reset ------------------------------------------------------------------
-
-async function reset({ fields = [], matrix = [], meta = META, desc = true, keep = true } = {}) {
-  wire();
-  engineState.value = {};
-  enums.value = null;
-  metadata.value = meta;
-  config.value = { fields, file: {}, active: "", profiles: null };
-  matrixConfig.value = { fields: matrix };
-  showDescriptions.value = desc;
-  keepOptionDescriptions.value = keep;
-  resetNarrowing();
-  await discardAll();
-}
-
-// Stage one http-lane edit against a wire that echoes it back, exactly as the
-// server's pending buffer would.
-async function stageEdit(key, value, http) {
-  wire({ live: {}, http });
-  await edit(key, value);
-}
-
-// --- rendering --------------------------------------------------------------
-// SSR escapes entities; the contract is the text a user reads, not its encoding.
-
-const field = (k) =>
-  render(html`<${Field} k=${k} />`)
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&");
-
-const rootAttrs = (out) => out.slice(0, out.indexOf(">"));
-const classOf = (out) => (/class="([^"]*)"/.exec(rootAttrs(out)) || [])[1] || "";
-const titleOf = (out) => (/title="([^"]*)"/.exec(rootAttrs(out)) || [])[1];
-const hasClass = (out, c) => classOf(out).split(/\s+/).includes(c);
-
-// Text of one of the field's three prose lines (note / desc / gray reason).
-function line(out, cls) {
-  const m = new RegExp(`<div class="${cls}">([\\s\\S]*?)</div>`).exec(out);
-  return m ? m[1] : null;
-}
-
-const span = (out, cls) => {
-  const m = new RegExp(`<span class="${cls}">([\\s\\S]*?)</span>`).exec(out);
-  return m ? m[1] : null;
-};
-
-const attrOf = (fragment, name) => (new RegExp(`\\b${name}="([^"]*)"`).exec(fragment || "") || [])[1];
-
-const opts = (out) => [...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] }));
-const optionLabels = (out) => opts(out).map((o) => o.label);
-const optionByLabel = (out, label) => opts(out).find((o) => o.label.startsWith(label));
-
-const activeSegment = (out) => {
-  const m = /<button[^>]*class="seg active"[^>]*>([\s\S]*?)<\/button>/.exec(out);
-  return m ? m[1].trim() : null;
-};
-
-const isDisabled = (out) => /<(?:input|select)[^>]*\bdisabled\b/.test(out);
+  reset,
+  stageEdit,
+  field,
+  hasClass,
+  line,
+  span,
+  attrOf,
+  optionLabels,
+  optionByLabel,
+  activeSegment,
+  isDisabled,
+} from "./field-harness.js";
 
 // ============================================================================
 // binding basics
@@ -428,146 +310,6 @@ test("test_a_quiet_gray_field_shows_no_caption", async () => {
 test("test_a_quiet_gray_field_is_still_disabled", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
   assert.ok(isDisabled(field("pcm_rate")));
-});
-
-// ============================================================================
-// hover title precedence
-// ============================================================================
-
-test("test_a_hover_note_field_hovers_its_tooltip", async () => {
-  await reset();
-  assert.equal(titleOf(field("output_mode")), "Mode prose.");
-});
-
-test("test_a_hover_note_fields_tooltip_outranks_its_gray_reason", async () => {
-  await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(titleOf(field("pcm_rate")), "Rate prose.");
-});
-
-test("test_a_hover_note_field_with_no_tooltip_hovers_its_gray_reason", async () => {
-  await reset({ fields: [{ name: "mode", value: "sdm" }], meta: {} });
-  assert.equal(titleOf(field("pcm_rate")), "Only relevant to PCM output mode.");
-});
-
-test("test_a_visible_gray_caption_is_not_repeated_on_hover", async () => {
-  await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.notEqual(titleOf(field("volume_max")), "Direct SDM bypasses the volume control.");
-});
-
-test("test_a_hidden_inline_note_moves_the_tooltip_to_the_hover", async () => {
-  await reset({ desc: false, keep: false });
-  assert.equal(titleOf(field("volume_max")), "Max prose.");
-});
-
-test("test_a_suppressed_gray_caption_moves_the_reason_to_the_hover", async () => {
-  await reset();
-  assert.equal(titleOf(field("loudness_low_freq")), "Enable loudness to adjust.");
-});
-
-test("test_a_desc_carrying_field_hovers_its_overall_tooltip", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }] });
-  assert.equal(titleOf(field("pcm_filter_1x")), "Filter prose.");
-});
-
-// ============================================================================
-// inline notes
-// ============================================================================
-
-test("test_a_plain_field_renders_its_tooltip_as_an_inline_note", async () => {
-  await reset();
-  assert.equal(line(field("volume_max"), "field-note"), "Max prose.");
-});
-
-test("test_hiding_descriptions_removes_the_inline_note", async () => {
-  await reset({ desc: false, keep: false });
-  assert.equal(line(field("volume_max"), "field-note"), null);
-});
-
-test("test_a_hover_note_field_renders_no_inline_note", async () => {
-  await reset();
-  assert.equal(line(field("output_mode"), "field-note"), null);
-});
-
-test("test_a_desc_carrying_field_renders_no_inline_note", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }] });
-  assert.equal(line(field("pcm_filter_1x"), "field-note"), null);
-});
-
-test("test_a_shared_settings_entry_is_reached_by_the_schemas_note_key", async () => {
-  await reset();
-  assert.equal(line(field("alsa_period"), "field-note"), "Buffer prose.");
-});
-
-// ============================================================================
-// per-selection description (selectionDescription, via .field-desc)
-// ============================================================================
-
-test("test_a_config_desc_field_describes_the_selected_value", async () => {
-  await reset({ fields: [{ name: "integrator", value: "1", options: [{ value: "1", label: "Slow" }] }] });
-  assert.equal(line(field("sdm_integrator"), "field-desc"), "Slow integrator.");
-});
-
-test("test_a_config_desc_field_with_an_unmapped_value_describes_nothing", async () => {
-  await reset({ fields: [{ name: "integrator", value: "7", options: [{ value: "7", label: "Odd" }] }] });
-  assert.equal(line(field("sdm_integrator"), "field-desc"), "");
-});
-
-test("test_a_filter_desc_field_describes_the_selected_filter_by_name", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }] });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "A very long sinc.");
-});
-
-test("test_a_filter_description_resolves_through_an_alias", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "poly-sinc-xtr-mp" }] }] });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "Extra transient.");
-});
-
-test("test_a_two_stage_filter_appends_the_two_stage_note", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M-2s" }] }] });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "A very long sinc. Two stage oversampling.");
-});
-
-test("test_an_unknown_filter_name_describes_nothing", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "made-up" }] }] });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "");
-});
-
-test("test_a_filter_desc_field_with_no_metadata_describes_nothing", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }], meta: {} });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "");
-});
-
-test("test_a_value_matching_no_option_describes_nothing", async () => {
-  await reset({ fields: [{ name: "filter1x", value: "9", options: [{ value: "0", label: "sinc-M" }] }] });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "");
-});
-
-test("test_a_modulator_desc_field_describes_the_selected_modulator", async () => {
-  await reset({ fields: [{ name: "modulator", value: "0", options: [{ value: "0", label: "ASDM7" }] }] });
-  assert.equal(line(field("sdm_modulator"), "field-desc"), "Seventh order modulator.");
-});
-
-test("test_a_dither_desc_field_describes_the_selected_dither", async () => {
-  await reset({ fields: [{ name: "dither", value: "0", options: [{ value: "0", label: "TPDF" }] }] });
-  assert.equal(line(field("pcm_dither"), "field-desc"), "Triangular dither.");
-});
-
-test("test_hiding_every_description_removes_the_desc_line", async () => {
-  await reset({
-    fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }],
-    desc: false,
-    keep: false,
-  });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), null);
-});
-
-test("test_kept_option_descriptions_survive_the_master_toggle_being_off", async () => {
-  await reset({
-    fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }],
-    desc: false,
-    keep: true,
-  });
-  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "A very long sinc.");
 });
 
 // ============================================================================
