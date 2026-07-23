@@ -319,14 +319,8 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
 //
 // iir2fir = 1 is ALLOWED. The manual calls it "direct conversion, retain
 // minimum-phase", and minimum phase preserves group delay for a given magnitude —
-// which is exactly why T_g falls out of eq. (3) rather than being added on top. It
-// would be incoherent to trust that page for what 2 does and distrust it one line
-// up. (The setting exists for GPU offload; refusing it would lock those users out
-// for no measured reason.) Worth knowing if anyone reports oddities: the manual
-// scopes the conversion to "parametric EQs", so `delay` stages should be untouched
-// — if they were swept up, minimum-phase conversion of a pure delay would erase it
-// outright, since a delay has flat magnitude and its minimum-phase equivalent is a
-// unit impulse.
+// which is exactly why T_g falls out of eq. (3) rather than being added on top.
+// The conversion applies to parametric EQs, so `delay` stages are untouched.
 //
 // This reports; it does not mutate. The caller stages the fixes so they appear in
 // the pending bar like any other change — the app never silently rewrites config
