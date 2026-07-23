@@ -21,6 +21,7 @@ import {
 import {
   parseProcess,
   serializeProcess,
+  withoutEq,
   stageLabel,
   validateStage,
   newStage,
@@ -490,7 +491,7 @@ const importNote = signal("");
 // Import is PER PIPELINE: every source (paste / .txt load / library profile)
 // only fills importText; the append happens from the target row's own
 // "Import EQ" tool (+ optional stereo-pair mirror).
-function doImport(rows, targetIndex) {
+function doImport(rows, targetIndex, replace = false) {
   const { preamp, stages, skipped } = parseEqText(importText.value);
   if (!stages.length) {
     importNote.value = `no filters found${skipped.length ? ` — ${skipped.length} line(s) skipped` : ""}`;
@@ -505,7 +506,7 @@ function doImport(rows, targetIndex) {
   // audible one-channel imbalance with no error shown. Route into the block.
   const { bs, rec } = xfeedBlock(rows);
   if (rec && target < 8) {
-    stagePipelines(applyEqToBlock(rows, rec, fitComp(bs.fc, bs.feed), addition, preamp));
+    stagePipelines(applyEqToBlock(rows, rec, fitComp(bs.fc, bs.feed), addition, preamp, replace));
     importNote.value =
       `${stages.length} filter(s) → crossfeed compensation block (pipelines 1–8)` +
       (preamp !== null ? `, preamp ${preamp} dB` : "") +
@@ -518,7 +519,8 @@ function doImport(rows, targetIndex) {
   const targets = new Set(pair !== null && pair < rows.length ? [target, pair] : [target]);
   const next = rows.map((r, i) => {
     if (!targets.has(i)) return r;
-    const process = r.process ? `${r.process},${addition}` : addition;
+    const base = replace ? withoutEq(r.process) : r.process;
+    const process = base ? `${base},${addition}` : addition;
     return { ...r, process, ...(preamp !== null ? { gain: preamp, gainunit: "dB" } : {}) };
   });
   stagePipelines(next);
@@ -553,7 +555,7 @@ function ImportPanel({ rows }) {
   // .txt lanes stay per-row (arbitrary EQ needs an explicit target).
   const loadText = (text) => {
     importText.value = text;
-    doImport(rows, 0);
+    doImport(rows, 0, true); // library load REPLACES the previous profile
   };
   return html`
     <div class="mtx-import">

@@ -20,7 +20,9 @@
 // configuration.
 
 import { signal } from "@preact/signals";
-import { compileRows, recognizeRows, blockConflicts, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
+
+export { pairInfo } from "./binaural.js";
+import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
 import { effective, stagePipelines, edit } from "../store/state.js";
 
 const KEY = "hqptuner.structuralCrossfeed";
@@ -82,21 +84,6 @@ export function mode(rows) {
   return structuralBlock(rows) ? "structural" : "bauer";
 }
 
-// A stereo EQ pair at rows 0+1 is what the structural block compiles from, and
-// what removing it returns to — the same shape the compensation block uses, so
-// an AutoEq import lands straight into either. Row order is not a contract
-// (live configs arrive In 2-first); the compiled block always emits In 1-first.
-export function pairInfo(rows) {
-  const [a, b] = rows;
-  if (!a || !b) return { issue: "needs pipelines 1+2" };
-  const straight = (x, ch) => x.source === ch && x.mixdown === ch;
-  const ok = (straight(a, "0") && straight(b, "1")) || (straight(a, "1") && straight(b, "0"));
-  if (!ok) return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
-  if (a.gainunit !== "dB" || b.gainunit !== "dB") return { issue: "pipelines 1+2 gains must be in dB" };
-  if (a.process !== b.process || a.gain !== b.gain) return { issue: "pipelines 1+2 are not a symmetric stereo pair" };
-  return { eq: a.process, gain: Number(a.gain) };
-}
-
 // What stands between the current config and an installed block. Reported, never
 // applied behind the user's back — the caller stages these so they appear in the
 // pending bar like any other edit.
@@ -141,16 +128,20 @@ export function stageStructural(rows, params) {
   return null;
 }
 
-// Put back exactly what the block was built over. Falls back to reconstructing a
-// symmetric pair only when the originals are unavailable — after an Apply and a
-// reload, say — and that fallback is the one path that can alter bytes the user
-// did not ask us to touch, so it is the one worth noticing in a bug report.
+// Put back exactly what the block was built over. Falls back to reconstructing
+// the pair only when the originals are unavailable — after an Apply and a reload,
+// say — and that fallback is the one path that can alter bytes the user did not
+// ask us to touch, so it is the one worth noticing in a bug report.
 export function removeStructural(rows, rec) {
   const original = consumed.value;
-  const head = original ?? [
-    { gain: String(Math.round(rec.preampDb * 100) / 100), gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },
-    { gain: String(Math.round(rec.preampDb * 100) / 100), gainunit: "dB", mixdown: "1", process: rec.eqProcess, source: "1" },
-  ];
+  const row = (ch, side) => ({
+    gain: String(Math.round(rec.preampDb[side] * 100) / 100),
+    gainunit: "dB",
+    mixdown: ch,
+    process: rec.eqProcess[side],
+    source: ch,
+  });
+  const head = original ?? [row("0", "left"), row("1", "right")];
   const next = [...head, ...rows.slice(16)];
   stagePipelines(next);
   edit("pipelines", String(Math.max(2, next.length)));
