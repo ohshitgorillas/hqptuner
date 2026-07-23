@@ -12,4 +12,3 @@ Startup vol is offset from its actual value/tickmark (which btw is unlabeled)
 tickmarks are nearly invisible
 -120 and +12 limits are jammed up against the sides of the card
 
-12. `PendingBar` uses native `prompt()` for the preset name and `confirm()` for overwrite. Unstyleable against the rest of the app, not cancellable gracefully, and blocked outright in some embedded browsers. Wants a real inline field / dialog. — *built and green; visual hand-back still owed (interaction-gated, needs a browser driving the clicks)*
