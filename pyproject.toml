@@ -83,3 +83,10 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["hqptuner", "hqptuner.api", "hqptuner.conf", "hqptuner.lanes"]
+
+[tool.setuptools.package-data]
+# The SPA and its vendored assets, plus the static metadata JSON. Without these
+# a wheel install has no frontend to serve and no filter/shaper prose to join
+# against the live enumerations. Dev-only members of data/ (engine-enums.json,
+# the capture reference) are excluded by the glob.
+hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json"]

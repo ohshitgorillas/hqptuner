@@ -7,14 +7,13 @@ RUN useradd --create-home --uid 1000 hqptuner && mkdir -p /state && chown hqptun
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY hqptuner ./hqptuner
-COPY data ./data
 RUN pip install --no-cache-dir .
 
-# data/ lives at the repo root, not inside the installed package — point the
-# app at the baked-in copy. Listen on all interfaces: the host-side scoping
-# decision belongs to the port mapping / network mode, not the bind address.
-ENV HQPTUNER_DATA_DIR=/app/data \
-    HQPTUNER_BACKUP_DIR=/state/backups \
+# The SPA and the metadata JSON ship inside the wheel (pyproject package-data),
+# so the install is self-contained and needs no DATA_DIR override. Listen on all
+# interfaces: the host-side scoping decision belongs to the port mapping /
+# network mode, not the bind address.
+ENV HQPTUNER_BACKUP_DIR=/state/backups \
     HQPTUNER_PRESET_DIR=/state/presets \
     HQPTUNER_LISTEN_HOST=0.0.0.0
 

@@ -6,7 +6,7 @@ import pytest
 
 from hqptuner.metadata import StaticMetadata
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "hqptuner" / "data"
 
 
 @pytest.fixture()
