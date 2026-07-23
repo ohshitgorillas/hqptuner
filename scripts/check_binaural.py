@@ -48,7 +48,7 @@ TOLERANCE = 1e-12
 WIRE_TOLERANCE = 1e-8
 
 DRIVER = """
-import {{ midSideResponse, compileRows, pathParams }} from "{lib}";
+import {{ midSideResponse, compileRows, pathParams, recognizeRows }} from "{lib}";
 
 const responses = {cases}.map(([f, lambda, angle]) => {{
   const r = midSideResponse(f, {{ lambda, angle }});
@@ -58,7 +58,34 @@ const dc = {lambdas}.map((lambda) => ({{
   lambda,
   rows: compileRows({{ lambda, angle: 30, preampDb: -6 }}),
 }}));
-console.log(JSON.stringify({{ responses, dc, params: pathParams(30) }}));
+
+// compile -> recognize -> compile must land byte-identical, and an edited row
+// must stop being recognized rather than being silently reinterpreted.
+const roundTrip = [];
+for (const lambda of {lambdas}) {{
+  for (const angle of {angles}) {{
+    const opts = {{ lambda, angle, preampDb: -6, eqProcess: "iir:type=peak;f=1000;q=1;g=3" }};
+    const rows = compileRows(opts);
+    const rec = recognizeRows(rows);
+    const again = rec === null ? null : compileRows({{
+      lambda: rec.lambda, angle: rec.angle, headRadius: rec.headRadius,
+      preampDb: rec.preampDb, eqProcess: rec.eqProcess,
+    }});
+    roundTrip.push({{ lambda, angle, recognized: rec !== null, rec,
+                      identical: JSON.stringify(rows) === JSON.stringify(again) }});
+  }}
+}}
+
+const clean = compileRows({{ lambda: 0.5, angle: 30 }});
+const tamper = [];
+for (const i of [0, 1, 5, 7, 12]) {{
+  const edited = clean.map((r, j) => (j === i ? {{ ...r, gain: String(Number(r.gain) + 0.01) }} : r));
+  tamper.push({{ row: i, recognized: recognizeRows(edited) !== null }});
+}}
+const stageEdit = clean.map((r, j) => (j === 3 ? {{ ...r, process: "iir:type=peak;f=500;q=1;g=2" }} : r));
+tamper.push({{ row: "3-stages", recognized: recognizeRows(stageEdit) !== null }});
+
+console.log(JSON.stringify({{ responses, dc, params: pathParams(30), roundTrip, tamper }}));
 """
 
 
@@ -94,7 +121,12 @@ def analytic(freq: float, lam: float, angle: float) -> tuple[complex, complex]:
 def run_driver(node: str) -> dict[str, object]:
     """Evaluate the real module and hand back its numbers."""
     cases = [[f, lam, ang] for ang in ANGLES for lam in LAMBDAS for f in FREQS]
-    source = DRIVER.format(lib=LIB.as_uri(), cases=json.dumps(cases), lambdas=json.dumps(LAMBDAS))
+    source = DRIVER.format(
+        lib=LIB.as_uri(),
+        cases=json.dumps(cases),
+        lambdas=json.dumps(LAMBDAS),
+        angles=json.dumps(ANGLES),
+    )
     with tempfile.TemporaryDirectory() as tmp:
         driver = Path(tmp) / "driver.mjs"
         driver.write_text(source)
@@ -146,12 +178,20 @@ def main() -> int:
     worst_mid, worst_side = check_transfer_functions(responses)
     unity = check_unity_centre(responses)
     dc_error = check_dc_sum(got["dc"])  # type: ignore[arg-type]
+    trips: list[dict[str, object]] = got["roundTrip"]  # type: ignore[assignment]
+    tamper: list[dict[str, object]] = got["tamper"]  # type: ignore[assignment]
+    unrecognized = [t for t in trips if not t["recognized"]]
+    not_identical = [t for t in trips if not t["identical"]]
+    still_recognized = [t for t in tamper if t["recognized"]]
 
     results = [
         (f"rows realize G_M over {len(responses)} cases", worst_mid, TOLERANCE),
         ("rows realize G_S", worst_side, TOLERANCE),
         ("lambda=0 centre is unity", unity, TOLERANCE),
         ("DC sum equals preamp gain (serialized gains)", dc_error, WIRE_TOLERANCE),
+        (f"every compiled block recognized ({len(trips)} cases)", float(len(unrecognized)), 0.0),
+        ("compile -> recognize -> compile is byte-identical", float(len(not_identical)), 0.0),
+        (f"edited rows stop being recognized ({len(tamper)} edits)", float(len(still_recognized)), 0.0),
     ]
     failed = False
     for label, error, tolerance in results:
