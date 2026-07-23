@@ -8,8 +8,23 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { parseProcess, serializeProcess, stageLabel, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
+import { rowToRewText } from "../lib/eqexport.js";
 import { isPlotted, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { StageEditor, setSelected } from "./MatrixStageEditor.js";
+
+// Push text to the browser as a .txt download (the Export EQ tools). No server
+// round-trip — the serialized REW text is built client-side. Shared with the
+// Matrix tab's master export.
+export function downloadText(filename, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export const MAX_CH = 128;
 export const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
@@ -135,6 +150,7 @@ function FlowChain({ row, index, raw, stages, summing, update, replaceStages, ad
 // the Auto EQ card's module.
 function RowTools({ row, index, raw, canRemove, loaded, update, remove, toggleRaw, importHere }) {
   const plotted = isPlotted(index);
+  const eq = rowToRewText(row);
   return html`
     <div class="mtx-row-tools">
       <button
@@ -145,6 +161,21 @@ function RowTools({ row, index, raw, canRemove, loaded, update, remove, toggleRa
         onClick=${importHere}
       >
         Import EQ
+      </button>
+      <button
+        type="button"
+        class="mtx-tool"
+        disabled=${!eq.count}
+        title=${
+          eq.count
+            ? `Export this pipeline's EQ as REW / Equalizer APO text${
+                eq.skipped.length ? ` (${eq.skipped.length} stage(s) not representable, omitted)` : ""
+              }`
+            : "No parametric EQ on this pipeline to export"
+        }
+        onClick=${() => downloadText(`hqptuner-pipeline-${index + 1}.txt`, eq.text)}
+      >
+        Export EQ
       </button>
       <button type="button" class="mtx-tool ${raw ? "active" : ""}" title="Edit the raw process string" onClick=${toggleRaw}>
         { }

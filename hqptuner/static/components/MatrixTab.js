@@ -8,6 +8,7 @@ import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
 import { pipelineBaseline, effectivePipelines, canonPipelines, stagePipelines } from "../store/state.js";
 import { planEqImport } from "../lib/eqimport.js";
+import { pipelinesToRewText } from "../lib/eqexport.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
@@ -15,7 +16,7 @@ import { XfeedBadge, xfeedBlock } from "./XfeedComp.js";
 import { CrossfeedCard } from "./Crossfeed.js";
 import { StructuralBadge } from "./StructuralXfeed.js";
 import { ProfileCard } from "./MatrixProfileCard.js";
-import { FlowRow, MAX_CH, CH_OPTIONS } from "./MatrixFlowRow.js";
+import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./MatrixFlowRow.js";
 import { setSelected } from "./MatrixStageEditor.js";
 
 const pipelinesCardOpen = signal(true);
@@ -195,9 +196,31 @@ function PipelinesCard() {
           <button type="button" class="mtx-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>
             + Add pipeline
           </button>
-          <label class="btn mtx-file-btn">
-            Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
-          </label>
+          <div class="mtx-file-actions">
+            <label class="btn mtx-file-btn">
+              Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
+            </label>
+            ${(() => {
+              const eqExport = pipelinesToRewText(rows);
+              return html`<button
+                type="button"
+                class="btn mtx-file-btn"
+                disabled=${!eqExport.count}
+                title=${
+                  eqExport.count
+                    ? `Export all ${eqExport.count} pipeline(s)' EQ as REW / Equalizer APO text${
+                        eqExport.skipped.length
+                          ? ` (${eqExport.skipped.length} stage(s) not representable, omitted)`
+                          : ""
+                      }`
+                    : "No parametric EQ in the pipeline set to export"
+                }
+                onClick=${() => downloadText("hqptuner-matrix-eq.txt", eqExport.text)}
+              >
+                Export AutoEq / REW .txt…
+              </button>`;
+            })()}
+          </div>
         </div>
       </div>`
     : null;

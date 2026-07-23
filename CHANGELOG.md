@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- The Matrix tab can **export EQ** as a REW / Equalizer APO text file — the write-side twin of the AutoEq/REW importer, so an EQ you tuned here drops straight into REW, Equalizer APO, Peace, CamillaDSP, and anything else that reads that format. Two buttons: a master **Export AutoEq / REW .txt…** beside the Load button, which sends the whole pipeline set at once (`hqptuner-matrix-eq.txt`), and a per-row **Export EQ** beside each row's Import EQ (`hqptuner-pipeline-N.txt`). Peaking, low/high shelf, and pass/notch/all-pass stages export with their frequency, gain, and Q verbatim; a pipeline's dB gain becomes the `Preamp:` line. A stereo-identical pair collapses to one clean filter block; channels carrying different EQ are written under `# Pipeline N (In i -> Out j)` section headers so nothing is dropped or silently merged. Stages with no parametric form (raw biquads, first-order slopes, non-EQ stages like delay or convolution) are omitted and counted in the button's tooltip. Both buttons disable when there is no exportable EQ.
+
 ### Changed
 
 - The Resampling tab's standalone "DSD sources" card is gone; its six controls now live inside the PCM and SDM cards they actually belong to. Each card is split into a "PCM Sources" subsection (the existing filter/dither or filter/modulator chain — how a PCM source is handled for that output) and an "SDM Sources" subsection (Direct SDM, Integrator, SDM→SDM conversion in the SDM card; Noise filter, SDM→PCM conversion, +6 dB gain in the PCM card — how a DSD/SDM source is handled for that output). None of the six are individually grayed by mode any more — the card itself already collapses when the current output mode doesn't use it, so a per-field reason was redundant; expanding the "wrong" card anyway now shows a plain note ("Output mode is PCM/SDM. These settings have no effect.") instead. Each subsection packs its dropdowns into the left column and its checkbox into the right, matching the existing filter-chain layout.

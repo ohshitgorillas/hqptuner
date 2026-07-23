@@ -78,10 +78,11 @@ const tab = () =>
 const rowsOf = (out) => out.split('<div class="mtx-row ').slice(1);
 // The tool buttons of one pipeline row, in render order.
 const IMPORT = 0;
-const RAW = 1;
-const PLOT = 2;
-const CLEAR = 3;
-const REMOVE = 4;
+const EXPORT = 1;
+const RAW = 2;
+const PLOT = 3;
+const CLEAR = 4;
+const REMOVE = 5;
 const toolsOf = (rowHtml) =>
   rowHtml
     .slice(rowHtml.indexOf("mtx-row-tools"))
@@ -255,6 +256,16 @@ test("test_import_eq_is_disabled_with_no_eq_text_loaded", async () => {
 test("test_import_eq_says_where_to_load_eq_text_from", async () => {
   await reset([ROW({})]);
   assert.ok(tool(tab(), 0, IMPORT).includes("Load or paste EQ text first"));
+});
+
+test("test_export_eq_is_disabled_on_a_pipeline_with_no_parametric_eq", async () => {
+  await reset([ROW({})]);
+  assert.equal(isDisabled(tool(tab(), 0, EXPORT)), true);
+});
+
+test("test_export_eq_is_enabled_on_a_pipeline_with_a_filter_stage", async () => {
+  await reset([ROW({ process: "iir:type=peak;f=100;q=1;g=-3" })]);
+  assert.equal(isDisabled(tool(tab(), 0, EXPORT)), false);
 });
 
 test("test_the_raw_view_toggle_is_offered_on_every_pipeline", async () => {
