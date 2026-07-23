@@ -9,6 +9,12 @@
 // Compensation C = (1/R_M)^s is realized as two cascaded RBJ high-shelves
 // fitted numerically (reference-validated: fit <=0.031 dB at s=100%, linear
 // gain scaling <=0.046 dB over s=25..150%).
+//
+// The tilt is not an artifact of bs2b: Brown & Duda's structural head model at
+// +/-30 deg speaker azimuth gives a centre tilt of 1.80 dB, and bs2b's default
+// preset computes to 1.81 dB here. So compensation trades a loudspeaker-accurate
+// centre for a neutral one -- a tonal choice, not a bug fix. Independent of any
+// headphone EQ, which rides through untouched. See docs/crossfeed-math.md.
 
 export const BAUER_PRESETS = {
   default: { fc: 700, feed: 4.5 },
