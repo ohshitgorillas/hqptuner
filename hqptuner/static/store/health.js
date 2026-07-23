@@ -108,7 +108,8 @@ function speedAlert(s, sp) {
   if (s.crit >= SUSTAIN) {
     return { sev: "crit", text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}` };
   }
-  if (s.warn >= SUSTAIN) return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}` };
+  if (s.warn >= SUSTAIN)
+    return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}` };
   return null;
 }
 
