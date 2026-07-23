@@ -21,7 +21,7 @@ const RULES = {
 };
 
 export default [
-  { ignores: ["hqptuner/static/vendor/**", "node_modules/**", ".venv/**"] },
+  { ignores: ["hqptuner/static/vendor/**", "node_modules/**", ".venv/**", "build/**", "dist/**"] },
   js.configs.recommended,
   {
     files: ["hqptuner/static/**/*.js"],
