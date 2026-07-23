@@ -99,9 +99,18 @@ function Readouts({ p, lambda }) {
   const lfItd = p.itd + p.groupDelayFar - p.groupDelayNear;
   return html`
     <dl class="xfs-readouts">
-      <div><dt>Ear-to-ear delay</dt><dd>${Math.round(p.itd * 1e6)} µs<span> · ${Math.round(lfItd * 1e6)} µs at low frequencies</span></dd></div>
-      <div><dt>Far ear, treble</dt><dd>${farDb.toFixed(1)} dB</dd></div>
-      <div><dt>Center shift</dt><dd>${centerDb >= 0 ? "+" : ""}${centerDb.toFixed(2)} dB</dd></div>
+      <div>
+        <dt>Ear-to-ear delay</dt>
+        <dd>${Math.round(p.itd * 1e6)} µs<span> · ${Math.round(lfItd * 1e6)} µs at low frequencies</span></dd>
+      </div>
+      <div>
+        <dt>Far ear, treble</dt>
+        <dd>${farDb.toFixed(1)} dB</dd>
+      </div>
+      <div>
+        <dt>Center shift</dt>
+        <dd>${centerDb >= 0 ? "+" : ""}${centerDb.toFixed(2)} dB</dd>
+      </div>
     </dl>
   `;
 }
@@ -146,15 +155,17 @@ function StructuralMode({ rows }) {
             ${PRESETS.map((x) => html`<option value=${x.id}>${x.label}</option>`)}
             ${matchPreset(p0) === "custom" ? html`<option value="custom">Custom</option>` : null}
           </select>
-          ${rec
-            ? html`<button
-                type="button"
-                class="mtx-tool mtx-remove"
-                onClick=${() => (issueNote.value = noteFor(removeStructural(rows, rec)))}
-              >
-                Turn off
-              </button>`
-            : html`<button type="button" class="mtx-tool mtx-primary" onClick=${install}>Turn on</button>`}
+          ${
+            rec
+              ? html`<button
+                  type="button"
+                  class="mtx-tool mtx-remove"
+                  onClick=${() => (issueNote.value = noteFor(removeStructural(rows, rec)))}
+                >
+                  Turn off
+                </button>`
+              : html`<button type="button" class="mtx-tool mtx-primary" onClick=${install}>Turn on</button>`
+          }
         </div>
         <${Control}
           label="Speaker angle"
@@ -202,20 +213,25 @@ function StructuralMode({ rows }) {
         <${Readouts} p=${p} lambda=${p0.lambda} />
       </div>
     </div>
-    ${blockers.length && !rec
-      ? html`<div class="field-note xfs-blocked">
-          Turning this on will also ${blockers.map((b) => b.reason).join(" ")} These land as staged changes you can review before applying.
-        </div>`
-      : null}
+    ${
+      blockers.length && !rec
+        ? html`<div class="field-note xfs-blocked">
+            Turning this on will also ${blockers.map((b) => b.reason).join(" ")} These land as staged changes you can
+            review before applying.
+          </div>`
+        : null
+    }
     <button type="button" class="collapsible-head" onClick=${() => (structPlotOpen.value = !structPlotOpen.value)}>
       <span class="tri">${structPlotOpen.value ? "▾" : "▸"}</span> Crossfeed response
-      ${structPlotOpen.value
-        ? html`<span class="xfs-legend">
-            <span class="lg lg-cur">center (at ${Math.round(p0.lambda * 100)}%)</span>
-            <span class="lg lg-ghost">center (as speakers)</span>
-            <span class="lg lg-side">sides</span>
-          </span>`
-        : null}
+      ${
+        structPlotOpen.value
+          ? html`<span class="xfs-legend">
+              <span class="lg lg-cur">center (at ${Math.round(p0.lambda * 100)}%)</span>
+              <span class="lg lg-ghost">center (as speakers)</span>
+              <span class="lg lg-side">sides</span>
+            </span>`
+          : null
+      }
     </button>
     ${structPlotOpen.value ? html`<${StructuralPlot} p0=${p0} />` : null}
     ${issueNote.value ? html`<div class="mtx-issues xfs-actions">${issueNote.value}</div>` : null}
@@ -281,12 +297,14 @@ function BauerMode() {
       >
         <span class="tri">${compOpen.value ? "▾" : "▸"}</span> Crossfeed compensation
       </button>
-      ${compOpen.value
-        ? html`
-            <${XfeedStrip} />
-            <${CompMiniPlot} />
-          `
-        : null}
+      ${
+        compOpen.value
+          ? html`
+              <${XfeedStrip} />
+              <${CompMiniPlot} />
+            `
+          : null
+      }
     </div>
   `;
 }
@@ -329,11 +347,13 @@ export function CrossfeedCard() {
         />
       </div>
       ${issueNote.value ? html`<div class="mtx-issues xfs-issue">${issueNote.value}</div>` : null}
-      ${open
-        ? html`<div class="card-body">
-            ${active === "structural" ? html`<${StructuralMode} rows=${rows} />` : html`<${BauerMode} />`}
-          </div>`
-        : null}
+      ${
+        open
+          ? html`<div class="card-body">
+              ${active === "structural" ? html`<${StructuralMode} rows=${rows} />` : html`<${BauerMode} />`}
+            </div>`
+          : null
+      }
     </section>
   `;
 }

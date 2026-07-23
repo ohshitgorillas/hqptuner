@@ -78,7 +78,11 @@ export function clearLibrarySelection() {
 function Hit({ p }) {
   const isSel = libSel.value === p;
   return html`
-    <button type="button" class="mtx-lib-hit ${isSel ? "selected" : ""}" onClick=${() => (isSel ? clearLibrarySelection() : select(p))}>
+    <button
+      type="button"
+      class="mtx-lib-hit ${isSel ? "selected" : ""}"
+      onClick=${() => (isSel ? clearLibrarySelection() : select(p))}
+    >
       <span class="mtx-lib-model">${p.model}</span>
       <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
     </button>
@@ -93,7 +97,10 @@ function Selection({ applyText }) {
     <div class="mtx-lib-sel">
       <span class="mtx-lib-model">${p.model}</span>
       <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
-      <span class="mtx-lib-bands">${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on the Response card</span>
+      <span class="mtx-lib-bands"
+        >${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on
+        the Response card</span
+      >
       <button type="button" class="mtx-tool mtx-primary" onClick=${() => applyText(p.text)}>Load profile</button>
       <button type="button" class="mtx-tool" onClick=${clearLibrarySelection}>Clear</button>
     </div>
@@ -114,17 +121,23 @@ export function LibraryPicker({ applyText }) {
           onInput=${(e) => (query.value = e.target.value)}
         />
         <span class="mtx-lib-credit">
-          profiles: <a href="https://github.com/jaakkopasanen/AutoEq" target="_blank" rel="noreferrer">AutoEq</a>
-          ${" "}(<a href="/vendor/autoeq-LICENSE.txt" target="_blank">MIT</a>)${meta ? ` · ${meta.profiles} models @ ${meta.sha.slice(0, 7)}` : ""}
+          profiles:
+          <a href="https://github.com/jaakkopasanen/AutoEq" target="_blank" rel="noreferrer">AutoEq</a> ${" "}(<a
+            href="/vendor/autoeq-LICENSE.txt"
+            target="_blank"
+            >MIT</a
+          >)${meta ? ` · ${meta.profiles} models @ ${meta.sha.slice(0, 7)}` : ""}
         </span>
       </div>
       ${dbState.value ? html`<div class="mtx-issues">${dbState.value}</div>` : null}
-      ${hits.length
-        ? html`<div class="mtx-lib-hits">
-            ${hits.map((p) => html`<${Hit} p=${p} />`)}
-            ${more ? html`<div class="mtx-lib-more">…${more} more — refine the search</div>` : null}
-          </div>`
-        : null}
+      ${
+        hits.length
+          ? html`<div class="mtx-lib-hits">
+              ${hits.map((p) => html`<${Hit} p=${p} />`)}
+              ${more ? html`<div class="mtx-lib-more">…${more} more — refine the search</div>` : null}
+            </div>`
+          : null
+      }
       <${Selection} applyText=${applyText} />
     </div>
   `;

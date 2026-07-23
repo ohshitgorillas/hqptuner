@@ -122,35 +122,56 @@ export function VolumeRangeBar() {
           ${TICK_LAYOUT.map(
             (t) => html`
               <div class="vr-tick ${t.strong ? "strong" : ""}" style=${`left:${t.pos}%`}></div>
-              ${t.showLabel
-                ? html`<span class="vr-tick-label" style=${`left:${t.pos}%`}>${t.label}</span>`
-                : null}
+              ${t.showLabel ? html`<span class="vr-tick-label" style=${`left:${t.pos}%`}>${t.label}</span>` : null}
             `,
           )}
           ${handle("min", "volume_min", min, "Min volume")}
           ${handle("startup", "startup_volume", startup, "Startup volume")}
           ${handle("max", "volume_max", max, "Max volume")}
-          ${bub
-            ? html`<span class="vr-bubble vr-bubble-${bub.which}" style=${`left:${pct(bubbleFor[bub.which])}%`}>
-                ${bubbleFor[bub.which]} dBFS
-              </span>`
-            : null}
+          ${
+            bub
+              ? html`<span class="vr-bubble vr-bubble-${bub.which}" style=${`left:${pct(bubbleFor[bub.which])}%`}>
+                  ${bubbleFor[bub.which]} dBFS
+                </span>`
+              : null
+          }
         </div>
         <div class="vr-boxes">
           <label class="vr-box ${isDirty("volume_min") ? "dirty" : ""}">
             <span class="vr-key vr-key-min"></span>
             <span>Min</span>
-            <${NumberBox} value=${min} min=${AXIS_MIN} max=${0} step="1" disabled=${!!reason} onChange=${set("min", "volume_min")} />
+            <${NumberBox}
+              value=${min}
+              min=${AXIS_MIN}
+              max=${0}
+              step="1"
+              disabled=${!!reason}
+              onChange=${set("min", "volume_min")}
+            />
           </label>
           <label class="vr-box ${isDirty("startup_volume") ? "dirty" : ""}">
             <span class="vr-key vr-key-startup"></span>
             <span>Startup</span>
-            <${NumberBox} value=${startup} min=${min} max=${max} step="1" disabled=${!!reason} onChange=${set("startup", "startup_volume")} />
+            <${NumberBox}
+              value=${startup}
+              min=${min}
+              max=${max}
+              step="1"
+              disabled=${!!reason}
+              onChange=${set("startup", "startup_volume")}
+            />
           </label>
           <label class="vr-box ${isDirty("volume_max") ? "dirty" : ""}">
             <span class="vr-key vr-key-max"></span>
             <span>Max</span>
-            <${NumberBox} value=${max} min=${AXIS_MIN} max=${AXIS_MAX} step="1" disabled=${!!reason} onChange=${set("max", "volume_max")} />
+            <${NumberBox}
+              value=${max}
+              min=${AXIS_MIN}
+              max=${AXIS_MAX}
+              step="1"
+              disabled=${!!reason}
+              onChange=${set("max", "volume_max")}
+            />
           </label>
         </div>
       </div>

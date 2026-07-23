@@ -104,10 +104,7 @@ export function PlaybackVolume() {
         />
       </div>
       <label class="poll-quick inline-check">
-        <${Checkbox}
-          value=${fastVolumeUpdates.value ? "1" : "0"}
-          onChange=${(v) => setFastVolumeUpdates(v === "1")}
-        />
+        <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(v) => setFastVolumeUpdates(v === "1")} />
         Faster volume updates
         <span class="poll-quick-note">refresh twice a second while this page is open</span>
       </label>

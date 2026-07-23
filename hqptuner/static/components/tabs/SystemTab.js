@@ -38,7 +38,13 @@ const About = () => {
   ].filter((r) => r[1]);
   return html`
     <dl class="about">
-      ${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}
+      ${rows.map(
+        ([k, v]) =>
+          html`<div>
+            <dt>${k}</dt>
+            <dd>${v}</dd>
+          </div>`,
+      )}
     </dl>
   `;
 };
@@ -73,34 +79,33 @@ const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber" };
 // Swatches pick a preset; the hex box beside them holds that preset's value
 // (auto-filled on pick) and accepts any custom #rrggbb, which overrides the
 // preset until a swatch is picked again.
-const AccentPicker = () =>
-  html`
-    <div class="field">
-      <label>Accent color</label>
-      <div class="control accent-swatches">
-        ${ACCENTS.map(
-          (a) => html`
-            <button
-              type="button"
-              class="swatch ${a} ${accent.value === a && !accentHex.value ? "active" : ""}"
-              title=${ACCENT_LABELS[a]}
-              aria-label=${ACCENT_LABELS[a]}
-              aria-pressed=${accent.value === a && !accentHex.value}
-              onClick=${() => applyAccent(a)}
-            ></button>
-          `,
-        )}
-        <input
-          type="text"
-          class="accent-hex"
-          maxlength="7"
-          value=${accentHex.value || ACCENT_HEX[accent.value]}
-          onChange=${(e) => applyAccentHex(e.target.value)}
-          aria-label="Custom accent hex"
-        />
-      </div>
+const AccentPicker = () => html`
+  <div class="field">
+    <label>Accent color</label>
+    <div class="control accent-swatches">
+      ${ACCENTS.map(
+        (a) => html`
+          <button
+            type="button"
+            class="swatch ${a} ${accent.value === a && !accentHex.value ? "active" : ""}"
+            title=${ACCENT_LABELS[a]}
+            aria-label=${ACCENT_LABELS[a]}
+            aria-pressed=${accent.value === a && !accentHex.value}
+            onClick=${() => applyAccent(a)}
+          ></button>
+        `,
+      )}
+      <input
+        type="text"
+        class="accent-hex"
+        maxlength="7"
+        value=${accentHex.value || ACCENT_HEX[accent.value]}
+        onChange=${(e) => applyAccentHex(e.target.value)}
+        aria-label="Custom accent hex"
+      />
     </div>
-  `;
+  </div>
+`;
 
 // Logging card — full width at the bottom of the tab. The two log-config options
 // sit side by side at the top; the live tail view (checkbox-gated) sits below.

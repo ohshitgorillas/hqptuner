@@ -38,9 +38,6 @@ import { XfeedBadge, xfeedBlock } from "./XfeedComp.js";
 import { CrossfeedCard } from "./Crossfeed.js";
 import { StructuralBadge } from "./StructuralXfeed.js";
 import { applyEqToBlock, fitComp } from "../lib/xfeed.js";
-import { effective } from "../store/state.js";
-import { CrossfeedPlot } from "./plots.js";
-import { truthy } from "./tabs/common.js";
 
 const MAX_CH = 128;
 const CH_OPTIONS = Array.from({ length: MAX_CH }, (_, i) => i);
@@ -101,7 +98,10 @@ function ProfileCard() {
     <section class="card">
       <div class="card-head">Profile</div>
       <div class="card-body mtx-profile">
-        <div class="mtx-read-row"><dt>Active</dt><dd>${active}</dd></div>
+        <div class="mtx-read-row">
+          <dt>Active</dt>
+          <dd>${active}</dd>
+        </div>
         <div class="mtx-profile-row mtx-profile-primary">
           <select value=${sel} disabled=${!!busy} onChange=${(e) => (profileSel.value = e.target.value)}>
             <option value="">[Default]</option>
@@ -113,25 +113,48 @@ function ProfileCard() {
             disabled=${!!busy}
             title="Switch the running matrix to this profile — live, no engine reload"
             onClick=${() => profileAct("switch", sel)}
-          >Switch</button>
+          >
+            Switch
+          </button>
           <span class="mtx-live-tag">live — no reload</span>
         </div>
-        ${notesVisible.value
-          ? html`<div class="field-note">Profiles can be switched at any time, during playback as well — no engine reload. The switch is live-only: the daemon reverts to its saved configuration on restart.</div>`
-          : null}
+        ${
+          notesVisible.value
+            ? html`<div class="field-note">
+                Profiles can be switched at any time, during playback as well — no engine reload. The switch is
+                live-only: the daemon reverts to its saved configuration on restart.
+              </div>`
+            : null
+        }
         <div class="mtx-profile-row">
-          <button type="button" class="mtx-tool" disabled=${!!busy} title="Load this saved profile into the matrix configuration (~3 s engine reload)" onClick=${() => profileAct("load", sel)}>Load</button>
+          <button
+            type="button"
+            class="mtx-tool"
+            disabled=${!!busy}
+            title="Load this saved profile into the matrix configuration (~3 s engine reload)"
+            onClick=${() => profileAct("load", sel)}
+          >
+            Load
+          </button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
             disabled=${!!busy || !sel}
             title="Delete this saved profile"
             onClick=${() => profileAct("delete", sel)}
-          >Delete</button>
+          >
+            Delete
+          </button>
         </div>
-        ${notesVisible.value
-          ? html`<div class="field-note">Load replaces the pipelines (engine must be idle; two ~3 s engine reloads). HQPlayer's own load also clears the post-process settings — crossfeed, DAC correction, loudness — but HQPTuner restores them for you afterwards.</div>`
-          : null}
+        ${
+          notesVisible.value
+            ? html`<div class="field-note">
+                Load replaces the pipelines (engine must be idle; two ~3 s engine reloads). HQPlayer's own load also
+                clears the post-process settings — crossfeed, DAC correction, loudness — but HQPTuner restores them for
+                you afterwards.
+              </div>`
+            : null
+        }
         <div class="mtx-profile-row">
           <input
             type="text"
@@ -144,15 +167,24 @@ function ProfileCard() {
             type="button"
             class="mtx-tool"
             disabled=${!!busy || !newName || saved.includes(newName)}
-            title=${saved.includes(newName)
-              ? "That name exists — the daemon silently ignores a save to an existing profile (delete it first)"
-              : "Save the current matrix as a new profile"}
+            title=${
+              saved.includes(newName)
+                ? "That name exists — the daemon silently ignores a save to an existing profile (delete it first)"
+                : "Save the current matrix as a new profile"
+            }
             onClick=${() => profileAct("save", newName)}
-          >Save as new</button>
+          >
+            Save as new
+          </button>
         </div>
-        ${notesVisible.value
-          ? html`<div class="field-note">Saves the current matrix as a new named profile. The daemon silently ignores a save to an existing name — delete the old profile first.</div>`
-          : null}
+        ${
+          notesVisible.value
+            ? html`<div class="field-note">
+                Saves the current matrix as a new named profile. The daemon silently ignores a save to an existing name
+                — delete the old profile first.
+              </div>`
+            : null
+        }
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
       </div>
     </section>
@@ -368,8 +400,10 @@ function StageChip({ stage, rowIndex, stageIndex, stages, replaceStages }) {
       onDragStart=${() => (dragFrom.value = { row: rowIndex, stage: stageIndex })}
       onDragOver=${(e) => e.preventDefault()}
       onDrop=${onDrop}
-      onClick=${() => (setSelected(isSel ? null : { row: rowIndex, stage: stageIndex }))}
-    >${stageLabel(stage)}</button>
+      onClick=${() => setSelected(isSel ? null : { row: rowIndex, stage: stageIndex })}
+    >
+      ${stageLabel(stage)}
+    </button>
   `;
 }
 
@@ -412,20 +446,32 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove, import
         <div class="mtx-flow">
           <${ChannelSelect} value=${row.source} prefix="In" onChange=${(v) => update({ source: v })} />
           <${Arrow} />
-          ${raw
-            ? html`<${RawEditor} row=${row} update=${update} />`
-            : stages.map(
-                (s, j) => html`
-                  <${StageChip} stage=${s} rowIndex=${index} stageIndex=${j} stages=${stages} replaceStages=${replaceStages} />
+          ${
+            raw
+              ? html`<${RawEditor} row=${row} update=${update} />`
+              : stages.map(
+                  (s, j) => html`
+                    <${StageChip}
+                      stage=${s}
+                      rowIndex=${index}
+                      stageIndex=${j}
+                      stages=${stages}
+                      replaceStages=${replaceStages}
+                    />
+                    <${Arrow} />
+                  `,
+                )
+          }
+          ${
+            raw
+              ? html`<${Arrow} />`
+              : html`
+                  <button type="button" class="mtx-add-stage" title="Add a processing stage" onClick=${addStage}>
+                    + stage
+                  </button>
                   <${Arrow} />
-                `,
-              )}
-          ${raw
-            ? html`<${Arrow} />`
-            : html`
-                <button type="button" class="mtx-add-stage" title="Add a processing stage" onClick=${addStage}>+ stage</button>
-                <${Arrow} />
-              `}
+                `
+          }
           <span class="pchip pchip-gain mtx-gain">
             <input type="number" step="0.01" value=${row.gain} onChange=${(e) => update({ gain: e.target.value })} />
             <select value=${row.gainunit} onChange=${(e) => update({ gainunit: e.target.value })}>
@@ -442,18 +488,31 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove, import
             type="button"
             class="mtx-tool"
             disabled=${!importText.value.trim()}
-            title=${importText.value.trim()
-              ? "Append the loaded EQ to this pipeline"
-              : "Load or paste EQ text first (Headphone AutoEQ card)"}
+            title=${
+              importText.value.trim()
+                ? "Append the loaded EQ to this pipeline"
+                : "Load or paste EQ text first (Headphone AutoEQ card)"
+            }
             onClick=${importHere}
-          >Import EQ</button>
-          <button type="button" class="mtx-tool ${raw ? "active" : ""}" title="Edit the raw process string" onClick=${toggleRaw}>{ }</button>
+          >
+            Import EQ
+          </button>
+          <button
+            type="button"
+            class="mtx-tool ${raw ? "active" : ""}"
+            title="Edit the raw process string"
+            onClick=${toggleRaw}
+          >
+            { }
+          </button>
           <button
             type="button"
             class="mtx-tool ${isPlotted(index) ? "active" : ""}"
             title="Plot this pipeline's response"
             onClick=${() => togglePlotted(index)}
-          >${isPlotted(index) ? "◉" : "○"}</button>
+          >
+            ${isPlotted(index) ? "◉" : "○"}
+          </button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
@@ -463,14 +522,18 @@ function FlowRow({ row, index, dirty, summing, canRemove, update, remove, import
               setSelected(null);
               update({ process: "", gain: "0", gainunit: "dB" });
             }}
-          >∅</button>
+          >
+            ∅
+          </button>
           <button
             type="button"
             class="mtx-tool mtx-remove"
             disabled=${!canRemove}
             title=${canRemove ? "Remove pipeline" : "At least one pipeline is required"}
             onClick=${remove}
-          >✕</button>
+          >
+            ✕
+          </button>
         </div>
       </div>
       ${editing ? html`<${StageEditor} stages=${stages} stageIndex=${sel.stage} replaceStages=${replaceStages} />` : null}
@@ -617,13 +680,18 @@ function PipelinesCard() {
   };
   return html`
     <section class="card">
-      <div class="card-head">
-        Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>
-      </div>
+      <div class="card-head">Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span></div>
       <div class="card-body">
-        ${notesVisible.value
-          ? html`<div class="field-note mtx-pipelines-note">Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert polarity (e.g. for M/S processing).</div>`
-          : null}
+        ${
+          notesVisible.value
+            ? html`<div class="field-note mtx-pipelines-note">
+                Each pipeline copies a source channel through a chain of processing stages — filter impulse-response
+                files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output
+                channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale;
+                negative linear factors invert polarity (e.g. for M/S processing).
+              </div>`
+            : null
+        }
         <${XfeedBadge} />
         <${StructuralBadge} />
         ${rows.map(

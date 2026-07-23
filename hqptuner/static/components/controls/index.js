@@ -32,9 +32,7 @@ export function Dropdown({ value, options, disabled, onChange }) {
     <select value=${s(value)} disabled=${disabled} onChange=${(e) => onChange(e.target.value)}>
       ${(options || []).map(
         (o) => html`
-          <option value=${s(o.value)} disabled=${o.disabled}>
-            ${o.label}${o.reason ? ` — ${o.reason}` : ""}
-          </option>
+          <option value=${s(o.value)} disabled=${o.disabled}>${o.label}${o.reason ? ` — ${o.reason}` : ""}</option>
         `,
       )}
     </select>

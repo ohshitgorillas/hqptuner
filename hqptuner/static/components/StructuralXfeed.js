@@ -42,7 +42,10 @@ export function structuralLensTraces(rows, bounds) {
   const symmetric = rec.eqProcess.left === rec.eqProcess.right;
   const ears = symmetric
     ? [["", rec.eqProcess.left]]
-    : [[" left", rec.eqProcess.left], [" right", rec.eqProcess.right]];
+    : [
+        [" left", rec.eqProcess.left],
+        [" right", rec.eqProcess.right],
+      ];
   const out = [];
   for (const [suffix, chain] of ears) {
     const eq = eqDb(chain);
@@ -69,8 +72,8 @@ export function StructuralBadge() {
   if (!rec) return null;
   return html`
     <div class="xfc-badge">
-      ⇄ These 16 pipelines are the structural crossfeed — speakers at ±${rec.angle.toFixed(0)}°, ${(rec.headRadius * 100).toFixed(1)} cm head,
-      center character ${Math.round(rec.lambda * 100)}%
+      ⇄ These 16 pipelines are the structural crossfeed — speakers at ±${rec.angle.toFixed(0)}°,
+      ${(rec.headRadius * 100).toFixed(1)} cm head, center character ${Math.round(rec.lambda * 100)}%
       ${rec.eqProcess.left !== rec.eqProcess.right ? html` · <span class="xfc-stale">per-ear EQ</span>` : ""}
     </div>
   `;

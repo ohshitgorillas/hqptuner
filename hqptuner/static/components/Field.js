@@ -6,7 +6,16 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { schema } from "../store/schema.js";
-import { effective, isDirty, edit, setLive, metadata, httpFieldMap, formFieldName, refreshDevices } from "../store/state.js";
+import {
+  effective,
+  isDirty,
+  edit,
+  setLive,
+  metadata,
+  httpFieldMap,
+  formFieldName,
+  refreshDevices,
+} from "../store/state.js";
 import { optionsFor, grayShapersByRate } from "../store/options.js";
 import { narrowOptions } from "../store/narrowing.js";
 import { grayReason } from "../store/graying.js";
@@ -14,7 +23,17 @@ import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Knob } from "./Knob.js";
 
-const WIDGETS = { segment: Segment, dropdown: Dropdown, number: NumberBox, text: TextBox, checkbox: Checkbox, slider: Slider, slidernum: SliderNumber, radio: RadioGroup, knob: Knob };
+const WIDGETS = {
+  segment: Segment,
+  dropdown: Dropdown,
+  number: NumberBox,
+  text: TextBox,
+  checkbox: Checkbox,
+  slider: Slider,
+  slidernum: SliderNumber,
+  radio: RadioGroup,
+  knob: Knob,
+};
 
 // Static per-control prose from settings.json (Phase 1 manual/readme extraction),
 // keyed by tab group. `entry.note` names the settings.json key when it differs

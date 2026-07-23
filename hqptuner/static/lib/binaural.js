@@ -30,7 +30,8 @@
 // KEMAR data, and those travel together. The difference is 0.7 us of ITD, under
 // the 22.7 us sample floor at 44.1 kHz and dominated ~37x by head-radius spread
 // across adults (+/-26 us) — which is why `a` is a control and c is not.
-export const SPEED_OF_SOUND = 343; // m/s — Brown & Duda §II.A
+// m/s — Brown & Duda §II.A, per the note above. Not a parameter anywhere downstream: compileRows and recognizeRows both used to take a speedOfSound argument, nothing ever passed one, and a mismatch between the two recovered a silently wrong head radius (0.08673 m for a compiled 0.0875 m) rather than declining the block.
+const SPEED_OF_SOUND = 343;
 export const HEAD_RADIUS = 0.0875; // m — Brown & Duda's stated average adult
 export const SPEAKER_ANGLE = 30; // degrees off center — the stereo standard
 
@@ -40,20 +41,20 @@ const THETA_MIN = 150;
 // Eq. (5). `theta` is interaural-polar: measured from the interaural axis, so a
 // source at `angle` degrees off center sits at 90−angle for the near ear and
 // 90+angle for the far one.
-export function alphaOf(theta) {
+function alphaOf(theta) {
   return 1 + ALPHA_MIN / 2 + (1 - ALPHA_MIN / 2) * Math.cos((theta / THETA_MIN) * Math.PI);
 }
 
 // Eq. (2), Woodworth & Schlosberg: arrival time relative to the head center,
 // in seconds. Negative = early (source on this side).
-export function rayDelay(theta, a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
+function rayDelay(theta, a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
   const rad = (Math.abs(theta) * Math.PI) / 180;
   const scale = a / c;
   return rad < Math.PI / 2 ? -scale * Math.cos(rad) : scale * (rad - Math.PI / 2);
 }
 
 // The lp1 corner: the pole sits at 2ω₀, so f = ω₀/π = c/(aπ).
-export function shadowCornerHz(a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
+function shadowCornerHz(a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
   return c / (a * Math.PI);
 }
 
@@ -90,7 +91,7 @@ function chain(lowpass, delaySec, cornerHz, eqProcess) {
 
 // The eight coefficients feeding one output ear, in row order: for each source
 // (same-side then opposite), the four {flat, lp1} × {dry, delayed} terms.
-export function earCoefficients(lambda, alphaNear, alphaFar) {
+function earCoefficients(lambda, alphaNear, alphaFar) {
   const same = (lambda + 1) / 4;
   const cross = (lambda - 1) / 4;
   const dc = (1 - lambda) / 2;
@@ -127,13 +128,12 @@ export function compileRows({
   lambda = 1,
   angle = SPEAKER_ANGLE,
   headRadius = HEAD_RADIUS,
-  speedOfSound = SPEED_OF_SOUND,
   srcA = 0,
   srcB = 1,
   preampDb = 0,
   eqProcess = "",
 } = {}) {
-  const p = pathParams(angle, headRadius, speedOfSound);
+  const p = pathParams(angle, headRadius);
   const eqs = perEar(eqProcess, "");
   const preamps = perEar(preampDb, 0);
   const rows = [];
@@ -161,26 +161,31 @@ export function compileRows({
 // rows really do realize G_M and G_S. Evaluated on the analog prototype, which
 // is what the daemon's rate-independent parametrics implement.
 
+/** @returns {[number, number]} */
 function lp1Response(f, cornerHz) {
   const x = f / cornerHz;
   const d = 1 + x * x;
   return [1 / d, -x / d];
 }
 
+/** @returns {[number, number]} */
 function delayResponse(f, seconds) {
   const w = -2 * Math.PI * f * seconds;
   return [Math.cos(w), Math.sin(w)];
 }
 
+/** @type {(a: [number, number], b: [number, number]) => [number, number]} */
 const mul = ([ar, ai], [br, bi]) => [ar * br - ai * bi, ar * bi + ai * br];
 
 // Sum of one ear's eight rows at frequency f, as [re, im]. `sameSide` picks
 // which source the signal arrived on: pass 1 for correlated (center) content in
 // both sources, or use midSideResponse below.
+/** @returns {[number, number]} */
 function earResponse(f, coeffs, p, sourceGain) {
   let re = 0;
   let im = 0;
   for (const c of coeffs) {
+    /** @type {[number, number]} */
     let term = [1, 0];
     if (c.lowpass) term = mul(term, lp1Response(f, p.cornerHz));
     if (c.delayed) term = mul(term, delayResponse(f, p.itd));
@@ -193,8 +198,8 @@ function earResponse(f, coeffs, p, sourceGain) {
 
 // Center and side transfer functions of the compiled block at frequency f.
 // Center drives both sources in phase; side drives them in antiphase.
-export function midSideResponse(f, { lambda = 1, angle = SPEAKER_ANGLE, headRadius = HEAD_RADIUS, speedOfSound = SPEED_OF_SOUND } = {}) {
-  const p = pathParams(angle, headRadius, speedOfSound);
+export function midSideResponse(f, { lambda = 1, angle = SPEAKER_ANGLE, headRadius = HEAD_RADIUS } = {}) {
+  const p = pathParams(angle, headRadius);
   const coeffs = earCoefficients(lambda, p.alphaNear, p.alphaFar);
   return {
     mid: earResponse(f, coeffs, p, () => 1),
@@ -217,8 +222,14 @@ const GAIN_TOLERANCE = 1e-6; // on redundant gains, well above 9-decimal wire ro
 // The (lowpass, delayed, opposite) signature each of an ear's eight rows carries,
 // in the order compileRows emits them.
 const EAR_PATTERN = [
-  [false, false, false], [true, false, false], [false, true, false], [true, true, false],
-  [false, false, true], [true, false, true], [false, true, true], [true, true, true],
+  [false, false, false],
+  [true, false, false],
+  [false, true, false],
+  [true, true, false],
+  [false, false, true],
+  [true, false, true],
+  [false, true, true],
+  [true, true, true],
 ];
 
 // Split a row's chain into the block's own prefix stages and whatever EQ follows.
@@ -241,7 +252,7 @@ function splitChain(process) {
 }
 
 // Invert eq. (5): the speaker angle that produces this alpha, or null if none does.
-export function angleFromAlpha(alpha, ear) {
+function angleFromAlpha(alpha, ear) {
   const arg = (alpha - (1 + ALPHA_MIN / 2)) / (1 - ALPHA_MIN / 2);
   if (!(arg >= -1 && arg <= 1)) return null;
   const theta = (THETA_MIN / Math.PI) * Math.acos(arg);
@@ -250,10 +261,23 @@ export function angleFromAlpha(alpha, ear) {
 
 // Recognize a compiled block at rows[at..at+15]. Returns the controls that
 // produced it — {lambda, angle, headRadius, preampDb, eqProcess} — or null.
-export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
-  const block = rows.slice(at, at + 16);
-  if (block.length < 16 || block.some((r) => r.gainunit !== "Lin")) return null;
+// A row this recognizer can even look at. Rows reaching here are whatever the
+// user last hand-edited, so a malformed one must DECLINE the block (dropping the
+// badge, per the card's contract) rather than throw: recognition runs inside a
+// render path, and a TypeError there takes the tab down instead of the badge.
+// `process` absent is legal — a bare flat row carries no chain.
+const usableRow = (r) => !!r && r.gainunit === "Lin" && (r.process == null || typeof r.process === "string");
 
+// Recognition is a pipeline of independent checks, each of which either yields
+// the next stage's input or refuses the block. The helpers below are private:
+// the contract is recognizeRows' return value, and tests/js/binaural.test.js
+// reaches every one of them through it.
+
+const snap = (x, step) => Math.round(x / step) * step;
+
+// The chain structure shared across the block: one EQ tail per ear, and exactly
+// eight lowpass corners and eight delays, each set internally identical.
+function chainParts(block) {
   const parts = block.map((r) => splitChain(r.process));
   // per ear, not globally — the two ears may carry different corrections
   const eqProcess = { left: parts[0].eqProcess, right: parts[8].eqProcess };
@@ -263,81 +287,117 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
   const delays = parts.filter((p) => p.delaySec !== null).map((p) => p.delaySec);
   if (corners.length !== 8 || delays.length !== 8) return null;
   if (corners.some((c) => c !== corners[0]) || delays.some((d) => d !== delays[0])) return null;
+  return { eqProcess, corner: corners[0], delay: delays[0] };
+}
 
+// One row against its position in the eight-row ear signature.
+function rowMatchesPattern(row, i, e, outs, srcs) {
+  const [lp, delayed, opposite] = EAR_PATTERN[i];
+  const p = splitChain(row.process);
+  if ((p.corner !== null) !== lp || (p.delaySec !== null) !== delayed) return false;
+  return row.mixdown === outs[e] && row.source === srcs[opposite ? 1 - e : e];
+}
+
+// The two ears, once their routing is confirmed. Distinct mixdowns is what
+// rejects a degenerate block feeding both ears from one source.
+function earLayout(block) {
   const ears = [block.slice(0, 8), block.slice(8, 16)];
   const outs = [ears[0][0].mixdown, ears[1][0].mixdown];
   const srcs = [ears[0][0].source, ears[1][0].source];
   if (outs[0] === outs[1] || srcs[0] !== outs[0] || srcs[1] !== outs[1]) return null;
+  const routed = ears.every((ear, e) => ear.every((row, i) => rowMatchesPattern(row, i, e, outs, srcs)));
+  return routed ? ears : null;
+}
 
-  for (let e = 0; e < 2; e += 1) {
-    for (let i = 0; i < 8; i += 1) {
-      const [lp, delayed, opposite] = EAR_PATTERN[i];
-      const p = splitChain(ears[e][i].process);
-      if ((p.corner !== null) !== lp || (p.delaySec !== null) !== delayed) return null;
-      if (ears[e][i].mixdown !== outs[e] || ears[e][i].source !== srcs[opposite ? 1 - e : e]) return null;
-    }
-  }
-
-  // Recover each ear from its own eight gains. Per-ear preamps mean the two k
-  // values may legitimately differ, but lambda and the two alphas describe one
-  // crossfeed and must agree across ears — a disagreement is a hand-edit.
-  const recover = (ear) => {
-    const g = ear.map((r) => Number(r.gain));
-    const same = g[6] + g[7]; // (lambda+1)/4 * k
-    const cross = g[2] + g[3]; // (lambda-1)/4 * k
-    const diff = same - cross; // k/2
-    if (!(diff > 0)) return null;
-    return {
-      k: 2 * diff,
-      lambda: (same + cross) / diff,
-      alphaFar: g[6] / same,
-      alphaNear: 1 - g[1] / same,
-    };
+// One ear's controls, from its own eight gains.
+function recoverEar(ear) {
+  const g = ear.map((r) => Number(r.gain));
+  const same = g[6] + g[7]; // (lambda+1)/4 * k
+  const cross = g[2] + g[3]; // (lambda-1)/4 * k
+  const diff = same - cross; // k/2
+  if (!(diff > 0)) return null;
+  return {
+    k: 2 * diff,
+    lambda: (same + cross) / diff,
+    alphaFar: g[6] / same,
+    alphaNear: 1 - g[1] / same,
   };
-  const [a, b] = ears.map(recover);
+}
+
+// Per-ear preamps mean the two k values may legitimately differ, but lambda and
+// the two alphas describe one crossfeed and must agree across ears — a
+// disagreement is a hand-edit.
+function recoverBoth(ears) {
+  const [a, b] = ears.map(recoverEar);
   if (!a || !b) return null;
   if (Math.abs(a.lambda - b.lambda) > 1e-4) return null;
   if (Math.abs(a.alphaNear - b.alphaNear) > 1e-4) return null;
   if (Math.abs(a.alphaFar - b.alphaFar) > 1e-4) return null;
-  const alphaNear = (a.alphaNear + b.alphaNear) / 2;
-  const alphaFar = (a.alphaFar + b.alphaFar) / 2;
+  return {
+    lambda: (a.lambda + b.lambda) / 2,
+    alphaNear: (a.alphaNear + b.alphaNear) / 2,
+    alphaFar: (a.alphaFar + b.alphaFar) / 2,
+    ks: [a.k, b.k],
+  };
+}
 
+// Near and far ear are independent routes to the speaker angle; require both to
+// be in the model's domain and to agree.
+function angleFromAlphas(alphaNear, alphaFar) {
   const fromNear = angleFromAlpha(alphaNear, "near");
   const fromFar = angleFromAlpha(alphaFar, "far");
   if (fromNear === null || fromFar === null) return null;
   if (Math.abs(fromNear - fromFar) > ANGLE_TOLERANCE) return null;
+  return (fromNear + fromFar) / 2;
+}
+
+// Every one of the sixteen gains must match what the recovered controls
+// generate, each ear against its own preamp. This subsumes the redundancy
+// within an ear and covers both — an edit to a second-ear row would otherwise
+// pass unnoticed.
+function gainsMatch(ears, lambda, p, preampDb) {
+  const coeffs = earCoefficients(lambda, p.alphaNear, p.alphaFar);
+  const ks = [10 ** (preampDb.left / 20), 10 ** (preampDb.right / 20)];
+  return ears.every((ear, e) =>
+    ear.every((row, i) => Math.abs(Number(row.gain) - coeffs[i].gain * ks[e]) <= GAIN_TOLERANCE),
+  );
+}
+
+export function recognizeRows(rows, at = 0) {
+  const block = rows.slice(at, at + 16);
+  if (block.length < 16 || !block.every(usableRow)) return null;
+
+  const chains = chainParts(block);
+  if (!chains) return null;
+  const ears = earLayout(block);
+  if (!ears) return null;
+  const raw = recoverBoth(ears);
+  if (!raw) return null;
+  const angle = angleFromAlphas(raw.alphaNear, raw.alphaFar);
+  if (angle === null) return null;
 
   // Snap to the control grid before anything else. The gains arrive quantized to
   // the wire's 9 decimals, so raw recovery lands a few ulps off the values that
   // produced them; recompiling from those would differ in the last digit and the
   // block would read as edited on every render. Snapping is what makes
   // compile -> recognize -> compile byte-stable, the same reason msRecognize
-  // snaps its slider fraction to a 1 % grid.
-  const snap = (x, step) => Math.round(x / step) * step;
-  const lambda = snap((a.lambda + b.lambda) / 2, 1e-4);
-  const angle = snap((fromNear + fromFar) / 2, 0.01);
-  const headRadius = snap(speedOfSound / (Math.PI * corners[0]), 1e-5);
+  // snaps its slider fraction to a 1 % grid. It is also why an off-grid control
+  // is REFUSED rather than rounded: the gain check below re-derives from the
+  // snapped value at a tolerance far tighter than the snap step.
+  const lambda = snap(raw.lambda, 1e-4);
+  const headRadius = snap(SPEED_OF_SOUND / (Math.PI * chains.corner), 1e-5);
   const preampDb = {
-    left: snap(20 * Math.log10(a.k), 1e-3),
-    right: snap(20 * Math.log10(b.k), 1e-3),
+    left: snap(20 * Math.log10(raw.ks[0]), 1e-3),
+    right: snap(20 * Math.log10(raw.ks[1]), 1e-3),
   };
 
-  // Every one of the sixteen gains must match what those controls generate, each
-  // ear against its own preamp. This subsumes the redundancy within an ear and
-  // covers both — an edit to a second-ear row would otherwise pass unnoticed.
-  const p = pathParams(angle, headRadius, speedOfSound);
-  const coeffs = earCoefficients(lambda, p.alphaNear, p.alphaFar);
-  const ks = [10 ** (preampDb.left / 20), 10 ** (preampDb.right / 20)];
-  for (let e = 0; e < 2; e += 1) {
-    for (let i = 0; i < 8; i += 1) {
-      if (Math.abs(Number(ears[e][i].gain) - coeffs[i].gain * ks[e]) > GAIN_TOLERANCE) return null;
-    }
-  }
-
+  const angleSnapped = snap(angle, 0.01);
+  const p = pathParams(angleSnapped, headRadius);
+  if (!gainsMatch(ears, lambda, p, preampDb)) return null;
   // corner and delay are independent routes to the head radius; require agreement
-  if (Math.abs(p.itd - delays[0]) > 2e-6) return null;
+  if (Math.abs(p.itd - chains.delay) > 2e-6) return null;
 
-  return { lambda, angle, headRadius, preampDb, eqProcess };
+  return { lambda, angle: angleSnapped, headRadius, preampDb, eqProcess: chains.eqProcess };
 }
 
 // --- invariants --------------------------------------------------------------
@@ -362,7 +422,7 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
 // the user can see, and a conflict arriving via a preset load (whose snapshot
 // carries post_bauer_enabled) has to be visible for the same reason.
 
-export const BLOCK_CONFLICTS = [
+const BLOCK_CONFLICTS = [
   {
     key: "crossfeed_enabled",
     required: "0",
@@ -448,4 +508,3 @@ export function matchPreset({ angle, lambda }) {
   const hit = PRESETS.find((p) => Math.abs(p.angle - angle) < 0.05 && Math.abs(p.lambda - lambda) < 0.005);
   return hit ? hit.id : "custom";
 }
-

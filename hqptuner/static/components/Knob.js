@@ -107,7 +107,16 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
     (e) => {
       if (disabled) return;
       const q = e.shiftKey ? fine : st;
-      const moves = { ArrowUp: val + q, ArrowRight: val + q, ArrowDown: val - q, ArrowLeft: val - q, PageUp: val + st * 10, PageDown: val - st * 10, Home: lo, End: hi };
+      const moves = {
+        ArrowUp: val + q,
+        ArrowRight: val + q,
+        ArrowDown: val - q,
+        ArrowLeft: val - q,
+        PageUp: val + st * 10,
+        PageDown: val - st * 10,
+        Home: lo,
+        End: hi,
+      };
       if (!(e.key in moves)) return;
       e.preventDefault();
       commit(moves[e.key]);
@@ -147,22 +156,31 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
         <circle class="knob-inner" cx="50" cy="50" r="22" />
         <line class="knob-notch" x1=${nx1.toFixed(2)} y1=${ny1.toFixed(2)} x2=${nx2.toFixed(2)} y2=${ny2.toFixed(2)} />
       </svg>
-      ${slider === false
-        ? null
-        : html`<input
-            class="knob-slider"
-            type="range"
-            ref=${sliderRef}
-            min=${lo}
-            max=${hi}
-            step=${st}
-            disabled=${disabled}
-            onWheel=${wheelGuard}
-            onInput=${(e) => live(snap(num(e.target.value, val), st))}
-            onChange=${(e) => commit(num(e.target.value, val))}
-          />`}
+      ${
+        slider === false
+          ? null
+          : html`<input
+              class="knob-slider"
+              type="range"
+              ref=${sliderRef}
+              min=${lo}
+              max=${hi}
+              step=${st}
+              disabled=${disabled}
+              onWheel=${wheelGuard}
+              onInput=${(e) => live(snap(num(e.target.value, val), st))}
+              onChange=${(e) => commit(num(e.target.value, val))}
+            />`
+      }
       <span class="knob-readout">
-        <input class="knob-box mono" type="text" inputmode="decimal" ref=${boxRef} disabled=${disabled} onChange=${(e) => commit(num(e.target.value, val))} />
+        <input
+          class="knob-box mono"
+          type="text"
+          inputmode="decimal"
+          ref=${boxRef}
+          disabled=${disabled}
+          onChange=${(e) => commit(num(e.target.value, val))}
+        />
         ${unit ? html`<span class="knob-unit">${unit}</span>` : null}
       </span>
     </div>

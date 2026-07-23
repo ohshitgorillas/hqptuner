@@ -70,14 +70,16 @@ async function onSaveNew(pend) {
 function statusLine(n, sp, busy, reach, result, switchName) {
   if (busy) return html`<span class="note">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
   const pend = n > 0 || !!switchName;
-  if (pend && !reach) return html`<span class="note warn">Daemon unreachable — changes held, Apply resumes on reconnect</span>`;
+  if (pend && !reach)
+    return html`<span class="note warn">Daemon unreachable — changes held, Apply resumes on reconnect</span>`;
   if (pend) {
     const parts = [];
     if (switchName) parts.push(`switch to "${switchName}"`);
     if (n) parts.push(`${sp.live} live · ${sp.restart} restart`);
     return html`<span class="muted">${parts.join(" · ")}</span>`;
   }
-  if (result) return html`<span class="note ${result.ok ? "ok" : "err"}">${result.ok ? "✓" : "✗"} ${result.text}</span>`;
+  if (result)
+    return html`<span class="note ${result.ok ? "ok" : "err"}">${result.ok ? "✓" : "✗"} ${result.text}</span>`;
   return html`<span class="muted">No pending changes</span>`;
 }
 
@@ -99,11 +101,13 @@ export function PendingBar() {
       <button
         onClick=${() => onApplySave(pend)}
         disabled=${busy || !reach || !target}
-        title=${target
-          ? pend
-            ? `Apply and save to "${target}"`
-            : `Save the current settings to "${target}"`
-          : "No named preset to save to ([default])"}
+        title=${
+          target
+            ? pend
+              ? `Apply and save to "${target}"`
+              : `Save the current settings to "${target}"`
+            : "No named preset to save to ([default])"
+        }
       >
         ${pend ? "Apply & Save" : "Save"}
       </button>

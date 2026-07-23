@@ -71,7 +71,7 @@ function peaking(f0, dbGain, shape, fs, useQ) {
 
 // One loudness band -> coefficients, dispatched by the form's `type` value.
 // Steepness/Q is the shelf slope S for shelves, bandwidth for peak, Q for peakq.
-export function bandCoeffs(type, f0, dbGain, shape, fs) {
+function bandCoeffs(type, f0, dbGain, shape, fs) {
   if (type === "hshelf") return highShelf(f0, dbGain, shape, fs);
   if (type === "peak") return peaking(f0, dbGain, shape, fs, false);
   if (type === "peakq") return peaking(f0, dbGain, shape, fs, true);
@@ -79,7 +79,7 @@ export function bandCoeffs(type, f0, dbGain, shape, fs) {
 }
 
 // Magnitude in dB of a normalized biquad (a0 = 1) at frequency f.
-export function biquadMagDb(c, f, fs) {
+function biquadMagDb(c, f, fs) {
   const w = (TAU * f) / fs;
   const cw = Math.cos(w);
   const c2w = Math.cos(2 * w);
@@ -132,7 +132,7 @@ const DEG = 180 / Math.PI;
 
 // Phase in degrees of a normalized biquad at f (same transfer function as
 // biquadMagDb, atan2 instead of magnitude; wrapped to ±180 by construction).
-export function biquadPhaseDeg(c, f, fs) {
+function biquadPhaseDeg(c, f, fs) {
   const w = (TAU * f) / fs;
   const cw = Math.cos(w);
   const c2w = Math.cos(2 * w);
@@ -201,39 +201,60 @@ function plainBiquad(type, w0, alpha) {
   return { b0: (1 - alpha) / a0, b1: (-2 * cw) / a0, b2: (1 + alpha) / a0, a1, a2 }; // ap
 }
 
-// One iir-plugin stage -> normalized biquad coefficients (null = unplottable).
-export function iirStageCoeffs(args, fs) {
-  const type = args.type;
-  if (type === "biquad") {
-    const a0 = Number(args.a0 ?? 1) || 1;
-    return {
-      b0: Number(args.b0 ?? 0) / a0,
-      b1: Number(args.b1 ?? 0) / a0,
-      b2: Number(args.b2 ?? 0) / a0,
-      a1: Number(args.a1 ?? 0) / a0,
-      a2: Number(args.a2 ?? 0) / a0,
-    };
-  }
-  const f0 = Number(args.f);
-  if (!Number.isFinite(f0) || f0 <= 0 || f0 >= fs / 2) return null;
-  if (type === "lp1" || type === "hp1") return firstOrder(type, f0, fs);
+// User-supplied raw coefficients, normalized by a0 (absent a0 = 1, never 0).
+function rawBiquad(args) {
+  const a0 = Number(args.a0 ?? 1) || 1;
+  return {
+    b0: Number(args.b0 ?? 0) / a0,
+    b1: Number(args.b1 ?? 0) / a0,
+    b2: Number(args.b2 ?? 0) / a0,
+    a1: Number(args.a1 ?? 0) / a0,
+    a2: Number(args.a2 ?? 0) / a0,
+  };
+}
+
+function peakBiquad(w0, alpha, A) {
+  const a0 = 1 + alpha / A;
+  return {
+    b0: (1 + alpha * A) / a0,
+    b1: (-2 * Math.cos(w0)) / a0,
+    b2: (1 - alpha * A) / a0,
+    a1: (-2 * Math.cos(w0)) / a0,
+    a2: (1 - alpha / A) / a0,
+  };
+}
+
+// Everything a second-order builder needs, derived once from the stage args.
+function iirContext(args, f0, fs) {
   const g = Number(args.g ?? 0);
   const w0 = (TAU * f0) / fs;
-  const A = 10 ** (g / 40);
-  if (type === "peak") {
-    const alpha = rbjAlpha(w0, args, A);
-    const a0 = 1 + alpha / A;
-    return {
-      b0: (1 + alpha * A) / a0,
-      b1: (-2 * Math.cos(w0)) / a0,
-      b2: (1 - alpha * A) / a0,
-      a1: (-2 * Math.cos(w0)) / a0,
-      a2: (1 - alpha / A) / a0,
-    };
-  }
-  if (type === "lshelf" || type === "hshelf") return shelfFromAlpha(type, f0, g, rbjAlpha(w0, args, A), fs);
-  if (["lp", "hp", "bp", "notch", "ap"].includes(type)) return plainBiquad(type, w0, rbjAlpha(w0, args, 1));
-  return null;
+  return { args, f0, fs, g, w0, A: 10 ** (g / 40) };
+}
+
+// Second-order types, dispatched by name. Shelves carry the gain into their
+// own alpha (A); the plain pass/reject types take A = 1 — they have no gain.
+const SECOND_ORDER = {
+  peak: (c) => peakBiquad(c.w0, rbjAlpha(c.w0, c.args, c.A), c.A),
+  lshelf: (c) => shelfFromAlpha("lshelf", c.f0, c.g, rbjAlpha(c.w0, c.args, c.A), c.fs),
+  hshelf: (c) => shelfFromAlpha("hshelf", c.f0, c.g, rbjAlpha(c.w0, c.args, c.A), c.fs),
+  lp: (c) => plainBiquad("lp", c.w0, rbjAlpha(c.w0, c.args, 1)),
+  hp: (c) => plainBiquad("hp", c.w0, rbjAlpha(c.w0, c.args, 1)),
+  bp: (c) => plainBiquad("bp", c.w0, rbjAlpha(c.w0, c.args, 1)),
+  notch: (c) => plainBiquad("notch", c.w0, rbjAlpha(c.w0, c.args, 1)),
+  ap: (c) => plainBiquad("ap", c.w0, rbjAlpha(c.w0, c.args, 1)),
+};
+
+const FIRST_ORDER = new Set(["lp1", "hp1"]);
+
+// One iir-plugin stage -> normalized biquad coefficients (null = unplottable).
+function iirStageCoeffs(args, fs) {
+  const type = args.type;
+  if (type === "biquad") return rawBiquad(args);
+  const f0 = Number(args.f);
+  if (!Number.isFinite(f0) || f0 <= 0 || f0 >= fs / 2) return null;
+  if (FIRST_ORDER.has(type)) return firstOrder(type, f0, fs);
+  const build = SECOND_ORDER[type];
+  return build ? build(iirContext(args, f0, fs)) : null;
 }
 
 // --- non-IIR stages ----------------------------------------------------------
@@ -247,7 +268,7 @@ function delaySeconds(args, fs) {
   return 0;
 }
 
-const wrapDeg = (x) => ((x % 360) + 540) % 360 - 180;
+const wrapDeg = (x) => (((x % 360) + 540) % 360) - 180;
 
 // RIAA de-emphasis: zero at 318 µs, poles at 3180 µs and 75 µs, normalized to
 // 0 dB at 1 kHz; optional first-order 20 Hz subsonic pole.
@@ -278,7 +299,7 @@ function riaaResponse(f, subsonic) {
 // --- convolution preview (client FFT of a session-uploaded IR) ---------------
 
 const IR_GRID = logFreqs(20, 20000, 256);
-export const irCache = new Map(); // daemon path -> {freqs, dbs, degs} | null while unpreviewable
+const irCache = new Map(); // daemon path -> {freqs, dbs, degs} | null while unpreviewable
 
 function fftRadix2(re, im) {
   const n = re.length;
@@ -315,10 +336,9 @@ function fftRadix2(re, im) {
   }
 }
 
-// Minimal WAV reader: PCM16 / PCM24 / PCM32 / float32, first channel only.
-function wavSamples(buf) {
-  const v = new DataView(buf);
-  if (v.getUint32(0, false) !== 0x52494646 || v.getUint32(8, false) !== 0x57415645) return null;
+// Walk the RIFF chunk list for the two chunks we need. Odd-sized chunks carry a
+// pad byte, hence the `size & 1`.
+function riffChunks(v) {
   let off = 12;
   let fmt = null;
   let data = null;
@@ -329,6 +349,26 @@ function wavSamples(buf) {
     if (id === 0x64617461) data = { at: off + 8, size };
     off += 8 + size + (size & 1);
   }
+  return { fmt, data };
+}
+
+// One frame's first channel, scaled to [-1, 1). null = a width we don't decode.
+function readSample(v, at, bits, audioFormat) {
+  if (audioFormat === 3 && bits === 32) return v.getFloat32(at, true);
+  if (bits === 16) return v.getInt16(at, true) / 32768;
+  if (bits === 24) {
+    const raw = v.getUint8(at) | (v.getUint8(at + 1) << 8) | (v.getUint8(at + 2) << 16);
+    return (raw >= 0x800000 ? raw - 0x1000000 : raw) / 8388608;
+  }
+  if (bits === 32) return v.getInt32(at, true) / 2147483648;
+  return null;
+}
+
+// Minimal WAV reader: PCM16 / PCM24 / PCM32 / float32, first channel only.
+function wavSamples(buf) {
+  const v = new DataView(buf);
+  if (v.getUint32(0, false) !== 0x52494646 || v.getUint32(8, false) !== 0x57415645) return null;
+  const { fmt, data } = riffChunks(v);
   if (!fmt || !data) return null;
   const audioFormat = v.getUint16(fmt.at, true);
   const channels = v.getUint16(fmt.at + 2, true);
@@ -338,14 +378,9 @@ function wavSamples(buf) {
   const n = Math.floor(data.size / frame);
   const out = new Float64Array(n);
   for (let i = 0; i < n; i += 1) {
-    const at = data.at + i * frame;
-    if (audioFormat === 3 && bits === 32) out[i] = v.getFloat32(at, true);
-    else if (bits === 16) out[i] = v.getInt16(at, true) / 32768;
-    else if (bits === 24) {
-      const raw = v.getUint8(at) | (v.getUint8(at + 1) << 8) | (v.getUint8(at + 2) << 16);
-      out[i] = (raw >= 0x800000 ? raw - 0x1000000 : raw) / 8388608;
-    } else if (bits === 32) out[i] = v.getInt32(at, true) / 2147483648;
-    else return null;
+    const s = readSample(v, data.at + i * frame, bits, audioFormat);
+    if (s === null) return null;
+    out[i] = s;
   }
   return { rate, samples: out };
 }

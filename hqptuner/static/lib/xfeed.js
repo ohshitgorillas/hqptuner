@@ -24,7 +24,7 @@ export const BAUER_PRESETS = {
   jmeier: { fc: 650, feed: 9.5 },
 };
 
-export function bauerParams(fc, feed) {
+function bauerParams(fc, feed) {
   const gbLo = (-5 * feed) / 6 - 3;
   const gbHi = feed / 6 - 3;
   const gLo = 10 ** (gbLo / 20);
@@ -35,6 +35,7 @@ export function bauerParams(fc, feed) {
 }
 
 // Complex response of the M and S paths at frequency f (analog prototype).
+/** @returns {{ m: [number, number], s: [number, number] }} */
 function msResponse(fc, feed, f) {
   const { gLo, gHi, fcHi, norm } = bauerParams(fc, feed);
   // H_lo = gLo/(1 + j f/fc); H_hi = ((1-gHi) + j f/fcHi)/(1 + j f/fcHi)
@@ -73,7 +74,9 @@ function hshelfMagDb(f0, gainDb, q, f) {
   const w = f / f0;
   const s2 = -(w * w);
   const k = Math.sqrt(a) / q;
+  /** @type {[number, number]} */
   const num2 = [a * (a * s2 + 1), a * k * w];
+  /** @type {[number, number]} */
   const den2 = [s2 + a, k * w];
   return magDb(num2) - magDb(den2);
 }
@@ -139,9 +142,7 @@ const fmt = (x, dp) => String(Math.round(x * 10 ** dp) / 10 ** dp);
 // The comp chain as process-spec text at slider fraction s (1 = 100%), in
 // matrixspec buildRaw arg order — round-trips byte-exact through parseProcess.
 export function compProcess(fit, s) {
-  return fit.stages
-    .map((st) => `iir:type=hshelf;f=${fmt(st.f, 1)};q=${fmt(st.q, 3)};g=${fmt(st.g * s, 2)}`)
-    .join(",");
+  return fit.stages.map((st) => `iir:type=hshelf;f=${fmt(st.f, 1)};q=${fmt(st.q, 3)};g=${fmt(st.g * s, 2)}`).join(",");
 }
 
 // --- M/S pipeline block (spec wire shape) ------------------------------------
@@ -212,44 +213,102 @@ export function applyEqToBlock(rows, rec, fit, addition, preamp, replace = false
 // comp stages' f/q don't match a fresh fit for the CURRENT bauer settings
 // (bauer changed since the block was generated) — sFraction is then relative
 // to the stored gains' own 100% and only indicative.
-export function msRecognize(rows, at, fc, feed) {
-  const b = rows.slice(at, at + 8);
-  if (b.length < 8) return null;
-  if (b.some((r) => r.gainunit !== "Lin")) return null;
+// Same contract as binaural.js's usableRow, deliberately duplicated: that module
+// has no imports at all and this one imports only matrixspec, and a shared
+// one-line predicate is not worth coupling them. Rows reaching a recognizer are
+// whatever was last hand-edited, so a malformed one must DECLINE the block
+// (dropping the badge) rather than throw out of the render path it runs in.
+const usableRow = (r) => !!r && r.gainunit === "Lin" && (r.process == null || typeof r.process === "string");
+
+// Recognition stages, private for the same reason as binaural.js's: the
+// contract is msRecognize's return value, and tests/js/xfeed.test.js reaches
+// all of them through it.
+
+// The block is one magnitude carried with a sign pattern, so every row must
+// share it. Returns that magnitude, or null if any row disagrees by more than
+// wire rounding.
+function blockGain(b) {
   const k = Math.abs(Number(b[0].gain));
-  if (!(k > 0) || b.some((r) => Math.abs(Math.abs(Number(r.gain)) - k) > 1e-6)) return null;
-  const srcA = b[0].source;
-  const srcB = b[1].source;
+  if (!(k > 0)) return null;
+  return b.some((r) => Math.abs(Math.abs(Number(r.gain)) - k) > 1e-6) ? null : k;
+}
+
+// The source / mixdown / sign signature of the eight rows, for a channel pair.
+function routingMatches(b, srcA, srcB) {
   const pat = [
-    [srcA, srcA, 1], [srcB, srcA, 1], [srcA, srcA, 1], [srcB, srcA, -1],
-    [srcA, srcB, 1], [srcB, srcB, 1], [srcA, srcB, -1], [srcB, srcB, 1],
+    [srcA, srcA, 1],
+    [srcB, srcA, 1],
+    [srcA, srcA, 1],
+    [srcB, srcA, -1],
+    [srcA, srcB, 1],
+    [srcB, srcB, 1],
+    [srcA, srcB, -1],
+    [srcB, srcB, 1],
   ];
-  for (let i = 0; i < 8; i += 1) {
-    if (b[i].source !== pat[i][0] || b[i].mixdown !== pat[i][1]) return null;
-    if (Math.sign(Number(b[i].gain)) !== pat[i][2]) return null;
-  }
-  const eqProcess = b[2].process;
-  if (b[3].process !== eqProcess || b[6].process !== eqProcess || b[7].process !== eqProcess) return null;
-  const compFull = b[0].process;
-  if (b[1].process !== compFull || b[4].process !== compFull || b[5].process !== compFull) return null;
-  const suffix = eqProcess ? (compFull.startsWith(`${eqProcess},`) ? compFull.slice(eqProcess.length + 1) : null) : compFull;
-  if (!suffix) return null;
-  const m = suffix.match(
-    /^iir:type=hshelf;f=([\d.]+);q=([\d.]+);g=(-?[\d.]+),iir:type=hshelf;f=([\d.]+);q=([\d.]+);g=(-?[\d.]+)$/,
+  return b.every(
+    (r, i) => r.source === pat[i][0] && r.mixdown === pat[i][1] && Math.sign(Number(r.gain)) === pat[i][2],
   );
+}
+
+// The two chains the block carries: the EQ tail (rows 2,3,6,7) and the full
+// compensated chain (rows 0,1,4,5), each internally identical.
+//
+// A missing chain reads as the empty one. usableRow admits `process == null`
+// (a bare flat row is legal), so reading it raw would leave compFull undefined
+// and the startsWith below would throw — the crash this normalization prevents.
+function blockChains(b) {
+  const chainOf = (r) => r.process ?? "";
+  const eqProcess = chainOf(b[2]);
+  if (chainOf(b[3]) !== eqProcess || chainOf(b[6]) !== eqProcess || chainOf(b[7]) !== eqProcess) return null;
+  const compFull = chainOf(b[0]);
+  if (chainOf(b[1]) !== compFull || chainOf(b[4]) !== compFull || chainOf(b[5]) !== compFull) return null;
+  return { eqProcess, compFull };
+}
+
+// Anchored: any extra stage in the tail means these are not our two shelves.
+const COMP_RE =
+  /^iir:type=hshelf;f=([\d.]+);q=([\d.]+);g=(-?[\d.]+),iir:type=hshelf;f=([\d.]+);q=([\d.]+);g=(-?[\d.]+)$/;
+
+// The compensation shelves sitting after the EQ, if the tail is exactly ours.
+function compShelves(compFull, eqProcess) {
+  let suffix = compFull;
+  if (eqProcess) {
+    if (!compFull.startsWith(`${eqProcess},`)) return null;
+    suffix = compFull.slice(eqProcess.length + 1);
+  }
+  if (!suffix) return null;
+  const m = suffix.match(COMP_RE);
   if (!m) return null;
-  const got = [
+  return [
     { f: +m[1], q: +m[2], g: +m[3] },
     { f: +m[4], q: +m[5], g: +m[6] },
   ];
+}
+
+export function msRecognize(rows, at, fc, feed) {
+  const b = rows.slice(at, at + 8);
+  if (b.length < 8 || !b.every(usableRow)) return null;
+  const k = blockGain(b);
+  if (k === null) return null;
+
+  const srcA = b[0].source;
+  const srcB = b[1].source;
+  // Both halves feeding off one channel is degenerate — there is no stereo pair
+  // to cross-feed. The structural recognizer already refuses its equivalent;
+  // this one accepted it, which is the asymmetry rather than a second opinion.
+  if (srcA === srcB || !routingMatches(b, srcA, srcB)) return null;
+
+  const chains = blockChains(b);
+  if (!chains) return null;
+  const got = compShelves(chains.compFull, chains.eqProcess);
+  if (!got) return null;
+
   const fit = fitComp(fc, feed);
   const near = (a, x, tol) => Math.abs(a - x) <= tol;
-  const stale = !fit.stages.every(
-    (st, i) => near(got[i].f, st.f, 0.5) && near(got[i].q, st.q, 0.005),
-  );
+  const stale = !fit.stages.every((st, i) => near(got[i].f, st.f, 0.5) && near(got[i].q, st.q, 0.005));
   const sExact = fit.stages[0].g + fit.stages[1].g;
   return {
-    eqProcess,
+    eqProcess: chains.eqProcess,
     preampDb: 20 * Math.log10(k / 0.5),
     // fraction of the exact 100% compensation, snapped to the slider's 1% grid
     // (wire gains are 2-dp quantized); meaningless when the block was generated

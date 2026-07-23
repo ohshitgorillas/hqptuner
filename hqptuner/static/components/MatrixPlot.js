@@ -216,9 +216,13 @@ function eqOverviewTrace(rows, bounds) {
 // Per ear, because the structural block carries a chain for each. One curve when
 // they agree, two labelled ones when they do not.
 function structuralEqTraces(rec, bounds) {
-  const sides = rec.eqProcess.left === rec.eqProcess.right
-    ? [["EQ", rec.eqProcess.left]]
-    : [["EQ left", rec.eqProcess.left], ["EQ right", rec.eqProcess.right]];
+  const sides =
+    rec.eqProcess.left === rec.eqProcess.right
+      ? [["EQ", rec.eqProcess.left]]
+      : [
+          ["EQ left", rec.eqProcess.left],
+          ["EQ right", rec.eqProcess.right],
+        ];
   const freqs = logFreqs(20, 20000, 160);
   const out = [];
   for (const [label, chain] of sides) {

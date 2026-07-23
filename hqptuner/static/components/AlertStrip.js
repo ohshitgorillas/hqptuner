@@ -9,8 +9,6 @@ export function AlertStrip() {
   const alerts = engineAlerts.value;
   if (!alerts.length) return null;
   return html`
-    <div class="alert-strip">
-      ${alerts.map((a) => html`<span class="alert alert-${a.sev}">⚠ ${a.text}</span>`)}
-    </div>
+    <div class="alert-strip">${alerts.map((a) => html`<span class="alert alert-${a.sev}">⚠ ${a.text}</span>`)}</div>
   `;
 }
