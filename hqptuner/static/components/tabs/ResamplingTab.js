@@ -3,7 +3,7 @@
 // subsection (how a PCM source is handled for that output) and an "SDM Sources"
 // subsection (how a DSD/SDM source is handled) — with a mode-mismatch note at
 // the top when the current output mode doesn't use the card.
-import { signal, computed } from "@preact/signals";
+import { signal, computed, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
@@ -17,6 +17,17 @@ const pcmOpen = computed(() => effective("output_mode") !== "sdm");
 const sdmOpen = computed(() => effective("output_mode") !== "pcm");
 const pcmOverride = signal(null);
 const sdmOverride = signal(null);
+
+// A manual collapse (override non-null) otherwise wins forever, shadowing `auto`
+// — so a card the user once closed stays closed even after they switch to the
+// mode that needs it (collapse PCM in Auto, later select PCM → stuck shut). Drop
+// both overrides whenever the mode changes, so each switch re-asserts the auto
+// disclosure; a manual toggle still wins until the next mode change.
+effect(() => {
+  void effective("output_mode");
+  pcmOverride.value = null;
+  sdmOverride.value = null;
+});
 
 // FFT filter length configures the FFT-based resampling filters only (readme
 // §1.2 fft_size), so the card follows the selection instead of sitting open
