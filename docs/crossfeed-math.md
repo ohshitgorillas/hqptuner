@@ -14,7 +14,8 @@ Research phase output, 2026-07-22. Grounds the question "should HQPTuner bypass 
 | Matrix realizability | **Derived here** from the wire grammar; the decomposition is algebra, not a fit — but it has **not been run against the daemon** |
 | Numeric agreement between the structural model and bs2b's default preset | **Computed here** — see §4, worth an independent check |
 | HRTF dataset licences | **Secondhand** from search summaries; each needs reading before any vendoring |
-| Delay-stage sample quantization | **Unverified** — flagged as a probe in §8 |
+| Delay-stage resolution | **Verified** — HQPlayer manual §7.2, `s` = "delay in number of samples at source rate" |
+| Daemon accepts `delay` in a process chain | **Verified live** — all three unit forms (`s`/`t`/`d`+`v`) parse and are magnitude-transparent |
 
 ---
 
@@ -107,7 +108,9 @@ A constant plus a scaled first-order lowpass. HQPlayer's `iir:type=lp1;f=F` is e
 
 > **The Brown & Duda head-shadow filter is exactly realizable as two matrix rows — a flat row at gain α, plus an `lp1` row at gain (1−α). No fit, no approximation, no rate-bound raw biquads.**
 
-The ITD is a `delay:t=<seconds>` stage, which is rate-independent (unlike `delay:s=<samples>`).
+The ITD is a `delay:t=<seconds>` stage. Manual §7.2 gives the plugin's arguments as `s` (samples **at source rate**), `t` (seconds), `d` (metres) and `v` (velocity, default 343.956 m/s) — so `t` is rate-independent as a *specification*, but the underlying primitive is sample-granular at the source rate. Resolution is therefore **22.7 µs at 44.1 kHz**, about 4 % of the 261 µs ITD, improving directly with rate.
+
+That matters less than it looks, because **the ITD is not all in the delay line**. Per §3, the head-shadow filter's group delay supplies the low-frequency excess — 135 µs of the 397 µs total — and that comes from the IIR, which is continuous. The delay stage carries only the high-frequency ray component, and ITD sensitivity is greatest below ~1.5 kHz, precisely where the shadow filter is doing the work. So the quantized part of the cue lands where the ear cares least. If it ever proves audible at redbook rates, `iir:type=ap` gives a fractional, rate-independent delay in-band — a fallback, not something to build on spec.
 
 ### Wire shape — 8 rows, stereo
 
@@ -194,10 +197,10 @@ Put measured contralateral/ipsilateral impulse responses in the `process` chain 
 
 ## 8. Open questions — probes needed before any implementation
 
-1. **Does `delay:t=` quantize to whole samples?** At 44.1 kHz one sample is 22.7 µs and the target ITD is 261 µs = 11.5 samples. ITD JND is on the order of 10–20 µs, so rounding is potentially audible at redbook rates and irrelevant at DSD rates. If it does quantize, `iir:type=ap` (allpass) is a fractional-delay fallback worth evaluating.
-2. **Does the daemon's `lp1` match the bilinear first-order lowpass** `dsp.js` implements? The `/matrix/plot` oracle (`matrix-spec.md` round 3) can answer this directly — it already confirmed the RBJ shelf/peak family at 0.019 dB. Note the oracle evaluates at a fixed ~96–99 kHz, so it grounds coefficients but not source-rate warping.
-3. **Does `expand_hf` genuinely rate-adapt a convolution IR**, or does an IR need to match the source rate? Decides whether design C is one IR set or many.
-4. **Mutual exclusion with `bauer`.** The matrix runs *before* post-process, so a custom crossfeed with `post_bauer_enabled` still set is two crossfeeds in series. Whatever ships needs to make that state unreachable.
+1. ~~**Does `delay:t=` quantize to whole samples?**~~ **Resolved from the manual (§7.2), not by probing** — the primitive is samples at source rate; see §5 for the resolution figure and why it lands where the ear cares least. Worth recording how this was mishandled: the question was chased through daemon probes when the authoritative answer was in `hqplayer6desktop-manual.pdf`, in the working directory, which `CLAUDE.md` names as the authority to consult *before* inferring wire behaviour. Read the manual section for a plugin before instrumenting it.
+2. **Does the daemon's `lp1` match the bilinear first-order lowpass** `dsp.js` implements? Live-checked only to the extent that it parses and produces a lowpass shape; the numeric match is *not* asserted. The `/matrix/plot` oracle (`matrix-spec.md` round 3) can settle it — it confirmed the RBJ shelf/peak family at 0.019 dB — but note the oracle evaluates at a fixed ~96–99 kHz, so it grounds coefficients, not source-rate warping. Low risk: `lp1` is the one primitive the whole head-shadow decomposition rests on, but it is also the least exotic filter in the set.
+3. **Does `expand_hf` genuinely rate-adapt a convolution IR**, or does an IR need to match the source rate? Decides whether design C is one IR set or many. Only blocks the HRTF variant.
+4. **Mutual exclusion with `bauer`.** The matrix runs *before* post-process, so a custom crossfeed with `post_bauer_enabled` still set is two crossfeeds in series. A UI concern rather than a modelling one, but whatever ships needs to make that state unreachable.
 5. **Listening.** The model says nothing about where on the λ scale anyone wants to sit, or whether a measured HRTF beats the structural model. Those are listening questions — but λ being continuous means they are settled by turning a knob rather than by picking an architecture up front.
 
 ## 9. Sources
