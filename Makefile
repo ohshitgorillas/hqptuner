@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint test test-live check
+.PHONY: lint test test-live test-js check
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -16,5 +16,14 @@ test:
 
 test-live:
 	$(VENV)/pytest -q
+
+# Frontend suite. --import installs tests/js/vendor-resolve.js, which reads the
+# importmap out of hqptuner/static/index.html and resolves the bare specifiers
+# (preact, htm, @preact/signals, …) to the vendored bundles — the same files the
+# browser loads. Without it any module importing them fails to resolve.
+# Explicit file list, not `tests/js/`: node's test runner rejects a bare
+# directory argument here (ERR_UNSUPPORTED_DIR_IMPORT), hook or no hook.
+test-js:
+	node --import ./tests/js/vendor-resolve.js --test tests/js/*.test.js
 
 check: lint test

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "types": [],
+    "maxNodeModuleJsDepth": 0,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["hqptuner/static/**/*.js", "types/**/*.d.ts"],
+  "exclude": ["hqptuner/static/vendor", "node_modules"]
+}

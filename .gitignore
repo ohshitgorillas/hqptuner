@@ -26,3 +26,6 @@ CLAUDE.md
 # local docker test stack + its state
 docker-compose.yaml
 state/
+
+# node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
+node_modules/
