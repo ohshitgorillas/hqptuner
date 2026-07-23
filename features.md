@@ -1,18 +1,15 @@
 # features
 
-a list of features and fixes the user has thought up while using HQPTuner
+a list of features and fixes the user has thought up while using HQPTuner. remove items from this list when finished.
 
-1. sort filters by light/medium/heavy?
+1. sort filters by light/medium/heavy? (this is more of a wishlist item than a feature that needs implemented now)
 
-2. gray out CUDA DSP box when Convolution only selected
+5. The triple-handle Range slider needs a visual overhaul; it looks bad.
 
-3. at the bottom of Engine Health, have a small checkbox that says "Quick updates" which bumps the sync rate to 0.5s while on the System page.
+Can we do a [-like symbol for the min and ]-like for the max?
+And maybe a down caret `v` or filled in triangle for startup volume
+Startup vol is offset from its actual value/tickmark (which btw is unlabeled)
+tickmarks are nearly invisible
+-120 and +12 limits are jammed up against the sides of the card
 
-4. Similar to 3, in Volume, have a checkbox under the master volume control "Faster volume updates" that bumps the sync rate to 0.5s on the volume page. 
-
-5. Adjust the readme to highlight the three flagship features: filter narrowing, headphone auto EQ integration, and (now) adjustable crossfeed EQ 
-compensation
-
-6. Let's incorporate my username somewhere not prominent. maybe a note in HQPTuner settings—by oh shit, gorillas!
-
-
+9. Now that Loudness belongs to the Volume tab, we should drop it :

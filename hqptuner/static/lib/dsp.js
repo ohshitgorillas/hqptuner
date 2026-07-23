@@ -4,9 +4,13 @@
 //
 // The loudness bands use exact RBJ "Audio EQ Cookbook" biquad coefficients
 // (Robert Bristow-Johnson), matching HQPlayer's own shelving/peaking filters —
-// no approximation (validated against /matrix/plot). The digital biquad's shape
-// near the corner depends on the sample rate (bilinear warping), so `fs` is an
-// explicit argument; the plots pass the active output rate.
+// no approximation. Measured against the daemon 2026-07-22 (matrix-spec.md probe
+// round 3): six chains through /matrix/plot fit this math at 0.019 dB RMS with
+// `q` read as RBJ Q — vs 2.66 dB reading it as bandwidth, 0.18 dB as shelf slope.
+// The digital biquad's shape near the corner depends on the sample rate
+// (bilinear warping), so `fs` is an explicit argument; the plots pass the active
+// output rate. Caveat: the daemon's plot lane evaluates at a fixed ~96-99 kHz,
+// so it grounds the coefficients but NOT the warping at the running source rate.
 //
 // The Bauer crossfeed feed path is a deliberate first-order MODEL (not the exact
 // bs2b filter): a low-pass whose DC level is the feed level and whose corner is

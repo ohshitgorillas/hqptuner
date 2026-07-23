@@ -3,7 +3,7 @@
 // three-tree store by control key. Reusable and independently testable.
 
 import { useRef, useEffect } from "preact/hooks";
-import { html } from "../../lib/dom.js";
+import { html, wheelGuard } from "../../lib/dom.js";
 
 const s = (v) => (v == null ? "" : String(v));
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
@@ -66,6 +66,7 @@ export function NumberBox({ value, min, max, step, disabled, onChange }) {
       max=${max}
       step=${step == null ? 1 : step}
       disabled=${disabled}
+      onWheel=${wheelGuard}
       onChange=${(e) => onChange(e.target.value)}
     />
   `;
@@ -97,6 +98,7 @@ export function Slider({ value, min, max, step, disabled, onChange }) {
         max=${max}
         step=${step == null ? 1 : step}
         disabled=${disabled}
+        onWheel=${wheelGuard}
         onChange=${(e) => onChange(e.target.value)}
       />
       <span class="slider-val">${s(value)}</span>
@@ -129,6 +131,7 @@ export function SliderNumber({ value, min, max, step, ticks, disabled, onChange 
           step=${st}
           disabled=${disabled}
           style=${fill}
+          onWheel=${wheelGuard}
           onInput=${(e) => onChange(e.target.value)}
         />
         ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(t, lo, hi)}%`}></span>`)}
@@ -141,6 +144,7 @@ export function SliderNumber({ value, min, max, step, ticks, disabled, onChange 
         max=${max}
         step=${st}
         disabled=${disabled}
+        onWheel=${wheelGuard}
         onChange=${(e) => onChange(e.target.value)}
       />
     </span>

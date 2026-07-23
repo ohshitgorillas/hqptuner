@@ -9,9 +9,10 @@
 // Live changes are never persisted, so engine and config can disagree for the
 // same setting — that divergence is why these are separate trees (outline §2).
 
-import { signal, computed } from "@preact/signals";
+import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { schema } from "./schema.js";
+import { fastPollMs } from "./ui.js";
 
 // --- source signals ---
 export const health = signal(null); // {reachable, alarm, unreachable_since, info}
@@ -264,6 +265,18 @@ function applyBauerCoupling(key, value, http) {
   }
 }
 
+// Fixed volume and Auto headroom (volume_fixed) are mutually exclusive fixed-
+// volume modes, and either one on bypasses the live volume control. Graying one
+// from the other is the trap that already shipped once: a grayed-but-nonzero
+// Auto headroom kept the volume control locked with no reachable control left to
+// clear it. So enabling either mode CLEARS the other, as a visible staged edit
+// in the same POST — the pending bar shows both moves, nothing happens silently.
+function applyFixedVolumeCoupling(key, value, http) {
+  const on = value === true || value === 1 || value === "1" || value === "on" || value === "true";
+  if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
+  else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
+}
+
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
@@ -275,6 +288,7 @@ export async function edit(key, value) {
     body.http[e.field] = String(value);
   }
   applyBauerCoupling(key, value, body.http);
+  applyFixedVolumeCoupling(key, value, body.http);
   // optimistic local merge so a knob release reflects instantly (no flicker to
   // baseline during the stage round-trip), then drop the live-drag override.
   staged.value = {
@@ -451,6 +465,14 @@ export function startPolling(interval = 2000) {
   });
   refreshFast();
   refreshConfig();
-  setInterval(refreshFast, interval);
+  // The fast (status/volume) cadence is reactive: a page's "quick updates" opt-in
+  // drops it to 500 ms while that page is shown (store/ui.js). Reschedule the
+  // timer whenever the derived cadence changes; the config poll stays fixed.
+  let fastTimer;
+  effect(() => {
+    const ms = fastPollMs.value;
+    if (fastTimer) clearInterval(fastTimer);
+    fastTimer = setInterval(refreshFast, ms);
+  });
   setInterval(refreshConfig, interval * 2);
 }

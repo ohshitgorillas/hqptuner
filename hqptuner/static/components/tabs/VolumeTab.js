@@ -28,6 +28,7 @@ export function LoudnessCard() {
                 <${Field} k="loudness_low_steep" />
                 <${Field} k="loudness_low_type" />
               </div>
+              <span class="col-rule" aria-hidden="true"></span>
               <div class="cluster">
                 <div class="cluster-head">Treble</div>
                 <${Field} k="loudness_high_level" />
@@ -53,20 +54,22 @@ export function LoudnessCard() {
 
 export const Volume = () =>
   html`<${Section}>
-    <${PlaybackVolume} />
-    <${VolumeRangeBar} />
     <div class="card-grid">
+      <${PlaybackVolume} />
       <${Card} title="Fixed volume">
+        <${Field} k="optimal_iso" />
         <${Field} k="fixed_volume_enabled" />
         <div class="indent">
           <${Field} k="fixed_volume" />
-          <${Field} k="optimal_iso" />
         </div>
       <//>
-      <${Card} title="Automatic">
+    </div>
+    <${VolumeRangeBar} />
+    <${Card} title="Automatic">
+      <div class="pack">
         <${Field} k="adaptive_volume" />
         <${Field} k="playlist_album_gain" />
-      <//>
-    </div>
+      </div>
+    <//>
     <${LoudnessCard} />
   <//>`;
