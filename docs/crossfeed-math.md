@@ -127,23 +127,48 @@ Per-ear EQ appends to all four rows feeding that ear — EQ distributes over the
 
 Eight rows: the same budget the current compensation block spends, replacing a numerically-fitted correction with an exact structural model.
 
-## 6. Three candidate designs
+## 6 · Candidate designs
 
-### A · Structural (literal loudspeaker simulation)
+### A · Structural, with the centre on a continuous control
 
-The 8 rows above. Physically motivated, every parameter traceable to head radius and speaker angle. Exposes **speaker angle** and **head radius** as the user controls, which are meaningful quantities, unlike bs2b's "level in dB".
+An earlier draft of this document posed "literal loudspeaker simulation" and "flat centre by construction" as two competing designs. They are not — they are the endpoints of one parameter, and the blend is exact at every point on it.
 
-- Centre response is *not* flat: −1.80 dB HF tilt plus a comb from the ITD, with the first null at 1/(2·261 µs) ≈ **1.9 kHz** (shallow, because the two paths differ in level by 13.6 dB there). Measured loudspeaker data puts the phantom-centre dip in the 2–3 kHz region, so this is the right order.
-- That comb is **physically correct** — it is the real phantom-centre dip of a ±30° loudspeaker pair, not an artifact.
-- The literature is split on whether reproducing it is desirable. Meier's design deliberately uses a frequency-dependent delay specifically to suppress comb effects, and several sources cite comb-filtering as the reason bs2b/Meier are preferred over naive delay-based crossfeeds.
+Hold the side path at its physical value and put only the **centre** on a control:
 
-### B · M/S (tonally neutral by construction)
+```
+G_S      = (H_n − H_f)/2                    side path — fixed, never moves
+G_M(λ)   = λ·(H_n + H_f)/2 + (1 − λ)        centre path — λ = 1 literal, λ = 0 flat
+```
 
-Leave the mid path completely unprocessed and filter only the side path: `out_L = M + W(ω)·S`, `out_R = M − W(ω)·S`.
+Rows carry a coefficient per (source, output) pair, and those follow directly:
 
-- Mid is **exactly** unity — no tilt, no comb, no compensation feature needed, ever. This is algebraically exact for any `W`, including one with a delay.
-- But it is a **different philosophy**, not a normalization of design A. You cannot reach it by dividing A by its own mid response: with an ITD present the mid response has comb nulls, and its inverse is unstable. Mid-flatness has to be structural, which means giving up the literal HRTF pair.
-- Loses the interaural time cue for centred content — which is arguably correct (a real centred source has zero ITD) but also loses the phantom-centre comb that a real ±30° pair produces.
+```
+A = (G_M + G_S)/2 = [(λ+1)·H_n + (λ−1)·H_f]/4 + (1−λ)/2      same-side  (L → L)
+B = (G_M − G_S)/2 = [(λ−1)·H_n + (λ+1)·H_f]/4 + (1−λ)/2      opposite   (R → L)
+```
+
+Substituting `H_n = α_n + (1−α_n)·P` and `H_f = D·[α_f + (1−α_f)·P]` (P = the `lp1`, D = the delay) expands each coefficient into four row types — flat, `lp1`, delayed, delayed `lp1`. Eight rows per output ear, **16 rows** for stereo:
+
+| row | source | process | gain (Lin) |
+|---|---|---|---|
+| 1 | near | *(empty)* | `(λ+1)·α_n/4 + (1−λ)/2` |
+| 2 | near | `lp1` | `(λ+1)·(1−α_n)/4` |
+| 3 | near | `delay` | `(λ−1)·α_f/4` |
+| 4 | near | `lp1, delay` | `(λ−1)·(1−α_f)/4` |
+| 5 | far | *(empty)* | `(λ−1)·α_n/4 + (1−λ)/2` |
+| 6 | far | `lp1` | `(λ−1)·(1−α_n)/4` |
+| 7 | far | `delay` | `(λ+1)·α_f/4` |
+| 8 | far | `lp1, delay` | `(λ+1)·(1−α_f)/4` |
+
+**λ = 1** zeroes rows 3–6 and collapses to the literal 8-row structure of §5 — the full ±30° simulation, with its −1.80 dB centre tilt and the phantom-centre comb (first null at 1/(2·261 µs) ≈ **1.9 kHz**, shallow because the two paths differ by 13.6 dB there; measured loudspeaker data puts the dip in the 2–3 kHz region, so the order is right).
+
+**λ = 0** gives a centre of exactly 1 at *every* frequency — the delay term cancels between rows 3 and 7 identically, so there is no tilt and no comb, with the side path still fully processed. Verified numerically: at λ = 0 the row coefficients sum to A + B = 1.000 at DC and at HF alike.
+
+**Between them**, partial tilt and partial comb depth. λ is the existing compensation slider, generalized: `s = 1 − λ` maps onto today's 0–150 % control with the same sense (0 % = untouched crossfeed character, 100 % = neutral centre, above 100 % = overshoot brighter).
+
+Cost of the generality: 16 rows against 8. The matrix allows 128, and the engine's `pipelines` setting has a 16 option, so this is free in practice.
+
+Two further controls fall out of the model rather than being invented: **speaker angle** θ (sets α_n, α_f and τ through eqs. 2 and 5) and **head radius** a (sets ω₀ and scales τ). Both are physically meaningful in a way bs2b's "level in dB" is not.
 
 ### C · HRTF convolution
 
@@ -156,16 +181,16 @@ Put measured contralateral/ipsilateral impulse responses in the `process` chain 
 
 ## 7. Comparison
 
-| | A · structural | B · M/S | C · HRTF |
-|---|---|---|---|
-| rows | 8 | 6–8 | 4+ (per-row conv) |
-| exactness | exact (algebraic) | exact (algebraic) | exact (measured) |
-| centre tilt | −1.80 dB, physical | none, by construction | per dataset |
-| ITD | explicit, controllable | in the side path only | measured, includes pinna |
-| compensation feature | still wanted | **obsolete** | still wanted |
-| user-facing controls | speaker angle, head radius | width, crossover | profile picker |
-| CPU | negligible | negligible | real (FIR per row) |
-| verification burden | model vs daemon | model vs daemon | dataset provenance |
+| | A · structural | C · HRTF |
+|---|---|---|
+| rows | 16 (8 at λ=1) | 4+ (per-row conv) |
+| exactness | exact (algebraic) at every λ | exact (measured) |
+| centre | λ-controlled, −1.80 dB to flat | per dataset |
+| ITD | explicit, controllable | measured, includes pinna |
+| compensation feature | **subsumed** — it becomes λ | still wanted |
+| user-facing controls | speaker angle, head radius, λ | profile picker |
+| CPU | negligible | real (FIR per row) |
+| verification burden | model vs daemon | dataset provenance |
 
 ## 8. Open questions — probes needed before any implementation
 
@@ -173,7 +198,7 @@ Put measured contralateral/ipsilateral impulse responses in the `process` chain 
 2. **Does the daemon's `lp1` match the bilinear first-order lowpass** `dsp.js` implements? The `/matrix/plot` oracle (`matrix-spec.md` round 3) can answer this directly — it already confirmed the RBJ shelf/peak family at 0.019 dB. Note the oracle evaluates at a fixed ~96–99 kHz, so it grounds coefficients but not source-rate warping.
 3. **Does `expand_hf` genuinely rate-adapt a convolution IR**, or does an IR need to match the source rate? Decides whether design C is one IR set or many.
 4. **Mutual exclusion with `bauer`.** The matrix runs *before* post-process, so a custom crossfeed with `post_bauer_enabled` still set is two crossfeeds in series. Whatever ships needs to make that state unreachable.
-5. **Listening.** None of this settles whether A, B, or C sounds better; the phantom-centre comb in particular is a genuine accuracy-vs-neutrality fork that measurement cannot decide.
+5. **Listening.** The model says nothing about where on the λ scale anyone wants to sit, or whether a measured HRTF beats the structural model. Those are listening questions — but λ being continuous means they are settled by turning a knob rather than by picking an architecture up front.
 
 ## 9. Sources
 
