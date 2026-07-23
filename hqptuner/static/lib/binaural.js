@@ -106,11 +106,23 @@ export function earCoefficients(lambda, alphaNear, alphaFar) {
   ];
 }
 
-// Compile the block for a stereo pair. `srcA`/`srcB` are wire channel indexes;
-// `eqProcess` is a per-ear EQ chain appended to every row feeding that ear (EQ
-// distributes over the sum, same as msCompile); `preampDb` folds into the Lin
-// gains. Always emits 16 rows — four of them fall to zero at λ=1, and keeping
-// the count fixed keeps structural recognition simple.
+// Compile the block for a stereo pair. `srcA`/`srcB` are wire channel indexes.
+// Always emits 16 rows — four fall to zero at λ=1, and a fixed count keeps
+// structural recognition simple.
+//
+// eqProcess and preampDb are PER EAR. A measured headphone correction is often
+// asymmetric — the two drivers are not identical and the two ears are not either
+// — and refusing those profiles would exclude exactly the listeners most likely
+// to want an accurate crossfeed. Pass a string/number for both ears, or
+// {left, right} to differ. EQ distributes over each output ear independently, so
+// this costs nothing structurally: the rows feeding an ear all carry that ear's
+// chain, and its preamp folds into that ear's gains.
+const perEar = (v, dflt) => {
+  if (v === undefined || v === null) return [dflt, dflt];
+  if (typeof v === "object") return [v.left ?? dflt, v.right ?? dflt];
+  return [v, v];
+};
+
 export function compileRows({
   lambda = 1,
   angle = SPEAKER_ANGLE,
@@ -122,22 +134,25 @@ export function compileRows({
   eqProcess = "",
 } = {}) {
   const p = pathParams(angle, headRadius, speedOfSound);
-  const k = 10 ** (preampDb / 20);
+  const eqs = perEar(eqProcess, "");
+  const preamps = perEar(preampDb, 0);
   const rows = [];
-  for (const [out, near, far] of [
+  const ears = [
     [srcA, srcA, srcB],
     [srcB, srcB, srcA],
-  ]) {
+  ];
+  ears.forEach(([out, near, far], e) => {
+    const k = 10 ** (preamps[e] / 20);
     for (const c of earCoefficients(lambda, p.alphaNear, p.alphaFar)) {
       rows.push({
         gain: (c.gain * k).toFixed(9),
         gainunit: "Lin",
         mixdown: String(out),
-        process: chain(c.lowpass, c.delayed ? p.itd : 0, p.cornerHz, eqProcess),
+        process: chain(c.lowpass, c.delayed ? p.itd : 0, p.cornerHz, eqs[e]),
         source: String(c.opposite ? far : near),
       });
     }
-  }
+  });
   return rows;
 }
 
@@ -240,8 +255,10 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
   if (block.length < 16 || block.some((r) => r.gainunit !== "Lin")) return null;
 
   const parts = block.map((r) => splitChain(r.process));
-  const eqProcess = parts[0].eqProcess;
-  if (parts.some((p) => p.eqProcess !== eqProcess)) return null;
+  // per ear, not globally — the two ears may carry different corrections
+  const eqProcess = { left: parts[0].eqProcess, right: parts[8].eqProcess };
+  if (parts.slice(0, 8).some((p) => p.eqProcess !== eqProcess.left)) return null;
+  if (parts.slice(8).some((p) => p.eqProcess !== eqProcess.right)) return null;
   const corners = parts.filter((p) => p.corner !== null).map((p) => p.corner);
   const delays = parts.filter((p) => p.delaySec !== null).map((p) => p.delaySec);
   if (corners.length !== 8 || delays.length !== 8) return null;
@@ -261,13 +278,29 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
     }
   }
 
-  const g = ears[0].map((r) => Number(r.gain));
-  const same = g[6] + g[7]; // (lambda+1)/4 * k
-  const cross = g[2] + g[3]; // (lambda-1)/4 * k
-  const diff = same - cross; // k/2
-  if (!(diff > 0)) return null;
-  const alphaFar = g[6] / same;
-  const alphaNear = 1 - g[1] / same;
+  // Recover each ear from its own eight gains. Per-ear preamps mean the two k
+  // values may legitimately differ, but lambda and the two alphas describe one
+  // crossfeed and must agree across ears — a disagreement is a hand-edit.
+  const recover = (ear) => {
+    const g = ear.map((r) => Number(r.gain));
+    const same = g[6] + g[7]; // (lambda+1)/4 * k
+    const cross = g[2] + g[3]; // (lambda-1)/4 * k
+    const diff = same - cross; // k/2
+    if (!(diff > 0)) return null;
+    return {
+      k: 2 * diff,
+      lambda: (same + cross) / diff,
+      alphaFar: g[6] / same,
+      alphaNear: 1 - g[1] / same,
+    };
+  };
+  const [a, b] = ears.map(recover);
+  if (!a || !b) return null;
+  if (Math.abs(a.lambda - b.lambda) > 1e-4) return null;
+  if (Math.abs(a.alphaNear - b.alphaNear) > 1e-4) return null;
+  if (Math.abs(a.alphaFar - b.alphaFar) > 1e-4) return null;
+  const alphaNear = (a.alphaNear + b.alphaNear) / 2;
+  const alphaFar = (a.alphaFar + b.alphaFar) / 2;
 
   const fromNear = angleFromAlpha(alphaNear, "near");
   const fromFar = angleFromAlpha(alphaFar, "far");
@@ -281,21 +314,23 @@ export function recognizeRows(rows, at = 0, speedOfSound = SPEED_OF_SOUND) {
   // compile -> recognize -> compile byte-stable, the same reason msRecognize
   // snaps its slider fraction to a 1 % grid.
   const snap = (x, step) => Math.round(x / step) * step;
-  const lambda = snap((same + cross) / diff, 1e-4);
+  const lambda = snap((a.lambda + b.lambda) / 2, 1e-4);
   const angle = snap((fromNear + fromFar) / 2, 0.01);
   const headRadius = snap(speedOfSound / (Math.PI * corners[0]), 1e-5);
-  const preampDb = snap(20 * Math.log10(2 * diff), 1e-3);
+  const preampDb = {
+    left: snap(20 * Math.log10(a.k), 1e-3),
+    right: snap(20 * Math.log10(b.k), 1e-3),
+  };
 
-  // Every one of the sixteen gains must match what those controls generate. This
-  // subsumes the per-ear redundancy check and, unlike it, covers the SECOND ear —
-  // an edit there would otherwise pass unnoticed, since recovery only reads the
-  // first. Cheap, total, and it is the whole hand-edit detector.
+  // Every one of the sixteen gains must match what those controls generate, each
+  // ear against its own preamp. This subsumes the redundancy within an ear and
+  // covers both — an edit to a second-ear row would otherwise pass unnoticed.
   const p = pathParams(angle, headRadius, speedOfSound);
-  const k = 10 ** (preampDb / 20);
   const coeffs = earCoefficients(lambda, p.alphaNear, p.alphaFar);
+  const ks = [10 ** (preampDb.left / 20), 10 ** (preampDb.right / 20)];
   for (let e = 0; e < 2; e += 1) {
     for (let i = 0; i < 8; i += 1) {
-      if (Math.abs(Number(ears[e][i].gain) - coeffs[i].gain * k) > GAIN_TOLERANCE) return null;
+      if (Math.abs(Number(ears[e][i].gain) - coeffs[i].gain * ks[e]) > GAIN_TOLERANCE) return null;
     }
   }
 
@@ -351,4 +386,32 @@ export function blockConflicts(effective) {
     required: c.required,
     reason: c.reason,
   }));
+}
+
+// --- what the block compiles from -------------------------------------------
+
+// A stereo EQ pair at rows 0+1 is what the structural block compiles from, and
+// what removing it returns to. Row order is not a contract (live configs arrive
+// In 2-first), so either order is accepted and the compiled block always emits
+// In 1-first.
+//
+// The pair does NOT have to be symmetric. A measured headphone correction often
+// differs between the ears, and the block carries EQ and preamp per ear, so
+// there is nothing to refuse. What remains is a genuine structural precondition:
+// each row feeds its own channel straight through, in dB.
+export function pairInfo(rows) {
+  const [a, b] = rows;
+  if (!a || !b) return { issue: "needs pipelines 1+2" };
+  const straight = (x, ch) => x.source === ch && x.mixdown === ch;
+  if (straight(a, "0") && straight(b, "1")) return pairOf(a, b);
+  if (straight(a, "1") && straight(b, "0")) return pairOf(b, a);
+  return { issue: "pipelines 1+2 must route In 1→Out 1 / In 2→Out 2" };
+}
+
+function pairOf(left, right) {
+  if (left.gainunit !== "dB" || right.gainunit !== "dB") return { issue: "pipelines 1+2 gains must be in dB" };
+  return {
+    eq: { left: left.process, right: right.process },
+    gain: { left: Number(left.gain), right: Number(right.gain) },
+  };
 }
