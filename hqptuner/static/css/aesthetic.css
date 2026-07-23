@@ -1,0 +1,105 @@
+/* aesthetic — aesthetic layer — motion, focus rings, hover, tabular numerals, wordmark.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* ══ Aesthetic layer ══════════════════════════════════════════════════════
+   Motion, focus, hover, type — the "machined" feel. Motion is for discrete
+   STATE changes only; the live knob/plot repaint stays instant (easing a
+   real-time instrument just reads as latency). */
+
+/* ── Motion ── */
+button,
+.seg,
+select,
+input,
+.multi-btn,
+.swatch,
+.tab-nav button,
+.field {
+  transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+.dsp-body,
+.indent,
+.playback {
+  transition: opacity var(--dur) var(--ease);
+}
+/* the disable→muted colour fade on the fancy controls (NOT their geometry) */
+.knob-value,
+.knob-notch,
+.knob-face,
+.plot-trace.applied,
+.plot-tlbl.applied {
+  transition:
+    stroke var(--dur) var(--ease),
+    fill var(--dur) var(--ease);
+}
+
+/* ── Focus: accent ring, never browser-blue ── */
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+.seg:focus-visible,
+.multi-btn:focus-visible,
+.swatch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ── Hover: row tint + interactive lift ── */
+.field:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.field.dirty:hover {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+button:not(:disabled):hover,
+.multi-btn:hover {
+  border-color: var(--accent);
+}
+.seg:not(.active):hover,
+.tab-nav button:not(.active):hover {
+  color: var(--accent);
+}
+.knob-dial:hover .knob-face {
+  fill: var(--bg-2);
+}
+
+/* ── Type: tabular mono numerals on every value ── */
+input[type="number"],
+input[type="text"],
+.slidernum-box,
+.knob-box,
+.slider-val,
+.about dd,
+.playback-readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Wordmark: knob-dial glyph beside the logotype ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.brand-glyph {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+}
+.brand-glyph circle {
+  fill: none;
+  stroke: var(--fg-2);
+  stroke-width: 2;
+}
+.brand-glyph line {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+

@@ -1,0 +1,134 @@
+/* tokens — @font-face, :root custom properties, accent themes, reset, base type.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* HQPTuner — dark theme. Deliberately restrained: this is a configurator, the
+   controls are the content. Typography: Inter for UI, JetBrains Mono for every
+   *value* (rates, dB, Hz, version) — instrument-readout convention, and it kills
+   number-width jitter on live updates. Both vendored, offline, CSP-clean. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/inter-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/inter-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/jbmono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/jbmono-500.woff2") format("woff2");
+}
+
+:root {
+  /* elevation scale: page → card → header/control → inset. Warm-neutral base
+     (off the old blue-gray) reads richer under the accent. */
+  --bg: #14161a;
+  --bg-2: #1c1f26;
+  --bg-3: #242833;
+  --fg: #d7dbe3;
+  --fg-2: #9299a5; /* secondary text (label keys, hints) */
+  --muted: #7f8794;
+  --line: #2e333f;
+  /* signature accent — default blue; overridden per :root[data-accent]. --glow
+     is the brighter sibling reserved for the one hero spot (active signal
+     stage), so "active" pops without repainting the stingy accent everywhere. */
+  --accent: #4f9dde;
+  --accent-glow: #74b6ec;
+  --green: #3fa66a;
+  --amber: #d1a13a;
+  --red: #d4574e;
+  --dirty: #3a3320;
+  /* ── Layout system (aesthetics pass) ──────────────────────────────────
+     One spacing scale (4/8/12/24/32) and a small set of control-width
+     tokens, so empty space reads as intentional, not leftover. Every
+     intra-row / inter-row gap and every control width references these.
+     Two-col packing above --w-app needs real room (item 3); captions are
+     capped at --measure, so going wider than --w-app just reopens the void
+     this pass is closing. Below 1100px viewport the layout collapses back
+     to one column (the old 960 single-column form is the fallback). */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 24px;
+  --sp-5: 32px;
+  --w-label: 12rem; /* shared label column, pixel-identical across tabs */
+  --w-num: 6.5rem; /* short numerics: DAC bits, buffer time, dB bounds */
+  --w-select: 28rem; /* dropdowns / text — capped ~448px */
+  --w-select-wide: 30rem; /* long strings: endpoint, filter name */
+  --w-path: 32rem; /* log file path */
+  --measure: 68ch; /* one caption/description measure everywhere */
+  --w-app: 1200px; /* container cap */
+  /* motion: one duration + ease-out curve for every state change (never live drag) */
+  --dur: 120ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* aliases kept for existing rules that named these before they were defined */
+  --bg-1: var(--bg-3);
+  --fg-1: var(--fg);
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace;
+  font-size: 15px;
+  font-family: var(--font-ui);
+}
+
+:root[data-accent="green"] {
+  --accent: #3fe0a0; /* phosphor — oscilloscope readout */
+  --accent-glow: #6affc0;
+}
+:root[data-accent="amber"] {
+  --accent: #e0a63a; /* VU-meter warmth */
+  --accent-glow: #f5c14a;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+}
+
+/* every *value* renders tabular mono — measurement-equipment convention, and
+   fixed-width stops live numbers from reflowing as they change */
+.mono,
+.chip-val,
+.about dd,
+.unit,
+.slidernum-box,
+.playback-readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--muted);
+}
+
+.app {
+  max-width: var(--w-app);
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 3.5rem;
+}
+.app.offline {
+  opacity: 0.75;
+}
+

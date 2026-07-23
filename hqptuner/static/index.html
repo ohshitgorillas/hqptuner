@@ -6,7 +6,25 @@
     <title>HQPTuner</title>
     <!-- default slider glyph; store/favicon.js swaps it per the active preset -->
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%9A%EF%B8%8F%3C/text%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="/css/app.css" />
+    <!-- CSS is split by concern; THIS ORDER IS THE CASCADE ORDER. It is the
+         source order of the former single app.css and must not be reordered. -->
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/header.css" />
+    <link rel="stylesheet" href="/css/signal-path.css" />
+    <link rel="stylesheet" href="/css/chrome.css" />
+    <link rel="stylesheet" href="/css/fields.css" />
+    <link rel="stylesheet" href="/css/hero.css" />
+    <link rel="stylesheet" href="/css/controls.css" />
+    <link rel="stylesheet" href="/css/cards.css" />
+    <link rel="stylesheet" href="/css/pending-bar.css" />
+    <link rel="stylesheet" href="/css/narrowing.css" />
+    <link rel="stylesheet" href="/css/knobs.css" />
+    <link rel="stylesheet" href="/css/plots.css" />
+    <link rel="stylesheet" href="/css/aesthetic.css" />
+    <link rel="stylesheet" href="/css/volume.css" />
+    <link rel="stylesheet" href="/css/matrix.css" />
+    <link rel="stylesheet" href="/css/matrix-panels.css" />
+    <link rel="stylesheet" href="/css/crossfeed.css" />
     <!-- No-build ES modules. The importmap resolves every bare specifier to a
          vendored file so preact, its hooks, and signals all share ONE preact
          instance (required for signals' auto-subscribe). All local — CSP-clean. -->

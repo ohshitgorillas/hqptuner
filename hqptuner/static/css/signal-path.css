@@ -1,0 +1,220 @@
+/* signal-path — signal-path chips and link thread, alert strip, engine-health meters.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* signal path — the front panel. Stages read as one continuous chain: chips
+   threaded by a connector line (not floating arrows). Playing lights the thread
+   with the accent and glows the output Rate chip; idle dims the bar as a unit. */
+.signal-path {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0.7rem 1rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.signal-path.idle {
+  opacity: 0.45;
+}
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  /* content-sized (NOT stretched) — the connector threads absorb the width, so
+     chips stay compact with no dead space inside them. */
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  padding: 0.22rem 0.5rem;
+}
+.chip-label {
+  font-size: 0.9rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+.chip-val {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+/* a bypassed post-processing stage (crossfeed/correction off) reads muted */
+.chip-off {
+  opacity: 0.55;
+}
+.chip-off .chip-val {
+  color: var(--muted);
+  font-weight: 400;
+}
+/* connector thread — flex-grows to fill the gap so the chain stays continuous
+   and spans the bar with compact, content-sized chips (no dead space anywhere). */
+.link {
+  flex: 1 1 0.6rem;
+  min-width: 0.45rem;
+  align-self: center;
+  height: 2px;
+  background: var(--line);
+}
+.signal-path.live .link {
+  background: var(--accent); /* signal flowing through the chain */
+}
+/* engine-health alert strip — warning row under the signal path; rendered only
+   while a condition is active, so healthy playback adds zero chrome. */
+.alert-strip {
+  display: flex;
+  flex-direction: column; /* one alert per line */
+  gap: var(--sp-1);
+  padding: 0.35rem 1rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.alert-warn {
+  color: var(--amber);
+}
+.alert-crit {
+  color: var(--red);
+}
+
+/* engine-health meter cluster — VU gauge (process speed) + buffer bar meters
+   + clip/apod counters, filling the full-width card. Idle dims the cluster
+   as a unit (same treatment as the idle signal path). */
+.eh-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+.eh-idle {
+  opacity: 0.45;
+}
+.vu {
+  width: 15rem;
+  text-align: center;
+}
+.vu svg {
+  width: 100%;
+  display: block;
+}
+.vu-zone-crit,
+.vu-zone-warn,
+.vu-zone-ok {
+  fill: none;
+  stroke-width: 5;
+}
+.vu-zone-crit {
+  stroke: var(--red);
+}
+.vu-zone-warn {
+  stroke: var(--amber);
+}
+.vu-zone-ok {
+  stroke: var(--line);
+}
+.vu-tick {
+  stroke: var(--fg-2);
+  stroke-width: 1;
+}
+.vu-label {
+  fill: var(--fg-2);
+  font-size: 9px;
+}
+.vu-needle {
+  stroke: var(--accent);
+  stroke-width: 2;
+  transition: transform 1s ease-out; /* damped sweep between the 2 s polls */
+}
+.vu-hub {
+  fill: var(--accent);
+}
+.vu-readout {
+  font-size: 1.1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.vu-caption {
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.eh-meters {
+  flex: 1 1 18rem;
+  min-width: 16rem;
+  display: grid;
+  gap: var(--sp-3);
+}
+.meter-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr var(--w-num);
+  align-items: center;
+  gap: var(--sp-2);
+}
+.meter-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.meter-lg {
+  position: relative;
+  display: block;
+  height: 0.8rem;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+.meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 1s ease-out;
+}
+.meter-lg.low .meter-fill {
+  background: var(--amber);
+}
+.meter-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+}
+.meter-val {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  color: var(--fg);
+  text-align: right;
+}
+.eh-counters {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 11rem;
+}
+.eh-counter {
+  display: grid;
+  gap: 0.1rem;
+}
+.eh-counter-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.eh-counter-val {
+  font-size: 1.1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.eh-counter.alert .eh-counter-val {
+  color: var(--amber);
+}
+.eh-counter-total {
+  font-size: 0.78rem;
+  color: var(--fg-2);
+}
+

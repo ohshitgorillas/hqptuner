@@ -1,0 +1,239 @@
+/* matrix-panels — Matrix tab — profile card, AutoEq/REW import, profile library, trace hues.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* ── Matrix tab step 5: profile card ─────────────────────────────────────── */
+.mtx-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.mtx-profile-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.mtx-profile-row select,
+.mtx-profile-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  max-width: 18rem;
+}
+.mtx-profile-row .field-note {
+  margin: 0;
+}
+/* accent-role element (design pass item 1): tracks the switchable accent,
+   unlike the fixed chip-kind hues */
+.mtx-live-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* ── Matrix tab step 6: AutoEq / REW import panel ────────────────────────── */
+/* lives in the Headphone AutoEQ card body — the card is the container now */
+.mtx-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.mtx-import textarea {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: var(--sp-2);
+  resize: vertical;
+}
+.mtx-import-mirror {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+/* ── Matrix tab step 7: response plot traces ─────────────────────────────
+   Per-row hue cycle (fixed, accent-independent — same rationale as the chip
+   palette); magnitude solid, phase dashed on the ±180° second axis. */
+.plot-trace.ph {
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+.plot-trace.r0 { stroke: var(--chip-ch); fill: none; }
+.plot-trace.r1 { stroke: var(--chip-iir); fill: none; }
+.plot-trace.r2 { stroke: var(--chip-conv); fill: none; }
+.plot-trace.r3 { stroke: var(--fg-2); fill: none; }
+.plot-tlbl.r0 { fill: var(--chip-ch); }
+.plot-tlbl.r1 { fill: var(--chip-iir); }
+.plot-tlbl.r2 { fill: var(--chip-conv); }
+.plot-tlbl.r3 { fill: var(--fg-2); }
+/* drag handles inherit their pipeline's trace hue */
+.plot-dot.r0 { fill: var(--chip-ch); }
+.plot-dot.r1 { fill: var(--chip-iir); }
+.plot-dot.r2 { fill: var(--chip-conv); }
+.plot-dot.r3 { fill: var(--fg-2); }
+
+/* ── Matrix tab design pass ──────────────────────────────────────────────
+   Content-sized flow controls: the global select width token (--w-select) is
+   for form fields, not chips — a chip-shaped control fits its label plus
+   padding, nothing more (item 3). A stage-less row must read as one line:
+   In 1 → + stage → 0 dB → Out 1. */
+.mtx-flow select.mtx-ch {
+  width: auto;
+  padding-right: 1.1rem; /* room for the (hidden-appearance) caret side */
+}
+.mtx-gain select {
+  width: auto;
+}
+.mtx-gain input[type="number"] {
+  width: 3.6rem;
+}
+.mtx-editor-head select {
+  width: auto;
+}
+/* Matrix card: single column, selects sized to their longest option (item 4) —
+   overrides the half-card 100% stretch. */
+.mtx-global {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.card-grid .mtx-global .field select {
+  width: auto;
+  max-width: 100%;
+}
+/* Profile card lanes (item 5): the live switch row is primary — accent button,
+   hairline separation from the reload lane below; captions sit under their row
+   at caption measure with tight control→caption rhythm. */
+.mtx-tool.mtx-primary {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.mtx-profile .field-note {
+  margin: calc(-1 * var(--sp-1)) 0 var(--sp-1);
+}
+.mtx-profile .mtx-profile-row:not(.mtx-profile-primary) {
+  padding-top: var(--sp-1);
+}
+.mtx-pipelines-note {
+  margin-bottom: var(--sp-3);
+}
+
+/* ── Headphone AutoEQ card ───────────────────────────────────────────────
+   Standing collapsible card (default collapsed) — the card-head doubles as
+   the toggle button, tri glyph in accent like the FFT collapsible. */
+.mtx-eq-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+}
+.mtx-eq-head .tri {
+  color: var(--accent);
+  margin-right: 0.55rem;
+  font-size: 1.9rem; /* match .collapsible-head .tri */
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+
+/* ── AutoEq profile library (Import-EQ panel) ────────────────────────────── */
+.mtx-lib {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--sp-3);
+}
+/* the model search box outgrows the generic 18rem row cap — its placeholder
+   ("Search headphone model — e.g. HD 650…") clips there */
+.mtx-lib .mtx-profile-row input[type="text"] {
+  max-width: var(--w-select);
+}
+/* named file-load button (replaces the browser's bare "Choose file" chrome) */
+.mtx-file-btn {
+  flex: none;
+  white-space: nowrap;
+}
+/* maintenance row inside the About card — hairline-separated from the identity list */
+.about-maint {
+  border-top: 1px solid var(--line);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+}
+.mtx-lib-credit {
+  font-size: 0.75rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.mtx-lib-credit a {
+  color: var(--fg-2);
+}
+.mtx-lib-hits {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.mtx-lib-hit {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 0.25rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.mtx-lib-hit:hover {
+  background: var(--bg-3);
+}
+.mtx-lib-hit.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.mtx-lib-src {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.mtx-lib-more {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.mtx-lib-sel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.mtx-lib-bands {
+  font-size: 0.78rem;
+  color: var(--fg-2);
+}
+/* library preview trace: dashed accent — an interaction state, not a row hue */
+.plot-trace.prev {
+  stroke: var(--accent);
+  fill: none;
+  stroke-dasharray: 6 4;
+}
+.plot-tlbl.prev {
+  fill: var(--accent);
+}
+

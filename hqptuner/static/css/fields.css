@@ -1,0 +1,56 @@
+/* fields — field rows — label column, control column, captions.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* fields */
+.field {
+  display: grid;
+  grid-template-columns: var(--w-label) 1fr;
+  align-items: center;
+  /* tight row gap so a caption hugs its control; the wider inter-field rhythm
+     is owned by the stacking container (--sp-4), giving the ~1:3 proximity
+     that stops rows blurring together. */
+  gap: var(--sp-1) var(--sp-3);
+  min-height: 2.4rem; /* uniform row rhythm across checkbox + dropdown rows */
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.4rem;
+}
+.field.dirty {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+/* inter-field rhythm — clear separation between stacked rows, paired with the
+   tight intra-row gap for the ~1:3 proximity that keeps rows from blurring.
+   Adjacent-sibling only, so it never fires inside horizontal groups (rate-stack)
+   or the grid packs, which manage their own gap. */
+.card-body > .field + .field,
+.collapsible-body > .field + .field,
+.indent > .field + .field,
+.dsp-controls > .field + .field {
+  margin-top: var(--sp-4);
+}
+.field > label {
+  color: var(--fg);
+  font-size: 0.9rem;
+}
+/* secondary line under a control's label — HQPlayer's own name for a control
+   HQPTuner renames for clarity, so anyone cross-referencing the daemon's page
+   or the manual still lands on the same setting. Prose weight (matches
+   .field-note), never label weight, so it reads as a gloss and not a second
+   control. */
+.label-alt {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--fg-2);
+  opacity: 0.8;
+}
+.control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.unit {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
