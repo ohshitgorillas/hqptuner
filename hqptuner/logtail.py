@@ -1,11 +1,16 @@
-"""Static tail of the hqplayerd log file (System-tab live view).
+"""Static tail of the hqplayerd log (System-tab live view).
 
-Pure helpers, no daemon socket: the running config points at the log file (the
-`log_file` / `log_enabled` fields of GET /config), and this reads its tail.
+The daemon serves its log over the port-8088 web interface (GET /log) — the same
+lane HQPTuner already uses for config. Reading it there means the tail works
+regardless of the daemon's `<log file>` setting (file, journal, or custom path)
+and needs no host bind mount into the container. GET /log is not credential-
+gated, so this reads it without auth — the System-tab tail stays available
+before login, like the rest of the read-only surface.
 """
 
-from pathlib import Path
 from typing import Any
+
+import httpx
 
 _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
 
@@ -25,9 +30,17 @@ def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool
     return path, enabled
 
 
-def tail_file(path: str, lines: int) -> list[str]:
-    """Last `lines` lines of the file, reading only its tail."""
-    data = Path(path).read_bytes()
-    if len(data) > _TAIL_CAP:
-        data = data[-_TAIL_CAP:]
-    return data.decode("utf-8", "replace").splitlines()[-lines:]
+async def fetch_log(base_url: str, timeout: float = 10.0) -> str:
+    """The daemon's full log text from GET /log on the 8088 web interface.
+    Unauthenticated — the log page is not credential-gated."""
+    async with httpx.AsyncClient(base_url=base_url, timeout=timeout) as client:
+        resp = await client.get("/log")
+        resp.raise_for_status()
+        return resp.text
+
+
+def tail_text(text: str, lines: int) -> list[str]:
+    """Last `lines` lines of the log text, decoding only its tail."""
+    if len(text) > _TAIL_CAP:
+        text = text[-_TAIL_CAP:]
+    return text.splitlines()[-lines:]
