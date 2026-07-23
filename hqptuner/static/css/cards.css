@@ -284,17 +284,32 @@
   color: var(--muted);
   font-size: 0.85rem;
 }
-/* tab subheads — group labels within a flat tab */
+/* tab subheads — group labels within a flat tab. padding-left matches the
+   field row's own 0.5rem inset so the subhead's left edge lines up with the
+   control labels beneath it, not the bare pack/card edge. */
 .subhead {
-  font-size: 0.78rem;
+  font-size: 0.95rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  margin: 1.1rem 0 0.3rem;
+  margin: 1.1rem 0 0.7rem;
+  padding-left: 0.5rem;
 }
 .subhead:first-child {
   margin-top: 0.2rem;
+}
+/* section-level informational note (not tied to one field) — same voice as
+   .field-gray-reason but for a whole subsection (e.g. a mode-mismatch note
+   under a "Sources" subhead when the current output mode doesn't use it). */
+.section-note {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-style: italic;
+  color: var(--fg-2);
+  opacity: 0.65;
+  max-width: var(--measure);
+  margin: 0 0 var(--sp-2);
 }
 .radio-group {
   display: inline-flex;

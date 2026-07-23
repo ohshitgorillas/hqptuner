@@ -34,9 +34,6 @@
 const inMode = (ctx, m) => String(ctx.effective("output_mode")) === m;
 const isSdm = (ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
 const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
-// Direct SDM "disables all processing when source is DSD content and output
-// format is SDM" (manual §4.5) — meaningless without SDM output.
-const needsSdmOut = (ctx) => (inMode(ctx, "pcm") ? "Requires SDM output mode." : "");
 
 // checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
 const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
@@ -431,15 +428,15 @@ export const schema = {
   },
 
   // --- DSP: DSD source decoding (SDM input processing) ---
-  // Each control serves exactly one of the two DSD-source paths (manual §4.4
-  // DSD→PCM vs §4.5 SDM→SDM) — grayed in the mode that doesn't use it.
+  // No longer grayed by mode — each folds into its matching PCM/SDM
+  // Resampling-tab card as a "Sources" subsection, with a mode-mismatch note
+  // shown there instead (ResamplingTab.js).
   direct_sdm: {
     label: "Direct SDM",
     group: "dsp",
     widget: "checkbox",
     lane: "http",
     field: "direct_sdm",
-    grayWhen: needsSdmOut,
   },
   dsd_gain_6db: {
     label: "Gain +6 dB",
@@ -447,7 +444,6 @@ export const schema = {
     widget: "checkbox",
     lane: "http",
     field: "dsd_6db",
-    grayWhen: isSdm,
   },
   sdm_integrator: {
     label: "Integrator",
@@ -458,7 +454,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     desc: "config",
-    grayWhen: isPcm,
   },
   sdm_conversion: {
     label: "SDM → SDM",
@@ -469,7 +464,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     desc: "config",
-    grayWhen: isPcm,
   },
   noise_filter: {
     label: "Noise filter",
@@ -481,7 +475,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     desc: "config",
-    grayWhen: isSdm,
   },
   pcm_conversion: {
     label: "SDM → PCM",
@@ -493,7 +486,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     desc: "config",
-    grayWhen: isSdm,
   },
 
   // --- DSP: post-processing (crossfeed + DAC correction). endpoint:"matrix"
