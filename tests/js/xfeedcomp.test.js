@@ -1,0 +1,218 @@
+// Behavioral suite for components/XfeedComp.js — the crossfeed-compensation
+// control strip. Written BEFORE the complexity refactor of XfeedStrip (13) and
+// the private pairInfo (11).
+//
+// `pairInfo` is not exported and stays that way: it is a pure function of the
+// pipeline rows, and every one of its verdicts surfaces on the Turn on button —
+// its disabled state and its title. So the whole function is reachable through
+// the rendered strip, which is also where a user meets it.
+//
+// The strip's inputs are the exported `effectivePipelines` computed (over the
+// staged buffer and the config file's canonical pipeline JSON), the /matrix
+// crossfeed form fields behind `effective()`, and the notes preference. `reset()`
+// reassigns all of them every time — module signals outlive a test.
+//
+// Pipeline rows are built with lib/xfeed.js's own compiler rather than hand-typed
+// wire text: an eight-row block is the daemon's serialization, not a fixture, and
+// a hand-typed one would pin byte layout instead of behavior.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
+
+import { html } from "../../hqptuner/static/lib/dom.js";
+import { XfeedStrip } from "../../hqptuner/static/components/XfeedComp.js";
+import { config, matrixConfig, discardAll } from "../../hqptuner/static/store/state.js";
+import { setShowDescriptions } from "../../hqptuner/static/store/prefs.js";
+import { msCompile, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
+
+const DEF = BAUER_PRESETS.default;
+const JM = BAUER_PRESETS.jmeier;
+const EQ = "iir:type=peak;f=1000;q=1;g=-3";
+const EQ2 = "iir:type=peak;f=2000;q=1;g=-3";
+
+const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+
+// Only the pending-buffer endpoints are touched (discardAll); an empty buffer is
+// the whole response either way.
+function wire() {
+  globalThis.fetch = async () => ok({ live: {}, http: {} });
+}
+
+// A plain stereo EQ row, the shape an AutoEq import leaves behind.
+const row = (source, mixdown, process = EQ, gain = "-3", gainunit = "dB") => ({
+  gain,
+  gainunit,
+  mixdown,
+  process,
+  source,
+});
+
+const pair = () => [row("0", "0"), row("1", "1")];
+
+// A compiled compensation block at the given crossfeed settings and strength.
+const block = (p = DEF, s = 1) => msCompile(EQ, 0, fitComp(p.fc, p.feed), s, 0, 1);
+
+// Full reset every time.
+async function reset({ rows = [], enabled = true, preset = "default", notes = false } = {}) {
+  wire();
+  matrixConfig.value = {
+    fields: [
+      { name: "post_bauer_enabled", value: enabled },
+      { name: "post_bauer_preset", value: preset },
+      { name: "post_bauer_frequency", value: "700" },
+      { name: "post_bauer_level", value: "4.5" },
+    ],
+  };
+  config.value = { fields: [], file: { matrix_pipelines: JSON.stringify(rows) } };
+  setShowDescriptions(notes);
+  await discardAll();
+}
+
+// The contract is the text a user reads, not its HTML encoding.
+const strip = () =>
+  render(html`<${XfeedStrip} />`)
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&");
+
+const buttons = (out) =>
+  out
+    .split("<button")
+    .slice(1)
+    .map((s) => s.split("</button>")[0]);
+
+// The button whose visible label is exactly `text`, or undefined.
+const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
+const attrs = (b) => b.slice(0, b.indexOf(">"));
+const titleOf = (b) => (/ title="([^"]*)"/.exec(attrs(b)) || [])[1] || "";
+
+const sliderPct = (out) => Number(/class="xfc-slider"[^>]*value="(\d+)"/.exec(out)[1]);
+
+// --- crossfeed off ----------------------------------------------------------
+
+test("test_crossfeed_off_with_no_correction_installed_renders_the_dead_strip", async () => {
+  await reset({ rows: pair(), enabled: false });
+  assert.ok(strip().includes('<div class="xfc-strip off">'));
+});
+
+test("test_crossfeed_off_with_no_correction_installed_says_there_is_nothing_to_correct", async () => {
+  await reset({ rows: pair(), enabled: false });
+  assert.ok(strip().includes("there is nothing to correct"));
+});
+
+test("test_crossfeed_off_with_a_correction_installed_still_renders_the_controls", async () => {
+  await reset({ rows: block(), enabled: false });
+  assert.ok(strip().includes('<div class="xfc-strip">'));
+});
+
+// --- eligibility of the stereo pair (pairInfo) -------------------------------
+
+test("test_a_symmetric_stereo_pair_offers_to_turn_the_correction_on", async () => {
+  await reset({ rows: pair() });
+  assert.notEqual(button(strip(), "Turn on"), undefined);
+});
+
+test("test_a_symmetric_stereo_pair_enables_turn_on", async () => {
+  await reset({ rows: pair() });
+  assert.equal(attrs(button(strip(), "Turn on")).includes("disabled"), false);
+});
+
+test("test_a_stereo_pair_arriving_in_reverse_channel_order_is_accepted", async () => {
+  await reset({ rows: [row("1", "1"), row("0", "0")] });
+  assert.equal(attrs(button(strip(), "Turn on")).includes("disabled"), false);
+});
+
+test("test_a_lone_pipeline_disables_turn_on", async () => {
+  await reset({ rows: [row("0", "0")] });
+  assert.ok(attrs(button(strip(), "Turn on")).includes("disabled"));
+});
+
+test("test_a_lone_pipeline_explains_that_two_are_needed", async () => {
+  await reset({ rows: [row("0", "0")] });
+  assert.ok(titleOf(button(strip(), "Turn on")).includes("needs pipelines 1+2"));
+});
+
+test("test_a_cross_routed_pair_explains_the_routing_it_wants", async () => {
+  await reset({ rows: [row("0", "1"), row("1", "0")] });
+  assert.ok(titleOf(button(strip(), "Turn on")).includes("must route In 1→Out 1 / In 2→Out 2"));
+});
+
+test("test_a_pair_with_linear_gains_explains_that_it_wants_decibels", async () => {
+  await reset({ rows: [row("0", "0", EQ, "0.5", "Lin"), row("1", "1", EQ, "0.5", "Lin")] });
+  assert.ok(titleOf(button(strip(), "Turn on")).includes("gains must be in dB"));
+});
+
+test("test_a_pair_carrying_different_eq_chains_is_rejected_as_asymmetric", async () => {
+  await reset({ rows: [row("0", "0", EQ), row("1", "1", EQ2)] });
+  assert.ok(titleOf(button(strip(), "Turn on")).includes("not a symmetric stereo pair"));
+});
+
+test("test_a_pair_carrying_different_gains_is_rejected_as_asymmetric", async () => {
+  await reset({ rows: [row("0", "0", EQ, "-3"), row("1", "1", EQ, "-6")] });
+  assert.ok(titleOf(button(strip(), "Turn on")).includes("not a symmetric stereo pair"));
+});
+
+// --- the strength control ---------------------------------------------------
+
+test("test_an_uninstalled_correction_starts_at_full_strength", async () => {
+  await reset({ rows: pair() });
+  assert.equal(sliderPct(strip()), 100);
+});
+
+test("test_an_installed_correction_sets_the_strength_to_its_own", async () => {
+  // wire gains are 2-dp quantized, so the recovered fraction carries ~1% of slack
+  await reset({ rows: block(DEF, 0.5) });
+  const pct = sliderPct(strip());
+  assert.ok(Math.abs(pct - 50) <= 1, `strength reads ${pct}%, want ~50%`);
+});
+
+test("test_the_strip_reports_how_much_the_crossfeed_dulls_the_center", async () => {
+  await reset({ rows: pair() });
+  assert.ok(strip().includes("crossfeed dulls the center by 1.8 dB"));
+});
+
+// --- an installed block -----------------------------------------------------
+
+test("test_an_installed_correction_offers_to_turn_it_off", async () => {
+  await reset({ rows: block() });
+  assert.notEqual(button(strip(), "Turn off"), undefined);
+});
+
+test("test_an_installed_correction_no_longer_offers_to_turn_it_on", async () => {
+  await reset({ rows: block() });
+  assert.equal(button(strip(), "Turn on"), undefined);
+});
+
+test("test_a_correction_matching_the_crossfeed_settings_offers_no_rebuild", async () => {
+  await reset({ rows: block() });
+  assert.equal(button(strip(), "Rebuild"), undefined);
+});
+
+test("test_a_correction_built_for_other_crossfeed_settings_offers_a_rebuild", async () => {
+  await reset({ rows: block(JM) });
+  assert.notEqual(button(strip(), "Rebuild"), undefined);
+});
+
+// --- the lens ---------------------------------------------------------------
+
+test("test_the_lens_is_on_by_default_while_crossfeed_is_on", async () => {
+  await reset({ rows: pair() });
+  assert.ok(strip().includes('class="mtx-tool active"'));
+});
+
+test("test_the_lens_is_off_by_default_while_crossfeed_is_off", async () => {
+  await reset({ rows: block(), enabled: false });
+  assert.equal(strip().includes('class="mtx-tool active"'), false);
+});
+
+// --- inline notes -----------------------------------------------------------
+
+test("test_hidden_notes_render_no_explanation", async () => {
+  await reset({ rows: pair(), notes: false });
+  assert.equal(strip().includes("xfc-note"), false);
+});
+
+test("test_shown_notes_explain_what_the_crossfeed_does", async () => {
+  await reset({ rows: pair(), notes: true });
+  assert.ok(strip().includes("Bauer crossfeed blends the channels below ~700 Hz"));
+});
