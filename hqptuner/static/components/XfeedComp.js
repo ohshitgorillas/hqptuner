@@ -200,7 +200,7 @@ export function XfeedStrip() {
         />
         <span>%</span>
       </label>
-      <span class="xfc-tilt" title="Bauer ${bs.fc} Hz / ${bs.feed} dB dulls centered sound by ${tilt.toFixed(2)} dB toward the treble (bs2b model)">
+      <span class="xfc-tilt" title="Bauer ${bs.fc} Hz / ${bs.feed} dB dulls centered sound by ${tilt.toFixed(2)} dB toward the treble (bs2b model). Speakers at ±30° do much the same.">
         crossfeed dulls the center by ${tilt.toFixed(1)} dB
       </span>
       ${rec
@@ -237,11 +237,12 @@ export function XfeedStrip() {
       <span class="xfc-scale">Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or hard-panned material (early stereo, live and orchestral recordings) starts slightly thin under crossfeed, so it sits better around 50–75%.</span>
       ${notesVisible.value
         ? html`<div class="field-note xfc-note">
-            Bauer crossfeed blends the channels below ~${bs.fc} Hz, which leaves centered sound — vocals,
-            bass, most of the mix — about ${tilt.toFixed(1)} dB duller in the treble than the sides.
-            Turning this on rebuilds pipelines 1+2 into eight mid/side pipelines that brighten only the
-            centered part of the mix; the crossfeed's stereo width effect is left untouched. 100% restores
-            a neutral center exactly, lower keeps some of the warmth, higher overshoots brighter.
+            Bauer crossfeed blends the channels below ~${bs.fc} Hz. Centered sound — vocals, bass, most
+            of the mix — comes out about ${tilt.toFixed(1)} dB duller in the treble than the sides, close
+            to what a real pair of speakers at ±30° does to a centered image. Turning this on rebuilds
+            pipelines 1+2 into eight mid/side pipelines that bring the centered part back to neutral; the
+            crossfeed's stereo width effect is left untouched. 100% restores a neutral center exactly,
+            lower keeps some of the speaker-like warmth, higher overshoots brighter.
           </div>`
         : null}
     </div>
@@ -293,7 +294,7 @@ export function XfeedCompCard() {
       <button
         type="button"
         class="card-head mtx-eq-head"
-        title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides. This corrects that, without touching the crossfeed's stereo effect."
+        title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides, much as real speakers do. This brings the centered part back to neutral, without touching the crossfeed's stereo effect."
         onClick=${() => (compCardOpen.value = !open)}
       >
         <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed compensation

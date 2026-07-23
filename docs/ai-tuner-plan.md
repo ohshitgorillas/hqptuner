@@ -585,6 +585,16 @@ it in the offline suite. The repo has no JS runner, so the JS side cannot be
 auto-tested; the fixture is what makes drift detectable at all and gives a future
 JS test something to bind to. State that limitation rather than implying parity.
 
+**A daemon oracle exists and should anchor the fixture** (`docs/matrix-spec.md`
+probe round 3, 2026-07-22). `POST /matrix/plot` evaluates an arbitrary submitted
+chain with the daemon's own DSP and writes `plot magnitude value range: min,max`
+to the journal — no writes, no reload, nothing staged. It confirmed the RBJ
+coefficients and `q`-as-Q at 0.019 dB RMS. So the fixture's expected values can be
+cross-checked against HQPlayer itself rather than only against our own JS, which
+is what "the plots are what the user has been trusting" (D10) actually requires.
+Limits: min/max only (no curve), and a fixed ~96–99 kHz evaluation rate, so it
+grounds coefficients but not source-rate warping.
+
 Named-band arithmetic (`mud_200_400`, `oomph_80_160`, `v_db`) is expressed as
 data so a model-coined metric (D9) is stored and replayed rather than recomputed
 from prose.
