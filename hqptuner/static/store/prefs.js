@@ -17,11 +17,27 @@ const K_KEEP = "hqptuner.keepOptionDescriptions";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_FAST_VOL = "hqptuner.fastVolumeUpdates";
 
+// A dead store is worth exactly one line of console noise: silence hides the
+// "prefs never persist" case (notably node/SSR, where every read is a default),
+// but warning per key would spam once per pref per session. One flag, one warn.
+let storageWarned = false;
+
+function warnStorage(verb) {
+  if (storageWarned) return;
+  storageWarned = true;
+  if (typeof localStorage === "undefined") {
+    console.warn(`hqptuner: no localStorage in this environment — UI prefs are not persisted (${verb} skipped).`);
+  } else {
+    console.warn(`hqptuner: localStorage unavailable — UI prefs could not be ${verb}; using defaults.`);
+  }
+}
+
 function loadBool(key, dflt) {
   try {
     const v = localStorage.getItem(key);
     return v == null ? dflt : v === "1";
   } catch {
+    warnStorage("read");
     return dflt;
   }
 }
@@ -30,7 +46,8 @@ function persist(key, on) {
   try {
     localStorage.setItem(key, on ? "1" : "0");
   } catch {
-    /* storage disabled (private mode) — keep the in-memory value */
+    // storage disabled (private mode) — keep the in-memory value
+    warnStorage("written");
   }
 }
 

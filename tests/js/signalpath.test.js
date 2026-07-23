@@ -20,13 +20,31 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { SignalPath } from "../../hqptuner/static/components/SignalPath.js";
-import { engineState, engineStatus, matrixConfig } from "../../hqptuner/static/store/state.js";
+import { engineState, engineStatus, matrixConfig, config } from "../../hqptuner/static/store/state.js";
 
 const PLAYING = 2;
 
-function panel({ state = 0, status = {}, metadata = {}, matrix = {} } = {}) {
+// The DSD-source chips read the /config form the same way the DSP tab's own
+// selects do — a raw option value joined to its label — so the fake carries real
+// option lists rather than pre-resolved display strings.
+function dspField(name, value, options) {
+  return { name, value, options: options.map((label, i) => ({ value: String(i), label })) };
+}
+
+function configFields(dsp) {
+  return [
+    { name: "direct_sdm", value: dsp.directSdm ?? false },
+    dspField("integrator", dsp.integrator ?? "0", ["IIR", "IIR2", "FIR-bw"]),
+    dspField("sdm_conversion", dsp.sdmConversion ?? "0", ["wide", "narrow", "XFi"]),
+    dspField("noise_filter", dsp.noiseFilter ?? "0", ["standard", "low", "brickwall"]),
+    dspField("pcm_conversion", dsp.pcmConversion ?? "0", ["traditional", "poly-short-lp", "none"]),
+  ];
+}
+
+function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {} } = {}) {
   engineState.value = { state: String(state) };
   engineStatus.value = { status, metadata };
+  config.value = { fields: configFields(dsp) };
   matrixConfig.value = {
     fields: [
       { name: "enabled", value: matrix.enabled ?? false },
@@ -50,7 +68,30 @@ function chips(out) {
 
 const labels = (out) => [...out.matchAll(/<span class="chip-label">([^<]*)<\/span>/g)].map((m) => m[1]);
 
+// SSR escapes the entities in a chip label, so "SDM → SDM" arrives encoded.
+const decode = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
+const chip = (out, label) => chips(out)[Object.keys(chips(out)).find((k) => decode(k) === label)];
+const has = (out, label) => labels(out).some((k) => decode(k) === label);
+
 const PLAY = { state: PLAYING, metadata: { samplerate: "44100", bits: "24" }, status: { active_rate: "705600" } };
+// A DSD bitstream into a DSD output — the SDM→SDM remodulation path.
+const DSD_TO_SDM = {
+  state: PLAYING,
+  metadata: { samplerate: "2822400", bits: "1" },
+  status: { active_rate: "22579200", active_filter: "poly-sinc-ext2-xla", active_shaper: "AMSDM7EC 512+fs" },
+};
+// The same bitstream decoded out to a PCM device.
+const DSD_TO_PCM = {
+  state: PLAYING,
+  metadata: { samplerate: "2822400", bits: "1" },
+  status: { active_rate: "705600", active_filter: "sinc-M", active_shaper: "LNS15" },
+};
+// PCM oversampled up to a DSD output — the modulator's own path.
+const PCM_TO_SDM = {
+  state: PLAYING,
+  metadata: { samplerate: "44100", bits: "24" },
+  status: { active_rate: "22579200", active_filter: "poly-sinc-ext2-xla", active_shaper: "ASDM7EC-super" },
+};
 
 // --- playing vs idle --------------------------------------------------------
 
@@ -116,20 +157,124 @@ test("test_the_output_chip_is_the_hero_chip", () => {
   assert.ok(panel(PLAY).includes('class="chip chip-hero"'));
 });
 
-// --- filter and shaper ------------------------------------------------------
+// --- PCM source -> PCM output -----------------------------------------------
+// The <pcm filter> + <pcm dither> pair, both reported live by the engine.
 
 test("test_the_active_filter_is_shown", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
   assert.equal(chips(out).Filter, "sinc-M");
 });
 
-test("test_the_active_shaper_is_shown", () => {
+test("test_a_pcm_output_labels_the_shaper_chip_dither", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_shaper: "NS5" } });
-  assert.equal(chips(out).Shaper, "NS5");
+  assert.equal(chips(out).Dither, "NS5");
 });
 
 test("test_an_absent_filter_reads_as_a_dash", () => {
   assert.equal(chips(panel(PLAY)).Filter, "—");
+});
+
+// --- PCM source -> SDM output -----------------------------------------------
+// <sdm oversampling> + <sdm modulator> (manual §4.5). This is the ONE path the
+// modulator serves, so it is the one path that may name it.
+
+test("test_a_pcm_source_into_a_dsd_output_labels_the_shaper_chip_modulator", () => {
+  assert.equal(chips(panel(PCM_TO_SDM)).Modulator, "ASDM7EC-super");
+});
+
+test("test_a_pcm_source_into_a_dsd_output_still_shows_the_oversampling_filter", () => {
+  assert.equal(chips(panel(PCM_TO_SDM)).Filter, "poly-sinc-ext2-xla");
+});
+
+// --- DSD source -> SDM output (SDM->SDM remodulation) ------------------------
+// Integrator + SDM→SDM conversion, and neither an oversampling filter nor a
+// modulator: the converter carries its own noise shaping (manual §4.5). The
+// engine keeps reporting active_filter/active_shaper here regardless, which is
+// exactly the stale modulator this path must stop showing (features.md 9).
+
+test("test_a_dsd_source_into_a_dsd_output_shows_no_modulator_chip", () => {
+  assert.equal(has(panel(DSD_TO_SDM), "Modulator"), false);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_no_shaper_value_at_all", () => {
+  assert.equal(panel(DSD_TO_SDM).includes("AMSDM7EC"), false);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_no_filter_chip", () => {
+  assert.equal(has(panel(DSD_TO_SDM), "Filter"), false);
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_the_integrator", () => {
+  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { integrator: "2" } }), "Integrator"), "FIR-bw");
+});
+
+test("test_a_dsd_source_into_a_dsd_output_shows_the_sdm_to_sdm_conversion", () => {
+  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } }), "SDM → SDM"), "XFi");
+});
+
+test("test_the_remodulation_chain_runs_source_integrator_conversion_output", () => {
+  assert.deepEqual(labels(panel(DSD_TO_SDM)).map(decode), ["Source", "Integrator", "SDM → SDM", "Output"]);
+});
+
+test("test_a_dsd_source_is_recognized_from_the_metadata_sdm_flag_alone", () => {
+  const out = panel({ ...DSD_TO_SDM, metadata: { sdm: "1" } });
+  assert.equal(has(out, "Integrator"), true);
+});
+
+test("test_an_unmatched_conversion_value_falls_back_to_the_raw_value", () => {
+  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "9" } }), "SDM → SDM"), "9");
+});
+
+// --- DirectSDM ---------------------------------------------------------------
+// "Disables all processing when source is DSD content and output format is SDM
+// to a DSD-device or file" (manual §4.5) — so the bar shows a bare pass-through.
+
+test("test_direct_sdm_collapses_the_chain_to_a_bit_perfect_pass_through", () => {
+  const out = panel({ ...DSD_TO_SDM, dsp: { directSdm: true } });
+  assert.deepEqual(labels(out).map(decode), ["Source", "Direct SDM", "Output"]);
+});
+
+test("test_direct_sdm_suppresses_the_matrix_chip", () => {
+  const out = panel({ ...DSD_TO_SDM, dsp: { directSdm: true }, matrix: { enabled: true } });
+  assert.equal(has(out, "Matrix"), false);
+});
+
+test("test_direct_sdm_suppresses_dac_correction", () => {
+  const out = panel({
+    ...DSD_TO_SDM,
+    status: { ...DSD_TO_SDM.status, correction: "1" },
+    dsp: { directSdm: true },
+  });
+  assert.equal(has(out, "Correction"), false);
+});
+
+test("test_direct_sdm_is_inert_while_a_pcm_source_plays", () => {
+  assert.equal(has(panel({ ...PCM_TO_SDM, dsp: { directSdm: true } }), "Modulator"), true);
+});
+
+// --- DSD source -> PCM output ------------------------------------------------
+// pdm_filt + pdm_conv decode to PCM, then the ordinary <pcm filter> + dither
+// carry it to the target rate (manual §4.4).
+
+test("test_a_dsd_source_into_a_pcm_output_shows_the_noise_filter", () => {
+  assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { noiseFilter: "2" } }), "Noise filter"), "brickwall");
+});
+
+test("test_a_dsd_source_into_a_pcm_output_shows_the_sdm_to_pcm_conversion", () => {
+  assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { pcmConversion: "1" } }), "SDM → PCM"), "poly-short-lp");
+});
+
+test("test_a_dsd_source_into_a_pcm_output_still_shows_the_resampling_filter", () => {
+  assert.equal(chips(panel(DSD_TO_PCM)).Filter, "sinc-M");
+});
+
+test("test_a_dsd_source_into_a_pcm_output_labels_the_shaper_chip_dither", () => {
+  assert.equal(chips(panel(DSD_TO_PCM)).Dither, "LNS15");
+});
+
+test("test_the_dsd_to_pcm_chain_runs_decode_then_resample", () => {
+  const expected = ["Source", "Noise filter", "SDM → PCM", "Filter", "Dither", "Output"];
+  assert.deepEqual(labels(panel(DSD_TO_PCM)).map(decode), expected);
 });
 
 // --- matrix chip ------------------------------------------------------------
@@ -197,8 +342,8 @@ test("test_inactive_dac_correction_shows_no_chip", () => {
 
 // --- chain assembly ---------------------------------------------------------
 
-test("test_the_bare_chain_is_source_filter_shaper_output", () => {
-  assert.deepEqual(labels(panel(PLAY)), ["Source", "Filter", "Shaper", "Output"]);
+test("test_the_bare_chain_is_source_filter_dither_output", () => {
+  assert.deepEqual(labels(panel(PLAY)), ["Source", "Filter", "Dither", "Output"]);
 });
 
 test("test_the_full_chain_runs_in_processing_order", () => {
@@ -209,7 +354,7 @@ test("test_the_full_chain_runs_in_processing_order", () => {
     status: { active_rate: "705600", correction: "1" },
     matrix: { enabled: true, crossfeed: true },
   });
-  assert.deepEqual(labels(out), ["Source", "Matrix", "Crossfeed", "Filter", "Shaper", "Correction", "Output"]);
+  assert.deepEqual(labels(out), ["Source", "Matrix", "Crossfeed", "Filter", "Dither", "Correction", "Output"]);
 });
 
 test("test_the_chain_carries_one_connector_between_each_pair_of_chips", () => {

@@ -71,9 +71,14 @@ const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets th
 // The live volume control is bypassed in three documented cases (manual §4.2,
 // §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
 // Adaptive volume offsets the live volume, so it is inert in all three.
-const volumeBypassed = (ctx) =>
+// The range controls themselves (min / max / startup level) share the first two
+// reasons but deliberately NOT the third: min = max = 0 is a state you escape by
+// editing min or max, so graying them there would trap the user in it.
+const volumeRangeGray = (ctx) =>
   directSdm(ctx) ||
-  (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? "Fixed volume bypasses the volume control." : "") ||
+  (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? "Fixed volume bypasses the volume control." : "");
+const volumeBypassed = (ctx) =>
+  volumeRangeGray(ctx) ||
   (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0
     ? "Volume min and max are both 0 — volume control is bypassed."
     : "");
@@ -799,7 +804,7 @@ export const schema = {
     lane: "http",
     field: "volume_max",
     unit: "dBFS",
-    grayWhen: directSdm,
+    grayWhen: volumeRangeGray,
   },
   volume_min: {
     label: "Min volume",
@@ -808,7 +813,7 @@ export const schema = {
     lane: "http",
     field: "volume_min",
     unit: "dBFS",
-    grayWhen: directSdm,
+    grayWhen: volumeRangeGray,
   },
   startup_volume: {
     label: "Startup volume",
@@ -817,7 +822,7 @@ export const schema = {
     lane: "http",
     field: "defaults_volume",
     unit: "dBFS",
-    grayWhen: directSdm,
+    grayWhen: volumeRangeGray,
   },
   gain_comp: {
     label: "PCM gain compensation",
