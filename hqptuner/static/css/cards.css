@@ -184,6 +184,9 @@
   color: var(--fg-1);
   text-decoration: none;
   cursor: pointer;
+  /* normalize <button>.btn to match <label>/<a>.btn — a bare button carries the
+     UA's own font and metrics, so without this the two diverge in size/family */
+  font: inherit;
 }
 .btn:hover {
   border-color: var(--accent);

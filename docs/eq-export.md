@@ -1,8 +1,11 @@
 # EQ export — format reference + save-to recommendations
 
-Research groundwork for `features.md` #7 ("Export EQ"). The inverse of the existing
-AutoEq/REW **import** lane (`hqptuner/static/lib/eqimport.js`). No code yet — this
-document fixes the target formats and the mapping before implementation.
+Reference for the **Export EQ** feature (shipped) — the inverse of the AutoEq/REW
+**import** lane (`hqptuner/static/lib/eqimport.js`). Serializer: `hqptuner/static/lib/eqexport.js`
+(`rowToRewText` per-row, `pipelinesToRewText` whole-set). Two buttons on the Matrix
+tab: a master **Export AutoEq / REW .txt…** beside the Load button (whole pipeline
+set → `hqptuner-matrix-eq.txt`) and a per-row **Export EQ** beside each row's Import
+EQ (`hqptuner-pipeline-N.txt`). This document fixes the target formats and the mapping.
 
 ## 1. What we export *from*
 
@@ -138,11 +141,14 @@ problem to solve here.
 
 ### Scope decisions
 
-- **Export unit** *(decided)*: export the chip-selected pipeline, mirror to its stereo
-  pair when byte-identical (matching the importer's mirror model), offer per-channel files
-  when they differ.
-- **v1 format scope** *(decided)*: ship the REW/EQ-APO `.txt` (#1) only; add CamillaDSP /
-  JSON / GraphicEQ on demand.
+- **Export unit** *(shipped)*: two lanes — a **master** button exports the whole pipeline
+  set to one file (`pipelinesToRewText`), and a **per-row** button exports a single
+  pipeline (`rowToRewText`). In the master file a stereo-identical set collapses to one
+  clean block; channels carrying different EQ are written under `# Pipeline N (In i -> Out
+  j)` comment headers (skipped as non-filter lines on re-import) so nothing is dropped or
+  silently merged.
+- **v1 format scope** *(shipped)*: REW/EQ-APO `.txt` only; CamillaDSP / JSON / GraphicEQ
+  remain on-demand follow-ups.
 - **Preamp source**: the row's dB `gain`. A `Lin`-unit or polarity-inverted row gain has
   no `Preamp:` equivalent → flag and omit rather than mis-emit.
 

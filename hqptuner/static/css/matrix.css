@@ -202,6 +202,13 @@ select.mtx-ch {
 .mtx-pipelines-actions .mtx-add-row {
   margin-top: 0;
 }
+/* Load + Export sit together as the right-hand unit, so adding Export doesn't
+   let space-between fling Load to the centre of the row. */
+.mtx-file-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
 .mtx-add-row {
   margin-top: var(--sp-3);
   border: 1px dashed var(--line);
