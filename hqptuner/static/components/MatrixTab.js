@@ -35,6 +35,7 @@ import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, isPlotted, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
 import { XfeedBadge, XfeedCompCard, xfeedBlock } from "./XfeedComp.js";
+import { StructuralBadge } from "./StructuralXfeed.js";
 import { applyEqToBlock, fitComp } from "../lib/xfeed.js";
 import { effective } from "../store/state.js";
 import { CrossfeedPlot } from "./plots.js";
@@ -623,6 +624,7 @@ function PipelinesCard() {
           ? html`<div class="field-note mtx-pipelines-note">Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert polarity (e.g. for M/S processing).</div>`
           : null}
         <${XfeedBadge} />
+        <${StructuralBadge} />
         ${rows.map(
           (r, i) => html`
             <${FlowRow}
