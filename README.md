@@ -1,6 +1,6 @@
 # HQPTuner: an improved configuration interface for HQPlayer Embedded
 
-*A polished, free web UI for HQPlayer Embedded's settings — filters, modulators, rates, volume, matrix pipelines, and hardware acceleration — with the manual's knowledge built in.*
+A free, polished, and enhanced web UI for HQPlayer Embedded's settings — filters, modulators, rates, volume, matrix pipelines, and hardware acceleration — with the manual's knowledge at your fingertips.
 
 <img width="1202" height="1303" alt="HQPTuner's Output tab during DSD512 playback" src="https://github.com/user-attachments/assets/3b1cf017-d33f-4378-84f3-98f05975649e" />
 
@@ -10,19 +10,19 @@
 
 HQPlayer is, in my humble opinion, the best deal in all of high-end digital audio, with two caveats:
 1. You may go broke trying to afford CPUs and GPUs to feed it the power it craves.
-2. While everything under the hood works wonderfully, the default UI is bad.
+2. The UI is bad.
 
-The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped potential. And let's be honest: HQPlayer is a complex program that takes time to learn. A bad UI doesn't just frustrate experienced users, it holds newbies back. HQPTuner's mission is to demystify HQPlayer as much as possible: put the manual's knowledge where the settings are, and let the interface do the teaching.
+The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped potential. And let's be honest: HQPlayer is a complex program that takes time to learn. A bad UI doesn't just frustrate experienced users, it holds newbies back. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
 
-Let's take filter narrowing as an example—the first of HQPTuner's three flagship features.
+Let's take filter narrowing as an example—HQPTuner's #1 flagship feature, and the one thing most badly missing from the stock UI.
 
-The default UI presents you with four dropdowns: 1x and Nx filters, PCM and SDM, each populated by over 50 filters. To select one, you open the manual, read the descriptions, find one that seems appropriate, and go hunting for it in the dropdown. Say you're listening to Redbook content (16bit/44.1kHz): you probably want an apodizing filter to correct for errors. Which of the 50 are apodizing? The dropdown won't tell you. If you want the manual's information in the web UI, clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through.
+The web interface presents you with four dropdowns: 1x and Nx filters, PCM and SDM, each populated by over 50 filters. To select one, you open the manual, read the descriptions, find one that seems appropriate, and go hunting for it in the dropdown. Say you're listening to Redbook content (16bit/44.1kHz): you probably want an apodizing filter to correct for errors. Which of the 50 are apodizing? The dropdown won't tell you. If you want the manual's information in the web UI, clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through.
 
-HQPTuner integrates all of the manual's knowledge directly into the interface, so filters can be narrowed by quality, genre, focus, phase, and length. A simple checkbox restricts the 1x lists to apodizing filters only. Rather than cross-referencing a PDF against a list of 50 items, you're down to 15–20 relevant filters in a few clicks. Select a filter and its description from the manual appears right below the dropdown.
+HQPTuner integrates all of the manual's knowledge directly into the interface, so filters can be narrowed by quality, genre, focus, phase, and length. A simple checkbox restricts the 1x lists to apodizing filters only. Rather than cross-referencing a PDF against a list of 50 items, you're down to a handful of relevant filters in a few clicks.
 
-Filter narrowing is just one example, and that same philosophy runs through the whole interface: every setting explained in place, every invalid option grayed out with the reason why. You shouldn't need the manual open in another window to figure out what you're doing in HQPlayer.
+Filter narrowing is just one example, and the same philosophy runs through the whole project: every setting explained in place, every invalid option grayed out with the reason why. You shouldn't need the manual open in another window to figure out what you're doing in HQPlayer.
 
-## The three flagship features
+## Flagship features
 
 **1. Filter narrowing.** The story above: the manual's knowledge folded into the filter lists, so 50 opaque names narrow to the 15–20 that fit your source material and taste — with each filter's description right under the dropdown.
 
