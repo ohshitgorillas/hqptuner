@@ -3,6 +3,6 @@
   "entry": ["hqptuner/static/app.js", "tests/js/*.test.js", "tests/js/vendor-resolve.js"],
   "project": ["hqptuner/static/**/*.js", "tests/js/**/*.js"],
   "ignore": ["hqptuner/static/vendor/**"],
-  "ignoreDependencies": ["@eslint/js", "globals"],
-  "ignoreUnresolved": ["preact", "preact/hooks", "@preact/signals", "@preact/signals-core", "htm"]
+  "ignoreDependencies": ["eslint", "prettier"],
+  "exclude": ["unlisted", "binaries"]
 }
