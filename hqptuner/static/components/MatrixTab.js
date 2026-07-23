@@ -18,6 +18,8 @@ import { ProfileCard } from "./MatrixProfileCard.js";
 import { FlowRow, MAX_CH, CH_OPTIONS } from "./MatrixFlowRow.js";
 import { setSelected } from "./MatrixStageEditor.js";
 
+const pipelinesCardOpen = signal(true);
+
 // Single column — a .pack's two tracks inside a half-width card would starve
 // the selects below their longest option (the "over ⌄" defect). Selects here
 // are content-sized via .mtx-global.
@@ -141,6 +143,7 @@ function HeadphoneEqCard() {
 }
 
 function PipelinesCard() {
+  const open = pipelinesCardOpen.value;
   const rows = effectivePipelines.value;
   const baseline = pipelineBaseline.value;
   // The import signals are private to this module, so the row tools' "is EQ
@@ -159,10 +162,8 @@ function PipelinesCard() {
     const source = String(CH_OPTIONS.find((i) => !used.has(String(i))) ?? 0);
     stagePipelines([...rows, { source, gain: "0", gainunit: "dB", mixdown: source, process: "" }]);
   };
-  return html`
-    <section class="card">
-      <div class="card-head">Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span></div>
-      <div class="card-body">
+  const body = open
+    ? html`<div class="card-body">
         ${
           notesVisible.value
             ? html`<div class="field-note mtx-pipelines-note">
@@ -198,7 +199,14 @@ function PipelinesCard() {
             Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
           </label>
         </div>
-      </div>
+      </div>`
+    : null;
+  return html`
+    <section class="card">
+      <button type="button" class="card-head mtx-eq-head" onClick=${() => (pipelinesCardOpen.value = !open)}>
+        <span class="tri">${open ? "▾" : "▸"}</span> Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>
+      </button>
+      ${body}
     </section>
   `;
 }

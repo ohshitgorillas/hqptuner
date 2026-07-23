@@ -1,8 +1,8 @@
 // Signal path bar — the front panel. The live chain in physical processing order:
-// source → Bauer crossfeed (input-side, pre-oversampling) → oversampling filter →
-// dither/modulator → DAC correction → output rate. Crossfeed operates on the
+// source → matrix → Bauer crossfeed (input-side, pre-oversampling) → the
+// conversion stages → DAC correction → output rate. Crossfeed operates on the
 // source-rate signal; DAC correction is a per-DAC response correction and so runs
-// at the OUTPUT rate, after oversampling+modulation — it is output-rate-dependent
+// at the OUTPUT rate, after the conversion stages — it is output-rate-dependent
 // and cannot precede the filter (this corrects outline §3, which grouped both
 // post-process stages "before oversampling"; §3's order was flagged unverified).
 // A disabled post-process stage is omitted entirely, so the chain only ever shows
@@ -16,7 +16,9 @@
 // effective: the front panel reflects the active state, so a previewed preset
 // or a staged-but-unapplied edit must not move these chips).
 import { html } from "../lib/dom.js";
-import { engineStatus, engineState, runningValue, matrixActiveProfile } from "../store/state.js";
+import { engineStatus, engineState, runningValue, formFieldName, matrixActiveProfile } from "../store/state.js";
+import { schema } from "../store/schema.js";
+import { optionsFor } from "../store/options.js";
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
@@ -40,6 +42,17 @@ function Chip({ label, value, hero }) {
       <span class="chip-val">${value || "—"}</span>
     </span>
   `;
+}
+
+// A /config dropdown reports the form's option VALUE ("2", "xfi"); the chip
+// needs the human label, so join through the same option list the control on the
+// DSP tab renders from rather than keeping a second copy of the enum here.
+function configLabel(key) {
+  const raw = runningValue(key);
+  if (raw === undefined || raw === "") return "";
+  const entry = schema[key];
+  const hit = optionsFor(entry.optionsFrom, formFieldName(entry)).find((o) => String(o.value) === String(raw));
+  return hit ? hit.label : String(raw);
 }
 
 // Source describes the incoming stream, so it only means anything while one
@@ -71,20 +84,87 @@ function postProcessStage(cf, loud) {
   return null;
 }
 
+// Which conversion chain is running is decided by the SOURCE domain and the
+// OUTPUT domain, not by the configured mode.
+//
+// Source domain: the Status metadata child carries an `sdm` flag, which is the
+// direct answer, but protocol.md only lists the attribute — nothing has verified
+// it on the wire against 6.0.4. The source rate is the independent check, since a
+// DSD bitstream reports its bitstream rate and that is always at or above DSD64.
+// Either one alone suffices, so the pair survives whichever turns out to be absent.
+const sourceIsDsd = (md) => on(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
+const outputIsSdm = (st) => Number(st.active_rate) >= DSD_FLOOR;
+
+// DirectSDM only means anything on the DSD→SDM path: it "disables all processing
+// when source is DSD content and output format is SDM to a DSD-device or file"
+// (manual §4.5). With a PCM track playing it is inert, however it is configured.
+const directPassThrough = (st, md) => sourceIsDsd(md) && outputIsSdm(st) && on(runningValue("direct_sdm"));
+
+// The four source→output combinations run four DISJOINT sets of controls
+// (manual §4.4 PCM tab, §4.5 SDM tab, §4.6 filter/oversampling):
+//
+//   PCM → PCM   <pcm filter>                    + <pcm dither>
+//   DSD → PCM   pdm_filt + pdm_conv, then       <pcm filter> + <pcm dither>
+//   PCM → SDM   <sdm oversampling>              + <sdm modulator>
+//   DSD → SDM   sdm_integrator + sdm_conversion — and NEITHER an oversampling
+//               filter nor a modulator: the SDM→SDM converter carries its own
+//               noise shaping (§4.5, "in addition to increasing noise shaping
+//               noise"), and integrator + conversion are the only two controls
+//               the manual names for this path.
+//
+// Status.active_filter / active_shaper report the CONFIGURED filter and shaper
+// whatever the source is — hqplayerd's own web UI shows the same pair regardless
+// — so a DSD source in SDM mode used to display a modulator that was not in its
+// path at all (features.md 9). Both fields are now read only on the paths that
+// actually use them.
+//
+// Note the two filter enumerations are distinct: <pcm filter> (67 entries) and
+// <sdm oversampling> (77, different enum IDs, no "none") — outline §2's
+// mode-relative enumerations. The engine reports whichever the current mode uses,
+// so one `active_filter` read serves both branches.
+function conversionStages(st, md) {
+  const dsdIn = sourceIsDsd(md);
+  const sdmOut = outputIsSdm(st);
+  if (dsdIn && sdmOut) {
+    return [
+      { label: "Integrator", value: configLabel("sdm_integrator") },
+      { label: "SDM → SDM", value: configLabel("sdm_conversion") },
+    ];
+  }
+  if (dsdIn) {
+    return [
+      { label: "Noise filter", value: configLabel("noise_filter") },
+      { label: "SDM → PCM", value: configLabel("pcm_conversion") },
+      { label: "Filter", value: st.active_filter },
+      { label: "Dither", value: st.active_shaper },
+    ];
+  }
+  return [
+    { label: "Filter", value: st.active_filter },
+    { label: sdmOut ? "Modulator" : "Dither", value: st.active_shaper },
+  ];
+}
+
 // The chain in processing order, omitting disabled post-process stages: matrix
-// and crossfeed are input-side and precede the filter; DAC correction is
-// output-rate-dependent and follows the shaper.
+// and crossfeed are input-side and precede the conversion stages; DAC correction
+// is output-rate-dependent and follows them.
 function chainStages(st, md, playing) {
-  const stages = [{ label: "Source", value: playing ? sourceLabel(md) : "—" }];
+  const source = { label: "Source", value: playing ? sourceLabel(md) : "—" };
+  const output = { label: "Output", value: playing ? outputLabel(st.active_rate) : "—", hero: true };
+  // A bit-perfect pass-through has nothing between source and DAC, so the bar
+  // must stop advertising a matrix, a crossfeed or a correction that the daemon
+  // is not running (manual §5 excepts only speaker distance processing, which
+  // this bar has never shown).
+  if (directPassThrough(st, md)) return [source, { label: "Direct SDM", value: "Bit-perfect" }, output];
+  const stages = [source];
   if (on(runningValue("matrix_enabled"))) {
     stages.push({ label: "Matrix", value: matrixLabel(matrixActiveProfile.value) });
   }
   const post = postProcessStage(on(runningValue("crossfeed_enabled")), on(runningValue("loudness_enabled")));
   if (post) stages.push(post);
-  stages.push({ label: "Filter", value: st.active_filter });
-  stages.push({ label: "Shaper", value: st.active_shaper });
+  stages.push(...conversionStages(st, md));
   if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
-  stages.push({ label: "Output", value: playing ? outputLabel(st.active_rate) : "—", hero: true });
+  stages.push(output);
   return stages;
 }
 

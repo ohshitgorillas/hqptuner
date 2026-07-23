@@ -4,7 +4,21 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- The Pipelines card on the DSP tab collapses. Once a matrix has rows in it the card ran most of the length of the page and pushed everything below it out of view; it now carries the same header toggle the Headphone Auto EQ and Crossfeed cards already use, open by default, and keeps the row count on the header so a collapsed card still says how many pipelines are configured.
+
 ### Fixed
+
+- The signal path bar showed a filter and a modulator that were not in the path while DSD content played. HQPlayer runs four different conversion chains depending on whether the source and the output are PCM or DSD, and the engine reports its *configured* filter and shaper whichever one is actually live — hqplayerd's own web UI shows the same pair regardless — so a DSD track going to a DSD output displayed a modulator (`AMSDM7EC 512+fs`) and an oversampling filter that neither touch it. The bar now follows the real path: DSD→DSD shows the integrator and the SDM→SDM conversion, which are the only two stages the manual names for remodulation; DSD→PCM shows the noise filter and the SDM→PCM conversion ahead of the resampling filter and dither; PCM→DSD names the modulator, and PCM→PCM the dither. Direct SDM collapses the chain to a bare bit-perfect pass-through and drops the matrix, crossfeed and DAC-correction chips with it, because it disables all processing (manual §4.5).
+
+- Volume range and startup volume stayed editable while the volume control they bound was bypassed. They now gray for the same reasons the master volume knob does — Direct SDM, fixed volume, auto headroom — and say which one. The one bypass case deliberately left out is min and max both sitting at 0: graying the range there would take away the only controls that get you out of it.
+
+- Unreadable browser storage no longer fails silently. `prefs.js` fell back to defaults with no signal at all when `localStorage` was missing or threw, which is invisible in a private-mode browser and would quietly defeat any persistence test under node. It now warns once, distinguishing storage that is absent from storage that is present but refused the read.
+
+- The Python wheel ships the frontend and the metadata JSON. `pip install hqptuner` previously produced a package carrying neither `hqptuner/static/` nor the filter/shaper/settings JSON, so it could not serve the SPA and had no prose to join against the live enumerations; Docker only worked because the working directory shadowed the installed copy, and if that shadowing ever stopped the SPA mount was skipped with nothing logged. Verified against a built wheel: 84 static assets and all three metadata files are in it.
+
+- Docker images no longer bake in stray bytecode. `.dockerignore` root-anchored `__pycache__` and `*.pyc`, so every nested `hqptuner/**/__pycache__` still entered the build context; both patterns are recursive now.
 
 - Turning structural crossfeed off could rewrite rows without saying so. Removal normally restores the exact rows the block was built over, stashed when it was installed; when there is no stash — another browser, cleared storage, a block installed before the stash existed — it rebuilds the pair from the block instead, which canonicalizes row order to In 1-first and reformats the gains. Both paths looked identical from the outside. The rebuild path now says what it did and asks you to check rows 1 and 2 before applying. `docs/crossfeed-math.md` §8.1 also claimed the stash was lost after an Apply and a reload; it is persisted alongside the remembered controls and survives both, and the section now says so along with the consequence — a stash is browser-local and is not invalidated when the configuration changes under it.
 
