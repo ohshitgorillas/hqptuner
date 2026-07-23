@@ -41,6 +41,8 @@ The high-frequency (ray-tracing) limit, Woodworth & Schlosberg, eq. (2):
 
 with `a` = head radius, `c` = speed of sound. The paper's stated constants: **a = 8.75 cm** (average adult), **c ≈ 343 m/s**, giving **a/c = 255.1 µs**.
 
+**On c, since HQPlayer names a different one.** The manual's `delay` plugin defaults `v` to 343.956 m/s, and it is tempting to match it. Don't: `v` exists to convert `d=<metres>` into a delay, and this design emits `t=<seconds>`, so `v` is never consulted. The paper's 343 is what `a`, `α_min` and `θ_min` were fitted against on KEMAR data, and those constants travel together — mixing a different c into them is false precision, not more precision. The gap is quantified rather than waved away: 0.28 % of c is **0.7 µs** of ITD, which sits under the 22.7 µs sample floor at 44.1 kHz (§5) and is dominated roughly 37× by head-radius spread across adults (~7.5–9.5 cm, ±26 µs). Precision here is bought by exposing `a`, which §6.2 does, not by refining c.
+
 At low frequency the delay is larger — Kuhn's result, quoted in the paper as "approximately 50 % greater than the value predicted by (2) as µ → 0", where µ = ωa/c is normalized frequency and **µ = 1 corresponds to about 624 Hz**.
 
 For a ±30° speaker pair: the near ear (θ=60°) sees a ray delay of −127.6 µs, the far ear (θ=120°) +133.6 µs, for an **ITD of 261.1 µs**. This is the number a fixed delay line would use. The LF value is larger — see §3.
