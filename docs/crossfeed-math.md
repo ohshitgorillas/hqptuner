@@ -2,7 +2,7 @@
 
 Research phase output, 2026-07-22. Grounds the question "should HQPTuner bypass HQPlayer's Bauer post-process and build its own crossfeed in matrix pipelines?" in the actual psychoacoustic and filter mathematics.
 
-**This is a findings document, not an approved design.** No decision is taken here. Companion reading: `docs/matrix-spec.md` (matrix wire contract, probe findings, the existing crossfeed-compensation design of record).
+**Implemented.** This began as a findings document; the design it describes now ships as the Structural mode of the Crossfeed card. Implementation notes are marked as such. Companion reading: `docs/matrix-spec.md` (matrix wire contract, probe findings, the existing crossfeed-compensation design of record).
 
 ## Provenance
 
@@ -165,7 +165,9 @@ Substituting `H_n = α_n + (1−α_n)·P` and `H_f = D·[α_f + (1−α_f)·P]` 
 | 7 | far | `delay` | `(λ+1)·α_f/4` |
 | 8 | far | `lp1, delay` | `(λ+1)·(1−α_f)/4` |
 
-**λ = 1** zeroes rows 3–6 and collapses to the literal 8-row structure of §5 — the full ±30° simulation, with its −1.80 dB centre tilt and the phantom-centre comb (first null at 1/(2·261 µs) ≈ **1.9 kHz**, shallow because the two paths differ by 13.6 dB there; measured loudspeaker data puts the dip in the 2–3 kHz region, so the order is right).
+**λ = 1** zeroes rows 3–6 and collapses to the literal 8-row structure of §5 — the full ±30° simulation, with its −1.80 dB centre tilt and the phantom-centre comb.
+
+**Correction (measured, supersedes an estimate made here earlier).** An earlier draft of this section called that comb "shallow because the two paths differ by 13.6 dB there". It is not shallow. Evaluated over 20 Hz–20 kHz the centre response at λ=1, 30° has a **11.59 dB dip at 1426 Hz** — straight through vocal presence. The level-difference reasoning was wrong because it used the HF asymptote, while the notch sits where the shadow filter has barely begun to act and the two paths are still comparable. This matters: it is the single largest coloration the design produces, an order of magnitude above the tilt everything else in this document discusses.
 
 **λ = 0** gives a centre of exactly 1 at *every* frequency — the delay term cancels between rows 3 and 7 identically, so there is no tilt and no comb, with the side path still fully processed. Verified numerically: at λ = 0 the row coefficients sum to A + B = 1.000 at DC and at HF alike.
 
@@ -173,7 +175,24 @@ Substituting `H_n = α_n + (1−α_n)·P` and `H_f = D·[α_f + (1−α_f)·P]` 
 
 Cost of the generality: 16 rows against 8. The matrix allows 128, and the engine's `pipelines` setting has a 16 option, so this is free in practice.
 
-### 6.2 · Controls
+### 6.2 · The centre control is a comb control
+
+Measured, and the most useful thing to know about λ. The centre response's peak-to-trough ripple against λ, at three angles:
+
+| λ | ripple @ 22° | ripple @ 30° | ripple @ 45° |
+|---|---|---|---|
+| 0 % | 0.00 dB | 0.00 dB | 0.00 dB |
+| 40 % | 3.01 dB | 3.03 dB | 3.18 dB |
+| 70 % | 6.25 dB | 6.30 dB | 6.68 dB |
+| 100 % | 11.46 dB | 11.59 dB | 12.63 dB |
+
+**The relationship is essentially angle-independent**: ripple falls below 3 dB at λ ≈ 39 % for every angle tested (39/39/38), and below 6 dB at λ ≈ 67 % (68/67/65). So the control behaves identically wherever the angle sits — move the geometry and the centre setting does not need re-tuning to hold the same amount of artifact.
+
+**What angle moves is where the notch lands**: 2039 Hz at 22°, 1426 Hz at 30°, 952 Hz at 45°. That is the mechanism behind the wide-angle vocal oddity Phonitor users report — at wider angles the notch drops onto vocal fundamentals and instrument body. It is not that the ripple grows; it is that it moves somewhere far more damaging.
+
+Note also that the HF tilt runs the *other* way — −2.08 dB at 22°, −1.80 at 30°, −1.14 at 45° — so any reasoning that treats "wider needs more centre correction" as a tilt story has the sign backwards.
+
+### 6.3 · Controls
 
 Three continuous parameters, none of them invented — each falls out of the model:
 
@@ -185,7 +204,25 @@ Three continuous parameters, none of them invented — each falls out of the mod
 
 Nothing here needs to be decided at design time. That is the point: bs2b exposes "level in dB", which is a coefficient of its own internal filter and means nothing physically; these are quantities a listener can reason about.
 
-### 6.3 · Supplying H — modelled or measured
+### 6.4 · Presets (implementation)
+
+Angle and centre only. **Head size is excluded and persists across preset changes** — it is anatomy rather than taste, and it is the one parameter with a physically correct per-person answer, setting both the `lp1` corner and the ITD scale. Centre values are taken from the ripple table above rather than chosen by feel.
+
+| Preset | Angle | Centre | Centre ripple | Notch | Rationale |
+|---|---|---|---|---|---|
+| **Standard** (default) | 30° | 70 % | 6.30 dB | 1426 Hz | ITU/SPL standard geometry, comb halved from literal |
+| **Anechoic** | 30° | 100 % | 11.59 dB | 1426 Hz | literal — the notch left bare, as an anechoic pair would |
+| **Intimate** | 22° | 70 % | 6.25 dB | 2039 Hz | closer stage, notch high and comparatively harmless |
+| **Wide** | 45° | 50 % | 4.20 dB | 952 Hz | notch lands on vocal fundamentals, so bought down further |
+| **Neutral center** | 30° | 0 % | 0.00 dB | — | zero centre coloration; nothing in hardware ships this |
+
+Any manual touch of angle or centre falls to **Custom**, derived rather than stored, matching the Bauer preset dropdown's convention.
+
+Grounding, and its limit: SPL's Phonitor parameterizes the same way (angle switch spanning 20–55°, marked at 20/30/40/55, with 30° as SPL's own recommended starting point and the fixed angle on the Phonitor se). Its quoted delays do **not** match ours — SPL give 20–55° as 90–635 µs where Woodworth at a = 8.75 cm gives 176–454 µs by ray and 270–664 µs including shadow group delay. So the parameterization is shared; the numbers are not, and copy should not imply Phonitor equivalence.
+
+Not adopted: bs2b's preset names (Jan Meier, Chu Moy). Those are parameter sets for different math and live in Bauer mode; reusing the names would muddy the A/B.
+
+### 6.5 · Supplying H — modelled or measured
 
 `H_n` and `H_f` enter the algebra above as opaque transfer functions. Two realizations, same topology, same λ blend, same side-path arithmetic:
 
@@ -220,7 +257,17 @@ The measured route is not automatically better. Non-individualized HRTFs are a k
 | controls | crossover Hz, level dB | speaker angle, head radius, λ |
 | lane | http (restart) | http (restart), plus live A/B via matrix profiles |
 
-## 8 · Invariants
+## 8 · Implementation
+
+Shipped as the Structural mode of the Crossfeed card. `lib/binaural.js` holds the model, compiler, recognizer and presets; `lib/xfmode.js` the mode derivation, staging and the stash that makes removal byte-exact; `components/Crossfeed.js` the card; `components/SpeakerDiagram.js` the geometry. Verified by `scripts/check_binaural.py` (nine checks, node-driven) and `scripts/check_xfeed.py`.
+
+Two behaviours worth recording because both were got wrong first:
+
+**Installing never refuses.** An earlier version returned an issue and blocked the mode switch when rows 0+1 were not a readable EQ pair. That guard was inherited from the compensation block, where it protects a round trip — here the round trip is guaranteed instead by stashing the original rows verbatim. Unreadable rows are now *set aside*: the block installs with no EQ of its own, the originals are stashed, and Turn off restores them exactly.
+
+**EQ is carried per ear.** Chain and preamp both. A measured headphone correction is often asymmetric, and refusing those profiles would have excluded exactly the listeners most likely to want an accurate crossfeed. EQ distributes over each output ear independently, so this costs nothing structurally.
+
+## 9 · Invariants
 
 States the implementation must make unreachable. These are not open questions — each follows from something already established, and probing them would only confirm a conclusion the maths already gives.
 
@@ -231,7 +278,7 @@ States the implementation must make unreachable. These are not open questions �
 
 Both are global `<matrix>` attributes that HQPTuner already exposes on the Matrix card, so both are reachable today by a user doing something otherwise reasonable — running linear-phase EQ, or loading a preset saved with crossfeed on.
 
-## 9 · Genuinely open
+## 10 · Genuinely open
 
 Only two, and both bite the measured route alone:
 
@@ -244,7 +291,7 @@ Where on the λ scale anyone wants to sit, and whether a measured HRTF beats the
 
 **Process note, recorded deliberately.** Delay resolution (§5) was chased through daemon probes when the authoritative answer sat in `hqplayer6desktop-manual.pdf` in the working directory — which `CLAUDE.md` names as the authority to consult *before* inferring wire behaviour. Read the manual section for a plugin before instrumenting it.
 
-## 10 · Sources
+## 11 · Sources
 
 - Brown, C. P. & Duda, R. O., "A Structural Model for Binaural Sound Synthesis", *IEEE Trans. Speech and Audio Processing* **6**(5), 1998, 476–488 — [PDF](https://www.ee.columbia.edu/~dpwe/papers/BrownD98-binsynth.pdf). Equations 1–5 and all constants above are from pp. 477–478.
 - Bauer, B. B., "Stereophonic Earphones and Binaural Loudspeakers", *JAES* **9**(2), April 1961, 148–151 — [AES e-lib](https://www.aes.org/e-lib/download.cfm?ID=471). The origin of the ~0.4 ms LF crossfeed delay.

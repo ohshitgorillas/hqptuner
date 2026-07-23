@@ -21,6 +21,7 @@ import {
 import {
   parseProcess,
   serializeProcess,
+  withoutEq,
   stageLabel,
   validateStage,
   newStage,
@@ -33,7 +34,9 @@ import { registerIr } from "../lib/dsp.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows, isPlotted, togglePlotted, selectedStage } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
-import { XfeedBadge, XfeedCompCard, xfeedBlock } from "./XfeedComp.js";
+import { XfeedBadge, xfeedBlock } from "./XfeedComp.js";
+import { CrossfeedCard } from "./Crossfeed.js";
+import { StructuralBadge } from "./StructuralXfeed.js";
 import { applyEqToBlock, fitComp } from "../lib/xfeed.js";
 import { effective } from "../store/state.js";
 import { CrossfeedPlot } from "./plots.js";
@@ -490,7 +493,7 @@ const importNote = signal("");
 // Import is PER PIPELINE: every source (paste / .txt load / library profile)
 // only fills importText; the append happens from the target row's own
 // "Import EQ" tool (+ optional stereo-pair mirror).
-function doImport(rows, targetIndex) {
+function doImport(rows, targetIndex, replace = false) {
   const { preamp, stages, skipped } = parseEqText(importText.value);
   if (!stages.length) {
     importNote.value = `no filters found${skipped.length ? ` — ${skipped.length} line(s) skipped` : ""}`;
@@ -505,7 +508,7 @@ function doImport(rows, targetIndex) {
   // audible one-channel imbalance with no error shown. Route into the block.
   const { bs, rec } = xfeedBlock(rows);
   if (rec && target < 8) {
-    stagePipelines(applyEqToBlock(rows, rec, fitComp(bs.fc, bs.feed), addition, preamp));
+    stagePipelines(applyEqToBlock(rows, rec, fitComp(bs.fc, bs.feed), addition, preamp, replace));
     importNote.value =
       `${stages.length} filter(s) → crossfeed compensation block (pipelines 1–8)` +
       (preamp !== null ? `, preamp ${preamp} dB` : "") +
@@ -518,7 +521,8 @@ function doImport(rows, targetIndex) {
   const targets = new Set(pair !== null && pair < rows.length ? [target, pair] : [target]);
   const next = rows.map((r, i) => {
     if (!targets.has(i)) return r;
-    const process = r.process ? `${r.process},${addition}` : addition;
+    const base = replace ? withoutEq(r.process) : r.process;
+    const process = base ? `${base},${addition}` : addition;
     return { ...r, process, ...(preamp !== null ? { gain: preamp, gainunit: "dB" } : {}) };
   });
   stagePipelines(next);
@@ -553,7 +557,7 @@ function ImportPanel({ rows }) {
   // .txt lanes stay per-row (arbitrary EQ needs an explicit target).
   const loadText = (text) => {
     importText.value = text;
-    doImport(rows, 0);
+    doImport(rows, 0, true); // library load REPLACES the previous profile
   };
   return html`
     <div class="mtx-import">
@@ -621,6 +625,7 @@ function PipelinesCard() {
           ? html`<div class="field-note mtx-pipelines-note">Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert polarity (e.g. for M/S processing).</div>`
           : null}
         <${XfeedBadge} />
+        <${StructuralBadge} />
         ${rows.map(
           (r, i) => html`
             <${FlowRow}
@@ -648,51 +653,6 @@ function PipelinesCard() {
   `;
 }
 
-// Crossfeed (Bauer) — moved here from the dissolved post-process tab
-// (2026-07-21 reorg). Its response plot is collapsible: the controls matter
-// daily, the static curve doesn't. The caption clarifies an HQPlayer (not
-// HQPTuner) behavior: crossfeed is a post-process outside the pipeline matrix,
-// so matrix profiles do not carry it.
-const xfPlotOpen = signal(false);
-const xfCardOpen = signal(true);
-
-function CrossfeedCard() {
-  const on = truthy(effective("crossfeed_enabled"));
-  const open = xfPlotOpen.value;
-  const cardOpen = xfCardOpen.value;
-  return html`
-    <section class="card">
-      <button type="button" class="card-head mtx-eq-head" onClick=${() => (xfCardOpen.value = !cardOpen)}>
-        <span class="tri">${cardOpen ? "▾" : "▸"}</span> Crossfeed
-      </button>
-      ${cardOpen
-        ? html`<div class="card-body">
-            <div class="dsp-card">
-              <div class="pack split">
-                <${Field} k="crossfeed_enabled" />
-                <${Field} k="crossfeed_preset" />
-              </div>
-              <div class="dsp-body ${on ? "" : "off"}">
-                <div class="knob-cluster">
-                  <${Field} k="crossfeed_frequency" />
-                  <span class="col-rule" aria-hidden="true"></span>
-                  <${Field} k="crossfeed_level" />
-                </div>
-                <button type="button" class="collapsible-head xfc-plot-toggle" onClick=${() => (xfPlotOpen.value = !open)}>
-                  <span class="tri">${open ? "▾" : "▸"}</span> Response plot
-                </button>
-                ${open ? html`<div class="dsp-plot"><${CrossfeedPlot} /></div>` : null}
-              </div>
-              ${notesVisible.value
-                ? html`<div class="field-note">Crossfeed is a post-process outside the pipeline matrix — HQPlayer does not carry it in matrix profiles, and its own profile Load clears it. HQPTuner restores your crossfeed and other post-process settings after a profile load.</div>`
-                : null}
-            </div>
-          </div>`
-        : null}
-    </section>
-  `;
-}
-
 export function MatrixTab() {
   return html`<section class="tab-body">
     <div class="card-grid">
@@ -702,7 +662,6 @@ export function MatrixTab() {
     <${PipelinesCard} />
     <${HeadphoneEqCard} />
     <${CrossfeedCard} />
-    <${XfeedCompCard} />
     <${MatrixPlot} />
   </section>`;
 }
