@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- Tab labels now turn the accent colour while that tab holds staged, unapplied edits, so a change made on one tab is not lost when you move to another — the pending bar tells you *that* changes exist, the coloured tab tells you *where*. Only the staged/pending set (what Apply commits) lights a tab; live edits that already reached the daemon do not.
+
 - The Matrix tab's standing response chart is now titled **Matrix response** instead of just "Response", so when it and the Crossfeed card's "Crossfeed response" plot are both collapsed the two headers no longer read as the same card.
 
 - The Buffer time tooltip (both the ALSA and Network output backends) now explains the `−1` = minimum setting: never use it for normal playback — it can be attempted only for realtime inputs using the input backend. (Guidance from Jussi.)
@@ -23,6 +25,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - The Pipelines card on the DSP tab collapses. Once a matrix has rows in it the card ran most of the length of the page and pushed everything below it out of view; it now carries the same header toggle the Headphone Auto EQ and Crossfeed cards already use, open by default, and keeps the row count on the header so a collapsed card still says how many pipelines are configured.
 
 ### Fixed
+
+- The System tab no longer raises a false "Output buffer at 0% — starvation" warning on outputs that do not populate an output buffer. Some outputs (SDM/DSD direct paths were the observed case) report a flat `output_fill` of 0 the whole time they play, exactly as `input_fill` reports a flat −1 for network audio — the buffer simply does not apply to that path. The old alert fired on any *sustained* low fill, but a genuine output-buffer underrun is transient by design (the buffer drains to 0, playback skips for an instant, then it refills to 100%), never a sustained low — so the sustained-low alert could only ever misfire on a non-applicable buffer. The alert is gone, and the Output buffer meter now reads **N/A** (blank, like the input meter already does) on an output that never populates a buffer, instead of a misleading 0%. An output that does run a buffer still shows its live fill.
 
 - The Resampling tab's PCM card would slam shut the moment you edited any unrelated setting, right after you had opened it by hand. The mode-change reset that clears a manual collapse was firing on *every* field edit, not just on an actual output-mode change — it reads the staged-edit state, which changes whenever any control does — so staging a change anywhere wiped the card's manual open/closed state and dropped it back to the mode-driven default. The reset now runs only when the resolved output mode actually changes; a manual toggle survives edits to other fields, as it always should have. The SDM card shared the same fault and is fixed by the same change.
 

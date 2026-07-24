@@ -45,6 +45,12 @@
   background: var(--bg-2);
   border-bottom: 2px solid var(--accent);
 }
+/* A tab holding staged (unapplied) edits — accent its label so changes are not
+   lost behind an inactive tab. After .active so it wins when the active tab is
+   itself dirty; the underline + bg still mark which tab is current. */
+.tab-nav button.has-changes {
+  color: var(--accent);
+}
 main {
   flex: 1;
 }

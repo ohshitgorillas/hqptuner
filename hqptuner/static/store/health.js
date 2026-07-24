@@ -4,9 +4,9 @@
 // values are engine leftovers, not health.
 //
 // clips/apod are cumulative counters, so alerts work on per-track deltas
-// (baseline reset when track_serial changes). process_speed and output_fill
-// flutter at track edges, so their alerts require SUSTAIN consecutive
-// below-threshold polls before firing (and clear instantly on recovery).
+// (baseline reset when track_serial changes). process_speed flutters at track
+// edges, so its alerts require SUSTAIN consecutive below-threshold polls before
+// firing (and clear instantly on recovery).
 import { signal, computed, effect } from "@preact/signals";
 import { engineStatus } from "./state.js";
 import { filterFacets } from "./facets.js";
@@ -16,12 +16,21 @@ const PLAYING = 2;
 // load spikes eat the margin); below 1.00× the engine is actively dropping.
 const SPEED_WARN = 1.05;
 const SPEED_CRIT = 1.0;
-const FILL_LOW = 0.15; // output_fill is 0.0–1.0 (protocol.md §Status)
 const SUSTAIN = 3; // consecutive polls (~6 s at the 2 s cadence)
 
 // per-track counter baselines + consecutive-poll streaks (internal state)
 const track = signal({ serial: null, clips0: 0, apod0: 0 });
-const streak = signal({ warn: 0, crit: 0, fill: 0 });
+const streak = signal({ warn: 0, crit: 0 });
+
+// Whether output_fill has been seen > 0 at least once this track. A buffer that
+// only ever holds at 0 does not apply to this output (SDM/DSD direct paths
+// report a flat 0, input_fill a flat -1) — the meter shows it as N/A rather
+// than a false 0%. There is deliberately no sustained-low "starvation" alert:
+// a real output-buffer underrun is transient by design — the buffer drains to
+// 0, playback skips for a moment, then it refills to 100% — never a sustained
+// low, so any sustained-low reading is a non-applicable buffer, not a fault.
+const outputActive = signal(false);
+export const outputBufferApplies = computed(() => outputActive.value);
 
 const num = (v) => {
   const n = Number(v);
@@ -45,9 +54,12 @@ export function initHealth() {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
     rebaseline(st);
+    if (Number(st.state) === PLAYING && (num(st.output_fill) || 0) > 0 && !outputActive.peek()) {
+      outputActive.value = true; // this output populates a buffer — latch for the track
+    }
     const s = streak.peek();
     const next = nextStreak(st, s);
-    if (next.warn !== s.warn || next.crit !== s.crit || next.fill !== s.fill) streak.value = next;
+    if (next.warn !== s.warn || next.crit !== s.crit) streak.value = next;
   });
   return dispose;
 }
@@ -58,6 +70,7 @@ function rebaseline(st) {
   const t = track.peek();
   if (st.track_serial === t.serial) return;
   track.value = { serial: st.track_serial, clips0: num(st.clips) || 0, apod0: num(st.apod) || 0 };
+  outputActive.value = false; // re-prove the buffer applies on each new track
 }
 
 // One streak step: count up while the reading qualifies, drop to zero the moment
@@ -67,18 +80,14 @@ const step = (prev, qualifies) => (qualifies ? prev + 1 : 0);
 // A usable speed figure. 0 and negatives mean "no reading", not "infinitely
 // slow", so they reset the streak rather than tripping it.
 const usableSpeed = (sp) => sp !== null && sp > 0;
-// fill = -1 means "buffer doesn't apply" (observed live), not starvation.
-const usableFill = (f) => f !== null && f >= 0;
 
 function nextStreak(st, s) {
   const playing = Number(st.state) === PLAYING;
   const sp = num(st.process_speed);
-  const fill = num(st.output_fill);
   const speedOk = playing && usableSpeed(sp);
   return {
     warn: step(s.warn, speedOk && sp < SPEED_WARN),
     crit: step(s.crit, speedOk && sp < SPEED_CRIT),
-    fill: step(s.fill, playing && usableFill(fill) && fill < FILL_LOW),
   };
 }
 
@@ -98,10 +107,8 @@ export const trackCounters = computed(() => {
 // healthy or idle — the strip contributes zero chrome then.
 // One alert per category, or null. Order below is the order they render in.
 // Critical speed supersedes the warning rather than joining it — they describe
-// the same fault at two severities.
-// Both alerts below share this remedy: the output buffer is starving because
-// the DSP chain can't keep up, not because of the network path to the device
-// (network connectivity has nothing to do with the output buffer).
+// the same fault at two severities. The remedy names the DSP chain, not the
+// network path to the device (connectivity has nothing to do with throughput).
 const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 
 function speedAlert(s, sp) {
@@ -111,12 +118,6 @@ function speedAlert(s, sp) {
   if (s.warn >= SUSTAIN)
     return { sev: "warn", text: `DSP at ${sp.toFixed(2)}× realtime — dropout risk. ${SLOW_DSP_TAIL}` };
   return null;
-}
-
-function fillAlert(s, st) {
-  if (s.fill < SUSTAIN) return null;
-  const pct = Math.round((num(st.output_fill) || 0) * 100);
-  return { sev: "warn", text: `Output buffer at ${pct}% — starvation. ${SLOW_DSP_TAIL}` };
 }
 
 function clipAlert(clips) {
@@ -141,7 +142,6 @@ export const engineAlerts = computed(() => {
   const counters = trackCounters.value;
   return [
     speedAlert(s, num(st.process_speed)),
-    fillAlert(s, st),
     clipAlert(counters.clips),
     apodAlert(counters.apod, st.active_filter),
   ].filter(Boolean);

@@ -19,7 +19,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { engineStatus, enums } from "../../hqptuner/static/store/state.js";
-import { initHealth, engineAlerts, trackCounters } from "../../hqptuner/static/store/health.js";
+import { initHealth, engineAlerts, trackCounters, outputBufferApplies } from "../../hqptuner/static/store/health.js";
 
 initHealth();
 
@@ -138,26 +138,38 @@ test("test_a_missing_process_speed_never_alerts", () => {
 });
 
 // --- output buffer ----------------------------------------------------------
+// A real output-buffer underrun is transient by design — the buffer drains to 0,
+// playback skips for an instant, then refills to 100% — never a sustained low.
+// So there is no sustained-low "starvation" alert; a flat low/zero/-1 reading
+// just means the buffer does not apply to this output (SDM/DSD direct paths).
 
-test("test_a_sustained_low_output_buffer_warns", () => {
+test("test_a_sustained_low_output_buffer_raises_no_alert", () => {
   reset();
-  assert.deepEqual(sevs(repeat(SUSTAIN, { output_fill: "0.02" })), ["warn"]);
+  assert.deepEqual(repeat(SUSTAIN + 1, { output_fill: "0.02" }), []);
 });
 
-test("test_the_buffer_threshold_is_exclusive", () => {
+test("test_a_flat_zero_output_buffer_raises_no_alert", () => {
   reset();
-  assert.deepEqual(repeat(SUSTAIN, { output_fill: "0.15" }), []);
+  assert.deepEqual(repeat(SUSTAIN + 1, { output_fill: "0" }), []);
 });
 
-test("test_a_negative_buffer_reading_means_not_applicable_and_never_alerts", () => {
-  // -1 is the daemon's "buffer doesn't apply" sentinel, not starvation
+test("test_a_negative_buffer_reading_raises_no_alert", () => {
+  // -1 is the daemon's "buffer doesn't apply" sentinel
   reset();
   assert.deepEqual(repeat(SUSTAIN + 1, { output_fill: "-1" }), []);
 });
 
-test("test_a_starved_buffer_reports_its_percentage", () => {
-  reset();
-  assert.ok(texts(repeat(SUSTAIN, { output_fill: "0.02" })).includes("at 2%"));
+test("test_output_buffer_does_not_apply_until_a_positive_fill_is_seen", () => {
+  serial += 1;
+  poll({ output_fill: "0" }); // fresh track, buffer flat at zero
+  assert.equal(outputBufferApplies.value, false);
+});
+
+test("test_output_buffer_applies_once_a_positive_fill_is_seen", () => {
+  serial += 1;
+  poll({ output_fill: "0" });
+  poll({ output_fill: "0.5" }); // buffer populates → applies
+  assert.equal(outputBufferApplies.value, true);
 });
 
 // --- clipping counters ------------------------------------------------------
@@ -215,14 +227,15 @@ test("test_apodizing_events_are_not_flagged_on_an_unknown_filter", () => {
 
 // --- ordering and combination -----------------------------------------------
 
-test("test_a_critical_speed_is_reported_before_a_starved_buffer", () => {
+test("test_a_sustained_low_buffer_adds_nothing_to_a_speed_alert", () => {
+  // regression (item 12): the buffer no longer contributes an alert of its own
   reset();
-  assert.deepEqual(sevs(repeat(SUSTAIN, { process_speed: "0.5", output_fill: "0.02" })), ["crit", "warn"]);
+  assert.deepEqual(sevs(repeat(SUSTAIN, { process_speed: "0.5", output_fill: "0.02" })), ["crit"]);
 });
 
 test("test_independent_faults_are_reported_together", () => {
   reset({ clips: "0" });
-  assert.equal(repeat(SUSTAIN, { process_speed: "0.5", output_fill: "0.02", clips: "2" }).length, 3);
+  assert.equal(repeat(SUSTAIN, { process_speed: "0.5", clips: "2" }).length, 2);
 });
 
 // --- registration -----------------------------------------------------------
