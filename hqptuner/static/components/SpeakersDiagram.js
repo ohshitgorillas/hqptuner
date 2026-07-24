@@ -49,10 +49,10 @@ const polar = (deg, r) => {
 // rest at 0, that 3 cm stretched to the full ring — a metre of displacement at
 // any believable room size. Six metres spans the ring instead, so a 3 cm trim
 // moves its speaker by half a pixel, which is what 3 cm deserves.
-const DIST_FULL = 600; // cm across the whole R_MIN..R_MAX span
+const DIST_FULL = 600; // cm at the outermost radius
 function radiusOf(index, distance) {
   const d = Math.max(0, Math.min(DIST_FULL, Number(distance) || 0));
-  const r = R_MIN + (d / DIST_FULL) * (R_MAX - R_MIN);
+  const r = HEAD + (d / DIST_FULL) * (R_MAX - HEAD);
   return index === 3 ? Math.min(r * OUTSET[3], SUB_MAX) : r;
 }
 
@@ -73,16 +73,22 @@ function extent(index, x, y) {
 
 export function SpeakersDiagram({ channels, active }) {
   const rows = channels || [];
-  const placed = rows.map((c) => {
-    const deg = LAYOUT[c.index] ?? 0;
-    const [x, y] = polar(deg, radiusOf(c.index, c.distance));
-    return { ch: c, deg, x, y, ext: extent(c.index, x, y) };
-  });
-  // the head, and the axis line above it, are drawn too — they bound the box on
-  // their own when every speaker sits close in
+  // A speaker with no distance set has no position: it is not placed in the room
+  // yet, so it is not drawn. Distance is measured from the listener, so the scale
+  // starts at the listener — 0 cm is the head, 3 cm is on top of it.
+  const placed = rows
+    .filter((c) => Number(c.distance) > 0)
+    .map((c) => {
+      const deg = LAYOUT[c.index] ?? 0;
+      const [x, y] = polar(deg, radiusOf(c.index, c.distance));
+      return { ch: c, deg, x, y, ext: extent(c.index, x, y) };
+    });
+  // The frame never collapses onto the listener: an empty plan (nothing placed
+  // yet) would otherwise measure a viewBox the size of the head and blow it up
+  // to fill the card.
   const spans = [
     ...placed.map((p) => p.ext),
-    { minX: CX - HEAD, maxX: CX + HEAD, minY: CY - HEAD - 6, maxY: CY + HEAD },
+    { minX: CX - R_MIN, maxX: CX + R_MIN, minY: CY - R_MIN, maxY: CY + R_MIN },
   ];
   const pad = 4;
   const minX = Math.min(...spans.map((s) => s.minX)) - pad;
@@ -96,7 +102,8 @@ export function SpeakersDiagram({ channels, active }) {
       role="img"
       aria-label="Top-down speaker layout: ${rows.filter((c) => active.has(c.index)).length} active channels"
     >
-      <circle cx=${CX} cy=${CY} r=${R_MIN} class="room-ring" />
+      <!-- no reference ring: it marked where an unplaced speaker sat, and nothing
+           sits there now — a speaker's radius is its distance from the listener -->
       <line x1=${CX} y1=${CY} x2=${CX} y2=${CY - R_MIN - 6} class="room-axis" />
       <circle cx=${CX} cy=${CY} r=${HEAD} class="room-head" />
       <path d="M${CX - 3} ${CY - HEAD} L${CX} ${CY - HEAD - 4} L${CX + 3} ${CY - HEAD}" class="room-nose" />

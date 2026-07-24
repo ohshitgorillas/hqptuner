@@ -255,14 +255,6 @@ function DspSwitcher() {
         ]}
         onChange=${setDspMode}
       />
-      ${
-        notesVisible.value
-          ? html`<div class="field-note dsp-switcher-note">
-              Which setup you are listening on. Speakers shows per-channel level and distance and suppresses crossfeed
-              — a real pair of speakers already reaches both ears. Switching back does not turn anything on again.
-            </div>`
-          : null
-      }
     </div>
   `;
 }

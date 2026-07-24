@@ -25,10 +25,6 @@
   padding: var(--sp-2) var(--sp-4);
   font-size: 0.95rem;
 }
-.dsp-switcher-note {
-  max-width: var(--measure);
-}
-
 /* --- card --------------------------------------------------------------- */
 .spkr-top {
   margin-bottom: var(--sp-4);

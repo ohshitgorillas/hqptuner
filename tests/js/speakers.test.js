@@ -53,11 +53,13 @@ function wire() {
   };
 }
 
+// A placed speaker: distance is what puts it in the room, and a channel with no
+// distance is not drawn at all (see the unplaced case below).
 const CH = (index, label) => ({
   index,
   label,
   level: 0,
-  distance: 0,
+  distance: 300,
   level_min: -60,
   level_max: 0,
   level_step: 0.1,
