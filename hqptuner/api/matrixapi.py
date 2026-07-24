@@ -103,6 +103,43 @@ async def matrix_profile(body: MatrixProfileBody, request: Request) -> dict[str,
         raise HTTPException(status_code=502, detail=f"matrix profile {body.action} failed: {exc}") from exc
 
 
+@router.get("/speakers")
+def speakers(request: Request) -> dict[str, Any]:
+    """Speaker-processing read model (readme §1.9): enabled + per-channel level
+    (dBFS) / distance (cm). Served from the last-loaded form snapshot, stale-flagged
+    when the daemon is unreachable — never a socket wait (roadmap 2.2)."""
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    if manager.speakers_form is None and manager.speakers_error:
+        raise HTTPException(status_code=502, detail=f"GET /speakers failed: {manager.speakers_error}")
+    if manager.speakers_form is None:
+        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
+    return _snapshot(manager, manager.speakers_form)
+
+
+class SpeakersBody(BaseModel):
+    enabled: bool = False
+    channels: dict[str, dict[str, str]] = {}  # channel index -> {level, distance}
+
+
+@router.post("/speakers")
+async def speakers_apply(body: SpeakersBody, request: Request) -> dict[str, Any]:
+    """Apply speaker processing via the /speakers form lane (readme §1.9). Reloads
+    the engine (~3 s), so it is idle-gated. The write is checkbox-safe and
+    range-validated in ``httpconf.apply_speakers``."""
+    manager = _mgr(request)
+    if request.app.state.http_client is None:
+        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+    _require_idle(manager)
+    try:
+        return await manager.apply_speakers(body.enabled, body.channels)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (ControlError, httpx.HTTPError) as exc:
+        raise HTTPException(status_code=502, detail=f"speakers apply failed: {exc}") from exc
+
+
 @router.post("/matrix/filter")
 async def matrix_filter(request: Request, file: Annotated[UploadFile, File()]) -> dict[str, str]:
     """Park an uploaded convolution filter (wav/txt) for the next apply, which

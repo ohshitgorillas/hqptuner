@@ -175,6 +175,51 @@ def parse_matrix_form(html: str) -> dict[str, Any]:
     }
 
 
+_SPEAKER_FIELD_RE = re.compile(r"^(level|distance)_(\d+)$")
+# readme §1.9.1: level is dBFS, distance is cm. Ranges from the live form inputs.
+_SPK_LEVEL = (-60.0, 0.0)
+_SPK_DISTANCE = (0.0, 5000.0)
+
+
+def parse_speakers_form(html: str) -> dict[str, Any]:
+    """The /speakers form parsed into ``{enabled, channels}``. Speaker processing
+    is a top-level config element (readme §1.9), absent from /config — this is its
+    only read surface. Each channel is ``{index, label, level, distance}`` plus the
+    input min/max/step constraints; ``label`` is the daemon's own channel name (the
+    ``<h2>`` above each pair: Left, Right, Center, LFE, Left rear, ...)."""
+    base = parse_config_form(html)
+    enabled = False
+    chans: dict[int, dict[str, Any]] = {}
+    for f in base["fields"]:
+        name = f.get("name") or ""
+        if name == "enabled":
+            enabled = bool(f.get("value"))
+            continue
+        m = _SPEAKER_FIELD_RE.match(name)
+        if m is None:
+            continue
+        kind, idx = m.group(1), int(m.group(2))
+        ch = chans.setdefault(idx, {"index": idx, "label": f.get("section")})
+        ch[kind] = f.get("value")
+        for attr in ("min", "max", "step"):
+            if attr in f:
+                ch[f"{kind}_{attr}"] = f[attr]
+    return {"enabled": enabled, "channels": [chans[i] for i in sorted(chans)]}
+
+
+def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -> str:
+    """Numeric + in-range or raise. Returns the caller's exact string so a 0.1
+    level step survives verbatim — garbage never reaches the daemon."""
+    lo, hi = bounds
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"speakers: {field}={value!r} is not numeric") from None
+    if not (lo <= n <= hi):
+        raise ValueError(f"speakers: {field}={value} out of range [{lo:g}, {hi:g}]")
+    return value
+
+
 def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
     """Complete, browser-faithful serialization of the /matrix form: checked
     checkboxes only (submitting their ``value`` attr — the daemon persists a
@@ -284,6 +329,37 @@ class HttpConfigClient:
         resp.raise_for_status()
         fields, file_names = serialize_matrix_form(resp.text)
         return fields, [(n, ("", b"", "application/octet-stream")) for n in file_names]
+
+    async def get_speakers(self) -> dict[str, Any]:
+        """GET /speakers — the multi-channel speaker-processing form (readme §1.9):
+        the enabled switch and per-channel level (dBFS) + distance (cm)."""
+        resp = await self._client.get("/speakers")
+        resp.raise_for_status()
+        return parse_speakers_form(resp.text)
+
+    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> None:
+        """Apply speaker processing via the /speakers Apply form. Overlays the
+        desired enabled + per-channel level/distance onto a fresh COMPLETE GET (a
+        partial POST is silently ignored, same contract as /config and /matrix)
+        and enforces the checkbox contract: ``enabled=1`` when on, the field
+        OMITTED when off — never a raw ``0``/``on``, which the daemon writes
+        verbatim and wedges engine init (matrix-spec probe). Levels are validated
+        to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
+        sent. The daemon reloads the engine (~3 s); the caller idle-gates."""
+        resp = await self._client.get("/speakers")
+        resp.raise_for_status()
+        fields, _ = serialize_matrix_form(resp.text)  # generic complete-form serialize
+        fields.pop("enabled", None)  # checkbox rebuilt below, contract-safe
+        for idx, ch in channels.items():
+            i = int(idx)
+            if "level" in ch:
+                fields[f"level_{i}"] = _validate_speaker_num(ch["level"], _SPK_LEVEL, f"level_{i}")
+            if "distance" in ch:
+                fields[f"distance_{i}"] = _validate_speaker_num(ch["distance"], _SPK_DISTANCE, f"distance_{i}")
+        if enabled:
+            fields["enabled"] = "1"
+        resp = await self._client.post("/speakers", data=fields)
+        resp.raise_for_status()
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`

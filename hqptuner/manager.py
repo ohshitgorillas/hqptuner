@@ -33,7 +33,7 @@ from .conf.httpconf import HttpConfigClient
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
 from .filterpark import FilterPark
-from .lanes import enginelane, httplane, matrixlane, presetlane
+from .lanes import enginelane, httplane, matrixlane, presetlane, speakerlane
 from .presetstore import PresetStore
 from .writer import apply_live
 
@@ -73,6 +73,10 @@ class ConnectionManager:
         self.config_error: str | None = None
         self.matrix_form: dict[str, Any] | None = None
         self.matrix_error: str | None = None
+        # Speaker processing form (readme §1.9), a top-level config element absent
+        # from /config — polled over the 8088 lane like /matrix, best-effort.
+        self.speakers_form: dict[str, Any] | None = None
+        self.speakers_error: str | None = None
         # Saved matrix profile names from the live 4321 lane (MatrixListProfiles —
         # unauthenticated, no reload). The active one is State.matrix_profile.
         self.matrix_profiles: list[str] | None = None
@@ -148,22 +152,20 @@ class ConnectionManager:
         with contextlib.suppress(CommandError):  # older engines may not speak Matrix*
             matrix_profiles = await client.get_matrix_profiles()
 
-        config_form = None
-        config_error = None
-        matrix_form = None
-        matrix_error = None
+        self._client = client
+        self.info, self.state, self.status, self.status_metadata = info, state, status, meta
+        self.license = license_info
+        self.active_config = active_config
+        self.volume_range = vrange
+        self.enums = enums
+        self.matrix_profiles = matrix_profiles
+        self.loaded_at = time.time()
+        self.reachable = True
+        self.unreachable_since = None
         if self._http is not None:
-            # 8088 lane failing must not take down the 4321 lane
-            try:
-                config_form = await self._http.get_config()
-            except Exception as exc:
-                config_error = str(exc)
-                log.warning("GET /config failed: %s", exc)
-            try:
-                matrix_form = await self._http.get_matrix()
-            except Exception as exc:
-                matrix_error = str(exc)
-                log.warning("GET /matrix failed: %s", exc)
+            # best-effort 8088 lane — a failure here must not undo the 4321 connect.
+            # _refresh_http_forms populates config/matrix/speakers (+ their *_error).
+            await self._refresh_http_forms()
             try:
                 await self.load_file_config()
             except Exception as exc:
@@ -173,19 +175,6 @@ class ConnectionManager:
                 await self._migrate_presets(active_config)
             except Exception as exc:
                 log.warning("preset migration skipped: %s", exc)
-
-        self._client = client
-        self.info, self.state, self.status, self.status_metadata = info, state, status, meta
-        self.license = license_info
-        self.active_config = active_config
-        self.volume_range = vrange
-        self.enums = enums
-        self.matrix_profiles = matrix_profiles
-        self.config_form, self.config_error = config_form, config_error
-        self.matrix_form, self.matrix_error = matrix_form, matrix_error
-        self.loaded_at = time.time()
-        self.reachable = True
-        self.unreachable_since = None
         log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 
     async def _poll(self) -> None:
@@ -222,6 +211,10 @@ class ConnectionManager:
             self.matrix_form, self.matrix_error = await self._http.get_matrix(), None
         except Exception as exc:
             self.matrix_error = str(exc)
+        try:
+            self.speakers_form, self.speakers_error = await self._http.get_speakers(), None
+        except Exception as exc:
+            self.speakers_error = str(exc)
 
     async def set_volume(self, db: str) -> dict[str, Any]:
         """Live playback-volume write — immediate, outside the staged-config
@@ -406,6 +399,11 @@ class ConnectionManager:
     def control(self) -> ControlClient | None:
         """The live 4321 client, for the extracted lanes (None while unreachable)."""
         return self._client
+
+    # --- speaker processing (readme §1.9, speakerlane) ---------------------
+
+    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
+        return await speakerlane.apply(self, enabled, channels)
 
     async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
         return await matrixlane.switch_profile(self, name)
