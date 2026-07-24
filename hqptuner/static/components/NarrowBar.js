@@ -24,7 +24,18 @@ function apodTip() {
   return (e && e.tooltip) || "";
 }
 
-const GENRES = ["pop", "rock", "jazz", "blues", "classical", "electronic"];
+const GENRES = [
+  ["pop", "Pop"],
+  ["rock", "Rock"],
+  ["jazz", "Jazz"],
+  ["blues", "Blues"],
+  ["classical", "Classical"],
+  ["electronic", "Electronic"],
+  // the manual's genre-agnostic tag — a real facet value ("this filter suits
+  // ALL genres"), distinct from the empty selection the button calls "Any
+  // genre", which means "not narrowed by genre at all"
+  ["any", "All genres"],
+];
 const QUALITY = [
   [0, "Any quality"],
   [3, "Quality ≥ 3"],
@@ -61,8 +72,6 @@ function toggleIn(sig, v) {
   sig.value = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
 }
 
-const cap = (g) => g[0].toUpperCase() + g.slice(1);
-
 function focusLabel() {
   const sel = nFocus.value;
   if (!sel.length) return "Any focus";
@@ -73,7 +82,7 @@ function focusLabel() {
 function genreLabel() {
   const sel = nGenre.value;
   if (!sel.length) return "Any genre";
-  if (sel.length === 1) return cap(sel[0]);
+  if (sel.length === 1) return oneLabel(GENRES, sel[0], sel[0]);
   return `${sel.length} genres`;
 }
 
@@ -170,7 +179,7 @@ export function NarrowBar() {
           <${MultiSelect}
             open=${genreOpen}
             label=${genreLabel()}
-            items=${GENRES.map((g) => [g, cap(g)])}
+            items=${GENRES}
             sig=${nGenre}
           />
           <${SingleSelect}

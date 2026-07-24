@@ -91,7 +91,10 @@ export function Header() {
   return html`
     <header class="chrome-header">
       <div class="brand">
-        <svg class="brand-glyph" viewBox="0 0 24 24" aria-hidden="true">
+        <!-- viewBox is trimmed to the PAINTED extent (r 8.5 centred at 12,
+             stroke-width 2 => 2.5..21.5) so the circle's left edge sits on the
+             content lane instead of 2px inside it. -->
+        <svg class="brand-glyph" viewBox="2.5 2.5 19 19" aria-hidden="true">
           <circle cx="12" cy="12" r="8.5" />
           <line x1="12" y1="12" x2="17.2" y2="6.8" />
         </svg>

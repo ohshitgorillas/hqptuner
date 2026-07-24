@@ -75,6 +75,10 @@
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --measure: 68ch; /* one caption/description measure everywhere */
   --w-app: 1200px; /* container cap */
+  /* page gutter — the inset from --w-app to the content lane. EVERY chrome row
+     paints its background and bottom rule on this lane (margin, not padding),
+     so header/signal-path/tab-bar edges line up with the cards below them. */
+  --gutter: 1rem;
   /* motion: one duration + ease-out curve for every state change (never live drag) */
   --dur: 120ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);

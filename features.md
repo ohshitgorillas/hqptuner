@@ -19,20 +19,6 @@ tickmarks are nearly invisible
 
 11. Turning structural crossfeed off should not switch the window to Bauer. it should ONLY remove the structural crossfeed from the pipeline
 
-13. (user request) It would be awesome to have the Playback Filter added in Ver 6 included here as well (I noticed “Junk Filter” in the code, so perhaps it’s already on your roadmap).
-
-14. SDM Sources > DSD Sources
-
-15. Top banner/signal chain/tabs not aligned
-
-16. Load REW parameters for headphone auto EQ input field does not work, no way to load anything from the box; asinine with load buttons anyway, remove.
-
-18. Load REW parameters / AutoEq txt button does not fucking work
-
-19. make head circumference adjustable in 0.25 cm increments on the slider. input box should take any value.
-
-20. Import EQ appends, it does not replace (should not replace structural crossfeed, which should instead adapt to the new profile)
-
 21. REW-style auto click and drag should quantify what's happening and by how much
 
 22. DSP section: add vertical preamp slider which adjusts to EQ automatically
