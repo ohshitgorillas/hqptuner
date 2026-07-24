@@ -18,7 +18,11 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - The browser tab's favicon now follows the DSP tab's mode — 🔊 for speakers, 🎧 for headphones. It used to sniff the *active preset's name* for the words "headphone"/"speaker", which was only ever true for people who named their presets that way.
 
+- **Ratio narrowing.** The filter narrowing bar gains a sixth facet — **ratio** — beside genre, quality, focus, phase and length. It narrows the menus to filters of a chosen resampling-ratio class (**Integer**, **2×** or **1:1**); the manual's any-ratio filters survive every selection, the same escape hatch genre's "All genres" uses. The dropdown also carries an **Upsample-only** checkbox — the manual fuses this ("Integer up") into the ratio column — narrowing to filters that only upsample, ANDed with any ratio class picked. The classes are transcribed from the manual's filter table into the static overlay, for every filter.
+
 ### Changed
+
+- **Apodizing narrowing moved under each 1x dropdown, and is now per-chain.** It was one global **Show apodizing only** toggle in the narrowing bar, narrowing the PCM and SDM 1x filter lists together. Each 1x dropdown now carries its own **Show apodizing only** / **Show ½ apodizing** pair, independent of the other — narrow one chain's list without touching the other. Moving it also freed the bar for the new ratio facet (six facet menus do not fit beside the toggle). The manual's description of what apodizing is, previously only a hover tooltip, now sits visibly beneath the checkboxes for anyone unsure whether to leave it on.
 
 - **Loading an EQ file now loads the EQ.** The **Load AutoEq / REW .txt…** button used to only drop the file's text into a box and wait for you to find a pipeline row and press its **Import EQ** — a button that appeared to do nothing, and a workflow nobody would guess. It now applies the profile on the one click, to pipeline 1 and its stereo pair, exactly as the AutoEq library's "Load profile" already did. The paste box is gone: with two one-click load lanes there was nothing left for it to do, and it had no way to apply what you pasted into it. A row's own **Import EQ** still works for putting EQ on a specific pipeline.
 
@@ -27,6 +31,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The top chrome now lines up with the cards.** The header band, the signal-path row, the alert strip and the tab bar took their horizontal inset as padding, so their *content* sat on the card lane while their background and bottom rule ran 15px past it on both sides, out to the container edge. The inset is now margin against a named `--gutter` token, so every painted edge in the chrome stops where the cards stop. The brand glyph's viewBox is trimmed to the circle's painted extent for the same reason — it was drawing 2px inside the lane.
 
 - **Head circumference** moves in 0.25 cm steps on the slider (was 0.5 cm), and its number box takes any value in range instead of snapping to the slider's detent. The readout carries two decimals, so a quarter-centimetre setting reads as itself rather than rounding to 55.3.
+
+### Fixed
+
+- **Filter narrowing no longer shows a bogus list for the output mode you are not in.** The narrowing facets were built only from the engine's *live* filter enumeration, which carries the filters of the mode the daemon is currently in and no others. HQPTuner shows both the PCM and SDM filter chains at all times, so the inactive mode's exclusive filters — `poly-sinc-hb-*`, `closed-form-M`, `ASRC` and the like when the engine is in an SDM mode — had no facet data and slipped through every narrowing choice unfiltered: pick **Short** by length and you would still see extra-long and unrelated filters in the list. Facets now fall back to the static overlay (transcribed from the manual) for any filter the live enum omits, so narrowing is correct in both chains regardless of the engine's current mode. The live enum stays the authority for the mode it is in; static fills only the gap it cannot see.
 
 ## [0.7.0] — 2026-07-23
 

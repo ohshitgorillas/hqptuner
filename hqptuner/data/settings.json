@@ -105,12 +105,12 @@
   "dsp": {
     "filter_1x": {
       "label": "1x filter",
-      "tooltip": "Oversampling filter for base-rate sources — source sampling rates below 50 kHz (44.1/48 kHz). Use an apodizing filter at least when the Apod counter increments above 10 during any single track; there is no harm using an apodizing filter on content that doesn't need one, but there is harm using a non-apodizing filter on content that does.",
-      "source": "manual §4.6, §2.6"
+      "tooltip": "Oversampling filter for base-rate sources — source sampling rates below 50 kHz (44.1/48 kHz).",
+      "source": "manual §4.6"
     },
     "filter_nx": {
       "label": "Nx filter",
-      "tooltip": "Oversampling filter for everything above the base rates (88.2 kHz and up, and DSD sources). Same apodizing guidance as the 1x filter.",
+      "tooltip": "Oversampling filter for everything above the base rates (88.2 kHz and up, and DSD sources).",
       "source": "manual §4.6"
     },
     "filter_narrowing": {
@@ -122,6 +122,11 @@
       "label": "Show apodizing only",
       "tooltip": "Limit the 1x filter list to apodizing filters. Apodizing filters clean up errors originating from the recording ADC or mastering tools — recommended when the Apod counter runs high on your library (see the Apod counter guidance).",
       "source": "hqptuner (guidance: manual §2.6)"
+    },
+    "apodizing": {
+      "label": "Apodizing",
+      "tooltip": "Use an apodizing filter at least when the Apod counter increments above 10 during any single track; there is no harm using an apodizing filter on content that doesn't need one, but there is harm using a non-apodizing filter on content that does.",
+      "source": "manual §2.6"
     },
     "channels": {
       "label": "Channels",

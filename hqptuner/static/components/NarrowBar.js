@@ -1,28 +1,22 @@
 // Filter narrowing bar — a titled panel ABOVE the PCM/SDM filter cards. The
-// "Narrow filters" heading sits on its own line; the genre / quality / focus
-// (multi-select) / phase facets and the apodizing toggle (1x only, with a
-// ½-apodizing sub-toggle) sit on the control row below it. Presentational only.
+// "Narrow filters" heading sits on its own line; the genre / quality / focus /
+// phase / length / ratio facets (all multi- or single-select popovers) sit on
+// the control row below it. Presentational only. Apodizing narrowing is NOT
+// here — it is 1x-only and per-chain, so it lives below each 1x dropdown
+// (ApodNarrow.js) rather than as a shared bar toggle.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { metadata } from "../store/state.js";
 import {
   nGenre,
   nQuality,
   nFocus,
   nPhase,
   nLength,
-  nApod,
-  nApodHalf,
+  nRatio,
+  nUpsampleOnly,
   narrowingActive,
   resetNarrowing,
 } from "../store/narrowing.js";
-
-// manual prose for the apodizing toggle (settings.json dsp.show_apodizing_only)
-function apodTip() {
-  const s = (metadata.value && metadata.value.settings) || {};
-  const e = s.dsp && s.dsp.show_apodizing_only;
-  return (e && e.tooltip) || "";
-}
 
 const GENRES = [
   ["pop", "Pop"],
@@ -59,12 +53,21 @@ const LENGTHS = [
   ["long", "Long"],
   ["xlong", "Extra long"],
 ];
+// "any" is the ratio escape-hatch (a filter the manual marks any-ratio survives
+// every ratio selection) — not offered as a pick, same as genre's "All genres".
+// Upsample-only ("up" in the manual) rides in the popover as an extra checkbox.
+const RATIOS = [
+  ["integer", "Integer"],
+  ["2x", "2×"],
+  ["1:1", "1:1"],
+];
 
 const focusOpen = signal(false);
 const genreOpen = signal(false);
 const qualityOpen = signal(false);
 const phaseOpen = signal(false);
 const lengthOpen = signal(false);
+const ratioOpen = signal(false);
 
 // toggle a value in a multi-select signal (add if absent, remove if present)
 function toggleIn(sig, v) {
@@ -91,6 +94,18 @@ function lengthLabel() {
   if (!sel.length) return "Any length";
   if (sel.length === 1) return oneLabel(LENGTHS, sel[0], sel[0]);
   return `${sel.length} lengths`;
+}
+
+// The ratio button also reports the upsample-only extra: "Integer", "Upsample
+// only", or "Integer + upsample-only" when both are set.
+function ratioLabel() {
+  const sel = nRatio.value;
+  const parts = [];
+  if (sel.length === 1) parts.push(oneLabel(RATIOS, sel[0], sel[0]));
+  else if (sel.length) parts.push(`${sel.length} ratios`);
+  if (nUpsampleOnly.value) parts.push("upsample-only");
+  if (!parts.length) return "Any ratio";
+  return parts.join(" + ");
 }
 
 const oneLabel = (items, v, fallback) => (items.find(([iv]) => String(iv) === String(v)) || [null, fallback])[1];
@@ -131,7 +146,9 @@ function SingleSelect({ open, label, value, items, onPick }) {
 
 // a checkbox-dropdown multi-select (the shared genre/focus pattern): a button
 // showing the summary label, a popover of checkboxes toggling `sig`'s array.
-function MultiSelect({ open, label, items, sig }) {
+// `extra` is an optional element appended below the item rows, divided off — the
+// ratio popover uses it for the orthogonal upsample-only checkbox.
+function MultiSelect({ open, label, items, sig, extra }) {
   return html`
     <div class="multi">
       <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
@@ -148,6 +165,7 @@ function MultiSelect({ open, label, items, sig }) {
                   </label>
                 `,
               )}
+              ${extra || null}
             </div>`
           : null
       }
@@ -160,28 +178,8 @@ export function NarrowBar() {
     <div class="narrow-bar">
       <div class="narrow-header">Narrow filters</div>
       <div class="narrow-controls">
-        <div class="apod-stack">
-          <label class="narrow-apod" title=${apodTip()}>
-            <input type="checkbox" checked=${nApod.value} onChange=${(e) => (nApod.value = e.target.checked)} />
-            Show apodizing only (1x)
-          </label>
-          <label class="narrow-apod apod-sub ${nApod.value ? "" : "off"}">
-            <input
-              type="checkbox"
-              checked=${nApodHalf.value}
-              disabled=${!nApod.value}
-              onChange=${(e) => (nApodHalf.value = e.target.checked)}
-            />
-            Show ½ apodizing filters
-          </label>
-        </div>
         <div class="narrow-facets">
-          <${MultiSelect}
-            open=${genreOpen}
-            label=${genreLabel()}
-            items=${GENRES}
-            sig=${nGenre}
-          />
+          <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES} sig=${nGenre} />
           <${SingleSelect}
             open=${qualityOpen}
             label=${oneLabel(QUALITY, nQuality.value, "Any quality")}
@@ -198,6 +196,20 @@ export function NarrowBar() {
             onPick=${(v) => (nPhase.value = v)}
           />
           <${MultiSelect} open=${lengthOpen} label=${lengthLabel()} items=${LENGTHS} sig=${nLength} />
+          <${MultiSelect}
+            open=${ratioOpen}
+            label=${ratioLabel()}
+            items=${RATIOS}
+            sig=${nRatio}
+            extra=${html`<label class="multi-extra">
+              <input
+                type="checkbox"
+                checked=${nUpsampleOnly.value}
+                onChange=${() => (nUpsampleOnly.value = !nUpsampleOnly.value)}
+              />
+              Upsample-only
+            </label>`}
+          />
         </div>
         <div class="narrow-right">
           ${
