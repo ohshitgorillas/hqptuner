@@ -73,9 +73,18 @@ export function chooseSet(id) {
   }
 }
 
+// An emptied box is not an edit. The daemon's form has no concept of a blank
+// level or distance, and a committed "" left the box empty with nothing to
+// restore it — so a non-numeric commit drops that field's pending edit and the
+// control falls back to the value the daemon holds.
 function editCh(index, field, value) {
-  const row = { ...(edits.value[String(index)] || {}), [field]: String(value) };
-  edits.value = { ...edits.value, [String(index)]: row };
+  const key = String(index);
+  const row = { ...(edits.value[key] || {}) };
+  if (String(value).trim() === "" || Number.isNaN(Number(value))) delete row[field];
+  else row[field] = String(value);
+  const next = { ...edits.value, [key]: row };
+  if (!Object.keys(row).length) delete next[key];
+  edits.value = next;
 }
 
 function revert() {
