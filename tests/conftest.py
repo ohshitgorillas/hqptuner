@@ -13,6 +13,7 @@ The port-8088 HTTP fake lives in `fake_http`; its fixtures are at the bottom."""
 
 import asyncio
 import functools
+import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
@@ -21,8 +22,38 @@ import pytest
 from defusedxml.ElementTree import fromstring as _fromstring
 
 from hqptuner.control import ControlClient
+from hqptuner.manager import ConnectionManager
 
 XML = '<?xml version="1.0" encoding="UTF-8"?>'
+
+
+@pytest.fixture(autouse=True)
+def virtual_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retry/verify loops pay their waits in virtual time, not wall clock.
+
+    Every lane deadline loop is paced by `ConnectionManager.sleep` against a
+    deadline read from `ConnectionManager.monotonic` — the two public seams the
+    lanes are written to. Here `sleep` advances an offset that `monotonic` reads
+    back, so a loop still runs the same iterations against the fake daemon and
+    still exits on the same condition, without the seconds. Real sleeps cost the
+    offline suite ~80 s of its 84 s.
+
+    The manager's own poll loop is deliberately left on the wall clock: `run()`
+    paces on the private stop-event wait (`_sleep`), which this does not touch,
+    so a running manager does not spin."""
+    offset = 0.0
+
+    async def sleep(_self: ConnectionManager, seconds: float) -> None:
+        nonlocal offset
+        offset += seconds
+        await asyncio.sleep(0)  # still yield: concurrent tasks must interleave
+
+    def monotonic(_self: ConnectionManager) -> float:
+        return time.monotonic() + offset
+
+    monkeypatch.setattr(ConnectionManager, "sleep", sleep)
+    monkeypatch.setattr(ConnectionManager, "monotonic", monotonic)
+
 
 _DEFAULTS = {
     "state": "0",

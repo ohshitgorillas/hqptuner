@@ -93,7 +93,7 @@ class ConnectionManager:
 
     @property
     def alarm(self) -> bool:
-        return not self.reachable and time.monotonic() - self._unreachable_mono > self._cfg.alarm_threshold
+        return not self.reachable and self.monotonic() - self._unreachable_mono > self._cfg.alarm_threshold
 
     def stop(self) -> None:
         self._stop.set()
@@ -329,12 +329,12 @@ class ConnectionManager:
         preset load and on every restore, and its active label flips before the
         restart completes — so callers must not assume 'label switched' means
         'ready to write'."""
-        deadline = time.monotonic() + self._cfg.alarm_threshold
-        while time.monotonic() < deadline:
+        deadline = self.monotonic() + self._cfg.alarm_threshold
+        while self.monotonic() < deadline:
             try:
                 await self._require_http().get_config()
             except httpx.HTTPError:
-                await self._sleep(RECONNECT_FAST)
+                await self.sleep(RECONNECT_FAST)
                 continue
             return True
         return False
@@ -385,7 +385,7 @@ class ConnectionManager:
         try:
             backup = await self._backup_or_cached()
             self._persist_backup(backup)
-            result = await enginelane.apply(self._http, backup, overrides, self.active_config, all_presets, self._sleep)
+            result = await enginelane.apply(self._http, backup, overrides, self.active_config, all_presets, self.sleep)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         engine = result["verified"].get("engine")

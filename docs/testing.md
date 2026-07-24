@@ -16,6 +16,15 @@ Violations of this document are rejected in review regardless of whether the tes
 
 6. **Test names state the behavior**: `test_<behavior in plain words>` — `test_checked_checkbox_parses_true`, not `test_parse_2`.
 
+7. **No test waits on the wall clock.** A retry, verify, or poll loop is tested for how many passes it makes and what it concludes — never for how long it takes. Production code must therefore pace itself through an injectable clock, and the suite must virtualize it.
+   - **Lanes pace on the manager's seams**, `ConnectionManager.sleep` and `ConnectionManager.monotonic` — never `asyncio.sleep` or `time.monotonic` directly. A deadline is `mgr.monotonic() + mgr.alarm_threshold`; a wait is `await mgr.sleep(...)`. A new lane that reaches for the module-level clock is a review flag.
+   - **`tests/conftest.py` `virtual_clock` (autouse) virtualizes both**: `sleep` advances an offset, `monotonic` reads it back. Both are public methods, so this is a seam, not a violation of rule 3 — patching a private `_sleep` would be.
+   - **Advance the clock; never freeze one half of it.** A no-op `sleep` with a real `monotonic` turns every deadline loop into a hot spin that hammers the fake for the full wall-clock deadline — slower than the sleeps it removed, and a different code path than production takes.
+   - **`ConnectionManager.run()` stays on the real clock** by design. It paces on the private stop-event wait, which `virtual_clock` does not touch, so a manager started with `create_task(manager.run())` polls at its real interval instead of spinning.
+   - **Fake servers tear down promptly.** `http.server.HTTPServer.shutdown()` blocks on `serve_forever`'s `poll_interval`, whose 0.5 s default is charged to every fixture teardown; `fake_http.spawn` passes `poll_interval=0.01`. Any new threaded fake does the same.
+
+   These rules exist because the suite once took 84 s, ~80 s of it real sleeps. It is 7 s now. A test that reintroduces a wall-clock wait is defective even when it passes.
+
 ## Markers
 
 - Default suite is offline and deterministic; it must pass on a machine with no hqplayerd.
