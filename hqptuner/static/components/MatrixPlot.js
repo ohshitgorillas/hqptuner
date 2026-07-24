@@ -282,7 +282,7 @@ export function MatrixPlot() {
     : "No pipeline processing to plot yet — load a profile or add EQ / stages above";
   return html`
     <section class="card">
-      <div class="card-head">Response</div>
+      <div class="card-head">Matrix response</div>
       <div class="card-body">
         <${PlotFrame}
           traces=${traces}
