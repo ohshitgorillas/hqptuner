@@ -16,7 +16,7 @@ import {
   formFieldName,
   refreshDevices,
 } from "../store/state.js";
-import { optionsFor, grayShapersByRate } from "../store/options.js";
+import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { narrowOptions } from "../store/narrowing.js";
 import { grayReason } from "../store/graying.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
@@ -137,7 +137,10 @@ function fieldClasses(entry, key) {
 // client-side transforms — filter selects narrow their (large) option list by
 // the active facets; shaper selects gray what the output rate can't reach.
 function fieldOptions(entry, key) {
-  let options = entry.optionsFrom ? optionsFor(entry.optionsFrom, formFieldName(entry)) : entry.options;
+  let options;
+  if (entry.optionsFrom === "enum") options = enumOptions(entry.enumKey);
+  else if (entry.optionsFrom) options = optionsFor(entry.optionsFrom, formFieldName(entry));
+  else options = entry.options;
   if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
   return options;

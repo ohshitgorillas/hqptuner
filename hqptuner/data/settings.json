@@ -85,6 +85,21 @@
       "label": "Short buffer",
       "tooltip": "Reduces the audio FIFO buffer (normal / short / minimum) for faster control responses, e.g. volume changes. More sensitive to drop-outs.",
       "source": "manual §4, readme §1.2 (short_buffer)"
+    },
+    "junk_filter": {
+      "label": "High-frequency filter",
+      "tooltip": "Various playback filters are provided to deal with noise, errors and distortion. For example in bad quality or fake hires source. These filters can be switched at any time during playback. To see their effect on the source, pre-process before metering can be enabled.",
+      "options": {
+        "0": "No filtering.",
+        "1": "20 kHz filter is useful for cleaning up fake high-res content when such is observed through metering. It will place a sharp roll-off filter at 20 kHz.",
+        "2": "30 kHz filter is a slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hires recordings that are for example transfers from analog tape.",
+        "3": "40 kHz filter is a slow roll-off filter for removing high frequency disturbances unrelated to the music, while keeping optimal transient response. This can be used for certain hires recordings that are for example transfers from analog tape.",
+        "4": "50 kHz filter is a very slow roll-off filter for cleaning out for example excessive noise shaping from certain ADCs and DSD to PCM conversions.",
+        "5": "Places steep cut-off at 2x of the base rate.",
+        "6": "Places steep cut-off at 4x of the base rate.",
+        "7": "Places steep cut-off at 8x of the base rate."
+      },
+      "source": "manual §2.8 (Playback filter)"
     }
   },
   "dsp": {
@@ -425,10 +440,6 @@
   },
   "_unexposed_candidates": {
     "_comment": "Settings with upstream prose that HQPTuner does not currently expose (outline §4). Kept for cheap future addition.",
-    "junk_filter_20k": {
-      "tooltip": "20 kHz low-pass filter to clean ultrasonic noise and distortion from PCM sources (e.g. previously-upsampled 'fake HiRes'). Functional only for 2x and higher source rates. Live-settable via SetJunkFilter.",
-      "source": "manual §2.8"
-    },
     "volume_hw": {
       "tooltip": "Use hardware volume control (ALSA mixer element) together with the built-in digital volume control; volume_scaler (recommended 0.75) retains processing headroom.",
       "source": "readme §1.3 (volume_hw, volume_scaler)"

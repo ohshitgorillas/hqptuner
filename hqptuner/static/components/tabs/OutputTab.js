@@ -74,6 +74,7 @@ export const Output = () => {
         <${Field} k="upnp_freewheel" />
         <${Field} k="quick_pause" />
         <${Field} k="short_buffer" />
+        <${Field} k="junk_filter" />
       </div>
     <//>
     <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
