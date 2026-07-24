@@ -4,7 +4,7 @@
 // schema.js; the mode segment is the http `mode` field, not the volatile live
 // enumeration, so no enum-derived option building lives here anymore.
 
-import { configByName, matrixByName, metadata, effective } from "./state.js";
+import { configByName, matrixByName, metadata, effective, enums } from "./state.js";
 
 // Gray shaper (dither/modulator) options the selected output rate can't reach.
 // Only the minimum-rate floor is enforced (min_rate_hz in the static shapers
@@ -32,6 +32,16 @@ export function grayShapersByRate(options, kind) {
     }
     return o;
   });
+}
+
+// Live-enum option source (schema `optionsFrom: 'enum'` + `enumKey`), for the
+// 4321-lane controls that have no /config form field to take options from. The
+// running engine is the sole authority for names AND ordering (outline §2), and
+// Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §9) — so
+// `index` is the value, never a shipped constant.
+export function enumOptions(name) {
+  const list = (enums.value && enums.value[name]) || [];
+  return list.map((o) => ({ value: o.index, label: o.name, disabled: false, reason: "" }));
 }
 
 // optionsFor(kind, field) -> [{value, label, disabled, reason}]

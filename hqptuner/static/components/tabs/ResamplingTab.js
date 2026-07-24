@@ -1,6 +1,6 @@
 // Resampling tab: filter narrowing bar, the PCM and SDM output cards, and FFT
 // filter length. Each output card is split by SOURCE type — a "PCM Sources"
-// subsection (how a PCM source is handled for that output) and an "SDM Sources"
+// subsection (how a PCM source is handled for that output) and a "DSD Sources"
 // subsection (how a DSD/SDM source is handled) — with a mode-mismatch note at
 // the top when the current output mode doesn't use the card.
 import { signal, computed, effect } from "@preact/signals";
@@ -68,7 +68,7 @@ export const Resampling = () =>
         <${Field} k="pcm_filter_nx" />
         <${Field} k="pcm_dither" />
       </div>
-      <div class="subhead">SDM Sources</div>
+      <div class="subhead">DSD Sources</div>
       <div class="pack chain">
         <${Field} k="noise_filter" />
         <${Field} k="pcm_conversion" />
@@ -83,7 +83,7 @@ export const Resampling = () =>
         <${Field} k="sdm_filter_nx" />
         <${Field} k="sdm_modulator" />
       </div>
-      <div class="subhead">SDM Sources</div>
+      <div class="subhead">DSD Sources</div>
       <div class="pack chain">
         <${Field} k="sdm_integrator" />
         <${Field} k="sdm_conversion" />

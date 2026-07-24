@@ -177,6 +177,27 @@ export const schema = {
     field: "short_buffer",
     optionsFrom: "config",
   },
+  // The manual's "Playback filter" (§2.8) — a source-side high-frequency cut for
+  // noise, errors and fake hires. Named for what it does; every option is an HF
+  // cut (20k–50k roll off at that frequency, 2x/4x/8x cut at that multiple of
+  // the base rate), which "Playback filter" does not convey.
+  //
+  // Live lane, and the only one besides adaptive_volume: the daemon's own
+  // /config form has no field for it, so options come from the GetJunkFilters
+  // enumeration, SetJunkFilter writes the list index, and State.filter_junk
+  // reads it back. It is switchable during playback (manual §2.8), so it is
+  // never grayed by transport state.
+  junk_filter: {
+    label: "High-frequency filter",
+    group: "output",
+    widget: "dropdown",
+    lane: "live",
+    stateField: "filter_junk",
+    liveKey: "junk_filter",
+    optionsFrom: "enum",
+    enumKey: "junk_filters",
+    desc: "config",
+  },
 
   // --- Output: per-family rate (both shown, inactive one grayed by mode) ---
   // Fixed friendly labels — NOT derived from the engine's rate list. HQPTuner
