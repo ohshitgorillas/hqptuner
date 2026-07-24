@@ -58,7 +58,7 @@
     },
     "buffer_time": {
       "label": "Buffer time",
-      "tooltip": "Length of the hardware audio buffer in milliseconds (0 = driver default). Recommended to use the default unless audio drop-outs are experienced. Values between 10 and 100 ms are most recommended.",
+      "tooltip": "Length of the hardware audio buffer in milliseconds (0 = driver default). Recommended to use the default unless audio drop-outs are experienced. Values between 10 and 100 ms are most recommended. −1 selects the minimum buffer: never use it for normal playback — it can be attempted only for realtime inputs using the input backend.",
       "source": "manual §4, readme §1.3 (period_time)"
     },
     "ipv6": {

@@ -23,8 +23,16 @@ const sdmOverride = signal(null);
 // mode that needs it (collapse PCM in Auto, later select PCM → stuck shut). Drop
 // both overrides whenever the mode changes, so each switch re-asserts the auto
 // disclosure; a manual toggle still wins until the next mode change.
+//
+// Guard on the RESOLVED mode changing, not on the effect merely re-firing:
+// effective() reads the whole staged + liveOverride signal maps, so ANY field
+// edit re-runs this effect. Without the guard, editing an unrelated setting
+// wipes the override and slams a card the user just opened shut.
+let prevMode;
 effect(() => {
-  void effective("output_mode");
+  const mode = effective("output_mode");
+  if (mode === prevMode) return;
+  prevMode = mode;
   pcmOverride.value = null;
   sdmOverride.value = null;
 });

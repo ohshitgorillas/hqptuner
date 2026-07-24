@@ -18,6 +18,41 @@ The original HQPlayer web UI is auth-gated, but HQPTuner is free to anyone with 
 
 8. "EMERGENCY CONFIG RESET" button in System. full width card, collapsed by default. sends totally stock xml to the daemon and restarts. for major failures/corruption. use a classic Nintendo controller and make the user input the Contra code to confirm.
 
+(these next two are part of the same issue but I wrote it down twice cause I saw it express in two different ways)
 9. Turning off structural crossfeed does not always remove the extra pipelines.
+10. Loading structural crossfeed, then a headphone EQ profile, does not update the structural crossfeed settings. 
+(note: it's more complicated than that, but some series of actions leads to stuck crossfeed pipelines 3-16 that don't auto-update with EQ or go away with "turn off" but do go away by switching to Bauer).
 
-10. Loading structural crossfeed, then a headphone EQ profile, does not update the structural crossfeed settings.
+12. Not all outputs show output buffer. Detect and suppress warning. Output buffer underruns take the form of the buffer stuttering, then filling back up... not holding at zero.
+
+
+
+-- NEW FEATURE: EMERGENCY COFNIG RESET -- 
+
+for major failures/corruption
+
+System > full width card, collapsed by default
+
+sends totally stock xml to the daemon and attempts restart; on failure, user is warned to `systemctl restart hqplayerd`. 
+
+MUST WORK EVEN WHEN HQPLAYERD IS DOWN
+
+UI: use a classic Nintendo controller and make the user input the Contra code (state code in notes, don't make them guess)
+
+
+
+-- MAJOR FEATURE: DSP overhaul --
+
+Currently DSP is headphone-centric with none of the /Speakers features from the web UI integrated.
+
+I want a big switcher at the top of the DSP tab: [  OFF  |  SPEAKERS  |  HEADPHONES  ]
+
+SPEAKERS exposes the /speakers features with graphics
+
+HEADPHONES exposes the currently available headphone options
+
+favicon changes based on setting, currently switches based on preset text
+
+internal docs exist
+
+
