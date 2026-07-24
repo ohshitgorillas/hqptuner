@@ -10,7 +10,7 @@
 // between polls.
 import { html } from "../lib/dom.js";
 import { engineStatus } from "../store/state.js";
-import { trackCounters } from "../store/health.js";
+import { trackCounters, outputBufferApplies } from "../store/health.js";
 import { quickSystemUpdates, setQuickSystemUpdates } from "../store/prefs.js";
 import { Checkbox } from "./controls/index.js";
 
@@ -114,7 +114,7 @@ export function EngineHealth() {
       <${VuGauge} speed=${n(st.process_speed)} />
       <div class="eh-meters">
         <${Meter} label="Input buffer" frac=${fill(st.input_fill)} />
-        <${Meter} label="Output buffer" frac=${fill(st.output_fill)} />
+        <${Meter} label="Output buffer" frac=${outputBufferApplies.value ? fill(st.output_fill) : null} />
       </div>
       <div class="eh-counters">
         <${Counter} label="Clips" delta=${clips} total=${n(st.clips)} alert=${!!clips} />

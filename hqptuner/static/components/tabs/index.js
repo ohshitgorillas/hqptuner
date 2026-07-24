@@ -10,6 +10,7 @@ import { Resampling } from "./ResamplingTab.js";
 import { System } from "./SystemTab.js";
 import { MatrixTab } from "../MatrixTab.js";
 import { activeTab as active } from "../../store/ui.js";
+import { dirtyTabs } from "../../store/tabmap.js";
 
 const TABS = [
   ["output", "Output", Output],
@@ -24,7 +25,7 @@ export function TabBar() {
     <nav class="tab-nav">
       ${TABS.map(
         ([id, label]) => html`
-          <button class=${active.value === id ? "active" : ""} onClick=${() => (active.value = id)}>${label}</button>
+          <button class="${active.value === id ? "active" : ""}${dirtyTabs.value.has(id) ? " has-changes" : ""}" onClick=${() => (active.value = id)}>${label}</button>
         `,
       )}
     </nav>
