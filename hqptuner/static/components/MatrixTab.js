@@ -18,6 +18,9 @@ import { StructuralBadge } from "./StructuralXfeed.js";
 import { ProfileCard } from "./MatrixProfileCard.js";
 import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./MatrixFlowRow.js";
 import { setSelected } from "./MatrixStageEditor.js";
+import { SpeakersCard } from "./SpeakersCard.js";
+import { Segment } from "./controls/index.js";
+import { dspMode, setDspMode } from "../store/dspmode.js";
 
 const pipelinesCardOpen = signal(true);
 
@@ -234,15 +237,46 @@ function PipelinesCard() {
   `;
 }
 
+// The mode switcher. A VIEW selector: it decides which listening setup's
+// controls are on screen and never turns processing on (store/dspmode.js). The
+// matrix, the pipelines and the response plot are common to both and stay put
+// below it — they are the signal path itself, not a headphone feature.
+function DspSwitcher() {
+  const mode = dspMode.value;
+  return html`
+    <div class="dsp-switcher">
+      <${Segment}
+        value=${mode}
+        options=${[
+          // Words only: the app ships Inter + JetBrains Mono, and a 🔊/🎧 in a
+          // segment label renders as tofu wherever no emoji font is installed.
+          { value: "speakers", label: "Speakers" },
+          { value: "headphones", label: "Headphones" },
+        ]}
+        onChange=${setDspMode}
+      />
+      ${
+        notesVisible.value
+          ? html`<div class="field-note dsp-switcher-note">
+              Which setup you are listening on. Speakers shows per-channel level and distance and suppresses crossfeed
+              — a real pair of speakers already reaches both ears. Switching back does not turn anything on again.
+            </div>`
+          : null
+      }
+    </div>
+  `;
+}
+
 export function MatrixTab() {
+  const speakerMode = dspMode.value === "speakers";
   return html`<section class="tab-body">
+    <${DspSwitcher} />
     <div class="card-grid">
       <${GlobalCard} />
       <${ProfileCard} />
     </div>
     <${PipelinesCard} />
-    <${HeadphoneEqCard} />
-    <${CrossfeedCard} />
+    ${speakerMode ? html`<${SpeakersCard} />` : html`<${HeadphoneEqCard} /><${CrossfeedCard} />`}
     <${MatrixPlot} />
   </section>`;
 }

@@ -4,6 +4,16 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Speaker processing on the DSP tab.** HQPlayer's `/speakers` page — a level trim (dBFS) and a distance (cm) for each of its eight channel slots — had no representation in HQPTuner at all; the DSP tab was headphone-only. It now has both halves, behind a **🔊 Speakers | 🎧 Headphones** switcher at the top of the tab. The switcher is a *view* selector: it decides which setup's controls are on screen and never turns processing on. Switching to Speakers suppresses crossfeed (a real speaker pair already reaches both ears, so synthesizing more leakage is wrong) as a staged edit the pending bar counts and Discard undoes; switching back to Headphones restores nothing. The matrix, the pipelines and the response chart are common to both setups and stay put below the switcher.
+
+  The Speakers card carries the master switch, a **speaker set** picker (2.0 / 2.1 / 5.1 / 7.1 — your choice of which channels to configure, not a reading of the engine's channel count; the daemon keeps all eight either way), per-channel level and distance boxes, and a top-down room plan that draws each speaker at its layout angle, at a radius following its distance setting, with its level labelled. Channels outside the chosen set are drawn dimmed rather than hidden. Under Direct SDM the level column grays — Direct SDM bypasses the volume control — while the distances stay editable, because the delays still apply.
+
+  Applying reloads the engine (~3 s) and is refused unless it is stopped, like every other form-lane write; the write is checkbox-safe (the daemon persists a stray `0`/`on` verbatim into its XML and wedges engine init) and range-validated server-side, and the result is verified by reading `/speakers` back rather than assumed.
+
+- The browser tab's favicon now follows the DSP tab's mode — 🔊 for speakers, 🎧 for headphones. It used to sniff the *active preset's name* for the words "headphone"/"speaker", which was only ever true for people who named their presets that way.
+
 ## [0.7.0] — 2026-07-23
 
 ### Added

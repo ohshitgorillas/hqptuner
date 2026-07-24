@@ -150,7 +150,7 @@ export async function stagePipelines(rows) {
 const fileConfig = computed(() => (config.value && config.value.file) || {});
 
 // The truly-loaded preset name (ConfigurationGet), as the daemon reports it.
-export const activePreset = computed(() => (config.value && config.value.active) || "");
+const activePreset = computed(() => (config.value && config.value.active) || "");
 
 // --- three-tree resolution ---
 // Each source returns a one-element BOX rather than the value itself: a preset
