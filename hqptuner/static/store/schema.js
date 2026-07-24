@@ -189,6 +189,9 @@ export const schema = {
   // never grayed by transport state.
   junk_filter: {
     label: "High-frequency filter",
+    // HQPlayer's own name for it, so the manual and the daemon's vocabulary are
+    // still findable from a label that says what the control does
+    sublabel: "(Playback filter)",
     group: "output",
     widget: "dropdown",
     lane: "live",

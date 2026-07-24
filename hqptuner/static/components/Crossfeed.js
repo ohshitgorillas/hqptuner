@@ -55,7 +55,10 @@ function params(rows) {
 
 // --- controls ----------------------------------------------------------------
 
-function Control({ label, unit, min, max, step, value, format, onDrag, onCommit, caption, sub }) {
+// `boxStep` is the number box's step, which need not be the slider's: a slider
+// wants a detent coarse enough to hit, while the box can take any value in range
+// (step="any"). It defaults to the slider's step.
+function Control({ label, unit, min, max, step, boxStep, value, format, onDrag, onCommit, caption, sub }) {
   return html`
     <div class="xfs-control">
       <label class="xfs-label">${label}</label>
@@ -76,7 +79,7 @@ function Control({ label, unit, min, max, step, value, format, onDrag, onCommit,
               type="number"
               min=${min}
               max=${max}
-              step=${step}
+              step=${boxStep || step}
               value=${format(value)}
               onWheel=${wheelGuard}
               onChange=${(e) => onCommit(Number(e.target.value))}
@@ -184,9 +187,10 @@ function StructuralMode({ rows }) {
           unit=" cm"
           min="41"
           max="66"
-          step="0.5"
+          step="0.25"
+          boxStep="any"
           value=${p0.headRadius * 2 * Math.PI * 100}
-          format=${(v) => v.toFixed(1)}
+          format=${(v) => v.toFixed(2)}
           sub=${`${(p0.headRadius * 100).toFixed(2)} cm radius`}
           onDrag=${(v) => set({ headRadius: v / 100 / (2 * Math.PI) }, false)}
           onCommit=${(v) => set({ headRadius: v / 100 / (2 * Math.PI) }, true)}
