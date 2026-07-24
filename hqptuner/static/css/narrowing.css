@@ -24,12 +24,12 @@
   align-items: center;
   gap: 0.6rem;
 }
-/* the five facets share one grid row: equal widths, one select style across all */
+/* the six facets share one grid row: equal widths, one select style across all */
 .narrow-facets {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 0.6rem;
 }
 .narrow-facets > *,
@@ -113,12 +113,38 @@
   color: var(--fg-2);
   white-space: nowrap;
 }
+/* orthogonal extra in a multi-select popover (ratio → upsample-only): divided
+   off the class rows above it, same row chrome */
+.multi-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--fg-2);
+  white-space: nowrap;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--bg-3);
+}
 
-/* apodizing stack — ½-apodizing tabbed under the main toggle, grayed unless on */
-.apod-stack {
+/* per-1x-dropdown apodizing narrow control (ApodNarrow.js) — sits in the field's
+   column 2, below the dropdown's manual description: two stacked checkboxes plus
+   the manual apodizing caption (verbatim settings tooltip), capped at --measure.
+   ½-apodizing tabs under the main toggle and grays unless the main is on. */
+.apod-narrow {
+  grid-column: 2;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+.apod-narrow-note {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--fg-2);
+  opacity: 0.8;
+  max-width: var(--measure);
+  margin-top: 0.1rem;
 }
 .apod-sub {
   margin-left: 1.4rem;

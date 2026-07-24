@@ -22,6 +22,7 @@ import { grayReason } from "../store/graying.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Knob } from "./Knob.js";
+import { ApodNarrow } from "./ApodNarrow.js";
 
 const WIDGETS = {
   segment: Segment,
@@ -136,12 +137,14 @@ function fieldClasses(entry, key) {
 // Option source: the schema's own list or the daemon form's, then the two
 // client-side transforms — filter selects narrow their (large) option list by
 // the active facets; shaper selects gray what the output rate can't reach.
+// The field key threads into narrowOptions so a 1x dropdown reads its OWN
+// apodizing state (per-chain, store/narrowing.js).
 function fieldOptions(entry, key) {
   let options;
   if (entry.optionsFrom === "enum") options = enumOptions(entry.enumKey);
   else if (entry.optionsFrom) options = optionsFor(entry.optionsFrom, formFieldName(entry));
   else options = entry.options;
-  if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow);
+  if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow, key);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
   return options;
 }
@@ -212,6 +215,7 @@ export function Field({ k }) {
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${fieldProse(entry, k, meta, reason, options)}
+      ${entry.apodNarrow ? html`<${ApodNarrow} field=${k} />` : null}
     </div>
   `;
 }

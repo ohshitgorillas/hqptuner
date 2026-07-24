@@ -368,6 +368,7 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     narrow: "1x",
+    apodNarrow: true,
     desc: "filter",
   },
   pcm_filter_nx: {
@@ -404,6 +405,7 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     narrow: "1x",
+    apodNarrow: true,
     desc: "filter",
   },
   sdm_filter_nx: {
