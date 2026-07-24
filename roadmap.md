@@ -230,6 +230,21 @@ Two user-driven feature lists (`features.md`, now empty) plus chat nitpick round
 
 Also recorded: HQPlayer **Desktop has no web UI** — no port-8088 lane, so HQPTuner is effectively Embedded-only. Gets a README note in Phase 6.
 
+### DSP overhaul — speaker processing (2026-07-23)
+
+`features.md`'s "MAJOR FEATURE: DSP overhaul": integrate hqplayerd's `/speakers` (readme §1.9) into the headphone-only DSP tab.
+
+Decisions taken with the user:
+
+- **Two-way switcher, not three.** features.md drew `[OFF | SPEAKERS | HEADPHONES]`; OFF was dropped. The switcher is a **view selector that never turns anything on** — switching to SPEAKERS shows the speaker controls and suppresses crossfeed (both implementations); switching back restores nothing. Standing pipelines and EQ are untouched either way. Suppression is a staged edit, so the pending bar counts it and Discard undoes it.
+- **Matrix / Pipelines / Response render always**, below the switcher — they are the signal path, not a headphone feature. HEADPHONES adds Crossfeed + Headphone Auto EQ; SPEAKERS adds the Speakers card.
+- **The channel set is a control** (2.0 / 2.1 / 5.1 / 7.1), not a reading of the engine's `channels`. The daemon keeps all eight slots regardless; the picker chooses which ones you are editing, and is client-side/persisted.
+- **Direct SDM grays the level column only.** It bypasses the volume control, so the trims do nothing — but the distances still apply, so the card stays live. (User correction: Direct SDM is "damn near the only setting that doesn't suppress" speakers.)
+- **Favicon follows the switcher** (🔊/🎧) instead of sniffing the active preset's name.
+- **Form lane, not restore-XML.** `/speakers` serves a complete form whose Apply button POSTs back to `/speakers` — same contract as `/config` and `/matrix`. Checkbox-safe (`enabled=1` or omitted; a raw `0`/`on` is persisted verbatim and wedges engine init), range-validated, idle-gated, and verified by readback past the ~3 s reload.
+
+Backend `c11b938`; frontend `store/dspmode.js`, `store/speakers.js`, `components/SpeakersCard.js`, `components/SpeakersDiagram.js`, `css/speakers.css`.
+
 ## Phase 5 — Behavior rules, presets, polish
 
 - **Behavior rules** (outline §5): mode-dependent graying, rate-aware shaper constraints with visible-but-disabled reasons, filter narrowing with empty-state, mode-switch coherence
