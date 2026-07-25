@@ -163,7 +163,12 @@ All knobs are environment variables (see `hqptuner/config.py`):
 
 ## Development
 
-Backend and frontend carry matching gate suites. Run `npm install` once alongside the venv — the JS tooling is dev-only and never ships.
+Backend and frontend carry matching gate suites. Run `npm install` once alongside the venv — the JS tooling is dev-only and never ships. Install the Python dev tools into the same venv, listed explicitly (the bracketed extras syntax can trip a permission hook):
+
+```sh
+.venv/bin/pip install pytest pytest-asyncio ruff black vulture mypy xenon pre-commit types-beautifulsoup4
+```
+
 
 * `make check` — everything below. Must be green before every commit.
 * `make lint` — Python: ruff, black, xenon complexity, vulture, strict mypy, file-length and test-assertion checks.

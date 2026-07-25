@@ -487,7 +487,8 @@ Dependency order: `P0 → P1 → P2 → P3 → P4 → P5 (gate) → P6 → P7 �
 parallelizable against P1 and P3.
 
 Every phase hands back with `make check` green plus PASS/FAIL per acceptance
-criterion. P7 additionally carries the binding visual protocol from `CLAUDE.md`:
+criterion. P7 additionally carries the binding visual protocol from
+`docs/design-system.md`:
 fresh headless-chromium screenshots at 1280 with measured DOM numbers, never
 eyeballed. Every phase with user-visible surface lands its `CHANGELOG.md` entry
 in the same commit.
