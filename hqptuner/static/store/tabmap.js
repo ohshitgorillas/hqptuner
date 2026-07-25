@@ -21,6 +21,8 @@ const TAB_KEYS = {
     "idle_time",
     "upnp_freewheel",
     "gain_comp",
+    "junk_filter",
+    "pre_before_meter",
     "dac_correction_enabled",
     "dac_correction_profile",
     "alsa_device",
@@ -69,7 +71,7 @@ const TAB_KEYS = {
     "fft_size",
     "direct_sdm",
   ]),
-  system: new Set(["log_enabled", "log_file", "pre_before_meter"]),
+  system: new Set(["log_enabled", "log_file"]),
 };
 
 function tabForKey(key) {
