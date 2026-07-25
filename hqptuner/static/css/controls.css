@@ -285,3 +285,9 @@ input[type="checkbox"]:disabled {
   padding: 0.25rem 0.7rem;
   font-size: var(--fs-label);
 }
+/* a blank name is refused in place (store/ask.js); the refusal says so rather
+   than leaving a Save click looking like it worked */
+.ask-refused {
+  color: var(--warn);
+  font-size: var(--fs-label);
+}

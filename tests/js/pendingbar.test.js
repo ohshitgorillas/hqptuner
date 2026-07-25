@@ -38,7 +38,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { PendingBar } from "../../hqptuner/static/components/PendingBar.js";
-import { askName, askConfirm, answer, cancel } from "../../hqptuner/static/store/ask.js";
+import { askName, askConfirm, answer, cancel, clearRefusal } from "../../hqptuner/static/store/ask.js";
 import {
   health,
   config,
@@ -338,6 +338,22 @@ test("test_a_blank_name_does_not_dismiss_the_question", async () => {
   askName("pending", NAME_Q);
   answer("   ");
   assert.ok(bar().includes(NAME_Q));
+});
+
+test("test_a_blank_name_says_why_it_was_refused", async () => {
+  // a Save click that commits nothing and says nothing reads as a save that worked
+  await reset();
+  askName("pending", NAME_Q);
+  answer("   ");
+  assert.ok(bar().includes("Enter a name first"));
+});
+
+test("test_typing_again_withdraws_the_refusal", async () => {
+  await reset();
+  askName("pending", NAME_Q);
+  answer("   ");
+  clearRefusal();
+  assert.equal(bar().includes("Enter a name first"), false);
 });
 
 test("test_a_named_answer_dismisses_the_question", async () => {
