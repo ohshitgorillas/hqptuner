@@ -31,12 +31,12 @@
 .mtx-read-row dd {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }
 .mtx-count {
   margin-left: var(--sp-2);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   color: var(--fg-2);
 }
 .mtx-flow {
@@ -53,7 +53,7 @@
 .mtx-flow-idx {
   width: 1.6rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
   text-align: right;
   margin-right: var(--sp-1);
@@ -67,7 +67,7 @@
   border-radius: 999px;
   background: var(--bg-3);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   white-space: nowrap;
 }
 .pchip-ch {
@@ -90,10 +90,10 @@
 }
 .pconn {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
 }
 .psum {
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
   border: 1px solid currentColor;
   border-radius: 3px;
   padding: 0 0.2rem;
@@ -135,7 +135,7 @@
   border-radius: 4px;
   background: var(--bg-3);
   color: var(--fg-2);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   padding: 0.15rem 0.45rem;
   cursor: pointer;
 }
@@ -155,7 +155,7 @@ select.mtx-ch {
   background: var(--bg-3);
   color: var(--chip-ch);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   padding: 0.2rem 0.55rem;
   cursor: pointer;
 }
@@ -168,7 +168,7 @@ select.mtx-ch {
   background: transparent;
   color: var(--fg);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   text-align: right;
 }
 .mtx-gain select {
@@ -176,7 +176,7 @@ select.mtx-ch {
   background: transparent;
   color: var(--fg-2);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   cursor: pointer;
 }
 .mtx-add-stage {
@@ -185,7 +185,7 @@ select.mtx-ch {
   background: transparent;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   padding: 0.2rem 0.55rem;
 }
 .mtx-add-stage:disabled {
@@ -215,7 +215,7 @@ select.mtx-ch {
   border-radius: 6px;
   background: transparent;
   color: var(--fg-2);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
   padding: 0.35rem 0.8rem;
   cursor: pointer;
 }
@@ -276,14 +276,14 @@ select.mtx-ch {
 }
 .mtx-arg span {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
   color: var(--fg-2);
 }
 .mtx-arg input,
 .mtx-arg select {
   width: 6rem;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
 }
 .mtx-arg-wide input {
   width: 26rem;
@@ -294,18 +294,18 @@ select.mtx-ch {
   gap: var(--sp-2);
   align-items: baseline;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
 }
 .mtx-editor-raw span {
   color: var(--fg-2);
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
 }
 .mtx-editor-raw code {
   color: var(--fg);
   word-break: break-all;
 }
 .mtx-issues {
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
   color: var(--amber);
   max-width: var(--measure);
 }
@@ -319,9 +319,9 @@ select.mtx-ch {
 .mtx-raw-input {
   width: 100%;
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
 }
 .mtx-upload input[type="file"] {
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   color: var(--fg-2);
 }

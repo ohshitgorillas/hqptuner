@@ -22,8 +22,8 @@
 }
 .segment .seg.active {
   background: var(--accent);
-  color: #08121c;
-  font-weight: 600;
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
 }
 /* schema `size: "lg"` — a control that selects an operating MODE rather than a
    value gets a segment 1.1x the standard one, so it carries a little more weight
@@ -32,7 +32,7 @@
    free-chosen pixels. */
 .field-lg .segment .seg {
   padding: 0.385rem 0.99rem;
-  font-size: 0.917rem;
+  font-size: var(--fs-body);
 }
 .segment .seg:disabled {
   opacity: 0.4;
@@ -47,7 +47,7 @@ input[type="text"] {
   border: 1px solid var(--line);
   border-radius: 0.35rem;
   padding: 0.3rem 0.5rem;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
 }
 select,
 input[type="text"] {
@@ -106,9 +106,9 @@ input[type="checkbox"]:checked::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #08121c;
-  font-size: 0.9rem;
-  font-weight: 700;
+  color: var(--on-accent);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
 }
 input[type="checkbox"]:disabled {
   opacity: 0.45;
@@ -216,7 +216,7 @@ input[type="checkbox"]:disabled {
   border: 1px solid var(--line);
   border-radius: 0.35rem;
   padding: 0.3rem 0.5rem;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
 }
 .slidernum-box input {
   flex: 1;
@@ -239,7 +239,7 @@ input[type="checkbox"]:disabled {
   width: var(--w-num);
   flex: none;
   margin-top: var(--sp-1);
-  font-size: 0.8em;
+  font-size: 0.8em; /* token-exempt: relative to the box above it — tracks that control, not the root */
   color: var(--muted);
   text-align: right;
 }
@@ -258,7 +258,7 @@ input[type="checkbox"]:disabled {
 }
 .playback-hint {
   margin-top: 0.6rem;
-  font-size: 0.82rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
 }
 
@@ -274,7 +274,7 @@ input[type="checkbox"]:disabled {
 }
 .ask-msg {
   color: var(--fg-2);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }
 /* the shared text-input rule is 28rem (a full-width form field); an inline
    chrome field takes the narrower name width instead */
@@ -283,5 +283,5 @@ input[type="checkbox"]:disabled {
 }
 .ask button {
   padding: 0.25rem 0.7rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }

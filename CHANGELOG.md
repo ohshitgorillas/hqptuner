@@ -24,7 +24,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **Pre-process before metering moved to the Output tab**, into **General** beside the high-frequency filter it is usually set for — the one option it decides the visibility of. It was alone in a **Metering** card of its own on the System tab, a card for a single checkbox. The System tab's **HQPTuner** preferences card takes that slot beside **About**, so the tab opens on identity and preferences rather than on a one-line card.
+- **Captions, notes and hints are one grey again.** Every explanatory line under a control set its own colour *and* its own opacity, and opacity multiplies a colour rather than replacing it — so the page carried five different effective greys for what is one kind of text. Field notes, descriptions, gray-out reasons, section notes, the alternate-name glosses, plot captions and the matrix library credits now share a single tier. The visible effect is small and goes both ways: the italic gray-out reasons and section notes come up slightly brighter, plot captions and library credits settle slightly dimmer, and everything else lands where it already looked. Group labels (the small uppercase ones over knob clusters and meters) likewise share one tier now, where the knob clusters had been a shade darker than the meters.
+
+- **Text sizes snapped to a scale.** The stylesheet had drifted to 24 different font sizes with no steps between them — 0.78rem and 0.8rem for the same kind of text, 0.9rem and 0.917rem for the same control. They collapse to a named ladder of twelve. No text moves by more than three quarters of a pixel; the point is that new text now has an obvious size to take instead of a plausible-looking one.
+
+- The preset **delete** button used an off-palette red found nowhere else; it takes the standard one.
+
+### Fixed
+
+- The **gray-out warning** boxes on the filter narrowing bar referenced a colour variable that was never defined, and had been drawing on their hardcoded fallback since they landed. The variable exists now, so they follow the palette like everything else., into **General** beside the high-frequency filter it is usually set for — the one option it decides the visibility of. It was alone in a **Metering** card of its own on the System tab, a card for a single checkbox. The System tab's **HQPTuner** preferences card takes that slot beside **About**, so the tab opens on identity and preferences rather than on a one-line card.
 
 - **Nothing is refused for being mid-playback any more.** Applying engine hardware settings, restoring a settings archive, applying speaker processing, and matrix profile Load / Save-as-new / Delete all used to answer *"daemon is not idle (stop playback first)"* and do nothing, because each one reloads or restarts the engine and so interrupts whatever is playing. Whether that interruption is worth it is the listener's call, not HQPTuner's: the cost is stated in each control's caption, and the click is now honoured whether or not music is playing.
 

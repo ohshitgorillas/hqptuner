@@ -65,7 +65,7 @@
   position: absolute;
   top: 58px;
   transform: translateX(-50%);
-  font-size: 0.72rem;
+  font-size: var(--fs-micro);
   color: var(--muted);
   white-space: nowrap;
   pointer-events: none;
@@ -126,7 +126,7 @@
   border-radius: 0.3rem;
   background: var(--bg-3);
   border: 1px solid var(--line);
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   color: var(--fg);
   white-space: nowrap;
   pointer-events: none;
@@ -206,12 +206,12 @@
 .knob-lg .knob-box {
   border-color: transparent;
   background: none;
-  font-size: 1.5rem;
+  font-size: var(--fs-readout);
   color: var(--fg);
   width: 5rem;
 }
 .knob-lg .knob-unit {
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }
 /* .playback is a .card; the body centers the knob group + notice vertically so
    the panel doesn't read as mostly empty space */
@@ -243,7 +243,7 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--bg-3);
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   color: var(--fg);
 }
 .playback-hint::before {
