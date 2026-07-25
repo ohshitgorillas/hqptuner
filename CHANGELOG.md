@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-07-25
+
 ### Fixed
 
 - The facet dropdowns in **Narrow filters** stayed open until their own button was clicked again — clicking the page, or another facet, left them hanging over the filter cards. A click anywhere outside a popover now retracts it, and opening one facet closes whichever was open.
