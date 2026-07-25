@@ -46,7 +46,7 @@ function describe(entry, key) {
 }
 
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
-// selected option's label (outline §2: enumerations are the sole authority for
+// selected option's label (architecture §2: enumerations are the sole authority for
 // names; static data joins by name).
 function selectedLabel(options, value) {
   const opt = (options || []).find((o) => String(o.value) === String(value));

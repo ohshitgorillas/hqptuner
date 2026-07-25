@@ -1,5 +1,5 @@
 {
-  "_comment": "Tooltip text for every control HQPTuner exposes (outline §4). Keys are stable HQPTuner control ids grouped by tab. 'source' cites where the prose comes from: manual §x (hqplayer6desktop-manual.pdf), readme §x (hqplayerd-readme.txt), or hqptuner (our own text for UI-native controls with no upstream prose).",
+  "_comment": "Tooltip text for every control HQPTuner exposes (architecture §4). Keys are stable HQPTuner control ids grouped by tab. 'source' cites where the prose comes from: manual §x (hqplayer6desktop-manual.pdf), readme §x (hqplayerd-readme.txt), or hqptuner (our own text for UI-native controls with no upstream prose).",
   "output": {
     "output_mode": {
       "label": "Output mode",
@@ -459,7 +459,7 @@
     }
   },
   "_unexposed_candidates": {
-    "_comment": "Settings with upstream prose that HQPTuner does not currently expose (outline §4). Kept for cheap future addition.",
+    "_comment": "Settings with upstream prose that HQPTuner does not currently expose (architecture §4). Kept for cheap future addition.",
     "volume_hw": {
       "tooltip": "Use hardware volume control (ALSA mixer element) together with the built-in digital volume control; volume_scaler (recommended 0.75) retains processing headroom.",
       "source": "readme §1.3 (volume_hw, volume_scaler)"

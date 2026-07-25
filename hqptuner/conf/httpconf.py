@@ -3,8 +3,8 @@
 GET /config under Digest auth returns the full persistent-settings form;
 parse_config_form() turns it into a settings model: every field with its
 current value and constraints, grouped by the form's own section/label
-structure. This is the sole persistent-config read path (roadmap §2.1
-decision — no direct hqplayerd.xml parsing).
+structure. This is the sole persistent-config read path — no direct
+hqplayerd.xml parsing (docs/architecture.md §2).
 """
 
 import re

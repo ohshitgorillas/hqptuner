@@ -1,5 +1,5 @@
 // Control catalog — the single map tying a UI control key to its wire truth.
-// This is the glue between outline §4 controls and the two integration lanes.
+// This is the glue between architecture §4 controls and the two integration lanes.
 //
 // Per entry:
 //   label        UI label (explicit; http fields don't live in settings.json)
@@ -13,15 +13,15 @@
 //   optionsFrom  dropdown source: live enum ('filters'|'shapers'|'rates'|'modes')
 //                or 'config' (the form field's own <option> set)
 //   grayWhen     optional fn(ctx) -> reason string | ''; ctx.effective(key) reads
-//                the *staged* value, so graying reacts before Apply (outline §5)
+//                the *staged* value, so graying reacts before Apply (architecture §5)
 //   quietGray    suppress the visible gray caption (hover title only) — for
 //                controls whose graying is already explained by context (the
 //                rate pair, dimmed post-process card bodies)
 //
-// Output is the full outline §4 set. DSP/Volume/System still carry the step-1
+// Output is the full architecture §4 set. DSP/Volume/System still carry the step-1
 // subset — filled next, tab by tab.
 //
-// Mode graying uses the live mode index (outline §5: 0=[source]/Auto, 1=PCM,
+// Mode graying uses the live mode index (architecture §5: 0=[source]/Auto, 1=PCM,
 // 2=SDM). auto_family/samplerate/bitrate are forced by the apply layer, not
 // exposed here (friendly rate always assumes auto-family follow).
 

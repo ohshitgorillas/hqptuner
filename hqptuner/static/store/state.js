@@ -7,7 +7,7 @@
 //   staged  — server-side pending buffer ({live, http}); the client mirrors it
 //
 // Live changes are never persisted, so engine and config can disagree for the
-// same setting — that divergence is why these are separate trees (outline §2).
+// same setting — that divergence is why these are separate trees (architecture §2).
 
 import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";

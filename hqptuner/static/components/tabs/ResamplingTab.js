@@ -46,7 +46,7 @@ effect(() => {
 // baseline comes from the daemon's own /config form, and the form's option
 // values are enum ids, not list positions. (The live 4321 lane is the one that
 // speaks list indices; the two domains must never be mixed, protocol.md §4.)
-// Either way the number is volatile across engine versions (outline §2), so
+// Either way the number is volatile across engine versions (architecture §2), so
 // match on the option's name and never on the number.
 const FILTER_CONTROLS = [
   ["pcm_filter_1x", "filter1x"],

@@ -77,7 +77,7 @@ class EngineBody(BaseModel):
 
 class PendingStore:
     """Server-side staged-changes buffer. Survives browser reloads because it
-    lives on the backend, not the client (roadmap Phase 3)."""
+    lives on the backend, not the client."""
 
     def __init__(self) -> None:
         self.live: dict[str, dict[str, str]] = {}

@@ -187,7 +187,7 @@ class ConnectionManager:
         if client is None:
             raise ControlError("not connected")
         state = await client.get_state()
-        # mode switch swaps the enumeration lists wholesale (outline §5) —
+        # mode switch swaps the enumeration lists wholesale (architecture §5) —
         # re-enumerate rather than serve stale lists
         if self.state is not None and state.get("mode") != self.state.get("mode"):
             log.info("mode changed (%s -> %s), re-enumerating", self.state.get("mode"), state.get("mode"))

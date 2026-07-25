@@ -44,7 +44,7 @@ HttpMgr = Annotated[ConnectionManager, Depends(_http_manager)]
 
 def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
     """Serve last-loaded state, flagged stale when the daemon is unreachable —
-    never a socket wait (roadmap 2.2 fail-fast rule)."""
+    never a socket wait (connection-manager fail-fast rule)."""
     if data is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
     return {"stale": not manager.reachable, "loaded_at": manager.loaded_at, "data": data}

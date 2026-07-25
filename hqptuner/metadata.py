@@ -1,7 +1,7 @@
 """Static metadata (data/*.json) and its merge with live engine enumerations.
 
 Join is by name only — the running engine is the sole authority for names,
-IDs, ordering, and structural facets (outline §2 enumeration volatility).
+IDs, ordering, and structural facets (architecture §2 enumeration volatility).
 Filter join rules match data/validate.py: exact -> alias -> strip '-2s'.
 """
 
