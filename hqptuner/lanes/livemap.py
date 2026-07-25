@@ -65,6 +65,14 @@ ROUTABLE: dict[str, LiveField] = {
 # active device can't do DSD), so positions are not stable.
 _MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
 
+# Live-lane fields the FRONTEND stages directly (schema `lane: "live"`), so they
+# never pass through `split_live` and are absent from ROUTABLE — but they make
+# the config file just as stale, and a save that ignores them stores a setting
+# the user is not hearing. Config-form field -> the State attribute carrying it.
+# No enumeration in between: both sides are the same 0/1 flag, so the value is
+# the value (`adaptive_volume` <-> `<engine volume_adaptive>`).
+DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
+
 
 # --- save side: live state expressed back as config-form fields ---------------
 # A live-routed edit never touched the config file, so the file is stale the
@@ -120,6 +128,10 @@ def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
         value = _override_for(mgr, field, state)
         if value is not None:
             overrides[field] = value
+    for field, attr in DIRECT.items():
+        direct = state.get(attr)
+        if direct is not None:
+            overrides[field] = direct
     return overrides
 
 

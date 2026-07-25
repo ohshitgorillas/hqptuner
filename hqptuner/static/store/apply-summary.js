@@ -27,7 +27,12 @@ function persistentFailure(p) {
   const nd = p.unfixable && p.unfixable.net_device;
   if (nd) return failure(`Endpoint "${nd.want}" not present — config not applied`);
   if (p.error) return failure(`Config not applied: ${p.error}`);
-  return failure(`Config not applied (${p.reason || "unconfirmed"})`);
+  // Name the fields that didn't converge. "unconverged" alone is undebuggable —
+  // it says a setting the daemon kept refusing exists, but not which one, and
+  // the user is the only one who can see their own config.
+  const fields = Object.keys(p.diff || {});
+  const which = fields.length ? `: ${fields.join(", ")}` : "";
+  return failure(`Config not applied (${p.reason || "unconfirmed"})${which}`);
 }
 
 // What went right, before the save lane is appended.

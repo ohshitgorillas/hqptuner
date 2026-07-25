@@ -301,6 +301,11 @@ function applyFixedVolumeCoupling(key, value, http) {
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
+  // The last apply's verdict is about the set the user just changed, so it stops
+  // being true here. The pending bar shows a FAILED verdict alongside the staged
+  // count (a failed apply keeps its staging), and a stale one sitting next to a
+  // fresh edit would read as this edit having failed before it was ever sent.
+  lastApply.value = null;
   const body = { live: {}, http: {} };
   if (e.lane === "live") {
     const prior = staged.value.live[e.liveKey] || {};

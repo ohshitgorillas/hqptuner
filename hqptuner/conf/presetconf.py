@@ -40,6 +40,14 @@ from .matrixconf import (
     replace_pipelines,
     write_profile,
 )
+from .xmledit import (
+    edit_element,
+    edit_plugin,
+    find_element,
+    find_plugin,
+    get_attr,
+    open_tag_re,
+)
 
 __all__ = ["MATRIX_PIPELINES", "GroundingError"]  # re-exported for existing importers
 
@@ -147,101 +155,20 @@ FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
-# Two axes — element vs plugin, read vs write — are four operations built from
-# two locators and two attribute primitives, not four hand-written regex pairs.
-# The open-tag and attribute patterns are spelled ONCE: retyping
-# rb"<TAG\b[^>]*?/?>" per function is how one copy quietly stops matching a
-# self-closing tag while its siblings still do.
-
-
-def _open_tag_re(tag_name: str) -> re.Pattern[bytes]:
-    """Matches an element's open tag, self-closing or not."""
-    return re.compile(rb"<" + re.escape(tag_name.encode()) + rb"\b[^>]*?/?>")
-
-
-def _attr_re(attr: str) -> re.Pattern[bytes]:
-    """Matches ``attr="value"`` within an open tag, capturing the value."""
-    return re.compile(rb"\b" + re.escape(attr.encode()) + rb'="([^"]*)"')
-
-
-def _find_element(xml: bytes, tag_name: str) -> re.Match[bytes] | None:
-    """The single ``<tag_name ...>`` open tag."""
-    return _open_tag_re(tag_name).search(xml)
-
-
-def _find_plugin(xml: bytes, plugin_type: str) -> re.Match[bytes] | None:
-    """The ``<plugin type="plugin_type" ...>`` open tag inside ``<post_process>``
-    (there are several plugins; match by type)."""
-    needle = f'type="{plugin_type}"'.encode()
-    return next((m for m in _open_tag_re("plugin").finditer(xml) if needle in m.group(0)), None)
-
-
-def _get_attr(tag: bytes, attr: str) -> str | None:
-    """Read ``attr`` off an element's open-tag bytes; None when absent."""
-    m = _attr_re(attr).search(tag)
-    return m.group(1).decode() if m else None
-
-
-def _set_attr(tag: bytes, attr: str, value: str) -> bytes:
-    """Set ``attr="value"`` on an element's open-tag bytes — replacing in place
-    when present, inserting right after the tag name otherwise. Byte-faithful:
-    nothing else in the tag moves."""
-    replacement = f'{attr}="{value}"'.encode()
-    pat = _attr_re(attr)
-    if pat.search(tag):
-        # a function replacement, never the bytes directly: re.sub reads escapes
-        # (\1, \g<n>, \\) out of a template, and a config value legitimately
-        # carries backslashes — a Windows-style log path would be corrupted or
-        # raise "bad escape" mid-apply
-        return pat.sub(lambda _: replacement, tag, count=1)
-    name = re.match(rb"<[\w:.-]+", tag)
-    if name is None:  # not an open tag — unreachable for the tags we match
-        raise GroundingError("malformed element tag")
-    cut = name.end()
-    return tag[:cut] + b" " + replacement + tag[cut:]
-
-
-def _splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
-    """Replace the matched open tag with ``tag``; every other byte preserved."""
-    return xml[: at.start()] + tag + xml[at.end() :]
-
-
-def _edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the single ``<tag_name ...>`` element."""
-    m = _find_element(xml, tag_name)
-    if m is None:
-        raise GroundingError(f"<{tag_name}> element absent from this snapshot")
-    return _splice(xml, m, _set_attr(m.group(0), attr, value))
-
-
-def _edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``."""
-    m = _find_plugin(xml, plugin_type)
-    if m is None:
-        raise GroundingError(f'<plugin type="{plugin_type}"> absent from this snapshot')
-    return _splice(xml, m, _set_attr(m.group(0), attr, value))
-
-
-def _in_comment(xml: bytes, pos: int) -> bool:
-    """True when byte offset ``pos`` sits inside an XML ``<!-- -->`` comment."""
-    return xml.rfind(b"<!--", 0, pos) > xml.rfind(b"-->", 0, pos)
-
-
 def _find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
-    """The single uncommented ``<fixed .../>`` element, or None. A commented
-    ``<!--<fixed .../>-->`` (the daemon parks the remembered level there when the
-    feature is off) is deliberately ignored."""
-    return next((m for m in _open_tag_re("fixed").finditer(xml) if not _in_comment(xml, m.start())), None)
+    """The live ``<fixed .../>`` element, or None — the daemon parks the
+    remembered level in a commented one when the feature is off."""
+    return find_element(xml, "fixed")
 
 
 def _fixed_level_of(tag: bytes) -> str | None:
-    return _get_attr(tag, "volume")
+    return get_attr(tag, "volume")
 
 
 def _remembered_level(xml: bytes) -> str:
     """Last-known fixed-volume level — the active element, else a commented one
     (the daemon's memory when off), else 0 dBFS."""
-    for m in _open_tag_re("fixed").finditer(xml):
+    for m in open_tag_re("fixed").finditer(xml):
         lvl = _fixed_level_of(m.group(0))
         if lvl is not None:
             return lvl
@@ -303,21 +230,21 @@ def _enable_matrix(xml: bytes) -> bytes:
     """Switch ``<matrix enabled="1">`` on. A no-op when the snapshot carries no
     ``<matrix>`` element — this is a coherence step taken on the user's behalf, so
     it must never abort the edit they actually asked for."""
-    if _find_element(xml, "matrix") is None:
+    if find_element(xml, "matrix") is None:
         return xml
-    return _edit_element(xml, "matrix", "enabled", "1")
+    return edit_element(xml, "matrix", "enabled", "1")
 
 
 def _apply_one(xml: bytes, field: str, value: str) -> bytes:
     """Route one staged edit to its grounded XML location."""
     if field == NET_DEVICE:
         address, _, device = value.partition("/")
-        xml = _edit_element(xml, "network", "address", address)
-        return _edit_element(xml, "network", "device", device)
+        xml = edit_element(xml, "network", "address", address)
+        return edit_element(xml, "network", "device", device)
     if field in PLUGIN_MAP:
-        return _edit_plugin(xml, *PLUGIN_MAP[field], value)
+        return edit_plugin(xml, *PLUGIN_MAP[field], value)
     if field in FIELD_MAP:
-        return _edit_element(xml, *FIELD_MAP[field], value)
+        return edit_element(xml, *FIELD_MAP[field], value)
     raise GroundingError(f"unknown config field: {field!r}")
 
 
@@ -358,13 +285,13 @@ def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
 
 
 def _read_attr(xml: bytes, tag_name: str, attr: str) -> str | None:
-    m = _find_element(xml, tag_name)
-    return _get_attr(m.group(0), attr) if m is not None else None
+    m = find_element(xml, tag_name)
+    return get_attr(m.group(0), attr) if m is not None else None
 
 
 def _read_plugin_attr(xml: bytes, plugin_type: str, attr: str) -> str | None:
-    m = _find_plugin(xml, plugin_type)
-    return _get_attr(m.group(0), attr) if m is not None else None
+    m = find_plugin(xml, plugin_type)
+    return get_attr(m.group(0), attr) if m is not None else None
 
 
 def read_config(xml: bytes) -> dict[str, str]:

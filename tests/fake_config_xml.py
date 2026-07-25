@@ -1,0 +1,245 @@
+"""The config XML half of the fake hqplayerd: render and adopt.
+
+Split out of ``fake_http`` when that file passed the 500-line gate. The seam is
+real, not arbitrary: this module owns the *file* the daemon keeps (what GET
+/backup carries, what POST /restore adopts), while ``fake_http`` owns the HTTP
+surface around it. The schema here is authored against 6.0.4 INDEPENDENTLY of
+``presetconf``, so a wrong form->XML mapping in the writer surfaces as a failed
+readback rather than a self-confirming round-trip.
+"""
+
+import re
+from typing import Any
+
+
+def _b(v: Any) -> str:
+    return "1" if v in (True, "1", 1) else "0"
+
+
+def cfg_xml(st: dict[str, Any]) -> bytes:
+    """The working hqplayerd.xml a /backup would carry, rendered from state."""
+    net_addr, _, net_dev = st["net_device"].partition("/")
+    # fixed volume: the element exists only while the feature is on, and the
+    # daemon parks the remembered level in a COMMENT while it is off — modelled
+    # because a locator that ignores comments would read the parked level as live
+    fixed = f'<fixed volume="{st["fixed_level"]}"/>' if st["fixed_level"] is not None else "<!--<fixed/>-->"
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<hqplayerd>'
+        f"{fixed}"
+        f'<output type="{st["backend"]}"/>'
+        f'<title value="{st["title"]}"/>'
+        '<mode value="sdm"/>'
+        f'<pcm filter="{st["filter"]}" filter1x="47" dither="3" samplerate="{st["samplerate"]}"/>'
+        f'<sdm oversampling="41" oversampling1x="42" modulator="12" bitrate="{st["bitrate"]}"/>'
+        '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
+        # volume_fixed's XML domain is 0/1/2 (off / -3 dB / -6 dB) while the /config
+        # form below renders it as a plain checkbox — the daemon's own lossy render,
+        # modelled so the file-truth read path is genuinely exercised.
+        f'<engine auto_family="{_b(st["auto_family"])}" channels="{st["channels"]}" '
+        f'volume_fixed="{st["volume_fixed"]}" cuda_dev="{st["cuda_dev"]}" '
+        f'volume_max="{st["volume_max"]}" volume_min="{st["volume_min"]}" '
+        f'volume_adaptive="{st["volume_adaptive"]}" '
+        f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}">'
+        f'<defaults samplerate="192000" bitrate="24576000" volume="{st["defaults_volume"]}"/>'
+        f'<network address="{net_addr}" device="{net_dev}" ipv6="{_b(st["net_ipv6"])}" '
+        'dac_bits="15" period_time="0"/>'
+        '<alsa device="hw:CARD=NVidia,DEV=3" dac_bits="24" period_time="100"/>'
+        # <post_process> nests INSIDE <matrix>, exactly as 6.0.4 writes it (readme
+        # §1.11 / §1.11.2). The matrix switch gates the whole plugin chain, so a
+        # writer that enables a plugin without enabling the matrix produces an inert
+        # config — modelled here so that failure surfaces in tests, not in a listening
+        # room. Default OFF: the real-world preset that exposed this had matrix="0".
+        # saved profiles are siblings of <matrix> and precede it, as 6.0.4 writes them
+        + _render_profiles(st) + f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="{st["matrix_engine"]}" '
+        f'expand_hf="{st["matrix_expand_hf"]}" iir2fir="{st["matrix_iir2fir"]}">'
+        # pipeline rows render verbatim from adopted attr strings (incl. any "L"
+        # gain prefix or entity escapes) — the fake never interprets them, so a
+        # writer bug can't be laundered by a matching fake-side transform
+        + "".join(
+            f'<pipeline channel="{i}" gain="{p["gain"]}" mixdown="{p["mixdown"]}" '
+            f'process="{p["process"]}" source="{p["source"]}"/>'
+            for i, p in enumerate(st["_pipelines"])
+        )
+        + "<post_process>"
+        '<plugin type="correction" enabled="0" dac0=""/>'
+        f'<plugin type="bauer" enabled="{_b(st["post_bauer_enabled"])}" '
+        f'frequency="{st["post_bauer_frequency"]}" preset="default" level="4.5"/>'
+        f'<plugin type="loudness" enabled="{_b(st["post_loudness_enabled"])}" '
+        f'low_frequency="{st["post_loudness_lowfreq"]}" low_level="20" low_steepness="0.5" low_type="lshelf" '
+        'high_frequency="5000" high_level="10" high_steepness="1.0" high_type="hshelf" '
+        'range_low="-60" range_high="-20"/>'
+        "</post_process>"
+        "</matrix>"
+        "</engine>"
+        "</hqplayerd>"
+    ).encode()
+
+
+def elem_attr(xml: bytes, tag: str, attr: str) -> str | None:
+    m = re.search(rb"<" + tag.encode() + rb"\b[^>]*?>", xml)
+    if not m:
+        return None
+    a = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', m.group(0))
+    return a.group(1).decode() if a else None
+
+
+def _adopt_net_device(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the uploaded net_device only when it is an endpoint the daemon can
+    bind; a device outside the offered set is refused (endpoint gone), which no
+    restart conjures back — the unfixable-divergence case."""
+    addr = elem_attr(xml, "network", "address")
+    dev = elem_attr(xml, "network", "device")
+    if addr is not None and dev is not None and f"{addr}/{dev}" in st["_net_endpoints"]:
+        st["net_device"] = f"{addr}/{dev}"
+
+
+def _adopt_matrix(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the uploaded ``<matrix enabled>`` — the carrier switch for the whole
+    post-process chain. Read independently of presetconf."""
+    enabled = elem_attr(xml, "matrix", "enabled")
+    if enabled is not None:
+        st["matrix_enabled"] = enabled == "1"
+    for key, attr in (("matrix_engine", "engine"), ("matrix_expand_hf", "expand_hf"), ("matrix_iir2fir", "iir2fir")):
+        v = elem_attr(xml, "matrix", attr)
+        if v is not None:
+            st[key] = v
+    _adopt_pipelines(st, xml)
+    _adopt_profiles(st, xml)
+
+
+def _adopt_profiles(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the ``<matrix_profile>`` elements of an uploaded config — the daemon
+    re-reading the saved profiles from its config file, which is the only way it
+    ever learns one (its own /matrix/save keeps them in memory, round 5). Rows are
+    kept as raw attribute strings, like the live table, so the next /backup serves
+    back exactly what the writer produced."""
+    st["_profiles"] = {
+        m.group(1).decode(): [
+            {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
+            for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(2))
+        ]
+        for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.S)
+    }
+
+
+def _render_profiles(st: dict[str, Any]) -> str:
+    """The saved profiles as the daemon writes them: siblings of ``<matrix>``,
+    ahead of it, each holding its own pipeline rows."""
+    return "".join(
+        f'<matrix_profile name="{name}">'
+        + "".join(
+            f'<pipeline channel="{i}" gain="{p["gain"]}" mixdown="{p["mixdown"]}" '
+            f'process="{p["process"]}" source="{p["source"]}"/>'
+            for i, p in enumerate(rows)
+        )
+        + "</matrix_profile>"
+        for name, rows in st["_profiles"].items()
+    )
+
+
+def _adopt_pipelines(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the ``<pipeline>`` rows inside ``<matrix>`` as raw attribute strings
+    — no interpretation, so the next /backup serves back exactly what the writer
+    produced (and only what it produced)."""
+    m = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.S)
+    if m is None:
+        return
+    rows = [
+        {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
+        for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(1))
+    ]
+    if rows:
+        st["_pipelines"] = rows
+
+
+def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt post_process plugin attrs from an uploaded config — the daemon
+    re-reading its <plugin> nodes. Reads by XML attribute name (low_frequency,
+    frequency, ...) independently of presetconf, so a wrong form->XML mapping in
+    the writer surfaces here as a value that never lands."""
+    for m in re.finditer(rb"<plugin\b[^>]*?>", xml):
+        tag = m.group(0)
+        if b'type="bauer"' in tag:
+            freq = re.search(rb'\bfrequency="([^"]*)"', tag)
+            enabled = re.search(rb'\benabled="([^"]*)"', tag)
+            if freq:
+                st["post_bauer_frequency"] = freq.group(1).decode()
+            if enabled:
+                st["post_bauer_enabled"] = enabled.group(1) == b"1"
+        elif b'type="loudness"' in tag:
+            lowfreq = re.search(rb'\blow_frequency="([^"]*)"', tag)
+            enabled = re.search(rb'\benabled="([^"]*)"', tag)
+            if lowfreq:
+                st["post_loudness_lowfreq"] = lowfreq.group(1).decode()
+            if enabled:
+                st["post_loudness_enabled"] = enabled.group(1) == b"1"
+
+
+def _adopt_fixed(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the top-level ``<fixed volume=…/>``: present = fixed volume on, at
+    that level; absent = off. A commented element is the daemon's own parked
+    memory and is not live, so it must not be adopted."""
+    live = next((m for m in re.finditer(rb"<fixed\b[^>]*?/?>", xml) if not _commented(xml, m.start())), None)
+    if live is None:
+        st["fixed_level"] = None
+        return
+    level = re.search(rb'\bvolume="([^"]*)"', live.group(0))
+    st["fixed_level"] = level.group(1).decode() if level else "0"
+
+
+def _commented(xml: bytes, pos: int) -> bool:
+    return xml.rfind(b"<!--", 0, pos) > xml.rfind(b"-->", 0, pos)
+
+
+def _clamp_startup_volume(st: dict[str, Any]) -> None:
+    """A daemon that rewrites a setting on its own, on ``_clamps`` state.
+
+    The startup volume has to sit inside the volume range, so a daemon may pull
+    it up to the minimum when it re-reads the config — writing back a value
+    nobody uploaded. Modelled because that is the shape of divergence an apply
+    must NOT be held to: the field is untouched by the apply, so demanding it
+    match would fail every apply on this machine forever."""
+    if not st.get("_clamps"):
+        return
+    if float(st["defaults_volume"]) < float(st["volume_min"]):
+        st["defaults_volume"] = st["volume_min"]
+
+
+def adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
+    """Update state from an uploaded working hqplayerd.xml — the daemon re-reading
+    its config on restore. Reads the schema independently of the writer."""
+
+    def take(key: str, tag: str, attr: str) -> None:
+        v = elem_attr(xml, tag, attr)
+        if v is not None:
+            st[key] = v
+
+    for key, tag, attr in (
+        ("backend", "output", "type"),
+        ("title", "title", "value"),
+        ("filter", "pcm", "filter"),
+        ("samplerate", "pcm", "samplerate"),
+        ("bitrate", "sdm", "bitrate"),
+        ("channels", "engine", "channels"),
+        ("cuda", "engine", "cuda"),
+        ("cuda_dev", "engine", "cuda_dev"),
+        ("multicore", "engine", "multicore"),
+        ("nblocks", "engine", "nblocks"),
+        ("volume_fixed", "engine", "volume_fixed"),
+        ("volume_max", "engine", "volume_max"),
+        ("volume_min", "engine", "volume_min"),
+        ("volume_adaptive", "engine", "volume_adaptive"),
+        ("defaults_volume", "defaults", "volume"),
+    ):
+        take(key, tag, attr)
+    _adopt_fixed(st, xml)
+    _clamp_startup_volume(st)
+    af = elem_attr(xml, "engine", "auto_family")
+    if af is not None:
+        st["auto_family"] = af == "1"
+    ipv6 = elem_attr(xml, "network", "ipv6")
+    if ipv6 is not None:
+        st["net_ipv6"] = ipv6 == "1"
+    _adopt_net_device(st, xml)
+    _adopt_matrix(st, xml)
+    _adopt_plugins(st, xml)

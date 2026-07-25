@@ -18,18 +18,26 @@ each other. See ``presetconf.restore_zip_from_running``.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from ..conf import engineconf, presetconf
+from ..conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX_PROFILES
 from . import settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
 
+log = logging.getLogger(__name__)
+
 RECONNECT_FAST = 1.0
 _PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable divergence
+
+# A staged edit whose readback lives under a DIFFERENT key: the profile verbs are
+# write-only commands, and what proves one landed is the profile list they edit.
+_PROVEN_BY = {MATRIX_PROFILE_SAVE: MATRIX_PROFILES, MATRIX_PROFILE_DELETE: MATRIX_PROFILES}
 
 # Fields HQPTuner pins on every config write so the friendly-rate UI holds: the
 # per-family Rate dropdown sets a ceiling (defaults_samplerate/defaults_bitrate)
@@ -38,9 +46,24 @@ _PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable dive
 FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
 
 
-def config_diff(intended: dict[str, str], realized: dict[str, str]) -> dict[str, dict[str, str | None]]:
+def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
+    """The fields this apply is entitled to hold itself to: the ones it actually
+    wrote, plus the readback key a write-only verb is proven by.
+
+    NOT the whole grounded surface. ``intended`` is the entire running config with
+    the edits folded in, so diffing all of it demands that every untouched setting
+    survive a daemon restart byte-identically — one field the daemon normalizes on
+    its own (or one this build serializes differently than it parses) then wedges
+    EVERY apply, forever, on a config the user cannot see is at fault. Applies are
+    incremental against the running config (``restore_zip_from_running``), so the
+    edits are the contract; the rest of the file is not this apply's business."""
+    keys = {k for k in merged if k in intended}
+    return keys | {_PROVEN_BY[k] for k in merged if k in _PROVEN_BY}
+
+
+def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[str]) -> dict[str, dict[str, str | None]]:
     """Fields where the running config didn't match what the apply intended."""
-    return {k: {"want": v, "got": realized.get(k)} for k, v in intended.items() if realized.get(k) != v}
+    return {k: {"want": intended.get(k), "got": realized.get(k)} for k in keys if realized.get(k) != intended.get(k)}
 
 
 async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]:
@@ -89,9 +112,13 @@ async def _one_pass(
     except httpx.HTTPError as exc:
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
         return None, {}, str(exc)
-    diff = config_diff(intended, await verify(mgr, intended))
+    keys = verified_keys(merged, intended)
+    diff = config_diff(intended, await verify(mgr, intended, keys), keys)
     if not diff:
         return {"submitted": True, "applied": True, "attempts": attempt + 1, "active": mgr.active_config}, {}, None
+    # the diff is the whole diagnosis of an unconverged apply, and the UI has room
+    # for field names but not for want/got pairs — so it goes to the log too
+    log.warning("apply pass %d did not converge: %s", attempt + 1, diff)
     unfixable = await _unfixable_device(mgr, diff)
     if unfixable:
         final = {"submitted": True, "applied": False, "reason": "unavailable", "unfixable": unfixable, "diff": diff}
@@ -113,11 +140,12 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     return presetconf.read_config(intended_xml)
 
 
-async def verify(mgr: ConnectionManager, intended: dict[str, str]) -> dict[str, str]:
+async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
     """Poll a fresh /backup until the running config reflects every intended
-    field, or the alarm deadline passes. Returns the last realized config (read
-    from the backup's base hqplayerd.xml) so the caller can diff it — the
-    unconverged read is the diff, so it is kept even when the poll gives up."""
+    field this apply wrote (``keys``), or the alarm deadline passes. Returns the
+    last realized config (read from the backup's base hqplayerd.xml) so the caller
+    can diff it — the unconverged read is the diff, so it is kept even when the
+    poll gives up."""
     realized: dict[str, str] = {}
 
     async def probe() -> dict[str, str] | None:
@@ -127,7 +155,7 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str]) -> dict[str, 
             return None
         realized = presetconf.read_config(engineconf.base_config_xml(fresh))
         mgr.file_config = realized  # fresh file truth for the lossy-form fields
-        converged = all(realized.get(key) == want for key, want in intended.items())
+        converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None
 
     # the restore just restarted the daemon: nothing has landed yet, so spend the
