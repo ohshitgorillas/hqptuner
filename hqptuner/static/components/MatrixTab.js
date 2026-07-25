@@ -21,6 +21,7 @@ import { setSelected } from "./MatrixStageEditor.js";
 import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
 import { dspMode, setDspMode } from "../store/dspmode.js";
+import { structuralBlock } from "../lib/xfmode.js";
 
 const pipelinesCardOpen = signal(true);
 
@@ -75,6 +76,7 @@ function doImport(rows, targetIndex, replace = false) {
     mirror: importMirror.value,
     block: rec,
     bauer: bs,
+    structural: structuralBlock(rows),
   });
   importNote.value = plan.note;
   if (!plan.rows) return;

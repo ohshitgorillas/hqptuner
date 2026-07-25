@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 
 import { parseEqText, planEqImport } from "../../hqptuner/static/lib/eqimport.js";
 import { msCompile, msRecognize, fitComp } from "../../hqptuner/static/lib/xfeed.js";
+import { compileRows, recognizeRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
 
 // One filter and a preamp — the smallest complete AutoEq profile.
 const EQ = "Preamp: -6.4 dB\nFilter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41";
@@ -243,4 +244,67 @@ test("test_a_target_outside_a_recognized_block_takes_the_plain_pipeline_path", a
 test("test_a_target_inside_a_recognized_block_keeps_the_blocks_linear_gains", async () => {
   const rows = [...block("", 0), ROW({ source: "2", mixdown: "2" })];
   assert.equal(intoBlock(rows, 2, {}).rows[2].gainunit, "Lin");
+});
+
+// --- recognized structural block ---------------------------------------------
+// Sixteen rows with the same ownership rule as the eight above, and the same
+// failure if it is ignored: an import onto one of its rows stops the block being
+// a block, and the profile ends up on two rows out of sixteen.
+
+const structural = (eq, preampDb = 0) =>
+  compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb, eqProcess: eq });
+
+const intoStructural = (rows, targetIndex, patch) =>
+  planEqImport(rows, targetIndex, opts({ structural: recognizeRows(rows, 0), ...patch }));
+
+const earEq = (rows, side = "left") => recognizeRows(rows, 0).eqProcess[side];
+
+test("test_an_import_into_a_structural_block_keeps_its_sixteen_rows", async () => {
+  assert.equal(intoStructural(structural(""), 0, {}).rows.length, 16);
+});
+
+test("test_an_import_into_a_structural_block_stays_recognizable", async () => {
+  assert.ok(recognizeRows(intoStructural(structural(""), 0, {}).rows, 0) !== null);
+});
+
+test("test_an_import_into_a_structural_block_lands_in_its_ear_chains", async () => {
+  assert.equal(earEq(intoStructural(structural(""), 0, {}).rows), ADDED);
+});
+
+test("test_an_import_into_a_structural_block_reaches_both_ears", async () => {
+  assert.equal(earEq(intoStructural(structural(""), 0, {}).rows, "right"), ADDED);
+});
+
+test("test_an_import_into_a_structural_block_appends_to_its_existing_eq", async () => {
+  const rows = intoStructural(structural("iir:type=peak;f=50;q=1;g=1"), 0, {}).rows;
+  assert.equal(earEq(rows), `iir:type=peak;f=50;q=1;g=1,${ADDED}`);
+});
+
+test("test_replacing_into_a_structural_block_drops_its_previous_eq", async () => {
+  const rows = intoStructural(structural("iir:type=peak;f=50;q=1;g=1"), 0, { replace: true }).rows;
+  assert.equal(earEq(rows), ADDED);
+});
+
+test("test_a_preamp_is_folded_into_the_structural_blocks_gains", async () => {
+  const rows = intoStructural(structural(""), 0, {}).rows;
+  assert.ok(Math.abs(recognizeRows(rows, 0).preampDb.left - -6.4) < 0.001);
+});
+
+test("test_a_structural_import_without_a_preamp_keeps_the_blocks_own", async () => {
+  const rows = intoStructural(structural("", -3), 0, { text: EQ_NO_PREAMP }).rows;
+  assert.ok(Math.abs(recognizeRows(rows, 0).preampDb.left - -3) < 0.001);
+});
+
+test("test_a_target_inside_a_structural_block_keeps_the_blocks_linear_gains", async () => {
+  const rows = [...structural(""), ROW({ source: "2", mixdown: "2" })];
+  assert.equal(intoStructural(rows, 2, {}).rows[2].gainunit, "Lin");
+});
+
+test("test_a_target_outside_a_structural_block_takes_the_plain_pipeline_path", async () => {
+  const rows = [...structural(""), ROW({ source: "2", mixdown: "2" })];
+  assert.equal(intoStructural(rows, 16, {}).rows[16].process, ADDED);
+});
+
+test("test_the_structural_note_names_the_block", async () => {
+  assert.ok(intoStructural(structural(""), 0, {}).note.includes("structural crossfeed block (pipelines 1–16)"));
 });

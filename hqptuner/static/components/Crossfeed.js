@@ -5,19 +5,22 @@
 // (docs/crossfeed-math.md). They are mutually exclusive by construction: the
 // matrix runs before post-process, so both at once is two crossfeeds in series.
 //
-// The toggle is a STAGED DSP swap, not a view switch. Selecting a mode stages
-// the rows and the settings that mode needs, exactly like any other edit — the
-// pending bar counts it, Discard undoes it, nothing reaches the daemon until
-// Apply. Mode is derived from the rows rather than stored, so what the toggle
-// shows is always what is actually installed.
+// The toggle is a VIEW selector that disables what it leaves. Selecting a mode
+// switches off the other one — the block, or the post-process flag and its
+// compensation rows — and turns NOTHING on: arriving at a view is a request to
+// see its controls, not to have its processing switched on behind the user's
+// back. Turning either implementation on is a button in its own half of the card.
+// The disable stages like any other edit: the pending bar counts it, Discard
+// undoes it, nothing reaches the daemon until Apply.
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
 import { Field } from "./Field.js";
-import { effective, effectivePipelines, edit } from "../store/state.js";
+import { effective, effectivePipelines } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { pathParams, midSideResponse, magDb, PRESETS, matchPreset } from "../lib/binaural.js";
 import {
-  mode,
+  activeMode,
+  setXfMode,
   structuralParams,
   structuralBlock,
   stageStructural,
@@ -139,8 +142,14 @@ function StructuralMode({ rows }) {
     if (rec) issueNote.value = stageStructural(rows, next) || "";
   };
 
+  // A compensation block occupies the same rows and carries Lin gains, so it has
+  // to be dismantled back to its plain EQ pair before the structural compiler can
+  // build from it. Doing that here rather than refusing is the difference between
+  // a button that works and one that silently does nothing.
   const install = () => {
-    issueNote.value = stageStructural(rows, params(rows)) || "";
+    const comp = xfeedBlock(rows).rec;
+    const base = comp ? uncompensatedRows(rows, comp) : rows;
+    issueNote.value = stageStructural(base, params(base)) || "";
   };
 
   return html`
@@ -317,23 +326,8 @@ function BauerMode() {
 
 export function CrossfeedCard() {
   const rows = effectivePipelines.value;
-  const active = mode(rows);
+  const active = activeMode(rows);
   const open = cardOpen.value;
-  const rec = structuralBlock(rows);
-
-  const toBauer = () => {
-    if (rec) issueNote.value = noteFor(removeStructural(rows, rec));
-    edit("crossfeed_enabled", "1");
-  };
-  // A compensation block occupies the same rows and carries Lin gains, so it has
-  // to be dismantled back to its plain EQ pair before the structural compiler can
-  // build from it. Doing that here rather than refusing is the difference between
-  // a toggle that works and one that silently does nothing.
-  const toStructural = () => {
-    const comp = xfeedBlock(rows).rec;
-    const base = comp ? uncompensatedRows(rows, comp) : rows;
-    issueNote.value = stageStructural(base, params(base)) || "";
-  };
 
   return html`
     <section class="card">
@@ -347,7 +341,7 @@ export function CrossfeedCard() {
             { value: "bauer", label: "Bauer" },
             { value: "structural", label: "Structural" },
           ]}
-          onChange=${(v) => (v === "bauer" ? toBauer() : toStructural())}
+          onChange=${(v) => setXfMode(v, rows)}
         />
       </div>
       ${issueNote.value ? html`<div class="mtx-issues xfs-issue">${issueNote.value}</div>` : null}

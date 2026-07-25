@@ -87,7 +87,10 @@ function stageBlock(rows, eq, preampDb, pct, restFrom) {
   edit("pipelines", String(next.length));
 }
 
-function removeBlock(rows, rec) {
+// Public because leaving Bauer takes its rows with it, not just its enable flag:
+// the mode segment (lib/xfmode.js) and the DSP tab's Speakers switch both call
+// this, and a correction left behind would run against a crossfeed that is off.
+export function removeBlock(rows, rec) {
   const g = String(Math.round(rec.preampDb * 100) / 100);
   const pair = [
     { gain: g, gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },

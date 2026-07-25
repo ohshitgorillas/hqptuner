@@ -124,6 +124,14 @@ const perEar = (v, dflt) => {
   return [v, v];
 };
 
+/**
+ * @param {{ lambda?: number, angle?: number, headRadius?: number, srcA?: string|number, srcB?: string|number,
+ *   preampDb?: number|{left: number, right: number},
+ *   eqProcess?: string|{left: string, right: string} }} [params]
+ * Per-ear values are accepted wherever `perEar` is used: the two ears may carry
+ * different corrections, and a block recognized from live rows hands them back
+ * that way.
+ */
 export function compileRows({
   lambda = 1,
   angle = SPEAKER_ANGLE,
