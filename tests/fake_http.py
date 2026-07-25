@@ -51,7 +51,8 @@ def _cfg_xml(st: dict[str, Any]) -> bytes:
         # writer that enables a plugin without enabling the matrix produces an inert
         # config — modelled here so that failure surfaces in tests, not in a listening
         # room. Default OFF: the real-world preset that exposed this had matrix="0".
-        f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="{st["matrix_engine"]}" '
+        # saved profiles are siblings of <matrix> and precede it, as 6.0.4 writes them
+        + _render_profiles(st) + f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="{st["matrix_engine"]}" '
         f'expand_hf="{st["matrix_expand_hf"]}" iir2fir="{st["matrix_iir2fir"]}">'
         # pipeline rows render verbatim from adopted attr strings (incl. any "L"
         # gain prefix or entity escapes) — the fake never interprets them, so a
@@ -105,6 +106,37 @@ def _adopt_matrix(st: dict[str, Any], xml: bytes) -> None:
         if v is not None:
             st[key] = v
     _adopt_pipelines(st, xml)
+    _adopt_profiles(st, xml)
+
+
+def _adopt_profiles(st: dict[str, Any], xml: bytes) -> None:
+    """Adopt the ``<matrix_profile>`` elements of an uploaded config — the daemon
+    re-reading the saved profiles from its config file, which is the only way it
+    ever learns one (its own /matrix/save keeps them in memory, round 5). Rows are
+    kept as raw attribute strings, like the live table, so the next /backup serves
+    back exactly what the writer produced."""
+    st["_profiles"] = {
+        m.group(1).decode(): [
+            {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
+            for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(2))
+        ]
+        for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.S)
+    }
+
+
+def _render_profiles(st: dict[str, Any]) -> str:
+    """The saved profiles as the daemon writes them: siblings of ``<matrix>``,
+    ahead of it, each holding its own pipeline rows."""
+    return "".join(
+        f'<matrix_profile name="{name}">'
+        + "".join(
+            f'<pipeline channel="{i}" gain="{p["gain"]}" mixdown="{p["mixdown"]}" '
+            f'process="{p["process"]}" source="{p["source"]}"/>'
+            for i, p in enumerate(rows)
+        )
+        + "</matrix_profile>"
+        for name, rows in st["_profiles"].items()
+    )
 
 
 def _adopt_pipelines(st: dict[str, Any], xml: bytes) -> None:
@@ -338,35 +370,11 @@ def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
     return fields
 
 
-def _matrix_profile_post(st: dict[str, Any], action: str, fields: dict[str, str]) -> None:
-    """POST /matrix/{load,save,delete} — mutate the profile list / active label
-    and record the posted fields verbatim, so tests can assert the complete-form
-    contract and the checkbox encoding the real daemon demands. ``load``
-    replaces the whole matrix context INCLUDING post-process — bauer/loudness
-    enables cleared — exactly as the live 6.0.4 does (probe finding)."""
-    st["_matrix_post"] = fields
-    name = fields.get("profile", "")
-    profiles: list[str] = st["_matrix_profiles"]
-    if action == "save" and name and name not in profiles:
-        profiles.append(name)
-    elif action == "delete" and name in profiles:
-        profiles.remove(name)
-    elif action == "load":
-        st["matrix_active"] = name or "[Default]"
-        st["post_bauer_enabled"] = False
-        st["post_loudness_enabled"] = False
-
-
-def _matrix_apply_post(st: dict[str, Any], fields: dict[str, str]) -> None:
-    """Plain POST /matrix (Apply) — adopt the submitted post-process fields into
-    the working state, browser-faithful checkbox semantics (present = on)."""
-    st["_matrix_apply_post"] = fields
-    st["post_bauer_enabled"] = "post_bauer_enabled" in fields
-    st["post_loudness_enabled"] = "post_loudness_enabled" in fields
-    if "post_bauer_frequency" in fields:
-        st["post_bauer_frequency"] = fields["post_bauer_frequency"]
-    if "post_loudness_lowfreq" in fields:
-        st["post_loudness_lowfreq"] = fields["post_loudness_lowfreq"]
+# No POST /matrix or POST /matrix/{load,save,delete} here. HQPTuner writes the
+# matrix only through /restore now: profile save/delete are staged
+# <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile
+# (matrix-spec round 5). Modelling routes nothing calls would be scaffolding for
+# a lane that is deliberately gone.
 
 
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:
@@ -393,11 +401,6 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
                 _restore_config(st, self.headers.get("Content-Type", ""), raw)
             elif self.path == "/config/profile/save":
                 _save_profile(st, raw)
-            elif self.path.startswith("/matrix/"):
-                action = self.path.rsplit("/", 1)[1]
-                _matrix_profile_post(st, action, _parse_multipart_fields(self.headers.get("Content-Type", ""), raw))
-            elif self.path == "/matrix":
-                _matrix_apply_post(st, _parse_multipart_fields(self.headers.get("Content-Type", ""), raw))
             self.send_response(200)  # /config POST is unused by the restore lane
             self.end_headers()
             self.wfile.write(b"<html>Restore</html>")
@@ -453,6 +456,14 @@ def state(**extra: Any) -> dict[str, Any]:
             {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
             {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
         ],
+        # saved profiles as the config file carries them (name -> raw attr rows) —
+        # the only place the daemon ever reads a profile from, so one ships here
+        "_profiles": {
+            "Stock": [
+                {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
+                {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
+            ]
+        },
         # /matrix page state: saved profile names (datalist), the printed active
         # label, and pipeline 0's process chain
         "_matrix_profiles": ["", "Default", "Mch-to-Stereo mixdown"],

@@ -397,6 +397,11 @@ class ConnectionManager:
         return result
 
     # --- matrix profiles (matrixlane, matrix-spec step 5) ------------------
+    # Only the live switch lives here. Saving and deleting a profile are staged
+    # <matrix_profile> edits on the persistent lane (conf/matrixconf.py, round 5).
+
+    async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
+        return await matrixlane.switch_profile(self, name)
 
     @property
     def control(self) -> ControlClient | None:
@@ -407,12 +412,6 @@ class ConnectionManager:
 
     async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
         return await speakerlane.apply(self, enabled, channels)
-
-    async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
-        return await matrixlane.switch_profile(self, name)
-
-    async def matrix_profile_action(self, action: str, name: str) -> dict[str, Any]:
-        return await matrixlane.profile_action(self, action, name)
 
     # --- convolution filter uploads (filterpark, matrix-spec step 4) -------
 
