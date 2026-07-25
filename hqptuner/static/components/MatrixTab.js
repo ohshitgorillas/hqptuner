@@ -22,6 +22,7 @@ import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
 import { dspMode, setDspMode } from "../store/dspmode.js";
 import { structuralBlock } from "../lib/xfmode.js";
+import { Section } from "./tabs/common.js";
 
 const pipelinesCardOpen = signal(true);
 
@@ -269,7 +270,7 @@ function DspSwitcher() {
 
 export function MatrixTab() {
   const speakerMode = dspMode.value === "speakers";
-  return html`<section class="tab-body">
+  return html`<${Section}>
     <${DspSwitcher} />
     <div class="card-grid">
       <${GlobalCard} />
@@ -278,5 +279,5 @@ export function MatrixTab() {
     <${PipelinesCard} />
     ${speakerMode ? html`<${SpeakersCard} />` : html`<${HeadphoneEqCard} /><${CrossfeedCard} />`}
     <${MatrixPlot} />
-  </section>`;
+  <//>`;
 }

@@ -6,7 +6,7 @@ import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
 import { optionsFor } from "../../store/options.js";
-import { Card, Collapsible } from "./common.js";
+import { Section, Card, Collapsible } from "./common.js";
 import { truthy } from "../../lib/coerce.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
@@ -48,7 +48,7 @@ function DeviceAlert() {
 // Mode / Backend / Rate lead the tab as the three master switches.
 export const Output = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
-  return html`<section class="tab-body">
+  return html`<${Section}>
     <${DeviceAlert} />
     <div class="top-row">
       <div class="box seg-box">
@@ -106,5 +106,5 @@ export const Output = () => {
         </div>
       </div>
     <//>
-  </section>`;
+  <//>`;
 };

@@ -28,29 +28,10 @@ import { MatrixTab } from "../../hqptuner/static/components/MatrixTab.js";
 import { config, matrixConfig, stagePipelines, discardAll } from "../../hqptuner/static/store/state.js";
 import { showDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { plottedRows, selectedStage, togglePlotted } from "../../hqptuner/static/components/MatrixPlot.js";
-
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-
-// A fake staging server, not a stub of our own store: it holds the staged buffer
-// the way the backend does and echoes it back, so stagePipelines/discardAll ride
-// the real REST paths (docs/testing.md rule 4).
-let stagedBuf = { live: {}, http: {} };
+import { stagingWire } from "./wire.js";
 
 function wire() {
-  stagedBuf = { live: {}, http: {} };
-  globalThis.fetch = async (path, opts = {}) => {
-    if (path === "/api/config/stage") {
-      const body = JSON.parse(opts.body);
-      stagedBuf = { live: { ...stagedBuf.live, ...body.live }, http: { ...stagedBuf.http, ...body.http } };
-      return ok(stagedBuf);
-    }
-    if (path === "/api/config/pending" && opts.method === "DELETE") {
-      stagedBuf = { live: {}, http: {} };
-      return ok(stagedBuf);
-    }
-    if (path === "/api/config/pending") return ok(stagedBuf);
-    return ok({});
-  };
+  stagingWire();
 }
 
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });

@@ -49,16 +49,13 @@ import {
   discardAll,
   edit,
 } from "../../hqptuner/static/store/state.js";
-
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+import { ok, staticWire } from "./wire.js";
 
 function wire(staged = { live: {}, http: {} }) {
-  globalThis.fetch = async (path) => {
-    if (path === "/api/config/stage" || path === "/api/config/pending") return ok(staged);
+  staticWire(staged, (path) => {
     if (path === "/api/config") return ok({ data: config.value });
     if (path === "/api/matrix") return ok({ data: null });
-    return ok({});
-  };
+  });
 }
 
 // Full reset every time — these signals outlive a test.
