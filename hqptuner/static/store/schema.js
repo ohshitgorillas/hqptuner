@@ -860,6 +860,7 @@ export const schema = {
     widget: "slidernum",
     lane: "http",
     field: "gain_comp",
+    note: "gain_compensation",
     unit: "dB",
     ticks: [0, -6],
   },
