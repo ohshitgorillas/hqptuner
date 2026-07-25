@@ -136,14 +136,53 @@ FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
+# Two axes — element vs plugin, read vs write — are four operations built from
+# two locators and two attribute primitives, not four hand-written regex pairs.
+# The open-tag and attribute patterns are spelled ONCE: retyping
+# rb"<TAG\b[^>]*?/?>" per function is how one copy quietly stops matching a
+# self-closing tag while its siblings still do.
+
+
+def _open_tag_re(tag_name: str) -> re.Pattern[bytes]:
+    """Matches an element's open tag, self-closing or not."""
+    return re.compile(rb"<" + re.escape(tag_name.encode()) + rb"\b[^>]*?/?>")
+
+
+def _attr_re(attr: str) -> re.Pattern[bytes]:
+    """Matches ``attr="value"`` within an open tag, capturing the value."""
+    return re.compile(rb"\b" + re.escape(attr.encode()) + rb'="([^"]*)"')
+
+
+def _find_element(xml: bytes, tag_name: str) -> re.Match[bytes] | None:
+    """The single ``<tag_name ...>`` open tag."""
+    return _open_tag_re(tag_name).search(xml)
+
+
+def _find_plugin(xml: bytes, plugin_type: str) -> re.Match[bytes] | None:
+    """The ``<plugin type="plugin_type" ...>`` open tag inside ``<post_process>``
+    (there are several plugins; match by type)."""
+    needle = f'type="{plugin_type}"'.encode()
+    return next((m for m in _open_tag_re("plugin").finditer(xml) if needle in m.group(0)), None)
+
+
+def _get_attr(tag: bytes, attr: str) -> str | None:
+    """Read ``attr`` off an element's open-tag bytes; None when absent."""
+    m = _attr_re(attr).search(tag)
+    return m.group(1).decode() if m else None
+
+
 def _set_attr(tag: bytes, attr: str, value: str) -> bytes:
     """Set ``attr="value"`` on an element's open-tag bytes — replacing in place
     when present, inserting right after the tag name otherwise. Byte-faithful:
     nothing else in the tag moves."""
     replacement = f'{attr}="{value}"'.encode()
-    pat = re.compile(rb"\b" + re.escape(attr.encode()) + rb'="[^"]*"')
+    pat = _attr_re(attr)
     if pat.search(tag):
-        return pat.sub(replacement, tag, count=1)
+        # a function replacement, never the bytes directly: re.sub reads escapes
+        # (\1, \g<n>, \\) out of a template, and a config value legitimately
+        # carries backslashes — a Windows-style log path would be corrupted or
+        # raise "bad escape" mid-apply
+        return pat.sub(lambda _: replacement, tag, count=1)
     name = re.match(rb"<[\w:.-]+", tag)
     if name is None:  # not an open tag — unreachable for the tags we match
         raise GroundingError("malformed element tag")
@@ -151,23 +190,25 @@ def _set_attr(tag: bytes, attr: str, value: str) -> bytes:
     return tag[:cut] + b" " + replacement + tag[cut:]
 
 
+def _splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
+    """Replace the matched open tag with ``tag``; every other byte preserved."""
+    return xml[: at.start()] + tag + xml[at.end() :]
+
+
 def _edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
     """Apply one attribute edit to the single ``<tag_name ...>`` element."""
-    pat = re.compile(rb"<" + re.escape(tag_name.encode()) + rb"\b[^>]*?/?>")
-    m = pat.search(xml)
+    m = _find_element(xml, tag_name)
     if m is None:
         raise GroundingError(f"<{tag_name}> element absent from this snapshot")
-    return xml[: m.start()] + _set_attr(m.group(0), attr, value) + xml[m.end() :]
+    return _splice(xml, m, _set_attr(m.group(0), attr, value))
 
 
 def _edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>`` in
-    ``<post_process>`` (there are several plugins; match by type)."""
-    needle = f'type="{plugin_type}"'.encode()
-    for m in re.finditer(rb"<plugin\b[^>]*?/?>", xml):
-        if needle in m.group(0):
-            return xml[: m.start()] + _set_attr(m.group(0), attr, value) + xml[m.end() :]
-    raise GroundingError(f'<plugin type="{plugin_type}"> absent from this snapshot')
+    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``."""
+    m = _find_plugin(xml, plugin_type)
+    if m is None:
+        raise GroundingError(f'<plugin type="{plugin_type}"> absent from this snapshot')
+    return _splice(xml, m, _set_attr(m.group(0), attr, value))
 
 
 def _in_comment(xml: bytes, pos: int) -> bool:
@@ -179,21 +220,17 @@ def _find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
     """The single uncommented ``<fixed .../>`` element, or None. A commented
     ``<!--<fixed .../>-->`` (the daemon parks the remembered level there when the
     feature is off) is deliberately ignored."""
-    for m in re.finditer(rb"<fixed\b[^>]*?/?>", xml):
-        if not _in_comment(xml, m.start()):
-            return m
-    return None
+    return next((m for m in _open_tag_re("fixed").finditer(xml) if not _in_comment(xml, m.start())), None)
 
 
 def _fixed_level_of(tag: bytes) -> str | None:
-    m = re.search(rb'volume="([^"]*)"', tag)
-    return m.group(1).decode() if m else None
+    return _get_attr(tag, "volume")
 
 
 def _remembered_level(xml: bytes) -> str:
     """Last-known fixed-volume level — the active element, else a commented one
     (the daemon's memory when off), else 0 dBFS."""
-    for m in re.finditer(rb"<fixed\b[^>]*?/?>", xml):
+    for m in _open_tag_re("fixed").finditer(xml):
         lvl = _fixed_level_of(m.group(0))
         if lvl is not None:
             return lvl
@@ -255,7 +292,7 @@ def _enable_matrix(xml: bytes) -> bytes:
     """Switch ``<matrix enabled="1">`` on. A no-op when the snapshot carries no
     ``<matrix>`` element — this is a coherence step taken on the user's behalf, so
     it must never abort the edit they actually asked for."""
-    if re.search(rb"<matrix\b[^>]*?/?>", xml) is None:
+    if _find_element(xml, "matrix") is None:
         return xml
     return _edit_element(xml, "matrix", "enabled", "1")
 
@@ -298,21 +335,13 @@ def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
 
 
 def _read_attr(xml: bytes, tag_name: str, attr: str) -> str | None:
-    pat = re.compile(rb"<" + re.escape(tag_name.encode()) + rb"\b[^>]*?/?>")
-    m = pat.search(xml)
-    if m is None:
-        return None
-    am = re.search(rb"\b" + re.escape(attr.encode()) + rb'="([^"]*)"', m.group(0))
-    return am.group(1).decode() if am else None
+    m = _find_element(xml, tag_name)
+    return _get_attr(m.group(0), attr) if m is not None else None
 
 
 def _read_plugin_attr(xml: bytes, plugin_type: str, attr: str) -> str | None:
-    needle = f'type="{plugin_type}"'.encode()
-    for m in re.finditer(rb"<plugin\b[^>]*?/?>", xml):
-        if needle in m.group(0):
-            am = re.search(rb"\b" + re.escape(attr.encode()) + rb'="([^"]*)"', m.group(0))
-            return am.group(1).decode() if am else None
-    return None
+    m = _find_plugin(xml, plugin_type)
+    return _get_attr(m.group(0), attr) if m is not None else None
 
 
 def read_config(xml: bytes) -> dict[str, str]:
@@ -360,7 +389,7 @@ def snapshot_member(zip_bytes: bytes, active: str | None) -> bytes:
     root ``<Profile>.xml`` when a named preset is active)."""
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         names = z.namelist()
-        member = f"data/cfgs/{active}.xml" if active else ""
+        member = engineconf.snapshot_member_name(active) if active else ""
         if member in names:
             return z.read(member)
         running = engineconf.running_config_name(names)
@@ -392,28 +421,17 @@ def restore_zip_from_running(
     actually running; discarding drift is not worth discarding the user's own
     previous edits."""
     intended = apply_edits(snapshot_member(zip_bytes, None), edits)
-    out = io.BytesIO()
-    with (
-        zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin,
-        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout,
-    ):
-        # the live config is hqplayerd.xml, or the root <Profile>.xml when a named
-        # preset is active — rewrite THAT member, leave the cfgs snapshots (the
-        # preset's saved definition) untouched so edits stay ephemeral until Save
+    # The live config is hqplayerd.xml, or the root <Profile>.xml when a named
+    # preset is active — rewrite THAT member and leave the cfgs snapshots (the
+    # preset's saved definition) untouched, so edits stay ephemeral until Save.
+    # Uploaded filter files replace their member if it exists and append if not;
+    # either way the restore writes them to the daemon's disk.
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
         running = engineconf.running_config_name(zin.namelist())
-        extras = dict(extra_members or {})
-        for item in zin.infolist():
-            if item.filename == running:
-                raw = intended
-            elif item.filename in extras:
-                raw = extras.pop(item.filename)  # re-upload replaces the member
-            else:
-                raw = zin.read(item.filename)
-            zout.writestr(item, raw)
-        # new members (uploaded filter files) append; restore writes them to disk
-        for name, data in extras.items():
-            zout.writestr(name, data)
-    return out.getvalue(), intended
+    substitutions = dict(extra_members or {})
+    if running is not None:
+        substitutions[running] = intended
+    return engineconf.rewrite_zip(zip_bytes, substitutions), intended
 
 
 def restore_zip_with_working(
@@ -431,27 +449,14 @@ def restore_zip_with_working(
     profile list mirrors HQPTuner's preset store. Every other member is copied
     byte-for-byte. ``hqplayerd.xml`` is inserted when the source archive lacks it
     (a named profile was active, so its working member was root-renamed)."""
-    mirror_member = f"data/cfgs/{mirror_name}.xml" if mirror_name else None
-    mirror_body = mirror_xml if mirror_xml is not None else working_xml
-    written: set[str] = set()
-    out = io.BytesIO()
-    with (
-        zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin,
-        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout,
-    ):
-        for item in zin.infolist():
-            if item.filename == "hqplayerd.xml":
-                zout.writestr(item, working_xml)
-            elif mirror_member is not None and item.filename == mirror_member:
-                zout.writestr(item, mirror_body)
-            else:
-                zout.writestr(item, zin.read(item.filename))
-            written.add(item.filename)
-        if "hqplayerd.xml" not in written:
-            zout.writestr("hqplayerd.xml", working_xml)
-        if mirror_member is not None and mirror_member not in written:
-            zout.writestr(mirror_member, mirror_body)
-    return out.getvalue()
+    substitutions = {"hqplayerd.xml": working_xml}
+    if mirror_name:
+        substitutions[engineconf.snapshot_member_name(mirror_name)] = (
+            mirror_xml if mirror_xml is not None else working_xml
+        )
+    # rewrite_zip appends whichever of the two the archive lacks — which is the
+    # preset-active case, where the working member was root-renamed
+    return engineconf.rewrite_zip(zip_bytes, substitutions)
 
 
 def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
@@ -459,11 +464,9 @@ def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
     (the ``data/cfgs/<name>.xml`` members). Powers the one-time migration of
     hqplayerd's presets into the HQPTuner-owned store."""
     out: dict[str, bytes] = {}
-    prefix, suffix = "data/cfgs/", ".xml"
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         for name in z.namelist():
-            if name.startswith(prefix) and name.endswith(suffix):
-                stem = name[len(prefix) : -len(suffix)]
-                if stem:
-                    out[stem] = z.read(name)
+            stem = engineconf.snapshot_name(name)
+            if stem is not None:
+                out[stem] = z.read(name)
     return out
