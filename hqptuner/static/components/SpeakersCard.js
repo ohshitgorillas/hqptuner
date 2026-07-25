@@ -3,7 +3,7 @@
 // plus the master switch.
 //
 // It does not join the pending-changes bar. The write is its own form POST that
-// reloads the engine (~3 s) and is idle-gated server-side — the same lane, and
+// reloads the engine (~3 s), interrupting playback — the same lane, and
 // the same cost, as a matrix profile Load — so edits live here and Apply sends
 // them, with Revert dropping them. Folding it into the config staging buffer
 // would put a 3 s engine reload behind a button that promises a batched apply.

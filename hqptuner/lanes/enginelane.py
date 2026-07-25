@@ -9,8 +9,8 @@ manager owns reachability and polling, not this lane's retry loop.
 The hardware-acceleration attributes (``cuda``, ``multicore``, ``ecores``,
 ``nblocks``, ``cuda_dev``, ``cuda_cdev``) have no ``/config`` form field and no
 Control API setter, so this is their only write path (manual §1.2). The restore
-restarts the daemon and interrupts playback — the caller idle-gates, not this
-module.
+restarts the daemon and interrupts playback; nothing here or above refuses
+it for that reason — the user decides when.
 """
 
 from __future__ import annotations

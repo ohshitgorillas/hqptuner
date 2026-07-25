@@ -375,13 +375,13 @@ class ConnectionManager:
 
     async def restore_config(self, data: bytes, scope: str = "system") -> None:
         """Restore a user-supplied settings archive as-is (System-tab restore
-        action). The daemon self-restarts; the caller idle-gates."""
+        action). The daemon self-restarts, interrupting playback if any."""
         await self.require_http().restore(data, scope=scope)
 
     async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
         """Apply hardware-acceleration engine attributes — the config-file-only
-        lane (`enginelane`). No idle gate is enforced here: the restore restarts
-        the daemon and interrupts playback, so the caller (API) must idle-gate."""
+        lane (`enginelane`). The restore restarts the daemon and interrupts
+        playback; nothing gates on that — the user decides when."""
         engineconf.validate_overrides(overrides)
         if self._http is None:
             return {"submitted": False, "error": "no credentials for HTTP config lane"}

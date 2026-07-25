@@ -2,7 +2,7 @@
 // distance (cm), read from and written to the daemon's /speakers form.
 //
 // This does NOT ride the config staging buffer. The write is its own form POST
-// that reloads the engine (~3 s) and is idle-gated server-side, exactly like a
+// that reloads the engine (~3 s), interrupting playback, exactly like a
 // matrix profile Load — so the card holds its own edits and applies them
 // directly, rather than pretending to be part of the pending-changes bar.
 import { signal } from "@preact/signals";
