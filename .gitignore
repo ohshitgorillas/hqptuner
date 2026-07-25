@@ -22,7 +22,11 @@ backups/
 # HQPTuner-owned preset store — user data, not source
 presets/
 
-# local hqplayerd credentials — never commit
+# local hqplayerd credentials — never commit.
+# Real file is hqpcreds; .env is a symlink to it that exists only so
+# `docker compose` finds the ${HQPTUNER_HQP_*} substitutions in
+# docker-compose.yaml. Both ignored.
+hqpcreds
 .env
 
 # agent tooling — tracked, EXCEPT the per-machine bits below.
