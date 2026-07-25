@@ -7,8 +7,7 @@ Approved 2026-07-20. Reverses outline §1's "matrix editing cut" non-goal. This 
 **0. Process.**
 Amend outline §1 and roadmap first: matrix editing is un-cut, with a pointer to this spec as the design of record. The round-6 spacing system is law for this tab — tokens, two-track grid, equal-height card rows, definition of done, and the hand-back protocol (fresh screenshots, PASS/FAIL per acceptance criterion) all apply.
 
-**1. Probes (idle-gated, approved — run before finalizing the plan).**
-The five open questions from the investigation: POST /matrix contract (complete-form requirement, checkbox encoding, restart vs live-apply), /matrix/plot response format and side effects, Lin gain XML representation (set Lin via stock UI, diff the XML), filter upload destination and restore-lane behavior, /matrix/load restart behavior. Deliverable: a findings note appended to the investigation report, and any spec adjustments below flagged rather than silently made.
+**1. Probes (idle-gated, approved — run before finalizing the plan).** **Done** — all five open questions answered; see the Probe findings sections below (rounds 1–5). Spec adjustments they forced are flagged inline at §2 and §7.
 
 **2. Tab structure.**
 New Matrix tab between Volume and System. Section order: MATRIX (global card: Enabled, Engine, Expand HF, IIR→FIR — four short controls, two-track pack) | PROFILE card sharing the row (active profile select, Load / Save / Save as new / Delete, live-switch via the 4321 lane with an "applies live — no restart" indicator; matrix_profile CRUD via the daemon's /matrix/{load,save,delete} routes per the investigation's recommendation) | PIPELINES section | RESPONSE section. Post-process controls stay on the DSP tab — no duplication.

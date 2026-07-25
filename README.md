@@ -99,7 +99,6 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 * Python 3.12+
 * A running HQPlayer **Embedded** daemon (developed and verified against 6.0.4; Desktop is not supported — see above)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets; read-only use and live settings work without it
-* Same-host installation recommended (enables the log tail; the wire lanes themselves work over the network)
 
 ## Install & run
 
@@ -174,7 +173,10 @@ Design and reference docs:
 * `docs/protocol.md` — Control API + HTTP lane wire reference (derived from the official MIT-licensed `hqp-control` source, verified against a live daemon)
 * `docs/matrix-spec.md` — matrix pipeline editing design of record, probe findings, delivery checklist
 * `docs/settings-classification.md` — every setting tagged live vs restart
+* `docs/crossfeed-math.md` — structural crossfeed model, derivation, and matrix realization
+* `docs/eq-export.md` — REW / Equalizer APO export format reference
 * `docs/testing.md` — binding testing policy
+* `docs/eq-assistant-plan.md` — EQ Assistant implementation plan (not yet built), with the research base in `docs/eq-assistant/`
 
 ## Status
 
