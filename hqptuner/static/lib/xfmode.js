@@ -2,11 +2,15 @@
 // that swaps between them, and the client-side memory that makes the swap
 // lossless.
 //
-// Mode is DERIVED, never stored: a recognized 16-row structural block at rows
+// What is INSTALLED is derived: a recognized 16-row structural block at rows
 // 0..15 is Structural, anything else is Bauer. There is no config field for it
 // because the structural controls have no daemon representation at all — they
 // exist only as a consequence of the compiled rows, exactly as the compensation
 // slider's percentage lives in its own block rather than in config.
+//
+// What the user is LOOKING AT is stored separately (see the mode section at the
+// foot of this file). The two are not the same question, and answering the second
+// with the first is what made the segment turn processing on and off by itself.
 //
 // Switching mode STAGES a change like any other edit — it deletes nothing. The
 // installed block sits in the baseline until Apply, and Discard puts it back.
@@ -23,6 +27,10 @@ import { signal } from "@preact/signals";
 
 import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
 import { effective, stagePipelines, edit } from "../store/state.js";
+// Upward, deliberately: the compensation block is recognized against the LIVE
+// bauer settings, and that reading lives with the strip that renders it. Nothing
+// in components/ imports this module's mode signal back, so the graph stays a DAG.
+import { xfeedBlock, removeBlock as removeCompBlock } from "../components/XfeedComp.js";
 
 const KEY = "hqptuner.structuralCrossfeed";
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
@@ -84,7 +92,7 @@ export function structuralParams(rows) {
   return liveParams.value ?? structuralBlock(rows) ?? remembered.value;
 }
 
-export function mode(rows) {
+function installedMode(rows) {
   return structuralBlock(rows) ? "structural" : "bauer";
 }
 
@@ -139,6 +147,68 @@ export function stageStructural(rows, params) {
 // fallback is the one path that can alter bytes the user did not ask us to touch,
 // so callers surface `restored: false` rather than letting the rows come back
 // quietly different.
+// --- which mode the user is LOOKING AT ---------------------------------------
+//
+// STORED, not derived from the rows. Deriving it makes the segment a mutator:
+// selecting a mode has to install its rows for the selection to stick, and
+// turning that mode off drops the view into the other one. Both are the app
+// deciding what the user is listening to, which is not a view selector's job.
+//
+// Null until the user picks one, and then the installed rows answer for them — a
+// config that arrives with a block open on Structural.
+const MODE_KEY = "hqptuner.crossfeedMode";
+
+const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+
+function loadSelected() {
+  try {
+    const v = localStorage.getItem(MODE_KEY);
+    return v === "structural" || v === "bauer" ? v : null;
+  } catch {
+    return null; // storage disabled — the session still switches
+  }
+}
+
+export const xfMode = signal(loadSelected());
+
+// The mode on screen: the user's choice, or what the rows say when there is none.
+export function activeMode(rows) {
+  return xfMode.value ?? installedMode(rows);
+}
+
+// Everything Bauer puts in the signal path: the daemon's post-process flag AND
+// the compensation block that corrects for it. The block is matrix rows, so
+// leaving it behind means a correction still running against no crossfeed.
+export function disableBauer(rows) {
+  const { rec } = xfeedBlock(rows);
+  if (rec) removeCompBlock(rows, rec);
+  if (truthy(effective("crossfeed_enabled"))) edit("crossfeed_enabled", "0");
+}
+
+// Selecting a mode DISABLES the one being left and enables NOTHING. Arriving at a
+// view is a request to see its controls, never to have its processing switched on
+// behind the user's back; leaving one is the opposite reading of the same click,
+// and it is what keeps the two crossfeeds — matrix block and post-process — from
+// ever running in series. Turning either one on stays a button the user presses.
+//
+// Both directions stage like any other edit: the pending bar counts them and
+// Discard puts them back.
+export function setXfMode(next, rows) {
+  const m = next === "structural" ? "structural" : "bauer";
+  xfMode.value = m;
+  try {
+    localStorage.setItem(MODE_KEY, m);
+  } catch {
+    /* storage disabled — in-memory value drives the session */
+  }
+  if (m === "bauer") {
+    const rec = structuralBlock(rows);
+    if (rec) removeStructural(rows, rec);
+    return;
+  }
+  disableBauer(rows);
+}
+
 export function removeStructural(rows, rec) {
   const original = consumed.value;
   const row = (ch, side) => ({

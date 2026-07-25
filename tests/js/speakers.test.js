@@ -20,8 +20,28 @@ import { MatrixTab } from "../../hqptuner/static/components/MatrixTab.js";
 import { SpeakersCard, chooseSet } from "../../hqptuner/static/components/SpeakersCard.js";
 import { speakers, applySpeakers } from "../../hqptuner/static/store/speakers.js";
 import { dspMode, setDspMode } from "../../hqptuner/static/store/dspmode.js";
-import { config, matrixConfig, effective, discardAll } from "../../hqptuner/static/store/state.js";
+import {
+  config,
+  matrixConfig,
+  effective,
+  effectivePipelines,
+  stagePipelines,
+  discardAll,
+} from "../../hqptuner/static/store/state.js";
 import { showDescriptions } from "../../hqptuner/static/store/prefs.js";
+import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
+import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
+import { structuralBlock } from "../../hqptuner/static/lib/xfmode.js";
+
+const DEF = BAUER_PRESETS.default;
+const EQ = "iir:type=peak;f=1000;q=1;g=-3";
+
+// The two installed crossfeed shapes, built with the real compilers: eight
+// compensation rows carrying the headphone EQ the way a real one does, or the
+// sixteen rows of a structural block.
+const compBlock = () => msCompile(EQ, -3, fitComp(DEF.fc, DEF.feed), 1, 0, 1);
+const structuralRows = () =>
+  compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb: -3, eqProcess: EQ });
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
@@ -71,12 +91,25 @@ const NAMES = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Lef
 const SPK = { enabled: false, channels: NAMES.map((n, i) => CH(i, n)) };
 
 // Full reset every time — every signal here outlives a test.
-async function reset({ mode = "speakers", set = "2.0", sdm = false, spk = SPK, crossfeed = "1" } = {}) {
+async function reset({ mode = "speakers", set = "2.0", sdm = false, spk = SPK, crossfeed = "1", pipes = null } = {}) {
   wire();
   showDescriptions.value = false;
   speakers.value = spk;
-  config.value = { fields: [{ name: "direct_sdm", value: sdm }], file: {}, active: "", profiles: null };
-  matrixConfig.value = { fields: [{ name: "post_bauer_enabled", value: crossfeed }], rows: [] };
+  config.value = {
+    fields: [{ name: "direct_sdm", value: sdm }],
+    file: pipes ? { matrix_pipelines: JSON.stringify(pipes) } : {},
+    active: "",
+    profiles: null,
+  };
+  matrixConfig.value = {
+    fields: [
+      { name: "post_bauer_enabled", value: crossfeed },
+      { name: "post_bauer_preset", value: "default" },
+      { name: "post_bauer_frequency", value: String(DEF.fc) },
+      { name: "post_bauer_level", value: String(DEF.feed) },
+    ],
+    rows: [],
+  };
   await discardAll();
   dspMode.value = mode;
   chooseSet(set);
@@ -115,11 +148,58 @@ test("test_switching_to_speakers_stages_crossfeed_off", async () => {
   assert.equal(effective("crossfeed_enabled"), "0");
 });
 
-test("test_switching_back_to_headphones_does_not_turn_crossfeed_on", async () => {
+// Suppression is not a decision to abandon the setting: the user enabled
+// crossfeed on the headphone side, and coming back to that side finds it as they
+// left it. What the switch never took away, it never puts back.
+test("test_switching_back_to_headphones_restores_the_crossfeed_it_suppressed", async () => {
   await reset({ mode: "headphones", crossfeed: "1" });
   await setDspMode("speakers");
   await setDspMode("headphones");
+  assert.equal(effective("crossfeed_enabled"), "1");
+});
+
+test("test_switching_back_to_headphones_does_not_turn_an_off_crossfeed_on", async () => {
+  await reset({ mode: "headphones", crossfeed: "0" });
+  await setDspMode("speakers");
+  await setDspMode("headphones");
   assert.equal(effective("crossfeed_enabled"), "0");
+});
+
+test("test_switching_back_to_headphones_restores_the_compensation_block", async () => {
+  await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
+  await setDspMode("speakers");
+  await setDspMode("headphones");
+  assert.ok(msRecognize(effectivePipelines.value, 0, DEF.fc, DEF.feed));
+});
+
+test("test_switching_back_to_headphones_restores_the_structural_block", async () => {
+  await reset({ mode: "headphones", crossfeed: "0", pipes: structuralRows() });
+  await setDspMode("speakers");
+  await setDspMode("headphones");
+  assert.ok(structuralBlock(effectivePipelines.value));
+});
+
+test("test_a_pipeline_edited_on_the_speaker_side_is_not_overwritten", async () => {
+  await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
+  await setDspMode("speakers");
+  stagePipelines([{ gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0" }]);
+  await setDspMode("headphones");
+  assert.equal(effectivePipelines.value.length, 1);
+});
+
+// The flag is only half of Bauer. Its compensation block is eight matrix rows,
+// and they went on correcting for a crossfeed that had just been switched off —
+// with the headphone EQ profile trapped inside them.
+test("test_switching_to_speakers_dismantles_the_compensation_block", async () => {
+  await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
+  await setDspMode("speakers");
+  assert.equal(msRecognize(effectivePipelines.value, 0, DEF.fc, DEF.feed), null);
+});
+
+test("test_switching_to_speakers_keeps_the_eq_profile", async () => {
+  await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
+  await setDspMode("speakers");
+  assert.ok(effectivePipelines.value.every((r) => r.process === EQ));
 });
 
 // --- the speaker set ---------------------------------------------------------
