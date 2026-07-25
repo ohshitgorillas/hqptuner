@@ -4,6 +4,20 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-07-25
+
+### Fixed
+
+- **A saved matrix profile now survives a restart.** Saving one on the DSP tab's **Profile** card handed the name to HQPlayer, which listed it back and appeared to have kept it — but HQPlayer Embedded 6.0.4 registers a saved matrix profile in memory only. It never writes it into its configuration file, not on save and not on shutdown, so every profile saved on this path was gone the next time the daemon started, with nothing having said so. HQPTuner now writes the profile into the daemon's configuration itself, the same persistent path every other setting takes, and the daemon reads it back at startup, so a saved profile survives a restart. Delete goes the same way, and removes it for good rather than until the next start.
+
+- **Saving over an existing profile name works.** It used to be refused, with the tooltip explaining that HQPlayer quietly ignores a save to a name it already knows and pointing you at deleting the old profile first. Now that HQPTuner is the one writing the profile, saving onto a name replaces it, and the delete-then-save detour is gone.
+
+### Changed
+
+- **Loading a matrix profile no longer interrupts playback.** **Load** went through HQPlayer's configuration form, which reloaded the engine for about three seconds — and then a second time, because HQPlayer's own load wipes the post-process settings that share the matrix (crossfeed, DAC correction, loudness), so HQPTuner had to put them back and pay for another reload. Load now rides the live control lane: the switch takes effect immediately, whatever is playing keeps playing, the post-process settings are left alone, and the profile's pipeline rows are staged as well so the choice is still yours after the next apply. Together with the persistence fix, none of **Load**, **Delete** or saving reloads the engine any more; the only restart left is the apply you choose to make.
+
+  One consequence of HQPTuner owning the profiles: HQPlayer only knows the ones it read when it started. A profile you have saved but not yet applied therefore loads by staging its rows — it lands at your next apply instead of instantly. Nothing is refused for it, and nothing waits on playback stopping.
+
 ## [0.8.1] — 2026-07-25
 
 ### Fixed

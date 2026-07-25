@@ -786,6 +786,27 @@ export const schema = {
     field: "matrix_pipelines",
     fileTruth: true,
   },
+  // The two saved-profile verbs (matrix-spec round 5). HQPTuner owns the
+  // <matrix_profile> element — hqplayerd keeps a saved profile in memory only and
+  // never writes it — so a save or a delete is a staged config edit rather than a
+  // daemon route. Staged by the profile card, never rendered as a Field; the
+  // entries exist so the pending bar counts and lanes them. Neither has a
+  // baseline: a verb has no current value, which is what makes it read dirty from
+  // the moment it is staged until the apply clears it.
+  matrix_profile_save: {
+    label: "Save matrix profile",
+    group: "dsp",
+    widget: "text",
+    lane: "http",
+    field: "matrix_profile_save",
+  },
+  matrix_profile_delete: {
+    label: "Delete matrix profile",
+    group: "dsp",
+    widget: "text",
+    lane: "http",
+    field: "matrix_profile_delete",
+  },
 
   // --- Volume ---
   // Field names per the live /config form + readme: volume_fixed is "Optimal ISO"

@@ -1,32 +1,34 @@
-"""Matrix profile operations (matrix-spec step 5) — the lane logic behind
-``manager.matrix_switch_profile`` / ``manager.matrix_profile_action``.
+"""Matrix profile operations (matrix-spec step 5, amended round 5) — the lane
+logic behind ``manager.matrix_switch_profile``.
 
-Two lanes with very different costs: ``switch_profile`` rides 4321
-``MatrixSetProfile`` (live, zero reload, memory-only — reverts on daemon
-restart); ``profile_action`` rides ``POST /matrix/{load,save,delete}`` with the
-complete current form, which reloads the engine (~3 s), interrupting playback.
+One lane, and it is the live one: 4321 ``MatrixSetProfile`` switches the running
+matrix with zero engine reload, playback undisturbed, and post-process left
+alone. Nothing here writes config. Saving and deleting a profile are staged
+``<matrix_profile>`` edits carried by the persistent restore lane instead
+(``conf/matrixconf.py``), because hqplayerd never persists a profile of its own
+accord — its ``/matrix/save`` registers a name in memory and the config it
+writes in the same breath omits the element (round 5).
+
+The form lane (``POST /matrix/{load,save,delete}``) is gone from profile work
+entirely. It cost a ~3 s engine reload per op, and ``load`` cost two: the
+daemon's own load replaces the whole matrix context, clearing crossfeed / DAC
+correction / loudness, so HQPTuner had to snapshot post-process and re-apply it
+afterwards. Riding ``MatrixSetProfile`` never disturbs post-process, which
+deletes the whole dance.
 """
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
-import httpx
-
-from ..control import CommandError, ControlError
-from . import settle
-
-log = logging.getLogger(__name__)
+from ..control import ControlError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
 
-_PROFILE_POLL = 0.5  # cadence for polling the 4321 lane back after a reload
-
 
 async def switch_profile(mgr: ConnectionManager, name: str) -> dict[str, Any]:
-    """Live switch + State readback + form resync."""
+    """Live switch + State readback + form resync. Empty name = ``[Default]``."""
     client = mgr.control
     if client is None:
         raise ControlError("daemon not connected")
@@ -34,76 +36,3 @@ async def switch_profile(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     mgr.state = await client.get_state()
     await mgr.refresh_http_forms()
     return {"active": mgr.state.get("matrix_profile", "")}
-
-
-async def profile_action(mgr: ConnectionManager, action: str, name: str) -> dict[str, Any]:
-    """Form-lane save/delete/load, then resync forms and the profile list.
-
-    Both halves must ride out the ~3 s engine reload these ops (and any op just
-    before them) trigger: the POST retries once behind ``await_http_ready`` —a
-    back-to-back action otherwise 502s into the previous reload window — and the
-    profile-list refresh polls the 4321 lane back instead of sampling it once
-    mid-outage and serving the UI a one-action-stale picker (hand-back finding).
-
-    ``load`` additionally preserves post-process: the daemon replaces the whole
-    matrix context — crossfeed / correction / loudness included (probe finding).
-    HQPTuner's contract is "the settings you send are the settings you get
-    back", so the pre-load post-process slice is snapshotted and re-applied
-    with a plain ``POST /matrix`` once the load settles (a second ~3 s reload
-    — the price of correctness)."""
-    snapshot = await mgr.require_http().matrix_post_process_fields() if action == "load" else None
-    await _form_post(mgr, lambda: mgr.require_http().matrix_profile_action(action, name))
-    if action in ("save", "delete"):
-        await _await_profile_list(mgr, action, name)
-    if snapshot is not None:
-        await mgr.await_http_ready()
-        await _form_post(mgr, lambda: mgr.require_http().matrix_apply(snapshot))
-        if not await _verify_post_process(mgr, snapshot):
-            log.warning("post-process readback did not settle to the pre-load snapshot")
-    await mgr.await_http_ready()
-    await mgr.refresh_http_forms()
-    return {"action": action, "name": name, "profiles": mgr.matrix_profiles or []}
-
-
-async def _form_post(mgr: ConnectionManager, post: Any) -> None:
-    """One retry behind await_http_ready — a back-to-back form-lane op 502s
-    into the previous reload window otherwise."""
-    try:
-        await post()
-    except httpx.HTTPError:
-        await mgr.await_http_ready()
-        await post()
-
-
-async def _verify_post_process(mgr: ConnectionManager, snapshot: dict[str, str]) -> bool:
-    """Readback-verify the restored post-process slice, polling past the
-    post-reload transient (device-derived fields can render empty for a beat —
-    probe finding). Gives up at the alarm deadline and reports honestly."""
-
-    async def probe() -> bool:
-        return await mgr.require_http().matrix_post_process_fields() == snapshot
-
-    return bool(await settle.poll_until(mgr, probe, interval=_PROFILE_POLL))
-
-
-async def _await_profile_list(mgr: ConnectionManager, action: str, name: str) -> None:
-    """Poll MatrixListProfiles until it REFLECTS the action (save → present,
-    delete → absent), not merely until it answers: the daemon acks the POST
-    before its ~3 s reload (probe timing), so an immediate resync reads
-    pre-reload state and serves the UI a one-action-stale picker. Gives up at
-    the alarm deadline — the regular poll loop catches up eventually."""
-
-    async def probe() -> bool:
-        # the 4321 lane, not HTTP: its outage speaks CommandError/OSError, which
-        # settle.poll_until does not suppress — so swallow them here
-        client = mgr.control
-        if client is None:
-            return False
-        try:
-            profiles = await client.get_matrix_profiles()
-        except (CommandError, ControlError, OSError):
-            return False
-        mgr.matrix_profiles = profiles
-        return (name in profiles) if action == "save" else (name not in profiles)
-
-    await settle.poll_until(mgr, probe, interval=_PROFILE_POLL)
