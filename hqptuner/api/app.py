@@ -16,6 +16,7 @@ from starlette.types import Scope
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..control import ControlError
+from ..lanes import livemap
 from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
 from ..presetstore import PresetError
@@ -153,8 +154,14 @@ def config(request: Request) -> dict[str, Any]:
         return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
     # `profiles` and `active` come from HQPTuner's own preset store — the source of
     # truth — not the daemon's (unreliable) profile subsystem, which under our
-    # restore-only model always reports [default]. `file` is the running config read
-    # from the config XML; the frontend prefers it for lossy fields (volume_fixed).
+    # restore-only model always reports [default].
+    #
+    # `file` is the RUNNING configuration, which is the XML overlaid with whatever
+    # the live lane has changed since it was written (lanes/livemap.py): a
+    # live-routed filter/dither/mode edit never touches the file, so the file alone
+    # would report a setting the engine stopped using. The frontend grounds the
+    # affected controls here, so a dropdown shows what is actually playing and
+    # selecting the previous value still reads as a change.
     presets = manager.presets()
     return _snapshot(
         manager,
@@ -162,7 +169,7 @@ def config(request: Request) -> dict[str, Any]:
             **manager.config_form,
             "profiles": {"value": presets["value"], "options": presets["options"]},
             "active": presets["active"],
-            "file": manager.file_config or {},
+            "file": {**(manager.file_config or {}), **livemap.live_overrides(manager)},
         },
     )
 

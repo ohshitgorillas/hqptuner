@@ -33,7 +33,7 @@ from .conf.httpconf import HttpConfigClient
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
 from .filterpark import FilterPark
-from .lanes import enginelane, httplane, matrixlane, presetlane, speakerlane
+from .lanes import enginelane, httplane, livemap, matrixlane, presetlane, speakerlane
 from .presetstore import PresetStore
 from .writer import apply_live
 
@@ -250,12 +250,17 @@ class ConnectionManager:
                 await self._backup_or_cached()
             # restore-onto-[default] + mirror (load_preset), never hqplayerd's profile/load
             switched = await self.load_preset(switch_to)
+        # Form fields the Control API can set outright route live instead, so a
+        # fully routable batch never restarts. Skipped on a switch: that reloads.
+        if switch_to is None:
+            live_edits, http_fields = livemap.split_live(self, http_fields, live_edits)
         live_report: list[dict[str, Any]] = []
         if live_edits:
             client = self._client
             if client is None:
                 raise ControlError("daemon not connected")
             live_report = await apply_live(client, live_edits)
+            self.state = await client.get_state()  # live edits bypass the file: refresh running truth
         persistent = await httplane.apply(self, http_fields) if http_fields else None
         if persistent is not None and persistent.get("applied"):
             # the restore that just applied carried the parked filter files —

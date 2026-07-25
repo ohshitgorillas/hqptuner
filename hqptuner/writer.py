@@ -4,9 +4,11 @@ Applies a staged change set to the live daemon:
 
 - **live lane** — Control API (4321) setters, each confirmed by a `State`
   readback (`result="OK"` is not proof of application, protocol.md §6);
-- **http lane** — `POST /config` on 8088, which makes the daemon rewrite
-  `hqplayerd.xml` and restart itself (settings-classification.md). The
-  connection manager's outage path handles the restart/resync.
+- **http lane** — NOT a form POST despite the name: the persistent lane edits
+  the running config XML and pushes it with `POST /restore` (`scope=system`),
+  on which the daemon self-restarts in ~5.6 s (`lanes/httplane.py`,
+  settings-classification.md). The connection manager's outage path handles
+  the restart/resync. There is no `POST /config` route in this codebase.
 
 Live edits apply in a fixed safe order: mode first (it resets rate to auto and
 swaps the enumeration lists the other indices are relative to), then filter,
