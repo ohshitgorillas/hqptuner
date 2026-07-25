@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-07-25
+
 ### Added
 
 - **High-frequency filter** on the Output tab. HQPlayer 6's playback filter — a source-side cut for noise, errors and distortion in bad-quality or fake-hires material — had no control in HQPTuner at all, despite the backend having spoken to it since the write path landed. It offers the engine's own list (`20k`, `30k`, `40k`, `50k` roll off at that frequency; `2x`, `4x`, `8x` cut steeply at that multiple of the base rate), each with the manual's description of what it is for, and takes effect immediately — the filter is switchable during playback. Named for what it does rather than HQPlayer's "playback filter", which does not say; HQPlayer's own name is carried underneath as a sublabel, the way **Auto headroom (Optimal ISO)** does, so the manual stays findable from it.
@@ -30,9 +32,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - The preset **delete** button used an off-palette red found nowhere else; it takes the standard one.
 
-### Fixed
-
-- The **gray-out warning** boxes on the filter narrowing bar referenced a colour variable that was never defined, and had been drawing on their hardcoded fallback since they landed. The variable exists now, so they follow the palette like everything else., into **General** beside the high-frequency filter it is usually set for — the one option it decides the visibility of. It was alone in a **Metering** card of its own on the System tab, a card for a single checkbox. The System tab's **HQPTuner** preferences card takes that slot beside **About**, so the tab opens on identity and preferences rather than on a one-line card.
+- **Pre-process before metering moved to the Output tab**, into **General** beside the high-frequency filter it is usually set for — the one option it decides the visibility of. It was alone in a **Metering** card of its own on the System tab, a card for a single checkbox. The System tab's **HQPTuner** preferences card takes that slot beside **About**, so the tab opens on identity and preferences rather than on a one-line card.
 
 - **Nothing is refused for being mid-playback any more.** Applying engine hardware settings, restoring a settings archive, applying speaker processing, and matrix profile Load / Save-as-new / Delete all used to answer *"daemon is not idle (stop playback first)"* and do nothing, because each one reloads or restarts the engine and so interrupts whatever is playing. Whether that interruption is worth it is the listener's call, not HQPTuner's: the cost is stated in each control's caption, and the click is now honoured whether or not music is playing.
 
@@ -51,6 +51,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Head circumference** moves in 0.25 cm steps on the slider (was 0.5 cm), and its number box takes any value in range instead of snapping to the slider's detent. The readout carries two decimals, so a quarter-centimetre setting reads as itself rather than rounding to 55.3.
 
 ### Fixed
+
+- The **gray-out warning** boxes on the filter narrowing bar referenced a colour variable that was never defined, and had been drawing on their hardcoded fallback since they landed. The variable exists now, so they follow the palette like everything else.
 
 - **A staged high-frequency filter now accents the Output tab, not DSP.** The field→tab map that lights a tab holding unapplied edits never listed `junk_filter`, and unlisted keys fall through to the DSP tab — so changing the filter and switching away pointed at a tab the control isn't on. `pre_before_meter` is mapped to Output too, following its move there.
 
