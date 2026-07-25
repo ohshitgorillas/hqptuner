@@ -365,11 +365,30 @@ appears anywhere in it.
 than the cookbook's (they differ by a factor of `A`, §1.1), every measured candidate would be
 subtly wrong in a gain-dependent way — worst at large gains, invisible at small ones.
 
-Two things would close it, in order of preference:
+**Manual checked, 2026-07-25** `[V]`. `hqplayer6desktop-manual.pdf` tabulates the per-type
+parameters, and the split is the cookbook's exactly:
 
-1. A statement in `hqplayer6desktop-manual.pdf` about the `iir` stage's bandwidth-gain
-   convention. The Embedded readme has been checked (above) and documents parameter *names*
-   only; **the desktop manual has not yet been searched for a convention statement.**
+| Type | Parameters as printed |
+|---|---|
+| `peak` | `f=frequency` · **`q=Q OR bw=bandwidth`** · `g=gain` |
+| `lshelf` | `f=frequency` · **`q=Q OR s=slope`** · `g=gain` |
+| `hshelf` | `f=frequency` · **`q=Q OR s=slope`** · `g=gain` |
+| `notch`, `bp` | `f=frequency` · `q=Q OR bw=bandwidth` |
+
+That is a stronger signal than the readme's flat argument list, because it reproduces RBJ's
+*type-specific* split rather than merely offering all three parameters everywhere: **`bw` is
+offered for peaking and notch/bandpass, `s` only for the shelves** — and `s` is shelving-only
+in the cookbook (§1.1). An implementation that had merely borrowed the parameter names would
+have no reason to restrict `s` that way.
+
+**Still not established, after checking both documents: the bandwidth-gain convention.**
+Neither the readme nor the manual states whether `q` is the cookbook's Q or the classic EE Q
+(they differ by a factor of `A`), nor at what gain the bandwidth is measured. Status:
+**strongly indicated by the parameter structure, still unverified.**
+
+One route remains:
+
+1. ~~A statement in `hqplayer6desktop-manual.pdf`~~ — **checked, does not contain one.**
 2. An empirical check: emit a known peaking stage, read the realised response, and compare
    against both conventions. The gain-dependence makes them easy to distinguish — measure at
    a large `g` where `A` is far from 1. Note this is a *write* against the production daemon,
