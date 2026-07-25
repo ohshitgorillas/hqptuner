@@ -30,17 +30,13 @@ import {
 } from "../../hqptuner/static/store/state.js";
 import { showDescriptions, keepOptionDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../hqptuner/static/store/narrowing.js";
+import { staticWire } from "./wire.js";
 
 // --- the wire ---------------------------------------------------------------
 // Real REST paths, real response shapes (hqptuner/static/lib/api.js).
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-
 function wire(staged = { live: {}, http: {} }) {
-  globalThis.fetch = async (path) => {
-    if (path === "/api/config/stage" || path === "/api/config/pending") return ok(staged);
-    return ok({});
-  };
+  staticWire(staged);
 }
 
 // --- static metadata --------------------------------------------------------

@@ -25,6 +25,11 @@
     <link rel="stylesheet" href="/css/matrix.css" />
     <link rel="stylesheet" href="/css/matrix-panels.css" />
     <link rel="stylesheet" href="/css/crossfeed.css" />
+    <link rel="stylesheet" href="/css/speakers.css" />
+    <!-- typography.css is deliberately LAST: it owns the size + colour of every
+         text role and must win over the per-module declarations it replaced.
+         This is the only module whose slot is "the end"; see its header. -->
+    <link rel="stylesheet" href="/css/typography.css" />
     <!-- No-build ES modules. The importmap resolves every bare specifier to a
          vendored file so preact, its hooks, and signals all share ONE preact
          instance (required for signals' auto-subscribe). All local — CSP-clean. -->

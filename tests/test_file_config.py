@@ -9,23 +9,8 @@ holds only because the persistent lane is a snapshot-XML restore rather than a
 form POST. If that lane ever goes back to posting the form, these fail.
 """
 
-from pathlib import Path
-from typing import Any
-
-import pytest
-
 from hqptuner.conf import presetconf
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.manager import ConnectionManager
-
-
-@pytest.fixture
-async def file_manager(http_daemon: dict[str, Any], tmp_path: Path) -> Any:
-    http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
-    mgr = ConnectionManager(Config(hqp_host="127.0.0.1", backup_dir=tmp_path), http_client=http)
-    yield mgr
-    await http.aclose()
 
 
 def test_fixed_volume_headroom_level_is_read_from_the_engine_element() -> None:
@@ -39,11 +24,19 @@ def test_minus_6_db_headroom_is_written_into_the_snapshot() -> None:
     assert presetconf.read_config(edited)["volume_fixed"] == "2"
 
 
-async def test_minus_6_db_headroom_survives_an_apply(file_manager: ConnectionManager) -> None:
-    await file_manager.apply({}, {"volume_fixed": "2"})
-    assert (await file_manager.load_file_config())["volume_fixed"] == "2"
+def test_backslash_in_a_written_value_survives_verbatim() -> None:
+    # a value is data, not a regex replacement template: an unescaped backslash
+    # used to be read as a group reference and corrupt (or fail) the write
+    xml = b'<hqplayerd><log file="/var/log/hqplayerd.log"/></hqplayerd>'
+    edited = presetconf.apply_edits(xml, {"log_file": r"C:\logs\hqplayerd.log"})
+    assert presetconf.read_config(edited)["log_file"] == r"C:\logs\hqplayerd.log"
 
 
-async def test_headroom_apply_preserves_unrelated_settings(file_manager: ConnectionManager) -> None:
-    await file_manager.apply({}, {"volume_fixed": "2"})
-    assert (await file_manager.load_file_config())["channels"] == "2"
+async def test_minus_6_db_headroom_survives_an_apply(http_manager: ConnectionManager) -> None:
+    await http_manager.apply({}, {"volume_fixed": "2"})
+    assert (await http_manager.load_file_config())["volume_fixed"] == "2"
+
+
+async def test_headroom_apply_preserves_unrelated_settings(http_manager: ConnectionManager) -> None:
+    await http_manager.apply({}, {"volume_fixed": "2"})
+    assert (await http_manager.load_file_config())["channels"] == "2"

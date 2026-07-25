@@ -11,7 +11,7 @@
 }
 .signal-path.live .chip-hero .chip-val {
   color: var(--accent-glow);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 
 /* sticky chrome — header + signal path + tab bar stay pinned while the tab
@@ -27,7 +27,8 @@
 .tab-nav {
   display: flex;
   gap: 0.25rem;
-  padding: 0.5rem 1rem 0;
+  padding: 0.5rem 0 0;
+  margin: 0 var(--gutter);
   border-bottom: 1px solid var(--line);
 }
 .tab-nav button {
@@ -38,7 +39,7 @@
   padding: 0.5rem 0.9rem;
   border-radius: 0.4rem 0.4rem 0 0;
   cursor: pointer;
-  font-size: 1.05rem;
+  font-size: var(--fs-body-lg);
 }
 .tab-nav button.active {
   color: var(--fg);
@@ -55,12 +56,11 @@ main {
   flex: 1;
 }
 .tab-body {
-  padding: 1rem;
+  padding: 1rem var(--gutter);
 }
 .tab-body h2 {
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   margin: 0 0 0.8rem;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
-

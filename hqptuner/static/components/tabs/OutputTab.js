@@ -6,7 +6,8 @@ import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
 import { optionsFor } from "../../store/options.js";
-import { Card, Collapsible, truthy } from "./common.js";
+import { Section, Card, Collapsible } from "./common.js";
+import { truthy } from "../../lib/coerce.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
 // runs both). Collapse is purely visual — every field still POSTs (the daemon
@@ -47,7 +48,7 @@ function DeviceAlert() {
 // Mode / Backend / Rate lead the tab as the three master switches.
 export const Output = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
-  return html`<section class="tab-body">
+  return html`<${Section}>
     <${DeviceAlert} />
     <div class="top-row">
       <div class="box seg-box">
@@ -74,6 +75,8 @@ export const Output = () => {
         <${Field} k="upnp_freewheel" />
         <${Field} k="quick_pause" />
         <${Field} k="short_buffer" />
+        <${Field} k="junk_filter" />
+        <${Field} k="pre_before_meter" />
       </div>
     <//>
     <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
@@ -104,5 +107,5 @@ export const Output = () => {
         </div>
       </div>
     <//>
-  </section>`;
+  <//>`;
 };

@@ -7,20 +7,23 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.7rem 1rem;
+  /* horizontal inset is MARGIN so the bg-2 band and the rule stop at the
+     content lane rather than the container edge */
+  padding: 0.7rem 0;
+  margin: 0 var(--gutter);
   background: var(--bg-2);
   border-bottom: 1px solid var(--line);
 }
 .brand {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  font-size: 1.25rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
+  font-size: var(--fs-brand);
 }
 .daemon {
   display: flex;
   gap: 0.6rem;
   align-items: baseline;
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
 }
 .presets {
   margin-left: auto;
@@ -29,14 +32,14 @@
   align-items: center;
 }
 .preset-status {
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
 }
 .preset-status.pending-apply {
   color: var(--accent);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 .preset-del {
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   padding: 0.1rem 0.5rem;
   color: var(--muted);
   background: transparent;
@@ -45,15 +48,15 @@
   cursor: pointer;
 }
 .preset-del:hover {
-  color: #e06c6c;
-  border-color: #e06c6c;
+  color: var(--red);
+  border-color: var(--red);
 }
 
 .pill {
   padding: 0.15rem 0.6rem;
   border-radius: 1rem;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
 }
 .pill-green {
   background: color-mix(in srgb, var(--green) 25%, transparent);
@@ -67,4 +70,3 @@
   background: color-mix(in srgb, var(--red) 25%, transparent);
   color: var(--red);
 }
-

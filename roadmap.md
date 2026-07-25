@@ -47,6 +47,8 @@ Also resolved: `POST /config/profile/load` **restarts the daemon** (verified —
 
 Runs parallel to Phase 0. Scope is trimmed to what the engine does **not** already ship on the wire: quality, focus, ratio class (in `FiltersItem` descriptions), apodizing (`arg` bit 0), and phase (parseable from filter names — `-lp`, `-mp`, etc.) all come live from enumerations, so the static DBs carry none of them. Static data is a join-by-name prose/constraints overlay only; the running engine stays the authority for everything structural (names, IDs, ordering, facets). Unmatched engine entries still render (name only). Readme enum indices may be used as an extraction aid only — never shipped as authority (outline §2 enumeration volatility).
 
+**Decision (2026-07-24) — filter facets reverse the trim above.** The engine ships quality/focus/ratio/apodizing live *only for the mode it is currently in*, but HQPTuner shows the PCM and SDM filter chains persistently. The inactive mode's exclusive filters are therefore absent from the live enum and had no facets at all, so they bypassed the narrowing bar entirely (length narrowing surfaced a bogus list — the mode-scoping bug). quality/focus/apodizing/ratio are now transcribed from the manual filter table into `data/filters.json` (`test_metadata.py` guards coverage) and consumed by `store/facets.js` as a **fallback** for any filter the live enum omits. Live stays the sole authority for the active mode; static never overrides it and only fills the gap — consistent with outline §2 (a renamed/added filter is still covered live for its mode; a stale static entry simply never matches). mqa/mp3 carry a PCM/SDM ratio split; the `upsample_only` bit surfaces as the ratio dropdown's **Upsample-only** checkbox.
+
 Extract into JSON (schema per outline §6):
 
 - **Shaper DB** (mandatory — biggest gap): `ShapersItem` carries name only, so everything comes from manual §4.4/§4.5 + readmes. Per entry, keyed by name: machine-readable **rate constraints** (min/optimal rate — the UI's graying logic has no other source), description prose, order/type, DAC-architecture guidance (e.g. 5th order for ESS Sabre).
@@ -229,6 +231,21 @@ Two user-driven feature lists (`features.md`, now empty) plus chat nitpick round
 - **Layout/IA rounds**: tab order Output · Volume · Resampling · DSP · Matrix · System; Backend | Mode | Rate top row; sticky chrome; DAC correction to Output; Backup & Restore folded into About; running-state signal path; standalone preset Save; steepness sliders; sundry token-system spacing fixes.
 
 Also recorded: HQPlayer **Desktop has no web UI** — no port-8088 lane, so HQPTuner is effectively Embedded-only. Gets a README note in Phase 6.
+
+### DSP overhaul — speaker processing (2026-07-23)
+
+`features.md`'s "MAJOR FEATURE: DSP overhaul": integrate hqplayerd's `/speakers` (readme §1.9) into the headphone-only DSP tab.
+
+Decisions taken with the user:
+
+- **Two-way switcher, not three.** features.md drew `[OFF | SPEAKERS | HEADPHONES]`; OFF was dropped. The switcher is a **view selector that never turns anything on** — switching to SPEAKERS shows the speaker controls and suppresses crossfeed (both implementations); switching back restores nothing. Standing pipelines and EQ are untouched either way. Suppression is a staged edit, so the pending bar counts it and Discard undoes it.
+- **Matrix / Pipelines / Response render always**, below the switcher — they are the signal path, not a headphone feature. HEADPHONES adds Crossfeed + Headphone Auto EQ; SPEAKERS adds the Speakers card.
+- **The channel set is a control** (2.0 / 2.1 / 5.1 / 7.1), not a reading of the engine's `channels`. The daemon keeps all eight slots regardless; the picker chooses which ones you are editing, and is client-side/persisted.
+- **Direct SDM grays the level column only.** It bypasses the volume control, so the trims do nothing — but the distances still apply, so the card stays live. (User correction: Direct SDM is "damn near the only setting that doesn't suppress" speakers.)
+- **Favicon follows the switcher** (🔊/🎧) instead of sniffing the active preset's name.
+- **Form lane, not restore-XML.** `/speakers` serves a complete form whose Apply button POSTs back to `/speakers` — same contract as `/config` and `/matrix`. Checkbox-safe (`enabled=1` or omitted; a raw `0`/`on` is persisted verbatim and wedges engine init), range-validated, idle-gated, and verified by readback past the ~3 s reload.
+
+Backend `c11b938`; frontend `store/dspmode.js`, `store/speakers.js`, `components/SpeakersCard.js`, `components/SpeakersDiagram.js`, `css/speakers.css`.
 
 ## Phase 5 — Behavior rules, presets, polish
 

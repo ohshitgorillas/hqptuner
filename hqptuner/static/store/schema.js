@@ -25,6 +25,8 @@
 // 2=SDM). auto_family/samplerate/bitrate are forced by the apply layer, not
 // exposed here (friendly rate always assumes auto-family follow).
 
+import { truthy } from "../lib/coerce.js";
+
 // Mode is the http `mode` field (auto/pcm/sdm) — stable values, always all three.
 // (The live GetModes enum is device-dependent: it drops SDM when the active
 // device can't do DSD, so it's the wrong source for a persistent config choice.)
@@ -35,8 +37,6 @@ const inMode = (ctx, m) => String(ctx.effective("output_mode")) === m;
 const isSdm = (ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
 const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
 
-// checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 // DirectSDM "will disable volume control and set PCM volume to fixed -3 dBFS
 // value" (manual §4.5). Every persistent control that sets a volume level is
 // therefore inert while it's on — the daemon accepts and stores the setting but
@@ -140,6 +140,7 @@ export const schema = {
     group: "output",
     widget: "segment",
     lane: "http",
+    appliesLive: true,
     field: "mode",
     options: MODES,
     hoverNote: true,
@@ -176,6 +177,30 @@ export const schema = {
     lane: "http",
     field: "short_buffer",
     optionsFrom: "config",
+  },
+  // The manual's "Playback filter" (§2.8) — a source-side high-frequency cut for
+  // noise, errors and fake hires. Named for what it does; every option is an HF
+  // cut (20k–50k roll off at that frequency, 2x/4x/8x cut at that multiple of
+  // the base rate), which "Playback filter" does not convey.
+  //
+  // Live lane, and the only one besides adaptive_volume: the daemon's own
+  // /config form has no field for it, so options come from the GetJunkFilters
+  // enumeration, SetJunkFilter writes the list index, and State.filter_junk
+  // reads it back. It is switchable during playback (manual §2.8), so it is
+  // never grayed by transport state.
+  junk_filter: {
+    label: "High-frequency filter",
+    // HQPlayer's own name for it, so the manual and the daemon's vocabulary are
+    // still findable from a label that says what the control does
+    sublabel: "(Playback filter)",
+    group: "output",
+    widget: "dropdown",
+    lane: "live",
+    stateField: "filter_junk",
+    liveKey: "junk_filter",
+    optionsFrom: "enum",
+    enumKey: "junk_filters",
+    desc: "config",
   },
 
   // --- Output: per-family rate (both shown, inactive one grayed by mode) ---
@@ -334,16 +359,23 @@ export const schema = {
   // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
   // Mode graying is handled by the PCM/SDM collapsibles auto-closing (ResamplingTab.js),
   // not per-field grayWhen. desc drives the inline manual description line.
+  // appliesLive: the write path routes these through the Control API's own
+  // setters instead of the restore lane, so they take effect immediately and the
+  // daemon never restarts for them (lanes/livemap.py). They stay lane 'http'
+  // because their VALUE domain is still the form's enum id — only the delivery
+  // changed. The pending bar reads this to count them as live changes.
   pcm_filter_1x: {
     label: "1x filter",
     group: "dsp",
     note: "filter_1x",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "filter1x",
     optionsFrom: "config",
     wide: true,
     narrow: "1x",
+    apodNarrow: true,
     desc: "filter",
   },
   pcm_filter_nx: {
@@ -352,6 +384,7 @@ export const schema = {
     note: "filter_nx",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "filter",
     optionsFrom: "config",
     wide: true,
@@ -364,6 +397,7 @@ export const schema = {
     note: "shaper",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "dither",
     optionsFrom: "config",
     wide: true,
@@ -376,10 +410,12 @@ export const schema = {
     note: "filter_1x",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "oversampling1x",
     optionsFrom: "config",
     wide: true,
     narrow: "1x",
+    apodNarrow: true,
     desc: "filter",
   },
   sdm_filter_nx: {
@@ -388,6 +424,7 @@ export const schema = {
     note: "filter_nx",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "oversampling",
     optionsFrom: "config",
     wide: true,
@@ -400,6 +437,7 @@ export const schema = {
     note: "shaper",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "modulator",
     optionsFrom: "config",
     wide: true,

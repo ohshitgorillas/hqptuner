@@ -9,52 +9,54 @@ manager owns reachability and polling, not this lane's retry loop.
 The hardware-acceleration attributes (``cuda``, ``multicore``, ``ecores``,
 ``nblocks``, ``cuda_dev``, ``cuda_cdev``) have no ``/config`` form field and no
 Control API setter, so this is their only write path (manual §1.2). The restore
-restarts the daemon and interrupts playback — the caller idle-gates, not this
-module.
+restarts the daemon and interrupts playback; nothing here or above refuses
+it for that reason — the user decides when.
 """
 
-from collections.abc import Awaitable, Callable
-from typing import Any
+from __future__ import annotations
 
-import httpx
+from typing import TYPE_CHECKING, Any
 
 from ..conf import engineconf
-from ..conf.httpconf import HttpConfigClient
+from . import settle
 
-# readback attempts after the restore, spaced by `sleep`, before reporting the
-# apply unconfirmed — the restore restart measured ~5.6 s on 6.0.4
-_VERIFY_ATTEMPTS = 20
+if TYPE_CHECKING:  # avoid a circular import at runtime
+    from ..manager import ConnectionManager
+
+# readback window after the restore, before reporting the apply unconfirmed —
+# the restore restart measured ~5.6 s on 6.0.4. Deliberately its own deadline
+# rather than the alarm threshold: this lane's restart cost is known, and the
+# window predates the shared settle helper by design, not by accident.
+_VERIFY_WINDOW = 10.0
 _VERIFY_INTERVAL = 0.5
 
-Sleep = Callable[[float], Awaitable[None]]
 
-
-async def verify(http: HttpConfigClient, overrides: dict[str, str], sleep: Sleep) -> dict[str, Any]:
+async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str, Any]:
     """Poll a fresh backup until every override is reflected in its base config's
-    ``<engine>`` tag, or the attempts run out. Returns the last-read attributes
+    ``<engine>`` tag, or the window runs out. Returns the last-read attributes
     either way, so a caller can report what actually landed."""
     got: dict[str, str] = {}
-    for _ in range(_VERIFY_ATTEMPTS):
-        await sleep(_VERIFY_INTERVAL)
-        try:
-            fresh = await http.backup()
-        except httpx.HTTPError:
-            continue
-        if fresh[:4] != b"PK\x03\x04":  # mid-restart: not a zip yet
-            continue
+
+    async def probe() -> dict[str, str] | None:
+        nonlocal got
+        fresh = await settle.fresh_backup(mgr)
+        if fresh is None:
+            return None
         got = engineconf.read_engine_attrs(engineconf.base_config_xml(fresh))
-        if all(got.get(key) == want for key, want in overrides.items()):
-            return {"applied": True, "engine": got}
-    return {"applied": False, "engine": got}
+        return got if all(got.get(key) == want for key, want in overrides.items()) else None
+
+    # the restore just restarted the daemon — spend the first interval waiting
+    await mgr.sleep(_VERIFY_INTERVAL)
+    applied = await settle.poll_until(mgr, probe, interval=_VERIFY_INTERVAL, deadline=_VERIFY_WINDOW)
+    return {"applied": applied is not None, "engine": got}
 
 
 async def apply(
-    http: HttpConfigClient,
+    mgr: ConnectionManager,
     backup: bytes,
     overrides: dict[str, str],
     active: str | None,
     all_presets: bool,
-    sleep: Sleep,
 ) -> dict[str, Any]:
     """Edit ``overrides`` into ``backup``'s ``<engine>`` tags and restore it.
 
@@ -63,6 +65,6 @@ async def apply(
     restore itself fails; the caller decides how to report that."""
     members = engineconf.config_members(backup, active or None, all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
-    await http.restore(modified, scope="system")
-    verified = await verify(http, overrides, sleep)
+    await mgr.require_http().restore(modified, scope="system")
+    verified = await verify(mgr, overrides)
     return {"submitted": True, "verified": verified, "members": members, "backup_bytes": len(backup)}

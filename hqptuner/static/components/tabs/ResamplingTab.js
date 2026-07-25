@@ -1,6 +1,6 @@
 // Resampling tab: filter narrowing bar, the PCM and SDM output cards, and FFT
 // filter length. Each output card is split by SOURCE type — a "PCM Sources"
-// subsection (how a PCM source is handled for that output) and an "SDM Sources"
+// subsection (how a PCM source is handled for that output) and a "DSD Sources"
 // subsection (how a DSD/SDM source is handled) — with a mode-mismatch note at
 // the top when the current output mode doesn't use the card.
 import { signal, computed, effect } from "@preact/signals";
@@ -40,8 +40,14 @@ effect(() => {
 // FFT filter length configures the FFT-based resampling filters only (readme
 // §1.2 fft_size), so the card follows the selection instead of sitting open
 // permanently. Any of the four filter slots can select an FFT filter, so all
-// four are checked. The stored value is the engine's list INDEX, which is
-// volatile (outline §2) — match on the option's name, never on the number.
+// four are checked.
+//
+// The stored value is the ENUM ID — these four are http-lane controls whose
+// baseline comes from the daemon's own /config form, and the form's option
+// values are enum ids, not list positions. (The live 4321 lane is the one that
+// speaks list indices; the two domains must never be mixed, protocol.md §4.)
+// Either way the number is volatile across engine versions (outline §2), so
+// match on the option's name and never on the number.
 const FILTER_CONTROLS = [
   ["pcm_filter_1x", "filter1x"],
   ["pcm_filter_nx", "filter"],
@@ -68,7 +74,7 @@ export const Resampling = () =>
         <${Field} k="pcm_filter_nx" />
         <${Field} k="pcm_dither" />
       </div>
-      <div class="subhead">SDM Sources</div>
+      <div class="subhead">DSD Sources</div>
       <div class="pack chain">
         <${Field} k="noise_filter" />
         <${Field} k="pcm_conversion" />
@@ -83,7 +89,7 @@ export const Resampling = () =>
         <${Field} k="sdm_filter_nx" />
         <${Field} k="sdm_modulator" />
       </div>
-      <div class="subhead">SDM Sources</div>
+      <div class="subhead">DSD Sources</div>
       <div class="pack chain">
         <${Field} k="sdm_integrator" />
         <${Field} k="sdm_conversion" />

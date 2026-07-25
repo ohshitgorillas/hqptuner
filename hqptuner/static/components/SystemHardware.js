@@ -3,7 +3,7 @@
 // are file-only (no /config field, no live setter), so they apply through their
 // own POST /api/engine — a backup-edit-restore that self-restarts the daemon and
 // preserves the active preset. Restore uploads a settings.zip the same way. Both
-// interrupt playback, so the backend idle-gates (409 when playing).
+// interrupt playback — never refused for it; the user decides when.
 
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";

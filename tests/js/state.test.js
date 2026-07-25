@@ -32,8 +32,7 @@ import {
   matrixConfig,
   engineState,
 } from "../../hqptuner/static/store/state.js";
-
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+import { ok } from "./wire.js";
 
 // Fake wire. `apply` is the body /api/config/apply answers with; every other
 // path gets a minimal valid response so the surrounding flow completes.

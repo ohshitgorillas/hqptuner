@@ -27,6 +27,3 @@ export function Collapsible({ title, auto, override, children }) {
     </section>
   `;
 }
-
-// checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
-export const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";

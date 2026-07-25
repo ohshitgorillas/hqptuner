@@ -8,7 +8,8 @@ import { VolumeRangeBar } from "../VolumeRangeBar.js";
 import { effective } from "../../store/state.js";
 import { grayReason } from "../../store/graying.js";
 import { LoudnessPlot } from "../plots.js";
-import { Section, Card, truthy } from "./common.js";
+import { Section, Card } from "./common.js";
+import { truthy } from "../../lib/coerce.js";
 
 function LoudnessCard() {
   // dim the body when disabled OR gated (volume control bypassed — loudness

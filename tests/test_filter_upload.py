@@ -3,14 +3,11 @@ ride the next persistent apply's restore archive as data/<name> members — wher
 the daemon lands them in its home dir, so the staged process path resolves."""
 
 import json
-from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import ManagerFactory
 
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.manager import ConnectionManager
 
 ROWS = json.dumps(
@@ -22,11 +19,9 @@ ROWS = json.dumps(
 
 
 @pytest.fixture
-async def manager(http_daemon: dict[str, Any], tmp_path: Path) -> AsyncIterator[ConnectionManager]:
-    http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
-    mgr = ConnectionManager(Config(alarm_threshold=1.0, backup_dir=tmp_path, hqp_home="/x/home"), http)
-    yield mgr
-    await http.aclose()
+def manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
+    """A daemon home the parked-filter path assertions can be read verbatim."""
+    return http_manager_factory(http_daemon, hqp_home="/x/home")
 
 
 async def test_parked_filter_rides_the_restore_archive(manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:

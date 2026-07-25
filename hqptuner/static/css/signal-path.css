@@ -10,7 +10,8 @@
   align-items: stretch;
   flex-wrap: wrap;
   gap: 0;
-  padding: 0.7rem 1rem;
+  padding: 0.7rem 0;
+  margin: 0 var(--gutter);
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
@@ -29,14 +30,14 @@
   padding: 0.22rem 0.5rem;
 }
 .chip-label {
-  font-size: 0.9rem;
-  letter-spacing: 0.09em;
+  font-size: var(--fs-body);
+  letter-spacing: var(--track-wide);
   text-transform: uppercase;
   color: var(--fg);
 }
 .chip-val {
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: var(--fs-head);
+  font-weight: var(--fw-medium);
   color: var(--fg);
 }
 /* a bypassed post-processing stage (crossfeed/correction off) reads muted */
@@ -45,7 +46,7 @@
 }
 .chip-off .chip-val {
   color: var(--muted);
-  font-weight: 400;
+  font-weight: var(--fw-normal);
 }
 /* connector thread — flex-grows to fill the gap so the chain stays continuous
    and spans the bar with compact, content-sized chips (no dead space anywhere). */
@@ -65,10 +66,11 @@
   display: flex;
   flex-direction: column; /* one alert per line */
   gap: var(--sp-1);
-  padding: 0.35rem 1rem;
+  padding: 0.35rem 0;
+  margin: 0 var(--gutter);
   background: var(--bg);
   border-bottom: 1px solid var(--line);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }
 .alert-warn {
   color: var(--amber);
@@ -118,7 +120,7 @@
 }
 .vu-label {
   fill: var(--fg-2);
-  font-size: 9px;
+  font-size: var(--fs-svg-sm);
 }
 .vu-needle {
   stroke: var(--accent);
@@ -129,16 +131,10 @@
   fill: var(--accent);
 }
 .vu-readout {
-  font-size: 1.1rem;
-  font-weight: 500;
+  font-size: var(--fs-title);
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
   color: var(--accent);
-}
-.vu-caption {
-  font-size: 0.78rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--fg-2);
 }
 .eh-meters {
   flex: 1 1 18rem;
@@ -153,8 +149,8 @@
   gap: var(--sp-2);
 }
 .meter-label {
-  font-size: 0.85rem;
-  letter-spacing: 0.05em;
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--fg-2);
 }
@@ -185,7 +181,7 @@
 }
 .meter-val {
   font-variant-numeric: tabular-nums;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
   color: var(--fg);
   text-align: right;
 }
@@ -199,14 +195,14 @@
   gap: 0.1rem;
 }
 .eh-counter-label {
-  font-size: 0.78rem;
-  letter-spacing: 0.09em;
+  font-size: var(--fs-caption);
+  letter-spacing: var(--track-wide);
   text-transform: uppercase;
   color: var(--fg-2);
 }
 .eh-counter-val {
-  font-size: 1.1rem;
-  font-weight: 500;
+  font-size: var(--fs-title);
+  font-weight: var(--fw-medium);
   font-variant-numeric: tabular-nums;
   color: var(--fg);
 }
@@ -214,7 +210,6 @@
   color: var(--amber);
 }
 .eh-counter-total {
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
   color: var(--fg-2);
 }
-

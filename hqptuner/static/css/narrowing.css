@@ -12,10 +12,10 @@
   margin-bottom: 0.6rem;
 }
 .narrow-header {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--track-caps);
   color: var(--fg-2);
   margin-bottom: 0.55rem;
 }
@@ -24,12 +24,12 @@
   align-items: center;
   gap: 0.6rem;
 }
-/* the five facets share one grid row: equal widths, one select style across all */
+/* the six facets share one grid row: equal widths, one select style across all */
 .narrow-facets {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 0.6rem;
 }
 .narrow-facets > *,
@@ -61,12 +61,12 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
   color: var(--fg-2);
   white-space: nowrap;
 }
 .narrow-reset {
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
   color: var(--accent);
   background: none;
   border: none;
@@ -85,7 +85,7 @@
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
 }
 .multi-caret {
   color: var(--muted);
@@ -103,22 +103,43 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-pop);
 }
 .multi-pop label {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
   color: var(--fg-2);
   white-space: nowrap;
 }
+/* orthogonal extra in a multi-select popover (ratio → upsample-only): divided
+   off the class rows above it, same row chrome */
+.multi-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--fs-body);
+  color: var(--fg-2);
+  white-space: nowrap;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--bg-3);
+}
 
-/* apodizing stack — ½-apodizing tabbed under the main toggle, grayed unless on */
-.apod-stack {
+/* per-1x-dropdown apodizing narrow control (ApodNarrow.js) — sits in the field's
+   column 2, below the dropdown's manual description: two stacked checkboxes plus
+   the manual apodizing caption (verbatim settings tooltip), capped at --measure.
+   ½-apodizing tabs under the main toggle and grays unless the main is on. */
+.apod-narrow {
+  grid-column: 2;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+.apod-narrow-note {
+  margin-top: 0.1rem;
 }
 .apod-sub {
   margin-left: 1.4rem;
@@ -130,8 +151,6 @@
 /* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of
    the unit label, not stacked under the control */
 .field-hint {
-  font-size: 0.75rem;
-  color: var(--muted);
   margin-left: 0.5rem;
   white-space: nowrap;
 }
@@ -157,13 +176,13 @@
 
 /* absent-output-device warning — a loaded preset's endpoint isn't present */
 .device-alert {
-  background: color-mix(in srgb, var(--warn, #e0a030) 15%, var(--bg-1));
-  border: 1px solid var(--warn, #e0a030);
+  background: color-mix(in srgb, var(--warn) 15%, var(--bg-1));
+  border: 1px solid var(--warn);
   border-radius: 6px;
   padding: 0.55rem 0.8rem;
   margin-bottom: 0.8rem;
   color: var(--fg);
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
   line-height: 1.35;
 }
 /* rescan-devices button — grid column 2 of the device field, directly under the
@@ -178,7 +197,7 @@
   border: 1px solid var(--bg-3);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }
 .rescan-btn:disabled {
   color: var(--muted);
@@ -188,11 +207,6 @@
 /* inline manual description — under the dropdown (grid col 2), not the label */
 .field-desc {
   grid-column: 2;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--fg-2);
-  opacity: 0.8;
-  max-width: var(--measure);
   margin-top: 0.05rem;
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
@@ -203,12 +217,7 @@
    flex .field-knob rows). Mode/Backend/Rate opt out (hoverNote) — tooltip only. */
 .field-note {
   grid-column: 2;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--fg-2);
-  opacity: 0.8;
   margin-top: 0.05rem;
-  max-width: var(--measure);
 }
 /* Grayed-control explanation — appended after the manual note (schema grayWhen
    reason). Italic + dimmer than .field-note so it reads as state, not prose. */
@@ -219,12 +228,6 @@
 
 .field-gray-reason {
   grid-column: 2;
-  font-size: 0.78rem;
-  line-height: 1.35;
   font-style: italic;
-  color: var(--fg-2);
-  opacity: 0.65;
   margin-top: 0.05rem;
-  max-width: var(--measure);
 }
-

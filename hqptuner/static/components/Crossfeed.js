@@ -5,19 +5,22 @@
 // (docs/crossfeed-math.md). They are mutually exclusive by construction: the
 // matrix runs before post-process, so both at once is two crossfeeds in series.
 //
-// The toggle is a STAGED DSP swap, not a view switch. Selecting a mode stages
-// the rows and the settings that mode needs, exactly like any other edit — the
-// pending bar counts it, Discard undoes it, nothing reaches the daemon until
-// Apply. Mode is derived from the rows rather than stored, so what the toggle
-// shows is always what is actually installed.
+// The toggle is a VIEW selector that disables what it leaves. Selecting a mode
+// switches off the other one — the block, or the post-process flag and its
+// compensation rows — and turns NOTHING on: arriving at a view is a request to
+// see its controls, not to have its processing switched on behind the user's
+// back. Turning either implementation on is a button in its own half of the card.
+// The disable stages like any other edit: the pending bar counts it, Discard
+// undoes it, nothing reaches the daemon until Apply.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
+import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
-import { effective, effectivePipelines, edit } from "../store/state.js";
+import { effective, effectivePipelines } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { pathParams, midSideResponse, magDb, PRESETS, matchPreset } from "../lib/binaural.js";
 import {
-  mode,
+  activeMode,
+  setXfMode,
   structuralParams,
   structuralBlock,
   stageStructural,
@@ -29,10 +32,10 @@ import {
 import { SpeakerDiagram } from "./SpeakerDiagram.js";
 import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
-import { Segment } from "./controls/index.js";
+import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
-import { logFreqs } from "../lib/dsp.js";
-import { truthy } from "./tabs/common.js";
+import { bandFreqs } from "../lib/dsp.js";
+import { truthy } from "../lib/coerce.js";
 
 const cardOpen = signal(true);
 const plotOpen = signal(false);
@@ -55,37 +58,26 @@ function params(rows) {
 
 // --- controls ----------------------------------------------------------------
 
-function Control({ label, unit, min, max, step, value, format, onDrag, onCommit, caption, sub }) {
+// One physical parameter: label, the shared slider+box control, caption. The
+// row is local (these are derived params, not schema fields, so Field.js cannot
+// own them); the control itself is the shared one.
+function Control({ label, unit, min, max, step, boxStep, value, format, onDrag, onCommit, caption, sub }) {
   return html`
     <div class="xfs-control">
       <label class="xfs-label">${label}</label>
-      <div class="xfs-input">
-        <input
-          type="range"
-          min=${min}
-          max=${max}
-          step=${step}
-          value=${value}
-          onWheel=${wheelGuard}
-          onInput=${(e) => onDrag(Number(e.target.value))}
-          onChange=${(e) => onCommit(Number(e.target.value))}
-        />
-        <span class="xfs-readbox">
-          <label class="xfs-readout">
-            <input
-              type="number"
-              min=${min}
-              max=${max}
-              step=${step}
-              value=${format(value)}
-              onWheel=${wheelGuard}
-              onChange=${(e) => onCommit(Number(e.target.value))}
-            />
-            <span class="xfs-unit">${unit}</span>
-          </label>
-          ${sub ? html`<span class="xfs-sub">${sub}</span>` : null}
-        </span>
-      </div>
+      <${SliderNumber}
+        anchor="min"
+        min=${min}
+        max=${max}
+        step=${step}
+        boxStep=${boxStep}
+        value=${value}
+        unit=${unit}
+        sub=${sub}
+        format=${format}
+        onDrag=${(v) => onDrag(Number(v))}
+        onCommit=${(v) => onCommit(Number(v))}
+      />
       ${notesVisible.value && caption ? html`<div class="field-note xfs-caption">${caption}</div>` : null}
     </div>
   `;
@@ -136,8 +128,14 @@ function StructuralMode({ rows }) {
     if (rec) issueNote.value = stageStructural(rows, next) || "";
   };
 
+  // A compensation block occupies the same rows and carries Lin gains, so it has
+  // to be dismantled back to its plain EQ pair before the structural compiler can
+  // build from it. Doing that here rather than refusing is the difference between
+  // a button that works and one that silently does nothing.
   const install = () => {
-    issueNote.value = stageStructural(rows, params(rows)) || "";
+    const comp = xfeedBlock(rows).rec;
+    const base = comp ? uncompensatedRows(rows, comp) : rows;
+    issueNote.value = stageStructural(base, params(base)) || "";
   };
 
   return html`
@@ -184,9 +182,10 @@ function StructuralMode({ rows }) {
           unit=" cm"
           min="41"
           max="66"
-          step="0.5"
+          step="0.25"
+          boxStep="any"
           value=${p0.headRadius * 2 * Math.PI * 100}
-          format=${(v) => v.toFixed(1)}
+          format=${(v) => v.toFixed(2)}
           sub=${`${(p0.headRadius * 100).toFixed(2)} cm radius`}
           onDrag=${(v) => set({ headRadius: v / 100 / (2 * Math.PI) }, false)}
           onCommit=${(v) => set({ headRadius: v / 100 / (2 * Math.PI) }, true)}
@@ -248,7 +247,7 @@ function StructuralMode({ rows }) {
 // headphone EQ; an earlier arrangement put these there and buried the EQ behind
 // a 2 dB story.
 function StructuralPlot({ p0 }) {
-  const freqs = logFreqs(20, 20000, 140);
+  const freqs = bandFreqs(140);
   const at = (lambda) => (f) => midSideResponse(f, { ...p0, lambda });
   const cur = at(p0.lambda);
   const lit = at(1);
@@ -313,23 +312,8 @@ function BauerMode() {
 
 export function CrossfeedCard() {
   const rows = effectivePipelines.value;
-  const active = mode(rows);
+  const active = activeMode(rows);
   const open = cardOpen.value;
-  const rec = structuralBlock(rows);
-
-  const toBauer = () => {
-    if (rec) issueNote.value = noteFor(removeStructural(rows, rec));
-    edit("crossfeed_enabled", "1");
-  };
-  // A compensation block occupies the same rows and carries Lin gains, so it has
-  // to be dismantled back to its plain EQ pair before the structural compiler can
-  // build from it. Doing that here rather than refusing is the difference between
-  // a toggle that works and one that silently does nothing.
-  const toStructural = () => {
-    const comp = xfeedBlock(rows).rec;
-    const base = comp ? uncompensatedRows(rows, comp) : rows;
-    issueNote.value = stageStructural(base, params(base)) || "";
-  };
 
   return html`
     <section class="card">
@@ -343,7 +327,7 @@ export function CrossfeedCard() {
             { value: "bauer", label: "Bauer" },
             { value: "structural", label: "Structural" },
           ]}
-          onChange=${(v) => (v === "bauer" ? toBauer() : toStructural())}
+          onChange=${(v) => setXfMode(v, rows)}
         />
       </div>
       ${issueNote.value ? html`<div class="mtx-issues xfs-issue">${issueNote.value}</div>` : null}

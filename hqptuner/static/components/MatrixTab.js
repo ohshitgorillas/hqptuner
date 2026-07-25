@@ -18,6 +18,11 @@ import { StructuralBadge } from "./StructuralXfeed.js";
 import { ProfileCard } from "./MatrixProfileCard.js";
 import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./MatrixFlowRow.js";
 import { setSelected } from "./MatrixStageEditor.js";
+import { SpeakersCard } from "./SpeakersCard.js";
+import { Segment } from "./controls/index.js";
+import { dspMode, setDspMode } from "../store/dspmode.js";
+import { structuralBlock } from "../lib/xfmode.js";
+import { Section } from "./tabs/common.js";
 
 const pipelinesCardOpen = signal(true);
 
@@ -43,11 +48,13 @@ function GlobalCard() {
 
 // --- Headphone AutoEQ card (step 6 + library pass) ---------------------------
 // Standing collapsible card between PIPELINES and RESPONSE. Default collapsed —
-// not everyone is listening to headphones. Two lanes: the AutoEq library picker
-// (search → preview on RESPONSE → apply) and the paste/.txt import; both append
-// the parsed iir stages to the target row(s) (+ optional stereo-pair mirror =
-// the adjacent row) and map a Preamp line onto the row gain (dB) — one atomic
-// stagePipelines op, Discard undoes it.
+// not everyone is listening to headphones. Two lanes, one contract: the AutoEq
+// library picker (search → preview on RESPONSE → apply) and the .txt load both
+// REPLACE the profile on pipeline 1 (+ optional stereo-pair mirror = the
+// adjacent row) on a single click, mapping a Preamp line onto the row gain (dB)
+// — one atomic stagePipelines op, Discard undoes it. A row's own "Import EQ"
+// still APPENDS the loaded text to that row, for retargeting at an arbitrary
+// pipeline.
 const eqCardOpen = signal(true);
 const importText = signal("");
 const importMirror = signal(true);
@@ -70,6 +77,7 @@ function doImport(rows, targetIndex, replace = false) {
     mirror: importMirror.value,
     block: rec,
     bauer: bs,
+    structural: structuralBlock(rows),
   });
   importNote.value = plan.note;
   if (!plan.rows) return;
@@ -81,24 +89,35 @@ function doImport(rows, targetIndex, replace = false) {
   if (plottedRows.value.size) plottedRows.value = new Set([...plottedRows.value, ...plan.targets]);
 }
 
-// Shared by the panel and the always-visible header button: load a .txt into
-// the import textarea and make sure the card is open so the next step (target
-// pick + Import) is in view. Input value resets so the same file re-fires.
+// Loading a .txt IS loading the EQ — one click, the same contract the library
+// picker already had. It lands on pipeline 1 (+ its stereo pair per the mirror
+// checkbox), the standard headphone case. It used to only fill a textarea and
+// wait for a second press on some row's "Import EQ", which read as a button that
+// did nothing. The parsed text stays in `importText` afterwards, so the per-row
+// buttons still work for retargeting EQ at an arbitrary pipeline.
+// Input value resets so the same file re-fires.
 function loadEqFile(e) {
   const file = e.target.files[0];
   if (!file) return;
   file.text().then((t) => {
     importText.value = t;
     eqCardOpen.value = true;
+    doImport(effectivePipelines.value, 0, true); // a load REPLACES the previous profile
   });
   e.target.value = "";
 }
 
+// Carried by both the Headphone Auto EQ card and the Pipelines card's action row.
+function LoadEqButton() {
+  return html`<label class="btn mtx-file-btn">
+    Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
+  </label>`;
+}
+
 function ImportPanel({ rows }) {
   // Library "Load profile" is ONE click: the profile's verbatim ParametricEQ.txt
-  // lands in the textarea and applies immediately to pipeline 1 (+ its stereo
-  // pair per the mirror checkbox) — the standard headphone case. The paste /
-  // .txt lanes stay per-row (arbitrary EQ needs an explicit target).
+  // applies immediately to pipeline 1 (+ its stereo pair per the mirror
+  // checkbox) — the standard headphone case, same contract as the .txt lane.
   const loadText = (text) => {
     importText.value = text;
     doImport(rows, 0, true); // library load REPLACES the previous profile
@@ -106,13 +125,8 @@ function ImportPanel({ rows }) {
   return html`
     <div class="mtx-import">
       <${LibraryPicker} applyText=${loadText} />
-      <textarea
-        rows="5"
-        placeholder=${"Paste an AutoEq ParametricEQ.txt or a REW Generic EQ export…\nFilter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41"}
-        value=${importText.value}
-        onInput=${(e) => (importText.value = e.target.value)}
-      ></textarea>
       <div class="mtx-profile-row">
+        <${LoadEqButton} />
         <label class="mtx-import-mirror">
           <input
             type="checkbox"
@@ -197,9 +211,7 @@ function PipelinesCard() {
             + Add pipeline
           </button>
           <div class="mtx-file-actions">
-            <label class="btn mtx-file-btn">
-              Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
-            </label>
+            <${LoadEqButton} />
             ${(() => {
               const eqExport = pipelinesToRewText(rows);
               return html`<button
@@ -234,15 +246,38 @@ function PipelinesCard() {
   `;
 }
 
+// The mode switcher. A VIEW selector: it decides which listening setup's
+// controls are on screen and never turns processing on (store/dspmode.js). The
+// matrix, the pipelines and the response plot are common to both and stay put
+// below it — they are the signal path itself, not a headphone feature.
+function DspSwitcher() {
+  const mode = dspMode.value;
+  return html`
+    <div class="dsp-switcher">
+      <${Segment}
+        value=${mode}
+        options=${[
+          // Words only: the app ships Inter + JetBrains Mono, and a 🔊/🎧 in a
+          // segment label renders as tofu wherever no emoji font is installed.
+          { value: "speakers", label: "Speakers" },
+          { value: "headphones", label: "Headphones" },
+        ]}
+        onChange=${setDspMode}
+      />
+    </div>
+  `;
+}
+
 export function MatrixTab() {
-  return html`<section class="tab-body">
+  const speakerMode = dspMode.value === "speakers";
+  return html`<${Section}>
+    <${DspSwitcher} />
     <div class="card-grid">
       <${GlobalCard} />
       <${ProfileCard} />
     </div>
     <${PipelinesCard} />
-    <${HeadphoneEqCard} />
-    <${CrossfeedCard} />
+    ${speakerMode ? html`<${SpeakersCard} />` : html`<${HeadphoneEqCard} /><${CrossfeedCard} />`}
     <${MatrixPlot} />
-  </section>`;
+  <//>`;
 }

@@ -19,7 +19,7 @@
   flex: 1;
 }
 .pending-bar .count {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .pending-bar.active {
   border-top-color: var(--accent);
@@ -44,8 +44,8 @@ button {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #08121c;
-  font-weight: 600;
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
 }
 /* a disabled primary must read as inert, not a dimmed-but-lit Apply */
 button.primary:disabled {
@@ -57,4 +57,3 @@ button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-
