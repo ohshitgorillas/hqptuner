@@ -1,6 +1,6 @@
 // System tab: engine identity + backup/restore, metering, hardware
 // acceleration, HQPTuner preferences, and the logging card.
-import { computed } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { health } from "../../store/state.js";
@@ -32,7 +32,7 @@ const About = () => {
   const i = info.value;
   const rows = [
     ["Product", i.product],
-    ["Engine", i.engine],
+    ["Version", i.engine],
     ["Licensed", licenseLabel(license.value)],
     ["Platform", i.platform],
   ].filter((r) => r[1]);
@@ -107,6 +107,46 @@ const AccentPicker = () => html`
   </div>
 `;
 
+// A standing subsection of the HQPTuner card rather than a card of its own, so
+// the tab's card rhythm is unchanged. Collapsed by default and not persisted —
+// it is read-once prose, not a preference. Rides the shared inline-collapsible
+// head the Crossfeed plots use, sitting full-width below the two-track prefs
+// pack.
+const aboutOpen = signal(false);
+
+const AboutHqptuner = () => {
+  const open = aboutOpen.value;
+  return html`
+    <div class="abt">
+      <button type="button" class="collapsible-head" onClick=${() => (aboutOpen.value = !open)}>
+        <span class="tri">${open ? "▾" : "▸"}</span> About HQPTuner
+      </button>
+      ${
+        open
+          ? html`<div class="abt-prose">
+              <p>
+                HQPTuner is a project by user oh shit, gorillas! to bring out the untapped UX potential of HQPlayer
+                Embedded.
+              </p>
+              <p>
+                Most credit goes to Jussi Laako/Signalyst. He builds it and makes it work, I'm just plugging into what
+                he does and trying to make it pretty. Thanks, Jussi!
+              </p>
+              <p>
+                HQPTuner is free and always will be. If it enhances your audio experience, then it's done its job and a
+                simple "thank you" is all the payment I need. That said, if you really want your specific "thank you" to
+                be financial, I won't stop you from${" "}
+                <a href="https://ko-fi.com/ohshitgorillas" target="_blank" rel="noopener noreferrer"
+                  >buying me a coffee</a
+                >. Just don't say I strong-armed you into it ;)
+              </p>
+            </div>`
+          : null
+      }
+    </div>
+  `;
+};
+
 // Logging card — full width at the bottom of the tab. The two log-config options
 // sit side by side at the top; the live tail view (checkbox-gated) sits below.
 const LoggingCard = () =>
@@ -140,6 +180,7 @@ export const System = () =>
         <${DescriptionPrefs} />
         <${AccentPicker} />
       </div>
+      <${AboutHqptuner} />
     <//>
     <${LoggingCard} />
   <//>`;
