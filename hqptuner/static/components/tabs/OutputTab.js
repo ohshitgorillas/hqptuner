@@ -76,6 +76,7 @@ export const Output = () => {
         <${Field} k="quick_pause" />
         <${Field} k="short_buffer" />
         <${Field} k="junk_filter" />
+        <${Field} k="pre_before_meter" />
       </div>
     <//>
     <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
