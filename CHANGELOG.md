@@ -32,6 +32,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
   Output rate is deliberately excluded: the per-family rate control sets a *ceiling* that the engine follows from the source, while the Control API's rate setter forces a fixed rate outright. They are not the same setting, and treating them as one would quietly break auto-family rate following.
 
+- **Filter narrowing read the engine's facets wrong on both chains.** Two defects in the same parser, which had to be repaired together:
+
+  The engine separates a filter's quality/focus head from its ratio class with a direction glyph that **differs by chain** — `⥮` on PCM filters, which resample both ways, and `⥣` on SDM oversampling filters, which only ever go up. The parser matched `⥮` alone, so on the SDM chain the **focus** facet (transients / timbre / space) silently matched nothing: 50 of the 77 SDM filters carry a focus token that was being thrown away, and unlike ratio and upsample, focus had no static fallback to cover it.
+
+  Separately, the engine **abbreviates** where the manual spells out — the wire says `Int` and `2^x`, the shipped overlay says `integer` and `2x`. The normalizer tested the long spellings as prefixes, which can never match the short ones, so 28 of the 67 PCM filters normalized to a value matching no menu entry. Because the fallback only triggers on a missing value and not a wrong one, that junk beat the correct transcribed class instead of deferring to it. Consequence: picking **Integer** or **2×** on the PCM chain hid filters that belong to exactly that class.
+
+  SDM ratio narrowing had been working only by accident — the glyph mismatch failed cleanly to the static overlay — so fixing the glyph alone would have regressed it onto the broken normalizer.
+
 ### Changed
 
 - **Apodizing narrowing moved under each 1x dropdown, and is now per-chain.** It was one global **Show apodizing only** toggle in the narrowing bar, narrowing the PCM and SDM 1x filter lists together. Each 1x dropdown now carries its own **Show apodizing only** / **Show ½ apodizing** pair, independent of the other — narrow one chain's list without touching the other. Moving it also freed the bar for the new ratio facet (six facet menus do not fit beside the toggle). The manual's description of what apodizing is, previously only a hover tooltip, now sits visibly beneath the checkboxes for anyone unsure whether to leave it on.

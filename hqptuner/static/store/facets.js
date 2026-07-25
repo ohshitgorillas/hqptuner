@@ -17,9 +17,20 @@ function quality(desc) {
   return m ? Number(m[1]) : null;
 }
 
-// "4/5 space, transients ⥮ Any" -> ["space", "transients"]; "1/5 ⥮ 1:1" -> []
+// The glyph separating the facet head from the ratio class DIFFERS BY CHAIN:
+// PCM filters (which resample both directions) use ⥮, SDM oversampling filters
+// (up-only by nature — you cannot downsample into DSD) use ⥣. Verified
+// exhaustively against the captured enumerations: 67/67 PCM ⥮, 77/77 SDM ⥣.
+// Matching ⥮ alone silently blanked focus for the 50 SDM filters that carry one,
+// and sent ratio/upsample down their static fallback. Any new parse of the
+// description tail goes through these two, never a bare glyph literal.
+const ARROW = "[⥮⥣]";
+const FOCUS_RE = new RegExp(`^\\s*\\d+/5\\s*(.*?)\\s*${ARROW}`);
+const TAIL_RE = new RegExp(`${ARROW}\\s*(.+?)\\s*$`);
+
+// "4/5 space, transients ⥮ Any" -> ["space", "transients"]; "1/5 ⥣ Int" -> []
 function focus(desc) {
-  const m = /^\s*\d+\/5\s*(.*?)\s*⥮/.exec(desc || "");
+  const m = FOCUS_RE.exec(desc || "");
   if (!m || !m[1]) return [];
   return m[1]
     .split(",")
@@ -27,25 +38,33 @@ function focus(desc) {
     .filter(Boolean);
 }
 
-// The ratio class sits after the ⥮ in the live description ("… ⥮ Any", "… ⥮
-// 1:1"). Normalized to the same tokens the static overlay uses: any / integer /
-// 2x / 1:1 (the "up" upsample-only qualifier is dropped — it is not a ratio
-// class the narrow chip offers).
+// The ratio class sits after the arrow in the live description ("… ⥮ Any", "…
+// ⥣ Int"). Normalized to the same tokens the static overlay uses: any /
+// integer / 2x / 1:1 (the "up" upsample-only qualifier is dropped — it is not a
+// ratio class the narrow chip offers).
+//
+// The engine ABBREVIATES where the manual spells out: the wire says `Int` and
+// `2^x`, the static overlay says `integer` and `2x`. Prefix-matching the long
+// forms ("integer".startsWith on "int") never fired, so 28 of 67 PCM filters
+// normalized to a raw `int`/`2^x` that matches no narrow chip — and because `??`
+// only falls back on null, that truthy junk beat the correct static value.
+// Match the SHORT form; both spellings then land on the overlay's token.
 function normRatio(s) {
   const t = (s || "")
     .toLowerCase()
-    .replace(/ˣ/g, "x")
+    .replace(/ˣ/g, "x") // 2ˣ -> 2x
+    .replace(/\^/g, "") // 2^x -> 2x
     .replace(/\s*up\s*$/, "")
     .trim();
   if (!t) return null;
   if (t === "1:1") return "1:1";
-  if (t.startsWith("integer")) return "integer";
+  if (t.startsWith("int")) return "integer";
   if (t.startsWith("2x")) return "2x";
   if (t.startsWith("any")) return "any";
   return t;
 }
 function ratioLive(desc) {
-  const m = /⥮\s*(.+?)\s*$/.exec(desc || "");
+  const m = TAIL_RE.exec(desc || "");
   return m ? normRatio(m[1]) : null;
 }
 
@@ -117,7 +136,7 @@ function apodFromStatic(a) {
 // Upsample-only ("up" in the manual's ratio column, e.g. "Integer up") — the
 // live wire ratio may carry it; else the static overlay's banked bit.
 function upsampleLive(desc) {
-  const m = /⥮\s*(.+?)\s*$/.exec(desc || "");
+  const m = TAIL_RE.exec(desc || "");
   return m ? /\bup\b/i.test(m[1]) : false;
 }
 function upsampleFlag(desc, s) {
