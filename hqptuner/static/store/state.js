@@ -47,19 +47,19 @@ export const reachable = computed(() => !!(health.value && health.value.reachabl
 export const alarm = computed(() => !!(health.value && health.value.alarm));
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");
 
-export const configByName = computed(() => {
-  const map = {};
-  for (const f of (config.value && config.value.fields) || []) map[f.name] = f;
-  return map;
-});
+// A form's fields keyed by name — the baseline/constraint source a control
+// reads from. Empty until that form has been polled at least once.
+const byName = (form) =>
+  computed(() => {
+    const map = {};
+    for (const f of (form.value && form.value.fields) || []) map[f.name] = f;
+    return map;
+  });
 
-// /matrix fields, keyed by name — the baseline/constraint source for the
-// crossfeed/DAC-correction controls (endpoint "matrix" in the schema).
-export const matrixByName = computed(() => {
-  const map = {};
-  for (const f of (matrixConfig.value && matrixConfig.value.fields) || []) map[f.name] = f;
-  return map;
-});
+export const configByName = byName(config);
+// /matrix fields — the source for the crossfeed/DAC-correction controls
+// (endpoint "matrix" in the schema).
+export const matrixByName = byName(matrixConfig);
 
 // http-lane field source: /matrix for endpoint "matrix", /config otherwise.
 export function httpFieldMap(entry) {
@@ -376,16 +376,31 @@ export async function deletePreset(name) {
 export const applying = signal(false);
 export const lastApply = signal(null); // {ok, text} of the most recent apply
 
+// Both write lanes share a lifecycle: hold `applying` for the duration so the
+// pill and the pending bar can show it, and report a thrown failure as a
+// `lastApply` the user can read rather than a rejected promise nobody catches.
+// The lane still rethrows — the caller decides what a hard failure means.
+async function applyLane(run, what) {
+  applying.value = true;
+  try {
+    return await run();
+  } catch (e) {
+    lastApply.value = { ok: false, text: `${what} failed: ${e.message}` };
+    throw e;
+  } finally {
+    applying.value = false;
+  }
+}
+
 // Apply the staged set. The backend keeps staging on a soft failure, so on
 // return we re-mirror it: a failed/held edit stays staged and — once the poll
 // loop marks the daemon reachable again — the Apply button re-enables itself.
 export async function applyAll(save) {
-  applying.value = true;
   const count = stagedCount.value; // capture before apply clears the staged set
   // never send a switch to the preset already loaded — that reload is a no-op
   // that trips the daemon's empty-/backup bug and leaves Apply stuck lit
   const switchTo = pendingPreset.value && pendingPreset.value !== activePreset.value ? pendingPreset.value : null;
-  try {
+  return applyLane(async () => {
     const body = {};
     if (save) body.save = save;
     if (switchTo) body.switch_to = switchTo;
@@ -394,32 +409,21 @@ export async function applyAll(save) {
     lastApply.value = summarize(report, count);
     if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
     return report;
-  } catch (e) {
-    lastApply.value = { ok: false, text: `Apply failed: ${e.message}` };
-    throw e;
-  } finally {
-    applying.value = false;
-  }
+  }, "Apply");
 }
 
 // Standalone save — persist the CURRENT running config to a named preset with
 // nothing staged (the "I like this, keep it" path). Reuses the applying signal:
 // the save lane POSTs /restore, so the daemon briefly restarts just like an apply.
 export async function savePresetOnly(name) {
-  applying.value = true;
-  try {
+  return applyLane(async () => {
     const r = await api.profile("save", name);
     lastApply.value = r.ok
       ? { ok: true, text: `Saved to "${r.name}"` }
       : { ok: false, text: `Save to "${r.name}" failed: ${r.error}` };
     await refreshConfig();
     return r;
-  } catch (e) {
-    lastApply.value = { ok: false, text: `Save failed: ${e.message}` };
-    throw e;
-  } finally {
-    applying.value = false;
-  }
+  }, "Save");
 }
 
 // --- polling: mirror the backend's already-polled snapshots ---
@@ -431,13 +435,20 @@ async function safe(fn) {
   }
 }
 
+// Mirror one polled endpoint into its signal. A failed call leaves the last
+// good value in place rather than blanking the UI. Most endpoints answer with
+// the payload under `.data`; `unwrap` names the ones that answer raw.
+const raw = (r) => r;
+async function mirror(fn, sig, unwrap = (r) => r.data) {
+  const r = await safe(fn);
+  if (r) sig.value = unwrap(r);
+}
+
 async function refreshFast() {
-  const h = await safe(api.health);
-  if (h) health.value = h;
-  const s = await safe(api.state);
-  if (s) engineState.value = s.data;
-  const st = await safe(api.status);
-  if (st) engineStatus.value = st.data;
+  await mirror(api.health, health, raw);
+  await mirror(api.state, engineState);
+  await mirror(api.status, engineStatus);
+  // the one endpoint feeding two signals: the level and the range it sits in
   const v = await safe(api.volume);
   if (v) {
     volume.value = v.volume;
@@ -461,14 +472,10 @@ export async function refreshDevices() {
 }
 
 export async function refreshConfig() {
-  const e = await safe(api.enumerations);
-  if (e) enums.value = e.data;
-  const c = await safe(api.config);
-  if (c) config.value = c.data;
-  const m = await safe(api.matrix);
-  if (m) matrixConfig.value = m.data;
-  const p = await safe(api.pending);
-  if (p) staged.value = p;
+  await mirror(api.enumerations, enums);
+  await mirror(api.config, config);
+  await mirror(api.matrix, matrixConfig);
+  await mirror(api.pending, staged, raw);
 }
 
 export function startPolling(interval = 2000) {
