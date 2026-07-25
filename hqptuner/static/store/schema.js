@@ -25,6 +25,8 @@
 // 2=SDM). auto_family/samplerate/bitrate are forced by the apply layer, not
 // exposed here (friendly rate always assumes auto-family follow).
 
+import { truthy } from "../lib/coerce.js";
+
 // Mode is the http `mode` field (auto/pcm/sdm) — stable values, always all three.
 // (The live GetModes enum is device-dependent: it drops SDM when the active
 // device can't do DSD, so it's the wrong source for a persistent config choice.)
@@ -35,8 +37,6 @@ const inMode = (ctx, m) => String(ctx.effective("output_mode")) === m;
 const isSdm = (ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
 const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
 
-// checkbox value can arrive as bool (config) or "1"/"0" (staged) — normalize.
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 // DirectSDM "will disable volume control and set PCM volume to fixed -3 dBFS
 // value" (manual §4.5). Every persistent control that sets a volume level is
 // therefore inert while it's on — the daemon accepts and stores the setting but

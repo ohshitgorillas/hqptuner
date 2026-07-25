@@ -10,7 +10,7 @@ import { html, wheelGuard } from "../lib/dom.js";
 import { effective, effectivePipelines, stagePipelines, edit } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { parseProcess } from "../lib/matrixspec.js";
-import { chainResponse, logFreqs } from "../lib/dsp.js";
+import { chainResponse, bandFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
 import {
   BAUER_PRESETS,
@@ -22,9 +22,9 @@ import {
   msCompile,
   msRecognize,
 } from "../lib/xfeed.js";
+import { truthy } from "../lib/coerce.js";
 
 const FS = 48000;
-const truthy = (v) => v === true || v === "1" || v === 1;
 
 function bauerSettings() {
   const preset = String(effective("crossfeed_preset") ?? "default");
@@ -115,7 +115,7 @@ export function xfeedLensTraces(rows, bounds) {
   const pct = currentPct(rec);
   const eq = parseProcess(eqProcess);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   const mk = (fn) => {
     const pts = freqs.map((f) => {
       const db = fn(f);
@@ -304,7 +304,7 @@ export function CompMiniPlot() {
   if (!bs.enabled && !rec) return null;
   const pct = currentPct(rec);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
-  const freqs = logFreqs(20, 20000, 120);
+  const freqs = bandFreqs(120);
   const trace = (fn) => freqs.map((f) => [f, fn(f)]);
   const xf = (f) => centerMagDb(bs.fc, bs.feed, f);
   const corr = (f) => chainResponse(comp, f, FS).db;

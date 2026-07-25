@@ -10,11 +10,10 @@ import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { effective } from "../store/state.js";
 import { Checkbox } from "./controls/index.js";
+import { truthy } from "../lib/coerce.js";
 
 const LINES = 50;
 const POLL_MS = 3000;
-
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 const shown = signal(null); // null = follow log_enabled; true/false = user choice
 const lines = signal([]);

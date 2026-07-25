@@ -34,8 +34,8 @@ import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
-import { logFreqs } from "../lib/dsp.js";
-import { truthy } from "./tabs/common.js";
+import { bandFreqs } from "../lib/dsp.js";
+import { truthy } from "../lib/coerce.js";
 
 const cardOpen = signal(true);
 const plotOpen = signal(false);
@@ -261,7 +261,7 @@ function StructuralMode({ rows }) {
 // headphone EQ; an earlier arrangement put these there and buried the EQ behind
 // a 2 dB story.
 function StructuralPlot({ p0 }) {
-  const freqs = logFreqs(20, 20000, 140);
+  const freqs = bandFreqs(140);
   const at = (lambda) => (f) => midSideResponse(f, { ...p0, lambda });
   const cur = at(p0.lambda);
   const lit = at(1);

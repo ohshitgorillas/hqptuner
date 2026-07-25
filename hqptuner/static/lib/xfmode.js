@@ -31,6 +31,7 @@ import { effective, stagePipelines, edit } from "../store/state.js";
 // bauer settings, and that reading lives with the strip that renders it. Nothing
 // in components/ imports this module's mode signal back, so the graph stays a DAG.
 import { xfeedBlock, removeBlock as removeCompBlock } from "../components/XfeedComp.js";
+import { truthy } from "./coerce.js";
 
 const KEY = "hqptuner.structuralCrossfeed";
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
@@ -157,8 +158,6 @@ export function stageStructural(rows, params) {
 // Null until the user picks one, and then the installed rows answer for them — a
 // config that arrives with a block open on Structural.
 const MODE_KEY = "hqptuner.crossfeedMode";
-
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 function loadSelected() {
   try {

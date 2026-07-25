@@ -6,7 +6,8 @@ import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
 import { optionsFor } from "../../store/options.js";
-import { Card, Collapsible, truthy } from "./common.js";
+import { Card, Collapsible } from "./common.js";
+import { truthy } from "../../lib/coerce.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
 // runs both). Collapse is purely visual — every field still POSTs (the daemon

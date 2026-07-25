@@ -11,7 +11,7 @@ import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { effectivePipelines, stagePipelines } from "../store/state.js";
 import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
-import { chainResponse, logFreqs } from "../lib/dsp.js";
+import { chainResponse, bandFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
@@ -142,7 +142,7 @@ function rowHandles(rows, plotted) {
 }
 
 function rowTraces(rows, plotted, bounds) {
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   // Collapse rows with an identical processing chain (stereo pairs land byte-
   // identical) into one curve, labeled with every pipeline number it covers —
   // so a stereo EQ is a single "1+2" trace, not two overlapping ones with
@@ -197,7 +197,7 @@ function eqOverviewTrace(rows, bounds) {
   if (!rec) return null;
   const stages = parseProcess(rec.eqProcess);
   if (!stages.length) return null;
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   const mag = [];
   const ph = [];
   for (const f of freqs) {
@@ -223,7 +223,7 @@ function structuralEqTraces(rec, bounds) {
           ["EQ left", rec.eqProcess.left],
           ["EQ right", rec.eqProcess.right],
         ];
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   const out = [];
   for (const [label, chain] of sides) {
     const stages = parseProcess(chain);
@@ -244,7 +244,7 @@ function structuralEqTraces(rec, bounds) {
 }
 
 function previewTrace(preview, bounds) {
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   const mag = [];
   for (const f of freqs) {
     const r = chainResponse(preview.stages, f, FS);
