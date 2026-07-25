@@ -148,11 +148,15 @@ class ControlClient:
 
     # --- typed helpers -------------------------------------------------
 
+    async def _attrs(self, element: str) -> dict[str, str]:
+        """A query whose whole answer is the response root's attributes."""
+        return dict((await self.request(element)).attrib)
+
     async def get_info(self) -> dict[str, str]:
-        return dict((await self.request("<GetInfo/>")).attrib)
+        return await self._attrs("<GetInfo/>")
 
     async def get_license(self) -> dict[str, str]:
-        return dict((await self.request("<GetLicense/>")).attrib)
+        return await self._attrs("<GetLicense/>")
 
     async def get_active_config(self) -> str:
         """The active configuration/preset name (empty string = the unnamed
@@ -160,13 +164,13 @@ class ControlClient:
         return (await self.request("<ConfigurationGet/>")).attrib.get("value", "")
 
     async def get_state(self) -> dict[str, str]:
-        return dict((await self.request("<State/>")).attrib)
+        return await self._attrs("<State/>")
 
     async def get_volume_range(self) -> dict[str, str]:
         """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
         The authority for live-volume slider bounds and whether volume control is
         active at all (protocol.md §7.3)."""
-        return dict((await self.request("<VolumeRange/>")).attrib)
+        return await self._attrs("<VolumeRange/>")
 
     async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
         root = await self.request('<Status subscribe="0"/>')
@@ -207,9 +211,12 @@ class ControlClient:
         return root
 
     # --- typed setters (index domain; protocol.md §6) ------------------
-
-    async def set_mode(self, index: str) -> None:
-        await self.set_command("SetMode", value=index)
+    #
+    # Only the settings whose call is more than "one value attribute, one State
+    # attribute" live here. The uniform ones (mode, shaper, rate, junk filter,
+    # adaptive volume) are rows in ``writer.SETTINGS`` driving ``set_command``
+    # directly — a wrapper per setting was a second place for the element name
+    # to be spelled, and spelling it twice is how it drifts.
 
     async def set_filter(self, nx: str, x1: str | None = None) -> None:
         """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value,
@@ -218,18 +225,6 @@ class ControlClient:
             await self.set_command("SetFilter", value=nx)
         else:
             await self.set_command("SetFilter", value=nx, value1x=x1)
-
-    async def set_shaping(self, index: str) -> None:
-        await self.set_command("SetShaping", value=index)
-
-    async def set_rate(self, index: str) -> None:
-        await self.set_command("SetRate", value=index)
-
-    async def set_junk_filter(self, index: str) -> None:
-        await self.set_command("SetJunkFilter", value=index)
-
-    async def set_adaptive_volume(self, on: str) -> None:
-        await self.set_command("SetAdaptiveVolume", value=on)
 
     async def set_volume(self, db: str) -> None:
         await self.set_command("Volume", value=db)
