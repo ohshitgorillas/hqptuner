@@ -21,7 +21,8 @@ from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
 from ..presetstore import PresetError
 from ..writer import known_live_settings
-from . import matrixapi
+from . import deps, matrixapi
+from .deps import HttpMgr, IdleMgr, Mgr
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -93,22 +94,8 @@ class PendingStore:
         return {"live": self.live, "http": self.http}
 
 
-def _mgr(request: Request) -> ConnectionManager:
-    manager: ConnectionManager = request.app.state.manager
-    return manager
-
-
-def _snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
-    """Serve last-loaded state, flagged stale when the daemon is unreachable —
-    never a socket wait (roadmap 2.2 fail-fast rule)."""
-    if data is None:
-        raise HTTPException(status_code=503, detail="not yet loaded from daemon")
-    return {"stale": not manager.reachable, "loaded_at": manager.loaded_at, "data": data}
-
-
 @router.get("/health")
-def health(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
+def health(manager: Mgr) -> dict[str, Any]:
     return {
         "reachable": manager.reachable,
         "unreachable_since": manager.unreachable_since,
@@ -119,39 +106,30 @@ def health(request: Request) -> dict[str, Any]:
 
 
 @router.get("/state")
-def state(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
-    return _snapshot(manager, manager.state)
+def state(manager: Mgr) -> dict[str, Any]:
+    return deps.snapshot(manager, manager.state)
 
 
 @router.get("/status")
-def status(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
+def status(manager: Mgr) -> dict[str, Any]:
     if manager.status is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
-    return _snapshot(manager, {"status": manager.status, "metadata": manager.status_metadata})
+    return deps.snapshot(manager, {"status": manager.status, "metadata": manager.status_metadata})
 
 
 @router.get("/enumerations")
-def enumerations(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
+def enumerations(request: Request, manager: Mgr) -> dict[str, Any]:
     if manager.enums is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
     mode_name = manager.current_mode_name()
     merged = merge_enumerations(manager.enums, request.app.state.static, mode_name)
     merged["mode"] = {"index": (manager.state or {}).get("mode"), "name": mode_name}
-    return _snapshot(manager, merged)
+    return deps.snapshot(manager, merged)
 
 
 @router.get("/config")
-def config(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    if manager.config_form is None and manager.config_error:
-        raise HTTPException(status_code=502, detail=f"GET /config failed: {manager.config_error}")
-    if manager.config_form is None:
-        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
+def config(manager: HttpMgr) -> dict[str, Any]:
+    form = deps.ensure_form(manager.config_form, manager.config_error, "/config")
     # `profiles` and `active` come from HQPTuner's own preset store — the source of
     # truth — not the daemon's (unreliable) profile subsystem, which under our
     # restore-only model always reports [default].
@@ -163,10 +141,10 @@ def config(request: Request) -> dict[str, Any]:
     # affected controls here, so a dropdown shows what is actually playing and
     # selecting the previous value still reads as a change.
     presets = manager.presets()
-    return _snapshot(
+    return deps.snapshot(
         manager,
         {
-            **manager.config_form,
+            **form,
             "profiles": {"value": presets["value"], "options": presets["options"]},
             "active": presets["active"],
             "file": {**(manager.file_config or {}), **livemap.live_overrides(manager)},
@@ -175,12 +153,9 @@ def config(request: Request) -> dict[str, Any]:
 
 
 @router.get("/preset/{name}")
-async def preset(name: str, request: Request) -> dict[str, Any]:
+async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """A preset's saved settings, read from its snapshot without loading it — the
     editor previews these when the user picks a preset, before any apply."""
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
     try:
         return {"name": name, "config": await manager.read_preset(name)}
     except PresetError as exc:
@@ -190,12 +165,9 @@ async def preset(name: str, request: Request) -> dict[str, Any]:
 
 
 @router.post("/config/refresh")
-async def config_refresh(request: Request) -> dict[str, Any]:
+async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
     """Re-scan output devices on the daemon and refetch the config forms, so a
     device that was absent (a powered-off NAA endpoint) appears in the dropdown."""
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
     try:
         return await manager.refresh_devices()
     except (ControlError, httpx.HTTPError) as exc:
@@ -203,10 +175,7 @@ async def config_refresh(request: Request) -> dict[str, Any]:
 
 
 @router.get("/backup")
-async def backup(request: Request) -> Response:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+async def backup(manager: HttpMgr) -> Response:
     try:
         data = await manager.backup()
     except ControlError as exc:
@@ -225,18 +194,17 @@ def metadata(request: Request) -> dict[str, Any]:
 
 
 @router.get("/log")
-async def log_tail(request: Request, lines: int = 50) -> dict[str, Any]:
+async def log_tail(manager: Mgr, lines: int = 50) -> dict[str, Any]:
     """Static tail of the daemon's log file (System-tab live view). Read-only,
     no daemon socket — reads the file the running config points at."""
     n = max(1, min(lines, 500))
-    return await _mgr(request).read_log_tail(n)
+    return await manager.read_log_tail(n)
 
 
 @router.get("/volume")
-def volume_get(request: Request) -> dict[str, Any]:
+def volume_get(manager: Mgr) -> dict[str, Any]:
     """Live volume + its live bounds/enabled (VolumeRange). Separate from the
     staged-config surface — this is the runtime playback-volume lane."""
-    manager = _mgr(request)
     vr = manager.volume_range or {}
     return {
         "volume": (manager.state or {}).get("volume"),
@@ -248,12 +216,12 @@ def volume_get(request: Request) -> dict[str, Any]:
 
 
 @router.post("/volume")
-async def volume_set(body: VolumeBody, request: Request) -> dict[str, Any]:
+async def volume_set(body: VolumeBody, manager: Mgr) -> dict[str, Any]:
     """Immediate live-volume write — never staged, never restarts. 503 when
     volume control is disabled (the slider grays on that state, so this is the
     race backstop)."""
     try:
-        return await _mgr(request).set_volume(body.level)
+        return await manager.set_volume(body.level)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -294,11 +262,11 @@ def pending(request: Request) -> dict[str, Any]:
 
 
 @router.delete("/config/pending")
-def discard(request: Request) -> dict[str, Any]:
+def discard(request: Request, manager: Mgr) -> dict[str, Any]:
     store = _pending(request)
     store.clear()
     # parked filter uploads belong to the staged process strings just discarded
-    _mgr(request).clear_parked_filters()
+    manager.clear_parked_filters()
     return store.snapshot()
 
 
@@ -313,12 +281,11 @@ async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, 
 
 
 @router.post("/config/apply")
-async def apply(request: Request, body: ApplyBody | None = None) -> dict[str, Any]:
+async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -> dict[str, Any]:
     store = _pending(request)
     switch_to = body.switch_to if body else None
     if not store.live and not store.http and switch_to is None:
         raise HTTPException(status_code=400, detail="nothing staged")
-    manager = _mgr(request)
     try:
         report = await manager.apply(store.live, store.http, switch_to)
     except ControlError as exc:
@@ -331,19 +298,8 @@ async def apply(request: Request, body: ApplyBody | None = None) -> dict[str, An
     return report
 
 
-def _require_idle(manager: ConnectionManager) -> None:
-    """A restart-based apply interrupts playback — refuse unless the daemon is
-    idle (State state="0"). The user stops playback and retries."""
-    state = (manager.state or {}).get("state")
-    if state != "0":
-        raise HTTPException(status_code=409, detail="daemon is not idle (stop playback first)")
-
-
 @router.get("/engine")
-async def engine_get(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+async def engine_get(manager: HttpMgr) -> dict[str, Any]:
     try:
         return {"engine": await manager.read_engine(), "active_config": manager.active_config}
     except (ControlError, httpx.HTTPError) as exc:
@@ -351,13 +307,12 @@ async def engine_get(request: Request) -> dict[str, Any]:
 
 
 @router.post("/engine")
-async def engine_apply(body: EngineBody, request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
+async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
+    # idle-gated in the handler, not by IdleMgr: an empty override set is a 400
+    # whether or not the daemon happens to be playing
     if not body.overrides:
         raise HTTPException(status_code=400, detail="no engine overrides given")
-    _require_idle(manager)
+    deps.require_idle(manager)
     try:
         return await manager.apply_engine(body.overrides, body.all_presets)
     except ValueError as exc:
@@ -367,11 +322,7 @@ async def engine_apply(body: EngineBody, request: Request) -> dict[str, Any]:
 
 
 @router.post("/restore")
-async def restore(request: Request, cfgfile: Annotated[UploadFile, File()]) -> dict[str, Any]:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    _require_idle(manager)
+async def restore(cfgfile: Annotated[UploadFile, File()], manager: IdleMgr) -> dict[str, Any]:
     data = await cfgfile.read()
     try:
         await manager.restore_config(data)
@@ -381,8 +332,7 @@ async def restore(request: Request, cfgfile: Annotated[UploadFile, File()]) -> d
 
 
 @router.post("/profile/{action}")
-async def profile(action: str, body: ProfileBody, request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
+async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any]:
     methods = {
         "load": manager.load_preset,
         "save": manager.save_preset,
@@ -403,12 +353,9 @@ async def profile(action: str, body: ProfileBody, request: Request) -> dict[str,
 
 
 @router.delete("/preset/{name}")
-async def delete_preset(name: str, request: Request) -> dict[str, Any]:
+async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror (Delete button
     on the preset picker)."""
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
     try:
         return await manager.delete_preset(name)
     except PresetError as exc:
