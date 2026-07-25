@@ -35,7 +35,15 @@ import {
 
 // The engine enumeration the facets are derived from. `apodizing` arrives
 // pre-computed from the backend (metadata.py, arg bit 0); ½-apodizing is read
-// off the raw arg client-side. The ratio class is the token after the ⥮.
+// off the raw arg client-side. The ratio class is the token after the arrow.
+//
+// These descriptions are WIRE-FAITHFUL and must stay that way. The engine
+// abbreviates (`Int`, `2^x`) where the manual and the static overlay spell out
+// (`integer`, `2x`), and it separates the facet head from the ratio with a glyph
+// that differs by chain — ⥮ on PCM filters, ⥣ on SDM oversampling filters
+// (verified 67/67 and 77/77 against the captured enumerations). An earlier
+// fixture wrote the normalized spellings and a single glyph, so it agreed with
+// the parser instead of testing it, and two real defects survived the gate.
 enums.value = {
   filters: [
     {
@@ -44,10 +52,14 @@ enums.value = {
       description: "5/5 transients, timbre ⥮ Any",
       static: { genre: ["rock", "pop"] },
     },
-    { name: "sinc-M", description: "4/5 space ⥮ Integer", static: { genre: ["any"] } },
-    { name: "poly-sinc-short-mp", arg: 2, description: "2/5 ⥮ 2x", static: { genre: ["jazz"] } },
+    { name: "sinc-M", description: "4/5 space ⥮ Int", static: { genre: ["any"] } },
+    { name: "poly-sinc-short-mp", arg: 2, description: "2/5 ⥮ 2^x", static: { genre: ["jazz"] } },
     { name: "gauss-lp", apodizing: true, arg: 2, description: "3/5 timbre ⥮ 1:1" },
     { name: "unlisted-filter", description: "no quality here" },
+    // SDM chain: the ⥣ glyph, carrying both a focus token and a ratio class.
+    { name: "sdm-chain-filter", description: "4/5 timbre ⥣ Int" },
+    // PCM chain, upsample-only: the manual fuses "up" into the ratio column.
+    { name: "upsample-only-filter", description: "3/5 space ⥮ Int up" },
   ],
 };
 
@@ -353,4 +365,38 @@ test("test_an_unparseable_quality_still_reads_as_active", () => {
 test("test_an_empty_option_list_narrows_to_an_empty_list", () => {
   only(() => (nPhase.value = "linear"));
   assert.equal(narrowOptions([], null, "1x", "pcm_filter_1x").length, 0);
+});
+
+// --- wire-vocabulary parsing (both chain glyphs, both spellings) ------------
+// The engine's own strings, not the manual's. Each of these fails against a
+// parser that matches only ⥮, or only the long ratio spellings.
+
+test("test_a_focus_token_parses_through_the_sdm_chain_glyph", () => {
+  only(() => (nFocus.value = ["timbre"]));
+  assert.equal(narrowOptions(opt("sdm-chain-filter"), null, "Nx", "sdm_filter_nx").length, 1);
+});
+
+test("test_a_focus_facet_excludes_an_sdm_filter_whose_focus_differs", () => {
+  only(() => (nFocus.value = ["space"]));
+  assert.equal(narrowOptions(opt("sdm-chain-filter"), null, "Nx", "sdm_filter_nx").length, 0);
+});
+
+test("test_the_abbreviated_integer_ratio_matches_the_integer_chip", () => {
+  only(() => (nRatio.value = ["integer"]));
+  assert.equal(narrowOptions(opt("sdm-chain-filter"), null, "Nx", "sdm_filter_nx").length, 1);
+});
+
+test("test_the_caret_form_of_the_2x_ratio_matches_the_2x_chip", () => {
+  only(() => (nRatio.value = ["2x"]));
+  assert.equal(narrowOptions(opt("poly-sinc-short-mp"), null, "Nx", "pcm_filter_nx").length, 1);
+});
+
+test("test_an_upsample_only_qualifier_survives_ratio_normalization", () => {
+  only(() => (nRatio.value = ["integer"]));
+  assert.equal(narrowOptions(opt("upsample-only-filter"), null, "Nx", "pcm_filter_nx").length, 1);
+});
+
+test("test_the_upsample_only_toggle_keeps_an_up_qualified_filter", () => {
+  only(() => (nUpsampleOnly.value = true));
+  assert.equal(narrowOptions(opt("upsample-only-filter"), null, "Nx", "pcm_filter_nx").length, 1);
 });
