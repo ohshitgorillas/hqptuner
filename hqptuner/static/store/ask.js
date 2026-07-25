@@ -10,7 +10,7 @@
 // instead of floating over the page. One question is open at a time.
 import { signal } from "@preact/signals";
 
-// The open question — { owner, kind, message, cancelled } — or null.
+// The open question — { owner, kind, message, cancelled, refused } — or null.
 export const question = signal(null);
 
 let settle = null;
@@ -26,7 +26,7 @@ function open(owner, kind, message, cancelled) {
   cancel(); // a second question supersedes the first rather than stranding it
   return new Promise((resolve) => {
     settle = resolve;
-    question.value = { owner, kind, message, cancelled };
+    question.value = { owner, kind, message, cancelled, refused: false };
   });
 }
 
@@ -38,7 +38,9 @@ export const askConfirm = (owner, message) => open(owner, "confirm", message, fa
 
 // Commit the answer. A blank or whitespace-only name is REFUSED: nothing is
 // committed and the field stays open, so a stray Enter cannot save a nameless
-// preset. A confirm has nothing to type — reaching here at all means yes.
+// preset. The refusal is FLAGGED rather than silent — a field that swallows a
+// Save click without a word is indistinguishable from one that saved and did
+// nothing. A confirm has nothing to type — reaching here at all means yes.
 export function answer(value) {
   const q = question.value;
   if (!q) return;
@@ -48,6 +50,14 @@ export function answer(value) {
   }
   const name = String(value == null ? "" : value).trim();
   if (name) close(name);
+  else question.value = { ...q, refused: true };
+}
+
+// Withdraw a standing refusal — the user is typing, so the complaint about an
+// empty field has stopped being true.
+export function clearRefusal() {
+  const q = question.value;
+  if (q && q.refused) question.value = { ...q, refused: false };
 }
 
 // Withdraw the question, resolving whatever "no answer" means for its kind.
