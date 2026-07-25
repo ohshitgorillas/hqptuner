@@ -135,7 +135,9 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     mgr.persist_backup(backup)  # survives a crash mid-apply
     # parked filter uploads ride the same restore (data/<name> members land in
     # the daemon's home dir, where staged process paths resolve)
-    restore_zip, intended_xml = presetconf.restore_zip_from_running(backup, merged, mgr.parked_filter_members())
+    restore_zip, intended_xml = presetconf.restore_zip_from_running(
+        backup, merged, mgr.parked_filter_members(), mgr.active_config
+    )
     await mgr.require_http().restore(restore_zip, scope="system")
     return presetconf.read_config(intended_xml)
 
@@ -153,7 +155,7 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
         fresh = await settle.fresh_backup(mgr)
         if fresh is None:
             return None
-        realized = presetconf.read_config(engineconf.base_config_xml(fresh))
+        realized = presetconf.read_config(engineconf.base_config_xml(fresh, mgr.active_config))
         mgr.file_config = realized  # fresh file truth for the lossy-form fields
         converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None

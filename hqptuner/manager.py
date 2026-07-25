@@ -294,16 +294,23 @@ class ConnectionManager:
         whatever the user changed since it was cached — writing old values back
         over new ones. A read may be stale; a write may not."""
         backup = await self.require_http().backup()
-        if engineconf.base_config_xml(backup):  # has hqplayerd.xml → usable
+        if engineconf.base_config_xml(backup, self.active_config):  # working config resolved → usable
             self.last_healthy_backup = backup
             return backup
+        summary = engineconf.archive_summary(backup)
         if for_write:
+            # State the OBSERVATION, not a cause: an unresolvable archive reads
+            # identically to the daemon's empty-backup bug, and asserting the bug
+            # sent a reader chasing something a restart would not have cleared.
+            log.warning("refusing to build a restore: unusable /backup — %s", summary)
             raise presetconf.GroundingError(
-                "daemon returned an unusable /backup (known 6.0.4 bug after a profile load/save); "
-                "refusing to build a restore from a stale cached archive — restart hqplayerd, then retry"
+                "no working config in the daemon's /backup archive, so there is nothing to build a restore "
+                "from. Either hqplayerd is serving an empty archive (a 6.0.4 bug after a profile load/save, "
+                "cleared by restarting the service) or its working config is under a member name HQPTuner "
+                f"could not resolve. The archive holds: {summary}"
             )
         if self.last_healthy_backup is not None:
-            log.warning("empty /backup from daemon (post-profile-load bug) — using cached archive")
+            log.warning("unusable /backup from daemon (%s) — using cached archive", summary)
             return self.last_healthy_backup
         return backup  # no cache yet — let the caller fail with a clear message
 
@@ -346,7 +353,9 @@ class ConnectionManager:
         """Current hardware-accel engine attributes, parsed from a fresh backup's
         base config (the only lane that carries them — they are not on the form).
         Fetched on demand, not per poll, since the backup archive is large."""
-        engine = engineconf.read_engine_attrs(engineconf.base_config_xml(await self.backup_or_cached()))
+        engine = engineconf.read_engine_attrs(
+            engineconf.base_config_xml(await self.backup_or_cached(), self.active_config)
+        )
         self.engine = engine
         return engine
 
@@ -357,7 +366,7 @@ class ConnectionManager:
         connect and refreshed by the apply's verify step — never per poll, since
         the archive is large."""
         backup = await self.backup_or_cached()
-        self.file_config = presetconf.read_config(engineconf.base_config_xml(backup))
+        self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
 
     async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:

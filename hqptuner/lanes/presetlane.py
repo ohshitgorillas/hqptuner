@@ -71,7 +71,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
         backup = await mgr.backup_or_cached(for_write=True)
-        working = engineconf.base_config_xml(backup)
+        working = engineconf.base_config_xml(backup, mgr.active_config)
         if not working:
             raise ControlError("no running config to save")
         # Live-routed edits (filters, dither/modulator, mode) never touched the

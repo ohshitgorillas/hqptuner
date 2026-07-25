@@ -17,8 +17,14 @@ verified XML location, so nothing is refused-because-ungrounded. The five that t
 value-correlation alone could not place (their attribute sat at default/absent in
 that snapshot) are grounded here from the manual: ``idle_time`` → ``<engine
 idle_time>``, DoP → ``<alsa|network pack_sdm>``, and the fixed-volume pair onto the
-top-level ``<fixed>`` element (below). An edit whose target element/plugin is
-genuinely absent from a snapshot is still refused rather than guessed.
+top-level ``<fixed>`` element (below).
+
+An edit whose target element/plugin is absent from a snapshot **creates** that
+target at its schema position (``xmledit.PARENT``) carrying only the attribute the
+user set. hqplayerd writes only the elements it has had reason to write, and fills
+none of them back in on load — so a config that never had loudness configured has
+no ``<plugin type="loudness">``, and a write path that could only edit what already
+existed simply could not reach that half of its own form.
 """
 
 from __future__ import annotations
@@ -227,16 +233,24 @@ def _enables_post_process(edits: dict[str, str]) -> bool:
 
 
 def _enable_matrix(xml: bytes) -> bytes:
-    """Switch ``<matrix enabled="1">`` on. A no-op when the snapshot carries no
-    ``<matrix>`` element — this is a coherence step taken on the user's behalf, so
-    it must never abort the edit they actually asked for."""
-    if find_element(xml, "matrix") is None:
-        return xml
+    """Switch ``<matrix enabled="1">`` on, placing the element when the snapshot
+    has none — which is exactly the config that needs it, since a plugin the
+    daemon never wrote lives in a matrix the daemon never wrote either."""
     return edit_element(xml, "matrix", "enabled", "1")
 
 
 def _apply_one(xml: bytes, field: str, value: str) -> bytes:
-    """Route one staged edit to its grounded XML location."""
+    """Route one staged edit to its grounded XML location, naming the SETTING in
+    any refusal. The locator can only say which element it could not find, and
+    "the alsa element is absent" does not tell a user which of the four things
+    they just changed is the one that cannot be written."""
+    try:
+        return _route(xml, field, value)
+    except GroundingError as exc:
+        raise GroundingError(f"{field}: {exc}") from exc
+
+
+def _route(xml: bytes, field: str, value: str) -> bytes:
     if field == NET_DEVICE:
         address, _, device = value.partition("/")
         xml = edit_element(xml, "network", "address", address)
@@ -262,9 +276,9 @@ def _apply_profile_edits(xml: bytes, remaining: dict[str, str]) -> bytes:
 def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
     """Return ``xml`` with each staged form-field edit applied surgically.
 
-    Every form field has a grounded location; an edit whose target element/plugin
-    is absent from this snapshot is refused (``GroundingError``) rather than
-    guessed. All other bytes of the snapshot are preserved exactly."""
+    Every form field has a grounded location; when the snapshot lacks the target
+    element or plugin it is created there, carrying only the attribute being set.
+    All other bytes of the snapshot are preserved exactly."""
     remaining = dict(edits)
     fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
     if fixed_edits:
@@ -335,27 +349,35 @@ def _read_special(xml: bytes) -> dict[str, str]:
     return out
 
 
-def snapshot_member(zip_bytes: bytes, active: str | None) -> bytes:
+def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | None = None) -> bytes:
     """The active preset's snapshot XML from a ``/backup`` archive. ``[default]``
     (empty/absent name) has no ``cfgs`` snapshot — its definition *is* the working
     config, so fall back to the running-config member (``hqplayerd.xml``, or the
-    root ``<Profile>.xml`` when a named preset is active)."""
+    root ``<Profile>.xml`` when a named preset is active).
+
+    The two labels are different questions and only look alike: ``active`` picks
+    WHICH SNAPSHOT to read, ``running_label`` says what the daemon named the
+    WORKING member. A caller that wants the running config passes ``active=None``
+    and the daemon's active-profile label as ``running_label``."""
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         names = z.namelist()
         member = engineconf.snapshot_member_name(active) if active else ""
         if member in names:
             return z.read(member)
-        running = engineconf.running_config_name(names)
+        running = engineconf.running_config_name(names, running_label or active)
         if running:
             return z.read(running)
         raise GroundingError(
-            "backup archive has no working config (no hqplayerd.xml, no root-level preset XML) — "
-            "the daemon returned an incomplete/empty backup; cannot build a restore"
+            "backup archive has no working config (no hqplayerd.xml, no resolvable root-level preset XML) — "
+            f"cannot build a restore. The archive holds: {engineconf.archive_summary(zip_bytes)}"
         )
 
 
 def restore_zip_from_running(
-    zip_bytes: bytes, edits: dict[str, str], extra_members: dict[str, bytes] | None = None
+    zip_bytes: bytes,
+    edits: dict[str, str],
+    extra_members: dict[str, bytes] | None = None,
+    active: str | None = None,
 ) -> tuple[bytes, bytes]:
     """Build a ``POST /restore`` archive whose **working** config member
     (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is
@@ -373,14 +395,14 @@ def restore_zip_from_running(
     against the live 6.0.4 daemon). Applies must be incremental against what is
     actually running; discarding drift is not worth discarding the user's own
     previous edits."""
-    intended = apply_edits(snapshot_member(zip_bytes, None), edits)
+    intended = apply_edits(snapshot_member(zip_bytes, None, active), edits)
     # The live config is hqplayerd.xml, or the root <Profile>.xml when a named
     # preset is active — rewrite THAT member and leave the cfgs snapshots (the
     # preset's saved definition) untouched, so edits stay ephemeral until Save.
     # Uploaded filter files replace their member if it exists and append if not;
     # either way the restore writes them to the daemon's disk.
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
-        running = engineconf.running_config_name(zin.namelist())
+        running = engineconf.running_config_name(zin.namelist(), active)
     substitutions = dict(extra_members or {})
     if running is not None:
         substitutions[running] = intended
