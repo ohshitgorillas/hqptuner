@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- Two controls were rendering with no tooltip and no description at all: **PCM gain compensation** on the Volume tab, and **Pipelines** on the Matrix tab. Both were drift between the table that describes a control and the file that holds its prose — the gain control's text sat under a slightly different key, and the matrix pipeline table had simply never been given any. Both now carry their text. The matrix one is newly written: it says what a pipeline is (a source channel routed through an ordered chain of processing stages and a gain into a target channel, with several pipelines able to sum into the same target) and says plainly that it is not the same setting as **DSP pipelines**, which only sets how many are available — two controls one word apart in the UI.
+
 ### Added
 
 - The **About HQPTuner** card now closes with its own version and licence: `HQPTuner <version> · Released under the MIT License`, the licence name linking to the MIT text. The version is read from the running package over `/api/health` rather than written into the page, so it cannot drift from what is installed.
