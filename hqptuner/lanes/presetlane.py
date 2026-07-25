@@ -22,6 +22,7 @@ import httpx
 from ..conf import engineconf, presetconf
 from ..control import ControlError
 from ..presetstore import PresetError
+from . import livemap
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -73,6 +74,11 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         working = engineconf.base_config_xml(backup)
         if not working:
             raise ControlError("no running config to save")
+        # Live-routed edits (filters, dither/modulator, mode) never touched the
+        # file, so the working config is stale for exactly those settings. Fold
+        # the engine's current values in first — a save stores what the user is
+        # hearing, not what happens to be on disk.
+        working = presetconf.apply_edits(working, livemap.live_overrides(mgr))
         mgr.store.save(name, working)
         archive = presetconf.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
         await mgr.require_http().restore(archive, scope="system")

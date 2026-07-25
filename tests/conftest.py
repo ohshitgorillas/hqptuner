@@ -97,8 +97,39 @@ def _apply(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
         state["matrix_profile"] = value  # live switch; State reports it back
 
 
+# Enumerations are MODE-DEPENDENT on the real daemon: GetFilters/GetShapers
+# answer for the ACTIVE mode only, and the two chains number their enum IDs
+# differently — poly-sinc-gauss-long is enum 40 under PCM `filter` and 38 under
+# SDM `oversampling` (protocol.md §4, readme §1.5/§1.6). The fake models both
+# facts because the live-routing chain gate exists precisely to protect them.
+_MODES = (("0", "[source]", "-1"), ("1", "PCM", "0"), ("2", "SDM (DSD)", "1"))
+_PCM_FILTERS = (("0", "none", "0"), ("1", "poly-sinc-gauss-long", "40"), ("2", "sinc-M", "25"))
+_SDM_FILTERS = (("0", "poly-sinc-gauss-long", "38"), ("1", "sinc-M", "23"))
+_PCM_SHAPERS = (("0", "none", "0"), ("1", "NS9", "5"))
+_SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
+
+
+def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
+    return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
+
+
+def _enumeration(name: str, state: dict[str, str]) -> str | None:
+    """GetModes/GetFilters/GetShapers, scoped to the mode the fake is in."""
+    sdm = state.get("mode") == "2"
+    if name == "GetModes":
+        return f"<GetModes>{_items('ModesItem', _MODES)}</GetModes>"
+    if name == "GetFilters":
+        return f"<GetFilters>{_items('FiltersItem', _SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
+    if name == "GetShapers":
+        return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
+    return None
+
+
 def _query(name: str, state: dict[str, str]) -> str | None:
     """Read-only commands answered from state; None for setters."""
+    enumerated = _enumeration(name, state)
+    if enumerated is not None:
+        return enumerated
     if name == "GetInfo":
         return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
     if name == "GetLicense":
@@ -163,6 +194,19 @@ async def _serve(
 @pytest.fixture
 async def live_daemon_port() -> AsyncIterator[int]:
     server = await asyncio.start_server(_serve, "127.0.0.1", 0)
+    port: int = server.sockets[0].getsockname()[1]
+    yield port
+    server.close()
+    await server.wait_closed()
+
+
+@pytest.fixture
+async def split_filter_daemon_port() -> AsyncIterator[int]:
+    """Daemon whose 1x and Nx filter slots DIFFER (1x=2, Nx=0). The default fake
+    has both at index 0, where a preserved sibling and a clobbered one are the
+    same value — so any test of the one-sided SetFilter case needs this one."""
+    serve = functools.partial(_serve, overrides={"filter1x": "2", "filterNx": "0"})
+    server = await asyncio.start_server(serve, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
     yield port
     server.close()

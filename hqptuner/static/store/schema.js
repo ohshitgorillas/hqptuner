@@ -140,6 +140,7 @@ export const schema = {
     group: "output",
     widget: "segment",
     lane: "http",
+    appliesLive: true,
     field: "mode",
     options: MODES,
     hoverNote: true,
@@ -358,12 +359,18 @@ export const schema = {
   // are NOT on this form (like CUDA/multicore) — dropped, not hidden.
   // Mode graying is handled by the PCM/SDM collapsibles auto-closing (ResamplingTab.js),
   // not per-field grayWhen. desc drives the inline manual description line.
+  // appliesLive: the write path routes these through the Control API's own
+  // setters instead of the restore lane, so they take effect immediately and the
+  // daemon never restarts for them (lanes/livemap.py). They stay lane 'http'
+  // because their VALUE domain is still the form's enum id — only the delivery
+  // changed. The pending bar reads this to count them as live changes.
   pcm_filter_1x: {
     label: "1x filter",
     group: "dsp",
     note: "filter_1x",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "filter1x",
     optionsFrom: "config",
     wide: true,
@@ -377,6 +384,7 @@ export const schema = {
     note: "filter_nx",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "filter",
     optionsFrom: "config",
     wide: true,
@@ -389,6 +397,7 @@ export const schema = {
     note: "shaper",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "dither",
     optionsFrom: "config",
     wide: true,
@@ -401,6 +410,7 @@ export const schema = {
     note: "filter_1x",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "oversampling1x",
     optionsFrom: "config",
     wide: true,
@@ -414,6 +424,7 @@ export const schema = {
     note: "filter_nx",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "oversampling",
     optionsFrom: "config",
     wide: true,
@@ -426,6 +437,7 @@ export const schema = {
     note: "shaper",
     widget: "dropdown",
     lane: "http",
+    appliesLive: true,
     field: "modulator",
     optionsFrom: "config",
     wide: true,

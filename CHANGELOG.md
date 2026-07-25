@@ -20,6 +20,18 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Ratio narrowing.** The filter narrowing bar gains a sixth facet — **ratio** — beside genre, quality, focus, phase and length. It narrows the menus to filters of a chosen resampling-ratio class (**Integer**, **2×** or **1:1**); the manual's any-ratio filters survive every selection, the same escape hatch genre's "All genres" uses. The dropdown also carries an **Upsample-only** checkbox — the manual fuses this ("Integer up") into the ratio column — narrowing to filters that only upsample, ANDed with any ratio class picked. The classes are transcribed from the manual's filter table into the static overlay, for every filter.
 
+- **About HQPTuner** — a collapsed-by-default subsection at the foot of the System tab's HQPTuner card, saying what the project is, giving credit to Jussi Laako/Signalyst for the engine it drives, and noting that HQPTuner is free and stays that way. It carries the project's only donation link: an inline Ko-fi anchor inside a sentence, not a button or a badge. Nothing is fetched from off-box, so the subsection renders identically on a LAN-only install with no outbound route.
+
+### Fixed
+
+- **Filters, dither, modulator and output mode no longer restart the daemon.** Changing any of them meant a full `hqplayerd` restart — roughly six seconds of silence, and playback stopped — even though HQPlayer's Control API can set every one of them instantly. HQPTuner spoke that API already; nothing in the UI ever reached it, so the settings people change most were the slowest ones in the app. Staging and **Apply** work exactly as before — Apply now sets them through the Control API instead of rewriting the config and restarting, so the change takes effect at once and playback is never interrupted.
+
+  Persisting is unchanged and still explicit — **Save** writes the running config, and it now captures what you are actually hearing rather than what happened to be on disk.
+
+  Getting there needed two translations HQPlayer does not do for you. The config file and the Control API name the same filter with different numbers (the file stores an enumeration id, the setters take a list position), and the PCM and SDM chains number their own lists differently again — `poly-sinc-gauss-long` is 40 on one and 38 on the other — so a value is only meaningful against the chain the engine is currently running. HQPTuner resolves both from the engine's own enumerations, including under **Auto** output mode, where it reads which chain is live rather than guessing. Anything it cannot resolve falls back to the old restart path, which is slower but never wrong.
+
+  Output rate is deliberately excluded: the per-family rate control sets a *ceiling* that the engine follows from the source, while the Control API's rate setter forces a fixed rate outright. They are not the same setting, and treating them as one would quietly break auto-family rate following.
+
 ### Changed
 
 - **Apodizing narrowing moved under each 1x dropdown, and is now per-chain.** It was one global **Show apodizing only** toggle in the narrowing bar, narrowing the PCM and SDM 1x filter lists together. Each 1x dropdown now carries its own **Show apodizing only** / **Show ½ apodizing** pair, independent of the other — narrow one chain's list without touching the other. Moving it also freed the bar for the new ratio facet (six facet menus do not fit beside the toggle). The manual's description of what apodizing is, previously only a hover tooltip, now sits visibly beneath the checkboxes for anyone unsure whether to leave it on.
@@ -27,6 +39,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Loading an EQ file now loads the EQ.** The **Load AutoEq / REW .txt…** button used to only drop the file's text into a box and wait for you to find a pipeline row and press its **Import EQ** — a button that appeared to do nothing, and a workflow nobody would guess. It now applies the profile on the one click, to pipeline 1 and its stereo pair, exactly as the AutoEq library's "Load profile" already did. The paste box is gone: with two one-click load lanes there was nothing left for it to do, and it had no way to apply what you pasted into it. A row's own **Import EQ** still works for putting EQ on a specific pipeline.
 
 - The Resampling tab's **SDM Sources** subsections are now labelled **DSD Sources**, in both the PCM and SDM output cards.
+
+- The System tab's About card labels HQPlayer's build string **Version** rather than **Engine**, which is what the value has always been.
 
 - **The top chrome now lines up with the cards.** The header band, the signal-path row, the alert strip and the tab bar took their horizontal inset as padding, so their *content* sat on the card lane while their background and bottom rule ran 15px past it on both sides, out to the container edge. The inset is now margin against a named `--gutter` token, so every painted edge in the chrome stops where the cards stop. The brand glyph's viewBox is trimmed to the circle's painted extent for the same reason — it was drawing 2px inside the lane.
 

@@ -167,8 +167,14 @@ function previewedValue(entry) {
 // The config XML is wider than the form for a few settings — volume_fixed is
 // 0/1/2 in the file but a bare checkbox on the form — so fileTruth entries take
 // the file when it has an answer.
+// appliesLive entries ground here too, for the opposite reason: their edits go
+// out over the Control API and never reach the XML, so the daemon's /config form
+// keeps reporting the superseded value. `file` carries the running truth (the XML
+// overlaid with the live lane's changes), which is what the control must show —
+// otherwise the dropdown snaps back after Apply and re-selecting the previous
+// filter reads as clean, leaving no way to go back to it.
 function fileValue(entry) {
-  if (!entry.fileTruth) return null;
+  if (!entry.fileTruth && !entry.appliesLive) return null;
   const fv = fileConfig.value[entry.field];
   return fv !== undefined ? { value: fv } : null;
 }
@@ -206,7 +212,7 @@ export function runningValue(key) {
   const e = schema[key];
   if (!e) return undefined;
   if (e.lane === "live") return (engineState.value || {})[e.stateField];
-  if (e.fileTruth) {
+  if (e.fileTruth || e.appliesLive) {
     const fv = fileConfig.value[e.field];
     if (fv !== undefined) return fv;
   }
@@ -247,7 +253,13 @@ export const hasPending = computed(() => stagedCount.value > 0 || pendingPreset.
 export const split = computed(() => {
   let live = 0;
   let restart = 0;
-  for (const k of dirtyKeys.value) schema[k].lane === "live" ? (live += 1) : (restart += 1);
+  for (const k of dirtyKeys.value) {
+    // lane 'live' goes out over the Control API; so does an http-lane field the
+    // write path routes to a Control API setter (schema appliesLive) — neither
+    // restarts the daemon, so both count as live here.
+    if (schema[k].lane === "live" || schema[k].appliesLive) live += 1;
+    else restart += 1;
+  }
   return { live, restart };
 });
 
