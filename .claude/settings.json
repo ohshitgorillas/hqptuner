@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|NotebookEdit|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/change-budget.py"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make check *)",
+      "Bash(make test *)",
+      "Bash(make test-js *)",
+      "Bash(make lint-js *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(.venv/bin/mypy)",
+      "Bash(.venv/bin/black hqptuner *)",
+      "Bash(.venv/bin/vulture hqptuner *)",
+      "Bash(.venv/bin/pytest -m \"not live\" -q)",
+      "Bash(.venv/bin/python -m pytest -q)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(npx prettier *)",
+      "Bash(bash .claude/task-check.sh)",
+      "Bash(git add *)",
+      "Bash(git restore *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
