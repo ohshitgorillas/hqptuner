@@ -16,8 +16,7 @@ import { volume, volumeRange, setVolume, effective, runningValue } from "../stor
 import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
 import { Knob } from "./Knob.js";
 import { Checkbox } from "./controls/index.js";
-
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+import { truthy } from "../lib/coerce.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
 // *why*. Name the actual cause from the RUNNING config — the engine is what is

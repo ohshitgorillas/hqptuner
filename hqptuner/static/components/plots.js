@@ -10,24 +10,18 @@
 
 import { html } from "../lib/dom.js";
 import { effective, volume, setLive, edit } from "../store/state.js";
-import { logFreqs, crossfeedMagDb, loudnessMagDb, shelfScale } from "../lib/dsp.js";
+import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../lib/dsp.js";
+import { clamp, num } from "../lib/coerce.js";
 
 const W = 640;
 const PADL = 34;
 const PADR = 52; // room for the right-edge trace labels
 const PADT = 16; // top band carries the y-axis unit labels
 const PADB = 20;
-const F0 = 20;
-const F1 = 20000;
 const LOGSPAN = Math.log(F1 / F0);
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 const FREQ_GRID = [100, 1000, 10000]; // fewer, quieter vertical lines than labels
 
-const num = (v, d = 0) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
-};
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const fmtHz = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 const xOf = (f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 
@@ -174,7 +168,7 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
 export function CrossfeedPlot() {
   const fc = num(effective("crossfeed_frequency"), 700);
   const level = num(effective("crossfeed_level"), 4.5);
-  const freqs = logFreqs(F0, F1, 128);
+  const freqs = bandFreqs(128);
   return PlotFrame({
     traces: [
       { points: freqs.map((f) => [f, 0]), kind: "ghost", label: "direct", dy: -3 },
@@ -207,7 +201,7 @@ export function LoudnessPlot() {
   const rangeHigh = num(effective("loudness_range_high"), -20);
   const vol = num(volume.value, rangeHigh);
   const scale = shelfScale(vol, rangeLow, rangeHigh);
-  const freqs = logFreqs(F0, F1, 160);
+  const freqs = bandFreqs(160);
   const pct = Math.round(scale * 100);
   // REW-style drag handles at each band's (frequency, level) corner — dragging
   // streams live overrides (instant repaint) and stages both params on release.

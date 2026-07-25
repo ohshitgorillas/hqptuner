@@ -4,9 +4,9 @@
 
 import { useRef, useEffect } from "preact/hooks";
 import { html, wheelGuard } from "../../lib/dom.js";
+import { truthy } from "../../lib/coerce.js";
 
 const s = (v) => (v == null ? "" : String(v));
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 export function Segment({ value, options, disabled, onChange }) {
   return html`

@@ -22,11 +22,10 @@ import { signal } from "@preact/signals";
 
 import { effective, effectivePipelines, stagePipelines, canonPipelines, edit } from "./state.js";
 import { structuralBlock, removeStructural, disableBauer } from "../lib/xfmode.js";
+import { truthy } from "../lib/coerce.js";
 
 const KEY = "hqptuner.dspMode";
 const SNAPSHOT_KEY = "hqptuner.crossfeedSuppressed";
-
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 function load() {
   try {

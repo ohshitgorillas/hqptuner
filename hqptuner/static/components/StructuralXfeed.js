@@ -9,7 +9,7 @@
 // which is also the thing the three controls actually move.
 import { html } from "../lib/dom.js";
 import { effectivePipelines } from "../store/state.js";
-import { logFreqs, chainResponse } from "../lib/dsp.js";
+import { bandFreqs, chainResponse } from "../lib/dsp.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { midSideResponse, magDb } from "../lib/binaural.js";
 
@@ -27,7 +27,7 @@ export function structuralLensTraces(rows, bounds) {
   const rec = structuralBlock(rows);
   if (!rec) return [];
   const p = structuralParams(rows);
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   const mk = (fn) =>
     freqs.map((f) => {
       const db = fn(f);

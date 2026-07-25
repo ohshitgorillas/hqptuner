@@ -28,8 +28,7 @@ import {
   applySpeakers,
 } from "../store/speakers.js";
 import { SpeakersDiagram } from "./SpeakersDiagram.js";
-
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
+import { truthy } from "../lib/coerce.js";
 
 const SETS = [
   { id: "2.0", label: "2.0 — stereo", channels: [0, 1] },

@@ -19,63 +19,21 @@
 const TAU = 2 * Math.PI;
 const LN2_2 = Math.LN2 / 2;
 
-// --- RBJ biquad coefficients, normalized by a0 -> {b0, b1, b2, a1, a2} --------
-
-function lowShelf(f0, dbGain, slope, fs) {
-  const A = 10 ** (dbGain / 40);
-  const w0 = (TAU * f0) / fs;
-  const cw = Math.cos(w0);
-  const alpha = (Math.sin(w0) / 2) * Math.sqrt((A + 1 / A) * (1 / slope - 1) + 2);
-  const twoSqrtAalpha = 2 * Math.sqrt(A) * alpha;
-  const a0 = A + 1 + (A - 1) * cw + twoSqrtAalpha;
-  return {
-    b0: (A * (A + 1 - (A - 1) * cw + twoSqrtAalpha)) / a0,
-    b1: (2 * A * (A - 1 - (A + 1) * cw)) / a0,
-    b2: (A * (A + 1 - (A - 1) * cw - twoSqrtAalpha)) / a0,
-    a1: (-2 * (A - 1 + (A + 1) * cw)) / a0,
-    a2: (A + 1 + (A - 1) * cw - twoSqrtAalpha) / a0,
-  };
-}
-
-function highShelf(f0, dbGain, slope, fs) {
-  const A = 10 ** (dbGain / 40);
-  const w0 = (TAU * f0) / fs;
-  const cw = Math.cos(w0);
-  const alpha = (Math.sin(w0) / 2) * Math.sqrt((A + 1 / A) * (1 / slope - 1) + 2);
-  const twoSqrtAalpha = 2 * Math.sqrt(A) * alpha;
-  const a0 = A + 1 - (A - 1) * cw + twoSqrtAalpha;
-  return {
-    b0: (A * (A + 1 + (A - 1) * cw + twoSqrtAalpha)) / a0,
-    b1: (-2 * A * (A - 1 + (A + 1) * cw)) / a0,
-    b2: (A * (A + 1 + (A - 1) * cw - twoSqrtAalpha)) / a0,
-    a1: (2 * (A - 1 - (A + 1) * cw)) / a0,
-    a2: (A + 1 - (A - 1) * cw - twoSqrtAalpha) / a0,
-  };
-}
-
-// `shape` is Q when useQ, else bandwidth in octaves (the form's "peak" vs "peakq").
-function peaking(f0, dbGain, shape, fs, useQ) {
-  const A = 10 ** (dbGain / 40);
-  const w0 = (TAU * f0) / fs;
-  const sw = Math.sin(w0);
-  const alpha = useQ ? sw / (2 * shape) : sw * Math.sinh((LN2_2 * shape * w0) / sw);
-  const a0 = 1 + alpha / A;
-  return {
-    b0: (1 + alpha * A) / a0,
-    b1: (-2 * Math.cos(w0)) / a0,
-    b2: (1 - alpha * A) / a0,
-    a1: (-2 * Math.cos(w0)) / a0,
-    a2: (1 - alpha / A) / a0,
-  };
-}
+// --- loudness bands ----------------------------------------------------------
+// The coefficient builders live in the matrix-pipeline section below: a loudness
+// band and an iir stage are the same RBJ algebra, so they share one copy of it
+// (function declarations hoist, hence the forward reference).
 
 // One loudness band -> coefficients, dispatched by the form's `type` value.
-// Steepness/Q is the shelf slope S for shelves, bandwidth for peak, Q for peakq.
+// Steepness/Q is the shelf slope S for shelves, bandwidth for peak, Q for peakq
+// — exactly the three shape parameters rbjAlpha already dispatches on.
 function bandCoeffs(type, f0, dbGain, shape, fs) {
-  if (type === "hshelf") return highShelf(f0, dbGain, shape, fs);
-  if (type === "peak") return peaking(f0, dbGain, shape, fs, false);
-  if (type === "peakq") return peaking(f0, dbGain, shape, fs, true);
-  return lowShelf(f0, dbGain, shape, fs); // lshelf (default)
+  const w0 = (TAU * f0) / fs;
+  const A = 10 ** (dbGain / 40);
+  if (type === "peak") return peakBiquad(w0, rbjAlpha(w0, { bw: shape }), A);
+  if (type === "peakq") return peakBiquad(w0, rbjAlpha(w0, { q: shape }), A);
+  const shelf = type === "hshelf" ? "hshelf" : "lshelf"; // lshelf is the default
+  return shelfFromAlpha(shelf, f0, dbGain, rbjAlpha(w0, { s: shape }, A), fs);
 }
 
 // Magnitude in dB of a normalized biquad (a0 = 1) at frequency f.
@@ -117,12 +75,19 @@ export function crossfeedMagDb(f, fc, levelDb) {
 }
 
 // Logarithmically-spaced frequency points across [f0, f1] for a plot trace.
-export function logFreqs(f0, f1, n) {
+function logFreqs(f0, f1, n) {
   const out = new Array(n);
   const k = Math.log(f1 / f0) / (n - 1);
   for (let i = 0; i < n; i += 1) out[i] = f0 * Math.exp(k * i);
   return out;
 }
+
+// The audio band every response plot spans. Its endpoints double as the plot
+// x-domain (components/plots.js), so they live here instead of being retyped at
+// each of the nine call sites `bandFreqs` replaced.
+export const F0 = 20;
+export const F1 = 20000;
+export const bandFreqs = (n) => logFreqs(F0, F1, n);
 
 // --- matrix pipeline stage responses (matrix-spec step 7) --------------------
 // Same RBJ cookbook discipline as the loudness bands: exact coefficients, no
@@ -298,7 +263,7 @@ function riaaResponse(f, subsonic) {
 
 // --- convolution preview (client FFT of a session-uploaded IR) ---------------
 
-const IR_GRID = logFreqs(20, 20000, 256);
+const IR_GRID = bandFreqs(256);
 const irCache = new Map(); // daemon path -> {freqs, dbs, degs} | null while unpreviewable
 
 function fftRadix2(re, im) {

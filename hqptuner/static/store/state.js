@@ -14,6 +14,7 @@ import { api } from "../lib/api.js";
 import { schema } from "./schema.js";
 import { fastPollMs } from "./ui.js";
 import { summarize } from "./apply-summary.js";
+import { truthy } from "../lib/coerce.js";
 
 // --- source signals ---
 export const health = signal(null); // {reachable, alarm, unreachable_since, info}
@@ -233,7 +234,6 @@ export function effective(key) {
 // checkbox values cross domains: config baseline is a bool, staged is "1"/"0".
 // Compare in the control's own domain so a checkbox toggled back to its original
 // stops reading as dirty (else it stays highlighted until Discard).
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 export function isDirty(key) {
   const e = schema[key];
@@ -304,7 +304,7 @@ function applyBauerCoupling(key, value, http) {
 // clear it. So enabling either mode CLEARS the other, as a visible staged edit
 // in the same POST — the pending bar shows both moves, nothing happens silently.
 function applyFixedVolumeCoupling(key, value, http) {
-  const on = value === true || value === 1 || value === "1" || value === "on" || value === "true";
+  const on = truthy(value);
   if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
   else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
 }
