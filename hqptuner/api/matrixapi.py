@@ -11,7 +11,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..control import ControlError
-from ..manager import ConnectionManager
+from . import deps
+from .deps import HttpMgr, IdleMgr, Mgr
 
 router = APIRouter(prefix="/api")
 
@@ -32,41 +33,15 @@ def autoeq_db() -> FileResponse:
     )
 
 
-def _mgr(request: Request) -> ConnectionManager:
-    manager: ConnectionManager = request.app.state.manager
-    return manager
-
-
-def _snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
-    """Serve last-loaded state, flagged stale when the daemon is unreachable —
-    never a socket wait (roadmap 2.2 fail-fast rule)."""
-    if data is None:
-        raise HTTPException(status_code=503, detail="not yet loaded from daemon")
-    return {"stale": not manager.reachable, "loaded_at": manager.loaded_at, "data": data}
-
-
-def _require_idle(manager: ConnectionManager) -> None:
-    """An engine-reloading operation interrupts playback — refuse unless the
-    daemon is idle (State state="0")."""
-    if (manager.state or {}).get("state") != "0":
-        raise HTTPException(status_code=409, detail="daemon is not idle (stop playback first)")
-
-
 @router.get("/matrix")
-def matrix(request: Request) -> dict[str, Any]:
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    if manager.matrix_form is None and manager.matrix_error:
-        raise HTTPException(status_code=502, detail=f"GET /matrix failed: {manager.matrix_error}")
-    if manager.matrix_form is None:
-        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
+def matrix(manager: HttpMgr) -> dict[str, Any]:
+    form = deps.ensure_form(manager.matrix_form, manager.matrix_error, "/matrix")
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
     # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
-    return _snapshot(
+    return deps.snapshot(
         manager,
         {
-            **manager.matrix_form,
+            **form,
             "live_profiles": manager.matrix_profiles or [],
             "live_active": (manager.state or {}).get("matrix_profile", ""),
         },
@@ -79,12 +54,15 @@ class MatrixProfileBody(BaseModel):
 
 
 @router.post("/matrix/profile")
-async def matrix_profile(body: MatrixProfileBody, request: Request) -> dict[str, Any]:
+async def matrix_profile(body: MatrixProfileBody, request: Request, manager: Mgr) -> dict[str, Any]:
     """Matrix profile operations (matrix-spec step 5). `switch` rides the live
     4321 lane — no reload, no idle gate. save/delete/load ride the form lane and
     reload the engine (~3 s), so they are idle-gated; a named `load` also
-    replaces post-process state (probe findings)."""
-    manager = _mgr(request)
+    replaces post-process state (probe findings).
+
+    Credentials and idle are checked in the handler rather than by IdleMgr: the
+    live `switch` branch needs neither, and an unknown action is a 404 before
+    anything else is asked about it."""
     if body.action == "switch":
         try:
             return await manager.matrix_switch_profile(body.name)
@@ -94,9 +72,8 @@ async def matrix_profile(body: MatrixProfileBody, request: Request) -> dict[str,
         raise HTTPException(status_code=404, detail=f"unknown matrix profile action: {body.action}")
     if not body.name and body.action in ("save", "delete"):
         raise HTTPException(status_code=422, detail="profile name required")
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    _require_idle(manager)
+    deps.require_credentials(request)
+    deps.require_idle(manager)
     try:
         return await manager.matrix_profile_action(body.action, body.name)
     except (ControlError, httpx.HTTPError) as exc:
@@ -104,18 +81,12 @@ async def matrix_profile(body: MatrixProfileBody, request: Request) -> dict[str,
 
 
 @router.get("/speakers")
-def speakers(request: Request) -> dict[str, Any]:
+def speakers(manager: HttpMgr) -> dict[str, Any]:
     """Speaker-processing read model (readme §1.9): enabled + per-channel level
     (dBFS) / distance (cm). Served from the last-loaded form snapshot, stale-flagged
     when the daemon is unreachable — never a socket wait (roadmap 2.2)."""
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    if manager.speakers_form is None and manager.speakers_error:
-        raise HTTPException(status_code=502, detail=f"GET /speakers failed: {manager.speakers_error}")
-    if manager.speakers_form is None:
-        return _snapshot(manager, None)  # not yet loaded — _snapshot raises 503
-    return _snapshot(manager, manager.speakers_form)
+    form = deps.ensure_form(manager.speakers_form, manager.speakers_error, "/speakers")
+    return deps.snapshot(manager, form)
 
 
 class SpeakersBody(BaseModel):
@@ -124,14 +95,10 @@ class SpeakersBody(BaseModel):
 
 
 @router.post("/speakers")
-async def speakers_apply(body: SpeakersBody, request: Request) -> dict[str, Any]:
+async def speakers_apply(body: SpeakersBody, manager: IdleMgr) -> dict[str, Any]:
     """Apply speaker processing via the /speakers form lane (readme §1.9). Reloads
     the engine (~3 s), so it is idle-gated. The write is checkbox-safe and
     range-validated in ``httpconf.apply_speakers``."""
-    manager = _mgr(request)
-    if request.app.state.http_client is None:
-        raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
-    _require_idle(manager)
     try:
         return await manager.apply_speakers(body.enabled, body.channels)
     except ValueError as exc:
@@ -141,11 +108,11 @@ async def speakers_apply(body: SpeakersBody, request: Request) -> dict[str, Any]
 
 
 @router.post("/matrix/filter")
-async def matrix_filter(request: Request, file: Annotated[UploadFile, File()]) -> dict[str, str]:
+async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> dict[str, str]:
     """Park an uploaded convolution filter (wav/txt) for the next apply, which
     injects it into the restore archive; returns the daemon-side absolute path
     the pipeline process string should reference (matrix-spec step 4)."""
     try:
-        return _mgr(request).park_filter(file.filename or "", await file.read())
+        return manager.park_filter(file.filename or "", await file.read())
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
