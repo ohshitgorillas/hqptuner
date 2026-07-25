@@ -53,7 +53,7 @@ HQPTuner is an improvement over the stock web configuration UI in many ways:
 
 ## Matrix pipeline editing
 
-The Matrix tab replaces hqplayerd's `/matrix` page with a visual pipeline editor:
+The DSP tab replaces hqplayerd's `/matrix` page with a visual pipeline editor:
 
 * **Signal-flow rows**: each pipeline renders as source channel → stage chips → gain → target channel. Add, remove, and drag-reorder stages; add and remove pipelines; clear a row's chain with one click. Everything stages client-side and applies atomically.
 * **Stage editor**: click a chip to edit it inline — all 11 IIR types (including raw biquad coefficients), delay, RIAA, and per-stage convolution with file upload (sample-rate warning included). A footer shows the generated raw spec string live, and the whole row can flip to an editable raw comma-string with two-way sync — the manual's example strings round-trip byte-identical.
@@ -66,9 +66,9 @@ The Matrix tab replaces hqplayerd's `/matrix` page with a visual pipeline editor
 
 Known limits: convolution stages plot only when their impulse file was uploaded in the current session (the daemon offers no way to read impulses back); editing the same config from HQPTuner and the stock `/matrix` page at the same instant is unsupported (the stock page always submits its complete form and will silently revert concurrent edits — a daemon-level limitation).
 
-<img width="1213" height="1885" alt="HQPTuner's Matrix tab with EQ pipelines, the AutoEq library, and the response plot" src="https://github.com/user-attachments/assets/7a3d8e53-46c8-49dd-a5a4-7403a6aa352a" />
+<img width="1213" height="1885" alt="HQPTuner's DSP tab with EQ pipelines, the AutoEq library, and the response plot" src="https://github.com/user-attachments/assets/7a3d8e53-46c8-49dd-a5a4-7403a6aa352a" />
 
-*The Matrix tab: a stereo pair of 10-band EQ pipelines with the inline stage editor open, the built-in AutoEq library previewing a Sennheiser HD 650 profile against the current curve, and draggable EQ dots on the response plot.*
+*The DSP tab: a stereo pair of 10-band EQ pipelines with the inline stage editor open, the built-in AutoEq library previewing a Sennheiser HD 650 profile against the current curve, and draggable EQ dots on the response plot.*
 
 ## Drawbacks of HQPTuner
 
@@ -88,7 +88,7 @@ Furthermore, to maintain "friendly" output rate options, the "Auto-rate family" 
 HQPTuner is a single small Python backend plus a no-build-step web frontend. It talks to a running `hqplayerd` over two lanes:
 
 * **Control API (TCP 4321)** — live, restart-free settings (filters, dither/modulator, mode, rate, volume, matrix profile switching) plus status and enumerations. The running engine is the sole authority for filter/modulator names and IDs; HQPTuner never trusts shipped lists.
-* **HTTP configuration interface (TCP 8088, Digest auth)** — persistent settings. HQPTuner submits the daemon's own config form, and the daemon writes `hqplayerd.xml` itself and restarts (~10 s); HQPTuner rides out the restart and verifies every change by readback. Settings the form doesn't expose (CUDA offload, multicore DSP, E-core allocation, blocks/cycle) go through a backup → surgical XML edit → `/restore` cycle on the same lane.
+* **HTTP configuration interface (TCP 8088, Digest auth)** — persistent settings. Every change — including the ones the daemon's config form never exposed (CUDA offload, multicore DSP, E-core allocation, blocks/cycle) — goes through a backup → surgical `hqplayerd.xml` edit → `POST /restore` cycle; the daemon self-restarts (~5.6 s), and HQPTuner rides that out and verifies by readback.
 
 Edits are staged in a pending-changes bar showing the live/restart split before you apply. Presets are full-config XML snapshots stored and managed by HQPTuner itself (the daemon's native profile subsystem proved unreliable), mirrored into the daemon's own config directory so the stock UI stays populated.
 
@@ -160,7 +160,7 @@ Backend and frontend carry matching gate suites. Run `npm install` once alongsid
 
 * `make check` — everything below. Must be green before every commit.
 * `make lint` — Python: ruff, black, xenon complexity, vulture, strict mypy, file-length and test-assertion checks.
-* `make lint-js` — frontend, one-for-one with the above: eslint (ruff), prettier (black), `tsc --checkJs` (mypy), knip (vulture), file-length. The complexity ceiling is 10, matching `xenon --max-absolute B`.
+* `make lint-js` — frontend, one-for-one with the above: eslint (ruff), prettier (black), `tsc --checkJs` (mypy), knip (vulture), file-length, plus the CSS design-token (`check_css_tokens.py`) and control-catalog (`check_control_catalog.py`) gates. The complexity ceiling is 10, matching `xenon --max-absolute B`.
 * `make test` — offline Python suite (fake daemons speaking the real wire protocol).
 * `make test-live` — adds `live`-marked tests; needs a reachable hqplayerd.
 * `make test-js` — frontend suite on node's built-in runner. No browser, no bundler: a loader hook reads the importmap out of `index.html` so tests exercise the same vendored preact/htm the browser loads, and components render through `preact-render-to-string`.

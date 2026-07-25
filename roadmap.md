@@ -279,12 +279,9 @@ Backend `c11b938`; frontend `store/dspmode.js`, `store/speakers.js`, `components
 
 ## Maintenance — structural debt reduction (opened 2026-07-25)
 
-Survey of the repo's structural debt, worked top-down. Items 1 (control-catalog gate) and 2 (daemon-version canary) are done — see git log; the decisions live in the commit messages and the source docstrings rather than being restated here.
+Survey of the repo's structural debt, worked top-down. Items 1 (control-catalog gate), 2 (daemon-version canary), 5 (doc audit), 6 (tab-module tests) and 7 (component-name collision) are done — see git log; the decisions live in the commit messages and the source docstrings rather than being restated here. `outline.md` and this file's phase history were ruled historical by user decision 2026-07-25 and are NOT corrected to present-day reality.
 
-Sizing below is from file counts and greps, **not verified joins** — the debt-1 estimate was off by an order of magnitude (predicted "up to 27" violations, found 2). Treat each as a starting point to be re-measured, not a scoped task.
+Sizing below is from greps, **not verified measurement** — the debt-1 estimate was off by an order of magnitude (predicted "up to 27" violations, found 2) and the debt-3 description below was overstated until read properly. Re-measure before scoping.
 
-3. **`manager.py` is a god facade** — 492 lines, 40+ methods, mostly one-line delegation over 8 lanes, mixed in with the real reconnect/poll/backoff logic. Proposed: `ConnectionManager` keeps connection lifecycle + snapshot cache; delegation moves to the lanes with `api/deps.py` injecting per route. Incremental.
-4. **`schema.js` at 903 lines is exempt from the length gate.** Exemption is honest (control table, not logic) but the `grayWhen` closures in it *are* logic. Largely dissolved by a fix to item 1's underlying duplication, if that is ever taken up.
-5. **Docs outweigh code and drift.** ~160 KB prose vs 7.2k lines of Python. Confirmed stale: `roadmap.md` claimed "the repo has no JS runner" while `make test-js` runs 24 files. Proposed: split completed phases into an archive, audit the rest.
-6. **18 frontend components untested**, including all four tab modules — where schema→UI wiring bugs land.
-7. **`SpeakerDiagram.js` vs `SpeakersDiagram.js`** — different components, one letter apart. Rename one.
+3. **`manager.py` does two jobs** — 492 lines, 43 methods: the connection lifecycle (run/poll/backoff/reconnect) *and* a service-locator context that every lane takes as its first argument and calls back into for the clock seam, `require_http()`, `control` and the state cache. Only ~15 methods are one-line forwarders; the rest carry real logic, so "god facade, mostly delegation" (the original survey wording) was wrong. The honest refactor extracts the context seam — clock, HTTP client, control client, state cache — out of the loop object; deleting the forwarders is cosmetic by comparison. Touches the live write path and the suite's clock virtualization: highest risk of anything remaining, and it buys maintainability, not correctness.
+4. **`schema.js` at 904 lines is exempt from the length gate.** Exemption is honest (control table, not logic) but the `grayWhen` closures in it *are* logic. Largely dissolved by a fix to item 1's underlying duplication, if that is ever taken up.
