@@ -303,40 +303,11 @@ class HttpConfigClient:
         writes overlay a fresh read (manager)."""
         return parse_matrix_form((await self._get("/matrix")).text)
 
-    async def matrix_profile_action(self, action: str, name: str) -> None:
-        """``POST /matrix/{load,save,delete}`` with the COMPLETE current form
-        (fresh GET, serialized browser-faithfully — a partial POST is silently
-        ignored) and the ``profile`` field set to ``name``. save/delete reload
-        the engine ~3 s; a named load applies live but replaces the whole matrix
-        context including post-process (docs/matrix-spec.md probe findings) —
-        the matrixlane preserves post-process around it via ``matrix_apply``."""
-        if action not in _ACTIONS:
-            raise ValueError(f"unknown matrix profile action: {action}")
-        fields, files = await self._matrix_form_payload()
-        fields["profile"] = name
-        await self._post(f"/matrix/{action}", data=fields, files=files)
-
-    async def matrix_post_process_fields(self) -> dict[str, str]:
-        """The post-process slice of the current /matrix form, in wire encoding
-        (checked checkboxes present as their value attr, unchecked absent) — the
-        snapshot the load lane restores afterwards."""
-        fields, _ = serialize_matrix_form((await self._get("/matrix")).text)
-        return {k: v for k, v in fields.items() if k.startswith("post_")}
-
-    async def matrix_apply(self, post_process: dict[str, str]) -> None:
-        """Plain ``POST /matrix`` (Apply) of the complete current form with its
-        post-process slice replaced by ``post_process`` — the restore half of
-        load-preservation. Wire-encoded overlay: dropping every fresh ``post_*``
-        key before merging keeps the daemon's checkbox contract intact (present
-        = value attr, absent = off; a stray value wedges engine init)."""
-        fields, files = await self._matrix_form_payload()
-        fields = {k: v for k, v in fields.items() if not k.startswith("post_")}
-        fields.update(post_process)
-        await self._post("/matrix", data=fields, files=files)
-
-    async def _matrix_form_payload(self) -> tuple[dict[str, str], list[tuple[str, tuple[str, bytes, str]]]]:
-        fields, file_names = serialize_matrix_form((await self._get("/matrix")).text)
-        return fields, [(n, ("", b"", "application/octet-stream")) for n in file_names]
+    # No profile CRUD on this lane. ``POST /matrix/{load,save,delete}`` cost a
+    # ~3 s engine reload each and never persisted a saved profile anyway (the
+    # daemon keeps it in memory only, matrix-spec round 5), so save/delete became
+    # staged ``<matrix_profile>`` config edits and load rides 4321
+    # ``MatrixSetProfile``. Nothing here writes /matrix any more.
 
     async def get_speakers(self) -> dict[str, Any]:
         """GET /speakers — the multi-channel speaker-processing form (readme §1.9):

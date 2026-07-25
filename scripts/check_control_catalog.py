@@ -74,6 +74,10 @@ def write_targets() -> set[str]:
             presetconf.FIXED_ENABLED,
             presetconf.FIXED_LEVEL,
             presetconf.MATRIX_PIPELINES,
+            # atomic saved-profile verbs: routed by name like the pipeline set,
+            # not through FIELD_MAP (they write a whole element, not an attribute)
+            presetconf.MATRIX_PROFILE_SAVE,
+            presetconf.MATRIX_PROFILE_DELETE,
         }
     )
 

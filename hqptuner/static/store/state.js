@@ -74,20 +74,9 @@ export function formFieldName(entry) {
   return entry.formField || entry.field;
 }
 
-// Matrix tab read model: pipeline rows (grouped by the backend parser), saved
-// profile names (4321 MatrixListProfiles, falling back to the form datalist),
-// and the active profile ("" / "[Default]" = the unnamed default).
+// Matrix tab read model: the pipeline rows as the backend parser grouped them.
+// The saved-profile half of this model lives in store/profiles.js (round 5).
 const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows) || []);
-export const matrixProfiles = computed(() => {
-  const m = matrixConfig.value || {};
-  if (m.live_profiles && m.live_profiles.length) return m.live_profiles;
-  return ((m.profiles && m.profiles.options) || []).map((o) => o.value).filter(Boolean);
-});
-export const matrixActiveProfile = computed(() => {
-  const m = matrixConfig.value || {};
-  const name = m.live_active || (m.active !== "[Default]" ? m.active : "");
-  return name || "[Default]";
-});
 
 // --- pipeline set (matrix-spec step 3): staged as ONE atomic canonical-JSON
 // field, matching the backend's read_pipelines serialization byte-for-byte

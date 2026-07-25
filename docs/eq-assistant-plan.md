@@ -1,10 +1,10 @@
-# AI Sound Tuner — implementation plan
+# EQ Assistant — implementation plan
 
 Planning document. Design settled in discussion 2026-07-22; this records the
 verified code findings the design must be built against, the rulings taken where
 the design and the code diverged, and the phased delivery order.
 
-Companion reading: `docs/ai-tuner/PRIMER.md` (domain brief, written for an agent
+Companion reading: `docs/eq-assistant/PRIMER.md` (domain brief, written for an agent
 with no prior context), `docs/matrix-spec.md` (pipeline/matrix design of record),
 `docs/testing.md` (binding testing policy).
 
@@ -314,7 +314,7 @@ Pipelines stage as one atomic canonical-JSON http field `matrix_pipelines` via
 parameters stage via `edit(key, value)`. `dirtyKeys` / `split` / PendingBar /
 Apply pick both up unchanged.
 
-**The AI tuner writes through the same two functions the existing UI uses.** No
+**The EQ Assistant writes through the same two functions the existing UI uses.** No
 new apply plumbing, no new lane. "Staged only, never auto-applied" is nearly free.
 
 ### F5 · Headroom recompute needs no new math
@@ -341,7 +341,7 @@ a preference: guardrails implemented in JS would be ungated by `make check`.
 
 ### F7 · A real tuning session, and what it corrected
 
-`docs/ai-tuner/auteur-classic-tuning.json` — nine turns from an actual session
+`docs/eq-assistant/auteur-classic-tuning.json` — nine turns from an actual session
 (ZMF Auteur Classic on an oratory1990 profile), exported after the fact. This is
 ground truth rather than invented examples, and it is the **source for P3's
 few-shot pairs and P5's eval cases**. Three things in it contradicted the design.
@@ -514,7 +514,7 @@ no peer-reviewed quantification of crossfeed's bass-summing tonal effect exists.
 
 ### P1 · Land assets, probe live bounds
 
-Move P0 output into `docs/ai-tuner/`. Probe the live daemon's `/matrix` form for
+Move P0 output into `docs/eq-assistant/`. Probe the live daemon's `/matrix` form for
 the real `post_bauer_frequency` / `post_bauer_level` min/max/step. Read-only, no
 idle gate required.
 
@@ -579,7 +579,7 @@ Pure computation: no daemon contact, no staging, no side effects. Callable many
 times per turn.
 
 **`lib/dsp.js` is the reference and Python follows it** (D10). Ship
-`docs/ai-tuner/dsp-reference.json` — a fixture of chains × frequencies × expected
+`docs/eq-assistant/dsp-reference.json` — a fixture of chains × frequencies × expected
 dB, **generated from the JS implementation** — and assert the Python port against
 it in the offline suite. The JS side is already auto-tested (`tests/js/dsp.test.js`
 covers `lib/dsp.js`); the fixture is what makes cross-language drift detectable and
@@ -615,12 +615,12 @@ loop exceeding the cap aborts with the stock message and stages nothing.
 
 ### P3 · Prompt assets, versioned as a unit
 
-`docs/ai-tuner/prompt/`: `system.md`, `vocabulary.json` (from P0),
+`docs/eq-assistant/prompt/`: `system.md`, `vocabulary.json` (from P0),
 `fewshot.json`, `ASSEMBLY.md` (concatenation order, token budget, ledger
 truncation rule), `VERSION`. The version stamps into every ledger entry.
 
 6–10 few-shot complaint→diff pairs. **Draw them from
-`docs/ai-tuner/auteur-classic-tuning.json` (F7) wherever it covers the case** —
+`docs/eq-assistant/auteur-classic-tuning.json` (F7) wherever it covers the case** —
 real complaints in the user's own words beat invented ones, and that file already
 supplies amend, append, multi-band, back-off, and two clarify examples. Invent
 only what it lacks: the spatial/crossfeed cases and the off-topic deflection.
@@ -748,12 +748,12 @@ produces a rebuilt block, a positive gain produces a recomputed row gain.
 
 ### P5 · Eval harness and model gate
 
-`docs/ai-tuner/eval/cases.json` — 12+ cases spanning tonal, spatial, mixed,
+`docs/eq-assistant/eval/cases.json` — 12+ cases spanning tonal, spatial, mixed,
 clarify, off-topic, and ledger-referencing, with expected-region and
 parameter-direction pass criteria. `scripts/eval_tuner.py`, CI-runnable against a
 configured endpoint. The offline suite tests the runner's scoring, not the model.
 
-**Seed the set from `docs/ai-tuner/auteur-classic-tuning.json` (F7).** Its nine
+**Seed the set from `docs/eq-assistant/auteur-classic-tuning.json` (F7).** Its nine
 turns are real complaints with known-good outcomes, so they convert to eval cases
 directly; the invented cases fill the gaps it does not cover (spatial, off-topic,
 tilt direction).

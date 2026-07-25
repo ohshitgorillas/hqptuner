@@ -1,9 +1,9 @@
 {
   "_meta": {
-    "name": "HQPTuner AI Sound Tuner — listening-complaint vocabulary map",
-    "version": "1.0.0+corrections.2026-07-22",
+    "name": "HQPTuner EQ Assistant — listening-complaint vocabulary map",
+    "version": "2.0.0+polysemy.2026-07-25",
     "compiled": "2026-07-22",
-    "purpose": "Concatenated into the AI Sound Tuner system prompt. Translates a plain-language listening complaint into a bounded, structured parameter diff. Companion documents: SOURCES.md (citations and disagreements), PRIMER.md (feature contract).",
+    "purpose": "Concatenated into the EQ Assistant system prompt. Translates a plain-language listening complaint into a bounded, structured parameter diff. Companion documents: SOURCES.md (citations and disagreements), PRIMER.md (feature contract).",
     "use_case": "A finished stereo master, reproduced on headphones, already corrected toward the Harman target by an AutoEq baseline. Every range below is calibrated for that context, NOT for mixing individual multitrack elements on loudspeakers.",
     "direction_convention": "`direction` is what to do TO THE NAMED REGION to SATISFY THE USER. It is never 'what the word means'. If the user says 'it's too boomy', the boomy entry's direction is `cut`, because cutting 60-150 Hz relieves boominess. If the user says 'I want it warmer', the warm entry's direction is `boost`, because boosting 100-300 Hz delivers warmth. Read `named_quality` to know which reading the entry is written for.",
     "named_quality_field": {
@@ -24,7 +24,10 @@
       "named_quality": "unwanted | wanted",
       "sources": "keys into the `sources` block below",
       "confidence": "high | medium | low",
-      "notes": "one line naming any source disagreement or usage caveat"
+      "notes": "one line naming any source disagreement or usage caveat",
+      "polysemous": "true when the term is a GENERIC descriptor with several attested meanings rather than a name for one feature. Such an entry carries `senses` and `disambiguate` INSTEAD OF a single region_hz/suggested_type/direction/typical_gain_db/typical_q.",
+      "senses": "array of attested meanings. Each carries id, region_hz, suggested_fc_hz, suggested_type, direction, typical_gain_db, typical_q, gloss, attested_by. Pick ONE per turn — never emit two senses of the same term together.",
+      "disambiguate": "the question to ask when a polysemous term arrives with no disambiguating context. Phrased in LISTENING terms, never in filter terms."
     },
     "clamps": {
       "eq_gain_db_hard": [
@@ -83,14 +86,14 @@
           200,
           300
         ],
-        "rule": "Same region, opposite polarity. Never emit both in one turn — they cancel. If the user's sentence contains both senses ('warm but not muddy'), emit ONE stage: a low shelf boost at 120 Hz plus a narrower cut at 300 Hz is acceptable only if the two centre frequencies differ by at least one octave."
+        "rule": "Sense-qualified since 2026-07-25. `warm` senses `lower-mid-body` and `upper-bass-fullness` occupy the same region as `muddy` with opposite polarity — never emit those together with a muddy cut, they cancel. `warm` sense `broadband-tilt` acts on the TREBLE and does NOT collide with muddy; that pair is legal. If the user's sentence contains both senses ('warm but not muddy'), emit ONE stage: a low shelf boost at 120 Hz plus a narrower cut at 300 Hz is acceptable only if the two centre frequencies differ by at least one octave."
       },
       {
         "terms": [
           "warm",
           "thin"
         ],
-        "rule": "Both resolve to a lower-mid/upper-bass boost. Emit one stage, not two."
+        "rule": "Both resolve to a lower-mid/upper-bass boost when `warm` takes its lower-mid-body or upper-bass-fullness sense. Emit one stage, not two. No collision when `warm` takes its broadband-tilt sense."
       },
       {
         "terms": [
@@ -116,7 +119,7 @@
           "dull",
           "veiled"
         ],
-        "rule": "All resolve to a treble shelf. Emit at most ONE high shelf per turn; if the request mixes them ('darker but still airy'), emit a broad hshelf cut at 6 kHz plus at most one narrow peak, never two shelves."
+        "rule": "All resolve to a treble shelf. Emit at most ONE high shelf per turn; if the request mixes them ('darker but still airy'), emit a broad hshelf cut at 6 kHz plus at most one narrow peak, never two shelves. NOTE 2026-07-25: `bright` sense `hardness-4k-8k` is a PEAK at 4-8 kHz, not a shelf, and may legally accompany one shelf from this group."
       },
       {
         "terms": [
@@ -126,6 +129,14 @@
           "thick"
         ],
         "rule": "A descending ladder of the same low-frequency complaint at rising centre frequencies (60-150 / 150-300 / 200-400 / 150-350). Pick the single entry the user's wording best matches; do not stack three overlapping cuts."
+      },
+      {
+        "terms": [
+          "full",
+          "warm",
+          "thin"
+        ],
+        "rule": "`full` senses `lower-mid-body` and `bass-extension` overlap `warm` and invert `thin`. Emit one stage across the three. `full` sense `both-ends-extension` is the exception in this whole map: the ITU-R BS.2399 definition of Full is extension at BOTH ends ('If both low and high frequencies are well represented with good extension the sound is Full'), so it legitimately needs a PAIR of shelves, low and high. Emitting only the low shelf under-delivers that sense."
       }
     ],
     "eq_emission_rules": [
@@ -136,7 +147,11 @@
       "Append a new band ONLY when no existing band covers the target region. Overlapping bands sum, so appending next to an existing band makes the net curve progressively harder to reason about and is the main way a session degenerates into a mess.",
       "Never delete a band. Setting its gain to 0 dB is the reversible equivalent and keeps the chain shape stable across turns.",
       "One turn amends at most 2 bands and appends at most 1.",
-      "Any turn whose net result includes a positive gain must also emit a recomputed headroom value: preamp = -max(summed magnitude response of the ENTIRE chain), not -sum(positive gains) and not -max(single band). See PRIMER.md."
+      "Any turn whose net result includes a positive gain must also emit a recomputed headroom value: preamp = -max(summed magnitude response of the ENTIRE chain), not -sum(positive gains) and not -max(single band). See PRIMER.md.",
+      "POLYSEMOUS TERMS EMIT ONE SENSE. warm, bright, dark, presence and full carry a `senses` array instead of a single region. Pick exactly one sense per turn and emit only that sense's stage; never combine two senses of the same term. If the user's sentence does not choose a sense, ask the entry's `disambiguate` question as a `clarify` rather than guessing. See _meta.polysemy.",
+      "ONE ENTRY NEEDS A PAIR OF SHELVES. `full` sense `both-ends-extension` is the sole exception to one-stage-per-complaint: ITU-R BS.2399 defines Full as extension at BOTH ends ('If both low and high frequencies are well represented with good extension the sound is Full'), so it requires a low shelf AND a high shelf together. Emitting only the low shelf under-delivers that sense. This pair counts as ONE append against the per-turn budget, not two.",
+      "FILLS MUST BE LARGER THAN CUTS. Peaks are more audible than dips of equal magnitude (Toole & Olive 1988), so an additive fill needs more dB than the mirror-image cut to be equally audible. The typical_gain_db values assume symmetry and are starting points only. See _meta.boost_cut_asymmetry.",
+      "RESPECT THE PER-Q AUDIBILITY FLOOR. On music, threshold is about +/-1.5 dB at Q=1, +/-3 dB at Q=10, +/-5 dB at Q=50. A move below the floor for its own Q is inaudible, not subtle. Above 8 kHz the underlying measurement is outside its qualified range regardless of magnitude -- see TRANSDUCERS.md section 4."
     ],
     "tonal_spatial_interaction": {
       "principle": "Crossfeed is not a width-only control, but its tonal side effect runs OPPOSITE to the common intuition. In bs2b the mid (centre) path is normalised to 0 dB at DC and rolls off to -tilt at high frequency, where tilt = 20*log10(1 - gHi + gLo), gLo = 10^((-5*feed/6 - 3)/20) and gHi = 1 - 10^((feed/6 - 3)/20). Tilt depends ONLY on feed -- the crossover frequency does not enter it -- and it DECREASES as feed rises: 2.70 dB at feed 1.0, 1.81 dB at 4.5 (default), 1.53 dB at 6.0, 1.09 dB at 9.5, 0.92 dB at 15.0. The relationship is compressive: the entire 14 dB feed range moves tilt by only 1.78 dB, so a +/-1.5 dB feed nudge near the default changes tilt by about 0.3 dB. Verified numerically against the shipped implementation in lib/xfeed.js, and corroborated by the app's own UI copy, which states a 1-2.7 dB range.",
@@ -171,13 +186,53 @@
     },
     "corrections": [
       "2026-07-22: centre-tilt direction was inverted throughout. Tilt DECREASES as feed rises and is independent of crossover frequency. Corrected against lib/xfeed.js.",
-      "2026-07-22: AutoEq bands moved from untouchable to in-scope by user decision. The owned-segment premise and the max_ai_bands cap are withdrawn; amend-before-append replaces them."
-    ]
+      "2026-07-22: AutoEq bands moved from untouchable to in-scope by user decision. The owned-segment premise and the max_ai_bands cap are withdrawn; amend-before-append replaces them.",
+      {
+        "date": "2026-07-25",
+        "summary": "Seven-lane research pass plus two papers fetched by hand. Feature renamed AI Sound Tuner -> EQ Assistant.",
+        "changes": [
+          "POLYSEMY: warm, bright, dark, presence, full restructured from single-region entries into sense inventories. A bare polysemous term with no disambiguating context is now a clarify. User ruling.",
+          "RENAMED: `present` -> `presence`. 'Present' is a different word.",
+          "ADDED: `full` — absent from the map entirely despite being a common complaint word.",
+          "NARROWED: `sibilant` 5000-9000 -> 5000-8000 Hz, fc 6700 -> 6300. Above 8 kHz a 711 coupler is outside its qualified range and at least one major measurer parks the coupler's own resonance at 8 kHz, so the old band's tail overlapped a measurement artifact. Never centre a high-Q cut above 8 kHz for sibilance.",
+          "ADDED: _meta.boost_cut_asymmetry. Peaks are more audible than dips (Toole & Olive 1988, read from the primary), so typical_gain_db values must not be assumed symmetric between fills and cuts.",
+          "ADDED: per-Q audibility floors (Q=1 +/-1.5 dB, Q=10 +/-3 dB, Q=50 +/-5 dB on music).",
+          "VERIFIED: '3 dB per doubling of Q' is Toole & Olive's own summary item. It had been briefly demoted to unsupported on 2026-07-25 after repeated fetch failures; that demotion was a reasoning error and was reversed. Failure to retrieve is evidence about the fetcher, not about the claim.",
+          "UNSOURCED: the '0.25 dB at 5 kHz, Q=1' threshold is not in the primary and is not stated anywhere in this project."
+        ]
+      }
+    ],
+    "polysemy": {
+      "ruling": "User ruling 2026-07-25. Some complaint words are not descriptors of a single feature of sound the way `nasal` or `sibilant` are. They are generic descriptors used fluidly, and sometimes contradictorily, by the same listener in the same session. `warm` especially can mean several different things about a midrange. It is on the listener to say which flavour they mean.",
+      "polysemous_terms": [
+        "warm",
+        "bright",
+        "dark",
+        "presence",
+        "full"
+      ],
+      "single_feature_terms": "boomy, nasal, sibilant, honky, boxy, shrill and the rest name a particular colouration. Where sources disagree about THOSE, the disagreement is real and the SOURCES.md rulings stand. Do not apply the sense machinery to them.",
+      "clarify_rule": "A bare polysemous term with NO disambiguating context is a `clarify`, not a guessed diff. This is response-schema clarify mode 2 (low-confidence inference). It is far more common than the pre-2026-07-25 map implied, because that map silently committed each of these words to one sense and never asked.",
+      "context_may_disambiguate": "If the user's sentence names the region, the programme material or the symptom ('warmer on voices', 'bright on cymbals', 'dark, no air up top'), pick the matching sense and proceed. Only ask when the sentence genuinely does not choose.",
+      "one_sense_per_turn": "Never emit two senses of the same term in one turn. They are alternative readings of one word, not components of it.",
+      "history": "Earlier drafts treated the multi-sense evidence as a SOURCE DISAGREEMENT to adjudicate, and picked a winner. That framing was wrong: Holt is not inconsistent when he defines `warm` as a broadband tilt and elsewhere calls a mid-bass lift 'excessively warm', and Holt/Rumsey/SAQI are not colliding when their `presence` entries differ — they are recording different senses. See SOURCES.md section 5."
+    },
+    "boost_cut_asymmetry": {
+      "finding": "Peaks are more audible than dips of equal magnitude, and both become more audible as they widen. Toole & Olive 1988, summarising Bucklein, read from the primary 2026-07-25: 'peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases.'",
+      "consequence": "CUT AND BOOST ARE NOT SYMMETRIC. Filling a dip works on the less audible feature, so an additive fill must be LARGER than the equivalent cut to be equally audible. Every typical_gain_db in this file was set assuming symmetry; they are starting points, and a fill may need more.",
+      "interaction_with_the_additive_fill_rule": "PRIMER.md prefers additive fills over clawing back levels the user approved by ear. That rule is still right — it protects by-ear decisions — but it is now known to be the acoustically WEAKER lever, so expect to need more dB than the mirror-image cut would have taken.",
+      "audibility_floor_by_q": "Toole & Olive 1988 section 4.1, thresholds on popular music (the least revealing programme class): Q=1 about +/-1.5 dB, Q=10 about +/-3 dB, Q=50 about +/-5 dB. A move below the floor for its own Q is not subtle, it is inaudible. See PSYCHOACOUSTICS.md section 4."
+    }
   },
   "consistency": [
     {
       "symptom": "register-dependent level",
-      "aliases": ["half the time perfect half slightly too quiet", "some notes quieter than others", "inconsistent level", "uneven across the register"],
+      "aliases": [
+        "half the time perfect half slightly too quiet",
+        "some notes quieter than others",
+        "inconsistent level",
+        "uneven across the register"
+      ],
       "curve_property": "Ripple: a broad trough in the net response. Fundamentals landing inside it read quiet while neighbouring notes read correct, so the fault presents as inconsistency rather than as a level error.",
       "diagnosis": "Evaluate the net response at the NOTE FUNDAMENTALS of the register the complaint names, not on a log grid. Compare trough depth against the neighbouring regions that sound right.",
       "fix_class": "fill",
@@ -189,7 +244,12 @@
     },
     {
       "symptom": "present but no bloom",
-      "aliases": ["no OOMPH", "doesn't fill the space", "there and balanced but not oversized", "lacks scale"],
+      "aliases": [
+        "no OOMPH",
+        "doesn't fill the space",
+        "there and balanced but not oversized",
+        "lacks scale"
+      ],
       "curve_property": "A notch between the sub-bass and the lower midrange. Fundamentals are at level -- hence 'there and balanced' -- but the body beneath them is missing, so the sound never blooms.",
       "diagnosis": "Compare a sub-bass band average against a body band average (roughly 80-160 Hz). A notch shows as a body average far below both neighbours.",
       "fix_class": "fill",
@@ -201,7 +261,11 @@
     },
     {
       "symptom": "scooped / V-shaped",
-      "aliases": ["V-shaped", "hollow middle", "bass and treble but nothing between"],
+      "aliases": [
+        "V-shaped",
+        "hollow middle",
+        "bass and treble but nothing between"
+      ],
       "curve_property": "Mid band average sitting below both the bass and treble band averages, usually because no band exists at all across 400-1500 Hz while peaks flank it on both sides.",
       "diagnosis": "v_db = mean(bass 50-150, treble 4k-10k) - mid 400-1500. Positive means scooped.",
       "fix_class": "fill",
@@ -213,7 +277,12 @@
     },
     {
       "symptom": "some notes jump out",
-      "aliases": ["one-note bass", "certain notes bloom", "uneven bass", "boomy on some notes only"],
+      "aliases": [
+        "one-note bass",
+        "certain notes bloom",
+        "uneven bass",
+        "boomy on some notes only"
+      ],
       "curve_property": "Ripple with the opposite sign: a narrow peak, so fundamentals landing on it are exaggerated while their neighbours are correct.",
       "diagnosis": "Evaluate at fundamentals across the affected register and find the maximum rather than the minimum.",
       "fix_class": "tame",
@@ -224,7 +293,11 @@
     },
     {
       "symptom": "forward but not harsh",
-      "aliases": ["a little forward", "slightly too present", "not hot or biting, just forward"],
+      "aliases": [
+        "a little forward",
+        "slightly too present",
+        "not hot or biting, just forward"
+      ],
       "curve_property": "A moderate excess spread across a whole band rather than one narrow hot spot -- typically two or more presence peaks each modestly high.",
       "diagnosis": "Band average across roughly 1.8-4 kHz, plus the individual peak heights within it. Several moderate peaks rather than one tall one.",
       "fix_class": "trim",
@@ -308,24 +381,70 @@
         "cosier",
         "meatier"
       ],
-      "region_hz": [
-        100,
-        300
+      "polysemous": true,
+      "definition": "Pleasant weight, body or gentleness. Not one feature — see senses.",
+      "disambiguate": "Warmer overall, or more body on voices and lower strings? (Overall = a gentle treble tilt down; body = a lift in the lower mids.)",
+      "senses": [
+        {
+          "id": "lower-mid-body",
+          "region_hz": [
+            100,
+            300
+          ],
+          "suggested_fc_hz": 160,
+          "suggested_type": "peak",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 0.7,
+          "gloss": "Body and weight in the lower midrange. The most common sense.",
+          "attested_by": [
+            "owsinski",
+            "audio-commons"
+          ]
+        },
+        {
+          "id": "upper-bass-fullness",
+          "region_hz": [
+            80,
+            250
+          ],
+          "suggested_fc_hz": 120,
+          "suggested_type": "lshelf",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 0.7,
+          "gloss": "Fullness/fatness at the top of the bass. Holt's `fat` = 'excessively warm'.",
+          "attested_by": [
+            "owsinski",
+            "holt"
+          ]
+        },
+        {
+          "id": "broadband-tilt",
+          "region_hz": [
+            4000,
+            16000
+          ],
+          "suggested_fc_hz": 5000,
+          "suggested_type": "hshelf",
+          "direction": "cut",
+          "typical_gain_db": -2.0,
+          "typical_q": 0.7,
+          "gloss": "A gentle across-the-board downward tilt, treble-referenced. Holt: warm = 'the same as dark, but less tilted'.",
+          "attested_by": [
+            "holt"
+          ]
+        }
       ],
-      "suggested_fc_hz": 160,
-      "suggested_type": "lshelf",
-      "direction": "boost",
-      "definition": "Pleasant weight and body in the upper bass and lower midrange.",
-      "typical_gain_db": 2.0,
-      "typical_q": 0.7,
       "named_quality": "wanted",
       "sources": [
         "audio-commons",
         "owsinski",
-        "olive-harman"
+        "olive-harman",
+        "holt"
       ],
       "confidence": "medium",
-      "notes": "Audio Commons defines warmth only qualitatively (sensation 'analogous to a physical increase in temperature') and gates it near a ~260 Hz fundamental; Owsinski's 'fullness' sits at 120-250 Hz. Same region as `muddy`, opposite polarity — never emit both."
+      "notes": "POLYSEMOUS (user ruling 2026-07-25). The pre-2026-07-25 map committed `warm` to the lower-mid sense alone and never asked. Holt's formal mechanism is a broadband tilt; his own `fat` entry is the bump reading; he does not reconcile them. A bare 'warmer' with no disambiguating context is a `clarify`, not a guessed diff. Senses 1 and 2 conflict with `muddy`; sense 3 does not (it acts on treble)."
     },
     {
       "term": "thin",
@@ -485,9 +604,9 @@
       ],
       "region_hz": [
         5000,
-        9000
+        8000
       ],
-      "suggested_fc_hz": 6700,
+      "suggested_fc_hz": 6300,
       "suggested_type": "peak",
       "direction": "cut",
       "definition": "Exaggerated s and t consonants that spit out of the vocal.",
@@ -499,7 +618,7 @@
         "itu-bs2399"
       ],
       "confidence": "high",
-      "notes": "Owsinski gives 4-7 kHz in the voice table but attributes sibilance to his 6-16 kHz Brilliance band; de-esser practice is 5-9 kHz. Ruling 5-9 kHz. The one deliberately narrow entry — the Sound Wheel classes Shrill as an artefact, not a timbre, so narrow is correct here."
+      "notes": "Owsinski gives 4-7 kHz in the voice table but attributes sibilance to his 6-16 kHz Brilliance band; de-esser practice is 5-9 kHz. RULING NARROWED 2026-07-25 to 5-8 kHz. Reason: above 8 kHz an IEC 60318-4 (711) coupler is outside its qualified range, and at least one major measurer normalises IEM insertion depth so the coupler's own resonance lands AT 8 kHz — so the 8-9 kHz tail of the old band overlaps a measurement artifact rather than an audible earphone property. Never centre a high-Q cut above 8 kHz for a sibilance complaint. See TRANSDUCERS.md section 4. Holt is NOT a source for this band: his headword is `sibilance`, he gives it no frequency, and his neighbouring terms (`sizzly` >8 kHz, `spitty` upper treble) sit above the de-esser range. The one deliberately narrow entry - the Sound Wheel classes Shrill as an artefact, not a timbre."
     },
     {
       "term": "bright",
@@ -512,24 +631,69 @@
         "too much treble",
         "splashy"
       ],
-      "region_hz": [
-        6000,
-        16000
+      "polysemous": true,
+      "definition": "Too much high-frequency energy relative to the rest — by several different routes.",
+      "disambiguate": "Sharp and hard on cymbals and esses, or just tilted-up overall? (Sharp = the 4-8 kHz hardness band; tilted = a broad treble shelf.)",
+      "senses": [
+        {
+          "id": "treble-shelf-excess",
+          "region_hz": [
+            6000,
+            16000
+          ],
+          "suggested_fc_hz": 6000,
+          "suggested_type": "hshelf",
+          "direction": "cut",
+          "typical_gain_db": -2.5,
+          "typical_q": 0.7,
+          "gloss": "Broad excess of treble relative to the rest of the spectrum.",
+          "attested_by": [
+            "itu-bs2399",
+            "olive-harman"
+          ]
+        },
+        {
+          "id": "hardness-4k-8k",
+          "region_hz": [
+            4000,
+            8000
+          ],
+          "suggested_fc_hz": 5600,
+          "suggested_type": "peak",
+          "direction": "cut",
+          "typical_gain_db": -2.5,
+          "typical_q": 1.0,
+          "gloss": "Holt, explicitly: 'Brightness relates to the energy content in the 4kHz-8kHz band. It is NOT related to output in the extreme-high-frequency range.'",
+          "attested_by": [
+            "holt"
+          ]
+        },
+        {
+          "id": "weak-bass-relative",
+          "region_hz": [
+            60,
+            200
+          ],
+          "suggested_fc_hz": 105,
+          "suggested_type": "lshelf",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 0.7,
+          "gloss": "Sound Wheel: 'Bright: Excessive treble. Either loud treble OR weak bass.' Answer at the other end.",
+          "attested_by": [
+            "itu-bs2399"
+          ]
+        }
       ],
-      "suggested_fc_hz": 6000,
-      "suggested_type": "hshelf",
-      "direction": "cut",
-      "definition": "Excessive treble energy relative to the rest of the spectrum.",
-      "typical_gain_db": -2.5,
-      "typical_q": 0.7,
       "named_quality": "unwanted",
       "sources": [
         "itu-bs2399",
         "audio-commons",
-        "olive-harman"
+        "olive-harman",
+        "holt"
       ],
-      "confidence": "high",
-      "notes": "Sound Wheel's Dark-Bright axis: 'Bright: Excessive treble. Either loud treble or weak bass' — so a bright complaint can equally be answered by a bass boost; prefer the treble shelf unless the user also mentions bass."
+      "confidence": "medium",
+      "notes": "POLYSEMOUS (user ruling 2026-07-25). Holt's 4-8 kHz claim carries an explicit NEGATIVE: brightness is not the extreme highs. If a complaint names cymbals, esses or hardness, prefer sense 2 over the 10 kHz-ish shelf of sense 1. Sense 3 is legitimate but rarely what the user means; propose it only if they also mention thin bass."
     },
     {
       "term": "dark",
@@ -541,23 +705,68 @@
         "blanket over it",
         "murky top"
       ],
-      "region_hz": [
-        6000,
-        16000
+      "polysemous": true,
+      "definition": "Too little high-frequency energy relative to the rest — by several different routes.",
+      "disambiguate": "Missing air and detail up top, or heavy and tilted-down overall? (Missing air = a treble shelf lift; heavy = too much bass rather than too little treble.)",
+      "senses": [
+        {
+          "id": "treble-shelf-deficit",
+          "region_hz": [
+            6000,
+            16000
+          ],
+          "suggested_fc_hz": 6000,
+          "suggested_type": "hshelf",
+          "direction": "boost",
+          "typical_gain_db": 2.5,
+          "typical_q": 0.7,
+          "gloss": "Too little treble relative to the rest of the spectrum.",
+          "attested_by": [
+            "itu-bs2399",
+            "olive-harman"
+          ]
+        },
+        {
+          "id": "broadband-tilt",
+          "region_hz": [
+            4000,
+            16000
+          ],
+          "suggested_fc_hz": 5000,
+          "suggested_type": "hshelf",
+          "direction": "boost",
+          "typical_gain_db": 3.5,
+          "typical_q": 0.7,
+          "gloss": "Holt: 'a frequency response which is clockwise-tilted across the entire range'. Steeper than `warm`'s sense 3, same gesture.",
+          "attested_by": [
+            "holt"
+          ]
+        },
+        {
+          "id": "excessive-bass-relative",
+          "region_hz": [
+            60,
+            250
+          ],
+          "suggested_fc_hz": 120,
+          "suggested_type": "lshelf",
+          "direction": "cut",
+          "typical_gain_db": -2.0,
+          "typical_q": 0.7,
+          "gloss": "Sound Wheel: 'Dark: Excessive bass. Either loud bass OR weak treble.' Answer at the other end.",
+          "attested_by": [
+            "itu-bs2399"
+          ]
+        }
       ],
-      "suggested_fc_hz": 6000,
-      "suggested_type": "hshelf",
-      "direction": "boost",
-      "definition": "Too little treble relative to the rest of the spectrum.",
-      "typical_gain_db": 2.5,
-      "typical_q": 0.7,
       "named_quality": "unwanted",
       "sources": [
         "itu-bs2399",
-        "olive-harman"
+        "olive-harman",
+        "holt"
       ],
-      "confidence": "high",
-      "notes": "Sound Wheel: 'Dark: Excessive bass. Either loud bass or weak treble.' Symmetric with `bright`; the same caveat about answering with the opposite end applies."
+      "confidence": "medium",
+      "notes": "POLYSEMOUS (user ruling 2026-07-25). Mirror of `bright`. Holt defines `warm` BY REFERENCE to dark ('the same as dark, but less tilted'), so senses must stay consistent between the two entries: warm sense 3 and dark sense 2 are the same gesture at different magnitudes."
     },
     {
       "term": "dull",
@@ -640,6 +849,79 @@
       ],
       "confidence": "high",
       "notes": "Sound Wheel classes Shrill under Artefacts, not Timbre: 'Treble Distortion. Very sharp s-sounds, cymbals etc.' That artefact classification is why a narrower Q than the voicing default is justified here."
+    },
+    {
+      "term": "full",
+      "aliases": [
+        "fuller",
+        "fullness",
+        "more weight",
+        "bigger",
+        "rounder",
+        "not full enough"
+      ],
+      "polysemous": true,
+      "definition": "Weight and completeness. The Sound Wheel sense means extension at BOTH ends, not just bass.",
+      "disambiguate": "Fuller at the bottom, or fuller across the whole range? (Bottom = a bass shelf; whole range = extension at both ends, which the Sound Wheel calls Full.)",
+      "senses": [
+        {
+          "id": "lower-mid-body",
+          "region_hz": [
+            100,
+            300
+          ],
+          "suggested_fc_hz": 160,
+          "suggested_type": "peak",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 0.7,
+          "gloss": "Body in the lower midrange. Overlaps `warm` sense 1 — do not emit both.",
+          "attested_by": [
+            "owsinski"
+          ]
+        },
+        {
+          "id": "bass-extension",
+          "region_hz": [
+            40,
+            160
+          ],
+          "suggested_fc_hz": 90,
+          "suggested_type": "lshelf",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 0.7,
+          "gloss": "Weight and extension at the bottom.",
+          "attested_by": [
+            "owsinski",
+            "olive-harman"
+          ]
+        },
+        {
+          "id": "both-ends-extension",
+          "region_hz": [
+            40,
+            16000
+          ],
+          "suggested_fc_hz": null,
+          "suggested_type": "lshelf",
+          "direction": "boost",
+          "typical_gain_db": 1.5,
+          "typical_q": 0.7,
+          "gloss": "Sound Wheel, Full: 'If both low and high frequencies are well represented with good extension the sound is Full.' Needs a PAIR of shelves, low and high — the only sense in the map that does.",
+          "attested_by": [
+            "itu-bs2399"
+          ]
+        }
+      ],
+      "named_quality": "wanted",
+      "sources": [
+        "itu-bs2399",
+        "owsinski",
+        "olive-harman"
+      ],
+      "confidence": "medium",
+      "notes": "NEW ENTRY 2026-07-25 — `full` was absent from the map entirely despite being a common complaint word and one the user names as polysemous. Sense 3 is the ITU-R BS.2399 definition and is the only entry in the map whose fix is a pair of shelves; emitting only the low shelf for it under-delivers. Overlaps `warm` (sense 1) and `thin` (inverse) — check conflict_pairs before emitting."
     },
     {
       "term": "thick",
@@ -892,31 +1174,63 @@
       "notes": "The Sound Wheel's Homogeneous attribute is the formal anchor ('gaps between the tone ranges'). No source gives a scoop bandwidth; a broad low-Q boost is the Toole-conformant reading. If the user wants MORE scoop, invert per the polarity rule."
     },
     {
-      "term": "present",
+      "term": "presence",
       "aliases": [
-        "presence",
+        "more presence",
         "clarity",
         "definition",
         "closer",
         "more upfront",
-        "cut through"
+        "cut through",
+        "more real",
+        "more alive"
       ],
-      "region_hz": [
-        4000,
-        6000
+      "polysemous": true,
+      "definition": "Realism, aliveness, or closeness. Three published meanings, one of which is not an EQ move at all.",
+      "disambiguate": "Should voices sit closer and more upfront, or sound more alive and real where they are? (Closer = upper-mid lift; alive = the 1-3 kHz realism band.)",
+      "senses": [
+        {
+          "id": "owsinski-clarity",
+          "region_hz": [
+            4000,
+            6000
+          ],
+          "suggested_fc_hz": 4900,
+          "suggested_type": "peak",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 1.0,
+          "gloss": "Owsinski's Presence band: clarity and definition that brings sources closer.",
+          "attested_by": [
+            "owsinski"
+          ]
+        },
+        {
+          "id": "holt-realism",
+          "region_hz": [
+            1000,
+            3000
+          ],
+          "suggested_fc_hz": 1700,
+          "suggested_type": "peak",
+          "direction": "boost",
+          "typical_gain_db": 2.0,
+          "typical_q": 1.0,
+          "gloss": "Holt's `presence range`, 'approximately 1-3kHz, which contributes to presence in reproduced sound'. His `presence` proper is 'a quality of realism and aliveness'.",
+          "attested_by": [
+            "holt"
+          ]
+        }
       ],
-      "suggested_fc_hz": 4900,
-      "suggested_type": "peak",
-      "direction": "boost",
-      "definition": "Clarity and definition that brings voices and instruments closer to the listener.",
-      "typical_gain_db": 2.0,
-      "typical_q": 1.0,
       "named_quality": "wanted",
       "sources": [
-        "owsinski"
+        "owsinski",
+        "holt",
+        "rumsey",
+        "saqi"
       ],
-      "confidence": "medium",
-      "notes": "Owsinski's Presence band, kept because the WORD 'presence' is his and users use it his way. Distinct from `forward`/`recessed`, which sit an octave lower on Harman's upper-midrange axis. Positive gains here are the most headroom-expensive in the map — recompute the preamp."
+      "confidence": "low",
+      "notes": "POLYSEMOUS and a genuine THREE-WAY CROSS-SOURCE HOMONYM (user ruling 2026-07-25). Renamed from `present`, which is a different word. Holt = tonal realism at 1-3 kHz. Owsinski = clarity at 4-6 kHz. Rumsey 2002 and SAQI both define presence SPATIALLY — 'sense of being inside an (enclosed) space' / 'being-in-the-scene' — which is NOT an EQ move and has no sense here; if the user means that, it is a crossfeed/spatial matter or a `clarify`. Confidence low precisely because the word is this overloaded. Positive gains in sense 1 are the most headroom-expensive in the map — recompute the preamp."
     },
     {
       "term": "laid-back",

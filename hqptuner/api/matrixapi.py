@@ -2,14 +2,16 @@
 operations, and convolution filter uploads. Split out of ``api`` by the
 file-length gate — a self-contained feature surface mounted alongside it."""
 
+import json
 from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ..conf.matrixconf import MATRIX_PROFILES
 from ..control import ControlError
 from . import deps
 from .deps import HttpMgr, Mgr
@@ -38,46 +40,45 @@ def matrix(manager: HttpMgr) -> dict[str, Any]:
     form = deps.ensure_form(manager.matrix_form, manager.matrix_error, "/matrix")
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
     # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
+    # file_profiles is the saved-profile truth: the <matrix_profile> elements of
+    # the running config, which is where a persisted profile lives and the only
+    # place a profile HQPTuner saved but has not applied yet can be seen. The
+    # daemon's own list (live_profiles) holds what it read at startup, so the
+    # picker shows the union and only a name in live_profiles can switch live.
     return deps.snapshot(
         manager,
         {
             **form,
             "live_profiles": manager.matrix_profiles or [],
             "live_active": (manager.state or {}).get("matrix_profile", ""),
+            "file_profiles": json.loads((manager.file_config or {}).get(MATRIX_PROFILES) or "{}"),
         },
     )
 
 
 class MatrixProfileBody(BaseModel):
-    action: str  # switch (4321, live) | load | save | delete (form lane, reload)
+    action: str  # switch — the only verb this route has (4321, live)
     name: str = ""  # empty = the unnamed [Default]
 
 
 @router.post("/matrix/profile")
-async def matrix_profile(body: MatrixProfileBody, request: Request, manager: Mgr) -> dict[str, Any]:
-    """Matrix profile operations (matrix-spec step 5). `switch` rides the live
-    4321 lane — no reload. save/delete/load ride the form lane and reload the
-    engine (~3 s), interrupting playback if any: that is the user's call, not
-    ours, so it is never refused for being mid-playback. A named `load` also
-    replaces post-process state (probe findings).
+async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any]:
+    """Load a saved matrix profile into the running matrix (matrix-spec step 5,
+    amended round 5): 4321 ``MatrixSetProfile``, live, no engine reload, playback
+    undisturbed, post-process untouched. Needs no credentials — the Control API
+    lane is unauthenticated.
 
-    Credentials are checked in the handler rather than by HttpMgr: the live
-    `switch` branch does not need them, and an unknown action is a 404 before
-    anything else is asked about it."""
-    if body.action == "switch":
-        try:
-            return await manager.matrix_switch_profile(body.name)
-        except ControlError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
-    if body.action not in ("load", "save", "delete"):
+    Saving and deleting a profile are NOT here: they are staged
+    ``<matrix_profile>`` config edits and ride ``/api/config/stage`` +
+    ``/api/config/apply`` like every other persistent setting, because the daemon
+    does not persist profiles itself (round 5). The client stages the loaded
+    profile's rows alongside this call, so a load is live AND persists."""
+    if body.action != "switch":
         raise HTTPException(status_code=404, detail=f"unknown matrix profile action: {body.action}")
-    if not body.name and body.action in ("save", "delete"):
-        raise HTTPException(status_code=422, detail="profile name required")
-    deps.require_credentials(request)
     try:
-        return await manager.matrix_profile_action(body.action, body.name)
-    except (ControlError, httpx.HTTPError) as exc:
-        raise HTTPException(status_code=502, detail=f"matrix profile {body.action} failed: {exc}") from exc
+        return await manager.matrix_switch_profile(body.name)
+    except ControlError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/speakers")
