@@ -22,6 +22,7 @@ import asyncio
 import contextlib
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +34,7 @@ from .conf.httpconf import HttpConfigClient
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
 from .filterpark import FilterPark
-from .lanes import enginelane, httplane, livemap, matrixlane, presetlane, speakerlane
+from .lanes import enginelane, httplane, livemap, matrixlane, presetlane, settle, speakerlane
 from .presetstore import PresetStore
 from .writer import apply_live
 
@@ -124,6 +125,10 @@ class ConnectionManager:
             await self._sleep(self._cfg.poll_interval)
 
     async def _sleep(self, seconds: float) -> None:
+        """The poll loop's own wait. NOT a duplicate of the public ``sleep``: the
+        test suite virtualizes ``sleep`` (docs/testing.md §7) so lane deadlines
+        cost no wall clock, and deliberately leaves this one alone so a running
+        manager polls at its real interval instead of spinning."""
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._stop.wait(), seconds)
 
@@ -164,8 +169,8 @@ class ConnectionManager:
         self.unreachable_since = None
         if self._http is not None:
             # best-effort 8088 lane — a failure here must not undo the 4321 connect.
-            # _refresh_http_forms populates config/matrix/speakers (+ their *_error).
-            await self._refresh_http_forms()
+            # refresh_http_forms populates config/matrix/speakers (+ their *_error).
+            await self.refresh_http_forms()
             try:
                 await self.load_file_config()
             except Exception as exc:
@@ -195,26 +200,35 @@ class ConnectionManager:
         # external changes (preset loads, the DAC changing, HQPlayer's own UI)
         # rewrite the http forms without any HQPTuner apply — refetch each poll so
         # the config/matrix snapshots track reality instead of only connect-time.
-        await self._refresh_http_forms()
+        await self.refresh_http_forms()
         self.loaded_at = time.time()
 
-    async def _refresh_http_forms(self) -> None:
-        """Best-effort refresh of the /config and /matrix snapshots. A failure on
-        the 8088 lane must never fail the 4321 poll — keep the last-good form."""
-        if self._http is None:
+    async def refresh_http_forms(self) -> None:
+        """Best-effort refresh of the /config, /matrix and /speakers snapshots. A
+        failure on the 8088 lane must never fail the 4321 poll — the last-good
+        form is kept and only that form's error is recorded.
+
+        One table instead of three identical try/except blocks: a fourth polled
+        form is a row, not another block to keep in step. The getters are bound
+        methods rather than names looked up by string — reflection here would
+        hide them from the dead-code gate, which is how a genuinely orphaned
+        getter would then survive unnoticed."""
+        http = self._http
+        if http is None:
             return
-        try:
-            self.config_form, self.config_error = await self._http.get_config(), None
-        except Exception as exc:
-            self.config_error = str(exc)
-        try:
-            self.matrix_form, self.matrix_error = await self._http.get_matrix(), None
-        except Exception as exc:
-            self.matrix_error = str(exc)
-        try:
-            self.speakers_form, self.speakers_error = await self._http.get_speakers(), None
-        except Exception as exc:
-            self.speakers_error = str(exc)
+        forms: tuple[tuple[str, str, Callable[[], Awaitable[dict[str, Any]]]], ...] = (
+            ("config_form", "config_error", http.get_config),
+            ("matrix_form", "matrix_error", http.get_matrix),
+            ("speakers_form", "speakers_error", http.get_speakers),
+        )
+        for form_attr, error_attr, getter in forms:
+            try:
+                form = await getter()
+            except Exception as exc:
+                setattr(self, error_attr, str(exc))
+                continue
+            setattr(self, form_attr, form)
+            setattr(self, error_attr, None)
 
     async def set_volume(self, db: str) -> dict[str, Any]:
         """Live playback-volume write — immediate, outside the staged-config
@@ -247,7 +261,7 @@ class ConnectionManager:
             # cache a healthy backup BEFORE the load — the load bug empties /backup,
             # and the persistent apply below needs the archive (docs/protocol.md)
             with contextlib.suppress(httpx.HTTPError):
-                await self._backup_or_cached()
+                await self.backup_or_cached()
             # restore-onto-[default] + mirror (load_preset), never hqplayerd's profile/load
             switched = await self.load_preset(switch_to)
         # Form fields the Control API can set outright route live instead, so a
@@ -268,7 +282,7 @@ class ConnectionManager:
             self.clear_parked_filters()
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
-    async def _backup_or_cached(self, *, for_write: bool = False) -> bytes:
+    async def backup_or_cached(self, *, for_write: bool = False) -> bytes:
         """Fetch ``/backup``, caching it whenever it's a usable archive. WORKAROUND
         (docs/protocol.md): hqplayerd 6.0.4 serves an EMPTY ``settings.zip`` after a
         named ``profile/load`` (and after ``profile/save`` — observed live) until
@@ -279,7 +293,7 @@ class ConnectionManager:
         stale working config, and a restore built on it silently resurrects
         whatever the user changed since it was cached — writing old values back
         over new ones. A read may be stale; a write may not."""
-        backup = await self._require_http().backup()
+        backup = await self.require_http().backup()
         if engineconf.base_config_xml(backup):  # has hqplayerd.xml → usable
             self.last_healthy_backup = backup
             return backup
@@ -294,14 +308,9 @@ class ConnectionManager:
         return backup  # no cache yet — let the caller fail with a clear message
 
     async def read_preset(self, name: str) -> dict[str, str]:
-        """A preset's saved settings in form-field terms, for the editor preview —
-        no daemon touch, no restart. A named preset reads from the HQPTuner store;
-        the empty (``[default]``) selection reads the current running config."""
-        if not name:
-            return dict(self.file_config or await self.load_file_config())
-        return presetconf.read_config(self._store.read(name))
+        return await presetlane.read(self, name)
 
-    # --- accessors for the extracted write lanes (httplane) ---------------
+    # --- accessors for the extracted write lanes --------------------------
 
     @property
     def http_client(self) -> HttpConfigClient | None:
@@ -311,44 +320,33 @@ class ConnectionManager:
     def alarm_threshold(self) -> float:
         return self._cfg.alarm_threshold
 
-    def require_http(self) -> HttpConfigClient:
-        return self._require_http()
-
-    def persist_backup(self, backup: bytes) -> None:
-        self._persist_backup(backup)
-
     def monotonic(self) -> float:
+        """The lanes' clock. A method, not ``time.monotonic`` inline, because it
+        is the seam the suite virtualizes alongside ``sleep`` (docs/testing.md)."""
         return time.monotonic()
 
     async def sleep(self, seconds: float) -> None:
+        """The lanes' wait — virtualized in tests. See ``_sleep`` for why the poll
+        loop deliberately does not share it."""
         await self._sleep(seconds)
 
     async def await_http_ready(self) -> bool:
-        return await self._await_http_ready()
-
-    async def backup_for_write(self) -> bytes:
-        return await self._backup_or_cached(for_write=True)
-
-    async def _await_http_ready(self) -> bool:
         """Wait until the HTTP config lane serves again. The daemon restarts on a
         preset load and on every restore, and its active label flips before the
         restart completes — so callers must not assume 'label switched' means
         'ready to write'."""
-        deadline = self.monotonic() + self._cfg.alarm_threshold
-        while self.monotonic() < deadline:
-            try:
-                await self._require_http().get_config()
-            except httpx.HTTPError:
-                await self.sleep(RECONNECT_FAST)
-                continue
+
+        async def probe() -> bool:
+            await self.require_http().get_config()
             return True
-        return False
+
+        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
 
     async def read_engine(self) -> dict[str, str]:
         """Current hardware-accel engine attributes, parsed from a fresh backup's
         base config (the only lane that carries them — they are not on the form).
         Fetched on demand, not per poll, since the backup archive is large."""
-        engine = engineconf.read_engine_attrs(engineconf.base_config_xml(await self._backup_or_cached()))
+        engine = engineconf.read_engine_attrs(engineconf.base_config_xml(await self.backup_or_cached()))
         self.engine = engine
         return engine
 
@@ -358,7 +356,7 @@ class ConnectionManager:
         (``volume_fixed``: 0/1/2 in XML, a bare checkbox on the form). Fetched on
         connect and refreshed by the apply's verify step — never per poll, since
         the archive is large."""
-        backup = await self._backup_or_cached()
+        backup = await self.backup_or_cached()
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup))
         return self.file_config
 
@@ -378,7 +376,7 @@ class ConnectionManager:
     async def restore_config(self, data: bytes, scope: str = "system") -> None:
         """Restore a user-supplied settings archive as-is (System-tab restore
         action). The daemon self-restarts; the caller idle-gates."""
-        await self._require_http().restore(data, scope=scope)
+        await self.require_http().restore(data, scope=scope)
 
     async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
         """Apply hardware-acceleration engine attributes — the config-file-only
@@ -388,9 +386,9 @@ class ConnectionManager:
         if self._http is None:
             return {"submitted": False, "error": "no credentials for HTTP config lane"}
         try:
-            backup = await self._backup_or_cached()
-            self._persist_backup(backup)
-            result = await enginelane.apply(self._http, backup, overrides, self.active_config, all_presets, self.sleep)
+            backup = await self.backup_or_cached()
+            self.persist_backup(backup)
+            result = await enginelane.apply(self, backup, overrides, self.active_config, all_presets)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         engine = result["verified"].get("engine")
@@ -427,7 +425,7 @@ class ConnectionManager:
     def clear_parked_filters(self) -> None:
         self._filters.clear()
 
-    def _persist_backup(self, data: bytes) -> Path | None:
+    def persist_backup(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk so a crash mid-apply still
         leaves a recoverable copy (memory-only last_backup does not survive one).
         Best-effort: a write failure must not block the apply itself."""
@@ -445,8 +443,8 @@ class ConnectionManager:
         /matrix forms so the device dropdowns serve the new endpoint list (an NAA
         powered back on, a DAC replugged). No restart, no idle gate — a rescan is
         read-only on the audio path."""
-        await self._require_http().refresh_devices()
-        await self._refresh_http_forms()
+        await self.require_http().refresh_devices()
+        await self.refresh_http_forms()
         return {"refreshed": True}
 
     # --- preset lane (presetlane) — thin delegators over the store + restore ---
@@ -454,12 +452,6 @@ class ConnectionManager:
     @property
     def store(self) -> PresetStore:
         return self._store
-
-    async def refresh_http_forms(self) -> None:
-        await self._refresh_http_forms()
-
-    async def backup_or_cached(self) -> bytes:
-        return await self._backup_or_cached()
 
     def presets(self) -> dict[str, Any]:
         return presetlane.listing(self)
@@ -483,9 +475,9 @@ class ConnectionManager:
 
     async def backup(self) -> bytes:
         """The daemon's current settings archive (a zip) for download."""
-        return await self._require_http().backup()
+        return await self.require_http().backup()
 
-    def _require_http(self) -> HttpConfigClient:
+    def require_http(self) -> HttpConfigClient:
         if self._http is None:
             raise ControlError("no credentials for HTTP config lane")
         return self._http

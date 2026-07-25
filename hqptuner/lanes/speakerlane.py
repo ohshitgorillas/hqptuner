@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from . import settle
+
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
 
@@ -33,19 +35,14 @@ async def _verify(mgr: ConnectionManager, enabled: bool, channels: dict[str, dic
     written level/distance), riding past the post-reload window where the lane
     502s or serves the pre-restart form. Gives up at the alarm deadline and reports
     honestly rather than claiming a success it did not confirm."""
-    deadline = mgr.monotonic() + mgr.alarm_threshold
-    while mgr.monotonic() < deadline:
-        try:
-            form = await mgr.require_http().get_speakers()
-        except httpx.HTTPError:
-            await mgr.sleep(_POLL)
-            continue
+
+    async def probe() -> bool:
+        form = await mgr.require_http().get_speakers()
         rows = form.get("channels", [])
-        if form.get("enabled") == enabled and all(
+        return form.get("enabled") == enabled and all(
             int(idx) < len(rows) and float(rows[int(idx)].get(k, "nan")) == float(v)
             for idx, ch in channels.items()
             for k, v in ch.items()
-        ):
-            return True
-        await mgr.sleep(_POLL)
-    return False
+        )
+
+    return bool(await settle.poll_until(mgr, probe, interval=_POLL))
