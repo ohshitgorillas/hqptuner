@@ -4,9 +4,9 @@
 
 import { useRef, useEffect } from "preact/hooks";
 import { html, wheelGuard } from "../../lib/dom.js";
+import { truthy } from "../../lib/coerce.js";
 
 const s = (v) => (v == null ? "" : String(v));
-const truthy = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 export function Segment({ value, options, disabled, onChange }) {
   return html`
@@ -106,22 +106,68 @@ export function Slider({ value, min, max, step, disabled, onChange }) {
 
 // Slider + number box bound to one value: slider for coarse feel, box for the
 // exact figure (a fine step over a wide range is unusable on a slider alone).
-// The fill is anchored at the MAX end, so its length reads as the amount moved
-// away from max (e.g. attenuation for a −12…0 dB range: 0 = empty, −12 = full),
-// not the misleading "full track = maxed" of a default range. Optional `ticks`
-// (values) draw reference marks.
+// Optional `ticks` (values) draw reference marks.
 const pctOf = (v, lo, hi) => (hi === lo ? 0 : Math.max(0, Math.min(1, (Number(v) - lo) / (hi - lo))) * 100);
 
-export function SliderNumber({ value, min, max, step, ticks, disabled, onChange }) {
+// Which end the fill grows from. `anchor="max"` (the default) fills leftward
+// from the right, so its length reads as the amount moved AWAY from max — right
+// for a reduction, e.g. attenuation on a −12…0 dB range: 0 = empty, −12 = full,
+// rather than the misleading "full track = maxed" of a default range.
+// `anchor="min"` fills left-to-right like a native range, which is what a value
+// that grows with the thing it names wants (speaker angle, correction strength).
+// The track sets `appearance: none`, so the fill is drawn here either way — a
+// bare `accent-color` renders nothing once the native track is gone.
+const fillStyle = (pct, anchor) => {
+  const [from, to] = anchor === "min" ? ["var(--accent)", "var(--bg-3)"] : ["var(--bg-3)", "var(--accent)"];
+  return `background:linear-gradient(to right, ${from} 0%, ${from} ${pct}%, ${to} ${pct}%, ${to} 100%)`;
+};
+
+// A caller with a single `onChange` gets drag-only, and deliberately does NOT
+// gain a second event at the end of a drag — that would stage every value
+// twice. Splitting means preview on drag, stage on release.
+function events({ onChange, onDrag, onCommit }) {
+  return { drag: onDrag || onChange, commit: onCommit || onChange, split: !!(onDrag || onCommit) };
+}
+
+// The number half: the figure, an optional unit sharing its chrome, and an
+// optional sub-caption under it (a second reading of the same quantity).
+function ReadBox({ shown, min, max, step, unit, sub, disabled, onCommit }) {
+  return html`
+    <span class="slidernum-readbox">
+      <label class="slidernum-box">
+        <input
+          type="number"
+          value=${shown}
+          min=${min}
+          max=${max}
+          step=${step}
+          disabled=${disabled}
+          onWheel=${wheelGuard}
+          onChange=${(e) => onCommit(e.target.value)}
+        />
+        ${unit ? html`<span class="slidernum-unit">${unit}</span>` : null}
+      </label>
+      ${sub ? html`<span class="slidernum-sub">${sub}</span>` : null}
+    </span>
+  `;
+}
+
+// `boxStep` is the number box's own step, which need not be the slider's: a
+// slider wants a detent coarse enough to hit, while the box can take any value
+// in range (step="any").
+export function SliderNumber(props) {
+  const { value, min, max, step, boxStep, ticks, unit, sub, format, disabled, anchor } = props;
   const st = step == null ? 1 : step;
   const lo = Number(min);
   const hi = Number(max);
   const pct = pctOf(value, lo, hi);
-  const fill = `background:linear-gradient(to right, var(--bg-3) 0%, var(--bg-3) ${pct}%, var(--accent) ${pct}%, var(--accent) 100%)`;
+  const fill = fillStyle(pct, anchor);
+  const { drag, commit, split } = events(props);
   return html`
     <span class="slidernum">
       <span class="range-wrap">
         <input
+          class="rng"
           type="range"
           value=${s(value)}
           min=${min}
@@ -130,20 +176,20 @@ export function SliderNumber({ value, min, max, step, ticks, disabled, onChange 
           disabled=${disabled}
           style=${fill}
           onWheel=${wheelGuard}
-          onInput=${(e) => onChange(e.target.value)}
+          onInput=${(e) => drag(e.target.value)}
+          onChange=${split ? (e) => commit(e.target.value) : null}
         />
         ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(t, lo, hi)}%`}></span>`)}
       </span>
-      <input
-        type="number"
-        class="slidernum-box"
-        value=${s(value)}
+      <${ReadBox}
+        shown=${format ? format(Number(value)) : s(value)}
         min=${min}
         max=${max}
-        step=${st}
+        step=${boxStep || st}
+        unit=${unit}
+        sub=${sub}
         disabled=${disabled}
-        onWheel=${wheelGuard}
-        onChange=${(e) => onChange(e.target.value)}
+        onCommit=${commit}
       />
     </span>
   `;

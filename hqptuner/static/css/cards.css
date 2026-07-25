@@ -19,10 +19,10 @@
   background: var(--bg-3);
   border-bottom: 1px solid var(--line);
   padding: 0.55rem 0.8rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--fs-head);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--track-caps);
   color: var(--fg);
 }
 .card-body {
@@ -165,8 +165,8 @@
 .about dt {
   color: var(--fg-2);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.85rem;
+  letter-spacing: var(--track-caps);
+  font-size: var(--fs-label);
 }
 .about dd {
   margin: 0;
@@ -174,6 +174,23 @@
   color: var(--accent);
   text-transform: uppercase;
 }
+/* System · About HQPTuner — body of the standing collapsible card at the foot of
+   the tab. This is explanatory text, not control text, so it takes the same
+   gloss treatment as .field-note / .label-alt — 0.78rem at --fg-2, capped at the
+   shared caption measure and wrapping. */
+.abt-prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+}
+.abt-prose p {
+  margin: 0;
+}
+.abt-prose a {
+  color: var(--accent);
+}
+
 /* System · Backup — download link styled as a button */
 .btn {
   display: inline-block;
@@ -257,13 +274,9 @@
 /* per-page "quick updates" opt-in — a low-key footer row under a live card */
 .poll-quick {
   margin-top: var(--sp-3);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
   color: var(--muted);
   white-space: normal;
-}
-.poll-quick-note {
-  color: var(--muted);
-  opacity: 0.8;
 }
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
@@ -275,7 +288,7 @@
   border-radius: 6px;
   padding: 0.5rem 0.7rem;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--fs-micro);
   line-height: 1.4;
   color: var(--fg-2);
   white-space: pre-wrap; /* wrap long lines — vertical scroll only, no horizontal bar */
@@ -285,16 +298,16 @@
 .log-tail-msg {
   margin-top: 0.5rem;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }
 /* tab subheads — group labels within a flat tab. padding-left matches the
    field row's own 0.5rem inset so the subhead's left edge lines up with the
    control labels beneath it, not the bare pack/card edge. */
 .subhead {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--fs-head);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--track-caps);
   color: var(--muted);
   margin: 1.1rem 0 0.7rem;
   padding-left: 0.5rem;
@@ -306,12 +319,7 @@
    .field-gray-reason but for a whole subsection (e.g. a mode-mismatch note
    under a "Sources" subhead when the current output mode doesn't use it). */
 .section-note {
-  font-size: 0.78rem;
-  line-height: 1.35;
   font-style: italic;
-  color: var(--fg-2);
-  opacity: 0.65;
-  max-width: var(--measure);
   margin: 0 0 var(--sp-2);
 }
 .radio-group {
@@ -332,4 +340,3 @@ input[type="radio"] {
   height: 1rem;
   margin: 0;
 }
-

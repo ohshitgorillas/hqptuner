@@ -28,10 +28,10 @@
 }
 /* one shared box-label / card-title style — deliberately LARGER than control text */
 .box-title {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: var(--fs-title);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--track-caps);
   color: var(--fg);
 }
 .box .field {
@@ -63,7 +63,7 @@
   border-left: 1px solid var(--line);
   text-align: center;
   padding: 0.6rem 0.8rem;
-  font-size: 0.95rem;
+  font-size: var(--fs-head);
   color: var(--fg);
 }
 .seg-box .segment .seg:first-child {
@@ -96,13 +96,13 @@
   padding-left: 0.9rem;
 }
 .rate-stack .field > label {
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   color: var(--fg);
   text-align: center;
 }
 .rate-stack select {
   width: 100%;
-  font-size: 1rem;
+  font-size: var(--fs-body-lg);
   padding: 0.5rem 0.6rem;
 }
 .collapsible {
@@ -118,10 +118,10 @@
   border: none;
   border-radius: 0;
   padding: 0.55rem 0.8rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--fs-head);
+  font-weight: var(--fw-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--track-caps);
   color: var(--fg);
 }
 .collapsible.closed .collapsible-head {
@@ -130,11 +130,10 @@
 .collapsible-head .tri {
   color: var(--accent);
   margin-right: 0.55rem;
-  font-size: 1.9rem;
+  font-size: var(--fs-glyph);
   line-height: 1;
   vertical-align: -0.2em;
 }
 .collapsible-body {
   padding: 0.5rem 0.4rem;
 }
-

@@ -4,7 +4,7 @@
 Two lanes with very different costs: ``switch_profile`` rides 4321
 ``MatrixSetProfile`` (live, zero reload, memory-only — reverts on daemon
 restart); ``profile_action`` rides ``POST /matrix/{load,save,delete}`` with the
-complete current form, which reloads the engine (~3 s) — the API idle-gates it.
+complete current form, which reloads the engine (~3 s), interrupting playback.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..control import CommandError, ControlError
+from . import settle
 
 log = logging.getLogger(__name__)
 
@@ -78,15 +79,11 @@ async def _verify_post_process(mgr: ConnectionManager, snapshot: dict[str, str])
     """Readback-verify the restored post-process slice, polling past the
     post-reload transient (device-derived fields can render empty for a beat —
     probe finding). Gives up at the alarm deadline and reports honestly."""
-    deadline = mgr.monotonic() + mgr.alarm_threshold
-    while mgr.monotonic() < deadline:
-        try:
-            if await mgr.require_http().matrix_post_process_fields() == snapshot:
-                return True
-        except httpx.HTTPError:
-            pass
-        await mgr.sleep(_PROFILE_POLL)
-    return False
+
+    async def probe() -> bool:
+        return await mgr.require_http().matrix_post_process_fields() == snapshot
+
+    return bool(await settle.poll_until(mgr, probe, interval=_PROFILE_POLL))
 
 
 async def _await_profile_list(mgr: ConnectionManager, action: str, name: str) -> None:
@@ -95,16 +92,18 @@ async def _await_profile_list(mgr: ConnectionManager, action: str, name: str) ->
     before its ~3 s reload (probe timing), so an immediate resync reads
     pre-reload state and serves the UI a one-action-stale picker. Gives up at
     the alarm deadline — the regular poll loop catches up eventually."""
-    deadline = mgr.monotonic() + mgr.alarm_threshold
-    while mgr.monotonic() < deadline:
+
+    async def probe() -> bool:
+        # the 4321 lane, not HTTP: its outage speaks CommandError/OSError, which
+        # settle.poll_until does not suppress — so swallow them here
         client = mgr.control
-        if client is not None:
-            try:
-                profiles = await client.get_matrix_profiles()
-            except (CommandError, ControlError, OSError):
-                profiles = None
-            if profiles is not None:
-                mgr.matrix_profiles = profiles
-                if (name in profiles) if action == "save" else (name not in profiles):
-                    return
-        await mgr.sleep(_PROFILE_POLL)
+        if client is None:
+            return False
+        try:
+            profiles = await client.get_matrix_profiles()
+        except (CommandError, ControlError, OSError):
+            return False
+        mgr.matrix_profiles = profiles
+        return (name in profiles) if action == "save" else (name not in profiles)
+
+    await settle.poll_until(mgr, probe, interval=_PROFILE_POLL)

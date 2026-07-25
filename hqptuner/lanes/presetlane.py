@@ -22,6 +22,7 @@ import httpx
 from ..conf import engineconf, presetconf
 from ..control import ControlError
 from ..presetstore import PresetError
+from . import livemap
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -52,7 +53,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     ``data/cfgs`` so the native UI stays populated. Never ``profile/load``."""
     xml = mgr.store.read(name)
     await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
-    backup = await mgr.backup_for_write()
+    backup = await mgr.backup_or_cached(for_write=True)
     mgr.persist_backup(backup)
     archive = presetconf.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     await mgr.require_http().restore(archive, scope="system")
@@ -69,10 +70,15 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     the running config already carries the user's edits."""
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
-        backup = await mgr.backup_for_write()
+        backup = await mgr.backup_or_cached(for_write=True)
         working = engineconf.base_config_xml(backup)
         if not working:
             raise ControlError("no running config to save")
+        # Live-routed edits (filters, dither/modulator, mode) never touched the
+        # file, so the working config is stale for exactly those settings. Fold
+        # the engine's current values in first — a save stores what the user is
+        # hearing, not what happens to be on disk.
+        working = presetconf.apply_edits(working, livemap.live_overrides(mgr))
         mgr.store.save(name, working)
         archive = presetconf.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
         await mgr.require_http().restore(archive, scope="system")

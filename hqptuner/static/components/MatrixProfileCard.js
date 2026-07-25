@@ -9,8 +9,8 @@ import { notesVisible } from "../store/prefs.js";
 
 // The picker + Switch rides the live 4321 lane (zero reload — the one lane the
 // "applies live" indicator is true for, probe findings); Load/Save-as-new/Delete
-// ride the form lane, which reloads the engine ~3 s and is idle-gated
-// server-side. A named Load also replaces the post-process state — captioned,
+// ride the form lane, which reloads the engine ~3 s, interrupting playback.
+// A named Load also replaces the post-process state — captioned,
 // since the daemon gives no warning.
 const profileSel = signal(null); // picker value; null = follow the active profile
 const profileNewName = signal("");
@@ -35,10 +35,9 @@ async function profileAct(action, name) {
 
 // Two lanes, two visually distinct rows (design-pass item 5): the primary row is
 // the live 4321 switch (zero reload); the secondary row is the form-lane
-// load/delete (~3 s engine reload, idle-gated). Captions sit BELOW their row at
-// caption measure, gated by the Feature-descriptions toggle like every tab.
-// Captions sit BELOW their row at caption measure, gated by the
-// Feature-descriptions toggle like every tab — one gate, three captions.
+// load/delete (~3 s engine reload, playback-interrupting). Captions sit BELOW
+// their row at caption measure, gated by the Feature-descriptions toggle like
+// every tab — one gate, three captions.
 function ProfileNote({ children }) {
   return notesVisible.value ? html`<div class="field-note">${children}</div>` : null;
 }

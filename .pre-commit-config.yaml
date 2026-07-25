@@ -80,3 +80,9 @@ repos:
         language: system
         types: [javascript]
         exclude: ^(hqptuner/static/vendor/|hqptuner/static/store/schema\.js$)
+
+      - id: css-tokens
+        name: css design-token gate
+        entry: .venv/bin/python scripts/check_css_tokens.py
+        language: system
+        files: ^hqptuner/static/css/.*\.css$

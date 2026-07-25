@@ -175,6 +175,51 @@ def parse_matrix_form(html: str) -> dict[str, Any]:
     }
 
 
+_SPEAKER_FIELD_RE = re.compile(r"^(level|distance)_(\d+)$")
+# readme §1.9.1: level is dBFS, distance is cm. Ranges from the live form inputs.
+_SPK_LEVEL = (-60.0, 0.0)
+_SPK_DISTANCE = (0.0, 5000.0)
+
+
+def parse_speakers_form(html: str) -> dict[str, Any]:
+    """The /speakers form parsed into ``{enabled, channels}``. Speaker processing
+    is a top-level config element (readme §1.9), absent from /config — this is its
+    only read surface. Each channel is ``{index, label, level, distance}`` plus the
+    input min/max/step constraints; ``label`` is the daemon's own channel name (the
+    ``<h2>`` above each pair: Left, Right, Center, LFE, Left rear, ...)."""
+    base = parse_config_form(html)
+    enabled = False
+    chans: dict[int, dict[str, Any]] = {}
+    for f in base["fields"]:
+        name = f.get("name") or ""
+        if name == "enabled":
+            enabled = bool(f.get("value"))
+            continue
+        m = _SPEAKER_FIELD_RE.match(name)
+        if m is None:
+            continue
+        kind, idx = m.group(1), int(m.group(2))
+        ch = chans.setdefault(idx, {"index": idx, "label": f.get("section")})
+        ch[kind] = f.get("value")
+        for attr in ("min", "max", "step"):
+            if attr in f:
+                ch[f"{kind}_{attr}"] = f[attr]
+    return {"enabled": enabled, "channels": [chans[i] for i in sorted(chans)]}
+
+
+def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -> str:
+    """Numeric + in-range or raise. Returns the caller's exact string so a 0.1
+    level step survives verbatim — garbage never reaches the daemon."""
+    lo, hi = bounds
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"speakers: {field}={value!r} is not numeric") from None
+    if not (lo <= n <= hi):
+        raise ValueError(f"speakers: {field}={value} out of range [{lo:g}, {hi:g}]")
+    return value
+
+
 def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
     """Complete, browser-faithful serialization of the /matrix form: checked
     checkboxes only (submitting their ``value`` attr — the daemon persists a
@@ -218,8 +263,11 @@ def _submitted_value(el: Tag) -> str | None:
     return _attr(el, "value") or ""
 
 
-_MATRIX_ACTIONS = ("load", "save", "delete")
-_PROFILE_ACTIONS = ("load", "save", "delete")
+# The CRUD verbs both profile subsystems take: /matrix/{action} for matrix
+# profiles, /config/profile/{action} for preset mirrors. Different routes, same
+# three verbs — one tuple, so a route that grows a fourth verb is a deliberate
+# split rather than a copy that silently fell behind.
+_ACTIONS = ("load", "save", "delete")
 
 
 class HttpConfigClient:
@@ -230,19 +278,30 @@ class HttpConfigClient:
             timeout=timeout,
         )
 
-    async def get_config(self) -> dict[str, Any]:
-        resp = await self._client.get("/config")
+    async def _get(self, path: str) -> httpx.Response:
+        """GET, raising on any non-2xx. Every read on this lane goes through here
+        so no route can forget to check the status and parse an error page as if
+        it were a form."""
+        resp = await self._client.get(path)
         resp.raise_for_status()
-        return parse_config_form(resp.text)
+        return resp
+
+    async def _post(self, path: str, **kwargs: Any) -> None:
+        """POST, raising on any non-2xx. No caller needs the body — the daemon
+        answers a write with its own HTML page, and what actually landed is
+        established by readback, never by the response."""
+        resp = await self._client.post(path, **kwargs)
+        resp.raise_for_status()
+
+    async def get_config(self) -> dict[str, Any]:
+        return parse_config_form((await self._get("/config")).text)
 
     async def get_matrix(self) -> dict[str, Any]:
         """GET /matrix — the pipeline/post-processing form (pipeline rows, matrix
         profiles, Bauer crossfeed, DAC correction, loudness). The daemon silently
         ignores a partial POST here too (docs/matrix-spec.md probe findings), so
         writes overlay a fresh read (manager)."""
-        resp = await self._client.get("/matrix")
-        resp.raise_for_status()
-        return parse_matrix_form(resp.text)
+        return parse_matrix_form((await self._get("/matrix")).text)
 
     async def matrix_profile_action(self, action: str, name: str) -> None:
         """``POST /matrix/{load,save,delete}`` with the COMPLETE current form
@@ -251,20 +310,17 @@ class HttpConfigClient:
         the engine ~3 s; a named load applies live but replaces the whole matrix
         context including post-process (docs/matrix-spec.md probe findings) —
         the matrixlane preserves post-process around it via ``matrix_apply``."""
-        if action not in _MATRIX_ACTIONS:
+        if action not in _ACTIONS:
             raise ValueError(f"unknown matrix profile action: {action}")
         fields, files = await self._matrix_form_payload()
         fields["profile"] = name
-        resp = await self._client.post(f"/matrix/{action}", data=fields, files=files)
-        resp.raise_for_status()
+        await self._post(f"/matrix/{action}", data=fields, files=files)
 
     async def matrix_post_process_fields(self) -> dict[str, str]:
         """The post-process slice of the current /matrix form, in wire encoding
         (checked checkboxes present as their value attr, unchecked absent) — the
         snapshot the load lane restores afterwards."""
-        resp = await self._client.get("/matrix")
-        resp.raise_for_status()
-        fields, _ = serialize_matrix_form(resp.text)
+        fields, _ = serialize_matrix_form((await self._get("/matrix")).text)
         return {k: v for k, v in fields.items() if k.startswith("post_")}
 
     async def matrix_apply(self, post_process: dict[str, str]) -> None:
@@ -276,22 +332,45 @@ class HttpConfigClient:
         fields, files = await self._matrix_form_payload()
         fields = {k: v for k, v in fields.items() if not k.startswith("post_")}
         fields.update(post_process)
-        resp = await self._client.post("/matrix", data=fields, files=files)
-        resp.raise_for_status()
+        await self._post("/matrix", data=fields, files=files)
 
     async def _matrix_form_payload(self) -> tuple[dict[str, str], list[tuple[str, tuple[str, bytes, str]]]]:
-        resp = await self._client.get("/matrix")
-        resp.raise_for_status()
-        fields, file_names = serialize_matrix_form(resp.text)
+        fields, file_names = serialize_matrix_form((await self._get("/matrix")).text)
         return fields, [(n, ("", b"", "application/octet-stream")) for n in file_names]
+
+    async def get_speakers(self) -> dict[str, Any]:
+        """GET /speakers — the multi-channel speaker-processing form (readme §1.9):
+        the enabled switch and per-channel level (dBFS) + distance (cm)."""
+        return parse_speakers_form((await self._get("/speakers")).text)
+
+    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> None:
+        """Apply speaker processing via the /speakers Apply form. Overlays the
+        desired enabled + per-channel level/distance onto a fresh COMPLETE GET (a
+        partial POST is silently ignored, same contract as /config and /matrix)
+        and enforces the checkbox contract: ``enabled=1`` when on, the field
+        OMITTED when off — never a raw ``0``/``on``, which the daemon writes
+        verbatim and wedges engine init (matrix-spec probe). Levels are validated
+        to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
+        sent. The daemon reloads the engine (~3 s), interrupting playback."""
+        # generic complete-form serialize
+        fields, _ = serialize_matrix_form((await self._get("/speakers")).text)
+        fields.pop("enabled", None)  # checkbox rebuilt below, contract-safe
+        for idx, ch in channels.items():
+            i = int(idx)
+            if "level" in ch:
+                fields[f"level_{i}"] = _validate_speaker_num(ch["level"], _SPK_LEVEL, f"level_{i}")
+            if "distance" in ch:
+                fields[f"distance_{i}"] = _validate_speaker_num(ch["distance"], _SPK_DISTANCE, f"distance_{i}")
+        if enabled:
+            fields["enabled"] = "1"
+        await self._post("/speakers", data=fields)
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`
         also restarts the daemon."""
-        if action not in _PROFILE_ACTIONS:
+        if action not in _ACTIONS:
             raise ValueError(f"unknown profile action: {action}")
-        resp = await self._client.post(f"/config/profile/{action}", data=fields)
-        resp.raise_for_status()
+        await self._post(f"/config/profile/{action}", data=fields)
 
     async def refresh_devices(self) -> None:
         """Ask the daemon to re-scan its output devices. Verified against the live
@@ -300,8 +379,7 @@ class HttpConfigClient:
         /config/refresh`` (no body). A POST is silently ignored. Picks up an
         endpoint (e.g. a NAA that was powered off) absent from the device list —
         the caller re-reads the form afterwards to serve the new options."""
-        resp = await self._client.get("/config/refresh")
-        resp.raise_for_status()
+        await self._get("/config/refresh")
 
     async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
         """Restore a full settings archive via multipart ``POST /restore``.
@@ -313,20 +391,17 @@ class HttpConfigClient:
         named active profile (docs/protocol.md §3.6). The connection manager's
         outage path handles the restart/resync. ``cfgfile`` is a ``/backup``
         settings.zip (or config xml)."""
-        resp = await self._client.post(
+        await self._post(
             "/restore",
             data={"scope": scope},
             files={"cfgfile": ("settings.zip", cfgfile, "application/zip")},
         )
-        resp.raise_for_status()
 
     async def backup(self) -> bytes:
         """Daemon's settings backup (a zip) — a safety copy taken before an
         apply. The plain /backup route is only the HTML page; the actual
         settings archive is /backup/settings.zip (verified on 6.0.4)."""
-        resp = await self._client.get("/backup/settings.zip")
-        resp.raise_for_status()
-        return resp.content
+        return (await self._get("/backup/settings.zip")).content
 
     async def aclose(self) -> None:
         await self._client.aclose()

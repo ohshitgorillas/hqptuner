@@ -412,7 +412,9 @@ def spawn(st: dict[str, Any]) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
     state dict with `_port` filled in — tests read and mutate it directly."""
     server = HTTPServer(("127.0.0.1", 0), _http_handler(st))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    # poll_interval is what `shutdown()` waits on, so it is per-test teardown
+    # cost: the 0.5 s default charged every fixture half a second for nothing.
+    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     st["_port"] = server.server_address[1]
     yield st

@@ -1,0 +1,155 @@
+/* Speaker processing — the DSP tab's SPEAKERS half: the mode switcher, the
+   per-channel level/distance rows, and the top-down room plan. Cascade position
+   is fixed by the <link> order in index.html (after crossfeed.css, the other
+   DSP-tab module) — do not reorder. Layout values are tokens only. */
+
+/* --- mode switcher ------------------------------------------------------- */
+/* Sits above every card on the tab, so it reads as the tab's own control rather
+   than the first card's. The segment is left-aligned with the cards' content
+   edge; the caption follows the standard measure. */
+.dsp-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-2);
+}
+.dsp-switcher .segment {
+  /* full container width: a mode selector for the whole tab reads as a banner,
+     not as a stray pair of buttons in the top-left corner. */
+  display: flex;
+  width: 100%;
+}
+.dsp-switcher .seg {
+  flex: 1;
+  text-align: center;
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-head);
+}
+/* --- card --------------------------------------------------------------- */
+.spkr-top {
+  margin-bottom: var(--sp-4);
+}
+
+/* Two-column split: channel rows left, room plan right, with the centred rule
+   every two-column card carries (CLAUDE.md). Collapses below 1100px, where the
+   rule hides — same breakpoint as the crossfeed card's split. */
+.spkr-cols {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+@media (min-width: 1100px) {
+  .spkr-cols {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: var(--sp-4);
+    /* centred, not top-aligned: a 2.0 set is two rows against the room plan, and
+       start-alignment parks all of that difference under the rows as one dead
+       block. Centred, the leftover splits and reads as composition. */
+    align-items: center;
+  }
+}
+
+.spkr-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* name + two numeric cells. The name column matches nothing else on the tab on
+   purpose: it is a channel identity ("Left rear"), not a control label, and at
+   --w-label it would push both numbers off the half-track. */
+.spkr-row {
+  display: grid;
+  grid-template-columns: 7rem 1fr 1fr;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.spkr-name {
+  color: var(--fg);
+  font-size: var(--fs-body);
+}
+.spkr-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.spkr-cell input[type="number"] {
+  width: 100%;
+  max-width: var(--w-num);
+  min-width: 0;
+}
+.spkr-unit {
+  color: var(--fg-2);
+  font-size: var(--fs-caption);
+  width: 2.6rem;
+  text-align: right;
+}
+.spkr-sdm {
+  max-width: var(--measure);
+}
+
+.spkr-right {
+  min-width: 0;
+}
+
+.spkr-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+/* --- room plan ----------------------------------------------------------- */
+/* Fills its half-track (~550px at the 1200px container) rather than being capped
+   below it; the cropped viewBox does the rest of the enlarging. */
+.room-diagram {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  margin: 0 auto;
+}
+.room-ring,
+.room-axis {
+  fill: none;
+  stroke: var(--line);
+  stroke-dasharray: 2 4;
+}
+.room-head {
+  fill: var(--bg-3);
+  stroke: var(--fg);
+  stroke-width: 1.2;
+}
+.room-nose {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 1.2;
+}
+.room-spk rect {
+  fill: var(--bg-3);
+  stroke: var(--line);
+}
+.room-baffle {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.room-driver {
+  fill: var(--muted);
+}
+.room-label {
+  fill: var(--fg);
+  font-size: var(--fs-svg);
+}
+.room-level {
+  fill: var(--fg-2);
+  font-family: "JetBrains Mono", monospace;
+  font-size: var(--fs-svg);
+}
+/* Channels outside the chosen set: present, plainly not in play. */
+.room-off {
+  opacity: 0.28;
+}

@@ -41,8 +41,13 @@
   --bg: #14161a;
   --bg-2: #1c1f26;
   --bg-3: #242833;
+  /* ── Text tiers (binding, 3 tiers — pick by ROLE, never by how dim it looks) ─
+     --fg     primary   — content the user reads: values, control text, headings
+     --fg-2   secondary — text that NAMES things: labels, keys, column heads
+     --muted  tertiary  — captions, notes, hints, units, disabled / off states
+     Nothing else is a text gray. A fourth shade is a review flag. */
   --fg: #d7dbe3;
-  --fg-2: #9299a5; /* secondary text (label keys, hints) */
+  --fg-2: #9299a5;
   --muted: #7f8794;
   --line: #2e333f;
   /* signature accent — default blue; overridden per :root[data-accent]. --glow
@@ -54,6 +59,14 @@
   --amber: #d1a13a;
   --red: #d4574e;
   --dirty: #3a3320;
+  /* --warn was referenced as `var(--warn, #e0a030)` in narrowing.css without
+     ever being defined, so it always resolved to the fallback. Defined here. */
+  --warn: #e0a030;
+  /* ink for text sitting ON an accent fill (primary buttons, active segments) —
+     near-black with the accent's hue, so it stays legible on every accent */
+  --on-accent: #08121c;
+  /* the one elevation shadow: popovers lifting off the page */
+  --shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.4);
   /* ── Layout system (aesthetics pass) ──────────────────────────────────
      One spacing scale (4/8/12/24/32) and a small set of control-width
      tokens, so empty space reads as intentional, not leftover. Every
@@ -75,9 +88,41 @@
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --measure: 68ch; /* one caption/description measure everywhere */
   --w-app: 1200px; /* container cap */
+  /* page gutter — the inset from --w-app to the content lane. EVERY chrome row
+     paints its background and bottom rule on this lane (margin, not padding),
+     so header/signal-path/tab-bar edges line up with the cards below them. */
+  --gutter: 1rem;
   /* motion: one duration + ease-out curve for every state change (never live drag) */
   --dur: 120ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* ── Type scale (binding) ─────────────────────────────────────────────
+     One ladder, named by ROLE. Pick the token whose role matches the text
+     you are adding; never write a literal font-size. The scale replaced 24
+     free-chosen values that had drifted 0.7–1.9rem with no steps between
+     them — that drift is why new text landed looking out of place.
+     scripts/check_css_tokens.py enforces this. */
+  --fs-micro: 0.72rem; /* tiny mono readouts, units, credits, live tags */
+  --fs-caption: 0.78rem; /* notes, hints, descriptions, chips, legends */
+  --fs-label: 0.85rem; /* secondary labels, small buttons */
+  --fs-body: 0.9rem; /* DEFAULT control text: inputs, selects, field labels */
+  --fs-head: 0.95rem; /* card-head, subhead — section headings */
+  --fs-body-lg: 1rem; /* emphasised controls, tab buttons, h2 */
+  --fs-title: 1.1rem; /* box-title — the largest heading in a card */
+  --fs-brand: 1.25rem; /* the app wordmark. one use. */
+  --fs-readout: 1.5rem; /* the big knob readout. one use. */
+  --fs-glyph: 1.9rem; /* disclosure triangles — a glyph size, not a type size */
+  /* SVG text: px, because SVG user units do not follow the root rem */
+  --fs-svg-sm: 9px; /* plot tick + trace labels */
+  --fs-svg: 10px; /* diagram labels (angles, rooms, levels) */
+  /* weights — four, no more */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600; /* every heading and pill */
+  --fw-bold: 700; /* the wordmark only */
+  /* tracking — only ever paired with text-transform: uppercase */
+  --track-tight: 0.02em; /* the wordmark */
+  --track-caps: 0.06em; /* uppercase headings (card-head, subhead, box-title) */
+  --track-wide: 0.09em; /* micro-caps: cluster heads, chip labels */
   /* aliases kept for existing rules that named these before they were defined */
   --bg-1: var(--bg-3);
   --fg-1: var(--fg);
@@ -132,4 +177,3 @@ body {
 .app.offline {
   opacity: 0.75;
 }
-

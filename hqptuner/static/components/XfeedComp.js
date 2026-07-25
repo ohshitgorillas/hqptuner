@@ -6,12 +6,13 @@
 // Bauer preset internals are not surfaced by the daemon (probe finding), so
 // preset → (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
+import { html } from "../lib/dom.js";
 import { effective, effectivePipelines, stagePipelines, edit } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { parseProcess } from "../lib/matrixspec.js";
-import { chainResponse, logFreqs } from "../lib/dsp.js";
+import { chainResponse, bandFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
+import { SliderNumber } from "./controls/index.js";
 import {
   BAUER_PRESETS,
   centerMagDb,
@@ -22,9 +23,9 @@ import {
   msCompile,
   msRecognize,
 } from "../lib/xfeed.js";
+import { truthy } from "../lib/coerce.js";
 
 const FS = 48000;
-const truthy = (v) => v === true || v === "1" || v === 1;
 
 function bauerSettings() {
   const preset = String(effective("crossfeed_preset") ?? "default");
@@ -87,7 +88,10 @@ function stageBlock(rows, eq, preampDb, pct, restFrom) {
   edit("pipelines", String(next.length));
 }
 
-function removeBlock(rows, rec) {
+// Public because leaving Bauer takes its rows with it, not just its enable flag:
+// the mode segment (lib/xfmode.js) and the DSP tab's Speakers switch both call
+// this, and a correction left behind would run against a crossfeed that is off.
+export function removeBlock(rows, rec) {
   const g = String(Math.round(rec.preampDb * 100) / 100);
   const pair = [
     { gain: g, gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },
@@ -112,7 +116,7 @@ export function xfeedLensTraces(rows, bounds) {
   const pct = currentPct(rec);
   const eq = parseProcess(eqProcess);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
-  const freqs = logFreqs(20, 20000, 160);
+  const freqs = bandFreqs(160);
   const mk = (fn) => {
     const pts = freqs.map((f) => {
       const db = fn(f);
@@ -239,31 +243,17 @@ export function XfeedStrip() {
   const locked = !rec && !!issue;
   return html`
     <div class="xfc-strip">
-      <input
-        class="xfc-slider"
-        type="range"
+      <${SliderNumber}
+        anchor="min"
         min="0"
         max="150"
         step="1"
         value=${pct}
+        unit="%"
         disabled=${locked}
-        onWheel=${wheelGuard}
-        onInput=${(e) => (sliderDrag.value = Number(e.target.value))}
-        onChange=${(e) => commit(Number(e.target.value))}
+        onDrag=${(v) => (sliderDrag.value = Number(v))}
+        onCommit=${(v) => commit(Number(v))}
       />
-      <label class="xfc-pct">
-        <input
-          type="number"
-          min="0"
-          max="150"
-          step="1"
-          value=${pct}
-          disabled=${locked}
-          onWheel=${wheelGuard}
-          onChange=${(e) => commit(Number(e.target.value))}
-        />
-        <span>%</span>
-      </label>
       <span
         class="xfc-tilt"
         title="Bauer ${bs.fc} Hz / ${bs.feed} dB dulls centered sound by ${tilt.toFixed(2)} dB toward the treble (bs2b model). Speakers at ±30° do much the same."
@@ -301,7 +291,7 @@ export function CompMiniPlot() {
   if (!bs.enabled && !rec) return null;
   const pct = currentPct(rec);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
-  const freqs = logFreqs(20, 20000, 120);
+  const freqs = bandFreqs(120);
   const trace = (fn) => freqs.map((f) => [f, fn(f)]);
   const xf = (f) => centerMagDb(bs.fc, bs.feed, f);
   const corr = (f) => chainResponse(comp, f, FS).db;

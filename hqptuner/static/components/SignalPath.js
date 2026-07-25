@@ -19,6 +19,7 @@ import { html } from "../lib/dom.js";
 import { engineStatus, engineState, runningValue, formFieldName, matrixActiveProfile } from "../store/state.js";
 import { schema } from "../store/schema.js";
 import { optionsFor } from "../store/options.js";
+import { truthy as on } from "../lib/coerce.js";
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
@@ -32,8 +33,6 @@ function fmtRate(hz) {
   if (n >= DSD_FLOOR) return `${(n / 1e6).toFixed(3)} MHz`;
   return n >= 1000 ? `${n / 1000} kHz` : `${n} Hz`;
 }
-
-const on = (v) => v === true || v === 1 || v === "1" || v === "on" || v === "true";
 
 function Chip({ label, value, hero }) {
   return html`

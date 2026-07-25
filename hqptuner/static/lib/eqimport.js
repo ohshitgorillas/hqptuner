@@ -7,6 +7,7 @@
 
 import { editedStage, serializeProcess, withoutEq } from "./matrixspec.js";
 import { applyEqToBlock, fitComp } from "./xfeed.js";
+import { compileRows } from "./binaural.js";
 
 // REW/AutoEq type tokens -> iir plugin types (manual §7.3)
 const TYPE_MAP = {
@@ -74,6 +75,7 @@ export function parseEqText(text) {
 //   mirror   — also write the target's stereo pair (the adjacent pipeline)
 //   block    — msRecognize() of rows 1–8, or null when no compensation block
 //   bauer    — {fc, feed} the block is compensated for (only read when block)
+//   structural — recognizeRows() of rows 1–16, or null when no structural block
 //
 // Returns {rows, targets, note}: the new pipeline set (null = nothing to do),
 // the row indexes the EQ landed on (for auto-plotting; empty on the block path,
@@ -130,6 +132,43 @@ function rowPlan(rows, target, opts, cut) {
   };
 }
 
+// A recognized structural block owns rows 0..15 as ONE unit, the same way the
+// compensation block owns rows 0..7: sixteen Lin-gain rows carrying one EQ chain
+// per ear with that ear's preamp folded into every gain, and the head model's own
+// lowpass and delay stages interleaved with it. Writing a profile onto one of its
+// rows dies on the first gainunit check — the block stops being recognized, the
+// card falls back to Bauer, and the EQ the user just loaded sits on two rows out
+// of sixteen while the other fourteen carry the old one. Recompile it instead.
+//
+// The block's own stages are not part of `eqProcess` and are re-derived by
+// compileRows, so only the ear chains and the preamp change here. Channels come
+// from the installed rows rather than assumed: recognition accepts any distinct
+// pair, and a block built on In 3 / In 4 must come back on In 3 / In 4.
+function structuralPlan(rows, opts, cut) {
+  const rec = opts.structural;
+  const ear = (side) => {
+    const base = opts.replace ? "" : rec.eqProcess[side];
+    return base ? `${base},${cut.addition}` : cut.addition;
+  };
+  const next = compileRows({
+    lambda: rec.lambda,
+    angle: rec.angle,
+    headRadius: rec.headRadius,
+    srcA: rows[0].source,
+    srcB: rows[8].source,
+    preampDb: cut.preamp !== null ? Number(cut.preamp) : rec.preampDb,
+    eqProcess: { left: ear("left"), right: ear("right") },
+  });
+  return {
+    rows: [...next, ...rows.slice(16)],
+    targets: [],
+    note:
+      `${cut.stages.length} filter(s) → structural crossfeed block (pipelines 1–16)` +
+      preampNote(cut.preamp, "") +
+      skipNote(cut.skipped),
+  };
+}
+
 export function planEqImport(rows, targetIndex, opts) {
   const { preamp, stages, skipped } = parseEqText(opts.text);
   if (!stages.length) {
@@ -141,5 +180,6 @@ export function planEqImport(rows, targetIndex, opts) {
   }
   const target = Math.min(targetIndex, rows.length - 1);
   const cut = { preamp, stages, skipped, addition: serializeProcess(stages) };
+  if (opts.structural && target < 16) return structuralPlan(rows, opts, cut);
   return opts.block && target < 8 ? blockPlan(rows, opts, cut) : rowPlan(rows, target, opts, cut);
 }

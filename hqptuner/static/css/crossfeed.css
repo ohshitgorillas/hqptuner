@@ -19,22 +19,10 @@
 .xfc-label {
   color: var(--fg-2);
 }
-.xfc-slider {
-  flex: 0 1 var(--w-num);
-  min-width: 0;
-  flex-basis: calc(2 * var(--w-num));
-  /* bare range input — outside the `.slider` wrapper, so it needs the accent
-     tint explicitly or it renders in the browser's default blue */
-  accent-color: var(--accent);
-}
-.xfc-pct {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-1);
-}
-.xfc-pct input {
-  width: var(--w-num);
-  min-width: 0;
+/* the strip is a wrapping flex row; the control is one item in it, and its own
+   220px track cap is close enough to the old 2x--w-num basis to leave alone */
+.xfc-strip .slidernum {
+  flex: 0 1 auto;
 }
 .xfc-tilt {
   color: var(--fg-2);
@@ -46,7 +34,7 @@
 .xfc-scale {
   flex-basis: 100%;
   color: var(--muted);
-  font-size: 0.85em;
+  font-size: 0.85em; /* token-exempt: relative to the readout it annotates, not the root */
   max-width: var(--measure);
 }
 .xfc-mini {
@@ -107,7 +95,7 @@
   align-self: stretch;
 }
 .xfs-head .segment .seg {
-  font-size: 0.95rem;
+  font-size: var(--fs-head);
   display: flex;
   align-items: center;
 }
@@ -129,7 +117,7 @@
 .xfs-head-toggle .tri {
   color: var(--accent);
   margin-right: 0.55rem;
-  font-size: 1.9rem;
+  font-size: var(--fs-glyph);
   line-height: 1;
   vertical-align: -0.2em;
 }
@@ -179,7 +167,12 @@
   margin-left: auto;
 }
 
-/* one control: label, then slider + readout, then its caption at measure */
+/* one control: label, then the shared slider+box, then its caption at measure.
+   The track is uncapped here (as .field.wide does): these sliders are the card's
+   primary instrument and get the full column, not the compact 220px default. */
+.xfs-control .range-wrap {
+  max-width: none;
+}
 .xfs-control {
   display: flex;
   flex-direction: column;
@@ -188,69 +181,6 @@
 }
 .xfs-label {
   color: var(--muted);
-}
-.xfs-input {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-.xfs-input input[type="range"] {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--accent);
-}
-.xfs-readbox {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  flex: none;
-}
-/* a real input, because it looks like one: these were spans styled as boxes,
-   which is a promise the markup did not keep */
-.xfs-readout {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.2em;
-  width: var(--w-num);
-  flex: none;
-  background: var(--bg-3);
-  border: 1px solid var(--line);
-  border-radius: 0.3rem;
-  padding: 0.25rem 0.45rem;
-}
-.xfs-readout input {
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.xfs-readout input::-webkit-outer-spin-button,
-.xfs-readout input::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
-}
-/* the figure the model works from, annotating the one you can measure — caption
-   toned and outside the box, so the boxed values stay one per control */
-.xfs-sub {
-  display: block;
-  width: var(--w-num);
-  flex: none;
-  margin-top: var(--sp-1);
-  font-size: 0.8em;
-  color: var(--muted);
-  text-align: right;
-}
-.xfs-unit {
-  color: var(--muted);
-}
-.xfs-caption {
-  max-width: var(--measure);
 }
 /* computed readouts — what makes the card an instrument rather than a form.
    A content-sized grid centered under the diagram, NOT a full-width row: spreading
@@ -285,8 +215,8 @@
   display: inline-flex;
   gap: var(--sp-3);
   margin-left: var(--sp-3);
-  font-size: 0.8rem;
-  font-weight: 400;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-normal);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -294,9 +224,16 @@
   content: "—";
   margin-right: 0.3em;
 }
-.lg-cur { color: var(--accent); }
-.lg-ghost { color: var(--muted); }
-.lg-side { color: var(--muted); opacity: 0.8; }
+.lg-cur {
+  color: var(--accent);
+}
+.lg-ghost {
+  color: var(--muted);
+}
+.lg-side {
+  color: var(--muted);
+  opacity: 0.8;
+}
 
 .xfs-plot {
   margin-top: var(--sp-4);
@@ -324,7 +261,7 @@
 }
 .spk-ref {
   fill: var(--muted);
-  font-size: 9px;
+  font-size: var(--fs-svg-sm);
 }
 .spk-angle {
   fill: none;
@@ -334,7 +271,7 @@
 }
 .spk-angle-label {
   fill: var(--accent);
-  font-size: 10px;
+  font-size: var(--fs-svg);
 }
 .spk-near {
   stroke: var(--accent);
@@ -361,13 +298,13 @@
 }
 .spk-head {
   fill: var(--bg-3);
-  stroke: var(--fg, #ccc);
+  stroke: var(--fg);
   stroke-width: 1.2;
 }
 .spk-ear,
 .spk-nose {
   fill: none;
-  stroke: var(--fg, #ccc);
+  stroke: var(--fg);
   stroke-width: 1.2;
 }
 

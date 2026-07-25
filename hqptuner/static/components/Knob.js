@@ -16,12 +16,8 @@
 
 import { useRef, useEffect, useCallback } from "preact/hooks";
 import { html, wheelGuard } from "../lib/dom.js";
+import { clamp, num } from "../lib/coerce.js";
 
-const num = (v, d = 0) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
-};
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const decimals = (step) => (String(step).split(".")[1] || "").length;
 const fmt = (v, step) => v.toFixed(decimals(step));
 

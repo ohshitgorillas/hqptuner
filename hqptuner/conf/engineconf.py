@@ -1,4 +1,5 @@
-"""Engine-attribute editing for the ``<engine>`` element of hqplayerd config XML.
+"""Engine-attribute editing for the ``<engine>`` element of hqplayerd config XML,
+plus the archive-level helpers every config lane shares.
 
 The hardware-acceleration settings (``cuda``, ``multicore``, ``ecores``,
 ``nblocks``) are not on the ``/config`` form and have no Control API setter — the
@@ -11,6 +12,9 @@ touched, by string substitution, so every other setting the UI does not
 expose (matrix pipelines, convolution, inputs, presets) survives byte-faithful.
 A full re-serialize (lxml/ElementTree) would reorder attributes and drop
 formatting — never do that to a live production config.
+
+``rewrite_zip`` and the ``data/cfgs`` naming live here too, since every lane that
+edits an archive needs them and ``presetconf`` already builds on this module.
 """
 
 from __future__ import annotations
@@ -35,6 +39,49 @@ ENGINE_DOMAINS: dict[str, tuple[str, ...]] = {
 ENGINE_INTS: tuple[str, ...] = ("nblocks", "cuda_dev", "cuda_cdev")
 
 _ENGINE_TAG = re.compile(rb"<engine\b[^>]*>")
+
+# Where the daemon keeps its named preset snapshots inside a /backup archive.
+_CFGS_PREFIX = "data/cfgs/"
+_CFGS_SUFFIX = ".xml"
+
+
+def snapshot_member_name(preset: str) -> str:
+    """The archive member holding preset ``preset``'s snapshot."""
+    return f"{_CFGS_PREFIX}{preset}{_CFGS_SUFFIX}"
+
+
+def snapshot_name(member: str) -> str | None:
+    """The preset name an archive member holds, or None when it is not a preset
+    snapshot at all. One spelling of the ``data/cfgs/<name>.xml`` convention, so
+    the walkers cannot disagree about what counts as a snapshot."""
+    if not (member.startswith(_CFGS_PREFIX) and member.endswith(_CFGS_SUFFIX)):
+        return None
+    return member[len(_CFGS_PREFIX) : -len(_CFGS_SUFFIX)] or None
+
+
+def rewrite_zip(zip_bytes: bytes, substitutions: dict[str, bytes]) -> bytes:
+    """A copy of ``zip_bytes`` with each named member replaced by the given bytes.
+
+    Every other member is copied byte-for-byte, keeping its original ``ZipInfo``
+    so nothing about the untouched archive shifts. A substitution naming a member
+    the archive does not have is APPENDED — which is how an uploaded filter file,
+    a mirrored preset snapshot, or an ``hqplayerd.xml`` missing from a
+    preset-active backup gets into the restore.
+    """
+    out = io.BytesIO()
+    seen: set[str] = set()
+    with (
+        zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin,
+        zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout,
+    ):
+        for item in zin.infolist():
+            replacement = substitutions.get(item.filename)
+            zout.writestr(item, zin.read(item.filename) if replacement is None else replacement)
+            seen.add(item.filename)
+        for name, data in substitutions.items():
+            if name not in seen:
+                zout.writestr(name, data)
+    return out.getvalue()
 
 
 def read_engine_attrs(xml: bytes) -> dict[str, str]:
@@ -61,11 +108,22 @@ def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
         raise ValueError("no <engine> element in config XML")
     tag = m.group(0)
     for attr, value in overrides.items():
-        av = f'{attr}="{value}"'.encode()
         pat = re.compile(rb"\b" + attr.encode() + rb'="[^"]*"')
-        # replace in place when present; else insert right after "<engine" (7 chars)
-        tag = pat.sub(av, tag, count=1) if pat.search(tag) else tag[:7] + b" " + av + tag[7:]
+        tag = _replace_or_insert(tag, pat, f'{attr}="{value}"'.encode())
     return xml[: m.start()] + tag + xml[m.end() :]
+
+
+def _replace_or_insert(tag: bytes, pat: re.Pattern[bytes], attribute: bytes) -> bytes:
+    """Set one ``attr="value"`` on the ``<engine>`` tag: replace in place when the
+    attribute is present, else insert it right after ``<engine`` (7 chars).
+
+    The replacement is a function, never the bytes directly — ``re.sub`` reads
+    escapes (``\\1``, ``\\g<n>``, ``\\\\``) out of a template string. Engine values
+    are domain-validated today, but that guarantee belongs at the substitution
+    rather than upstream of it (see ``presetconf._set_attr``)."""
+    if pat.search(tag):
+        return pat.sub(lambda _: attribute, tag, count=1)
+    return tag[:7] + b" " + attribute + tag[7:]
 
 
 def running_config_name(names: list[str]) -> str | None:
@@ -101,25 +159,20 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, all_presets: b
     when ``all_presets`` is set, or just the active preset's snapshot otherwise."""
     names = zipfile.ZipFile(io.BytesIO(zip_bytes)).namelist()
     base = [n for n in [running_config_name(names)] if n]
-    snaps = [n for n in names if n.startswith("data/cfgs/") and n.endswith(".xml")]
+    snaps = [n for n in names if snapshot_name(n) is not None]
     if all_presets:
         return base + snaps
-    active = [n for n in snaps if active_snapshot and n == f"data/cfgs/{active_snapshot}.xml"]
+    active = [n for n in snaps if active_snapshot and n == snapshot_member_name(active_snapshot)]
     return base + active
 
 
 def edit_config_zip(zip_bytes: bytes, members: list[str], overrides: dict[str, str]) -> bytes:
     """A copy of ``zip_bytes`` with ``overrides`` applied to the ``<engine>`` tag
     of each member in ``members``; all other entries copied byte-for-byte."""
-    target = set(members)
-    out = io.BytesIO()
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
-        for item in zin.infolist():
-            raw = zin.read(item.filename)
-            if item.filename in target:
-                raw = set_engine_attrs(raw, overrides)
-            zout.writestr(item, raw)
-    return out.getvalue()
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
+        present = set(zin.namelist())
+        edited = {name: set_engine_attrs(zin.read(name), overrides) for name in members if name in present}
+    return rewrite_zip(zip_bytes, edited)
 
 
 def _validate_one(attr: str, value: str) -> None:
