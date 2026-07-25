@@ -174,16 +174,10 @@
   color: var(--accent);
   text-transform: uppercase;
 }
-/* System · About HQPTuner — standing subsection of the HQPTuner card, hairline-
-   separated from the prefs pack above it the way .about-maint separates from the
-   identity list. This is explanatory text, not control text, so it takes the
-   same gloss treatment as .field-note / .label-alt — 0.78rem at --fg-2, capped
-   at the shared caption measure and wrapping. */
-.abt {
-  border-top: 1px solid var(--line);
-  margin-top: var(--sp-3);
-  padding-top: var(--sp-3);
-}
+/* System · About HQPTuner — body of the standing collapsible card at the foot of
+   the tab. This is explanatory text, not control text, so it takes the same
+   gloss treatment as .field-note / .label-alt — 0.78rem at --fg-2, capped at the
+   shared caption measure and wrapping. */
 .abt-prose {
   display: flex;
   flex-direction: column;

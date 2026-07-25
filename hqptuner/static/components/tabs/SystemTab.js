@@ -1,5 +1,5 @@
-// System tab: engine identity + backup/restore, metering, hardware
-// acceleration, HQPTuner preferences, and the logging card.
+// System tab: engine identity + backup/restore, HQPTuner preferences, hardware
+// acceleration, the logging card, and the About HQPTuner card.
 import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -15,7 +15,7 @@ import {
   setShowDescriptions,
   setKeepOptionDescriptions,
 } from "../../store/prefs.js";
-import { Section, Card } from "./common.js";
+import { Section, Card, Collapsible } from "./common.js";
 
 const info = computed(() => (health.value && health.value.info) || {});
 const license = computed(() => (health.value && health.value.license) || {});
@@ -107,45 +107,32 @@ const AccentPicker = () => html`
   </div>
 `;
 
-// A standing subsection of the HQPTuner card rather than a card of its own, so
-// the tab's card rhythm is unchanged. Collapsed by default and not persisted —
-// it is read-once prose, not a preference. Rides the shared inline-collapsible
-// head the Crossfeed plots use, sitting full-width below the two-track prefs
-// pack.
-const aboutOpen = signal(false);
+// About HQPTuner — its own card at the foot of the tab, collapsed by default and
+// not persisted: it is read-once prose, not a preference. `auto` is a constant
+// closed, so the shared Collapsible's manual override is the only opener.
+const aboutAuto = signal(false);
+const aboutOverride = signal(null);
 
-const AboutHqptuner = () => {
-  const open = aboutOpen.value;
-  return html`
-    <div class="abt">
-      <button type="button" class="collapsible-head" onClick=${() => (aboutOpen.value = !open)}>
-        <span class="tri">${open ? "▾" : "▸"}</span> About HQPTuner
-      </button>
-      ${
-        open
-          ? html`<div class="abt-prose">
-              <p>
-                HQPTuner is a project by user oh shit, gorillas! to bring out the untapped UX potential of HQPlayer
-                Embedded.
-              </p>
-              <p>
-                Most credit goes to Jussi Laako/Signalyst. He builds it and makes it work, I'm just plugging into what
-                he does and trying to make it pretty. Thanks, Jussi!
-              </p>
-              <p>
-                HQPTuner is free and always will be. If it enhances your audio experience, then it's done its job and a
-                simple "thank you" is all the payment I need. That said, if you really want your specific "thank you" to
-                be financial, I won't stop you from${" "}
-                <a href="https://ko-fi.com/ohshitgorillas" target="_blank" rel="noopener noreferrer"
-                  >buying me a coffee</a
-                >. Just don't say I strong-armed you into it ;)
-              </p>
-            </div>`
-          : null
-      }
+const AboutHqptuner = () => html`
+  <${Collapsible} title="About HQPTuner" auto=${aboutAuto} override=${aboutOverride}>
+    <div class="abt-prose">
+      <p>
+        HQPTuner is a project by user oh shit, gorillas! to bring out the untapped UX potential of HQPlayer Embedded.
+      </p>
+      <p>
+        Most credit goes to Jussi Laako/Signalyst. He builds it and makes it work, I'm just plugging into what he does
+        and trying to make it pretty. Thanks, Jussi!
+      </p>
+      <p>
+        HQPTuner is free and always will be. If it enhances your audio experience, then it's done its job and a simple
+        "thank you" is all the payment I need. That said, if you really want your specific "thank you" to be financial,
+        I won't stop you from${" "}
+        <a href="https://ko-fi.com/ohshitgorillas" target="_blank" rel="noopener noreferrer">buying me a coffee</a>. Just
+        don't say I strong-armed you into it ;)
+      </p>
     </div>
-  `;
-};
+  <//>
+`;
 
 // Logging card — full width at the bottom of the tab. The two log-config options
 // sit side by side at the top; the live tail view (checkbox-gated) sits below.
@@ -165,22 +152,18 @@ export const System = () =>
         <${About} />
         <${BackupRestoreRow} />
       <//>
-      <${Card} title="Metering">
-        <${Field} k="pre_before_meter" />
+      <${Card} title="HQPTuner">
+        <!-- single column, no .pack: a half-width card's track is ~558px, and the
+             12rem label + control of these rows overflows the ~267px half-track a
+             two-up pack would give them (CLAUDE.md: the column is the cap). -->
+        <${DescriptionPrefs} />
+        <${AccentPicker} />
       <//>
     </div>
     <${Card} title="Engine health">
       <${EngineHealth} />
     <//>
     <${HardwareCard} />
-    <${Card} title="HQPTuner">
-      <!-- chain: the two description toggles stack in the LEFT track (they gate
-           each other), leaving Accent color alone in the right. -->
-      <div class="pack chain">
-        <${DescriptionPrefs} />
-        <${AccentPicker} />
-      </div>
-      <${AboutHqptuner} />
-    <//>
     <${LoggingCard} />
+    <${AboutHqptuner} />
   <//>`;
