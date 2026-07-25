@@ -1,4 +1,4 @@
-# PRIMER — HQPTuner AI Sound Tuner
+# PRIMER — HQPTuner EQ Assistant
 
 A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md`
 (citations, verification tags, source disagreements) and `vocabulary.json` (the term map).
