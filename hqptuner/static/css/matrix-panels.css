@@ -27,7 +27,7 @@
    unlike the fixed chip-kind hues */
 .mtx-live-tag {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--fs-micro);
   color: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 999px;
@@ -45,7 +45,7 @@
 .mtx-import textarea {
   width: 100%;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line);
@@ -57,7 +57,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.8rem;
+  font-size: var(--fs-caption);
   color: var(--fg-2);
   white-space: nowrap;
 }
@@ -170,7 +170,7 @@
 .mtx-eq-head .tri {
   color: var(--accent);
   margin-right: 0.55rem;
-  font-size: 1.9rem; /* match .collapsible-head .tri */
+  font-size: var(--fs-glyph); /* match .collapsible-head .tri */
   line-height: 1;
   vertical-align: -0.2em;
 }
@@ -200,12 +200,7 @@
   padding-top: var(--sp-3);
 }
 .mtx-lib-credit {
-  font-size: 0.75rem;
-  color: var(--fg-2);
   white-space: nowrap;
-}
-.mtx-lib-credit a {
-  color: var(--fg-2);
 }
 .mtx-lib-hits {
   display: flex;
@@ -223,7 +218,7 @@
   border: none;
   background: transparent;
   color: var(--fg);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
   text-align: left;
   cursor: pointer;
 }
@@ -236,13 +231,13 @@
 }
 .mtx-lib-src {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   color: var(--fg-2);
   white-space: nowrap;
 }
 .mtx-lib-more {
   padding: 0.25rem 0.6rem;
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
   color: var(--muted);
 }
 .mtx-lib-sel {
@@ -252,7 +247,7 @@
   gap: var(--sp-2);
 }
 .mtx-lib-bands {
-  font-size: 0.78rem;
+  font-size: var(--fs-caption);
   color: var(--fg-2);
 }
 /* library preview trace: dashed accent — an interaction state, not a row hue */

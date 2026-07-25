@@ -30,7 +30,7 @@
 }
 .field > label {
   color: var(--fg);
-  font-size: 0.9rem;
+  font-size: var(--fs-body);
 }
 /* secondary line under a control's label — HQPlayer's own name for a control
    HQPTuner renames for clarity, so anyone cross-referencing the daemon's page
@@ -39,10 +39,6 @@
    control. */
 .label-alt {
   display: block;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--fg-2);
-  opacity: 0.8;
 }
 .control {
   display: flex;
@@ -51,5 +47,5 @@
 }
 .unit {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-label);
 }

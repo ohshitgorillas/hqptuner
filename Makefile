@@ -26,6 +26,7 @@ lint-js:
 	npx tsc -p jsconfig.json
 	npx knip
 	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
+	$(VENV)/python scripts/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 
 test:
 	$(VENV)/pytest -m "not live" -q
