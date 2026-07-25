@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.8.2] — 2026-07-25
+
 ### Fixed
 
 - **A saved matrix profile now survives a restart.** Saving one on the DSP tab's **Profile** card handed the name to HQPlayer, which listed it back and appeared to have kept it — but HQPlayer Embedded 6.0.4 registers a saved matrix profile in memory only. It never writes it into its configuration file, not on save and not on shutdown, so every profile saved on this path was gone the next time the daemon started, with nothing having said so. HQPTuner now writes the profile into the daemon's configuration itself, the same persistent path every other setting takes, and the daemon reads it back at startup, so a saved profile survives a restart. Delete goes the same way, and removes it for good rather than until the next start.
