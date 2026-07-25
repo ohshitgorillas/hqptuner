@@ -25,9 +25,10 @@ presets/
 # local hqplayerd credentials — never commit
 .env
 
-# agent instructions — private, local only
-CLAUDE.md
-.claude/
+# agent tooling — tracked, EXCEPT the per-machine bits below.
+# Host-specific knowledge never lands here; it lives in a host skill.
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # local docker test stack + its state
 docker-compose.yaml
