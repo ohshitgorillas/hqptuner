@@ -113,6 +113,8 @@ const AccentPicker = () => html`
 const aboutAuto = signal(false);
 const aboutOverride = signal(null);
 
+const appVersion = computed(() => (health.value && health.value.app_version) || "");
+
 const AboutHqptuner = () => html`
   <${Collapsible} title="About HQPTuner" auto=${aboutAuto} override=${aboutOverride}>
     <div class="abt-prose">
@@ -129,6 +131,10 @@ const AboutHqptuner = () => html`
         I won't stop you from${" "}
         <a href="https://ko-fi.com/ohshitgorillas" target="_blank" rel="noopener noreferrer">buying me a coffee</a>. Just
         don't say I strong-armed you into it ;)
+      </p>
+      <p class="t-micro">
+        ${appVersion.value ? html`HQPTuner ${appVersion.value} · ` : ""}Released under the${" "}
+        <a href="https://opensource.org/license/mit" target="_blank" rel="noopener noreferrer">MIT License</a>.
       </p>
     </div>
   <//>

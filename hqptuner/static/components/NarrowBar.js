@@ -5,6 +5,7 @@
 // here — it is 1x-only and per-chain, so it lives below each 1x dropdown
 // (ApodNarrow.js) rather than as a shared bar toggle.
 import { signal } from "@preact/signals";
+import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import {
   nGenre,
@@ -69,6 +70,26 @@ const phaseOpen = signal(false);
 const lengthOpen = signal(false);
 const ratioOpen = signal(false);
 
+// Every popover, keyed by the `data-multi` its wrapper carries. A pointerdown
+// anywhere on the page closes each one whose own wrapper wasn't the target —
+// clicking the page, or another facet's button, retracts what's open.
+const POPOVERS = {
+  genre: genreOpen,
+  quality: qualityOpen,
+  focus: focusOpen,
+  phase: phaseOpen,
+  length: lengthOpen,
+  ratio: ratioOpen,
+};
+
+function closeExcept(target) {
+  const box = target && target.closest ? target.closest(".multi") : null;
+  const keep = box ? box.dataset.multi : null;
+  for (const [name, sig] of Object.entries(POPOVERS)) {
+    if (name !== keep && sig.value) sig.value = false;
+  }
+}
+
 // toggle a value in a multi-select signal (add if absent, remove if present)
 function toggleIn(sig, v) {
   const cur = sig.value;
@@ -113,9 +134,9 @@ const oneLabel = (items, v, fallback) => (items.find(([iv]) => String(iv) === St
 // single-select twin of MultiSelect — same button + popover chrome so genre,
 // quality, focus, and phase all render as one identical control (no native
 // <select> chrome mixed in). Picking a value closes the popover.
-function SingleSelect({ open, label, value, items, onPick }) {
+function SingleSelect({ open, name, label, value, items, onPick }) {
   return html`
-    <div class="multi">
+    <div class="multi" data-multi=${name}>
       <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
         ${label} <span class="multi-caret">▾</span>
       </button>
@@ -148,9 +169,9 @@ function SingleSelect({ open, label, value, items, onPick }) {
 // showing the summary label, a popover of checkboxes toggling `sig`'s array.
 // `extra` is an optional element appended below the item rows, divided off — the
 // ratio popover uses it for the orthogonal upsample-only checkbox.
-function MultiSelect({ open, label, items, sig, extra }) {
+function MultiSelect({ open, name, label, items, sig, extra }) {
   return html`
-    <div class="multi">
+    <div class="multi" data-multi=${name}>
       <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
         ${label} <span class="multi-caret">▾</span>
       </button>
@@ -174,30 +195,38 @@ function MultiSelect({ open, label, items, sig, extra }) {
 }
 
 export function NarrowBar() {
+  useEffect(() => {
+    const onDown = (e) => closeExcept(e.target);
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, []);
   return html`
     <div class="narrow-bar">
       <div class="narrow-header">Narrow filters</div>
       <div class="narrow-controls">
         <div class="narrow-facets">
-          <${MultiSelect} open=${genreOpen} label=${genreLabel()} items=${GENRES} sig=${nGenre} />
+          <${MultiSelect} open=${genreOpen} name="genre" label=${genreLabel()} items=${GENRES} sig=${nGenre} />
           <${SingleSelect}
             open=${qualityOpen}
+            name="quality"
             label=${oneLabel(QUALITY, nQuality.value, "Any quality")}
             value=${nQuality.value}
             items=${QUALITY}
             onPick=${(v) => (nQuality.value = Number(v))}
           />
-          <${MultiSelect} open=${focusOpen} label=${focusLabel()} items=${FOCUS} sig=${nFocus} />
+          <${MultiSelect} open=${focusOpen} name="focus" label=${focusLabel()} items=${FOCUS} sig=${nFocus} />
           <${SingleSelect}
             open=${phaseOpen}
+            name="phase"
             label=${oneLabel(PHASES, nPhase.value, "Any phase")}
             value=${nPhase.value}
             items=${PHASES}
             onPick=${(v) => (nPhase.value = v)}
           />
-          <${MultiSelect} open=${lengthOpen} label=${lengthLabel()} items=${LENGTHS} sig=${nLength} />
+          <${MultiSelect} open=${lengthOpen} name="length" label=${lengthLabel()} items=${LENGTHS} sig=${nLength} />
           <${MultiSelect}
             open=${ratioOpen}
+            name="ratio"
             label=${ratioLabel()}
             items=${RATIOS}
             sig=${nRatio}

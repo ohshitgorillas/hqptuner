@@ -332,8 +332,8 @@ over that, taken across the **entire** chain, since all bands share one budget.
 - `docs/testing.md`: fakes speak the wire protocol; mocking our own code is
   forbidden → a **fake OpenAI-compatible HTTP endpoint**, mirroring
   `tests/fake_http.py`.
-- **The repo has no JS test runner.** `roadmap.md` states this explicitly and it
-  is why the 2026-07-20 frontend fixes shipped without a regression test.
+- **The JS side has a test runner too:** `make test-js` runs `node --test` over
+  `tests/js/` (`docs/testing.md`), so new frontend code lands with a test.
 
 → **The enforcing validator is Python, server-side.** The client gets only the
 compile-and-stage step, reusing already-verified math. This is a constraint, not
@@ -581,9 +581,9 @@ times per turn.
 **`lib/dsp.js` is the reference and Python follows it** (D10). Ship
 `docs/ai-tuner/dsp-reference.json` — a fixture of chains × frequencies × expected
 dB, **generated from the JS implementation** — and assert the Python port against
-it in the offline suite. The repo has no JS runner, so the JS side cannot be
-auto-tested; the fixture is what makes drift detectable at all and gives a future
-JS test something to bind to. State that limitation rather than implying parity.
+it in the offline suite. The JS side is already auto-tested (`tests/js/dsp.test.js`
+covers `lib/dsp.js`); the fixture is what makes cross-language drift detectable and
+gives both suites the same values to bind to.
 
 **A daemon oracle exists and should anchor the fixture** (`docs/matrix-spec.md`
 probe round 3, 2026-07-22). `POST /matrix/plot` evaluates an arbitrary submitted

@@ -259,7 +259,7 @@ The measured route is not automatically better. Non-individualized HRTFs are a k
 
 ## 8 · Implementation
 
-Shipped as the Structural mode of the Crossfeed card. `lib/binaural.js` holds the model, compiler, recognizer and presets; `lib/xfmode.js` the mode derivation, staging and the stash that makes removal byte-exact; `components/Crossfeed.js` the card; `components/SpeakerDiagram.js` the geometry. Verified by `scripts/check_binaural.py` (nine checks, node-driven) and `scripts/check_xfeed.py`.
+Shipped as the Structural mode of the Crossfeed card. `lib/binaural.js` holds the model, compiler, recognizer and presets; `lib/xfmode.js` the mode derivation, staging and the stash that makes removal byte-exact; `components/Crossfeed.js` the card; `components/CrossfeedGeometry.js` the geometry. Verified by `scripts/check_binaural.py` (ten checks, node-driven) and `scripts/check_xfeed.py`.
 
 Two behaviours worth recording because both were got wrong first:
 

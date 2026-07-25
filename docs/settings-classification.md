@@ -44,7 +44,7 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 
 **Rate is per-family and friendly.** Persistent rate lives in two fields — `defaults_samplerate` (PCM) and `defaults_bitrate` (SDM) — each a target/ceiling. HQPTuner shows both as fixed friendly menus (`1x…32x` / `DSD64…DSD2048`) mapped to the **48k-base** ceiling value.
 
-**Forced on every write (HQPTuner policy).** `auto_family=1`, `samplerate=0`, `bitrate=0` are pinned on every `POST /config` (`_FORCED_CONFIG`), so the friendly per-family ceiling holds (auto-family follows the source's 44.1/48 base; the fixed sample/bit rate stays on Auto). Not exposed in the UI. Enforced on write only.
+**Forced on every write (HQPTuner policy).** `auto_family=1`, `samplerate=0`, `bitrate=0` are merged into every `/restore` payload (`FORCED_CONFIG`, `lanes/httplane.py`), so the friendly per-family ceiling holds (auto-family follows the source's 44.1/48 base; the fixed sample/bit rate stays on Auto). Not exposed in the UI. Enforced on write only.
 
 ## DSP
 
@@ -112,8 +112,8 @@ Preset CRUD is not a 4321 Control API operation for HQPTuner — it goes through
 
 | Operation | Route | Field |
 |---|---|---|
-| Switch | `POST /config/profile/load` | `profile=<name>` |
-| Save (create/overwrite) | `POST /config/profile/save` | `profile_name=<text>` |
+| Switch | `POST /restore` (`scope=system`) onto `[default]` | the preset's XML as the working config, mirrored into `data/cfgs` |
+| Save (create/overwrite) | `POST /restore` (`scope=system`) | the running config as the working config, mirrored into `data/cfgs` |
 | Delete | `POST /config/profile/delete` | `profile=<name>` |
 | List / active | 4321 `ConfigurationList` / `ConfigurationGet` (unauth) or `GET /config` | — |
 

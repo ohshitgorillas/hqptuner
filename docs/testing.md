@@ -28,11 +28,11 @@ Violations of this document are rejected in review regardless of whether the tes
 ## Markers
 
 - Default suite is offline and deterministic; it must pass on a machine with no hqplayerd.
-- Tests needing the real daemon are marked `@pytest.mark.live` and must be read-only against it. Everything write-shaped runs against fakes until the roadmap phase that owns the write path.
+- Tests needing the real daemon are marked `@pytest.mark.live` and must be read-only against it. Everything write-shaped runs against fakes — permanently: live tests never write to the production daemon.
 
 ## Frontend
 
-The six core rules are language-independent and bind the JS suite identically. Runner is node's built-in `node --test`, via `make test-js`.
+The seven core rules are language-independent and bind the JS suite identically. Runner is node's built-in `node --test`, via `make test-js`.
 
 - **One assertion per test is enforced, not merely asked for.** `eslint-rules/one-assertion-per-test.js` is the peer of `scripts/check_test_assertions.py`. It does not look inside nested functions, so an assertion wrapped in a helper or a `.then()` callback counts as **zero** and is flagged. That is deliberate: a gate you can defeat by moving the assert into a function is not a gate. Keep the assert at the call site — if a helper builds the condition, have it return `[ok, message]` and spread that into one `assert.ok(...)`.
 - **Fakes go at the wire, never over our own code.** Components and stores are driven by assigning exported signals and by faking `globalThis.fetch` on the real REST paths (`hqptuner/static/lib/api.js`) with real response shapes. No store function is ever stubbed.
