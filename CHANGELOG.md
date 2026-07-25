@@ -4,7 +4,25 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **A beta channel.** `ghcr.io/ohshitgorillas/hqptuner:beta` publishes from the new `beta` branch, so a fix can be handed to a tester before it reaches everyone. Point your compose file's image at `:beta`, pull, and you are on it; set it back to `:latest` to leave. `:latest` is unchanged and still the stable channel.
+
+### Changed
+
+- **The default branch is now `main`** (was `master`). `:latest` follows it as before. If you have a clone, `git branch -m master main && git fetch --prune && git branch -u origin/main main`.
+
 ### Fixed
+
+- **A failed apply now tells you it failed.** When an apply doesn't take, HQPTuner keeps your changes staged so you can retry — but the pending bar showed only the staged count and swallowed the reason, so the changes read as if they had never been sent. An apply that fails also skips the save riding on it, which is how **Apply & Save** could leave a preset holding stale settings with nothing on screen to say why. The failure is now shown alongside the staged count, and it names the settings that wouldn't take instead of saying only "unconverged"; the full detail goes to HQPTuner's log.
+
+- **Apply no longer wedges on a setting you never touched.** An apply confirmed itself by reading the whole configuration back and requiring *every* setting in it to match what was sent — so one value the daemon writes back in its own format was enough to fail every apply, forever, on every tab, with nothing to say which value was at fault. An apply now confirms the settings it actually wrote.
+
+- **Adaptive volume is saved into a preset.** It applies live and so never reaches the configuration file; a preset saved with it switched on stored it as off. A save now captures it from the running engine, the way the filter, modulator and mode settings already were.
+
+- **Settings hidden behind a commented-out element are reachable again.** HQPlayer leaves a superseded element in the configuration file as a comment, above the live one — so on a machine whose output device had ever changed, every ALSA setting (device, DAC bits, period time, channel offset, DoP) was read from and written into that dead comment. Changing one reported success and did nothing. Reads and writes now skip commented elements.
+
+- **An apostrophe in a filter path or a profile name no longer breaks the apply.** HQPlayer writes it as an XML entity HQPTuner didn't decode, so the value never matched what had been sent and the apply could never confirm itself.
 
 - **"Save as New…" saved nothing.** Clicking it opened the name field, but the field never took focus, so everything typed went to the button that had just been clicked — and pressing Enter re-clicked that button, which withdrew the question. The preset was never written and nothing said so. The field is now focused outright; browsers block the attribute that used to do it whenever something else already has focus, which is always the case one click after opening the question. The same field is used by every prompt in the app, so **Save**, the overwrite confirmation and the header's delete confirmation are all fixed with it.
 
