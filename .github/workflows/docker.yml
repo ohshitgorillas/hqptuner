@@ -2,7 +2,7 @@ name: docker
 
 on:
   push:
-    branches: [master]
+    branches: [main, beta]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -29,10 +29,15 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          # Two release channels on one image repo:
+          #   :latest — default branch (main), the stable channel
+          #   :beta   — the beta branch, promoted from dev for testers
+          # Version tags (v*) publish semver tags on either channel.
           tags: |
             type=ref,event=tag
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
 
       - uses: docker/build-push-action@v6
         with:

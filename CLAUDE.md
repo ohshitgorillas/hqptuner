@@ -52,6 +52,7 @@ HQPTuner never refuses a user action because the daemon is playing. Not with a 4
 - README exists (beta, user decision 2026-07-21 — supersedes the old "no README until release" rule); keep it current when features change. Decisions get recorded in the commit message, and in `docs/architecture.md` when they change a normative rule.
 - **Changelog is binding (beta, 2026-07-21+):** every user-visible change lands with a `CHANGELOG.md` entry under `[Unreleased]`, in the same commit. Internal-only refactors/tests may skip it.
 - Never commit credentials — not in docs, not as "verification evidence". Placeholders only.
+- **Branches (2026-07-25):** `dev` (scratch, where work lands) → `beta` (promoted for testers, publishes `ghcr.io/…:beta`) → `main` (release, publishes `:latest`). `main` was renamed from `master`. Promotion between them is the user's call, never an agent's — do not merge to `beta` or `main` without being told to.
 - The running engine is the sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (architecture §2).
 
 - You are a language model. Fluency is not correctness. Your output looks like an answer whether or not it is one. Never present confidence you haven't earned through verification.

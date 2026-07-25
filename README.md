@@ -119,7 +119,15 @@ printf 'HQPTUNER_HQP_USERNAME=<user>\nHQPTUNER_HQP_PASSWORD=<pass>\n' > .env
 
 Then open `http://<serverIP>:8090`.
 
-Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) — `latest` tracks master, version tags track releases.
+Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) in two channels:
+
+| Tag | Branch | Who it's for |
+|---|---|---|
+| `:latest` | `main` | Everyone. The stable channel. |
+| `:beta` | `beta` | Testers trying a fix before it ships. Expect rough edges. |
+| `:vX.Y.Z` | version tags | Pinned to one release. |
+
+To try a beta build, point the image at `ghcr.io/ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
 
 ### From a clone (no Docker)
 
