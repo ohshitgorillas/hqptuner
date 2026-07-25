@@ -18,7 +18,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../hqptuner/static/components/MatrixTab.js";
 import { SpeakersCard, chooseSet } from "../../hqptuner/static/components/SpeakersCard.js";
-import { speakers, applySpeakers } from "../../hqptuner/static/store/speakers.js";
+import { speakers, speakersError, applySpeakers } from "../../hqptuner/static/store/speakers.js";
 import { dspMode, setDspMode } from "../../hqptuner/static/store/dspmode.js";
 import {
   config,
@@ -32,7 +32,7 @@ import { showDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
 import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
 import { structuralBlock } from "../../hqptuner/static/lib/xfmode.js";
-import { ok, stagingWire } from "./wire.js";
+import { ok, bad, stagingWire } from "./wire.js";
 
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
@@ -244,4 +244,31 @@ test("test_apply_refreshes_the_card_from_the_daemons_answer", async () => {
   await reset({ spk: null });
   await applySpeakers(true, {});
   assert.equal(speakers.value.channels.length, 8);
+});
+
+// --- what a refused apply says -----------------------------------------------
+// The apply lane is this tab's one public error signal, so it is where the two
+// halves of the REST error contract are exercised: a refusal carrying the
+// daemon's own sentence reaches the user verbatim, and a refusal carrying no
+// sentence still tells them the status. What the fallback wording IS belongs to
+// lib/api.js, not to this suite — the claim here is only that the code survives.
+
+function refuse(answer) {
+  stagingWire({
+    routes: (path, opts) => (path === "/api/speakers" && opts.method === "POST" ? answer : undefined),
+  });
+}
+
+test("test_a_refused_apply_reports_the_daemons_own_reason", async () => {
+  await reset();
+  refuse(bad(502, "speakers apply failed: engine did not answer"));
+  await applySpeakers(true, {});
+  assert.equal(speakersError.value, "speakers apply failed: engine did not answer");
+});
+
+test("test_a_refusal_with_no_reason_still_reports_the_status", async () => {
+  await reset();
+  refuse(bad(502));
+  await applySpeakers(true, {});
+  assert.match(speakersError.value, /502/);
 });

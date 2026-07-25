@@ -4,7 +4,7 @@
 The overlay + checkbox-safe write + range validation live in
 ``httpconf.apply_speakers``; here we ride out the ~3 s engine reload the form POST
 triggers, readback-verify past the transient, and refresh the cached form. The API
-idle-gates (the reload interrupts playback)."""
+refuses nothing for it (the reload interrupts playback)."""
 
 from __future__ import annotations
 

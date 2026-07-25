@@ -351,7 +351,7 @@ class HttpConfigClient:
         OMITTED when off — never a raw ``0``/``on``, which the daemon writes
         verbatim and wedges engine init (matrix-spec probe). Levels are validated
         to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
-        sent. The daemon reloads the engine (~3 s); the caller idle-gates."""
+        sent. The daemon reloads the engine (~3 s), interrupting playback."""
         # generic complete-form serialize
         fields, _ = serialize_matrix_form((await self._get("/speakers")).text)
         fields.pop("enabled", None)  # checkbox rebuilt below, contract-safe

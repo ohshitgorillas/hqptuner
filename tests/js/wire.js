@@ -4,6 +4,18 @@
 
 export const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
+// A refusal in the daemon's own shape: FastAPI answers every error with a
+// `detail` string. `bad(status)` with no detail is the other real case — a
+// response that is not our JSON at all, which `json()` rejects on.
+export const bad = (status, detail) => ({
+  ok: false,
+  status,
+  json: async () => {
+    if (detail === undefined) throw new SyntaxError("not JSON");
+    return { detail };
+  },
+});
+
 // A staging server, not a stub of our own store: it holds the pending buffer
 // the way the backend does and echoes it back, so edit() / stagePipelines() /
 // discardAll() ride the real REST paths.

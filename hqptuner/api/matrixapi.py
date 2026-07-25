@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from ..control import ControlError
 from . import deps
-from .deps import HttpMgr, IdleMgr, Mgr
+from .deps import HttpMgr, Mgr
 
 router = APIRouter(prefix="/api")
 
@@ -56,12 +56,13 @@ class MatrixProfileBody(BaseModel):
 @router.post("/matrix/profile")
 async def matrix_profile(body: MatrixProfileBody, request: Request, manager: Mgr) -> dict[str, Any]:
     """Matrix profile operations (matrix-spec step 5). `switch` rides the live
-    4321 lane — no reload, no idle gate. save/delete/load ride the form lane and
-    reload the engine (~3 s), so they are idle-gated; a named `load` also
+    4321 lane — no reload. save/delete/load ride the form lane and reload the
+    engine (~3 s), interrupting playback if any: that is the user's call, not
+    ours, so it is never refused for being mid-playback. A named `load` also
     replaces post-process state (probe findings).
 
-    Credentials and idle are checked in the handler rather than by IdleMgr: the
-    live `switch` branch needs neither, and an unknown action is a 404 before
+    Credentials are checked in the handler rather than by HttpMgr: the live
+    `switch` branch does not need them, and an unknown action is a 404 before
     anything else is asked about it."""
     if body.action == "switch":
         try:
@@ -73,7 +74,6 @@ async def matrix_profile(body: MatrixProfileBody, request: Request, manager: Mgr
     if not body.name and body.action in ("save", "delete"):
         raise HTTPException(status_code=422, detail="profile name required")
     deps.require_credentials(request)
-    deps.require_idle(manager)
     try:
         return await manager.matrix_profile_action(body.action, body.name)
     except (ControlError, httpx.HTTPError) as exc:
@@ -95,10 +95,10 @@ class SpeakersBody(BaseModel):
 
 
 @router.post("/speakers")
-async def speakers_apply(body: SpeakersBody, manager: IdleMgr) -> dict[str, Any]:
+async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]:
     """Apply speaker processing via the /speakers form lane (readme §1.9). Reloads
-    the engine (~3 s), so it is idle-gated. The write is checkbox-safe and
-    range-validated in ``httpconf.apply_speakers``."""
+    the engine (~3 s), interrupting playback — never refused for it. The write is
+    checkbox-safe and range-validated in ``httpconf.apply_speakers``."""
     try:
         return await manager.apply_speakers(body.enabled, body.channels)
     except ValueError as exc:

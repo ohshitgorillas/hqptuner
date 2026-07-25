@@ -22,7 +22,7 @@ from ..metadata import StaticMetadata, merge_enumerations
 from ..presetstore import PresetError
 from ..writer import known_live_settings
 from . import deps, matrixapi
-from .deps import HttpMgr, IdleMgr, Mgr
+from .deps import HttpMgr, Mgr
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -308,11 +308,8 @@ async def engine_get(manager: HttpMgr) -> dict[str, Any]:
 
 @router.post("/engine")
 async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
-    # idle-gated in the handler, not by IdleMgr: an empty override set is a 400
-    # whether or not the daemon happens to be playing
     if not body.overrides:
         raise HTTPException(status_code=400, detail="no engine overrides given")
-    deps.require_idle(manager)
     try:
         return await manager.apply_engine(body.overrides, body.all_presets)
     except ValueError as exc:
@@ -322,7 +319,7 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
 
 
 @router.post("/restore")
-async def restore(cfgfile: Annotated[UploadFile, File()], manager: IdleMgr) -> dict[str, Any]:
+async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr) -> dict[str, Any]:
     data = await cfgfile.read()
     try:
         await manager.restore_config(data)

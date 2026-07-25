@@ -4,7 +4,7 @@
 Two lanes with very different costs: ``switch_profile`` rides 4321
 ``MatrixSetProfile`` (live, zero reload, memory-only — reverts on daemon
 restart); ``profile_action`` rides ``POST /matrix/{load,save,delete}`` with the
-complete current form, which reloads the engine (~3 s) — the API idle-gates it.
+complete current form, which reloads the engine (~3 s), interrupting playback.
 """
 
 from __future__ import annotations

@@ -6,9 +6,10 @@ of the credentials guard. A guard that must be remembered on every new route is
 a guard that eventually is not: as FastAPI dependencies it rides the signature
 instead — ``def matrix(mgr: HttpMgr)`` cannot forget to check.
 
-Idle gating stays an explicit in-handler call wherever a route validates its
-body first (an unknown action is a 404 whether or not the daemon is playing);
-routes that gate immediately after the credentials check take ``IdleMgr``.
+No route idle-gates. A write that reloads or restarts the engine interrupts
+playback, and that is the user's call to make — HQPTuner does not decide on
+their behalf that they may not do it right now (project rule: never idle-gate a
+user action).
 """
 
 from typing import Annotated, Any
@@ -32,27 +33,13 @@ def require_credentials(request: Request) -> None:
         raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
 
 
-def require_idle(manager: ConnectionManager) -> None:
-    """A restart- or reload-based apply interrupts playback — refuse unless the
-    daemon is idle (State state="0"). The user stops playback and retries."""
-    if (manager.state or {}).get("state") != "0":
-        raise HTTPException(status_code=409, detail="daemon is not idle (stop playback first)")
-
-
 def _http_manager(request: Request) -> ConnectionManager:
     require_credentials(request)
     return manager_of(request)
 
 
-def _idle_http_manager(request: Request) -> ConnectionManager:
-    manager = _http_manager(request)
-    require_idle(manager)
-    return manager
-
-
 Mgr = Annotated[ConnectionManager, Depends(manager_of)]
 HttpMgr = Annotated[ConnectionManager, Depends(_http_manager)]
-IdleMgr = Annotated[ConnectionManager, Depends(_idle_http_manager)]
 
 
 def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
