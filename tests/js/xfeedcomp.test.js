@@ -86,7 +86,7 @@ const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 
 const attrs = (b) => b.slice(0, b.indexOf(">"));
 const titleOf = (b) => (/ title="([^"]*)"/.exec(attrs(b)) || [])[1] || "";
 
-const sliderPct = (out) => Number(/class="xfc-slider"[^>]*value="(\d+)"/.exec(out)[1]);
+const sliderPct = (out) => Number((/class="rng"[^>]*value="(\d+)"/.exec(out) || [])[1]);
 
 // --- crossfeed off ----------------------------------------------------------
 

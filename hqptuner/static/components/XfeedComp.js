@@ -6,12 +6,13 @@
 // Bauer preset internals are not surfaced by the daemon (probe finding), so
 // preset → (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
+import { html } from "../lib/dom.js";
 import { effective, effectivePipelines, stagePipelines, edit } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { chainResponse, bandFreqs } from "../lib/dsp.js";
 import { PlotFrame } from "./plots.js";
+import { SliderNumber } from "./controls/index.js";
 import {
   BAUER_PRESETS,
   centerMagDb,
@@ -242,31 +243,17 @@ export function XfeedStrip() {
   const locked = !rec && !!issue;
   return html`
     <div class="xfc-strip">
-      <input
-        class="xfc-slider"
-        type="range"
+      <${SliderNumber}
+        anchor="min"
         min="0"
         max="150"
         step="1"
         value=${pct}
+        unit="%"
         disabled=${locked}
-        onWheel=${wheelGuard}
-        onInput=${(e) => (sliderDrag.value = Number(e.target.value))}
-        onChange=${(e) => commit(Number(e.target.value))}
+        onDrag=${(v) => (sliderDrag.value = Number(v))}
+        onCommit=${(v) => commit(Number(v))}
       />
-      <label class="xfc-pct">
-        <input
-          type="number"
-          min="0"
-          max="150"
-          step="1"
-          value=${pct}
-          disabled=${locked}
-          onWheel=${wheelGuard}
-          onChange=${(e) => commit(Number(e.target.value))}
-        />
-        <span>%</span>
-      </label>
       <span
         class="xfc-tilt"
         title="Bauer ${bs.fc} Hz / ${bs.feed} dB dulls centered sound by ${tilt.toFixed(2)} dB toward the treble (bs2b model). Speakers at ±30° do much the same."

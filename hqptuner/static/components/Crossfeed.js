@@ -13,7 +13,7 @@
 // The disable stages like any other edit: the pending bar counts it, Discard
 // undoes it, nothing reaches the daemon until Apply.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
+import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
 import { effective, effectivePipelines } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
@@ -32,7 +32,7 @@ import {
 import { SpeakerDiagram } from "./SpeakerDiagram.js";
 import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
-import { Segment } from "./controls/index.js";
+import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
 import { bandFreqs } from "../lib/dsp.js";
 import { truthy } from "../lib/coerce.js";
@@ -58,40 +58,26 @@ function params(rows) {
 
 // --- controls ----------------------------------------------------------------
 
-// `boxStep` is the number box's step, which need not be the slider's: a slider
-// wants a detent coarse enough to hit, while the box can take any value in range
-// (step="any"). It defaults to the slider's step.
+// One physical parameter: label, the shared slider+box control, caption. The
+// row is local (these are derived params, not schema fields, so Field.js cannot
+// own them); the control itself is the shared one.
 function Control({ label, unit, min, max, step, boxStep, value, format, onDrag, onCommit, caption, sub }) {
   return html`
     <div class="xfs-control">
       <label class="xfs-label">${label}</label>
-      <div class="xfs-input">
-        <input
-          type="range"
-          min=${min}
-          max=${max}
-          step=${step}
-          value=${value}
-          onWheel=${wheelGuard}
-          onInput=${(e) => onDrag(Number(e.target.value))}
-          onChange=${(e) => onCommit(Number(e.target.value))}
-        />
-        <span class="xfs-readbox">
-          <label class="xfs-readout">
-            <input
-              type="number"
-              min=${min}
-              max=${max}
-              step=${boxStep || step}
-              value=${format(value)}
-              onWheel=${wheelGuard}
-              onChange=${(e) => onCommit(Number(e.target.value))}
-            />
-            <span class="xfs-unit">${unit}</span>
-          </label>
-          ${sub ? html`<span class="xfs-sub">${sub}</span>` : null}
-        </span>
-      </div>
+      <${SliderNumber}
+        anchor="min"
+        min=${min}
+        max=${max}
+        step=${step}
+        boxStep=${boxStep}
+        value=${value}
+        unit=${unit}
+        sub=${sub}
+        format=${format}
+        onDrag=${(v) => onDrag(Number(v))}
+        onCommit=${(v) => onCommit(Number(v))}
+      />
       ${notesVisible.value && caption ? html`<div class="field-note xfs-caption">${caption}</div>` : null}
     </div>
   `;

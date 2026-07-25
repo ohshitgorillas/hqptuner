@@ -94,27 +94,14 @@
   top: 23px;
   height: 26px;
 }
-.vr-min::-webkit-slider-thumb,
-.vr-max::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 26px;
-  border-radius: 3px;
-  background: var(--accent);
-  border: 2px solid var(--bg);
-  cursor: ew-resize;
-  pointer-events: auto;
-}
-.vr-min::-moz-range-thumb,
-.vr-max::-moz-range-thumb {
-  width: 14px;
-  height: 26px;
-  border-radius: 3px;
-  background: var(--accent);
-  border: 2px solid var(--bg);
-  cursor: ew-resize;
-  pointer-events: auto;
+.vr-min,
+.vr-max {
+  --thumb-w: 14px;
+  --thumb-h: 26px;
+  --thumb-r: 3px;
+  --thumb-bg: var(--accent);
+  --thumb-border: 2px solid var(--bg);
+  --thumb-cursor: ew-resize;
 }
 /* Startup: a hollow pin riding ABOVE the bar. Different shape, different fill,
    different row — so it stays readable and draggable at Min or Max. */
@@ -122,25 +109,13 @@
   top: 0;
   height: 26px;
 }
-.vr-startup::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 22px;
-  border-radius: 6px 6px 2px 2px;
-  background: var(--bg);
-  border: 2px solid var(--accent);
-  cursor: ew-resize;
-  pointer-events: auto;
-}
-.vr-startup::-moz-range-thumb {
-  width: 12px;
-  height: 22px;
-  border-radius: 6px 6px 2px 2px;
-  background: var(--bg);
-  border: 2px solid var(--accent);
-  cursor: ew-resize;
-  pointer-events: auto;
+.vr-startup {
+  --thumb-w: 12px;
+  --thumb-h: 22px;
+  --thumb-r: 6px 6px 2px 2px;
+  --thumb-bg: var(--bg);
+  --thumb-border: 2px solid var(--accent);
+  --thumb-cursor: ew-resize;
 }
 /* value bubble on hover/drag */
 .vr-bubble {
@@ -275,4 +250,3 @@
   content: "⚠";
   color: var(--accent);
 }
-
