@@ -32,6 +32,7 @@ import { showDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
 import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
 import { structuralBlock } from "../../hqptuner/static/lib/xfmode.js";
+import { ok, stagingWire } from "./wire.js";
 
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
@@ -43,34 +44,18 @@ const compBlock = () => msCompile(EQ, -3, fitComp(DEF.fc, DEF.feed), 1, 0, 1);
 const structuralRows = () =>
   compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb: -3, eqProcess: EQ });
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-
-// A staging server, not a stub of our own store: it holds the pending buffer the
-// way the backend does and echoes it back, so `edit` rides the real REST path
-// (docs/testing.md rule 4). POST bodies are captured for the apply cases.
-let stagedBuf = { live: {}, http: {} };
-let posts = [];
+// The staging wire plus /api/speakers, whose POST bodies the apply cases read.
+let W;
 
 function wire() {
-  stagedBuf = { live: {}, http: {} };
-  posts = [];
-  globalThis.fetch = async (path, opts = {}) => {
-    if (path === "/api/config/stage") {
-      const body = JSON.parse(opts.body);
-      stagedBuf = { live: { ...stagedBuf.live, ...body.live }, http: { ...stagedBuf.http, ...body.http } };
-      return ok(stagedBuf);
-    }
-    if (path === "/api/config/pending" && opts.method === "DELETE") {
-      stagedBuf = { live: {}, http: {} };
-      return ok(stagedBuf);
-    }
-    if (path === "/api/config/pending") return ok(stagedBuf);
-    if (path === "/api/speakers" && opts.method === "POST") {
-      posts.push(JSON.parse(opts.body));
-      return ok({ applied: true, speakers: SPK });
-    }
-    return ok({});
-  };
+  W = stagingWire({
+    routes: (path, opts, w) => {
+      if (path === "/api/speakers" && opts.method === "POST") {
+        w.posts.push(JSON.parse(opts.body));
+        return ok({ applied: true, speakers: SPK });
+      }
+    },
+  });
 }
 
 // A placed speaker: distance is what puts it in the room, and a channel with no
@@ -246,13 +231,13 @@ test("test_without_direct_sdm_the_level_box_is_editable", async () => {
 test("test_apply_posts_the_enabled_switch", async () => {
   await reset();
   await applySpeakers(true, {});
-  assert.equal(posts[0].enabled, true);
+  assert.equal(W.posts[0].enabled, true);
 });
 
 test("test_apply_posts_the_channel_overlay", async () => {
   await reset();
   await applySpeakers(true, { 0: { level: "-3" } });
-  assert.deepEqual(posts[0].channels, { 0: { level: "-3" } });
+  assert.deepEqual(W.posts[0].channels, { 0: { level: "-3" } });
 });
 
 test("test_apply_refreshes_the_card_from_the_daemons_answer", async () => {

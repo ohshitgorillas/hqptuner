@@ -39,23 +39,12 @@ import {
   edit,
 } from "../../hqptuner/static/store/state.js";
 import { fastVolumeUpdates } from "../../hqptuner/static/store/prefs.js";
-
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+import { ok, stagingWire } from "./wire.js";
 
 // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST
 // paths, so `edit()` stages exactly as it does against the backend.
-let pending = { live: {}, http: {} };
 function wire() {
-  pending = { live: {}, http: {} };
-  globalThis.fetch = async (path, init) => {
-    if (path === "/api/config/stage") {
-      const body = JSON.parse(init.body);
-      pending = { live: { ...pending.live, ...body.live }, http: { ...pending.http, ...body.http } };
-    } else if (path === "/api/config/pending" && init && init.method === "DELETE") {
-      pending = { live: {}, http: {} };
-    }
-    return ok(pending);
-  };
+  stagingWire({ fallback: (w) => ok(w.staged) });
 }
 
 // `running` is the daemon's own /config form, keyed by FORM FIELD name — the

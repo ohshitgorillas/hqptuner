@@ -25,18 +25,17 @@ import { XfeedStrip } from "../../hqptuner/static/components/XfeedComp.js";
 import { config, matrixConfig, discardAll } from "../../hqptuner/static/store/state.js";
 import { setShowDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { msCompile, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
+import { staticWire } from "./wire.js";
 
 const DEF = BAUER_PRESETS.default;
 const JM = BAUER_PRESETS.jmeier;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 const EQ2 = "iir:type=peak;f=2000;q=1;g=-3";
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-
 // Only the pending-buffer endpoints are touched (discardAll); an empty buffer is
 // the whole response either way.
 function wire() {
-  globalThis.fetch = async () => ok({ live: {}, http: {} });
+  staticWire();
 }
 
 // A plain stereo EQ row, the shape an AutoEq import leaves behind.

@@ -23,30 +23,13 @@ import { xfMode, activeMode, setXfMode, structuralBlock, removeStructural } from
 import { config, matrixConfig, effective, effectivePipelines, discardAll } from "../../hqptuner/static/store/state.js";
 import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
+import { ok, stagingWire } from "./wire.js";
 
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 
-const ok = (body) => ({ ok: true, status: 200, json: async () => body });
-
-// A staging server, not a stub of our own store: it holds the pending buffer the
-// way the backend does and echoes it back, so `edit` rides the real REST path.
-let staged = { live: {}, http: {} };
-
 function wire() {
-  staged = { live: {}, http: {} };
-  globalThis.fetch = async (path, opts = {}) => {
-    if (path === "/api/config/stage") {
-      const body = JSON.parse(opts.body);
-      staged = { live: { ...staged.live, ...body.live }, http: { ...staged.http, ...body.http } };
-      return ok(staged);
-    }
-    if (path === "/api/config/pending" && opts.method === "DELETE") {
-      staged = { live: {}, http: {} };
-      return ok(staged);
-    }
-    return ok(staged);
-  };
+  stagingWire({ fallback: (w) => ok(w.staged) });
 }
 
 const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process: EQ, source });
