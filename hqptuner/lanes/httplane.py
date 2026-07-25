@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..conf import engineconf, presetconf
+from . import settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -103,7 +104,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     it, and return the intended config it should produce. Raises GroundingError
     (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped
     mid-write)."""
-    backup = await mgr.backup_for_write()
+    backup = await mgr.backup_or_cached(for_write=True)
     mgr.persist_backup(backup)  # survives a crash mid-apply
     # parked filter uploads ride the same restore (data/<name> members land in
     # the daemon's home dir, where staged process paths resolve)
@@ -115,22 +116,24 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
 async def verify(mgr: ConnectionManager, intended: dict[str, str]) -> dict[str, str]:
     """Poll a fresh /backup until the running config reflects every intended
     field, or the alarm deadline passes. Returns the last realized config (read
-    from the backup's base hqplayerd.xml) so the caller can diff it."""
-    deadline = mgr.monotonic() + mgr.alarm_threshold
+    from the backup's base hqplayerd.xml) so the caller can diff it — the
+    unconverged read is the diff, so it is kept even when the poll gives up."""
     realized: dict[str, str] = {}
-    while mgr.monotonic() < deadline:
-        await mgr.sleep(RECONNECT_FAST)
-        try:
-            fresh = await mgr.require_http().backup()
-        except httpx.HTTPError:
-            continue
-        if fresh[:4] != b"PK\x03\x04":  # mid-restart: not a zip yet
-            continue
+
+    async def probe() -> dict[str, str] | None:
+        nonlocal realized
+        fresh = await settle.fresh_backup(mgr)
+        if fresh is None:
+            return None
         realized = presetconf.read_config(engineconf.base_config_xml(fresh))
         mgr.file_config = realized  # fresh file truth for the lossy-form fields
-        if all(realized.get(key) == want for key, want in intended.items()):
-            return realized
-    return realized
+        converged = all(realized.get(key) == want for key, want in intended.items())
+        return realized if converged else None
+
+    # the restore just restarted the daemon: nothing has landed yet, so spend the
+    # first interval waiting rather than on a read that cannot succeed
+    await mgr.sleep(RECONNECT_FAST)
+    return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 
 
 async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:

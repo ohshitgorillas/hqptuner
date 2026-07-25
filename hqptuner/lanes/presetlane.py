@@ -53,7 +53,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     ``data/cfgs`` so the native UI stays populated. Never ``profile/load``."""
     xml = mgr.store.read(name)
     await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
-    backup = await mgr.backup_for_write()
+    backup = await mgr.backup_or_cached(for_write=True)
     mgr.persist_backup(backup)
     archive = presetconf.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     await mgr.require_http().restore(archive, scope="system")
@@ -70,7 +70,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     the running config already carries the user's edits."""
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
-        backup = await mgr.backup_for_write()
+        backup = await mgr.backup_or_cached(for_write=True)
         working = engineconf.base_config_xml(backup)
         if not working:
             raise ControlError("no running config to save")
