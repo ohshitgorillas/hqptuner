@@ -37,12 +37,21 @@ function wire() {
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
 // Full reset every time — every one of these signals outlives a test.
-async function reset(rows, { active = "[Default]", profiles = [], notes = true } = {}) {
+async function reset(rows, { active = "[Default]", profiles = [], saved = {}, notes = true } = {}) {
   wire();
   showDescriptions.value = notes;
   plottedRows.value = new Set();
   selectedStage.value = null;
-  matrixConfig.value = { fields: [], rows: [], live_profiles: profiles, live_active: active };
+  // `profiles` are the names the DAEMON read at startup (a live load can reach
+  // them); `saved` is what the CONFIG carries, name -> rows (persisted, and the
+  // only source that has rows to stage).
+  matrixConfig.value = {
+    fields: [],
+    rows: [],
+    live_profiles: profiles,
+    live_active: active,
+    file_profiles: saved,
+  };
   config.value = { fields: [], file: { matrix_pipelines: JSON.stringify(rows) } };
   await discardAll();
 }
@@ -72,17 +81,19 @@ const toolsOf = (rowHtml) =>
     .map((s) => s.split("</button>")[0]);
 const tool = (out, rowIndex, i) => toolsOf(rowsOf(out)[rowIndex])[i];
 const isDisabled = (btn) => btn.slice(0, btn.indexOf(">")).includes("disabled");
-// The profile card's buttons, in render order.
-const SWITCH = 0;
-const LOAD = 1;
-const DELETE = 2;
-const SAVE_NEW = 3;
+// The profile card's buttons, in render order. Switch and Load collapsed into one
+// live Load in round 5 — a load is the live lane AND stages so it persists.
+const LOAD = 0;
+const DELETE = 1;
+const SAVE = 2;
+const profileCard = (out) => out.slice(out.indexOf("mtx-profile"), out.indexOf("Pipelines <span"));
 const profileButtons = (out) =>
-  out
-    .slice(out.indexOf("mtx-profile"), out.indexOf("Pipelines <span"))
+  profileCard(out)
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+// The lane tag beside the picker: what a Load of the selected profile will do.
+const liveTag = (out) => profileCard(out).split('class="mtx-live-tag">')[1].split("</span>")[0];
 
 // --- profile card ------------------------------------------------------------
 
@@ -116,39 +127,51 @@ test("test_delete_is_enabled_for_a_named_profile", async () => {
   assert.equal(isDisabled(profileButtons(tab())[DELETE]), false);
 });
 
-test("test_save_as_new_is_disabled_until_a_name_is_typed", async () => {
+test("test_save_is_disabled_until_a_name_is_typed", async () => {
   await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.equal(isDisabled(profileButtons(tab())[SAVE_NEW]), true);
+  assert.equal(isDisabled(profileButtons(tab())[SAVE]), true);
 });
 
-test("test_switch_is_offered_as_the_live_lane", async () => {
+test("test_load_is_offered_as_the_live_lane", async () => {
   await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.ok(profileButtons(tab())[SWITCH].includes("live, no engine reload"));
+  assert.ok(profileButtons(tab())[LOAD].includes("live, no engine reload"));
 });
 
-test("test_load_is_offered_as_the_reloading_lane", async () => {
+test("test_a_profile_the_daemon_knows_loads_live", async () => {
   await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.ok(profileButtons(tab())[LOAD].includes("engine reload"));
+  assert.equal(liveTag(tab()), "live — no reload");
 });
 
-test("test_the_profile_switch_caption_shows_with_feature_descriptions_on", async () => {
+test("test_a_profile_only_the_config_carries_loads_by_staging", async () => {
+  // saved into the config but not read by the daemon yet: a live switch cannot
+  // reach it, and the tag must say so rather than promising "live"
+  await reset([ROW({})], { active: "Night", profiles: [], saved: { Night: [ROW({})] } });
+  assert.equal(liveTag(tab()), "stages — applies at next apply");
+});
+
+test("test_a_profile_only_the_config_carries_is_offered_in_the_picker", async () => {
+  await reset([ROW({})], { active: "[Default]", profiles: [], saved: { Night: [ROW({})] } });
+  assert.ok(tab().includes('<option value="Night">Night</option>'));
+});
+
+test("test_the_profile_load_caption_shows_with_feature_descriptions_on", async () => {
   await reset([ROW({})], { notes: true });
-  assert.ok(tab().includes("Profiles can be switched at any time"));
-});
-
-test("test_the_profile_switch_caption_hides_with_feature_descriptions_off", async () => {
-  await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Profiles can be switched at any time"), false);
+  assert.ok(tab().includes("Load takes effect immediately"));
 });
 
 test("test_the_profile_load_caption_hides_with_feature_descriptions_off", async () => {
   await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Load replaces the pipelines"), false);
+  assert.equal(tab().includes("Load takes effect immediately"), false);
+});
+
+test("test_the_profile_save_caption_shows_with_feature_descriptions_on", async () => {
+  await reset([ROW({})], { notes: true });
+  assert.ok(tab().includes("Saves the matrix you are looking at"));
 });
 
 test("test_the_profile_save_caption_hides_with_feature_descriptions_off", async () => {
   await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Saves the current matrix as a new named profile"), false);
+  assert.equal(tab().includes("Saves the matrix you are looking at"), false);
 });
 
 // --- flow rows ---------------------------------------------------------------

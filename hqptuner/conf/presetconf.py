@@ -28,7 +28,18 @@ import re
 import zipfile
 
 from . import engineconf
-from .matrixconf import MATRIX_PIPELINES, GroundingError, read_pipelines, replace_pipelines
+from .matrixconf import (
+    MATRIX_PIPELINES,
+    MATRIX_PROFILE_DELETE,
+    MATRIX_PROFILE_SAVE,
+    MATRIX_PROFILES,
+    GroundingError,
+    delete_profile,
+    read_pipelines,
+    read_profiles,
+    replace_pipelines,
+    write_profile,
+)
 
 __all__ = ["MATRIX_PIPELINES", "GroundingError"]  # re-exported for existing importers
 
@@ -310,6 +321,17 @@ def _apply_one(xml: bytes, field: str, value: str) -> bytes:
     raise GroundingError(f"unknown config field: {field!r}")
 
 
+def _apply_profile_edits(xml: bytes, remaining: dict[str, str]) -> bytes:
+    """The saved-profile verbs, delete before save. Staging holds at most one of
+    each, and the pair co-occurs only as a rename — drop the old name, write the
+    new one — where saving first would delete what was just written."""
+    if MATRIX_PROFILE_DELETE in remaining:
+        xml = delete_profile(xml, remaining.pop(MATRIX_PROFILE_DELETE))
+    if MATRIX_PROFILE_SAVE in remaining:
+        xml = write_profile(xml, remaining.pop(MATRIX_PROFILE_SAVE))
+    return xml
+
+
 def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
     """Return ``xml`` with each staged form-field edit applied surgically.
 
@@ -322,6 +344,7 @@ def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
         xml = _reconcile_fixed(xml, fixed_edits)
     if MATRIX_PIPELINES in remaining:
         xml = replace_pipelines(xml, remaining.pop(MATRIX_PIPELINES))
+    xml = _apply_profile_edits(xml, remaining)
     # <post_process> lives INSIDE <matrix>, and matrix processing must be on for any
     # plugin to run at all (readme §1.11 / §1.11.2) — a preset with matrix enabled="0"
     # silently swallows crossfeed/loudness/correction. So switching a post-process
@@ -372,6 +395,9 @@ def _read_special(xml: bytes) -> dict[str, str]:
     pipelines = read_pipelines(xml)
     if pipelines is not None:
         out[MATRIX_PIPELINES] = pipelines
+    # saved profiles: the readback that proves a staged save or delete reached the
+    # config file, since the daemon never writes the element itself (round 5)
+    out[MATRIX_PROFILES] = read_profiles(xml)
     # fixed volume: presence of the top-level <fixed> element is the "enabled" flag
     active_fixed = _find_active_fixed(xml)
     out[FIXED_ENABLED] = "1" if active_fixed is not None else "0"

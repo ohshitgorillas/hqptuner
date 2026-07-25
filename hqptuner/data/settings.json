@@ -172,6 +172,16 @@
       "tooltip": "The matrix pipeline table. Each pipeline describes one virtual channel: a source channel routed through an ordered chain of processing stages and a gain into a target channel. Several pipelines may target the same channel, in which case they sum. Distinct from DSP pipelines, which sets how many are available.",
       "source": "readme §1.11.1, manual §7"
     },
+    "matrix_profile_save": {
+      "label": "Save matrix profile",
+      "tooltip": "Stores the matrix you are looking at, staged edits included, as a named profile in HQPlayer's configuration. Saving onto a name that already exists replaces it. HQPlayer's own save registers the profile in memory only and drops it when the daemon restarts, so HQPTuner writes the profile element into the configuration itself.",
+      "source": "readme §1.12, docs/matrix-spec.md round 5"
+    },
+    "matrix_profile_delete": {
+      "label": "Delete matrix profile",
+      "tooltip": "Removes a saved profile from HQPlayer's configuration for good, rather than until the next daemon start. Deleting does not disturb the running matrix.",
+      "source": "readme §1.12, docs/matrix-spec.md round 5"
+    },
     "matrix_iir2fir": {
       "label": "IIR to FIR",
       "tooltip": "Chooses whether parametric EQs are converted to a convolution EQ — in some cases, like GPU offloading, computing a set of parametric EQs as a convolution filter is more efficient.",
