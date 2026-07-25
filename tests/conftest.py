@@ -13,14 +13,20 @@ The port-8088 HTTP fake lives in `fake_http`; its fixtures are at the bottom."""
 
 import asyncio
 import functools
+import socket
 import time
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import fake_http
 import pytest
 from defusedxml.ElementTree import fromstring as _fromstring
+from fastapi.testclient import TestClient
 
+from hqptuner.api import create_app
+from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.config import Config
 from hqptuner.control import ControlClient
 from hqptuner.manager import ConnectionManager
 
@@ -272,3 +278,72 @@ def stale_http_daemon() -> Iterator[dict[str, Any]]:
 def dying_http_daemon() -> Iterator[dict[str, Any]]:
     # accepts the restore, then goes unreachable and never returns
     yield from fake_http.spawn(fake_http.state(_die=True))
+
+
+# --- a manager wired to the fake HTTP config daemon -------------------------
+
+ManagerFactory = Callable[..., ConnectionManager]
+
+
+@pytest.fixture
+async def http_manager_factory(tmp_path: Path) -> AsyncIterator[ManagerFactory]:
+    """Build managers on a fake 8088 daemon, closing every client at teardown.
+
+    Six write-lane suites each hand-rolled this. The daemon is an argument
+    because the outage suites want the ``dying``/``stale`` variants; keyword
+    arguments override the Config for the suites that need a different one (a
+    longer ``alarm_threshold`` for the stale-readback case, ``hqp_home`` for the
+    filter-upload path assertions).
+
+    ``alarm_threshold`` defaults to 1.0 so a rejected apply gives up after a
+    couple of virtual polls rather than the production 15 s window; the backup
+    and preset directories land in ``tmp_path``, never in the repo.
+    """
+    clients: list[HttpConfigClient] = []
+
+    def build(daemon: dict[str, Any], **overrides: Any) -> ConnectionManager:
+        http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
+        clients.append(http)
+        defaults: dict[str, Any] = {
+            "alarm_threshold": 1.0,
+            "backup_dir": tmp_path,
+            "preset_dir": tmp_path / "presets",
+        }
+        return ConnectionManager(Config(**{**defaults, **overrides}), http)
+
+    yield build
+    for http in clients:
+        await http.aclose()
+
+
+@pytest.fixture
+def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
+    """The common case: one manager on the healthy fake daemon."""
+    return http_manager_factory(http_daemon)
+
+
+# --- the REST app under test ------------------------------------------------
+
+
+def _closed_port() -> int:
+    """A port nothing listens on: bind one, read the number, hand back the hole."""
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port: int = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
+@pytest.fixture
+def closed_port() -> int:
+    return _closed_port()
+
+
+@pytest.fixture
+def api_client() -> Iterator[TestClient]:
+    """The REST surface with no daemon behind it (control lane at a closed port,
+    no credentials) — for the routes whose behavior is guards and buffering
+    rather than daemon traffic."""
+    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=_closed_port())
+    with TestClient(create_app(cfg)) as test_client:
+        yield test_client

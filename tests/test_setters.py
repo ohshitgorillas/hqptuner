@@ -22,7 +22,7 @@ async def test_volume_setter_applies(live_client: ControlClient) -> None:
 
 
 async def test_verify_state_passes_on_match(live_client: ControlClient) -> None:
-    await live_client.set_mode("2")
+    await live_client.set_command("SetMode", value="2")
     assert await live_client.verify_state({"mode": "2"}) is None
 
 
