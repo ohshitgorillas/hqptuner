@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.types import Scope
 
+from .. import __version__
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..control import ControlError
@@ -102,6 +103,9 @@ def health(manager: Mgr) -> dict[str, Any]:
         "alarm": manager.alarm,
         "info": manager.info,
         "license": manager.license,
+        # HQPTuner's own version, not the engine's: the About HQPTuner card reads
+        # it from here so the package is the single source of truth.
+        "app_version": __version__,
     }
 
 
