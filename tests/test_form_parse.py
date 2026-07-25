@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from hqptuner.conf import presetconf
 from hqptuner.conf.httpconf import parse_config_form
 
 FIXTURE = Path(__file__).parent / "fixtures" / "config-form-6.0.4.html"
@@ -15,24 +16,16 @@ _HTML = FIXTURE.read_text()
 _PARSED = parse_config_form(_HTML)
 _FIELDS = {f["name"]: f for f in _PARSED["fields"]}
 
-# the outline §4 persistent controls the read side must surface
+# Every /config field the persistent write path can target, derived from
+# presetconf rather than hand-listed — a hand-kept subset (this was 16 of 48)
+# stops covering the fields added after someone last remembered to widen it.
+# The offline half of the version canary: this catches a parser regression
+# against the frozen 6.0.4 capture, test_live_forms catches the daemon moving
+# under us. post_*/matrix_* live on the /matrix form, not this one.
 OWNED_FIELDS = {
-    "backend",
-    "mode",
-    "channels",
-    "pipelines",
-    "fft_size",
-    "idle_time",
-    "net_ipv6",
-    "net_anydsd",
-    "fixed_volume_enabled",
-    "fixed_volume",
-    "volume_max",
-    "volume_min",
-    "defaults_volume",
-    "gain_comp",
-    "adaptive_volume",
-    "playlist_album_gain",
+    name
+    for name in set(presetconf.FIELD_MAP) | {presetconf.NET_DEVICE, presetconf.FIXED_ENABLED, presetconf.FIXED_LEVEL}
+    if not name.startswith(("post_", "matrix_"))
 }
 
 

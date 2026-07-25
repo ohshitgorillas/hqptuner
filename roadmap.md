@@ -279,27 +279,10 @@ Backend `c11b938`; frontend `store/dspmode.js`, `store/speakers.js`, `components
 
 ## Maintenance — structural debt reduction (opened 2026-07-25)
 
-A survey of the repo's structural debt, worked top-down. Items are listed in the order they were ranked; each closes with what actually shipped, not what was proposed.
-
-### 1 — Control-catalog cross-check gate (**done 2026-07-25**)
-
-**The debt.** One control is spelled out in three tables and nothing checked that they agree: `static/store/schema.js` (UI key → widget, lane, form field), `conf/presetconf.py` `FIELD_MAP`/`PLUGIN_MAP` (form field → XML element + attribute), and `data/settings.json` (label + tooltip prose, keyed by tab group). Adding or renaming a control touches three files; missing one fails silently — the control ships with no tooltip, or the write path has nowhere to persist it.
-
-**Decision: gate it, don't restructure it.** A single generated catalog was considered and deferred — the three tables have genuinely different shapes and owners, and the cheap cross-check buys most of the safety. Revisit only if the gate starts firing regularly.
-
-`scripts/check_control_catalog.py`, wired into `make lint-js` (the target that already requires node) and pre-commit as `control-catalog`, triggered by any of the three files. Three hard checks: every control's `note || key` has prose in its group; every `lane:"http"` control's `field` resolves to an XML target; every `group` is real. Two reverse directions report but never fail — an XML target with no control is a deliberate non-exposure, and prose with no control is a control not built yet (`settings.json` carries `_unexposed_candidates` for exactly that).
-
-**The schema is read by importing schema.js through node, never by pattern-matching it.** A regex sweep was tried first and produced false hits (it reported `output_mode` unjoined when the join is clean) — the entries mix multi-line and single-line objects with computed values, so the only trustworthy reader is the JS engine. Viable because schema.js's only import is the relative `../lib/coerce.js`; no importmap or vendor-resolve needed.
-
-**Found on first run: two controls shipping with empty tooltips.** `gain_comp` — prose lived at `volume.gain_compensation` with a verbatim-matching label; fixed with `note:`. `matrix_pipelines` — no prose at all; given its own `dsp.matrix_pipelines` entry grounded in readme §1.11.1 + manual §7.
-
-**Near-miss worth recording.** The first `matrix_pipelines` fix was `note: "pipelines"`, chosen on name similarity. Wrong: `pipelines` is a separate control (the `<engine pipelines>` channel-count dropdown) that already owns that prose, and the tooltip would have read "Number of DSP pipelines available…" on the matrix routing field. The tell was the informational count — orphan prose fell 14→13 after two fixes, so only one entry got claimed. The new prose carries an explicit "Distinct from DSP pipelines" clause, since the two controls are one word apart in the UI.
-
-### Remaining, ranked (surveyed 2026-07-25, not yet started)
+Survey of the repo's structural debt, worked top-down. Items 1 (control-catalog gate) and 2 (daemon-version canary) are done — see git log; the decisions live in the commit messages and the source docstrings rather than being restated here.
 
 Sizing below is from file counts and greps, **not verified joins** — the debt-1 estimate was off by an order of magnitude (predicted "up to 27" violations, found 2). Treat each as a starting point to be re-measured, not a scoped task.
 
-2. **Persistence path is HTML scraping + regex-on-XML, fixtures pinned to 6.0.4.** `httpconf.py` BeautifulSoup-parses the daemon's web UI; `presetconf.py` edits config XML by hand-rolled byte regex (`_in_comment()` exists because regex cannot see XML structure). An HQPlayer point release breaks the write path with the whole offline suite still green. Proposed: a `live`-marked canary asserting every catalog field is still present in the real forms, run on daemon upgrade — cheaper and higher-value than rewriting either parser. A real XML parser for `presetconf` only if byte-preservation can be proven by round-trip diff.
 3. **`manager.py` is a god facade** — 492 lines, 40+ methods, mostly one-line delegation over 8 lanes, mixed in with the real reconnect/poll/backoff logic. Proposed: `ConnectionManager` keeps connection lifecycle + snapshot cache; delegation moves to the lanes with `api/deps.py` injecting per route. Incremental.
 4. **`schema.js` at 903 lines is exempt from the length gate.** Exemption is honest (control table, not logic) but the `grayWhen` closures in it *are* logic. Largely dissolved by a fix to item 1's underlying duplication, if that is ever taken up.
 5. **Docs outweigh code and drift.** ~160 KB prose vs 7.2k lines of Python. Confirmed stale: `roadmap.md` claimed "the repo has no JS runner" while `make test-js` runs 24 files. Proposed: split completed phases into an archive, audit the rest.
