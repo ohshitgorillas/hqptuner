@@ -69,19 +69,47 @@
   stroke-dasharray: 4 3;
   opacity: 0.7;
 }
-.plot-trace.r0 { stroke: var(--chip-ch); fill: none; }
-.plot-trace.r1 { stroke: var(--chip-iir); fill: none; }
-.plot-trace.r2 { stroke: var(--chip-conv); fill: none; }
-.plot-trace.r3 { stroke: var(--fg-2); fill: none; }
-.plot-tlbl.r0 { fill: var(--chip-ch); }
-.plot-tlbl.r1 { fill: var(--chip-iir); }
-.plot-tlbl.r2 { fill: var(--chip-conv); }
-.plot-tlbl.r3 { fill: var(--fg-2); }
+.plot-trace.r0 {
+  stroke: var(--chip-ch);
+  fill: none;
+}
+.plot-trace.r1 {
+  stroke: var(--chip-iir);
+  fill: none;
+}
+.plot-trace.r2 {
+  stroke: var(--chip-conv);
+  fill: none;
+}
+.plot-trace.r3 {
+  stroke: var(--fg-2);
+  fill: none;
+}
+.plot-tlbl.r0 {
+  fill: var(--chip-ch);
+}
+.plot-tlbl.r1 {
+  fill: var(--chip-iir);
+}
+.plot-tlbl.r2 {
+  fill: var(--chip-conv);
+}
+.plot-tlbl.r3 {
+  fill: var(--fg-2);
+}
 /* drag handles inherit their pipeline's trace hue */
-.plot-dot.r0 { fill: var(--chip-ch); }
-.plot-dot.r1 { fill: var(--chip-iir); }
-.plot-dot.r2 { fill: var(--chip-conv); }
-.plot-dot.r3 { fill: var(--fg-2); }
+.plot-dot.r0 {
+  fill: var(--chip-ch);
+}
+.plot-dot.r1 {
+  fill: var(--chip-iir);
+}
+.plot-dot.r2 {
+  fill: var(--chip-conv);
+}
+.plot-dot.r3 {
+  fill: var(--fg-2);
+}
 
 /* ── Matrix tab design pass ──────────────────────────────────────────────
    Content-sized flow controls: the global select width token (--w-select) is
@@ -236,4 +264,3 @@
 .plot-tlbl.prev {
   fill: var(--accent);
 }
-
