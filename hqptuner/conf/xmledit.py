@@ -19,7 +19,48 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 
-from .matrixconf import GroundingError
+
+class GroundingError(ValueError):
+    """An edit that cannot be placed in this snapshot at all.
+
+    A merely *absent* target is no longer one of these — it is created (see
+    ``PARENT``). What remains are the cases with no defensible answer: a snapshot
+    with no root element, a tag with no known schema position, an unknown form
+    field, a malformed value.
+
+    Lives here, at the bottom of the layering, because both editing modules raise
+    it and the locators are shared. Message text is user-facing (it reaches the
+    pending bar) and must therefore carry no angle-bracketed token: a browser —
+    or a chat client the user pastes into — eats ``<alsa>`` as markup and leaves
+    the reader the half of the sentence that says nothing."""
+
+
+ROOT = "hqplayerd"
+
+# Where each element hqptuner writes sits in hqplayerd's config tree, transcribed
+# from a live 6.0.4 config (/etc/hqplayer/hqplayerd.xml) and the daemon readme.
+#
+# This map exists because hqplayerd writes only what it has had reason to write:
+# a config that never had loudness configured carries no <plugin type="loudness">,
+# and one that never had matrix processing on carries no <matrix> body. The daemon
+# fills none of it back in on load — it just runs with its documented defaults. So
+# a write path that can only edit what already exists cannot reach roughly half of
+# its own form on a config like that, which is what "my preset won't save" was.
+PARENT: dict[str, str] = {
+    "title": ROOT,
+    "output": ROOT,
+    "mode": ROOT,
+    "pcm": ROOT,
+    "sdm": ROOT,
+    "log": ROOT,
+    "upnp": ROOT,
+    "engine": ROOT,
+    "defaults": "engine",
+    "alsa": "engine",
+    "network": "engine",
+    "matrix": "engine",
+    "post_process": "matrix",
+}
 
 
 def open_tag_re(tag_name: str) -> re.Pattern[bytes]:
@@ -90,17 +131,85 @@ def splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
     return xml[: at.start()] + tag + xml[at.end() :]
 
 
-def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the single ``<tag_name ...>`` element."""
+def line_lead(xml: bytes, at: int) -> bytes:
+    """The indentation of the line byte offset ``at`` sits on — empty when that
+    line holds anything but whitespace before ``at`` (a single-line config)."""
+    start = xml.rfind(b"\n", 0, at) + 1
+    lead = xml[start:at]
+    return lead if lead.strip() == b"" else b""
+
+
+def _insert_child(xml: bytes, parent: str, child: bytes) -> bytes:
+    """Append ``child`` as the last child of ``parent`` (which must have a body),
+    indented one level in from the parent's own line.
+
+    Last, not first: appending never splits a run the daemon wrote, and for the
+    elements that actually go missing — ``matrix``, ``post_process``, a
+    ``plugin`` — last IS where 6.0.4 puts them."""
+    m = find_element(xml, parent)
+    if m is None:  # unreachable: every caller runs ensure_body first
+        raise GroundingError(f"the {parent} element is absent from this snapshot")
+    close = xml.find(b"</" + parent.encode() + b">", m.end())
+    bol = xml.rfind(b"\n", 0, close) + 1
+    # when the closing tag sits on its own line, go in ahead of that line's break
+    # so the child lands inside the body rather than wedged against `</parent>`
+    at = bol - 1 if bol and xml[bol:close].strip() == b"" else close
+    return xml[:at] + b"\n" + line_lead(xml, m.start()) + b"\t" + child + xml[at:]
+
+
+def ensure_element(xml: bytes, tag_name: str) -> bytes:
+    """Return ``xml`` guaranteed to hold a live ``<tag_name>``, creating it — and
+    any missing ancestor — at its schema position.
+
+    The created element carries NO attributes. Every attribute hqplayerd omits is
+    one it is already applying its own documented default for, so authoring a
+    "complete" element would silently overwrite the user's daemon-side settings
+    with our idea of them. Only the attribute the user actually set gets written,
+    by the caller, immediately after."""
+    if find_element(xml, tag_name) is not None:
+        return xml
+    if tag_name == ROOT:
+        raise GroundingError("this snapshot has no hqplayerd root element")
+    parent = PARENT.get(tag_name)
+    if parent is None:
+        raise GroundingError(f"there is no known place in the config for the {tag_name} element")
+    return _insert_child(ensure_body(xml, parent), parent, b"<" + tag_name.encode() + b"/>")
+
+
+def ensure_body(xml: bytes, tag_name: str) -> bytes:
+    """As ``ensure_element``, and additionally expand a self-closing
+    ``<tag_name/>`` into an open/close pair so children can be placed in it."""
+    xml = ensure_element(xml, tag_name)
     m = find_element(xml, tag_name)
-    if m is None:
-        raise GroundingError(f"<{tag_name}> element absent from this snapshot")
+    if m is None or not m.group(0).endswith(b"/>"):
+        return xml
+    return splice(xml, m, m.group(0)[:-2] + b"></" + tag_name.encode() + b">")
+
+
+def ensure_plugin(xml: bytes, plugin_type: str) -> bytes:
+    """Return ``xml`` guaranteed to hold ``<plugin type="plugin_type">``, creating
+    it — and ``<post_process>``, and ``<matrix>`` — when absent."""
+    if find_plugin(xml, plugin_type) is not None:
+        return xml
+    xml = ensure_body(xml, "post_process")
+    return _insert_child(xml, "post_process", f'<plugin type="{plugin_type}"/>'.encode())
+
+
+def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
+    """Apply one attribute edit to the single ``<tag_name ...>`` element, creating
+    the element at its schema position when the snapshot lacks it."""
+    xml = ensure_element(xml, tag_name)
+    m = find_element(xml, tag_name)
+    if m is None:  # unreachable: ensure_element either placed it or raised
+        raise GroundingError(f"the {tag_name} element is absent from this snapshot")
     return splice(xml, m, set_attr(m.group(0), attr, value))
 
 
 def edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``."""
+    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``,
+    creating the plugin (and its container) when the snapshot lacks it."""
+    xml = ensure_plugin(xml, plugin_type)
     m = find_plugin(xml, plugin_type)
-    if m is None:
-        raise GroundingError(f'<plugin type="{plugin_type}"> absent from this snapshot')
+    if m is None:  # unreachable: ensure_plugin either placed it or raised
+        raise GroundingError(f"the {plugin_type} plugin is absent from this snapshot")
     return splice(xml, m, set_attr(m.group(0), attr, value))

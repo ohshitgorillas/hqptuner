@@ -126,28 +126,66 @@ def _replace_or_insert(tag: bytes, pat: re.Pattern[bytes], attribute: bytes) -> 
     return tag[:7] + b" " + attribute + tag[7:]
 
 
-def running_config_name(names: list[str]) -> str | None:
+def running_config_name(names: list[str], active: str | None = None) -> str | None:
     """The archive member that holds the live working config. Normally
     ``hqplayerd.xml``. But when a named profile is the active one, the daemon
     writes the live config to a root-level ``<Profile>.xml`` and omits
     ``hqplayerd.xml`` entirely (observed on 6.0.4: a preset-active ``/backup`` has
-    ``Speakers.xml`` at the root, no ``hqplayerd.xml``). Returns that member, or
-    ``None`` when neither an ``hqplayerd.xml`` nor a single unambiguous root-level
-    ``.xml`` is present."""
+    ``Speakers.xml`` at the root, no ``hqplayerd.xml``, protocol.md §3.6).
+
+    ``active`` is the DAEMON's active-profile label (``ConfigurationGet``, kept on
+    the manager as ``active_config``) — the daemon names that member after its own
+    active profile, so the label resolves it outright. Without it the resolver can
+    only take a sole root-level ``.xml``, and an archive carrying more than one
+    read as "no working config at all": every apply refused, permanently, with a
+    message blaming a daemon bug that a restart does not clear.
+
+    Returns ``None`` only when nothing here identifies a member — an archive that
+    genuinely has no working config, which is the daemon's empty-backup bug."""
     if "hqplayerd.xml" in names:
         return "hqplayerd.xml"
     roots = [n for n in names if "/" not in n and n.endswith(".xml")]
-    return roots[0] if len(roots) == 1 else None
+    if len(roots) == 1:
+        return roots[0]
+    named = f"{active}.xml" if active else None
+    return named if named in roots else None
 
 
-def base_config_xml(zip_bytes: bytes) -> bytes:
+def archive_summary(zip_bytes: bytes) -> str:
+    """What a ``/backup`` archive actually contains, for the log line when we
+    refuse it. Two very different faults present identically as "no working
+    config" — the daemon's post-profile-load bug serves a bare ``data/`` entry,
+    while an archive we simply cannot resolve a working member in is full of
+    files. The member list tells them apart at a glance, and nothing else does.
+    Never raises: this runs on the failure path, where the bytes may not be a zip
+    at all."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            names = z.namelist()
+    except (zipfile.BadZipFile, OSError) as exc:
+        return f"{len(zip_bytes)} bytes, not a readable zip ({exc})"
+    shown = ", ".join(names[:12]) + (f", … (+{len(names) - 12} more)" if len(names) > 12 else "")
+    return f"{len(zip_bytes)} bytes, {len(names)} members: {shown}"
+
+
+def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
     """The working-config member of a ``/backup`` archive (the config the running
     engine reflects): ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a
-    named preset is active. Empty if neither is present."""
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-        name = running_config_name(z.namelist())
-        if name:
-            return z.read(name)
+    named preset is active. Empty if neither is present. Pass the daemon's
+    active-profile label wherever it is known — it is what resolves an archive
+    carrying several root-level XMLs.
+
+    Bytes that are not a readable archive answer empty rather than raising. A
+    restarting daemon serves an error page here, and every caller already treats
+    empty as "unusable, fall back or refuse" — while an escaping ``BadZipFile``
+    reached the API as a 500 instead of the retry the outage path exists for."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            name = running_config_name(z.namelist(), active)
+            if name:
+                return z.read(name)
+    except (zipfile.BadZipFile, OSError):
+        return b""
     return b""
 
 
@@ -156,9 +194,16 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, all_presets: b
 
     Always the running-config member (``hqplayerd.xml``, or the root
     ``<Profile>.xml`` when a named preset is active). Plus every preset snapshot
-    when ``all_presets`` is set, or just the active preset's snapshot otherwise."""
-    names = zipfile.ZipFile(io.BytesIO(zip_bytes)).namelist()
-    base = [n for n in [running_config_name(names)] if n]
+    when ``all_presets`` is set, or just the active preset's snapshot otherwise.
+
+    Unreadable bytes answer "no members" for the same reason ``base_config_xml``
+    answers empty: the lane above reports an unconfirmed apply, which is true,
+    instead of dying on a ``BadZipFile`` the outage path never sees."""
+    try:
+        names = zipfile.ZipFile(io.BytesIO(zip_bytes)).namelist()
+    except (zipfile.BadZipFile, OSError):
+        return []
+    base = [n for n in [running_config_name(names, active_snapshot)] if n]
     snaps = [n for n in names if snapshot_name(n) is not None]
     if all_presets:
         return base + snaps

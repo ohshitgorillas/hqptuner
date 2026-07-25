@@ -22,8 +22,9 @@ Profiles reuse the pipeline row serializer, so a profile and the matrix it was
 saved from are byte-identical — which is what lets the apply's verify diff prove
 the element landed instead of trusting an HTTP 200.
 
-``GroundingError`` lives here (lowest layer) and is re-exported by ``presetconf``
-for its existing importers.
+``GroundingError`` lives in ``xmledit`` (the lowest layer, where the shared
+locators are) and is re-exported here and by ``presetconf`` for their existing
+importers.
 """
 
 from __future__ import annotations
@@ -31,6 +32,8 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+
+from .xmledit import GroundingError, ensure_body, ensure_element, in_comment
 
 MATRIX_PIPELINES = "matrix_pipelines"
 # One staged field per profile verb. Save carries {"name", "rows"} so the rows
@@ -52,9 +55,7 @@ _NAME_MAX = 128
 _ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), ("'", "&apos;"))
 
 
-class GroundingError(ValueError):
-    """An edit whose target element or plugin is absent from this snapshot — a
-    guessed write is never attempted."""
+__all__ = ["GroundingError"]  # re-exported: presetconf and the lanes import it from here
 
 
 def _attr_escape(value: str) -> str:
@@ -71,12 +72,14 @@ def _attr_unescape(value: str) -> str:
 
 def _matrix_body_span(xml: bytes) -> tuple[int, int]:
     """(start, end) byte offsets of the ``<matrix>`` element's body."""
-    m = re.search(rb"<matrix\b[^>]*>", xml)
+    # a commented element is not the live one — same rule the shared locators
+    # follow (xmledit.live_tags); hqplayerd parks superseded blocks in comments
+    m = next((c for c in re.finditer(rb"<matrix\b[^>]*>", xml) if not in_comment(xml, c.start())), None)
     if m is None or m.group(0).endswith(b"/>"):
-        raise GroundingError("<matrix> element (with a body) absent from this snapshot")
+        raise GroundingError("the matrix element has no body in this snapshot")
     close = xml.find(b"</matrix>", m.end())
     if close == -1:
-        raise GroundingError("<matrix> element (with a body) absent from this snapshot")
+        raise GroundingError("the matrix element has no body in this snapshot")
     return m.end(), close
 
 
@@ -155,6 +158,9 @@ def replace_pipelines(xml: bytes, value: str) -> bytes:
     and every byte outside it are preserved; indentation is taken from the
     existing rows so the daemon's own formatting survives."""
     rows = _validate_rows(value)
+    # a config whose matrix was never configured carries no <matrix> body at all;
+    # the rows the user just built are what puts one there
+    xml = ensure_body(xml, "matrix")
     start, close = _matrix_body_span(xml)
     body = xml[start:close]
     indent_m = re.search(rb"\n([ \t]*)<pipeline\b", body)
@@ -217,9 +223,9 @@ def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
     written profile adopts the snapshot's own formatting; it is empty for a
     snapshot written on one line, which is then extended inline rather than
     refused."""
-    m = re.search(rb"(?:\n([ \t]*))?<matrix\b", xml)
+    m = next((c for c in re.finditer(rb"(?:\n([ \t]*))?<matrix\b", xml) if not in_comment(xml, c.end())), None)
     if m is None:
-        raise GroundingError("<matrix> element absent from this snapshot")
+        raise GroundingError("the matrix element is absent from this snapshot")
     indent = m.group(1)
     return m.start(), b"" if indent is None else b"\n" + indent
 
@@ -248,6 +254,9 @@ def write_profile(xml: bytes, value: str) -> bytes:
         raise GroundingError(f"{MATRIX_PROFILE_SAVE}: must be an object with name and rows")
     name = _validate_name(raw.get("name"))
     rows = _rows_from_list(raw.get("rows"), MATRIX_PROFILE_SAVE)
+    # profiles anchor off <matrix>; a config that never had matrix processing on
+    # has none, so place it rather than refuse the save
+    xml = ensure_element(xml, "matrix")
     at, lead = _profile_anchor(xml)
     block = _profile_block(name, rows, lead)
     existing = _profile_re(name).search(xml)
