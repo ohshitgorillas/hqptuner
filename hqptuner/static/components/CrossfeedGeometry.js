@@ -103,7 +103,7 @@ function farPath([sx, sy], earDeg, hr) {
   return `M${f(sx)} ${f(sy)} C${f(c1x)} ${f(c1y)} ${f(c2x)} ${f(c2y)} ${f(ex)} ${f(ey)}`;
 }
 
-export function SpeakerDiagram({ angle, headRadius }) {
+export function CrossfeedGeometry({ angle, headRadius }) {
   const hr = headPx(headRadius);
   const [lx, ly] = polar(-angle, R);
   const [rx, ry] = polar(angle, R);

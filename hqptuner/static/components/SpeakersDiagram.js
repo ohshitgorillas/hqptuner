@@ -17,9 +17,9 @@
 // the box to what is actually drawn means the plan fills its width at any
 // distance and the card is only ever as tall as the drawing needs.
 //
-// This is deliberately NOT SpeakerDiagram.js. That one draws crossfeed's
-// simulated stereo pair and its ear paths — a different quantity (angle, head
-// size), a different audience, and no room in it for a rear channel.
+// Distinct from CrossfeedGeometry.js, which draws crossfeed's simulated stereo
+// pair and its ear paths — a different quantity (angle, head size), a different
+// audience, and no room in it for a rear channel.
 import { html } from "../lib/dom.js";
 
 const CX = 160;
