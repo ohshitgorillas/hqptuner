@@ -1,6 +1,6 @@
 // Volume range — Min / Startup / Max on one shared dBFS axis, full width,
-// directly under the master knob. The three values are interdependent (outline
-// §Volume: startup is "an integer box from min-max volume"), so a shared axis
+// directly under the master knob. The three values are interdependent (architecture
+// §4 — startup is "an integer box from min-max volume"), so a shared axis
 // states the relationship three separate boxes never did: the handles cannot
 // cross, and the filled span between Min and Max IS the range the daemon will
 // allow at runtime.

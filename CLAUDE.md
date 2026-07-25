@@ -45,14 +45,14 @@ HQPTuner never refuses a user action because the daemon is playing. Not with a 4
 
 (Different thing, still fine: *dev probe scripts* that write to the production daemon may check state before scribbling on it — that protects the host's listener, not the UI user.)
 
-- Design: `outline.md`. Phase plan: `roadmap.md`. Wire truth: `docs/protocol.md`, `docs/settings-classification.md`.
+- Design + normative rules: `docs/architecture.md`. Open structural debt: `docs/maintenance.md`. Wire truth: `docs/protocol.md`, `docs/settings-classification.md`.
 - **HQPlayer's own documentation lives in the working dir** — `hqplayer6desktop-manual.pdf` (full desktop manual) and `hqplayerd-readme.txt` (Embedded daemon config reference: every config-XML element, attribute, and plugin parameter). These are the authority for HQPlayer behavior, config attributes, enum meanings, and plugin params. **Reference them liberally, before inferring anything about wire/config behavior** — reading them beats guessing (and guessing routes/attributes is how bugs get shipped).
 - **Testing policy is binding: `docs/testing.md`.** Behavior only, one assertion per test, public API only, fakes speak wire protocol. Read it before writing or modifying any test.
 - Quality gates: `make check` = `lint lint-js test test-js` (ruff, black, xenon B/A/A, vulture, strict mypy, file-length + test-assertion gates, offline pytest, plus the JS gates) must be green before every commit. Pre-commit hooks enforce the same; bypassing them (`--no-verify`, `SKIP=`, editing the hook config to pass) is forbidden.
-- README exists (beta, user decision 2026-07-21 — supersedes the old "no README until release" rule); keep it current when features change. Decisions get recorded in `roadmap.md`.
+- README exists (beta, user decision 2026-07-21 — supersedes the old "no README until release" rule); keep it current when features change. Decisions get recorded in the commit message, and in `docs/architecture.md` when they change a normative rule.
 - **Changelog is binding (beta, 2026-07-21+):** every user-visible change lands with a `CHANGELOG.md` entry under `[Unreleased]`, in the same commit. Internal-only refactors/tests may skip it.
 - Never commit credentials — not in docs, not as "verification evidence". Placeholders only.
-- The running engine is the sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (outline §2).
+- The running engine is the sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (architecture §2).
 
 - You are a language model. Fluency is not correctness. Your output looks like an answer whether or not it is one. Never present confidence you haven't earned through verification.
 - Confabulation is your default failure mode. Verify against source files, docs, and running code before asserting. If you cannot verify, say so explicitly.
@@ -139,5 +139,5 @@ If you encounter a command that you believe is purely investigative which is bei
 - `make check` = full gate suite (pre-commit runs the same gates except the JS test suite, deliberately left out). `make test` = offline suite. `make test-live` adds `live`-marked tests (needs a reachable hqplayerd).
 - **Task-complete check is binding: after ANY code edit or rebuild, run `/task-check` (`bash .claude/task-check.sh`) before reporting the work done.** It runs `make check` and, only if green, rebuilds the `hqptuner:dev` container from the working tree (`docker-compose.yaml`, sudo-gated) and health-checks `:8090`. **The user views and tests every change themselves in a browser** — headless playwright misses a lot that human eyes catch, so work is never "done" until the dev container is rebuilt and handed over at the URL `task-check` prints on PASS. Never report visual/behavioral work complete without this rebuild; never rebuild past a red gate.
 - **Frontend/visual verification tooling (for the hand-back protocol):** `playwright` is in `.venv` (`.venv/bin/python`); the browser is the host's system chromium — pass its binary to `p.chromium.launch(executable_path=…)` (path is in the host skill). Do NOT `playwright install`; there is no ms-playwright browser cache.
-- Phase status and per-phase decisions live in `roadmap.md`. Phases 0–6 are complete; the open work is the Maintenance survey in `roadmap.md`.
+- Phases 0–6 are complete (history in git log; `outline.md` and `roadmap.md` were removed 2026-07-25). The open work is the structural-debt survey in `docs/maintenance.md`.
 - Write ops against the production daemon: idle-gate first (`State state="0"`), restore what you change, verify restore by `State` readback — `scripts/capture_pcm_enums.py` is the pattern.

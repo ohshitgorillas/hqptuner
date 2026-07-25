@@ -1,5 +1,5 @@
 {
-  "_comment": "Reference snapshot only - the running engine is the sole runtime authority (outline s2). Captured for extraction join-target names; never ship indices/IDs from here as authority.",
+  "_comment": "Reference snapshot only - the running engine is the sole runtime authority (architecture §2). Captured for extraction join-target names; never ship indices/IDs from here as authority.",
   "engine": "6.0.4",
   "captured": "2026-07-16",
   "mode_at_capture": "SDM",

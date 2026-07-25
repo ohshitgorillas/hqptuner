@@ -1,7 +1,7 @@
 """Write-path REST surface: staging validation, the pending buffer, and apply
 guards (docs/testing.md). The manager is pointed at a closed local port, so the
 connection endpoints under test never reach a real daemon; the connected apply
-path is validated live on Opal (roadmap Phase 3 exit criteria)."""
+path is validated live on Opal."""
 
 from collections.abc import Iterator
 from pathlib import Path

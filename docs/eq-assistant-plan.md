@@ -185,8 +185,8 @@ Established by reading the code on 2026-07-22, not inferred.
 | `crossfeed_level` | `post_bauer_level` | knob, default 4.5 dB |
 
 **Bounds are not hardcoded.** They arrive from the daemon's `/matrix` form
-constraints at runtime via `matrixByName`. `outline.md` §4's "300–2000 / 1–15" is
-the design sketch; libbs2b's own `BS2B_MINFCUT`/`MAXFCUT` and
+constraints at runtime via `matrixByName`. The old design sketch's "300–2000 / 1–15"
+is only that — a sketch; libbs2b's own `BS2B_MINFCUT`/`MAXFCUT` and
 `BS2B_MINFEED`/`MAXFEED` agree with it, but the validator still reads bounds from
 the served form, with constants as fallback only. Otherwise a HQPlayer version
 bump silently desyncs the clamps.
@@ -466,7 +466,7 @@ Recorded so they are not relitigated.
 | D2 | **All bands amendable, AutoEq included. Amend-before-append and prefer-zeroing-to-deleting are prompt guidance, not validator rules.** No band caps | Per F3 — coverage is the wrong test and suitability is a judgment. Encoding it as a rejection means encoding taste |
 | D2a | **Guardrails split three ways: validity / correctness / policy** | Validity = values the engine or form accepts (crossfeed bounds from the served form, compensation 0–150 %, the schema union). Correctness = headroom recompute and the in-turn compensation rebuild; arithmetic, not opinion. Policy = D1 alone. Everything previously in the guardrail table that fits none of these is prompt guidance |
 | D3 | **Crossfeed change always rebuilds compensation in-turn**, stale or not, with no narration | The rebuild is a pipeline change and shows in the structured diff; narration would violate the `changes` XOR `clarify` union |
-| D4 | Plan lives here; **no `roadmap.md` entry** | User decision |
+| D4 | Plan lives here; **no separate phase-plan entry** | User decision |
 | D5 | Validator is Python; client only compiles and stages | Per F6 — JS guardrails would be ungated |
 | D6 | Crossfeed bounds read from the served `/matrix` form | Per F1 — constants desync on a HQPlayer version bump |
 | D7 | **A turn is a bounded tool loop, not a completion.** The union constrains the final answer only; intermediate tool calls never reach the user | Per F8 — measuring a candidate means evaluating a chain that does not exist yet, which no context preloading can supply |

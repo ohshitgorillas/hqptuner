@@ -1,6 +1,6 @@
 # Settings classification — live vs restart
 
-Phase 0.2 deliverable. Every outline §4 control tagged with its lane:
+Phase 0.2 deliverable. Every architecture §4 control tagged with its lane:
 
 - **live** — a Control API (4321) setter exists; the change takes effect immediately, no daemon restart.
 - **http** — no live setter; the setting is persisted by the **restore lane**: HQPTuner fetches `/backup`, surgically edits the field's element/attribute in the running config XML (`presetconf.FIELD_MAP`), and pushes the archive with `POST /restore` (`scope=system`, Digest auth), on which the daemon self-restarts in **~5.6 s** (`lanes/httplane.py`). The field names below are still the daemon's own `/config` form field names — they are the read side and the staging key — but the **write is not a form POST**.
@@ -40,7 +40,7 @@ Empirical basis: spike runs against hqplayerd 6.0.4 on Opal (engine idle, `state
 | Quick pause | http | field `quick_pause` (checkbox) → `<engine quick_pause>` |
 | Short buffer | http | field `short_buffer` (select 0/1/2 = Normal/Short/Minimum) → `<engine short_buffer>` |
 
-**Correction (Phase 4, verified live 6.0.4): transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), with independent values — the outline §4/§5 "DAC bits grays in SDM / DoP grays in PCM" annotations describe the *desktop* app, not this form. HQPTuner surfaces these in collapsible ALSA / Network sections keyed on `backend` (Combo shows both), not via mode-graying.
+**Correction (Phase 4, verified live 6.0.4): transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), with independent values — the architecture §4/§5 "DAC bits grays in SDM / DoP grays in PCM" annotations describe the *desktop* app, not this form. HQPTuner surfaces these in collapsible ALSA / Network sections keyed on `backend` (Combo shows both), not via mode-graying.
 
 **Rate is per-family and friendly.** Persistent rate lives in two fields — `defaults_samplerate` (PCM) and `defaults_bitrate` (SDM) — each a target/ceiling. HQPTuner shows both as fixed friendly menus (`1x…32x` / `DSD64…DSD2048`) mapped to the **48k-base** ceiling value.
 
@@ -99,12 +99,12 @@ HQPTuner therefore exposes it as a three-way control (Off · −3 dB · −6 dB)
 
 **Config model (verified 2026-07-18, idle-gated probes on 6.0.4).** `hqplayerd.xml` is the live **working** config; `data/cfgs/<name>.xml` are saved **snapshots**. `POST /config/profile/load` copies a snapshot into the working config **from memory** — it does *not* re-read the snapshot file from disk (a disk edit followed by `load` has no effect; only a full daemon restart re-reads disk). `POST /config` writes the working file and **preserves** the active preset — it does *not* reset to `[default]`; only a full `systemctl restart` drops the active label to `[default]`. `POST /restore` (`scope=system`) writes the whole archive and triggers a self-restart that re-reads from disk **while keeping the active preset** — this is the lane HQPTuner uses for the form-absent `<engine>` hardware settings and for user-initiated backup restore. `scope=user` writes `~/.hqplayer`, which is not the running config on Opal, so it has no effect there.
 
-## Additional live controls on the wire (not in outline §4)
+## Additional live controls on the wire (not in architecture §4)
 
 | Command | Status | Notes |
 |---|---|---|
 | `SetJunkFilter` | live, verified | index domain; index 1 = 20k set both `filter_junk` and `filter_20k` state flags |
-| `SetConvolution` | out of scope | setter exists but convolution engine access is an outline non-goal — dropped per user decision |
+| `SetConvolution` | out of scope | setter exists but standalone convolution-engine access is an `architecture.md` §1 non-goal — dropped per user decision |
 
 ## Preset switching (HTTP lane)
 

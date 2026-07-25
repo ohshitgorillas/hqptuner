@@ -1,11 +1,11 @@
 # Matrix pipeline editing — design of record
 
-Approved 2026-07-20. Reverses outline §1's "matrix editing cut" non-goal. This file is the spec of record for the Matrix tab; the investigation findings and probe results it rests on are appended below.
+Approved 2026-07-20. Reverses architecture §1's "matrix editing cut" non-goal. This file is the spec of record for the Matrix tab; the investigation findings and probe results it rests on are appended below.
 
 ## Spec (verbatim, user-approved)
 
 **0. Process.**
-Amend outline §1 and roadmap first: matrix editing is un-cut, with a pointer to this spec as the design of record. The round-6 spacing system is law for this tab — tokens, two-track grid, equal-height card rows, definition of done, and the hand-back protocol (fresh screenshots, PASS/FAIL per acceptance criterion) all apply.
+Amend architecture §1 and roadmap first: matrix editing is un-cut, with a pointer to this spec as the design of record. The round-6 spacing system is law for this tab — tokens, two-track grid, equal-height card rows, definition of done, and the hand-back protocol (fresh screenshots, PASS/FAIL per acceptance criterion) all apply.
 
 **1. Probes (idle-gated, approved — run before finalizing the plan).** **Done** — all five open questions answered; see the Probe findings sections below (rounds 1–5). Spec adjustments they forced are flagged inline at §2 and §7.
 

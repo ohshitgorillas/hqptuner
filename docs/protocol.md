@@ -4,7 +4,7 @@ Derived from the official `hqp-control` 6.0.1 source (signalyst.eu, `hqp-control
 
 This document covers the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. Playback, library, and playlist commands are listed in the out-of-scope appendix only.
 
-**Enumeration volatility (normative):** filter/shaper names and list ordering change across HQPlayer versions; the configuration file stores numeric enumeration IDs. The running engine's enumeration queries (`GetModes`, `GetFilters`, `GetShapers`, `GetRates`, `GetJunkFilters`) are the sole runtime authority for current names and IDs. See `outline.md` §2.
+**Enumeration volatility (normative):** filter/shaper names and list ordering change across HQPlayer versions; the configuration file stores numeric enumeration IDs. The running engine's enumeration queries (`GetModes`, `GetFilters`, `GetShapers`, `GetRates`, `GetJunkFilters`) are the sole runtime authority for current names and IDs. See `docs/architecture.md` §2.
 
 Items marked **verify empirically** could not be determined from the client source alone and are Phase 0.2 targets.
 
@@ -70,7 +70,7 @@ hqplayerd's built-in web server (default **port 8088**, the same one the stock c
 - **Credentials:** the management username/password provisioned by `hqplayerd -u <user> <pass>` (per-user) or `-s` (system), or via the `/auth` web page. Verified: the live management credential returns HTTP 200 on `/config`.
 - **Stored digest = HTTP Digest HA1 (verified).** `hqplayerd-auth.xml` stores exactly the Digest HA1 for this realm, reproduced bit-for-bit: the `legacy` attribute = `MD5("<user>:com.signalyst.hqplayer.embedded:<pass>")`, and `digest` = `SHA-256(` same string `)`. No hidden salt — this is the earlier "salted digest" mystery, resolved. (There is no reason for HQPTuner to read this file; the daemon validates Digest itself.)
 
-**Client-design consequence:** HQPTuner takes the HQPlayer management username/password from the `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD` env vars at startup (`hqptuner/config.py`) — there is no login screen — and uses them for HTTP Digest auth against the 8088 interface (holding the credential server-side). Read-only use and all live (4321) settings work without them; only the persistent-config write lane and preset switching (§3.6) require them. See outline §3/§7.
+**Client-design consequence:** HQPTuner takes the HQPlayer management username/password from the `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD` env vars at startup (`hqptuner/config.py`) — there is no login screen — and uses them for HTTP Digest auth against the 8088 interface (holding the credential server-side). Read-only use and all live (4321) settings work without them; only the persistent-config write lane and preset switching (§3.6) require them. See architecture §3/§7.
 
 ## 3.6. HTTP configuration routes (port 8088)
 
@@ -309,7 +309,7 @@ Caveat (**observed**): a setter can return `result="OK"` without the setting act
 
 ### Configuration profiles
 
-hqplayerd supports named configuration profiles; potentially relevant to outline §7 presets.
+hqplayerd supports named configuration profiles; potentially relevant to architecture §7 presets.
 
 - `<ConfigurationList/>` → container with `active="name"` attribute and `<ConfigurationItem name="..."/>` per profile.
 - `<ConfigurationGet/>` → `<ConfigurationGet value="activename"/>`.
@@ -363,7 +363,7 @@ Playback/library/playlist surface, listed for orientation only (HQPTuner is a co
 | `Play`, `Pause`, `Stop`, `Previous`, `Next`, `Backward`, `Forward`, `Seek`, `SelectTrack`, `PlayNextURI`, `LoadRemovable` |
 | `PlaylistAdd/Remove/MoveUp/MoveDown/Get/GetSingle/GetAll/GetList/Load/Save/Delete/Upload/Clear` |
 | `LibraryGet`, `LibraryGetHash`, `LibraryLoad`, `LibraryPicture`, `LibraryFavoriteGet/Set/SetCurrent` |
-| `MatrixListProfiles`, `MatrixGetProfile`, `MatrixSetProfile` (matrix editing is an outline non-goal; profile switching may become relevant to presets later) |
+| `MatrixListProfiles`, `MatrixGetProfile`, `MatrixSetProfile` (matrix editing was originally a non-goal; un-cut 2026-07-20 — these are the live profile-switch lane, see `docs/matrix-spec.md`) |
 | `SetRepeat`, `SetRandom`, `SetDisplay`, `GetDisplay`, `SetTransport`, `SetTransportPath`, `SetTransportRate` |
 
 ## 9. Verify empirically (Phase 0.2 checklist)

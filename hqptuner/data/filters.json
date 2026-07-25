@@ -1,6 +1,6 @@
 {
-  "_comment": "Static filter metadata overlay — prose, genre, and notes only. Keys are engine-reported names (join by name at runtime; engine enumerations are sole authority for names/IDs/order — outline §2). Structural facets are NOT stored here: quality/focus/ratio ship live in FiltersItem descriptions, apodizing in arg bit 0, phase is encoded in the name. Genre comes from the manual's own genre column (not editorial).",
-  "_join_rules": "1) Exact name match. 2) On miss, apply aliases. 3) On miss with a '-2s' suffix, strip the suffix, join the base entry, and append two_stage_note to the description. 4) Still no match → render engine name without description (outline §2).",
+  "_comment": "Static filter metadata overlay — prose, genre, and notes only. Keys are engine-reported names (join by name at runtime; engine enumerations are sole authority for names/IDs/order — architecture §2). Structural facets are NOT stored here: quality/focus/ratio ship live in FiltersItem descriptions, apodizing in arg bit 0, phase is encoded in the name. Genre comes from the manual's own genre column (not editorial).",
+  "_join_rules": "1) Exact name match. 2) On miss, apply aliases. 3) On miss with a '-2s' suffix, strip the suffix, join the base entry, and append two_stage_note to the description. 4) Still no match → render engine name without description (architecture §2).",
   "_source": "hqplayer6desktop-manual.pdf §4.6",
   "aliases": {
     "poly-sinc-shrt-lp": "poly-sinc-short-lp",

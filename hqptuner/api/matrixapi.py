@@ -85,7 +85,7 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
 def speakers(manager: HttpMgr) -> dict[str, Any]:
     """Speaker-processing read model (readme §1.9): enabled + per-channel level
     (dBFS) / distance (cm). Served from the last-loaded form snapshot, stale-flagged
-    when the daemon is unreachable — never a socket wait (roadmap 2.2)."""
+    when the daemon is unreachable — never a socket wait (fail-fast, see deps)."""
     form = deps.ensure_form(manager.speakers_form, manager.speakers_error, "/speakers")
     return deps.snapshot(manager, form)
 

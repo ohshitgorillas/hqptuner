@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Phase 1 exit-criteria validation for HQPTuner static metadata.
+"""Static-metadata validation for HQPTuner static metadata.
 
-Checks (roadmap Phase 1):
+Checks:
   1. Every engine-reported shaper has a name-keyed entry with a machine-readable
      rate-constraint field (min_rate_hz, nullable but present).
   2. Every engine-reported filter resolves through the join rules
