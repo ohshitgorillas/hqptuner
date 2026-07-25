@@ -29,7 +29,7 @@ import {
   remember,
   liveParams,
 } from "../lib/xfmode.js";
-import { SpeakerDiagram } from "./SpeakerDiagram.js";
+import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
 import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment, SliderNumber } from "./controls/index.js";
@@ -207,7 +207,7 @@ function StructuralMode({ rows }) {
       <span class="col-rule" aria-hidden="true"></span>
       <div class="xfs-right">
         <div class="xfs-diagram">
-          <${SpeakerDiagram} angle=${p0.angle} headRadius=${p0.headRadius} />
+          <${CrossfeedGeometry} angle=${p0.angle} headRadius=${p0.headRadius} />
         </div>
         <${Readouts} p=${p} lambda=${p0.lambda} />
       </div>

@@ -167,6 +167,11 @@
       "tooltip": "For filters using a low sampling rate, extends the filter's frequency response beyond the Nyquist frequency of the filter's sampling rate. Unnecessary when using extended-response 352.8 kHz convolution filters.",
       "source": "manual §7, readme §1.11"
     },
+    "matrix_pipelines": {
+      "label": "Pipelines",
+      "tooltip": "The matrix pipeline table. Each pipeline describes one virtual channel: a source channel routed through an ordered chain of processing stages and a gain into a target channel. Several pipelines may target the same channel, in which case they sum. Distinct from DSP pipelines, which sets how many are available.",
+      "source": "readme §1.11.1, manual §7"
+    },
     "matrix_iir2fir": {
       "label": "IIR to FIR",
       "tooltip": "Chooses whether parametric EQs are converted to a convolution EQ — in some cases, like GPU offloading, computing a set of parametric EQs as a convolution filter is more efficient.",

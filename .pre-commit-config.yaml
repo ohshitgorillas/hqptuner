@@ -86,3 +86,12 @@ repos:
         entry: .venv/bin/python scripts/check_css_tokens.py
         language: system
         files: ^hqptuner/static/css/.*\.css$
+
+      # Cross-cutting: one control is spelled out in schema.js, presetconf.py and
+      # settings.json, so the gate has to run when ANY of the three moves.
+      - id: control-catalog
+        name: control catalog cross-check
+        entry: .venv/bin/python scripts/check_control_catalog.py
+        language: system
+        pass_filenames: false
+        files: ^(hqptuner/static/store/schema\.js|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
