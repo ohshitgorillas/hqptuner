@@ -45,7 +45,11 @@ _MAX_CHANNELS = 128
 _NAME_MAX = 128
 
 # minimal XML attribute escaping for the process string (order matters on unescape)
-_ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"))
+# ``&apos;`` is in the table because the DAEMON writes it: an apostrophe in a
+# process string or a profile name comes back as the entity, and a table that
+# cannot unescape it reads the literal "&apos;" as the value — which then never
+# matches what was written, so the apply can never converge.
+_ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), ("'", "&apos;"))
 
 
 class GroundingError(ValueError):

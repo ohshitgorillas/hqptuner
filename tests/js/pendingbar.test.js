@@ -167,6 +167,24 @@ test("test_a_prior_result_is_superseded_by_a_new_edit", async () => {
   assert.equal(bar().includes("✓"), false);
 });
 
+// A failed apply KEEPS its staging, so "still pending" and "the last apply
+// failed" are true at once. Showing only the pending line reads as if nothing
+// had been tried — the reason the changes are still sitting there is the one
+// thing the user cannot work out for themselves.
+test("test_a_failed_apply_is_explained_while_its_changes_stay_staged", async () => {
+  await reset();
+  await stageOne();
+  lastApply.value = { ok: false, text: "Config not applied (unconverged): volume_max" };
+  assert.equal(bar().includes("Config not applied (unconverged): volume_max"), true);
+});
+
+test("test_a_failed_apply_still_shows_what_is_pending", async () => {
+  await reset();
+  await stageOne();
+  lastApply.value = { ok: false, text: "Config not applied (unconverged): volume_max" };
+  assert.equal(bar().includes("1 staged"), true);
+});
+
 // --- status line: in flight -------------------------------------------------
 
 test("test_an_apply_in_flight_says_so", async () => {

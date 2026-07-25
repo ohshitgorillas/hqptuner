@@ -275,6 +275,13 @@ def stale_http_daemon() -> Iterator[dict[str, Any]]:
 
 
 @pytest.fixture
+def clamping_http_daemon() -> Iterator[dict[str, Any]]:
+    # rewrites the startup volume into the volume range on every restore, so a
+    # field no apply ever stages comes back different from what was uploaded
+    yield from fake_http.spawn(fake_http.state(_clamps=True, defaults_volume="-60", volume_min="-40"))
+
+
+@pytest.fixture
 def dying_http_daemon() -> Iterator[dict[str, Any]]:
     # accepts the restore, then goes unreachable and never returns
     yield from fake_http.spawn(fake_http.state(_die=True))
@@ -320,6 +327,12 @@ async def http_manager_factory(tmp_path: Path) -> AsyncIterator[ManagerFactory]:
 def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
     """The common case: one manager on the healthy fake daemon."""
     return http_manager_factory(http_daemon)
+
+
+@pytest.fixture
+def clamping_manager(http_manager_factory: ManagerFactory, clamping_http_daemon: dict[str, Any]) -> ConnectionManager:
+    """A manager whose daemon rewrites a setting the user never staged."""
+    return http_manager_factory(clamping_http_daemon)
 
 
 # --- the REST app under test ------------------------------------------------

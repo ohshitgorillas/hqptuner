@@ -98,9 +98,14 @@ const resultLine = (result) =>
 function statusLine(n, sp, busy, reach, result, switchName) {
   if (busy) return applyingLine(sp, switchName);
   const pend = n > 0 || !!switchName;
-  if (pend) return reach ? pendingLine(n, sp, switchName) : html`<span class="note warn">${HELD}</span>`;
-  if (result) return resultLine(result);
-  return html`<span class="muted">No pending changes</span>`;
+  if (!pend) return result ? resultLine(result) : html`<span class="muted">No pending changes</span>`;
+  if (!reach) return html`<span class="note warn">${HELD}</span>`;
+  // A failed apply KEEPS the staging (api/app.py), so "still pending" and "the
+  // last apply failed" are true at once — and the pending line alone reads as if
+  // nothing was ever tried. The failure is the reason the changes are still here,
+  // so it leads; `edit()` clears it the moment the user stages something new.
+  if (result && !result.ok) return html`${resultLine(result)}${pendingLine(n, sp, switchName)}`;
+  return pendingLine(n, sp, switchName);
 }
 
 // Which buttons are inert. Discard is local, so it only wants something pending;

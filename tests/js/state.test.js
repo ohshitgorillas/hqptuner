@@ -274,6 +274,16 @@ test("test_a_persistent_refusal_reports_its_reason", async () => {
   assert.equal(lastApply.value.text, "Config not applied (timeout)");
 });
 
+// "unconverged" alone is undebuggable: it says a setting the daemon kept
+// refusing exists, but not which one — and the user is the only one who can see
+// their own config.
+test("test_an_unconverged_apply_names_the_fields_that_diverged", async () => {
+  await trees();
+  route({ apply: { persistent: { applied: false, reason: "unconverged", diff: { volume_max: {}, alsa_dop: {} } } } });
+  await applyAll();
+  assert.equal(lastApply.value.text, "Config not applied (unconverged): volume_max, alsa_dop");
+});
+
 test("test_a_persistent_refusal_with_no_reason_reads_as_unconfirmed", async () => {
   await trees();
   route({ apply: { persistent: { applied: false } } });
