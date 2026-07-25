@@ -6,34 +6,21 @@ its GET renders the running state. So a change only round-trips if
 `manager.apply` built a restore archive the real daemon would accept — a wrong
 form->XML mapping in the writer surfaces as a failed readback."""
 
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import ManagerFactory
 
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.manager import ConnectionManager
 
 
-def _manager(daemon: dict[str, Any], tmp_path: Path, alarm: float) -> tuple[ConnectionManager, HttpConfigClient]:
-    http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
-    # backup + preset store land in a tmp dir, not the repo; small alarm so a
-    # rejected apply polls only briefly before it times out
-    cfg = Config(alarm_threshold=alarm, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    manager = ConnectionManager(cfg, http)
-    return manager, http
-
-
 @pytest.fixture
-async def apply_via(
-    http_daemon: dict[str, Any],
-    tmp_path: Path,
-) -> AsyncIterator[tuple[ConnectionManager, HttpConfigClient]]:
-    manager, http = _manager(http_daemon, tmp_path, alarm=1.0)
-    yield manager, http
-    await http.aclose()
+def apply_via(http_manager: ConnectionManager) -> tuple[ConnectionManager, HttpConfigClient]:
+    """The manager plus its config client — several assertions read the daemon's
+    own form back rather than the manager's cached one."""
+    return http_manager, http_manager.require_http()
 
 
 async def _readback(http: HttpConfigClient) -> dict[str, Any]:
@@ -86,15 +73,12 @@ async def test_a_value_the_daemon_refuses_reports_not_applied(
 
 async def test_a_daemon_that_never_returns_reports_not_applied(
     dying_http_daemon: dict[str, Any],
-    tmp_path: Path,
+    http_manager_factory: ManagerFactory,
 ) -> None:
     # the daemon accepts the restore then never comes back; the apply must report
     # not-applied so the caller keeps the staging, not a false success
-    manager, http = _manager(dying_http_daemon, tmp_path, alarm=1.0)
-    try:
-        report = await manager.apply({}, {"title": "Renamed"})
-    finally:
-        await http.aclose()
+    manager = http_manager_factory(dying_http_daemon)
+    report = await manager.apply({}, {"title": "Renamed"})
     assert report["persistent"]["applied"] is False
 
 
@@ -111,15 +95,12 @@ async def test_the_pre_apply_backup_is_written_to_disk(
 
 async def test_apply_verifies_through_the_post_restart_stale_window(
     stale_http_daemon: dict[str, Any],
-    tmp_path: Path,
+    http_manager_factory: ManagerFactory,
 ) -> None:
     # the daemon serves the old form for a read after the POST; a single-GET
     # verify would false-negative here — the poll must ride through the stale read
-    manager, http = _manager(stale_http_daemon, tmp_path, alarm=3.0)
-    try:
-        report = await manager.apply({}, {"title": "Renamed"})
-    finally:
-        await http.aclose()
+    manager = http_manager_factory(stale_http_daemon, alarm_threshold=3.0)
+    report = await manager.apply({}, {"title": "Renamed"})
     assert report["persistent"]["applied"] is True
 
 
@@ -158,33 +139,25 @@ async def test_loudness_edit_persists_to_the_loudness_plugin(
 
 async def test_rescan_surfaces_a_newly_present_output_device(
     http_daemon: dict[str, Any],
-    tmp_path: Path,
+    http_manager: ConnectionManager,
 ) -> None:
     # an endpoint that was powered off is absent from the device list until a
     # rescan; refresh_devices must trigger it AND refetch the form so the new
     # device is actually offered — a bare POST that skipped the refetch would not
-    manager, http = _manager(http_daemon, tmp_path, alarm=1.0)
     http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
-    try:
-        await manager.refresh_devices()
-        fields = (manager.config_form or {}).get("fields", [])
-        offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
-    finally:
-        await http.aclose()
+    await http_manager.refresh_devices()
+    fields = (http_manager.config_form or {}).get("fields", [])
+    offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
     assert "S99/hw:CARD=WokeUp,DEV=0" in offered
 
 
 async def test_read_preset_reads_the_store_and_survives_an_empty_backup(
     http_daemon: dict[str, Any],
-    tmp_path: Path,
+    http_manager: ConnectionManager,
 ) -> None:
     # a preview reads the HQPTuner store, never the daemon — so it still works when
     # the daemon's /backup goes empty (the 6.0.4 post-load bug, protocol §3.6)
-    manager, http = _manager(http_daemon, tmp_path, alarm=1.0)
-    try:
-        await manager.save_preset("Kept")  # snapshot the running config into the store
-        http_daemon["_empty"] = True
-        cfg = await manager.read_preset("Kept")
-    finally:
-        await http.aclose()
+    await http_manager.save_preset("Kept")  # snapshot the running config into the store
+    http_daemon["_empty"] = True
+    cfg = await http_manager.read_preset("Kept")
     assert cfg["title"] == "Opal"

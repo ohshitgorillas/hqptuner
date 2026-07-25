@@ -4,26 +4,17 @@ restore lane — the manager edits its <post_process><plugin> node in the snapsh
 — and the change appears in the running config's /matrix readback.
 """
 
-from collections.abc import AsyncIterator
-from pathlib import Path
-from typing import Any
-
 import pytest
 
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.manager import ConnectionManager
 
 
 @pytest.fixture
-async def matrix_apply(
-    http_daemon: dict[str, Any],
-    tmp_path: Path,
-) -> AsyncIterator[tuple[ConnectionManager, HttpConfigClient]]:
-    http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
-    manager = ConnectionManager(Config(alarm_threshold=1.0, backup_dir=tmp_path), http)
-    yield manager, http
-    await http.aclose()
+def matrix_apply(http_manager: ConnectionManager) -> tuple[ConnectionManager, HttpConfigClient]:
+    """The manager plus its config client — these assertions read the daemon's
+    own /matrix back, not the manager's cached form."""
+    return http_manager, http_manager.require_http()
 
 
 async def test_crossfeed_field_reaches_the_running_config(
