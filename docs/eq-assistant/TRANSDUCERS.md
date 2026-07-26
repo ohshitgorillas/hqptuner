@@ -1,6 +1,6 @@
 # TRANSDUCERS.md — what the EQ Assistant is actually EQ-ing
 
-Companion to `SOURCES.md` (citations, disagreements), `PRIMER.md` (feature contract), `vocabulary.json` (the term map). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations, disagreements), `PRIMER.md` (feature contract), `HEARING.md` (the listener, where the deficit is not the transducer's), `vocabulary.json` (the term map). Compiled 2026-07-25.
 
 The tuner does not generate a correction from nothing. It amends a chain that already carries an AutoEq profile for a specific headphone. **This document is the physical and measurement reality behind that profile**: what kind of driver made the curve, which acoustic variables move it, and above which frequency the measurement it came from stops meaning anything.
 
@@ -15,7 +15,7 @@ The operative consequence, stated up front: **a listening complaint is not alway
 | `[S]` | Secondary only. Indicative; re-verify before relying on it. |
 | `[X]` | Could not reach. Listed for completeness; **no content attributed.** |
 
-Everything in this file is `[VA]` unless marked otherwise — it was gathered by two delegated lanes (over-ear, in-ear) that were required to quote verbatim and to separate manufacturer *technical documentation* from manufacturer *marketing*. Where a lane computed rather than quoted a figure, that is stated in place and the figure is labelled derived.
+Everything in this file is `[VA]` unless marked otherwise. Where a figure was computed rather than quoted, that is stated in place and the figure is labelled derived.
 
 ---
 
@@ -45,7 +45,7 @@ and "your headphone will be bassier than the manufacturer's design." **No AutoEq
 
 ### 1.2 Planar magnetic
 
-Audeze's own pages `[VA]` are **marketing with a correct physical premise** — the lane checked explicitly and recorded "The page contains NO graphs, measurements, frequency response data, distortion figures, or numerical specifications." Two structural claims are nonetheless checkable in principle and consistent across sources:
+Audeze's own pages `[VA]` are **marketing with a correct physical premise** — "The page contains NO graphs, measurements, frequency response data, distortion figures, or numerical specifications." Two structural claims are nonetheless checkable in principle and consistent across sources:
 
 > "Audeze's planar magnetic drivers are able to produce uniform driving force _directly_ across the entire diaphragm" — versus a dynamic where "the driving force begins in the center and must travel outward."
 
@@ -81,7 +81,7 @@ The 230 V "Normal" bias is **not** on Stax's page — `[S]` only, do not present
 
 ### 2.1 Dynamic / moving coil (IEM)
 
-Single-DD and DD+BA hybrid shells are the commonest IEM configuration on the market, but until this pass the base had no dedicated coverage here — §1.1's dynamic-driver physics is written for an over-ear cup and does not transfer directly to a driver sealed into an IEM shell a few millimetres from the canal.
+Single-DD and DD+BA hybrid shells are the commonest IEM configuration on the market. §1.1's dynamic-driver physics is written for an over-ear cup and does not transfer directly to a driver sealed into an IEM shell a few millimetres from the canal.
 
 **EM-Tech** `[VA]` (US Patent 10,536,771 B2, *Dynamic Receiver with Resonance Protector for Earphone*, filed 2018, granted 2020 — EM-Tech makes both BA and dynamic earphone receivers for the OEM market, same citation tier as Sonion/Knowles below) describes the basic construction:
 
@@ -95,7 +95,7 @@ Single-DD and DD+BA hybrid shells are the commonest IEM configuration on the mar
 
 **Vent-set bass rolloff** (closing, partially, the gap flagged at §7): three manufacturers independently describe the same trade-off. **Apple** `[VA]` (US 11,575,985 B2, *Mass loaded earbud with vent chamber*, 2023): "bass response may be controlled to a frequency of less than 1 kHz by shaping bass duct to contain a volume of air that acts as a corresponding acoustic mass" — a vent/duct's air column loads the diaphragm as added mass, not a simple leak. **EM-Tech** `[VA]` (US 11,368,784 B2, *Receiver unit having pressure equilibrium structure and compensation structure for low frequency*, 2022) states the trade-off directly: "if a ventilation recess is provided in order to relieve deafening of the ear, large loss occurs in the SPL in the low frequency region" — compensated by duct resonance and acoustic mesh damping. **Apple** again `[VA]` (US 9,161,118 B2, *Earphone having an acoustic tuning mechanism*, 2015) gives a numeric port-area figure — "about 1 mm² to about 8 mm²" — tied to a back-volume resonance of "about 2 kHz to about 3 kHz," though that figure is a resonance peak, not the LF corner itself. **No source gives a clean vent-diameter-to-Hz corner number for an IEM** — the mechanism is now solid, the magnitude is not. Updates §7.
 
-**DD+BA hybrid combination — naive is not automatically better.** **Jiang, Xu, Jiang, Kim & Hwang**, *Analysis and Development of Hybrid Earphone Combining Balanced-Armature and Dynamic Receivers*, Applied Sciences 9(23):5047, 2019, DOI 10.3390/app9235047 (peer-reviewed, open-access CC-BY, Pusan National University acoustics group). Full text `[V]` — read directly, obtained by hand after `mdpi.com` domain-blocked this fetcher (Akamai 403); upgraded from the earlier abstract-only `[VA]` pass.
+**DD+BA hybrid combination — naive is not automatically better.** **Jiang, Xu, Jiang, Kim & Hwang**, *Analysis and Development of Hybrid Earphone Combining Balanced-Armature and Dynamic Receivers*, Applied Sciences 9(23):5047, 2019, DOI 10.3390/app9235047 (peer-reviewed, open-access CC-BY, Pusan National University acoustics group). Full text `[V]` — read directly.
 
 The dynamic and BA units share one front chamber, and "the SPL of a hybrid earphone can be treated as the summation of the SPLs of the dynamic and BA earphones. In addition, the dynamic, BA, and hybrid earphones have the same peak frequency in the SPL curve because they have the same front chamber." With a bare (prototype, non-optimized) front-chamber tube, that summation is **worse than either driver alone**:
 
@@ -107,7 +107,7 @@ The dynamic and BA units share one front chamber, and "the SPL of a hybrid earph
 
 **This paper does not use "phase" or "notch" language anywhere in the text** — its account of the shared-chamber interaction is SPL-summation and acoustic-tube filtering, not a BA-to-BA-style phase-cancellation notch (Knowles AN-030, §2.2). Do not stretch this citation into a phase-null claim it doesn't make; a DD-to-BA phase-notch analogue to AN-030 remains genuinely open (§7).
 
-**Diaphragm breakup in small dynamic IEM diaphragms: no source found**, after a real search across the AES e-library, manufacturer documentation, and Google Scholar-style queries. A cluster of general audio-transducer patents surfaced a breakup-frequency figure via search-engine synthesis only, unverified by direct fetch — **not cited**. Marked open, §7.
+**Diaphragm breakup in small dynamic IEM diaphragms: no source found.** A cluster of general audio-transducer patents surfaced a breakup-frequency figure via search-engine synthesis only, unverified by direct fetch — **not cited**. Marked open, §7.
 
 ### 2.2 Balanced armature
 
@@ -171,7 +171,7 @@ Crucially, the same source scopes this to over-ears: "Repositioning and averagin
 
 ### 3.2 In-ear: canal resonance, insertion depth, tips, venting
 
-**Ear-canal resonance is why an IE target cannot reuse an OE target.** Chasin, *The Hearing Review*, 2013 `[VA]` (trade-technical tier; a peer-reviewed replacement was attempted and blocked): a ~28 mm canal gives F = v/4L ≈ "approximately 3035 Hz theoretically", measured "typically around 2700 Hz" once tympanic-membrane compliance adds "a few mm of acoustic length". The mechanism that matters:
+**Ear-canal resonance is why an IE target cannot reuse an OE target.** Chasin, *The Hearing Review*, 2013 `[VA]` (trade-technical tier): a ~28 mm canal gives F = v/4L ≈ "approximately 3035 Hz theoretically", measured "typically around 2700 Hz" once tympanic-membrane compliance adds "a few mm of acoustic length". The mechanism that matters:
 
 > occluding the **outer** canal — the pressure anti-node — "significantly reduce[s] the level of the associated resonance at 2700 Hz", while occlusion near the tympanum does almost nothing.
 
@@ -207,13 +207,13 @@ audioXpress `[VA]` (Butterworth, 2018, trade press with own measurements) suppli
 
 and notes that irregularities in the real human ear canal prevent this artefact arising naturally. GRAS claims the RA040X reduces the 13.5 kHz resonance "by 14 dB without significantly affecting response below 10 kHz"; the reviewer measured "-7.9 dB" on a real device — roughly half the claim.
 
-**Where the artefact actually lands, and why it matters to `sibilant`.** A claim circulates that the resonance sits at 8–11 kHz for a real IEM because of the λ/2 distance to the microphone membrane. **That figure is not published anywhere reachable above forum tier and is not asserted here.** What the lane recorded instead is a labelled derivation, given so the reasoning can be judged rather than trusted: λ/2 of 12.5 mm gives 13.7 kHz, reproducing COMSOL's own 13.8 kHz and validating the model; audioXpress `[VA]` states the resonance drops as the source sits further from the diaphragm; an IEM nozzle plus tip adds roughly 3–9 mm, which would place it between 11.0 and 8.0 kHz. **This is a simple open-tube model with a changed boundary condition — a plausibility check, not a computed prediction.**
+**Where the artefact actually lands, and why it matters to `sibilant`.** A claim circulates that the resonance sits at 8–11 kHz for a real IEM because of the λ/2 distance to the microphone membrane. **That figure is not published anywhere reachable above forum tier and is not asserted here.** What stands instead is a labelled derivation, given so the reasoning can be judged rather than trusted: λ/2 of 12.5 mm gives 13.7 kHz, reproducing COMSOL's own 13.8 kHz and validating the model; audioXpress `[VA]` states the resonance drops as the source sits further from the diaphragm; an IEM nozzle plus tip adds roughly 3–9 mm, which would place it between 11.0 and 8.0 kHz. **This is a simple open-tube model with a changed boundary condition — a plausibility check, not a computed prediction.**
 
 It is corroborated behaviourally rather than analytically: Crinacle normalises insertion depth so that the coupler spike lands **at 8 kHz** `[VA]`. That has two consequences. The ~8 kHz feature in such a published curve is a rig resonance deliberately parked there, not an earphone property; and everything above roughly 6 kHz in that curve is contingent on the seating choice.
 
 **Operational rule this supports:** treat **8 kHz as the qualified limit and 10 kHz as the hard confidence floor.** Above 10 kHz an IEM curve carries uncertainty on the order of the corrections the tuner would apply. Do not emit narrow high-Q bands above ~10 kHz, and do not read a feature at ~8 kHz as an earphone property. This is independently consistent with AutoEq's own optimiser capping at 10 kHz (`SOURCES.md` §1.1).
 
-**SBAF / HPDB — a deliberate negative result.** Their published methodology `[VA]` (forum/measurement-community tier, on GitHub, which is a better citation than the forum and was fetchable when the forum 403'd) states the rig verbatim: "MiniDSP EARS with screws removed (better seal) with compensation 3.2", "Flat Plate Coupler (no pinna with foam and felt overlay)", compensation designed for "a straight line across as perceptive neutral", "1/6 octave smoothed", "normalized to the region between 500 to 1500Hz". Their own caveat notes the flat plate "does have not an ear, e.g. pinna, concha, etc."
+**SBAF / HPDB — a deliberate negative result.** Their published methodology `[VA]` (forum/measurement-community tier, on GitHub, which is a better citation than the forum) states the rig verbatim: "MiniDSP EARS with screws removed (better seal) with compensation 3.2", "Flat Plate Coupler (no pinna with foam and felt overlay)", compensation designed for "a straight line across as perceptive neutral", "1/6 octave smoothed", "normalized to the region between 500 to 1500Hz". Their own caveat notes the flat plate "does have not an ear, e.g. pinna, concha, etc."
 
 **They do not use a 711 at all.** Their data is honestly documented and internally useful for relative comparisons (A vs B, pad vs pad, open vs closed — and they do publish controlled pad-swap file pairs), but it is **not comparable to the 60318-4-referred profiles our chain carries**, and a flat-plate coupler is especially inappropriate for IEMs, which load into a sealed residual canal volume that a flat plate does not present. Cite them as evidence of why rig provenance must be checked; do not use their curves as tuner input.
 
@@ -221,7 +221,7 @@ It is corroborated behaviourally rather than analytically: Crinacle normalises i
 
 ## 5. The provenance gap in our own baseline
 
-`SOURCES.md` §1.1 classes AutoEq as the highest-confidence source in this project "because the numbers are executable, not editorial." That remains true **of the constants**. It is not true of the profile data, and the distinction was not previously drawn.
+`SOURCES.md` §1.1 classes AutoEq as the highest-confidence source in this project "because the numbers are executable, not editorial." That remains true **of the constants**. It is not true of the profile data.
 
 Verified `[VA]`: `results/oratory1990/over-ear/` exists in the AutoEq repository, and `results/oratory1990/README.md` "is a list of model names and links only. It states no rig, no coupler, no target, no compensation, no methodology." The repository top-level README names its data sources — oratory1990, crinacle, Innerfidelity, Rtings, legacy headphone.com measurements — and its targets, "but contains no technical detail on how any of those measurements were conducted, on what equipment, or any documented limitation."
 
@@ -260,11 +260,11 @@ This does **not** license an idle gate, a refusal, or a disabled control. It lic
 
 ## 7. Open items
 
-- **Insertion depth with published dB figures** — still open after a dedicated hunt. Direction is sourced; magnitude is not. One `[S]` lead (an Etymotic ER-2 spec reportedly stating "A change of 10 mm in the length of the sound tube will change the frequency response by 0.5 dB at some frequencies") failed TLS and **must not be cited**.
+- **Insertion depth with published dB figures** — still open. Direction is sourced; magnitude is not. One `[S]` lead (an Etymotic ER-2 spec reportedly stating "A change of 10 mm in the length of the sound tube will change the frequency response by 0.5 dB at some frequencies") failed TLS and **must not be cited**.
 - **Foam vs silicone** broken out separately, and a bore-diameter series.
 - **Dynamic-driver IEM vent** setting the bass rolloff corner — **mechanism now sourced three ways** (§2.1: Apple mass-loaded-duct patent, Apple back-volume-resonance patent, EM-Tech pressure-relief patent), **but no source gives a clean vent-diameter-to-Hz corner number.** Partial close, not full.
-- ~~**DD+BA hybrid crossover, full text**~~ **RESOLVED 2026-07-25** — obtained by hand after `mdpi.com` returned Akamai 403 site-wide to the fetcher. **Read in full `[V]`.** §2.1 rewritten around it; local copy is gitignored, not committed. The paper's own account is shared-front-chamber SPL summation plus acoustic-tube filtering, **not** phase/notch language — a DD-to-BA phase-notch citation analogous to Knowles AN-030 (§2.2) remains genuinely open.
-- **Diaphragm breakup in small (5–12 mm) dynamic IEM diaphragms** — no citable source found after a real search. Do not cite the unverified ~15 kHz/~20 kHz figure that turned up as search-engine synthesis without a direct-fetch source behind it.
+- ~~**DD+BA hybrid crossover, full text**~~ **RESOLVED 2026-07-25** — **Read in full `[V]`.** §2.1 is written around it; local copy is gitignored, not committed. The paper's own account is shared-front-chamber SPL summation plus acoustic-tube filtering, **not** phase/notch language — a DD-to-BA phase-notch citation analogous to Knowles AN-030 (§2.2) remains genuinely open.
+- **Diaphragm breakup in small (5–12 mm) dynamic IEM diaphragms** — no citable source found. Do not cite the unverified ~15 kHz/~20 kHz figure that turned up as search-engine synthesis without a direct-fetch source behind it.
 - **"No cup resonance" for IEM dynamic drivers** (§2.1) is an inference from construction + the existing canal-coupling mechanism, not a direct quote from any source.
 - **Numeric seal-loss curve** for IEMs — mechanism sourced, magnitude not.
 - **Planar IEM drivers**; **Sonion EST datasheets** (provisionally: none public).

@@ -2,6 +2,8 @@
 
 A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md` (citations, verification tags, source disagreements) and `vocabulary.json` (the term map).
 
+**One prior worth carrying into every turn.** A user may be EQ-ing to compensate for their own hearing rather than to change the headphone, and they will rarely say so. `HEARING.md` carries what that does and does not license — in short: never infer a curve from an age, a grade or a self-report; a threshold shift is not a gain figure and half is the population approximation; boost near the edge of a loss region rather than deep inside it; the chain has no compression, no per-ear control and no calibrated level, so level-dependent complaints and asymmetry are `clarify` + `recommends` cases; and a sudden, unilateral or newly-changed symptom earns one factual sentence pointing at assessment — never a refusal, and never an idle gate.
+
 > **Revised 2026-07-22.** Three corrections and one structural change; all are called out in place below. (1) The crossfeed centre-tilt direction was inverted — it *decreases* as crossfeed level rises. (2) AutoEq bands were described as untouchable; they are in scope. (3) The guardrail table was presented as enforced limits; almost all of it is guidance, and **Q is deliberately unclamped**. (4) **Structural: a turn is a bounded tool loop, not a single completion**, and the prose rule was loosened to permit prose anchored to the numbers it describes. If you find text anywhere that contradicts this file on any of these, this file is right and that text is stale.
 
 > **Revised 2026-07-26.** One structural change: **a third response branch, `discuss`**, so the user can ask questions and get an anchored answer that stages nothing (D16). The union is now three branches, only one of which may carry `changes`, and every prose answer declares a `basis`. Further amendments landing in the same pass are recorded in the plan's decision table (D17–D21); where this file has not caught up with them yet, the plan is authoritative for those and this file is authoritative for everything above.
@@ -88,8 +90,6 @@ Three things it must carry, all load-bearing:
 
 ## Stage classes and scope
 
-> **Corrected 2026-07-22.** An earlier draft declared AutoEq bands untouchable and gave the tuner an exclusively-owned appended segment. That is withdrawn. It was based on a misreading of the requirement, and in practice it produces exactly the failure it was meant to prevent.
-
 The chain contains two classes of stage:
 
 1. **EQ bands** — whether hand-entered or imported from a headphone's `ParametricEQ.txt` via the AutoEq library. **All of them are in scope.** The tuner amends them.
@@ -97,9 +97,9 @@ The chain contains two classes of stage:
 
 **The wire format is a flat comma-separated string and carries no provenance metadata.** There is no field that says which band came from where, and none is needed: the tuner is not trying to avoid anything.
 
-**The governing rule is amend-before-append.** An AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band sitting in its region already. Moving that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside an existing one means the net response is now the *sum* of two overlapping filters, and after a few turns the curve is unreasonable — which is the actual observed failure mode, and the reason the protected-segment design was dropped.
+**The governing rule is amend-before-append.** An AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band sitting in its region already. Moving that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside an existing one means the net response is now the *sum* of two overlapping filters, and after a few turns the curve is unreasonable — which is the actual observed failure mode.
 
-**But it is guidance, not a rule, and the mechanical form of it is wrong** (F3, D2). An earlier draft of this file said: *if any existing band's centre falls within half an octave of the target, amend it; append only where nothing covers the region.* That is withdrawn. Every vocabulary region already contains one of the preset's bands, so the rule collapses into *never append* — and worse, it forces amending whatever band is nearest regardless of whether that band suits the job.
+**But it is guidance, not a rule, and the mechanical form of it is wrong** (F3, D2) — *if any existing band's centre falls within half an octave of the target, amend it; append only where nothing covers the region.* Every vocabulary region already contains one of the preset's bands, so that rule collapses into *never append* — and worse, it forces amending whatever band is nearest regardless of whether that band suits the job.
 
 **AutoEq bands are not interchangeable.** A Q 0.7 shelf is broad shaping; a Q 4 notch at 5.7 kHz is killing a measured resonance. Amending that notch to satisfy "a bit less bright" does not voice anything — it silently undoes a measurement correction.
 
@@ -115,7 +115,7 @@ Consequence for this feature: **any AI-proposed crossfeed parameter change must,
 
 ### The tilt, and its direction
 
-> **Corrected 2026-07-22.** The first draft asserted "every 1 dB of crossfeed level costs 1 dB of centre tilt", with tilt rising as feed rises. **Both the direction and the magnitude were wrong.** The underlying algebra it rested on (`GB_lo − GB_hi = −feed`) is a true identity, but that quantity is the shelf separation in the analog prototype, not the realised tilt after normalisation.
+> **Not** "every 1 dB of crossfeed level costs 1 dB of centre tilt", with tilt rising as feed rises — **both the direction and the magnitude are wrong.** The algebra behind that claim (`GB_lo − GB_hi = −feed`) is a true identity, but that quantity is the shelf separation in the analog prototype, not the realised tilt after normalisation.
 
 In bs2b the mid (centre) path is normalised to 0 dB at DC and rolls off to `−tilt` at high frequency, where
 

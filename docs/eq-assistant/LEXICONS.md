@@ -79,7 +79,7 @@ Also worth keeping, because it warns against over-precision in our own map:
 ## 3. Holt — *Sounds Like? An Audio Glossary* `[VA]`
 
 * **Citation.** Holt, J. Gordon. "Sounds Like? An Audio Glossary." *Stereophile*. Also published as *The Audio Glossary* (Audio Amateur Press, 1990, ISBN 0962419141).
-* **Access note.** stereophile.com returns **HTTP 403** (Cloudflare) to both `curl` and the fetch tool. Text was transcribed from Internet Archive snapshots of the publisher's own pages, retrieved with `curl` and stripped locally. The artefact read is the publisher's page, served from archive rather than origin.
+* **Access note.** stereophile.com returns **HTTP 403** (Cloudflare). The artefact read is the publisher's page, served from archive rather than origin.
 * **Reliability. PRACTITIONER / JOURNALISTIC.** Not peer-reviewed, not a standards body, not an elicited-and-validated vocabulary. One influential critic's codification of hi-fi review language. **Its authority is descriptive — it records how audiophiles actually talk, which is precisely why it matters to us — not empirical.**
 
 ~250 entries captured across all 9 letter pages, with **67 asserted-frequency flags**.
