@@ -306,6 +306,26 @@
       "not": "A single deep cut, or a broad dip, which overshoots for 'a little' and can re-open a scoop that was just closed.",
       "worked_example": "auteur-classic-tuning.json — 'aren't HOT or biting anymore per se, but they are a little bit forward'",
       "confidence": "high"
+    },
+    {
+      "symptom": "material-dependent colouration",
+      "aliases": [
+        "only with certain genres",
+        "only on some recordings",
+        "nasally but only sometimes",
+        "some albums only",
+        "depends on the track"
+      ],
+      "curve_property": "A NARROW resonance. A broad tilt colours every recording equally, so material-dependence is itself evidence of narrowness: only mixes carrying energy at the resonant frequency excite it, and the rest sound correct.",
+      "diagnosis": "Treat the intermittency as information about Q rather than as noise to average away. Ask which material triggers it, then evaluate the net response across that material's dominant register and look for a narrow excess rather than a band-average error.",
+      "fix_class": "tame",
+      "fix": "Narrow band at the resonance, cut. Prefer narrowing an existing band over widening anything, and check the result against the material that already sounded right.",
+      "measure": "peak height above the local band average, not the band average itself -- a narrow resonance barely moves the average it sits in",
+      "not": "A broad cut or a tilt. Both change the recordings that were already correct, which is how a fix for 'sometimes' becomes a complaint about 'always'.",
+      "not_a_filter_symptom": "Midrange colouration is EQ's, never the oversampling filter's (D20 negative rules). Material-dependence does not change that -- it localises the resonance, it does not relocate the cause.",
+      "worked_example": null,
+      "confidence": "medium",
+      "notes": "No worked example in auteur-classic-tuning.json; this entry is reasoned from the mechanism rather than harvested from a session, hence medium confidence. Distinct from 'register-dependent level', which varies with note fundamentals inside one instrument's range; this varies across recordings."
     }
   ],
   "tonal": [

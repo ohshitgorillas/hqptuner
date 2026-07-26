@@ -674,12 +674,22 @@ turns. The schema is harvested from it, not designed in parallel with it.
 
 ### F9 · `evaluate_chain` is forward-only, and the inverse problem is unreachable
 
-*Established 2026-07-26 from a real session, to be recorded as an asset
-alongside `auteur-classic-tuning.json`.*
+*Established 2026-07-26 from `docs/eq-assistant/auteur-classic-tuning2.json` — a
+real 18-turn session (Opus 4.8, ZMF Auteur Classic on the kr0mka AutoEq preset),
+recorded alongside the 9-turn file behind F7/F8.*
 
-A user asked a chatbot to simplify roughly twelve peaks in the mid-bass, and got
-back **two candidates — a three-band version and a two-band version** — because
-that model could *solve*, not merely evaluate.
+Late in that session the user pointed at the 50–500 Hz region — *"see how weirdly
+peaky ... wondering if simplifying the peaks"* — and got back **candidates, not a
+diff**: a set of simplified fills to audition, of which the user picked one
+(*"S1 is actually quite good... let's simplify further"*) and then asked for
+another pass. The model could do that only because it could **solve**, not merely
+evaluate.
+
+The file is ground truth for two decisions at once. Its `candidates` key is D18's
+`variants` occurring in the wild before anything was designed for it, and the
+simplification turns are the `replace_segment` case. It also carries
+`eq_profile_provenance` with the profile's AutoEq target error, which is exactly
+the reference-curve shape D21 needs.
 
 `evaluate_chain` cannot reach this. It is a **forward** evaluator: given bands,
 return net dB. Simplification is the **inverse**: given a target curve and a band
@@ -977,8 +987,9 @@ loop exceeding the cap aborts with the stock message and stages nothing.
 `fewshot.json`, `ASSEMBLY.md` (concatenation order, token budget, ledger
 truncation rule), `VERSION`. The version stamps into every ledger entry.
 
-6–10 few-shot complaint→diff pairs. **Draw them from
-`docs/eq-assistant/auteur-classic-tuning.json` (F7) wherever it covers the case** —
+6–10 few-shot complaint→diff pairs. **Draw them from the two recorded sessions —
+`docs/eq-assistant/auteur-classic-tuning.json` (F7) and the 18-turn
+`auteur-classic-tuning2.json` (F9) — wherever they cover the case** —
 real complaints in the user's own words beat invented ones, and that file already
 supplies amend, append, multi-band, back-off, and two clarify examples. Invent
 only what it lacks: the spatial/crossfeed cases and the off-topic deflection.
@@ -1017,6 +1028,16 @@ the model will not infer from a tool signature:
   approved by listening in earlier turns are settled; reaching a target by
   filling a hole beats revising an accepted level. The model adopted this rule on
   its own (F8); state it so it does not have to.
+
+**Material-dependence is diagnostic, not noise.** "Nasally, but only with certain
+genres, and only sometimes" is not a weaker version of "nasally" — the
+intermittency is the most informative part of the sentence. A broad tilt colours
+every recording equally, so a fault that appears on some material and not other
+material is **narrow by construction**: only mixes carrying energy at the
+resonance excite it. The prompt must teach the model to read intermittency as
+information about Q, and to reach for a narrow cut rather than a band-average
+correction. It must also **not** reach for a filter recommendation here — a
+midrange colouration is EQ's, and D20's negative rules say so explicitly.
 
 **Ripple and consistency complaints need their own vocabulary category.** "Half
 the time perfect, half the time slightly too quiet" is not a tonal descriptor —
@@ -1161,8 +1182,13 @@ The last one matters for the gate: a weaker model may reach the same answer with
 three times the iterations, and that is a real difference in cost and latency
 that a pass/fail score hides.
 
-**Regression corpus.** `auteur-classic-tuning.json` doubles as one: replay each
-turn from its recorded starting state and compare against the recorded outcome.
+**Regression corpus.** Both recorded sessions double as one — the 9-turn
+`auteur-classic-tuning.json` and the 18-turn `auteur-classic-tuning2.json` (F9),
+27 turns between them. Replay each turn from its recorded starting state and
+compare against the recorded outcome. The second file is the only source for the
+`replace_segment` and `variants` cases, and its `candidates` turn is the natural
+test of the "variants used honestly" dimension above: the model offered a fork
+where taste genuinely decided, and the user picked by ear.
 Not an exact-match assertion — a different band that lands the same measured
 result is a pass — which is why the recorded `measured` / `selected_*` figures
 matter more than the recorded band values.
