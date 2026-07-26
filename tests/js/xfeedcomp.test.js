@@ -21,11 +21,11 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
-import { XfeedStrip } from "../../hqptuner/static/components/XfeedComp.js";
-import { config, matrixConfig, discardAll } from "../../hqptuner/static/store/state.js";
+import { XfeedStrip, xfeedLensTraces } from "../../hqptuner/static/components/XfeedComp.js";
+import { config, matrixConfig, discardAll, edit } from "../../hqptuner/static/store/state.js";
 import { setShowDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { msCompile, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
-import { staticWire } from "./wire.js";
+import { staticWire, stagingWire } from "./wire.js";
 
 const DEF = BAUER_PRESETS.default;
 const JM = BAUER_PRESETS.jmeier;
@@ -214,4 +214,76 @@ test("test_hidden_notes_render_no_explanation", async () => {
 test("test_shown_notes_explain_what_the_crossfeed_does", async () => {
   await reset({ rows: pair(), notes: true });
   assert.ok(strip().includes("Bauer crossfeed blends the channels below ~700 Hz"));
+});
+
+// --- the lens traces (xfeedLensTraces) ----------------------------------------
+//
+// The exported trace builder for the RESPONSE plot. Its gate follows the
+// crossfeed-enabled state, which staging can move (the same path a user's Apply
+// rides), so both sides of the gate are reachable without touching the private
+// lensOn signal — only the explicit "what you hear" override (lensOn true/false,
+// written by that button's onClick) stays with the playwright hand-back.
+
+const bounds = () => ({ min: 0, max: 0 });
+
+test("test_the_lens_draws_three_traces_for_an_eligible_pair", async () => {
+  await reset({ rows: pair() });
+  assert.equal(xfeedLensTraces(pair(), bounds()).length, 3);
+});
+
+test("test_the_lens_hides_while_crossfeed_is_off", async () => {
+  await reset({ rows: pair(), enabled: false });
+  assert.equal(xfeedLensTraces(pair(), bounds()).length, 0);
+});
+
+test("test_the_lens_draws_nothing_for_an_ineligible_pair", async () => {
+  await reset({ rows: [row("0", "0")] });
+  assert.equal(xfeedLensTraces([row("0", "0")], bounds()).length, 0);
+});
+
+test("test_the_ghost_trace_shows_the_uncorrected_center", async () => {
+  await reset({ rows: pair() });
+  assert.equal(xfeedLensTraces(pair(), bounds())[0].label, "center, uncorrected");
+});
+
+test("test_an_uninstalled_pair_corrects_at_full_strength_by_default", async () => {
+  await reset({ rows: pair() });
+  assert.equal(xfeedLensTraces(pair(), bounds())[1].label, "center, corrected 100%");
+});
+
+test("test_the_corrected_trace_reads_the_installed_blocks_strength", async () => {
+  // wire gains are 2-dp quantized, so the recovered percentage carries ~1 of slack
+  await reset({ rows: block(DEF, 0.5) });
+  assert.match(xfeedLensTraces(block(DEF, 0.5), bounds())[1].label, /^center, corrected (49|50|51)%$/);
+});
+
+test("test_the_sides_trace_is_labeled_stereo_sides", async () => {
+  await reset({ rows: pair() });
+  assert.equal(xfeedLensTraces(pair(), bounds())[2].label, "stereo sides");
+});
+
+test("test_a_lens_trace_spans_the_plot_band", async () => {
+  await reset({ rows: pair() });
+  assert.equal(xfeedLensTraces(pair(), bounds())[0].points.length, 160);
+});
+
+test("test_the_lens_updates_the_shared_plot_bounds", async () => {
+  await reset({ rows: pair() });
+  const b = bounds();
+  xfeedLensTraces(pair(), b);
+  assert.ok(b.min < -2, `expected the -3 dB EQ plus the crossfeed dip to pull bounds.min below -2, got ${b.min}`);
+});
+
+test("test_staging_crossfeed_off_hides_the_lens", async () => {
+  await reset({ rows: pair(), enabled: true });
+  stagingWire();
+  await edit("crossfeed_enabled", "0");
+  assert.equal(xfeedLensTraces(pair(), bounds()).length, 0);
+});
+
+test("test_staging_crossfeed_on_restores_the_lens", async () => {
+  await reset({ rows: pair(), enabled: false });
+  stagingWire();
+  await edit("crossfeed_enabled", "1");
+  assert.equal(xfeedLensTraces(pair(), bounds()).length, 3);
 });
