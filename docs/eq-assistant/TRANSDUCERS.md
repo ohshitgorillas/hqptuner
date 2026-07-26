@@ -159,7 +159,95 @@ a *rig* maker, not a headphone maker.
 
 ## 2. In-ear driver technologies
 
-### 2.1 Balanced armature
+### 2.1 Dynamic / moving coil (IEM)
+
+Single-DD and DD+BA hybrid shells are the commonest IEM configuration on the market, but
+until this pass the base had no dedicated coverage here — §1.1's dynamic-driver physics is
+written for an over-ear cup and does not transfer directly to a driver sealed into an IEM
+shell a few millimetres from the canal.
+
+**EM-Tech** `[VA]` (US Patent 10,536,771 B2, *Dynamic Receiver with Resonance Protector for
+Earphone*, filed 2018, granted 2020 — EM-Tech makes both BA and dynamic earphone receivers
+for the OEM market, same citation tier as Sonion/Knowles below) describes the basic
+construction:
+
+> "a magnetic circuit composed of a yoke, a magnet and a top plate is disposed in a frame,
+> and a vibration system composed of a voice coil and a diaphragm" … "a vent hole formed in
+> the bottom surface [of the yoke] to facilitate the vibration of the diaphragm."
+
+**audioXpress** `[VA]` (Tatarunis & Klasco, *Microspeakers' Anatomy — How to Design Audio
+Systems with Very Small Drivers*, 16 Jul 2019 — same outlet/tier as the audioXpress piece
+already cited in §4) adds the suspension detail that distinguishes a microspeaker from a
+full-size dynamic driver:
+
+> "a single diaphragm forms the surround, diaphragm, and dust cap… The voice coil is
+> typically bobbin-less… This is a one-point suspension with only surround compliance and no
+> spider." … "Free air resonance for most microspeaker designs typically runs in the
+> 500-700Hz range."
+
+**No source states outright that an IEM dynamic driver lacks the 4–8 kHz cup-cavity
+resonance §1.1 documents for over-ear** — that conclusion is an inference from this
+construction (small sealed/vented chamber feeding the canal directly, no cup air volume)
+plus the canal-coupling mechanism already sourced at §3.2, not a direct quote. Flagged as
+inference, same convention as §1.3's electrostatic bass-rolloff paragraph.
+
+**Vent-set bass rolloff** (closing, partially, the gap flagged at §7): three manufacturers
+independently describe the same trade-off. **Apple** `[VA]` (US 11,575,985 B2, *Mass loaded
+earbud with vent chamber*, 2023): "bass response may be controlled to a frequency of less
+than 1 kHz by shaping bass duct to contain a volume of air that acts as a corresponding
+acoustic mass" — a vent/duct's air column loads the diaphragm as added mass, not a simple
+leak. **EM-Tech** `[VA]` (US 11,368,784 B2, *Receiver unit having pressure equilibrium
+structure and compensation structure for low frequency*, 2022) states the trade-off
+directly: "if a ventilation recess is provided in order to relieve deafening of the ear,
+large loss occurs in the SPL in the low frequency region" — compensated by duct resonance
+and acoustic mesh damping. **Apple** again `[VA]` (US 9,161,118 B2, *Earphone having an
+acoustic tuning mechanism*, 2015) gives a numeric port-area figure — "about 1 mm² to about
+8 mm²" — tied to a back-volume resonance of "about 2 kHz to about 3 kHz," though that figure
+is a resonance peak, not the LF corner itself. **No source gives a clean vent-diameter-to-Hz
+corner number for an IEM** — the mechanism is now solid, the magnitude is not. Updates §7.
+
+**DD+BA hybrid combination — naive is not automatically better.** **Jiang, Xu, Jiang, Kim &
+Hwang**, *Analysis and Development of Hybrid Earphone Combining Balanced-Armature and
+Dynamic Receivers*, Applied Sciences 9(23):5047, 2019, DOI 10.3390/app9235047
+(peer-reviewed, open-access CC-BY, Pusan National University acoustics group). Full text
+`[V]` — read directly, obtained by hand after `mdpi.com` domain-blocked this fetcher (Akamai
+403); upgraded from the earlier abstract-only `[VA]` pass.
+
+The dynamic and BA units share one front chamber, and "the SPL of a hybrid earphone can be
+treated as the summation of the SPLs of the dynamic and BA earphones. In addition, the
+dynamic, BA, and hybrid earphones have the same peak frequency in the SPL curve because
+they have the same front chamber." With a bare (prototype, non-optimized) front-chamber
+tube, that summation is **worse than either driver alone**:
+
+> "The root-mean-square value of the SPL deviation for the dynamic, BA, and hybrid earphones
+> with the prototype acoustic tube are 8.94, 6.04, and 9.70, respectively."
+
+**A hybrid built by simply wiring a DD and a BA into a shared chamber can be a net regression
+against the target curve**, not an improvement — the combination needs deliberate acoustic
+crossover design, not just component selection. The fix here is a passive acoustic low-pass:
+a tube in front of the dynamic unit, sized as "acoustical mass and acoustical resistance,"
+whose diameter — not position ("the tube position has no influence on the frequency
+response of the hybrid earphone") — sets how much of the dynamic unit's high-frequency
+output reaches the shared chamber. Optimized (Nelder–Mead search, bounded 0.1–2 mm; optimum
+found at the lower bound, 0.1 mm) against the Harman target curve:
+
+> "After the optimized acoustic tube is used, the high-frequency response of the dynamic
+> earphone does not exist. The BA earphone is responsible for the high-frequency response.
+> The dynamic earphone improves the low-frequency response." … "the difference in the RMS
+> value of the hybrid earphone became 4.60."
+
+**This paper does not use "phase" or "notch" language anywhere in the text** — its account
+of the shared-chamber interaction is SPL-summation and acoustic-tube filtering, not a
+BA-to-BA-style phase-cancellation notch (Knowles AN-030, §2.2). Do not stretch this citation
+into a phase-null claim it doesn't make; a DD-to-BA phase-notch analogue to AN-030 remains
+genuinely open (§7).
+
+**Diaphragm breakup in small dynamic IEM diaphragms: no source found**, after a real search
+across the AES e-library, manufacturer documentation, and Google Scholar-style queries. A
+cluster of general audio-transducer patents surfaced a breakup-frequency figure via
+search-engine synthesis only, unverified by direct fetch — **not cited**. Marked open, §7.
+
+### 2.2 Balanced armature
 
 Both major BA manufacturers publish genuine engineering documentation, and it is the
 strongest manufacturer-tier material in this whole base.
@@ -225,7 +313,7 @@ tool for hearing-instrument receivers; Knowles states of its TWS tweeter parts t
 tweeter does not need back-venting and has a self-enclosed back volume." Different parts,
 different applications.)*
 
-### 2.2 Electrostatic and planar IEM drivers
+### 2.3 Electrostatic and planar IEM drivers
 
 **Provisional negative finding: no public Sonion EST datasheet was located.** Sonion lists
 EST tweeters (e.g. EST65DB01) but search surfaced only marketplace listings and reseller
@@ -432,12 +520,12 @@ belongs in any user-facing explanation of what the tuner is doing.
 
 ## 6. Synthesis — the failure mode to read a complaint against
 
-| | **Dynamic / moving coil** | **Planar magnetic** | **Electrostatic** | **Balanced armature (IEM)** |
-|---|---|---|---|---|
-| Drive | Voice coil at one point | "uniform driving force _directly_ across the entire diaphragm" | Uniform E-field, push-pull between "two parallel-arranged fixed electrodes" | Maxwell force; armature between two magnets |
-| Impedance vs frequency | **Varies** — HD 550 "roughly 170 Ω at 1 kHz, and 320 Ω at 70 Hz" | "flat", "purely resistive load" | Own energiser; not a user variable | Rises with frequency (high inductance) |
-| Signature FR defect | **Narrow high-Q peak ~4–8 kHz**, cup-cavity reflection + concha | Broad shaping; magnet diffraction in treble; **no** break-up spike | Excursion-limited LF *(inference from construction, not cited)* | **Non-flat by construction** — first and second peaks, damped acoustically |
-| Rule out first | **Source output impedance → ~2.94 dB bass lift in the worked example** | — (flat impedance) | Bias/energiser mismatch = level, not tone | **Seal** — bass "disappears" without a sealed canal |
+| | **Dynamic / moving coil (over-ear)** | **Planar magnetic** | **Electrostatic** | **Balanced armature (IEM)** | **Dynamic / moving coil (IEM)** |
+|---|---|---|---|---|---|
+| Drive | Voice coil at one point | "uniform driving force _directly_ across the entire diaphragm" | Uniform E-field, push-pull between "two parallel-arranged fixed electrodes" | Maxwell force; armature between two magnets | Voice coil, one-point suspension (surround only, no spider); small sealed/vented chamber couples straight to the canal |
+| Impedance vs frequency | **Varies** — HD 550 "roughly 170 Ω at 1 kHz, and 320 Ω at 70 Hz" | "flat", "purely resistive load" | Own energiser; not a user variable | Rises with frequency (high inductance) | Not separately sourced — inherits §1.1's inductive-load mechanism, unconfirmed at IEM scale |
+| Signature FR defect | **Narrow high-Q peak ~4–8 kHz**, cup-cavity reflection + concha | Broad shaping; magnet diffraction in treble; **no** break-up spike | Excursion-limited LF *(inference from construction, not cited)* | **Non-flat by construction** — first and second peaks, damped acoustically | Vent geometry sets the LF corner (mechanism sourced 3 ways, no Hz number); **no cup resonance** the over-ear peak depends on *(inference, not a quote)* |
+| Rule out first | **Source output impedance → ~2.94 dB bass lift in the worked example** | — (flat impedance) | Bias/energiser mismatch = level, not tone | **Seal** — bass "disappears" without a sealed canal | Vent/pressure-relief trade-off before reading a bass complaint as target error; on hybrids, crossover-region FR deviation before EQ (§2.1) |
 
 **Cutting across all of them:**
 
@@ -449,6 +537,18 @@ belongs in any user-facing explanation of what the tuner is doing.
    in the best band.
 4. **Rig validity ceiling** — 8 kHz qualified, 10 kHz confidence floor, and above that the
    correction the user is already running stands on undefined ground.
+5. **Multi-driver combination is not owned by any one driver technology, and is not free.**
+   BA-to-BA (Knowles AN-030, §2.2) shows a direct measured phase-cancellation example: two
+   drivers out of phase produce "a notch, or valley, in the response," reaching below 75 dB
+   SPL against a ~105 dB in-phase level. DD-to-BA (Jiang et al. 2019, §2.1, full text `[V]`)
+   shows a different but related failure mode — a bare shared-chamber hybrid **regressed**
+   against the target curve relative to either driver alone (RMS deviation 9.70 vs. 8.94
+   dynamic-alone / 6.04 BA-alone) until an acoustic crossover (a tuned front-chamber tube)
+   was added, after which it improved to 4.60. **A "hollow/recessed" or uneven complaint on
+   any multi-driver IEM should be checked against a crossover-region defect before it is read
+   as a target error** — on a BA-BA design that may be a phase-cancellation notch (AN-030);
+   on a DD-BA hybrid it may be an untuned or poorly-tuned acoustic crossover, which is a
+   distinct mechanism, not a confirmed phase notch (§2.1).
 
 **The operational rule this base supports.** For an over-ear, corrections smaller than
 ~2 dB in the midrange, or anywhere above 8 kHz, sit within the measurement noise of the data
@@ -472,7 +572,21 @@ it.
   stating "A change of 10 mm in the length of the sound tube will change the frequency
   response by 0.5 dB at some frequencies") failed TLS and **must not be cited**.
 - **Foam vs silicone** broken out separately, and a bore-diameter series.
-- **Dynamic-driver IEM vent** setting the bass rolloff corner — no citation yet.
+- **Dynamic-driver IEM vent** setting the bass rolloff corner — **mechanism now sourced three
+  ways** (§2.1: Apple mass-loaded-duct patent, Apple back-volume-resonance patent, EM-Tech
+  pressure-relief patent), **but no source gives a clean vent-diameter-to-Hz corner number.**
+  Partial close, not full.
+- ~~**DD+BA hybrid crossover, full text**~~ **RESOLVED 2026-07-25** — obtained by hand after
+  `mdpi.com` returned Akamai 403 site-wide to the fetcher. **Read in full `[V]`.** §2.1
+  rewritten around it; local copy is gitignored, not committed. The paper's own account is
+  shared-front-chamber SPL summation plus acoustic-tube filtering, **not** phase/notch
+  language — a DD-to-BA phase-notch citation analogous to Knowles AN-030 (§2.2) remains
+  genuinely open.
+- **Diaphragm breakup in small (5–12 mm) dynamic IEM diaphragms** — no citable source found
+  after a real search. Do not cite the unverified ~15 kHz/~20 kHz figure that turned up as
+  search-engine synthesis without a direct-fetch source behind it.
+- **"No cup resonance" for IEM dynamic drivers** (§2.1) is an inference from construction +
+  the existing canal-coupling mechanism, not a direct quote from any source.
 - **Numeric seal-loss curve** for IEMs — mechanism sourced, magnitude not.
 - **Planar IEM drivers**; **Sonion EST datasheets** (provisionally: none public).
 - **B&K 5128 pinna/canal geometry** and a direct 5128-vs-711 comparison plot; **IEC 60318-7**
