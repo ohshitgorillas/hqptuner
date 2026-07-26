@@ -1,6 +1,6 @@
 # HQPTuner: an improved configuration interface for HQPlayer Embedded
 
-A free, polished, and enhanced web UI for HQPlayer Embedded's settings — filters, modulators, rates, volume, matrix pipelines, and hardware acceleration — with the manual's knowledge at your fingertips.
+A polished and enhanced configuration interface for HQPlayer Embedded.
 
 <img width="1202" height="1303" alt="HQPTuner's Output tab during DSD512 playback" src="https://github.com/user-attachments/assets/3b1cf017-d33f-4378-84f3-98f05975649e" />
 
@@ -10,61 +10,40 @@ A free, polished, and enhanced web UI for HQPlayer Embedded's settings — filte
 
 HQPlayer is, in my humble opinion, the best deal in all of high-end digital audio, with two caveats:
 1. You may go broke trying to afford CPUs and GPUs to feed it the power it craves.
-2. The UI is bad.
+2. The UI is _bad_.
 
-The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped potential. And let's be honest: HQPlayer is a complex program that takes time to learn. A bad UI doesn't just frustrate experienced users, it holds newbies back. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
+The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped and wasted potential. And let's be honest: HQPlayer is a complex program that takes time to learn. A bad UI doesn't just frustrate experienced users, it holds newbies back and drives away potential users. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
 
-Let's take filter narrowing as an example—HQPTuner's #1 flagship feature, and the one thing most badly missing from the stock UI.
+Let's take filter narrowing as an example. This is, in my very humble opinion, HQPTuner's #1 flagship feature and the one thing most badly missing from the stock UI.
 
-The web interface presents you with four dropdowns: 1x and Nx filters, PCM and SDM, each populated by over 50 filters. To select one, you open the manual, read the descriptions, find one that seems appropriate, and go hunting for it in the dropdown. Say you're listening to Redbook content (16bit/44.1kHz): you probably want an apodizing filter to correct for errors. Which of the 50 are apodizing? The dropdown won't tell you. If you want the manual's information in the web UI, clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through.
+The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 50 filters with baffling names like `poly-sinc-gauss-long`. To select one, you open the manual, do your best to parse the descriptions (if you even know what "minimum phase" means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you'll want an apodizing filter to correct for mastering errors. Which of the 50+ are apodizing? The dropdown won't tell you. If you want the manual's information in the web UI, clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through.
 
-HQPTuner integrates all of the manual's knowledge directly into the interface, so filters can be narrowed by quality, genre, focus, phase, and length. A simple checkbox restricts the 1x lists to apodizing filters only. Rather than cross-referencing a PDF against a list of 50 items, you're down to a handful of relevant filters in a few clicks.
+HQPTuner instead integrates all of the manual's knowledge directly into the interface, so filters can be narrowed by quality, genre, focus, phase, length, and/or rate limits. A simple checkbox restricts the 1x lists to apodizing filters only and is selected by default. Your dropdown is only a handful of relevant filters in a few clicks.
 
-Filter narrowing is just one example, and the same philosophy runs through the whole project: every setting explained in place, every invalid option grayed out with the reason why. You shouldn't need the manual open in another window to figure out what you're doing in HQPlayer.
+The same philosophy runs through the whole project: you shouldn't need a PDF or separate tab open to figure out what you're doing in HQPlayer.
 
-## Flagship features
+## Features and Improvements
 
-**1. Filter narrowing.** The story above: the manual's knowledge folded into the filter lists, so 50 opaque names narrow to the 15–20 that fit your source material and taste — with each filter's description right under the dropdown.
+HQPTuner offers the following features and improvements over the stock web configuration UI.
 
-**2. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot — tune by ear, REW-style, without leaving the page.
+**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 50 opaque names narrow to the few that fit in a few clicks.
 
-**3. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed (libbs2b): a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. HQPTuner keeps it, adds the compensation nobody else offers, and then offers an alternative built from the physics instead.
+**2. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style, without leaving the page.
 
-*Bauer + compensation.* Crossfeed dulls centered sound — vocals, bass, most of the mix — by ~1–2.7 dB toward the treble. The polished implementations (Goodhertz CanOpener, Meier) build compensation into their own DSP; Bauer has no such option. HQPTuner compensates it from the outside: it reads your configured crossfeed parameters, generates matched inverse EQ stages (verified against the bs2b source), and compiles your headphone EQ into a mid/side pipeline block correcting exactly the center coloration while leaving the stereo width effect untouched. Strength slider, live correction plot, a "what you hear" overlay, and staleness detection with one-click rebuild.
+**3. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed: a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. It's good, but it's not my jam. So I built in an alternative: structural crossfeed feature modelling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference**, and **center character** (ok, the last one is hard to picture, but the plots make it easy to understand). It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. Integrates with and doesn't disturb your EQ curve.
 
-*Structural crossfeed.* A second implementation modelling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference** (measured with a tape, the way hat sizes are — the radius the model uses is shown beneath), and **center character**. It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound.
+The above three features are my flagships, but the following benefits are offered as well:
 
-Center character is the control with no hardware equivalent, and it exists because of what the model measures. Real speakers don't just dull centered sound — they notch it: at 30° the center response has an 11.6 dB dip at 1426 Hz, straight through vocal presence. That is genuinely what a speaker pair does, but a room fills the null with reflections and headphones reproduce it bare. The control scales that coloration continuously from literal to none, and the stereo image is byte-identical at every setting — only centered tone changes. Presets take their values from the measured curve rather than by feel (Standard 30°/70%, Anechoic 30°/100%, Intimate 22°/70%, Wide 45°/50%, Neutral center 30°/0%); head size is excluded from presets and persists across them, being anatomy rather than taste. Your headphone EQ rides through untouched, per ear, so asymmetric measured corrections are carried rather than refused. Derivation and measurements: `docs/crossfeed-math.md`.
-
-## Benefits of HQPTuner
-
-HQPTuner is an improvement over the stock web configuration UI in many ways:
-
+* **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
 * **More sensible organization**: Settings are organized into five tabs: Output, Volume, Resampling, DSP, and System.
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the rate selection menu.
-* **Every feature has a description**: All of the information from the manual is optionally surfaced with explanations and descriptions for every feature and filter.
-* **Smart option availability**: Only see options that are appropriate for the settings you've selected; e.g., PCM options gray out/collapse in SDM output mode, DSD options in PCM mode, and modulators below their minimum rate — each grayed control carries a caption explaining why.
-* **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots. See below.
+* **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out _with reasons_.
+* **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.
 * **Live volume control**: For those who rely on HQPlayer for volume adjustment.
 * **Exposes more options**: Critical hardware acceleration options like multicore DSP, CUDA mode, and E-core modes are all exposed and explained.
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
 * **Log tail in the browser**: The daemon's log, right in the System tab.
-
-## Matrix pipeline editing
-
-The DSP tab replaces hqplayerd's `/matrix` page with a visual pipeline editor:
-
-* **Signal-flow rows**: each pipeline renders as source channel → stage chips → gain → target channel. Add, remove, and drag-reorder stages; add and remove pipelines; clear a row's chain with one click. Everything stages client-side and applies atomically.
-* **Stage editor**: click a chip to edit it inline — all 11 IIR types (including raw biquad coefficients), delay, RIAA, and per-stage convolution with file upload (sample-rate warning included). A footer shows the generated raw spec string live, and the whole row can flip to an editable raw comma-string with two-way sync — the manual's example strings round-trip byte-identical.
-* **EQ import**: paste or upload AutoEq / REW ParametricEQ text; preamp lines map to pipeline gain, and stereo mirroring targets an adjacent channel pair in one step. Or skip the file entirely and load a profile straight from the built-in AutoEq library with search and A/B preview.
-* **Response card**: overlaid magnitude + phase for any plot-toggled pipelines, computed client-side (RBJ biquads, analytic RIAA, FFT of uploaded convolution impulses) and validated numerically against an independent reference. Gain-carrying EQ stages appear as draggable dots — drag to retune frequency and gain, with stereo pairs kept in sync.
-* **Matrix profiles**: load a profile live over the Control API — no restart, playback undisturbed — and save the current matrix under a new name or over an existing one, or delete one. None of the three reloads the engine. HQPlayer itself keeps a saved profile in memory only and forgets it at the next daemon start, so HQPTuner writes the profile into the daemon's configuration and it survives the restart. A profile saved but not yet applied loads by staging its rows: the daemon learns its profiles when it reads that configuration at startup, so that one lands at your next apply rather than instantly.
-* **Crossfeed**: one card, two implementations behind a Bauer | Structural toggle. Bauer is HQPlayer's own, with the mid/side compensation block described above. Structural is sixteen pipelines modelling a head and a speaker pair, with an explicit interaural delay, a live top-down geometry diagram, and computed readouts for ear-to-ear delay, far-ear treble and center shift. Both compile to literal, badged, hand-editable pipelines — an edit that breaks the pattern drops the badge rather than being blocked or rewritten.
-
-* **Speakers or headphones**: a switcher at the top of the tab picks which listening setup you are configuring. It is a view selector — it never turns processing on. Speakers exposes HQPlayer's per-channel level trim and distance (the stock `/speakers` page) with a top-down room plan that draws each speaker at its layout angle and its configured distance, a 2.0 / 2.1 / 5.1 / 7.1 set picker, and crossfeed suppressed while you are there; Headphones is the crossfeed and AutoEq pair described above. Switching back turns nothing on again. Under Direct SDM the level trims gray (Direct SDM bypasses the volume control) while distances stay live.
-
-Known limits: convolution stages plot only when their impulse file was uploaded in the current session (the daemon offers no way to read impulses back); editing the same config from HQPTuner and the stock `/matrix` page at the same instant is unsupported (the stock page always submits its complete form and will silently revert concurrent edits — a daemon-level limitation).
 
 <img width="1213" height="1885" alt="HQPTuner's DSP tab with EQ pipelines, the AutoEq library, and the response plot" src="https://github.com/user-attachments/assets/7a3d8e53-46c8-49dd-a5a4-7403a6aa352a" />
 
@@ -72,16 +51,15 @@ Known limits: convolution stages plot only when their impulse file was uploaded 
 
 ## Drawbacks of HQPTuner
 
-While it should cover 95% of use cases, this is **not** a full-featured configuration interface.
+While it should cover the vast majority of use cases, this is **not** a full-featured configuration interface.
 
 Unavailable features:
-* Media metadata and controls
-* Library management
-* The standalone convolution engine page (convolution *within* matrix pipelines is fully supported)
+* Media playback and library management (use Roon)
+* The convolution engine (use Matrix DSP)
 
-Furthermore, to maintain "friendly" output rate options, the "Auto-rate family" option is always forced and only the most common output rates (multiples of 44.1k and 48k) are available.
+Furthermore, to maintain "friendly" output rate options, the "Auto-rate family" option is always forced and setting the max rate to 32kHz multiples is impossible. If you're one of those 32kHz weirdos, HQPTuner may not be for you.
 
-**HQPlayer Embedded only.** HQPlayer Desktop has no web interface — the port-8088 configuration lane HQPTuner depends on doesn't exist there.
+**HQPTuner works with HQPlayer Embedded only.** HQPlayer Desktop has no web interface — the port-8088 configuration lane HQPTuner depends on doesn't exist there. Sorry!
 
 ## How it works
 
@@ -96,7 +74,6 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 ## Requirements
 
-* Python 3.12+
 * A running HQPlayer **Embedded** daemon (developed and verified against 6.0.4; Desktop is not supported — see above)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets; read-only use and live settings work without it
 
@@ -115,6 +92,12 @@ Credentials default to hqplayerd's stock management credential (`hqplayer` / `pa
 
 ```sh
 printf 'HQPTUNER_HQP_USERNAME=<user>\nHQPTUNER_HQP_PASSWORD=<pass>\n' > .env
+```
+
+Start the container:
+
+```sh
+sudo docker compose -f /path/to/compose.yaml up -d
 ```
 
 Then open `http://<serverIP>:8090`.
