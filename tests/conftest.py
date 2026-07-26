@@ -14,6 +14,7 @@ The port-8088 HTTP fake lives in `fake_http`; its fixtures are at the bottom."""
 import asyncio
 import functools
 import socket
+import threading
 import time
 from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
@@ -260,6 +261,40 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
     await server.wait_closed()
 
 
+# --- the same control-daemon fake, served from a background thread ----------
+# `TestClient` runs the app (and its ConnectionManager) inside its own thread's
+# event loop, where the in-loop asyncio fakes above are unreachable: their
+# server only accepts while the test's loop is running, and it is parked for
+# the duration of a sync test body. These serve the identical `_serve` protocol
+# from a dedicated thread over real TCP, reachable from any loop.
+
+
+def spawn_threaded_daemon(overrides: dict[str, str] | None = None) -> Iterator[int]:
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+    serve = functools.partial(_serve, overrides=overrides)
+    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(serve, "127.0.0.1", 0), loop).result()
+    port: int = server.sockets[0].getsockname()[1]
+    yield port
+    loop.call_soon_threadsafe(server.close)
+    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join()
+    loop.close()
+
+
+@pytest.fixture
+def threaded_daemon_port() -> Iterator[int]:
+    yield from spawn_threaded_daemon()
+
+
+@pytest.fixture
+def threaded_disabled_volume_port() -> Iterator[int]:
+    """Threaded daemon with volume control disabled — a Volume write is refused."""
+    yield from spawn_threaded_daemon({"_vol_enabled": "0"})
+
+
 # --- fake HTTP config daemon (port 8088 lane), implemented in fake_http ---
 
 
@@ -374,3 +409,36 @@ def api_client() -> Iterator[TestClient]:
     cfg = Config(hqp_host="127.0.0.1", hqp_control_port=_closed_port())
     with TestClient(create_app(cfg)) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+    """The REST surface with its http lane wired to the faithful fake 8088
+    daemon; control lane at a closed port (http-only operations never touch it).
+    Small alarm so a rejected apply times out fast; backups, presets, and parked
+    filters land in tmp, never in the repo; `hqp_home` is pinned so filter-upload
+    path assertions read verbatim."""
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=closed_port,
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",
+        alarm_threshold=1.0,
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        hqp_home="/x/home",
+    )
+    with TestClient(create_app(cfg)) as test_client:
+        yield test_client
+
+
+def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], tries: int = 10_000) -> None:
+    """Spin on real requests — never a wall-clock sleep — until the app under
+    test reports ready. The app's ConnectionManager loads from the fakes inside
+    the client's own loop, which progresses between requests, so this converges
+    in a handful of passes; the bound only turns a hang into a loud failure."""
+    for _ in range(tries):
+        if ready(client):
+            return
+    pytest.fail("app never became ready against the fake daemons")

@@ -26,7 +26,9 @@ async def _serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
         if body == b"<GetInfo/>":
             writer.write(f'{XML}<GetInfo name="Fake" engine="6.0.4" version="6"/>\n'.encode())
         elif body == b"<GetFilters/>":
-            # container split across two writes with a flush gap
+            # container split across two writes with a flush gap; the real
+            # sleep is load-bearing — without it the kernel coalesces both
+            # writes and the split-frame case tests nothing
             writer.write(f'{XML}<GetFilters><FiltersItem index="0" name="IIR" '.encode())
             await writer.drain()
             await asyncio.sleep(0.05)

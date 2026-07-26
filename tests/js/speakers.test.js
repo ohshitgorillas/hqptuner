@@ -18,7 +18,13 @@ import { render } from "preact-render-to-string";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../hqptuner/static/components/MatrixTab.js";
 import { SpeakersCard, chooseSet } from "../../hqptuner/static/components/SpeakersCard.js";
-import { speakers, speakersError, applySpeakers } from "../../hqptuner/static/store/speakers.js";
+import {
+  speakers,
+  speakersStale,
+  speakersError,
+  applySpeakers,
+  loadSpeakers,
+} from "../../hqptuner/static/store/speakers.js";
 import { dspMode, setDspMode } from "../../hqptuner/static/store/dspmode.js";
 import {
   config,
@@ -271,4 +277,40 @@ test("test_a_refusal_with_no_reason_still_reports_the_status", async () => {
   refuse(bad(502));
   await applySpeakers(true, {});
   assert.match(speakersError.value, /502/);
+});
+
+// --- the read lane -------------------------------------------------------------
+// /api/speakers answers the backend's snapshot wrapper {stale, loaded_at, data}.
+
+function serve(answer) {
+  stagingWire({ routes: (path, opts) => (path === "/api/speakers" && !opts.method ? answer : undefined) });
+}
+
+test("test_load_mirrors_the_daemons_speaker_form", async () => {
+  await reset({ spk: null });
+  serve(ok({ stale: false, loaded_at: 1, data: SPK }));
+  await loadSpeakers();
+  assert.equal(speakers.value.channels.length, 8);
+});
+
+test("test_load_mirrors_the_stale_flag", async () => {
+  await reset();
+  serve(ok({ stale: true, loaded_at: 1, data: SPK }));
+  await loadSpeakers();
+  assert.equal(speakersStale.value, true);
+});
+
+test("test_a_successful_load_clears_a_prior_error", async () => {
+  await reset();
+  speakersError.value = "old failure";
+  serve(ok({ stale: false, loaded_at: 1, data: SPK }));
+  await loadSpeakers();
+  assert.equal(speakersError.value, "");
+});
+
+test("test_a_refused_load_reports_the_daemons_own_reason", async () => {
+  await reset();
+  serve(bad(503, "/speakers form not loaded yet"));
+  await loadSpeakers();
+  assert.equal(speakersError.value, "/speakers form not loaded yet");
 });

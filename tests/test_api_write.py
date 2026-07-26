@@ -1,35 +1,10 @@
 """Write-path REST surface: staging validation, the pending buffer, and apply
 guards (docs/testing.md). The manager is pointed at a closed local port, so the
 connection endpoints under test never reach a real daemon; the connected apply
-path is validated live on Opal."""
+path is validated live on Opal. The `http_client` fixture (conftest) wires the
+http lane to the faithful fake 8088 daemon for the applies that need one."""
 
-from collections.abc import Iterator
-from pathlib import Path
-from typing import Any
-
-import pytest
 from fastapi.testclient import TestClient
-
-from hqptuner.api import create_app
-from hqptuner.config import Config
-
-
-@pytest.fixture
-def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
-    # http lane wired to the faithful fake daemon; control lane at a closed port
-    # (an http-only apply never touches it). Small alarm so a rejected apply
-    # times out fast; backup lands in tmp, not the repo.
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-    )
-    with TestClient(create_app(cfg)) as test_client:
-        yield test_client
 
 
 def test_stage_rejects_unknown_live_setting(api_client: TestClient) -> None:

@@ -70,6 +70,30 @@ def _http_render(st: dict[str, Any]) -> str:
     return '<form method="post">' + "".join(rows) + "</form>"
 
 
+def _speakers_render(st: dict[str, Any]) -> str:
+    """GET /speakers (readme §1.9) — the enabled switch plus per-channel level
+    (dBFS) and distance (cm) inputs, each channel under its own <h2> name, the
+    layout the parser reads channel labels from on 6.0.4."""
+    parts = [f'<input type="checkbox" name="enabled" value="1"{" checked" if st["speakers_enabled"] else ""}/>']
+    for i, ch in enumerate(st["_speakers"]):
+        parts.append(
+            f"<h2>{ch['label']}</h2>"
+            f'<input type="number" name="level_{i}" value="{ch["level"]}" min="-60" max="0" step="0.1"/>'
+            f'<input type="number" name="distance_{i}" value="{ch["distance"]}" min="0" max="5000"/>'
+        )
+    return '<form method="post">' + "".join(parts) + "</form>"
+
+
+def _adopt_speakers(st: dict[str, Any], content_type: str, raw: bytes) -> None:
+    """POST /speakers — adopt the (complete) form. Checkbox contract as the real
+    daemon keeps it: `enabled` present means on, absent means off."""
+    fields = _parse_multipart_fields(content_type, raw)
+    st["speakers_enabled"] = fields.get("enabled") == "1"
+    for i, ch in enumerate(st["_speakers"]):
+        ch["level"] = fields.get(f"level_{i}", ch["level"])
+        ch["distance"] = fields.get(f"distance_{i}", ch["distance"])
+
+
 def _matrix_pipeline_row(i: int, source: str, mixdown: str, process: str) -> str:
     """One pipeline table row, markup-faithful to 6.0.4 — including the daemon's
     malformed gainunit options (`value="dB""`, a stray quote the browser and any
@@ -127,6 +151,8 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
         return 200, _http_render(st).encode()
     if path == "/matrix":
         return 200, _matrix_render(st).encode()
+    if path == "/speakers":
+        return 200, _speakers_render(st).encode()
     if path == "/backup/settings.zip":
         if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
             return 200, _empty_backup_zip()
@@ -233,6 +259,8 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
                 status = _restore_post(st, self.headers.get("Content-Type", ""), raw)
             elif self.path == "/config/profile/save":
                 _save_profile(st, raw)
+            elif self.path == "/speakers":
+                _adopt_speakers(st, self.headers.get("Content-Type", ""), raw)
             self.send_response(status)
             self.end_headers()
             self.wfile.write(b"<html>Restore</html>")
@@ -278,6 +306,12 @@ def state(**extra: Any) -> dict[str, Any]:
         # powered-off endpoints a /config/refresh rescan makes bindable
         "_hidden_endpoints": [],
         "_saved": {},
+        # speaker processing (readme §1.9): off, two flat channels
+        "speakers_enabled": False,
+        "_speakers": [
+            {"label": "Left", "level": "0", "distance": "0"},
+            {"label": "Right", "level": "0", "distance": "0"},
+        ],
         # the plugin chain lives inside <matrix>; on because bauer below is on
         "matrix_enabled": True,
         "matrix_engine": "1",
