@@ -8,7 +8,7 @@ The tuner's `evaluate_chain` tool computes the summed magnitude response of a fi
 
 ---
 
-## 1. RBJ Audio EQ Cookbook — the primary, finally read `[VA]`
+## 1. RBJ Audio EQ Cookbook — the primary `[VA]`
 
 * **Citation.** Bristow-Johnson, R. *Cookbook formulae for audio EQ biquad filter coefficients.* Maintained by the W3C Audio Working Group as the Audio-EQ-Cookbook appendix.
 * **Artefact read.** `https://webaudio.github.io/Audio-EQ-Cookbook/Audio-EQ-Cookbook.txt` (8845 bytes, HTTP 200). Identical copy at `raw.githubusercontent.com/webaudio/Audio-EQ-Cookbook/main/Audio-EQ-Cookbook.txt`.
@@ -136,7 +136,7 @@ Also useful, §7 verbatim, and relevant to why headphone correction is normally 
 ## 3. W3C Web Audio API — normative, and it hard-codes S = 1 `[VA]`
 
 * **Citation.** *Web Audio API*, W3C. BiquadFilterNode §1.13 and Filter Characteristics §1.13.5. Published Recommendation (1.0, 17 June 2021) at `w3.org/TR/webaudio/`.
-* **Retrieval note, stated honestly:** the rendered single-page spec exceeded the fetch tool's limit on three attempts. The text was read from the spec's **Bikeshed source of record** (`index.bs`), the file the published HTML is generated from.
+* **Artefact read.** The spec's **Bikeshed source of record** (`index.bs`), the file the published HTML is generated from.
 * **Reliability.** Standards-body, normative.
 
 Provenance statement, verbatim:

@@ -115,7 +115,7 @@ So the model may **recommend anything, and change only the four.** The recommend
 
 The user can upload material: a measured frequency response, a `ParametricEQ.txt` from anywhere, a manufacturer sheet, a review, their own notes from earlier sessions.
 
-**All of it is accepted. There is no accept/reject split, and `basis` carries the weight instead.** An earlier draft here proposed admitting parseable data and refusing prose, on the grounds that a review is folklore with a file attached. That was withdrawn: it protects the user from their own judgment, and it is incoherent besides, since `basis` (D16) exists precisely so unverifiable material can be present without masquerading as fact. If someone hands the model a file, they have already decided it has value, and they know its provenance better than the model does.
+**All of it is accepted. There is no accept/reject split by file kind, and `basis` carries the weight instead.** Admitting parseable data and refusing prose would protect the user from their own judgment, and it is incoherent besides, since `basis` (D16) exists precisely so unverifiable material can be present without masquerading as fact. If someone hands the model a file, they have already decided it has value, and they know its provenance better than the model does.
 
 **The ladder, strongest to weakest:**
 
@@ -141,7 +141,7 @@ What still holds — properties of the mechanism, not judgements about the user:
 
 It also unlocks a diagnostic otherwise unreachable: **an uploaded measurement can contradict the loaded profile.** "Your profile targets Harman; your measurement shows the seal is not reaching the bass shelf" is a finding no amount of chain arithmetic could produce, because the chain is not where that fault lives.
 
-**The prose rule, restated (revised — see F8).** The original wording was "no freeform model prose is ever rendered", and that is too strong: it would suppress the single most valuable output the feature produces. The rule is now:
+**The prose rule:**
 
 > **Prose is permitted only as a field of a structured object that carries the numbers it describes. Free-form turns are still banned.**
 
@@ -242,7 +242,7 @@ So the app today **never silently recomputes and never silently goes stale** —
 
 **Ruling — the AI path rebuilds in-turn.** When a turn changes a crossfeed parameter and a recognized compensation block exists, the same diff emits the recompiled block, preserving `sFraction`, `eqProcess`, and `preampDb`. This reuses `fitComp` + `msCompile` and introduces no new math.
 
-**This applies whether or not the block was already stale on entry.** A block left out of date by an earlier hand-edit gets rebuilt too. The rebuild is a pipeline change, so it appears in the turn's structured diff exactly like every other change — there is nothing silent about it and it needs no narration. (An earlier draft proposed refusing the change when the block was already stale, and a variant that narrated the rebuild in prose. Both were rejected: the first hands the user a chore mid-session, the second violates the `changes` XOR `clarify` union.)
+**This applies whether or not the block was already stale on entry.** A block left out of date by an earlier hand-edit gets rebuilt too. The rebuild is a pipeline change, so it appears in the turn's structured diff exactly like every other change — there is nothing silent about it and it needs no narration. **The change is never refused because the block was already stale** — that hands the user a chore mid-session — **and the rebuild is never narrated in prose**, which would violate the `changes` XOR `clarify` union.
 
 #### F2a · The tilt direction — corrected
 
@@ -268,13 +268,11 @@ Because a model's priors will supply the folk belief here, this is an **eval cas
 
 ### F3 · AutoEq bands are in scope — amend before append
 
-*Revised 2026-07-22 by user decision; supersedes the protected-segment design.*
-
 There is no provenance metadata in the wire format. `doImport()` (`components/MatrixTab.js:492`) appends parsed stages onto the row's `process` string and maps the `Preamp:` line onto the row `gain`; `parseEqText` → `editedStage` produces ordinary stages indistinguishable from hand-typed ones.
 
-An earlier draft treated that as a gap to be closed, and proposed an exclusively-owned appended segment so AutoEq bands stayed untouchable. **That is withdrawn.** It was based on a misreading of the requirement, and it produces the failure it was meant to prevent: an AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band in its region already. Amending that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside it makes the net response the sum of two overlapping filters, and a few turns of that is unreasonable. This was established empirically in a manual tuning session before the feature was specified.
+**Bands are not partitioned by provenance, and an exclusively-owned appended segment would produce the failure it was meant to prevent:** an AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band in its region already. Amending that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside it makes the net response the sum of two overlapping filters, and a few turns of that is unreasonable. This was established empirically in a manual tuning session before the feature was specified.
 
-**Amend before append — as prompt guidance, not a validator rule.** An earlier draft made this a hard rejection ("reject an append where a band covers the region"). That was wrong twice over. Every vocabulary region contains one of the preset's bands, so the rule reduces to *never append*; and it forces amending whatever band is nearest regardless of whether that band suits the job. AutoEq bands are not interchangeable — a Q 0.7 shelf is broad shaping, a Q 4 notch at 5.7 kHz is killing a measured resonance. Amending the notch to satisfy "a bit less bright" does not voice anything; it silently undoes a measurement correction.
+**Amend before append — as prompt guidance, not a validator rule.** A hard rejection ("reject an append where a band covers the region") is wrong twice over: every vocabulary region contains one of the preset's bands, so the rule reduces to *never append*; and it forces amending whatever band is nearest regardless of whether that band suits the job. AutoEq bands are not interchangeable — a Q 0.7 shelf is broad shaping, a Q 4 notch at 5.7 kHz is killing a measured resonance. Amending the notch to satisfy "a bit less bright" does not voice anything; it silently undoes a measurement correction.
 
 The real test is **filter suitability, which is a judgment**: amend when a band sits near the target *and* its shape fits the move being asked for; append when the nearest band is surgical, or nothing suitable is near. Vocabulary entries carry `typical_q`, which gives the model a target shape to compare against. Encoding this as a rejection would mean encoding taste, which a validator cannot do. It lives in the prompt; the user corrects in plain language when the model gets it wrong, and the ledger carries that correction forward as context.
 
@@ -341,7 +339,7 @@ evaluate_chain(candidate_changes[], at_frequencies[])
 
 **`alternatives_rejected` is first-class output.** Every later turn carries the candidates not taken, with measured numbers and reasons. It is structured and numeric, it renders safely, and it is what lets a user judge a change rather than take it on faith.
 
-**Consequence — the prose rule was too strict.** `diagnosis.explains_symptom` is the most valuable string the feature produces. §1 now permits prose *as a field of a structured object carrying the numbers it describes*, and continues to ban free-form turns. Decision taken 2026-07-22.
+**Consequence for the prose rule.** `diagnosis.explains_symptom` is the most valuable string the feature produces, so §1 permits prose *as a field of a structured object carrying the numbers it describes* while banning free-form turns.
 
 **The file is the format spec.** `auteur-classic-tuning.json` now carries `base_bands`, and per turn `diagnosis`, `alternatives_rejected`, `measured`, `selected_*`, `side_effect_flagged`, `verification`, and `answer` on clarify turns. The schema is harvested from it, not designed in parallel with it.
 
@@ -423,7 +421,7 @@ Every phase hands back with `make check` green plus PASS/FAIL per acceptance cri
 
 `SOURCES.md`, `vocabulary.json` (25 tonal + 13 spatial), `PRIMER.md`. Sources: Sean Olive / Harman listener-training research; FORCE Technology Sound Wheel lexicon (reached via ITU-R BS.2399-0, the AES paper being paywalled); Audio Commons timbral models; Owsinski's descriptor tables; AutoEq's documented filter/gain/Q/preamp conventions (our clamps align with these); Toole on audibility and broad-vs-narrow adjustments. Spatial: Meier, bs2b documentation, crossfeed-perception literature.
 
-Two corrections were applied to the first draft on 2026-07-22 and are recorded in `_meta.corrections`: the inverted tilt direction (F2a) and the AutoEq scope reversal (F3). Both are flagged in place in the assets rather than silently overwritten.
+`_meta.corrections` records two corrections, flagged in place in the assets rather than silently overwritten: the inverted tilt direction (F2a) and the AutoEq scope reversal (F3).
 
 Known gaps, honestly marked in `SOURCES.md`: r/oratory1990 unreachable (only his preset data via AutoEq is cited, no reasoning attributed); three AES papers paywalled; Toole's book secondary-sourced and flagged not-for-user-facing-copy; no peer-reviewed quantification of crossfeed's bass-summing tonal effect exists.
 

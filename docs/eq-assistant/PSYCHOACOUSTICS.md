@@ -1,13 +1,13 @@
 # PSYCHOACOUSTICS.md — how big, how narrow, and how sure
 
-Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `TRANSDUCERS.md` (measurement reality). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener). Compiled 2026-07-25.
 
 This document answers two questions the tuner implicitly answers every turn, and previously answered from convention rather than evidence:
 
 1. **How large does a move have to be before anyone hears it?**
 2. **How narrow can a move usefully be before it stops mattering?**
 
-It also records, deliberately, what could **not** be verified — including a load-bearing claim in `SOURCES.md` that has now failed verification three times by independent routes.
+It also records, deliberately, what could **not** be verified.
 
 **Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL (same artefact class as `[V]`; the difference is who read it). Figures computed by us from a quoted formula are labelled **derived** in place and are never presented as source claims.
 
@@ -49,6 +49,8 @@ A filter much narrower than one ERB is being placed *inside* a single auditory f
 
 This is a *supporting* argument for the existing low-Q default, not a new clamp, and it must not be over-read: an ERB is the auditory filter's bandwidth, not a hard audibility threshold for a spectral feature, and narrow high-Q *resonances* in a transducer are genuinely audible (`TRANSDUCERS.md` §1.1) which is exactly why narrow corrective filters have a legitimate use. The honest statement is that **broad moves act across many auditory filters and narrow ones act within one**, which is why broad colourations are the ones a listener notices over a whole album — and why `SOURCES.md`'s "broader beats narrower" ruling is right for *voicing* while narrow filters remain correct for *named resonances*.
 
+**Scope limit — these are normal-hearing filters.** Every formula above is fitted to otologically normal listeners, so the ERB arithmetic in this section does not describe an impaired ear. Cochlear loss **broadens** the auditory filter, asymmetrically and most severely in the region where high-frequency loss lives, so for a listener with hearing loss the low-Q conclusion **strengthens while this derivation stops applying** — a narrow filter sits even further inside a single auditory filter than the numbers here imply. Measured impaired-versus-normal ERBs, the derived broadening factors and their caveats are in `HEARING.md` §3.2.
+
 ---
 
 ## 2. Equal-loudness contours — why level changes tonal balance
@@ -65,7 +67,7 @@ Verbatim:
 
 That last figure is the important one for us and it is a **humility constraint**: the underlying data behind the canonical equal-loudness curves carries a 5–6 dB standard deviation across listeners. Any claim the tuner makes about how loudness affects a particular user's perceived balance is downstream of that spread.
 
-**The contour table itself was not obtained.** The paper does not print it; ISO 226 is paywalled `[S]` (scope confirmed from ISO's own catalogue: "combinations of sound pressure levels and frequencies of pure continuous tones which are perceived as equally loud", free progressive plane wave, frontal, binaural, "otologically normal persons in the age range from 18 years to 25 years inclusive"). **The commonly quoted "bass rises N dB between 60 and 80 phon" figure is therefore NOT sourced here and must not be stated.** Reading it off a graph was explicitly refused.
+**The contour table itself was not obtained.** The paper does not print it; ISO 226 is paywalled `[S]` (scope confirmed from ISO's own catalogue: "combinations of sound pressure levels and frequencies of pure continuous tones which are perceived as equally loud", free progressive plane wave, frontal, binaural, "otologically normal persons in the age range from 18 years to 25 years inclusive"). **The commonly quoted "bass rises N dB between 60 and 80 phon" figure is therefore NOT sourced here and must not be stated.**
 
 Fletcher & Munson (1933) `[VA]` is free and citable for the origin — *Bell System Technical Journal* 12(4), 377–430, full text at archive.org — but the archived text is OCR of a 1933 scan and **no contour numbers have been transcribed from it.**
 
@@ -91,11 +93,9 @@ BS.1534-3 (MUSHRA) `[VA]` carries the parallel sentence, same pattern, also with
 
 ## 4. Resonance audibility — the primary, and what it settles
 
-> **Revised 2026-07-25, second pass.** An earlier version of this section demoted two figures to `[X]` on the grounds that three automated routes had failed to reach Toole & Olive (1988). The paper was then obtained by hand and **one of the two figures is the authors' own summary item.** The demotion was a reasoning error — failure to retrieve is evidence about the fetcher, not about the claim — and it is recorded at `SOURCES.md` §2.5 finding 2 rather than quietly deleted. The material below is now read from the primary.
-
 ### 4.0 The numbers, from the primary `[V]`
 
-**Toole, F. E. & Olive, S. E. (1988). "The Modification of Timbre by Resonances: Perception and Measurement." *JAES* 36(3), 122–142.** Read in full from a hand-fetched PDF. *(The text layer is a font subset with no Unicode map — `pdftotext` yields garbage. Read the rendered pages.)*
+**Toole, F. E. & Olive, S. E. (1988). "The Modification of Timbre by Resonances: Perception and Measurement." *JAES* 36(3), 122–142.** Read in full.
 
 The authors' summary of audibility without time delay, §6 p. 138, items 1, 2 and 5 verbatim:
 
@@ -139,7 +139,7 @@ On the state of target-curve agreement, which bears on §5 below:
 
 ### 4.2 What remains unsourced
 
-**The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure is not in the 1988 paper.** It was carried at `[S]` on the strength of search-summary text; two research lanes never found it in any fetched artefact, and reading the primary in full did not turn it up. **It is unsourced. Do not state it.** The paper's own numbers (§4.0) are better anyway, because they are expressed against programme spectrum level and against Q rather than as a bare absolute.
+**The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure is not in the 1988 paper. It is unsourced. Do not state it.** The paper's own numbers (§4.0) are better anyway, because they are expressed against programme spectrum level and against Q rather than as a bare absolute.
 
 **Bücklein (1981)**, *JAES* 29(3), 126–131 — still `[X]`, AES paywall. Its peaks-versus-dips finding is nonetheless usable at one remove, because Toole & Olive summarise it directly in a paper we have read in full (§4.0). Its own dB thresholds remain unobtained.
 
@@ -157,7 +157,7 @@ Findings, from §V Conclusions and §III.B verbatim:
 * **Extent matters more than location.** Wide-range tilt scored 5.8 (music) / 5.7 (speech) against 7.2–7.8 for the subranges. The authors attribute this to end-to-end level difference: "for a fixed tilt value in dB/ERB_N, the difference in level between the start and end of the tilt was greater" over the wide range.
 * **High-frequency-only tilt is nearly free.** Tilts "restricted to the high-frequency range (2503–6981 Hz) have relatively little perceptual effect, until they are rather extreme."
 
-**On ripple — correcting a misreading of the abstract.** An earlier draft of this file said ripple denser than 0.2 ripples/ERB_N "stops degrading quality further", implying a ceiling. The full text says the opposite of a ceiling: **0.2 ripples/ERB_N is the *worst* density, and denser ripple is less damaging.** Verbatim: "naturalness at first decreased with increasing ripple rate, but then increased again." Mean ratings for music at 0.05 / 0.1 / 0.2 / 0.5 ripples/ERB_N were **6.8, 6.1, 5.5, 6.2**; for speech, 7.2, 6.3, 5.7, 5.9.
+**On ripple: 0.2 ripples/ERB_N is the *worst* density, and denser ripple is less damaging.** Verbatim: "naturalness at first decreased with increasing ripple rate, but then increased again." Mean ratings for music at 0.05 / 0.1 / 0.2 / 0.5 ripples/ERB_N were **6.8, 6.1, 5.5, 6.2**; for speech, 7.2, 6.3, 5.7, 5.9.
 
 Two calibrating remarks from the authors, worth keeping because they place our own use case: a 5 dB peak-to-valley ripple is what "occur[s] quite commonly in the frequency response of good-quality transducers" and has "only a moderate effect on perceived naturalness"; a 10 dB ripple is "the kind of spectral ripple that might be found in the response of lower-quality transducers, such as those in medium quality headphones."
 
@@ -190,10 +190,8 @@ This is also the honest frame for the project's **±6 dB per-turn policy** (`SOU
 
 ## 6. Open
 
-- **Toole & Olive (1988) full text** — the single highest-value outstanding item in the whole research base, since the Q-audibility numbers in §4.2 rest on it. Free at pearl-hifi.com; 403 to this fetcher; a browser would likely get it.
 - **Bücklein (1981)** dB thresholds for peaks versus dips — paywalled.
-- **Moore & Tan (2003)** full text — the tilt-JND question.
 - **Broadband level JND** from a fetchable open-access artefact.
 - **ISO 226 contour values** — the numeric table. `iso226.m`-style third-party transcriptions of the α_f / L_U / T_f parameter tables exist and would be citable at `[S]` with the chain stated; not yet captured.
 - **Upward spread of masking** with numbers — Zwicker & Fastl is the textbook home; free lecture-note and MPEG psychoacoustic-model reproductions were not reached.
-- **Olive, Schuck, Sally & Bonneville (1994)**, "The Effects of Loudspeaker Placement on Listener Preference Ratings", JAES — paywalled. *(Authorship corrected: an earlier research brief mis-attributed this to Olive/Toole/Welti.)*
+- **Olive, Schuck, Sally & Bonneville (1994)**, "The Effects of Loudspeaker Placement on Listener Preference Ratings", JAES — paywalled.
