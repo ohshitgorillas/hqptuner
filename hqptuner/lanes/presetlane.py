@@ -15,6 +15,7 @@ public accessors, exactly like the other lanes.
 from __future__ import annotations
 
 import contextlib
+import logging
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -22,10 +23,14 @@ import httpx
 from ..conf import engineconf, presetconf
 from ..control import ControlError
 from ..presetstore import PresetError
-from . import livemap
+from . import livemap, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
+
+log = logging.getLogger(__name__)
+
+RECONNECT_FAST = 1.0
 
 
 def listing(mgr: ConnectionManager) -> dict[str, Any]:
@@ -67,7 +72,13 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Persist the current running config as preset ``name`` — store our copy and
     mirror it into the daemon's ``data/cfgs``. Called after a successful apply, so
-    the running config already carries the user's edits."""
+    the running config already carries the user's edits.
+
+    The store write is the save; the daemon mirror is a convenience for
+    hqplayerd's own profile list. So the mirror runs AFTER the store commits and
+    reports a warning rather than a failure — a save that reached disk must never
+    come back as ``ok: False``, which is what sent a user looking for a preset
+    that was already there."""
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
         backup = await mgr.backup_or_cached(for_write=True)
@@ -80,13 +91,36 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         # hearing, not what happens to be on disk.
         working = presetconf.apply_edits(working, livemap.live_overrides(mgr))
         mgr.store.save(name, working)
-        archive = presetconf.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
-        await mgr.require_http().restore(archive, scope="system")
         mgr.store.set_active(name)
-        await mgr.await_http_ready()
     except (ControlError, PresetError, httpx.HTTPError, presetconf.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
-    return {"name": name, "ok": True}
+    warning = await _mirror(mgr, name, working, backup)
+    if warning is None:
+        return {"name": name, "ok": True}
+    return {"name": name, "ok": True, "warning": warning}
+
+
+async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> str | None:
+    """Plant ``data/cfgs/<name>.xml`` on the daemon so hqplayerd's native profile
+    list mirrors our store. Returns None when it landed, else a user-facing
+    warning.
+
+    Retries through the shared settle loop instead of firing once: this runs
+    right after an apply's own restore, so the daemon is routinely still
+    restarting and a single-shot POST reports a failure the next second would
+    not have seen. Re-sending is safe — the archive is the same bytes either
+    way."""
+    archive = presetconf.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
+
+    async def push() -> bool:
+        await mgr.require_http().restore(archive, scope="system")
+        return True
+
+    if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
+        await mgr.await_http_ready()
+        return None
+    log.warning("preset %r saved, but its daemon mirror did not land", name)
+    return "hqplayerd's own profile list was not updated"
 
 
 async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:

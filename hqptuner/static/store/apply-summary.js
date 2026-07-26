@@ -42,6 +42,17 @@ function successText(sw, count) {
   return `Switched to "${sw.name}"${changes ? ` + ${changes}` : ""}`;
 }
 
+// The save lane's outcome, appended to what the apply itself did. A WARNED save
+// is still a save: the preset is on disk and only hqplayerd's own mirror of it is
+// behind, so it reads as a success carrying the caveat rather than a failure —
+// reporting it as failed is what sent a user hunting for a preset already there.
+function savedSummary(base, saved) {
+  if (!saved) return { ok: true, text: base };
+  if (!saved.ok) return failure(`${base} — save to "${saved.name}" failed: ${saved.error}`);
+  const caveat = saved.warning ? ` — ${saved.warning}` : "";
+  return { ok: true, text: `${base} · saved to "${saved.name}"${caveat}` };
+}
+
 export function summarize(report, count) {
   const sw = report.switched;
   const failed =
@@ -50,9 +61,5 @@ export function summarize(report, count) {
     persistentFailure(report.persistent);
   if (failed) return failed;
 
-  const base = successText(sw, count);
-  const saved = report.saved;
-  if (saved && !saved.ok) return failure(`${base} — save to "${saved.name}" failed: ${saved.error}`);
-  if (saved) return { ok: true, text: `${base} · saved to "${saved.name}"` };
-  return { ok: true, text: base };
+  return savedSummary(successText(sw, count), report.saved);
 }
