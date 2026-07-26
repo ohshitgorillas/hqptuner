@@ -176,7 +176,7 @@ Design and reference docs:
 * `docs/crossfeed-math.md` — structural crossfeed model, derivation, and matrix realization
 * `docs/eq-export.md` — REW / Equalizer APO export format reference
 * `docs/testing.md` — binding testing policy
-* `docs/eq-assistant-plan.md` — EQ Assistant implementation plan (not yet built), with the research base in `docs/eq-assistant/`
+* `docs/eq-assistant/eq-assistant-plan.md` — EQ Assistant implementation plan (not yet built), alongside its research base in the same directory
 
 ## Status
 
