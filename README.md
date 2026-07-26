@@ -2,7 +2,7 @@
 
 A polished and enhanced configuration interface for HQPlayer Embedded.
 
-<img width="1202" height="1303" alt="HQPTuner's Output tab during DSD512 playback" src="https://github.com/user-attachments/assets/3b1cf017-d33f-4378-84f3-98f05975649e" />
+<img width="1189" height="1430" alt="image" src="https://github.com/user-attachments/assets/653d74ff-aefc-4297-885d-52ddfd4a0298" />
 
 *The Output tab during DSD512 playback: live signal path across the top, Backend / Mode / Rate master switches, and every setting explained in place.*
 
@@ -32,6 +32,10 @@ HQPTuner offers the following features and improvements over the stock web confi
 
 **3. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed: a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. It's good, but it's not my jam. So I built in an alternative: structural crossfeed feature modelling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference**, and **center character** (ok, the last one is hard to picture, but the plots make it easy to understand). It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. Integrates with and doesn't disturb your EQ curve.
 
+<img width="1193" height="954" alt="image" src="https://github.com/user-attachments/assets/75313c1d-2d13-45f6-b621-1d6df856b0b1" />
+
+*The Resampling tab showing filter narrowing options.*
+
 The above three features are my flagships, but the following benefits are offered as well:
 
 * **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
@@ -45,9 +49,9 @@ The above three features are my flagships, but the following benefits are offere
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
 * **Log tail in the browser**: The daemon's log, right in the System tab.
 
-<img width="1213" height="1885" alt="HQPTuner's DSP tab with EQ pipelines, the AutoEq library, and the response plot" src="https://github.com/user-attachments/assets/7a3d8e53-46c8-49dd-a5a4-7403a6aa352a" />
+<img width="1195" height="1876" alt="image" src="https://github.com/user-attachments/assets/0cf921af-7f43-4503-917c-988b77561383" />
 
-*The DSP tab: a stereo pair of 10-band EQ pipelines with the inline stage editor open, the built-in AutoEq library previewing a Sennheiser HD 650 profile against the current curve, and draggable EQ dots on the response plot.*
+*The DSP tab demonstrating the effects of structural crossfeed mode on the Matrix Response plot.*
 
 ## Drawbacks of HQPTuner
 
