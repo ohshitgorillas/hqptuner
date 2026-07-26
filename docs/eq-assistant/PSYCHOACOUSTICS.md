@@ -1,6 +1,6 @@
 # PSYCHOACOUSTICS.md — how big, how narrow, and how sure
 
-Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener). Compiled 2026-07-25.
+Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `TRANSDUCERS.md` (measurement reality), `HEARING.md` (the impaired listener), `PHASE.md` (phase and group delay). Compiled 2026-07-25.
 
 This document answers two questions the tuner implicitly answers every turn, and previously answered from convention rather than evidence:
 
@@ -119,7 +119,7 @@ Expressed against programme spectrum level instead, p. 124: "A resonance with *Q
 
 **Peaks beat dips**, p. 123, summarising Bücklein: "peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases."
 
-**Magnitude, not phase, and not ringing duration**, p. 124: "the amplitude response appears to be more directly related to the audible effect"; and p. 135: "it is the *initial* amplitude, not the duration, of the ringing that is related to the auditory detection process."
+**Magnitude, not phase, and not ringing duration**, p. 124: "the amplitude response appears to be more directly related to the audible effect"; and p. 135: "it is the *initial* amplitude, not the duration, of the ringing that is related to the auditory detection process." **On the phase half of that sentence, read `PHASE.md` §6 before relying on it** — the source it rests on (Moulana 1975) ran no phase experiment, and the magnitude-only case is made properly in `PHASE.md` §1 and §4. The ringing half is unaffected, and Moulana reached it independently.
 
 ### 4.1 Corroboration from the free 2015 review
 
@@ -141,7 +141,7 @@ On the state of target-curve agreement, which bears on §5 below:
 
 **The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure is not in the 1988 paper. It is unsourced. Do not state it.** The paper's own numbers (§4.0) are better anyway, because they are expressed against programme spectrum level and against Q rather than as a bare absolute.
 
-**Bücklein (1981)**, *JAES* 29(3), 126–131 — still `[X]`, AES paywall. Its peaks-versus-dips finding is nonetheless usable at one remove, because Toole & Olive summarise it directly in a paper we have read in full (§4.0). Its own dB thresholds remain unobtained.
+**Bücklein (1981)**, *JAES* 29(3), 126–131 — still `[X]`, AES paywall. Its peaks-versus-dips finding is nonetheless usable at one remove, because Toole & Olive summarise it directly in a paper we have read in full (§4.0). **One of its numbers is now available at one remove**, from Moulana's literature review (`PHASE.md` §6, quoting Moulana p. 2.35): at 1 kHz a 15 dB peak with a bandwidth factor of 0.35 was noticed by all ten of his observers, while an equivalent dip was noticed by half. Still secondhand; the rest of his thresholds remain unobtained.
 
 ### 4.3 Spectral tilt and ripple — the shelf-move evidence `[V]`
 

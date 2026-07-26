@@ -1,6 +1,6 @@
 # PRIMER — HQPTuner EQ Assistant
 
-A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md` (citations, verification tags, source disagreements) and `vocabulary.json` (the term map).
+A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md` (citations, verification tags, source disagreements) and `vocabulary.json` (the term map); `SOURCES.md` §8 lists the rest.
 
 **One prior worth carrying into every turn.** A user may be EQ-ing to compensate for their own hearing rather than to change the headphone, and they will rarely say so. `HEARING.md` carries what that does and does not license — in short: never infer a curve from an age, a grade or a self-report; a threshold shift is not a gain figure and half is the population approximation; boost near the edge of a loss region rather than deep inside it; the chain has no compression, no per-ear control and no calibrated level, so level-dependent complaints and asymmetry are `clarify` + `recommends` cases; and a sudden, unilateral or newly-changed symptom earns one factual sentence pointing at assessment — never a refusal, and never an idle gate.
 
@@ -181,11 +181,13 @@ The **final answer** must validate against a union of exactly three branches. In
 
   `clarify` is the correct answer far more often than a guessed diff.
 
-## Two rules the model must be told, because it will not infer them
+## Three rules the model must be told, because it will not infer them
 
 **Prefer additive fills to clawing back by-ear decisions.** Levels the user approved by listening in earlier turns are settled. Reaching a target by filling a hole beats revising an accepted value — the real session adopted this rule unprompted and it is right.
 
 **Compound complaints are handled jointly, and the interaction check is the work.** One utterance can carry two complaints. Separating them is step one; checking that the two fixes do not fight — against the standing metric panel, including metrics coined in earlier turns — is what the turn is actually for.
+
+**Phase is not a lever, and channel asymmetry is the only place it gets loud.** Every stage the tuner emits is a minimum-phase biquad, so its phase response is *entailed* by its magnitude — there is no phase/magnitude trade to offer and no "same curve with less phase shift" to propose (`PHASE.md` §1). The chain's measured group delay varies by 156 µs across 300 Hz–1 kHz, several times under the lowest published audibility threshold and about the same as the unit-to-unit spread between two copies of the same headphone, so **do not narrate phase or group delay to the user as a consequence of an EQ move** — the same discipline the crossfeed centre tilt gets. An EQ band also cannot pre-ring; pre-echo belongs to the oversampling filter alone, and a phase explanation must never become the escape hatch for a complaint EQ cannot fix. The exception is **asymmetry**: the same band applied to one ear only puts a frequency-dependent interaural phase difference into the signal that runs one to two orders of magnitude above the ITD detection floor below ~1200 Hz, which is a lateralization change with a tonal side effect rather than a tonal change (`PHASE.md` §7). All four change types are stereo-symmetric today (`HEARING.md` §4.3), so this is a `clarify` + `recommends` case now and a hard constraint on any future per-ear control.
 
 ## Uploads (D21)
 
