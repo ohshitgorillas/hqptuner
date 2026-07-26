@@ -19,8 +19,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { xfMode, activeMode, setXfMode, structuralBlock, removeStructural } from "../../hqptuner/static/lib/xfmode.js";
-import { config, matrixConfig, effective, effectivePipelines, discardAll } from "../../hqptuner/static/store/state.js";
+import {
+  xfMode,
+  activeMode,
+  setXfMode,
+  structuralBlock,
+  removeStructural,
+  stageStructural,
+} from "../../hqptuner/static/lib/xfmode.js";
+import {
+  config,
+  matrixConfig,
+  effective,
+  effectivePipelines,
+  stagePipelines,
+  discardAll,
+} from "../../hqptuner/static/store/state.js";
 import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
 import { ok, stagingWire } from "./wire.js";
@@ -36,8 +50,8 @@ const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process
 const pair = () => [row("0", "0"), row("1", "1")];
 
 // The two installed shapes: sixteen structural rows, or eight compensation rows.
-const structural = () =>
-  compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb: -3, eqProcess: EQ });
+const structural = (eqProcess = EQ, srcA = 0, srcB = 1) =>
+  compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA, srcB, preampDb: -3, eqProcess });
 const compensation = () => msCompile(EQ, -3, fitComp(DEF.fc, DEF.feed), 1, 0, 1);
 
 // Full reset every time — the mode signal and the staging buffer both outlive a test.
@@ -98,6 +112,29 @@ test("test_turning_structural_off_keeps_the_structural_view", async () => {
   await reset({ rows: structural(), selected: "structural" });
   removeStructural(live(), structuralBlock(live()));
   assert.equal(activeMode(live()), "structural");
+});
+
+// --- turning off hands back the EQ the block is carrying ----------------------
+//
+// Crossfeed is a transform layered over the EQ, so taking it off subtracts the
+// transform and nothing else. The EQ the block is carrying NOW is what comes
+// back — not the EQ that happened to be on rows 1+2 when it was installed.
+
+const LOADED = "iir:type=peak;f=4000;q=2;g=-5";
+
+test("test_eq_loaded_while_the_block_is_installed_comes_back_when_it_is_turned_off", async () => {
+  await reset({ rows: pair(), selected: "structural" });
+  stageStructural(live(), { lambda: 1, angle: 30, headRadius: HEAD_RADIUS });
+  // The supported way to load a profile onto an installed block: recompile it.
+  stagePipelines(structural(LOADED));
+  removeStructural(live(), structuralBlock(live()));
+  assert.equal(live()[0].process, LOADED);
+});
+
+test("test_a_block_built_on_in_3_returns_its_pair_on_in_3", async () => {
+  await reset({ rows: structural(EQ, 2, 3), selected: "structural" });
+  removeStructural(live(), structuralBlock(live()));
+  assert.equal(live()[0].source, "2");
 });
 
 // --- no stored choice: the installed rows answer ------------------------------

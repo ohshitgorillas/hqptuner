@@ -259,25 +259,29 @@ The measured route is not automatically better. Non-individualized HRTFs are a k
 
 ## 8 · Implementation
 
-Shipped as the Structural mode of the Crossfeed card. `lib/binaural.js` holds the model, compiler, recognizer and presets; `lib/xfmode.js` the mode derivation, staging and the stash that makes removal byte-exact; `components/Crossfeed.js` the card; `components/CrossfeedGeometry.js` the geometry. Verified by `scripts/check_binaural.py` (ten checks, node-driven) and `scripts/check_xfeed.py`.
+Shipped as the Structural mode of the Crossfeed card. `lib/binaural.js` holds the model, compiler, recognizer and presets; `lib/xfmode.js` the mode derivation and staging; `components/Crossfeed.js` the card; `components/CrossfeedGeometry.js` the geometry. Verified by `scripts/check_binaural.py` (ten checks, node-driven) and `scripts/check_xfeed.py`.
 
-Two behaviours worth recording because both were got wrong first:
+Three behaviours worth recording because all three were got wrong first:
 
-**Installing never refuses.** An earlier version returned an issue and blocked the mode switch when rows 0+1 were not a readable EQ pair. That guard was inherited from the compensation block, where it protects a round trip — here the round trip is guaranteed instead by stashing the original rows verbatim. Unreadable rows are now *set aside*: the block installs with no EQ of its own, the originals are stashed, and Turn off restores them exactly.
+**Installing never refuses.** An earlier version returned an issue and blocked the mode switch when rows 0+1 were not a readable EQ pair. That guard was inherited from the compensation block; a control that silently declines to go where the user pointed it is worse than one that goes and explains. Rows the compiler cannot read as an EQ pair are *set aside*: the block installs carrying no EQ of its own, and says so.
 
 **EQ is carried per ear.** Chain and preamp both. A measured headphone correction is often asymmetric, and refusing those profiles would have excluded exactly the listeners most likely to want an accurate crossfeed. EQ distributes over each output ear independently, so this costs nothing structurally.
 
-### 8.1 · Set-aside, verified end to end (2026-07-22)
+**Removal is arithmetic, not recall.** Crossfeed is a transform layered on top of the EQ. Turn it on, the transform is applied; turn it off, the transform is removed; the EQ is untouched by both. λ, θ and *a* define the transform completely, so `recognizeRows` — the exact inverse of `compileRows` — recovers the per-ear chain and preamp from the installed rows and `removeStructural` writes them back out as a pair. Nothing is destroyed on the way in, so there is nothing to remember on the way out. See §8.1.
 
-Two restore paths, both exercised against the running app rather than reasoned about. Staged payloads were read off the wire from `POST /api/config/stage`, so what is recorded is what the app actually sent.
+### 8.1 · Removal, and the stash that used to do it (2026-07-26)
 
-**Stashed restore, same session.** Rows 1+2 set to crossed routing — legal pipelines the compiler cannot read as an EQ pair — with asymmetric gains (−6.3 / −4.5) and an unrelated `riaa` row sitting past them. Clicking Structural installed anyway and reported why: *"pipelines 1+2 do not route straight through — they have been set aside, and Turn off restores them exactly."* Seventeen rows staged, which is the sixteen compiled plus the untouched `riaa` row; the two unreadable rows were consumed into the stash rather than appended. Turn off returned all three original rows **byte-identical**, crossed routing and asymmetric gains included.
+Until 2026-07-26, `removeStructural` restored a `localStorage` snapshot of rows 1+2 taken at install time, falling back to reconstruction from the block only when no snapshot existed. **That snapshot was a bug, and it was the primary path.** The EQ under an installed block is not frozen: `structuralPlan` (`lib/eqimport.js`) loads a profile onto a live block by recompiling all sixteen rows, and the card's own controls restage it on every nudge. Any EQ work done while the block was installed was therefore discarded on Turn off, and a block installed over bare rows handed back bare rows. The snapshot was also browser-local, never invalidated by anything the daemon did, and survived Applies and reloads — so it could be arbitrarily stale by the time it was used.
 
-**Fallback reconstruction, through the daemon.** The stash is written to `localStorage` alongside the remembered controls, so it **survives an Apply and a reload**. The fallback engages only when there is no stash to restore: a different browser, cleared storage, or a block installed before the stash existed. Driven with real Applies from a fresh browser context (stash verified empty): turning the block off and applying brought the daemon back carrying two rows, In 1→Out 1 and In 2→Out 2, both at −6.3 dB with the full 546-character headphone chain intact on each ear; the original sixteen rows were then restored through the same stage/apply lanes and read back **byte-identical to the starting configuration**.
+The reconstruction path was never a fallback; it was the correct answer the whole time. Removal now has exactly one path and no branch:
 
-Persistence has a cost worth naming: the stash is browser-local and is not invalidated by anything the daemon does. If the rows are changed elsewhere while a block is installed, Turn off still restores the stash as it was recorded, not what the configuration held most recently.
+- The per-ear chain and preamp come from `rec`, so the EQ handed back is whatever the block is carrying **at the moment it is turned off**.
+- Channels come from the block's own rows (`rows[0]`, `rows[8]`), so a block built on In 3 / In 4 comes back on In 3 / In 4 rather than being canonicalized to In 1-first.
+- The gain is emitted on the 1e-3 grid `recognizeRows` snaps the preamp to, not the 2 dp the old fallback used. Rounding coarser than the block demonstrably carries would silently edit the user's number, and there is no longer a lossless path to fall back to.
 
-**What the fallback cannot reproduce**, now measured rather than assumed: row order is canonicalized to In 1-first, so a pair that arrived In 2-first comes back swapped; the gain is reformatted, not merely re-rounded — `String(Math.round(x * 100) / 100)` turns `−6.534` into `−6.53`, but also `−6.50` into `−6.5` and `−6.00` into `−6`; and exactly two rows come back, so a head that was three rows or asymmetric in a way the block flattened is not recoverable. None of this engages while the stash exists, which is the whole reason it exists.
+**What removal does not reproduce.** Exactly two rows come back, one per ear — a head that was three rows before install is not recoverable, and neither are rows the compiler *set aside*, which install does not carry into the block. That is install's behaviour, not removal's: removal reads the block in front of it and cannot know how the block came to be.
+
+The earlier end-to-end verification of the stash (2026-07-22, two restore paths driven through the daemon) is deleted along with the machinery it exercised. Removal is covered by `tests/js/xfmode.test.js`.
 
 ## 9 · Invariants
 

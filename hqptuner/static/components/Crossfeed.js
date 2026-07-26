@@ -43,15 +43,6 @@ const structPlotOpen = signal(false);
 const compOpen = signal(true);
 const issueNote = signal("");
 
-// Removal has two paths and only one of them is lossless. When the stash is gone
-// the pair is rebuilt from the block instead, which is the single place this card
-// changes bytes the user did not ask it to touch — so it says so rather than
-// letting the rows quietly come back different.
-function noteFor({ restored }) {
-  return restored
-    ? ""
-    : "The rows this block was built over were no longer available, so they have been rebuilt from the block: one row per ear, In 1 first, gains rounded to two decimals. Check rows 1 and 2 before applying.";
-}
 function params(rows) {
   return structuralParams(rows);
 }
@@ -158,7 +149,10 @@ function StructuralMode({ rows }) {
               ? html`<button
                   type="button"
                   class="mtx-tool mtx-remove"
-                  onClick=${() => (issueNote.value = noteFor(removeStructural(rows, rec)))}
+                  onClick=${() => {
+                    removeStructural(rows, rec);
+                    issueNote.value = "";
+                  }}
                 >
                   Turn off
                 </button>`
