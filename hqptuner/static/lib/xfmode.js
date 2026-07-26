@@ -51,21 +51,12 @@ function load() {
   }
 }
 
-function loadConsumed() {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "null");
-    return Array.isArray(v?.consumed) && v.consumed.length === 2 ? v.consumed : null;
-  } catch {
-    return null;
-  }
-}
-
 // The controls to use when no block is installed — last used, or the defaults.
 const remembered = signal(load());
 
 function persist() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...remembered.value, consumed: consumed.value }));
+    localStorage.setItem(KEY, JSON.stringify(remembered.value));
   } catch {
     /* storage disabled — in-memory values still drive the session */
   }
@@ -104,17 +95,9 @@ export function conflicts() {
   return blockConflicts(effective);
 }
 
-// The EXACT rows the block was compiled over, kept so removal can put them back
-// byte-for-byte. Reconstructing them from the recovered controls looks equivalent
-// and is not: the gain would come back re-rounded, the row order canonicalized to
-// In 1-first (live configs arrive In 2-first), and any asymmetry between the ears
-// is not representable in the block at all. These are people's tuned headphone
-// profiles; the feature does not get to rewrite them to suit its own conventions.
-const consumed = signal(loadConsumed());
-
 // Install or update the block. Always installs — never refuses. Returns a note
-// when the rows it took over could not be read as a headphone EQ pair, so they
-// were stashed rather than carried in; Turn off restores them verbatim.
+// when the rows it took over could not be read as a headphone EQ pair, so the
+// block installs carrying no EQ of its own.
 export function stageStructural(rows, params) {
   const rec = structuralBlock(rows);
   let eqProcess;
@@ -128,10 +111,8 @@ export function stageStructural(rows, params) {
     eqProcess = pair.eq;
     preampDb = pair.gain;
     if (pair.setAside) {
-      note = `${pair.setAside} — they have been set aside, and Turn off restores them exactly.`;
+      note = `${pair.setAside} — they have been set aside, and the block carries no EQ of its own.`;
     }
-    consumed.value = rows.slice(0, 2).map((r) => ({ ...r }));
-    persist();
   }
   const next = [...compileRows({ ...params, srcA: 0, srcB: 1, preampDb, eqProcess }), ...rows.slice(rec ? 16 : 2)];
   stagePipelines(next);
@@ -141,13 +122,6 @@ export function stageStructural(rows, params) {
   return note;
 }
 
-// Put back exactly what the block was built over. The stash is persisted with the
-// remembered controls, so it survives an Apply and a reload; the fallback that
-// reconstructs the pair engages only when there is no stash at all — another
-// browser, cleared storage, or a block installed before the stash existed. That
-// fallback is the one path that can alter bytes the user did not ask us to touch,
-// so callers surface `restored: false` rather than letting the rows come back
-// quietly different.
 // --- which mode the user is LOOKING AT ---------------------------------------
 //
 // STORED, not derived from the rows. Deriving it makes the segment a mutator:
@@ -208,18 +182,27 @@ export function setXfMode(next, rows) {
   disableBauer(rows);
 }
 
+// Take the crossfeed off and hand back the EQ underneath it. The transform is
+// fully defined by lambda, angle and head radius, so removing it is arithmetic on
+// the rows in front of us — `recognizeRows` is the exact inverse of `compileRows`
+// and has already done it. Nothing was destroyed at install, so there is nothing
+// to remember: whatever EQ the block picked up WHILE it was installed comes back
+// with it, which a snapshot taken at install time could never do.
+//
+// Channels come from the block rather than assumed. Recognition accepts any
+// distinct pair, and a block built on In 3 / In 4 comes back on In 3 / In 4.
+// Gain is emitted on the 1e-3 grid `recognizeRows` snaps the preamp to: this is
+// the only path now, so rounding it coarser than the block demonstrably carries
+// would silently edit the user's number.
 export function removeStructural(rows, rec) {
-  const original = consumed.value;
-  const row = (ch, side) => ({
-    gain: String(Math.round(rec.preampDb[side] * 100) / 100),
+  const row = (i, side) => ({
+    gain: String(Math.round(rec.preampDb[side] * 1000) / 1000),
     gainunit: "dB",
-    mixdown: ch,
+    mixdown: rows[i].mixdown,
     process: rec.eqProcess[side],
-    source: ch,
+    source: rows[i].source,
   });
-  const head = original ?? [row("0", "left"), row("1", "right")];
-  const next = [...head, ...rows.slice(16)];
+  const next = [row(0, "left"), row(8, "right"), ...rows.slice(16)];
   stagePipelines(next);
   edit("pipelines", String(Math.max(2, next.length)));
-  return { restored: original !== null };
 }
