@@ -291,7 +291,7 @@ Band table `[V]`:
 
 6. `[V]` **Amplitude response is the more reliable predictor of audible effect than phase** — Toole & Olive relaying Moulana [6], p. 124: "while either amplitude or phase measurements can indicate the presence of resonances, the amplitude response appears to be more directly related to the audible effect", Moulana having concluded that "the perceptual effect of these local irregularities is negligible if not absent in the first place".
 
-   **This is the citation that justifies `evaluate_chain` being magnitude-only.**
+   **This was formerly presented as the citation justifying `evaluate_chain` being magnitude-only. It is not strong enough for that, and the primary is now in hand — see `PHASE.md` §6.** The quote above is verified and stays `[V]`; what changes is its weight. Moulana's thesis contains **no phase experiment**: his conclusion is an argument from explanatory sufficiency (the magnitude account already fit his data, so the phase irregularity is assumed inert), his two "phase conditions" alter the magnitude response as well, and he lists the decisive test as future work. He also needs an **inter-state frequency shift** — a time-domain mechanism with no counterpart in a magnitude curve, maximal around 250–400 Hz — to explain data that driven-state loudness alone did not predict. Magnitude-only evaluation remains correct, on better grounds: a minimum-phase biquad's phase is entailed by its magnitude and is not an independent choice (`PHASE.md` §1), and the chain's measured group delay sits under every published audibility threshold (`PHASE.md` §4).
 
 7. `[V]` **Programme material changes thresholds substantially, and music is the least revealing.** Summary item 3 above; and from p. 123, on Fryer's results: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and much reduced sensitivity when using popular music." Any threshold quoted from noise-based measurements is a *lower bound* on what our users will hear through music.
 8. `[V]`-adjacent doctrine (from the 2006 review): EQ is "the final touch" and mis-diagnosis is the main risk — which is exactly why the EQ Assistant *stages* rather than *applies*. All bands, including AutoEq imports, are amendable (see `PRIMER.md`, "Stage classes and scope").
@@ -303,7 +303,7 @@ Band table `[V]`:
 * The Q-audibility trade is now **quantified** — roughly 3 dB per doubling of Q — so the preference for broad moves has a magnitude, not just a sign.
 * There is now a **threshold floor per Q**, on music: ±1.5 dB at Q = 1, ±3 dB at Q = 10, ±5 dB at Q = 50. A move below the floor for its own Q is not a subtle move, it is an inaudible one. This composes with the ~2 dB measurement-reseat floor in `TRANSDUCERS.md` §3.1 and the 1–3 dB practitioner range in §7 — see `PSYCHOACOUSTICS.md` §5 for the combined picture.
 * **Cut and boost are not symmetric.** Filling a dip is working on the less audible feature, so an additive fill must be larger than the equivalent cut to be heard. `vocabulary.json`'s `typical_gain_db` magnitudes currently assume symmetry; they should not.
-* **Magnitude-only evaluation is justified**, not merely convenient (finding 6).
+* **Magnitude-only evaluation is justified** — but not by finding 6, whose weight is corrected above. The argument is minimum-phase entailment plus measured group delay; see `PHASE.md` §1 and §4.
 * **Ringing duration is the wrong thing to reason about** (finding 5) — relevant because HQPlayer users are primed to think in time-domain terms by the filter/modulator vocabulary elsewhere in the app.
 
 ---
@@ -578,7 +578,7 @@ Every source that mentions Q says **broad**; not one names a numeric Q. Cutting 
 
 ## 8. Companion documents
 
-Five companions carry further material, on the same tagging discipline:
+Six companions carry further material, on the same tagging discipline:
 
 | Document | Covers |
 |---|---|
@@ -587,3 +587,4 @@ Five companions carry further material, on the same tagging discipline:
 | `LEXICONS.md` | The validated attribute vocabularies in full — SAQI's 48 attributes, Rumsey's four-level spatial hierarchy, Holt's ~250 entries with his band map and vowel ladder — plus the cross-source collisions. |
 | `PSYCHOACOUSTICS.md` | Auditory filter bandwidth (ERB/Bark), equal-loudness contours, level matching in listening tests, resonance-audibility thresholds, spectral tilt and ripple, and the combined audibility floor. |
 | `FILTER-MATH.md` | The RBJ cookbook primary, the three bandwidth parameterisations and their traps, shelf Q ⇔ shelf slope, the W3C normative biquads, EQ APO's grammar, headroom and true peak. |
+| `PHASE.md` | Phase and group delay. Why a minimum-phase band's phase is not a choice, the derived phase and group-delay figures for our own stages and for the real HD 650 chain, the group-delay audibility thresholds, the Moulana correction to finding 6 above, interchannel phase and what asymmetric per-ear EQ would cost, and why the crossfeed compensation must stay magnitude-only. |
