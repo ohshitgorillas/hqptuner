@@ -197,8 +197,7 @@ The daemon's `data/cfgs` stays mirrored so its native web UI keeps showing the p
 
 ### GetInfo
 
-Request: `<GetInfo/>`
-Response attributes: `name` (friendly name), `product`, `version`, `platform`, `engine`. **Verified** on 6.0.4:
+Request: `<GetInfo/>` Response attributes: `name` (friendly name), `product`, `version`, `platform`, `engine`. **Verified** on 6.0.4:
 
 ```xml
 <GetInfo engine="6.0.4" name="Opal" platform="Linux" product="Signalyst HQPlayer Embedded" version="6"/>
@@ -208,13 +207,11 @@ Response attributes: `name` (friendly name), `product`, `version`, `platform`, `
 
 ### GetLicense
 
-Request: `<GetLicense/>`
-Response attributes: `valid` (0/1), `name` (licensee), `fingerprint`. Read-only license/trial display comes from here.
+Request: `<GetLicense/>` Response attributes: `valid` (0/1), `name` (licensee), `fingerprint`. Read-only license/trial display comes from here.
 
 ### State
 
-Request: `<State/>`
-The single-shot settings snapshot — HQPTuner's primary readback command. Response attributes (all on the `State` element):
+Request: `<State/>` The single-shot settings snapshot — HQPTuner's primary readback command. Response attributes (all on the `State` element):
 
 All settings attributes report **list indices** into the corresponding enumeration lists (**verified** — see §4 item field semantics), not enum IDs.
 
