@@ -31,10 +31,13 @@ answer reaches the user.
 
 ### Response contract
 
-A strict union at the **final answer** — an `outcome` object **XOR** a `clarify`
-object. Never both, no other branches. A non-validating answer is rejected
-wholesale with a stock message. Intermediate tool calls are not part of the
-union: they never reach the user, so they were never what it guarded against.
+A strict union at the **final answer** — exactly one of `outcome`, `clarify`, or
+`discuss`. Never more than one, no other branches. A non-validating answer is
+rejected wholesale with a stock message. Intermediate tool calls are not part of
+the union: they never reach the user, so they were never what it guarded against.
+
+**Only `outcome` may carry `changes`.** That is the invariant the whole feature
+rests on, and the third branch is shaped to preserve it rather than to bend it.
 
 ```jsonc
 // branch 1 — the model acted
@@ -42,13 +45,219 @@ union: they never reach the user, so they were never what it guarded against.
   "diagnosis":   { "method", "finding", "explains_symptom", "measured": {...} },
   "changes":     [ /* band / crossfeed / compensation changes */ ],
   "alternatives_rejected": [ /* candidates with their measured numbers + reason */ ],
+  "variants":    [ /* co-equal candidates for the user to audition */ ],  // optional
+  "recommends":  [ /* advisory: settings the model cannot touch */ ],    // optional
   "metrics":     { "<name>": { "before": <n>, "after": <n> } },
   "side_effect": { "metric", "delta", "judgment", "remedy" }   // optional
 }
 
 // branch 2 — the model needs an answer before acting
 { "clarify": "<one sentence>", "context": { /* optional measured values */ } }
+
+// branch 3 — the user asked; the model answered and changed nothing
+{ "discuss": { "answer": "<prose, length-bounded>",
+               "measured": { /* what the tool returned */ },
+               "basis": "measured" | "mechanism" | "vocabulary" | "unverified",
+               "recommends": [ /* optional, same shape as on branch 1 */ ] } }
 ```
+
+### `discuss` — the user's questions (D16)
+
+Tuning by ear is a conversation. The user asks what they are hearing, why a Q was
+narrowed instead of cut, whether a symptom is the compensation or the bass
+summing. The two-branch union had nowhere to put that: `clarify` means *the model
+is blocked*, not *the user is curious*, so a question forced the model either to
+misuse `clarify` or to invent a change to have somewhere to hang the prose. Same
+class of gap F8 found with `side_effect` — real behaviour, no slot.
+
+**What the prose ban was protecting was anchoring, not silence.** "The model may
+only speak when it acts" was a proxy. `evaluate_chain` supplies the real thing: a
+question about the chain is answered by measuring the chain, and the prose sits
+beside numbers the model *computed* rather than numbers it *recalled*. That is
+the same discipline `diagnosis.explains_symptom` already lives under (D8).
+
+Four properties, all load-bearing:
+
+- **`changes` is structurally absent** — not an empty array. The union stays a
+  real XOR over the write path: exactly one branch can stage. Answer-and-then-act
+  is two turns.
+- **`basis` is mandatory and rendered.** The validator cannot know whether a
+  question was tool-answerable, but it can force the model to declare its
+  footing: `basis: "measured"` requires a non-empty `measured`. A measured answer
+  and a recalled one **must not look alike in the card** — that is the entire
+  safety property, and it is what lets the user see which claims they can check.
+- **A `discuss` turn does not append to any metric series.** The chain did not
+  move. A series entry with no checkpoint behind it would show fake drift and
+  would break P2's recompute-over-checkpoints, which assumes series entries map
+  1:1 to checkpoints.
+- **Prunable as a class.** "Forget the discussion, keep the tuning" falls out of
+  D13's marking model for free.
+
+This is still not a chat client: no free-form turn exists, every string is a
+field of an object that declares its footing, nothing renders unanchored, and the
+write path still has exactly one gate.
+
+**Two failure modes it introduces**, both needing eval cases (P5):
+
+1. **Deflection into chat** — the model emits `discuss` where a diff was wanted
+   and quietly stops tuning. Very plausible for a Haiku-class model running on a
+   helpful-assistant prior. Pass condition on a clear actionable complaint is
+   `outcome`; `discuss` is a fail.
+2. **Priors leaking unchecked** — discussion is where audio folk belief enters.
+   F2a is a case where the model's prior is *wrong* and the docs had to correct
+   it, so a `discuss` turn about crossfeed tilt will state the folk belief with
+   confidence unless the prompt carries the correction. The mandatory
+   tilt-direction case therefore needs a **`discuss`-mode variant**, not only an
+   `outcome`-mode one.
+
+Chatty sessions also push tuning turns out of the bounded ledger tail faster, so
+the truncation rule counts `discuss` turns separately (P3's `ASSEMBLY.md`).
+
+### `variants` — A/B by ear (D18)
+
+The real session behind F9 handed back **two options to try**: a three-band
+simplification and a two-band one. The union has no slot for that.
+`alternatives_rejected` is the wrong shape — those are candidates the model
+*discarded, with reasons*. Variants are **co-equal and undecidable by number**,
+because the residual does not say which one a person prefers. Taste decides, and
+the only instrument for taste is the user's ears.
+
+A/B by ear is *the* audio workflow and the schema could not express it.
+
+```jsonc
+"variants": [
+  { "label": "3-band",
+    "changes": [ ... ],
+    "measured": { ... },          // residual, worst-error, whatever the turn computed
+    "tradeoff": "<one line: what this one buys and what it costs>" },
+  { "label": "2-band", "changes": [ ... ], "measured": { ... }, "tradeoff": "..." }
+]
+```
+
+**The Apply gate is what makes this non-trivial.** Only one variant can be staged
+at a time, so the interaction is stage-one → audition → swap:
+
+- **Swapping a variant is a re-stage, never an apply.** It replaces what is in
+  the staging buffer and still waits for the user's Apply — D12's rule inherited
+  wholesale, since a variant picker that wrote through would be exactly the
+  second write lane past the gate that D12 exists to forbid.
+- **The ledger records that they were siblings.** Without that, "go back to the
+  two-band one" does not resolve — the unpicked variants are not history, they
+  are live alternatives for as long as the turn is open.
+- **Unpicked siblings stay available until the turn is applied or discarded**,
+  then they become ordinary ledger record like everything else.
+
+**Variants are for genuine taste forks only.** Where measurement decides, the
+model picks and puts the losers in `alternatives_rejected`. Offering variants to
+look thorough is padding, it pushes the choice back onto the user for no reason,
+and P5 scores it as a failure rather than as diligence.
+
+### `recommends` — advisory reach beyond the surface (D19)
+
+**The argument for this is that the alternative is symptom masking.** If the
+model can see that the oversampling filter is implicated in a spatial complaint,
+and its only levers are EQ and crossfeed, it will EQ *around* a problem that is
+fixable at the source. Treating the symptom while the cause sits in plain sight
+is worse than saying nothing, and it is exactly what a silent model would do.
+
+So the model may **recommend anything, and change only the four.** The
+recommendation costs nothing structurally — it is a rendered object with a
+citation and no write path — and the user is the one who acts on it. This
+reinforces the enable/disable boundary rather than eroding it: the model says
+what it would change, and a human changes it.
+
+**A field, not a fourth branch.** The motivating case is simultaneous — *"your
+filter is a long one; based on what you're describing you might prefer something
+shorter. Or I can proceed with the EQ as discussed, and here is what I'd do."*
+A branch would be an XOR and would force the model to choose between advising and
+acting. Riding on `discuss` covers the advise-only case with no changes, so no
+new branch is needed.
+
+```jsonc
+"recommends": [{
+  "setting":    "<schema key, e.g. pcm_filter>",
+  "current":    "<live value>",
+  "suggested":  ["<enum name>", "..."],
+  "reason":     "<prose>",
+  "basis":      "mechanism" | "cited" | "unverified",
+  "confidence": "high" | "low"
+}]
+```
+
+**The structural guard is free, and architecture §2 already supplies it: a
+suggestion may only name values present in the live engine enumeration.** The
+validator rejects anything else. This kills the likeliest failure outright —
+HQPlayer is niche, the model's recall of it is thin, and an **invented filter
+name is worse than bad advice because it is unfollowable**. Joining by live name
+also means a HQPlayer version bump cannot leave a stale hardcoded list behind,
+the same reasoning as D6.
+
+**`basis: "mechanism"`** is the footing this branch should normally stand on: a
+documented property plus its physical consequence, with the property from the
+manual and the filter's position derived from the live enumeration. It is
+stronger than "I read it somewhere" because it is checkable end to end. See D20
+for the axis layer that makes it expressible.
+
+### Uploads — the user hands the model a file (D21)
+
+The user can upload material: a measured frequency response, a
+`ParametricEQ.txt` from anywhere, a manufacturer sheet, a review, their own notes
+from earlier sessions.
+
+**All of it is accepted. There is no accept/reject split, and `basis` carries the
+weight instead.** An earlier draft here proposed admitting parseable data and
+refusing prose, on the grounds that a review is folklore with a file attached.
+That was withdrawn: it protects the user from their own judgment, and it is
+incoherent besides, since `basis` (D16) exists precisely so unverifiable material
+can be present without masquerading as fact. If someone hands the model a file,
+they have already decided it has value, and they know its provenance better than
+the model does.
+
+**The ladder, strongest to weakest:**
+
+| basis | source |
+|---|---|
+| `measured` | computed by the tool this session |
+| `mechanism` | documented property + its physical consequence (D19, D20) |
+| `cited` | user-supplied file — names the file and the location within it |
+| `vocabulary` | the sourced vocabulary asset |
+| `unverified` | model recall, nothing behind it |
+
+**`cited` sits above `unverified`, and that ordering is the whole correction.** A
+user-supplied writeup is attributable, re-readable, and chosen deliberately;
+model pretraining recall on a niche headphone is none of those. Uploading a
+review **improves** the epistemics over guessing from memory rather than
+degrading them.
+
+What still holds — properties of the mechanism, not judgements about the user:
+
+- **Attribution is mandatory.** A claim drawn from a file names the file. Not to
+  gate anything: so the user can check it, and so the ledger's forensics work.
+  Same rule every other part of this design already follows.
+- **Parser safety.** Size cap, bounded parse, never `eval`. That is about the
+  process, not about second-guessing the upload.
+- **PDF text extraction is a real dependency** (`pypdf`-class) and the tree is
+  currently pure-Python. A cost to name, not a reason to refuse — and this
+  project already treats two PDFs as authority, so PDFs-as-reference is
+  established practice here.
+- **Retrieval, not dumping.** Curves are sampled; prose is chunked and queried.
+  A forty-page PDF pasted into the ledger tail would evict the user's actual
+  tuning turns. A mechanism problem, not a permission problem.
+- **Pruning must reach uploads**, separately from turns and exactly as it must
+  reach metric definitions (§1). An upload is the highest-volume path into the
+  context window, so if one poisons the reasoning, amnesia has to be able to drop
+  it — otherwise amnesia appears to work and does not.
+
+**The step change is Class-A data plus the solver.** With a measurement in hand,
+"too boomy" stops being a vocabulary lookup and becomes *"your measurement shows
++6 dB at 90 Hz"*. A measurement plus a target curve plus `fit_chain` (D17) is
+**AutoEq in-app, from the user's own data** — nearly free now that the solver is
+already planned, and arguably worth more than the conversational surface.
+
+It also unlocks a diagnostic otherwise unreachable: **an uploaded measurement can
+contradict the loaded profile.** "Your profile targets Harman; your measurement
+shows the seal is not reaching the bass shelf" is a finding no amount of chain
+arithmetic could produce, because the chain is not where that fault lives.
 
 **The prose rule, restated (revised — see F8).** The original wording was "no
 freeform model prose is ever rendered", and that is too strong: it would suppress
@@ -64,8 +273,10 @@ and is precisely what a user needs to see under a change to judge it.
 
 **`clarify` has three modes**, and mode 3 is the most common in practice:
 
-1. **Scope deflection** — the request is outside the surface (a feature toggle, a
-   filter/shaper change, "make it louder", a hardware question).
+1. **Scope deflection** — the request is outside the surface (a feature toggle,
+   "make it louder", a hardware question). **Narrowed by D19:** a filter or
+   shaper question no longer dead-ends here — it can be answered and advised on
+   through `recommends`, which the model still cannot act on itself.
 2. **Low-confidence inference** — the target is derived from a named product
    rather than a descriptor and recall is uncertain (P3's product-knowledge rule).
 3. **Magnitude proposal** — the direction is clear but the amount is not, so the
@@ -76,7 +287,7 @@ ask.
 
 ### The adjustable surface
 
-The model may adjust exactly three things, and only while they are already
+The model may adjust exactly four things, and only while they are already
 enabled:
 
 1. **EQ bands** — parametric IIR stages (type, frequency, gain, Q) in the
@@ -84,11 +295,18 @@ enabled:
    the chain is in scope, AutoEq imports included; see F3 and D2.
 2. **Crossfeed parameters** — Bauer crossover frequency (Hz) and level (dB).
 3. **Crossfeed compensation strength** — the 0–150 % figure.
+4. **A band segment, replaced wholesale** (`replace_segment`, D17) — the
+   simplification case. Not an amend and not an append: N bands out, M bands in
+   across a declared frequency span. It must report its fit residual, and it
+   renders as a before/after curve overlay rather than as a change list, because
+   a twelve-line diff says nothing about whether the curve survived.
 
 The model **cannot enable or disable any feature**. Turning crossfeed on, turning
 compensation on, enabling the matrix — all user-only. It is guided to prefer
 zeroing a band's gain over removing it, but that is prompt guidance rather than a
-hard rule (F3, D2).
+hard rule (F3, D2) — and it **does not apply inside a `replace_segment`**, where
+zeroing twelve stages would leave twelve dead stages and defeat the entire point
+of the operation.
 
 ### Visibility
 
@@ -454,6 +672,75 @@ free-form turns. Decision taken 2026-07-22.
 `selected_*`, `side_effect_flagged`, `verification`, and `answer` on clarify
 turns. The schema is harvested from it, not designed in parallel with it.
 
+### F9 · `evaluate_chain` is forward-only, and the inverse problem is unreachable
+
+*Established 2026-07-26 from a real session, to be recorded as an asset
+alongside `auteur-classic-tuning.json`.*
+
+A user asked a chatbot to simplify roughly twelve peaks in the mid-bass, and got
+back **two candidates — a three-band version and a two-band version** — because
+that model could *solve*, not merely evaluate.
+
+`evaluate_chain` cannot reach this. It is a **forward** evaluator: given bands,
+return net dB. Simplification is the **inverse**: given a target curve and a band
+budget, solve for the bands. Through a forward tool the model would have to run
+descent by hand across dozens of round trips, and **D15's per-turn loop cap
+aborts it long before convergence**. This is an architectural gap, not a prompt
+gap — the same shape of argument D7 made about the loop itself.
+
+**Two senses of "scratchpad" get conflated here, and only one is missing.**
+*Reasoning space* — algebra in the model's head — it already has, free, and it is
+adequate for `20·log10(0.5)`. It is **not** adequate for a multi-variable fit,
+where failure is invisible: the output is a plausible-looking band set that does
+not actually fit. *Compute* is the missing half.
+
+**Dependency state, verified 2026-07-26:** `pyproject.toml` carries no `numpy`
+and no `scipy`; the tree is pure-Python (`fastapi`, `uvicorn`, `httpx`,
+`beautifulsoup4`, `defusedxml`, `python-multipart`). A Nelder-Mead over ~12
+parameters against ~60 log-spaced points runs in milliseconds in pure Python and
+is roughly sixty lines. **Do not add a numeric dependency for this** — xenon
+B/A/A forces it factored small regardless.
+
+**Why this is in scope rather than an extra.** Twelve stacked mid-bass peaks is
+precisely what append-heavy sessions produce — the failure F3 predicted when it
+withdrew the protected-segment design. Simplification is partly cleanup of this
+feature's own mess, so the feature owes it.
+
+### F10 · The filter asset already exists — D20 is a layer, not a file
+
+*Verified 2026-07-26 by reading the shipped data, not inferred.*
+
+`hqptuner/data/filters.json` already carries, per engine-reported filter name:
+`genre`, `quality`, `focus`, `apodizing`, `ratio` and a manual-sourced
+`description`, with `aliases`, `_join_rules`, a `two_stage_note`, and a
+`guidance` block. Its `_source` is `hqplayer6desktop-manual.pdf §4.6`.
+
+Its own `_comment` settles the open question about how a filter's dimensional
+position is known, and it is better than name-parsing guesswork:
+
+> "quality/focus/ratio ship live in FiltersItem descriptions, apodizing in arg
+> bit 0, **phase is encoded in the name**"
+
+`hqplayerd-readme.txt` corroborates: the live description strings carry length and
+phase as literal text — "Apodizing extra long Gaussian polyphase",
+"linear-phase", "intermediate-phase", "minimum-phase". So **no fragile suffix
+parser is needed and no per-filter table has to be authored**; position is read
+from what the engine already reports, which is architecture §2's rule anyway.
+
+Two consequences worth stating:
+
+- **Genre-aware advice is already sourced.** The `genre` column is the manual's
+  own and is explicitly flagged non-editorial, so "this filter is listed for
+  rock/pop" is a citation rather than an opinion. That matters directly for
+  complaints scoped to particular material.
+- **D20 shrinks to an axis layer inside the existing `guidance` block** — the
+  perceptual mapping and the negative rules. No new asset, no new file.
+
+**Deliberately not done here.** The axis content itself is not authored in this
+pass: writing perceptual claims into a shipped data file that feeds UI tooltips
+needs a read of manual §4.6 proper, not the greps above. It lands in P1, where
+the asset-reconciliation work and its acceptance criteria already live.
+
 ---
 
 ## 3. Settled decisions
@@ -478,6 +765,12 @@ Recorded so they are not relitigated.
 | D13 | **Pruning marks, it never deletes.** Excluded turns leave the context window and stay in the export, flagged | Same rule as Discard. A session that went wrong is the most valuable thing to study; deleting the evidence to tidy it is backwards |
 | D14 | **Every turn stores a pre-turn chain checkpoint** | Cheap (a dozen bands of JSON), and it is what makes rewind-to-N, metric-redefinition-with-recomputed-history, and forensics all possible at once |
 | D15 | **The tool loop is capped per turn** and aborts with a stock message | An unbounded loop is a cost, latency and runaway hazard; a turn that cannot converge inside the cap is itself a signal worth surfacing |
+| D16 | **A third branch, `discuss`, answers the user's questions.** Prose + `measured` + a mandatory `basis`; `changes` structurally absent; no metric-series append; prunable as a class | Tuning by ear is a conversation. `clarify` means *the model* is blocked, not *the user* is curious, so a question had nowhere to go but `clarify` misuse or an invented change. What the prose ban protected was anchoring, not silence — `evaluate_chain` supplies the anchor, and `basis` makes the footing visible instead of trusting the prompt to hold the line. The `basis` ladder extends in D19 (`mechanism`) and D21 (`cited`) |
+| D17 | **A second tool, `fit_chain`, solves the inverse problem**, and `replace_segment` is a change class in its own right | Per F9 — a forward evaluator cannot reach a fit, and hand-rolled descent dies on D15's cap. A purpose-built solver beats sandboxed code execution here: arbitrary exec would run in the process holding the daemon credentials and owning the staging lane; it is untestable under `docs/testing.md` (you would be testing the sandbox, not the capability); and it is non-deterministic, so P5 could not score it. A sandbox is **deferred, not refused** — revisit if two tools prove one short. Amends P6's "band count never decreases" and exempts itself from prefer-zeroing |
+| D18 | **`outcome` may carry `variants` — co-equal candidates the user auditions.** Swapping one is a re-stage, never an apply; the ledger records them as siblings | A/B by ear is the audio workflow and the schema could not express it. Distinct from `alternatives_rejected`, which is what the model discarded *with reasons*: variants are undecidable by number, because the residual does not say which one a person prefers. Restricted to genuine taste forks — where measurement decides, the model decides, and padding an answer with variants is scored as a failure (P5) |
+| D19 | **`recommends` — the model may advise on settings it cannot change.** A field on `outcome` and on `discuss`, never a branch. Suggestions are constrained to the **live engine enumeration** | The alternative is symptom masking: a model that sees the filter implicated and can only reach EQ will EQ around a cause sitting in plain sight. Advising costs nothing structurally and the user is the one who acts, so it reinforces the enable/disable boundary rather than eroding it. A field rather than a branch because the motivating case is simultaneous — advise *and* propose the EQ. The live-enum constraint kills the invented-filter-name failure, which is the likeliest one on niche software and is worse than bad advice because it is unfollowable |
+| D20 | **Filter advice is dimensional, never per-filter reputation.** An axis layer in `filters.json`'s existing `guidance` block: length, phase, apodizing — each with a mechanism, a symptom→direction mapping, and an honest `contested` note. **One axis moves at a time**, and the layer carries **negative rules** naming the symptoms that are not filter symptoms | Per-filter reputation is forum folklore, gear-dependent and unsourceable — the user ruled it out. Dimensional properties are not: linear phase puts ringing symmetrically around a transient so energy arrives before the attack, minimum phase moves it all after at the cost of frequency-dependent group delay, and filter length is a straight trade of frequency-domain accuracy against time-domain compactness. That is mechanism, and Toole is already a cited source for phase audibility. It is also **`vocabulary.json`'s own structure applied to a second parameter space** — descriptor → axis → direction — so it is a sibling asset, not a new epistemology. Effect sizes are real but small and contested near Nyquist; the `contested` field says so rather than overselling. One-axis-at-a-time because changing family, phase and length together makes the A/B unattributable and teaches nothing. Negative rules because without them a filter suggestion becomes the model's escape hatch for any complaint it cannot fix, which is a confident non-answer |
+| D21 | **The user may upload files, all kinds, and `basis` carries the weight** — with `cited` ranking *above* `unverified`. Attribution mandatory; retrieval not dumping; pruning must reach uploads separately from turns | An accept/reject split by file kind protects the user from their own judgment, and contradicts `basis` (D16), which exists so unverifiable material can be present without masquerading as fact. A user-supplied writeup is attributable, re-readable and deliberately chosen; model recall on niche gear is none of those, so uploading **improves** epistemics rather than degrading them. The step change is a measurement plus `fit_chain` — AutoEq in-app from the user's own data — and a measurement that contradicts the loaded profile is a fault chain arithmetic cannot see |
 
 ---
 
@@ -525,11 +818,37 @@ it: `PRIMER.md`'s guardrail table and `vocabulary.json`'s `_meta.clamps` /
 enforced limits. Under D2a those are prompt guidance. Reconcile them as part of
 this move rather than editing them twice — they are not in the repo yet.
 
+**Also lands here: the filter axis layer** (D20, F10). Read manual §4.6 properly —
+the greps behind F10 established *where* the data lives, not what to say about
+it — and extend `hqptuner/data/filters.json`'s existing `guidance` block with
+axes keyed by dimension rather than by filter:
+
+| axis | carries |
+|---|---|
+| `length` | tradeoff (frequency-domain accuracy vs time-domain compactness), symptoms pointing shorter, symptoms pointing longer, mechanism, `contested` |
+| `phase` | linear / intermediate / minimum — pre-ringing vs group delay, mechanism, `contested` |
+| `apodizing` | already a per-filter field; the axis entry says what the choice is *for*, per the existing `guidance.apodizing` note |
+
+Plus two things the axes alone do not supply:
+
+- **One axis at a time.** A suggestion holds family and phase fixed and moves
+  length, or vice versa. Moving several at once makes the A/B unattributable.
+- **Negative rules** — the symptoms that are *not* filter symptoms. Midrange
+  tonality, nasality and boom belong to EQ; filter axes plausibly touch transient
+  character, top-octave texture, spatial diffuseness and "digital" hardness.
+  Without this the model reaches for a filter whenever it cannot fix something.
+
+Effect sizes go in honestly: the mechanisms are real, the audibility is small and
+contested near Nyquist, and `contested` says so. Same standard as `SOURCES.md`'s
+known-gaps section.
+
 **Depends:** P0.
 **Accept:** probed bounds recorded in `PRIMER.md`; any divergence from libbs2b's
 300–2000 / 1.0–15.0 flagged here; validator bound-source ruled per D6; the
 assets' guardrail framing matches D2a, with anything demoted to guidance stated
-as guidance rather than as a limit.
+as guidance rather than as a limit; `filters.json` carries the axis layer with a
+`contested` note on every axis and an explicit negative-rules list, and every
+mechanism claim in it cites manual §4.6 or an entry already in `SOURCES.md`.
 
 ### P2 · Backend skeleton — env gate, model list, ledger
 
@@ -539,7 +858,15 @@ Feature-enabled flag rides `/api/metadata`; the token never leaves the process.
 fallback. `hqptuner/ai/ledger.py` persists to `state/` (already a compose
 volume): turn id, timestamp, complaint, model, prompt version, validated answer,
 resulting diff, status (`staged` / `applied` / `discarded` / `excluded`), **the
-pre-turn chain checkpoint** (D14), and the metric panel snapshot.
+pre-turn chain checkpoint** (D14), the metric panel snapshot, and **references to
+any uploads the turn drew on** (D21).
+
+Uploads themselves live under `state/` beside the ledger, stored once and
+referenced by id, so export and checkpoints stay coherent and a file used across
+six turns is not copied six times. `DELETE /api/ai/session/upload/{id}` drops one
+from context — **pruning must reach uploads separately from turns** (D21), since
+an upload is the highest-volume path into the context window and amnesia that
+cannot drop it only appears to work.
 
 `hqptuner/ai/session.py` — the lifecycle operations (§1):
 
@@ -564,7 +891,10 @@ Apply); a prune leaves the chain byte-identical; an excluded turn is absent from
 assembled context and present in the export with its flag; a redefined metric's
 series is recomputed across every checkpoint rather than left discontinuous; a
 prune that removes the origin turn of a coined metric also removes that metric
-from the panel, or amnesia silently fails.
+from the panel, or amnesia silently fails; an upload survives a process restart,
+is stored once however many turns reference it, and pruning one removes it from
+assembled context while leaving it in the export flagged — exactly what D13
+requires of turns.
 
 ### P2b · Response-evaluation tool — the loop's one instrument
 
@@ -572,12 +902,36 @@ The tool that makes a turn possible (F8, D7). `hqptuner/ai/dsp.py` — an RBJ
 biquad chain-magnitude implementation, plus `hqptuner/ai/evaluate.py` exposing:
 
 ```
-evaluate_chain(base_bands[], candidate_changes[], at_frequencies[])
-    -> { hz: net_db }, band averages, spread
+evaluate_chain(base_bands[], candidate_changes[], at_frequencies[], reference_curve?)
+    -> { hz: net_db }, band averages, spread, deviation from reference
 ```
 
 Pure computation: no daemon contact, no staging, no side effects. Callable many
 times per turn.
+
+`reference_curve` is the optional hook for an uploaded measurement or target
+(D21). It is passed **by id and sampled**, never inlined — a measurement is
+hundreds of points and pasting it into the prompt would evict the ledger tail.
+With one present, the tool also reports deviation from it, which is what turns
+"too boomy" into "your measurement shows +6 dB at 90 Hz".
+
+**The second tool is the solver** (F9, D17), in `hqptuner/ai/fit.py`:
+
+```
+fit_chain(target_response, n_bands, band_types[], constraints)
+    -> bands[], residual_db_rms, worst_error_hz
+```
+
+`target_response` accepts an uploaded curve by id as well as a computed one
+(D21) — which is what makes "generate EQ from my own measurement against this
+target" the same code path as "simplify these twelve bands".
+
+Also pure computation, and it composes with the first: `fit_chain` proposes,
+`evaluate_chain` verifies, the residual is reported to the user. Nelder-Mead in
+pure Python — **no numeric dependency**, per F9's verified dependency state.
+Both `residual_db_rms` and `worst_error_hz` are returned because an RMS figure
+alone hides a single bad octave, and a simplification that averages well while
+wrecking one region is the exact failure worth catching.
 
 **`lib/dsp.js` is the reference and Python follows it** (D10). Ship
 `docs/eq-assistant/dsp-reference.json` — a fixture of chains × frequencies × expected
@@ -608,7 +962,10 @@ configuration, not a constant, and P5 reports observed iteration counts (which i
 how the ceiling gets set from data rather than guessed).
 
 **Depends:** P2.
-**Accept:** Python matches the JS fixture within 0.01 dB across every case;
+**Accept:** Python matches the JS fixture within 0.01 dB across every case; a
+`fit_chain` over a known chain reproduces it to a residual near zero, and a fit
+constrained below the band count needed reports an honestly large
+`worst_error_hz` rather than a flattering RMS;
 evaluating a candidate leaves no staged state and touches no daemon; a
 model-coined metric definition round-trips through storage and reproduces its
 value; band averages and spread match hand-computed values for a known chain; a
@@ -705,7 +1062,9 @@ listed here is prompt guidance, applied by judgment and corrected by the user.
 | crossfeed frequency / level | live `/matrix` form bounds (D6) |
 | compensation strength | 0–150 % |
 | field types | numeric fields parse as numbers; `type` is one of `peak`/`lshelf`/`hshelf` |
-| forbidden targets | any enable/disable; the compensation block's internal structure; `matrix_enabled` |
+| `recommends` | optional; each entry needs `setting`, `current`, `suggested`, `reason`, `basis`, `confidence`. **Every name in `suggested` must be present in the live engine enumeration** (D19, architecture §2) — an unknown name is rejected, never rendered |
+| `variants` | optional; each needs `label`, `changes`, `measured`, `tradeoff`. A single-entry `variants` is rejected — one option is not a fork |
+| forbidden targets | any enable/disable; the compensation block's internal structure; `matrix_enabled`. **`recommends` is advisory and can never stage**, so a `recommends` entry naming an in-surface parameter is rejected — that is a `changes` entry pretending to be advice |
 
 Prose fields are length-bounded but not content-inspected. The anchoring rule
 (D8) is enforced **structurally** — prose may only appear as a field of an object
@@ -768,6 +1127,15 @@ an **over-wide band case** modelled on F7 turn 2, where the fault is a Q so low
 the band eats a neighbouring region and the fix is to narrow it — a model that
 only reaches for gain fails.
 
+A fifth is mandatory under D19: a **filter-recommendation case**, adversarial in
+two directions. The model must not invent an enumeration name (pass condition:
+every `suggested` value appears in the live enum), and it must not assert
+subjective reputation as fact (pass condition: `basis: "mechanism"` with a
+documented property behind it, or the claim is tagged and de-emphasised). A
+sixth, its negative: **a midrange tonality complaint must not produce a filter
+recommendation** — per D20's negative rules, that symptom is EQ's, and reaching
+for a filter there is a confident non-answer.
+
 **Q is a scored dimension, not a clamp** (F7, D2a). The runner scores whether a
 turn that needed a Q change made one, and whether Q choices land in a sane range
 for the move — measured, never enforced.
@@ -786,6 +1154,7 @@ call log:
 | diagnosis matches measurement | the `finding` is consistent with what the tool actually returned — checked numerically, not by reading the prose |
 | panel reported | the answer carries the whole standing metric panel (D9) |
 | side effects caught | a change that moves a standing metric past a threshold declares it, with a remedy |
+| variants used honestly | `variants` appear where the fork is genuinely taste-dependent and are **absent** where measurement decides — offering them to look thorough is a fail, not diligence (D18) |
 | iteration cost | tool calls per turn, reported not gated — it is the honest cost signal for the model comparison |
 
 The last one matters for the gate: a weaker model may reach the same answer with
@@ -849,7 +1218,11 @@ touch.
 
 **Depends:** P2b, P4, P5.
 **Accept:** a `match` resolves to exactly one stage, or the change is refused
-rather than applied to a guess; band count never decreases; a crossfeed change
+rather than applied to a guess; band count never decreases **except under a
+`replace_segment`, where it is the point** (D17) — outside that change class the
+criterion stands unchanged; a `replace_segment` stages atomically, so a partial
+application can never leave the chain with the old bands removed and the new ones
+absent; a crossfeed change
 leaves the compensation block non-stale (`msRecognize().stale === false`) with
 `sFraction` preserved; applying an answer appends every panel metric to its
 series; Discard restores the pre-turn chain exactly **and** rolls the series back
@@ -869,12 +1242,19 @@ env gate reports enabled. Single text input, model dropdown, session history.
 The RESPONSE overlay reflects the cumulative staged result — the in-session
 feedback loop.
 
-**A turn renders as four parts**, not one diff line (F8, D8):
+**A turn renders as four parts**, not one diff line (F8, D8) — plus a fifth when
+the turn carries `recommends`:
 
 1. **Diagnosis** — `explains_symptom` beside the measured figures it describes.
    This is the part that makes a change trustworthy rather than magic, and it is
    why the prose rule was loosened.
-2. **Changes** — the staged diff, as now.
+2. **Changes** — the staged diff, as now. When the turn carries `variants`
+   (D18), this part is a **picker** instead: each candidate with its label,
+   measured figures and one-line tradeoff, the staged one marked. Picking a
+   sibling re-stages and the pending bar re-counts; nothing reaches the daemon
+   until Apply. Unpicked siblings stay selectable until the turn is applied or
+   discarded. A `replace_segment` (D17) renders here as a before/after curve
+   overlay with its residual, not as a list of removed and added bands.
 3. **Alternatives rejected** — a small table of candidates with their measured
    figures and the reason each lost. Structured and numeric, so it renders
    safely; it is what lets the user judge a change instead of taking it on faith.
@@ -882,6 +1262,15 @@ feedback loop.
 4. **Metric panel** — every standing metric with before/after and its delta, the
    targeted one emphasised. A `side_effect` renders here, with its pre-named
    remedy, since that is the surface where a regression becomes visible.
+
+5. **Recommendations** (D19) — and these must be **visually unmistakable from
+   staged changes**. A recommendation that reads as staged is a trap: the user
+   presses Apply and the filter does not move. It has to read as *this one is
+   yours*. Since HQPTuner owns the control being recommended, each entry carries
+   a **link to that control** — navigate, never stage and never toggle, which
+   keeps the enable/disable boundary intact while making the advice actionable.
+   `basis` and `confidence` render with the claim, so a mechanism-grounded
+   suggestion and a low-confidence one cannot be mistaken for each other.
 
 The panel persists across turns as its own strip, so drift over a long session is
 readable at a glance rather than by scrubbing history. Each metric carries a
@@ -923,7 +1312,14 @@ cannot advertise a capability the eval did not demonstrate.
 **Accept:** token unset → card absent from the DOM entirely, zero footprint;
 selecting a different model changes the shown examples; every shown example
 appears in `cases.json` at a tier that model passed; clicking one populates the
-input; a turn renders all four parts with alternatives collapsed by default; the
+input; a turn renders all four parts with alternatives collapsed by default; a turn
+carrying `variants` renders a picker in which exactly one sibling is staged at a
+time, picking another re-stages rather than applies, the pending bar re-counts,
+and the unpicked siblings remain selectable until the turn is applied or
+discarded; a `replace_segment` renders as a before/after curve overlay carrying
+its residual rather than as a band-by-band list; a `recommends` entry renders
+visually distinct from staged changes, is **not** counted by the pending bar, and
+carries a link that navigates to the named control rather than changing it; the
 metric panel shows before/after for every standing metric, not only the targeted
 one; a `side_effect` renders with its remedy; a per-turn rewind stages and counts
 in the pending bar rather than applying; an excluded turn renders struck through
@@ -938,6 +1334,11 @@ screenshots and measured pixel numbers in the hand-back.
 ### P8 · Export, docs, packaging
 
 `GET /api/ai/session/export` → structured ledger JSON, plus an export button.
+Uploads export **by reference and metadata** — id, filename, kind, which turns
+used it, pruned-or-not — never as inlined file bodies, which would make the
+export unbounded and would ship the user's material anywhere the export goes.
+`POST /api/ai/session/upload` is the inbound path (D21): size-capped, bounded
+parse, never `eval`, and no trust placed in the supplied filename.
 Document the voluntary community submission path. **No automatic collection of
 anything**, stated explicitly in the README. `compose.yaml` and README env
 reference.

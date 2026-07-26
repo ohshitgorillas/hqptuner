@@ -12,6 +12,13 @@ A standalone brief for an agent picking up this feature cold. Companions: `SOURC
 > numbers it describes. If you find text anywhere that contradicts this file on any of
 > these, this file is right and that text is stale.
 
+> **Revised 2026-07-26.** One structural change: **a third response branch, `discuss`**, so the
+> user can ask questions and get an anchored answer that stages nothing (D16). The union is now
+> three branches, only one of which may carry `changes`, and every prose answer declares a
+> `basis`. Further amendments landing in the same pass are recorded in the plan's decision table
+> (D17–D21); where this file has not caught up with them yet, the plan is authoritative for
+> those and this file is authoritative for everything above.
+
 ## What it is
 
 A card at the bottom of HQPTuner's DSP tab: one text input plus a session history. The user
@@ -38,13 +45,21 @@ trough at 168 Hz" does not.
 
 ## What it is not
 
-* **Not a chat client.** The loop is invisible; only the final structured answer reaches the
-  user. Prose is permitted **only as a field of a structured object carrying the numbers it
-  describes** — see the schema contract below. Free-form turns are banned.
+* **Not a chat client — but it does answer questions.** The loop is invisible; only the final
+  structured answer reaches the user. Prose is permitted **only as a field of a structured
+  object carrying the numbers it describes** — see the schema contract below. Free-form turns
+  are banned. The `discuss` branch lets the user ask things ("why narrow the Q instead of
+  cutting it?") and get an answer that changed nothing; it is still a structured object, still
+  anchored, and it **cannot carry `changes`**. What the prose ban protected was anchoring, not
+  silence.
 * **It never applies anything.** Staging only. Apply is a human action, always.
 * **It cannot enable or disable any feature.** It adjusts things that are already on. If
   crossfeed is off, a spatial complaint gets a `clarify`, not a diff that switches it on.
-* **It never deletes a band.** Setting a gain to 0 dB is the reversible equivalent.
+* **It does not delete bands casually.** Setting a gain to 0 dB is the reversible equivalent
+  and is the preferred move — but this is guidance, not a prohibition (D2), and it is
+  explicitly suspended inside a **`replace_segment`** (D17), the simplification case where
+  N bands are replaced by M across a declared span. Zeroing twelve stages there would leave
+  twelve dead stages and defeat the entire operation.
 
 ## The metric panel
 
@@ -92,7 +107,7 @@ The tool loop is also **capped per turn**. A turn that cannot converge inside th
 on a stock message and stages nothing — and is itself a signal, usually that the complaint
 was ambiguous and should have been a `clarify`.
 
-## The three change types
+## The four change types
 
 | # | Change | Parameter | Unit | Bounds |
 |---|---|---|---|---|
@@ -100,6 +115,7 @@ was ambiguous and should have been a `clarify`.
 | 2 | Crossfeed crossover | frequency | Hz | 300–2000 |
 | 2 | Crossfeed level | feed | dB | 1.0–15.0 |
 | 3 | Crossfeed compensation | strength | % | 0–150 |
+| 4 | `replace_segment` (D17) | N bands out, M in, over a declared span | — | must report fit residual |
 
 HQPlayer matrix pipelines carry a `process` string — a comma-separated stage chain. An IIR
 stage looks like `iir:type=peak;f=1000;q=1;g=-3.5`. Types carrying gain are `peak`, `lshelf`,
@@ -110,6 +126,46 @@ standard RBJ "Audio EQ Cookbook" biquad set.
 Crossfeed is HQPlayer's `bauer` post-process — the Bauer stereophonic-to-binaural (bs2b)
 algorithm. Presets: `default` 700 Hz / 4.5 dB, `cmoy` 700 Hz / 6.0 dB, `jmeier` 650 Hz /
 9.5 dB. Touching either parameter switches the preset selector to `custom`.
+
+## Advising on things it cannot change (D19, D20)
+
+The tuner may **recommend anything and change only the four above**, through a `recommends`
+field on `outcome` or on `discuss`. The reason is not helpfulness — it is that **the
+alternative is symptom masking.** A model that can see the oversampling filter implicated in
+a spatial complaint, but whose only levers are EQ and crossfeed, will EQ *around* a cause
+sitting in plain sight. Advice costs nothing structurally, the user is the one who acts, and
+the enable/disable boundary is reinforced rather than eroded.
+
+Two hard constraints:
+
+* **Only names the live engine enumeration reports.** The validator rejects any `suggested`
+  value that is not in it. HQPlayer is niche and model recall of it is thin, so an invented
+  filter name is the likeliest failure — and it is worse than bad advice, because it is
+  **unfollowable**.
+* **Dimensional, never reputational.** Per-filter reputation is forum folklore, gear-dependent
+  and unsourceable. What *is* defensible is the axis: linear phase puts ringing symmetrically
+  around a transient so energy arrives before the attack; minimum phase moves it all after, at
+  the cost of frequency-dependent group delay; filter length trades frequency-domain accuracy
+  against time-domain compactness. That is mechanism, and it earns `basis: "mechanism"`.
+
+The axis layer lives in `hqptuner/data/filters.json`'s `guidance` block (P1). It is
+**`vocabulary.json`'s own structure applied to a second parameter space** — descriptor → axis
+→ direction — not a new kind of asset. Filter position is read from what the engine already
+reports: phase is encoded in the name, apodizing in arg bit 0, length in the description text.
+
+Three things it must carry, all load-bearing:
+
+* **`contested` per axis.** The mechanisms are real; the audibility is small and disputed near
+  Nyquist. Say so rather than overselling.
+* **One axis at a time.** Hold family and phase, move length — or the reverse. Change several
+  at once and the A/B is unattributable, which teaches the user nothing.
+* **Negative rules.** Midrange tonality, nasality and boom are **EQ's**, not the filter's.
+  Filter axes plausibly touch transient character, top-octave texture, spatial diffuseness and
+  "digital" hardness. Without this list, a filter suggestion becomes the escape hatch for
+  every complaint the model cannot otherwise fix — a confident non-answer.
+
+`filters.json` also carries the manual's **own genre column, explicitly non-editorial**, so
+"listed for rock/pop" is a citation and not an opinion.
 
 ## Stage classes and scope
 
@@ -136,9 +192,22 @@ readable. Appending a fresh band beside an existing one means the net response i
 *sum* of two overlapping filters, and after a few turns the curve is unreasonable — which is
 the actual observed failure mode, and the reason the protected-segment design was dropped.
 
-So: if any existing band's centre frequency falls in the target region, or within half an
-octave of the target centre, amend it. Append only where nothing covers the region. Never
-delete.
+**But it is guidance, not a rule, and the mechanical form of it is wrong** (F3, D2). An earlier
+draft of this file said: *if any existing band's centre falls within half an octave of the
+target, amend it; append only where nothing covers the region.* That is withdrawn. Every
+vocabulary region already contains one of the preset's bands, so the rule collapses into
+*never append* — and worse, it forces amending whatever band is nearest regardless of whether
+that band suits the job.
+
+**AutoEq bands are not interchangeable.** A Q 0.7 shelf is broad shaping; a Q 4 notch at
+5.7 kHz is killing a measured resonance. Amending that notch to satisfy "a bit less bright"
+does not voice anything — it silently undoes a measurement correction.
+
+The real test is **filter suitability, which is a judgment**: amend when a band sits near the
+target *and* its shape fits the move being asked for; append when the nearest band is surgical,
+or when nothing suitable is near. Vocabulary entries carry `typical_q` as the shape to compare
+against. This lives in the prompt and is corrected by the user in plain language, never in the
+validator — encoding it as a rejection would mean encoding taste.
 
 Mangling the AutoEq correction is a cheap, one-click-recoverable outcome — the user
 re-imports the profile from the library picker — and nothing reaches the daemon without an
@@ -205,9 +274,10 @@ intact. 0 % = off, 100 % = neutral centre, >100 % = brighter than neutral.
 
 ## The response schema contract
 
-The **final answer** must validate against a union of exactly two branches. Intermediate
+The **final answer** must validate against a union of exactly three branches. Intermediate
 tool calls are not part of the union — they never reach the user, so they were never what it
-guarded against.
+guarded against. **Only branch 1 may carry `changes`**; that is the invariant the whole
+feature rests on.
 
 ```jsonc
 // branch 1 — the model acted
@@ -221,9 +291,25 @@ guarded against.
 
 // branch 2 — the model needs an answer before acting
 { "clarify": "<one sentence>", "context": { /* optional measured values */ } }
+
+// branch 3 — the user asked; the model answered and changed nothing
+{ "discuss": { "answer": "<prose, length-bounded>",
+               "measured": { /* what the tool returned */ },
+               "basis": "measured" | "vocabulary" | "unverified" } }
 ```
 
-* **Never both.** No third branch, no extra top-level keys.
+* **Exactly one branch.** Never two at once, no fourth branch, no extra top-level keys.
+* **`discuss` stages nothing, structurally.** `changes` is *absent*, not an empty array, so
+  the union stays a real XOR over the write path. Answer-then-act is two turns.
+* **`basis` is mandatory on `discuss`, and it is rendered.** Nothing can tell whether a
+  question was tool-answerable, so the model declares its footing instead:
+  `basis: "measured"` requires a non-empty `measured`. **A measured answer and a recalled one
+  must not look alike in the card** — that is the whole safety property, and it is what lets
+  the user see which claims they can check.
+* **A `discuss` turn never appends to a metric series.** The chain did not move, and a series
+  entry with no checkpoint behind it shows fake drift and breaks metric-series recomputation,
+  which assumes entries map 1:1 to checkpoints.
+* **`discuss` turns are prunable as a class** — "forget the discussion, keep the tuning".
 * **`diagnosis`, `changes` and `metrics` are all required** on branch 1. A change with no
   diagnosis, or one that reports only the metric it aimed at, is rejected.
 * **`side_effect` needs its `remedy`.** Flagging a regression without naming the fix is
@@ -254,6 +340,35 @@ accepted value — the real session adopted this rule unprompted and it is right
 utterance can carry two complaints. Separating them is step one; checking that the two fixes
 do not fight — against the standing metric panel, including metrics coined in earlier turns —
 is what the turn is actually for.
+
+## Uploads (D21)
+
+The user can hand the model files — a measured frequency response, a `ParametricEQ.txt` from
+anywhere, a spec sheet, a review, their own notes. **All of it is accepted; `basis` carries the
+weight.** There is no accept/reject split by file kind. If someone uploads a file they have
+already decided it has value, and they know its provenance better than the model does.
+
+The ladder, strongest to weakest: `measured` (computed this session) → `mechanism` (documented
+property + physical consequence) → `cited` (user-supplied file, naming file and location) →
+`vocabulary` → `unverified` (model recall, nothing behind it).
+
+**`cited` outranks `unverified`.** A user-supplied writeup is attributable, re-readable and
+deliberately chosen; pretraining recall on niche gear is none of those. Uploading a review
+*improves* the epistemics over guessing from memory.
+
+What holds regardless — mechanism, not judgement about the user:
+
+* **Attribution is mandatory** — a claim from a file names the file, so it can be checked.
+* **Retrieval, not dumping** — curves are sampled, prose is chunked and queried. A forty-page
+  PDF in the ledger tail would evict the actual tuning turns.
+* **Pruning must reach uploads**, separately from turns and exactly as it must reach metric
+  definitions. An upload is the highest-volume path into context; amnesia that cannot drop one
+  only appears to work.
+
+**The step change:** a measurement plus `fit_chain` (D17) is AutoEq in-app from the user's own
+data. And an uploaded measurement can *contradict the loaded profile* — "your profile targets
+Harman, your measurement shows the seal is not reaching the bass shelf" — a fault that lives
+outside the chain, so no amount of chain arithmetic would ever have found it.
 
 ## The vocabulary map
 
