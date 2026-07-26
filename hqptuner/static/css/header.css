@@ -8,8 +8,10 @@
   align-items: center;
   gap: 1rem;
   /* horizontal inset is MARGIN so the bg-2 band and the rule stop at the
-     content lane rather than the container edge */
-  padding: 0.7rem 0;
+     content lane rather than the container edge; horizontal PADDING keeps the
+     brand glyph and the trailing pill off that band's own edge, same as a
+     card-head's 0.8rem inset */
+  padding: 0.7rem 0.8rem;
   margin: 0 var(--gutter);
   background: var(--bg-2);
   border-bottom: 1px solid var(--line);

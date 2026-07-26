@@ -14,6 +14,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The top-bar HQPTuner icon no longer sits flush against the header's edge.** Missing horizontal padding on the header let the brand glyph touch the bar's own background edge, unlike every other card in the app.
+
 - **Settings for features you've never used now save.** HQPlayer only writes the parts of its configuration file it has had a reason to write, and never fills the rest back in — so if you'd never set up loudness, or never switched matrix processing on, your file simply had no loudness or matrix section in it. HQPTuner could edit what was there but couldn't add what wasn't, so every one of those settings was refused, and because one refused setting fails the whole apply, an unrelated change staged alongside it never landed either — and the save riding on it was skipped, leaving the preset holding stale settings. HQPTuner now creates the missing section in the right place, carrying only the setting you actually changed, and leaves every other byte of your configuration exactly as it was. This is the cause behind "my presets won't save" and changes that go stale after an apply.
 
 - **A setting that genuinely can't be placed says which setting it was.** The message named the XML element — in angle brackets, which the browser swallowed as markup, leaving "Config not applied: absent from this snapshot" with the one useful word missing. It now names the setting you changed, and carries no markup for a browser to eat.

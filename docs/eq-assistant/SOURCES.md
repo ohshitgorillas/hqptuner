@@ -923,6 +923,7 @@ about the fetcher, never about the claim.
 | A peer-reviewed quantification of crossfeed's tonal side effect | Still not found | **Gap substantially narrowed, not closed.** Now rests on bs2b source algebra `[V]`, Meier `[V]`, two independent implementer figures `[VA]`, and the correlated-summation ceiling `[VA]`. See §3. |
 | Sonion EST (electrostatic IEM) datasheets | Not located; likely NDA-gated | Provisional finding: **no public EST datasheet exists.** |
 | Insertion-depth effect in dB | Not found after a dedicated hunt | Direction sourced `[VA]`, magnitude not. One `[S]` lead failed TLS and must not be cited. |
+| ~~Jiang et al., *Analysis and Development of Hybrid Earphone Combining Balanced-Armature and Dynamic Receivers*, Applied Sciences 9(23):5047 (2019), DOI 10.3390/app9235047~~ | **RESOLVED 2026-07-25** — obtained by hand after `mdpi.com` returned Akamai 403 site-wide to the fetcher | **Read in full `[V]`.** The RMS-SPL-deviation numbers from the abstract (hybrid 4.60, dynamic-alone 8.94, BA-alone 6.04) are the *optimized*-tube result — the full text also gives the *un*-optimized (prototype-tube) hybrid figure, 9.70, **worse than either driver alone**, which the abstract omits. `TRANSDUCERS.md` §2.1 rewritten around the full text. |
 
 ---
 
