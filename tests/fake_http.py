@@ -157,6 +157,25 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
         st["_down"] = True
 
 
+def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
+    """POST /restore, returning the HTTP status the daemon answers with.
+
+    ``_restore_refusals`` refuses that many arrivals with 503 before adopting
+    anything: the real daemon is unreachable for ~5.6 s after each restore, so a
+    lane whose write lands in that window sees the POST itself fail. 503 raises
+    from ``httpconf._post``'s ``raise_for_status`` as an ``httpx.HTTPError``, the
+    same arm that catches a live connection refusal.
+
+    ``_restore_attempts`` counts every arrival, refused or not, so a retry loop
+    can be tested for how many passes it makes (docs/testing.md rule 7)."""
+    st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
+    if st.get("_restore_refusals", 0) > 0:
+        st["_restore_refusals"] -= 1
+        return 503
+    _restore_config(st, content_type, raw)
+    return 200
+
+
 def _refresh_devices(st: dict[str, Any]) -> None:
     """POST /config/refresh — re-scan output devices. Endpoints that were powered
     off (staged in _hidden_endpoints) become bindable and join the offered set,
@@ -209,11 +228,12 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
+            status = 200  # /config POST is unused by the restore lane
             if self.path == "/restore":
-                _restore_config(st, self.headers.get("Content-Type", ""), raw)
+                status = _restore_post(st, self.headers.get("Content-Type", ""), raw)
             elif self.path == "/config/profile/save":
                 _save_profile(st, raw)
-            self.send_response(200)  # /config POST is unused by the restore lane
+            self.send_response(status)
             self.end_headers()
             self.wfile.write(b"<html>Restore</html>")
 
@@ -300,5 +320,10 @@ def state(**extra: Any) -> dict[str, Any]:
         "volume_adaptive": "0",
         "defaults_volume": "-3",
         "_lag": 0,
+        # POST /restore arrivals to refuse with 503 before adopting one, and the
+        # running count of arrivals. Both default to the healthy daemon: nothing
+        # is refused and the count is bookkeeping no existing test reads.
+        "_restore_refusals": 0,
+        "_restore_attempts": 0,
         **extra,
     }

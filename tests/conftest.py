@@ -287,6 +287,20 @@ def dying_http_daemon() -> Iterator[dict[str, Any]]:
     yield from fake_http.spawn(fake_http.state(_die=True))
 
 
+@pytest.fixture
+def restore_refusing_http_daemon() -> Iterator[dict[str, Any]]:
+    # refuses every POST /restore: the daemon that is still restarting when a
+    # write lands on it and never recovers inside the deadline
+    yield from fake_http.spawn(fake_http.state(_restore_refusals=99))
+
+
+@pytest.fixture
+def restore_recovering_http_daemon() -> Iterator[dict[str, Any]]:
+    # refuses the first two POST /restore arrivals, then accepts — the restart
+    # window a retrying lane is supposed to ride through
+    yield from fake_http.spawn(fake_http.state(_restore_refusals=2))
+
+
 # --- a manager wired to the fake HTTP config daemon -------------------------
 
 ManagerFactory = Callable[..., ConnectionManager]

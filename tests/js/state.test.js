@@ -345,6 +345,26 @@ test("test_a_failed_save_names_the_preset_and_the_error", async () => {
   assert.equal(lastApply.value.text, 'Applied no changes — save to "P" failed: disk');
 });
 
+// A WARNED save is a save: only hqplayerd's own mirror of the preset is behind,
+// so the caveat rides a success rather than turning it into a failure. Reporting
+// it as failed is what sent a user hunting for a preset already on disk.
+
+test("test_a_warned_save_carries_its_caveat_in_the_text", async () => {
+  await trees();
+  await discardAll();
+  route({ apply: { saved: { ok: true, name: "P", warning: "list not updated" } } });
+  await applyAll();
+  assert.equal(lastApply.value.text, 'Applied no changes · saved to "P" — list not updated');
+});
+
+test("test_a_warned_save_is_still_ok", async () => {
+  await trees();
+  await discardAll();
+  route({ apply: { saved: { ok: true, name: "P", warning: "list not updated" } } });
+  await applyAll();
+  assert.equal(lastApply.value.ok, true);
+});
+
 // --- summarize: transport failure -------------------------------------------
 
 test("test_a_rejected_apply_request_is_reported_rather_than_swallowed", async () => {

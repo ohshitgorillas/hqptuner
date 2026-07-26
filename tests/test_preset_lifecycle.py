@@ -10,6 +10,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from conftest import ManagerFactory
+
 from hqptuner.conf import presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
@@ -95,3 +97,85 @@ async def test_delete_preset_removes_it_from_the_list(http_daemon: dict[str, Any
     finally:
         await http.aclose()
     assert "Temp" not in names
+
+
+# --- the daemon mirror: a save is the STORE write, not the mirror -------------
+#
+# The mirror (``data/cfgs/<name>.xml``) only feeds hqplayerd's own profile list.
+# It rides a POST /restore that routinely lands while the daemon is still
+# restarting from the apply the save follows, so it retries — and when it finally
+# does not land, the save is still a save. Reporting it as failed is what sent a
+# user hunting for a preset that was already on disk.
+
+
+async def test_a_save_whose_mirror_never_lands_still_reports_ok(
+    restore_refusing_http_daemon: dict[str, Any],
+    http_manager_factory: ManagerFactory,
+) -> None:
+    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    result = await manager.save_preset("Studio")
+    assert result["ok"] is True
+
+
+async def test_a_save_whose_mirror_never_lands_says_the_profile_list_is_behind(
+    restore_refusing_http_daemon: dict[str, Any],
+    http_manager_factory: ManagerFactory,
+) -> None:
+    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    result = await manager.save_preset("Studio")
+    assert result["warning"] == "hqplayerd's own profile list was not updated"
+
+
+async def test_a_save_whose_mirror_never_lands_still_stores_the_preset(
+    restore_refusing_http_daemon: dict[str, Any],
+    http_manager_factory: ManagerFactory,
+) -> None:
+    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    await manager.save_preset("Studio")
+    assert "Studio" in [o["value"] for o in manager.presets()["options"]]
+
+
+async def test_a_save_whose_mirror_never_lands_still_marks_it_active(
+    restore_refusing_http_daemon: dict[str, Any],
+    http_manager_factory: ManagerFactory,
+) -> None:
+    # the active pointer moved with the store write, not with the daemon: a save
+    # that reached disk is the active preset even when the mirror is behind
+    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    await manager.save_preset("Studio")
+    assert manager.presets()["active"] == "Studio"
+
+
+async def test_a_mirror_retries_rather_than_giving_up_on_one_refusal(
+    restore_recovering_http_daemon: dict[str, Any],
+    http_manager_factory: ManagerFactory,
+) -> None:
+    # two refusals then an accept: a single-shot POST would report a warning the
+    # next second would not have seen
+    manager = http_manager_factory(restore_recovering_http_daemon, alarm_threshold=3.0)
+    result = await manager.save_preset("Studio")
+    assert "warning" not in result
+
+
+async def test_a_mirror_stops_retrying_at_the_deadline(
+    restore_refusing_http_daemon: dict[str, Any],
+    http_manager_factory: ManagerFactory,
+) -> None:
+    # three passes fit a 3 s deadline at a 1 s interval, then the loop concludes —
+    # the retry is bounded, not an unbounded hammer on a daemon that is gone
+    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    await manager.save_preset("Studio")
+    assert restore_refusing_http_daemon["_restore_attempts"] == 3
+
+
+async def test_a_healthy_save_reports_no_warning(http_manager: ConnectionManager) -> None:
+    result = await http_manager.save_preset("Studio")
+    assert "warning" not in result
+
+
+async def test_a_healthy_save_carries_the_mirror_to_the_daemon(
+    http_daemon: dict[str, Any],
+    http_manager: ConnectionManager,
+) -> None:
+    await http_manager.save_preset("Studio")
+    assert "data/cfgs/Studio.xml" in http_daemon["_restore_members"]
