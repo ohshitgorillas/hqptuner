@@ -348,7 +348,10 @@ def state(**extra: Any) -> dict[str, Any]:
         # Volume-tab file truth. `fixed_level` is None when the feature is off:
         # the daemon expresses "off" by the ABSENCE of the top-level <fixed/>
         # element, not by a flag on it, so presence is the only state there is.
+        # `fixed_parked` is the level the daemon remembers WHILE off, carried in a
+        # commented line; None means this config has never had a fixed volume.
         "fixed_level": None,
+        "fixed_parked": None,
         "volume_max": "0",
         "volume_min": "-60",
         "volume_adaptive": "0",
