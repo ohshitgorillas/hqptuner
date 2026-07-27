@@ -10,9 +10,11 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { effectivePipelines, stagePipelines } from "../store/state.js";
-import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
+import { parseProcess, serializeProcess, IIR_TYPES } from "../lib/matrixspec.js";
 import { chainResponse, bandFreqs } from "../lib/dsp.js";
+import { clamp } from "../lib/coerce.js";
 import { PlotFrame } from "./plots.js";
+import { SliderNumber } from "./controls/index.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { structuralLensTraces } from "./StructuralXfeed.js";
@@ -80,65 +82,213 @@ export function togglePlotted(index) {
 }
 
 // --- draggable EQ handles (peak/lshelf/hshelf stages of plotted rows) --------
-// In-flight drag override: {row, stage, f, g}, client-only — merged into the
-// plotted stage list so the curve tracks the cursor with zero server traffic;
-// the release commits through stagePipelines like any pipeline edit.
+// In-flight drag override: {row, stage, args}, client-only — an arg patch
+// (strings, e.g. {f, g} from a dot drag or {q} from the band strip) merged into
+// the plotted stage list so the curve tracks the gesture with zero server
+// traffic; the release commits through stagePipelines like any pipeline edit.
 const GAIN_TYPES = new Set(["peak", "lshelf", "hshelf"]);
 const dragEq = signal(null);
 
-function withDrag(i, stages) {
+const pairOf = (r) => (r % 2 === 0 ? r + 1 : r - 1);
+const stageKey = (s) => JSON.stringify({ kind: s.kind, args: s.args });
+
+// The in-flight drag override follows the SAME stereo-pair rule as the commit:
+// a byte-identical stage on the adjacent pair row moves live too. Without this
+// the pair's merged "1+2" curve splits for the duration of the drag and the
+// twin's dot is left sitting at the grab point — a ghost "new point" that only
+// re-merges on release.
+function withDrag(rows, i) {
+  const stages = parseProcess(rows[i].process);
   const d = dragEq.value;
-  if (!d || d.row !== i) return stages;
-  return stages.map((s, j) =>
-    j === d.stage ? { ...s, args: { ...s.args, f: String(d.f), g: String(d.g) }, raw: undefined } : s,
-  );
+  if (!d) return stages;
+  const mirrors =
+    pairOf(d.row) === i &&
+    stages[d.stage] &&
+    stageKey(stages[d.stage]) === stageKey(parseProcess(rows[d.row].process)[d.stage]);
+  if (d.row !== i && !mirrors) return stages;
+  return stages.map((s, j) => (j === d.stage ? { ...s, args: { ...s.args, ...d.args }, raw: undefined } : s));
 }
 
-// Release: rewrite the dragged stage's f/g (other args untouched). Stereo-pair
-// sync: if the adjacent pair row carries a byte-identical stage at the same
-// position (how AutoEq imports land), it moves too; a diverged pair is left alone.
-function commitDrag(rows, row, stageIdx, f, g) {
+// Release: rewrite the patched args (others untouched). Stereo-pair sync: if
+// the adjacent pair row carries a byte-identical stage at the same position
+// (how AutoEq imports land), it moves too; a diverged pair is left alone.
+function commitStage(rows, row, stageIdx, patch) {
   dragEq.value = null;
-  const orig = parseProcess(rows[row].process)[stageIdx];
-  const origKey = JSON.stringify({ kind: orig.kind, args: orig.args });
-  const pair = row % 2 === 0 ? row + 1 : row - 1;
+  const origKey = stageKey(parseProcess(rows[row].process)[stageIdx]);
+  const pair = pairOf(row);
   const next = rows.map((r, i) => {
     if (i !== row && i !== pair) return r;
     const stages = parseProcess(r.process);
     const s = stages[stageIdx];
     if (!s) return r;
-    if (i !== row && JSON.stringify({ kind: s.kind, args: s.args }) !== origKey) return r;
-    stages[stageIdx] = { ...s, args: { ...s.args, f: String(f), g: String(g) }, raw: undefined };
+    if (i !== row && stageKey(s) !== origKey) return r;
+    stages[stageIdx] = { ...s, args: { ...s.args, ...patch }, raw: undefined };
     return { ...r, process: serializeProcess(stages) };
   });
   stagePipelines(next);
 }
 
+const r1 = (v) => Math.round(v * 10) / 10;
+const r2 = (v) => Math.round(v * 100) / 100;
+
 function rowHandles(rows, plotted) {
   const handles = [];
-  const r1 = (v) => Math.round(v * 10) / 10;
   const sel = selectedStage.value;
   plotted.forEach((i, k) => {
-    withDrag(i, parseProcess(rows[i].process)).forEach((s, j) => {
+    withDrag(rows, i).forEach((s, j) => {
       if (s.kind !== "iir" || !GAIN_TYPES.has(s.args.type)) return;
       const f = Number(s.args.f);
       const g = Number(s.args.g);
       if (!Number.isFinite(f) || !Number.isFinite(g)) return;
+      // drag-readout label: pipeline number + type, plus the width arg the drag
+      // holds fixed (q/bw/s) so the readout states the band's full identity
+      const width = s.args.q ? ` Q${s.args.q}` : s.args.bw ? ` bw${s.args.bw}` : s.args.s ? ` S${s.args.s}` : "";
       handles.push({
         f,
         db: g,
+        label: `${i + 1} · ${s.args.type}${width}`,
         kind: HUES[k % HUES.length],
         active: !!(sel && sel.row === i && sel.stage === j),
-        onDrag: (nf, ndb) => {
-          dragEq.value = { row: i, stage: j, f: Math.round(nf), g: r1(ndb) };
+        // grabbing the dot selects the band, so the strip and docked editor
+        // dock without a trip back to the pipeline chips (REW-style flow)
+        onSelect: () => {
+          selectedStage.value = { row: i, stage: j };
         },
-        onEnd: (nf, ndb) => commitDrag(rows, i, j, Math.round(nf), r1(ndb)),
+        onDrag: (nf, ndb) => {
+          dragEq.value = { row: i, stage: j, args: { f: String(Math.round(nf)), g: String(r1(ndb)) } };
+        },
+        onEnd: (nf, ndb) => commitStage(rows, i, j, { f: String(Math.round(nf)), g: String(r1(ndb)) }),
       });
     });
   });
   // stereo-pair dots overlap exactly — draw the highlighted one last so the
   // selection ring is never occluded by its twin
   return handles.sort((a, b) => (a.active ? 1 : 0) - (b.active ? 1 : 0));
+}
+
+// ── band strip: sliders + exact-entry boxes for the selected iir stage ───────
+// Docked under the plot. First visual control for the width arg (Q/bw/s) — the
+// dot drag only carries f/g. Streams through the same dragEq override and lands
+// through the same pair-synced commit as the dot, so curve, dot, docked editor
+// and strip stay in step by construction. biquad (raw coefficients) and
+// non-iir stages keep the docked editor only. Ranges are UI policy (hqplayerd
+// documents the args, not their bounds): f spans the audio band, g matches the
+// plot's ±24 dB ceiling, Q/bw/s cover the practical RBJ envelope; the docked
+// editor still accepts anything outside them.
+const BAND_ARGS = {
+  f: { name: "freq", min: 20, max: 20000, step: 1, unit: "Hz", scale: "log", round: Math.round },
+  g: { name: "gain", min: -24, max: 24, step: 0.1, unit: "dB", round: r1 },
+  q: { name: "Q", min: 0.1, max: 16, step: 0.01, scale: "log", round: r2 },
+  bw: { name: "bandwidth", min: 0.05, max: 8, step: 0.01, unit: "oct", round: r2 },
+  s: { name: "slope", min: 0.1, max: 2, step: 0.01, round: r2 },
+};
+
+// The stage the strip can edit, or null: an iir stage of the selection whose
+// type schema carries at least one slider-able arg (biquad's raw coefficients
+// don't qualify — those keep the docked text editor only).
+function stripTarget(rows) {
+  const sel = selectedStage.value;
+  if (!sel || sel.row >= rows.length) return null;
+  const st = withDrag(rows, sel.row)[sel.stage];
+  if (!st || st.kind !== "iir") return null;
+  const schema = IIR_TYPES[st.args.type];
+  if (!schema) return null;
+  const shown = [...schema.args, ...(schema.oneOf || [])].filter((a) => BAND_ARGS[a] && st.args[a] !== undefined);
+  return shown.length ? { sel, st, shown } : null;
+}
+
+// Strip title, "1+2" when the pair row carries a byte-identical stage — the
+// same rule commitStage moves the pair by, so the name states what a commit
+// will actually touch.
+function stripName(rows, sel) {
+  const pairIdx = pairOf(sel.row);
+  const mine = parseProcess(rows[sel.row].process)[sel.stage];
+  const twin = pairIdx >= 0 && pairIdx < rows.length ? parseProcess(rows[pairIdx].process)[sel.stage] : undefined;
+  const idxs = twin && stageKey(twin) === stageKey(mine) ? [sel.row, pairIdx].sort((a, b) => a - b) : [sel.row];
+  return idxs.map((i) => i + 1).join("+");
+}
+
+function BandArg({ rows, sel, st, a }) {
+  const spec = BAND_ARGS[a];
+  const v = Number(st.args[a]);
+  const patch = (nv) => {
+    const n = Number(nv);
+    return Number.isFinite(n) ? { [a]: String(spec.round(clamp(n, spec.min, spec.max))) } : null;
+  };
+  return html`
+    <label class="band-arg">
+      <span class="band-arg-name t-label">${spec.name}</span>
+      <${SliderNumber}
+        value=${Number.isFinite(v) ? clamp(v, spec.min, spec.max) : spec.min}
+        min=${spec.min}
+        max=${spec.max}
+        step=${spec.step}
+        boxStep="any"
+        unit=${spec.unit}
+        scale=${spec.scale}
+        anchor="min"
+        onDrag=${(nv) => {
+          const p = patch(nv);
+          if (p) dragEq.value = { row: sel.row, stage: sel.stage, args: p };
+        }}
+        onCommit=${(nv) => {
+          const p = patch(nv);
+          if (p) commitStage(rows, sel.row, sel.stage, p);
+        }}
+      />
+    </label>
+  `;
+}
+
+// The canonical trio shown while nothing editable is bound — the strip's shape
+// never changes, only whether the controls are live.
+const IDLE_ARGS = [
+  ["f", 1000],
+  ["g", 0],
+  ["q", 1],
+];
+
+function IdleArg({ a, v }) {
+  const spec = BAND_ARGS[a];
+  return html`
+    <label class="band-arg">
+      <span class="band-arg-name t-label">${spec.name}</span>
+      <${SliderNumber}
+        value=${v}
+        min=${spec.min}
+        max=${spec.max}
+        step=${spec.step}
+        boxStep="any"
+        unit=${spec.unit}
+        scale=${spec.scale}
+        anchor="min"
+        disabled=${true}
+        onChange=${() => {}}
+      />
+    </label>
+  `;
+}
+
+// STANDING, like the plot card above it — always rendered at full size, so the
+// block is there before anything is selected. No editable selection -> the
+// same sliders, disabled, and a head line saying how to bind them. Never a
+// vanished or collapsed block.
+function BandStrip({ rows }) {
+  const t = stripTarget(rows);
+  if (!t) {
+    return html`
+      <div class="band-strip">
+        <div class="band-head t-caption">No band selected — click a stage chip or a plot dot to edit it here.</div>
+        ${IDLE_ARGS.map(([a, v]) => html`<${IdleArg} a=${a} v=${v} />`)}
+      </div>
+    `;
+  }
+  return html`
+    <div class="band-strip">
+      <div class="band-head t-label mono">${stripName(rows, t.sel)} · ${t.st.args.type}</div>
+      ${t.shown.map((a) => html`<${BandArg} rows=${rows} sel=${t.sel} st=${t.st} a=${a} />`)}
+    </div>
+  `;
 }
 
 function rowTraces(rows, plotted, bounds) {
@@ -150,7 +300,7 @@ function rowTraces(rows, plotted, bounds) {
   const groups = [];
   const byKey = new Map();
   plotted.forEach((i) => {
-    const stages = withDrag(i, parseProcess(rows[i].process));
+    const stages = withDrag(rows, i);
     const key = serializeProcess(stages);
     let g = byKey.get(key);
     if (!g) {
@@ -296,6 +446,7 @@ export function MatrixPlot() {
           handles=${rowHandles(rows, plotted)}
           autoColor=${true}
         />
+        <${BandStrip} rows=${rows} />
       </div>
     </section>
   `;

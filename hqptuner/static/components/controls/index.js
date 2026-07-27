@@ -155,12 +155,19 @@ function ReadBox({ shown, min, max, step, unit, sub, disabled, onCommit }) {
 // `boxStep` is the number box's own step, which need not be the slider's: a
 // slider wants a detent coarse enough to hit, while the box can take any value
 // in range (step="any").
+// `scale="log"`: the RANGE TRACK works in log space (equal travel per octave —
+// what a 20 Hz–20 kHz or 0.1–16 Q axis needs) while value, box, ticks and both
+// callbacks stay in real units. Log implies step="any" on the track; the box
+// keeps boxStep. min must be > 0.
 export function SliderNumber(props) {
-  const { value, min, max, step, boxStep, ticks, unit, sub, format, disabled, anchor } = props;
+  const { value, min, max, step, boxStep, ticks, unit, sub, format, disabled, anchor, scale } = props;
   const st = step == null ? 1 : step;
+  const log = scale === "log";
+  const enc = (v) => (log ? Math.log(Number(v)) : Number(v));
+  const dec = (v) => (log ? Math.exp(Number(v)) : v);
   const lo = Number(min);
   const hi = Number(max);
-  const pct = pctOf(value, lo, hi);
+  const pct = pctOf(enc(value), enc(lo), enc(hi));
   const fill = fillStyle(pct, anchor);
   const { drag, commit, split } = events(props);
   return html`
@@ -169,17 +176,17 @@ export function SliderNumber(props) {
         <input
           class="rng"
           type="range"
-          value=${s(value)}
-          min=${min}
-          max=${max}
-          step=${st}
+          value=${log ? s(enc(value)) : s(value)}
+          min=${log ? s(enc(lo)) : min}
+          max=${log ? s(enc(hi)) : max}
+          step=${log ? "any" : st}
           disabled=${disabled}
           style=${fill}
           onWheel=${wheelGuard}
-          onInput=${(e) => drag(e.target.value)}
-          onChange=${split ? (e) => commit(e.target.value) : null}
+          onInput=${(e) => drag(dec(e.target.value))}
+          onChange=${split ? (e) => commit(dec(e.target.value)) : null}
         />
-        ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(t, lo, hi)}%`}></span>`)}
+        ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(enc(t), enc(lo), enc(hi))}%`}></span>`)}
       </span>
       <${ReadBox}
         shown=${format ? format(Number(value)) : s(value)}
