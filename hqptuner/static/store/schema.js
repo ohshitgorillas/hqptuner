@@ -822,12 +822,17 @@ export const schema = {
     field: "fixed_volume_enabled",
     grayWhen: directSdm,
   },
+  // fileTruth: while fixed volume is OFF the daemon's form reports its OWN
+  // remembered level, not the user's — so a level typed before switching the
+  // feature off came back as the daemon's number and read as "reverted". The file
+  // carries the user's, parked in a commented <fixed> line, so it is the authority.
   fixed_volume: {
     label: "Fixed volume level",
     group: "volume",
     widget: "number",
     lane: "http",
     field: "fixed_volume",
+    fileTruth: true,
     unit: "dBFS",
     grayWhen: levelGray,
   },

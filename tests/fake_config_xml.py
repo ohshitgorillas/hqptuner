@@ -16,13 +16,28 @@ def _b(v: Any) -> str:
     return "1" if v in (True, "1", 1) else "0"
 
 
+def _fixed_line(st: dict[str, Any]) -> str:
+    """The top-level fixed-volume line as 6.0.4 writes it.
+
+    Live element = the feature is on at that level. Off, the daemon keeps the
+    last level in a COMMENTED line — that comment is its memory, and a config
+    that has never had a fixed volume carries a bare commented tag with no level
+    at all. Three distinct shapes, and the difference between the last two is
+    exactly what "the level reverted" was."""
+    if st["fixed_level"] is not None:
+        return f'<fixed volume="{st["fixed_level"]}"/>'
+    if st.get("fixed_parked") is not None:
+        return f'<!--<fixed volume="{st["fixed_parked"]}"/>-->'
+    return "<!--<fixed/>-->"
+
+
 def cfg_xml(st: dict[str, Any]) -> bytes:
     """The working hqplayerd.xml a /backup would carry, rendered from state."""
     net_addr, _, net_dev = st["net_device"].partition("/")
     # fixed volume: the element exists only while the feature is on, and the
     # daemon parks the remembered level in a COMMENT while it is off — modelled
     # because a locator that ignores comments would read the parked level as live
-    fixed = f'<fixed volume="{st["fixed_level"]}"/>' if st["fixed_level"] is not None else "<!--<fixed/>-->"
+    fixed = _fixed_line(st)
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n<hqplayerd>'
         f"{fixed}"
@@ -175,16 +190,24 @@ def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
                 st["post_loudness_enabled"] = enabled.group(1) == b"1"
 
 
+def _fixed_volume_of(m: re.Match[bytes] | None, default: str | None) -> str | None:
+    if m is None:
+        return None
+    level = re.search(rb'\bvolume="([^"]*)"', m.group(0))
+    return level.group(1).decode() if level else default
+
+
 def _adopt_fixed(st: dict[str, Any], xml: bytes) -> None:
     """Adopt the top-level ``<fixed volume=…/>``: present = fixed volume on, at
     that level; absent = off. A commented element is the daemon's own parked
-    memory and is not live, so it must not be adopted."""
-    live = next((m for m in re.finditer(rb"<fixed\b[^>]*?/?>", xml) if not _commented(xml, m.start())), None)
-    if live is None:
-        st["fixed_level"] = None
-        return
-    level = re.search(rb'\bvolume="([^"]*)"', live.group(0))
-    st["fixed_level"] = level.group(1).decode() if level else "0"
+    memory and is not live, so it is adopted as the REMEMBERED level rather than
+    the running one — the daemon keeps that comment across a restore, and a fake
+    that dropped it would report the level as gone when it is only parked."""
+    tags = list(re.finditer(rb"<fixed\b[^>]*?/?>", xml))
+    live = next((m for m in tags if not _commented(xml, m.start())), None)
+    parked = next((m for m in tags if _commented(xml, m.start())), None)
+    st["fixed_level"] = _fixed_volume_of(live, "0")
+    st["fixed_parked"] = _fixed_volume_of(parked, None)
 
 
 def _commented(xml: bytes, pos: int) -> bool:

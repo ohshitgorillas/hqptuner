@@ -12,7 +12,7 @@
 //
 // Schema facts this leans on, verified against store/schema.js:
 //   adaptive_volume is the ONLY lane:"live" key (stateField "adaptive").
-//   optimal_iso and matrix_pipelines are the ONLY fileTruth keys.
+//   optimal_iso, matrix_pipelines and fixed_volume are the fileTruth keys.
 //   matrix_engine carries endpoint:"matrix" + formField:"engine" — it reads its
 //   baseline from the /matrix form under the BARE name, never from /config.
 
@@ -117,6 +117,14 @@ test("test_a_file_truth_fallback_normalizes_a_checked_form_box_into_the_xml_doma
 test("test_a_file_truth_fallback_normalizes_an_unchecked_form_box", async () => {
   await trees({ fields: [field("volume_fixed", false)], file: {} });
   assert.equal(effective("optimal_iso"), "0");
+});
+
+test("test_the_fixed_volume_level_reads_the_file_rather_than_the_daemon_form", async () => {
+  // while fixed volume is OFF the daemon's form offers its OWN remembered level;
+  // the user's is parked in a commented <fixed> line the file lane reads back, so
+  // the file has to win or the box shows a number the user never typed
+  await trees({ fields: [field("fixed_volume", "-3")], file: { fixed_volume: "-20" } });
+  assert.equal(effective("fixed_volume"), "-20");
 });
 
 test("test_a_file_truth_control_reads_the_file_even_with_no_form_field_at_all", async () => {

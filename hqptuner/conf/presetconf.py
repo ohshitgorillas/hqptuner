@@ -161,6 +161,10 @@ FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
+# the daemon's parked memory for a disabled fixed volume, and now ours too
+_COMMENTED_FIXED_RE = re.compile(rb"\n?[ \t]*<!--\s*<fixed\b[^>]*/>\s*-->")
+
+
 def _find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
     """The live ``<fixed .../>`` element, or None — the daemon parks the
     remembered level in a commented one when the feature is off."""
@@ -171,14 +175,21 @@ def _fixed_level_of(tag: bytes) -> str | None:
     return get_attr(tag, "volume")
 
 
-def _remembered_level(xml: bytes) -> str:
-    """Last-known fixed-volume level — the active element, else a commented one
-    (the daemon's memory when off), else 0 dBFS."""
+def _any_fixed_level(xml: bytes) -> str | None:
+    """The level off the first ``<fixed>`` tag anywhere — the active element, or
+    the commented-out one a disabled level is parked in. None when this config has
+    never carried a fixed volume at all, which is different from carrying 0 dBFS."""
     for m in open_tag_re("fixed").finditer(xml):
         lvl = _fixed_level_of(m.group(0))
         if lvl is not None:
             return lvl
-    return "0"
+    return None
+
+
+def _remembered_level(xml: bytes) -> str:
+    """Last-known fixed-volume level — the active element, else a commented one
+    (the daemon's memory when off), else 0 dBFS."""
+    return _any_fixed_level(xml) or "0"
 
 
 def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[bytes] | None) -> tuple[bool, str]:
@@ -187,7 +198,14 @@ def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[byte
     if FIXED_ENABLED in fixed_edits:
         enabled = fixed_edits[FIXED_ENABLED].strip().lower() in _TRUTHY
     else:
-        enabled = active is not None
+        # Staging the LEVEL alone switches the feature ON. Presence of <fixed> IS
+        # the enabled flag, so there is nowhere to park a level while the feature
+        # is off — a level edit that left it off was silently discarded, and the
+        # apply reported success because read_config then omits the field it just
+        # dropped. Same precedent as _enables_post_process switching matrix on for
+        # a plugin edit. An explicit fixed_volume_enabled=0 still wins: it is
+        # handled above, so "turn it off" never resurrects the feature.
+        enabled = FIXED_LEVEL in fixed_edits or active is not None
     current = _fixed_level_of(active.group(0)) if active is not None else None
     return enabled, fixed_edits.get(FIXED_LEVEL) or current or _remembered_level(xml)
 
@@ -203,25 +221,45 @@ def _strip_active_fixed(xml: bytes, active: re.Match[bytes]) -> bytes:
     return xml[:start] + xml[active.end() :]
 
 
-def _insert_fixed(xml: bytes, level: str) -> bytes:
-    """Insert ``<fixed volume="level"/>`` as the first child of ``<hqplayerd>``,
-    where the daemon itself writes it."""
+def _insert_root_child(xml: bytes, tag: bytes) -> bytes:
+    """Insert ``tag`` as the first child of ``<hqplayerd>``, where the daemon
+    itself writes the fixed-volume line."""
     open_tag = re.search(rb"<hqplayerd\b[^>]*>", xml)
     if open_tag is None:
         raise GroundingError("<hqplayerd> root element absent from this snapshot")
     cut = open_tag.end()
-    return xml[:cut] + b"\n\t" + f'<fixed volume="{level}"/>'.encode() + xml[cut:]
+    return xml[:cut] + b"\n\t" + tag + xml[cut:]
+
+
+def _insert_fixed(xml: bytes, level: str) -> bytes:
+    """The live ``<fixed volume="level"/>`` — its presence is what "enabled" means."""
+    return _insert_root_child(xml, f'<fixed volume="{level}"/>'.encode())
+
+
+def _remember_fixed(xml: bytes, level: str) -> bytes:
+    """Park the level in a COMMENTED ``<fixed>`` line rather than dropping it.
+
+    This is the daemon's own convention, not an invention: a real 6.0.4 config
+    whose fixed volume is off carries ``<!--<fixed volume="-3"/>-->``, and
+    ``_remembered_level`` has always read it back. Only the write side disagreed —
+    disabling deleted the element outright, so a level typed before the feature was
+    switched off was destroyed, and the box then showed the daemon's own remembered
+    value instead of the user's. Our disable was lossier than hqplayerd's."""
+    return _insert_root_child(xml, f'<!--<fixed volume="{level}"/>-->'.encode())
 
 
 def _reconcile_fixed(xml: bytes, fixed_edits: dict[str, str]) -> bytes:
     """Fold the ``fixed_volume_enabled`` / ``fixed_volume`` pair onto the top-level
-    ``<fixed>`` element: enabled ⇒ ensure ``<fixed volume="level"/>`` exists,
-    disabled ⇒ remove it. Comment-safe; every other byte is preserved."""
+    ``<fixed>`` element: enabled ⇒ ``<fixed volume="level"/>`` live, disabled ⇒ the
+    same line commented out so the level survives. Every other byte is preserved."""
     active = _find_active_fixed(xml)
-    enabled, level = _fixed_target(xml, fixed_edits, active)
+    enabled, level = _fixed_target(xml, fixed_edits, active)  # reads the old memory, so run it first
     if active is not None:
         xml = _strip_active_fixed(xml, active)
-    return _insert_fixed(xml, level) if enabled else xml
+    # whichever way this goes, the previous memory is superseded — leaving it would
+    # stack a fresh comment on every toggle and give _remembered_level a stale first hit
+    xml = _COMMENTED_FIXED_RE.sub(b"", xml)
+    return _insert_fixed(xml, level) if enabled else _remember_fixed(xml, level)
 
 
 def _enables_post_process(edits: dict[str, str]) -> bool:
@@ -342,10 +380,13 @@ def _read_special(xml: bytes) -> dict[str, str]:
     # fixed volume: presence of the top-level <fixed> element is the "enabled" flag
     active_fixed = _find_active_fixed(xml)
     out[FIXED_ENABLED] = "1" if active_fixed is not None else "0"
-    if active_fixed is not None:
-        level = _fixed_level_of(active_fixed.group(0))
-        if level is not None:
-            out[FIXED_LEVEL] = level
+    # The LEVEL is reported whether or not the feature is on: when it is off the
+    # level lives in the commented line (_remember_fixed), and that parked number
+    # is the user's, where the daemon's form only ever offers its own. Omitting it
+    # here is what let the box fall back to the form and read as "reverted".
+    level = _fixed_level_of(active_fixed.group(0)) if active_fixed is not None else _any_fixed_level(xml)
+    if level is not None:
+        out[FIXED_LEVEL] = level
     return out
 
 
