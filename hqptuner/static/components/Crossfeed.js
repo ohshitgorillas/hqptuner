@@ -328,7 +328,7 @@ export function CrossfeedCard() {
           onChange=${(v) => setXfMode(v, rows)}
         />
       </div>
-      ${issueNote.value ? html`<div class="mtx-issues xfs-issue">${issueNote.value}</div>` : null}
+      ${issueNote.value ? html`<div class="mtx-issues">${issueNote.value}</div>` : null}
       ${
         open
           ? html`<div class="card-body">

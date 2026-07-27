@@ -16,7 +16,7 @@
   border-bottom: 1px solid var(--line);
 }
 .signal-path.idle {
-  opacity: 0.45;
+  opacity: var(--o-off);
 }
 .chip {
   display: inline-flex;
@@ -42,7 +42,7 @@
 }
 /* a bypassed post-processing stage (crossfeed/correction off) reads muted */
 .chip-off {
-  opacity: 0.55;
+  opacity: var(--o-off);
 }
 .chip-off .chip-val {
   color: var(--muted);
@@ -89,7 +89,7 @@
   flex-wrap: wrap;
 }
 .eh-idle {
-  opacity: 0.45;
+  opacity: var(--o-off);
 }
 .vu {
   width: 15rem;

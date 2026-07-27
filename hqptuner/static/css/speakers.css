@@ -151,5 +151,5 @@
 }
 /* Channels outside the chosen set: present, plainly not in play. */
 .room-off {
-  opacity: 0.28;
+  opacity: var(--o-back);
 }

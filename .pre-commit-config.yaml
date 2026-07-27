@@ -87,6 +87,16 @@ repos:
         language: system
         files: ^hqptuner/static/css/.*\.css$
 
+      # Cross-cutting: a class is a string on the JS side and a selector on the
+      # CSS side, so the gate has to run when EITHER side moves.
+      - id: css-classes
+        name: css orphaned-class gate
+        entry: .venv/bin/python scripts/check_css_classes.py
+        language: system
+        pass_filenames: false
+        files: ^hqptuner/static/(css/.*\.css|.*\.js)$
+        exclude: ^hqptuner/static/vendor/
+
       # Cross-cutting: one control is spelled out in schema.js, presetconf.py and
       # settings.json, so the gate has to run when ANY of the three moves.
       - id: control-catalog

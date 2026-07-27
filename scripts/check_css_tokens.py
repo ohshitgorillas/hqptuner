@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: static CSS uses design tokens, never literal type, colour, shape, or space.
+"""Gate: static CSS uses tokens, never literal type, colour, shape, space, or shading.
 
 The stylesheet had drifted to 24 free-chosen font-size values and five
 different effective text greys (two colour tokens times three opacities).
@@ -33,6 +33,11 @@ COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 PRIMITIVE = re.compile(r"var\(\s*--bg\b")
 #: the two motion roles: --dur for a state change, --sweep for a live readout
 MOTION = re.compile(r"var\(\s*--(?:dur|sweep)\b")
+#: opacity answers two questions — is this control in play (state), and how far
+#: back does this graphic sit (depth). Both are roles, so both are tokens. 0 and
+#: 1 stay literal: hidden and fully painted carry no shading decision.
+OPACITY_OK = LITERAL_OK | {"1"}
+OPACITY_TOKEN = re.compile(r"var\(\s*--o-")
 #: any bare length — the thing a spacing value may never contain. Checking for a
 #: literal (rather than requiring every component to be a token) is what lets
 #: `0`, `auto`, and calc() arithmetic like `calc(var(--sp-3) * 1.1)` through: a
@@ -74,6 +79,8 @@ def check_decl(prop: str, value: str, custom: bool) -> str:
         return complaint
     if not custom and is_spacing(prop) and LENGTH.search(value):
         return f"{prop}: {value} — use a var(--sp-*) token from {DEFINITION_SITE}"
+    if prop == "opacity" and not custom and value not in OPACITY_OK and not OPACITY_TOKEN.search(value):
+        return f"{prop}: {value} — use a var(--o-*) token from {DEFINITION_SITE}"
     if prop in TOKEN_PROPS and not custom and literal:
         return f"{prop}: {value} — use a var(--fs-*|--fw-*|--track-*) token"
     if not custom and COLOUR.search(value):

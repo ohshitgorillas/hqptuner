@@ -140,7 +140,7 @@
   cursor: pointer;
 }
 .mtx-tool:disabled {
-  opacity: 0.45;
+  opacity: var(--o-disabled);
   cursor: default;
 }
 .mtx-remove:not(:disabled):hover {

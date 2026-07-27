@@ -16,7 +16,7 @@
 // centre for a neutral one -- a tonal choice, not a bug fix. Independent of any
 // headphone EQ, which rides through untouched. See docs/crossfeed-math.md.
 
-import { withoutEq } from "./matrixspec.js";
+import { fmtArg, withoutEq } from "./matrixspec.js";
 
 export const BAUER_PRESETS = {
   default: { fc: 700, feed: 4.5 },
@@ -137,12 +137,12 @@ export function fitComp(fc, feed) {
   return fit;
 }
 
-const fmt = (x, dp) => String(Math.round(x * 10 ** dp) / 10 ** dp);
-
 // The comp chain as process-spec text at slider fraction s (1 = 100%), in
 // matrixspec buildRaw arg order — round-trips byte-exact through parseProcess.
 export function compProcess(fit, s) {
-  return fit.stages.map((st) => `iir:type=hshelf;f=${fmt(st.f, 1)};q=${fmt(st.q, 3)};g=${fmt(st.g * s, 2)}`).join(",");
+  return fit.stages
+    .map((st) => `iir:type=hshelf;f=${fmtArg(st.f, 1)};q=${fmtArg(st.q, 3)};g=${fmtArg(st.g * s, 2)}`)
+    .join(",");
 }
 
 // --- M/S pipeline block (spec wire shape) ------------------------------------

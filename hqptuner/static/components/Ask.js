@@ -23,7 +23,7 @@ function onKey(e) {
 }
 
 const nameField = (q, ref) => html`
-  <span class="ask ask-name">
+  <span class="ask">
     <label class="ask-msg" for="ask-field">${q.message}</label>
     <input id="ask-field" type="text" ref=${ref} onKeyDown=${onKey} onInput=${clearRefusal} />
     ${q.refused ? html`<span class="ask-refused">Enter a name first</span>` : null}
@@ -33,7 +33,7 @@ const nameField = (q, ref) => html`
 `;
 
 const confirmLine = (q) => html`
-  <span class="ask ask-confirm">
+  <span class="ask">
     <span class="ask-msg">${q.message}</span>
     <button class="primary" onClick=${() => answer()}>Confirm</button>
     <button onClick=${cancel}>Cancel</button>

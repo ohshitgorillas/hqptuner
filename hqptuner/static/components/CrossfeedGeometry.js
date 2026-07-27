@@ -7,6 +7,7 @@
 // far paths — the ones crossfeed synthesizes and headphones otherwise omit. The
 // ±30° reference ticks mark the stereo standard.
 import { html } from "../lib/dom.js";
+import { polarAround } from "../lib/geometry.js";
 
 const W = 340;
 const H = 200;
@@ -19,10 +20,7 @@ const R = 104; // speaker distance, fixed — angle is the variable, not the rad
 // across a deliberately narrow band.
 const headPx = (metres) => 15 + ((Math.min(0.105, Math.max(0.065, metres)) - 0.065) / 0.04) * 10;
 
-const polar = (deg, r) => {
-  const rad = (deg * Math.PI) / 180;
-  return [CX + r * Math.sin(rad), CY - r * Math.cos(rad)];
-};
+const polar = polarAround(CX, CY);
 
 function Speaker({ deg }) {
   const [x, y] = polar(deg, R);

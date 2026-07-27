@@ -41,6 +41,12 @@ export function serializeProcess(stages) {
   return stages.map((s) => (s.raw !== undefined ? s.raw : buildRaw(s))).join(",");
 }
 
+// A number as stage-argument text, rounded to `dp` places and carrying no
+// trailing zeros — the shape buildRaw emits, so a synthesised chain round-trips
+// byte-identically through parseProcess. Not called `fmt`: Knob has a local of
+// that name meaning something else entirely (a value at a step's precision).
+export const fmtArg = (x, dp) => String(Math.round(x * 10 ** dp) / 10 ** dp);
+
 // Everything in a chain that ISN'T parametric EQ, order preserved. Loading a
 // headphone profile replaces the previous profile rather than stacking on it,
 // but "the previous profile" means the iir stages — a delay, a RIAA curve or a

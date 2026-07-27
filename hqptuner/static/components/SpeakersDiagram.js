@@ -21,6 +21,7 @@
 // pair and its ear paths — a different quantity (angle, head size), a different
 // audience, and no room in it for a rear channel.
 import { html } from "../lib/dom.js";
+import { polarAround } from "../lib/geometry.js";
 
 const CX = 160;
 const CY = 150;
@@ -39,10 +40,7 @@ const OUTSET = { 3: 1.35 };
 const SUB_MAX = 140;
 const SHORT = ["L", "R", "C", "Sub", "Lr", "Rr", "Ls", "Rs"];
 
-const polar = (deg, r) => {
-  const rad = (deg * Math.PI) / 180;
-  return [CX + r * Math.sin(rad), CY - r * Math.cos(rad)];
-};
+const polar = polarAround(CX, CY);
 
 // Distance -> radius, on an ABSOLUTE scale. Scaling relative to the largest
 // distance in the set made the drawing a lie: with one speaker at 3 cm and the

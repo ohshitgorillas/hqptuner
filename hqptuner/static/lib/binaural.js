@@ -31,6 +31,8 @@
 // the 22.7 us sample floor at 44.1 kHz and dominated ~37x by head-radius spread
 // across adults (+/-26 us) — which is why `a` is a control and c is not.
 // m/s — Brown & Duda §II.A, per the note above. Not a parameter anywhere downstream: compileRows and recognizeRows both used to take a speedOfSound argument, nothing ever passed one, and a mismatch between the two recovered a silently wrong head radius (0.08673 m for a compiled 0.0875 m) rather than declining the block.
+import { fmtArg } from "./matrixspec.js";
+
 const SPEED_OF_SOUND = 343;
 export const HEAD_RADIUS = 0.0875; // m — Brown & Duda's stated average adult
 export const SPEAKER_ANGLE = 30; // degrees off center — the stereo standard
@@ -78,12 +80,10 @@ export function pathParams(angle = SPEAKER_ANGLE, a = HEAD_RADIUS, c = SPEED_OF_
 
 // --- row synthesis -----------------------------------------------------------
 
-const fmt = (x, dp) => String(Math.round(x * 10 ** dp) / 10 ** dp);
-
 // A process chain in matrixspec's arg order, so it round-trips byte-identically.
 function chain(lowpass, delaySec, cornerHz, eqProcess) {
   const stages = [];
-  if (lowpass) stages.push(`iir:type=lp1;f=${fmt(cornerHz, 1)}`);
+  if (lowpass) stages.push(`iir:type=lp1;f=${fmtArg(cornerHz, 1)}`);
   if (delaySec) stages.push(`delay:t=${delaySec.toFixed(9)}`);
   if (eqProcess) stages.push(eqProcess);
   return stages.join(",");

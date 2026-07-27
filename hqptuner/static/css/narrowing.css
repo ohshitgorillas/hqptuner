@@ -145,7 +145,7 @@
   margin-left: var(--sp-4);
 }
 .apod-sub.off {
-  opacity: 0.4;
+  opacity: var(--o-off);
 }
 
 /* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of
@@ -223,7 +223,7 @@
    reason). Italic + dimmer than .field-note so it reads as state, not prose. */
 /* CUDA DSP-device id in convolution-only mode — unused, reads muted */
 .cuda-dev.off {
-  opacity: 0.55;
+  opacity: var(--o-off);
 }
 
 .field-gray-reason {

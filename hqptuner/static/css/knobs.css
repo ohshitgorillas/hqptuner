@@ -173,7 +173,7 @@
   gap: var(--sp-3);
 }
 .dsp-body.off {
-  opacity: 0.7;
+  opacity: var(--o-dim);
 } /* disabled feature: text stays legible... */
 /* ...but the saturated accent controls (knob arc, slider, plot trace) must drop
    to muted, or 0.7-alpha blue still reads "on" next to greyed-out text. */
