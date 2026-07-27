@@ -12,7 +12,7 @@
 .knob {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--sp-3);
 }
 /* Crossfeed / loudness knobs: the readout box sits BELOW the dial rather than to
    the right of the slider, so the slider takes the freed horizontal width and the
@@ -25,7 +25,7 @@
     "dial slider"
     "readout slider";
   align-items: center;
-  gap: 0.3rem 0.7rem;
+  gap: var(--sp-1) var(--sp-3);
 }
 .knob:not(.knob-lg) .knob-dial {
   grid-area: dial;
@@ -104,7 +104,7 @@
 .knob-readout {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.25rem;
+  gap: var(--sp-1);
   flex: 0 0 auto;
   /* The unit ("Hz" / "dB") is taken out of flow (see .knob-unit) so this wrapper's
      width is exactly the BOX. Centring the wrapper then centres the box under the
@@ -120,7 +120,7 @@
   color: var(--fg);
   border: 1px solid var(--surface-raised);
   border-radius: var(--r-sm);
-  padding: 0.15rem 0.25rem;
+  padding: var(--sp-1) var(--sp-1);
   font-size: var(--fs-body-lg);
 }
 .knob-lg .knob-box {
@@ -136,7 +136,7 @@
   left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  margin-left: 0.25rem;
+  margin-left: var(--sp-1);
   white-space: nowrap;
 }
 /* knob field: small label on top, the trio row filling the width below */
@@ -144,9 +144,9 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.3rem;
+  gap: var(--sp-1);
   min-height: 0;
-  padding: 0.3rem 0.4rem;
+  padding: var(--sp-1) var(--sp-2);
 }
 .field-knob > label {
   font-size: var(--fs-caption);
@@ -155,7 +155,7 @@
 .field-knob .control {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--sp-2);
 }
 .field-knob .knob {
   flex: 1;
@@ -165,12 +165,12 @@
 .dsp-card {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 .dsp-body {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--sp-3);
 }
 .dsp-body.off {
   opacity: 0.7;
@@ -212,7 +212,7 @@
 .dsp-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--sp-1);
 }
 .dsp-plot {
   width: 100%;
@@ -250,13 +250,13 @@
 .cluster {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--sp-1);
 }
 .cluster-head {
-  margin-bottom: 0.2rem;
+  margin-bottom: var(--sp-1);
 }
 .range-group {
-  margin-top: 0.7rem;
+  margin-top: var(--sp-3);
 }
 .range-row {
   display: grid;

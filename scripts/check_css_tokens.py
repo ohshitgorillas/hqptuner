@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: static CSS uses design tokens, never literal type, colour, or shape.
+"""Gate: static CSS uses design tokens, never literal type, colour, shape, or space.
 
 The stylesheet had drifted to 24 free-chosen font-size values and five
 different effective text greys (two colour tokens times three opacities).
@@ -33,6 +33,11 @@ COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 PRIMITIVE = re.compile(r"var\(\s*--bg\b")
 #: the two motion roles: --dur for a state change, --sweep for a live readout
 MOTION = re.compile(r"var\(\s*--(?:dur|sweep)\b")
+#: any bare length — the thing a spacing value may never contain. Checking for a
+#: literal (rather than requiring every component to be a token) is what lets
+#: `0`, `auto`, and calc() arithmetic like `calc(var(--sp-3) * 1.1)` through: a
+#: multiplier carries no unit, so it is not a length.
+LENGTH = re.compile(r"[\d.]+(?:rem|em|px|ch|vh|vw|pt|%)")
 #: every token a fill may name: the four surface roles, plus the state colours
 FILL_TOKEN = re.compile(
     r"var\(\s*--(?:surface-(?:page|card|raised|well)|accent(?:-glow)?|on-accent"
@@ -57,11 +62,18 @@ def shape_complaint(prop: str, value: str) -> str:
     return ""
 
 
+def is_spacing(prop: str) -> bool:
+    """True for the properties that carry the page's rhythm."""
+    return prop == "gap" or prop.endswith("-gap") or prop.startswith(("margin", "padding"))
+
+
 def check_decl(prop: str, value: str, custom: bool) -> str:
     """Return a complaint about one declaration, or '' if it is clean."""
     literal = not value.startswith("var(--") and value not in LITERAL_OK
     if not custom and (complaint := shape_complaint(prop, value)):
         return complaint
+    if not custom and is_spacing(prop) and LENGTH.search(value):
+        return f"{prop}: {value} — use a var(--sp-*) token from {DEFINITION_SITE}"
     if prop in TOKEN_PROPS and not custom and literal:
         return f"{prop}: {value} — use a var(--fs-*|--fw-*|--track-*) token"
     if not custom and COLOUR.search(value):

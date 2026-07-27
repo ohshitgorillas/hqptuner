@@ -5,11 +5,11 @@
 /* DSP filter narrowing — a titled panel above the PCM/SDM filter cards. The
    heading is its own line; the facet controls sit on the row beneath it. */
 .narrow-bar {
-  padding: 0.6rem 0.8rem;
+  padding: var(--sp-2) var(--sp-3);
   background: var(--surface-card);
   border: 1px solid var(--surface-raised);
   border-radius: var(--r-lg);
-  margin-bottom: 0.6rem;
+  margin-bottom: var(--sp-2);
 }
 .narrow-header {
   font-size: var(--fs-body);
@@ -17,12 +17,12 @@
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
   color: var(--fg-2);
-  margin-bottom: 0.55rem;
+  margin-bottom: var(--sp-2);
 }
 .narrow-controls {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--sp-2);
 }
 /* the six facets share one grid row: equal widths, one select style across all */
 .narrow-facets {
@@ -30,7 +30,7 @@
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 0.6rem;
+  gap: var(--sp-2);
 }
 .narrow-facets > *,
 .narrow-facets .multi,
@@ -45,7 +45,7 @@
   justify-content: space-between;
 }
 .narrow-bar select {
-  padding: 0.3rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
   background: var(--surface-raised);
   color: var(--fg);
   border: 1px solid var(--surface-raised);
@@ -55,12 +55,12 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: var(--sp-3);
 }
 .narrow-apod {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--sp-1);
   font-size: var(--fs-body);
   color: var(--fg-2);
   white-space: nowrap;
@@ -78,7 +78,7 @@
   position: relative;
 }
 .multi-btn {
-  padding: 0.3rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
   background: var(--surface-raised);
   color: var(--fg);
   border: 1px solid var(--surface-raised);
@@ -94,21 +94,21 @@
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 0.25rem;
+  margin-top: var(--sp-1);
   z-index: 20;
   background: var(--surface-raised);
   border: 1px solid var(--surface-raised);
   border-radius: var(--r-md);
-  padding: 0.4rem 0.6rem;
+  padding: var(--sp-2) var(--sp-2);
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--sp-1);
   box-shadow: var(--shadow-pop);
 }
 .multi-pop label {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--sp-2);
   font-size: var(--fs-body);
   color: var(--fg-2);
   white-space: nowrap;
@@ -118,12 +118,12 @@
 .multi-extra {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--sp-2);
   font-size: var(--fs-body);
   color: var(--fg-2);
   white-space: nowrap;
-  margin-top: 0.35rem;
-  padding-top: 0.35rem;
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-1);
   border-top: 1px solid var(--surface-raised);
 }
 
@@ -135,14 +135,14 @@
   grid-column: 2;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-top: 0.4rem;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
 }
 .apod-narrow-note {
-  margin-top: 0.1rem;
+  margin-top: var(--sp-1);
 }
 .apod-sub {
-  margin-left: 1.4rem;
+  margin-left: var(--sp-4);
 }
 .apod-sub.off {
   opacity: 0.4;
@@ -151,7 +151,7 @@
 /* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of
    the unit label, not stacked under the control */
 .field-hint {
-  margin-left: 0.5rem;
+  margin-left: var(--sp-2);
   white-space: nowrap;
 }
 /* CUDA device ids — two labelled number boxes on one row (DSP / convolution),
@@ -159,13 +159,13 @@
 .cuda-devs {
   display: flex;
   align-items: flex-end;
-  gap: 0.75rem;
+  gap: var(--sp-3);
   flex-wrap: wrap;
 }
 .cuda-dev {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--sp-1);
 }
 .cuda-dev .unit {
   margin: 0;
@@ -179,8 +179,8 @@
   background: color-mix(in srgb, var(--warn) 15%, var(--surface-raised));
   border: 1px solid var(--warn);
   border-radius: var(--r-md);
-  padding: 0.55rem 0.8rem;
-  margin-bottom: 0.8rem;
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
   color: var(--fg);
   font-size: var(--fs-body);
   line-height: 1.35;
@@ -190,8 +190,8 @@
 .rescan-btn {
   grid-column: 2;
   justify-self: start;
-  margin: 0.1rem 0 0.2rem;
-  padding: 0.25rem 0.6rem;
+  margin: var(--sp-1) 0 var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
   background: var(--surface-raised);
   color: var(--accent);
   border: 1px solid var(--surface-raised);
@@ -207,7 +207,7 @@
 /* inline manual description — under the dropdown (grid col 2), not the label */
 .field-desc {
   grid-column: 2;
-  margin-top: 0.05rem;
+  margin-top: var(--sp-1);
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
 
@@ -217,7 +217,7 @@
    flex .field-knob rows). Mode/Backend/Rate opt out (hoverNote) — tooltip only. */
 .field-note {
   grid-column: 2;
-  margin-top: 0.05rem;
+  margin-top: var(--sp-1);
 }
 /* Grayed-control explanation — appended after the manual note (schema grayWhen
    reason). Italic + dimmer than .field-note so it reads as state, not prose. */
@@ -229,5 +229,5 @@
 .field-gray-reason {
   grid-column: 2;
   font-style: italic;
-  margin-top: 0.05rem;
+  margin-top: var(--sp-1);
 }

@@ -7,7 +7,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--surface-raised);
   border-radius: var(--r-md);
-  padding: 0.4rem 0.5rem;
+  padding: var(--sp-2) var(--sp-2);
 }
 .plot-svg {
   width: 100%;
@@ -65,13 +65,13 @@
   pointer-events: none;
 }
 .plot-caption {
-  margin-top: 0.3rem;
+  margin-top: var(--sp-1);
   text-align: center;
 }
 .playback-knob {
   display: flex;
   justify-content: center;
-  padding: 0.4rem 0;
+  padding: var(--sp-2) 0;
 }
 
 /* System · HQPTuner — accent picker. Each swatch shows its OWN color (a live
@@ -80,7 +80,7 @@
 .accent-swatches {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--sp-3);
 }
 /* custom-hex box beside the swatches — mono, sized to #rrggbb. The swatch
    circles are shrink-proof so a tight track can't squash them into ovals. */

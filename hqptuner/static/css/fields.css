@@ -12,7 +12,7 @@
      that stops rows blurring together. */
   gap: var(--sp-1) var(--sp-3);
   min-height: 2.4rem; /* uniform row rhythm across checkbox + dropdown rows */
-  padding: 0.15rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-md);
 }
 .field.dirty {
@@ -41,7 +41,7 @@
 .control {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 .unit {
   color: var(--muted);

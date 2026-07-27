@@ -52,6 +52,8 @@ HQPTuner never refuses a user action because the daemon is playing. Not with a 4
 
 Free, never counted and never blocked: file reads, `Grep`/`Glob`, web fetch/search, delegation to a read-only agent type, and read-only `Bash` (investigation: `grep`, `sed -n`, `ls`, `find`, `cat`, `which`, `command -v`, `rpm -q…`, `pip show`/`list`, …; verification: `make check`, `make lint-js`, `make test-js`, `pytest`, `ruff check`, `mypy`, …), even piped to a pager or redirected to `/dev/null` or the scratchpad. Ground yourself in code, docs, and live state before spending anything.
 
+**The free list is a closed allowlist, and one unrecognised stage meters the whole pipeline.** Three read-only tools misfire constantly and are worth memorising, verified against `.claude/hooks/change-budget.py`: `cd` and `awk` appear nowhere in the hook, so any pipeline containing either is metered — chain with `&&` or pass paths to `grep` directly instead of `cd`, and use `cut`/`column`/`grep -o` in place of `awk`; and `sed` is free **only** in no-autoprint mode (`-n`), so `sed -E 's/…/'` counts while `sed -n '10,20p'` does not. Free stages that surprise people the other way: `column`, `tr`, `rev`, `tac`, `jq`, `nl`, `fold`, `comm` are all on the list.
+
 `python -c`, `python script.py`, and mutating `curl` stay metered — arbitrary code and network writes can't be inspected. For read-only grounding use the free equivalents: `jq` for JSON (`curl -s http://127.0.0.1:<port>/api/… | jq '.data.file.x'` — loopback GETs are free), `grep`/`sed -n` for text, the `Read` tool for files.
 
 Rules:
