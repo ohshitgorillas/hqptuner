@@ -21,6 +21,28 @@ import { clamp, num } from "../lib/coerce.js";
 const decimals = (step) => (String(step).split(".")[1] || "").length;
 const fmt = (v, step) => v.toFixed(decimals(step));
 
+// real units <-> track units for `scale="log"` (identity when linear)
+const enc = (v, log) => (log ? Math.log(v) : v);
+const dec = (v, log) => (log ? Math.exp(v) : v);
+
+// The horizontal track half of the trio. On a log knob the track itself runs
+// in encoded units (step "any" — no real-unit step is even on a log axis);
+// both callbacks decode back to real units before leaving.
+function KnobSlider({ sliderRef, lo, hi, val, st, log, disabled, live, commit, snap }) {
+  return html`<input
+    class="knob-slider"
+    type="range"
+    ref=${sliderRef}
+    min=${enc(lo, log)}
+    max=${enc(hi, log)}
+    step=${log ? "any" : st}
+    disabled=${disabled}
+    onWheel=${wheelGuard}
+    onInput=${(e) => live(snap(dec(num(e.target.value, enc(val, log)), log), st))}
+    onChange=${(e) => commit(dec(num(e.target.value, enc(val, log)), log))}
+  />`;
+}
+
 // value -> indicator angle, sweeping -135°..+135° (270° arc) across min..max.
 const FROM = -135;
 const TO = 135;
@@ -48,9 +70,13 @@ const DIAL_TICKS = [-135, -90, -45, 0, 45, 90, 135].map((a) => {
   return [x1.toFixed(2), y1.toFixed(2), x2.toFixed(2), y2.toFixed(2)];
 });
 
-export function Knob({ value, min, max, step, def, size, slider, disabled, unit, label, onLive, onCommit }) {
+// `scale="log"`: the dial arc, slider track, and drag gesture work in log space
+// (equal travel per octave — what a 20 Hz–20 kHz or 0.1–16 Q axis needs) while
+// value, box, aria, and both callbacks stay in real units. min must be > 0.
+export function Knob({ value, min, max, step, def, size, slider, disabled, unit, label, scale, onLive, onCommit }) {
   const lo = num(min, 0);
   const hi = num(max, 100);
+  const log = scale === "log";
   const st = num(step, 1) || 1;
   const fine = st / 5;
   const val = clamp(num(value, lo), lo, hi);
@@ -63,7 +89,7 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
     const b = boxRef.current;
     if (b && document.activeElement !== b) b.value = fmt(val, st);
     const s = sliderRef.current;
-    if (s && document.activeElement !== s) s.value = String(val);
+    if (s && document.activeElement !== s) s.value = String(enc(val, log));
   });
 
   const snap = useCallback((v, quantum) => clamp(Math.round(v / quantum) * quantum, lo, hi), [lo, hi]);
@@ -83,11 +109,12 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
       const d = drag.current;
       if (!d) return;
       const quantum = e.shiftKey ? fine : st;
-      const dv = ((d.y - e.clientY) / 200) * (hi - lo) * (e.shiftKey ? 0.25 : 1); // 200px ≈ full range
-      d.last = snap(d.v + dv, quantum);
+      // drag moves through encoded space, so a log dial sweeps octaves evenly
+      const dv = ((d.y - e.clientY) / 200) * (enc(hi, log) - enc(lo, log)) * (e.shiftKey ? 0.25 : 1); // 200px ≈ full range
+      d.last = snap(dec(enc(d.v, log) + dv, log), quantum);
       live(d.last);
     },
-    [live, snap, st, fine, hi, lo],
+    [live, snap, st, fine, hi, lo, log],
   );
   const onPointerUp = useCallback(
     (e) => {
@@ -103,13 +130,16 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
     (e) => {
       if (disabled) return;
       const q = e.shiftKey ? fine : st;
+      // linear keys step by `step`; log keys sweep 1% of the track per arrow —
+      // a fixed real-unit step is useless across a decades-wide range
+      const bump = (n) => (log ? dec(enc(val, log) + (n * (enc(hi, log) - enc(lo, log))) / 100, log) : val + n * q);
       const moves = {
-        ArrowUp: val + q,
-        ArrowRight: val + q,
-        ArrowDown: val - q,
-        ArrowLeft: val - q,
-        PageUp: val + st * 10,
-        PageDown: val - st * 10,
+        ArrowUp: bump(1),
+        ArrowRight: bump(1),
+        ArrowDown: bump(-1),
+        ArrowLeft: bump(-1),
+        PageUp: log ? bump(10) : val + st * 10,
+        PageDown: log ? bump(-10) : val - st * 10,
         Home: lo,
         End: hi,
       };
@@ -117,14 +147,14 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
       e.preventDefault();
       commit(moves[e.key]);
     },
-    [disabled, commit, val, st, fine, lo, hi],
+    [disabled, commit, val, st, fine, lo, hi, log],
   );
   const onDblClick = useCallback(() => {
     if (disabled) return;
     commit(num(def, val));
   }, [disabled, commit, def, val]);
 
-  const angle = angleOf(val, lo, hi);
+  const angle = angleOf(enc(val, log), enc(lo, log), enc(hi, log));
   const [nx1, ny1] = pol(angle, 6); // notch runs from inside the inner disc...
   const [nx2, ny2] = pol(angle, 30); // ...out through its edge (r=22)
   return html`
@@ -155,17 +185,17 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
       ${
         slider === false
           ? null
-          : html`<input
-              class="knob-slider"
-              type="range"
-              ref=${sliderRef}
-              min=${lo}
-              max=${hi}
-              step=${st}
+          : html`<${KnobSlider}
+              sliderRef=${sliderRef}
+              lo=${lo}
+              hi=${hi}
+              val=${val}
+              st=${st}
+              log=${log}
               disabled=${disabled}
-              onWheel=${wheelGuard}
-              onInput=${(e) => live(snap(num(e.target.value, val), st))}
-              onChange=${(e) => commit(num(e.target.value, val))}
+              live=${live}
+              commit=${commit}
+              snap=${snap}
             />`
       }
       <span class="knob-readout">
