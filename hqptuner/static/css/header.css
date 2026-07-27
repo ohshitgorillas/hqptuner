@@ -6,12 +6,12 @@
 .chrome-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--sp-3);
   /* horizontal inset is MARGIN so the bg-2 band and the rule stop at the
      content lane rather than the container edge; horizontal PADDING keeps the
      brand glyph and the trailing pill off that band's own edge, same as a
-     card-head's 0.8rem inset */
-  padding: 0.7rem 0.8rem;
+     card-head's inset */
+  padding: var(--sp-3) var(--sp-3);
   margin: 0 var(--gutter);
   background: var(--surface-card);
   border-bottom: 1px solid var(--line);
@@ -23,14 +23,14 @@
 }
 .daemon {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--sp-2);
   align-items: baseline;
   font-size: var(--fs-body-lg);
 }
 .presets {
   margin-left: auto;
   display: flex;
-  gap: 0.4rem;
+  gap: var(--sp-2);
   align-items: center;
 }
 .preset-status {
@@ -42,7 +42,7 @@
 }
 .preset-del {
   font-size: var(--fs-micro);
-  padding: 0.1rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--surface-raised);
@@ -55,7 +55,7 @@
 }
 
 .pill {
-  padding: 0.15rem 0.6rem;
+  padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);

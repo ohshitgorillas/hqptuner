@@ -17,12 +17,12 @@
 .vr-card .card-body {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: var(--sp-4);
 }
 .vr-track {
   position: relative;
   height: 74px;
-  margin: 0.2rem 0 0;
+  margin: var(--sp-1) 0 0;
 }
 /* the bar */
 .vr-track::before {
@@ -122,7 +122,7 @@
   position: absolute;
   top: -0.4rem;
   transform: translate(-50%, -100%);
-  padding: 0.15rem 0.45rem;
+  padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-sm);
   background: var(--surface-raised);
   border: 1px solid var(--line);
@@ -134,13 +134,13 @@
 .vr-boxes {
   display: flex;
   justify-content: space-between; /* Min flush left, Max flush right, Startup centred */
-  gap: 1.2rem;
+  gap: var(--sp-4);
 }
 .vr-box {
   display: flex;
   flex: 0 1 auto; /* content-width groups (not a stretched third) so Max sits at the edge */
   align-items: center;
-  gap: 0.45rem;
+  gap: var(--sp-2);
   min-width: 0;
 }
 /* legend swatch echoing each handle's shape, so the boxes name the handles */
@@ -198,7 +198,7 @@
    belongs to the dial instead of drifting to the far right of the row */
 .knob-lg {
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--sp-2);
 }
 .knob-lg .knob-readout {
   align-items: baseline;
@@ -220,11 +220,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--sp-2);
   /* hug the content (don't flex-grow into the card) so the group fills the card
      instead of floating centered in a tall void */
   flex: 0 0 auto;
-  padding: 0.3rem 0.6rem;
+  padding: var(--sp-1) var(--sp-2);
 }
 /* one uniform dimming treatment for the knob group when volume control is
    unavailable — not a mix of muted strokes and gray text. The notice pill is a
@@ -236,10 +236,10 @@
 .playback-hint {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: var(--sp-2);
   align-self: center;
   max-width: 68ch;
-  padding: 0.35rem 0.75rem;
+  padding: var(--sp-1) var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--surface-raised);

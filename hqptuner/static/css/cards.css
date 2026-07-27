@@ -18,7 +18,7 @@
      carries a background too */
   background: var(--surface-raised);
   border-bottom: 1px solid var(--line);
-  padding: 0.55rem 0.8rem;
+  padding: var(--sp-2) var(--sp-3);
   font-size: var(--fs-head);
   font-weight: var(--fw-semibold);
   text-transform: uppercase;
@@ -40,7 +40,7 @@ button.card-head {
 }
 .card-head .tri {
   color: var(--accent);
-  margin-right: 0.55rem;
+  margin-right: var(--sp-2);
   font-size: var(--fs-glyph);
   line-height: 1;
   vertical-align: -0.2em;
@@ -54,16 +54,16 @@ button.card-head {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  padding: 0.6rem 0.6rem;
+  padding: var(--sp-2);
 }
 .card-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: var(--sp-3);
   align-items: stretch; /* cards in a row share height — the shorter card's spare
                            space reads as deliberate margin inside its frame, not
                            a hole in the page */
-  margin-top: 0.6rem; /* separate from a preceding collapsible (DSD sources) */
+  margin-top: var(--sp-2); /* separate from a preceding collapsible (DSD sources) */
 }
 /* controls inside a half-width card-grid card must fit that half — the 28rem
    select token overflows a 12rem-label + half-container row (same math as the
@@ -81,7 +81,7 @@ button.card-head {
 .card-cols2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: var(--sp-3);
 }
 /* two-col packing (item 3) — short rows (numeric / checkbox / narrow select)
    pack two-up above the breakpoint so the right half stops being dead air;
@@ -195,12 +195,12 @@ button.card-head {
 .about {
   margin: 0;
   display: grid;
-  gap: 0.3rem;
+  gap: var(--sp-1);
 }
 .about > div {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--sp-3);
 }
 .about dt {
   color: var(--fg-2);
@@ -216,8 +216,8 @@ button.card-head {
 }
 /* System · About HQPTuner — body of the standing collapsible card at the foot of
    the tab. This is explanatory text, not control text, so it takes the same
-   gloss treatment as .field-note / .label-alt — 0.78rem at --fg-2, capped at the
-   shared caption measure and wrapping. */
+   gloss treatment as .field-note / .label-alt — --fs-caption at --fg-2, capped at
+   the shared caption measure and wrapping. */
 .abt-prose {
   display: flex;
   flex-direction: column;
@@ -234,7 +234,7 @@ button.card-head {
 /* System · Backup — download link styled as a button */
 .btn {
   display: inline-block;
-  padding: 0.4rem 0.9rem;
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--surface-raised);
@@ -254,7 +254,7 @@ button.card-head {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: var(--sp-3);
   flex-wrap: wrap;
   border-top: 1px solid var(--line);
   margin-top: var(--sp-3);
@@ -263,7 +263,7 @@ button.card-head {
 .hw-all {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--sp-1);
 }
 .hw-status {
   color: var(--fg-2);
@@ -276,9 +276,9 @@ button.card-head {
   border-left: none;
 }
 .indent {
-  margin-left: 1.25rem;
+  margin-left: var(--sp-4);
   border-left: 2px solid var(--line);
-  padding-left: 0.6rem;
+  padding-left: var(--sp-2);
 }
 /* nested control whose parent toggle is off: dim but legible + non-interactive */
 .indent.off {
@@ -288,16 +288,16 @@ button.card-head {
 /* System · combined backup/restore — both buttons on one row */
 .backup-row {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--sp-2);
   flex-wrap: wrap;
 }
 /* System · Logging — the two log-config options side by side at the top */
 .log-opts {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--sp-4);
   flex-wrap: wrap;
   align-items: flex-start;
-  margin-bottom: 0.8rem;
+  margin-bottom: var(--sp-3);
 }
 .log-opts > .field {
   flex: 1 1 20rem;
@@ -308,7 +308,7 @@ button.card-head {
 .log-tail-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--sp-2);
   white-space: nowrap; /* keep "Set manually" on one line — no wrap crowding the status text */
 }
 /* per-page "quick updates" opt-in — a low-key footer row under a live card */
@@ -320,7 +320,7 @@ button.card-head {
 }
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
-  margin: 0.5rem 0 0;
+  margin: var(--sp-2) 0 0;
   max-height: 22rem;
   overflow: auto;
   /* a well, not a raised panel: the tail is content you read INTO the card, and
@@ -328,7 +328,7 @@ button.card-head {
   background: var(--surface-well);
   border: 1px solid var(--surface-raised);
   border-radius: var(--r-md);
-  padding: 0.5rem 0.7rem;
+  padding: var(--sp-2) var(--sp-3);
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   line-height: 1.4;
@@ -338,12 +338,12 @@ button.card-head {
   overflow-x: hidden;
 }
 .log-tail-msg {
-  margin-top: 0.5rem;
+  margin-top: var(--sp-2);
   color: var(--muted);
   font-size: var(--fs-label);
 }
 /* tab subheads — group labels within a flat tab. padding-left matches the
-   field row's own 0.5rem inset so the subhead's left edge lines up with the
+   field row's own --sp-2 inset so the subhead's left edge lines up with the
    control labels beneath it, not the bare pack/card edge. */
 .subhead {
   font-size: var(--fs-head);
@@ -351,11 +351,11 @@ button.card-head {
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
   color: var(--muted);
-  margin: 1.1rem 0 0.7rem;
-  padding-left: 0.5rem;
+  margin: var(--sp-3) 0 var(--sp-3);
+  padding-left: var(--sp-2);
 }
 .subhead:first-child {
-  margin-top: 0.2rem;
+  margin-top: var(--sp-1);
 }
 /* section-level informational note (not tied to one field) — same voice as
    .field-gray-reason but for a whole subsection (e.g. a mode-mismatch note
@@ -366,13 +366,13 @@ button.card-head {
 }
 .radio-group {
   display: inline-flex;
-  gap: 1rem;
+  gap: var(--sp-3);
 }
 /* each radio + its label on one baseline-aligned row */
 .radio-group label {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--sp-1);
 }
 /* native radios (hardware-accel card) render the browser-default blue dot —
    pull them onto the signature accent and match the checkbox's visual weight */

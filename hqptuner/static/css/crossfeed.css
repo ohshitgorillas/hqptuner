@@ -116,7 +116,7 @@
 }
 .xfs-head-toggle .tri {
   color: var(--accent);
-  margin-right: 0.55rem;
+  margin-right: var(--sp-2);
   font-size: var(--fs-glyph);
   line-height: 1;
   vertical-align: -0.2em;
@@ -222,7 +222,7 @@
 }
 .xfs-legend .lg::before {
   content: "—";
-  margin-right: 0.3em;
+  margin-right: 0.3em; /* token-exempt: em — the dash sits in running text and must track its font, not the root */
 }
 .lg-cur {
   color: var(--accent);

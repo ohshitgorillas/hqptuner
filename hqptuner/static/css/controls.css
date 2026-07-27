@@ -14,7 +14,7 @@
   border: none;
   border-radius: 0;
   border-left: 1px solid var(--line);
-  padding: 0.35rem 0.9rem;
+  padding: var(--sp-1) var(--sp-3);
   color: var(--muted);
 }
 .segment .seg:first-child {
@@ -27,11 +27,11 @@
 }
 /* schema `size: "lg"` — a control that selects an operating MODE rather than a
    value gets a segment 1.1x the standard one, so it carries a little more weight
-   without shouting. Both numbers are the base segment's scaled by 1.1
-   (0.35/0.9rem padding; the 13.33px UA button default = 0.833rem type), not
-   free-chosen pixels. */
+   without shouting. The padding is the base segment's own tokens scaled by 1.1,
+   computed rather than hand-picked: snapping it to the plain tokens would make an
+   lg segment identical to a standard one and erase the size distinction. */
 .field-lg .segment .seg {
-  padding: 0.385rem 0.99rem;
+  padding: calc(var(--sp-1) * 1.1) calc(var(--sp-3) * 1.1);
   font-size: var(--fs-body);
 }
 .segment .seg:disabled {
@@ -46,7 +46,7 @@ input[type="text"] {
   color: var(--fg);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 0.3rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
   font-size: var(--fs-body);
 }
 select,
@@ -116,7 +116,7 @@ input[type="checkbox"]:disabled {
 }
 .slider {
   display: inline-flex;
-  gap: 0.5rem;
+  gap: var(--sp-2);
   align-items: center;
 }
 /* the plain range primitive (e.g. Blocks/cycle) — tint the native track/thumb
@@ -127,7 +127,7 @@ input[type="checkbox"]:disabled {
 .slidernum {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: var(--sp-3);
 }
 .range-wrap {
   position: relative;
@@ -209,13 +209,13 @@ input[type="checkbox"]:disabled {
 .slidernum-box {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.2em;
+  gap: 0.2em; /* token-exempt: em — the unit hangs off the figure and must track the box's own type, not the root */
   width: var(--w-num);
   flex: none;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 0.3rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
   font-size: var(--fs-body);
 }
 .slidernum-box input {
@@ -247,8 +247,8 @@ input[type="checkbox"]:disabled {
 /* live playback volume — the tab's dominant element, styled distinctly from the
    staged-config cards (accent-forward, no card chrome) to signal "writes live". */
 .playback {
-  margin-bottom: 1.2rem;
-  padding: 0.3rem 1.2rem;
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-1) var(--sp-4);
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--surface-card)), var(--surface-card));
   border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
   border-radius: var(--r-lg);
@@ -257,7 +257,7 @@ input[type="checkbox"]:disabled {
   opacity: 0.5;
 }
 .playback-hint {
-  margin-top: 0.6rem;
+  margin-top: var(--sp-2);
   font-size: var(--fs-caption);
   color: var(--muted);
 }
@@ -282,7 +282,7 @@ input[type="checkbox"]:disabled {
   width: var(--w-name);
 }
 .ask button {
-  padding: 0.25rem 0.7rem;
+  padding: var(--sp-1) var(--sp-3);
   font-size: var(--fs-label);
 }
 /* a blank name is refused in place (store/ask.js); the refusal says so rather

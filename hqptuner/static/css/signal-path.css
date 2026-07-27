@@ -10,7 +10,7 @@
   align-items: stretch;
   flex-wrap: wrap;
   gap: 0;
-  padding: 0.7rem 0;
+  padding: var(--sp-3) 0;
   margin: 0 var(--gutter);
   background: var(--surface-page);
   border-bottom: 1px solid var(--line);
@@ -21,13 +21,13 @@
 .chip {
   display: inline-flex;
   flex-direction: column;
-  gap: 0.05rem;
+  gap: var(--sp-1);
   /* content-sized (NOT stretched) — the connector threads absorb the width, so
      chips stay compact with no dead space inside them. */
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 0.22rem 0.5rem;
+  padding: var(--sp-1) var(--sp-2);
 }
 .chip-label {
   font-size: var(--fs-body);
@@ -66,7 +66,7 @@
   display: flex;
   flex-direction: column; /* one alert per line */
   gap: var(--sp-1);
-  padding: 0.35rem 0;
+  padding: var(--sp-1) 0;
   margin: 0 var(--gutter);
   background: var(--surface-page);
   border-bottom: 1px solid var(--line);
@@ -192,7 +192,7 @@
 }
 .eh-counter {
   display: grid;
-  gap: 0.1rem;
+  gap: var(--sp-1);
 }
 .eh-counter-label {
   font-size: var(--fs-caption);

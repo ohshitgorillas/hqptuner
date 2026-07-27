@@ -61,8 +61,8 @@
 .pchip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.55rem;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--surface-raised);
@@ -96,7 +96,7 @@
   font-size: var(--fs-micro);
   border: 1px solid currentColor;
   border-radius: var(--r-xs);
-  padding: 0 0.2rem;
+  padding: 0 var(--sp-1);
   line-height: 1.1;
 }
 
@@ -136,7 +136,7 @@
   background: var(--surface-raised);
   color: var(--fg-2);
   font-size: var(--fs-caption);
-  padding: 0.15rem 0.45rem;
+  padding: var(--sp-1) var(--sp-2);
   cursor: pointer;
 }
 .mtx-tool:disabled {
@@ -156,11 +156,11 @@ select.mtx-ch {
   color: var(--chip-ch);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
-  padding: 0.2rem 0.55rem;
+  padding: var(--sp-1) var(--sp-2);
   cursor: pointer;
 }
 .mtx-gain {
-  gap: 0.15rem;
+  gap: var(--sp-1);
 }
 .mtx-gain input[type="number"] {
   width: 4.5rem;
@@ -186,7 +186,7 @@ select.mtx-ch {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
-  padding: 0.2rem 0.55rem;
+  padding: var(--sp-1) var(--sp-2);
 }
 .mtx-add-stage:disabled {
   cursor: default;
@@ -216,7 +216,7 @@ select.mtx-ch {
   background: transparent;
   color: var(--fg-2);
   font-size: var(--fs-label);
-  padding: 0.35rem 0.8rem;
+  padding: var(--sp-1) var(--sp-3);
   cursor: pointer;
 }
 .mtx-add-row:not(:disabled):hover {
@@ -272,7 +272,7 @@ select.mtx-ch {
 .mtx-arg {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-1);
 }
 .mtx-arg span {
   font-family: var(--font-mono);
