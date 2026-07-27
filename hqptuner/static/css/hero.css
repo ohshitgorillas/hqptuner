@@ -22,7 +22,7 @@
   align-items: center;
   gap: 0.7rem;
   padding: 0.9rem;
-  background: var(--bg-2);
+  background: var(--surface-card);
   border: 1px solid var(--line);
   border-radius: 0.5rem;
 }
@@ -110,11 +110,17 @@
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   overflow: hidden;
+  /* a collapsible IS a card — same frame, same surface. Without this the body
+     fell through to the page colour, so an open collapsible read as a darker
+     card than the .card above it (Output: General vs Network Backend). */
+  background: var(--surface-card);
 }
 .collapsible-head {
   width: 100%;
   text-align: left;
-  background: var(--bg-2);
+  /* a card head, so it takes the card-head surface. It was painting the card
+     BODY shade, which is why two headers on one page read as different cards. */
+  background: var(--surface-raised);
   border: none;
   border-radius: 0;
   padding: 0.55rem 0.8rem;

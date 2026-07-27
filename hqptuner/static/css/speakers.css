@@ -120,7 +120,7 @@
   stroke-dasharray: 2 4;
 }
 .room-head {
-  fill: var(--bg-3);
+  fill: var(--surface-raised);
   stroke: var(--fg);
   stroke-width: 1.2;
 }
@@ -130,7 +130,7 @@
   stroke-width: 1.2;
 }
 .room-spk rect {
-  fill: var(--bg-3);
+  fill: var(--surface-raised);
   stroke: var(--line);
 }
 .room-baffle {

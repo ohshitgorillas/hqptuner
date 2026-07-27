@@ -11,12 +11,12 @@
   overflow: hidden;
   /* a surface fill (not just a faint border) so a stretched card's empty area
      reads as deliberate space INSIDE the frame, not a hole in the page bg */
-  background: var(--bg-2);
+  background: var(--surface-card);
 }
 .card-head {
   /* lighter than the card body so the header still reads now that the body
      carries a background too */
-  background: var(--bg-3);
+  background: var(--surface-raised);
   border-bottom: 1px solid var(--line);
   padding: 0.55rem 0.8rem;
   font-size: var(--fs-head);
@@ -117,13 +117,16 @@
   }
   /* A full-span row is one control across both tracks — the rule must not strike
      through it, so the row masks the line over its own height by painting its own
-     surface. Two surfaces exist: a card body (--bg-2) and the bare page (--bg). */
+     surface. Two surfaces exist: a card body and the bare page — and every
+     card-like container counts as a card body here, or the mask paints the
+     page colour over a card and reads as a dark band across the row. */
   .pack > .span {
     position: relative;
-    background: var(--bg);
+    background: var(--surface-page);
   }
-  .card .pack > .span {
-    background: var(--bg-2);
+  .card .pack > .span,
+  .collapsible .pack > .span {
+    background: var(--surface-card);
   }
   /* consecutive packs in one card are separate two-track groups (each draws its
      own centred rule), so they need the same inter-field rhythm between them
@@ -197,7 +200,7 @@
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   color: var(--fg-1);
   text-decoration: none;
   cursor: pointer;
@@ -283,8 +286,10 @@
   margin: 0.5rem 0 0;
   max-height: 22rem;
   overflow: auto;
-  background: var(--bg-1);
-  border: 1px solid var(--bg-3);
+  /* a well, not a raised panel: the tail is content you read INTO the card, and
+     it now matches the matrix paste box, which was already recessed */
+  background: var(--surface-well);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
   padding: 0.5rem 0.7rem;
   font-family: var(--font-mono);

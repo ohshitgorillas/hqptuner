@@ -6,8 +6,8 @@
    heading is its own line; the facet controls sit on the row beneath it. */
 .narrow-bar {
   padding: 0.6rem 0.8rem;
-  background: var(--bg-2);
-  border: 1px solid var(--bg-3);
+  background: var(--surface-card);
+  border: 1px solid var(--surface-raised);
   border-radius: 8px;
   margin-bottom: 0.6rem;
 }
@@ -46,9 +46,9 @@
 }
 .narrow-bar select {
   padding: 0.3rem 0.5rem;
-  background: var(--bg-1);
+  background: var(--surface-raised);
   color: var(--fg);
-  border: 1px solid var(--bg-3);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
 }
 .narrow-right {
@@ -79,9 +79,9 @@
 }
 .multi-btn {
   padding: 0.3rem 0.5rem;
-  background: var(--bg-1);
+  background: var(--surface-raised);
   color: var(--fg);
-  border: 1px solid var(--bg-3);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
@@ -96,8 +96,8 @@
   left: 0;
   margin-top: 0.25rem;
   z-index: 20;
-  background: var(--bg-1);
-  border: 1px solid var(--bg-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
   display: flex;
@@ -124,7 +124,7 @@
   white-space: nowrap;
   margin-top: 0.35rem;
   padding-top: 0.35rem;
-  border-top: 1px solid var(--bg-3);
+  border-top: 1px solid var(--surface-raised);
 }
 
 /* per-1x-dropdown apodizing narrow control (ApodNarrow.js) — sits in the field's
@@ -176,7 +176,7 @@
 
 /* absent-output-device warning — a loaded preset's endpoint isn't present */
 .device-alert {
-  background: color-mix(in srgb, var(--warn) 15%, var(--bg-1));
+  background: color-mix(in srgb, var(--warn) 15%, var(--surface-raised));
   border: 1px solid var(--warn);
   border-radius: 6px;
   padding: 0.55rem 0.8rem;
@@ -192,9 +192,9 @@
   justify-self: start;
   margin: 0.1rem 0 0.2rem;
   padding: 0.25rem 0.6rem;
-  background: var(--bg-1);
+  background: var(--surface-raised);
   color: var(--accent);
-  border: 1px solid var(--bg-3);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
   cursor: pointer;
   font-size: var(--fs-label);

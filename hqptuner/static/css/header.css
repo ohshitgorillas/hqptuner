@@ -13,7 +13,7 @@
      card-head's 0.8rem inset */
   padding: 0.7rem 0.8rem;
   margin: 0 var(--gutter);
-  background: var(--bg-2);
+  background: var(--surface-card);
   border-bottom: 1px solid var(--line);
 }
 .brand {
@@ -45,7 +45,7 @@
   padding: 0.1rem 0.5rem;
   color: var(--muted);
   background: transparent;
-  border: 1px solid var(--bg-3);
+  border: 1px solid var(--surface-raised);
   border-radius: 0.3rem;
   cursor: pointer;
 }

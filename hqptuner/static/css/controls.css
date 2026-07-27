@@ -10,7 +10,7 @@
   overflow: hidden;
 }
 .segment .seg {
-  background: var(--bg-3);
+  background: var(--surface-raised);
   border: none;
   border-radius: 0;
   border-left: 1px solid var(--line);
@@ -42,7 +42,7 @@
 select,
 input[type="number"],
 input[type="text"] {
-  background: var(--bg-3);
+  background: var(--surface-raised);
   color: var(--fg);
   border: 1px solid var(--line);
   border-radius: 0.35rem;
@@ -91,7 +91,7 @@ input[type="checkbox"] {
   height: 1.2rem;
   border: 1px solid var(--muted);
   border-radius: 0.25rem;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   position: relative;
   cursor: pointer;
 }
@@ -147,7 +147,7 @@ input[type="checkbox"]:disabled {
   width: 100%;
   height: 6px;
   border-radius: 3px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   cursor: pointer;
 }
 /* One thumb body for every styled slider. The vendor PAIR is forced duplication
@@ -212,7 +212,7 @@ input[type="checkbox"]:disabled {
   gap: 0.2em;
   width: var(--w-num);
   flex: none;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 0.35rem;
   padding: 0.3rem 0.5rem;
@@ -249,7 +249,7 @@ input[type="checkbox"]:disabled {
 .playback {
   margin-bottom: 1.2rem;
   padding: 0.3rem 1.2rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--bg-2)), var(--bg-2));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--surface-card)), var(--surface-card));
   border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
   border-radius: 0.6rem;
 }

@@ -58,7 +58,7 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 .knob-face {
-  fill: var(--bg-3);
+  fill: var(--surface-raised);
   stroke: var(--line);
   stroke-width: 1;
 }
@@ -116,9 +116,9 @@
 .knob .knob-box {
   width: var(--w-num);
   text-align: center;
-  background: var(--bg-1);
+  background: var(--surface-raised);
   color: var(--fg);
-  border: 1px solid var(--bg-3);
+  border: 1px solid var(--surface-raised);
   border-radius: 4px;
   padding: 0.15rem 0.25rem;
   font-size: var(--fs-body-lg);
@@ -193,7 +193,7 @@
 /* draggable EQ handle on the response plot (loudness frequency + level) */
 .plot-dot {
   fill: var(--accent);
-  stroke: var(--bg);
+  stroke: var(--surface-page);
   stroke-width: 1.5;
   cursor: grab;
 }
