@@ -156,10 +156,17 @@ def config(manager: HttpMgr) -> dict[str, Any]:
     )
 
 
-@router.get("/preset/{name}")
+# `:path` rather than the default convertor, which is `[^/]+` and so cannot match
+# an EMPTY segment. The picker's "(no preset)" option carries the empty name, and
+# `GET /api/preset/` was falling past this route into the SPA mount and coming
+# back as a bare 404 — the read lane has always handled the empty name, it was
+# just unreachable over HTTP. A name with a slash in it still 404s, from
+# presetstore's own validation, which is where that check belongs.
+@router.get("/preset/{name:path}")
 async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """A preset's saved settings, read from its snapshot without loading it — the
-    editor previews these when the user picks a preset, before any apply."""
+    editor previews these when the user picks a preset, before any apply. The
+    empty name is "(no preset)" and previews the running config."""
     try:
         return {"name": name, "config": await manager.read_preset(name)}
     except PresetError as exc:

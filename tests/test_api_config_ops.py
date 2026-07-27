@@ -78,6 +78,30 @@ def test_previewing_a_missing_preset_is_not_found(http_client: TestClient) -> No
     assert http_client.get("/api/preset/Nope").status_code == 404
 
 
+# The picker's "(no preset)" option carries the EMPTY name, so its preview is
+# `GET /api/preset/`. Starlette's default path convertor is `[^/]+`, which cannot
+# match an empty segment: the request fell past the route into the SPA mount and
+# came back as a bare 404, which the browser showed as "Failed: Error: Not
+# found". The read lane had always served the empty name — it was unreachable
+# over HTTP, so only a request through the app can pin this.
+
+
+def test_the_no_preset_option_is_readable_over_http(http_client: TestClient) -> None:
+    assert http_client.get("/api/preset/").status_code == 200
+
+
+def test_the_no_preset_option_previews_the_running_config(http_client: TestClient) -> None:
+    # nothing is stored under the empty name, so the preview is the config the
+    # daemon is running right now — the fake's title
+    assert http_client.get("/api/preset/").json()["config"]["title"] == "Opal"
+
+
+def test_a_preset_name_carrying_a_path_separator_is_not_found(http_client: TestClient) -> None:
+    # reaching the empty name must not also let a name walk out of the store:
+    # presetstore's name validation is what refuses this, and it still does
+    assert http_client.get("/api/preset/sub/Kept").status_code == 404
+
+
 def test_profile_load_activates_the_stored_preset(http_client: TestClient) -> None:
     http_client.post("/api/profile/save", json={"name": "Kept"})
     assert http_client.post("/api/profile/load", json={"name": "Kept"}).json()["active"] is True
@@ -131,6 +155,40 @@ def test_apply_switches_to_the_previewed_preset(http_client: TestClient) -> None
     http_client.post("/api/profile/save", json={"name": "Kept"})
     resp = http_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert resp.json()["switched"]["active"] is True
+
+
+# --- applying "(no preset)": drop the bookmark, leave the daemon alone ---------
+#
+# HQPlayer runs one settings file whether a preset is active or not, and nobody
+# ever stored a before-the-preset copy — so unloading cannot mean "put the old
+# settings back". It drops HQPTuner's active-preset bookmark and touches nothing
+# else: no restore, no restart, no backup fetch.
+
+
+def test_applying_no_preset_clears_the_active_preset(http_client: TestClient) -> None:
+    http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
+    http_client.post("/api/profile/save", json={"name": "Kept"})
+    http_client.post("/api/config/apply", json={"switch_to": ""})
+    assert http_client.get("/api/config").json()["data"]["active"] == ""
+
+
+def test_applying_no_preset_reports_the_switch_as_taken(http_client: TestClient) -> None:
+    # the report is what keeps the staging buffer: a switch that reads as not
+    # taken makes the apply a soft failure and the picker snaps back
+    http_client.post("/api/profile/save", json={"name": "Kept"})
+    switched = http_client.post("/api/config/apply", json={"switch_to": ""}).json()["switched"]
+    assert (switched["name"], switched["active"]) == ("", True)
+
+
+def test_applying_no_preset_sends_no_restore_to_the_daemon(
+    http_client: TestClient, http_daemon: dict[str, Any]
+) -> None:
+    # asserted at the wire: the fake counts POST /restore arrivals, and an unload
+    # that routed through the load path would restart the daemon mid-playback
+    http_client.post("/api/profile/save", json={"name": "Kept"})
+    before = http_daemon["_restore_attempts"]
+    http_client.post("/api/config/apply", json={"switch_to": ""})
+    assert http_daemon["_restore_attempts"] == before
 
 
 # --- speaker processing apply ---------------------------------------------------

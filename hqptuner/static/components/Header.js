@@ -65,7 +65,7 @@ function deleteButton(name) {
 // One trailing note at most: a previewed preset's pending marker outranks the
 // pick status, which is what the "&& !pending" guard said when they were siblings.
 function presetNote(pending) {
-  if (pending) return html`<span class="preset-status pending-apply">(pending apply)</span>`;
+  if (pending !== null) return html`<span class="preset-status pending-apply">(pending apply)</span>`;
   if (!pickStatus.value) return null;
   return html`<span class="preset-status muted">${pickStatus.value}</span>`;
 }
@@ -75,12 +75,15 @@ function presetPicker() {
   const profiles = cfg.profiles;
   if (!profiles) return null;
   const pending = pendingPreset.value;
-  // the previewed preset wins the picker until Apply commits (or Discard drops) it
-  const shown = pending || cfg.active || profiles.value || "";
+  // The previewed preset wins the picker until Apply commits (or Discard drops)
+  // it. Null is "nothing previewed"; the empty string is the "(no preset)" option
+  // being previewed, which a truthiness test read as the former and answered by
+  // snapping the picker back to the active preset the user had just left.
+  const shown = pending !== null ? pending : cfg.active || profiles.value || "";
   return html`
     <label class="muted">Preset</label>
     <select value=${shown} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
-      ${(profiles.options || []).map((o) => html`<option value=${o.value}>${o.label || "[default]"}</option>`)}
+      ${(profiles.options || []).map((o) => html`<option value=${o.value}>${o.label || "(no preset)"}</option>`)}
     </select>
     ${deleteButton(shown)}
     ${presetNote(pending)}

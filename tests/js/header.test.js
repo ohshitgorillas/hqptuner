@@ -39,10 +39,12 @@ import { health, engineState, config, pendingPreset } from "../../hqptuner/stati
 // HTML encoding.
 const decode = (out) => out.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
+// As the backend serves it (lanes/presetlane.py): the empty option carries the
+// name "" and the label "(no preset)", then every stored preset.
 const PROFILES = {
   value: "",
   options: [
-    { value: "", label: "" },
+    { value: "", label: "(no preset)" },
     { value: "Day", label: "Day" },
     { value: "Night", label: "Night" },
   ],
@@ -55,7 +57,9 @@ function head(o = {}) {
   health.value = "health" in o ? o.health : { reachable: true, info: {} };
   engineState.value = "engine" in o ? o.engine : {};
   config.value = "config" in o ? o.config : { fields: [], active: o.active || "", profiles: o.profiles || null };
-  pendingPreset.value = o.pending || null;
+  // `in`, not `||`: the "(no preset)" option's name is the empty string — a real
+  // previewed target — and `||` would flatten it back into "nothing previewed".
+  pendingPreset.value = "pending" in o ? o.pending : null;
   return decode(render(html`<${Header} />`));
 }
 
@@ -144,8 +148,9 @@ test("test_every_stored_profile_gets_an_option", () => {
   assert.equal(options(head({ profiles: PROFILES })).length, 3);
 });
 
-test("test_a_nameless_profile_option_reads_as_the_default", () => {
-  assert.equal(options(head({ profiles: PROFILES }))[0].label, "[default]");
+test("test_a_profile_option_carrying_no_label_reads_as_no_preset", () => {
+  const profiles = { ...PROFILES, options: [{ value: "", label: "" }, ...PROFILES.options.slice(1)] };
+  assert.equal(options(head({ profiles }))[0].label, "(no preset)");
 });
 
 test("test_the_active_preset_is_the_selected_option", () => {
@@ -159,6 +164,13 @@ test("test_the_form_default_is_selected_when_the_config_names_no_active_preset",
 
 test("test_a_previewed_preset_is_selected_over_the_active_one", () => {
   assert.equal(selected(head({ profiles: PROFILES, active: "Night", pending: "Day" })), "Day");
+});
+
+// Previewing "(no preset)" is a preview like any other; its name just happens to
+// be the empty string. Falling through to the active preset here snapped the
+// picker straight back to the preset the user had just left.
+test("test_previewing_the_no_preset_option_keeps_the_picker_on_it", () => {
+  assert.equal(selected(head({ profiles: PROFILES, active: "Night", pending: "" })), "");
 });
 
 // --- delete -----------------------------------------------------------------
@@ -209,6 +221,10 @@ test("test_withdrawing_dismisses_the_delete_question", () => {
 
 test("test_a_previewed_preset_is_marked_pending_apply", () => {
   assert.ok(head({ profiles: PROFILES, pending: "Day" }).includes("(pending apply)"));
+});
+
+test("test_a_previewed_no_preset_option_is_marked_pending_apply", () => {
+  assert.ok(head({ profiles: PROFILES, active: "Night", pending: "" }).includes("(pending apply)"));
 });
 
 test("test_an_active_preset_alone_is_not_marked_pending_apply", () => {

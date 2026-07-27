@@ -35,9 +35,16 @@ RECONNECT_FAST = 1.0
 
 def listing(mgr: ConnectionManager) -> dict[str, Any]:
     """Preset list + active name for the API, shaped like the daemon profile field
-    the frontend already renders: an empty ``[default]`` option, then every stored
-    preset. ``active`` is the store's truth (the daemon is always ``[default]``)."""
-    options: list[dict[str, str]] = [{"value": "", "label": "[default]"}]
+    the frontend already renders: an empty "(no preset)" option, then every stored
+    preset. ``active`` is the store's truth (the daemon is always ``[default]``).
+
+    The empty option is deliberately NOT labelled ``[default]``. hqplayerd's own UI
+    uses that word for its unnamed base config — which, under our restore-only
+    model, the daemon runs whether a preset is active or not — so the same word one
+    browser tab apart meant two different things. Here it means "no preset
+    bookmark", and "(no preset)" says that without promising a settings reset it
+    cannot deliver."""
+    options: list[dict[str, str]] = [{"value": "", "label": "(no preset)"}]
     options += [{"value": n, "label": n} for n in mgr.store.names()]
     active = mgr.store.active or ""
     return {"value": active, "options": options, "active": active}
@@ -45,7 +52,7 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
 
 async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     """A preset's saved settings in form-field terms for the editor preview — no
-    daemon touch. A named preset reads from the store; the empty (``[default]``)
+    daemon touch. A named preset reads from the store; the empty ("(no preset)")
     selection reads the current running config."""
     if not name:
         return dict(mgr.file_config or await mgr.load_file_config())
@@ -67,6 +74,33 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     await mgr.load_file_config()
     await mgr.refresh_http_forms()
     return {"name": name, "active": True}
+
+
+async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
+    """Make ``name`` the active preset as the first step of an apply. A named
+    preset loads (restore + mirror); the empty name is the picker's "(no preset)"
+    and only drops the bookmark. Never hqplayerd's ``profile/load``."""
+    if not name:
+        return await unload(mgr)
+    # cache a healthy backup BEFORE the load — the load bug empties /backup, and
+    # the persistent apply that follows needs the archive (docs/protocol.md)
+    with contextlib.suppress(httpx.HTTPError):
+        await mgr.backup_or_cached()
+    return await load(mgr, name)
+
+
+async def unload(mgr: ConnectionManager) -> dict[str, Any]:
+    """Select "(no preset)": drop HQPTuner's active-preset bookmark and leave the
+    running config exactly as it is.
+
+    There is nothing to load and nothing to restart. HQPlayer runs one settings
+    file either way; an active preset is a note we keep about where that file's
+    contents came from, not a second place they live. Nobody stored the
+    before-the-preset version, so "unload" cannot mean "put the old settings
+    back" — it means we stop claiming the current settings belong to a preset.
+    Shaped like ``load``'s return so the apply report reads the same either way."""
+    mgr.store.set_active(None)
+    return {"name": "", "active": True}
 
 
 async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
