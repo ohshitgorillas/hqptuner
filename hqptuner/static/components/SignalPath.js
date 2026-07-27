@@ -21,6 +21,7 @@ import { matrixActiveProfile } from "../store/profiles.js";
 import { schema } from "../store/schema.js";
 import { optionsFor } from "../store/options.js";
 import { truthy as on } from "../lib/coerce.js";
+import { hz } from "../lib/units.js";
 
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
@@ -28,11 +29,9 @@ const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream
 // The front panel shows the actual frequency, not a DSD multiplier: a DSD
 // bitstream is a 1-bit stream at this rate, so "24.576 MHz" reads truer than
 // "DSD512" (and sidesteps the 44.1k-vs-48k base ambiguity that mislabeled it).
-function fmtRate(hz) {
-  const n = Number(hz);
-  if (!n) return "—";
-  if (n >= DSD_FLOOR) return `${(n / 1e6).toFixed(3)} MHz`;
-  return n >= 1000 ? `${n / 1000} kHz` : `${n} Hz`;
+function fmtRate(rate) {
+  const n = Number(rate);
+  return n ? hz(n, 3) : "—";
 }
 
 function Chip({ label, value, hero }) {

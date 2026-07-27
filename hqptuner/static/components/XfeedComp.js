@@ -24,6 +24,7 @@ import {
   msRecognize,
 } from "../lib/xfeed.js";
 import { truthy } from "../lib/coerce.js";
+import { db, hz } from "../lib/units.js";
 
 const FS = 48000;
 
@@ -160,7 +161,7 @@ export function XfeedBadge() {
               <span class="xfc-stale"
                 >out of date — the crossfeed settings changed; press Rebuild on the Response card</span
               >`
-          : ` · built for Bauer ${bs.fc} Hz / ${bs.feed} dB`
+          : ` · built for Bauer ${hz(bs.fc, 0)} / ${db(bs.feed, 1)}`
       }
     </div>
   `;
@@ -208,8 +209,8 @@ function xfcActions(rows, rec, pair, pct, issue) {
 function xfcNote(bs, tilt) {
   if (!notesVisible.value) return null;
   return html`<div class="field-note xfc-note">
-    Bauer crossfeed blends the channels below ~${bs.fc} Hz. Centered sound — vocals, bass, most of the mix — comes out
-    about ${tilt.toFixed(1)} dB duller in the treble than the sides, close to what a real pair of speakers at ±30° does
+    Bauer crossfeed blends the channels below ~${hz(bs.fc, 0)}. Centered sound — vocals, bass, most of the mix — comes
+    out about ${db(tilt, 1)} duller in the treble than the sides, close to what a real pair of speakers at ±30° does
     to a centered image. Turning this on rebuilds pipelines 1+2 into eight mid/side pipelines that bring the centered
     part back to neutral; the crossfeed's stereo width effect is left untouched. 100% restores a neutral center exactly,
     lower keeps some of the speaker-like warmth, higher overshoots brighter.
@@ -256,9 +257,9 @@ export function XfeedStrip() {
       />
       <span
         class="xfc-tilt"
-        title="Bauer ${bs.fc} Hz / ${bs.feed} dB dulls centered sound by ${tilt.toFixed(2)} dB toward the treble (bs2b model). Speakers at ±30° do much the same."
+        title="Bauer ${hz(bs.fc, 0)} / ${db(bs.feed, 1)} dulls centered sound by ${db(tilt, 2)} toward the treble (bs2b model). Speakers at ±30° do much the same."
       >
-        crossfeed dulls the center by ${tilt.toFixed(1)} dB
+        crossfeed dulls the center by ${db(tilt, 1)}
       </span>
       ${xfcActions(rows, rec, pair, pct, issue)}
       <button

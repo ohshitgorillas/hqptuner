@@ -5,6 +5,7 @@
 // enumeration, so no enum-derived option building lives here anymore.
 
 import { configByName, matrixByName, metadata, effective, enums } from "./state.js";
+import { hz } from "../lib/units.js";
 
 // Gray shaper (dither/modulator) options the selected output rate can't reach.
 // Only the minimum-rate floor is enforced (min_rate_hz in the static shapers
@@ -15,10 +16,6 @@ import { configByName, matrixByName, metadata, effective, enums } from "./state.
 // target rate is the per-family ceiling (pcm_rate / sdm_rate). Native <option
 // disabled> — the Dropdown appends the reason to the option label (title attrs
 // on <option> don't hover reliably cross-browser).
-function fmtRate(hz, kind) {
-  return kind === "sdm" ? `${(hz / 1e6).toFixed(1)} MHz` : `${(hz / 1000).toFixed(1)} kHz`;
-}
-
 export function grayShapersByRate(options, kind) {
   const shapers = metadata.value && metadata.value.shapers;
   if (!shapers) return options;
@@ -28,7 +25,9 @@ export function grayShapersByRate(options, kind) {
   return options.map((o) => {
     const e = db[o.label];
     if (e && e.min_rate_hz && rate < e.min_rate_hz) {
-      return { ...o, disabled: true, reason: `needs ≥ ${fmtRate(e.min_rate_hz, kind)}` };
+      // 3dp, not 1: the SDM floors are rates people recognise, and rounding
+      // 40.96 MHz to "41 MHz" names a rate that does not exist.
+      return { ...o, disabled: true, reason: `needs ≥ ${hz(e.min_rate_hz, 3)}` };
     }
     return o;
   });

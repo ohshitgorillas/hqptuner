@@ -40,6 +40,7 @@ import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
 import { bandFreqs } from "../lib/dsp.js";
 import { truthy } from "../lib/coerce.js";
+import { db, dbOffset } from "../lib/units.js";
 
 const cardOpen = signal(true);
 const plotOpen = signal(false);
@@ -92,11 +93,11 @@ function Readouts({ p, lambda }) {
       </div>
       <div>
         <dt>Far ear, treble</dt>
-        <dd>${farDb.toFixed(1)} dB</dd>
+        <dd>${db(farDb, 1)}</dd>
       </div>
       <div>
         <dt>Center shift</dt>
-        <dd>${centerDb >= 0 ? "+" : ""}${centerDb.toFixed(2)} dB</dd>
+        <dd>${dbOffset(centerDb, 2)}</dd>
       </div>
     </dl>
   `;
