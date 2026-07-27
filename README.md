@@ -169,7 +169,6 @@ Pre-commit runs both lint suites and the Python tests; the JS suite is `make che
 Design and reference docs:
 
 * `docs/architecture.md` — architecture, integration lanes, and the normative rules (enumeration volatility, behavior rules, presets)
-* `docs/maintenance.md` — open structural debt
 * `docs/protocol.md` — Control API + HTTP lane wire reference (derived from the official MIT-licensed `hqp-control` source, verified against a live daemon)
 * `docs/matrix-spec.md` — matrix pipeline editing design of record, probe findings, delivery checklist
 * `docs/settings-classification.md` — every setting tagged live vs restart

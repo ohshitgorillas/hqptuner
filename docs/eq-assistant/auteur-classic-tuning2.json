@@ -861,7 +861,140 @@
         "judgment": "absolute mud rises, but total energy below 400 Hz falls - the gap between bass and mud narrows from 1.78 to 0.67 dB, which is the evenness the listener asked for. Disclosed before applying because this profile has drawn two mud complaints and +0.97 was previously flagged as near that range.",
         "remedy": "take the 414 Hz band to +0.9 dB rather than restoring the shelf"
       },
-      "guardrail_note": "the 414 Hz band sits at Q 0.30, below the 0.5-1.6 voicing guidance but well inside AutoEq's 0.18 hard floor. That width is the point: it is what converts a bump into a tilt."
+      "guardrail_note": "the 414 Hz band sits at Q 0.30, below the 0.5-1.6 voicing guidance but well inside AutoEq's 0.18 hard floor. That width is the point: it is what converts a bump into a tilt.",
+      "outcome": "REJECTED BY EAR. Listener verdict recorded 2026-07-26: turn 18 was inferior to turn 17's two-band midrange simplification, which 'brought out more of the headphones' natural character'. The 81 Hz shelf and the 414 Hz Q0.30 tilt were rolled back; turn 17's S1 structure stands as the baseline all later turns work within."
+    },
+    {
+      "turn": 19,
+      "model": "claude-opus-5",
+      "complaint": "the current peaks create a small valley at around 220Hz-ish. I'm wondering if we could gently fill that in, and what that might sound like. Discuss first, no changes yet.",
+      "note": "opened as a discuss turn (no changes requested) and closed as an outcome once the listener picked a candidate. First turn of the post-simplification paradigm: turn 17's S1 structure is the baseline and this is one deliberate taste band on top of it, not the start of another patch pile.",
+      "chain_before": {
+        "bands": [
+          {"type": "lshelf", "f_hz": 94, "gain_db": 4.4, "q": 0.6},
+          {"type": "peak", "f_hz": 621, "gain_db": 1.4, "q": 0.62},
+          {"type": "peak", "f_hz": 2090, "gain_db": 3.0, "q": 3.16},
+          {"type": "peak", "f_hz": 3161, "gain_db": -2.7, "q": 5.18},
+          {"type": "peak", "f_hz": 3901, "gain_db": 0.0, "q": 6.0},
+          {"type": "peak", "f_hz": 4400, "gain_db": -1.0, "q": 2.5},
+          {"type": "peak", "f_hz": 5575, "gain_db": -7.5, "q": 4.63},
+          {"type": "peak", "f_hz": 7959, "gain_db": 5.5, "q": 0.98},
+          {"type": "peak", "f_hz": 8000, "gain_db": -0.6, "q": 2.2},
+          {"type": "hshelf", "f_hz": 10000, "gain_db": -4.3, "q": 0.7}
+        ],
+        "record_gap": "not derivable from base_bands plus the turn list: turn 18 was rejected and rolled back, and the shelf reached 94 Hz / Q0.60 / +4.4 by unlogged by-ear tuning after turn 17. Read from the live daemon rather than reconstructed.",
+        "crossfeed": {
+          "kind": "structural binaural (docs/crossfeed-math.md section 6), NOT bs2b bauer - post_bauer_enabled=false",
+          "wire": "16 rows, iir:type=lp1;f=1143.2 + delay:t=0.000316465",
+          "recovered_parameters": {"lambda": 0.0, "centre_pct": 0, "alpha_near": 1.40895, "alpha_far": 0.2426, "head_radius_m": 0.0955, "k": 0.582103, "installed_preamp_db": -4.7},
+          "recovery_method": "solved the row Lin gains against binaural.js compileRows; predicted lp1 and lp1+delay coefficients match the wire to 9 decimal places",
+          "consequence": "lambda = 0 means the centre path is exactly flat at every frequency - no centre comb, no centre tilt - so the summed EQ response IS what the centre hears. The spatial half of vocabulary.json (bs2b level/crossover/compensation strength) does not describe this rig."
+        }
+      },
+      "diagnosis": {
+        "method": "computed net magnitude of the live 10-band chain at 44.1 kHz with the app's own RBJ math (static/lib/dsp.js), swept 100-900 Hz at 1600 points for the true local minimum, then evaluated at note fundamentals A2-B4",
+        "finding": "minimum +0.82 dB at 230 Hz, not 220. Left shoulder +2.10 at 100 Hz (94 Hz shelf skirt), right shoulder +1.49 at 624 Hz (621 Hz peak skirt). Depth 1.28 dB vs left, 0.67 dB vs right. Not a notch - the dished saddle between the two S1 bands, with nothing between them.",
+        "explains_symptom": "spread across A2-G4 was 1.01 dB, smooth and monotone down-then-up: a bass line walking A2 (+1.83) up to A3 (+0.82) loses a decibel on the way, so the higher note reads slightly less substantial than the lower one for no musical reason. Register-dependent level, the consistency category rather than a tonal term.",
+        "measured_at_fundamentals_db": {"110": 1.83, "131": 1.4, "147": 1.18, "165": 1.01, "196": 0.86, "220": 0.82, "262": 0.84, "294": 0.9, "330": 0.99, "392": 1.16, "494": 1.39},
+        "same_geometry_as": "turn 18's saddle, unchanged because turn 18 was rejected and rolled back",
+        "audibility_note": "stated to the listener before any change: at 0.67-1.28 dB the saddle is BELOW Toole & Olive's threshold on music (+/-1.5 dB at Q approximately 1), below midrange reseat variance (up to 2 dB sigma), and below the confidence of the underlying measurement (turn 17 research: this headphone's native 50-500 Hz fine structure is 0.21 dB with about 6 dB unit spread). There is no corrective case here. The change is taste, and was presented as taste.",
+        "why_it_may_still_be_audible": "the fill is not heard as a bell - it is a two-thirds-octave slab of lower midrange raised half a decibel relative to its surroundings, and broad low-Q level shifts are the class listeners notice over a whole album (Toole repetition finding)."
+      },
+      "changes": [
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 230,
+          "gain_db": 0.6,
+          "q": 0.6,
+          "rationale": "Fill the 94/621 saddle; centred on the measured minimum"
+        }
+      ],
+      "alternatives_rejected": [
+        {"band": "peak 220 +0.6 Q0.60", "spread_db": 0.74, "mud_db": 1.45, "reason": "the listener's own 220 Hz estimate; 230 is the measured minimum and buys 0.02 dB more evenness for free"},
+        {"band": "peak 220 +0.8 Q0.70", "spread_db": 0.62, "mud_db": 1.61, "reason": "held in reserve as the next step up if +0.6 proved inaudible"},
+        {"band": "peak 230 +1.0 Q0.90", "spread_db": 0.49, "mud_db": 1.75, "reason": "flattest of the set, but takes mud to 1.75 in a profile that has drawn two mud complaints; 0.13 dB of extra evenness does not buy that"},
+        {"band": "peak 250 +1.0 Q0.60", "spread_db": 0.5, "mud_db": 1.86, "reason": "drifts high - lifts 400 Hz to +1.93 and raises mud rather than mid. Worst mud-per-evenness of the set"},
+        {"band": "peak 200 +0.8 Q1.00", "spread_db": 0.76, "mud_db": 1.46, "reason": "misses the minimum, leaves 300 Hz down at +1.39 and still costs 0.53 dB of mud"},
+        {"approach": "remove the saddle instead of filling it, by widening the 621 band into a tilt", "reason": "that is turn 18, already rejected by ear. Named to the listener so the choice to patch was made with eyes open rather than by default"}
+      ],
+      "metrics": {
+        "bass_50_150_db": {"before": 2.5, "after": 2.73},
+        "oomph_80_160_db": {"before": 1.81, "after": 2.14},
+        "mud_200_400_db": {"before": 0.93, "after": 1.47},
+        "mid_400_1500_db": {"before": 1.29, "after": 1.46},
+        "treble_4k_10k_db": {"before": 0.41, "after": 0.41},
+        "v_db": {"before": 0.16, "after": 0.12},
+        "ripple_150_1000_db": {"before": 0.67, "after": 0.44},
+        "spread_A2_G4_db": {"before": 1.01, "after": 0.72},
+        "at_230hz_db": {"before": 0.82, "after": 1.42},
+        "preamp_required_db": {"before": -4.32, "after": -4.33}
+      },
+      "side_effect": {
+        "metric": "mud_200_400_db",
+        "delta": 0.54,
+        "judgment": "knowingly past the level that has drawn complaints on this profile - +0.97 was flagged at turn 12 as near that range. Accepted because the payoff is register evenness rather than added weight, and disclosed before applying.",
+        "remedy": "take the band to +0.3 dB rather than reverting - keeps two thirds of the evenness gain for half the density"
+      },
+      "headroom_finding": {
+        "installed_preamp_db": -4.7,
+        "required_preamp_db": -4.33,
+        "note": "the structural block still carries turn 17's S1 figure, so 0.37 dB of headroom is unused. Over-attenuated, which is the safe direction; clips=0 on the daemon.",
+        "deliberately_not_recovered": "rescaling the preamp would make everything 0.37 dB louder in the same breath as a 0.6 dB tonal change, and level bias is the classic way an A/B goes wrong (PSYCHOACOUSTICS.md section 3). Held at -4.70 so the fill could be judged level-clean; recovery deferred to its own change."
+      },
+      "answer": "'no, your method is fine. can we back off that by about half? it's good, warmer and fuller, but just like a hair much' - fill confirmed audible and in the right direction, magnitude too large. Reference material: crushing doom metal.",
+      "method_note": "staged as one atomic matrix_pipelines field - the same EQ stage appended to all 16 structural rows with every Lin gain byte-preserved, so the block's recognition (lambda, alpha pair, per-ear k) survived and no crossfeed off/on cycle was needed. Listener confirmed the method.",
+      "verification": "live readback before the next turn confirmed the +0.6 stage present in all 16 rows; gains unchanged"
+    },
+    {
+      "turn": 20,
+      "model": "claude-opus-5",
+      "complaint": "can we back off that by about half? it's good, warmer and fuller, but just like a hair much",
+      "is_refinement_of": 19,
+      "diagnosis": {
+        "method": "amended the turn 19 band in place and recomputed the panel; compared -0.25/-0.30/-0.35 sizings against the pre-fill and +0.6 states",
+        "finding": "'about half' is unambiguous on a single band's gain - +0.6 to +0.3. That lands 230 Hz at +1.12 dB, between the pre-fill +0.82 and the too-much +1.42, and takes mud from 1.47 back to 1.20.",
+        "sizing": "no interpretation needed and none invented; the listener named the fraction. The pre-named remedy from turn 19's side_effect was already +0.3, so the fix was queued before it was asked for.",
+        "tradeoff": "evenness gives back roughly half of what it won - spread A2-G4 0.72 to 0.87 against 1.01 pre-fill - which is the point: the listener wants the warmth, not all of it."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 230,
+          "gain_delta_db": -0.3,
+          "q": null,
+          "rationale": "Halve the fill; direction right, magnitude too large"
+        }
+      ],
+      "alternatives_rejected": [
+        {"band": "230 -> +0.35", "mud_db": 1.24, "spread_db": 0.84, "reason": "0.04 dB from the requested half and not distinguishable from it; no reason to answer a stated fraction with an unstated one"},
+        {"band": "230 -> +0.25", "mud_db": 1.15, "spread_db": 0.89, "reason": "held in reserve if +0.3 is still a hair much; undershoots the requested half"}
+      ],
+      "metrics": {
+        "bass_50_150_db": {"before": 2.73, "after": 2.61},
+        "oomph_80_160_db": {"before": 2.14, "after": 1.97},
+        "mud_200_400_db": {"before": 1.47, "after": 1.2},
+        "mid_400_1500_db": {"before": 1.46, "after": 1.37},
+        "treble_4k_10k_db": {"before": 0.41, "after": 0.41},
+        "v_db": {"before": 0.12, "after": 0.14},
+        "ripple_150_1000_db": {"before": 0.44, "after": 0.48},
+        "spread_A2_G4_db": {"before": 0.72, "after": 0.87},
+        "at_230hz_db": {"before": 1.42, "after": 1.12},
+        "preamp_required_db": {"before": -4.33, "after": -4.33},
+        "preamp_installed_db": {"before": -4.7, "after": -4.33}
+      },
+      "headroom_change": {
+        "net_chain_max_db": 4.3257,
+        "at_hz": 20.0,
+        "installed_before_db": -4.7,
+        "set_to_db": -4.33,
+        "delta_db": 0.37,
+        "method": "every row's Lin gain scaled by 10^(0.37/20) = 1.043518; EQ process strings byte-identical, so lambda, the alpha pair and the structural block's recognition are untouched. Preamp rounded away from zero so it can never under-attenuate.",
+        "peak_after_preamp_dbfs": -0.0043,
+        "caveat": "computed by AutoEq's rule - negative of the maximum of the SUMMED response of the whole chain - evaluated over 20 Hz to 20 kHz. The 94 Hz shelf's asymptote continues to +4.40 dB below 20 Hz, so sub-20 Hz content could reach about +0.07 dBFS; -4.40 would cover the asymptote. No agreed inter-sample-peak margin exists in the literature (FILTER-MATH.md section 6).",
+        "process_correction": "the listener's standing instruction was to keep the preamp adjusted on EVERY turn. Turns 19 and 20 deferred it to protect the A/B from level bias, disclosed both times but not done. The instruction was explicit and outranked the reasoning; correcting the preamp is now part of every turn's change set, and where it would contaminate a comparison the right move is to say so in one line and do it anyway."
+      }
     }
   ],
   "eq_profile_provenance": {

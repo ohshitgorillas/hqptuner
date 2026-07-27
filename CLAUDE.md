@@ -28,7 +28,7 @@ HQPTuner never refuses a user action because the daemon is playing. Not with a 4
 
 ## Project rules
 
-- Docs: design + normative rules `docs/architecture.md`; open structural debt `docs/maintenance.md`; wire truth `docs/protocol.md`, `docs/settings-classification.md`.
+- Docs: design + normative rules `docs/architecture.md`; wire truth `docs/protocol.md`, `docs/settings-classification.md`.
 - **Markdown is soft-wrapped, and this is enforced.** One paragraph, list item, or blockquote is **one logical line** — never break prose at 80, 100, or any other column. Wrapping is the reader's editor's job; hard wraps turn every later edit into a reflow and every diff into noise. Applies to every `.md` in the repo. A `PostToolUse` hook (`.claude/hooks/md-softwrap.py`) rejects a hard-wrapped write; repair with `python3 .claude/hooks/md-softwrap.py --fix <file>`, or check a set with `--check`. Blank lines, fenced code, tables, headings, and explicit two-space hard breaks are untouched by both the rule and the tool.
 - **HQPlayer's own documentation lives in the working dir** — `hqplayer6desktop-manual.pdf` (full desktop manual) and `hqplayerd-readme.txt` (Embedded daemon config reference: every config-XML element, attribute, and plugin parameter). These are the authority for HQPlayer behavior, config attributes, enum meanings, and plugin params. **Reference them liberally, before inferring anything about wire/config behavior** — guessing routes and attributes is how bugs get shipped.
 - **Testing policy is binding: `docs/testing.md`.** Behavior only, one assertion per test, public API only, fakes speak wire protocol. Read it before writing or modifying any test.

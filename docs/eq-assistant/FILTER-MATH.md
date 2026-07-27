@@ -178,7 +178,9 @@ Combined with the cookbook's own words — "When S = 1, the shelf slope is as st
 
 The cookbook does not use the word "Butterworth"; **do not attribute it to RBJ.**
 
-**Open gap, flagged not papered over.** No source was found that *names* a canonical "shelf Q" and reconciles vendor differences. Orfanidis' free *Introduction to Signal Processing* EQ chapter, which might have, is unreachable — `eceweb1.rutgers.edu/~orfanidi/` returns HTTP 403 with the body "Server unable to read htaccess file, denying access to be safe" on every sub-path. **Server misconfiguration, not a paywall** `[X]`.
+**Gap closed as a negative result, 2026-07-26** `[V]`. Orfanidis' *Introduction to Signal Processing* (Rutgers, free; hand-fetched, read from page images) was nominated here as the source that might name a canonical shelf Q and reconcile vendor differences. **It does not, and the reason is structural: his shelving filters are first-order.** §11.4, p. 589, gives `H_LP(z)` and `H_HP(z)` with a single `z⁻¹` term in numerator and denominator, specified by `{G₀, G, G_c, ω_c}` — reference gain, boost/cut gain, the level `G_c` at which the corner is declared to sit, and the corner frequency. There is no slope parameter, no `S`, no shelf `Q`, and no resonant-shelf form anywhere in the book. Orfanidis therefore *cannot* adjudicate RBJ's shelf Q: RBJ's shelves are second-order with an `S` parameter, his are first-order, and they are not the same filter family. **The canonical shelf-Q reconciliation does not exist in this source, and no other candidate for it has been identified.** The `Q = 0.707 ⇔ S = 1` derivation above stands on the cookbook alone and is not corroborated elsewhere.
+
+What Orfanidis contributes instead is on the **peaking** side, and it is a warning rather than a convention — see §7. He declines to fix a bandwidth reference gain at all, p. 582, verbatim: "The definition of Δω is arbitrary, and not without ambiguity. For example, we can define it to be the 3-dB width. But, what exactly do we mean by '3 dB'?" His `G_B` is an input to the design equations, not a derived quantity, and Eq. (11.4.3) enumerates six legal choices. He defines `Q` only once, at p. 574, as `Q = ω₀/Δω = f₀/Δf`, and only for the notch and peak filters of §11.3 — which p. 582 confirms are the `G₀ = 0, G = 1` and `G₀ = 1, G = 0` special cases. **Once gain is a free parameter, §11.4 abandons `Q` entirely** and parameterises by `Δω` and `G_B`, matching his 2005 AES paper (§2) rather than contradicting it.
 
 Equalizer APO (§5) exposes all three conventions side by side, which is direct evidence that "slope in dB/oct" and "Q" are alternative spellings of one parameter: its documented `LSC` examples give the *same* filter as both `LSC 10.8 dB Fc 300 Hz Gain 5.0 dB` and `LSC Fc 300 Hz Gain 5.0 dB Q 0.6473`.
 
@@ -279,6 +281,19 @@ One route remains:
 1. ~~A statement in `hqplayer6desktop-manual.pdf`~~ — **checked, does not contain one.**
 2. An empirical check: emit a known peaking stage, read the realised response, and compare against both conventions. The gain-dependence makes them easy to distinguish — measure at a large `g` where `A` is far from 1. Note this is a *write* against the production daemon, so it follows the dev-probe pattern in `scripts/capture_pcm_enums.py`: check state, restore what you change, verify the restore by readback.
 
+**Sharpen route 2 into a solve, not a two-way comparison** `[V]`. Orfanidis' Eq. (11.4.6), p. 583, gives the design parameter for a peaking section as `β = sqrt((G_B² − G₀²)/(G² − G_B²)) · tan(Δω/2)`, where `G_B` is the bandwidth reference gain the implementation chose. Rather than testing HQPlayer against two candidate conventions and hoping one fits, measure the realised response and **solve for the implied `G_B`** — then read off which convention that value corresponds to:
+
+| Implied `G_B²` | Convention | Tell |
+|---|---|---|
+| `(G₀² + G²) / 2` | arithmetic mean of the power gains | the square-root factor collapses to **1**, leaving `β = tan(Δω/2)` — the simplest possible code path, and the most common giveaway |
+| `G₀·G` | geometric mean = arithmetic mean of the **dB** endpoints = the half-gain point | the choice with the boost/cut symmetry property below |
+| `G² / 2` | 3 dB below the peak | only legal when the boost is ≥ 3 dB |
+| `2·G₀²` | 3 dB above the reference | same legality constraint |
+
+Two structural cautions when translating any vendor's `Q` into Orfanidis' `Δf`. His `ω₀` is the **geometric** mean of the band edges under the bilinear map (Eq. 11.3.11) — in the `Ω = tan(ω/2)` variable, *not* in Hz. His `Δω = ω₂ − ω₁` is an **arithmetic** difference of digital frequencies, not a ratio. So `Δf = f₀/Q` alone is not enough: it also requires an assumption about the level at which that vendor measured its `Q`, which is exactly the quantity the book declares arbitrary.
+
+**The one objective tie-breaker the literature offers** `[V]`. Problem 11.4, p. 628, sets as an exercise that the geometric-mean choice `G_B² = G·G₀` makes boost and cut mirror-symmetric: two filters at the same centre frequency with equal bandwidths and equal-and-opposite dB gains satisfy `|H_boost(ω)|²·|H_cut(ω)|² = G₀⁴`. The weighted generalisation `G_B² = G₀^(1−c)·G^(1+c)`, `0 ≤ c < 1`, has the same property. This is the only argument in the book for preferring one convention over another on grounds other than convenience, and it is the book's own reasoning, not our inference. It is **not** evidence about what HQPlayer does — it is a reason to hope HQPlayer chose the geometric mean, and a criterion to recognise it by if the probe is ever run.
+
 Until one of those is done, treat the peaking-Q convention as **strongly indicated by the parameter set, and unverified**, and do not present `evaluate_chain` figures to the user with more precision than that supports. The practical exposure is small at the gains this feature emits — the two conventions diverge by a factor of `A`, which at ±3 dB is ~1.19 and at ±1 dB is ~1.06 — but it is a systematic error, not noise, and it grows with gain.
 
 ---
@@ -286,7 +301,7 @@ Until one of those is done, treat the peaking-Q convention as **strongly indicat
 ## 8. Open
 
 - **AES Preprint 3906** (Bristow-Johnson 1994) — the primary that would settle the Q-convention question. Paywalled; a purchase decision.
-- **Orfanidis, *Introduction to Signal Processing*, EQ chapter** — free but the host is misconfigured (403 on every sub-path).
+- ~~**Orfanidis, *Introduction to Signal Processing*, EQ chapter**~~ — **RESOLVED 2026-07-26, as a negative result.** Read in full `[V]`; local copy is gitignored, not committed. It does **not** carry the shelf-Q reconciliation it was nominated for — his shelves are first-order and have no `Q` or slope parameter at all (§4). What it does supply is the `G_B` menu and the boost/cut symmetry tie-breaker now folded into §7. **The canonical shelf-Q reconciliation has no remaining candidate source.**
 - **Lipshitz, Pocock & Vanderkooy (1982)** on the audibility of phase distortion — abstract only, `[S]`; the paper is paywalled, and its abstract carries no numbers. The commonly repeated "audible mainly on headphones" summary of it is **unverified**. Phase audibility is no longer an open hole in this research base, though: `PHASE.md` §3 carries group-delay thresholds from a primary read in full, and §3.5 records why the headphones-versus-loudspeakers question is unsettled.
 - **Rane technical notes** (constant-Q, Linkwitz-Riley) — reached only through a summarising fetch, so quotes are unverified against raw bytes `[S]`.
 - **HQPlayer's own `iir` bandwidth convention** — §7. The highest-value item here, and the only one answerable from files already on this machine.
