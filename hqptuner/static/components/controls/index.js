@@ -159,6 +159,13 @@ function ReadBox({ shown, min, max, step, unit, sub, disabled, onCommit }) {
 // what a 20 Hz–20 kHz or 0.1–16 Q axis needs) while value, box, ticks and both
 // callbacks stay in real units. Log implies step="any" on the track; the box
 // keeps boxStep. min must be > 0.
+// A log track cannot rely on the native `change` event for its release commit:
+// the caller's drag patch rounds in real units, so the re-rendered value
+// (enc∘round∘dec) is never byte-equal to the thumb's raw position — Preact
+// rewrites `.value` mid-drag, the browser then counts the value as program-set
+// and skips `change` on release. Log tracks commit on pointerup instead (a
+// linear track's rounded value matches its own step, so its `change` fires and
+// a second commit with the identical value is harmless where both arrive).
 export function SliderNumber(props) {
   const { value, min, max, step, boxStep, ticks, unit, sub, format, disabled, anchor, scale } = props;
   const st = step == null ? 1 : step;
@@ -170,21 +177,25 @@ export function SliderNumber(props) {
   const pct = pctOf(enc(value), enc(lo), enc(hi));
   const fill = fillStyle(pct, anchor);
   const { drag, commit, split } = events(props);
+  const track = log
+    ? { value: s(enc(value)), min: s(enc(lo)), max: s(enc(hi)), step: "any" }
+    : { value: s(value), min, max, step: st };
   return html`
     <span class="slidernum">
       <span class="range-wrap">
         <input
           class="rng"
           type="range"
-          value=${log ? s(enc(value)) : s(value)}
-          min=${log ? s(enc(lo)) : min}
-          max=${log ? s(enc(hi)) : max}
-          step=${log ? "any" : st}
+          value=${track.value}
+          min=${track.min}
+          max=${track.max}
+          step=${track.step}
           disabled=${disabled}
           style=${fill}
           onWheel=${wheelGuard}
           onInput=${(e) => drag(dec(e.target.value))}
           onChange=${split ? (e) => commit(dec(e.target.value)) : null}
+          onPointerUp=${split && log ? (e) => commit(dec(e.target.value)) : null}
         />
         ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(enc(t), enc(lo), enc(hi))}%`}></span>`)}
       </span>

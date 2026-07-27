@@ -333,12 +333,44 @@ test("test_the_pipelines_caption_hides_with_feature_descriptions_off", async () 
 });
 
 // --- band strip under the response plot --------------------------------------
-// Sliders + exact boxes for the selected iir stage. The drag/commit paths (and
-// the plot's drag readout) live behind pointer/input events SSR never fires —
-// they belong to the hand-back protocol, per docs/testing.md.
+// Knob + slider + exact-box trios for the selected iir stage, in three standing
+// slots. The drag/commit paths (and the plot's drag readout) live behind
+// pointer/input events SSR never fires — they belong to the hand-back
+// protocol, per docs/testing.md.
 
 const PEAK = "iir:type=peak;f=100;q=1;g=-3";
 const strip = (out) => (out.includes('class="band-strip"') ? out.slice(out.indexOf('class="band-strip"')) : "");
+
+// --- applied reference trace --------------------------------------------------
+// While the working rows differ from the daemon's file truth, the plot keeps
+// the applied response underneath as a dashed muted ghost — the line edits are
+// tuned against.
+
+test("test_an_unedited_plot_draws_no_applied_reference", async () => {
+  await reset([ROW({ process: PEAK })]);
+  assert.equal(tab().includes(">1 applied<"), false);
+});
+
+test("test_a_staged_edit_draws_the_applied_reference", async () => {
+  await reset([ROW({ process: PEAK })]);
+  await stagePipelines([ROW({ process: "iir:type=peak;f=100;q=1;g=-9" })]);
+  assert.ok(tab().includes(">1 applied<"));
+});
+
+test("test_the_applied_reference_is_a_ghost_trace", async () => {
+  await reset([ROW({ process: PEAK })]);
+  await stagePipelines([ROW({ process: "iir:type=peak;f=100;q=1;g=-9" })]);
+  assert.ok(tab().includes('class="plot-trace ghost"'));
+});
+
+test("test_a_stereo_pair_reference_is_one_curve_named_for_both", async () => {
+  await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: PEAK })]);
+  await stagePipelines([
+    ROW({ process: "iir:type=peak;f=100;q=1;g=-9" }),
+    ROW({ source: "1", mixdown: "1", process: "iir:type=peak;f=100;q=1;g=-9" }),
+  ]);
+  assert.ok(tab().includes(">1+2 applied<"));
+});
 
 test("test_the_band_strip_always_stands_under_the_plot", async () => {
   await reset([ROW({ process: PEAK })]);
@@ -385,6 +417,25 @@ test("test_a_diverged_pair_band_is_named_with_its_own_pipeline_only", async () =
   assert.equal(strip(tab()).includes("1+2"), false);
 });
 
+// A shared band is matched by CONTENT, never by chain position: crossfeed-block
+// rows carry the same EQ offset behind lp1/delay structural stages, and an
+// index-based twin rule split those pairs on every drag (the "duplication" bug).
+test("test_a_twin_band_offset_behind_a_structural_stage_still_names_both", async () => {
+  await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: `iir:type=lp1;f=1143.2,${PEAK}` })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("1+2"));
+});
+
+test("test_a_band_shared_by_many_pipelines_names_the_count", async () => {
+  await reset([
+    ROW({ process: PEAK }),
+    ROW({ source: "1", mixdown: "1", process: PEAK }),
+    ROW({ source: "0", mixdown: "0", process: `iir:type=lp1;f=1143.2,${PEAK}` }),
+  ]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("3 pipelines"));
+});
+
 test("test_a_peak_offers_a_control_per_schema_argument", async () => {
   // peak: f, g, and the q of its one-of group — three slider rows
   await reset([ROW({ process: PEAK })]);
@@ -392,23 +443,30 @@ test("test_a_peak_offers_a_control_per_schema_argument", async () => {
   assert.equal((strip(tab()).match(/class="band-arg"/g) || []).length, 3);
 });
 
-test("test_the_q_box_carries_the_stage_value_in_real_units", async () => {
+test("test_each_strip_slot_carries_a_knob_dial", async () => {
   await reset([ROW({ process: PEAK })]);
-  selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes('<input type="number" value="1" min="0.1" max="16"'));
+  assert.equal((strip(tab()).match(/class="knob-dial"/g) || []).length, 3);
 });
 
-test("test_the_gain_box_spans_the_plots_db_ceiling", async () => {
+// The dial's aria contract stays in real units even on a log track — the box
+// is uncontrolled (ref-synced), so aria is the value surface SSR can see.
+test("test_the_q_knob_carries_the_stage_value_in_real_units", async () => {
   await reset([ROW({ process: PEAK })]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes('<input type="number" value="-3" min="-24" max="24"'));
+  assert.ok(strip(tab()).includes('aria-valuemin="0.1" aria-valuemax="16" aria-valuenow="1"'));
+});
+
+test("test_the_gain_knob_spans_the_plots_db_ceiling", async () => {
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes('aria-valuemin="-24" aria-valuemax="24" aria-valuenow="-3"'));
 });
 
 test("test_an_out_of_range_stage_value_clamps_to_the_strip_range", async () => {
   // f=0 would be -Infinity on the log track; the strip clamps into its range
   await reset([ROW({ process: "iir:type=peak;f=0;q=1;g=-3" })]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes('<input type="number" value="20" min="20" max="20000"'));
+  assert.ok(strip(tab()).includes('aria-valuemin="20" aria-valuemax="20000" aria-valuenow="20"'));
 });
 
 test("test_a_convolution_selection_leaves_the_strip_controls_disabled", async () => {

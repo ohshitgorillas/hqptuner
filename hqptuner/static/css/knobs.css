@@ -87,6 +87,15 @@
 .knob.off .knob-dial {
   cursor: default;
 }
+/* a standalone disabled knob (band-strip idle slots) mutes its own accents —
+   same treatment .dsp-body.off applies from outside */
+.knob.off .knob-value,
+.knob.off .knob-notch {
+  stroke: var(--muted);
+}
+.knob.off .knob-slider {
+  accent-color: var(--muted);
+}
 .knob-slider {
   flex: 1 1 160px;
   min-width: 140px;

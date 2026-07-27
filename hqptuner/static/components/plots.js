@@ -67,17 +67,29 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
     const rect = svg.getBoundingClientRect();
     const x0 = e.clientX;
     const y0 = e.clientY;
-    const at = { f: clamp(h.f, F0, F1), db: clamp(h.db, yMin, yMax) };
+    // dB clamps to the handle's own policy range when it carries one — the
+    // visible axis may be auto-scaled tighter than the legal value range, and
+    // the viewport must never cap a drag (the axis regrows to follow).
+    const dbLo = h.dbMin === undefined ? yMin : h.dbMin;
+    const dbHi = h.dbMax === undefined ? yMax : h.dbMax;
+    const at = { f: clamp(h.f, F0, F1), db: clamp(h.db, dbLo, dbHi) };
     const pt = (ev) => {
       const dx = (ev.clientX - x0) * (W / rect.width);
       const dy = (ev.clientY - y0) * (height / rect.height);
       return {
         f: clamp(at.f * Math.exp((dx / (W - PADL - PADR)) * LOGSPAN), F0, F1),
-        db: clamp(at.db - (dy / plotH) * (yMax - yMin), yMin, yMax),
+        db: clamp(at.db - (dy / plotH) * (yMax - yMin), dbLo, dbHi),
       };
     };
     dragHud.value = { label: h.label, f0: at.f, db0: at.db, ...at };
+    // click slop: a real click carries a px or two of incidental travel, which
+    // must neither nudge the value nor commit on release. Nothing engages until
+    // the pointer clearly leaves the press point; a sub-slop release is a
+    // selection click, full stop.
+    let live = false;
     const move = (ev) => {
+      if (!live && Math.abs(ev.clientX - x0) < 4 && Math.abs(ev.clientY - y0) < 4) return;
+      live = true;
       const q = pt(ev);
       dragHud.value = { ...dragHud.value, f: q.f, db: q.db };
       h.onDrag(q.f, q.db);
@@ -85,6 +97,7 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
     const up = (ev) => {
       window.removeEventListener("pointermove", move);
       dragHud.value = null;
+      if (!live) return;
       const q = pt(ev);
       h.onEnd(q.f, q.db);
     };
@@ -95,6 +108,12 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
   const poly = (pts, sc) => pts.map(([f, d]) => `${xOf(f).toFixed(1)},${sc(d).toFixed(1)}`).join(" ");
   const dbLines = [];
   for (let db = Math.ceil(yMin / dbStep) * dbStep; db <= yMax; db += dbStep) dbLines.push(db);
+  // `ghost: true` traces (reference curves) keep their muted CSS look: the
+  // autoColor hue cycle skips them, so a reference appearing never reshuffles
+  // the row hues around it.
+  const colorable = traces.filter((t) => !t.ghost).length;
+  let ci = 0;
+  const colors = traces.map((t) => (autoColor && !t.ghost ? hueOf(ci++, colorable) : null));
   return html`
     <div class="plot">
       <svg viewBox="0 0 ${W} ${height}" class="plot-svg">
@@ -130,7 +149,7 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           (t, i) =>
             html`<polyline
               class="plot-trace ${t.kind}"
-              style=${autoColor ? `stroke:${hueOf(i, traces.length)}` : ""}
+              style=${colors[i] ? `stroke:${colors[i]}` : ""}
               points=${poly(t.points, scaleOf(t))}
             />`,
         )}
@@ -148,7 +167,7 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
               y: scaleOf(t)(d),
               text: t.label,
               kind: t.kind,
-              color: autoColor ? hueOf(i, traces.length) : null,
+              color: colors[i],
             };
           });
           items.sort((a, b) => a.y - b.y);

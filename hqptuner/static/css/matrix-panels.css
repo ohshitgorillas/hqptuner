@@ -260,35 +260,39 @@
   fill: var(--accent);
 }
 
-/* ── Band strip: sliders + exact boxes for the selected stage, a STANDING
-   block under the RESPONSE plot — same surface chrome as the plot frame, so
-   it reads as its sibling. Geometry is fixed: the disabled idle skeleton and
-   the live controls are the same rows, so binding a band mid-drag never
-   shifts the layout under the cursor. Name column shares --w-label; the
-   slider takes the rest of the card, so fine EQ moves get full width, not
-   the compact 220px cap. */
+/* ── Band strip: knob + slider + exact-box trio per arg, a STANDING block
+   under the RESPONSE plot — same surface chrome as the plot frame, so it
+   reads as its sibling. Geometry is fixed: three slots (freq | gain | width)
+   are always rendered, disabled when unbound, so selecting or losing a band
+   never shifts the page bottom or the scroll position. Slots split on centred
+   hairlines — the fixed-split mechanism from the design system, extended to
+   a three-column card (1fr 1px 1fr 1px 1fr + .col-rule spans). */
 .band-strip {
   margin-top: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   background: var(--bg-1);
   border: 1px solid var(--bg-3);
   border-radius: 6px;
-  display: grid;
-  grid-template-columns: var(--w-label) 1fr;
-  gap: var(--sp-1) var(--sp-2);
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
 }
-.band-head {
-  grid-column: 1 / -1;
+.band-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
 }
-/* the label element only groups name + control; the grid places its children */
+@media (min-width: 1100px) {
+  .band-slots {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr 1px 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
+}
 .band-arg {
-  display: contents;
-}
-.band-arg-name {
-  text-align: right;
-  padding-right: var(--sp-2);
-}
-.band-arg .range-wrap {
-  max-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
 }
