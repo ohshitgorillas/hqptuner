@@ -26,7 +26,7 @@
      chips stay compact with no dead space inside them. */
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 0.35rem;
+  border-radius: var(--r-md);
   padding: 0.22rem 0.5rem;
 }
 .chip-label {
@@ -125,7 +125,7 @@
 .vu-needle {
   stroke: var(--accent);
   stroke-width: 2;
-  transition: transform 1s ease-out; /* damped sweep between the 2 s polls */
+  transition: transform var(--sweep); /* damped sweep between the 2 s polls */
 }
 .vu-hub {
   fill: var(--accent);
@@ -160,14 +160,14 @@
   height: 0.8rem;
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 0.25rem;
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 .meter-fill {
   display: block;
   height: 100%;
   background: var(--accent);
-  transition: width 1s ease-out;
+  transition: width var(--sweep);
 }
 .meter-lg.low .meter-fill {
   background: var(--amber);

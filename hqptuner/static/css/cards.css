@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: var(--r-lg);
   overflow: hidden;
   /* a surface fill (not just a faint border) so a stretched card's empty area
      reads as deliberate space INSIDE the frame, not a hole in the page bg */
@@ -236,7 +236,7 @@ button.card-head {
   display: inline-block;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   background: var(--surface-raised);
   color: var(--fg-1);
   text-decoration: none;
@@ -327,7 +327,7 @@ button.card-head {
      it now matches the matrix paste box, which was already recessed */
   background: var(--surface-well);
   border: 1px solid var(--surface-raised);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   padding: 0.5rem 0.7rem;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);

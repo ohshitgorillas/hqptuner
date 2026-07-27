@@ -32,7 +32,7 @@
   right: 0;
   top: 28px;
   height: 16px;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   background: var(--surface-raised);
 }
 .vr-track.disabled {
@@ -43,7 +43,7 @@
   position: absolute;
   top: 28px;
   height: 16px;
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   background: var(--accent);
   opacity: 0.3;
   pointer-events: none;
@@ -123,7 +123,7 @@
   top: -0.4rem;
   transform: translate(-50%, -100%);
   padding: 0.15rem 0.45rem;
-  border-radius: 0.3rem;
+  border-radius: var(--r-sm);
   background: var(--surface-raised);
   border: 1px solid var(--line);
   font-size: var(--fs-micro);
@@ -148,12 +148,12 @@
   flex: none;
   width: 10px;
   height: 16px;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: var(--accent);
   border: 2px solid var(--surface-page);
 }
 .vr-key-startup {
-  border-radius: 5px 5px 2px 2px;
+  border-radius: var(--r-md) var(--r-md) var(--r-xs) var(--r-xs);
   background: var(--surface-page);
   border: 2px solid var(--accent);
 }
@@ -241,7 +241,7 @@
   max-width: 68ch;
   padding: 0.35rem 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--surface-raised);
   font-size: var(--fs-caption);
   color: var(--fg);

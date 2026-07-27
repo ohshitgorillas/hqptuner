@@ -37,7 +37,7 @@ button {
   background: var(--surface-raised);
   color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 0.35rem;
+  border-radius: var(--r-md);
   padding: 0.35rem 0.9rem;
   cursor: pointer;
 }

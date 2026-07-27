@@ -107,9 +107,26 @@
      paints its background and bottom rule on this lane (margin, not padding),
      so header/signal-path/tab-bar edges line up with the cards below them. */
   --gutter: 1rem;
+  /* ── Corner radius (binding) ──────────────────────────────────────────
+     One ladder, named by ROLE — never write a literal radius. It replaced 17
+     free-chosen values spread 2–15px with no steps between them, mixing px
+     and rem for the same corner, so a new chip landed rounder or squarer
+     than the chip beside it for no reason anyone could name.
+     scripts/check_css_tokens.py enforces this. */
+  --r-xs: 3px; /* hairline marks: range tracks, tiny badges, legend swatches */
+  --r-sm: 4px; /* small chips, swatches, compact buttons */
+  --r-md: 6px; /* DEFAULT: controls, inputs, fields, panels sitting on a card */
+  --r-lg: 8px; /* cards, plots, popovers — anything that holds other things */
+  --r-pill: 999px; /* fully rounded ends: pills, tags, toggle tracks */
+  --r-circle: 50%; /* actual circles: knob bodies, plot dots */
   /* motion: one duration + ease-out curve for every state change (never live drag) */
   --dur: 120ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* the one exception, and a different job: a live readout easing toward a value
+     the poll only refreshes every 2 s. At --dur it snaps and reads as jitter; the
+     slow settle is what makes a needle look damped instead of twitchy. Duration
+     and curve travel together because splitting them invites half-uses. */
+  --sweep: 1s ease-out;
   /* ── Type scale (binding) ─────────────────────────────────────────────
      One ladder, named by ROLE. Pick the token whose role matches the text
      you are adding; never write a literal font-size. The scale replaced 24
