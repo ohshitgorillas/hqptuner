@@ -7,6 +7,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# editor scratch — vim swap files for anything open in the tree
+*.swp
+
 # agent failures for internal training
 docs/agent-failures.md
 
