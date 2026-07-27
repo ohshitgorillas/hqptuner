@@ -259,3 +259,36 @@
 .plot-tlbl.prev {
   fill: var(--accent);
 }
+
+/* ── Band strip: sliders + exact boxes for the selected stage, a STANDING
+   block under the RESPONSE plot — same surface chrome as the plot frame, so
+   it reads as its sibling. Geometry is fixed: the disabled idle skeleton and
+   the live controls are the same rows, so binding a band mid-drag never
+   shifts the layout under the cursor. Name column shares --w-label; the
+   slider takes the rest of the card, so fine EQ moves get full width, not
+   the compact 220px cap. */
+.band-strip {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: var(--w-label) 1fr;
+  gap: var(--sp-1) var(--sp-2);
+  align-items: center;
+}
+.band-head {
+  grid-column: 1 / -1;
+}
+/* the label element only groups name + control; the grid places its children */
+.band-arg {
+  display: contents;
+}
+.band-arg-name {
+  text-align: right;
+  padding-right: var(--sp-2);
+}
+.band-arg .range-wrap {
+  max-width: none;
+}

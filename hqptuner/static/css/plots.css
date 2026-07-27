@@ -52,6 +52,18 @@
 .plot-tlbl.applied {
   fill: var(--accent);
 }
+/* drag readout (features item 21): two-line value/Δ label pinned above the
+   dragged handle. Same halo trick as .plot-tlbl so it stays legible over
+   traces; --fg because it is a value the user reads mid-gesture. */
+.plot-hud {
+  font-family: var(--font-mono);
+  font-size: var(--fs-svg-sm);
+  fill: var(--fg);
+  paint-order: stroke;
+  stroke: var(--bg-2);
+  stroke-width: 3px;
+  pointer-events: none;
+}
 .plot-caption {
   margin-top: 0.3rem;
   text-align: center;

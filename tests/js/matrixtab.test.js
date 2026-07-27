@@ -331,3 +331,106 @@ test("test_the_pipelines_caption_hides_with_feature_descriptions_off", async () 
   await reset([ROW({})], { notes: false });
   assert.equal(tab().includes("Each pipeline copies a source channel"), false);
 });
+
+// --- band strip under the response plot --------------------------------------
+// Sliders + exact boxes for the selected iir stage. The drag/commit paths (and
+// the plot's drag readout) live behind pointer/input events SSR never fires —
+// they belong to the hand-back protocol, per docs/testing.md.
+
+const PEAK = "iir:type=peak;f=100;q=1;g=-3";
+const strip = (out) => (out.includes('class="band-strip"') ? out.slice(out.indexOf('class="band-strip"')) : "");
+
+test("test_the_band_strip_always_stands_under_the_plot", async () => {
+  await reset([ROW({ process: PEAK })]);
+  assert.ok(tab().includes('class="band-strip"'));
+});
+
+test("test_an_unselected_strip_says_how_to_pick_a_band", async () => {
+  await reset([ROW({ process: PEAK })]);
+  assert.ok(strip(tab()).includes("No band selected"));
+});
+
+test("test_an_unselected_strip_still_shows_the_full_control_skeleton", async () => {
+  // fixed geometry: the idle trio is the same rows the live controls use
+  await reset([ROW({ process: PEAK })]);
+  assert.equal((strip(tab()).match(/class="band-arg"/g) || []).length, 3);
+});
+
+test("test_the_idle_skeleton_controls_are_disabled", async () => {
+  await reset([ROW({ process: PEAK })]);
+  assert.equal((strip(tab()).match(/disabled/g) || []).length, 6); // 3 sliders + 3 boxes
+});
+
+test("test_selecting_a_peak_fills_the_band_strip_with_controls", async () => {
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.equal(strip(tab()).includes("No band selected"), false);
+});
+
+test("test_the_band_strip_names_the_selected_band", async () => {
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("1 · peak"));
+});
+
+test("test_a_stereo_pair_band_is_named_with_both_pipelines", async () => {
+  await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("1+2 · peak"));
+});
+
+test("test_a_diverged_pair_band_is_named_with_its_own_pipeline_only", async () => {
+  await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: "iir:type=peak;f=200;q=1;g=-3" })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.equal(strip(tab()).includes("1+2"), false);
+});
+
+test("test_a_peak_offers_a_control_per_schema_argument", async () => {
+  // peak: f, g, and the q of its one-of group — three slider rows
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.equal((strip(tab()).match(/class="band-arg"/g) || []).length, 3);
+});
+
+test("test_the_q_box_carries_the_stage_value_in_real_units", async () => {
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes('<input type="number" value="1" min="0.1" max="16"'));
+});
+
+test("test_the_gain_box_spans_the_plots_db_ceiling", async () => {
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes('<input type="number" value="-3" min="-24" max="24"'));
+});
+
+test("test_an_out_of_range_stage_value_clamps_to_the_strip_range", async () => {
+  // f=0 would be -Infinity on the log track; the strip clamps into its range
+  await reset([ROW({ process: "iir:type=peak;f=0;q=1;g=-3" })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes('<input type="number" value="20" min="20" max="20000"'));
+});
+
+test("test_a_convolution_selection_leaves_the_strip_controls_disabled", async () => {
+  await reset([ROW({ process: "impulses/room.wav" })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("disabled"));
+});
+
+test("test_a_delay_selection_leaves_the_strip_controls_disabled", async () => {
+  await reset([ROW({ process: "delay:t=0.01" })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("disabled"));
+});
+
+test("test_a_biquad_selection_leaves_the_strip_controls_disabled", async () => {
+  await reset([ROW({ process: "iir:type=biquad;b0=1;b1=0;b2=0;a0=1;a1=0;a2=0" })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.ok(strip(tab()).includes("disabled"));
+});
+
+test("test_a_selected_peaks_strip_controls_are_live", async () => {
+  await reset([ROW({ process: PEAK })]);
+  selectedStage.value = { row: 0, stage: 0 };
+  assert.equal(strip(tab()).includes("disabled"), false);
+});

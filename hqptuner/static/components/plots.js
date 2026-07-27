@@ -8,6 +8,7 @@
 // *actually applied* now. Traces are labelled at the right edge so the language
 // is legible: crossfeed "direct" vs "cross-fed", loudness "max" vs "applied".
 
+import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { effective, volume, setLive, edit } from "../store/state.js";
 import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../lib/dsp.js";
@@ -31,6 +32,17 @@ const xOf = (f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 // Opt-in via PlotFrame's `autoColor`; the 2-tone plots keep their kind-class CSS.
 const hueOf = (i, n) => `hsl(${Math.round((i * 360) / Math.max(n, 1))}, 68%, 62%)`;
 
+// In-flight handle-drag readout: {label, f0, db0, f, db} — the dragged handle's
+// name, its values at pointerdown, and where it is now. Module-level because
+// only one pointer drag can be live at a time; cleared on release. Written only
+// from pointer handlers, so it is invisible to SSR tests by design (see
+// docs/testing.md "Branches that cannot be reached") — the hand-back protocol
+// covers it.
+const dragHud = signal(null);
+const fmtF = (f) => (f >= 1000 ? `${(f / 1000).toFixed(2)} kHz` : `${Math.round(f)} Hz`);
+const fmtDb = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)} dB`;
+const fmtDeltaF = (df) => `${df >= 0 ? "+" : ""}${Math.round(df)} Hz`;
+
 // Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
 // traces flagged `y2: true` (phase) map through it instead of the dB scale.
 /**
@@ -44,24 +56,35 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
   const yOf = (db) => PADT + (1 - (clamp(db, yMin, yMax) - yMin) / (yMax - yMin)) * plotH;
   const yOf2 = (v) => PADT + (1 - (clamp(v, y2Min, y2Max) - y2Min) / (y2Max - y2Min)) * plotH;
   const scaleOf = (t) => (t.y2 ? yOf2 : yOf);
-  // draggable EQ handles: a dot at (f, db); a pointer drag maps viewport px back
-  // through the inverse axis transforms and streams (f, db) to onDrag, then
-  // lands the release on onEnd. Values clamp to the visible plot domain.
-  const dbOf = (y) => yMin + (1 - (y - PADT) / plotH) * (yMax - yMin);
-  const fOf = (x) => F0 * Math.exp(((x - PADL) / (W - PADL - PADR)) * LOGSPAN);
+  // draggable EQ handles: a dot at (f, db); a pointer drag streams (f, db) to
+  // onDrag, then lands the release on onEnd. The drag is RELATIVE to the grab:
+  // it baselines on the handle's own value and applies the pointer's axis-space
+  // delta, so grabbing a dot slightly off-centre never teleports it under the
+  // cursor — the dot holds still until the pointer actually moves.
   const startDrag = (h) => (e) => {
+    if (h.onSelect) h.onSelect(); // grabbing a dot selects its band (docks strip + editor)
     const svg = e.target.ownerSVGElement;
     const rect = svg.getBoundingClientRect();
-    const pt = (ev) => ({
-      f: clamp(fOf((ev.clientX - rect.left) * (W / rect.width)), F0, F1),
-      db: clamp(dbOf((ev.clientY - rect.top) * (height / rect.height)), yMin, yMax),
-    });
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    const at = { f: clamp(h.f, F0, F1), db: clamp(h.db, yMin, yMax) };
+    const pt = (ev) => {
+      const dx = (ev.clientX - x0) * (W / rect.width);
+      const dy = (ev.clientY - y0) * (height / rect.height);
+      return {
+        f: clamp(at.f * Math.exp((dx / (W - PADL - PADR)) * LOGSPAN), F0, F1),
+        db: clamp(at.db - (dy / plotH) * (yMax - yMin), yMin, yMax),
+      };
+    };
+    dragHud.value = { label: h.label, f0: at.f, db0: at.db, ...at };
     const move = (ev) => {
       const q = pt(ev);
+      dragHud.value = { ...dragHud.value, f: q.f, db: q.db };
       h.onDrag(q.f, q.db);
     };
     const up = (ev) => {
       window.removeEventListener("pointermove", move);
+      dragHud.value = null;
       const q = pt(ev);
       h.onEnd(q.f, q.db);
     };
@@ -159,6 +182,21 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
             />
           `,
         )}
+        ${(() => {
+          // item 21: while a handle drags, quantify it — absolute (f, dB) plus
+          // Δ from grab. Two lines pinned above the dot, x/y clamped inside the
+          // frame so the readout never clips at an edge.
+          const d = dragHud.value;
+          if (!d) return null;
+          const x = clamp(xOf(clamp(d.f, F0, F1)), PADL + 56, W - PADR - 56);
+          const y1 = Math.max(yOf(d.db) - 26, PADT + 10);
+          return html`
+            <text class="plot-hud" x=${x.toFixed(1)} y=${y1.toFixed(1)} text-anchor="middle">
+              <tspan x=${x.toFixed(1)}>${d.label ? `${d.label} · ` : ""}${fmtF(d.f)} · ${fmtDb(d.db)}</tspan>
+              <tspan x=${x.toFixed(1)} dy="12">Δ ${fmtDeltaF(d.f - d.f0)} · ${fmtDb(d.db - d.db0)}</tspan>
+            </text>
+          `;
+        })()}
       </svg>
       ${caption ? html`<div class="plot-caption mono">${caption}</div>` : null}
     </div>
@@ -207,9 +245,10 @@ export function LoudnessPlot() {
   // streams live overrides (instant repaint) and stages both params on release.
   // Steepness/Q/type stay on their own controls.
   const r1 = (v) => Math.round(v * 10) / 10;
-  const handle = (fk, lk, f, lvl) => ({
+  const handle = (fk, lk, f, lvl, label) => ({
     f,
     db: lvl,
+    label,
     onDrag: (nf, ndb) => {
       setLive(fk, Math.round(nf));
       setLive(lk, r1(ndb));
@@ -235,8 +274,8 @@ export function LoudnessPlot() {
     height: 210,
     caption: `at ${vol.toFixed(1)} dB volume: ${pct}% of maximum shelving applied`,
     handles: [
-      handle("loudness_low_freq", "loudness_low_level", p.lowFreq, p.lowLevel),
-      handle("loudness_high_freq", "loudness_high_level", p.highFreq, p.highLevel),
+      handle("loudness_low_freq", "loudness_low_level", p.lowFreq, p.lowLevel, "low shelf"),
+      handle("loudness_high_freq", "loudness_high_level", p.highFreq, p.highLevel, "high shelf"),
     ],
   });
 }

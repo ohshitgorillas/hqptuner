@@ -6,13 +6,7 @@ a list of features and fixes the user has thought up while using HQPTuner. remov
 
 5. The triple-handle Range slider needs a visual overhaul; it looks bad.
 
-Can we do a [-like symbol for the min and ]-like for the max?
-And maybe a down caret `v` or filled in triangle for startup volume
-Startup vol is offset from its actual value/tickmark (which btw is unlabeled)
-tickmarks are nearly invisible
--120 and +12 limits are jammed up against the sides of the card
-
-21. REW-style auto click and drag should quantify what's happening and by how much
+Can we do a [-like symbol for the min and ]-like for the max? And maybe a down caret `v` or filled in triangle for startup volume Startup vol is offset from its actual value/tickmark (which btw is unlabeled) tickmarks are nearly invisible -120 and +12 limits are jammed up against the sides of the card
 
 22. DSP section: add vertical preamp slider which adjusts to EQ automatically
 
