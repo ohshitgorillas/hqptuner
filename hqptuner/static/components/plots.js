@@ -13,6 +13,7 @@ import { html } from "../lib/dom.js";
 import { effective, volume, setLive, edit } from "../store/state.js";
 import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../lib/dsp.js";
 import { clamp, num } from "../lib/coerce.js";
+import { db as fmtLevel, dbOffset } from "../lib/units.js";
 
 const W = 640;
 const PADL = 34;
@@ -39,8 +40,12 @@ const hueOf = (i, n) => `hsl(${Math.round((i * 360) / Math.max(n, 1))}, 68%, 62%
 // docs/testing.md "Branches that cannot be reached") — the hand-back protocol
 // covers it.
 const dragHud = signal(null);
+// The HUD keeps its own frequency and delta formatters rather than taking
+// lib/units.js's. It updates under the pointer, and its text is centre-anchored,
+// so a figure that loses a digit re-centres the whole line mid-drag — fixed
+// decimals hold the width still. `hz()` trims trailing zeros by design, which is
+// right for a chip you read once and wrong for a readout you watch move.
 const fmtF = (f) => (f >= 1000 ? `${(f / 1000).toFixed(2)} kHz` : `${Math.round(f)} Hz`);
-const fmtDb = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)} dB`;
 const fmtDeltaF = (df) => `${df >= 0 ? "+" : ""}${Math.round(df)} Hz`;
 
 // Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
@@ -211,8 +216,8 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, 
           const y1 = Math.max(yOf(d.db) - 26, PADT + 10);
           return html`
             <text class="plot-hud" x=${x.toFixed(1)} y=${y1.toFixed(1)} text-anchor="middle">
-              <tspan x=${x.toFixed(1)}>${d.label ? `${d.label} · ` : ""}${fmtF(d.f)} · ${fmtDb(d.db)}</tspan>
-              <tspan x=${x.toFixed(1)} dy="12">Δ ${fmtDeltaF(d.f - d.f0)} · ${fmtDb(d.db - d.db0)}</tspan>
+              <tspan x=${x.toFixed(1)}>${d.label ? `${d.label} · ` : ""}${fmtF(d.f)} · ${dbOffset(d.db, 1)}</tspan>
+              <tspan x=${x.toFixed(1)} dy="12">Δ ${fmtDeltaF(d.f - d.f0)} · ${dbOffset(d.db - d.db0, 1)}</tspan>
             </text>
           `;
         })()}
@@ -291,7 +296,7 @@ export function LoudnessPlot() {
     yMax: 24,
     dbStep: 6,
     height: 210,
-    caption: `at ${vol.toFixed(1)} dB volume: ${pct}% of maximum shelving applied`,
+    caption: `at ${fmtLevel(vol, 1)} volume: ${pct}% of maximum shelving applied`,
     handles: [
       handle("loudness_low_freq", "loudness_low_level", p.lowFreq, p.lowLevel, "low shelf"),
       handle("loudness_high_freq", "loudness_high_level", p.highFreq, p.highLevel, "high shelf"),

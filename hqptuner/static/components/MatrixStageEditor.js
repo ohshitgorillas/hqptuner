@@ -9,6 +9,7 @@ import { api } from "../lib/api.js";
 import { registerIr } from "../lib/dsp.js";
 import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
 import { selectedStage } from "./MatrixPlot.js";
+import { hz } from "../lib/units.js";
 
 // selection: {row, stage} of the docked editor — the shared signal from
 // MatrixPlot, so the selected chip's plot dot highlights in step.
@@ -61,9 +62,7 @@ function ConvEditor({ stage, commit }) {
       const sr = await wavSampleRate(file);
       registerIr(r.path, await file.arrayBuffer()); // enables the client-side response preview
       uploadNote.value =
-        sr && sr !== 352800
-          ? `uploaded · ${(sr / 1000).toFixed(1)} kHz — 352.8 kHz is recommended for full-band use`
-          : "uploaded";
+        sr && sr !== 352800 ? `uploaded · ${hz(sr, 1)} — 352.8 kHz is recommended for full-band use` : "uploaded";
       commit({ file: r.path });
     } catch (err) {
       uploadNote.value = `upload failed: ${err.message}`;
