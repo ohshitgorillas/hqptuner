@@ -258,15 +258,11 @@ class ConnectionManager:
         drift never survives — and self-corrects fixable divergence."""
         switched: dict[str, Any] | None = None
         if switch_to is not None:
-            # cache a healthy backup BEFORE the load — the load bug empties /backup,
-            # and the persistent apply below needs the archive (docs/protocol.md)
-            with contextlib.suppress(httpx.HTTPError):
-                await self.backup_or_cached()
-            # restore-onto-[default] + mirror (load_preset), never hqplayerd's profile/load
-            switched = await self.load_preset(switch_to)
+            switched = await presetlane.switch(self, switch_to)
         # Form fields the Control API can set outright route live instead, so a
-        # fully routable batch never restarts. Skipped on a switch: that reloads.
-        if switch_to is None:
+        # fully routable batch never restarts. Skipped on a LOAD, which reloads
+        # anyway; an unload does not, so its staged edits still split.
+        if not switch_to:
             live_edits, http_fields = livemap.split_live(self, http_fields, live_edits)
         live_report: list[dict[str, Any]] = []
         if live_edits:

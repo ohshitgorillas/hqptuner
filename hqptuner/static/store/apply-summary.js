@@ -35,11 +35,16 @@ function persistentFailure(p) {
   return failure(`Config not applied (${p.reason || "unconfirmed"})${which}`);
 }
 
+// How a switch target names itself in the report. The empty name is the picker's
+// "(no preset)" — dropping the active-preset bookmark — so quoting it as a preset
+// name would print `Switched to ""`.
+const switchName = (sw) => (sw.name ? `"${sw.name}"` : "(no preset)");
+
 // What went right, before the save lane is appended.
 function successText(sw, count) {
   const changes = count ? `${count} change${count === 1 ? "" : "s"}` : "";
   if (!sw) return `Applied ${changes || "no changes"}`;
-  return `Switched to "${sw.name}"${changes ? ` + ${changes}` : ""}`;
+  return `Switched to ${switchName(sw)}${changes ? ` + ${changes}` : ""}`;
 }
 
 // The save lane's outcome, appended to what the apply itself did. A WARNED save
@@ -57,7 +62,7 @@ export function summarize(report, count) {
   const sw = report.switched;
   const failed =
     liveFailure(report) ||
-    (sw && !sw.active ? failure(`Switch to "${sw.name}" did not take`) : null) ||
+    (sw && !sw.active ? failure(`Switch to ${switchName(sw)} did not take`) : null) ||
     persistentFailure(report.persistent);
   if (failed) return failed;
 

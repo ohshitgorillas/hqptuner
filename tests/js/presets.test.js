@@ -19,6 +19,7 @@ import {
   clearPreview,
   deletePreset,
   savePresetOnly,
+  applyAll,
   pendingPreset,
   hasPending,
   effective,
@@ -124,6 +125,29 @@ test("test_previewing_the_active_preset_does_not_touch_the_daemon", async () => 
     CALLS.some((c) => c.path.startsWith("/api/preset/")),
     false,
   );
+});
+
+// --- applying a previewed preset: the switch target on the wire -----------------
+//
+// "(no preset)" is the picker's empty option: a real previewed target whose name
+// is the empty string. Asserted at the wire — the body of POST /api/config/apply —
+// because that is where the switch either goes out or is silently dropped.
+
+async function previewNoPreset() {
+  await reset({ active: "Night", routes: { "GET /api/preset/": ok({ name: "", config: {} }) } });
+  await previewPreset("");
+}
+
+test("test_applying_a_previewed_no_preset_option_sends_the_empty_switch_target", async () => {
+  await previewNoPreset();
+  await applyAll();
+  assert.equal(CALLS.find((c) => c.path === "/api/config/apply").body.switch_to, "");
+});
+
+test("test_applying_with_nothing_previewed_sends_no_switch_target", async () => {
+  await reset({ active: "Night" });
+  await applyAll();
+  assert.equal(CALLS.find((c) => c.path === "/api/config/apply").body.switch_to, undefined);
 });
 
 // --- clearPreview ---------------------------------------------------------------

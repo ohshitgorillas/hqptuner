@@ -392,12 +392,16 @@ async function applyLane(run, what) {
 export async function applyAll(save) {
   const count = stagedCount.value; // capture before apply clears the staged set
   // never send a switch to the preset already loaded — that reload is a no-op
-  // that trips the daemon's empty-/backup bug and leaves Apply stuck lit
-  const switchTo = pendingPreset.value && pendingPreset.value !== activePreset.value ? pendingPreset.value : null;
+  // that trips the daemon's empty-/backup bug and leaves Apply stuck lit.
+  // Tested against null, not truthiness: "(no preset)" IS a previewed target and
+  // its name is the empty string, so a falsy test dropped it silently and left
+  // the picker showing a switch Apply would never send.
+  const previewed = pendingPreset.value;
+  const switchTo = previewed !== null && previewed !== activePreset.value ? previewed : null;
   return applyLane(async () => {
     const body = {};
     if (save) body.save = save;
-    if (switchTo) body.switch_to = switchTo;
+    if (switchTo !== null) body.switch_to = switchTo;
     const report = await api.apply(Object.keys(body).length ? body : undefined);
     await refreshConfig(); // re-mirror pending + fresh values (dropdown picks up a new preset)
     lastApply.value = summarize(report, count);

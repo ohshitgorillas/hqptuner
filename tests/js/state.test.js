@@ -259,6 +259,15 @@ test("test_a_successful_switch_is_reported", async () => {
   assert.equal(lastApply.value.text, 'Switched to "Night"');
 });
 
+// Unloading the active preset switches to the nameless "(no preset)" option, so
+// quoting the switch target as a preset name printed `Switched to ""`.
+test("test_a_switch_to_the_nameless_preset_is_reported_as_no_preset", async () => {
+  await trees();
+  route({ apply: { switched: { name: "", active: true } } });
+  await applyAll();
+  assert.equal(lastApply.value.text, "Switched to (no preset)");
+});
+
 // --- summarize: the persistent lane -----------------------------------------
 
 test("test_a_missing_endpoint_is_named_rather_than_reported_generically", async () => {

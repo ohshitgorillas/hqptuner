@@ -29,11 +29,14 @@ const OWNER = "pending";
 
 // Where Apply & Save writes: the preset this apply lands on — the previewed one
 // when a switch is pending (the daemon's active hasn't changed yet), else the
-// current active. [default] (empty) can't be a save target: its "snapshot" is the
-// working config, which a plain Apply already writes.
+// current active. "(no preset)" (empty) can't be a save target: its "snapshot" is
+// the working config, which a plain Apply already writes. Tested against null so
+// previewing "(no preset)" yields no target — falling through to the active
+// preset would offer to save into the very preset the user is leaving.
 function saveTarget() {
   const c = config.value || {};
-  return pendingPreset.value || c.active || (c.profiles && c.profiles.value) || "";
+  if (pendingPreset.value !== null) return pendingPreset.value;
+  return c.active || (c.profiles && c.profiles.value) || "";
 }
 
 function existingPresets() {
@@ -79,6 +82,12 @@ async function onSaveNew(pend) {
 
 const HELD = "Daemon unreachable — changes held, Apply resumes on reconnect";
 
+// How the previewed switch target reads in the bar. Null is nothing previewed;
+// the empty string is the "(no preset)" option, a real target whose name happens
+// to be empty — so it must not collapse into "nothing pending". Named presets
+// keep their quotes, "(no preset)" carries its own parentheses instead.
+const switchLabel = (name) => (name === null ? null : name ? `"${name}"` : "(no preset)");
+
 // A persistent edit or a preset switch both restart the daemon, so say so while
 // the apply is in flight rather than leaving a silent pause.
 const applyingLine = (sp, switchName) =>
@@ -87,7 +96,7 @@ const applyingLine = (sp, switchName) =>
 // What is waiting to go out, as a readable list.
 function pendingLine(n, sp, switchName) {
   const parts = [];
-  if (switchName) parts.push(`switch to "${switchName}"`);
+  if (switchName) parts.push(`switch to ${switchName}`);
   if (n) parts.push(`${sp.live} live · ${sp.restart} restart`);
   return html`<span class="muted">${parts.join(" · ")}</span>`;
 }
@@ -122,7 +131,7 @@ function inert(busy, pend, reach, target) {
 
 // Why the save button is offered, and where it writes.
 function saveTitle(target, pend) {
-  if (!target) return "No named preset to save to ([default])";
+  if (!target) return "No preset selected — Save needs a named preset";
   return pend ? `Apply and save to "${target}"` : `Save the current settings to "${target}"`;
 }
 
@@ -131,7 +140,7 @@ export function PendingBar() {
   const busy = applying.value;
   const reach = reachable.value;
   const pend = hasPending.value;
-  const switchName = pendingPreset.value;
+  const switchName = switchLabel(pendingPreset.value);
   const target = saveTarget();
   const off = inert(busy, pend, reach, target);
   return html`

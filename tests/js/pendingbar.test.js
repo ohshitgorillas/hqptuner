@@ -235,6 +235,15 @@ test("test_a_pending_switch_is_named", async () => {
   assert.ok(bar().includes('switch to "Night"'));
 });
 
+// The "(no preset)" option's name is the empty string, so a truthiness test read
+// it as nothing previewed and the bar went quiet about a switch it was about to
+// make. Named presets keep their quotes; this one carries its own parentheses.
+test("test_a_pending_switch_to_the_no_preset_option_is_named", async () => {
+  await reset({ active: "Night" });
+  pendingPreset.value = "";
+  assert.ok(bar().includes("switch to (no preset)"));
+});
+
 test("test_a_pending_switch_with_no_edits_reports_no_split", async () => {
   await reset();
   pendingPreset.value = "Night";
@@ -300,15 +309,24 @@ test("test_the_save_button_reads_as_apply_and_save_with_edits_pending", async ()
   assert.ok(bar().includes("Apply & Save"));
 });
 
-test("test_save_is_disabled_when_the_default_profile_is_the_only_target", async () => {
-  // [default]'s snapshot is the working config, which a plain Apply already writes
+test("test_save_is_disabled_when_no_preset_is_the_only_target", async () => {
+  // "(no preset)" has no snapshot of its own: it is the working config, which a
+  // plain Apply already writes
   await reset({ active: "" });
   assert.equal(disabled(bar(), SAVE), true);
 });
 
-test("test_save_explains_why_it_is_disabled_on_the_default_profile", async () => {
+test("test_save_explains_why_it_is_disabled_with_no_preset_selected", async () => {
   await reset({ active: "" });
-  assert.ok(bar().includes("No named preset to save to ([default])"));
+  assert.ok(bar().includes("No preset selected — Save needs a named preset"));
+});
+
+// Falling through to the active preset here offered to save into the very preset
+// the user was leaving.
+test("test_a_previewed_no_preset_option_leaves_save_with_nothing_to_write_to", async () => {
+  await reset({ active: "Night" });
+  pendingPreset.value = "";
+  assert.equal(disabled(bar(), SAVE), true);
 });
 
 test("test_save_offers_to_persist_the_running_config_when_nothing_is_pending", async () => {
