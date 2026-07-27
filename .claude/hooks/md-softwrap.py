@@ -13,9 +13,9 @@ Two modes:
 With no flag, reads a PostToolUse hook payload on stdin and blocks (exit 2) when
 the file just written is hard-wrapped.
 
-Preserved verbatim: fenced code, headings, tables, thematic breaks, HTML blocks,
-blank lines, indentation, blockquote prefixes, and explicit hard breaks (a line
-ending in two spaces or a backslash).
+Preserved verbatim: leading YAML frontmatter, fenced code, headings, tables,
+thematic breaks, HTML blocks, blank lines, indentation, blockquote prefixes, and
+explicit hard breaks (a line ending in two spaces or a backslash).
 """
 
 from __future__ import annotations
@@ -49,9 +49,27 @@ def _is_block_start(text: str) -> bool:
     )
 
 
+def _frontmatter_end(lines: list[str]) -> int:
+    """Index just past a leading YAML frontmatter block, or 0 if there is none.
+
+    The fences are `---`, which also reads as a thematic break: a block start
+    that opens a block rather than closing one. Left to the reflow loop the
+    opening fence would glue itself to the first key (`--- description: ...`),
+    so the whole block is handed through verbatim instead.
+    """
+    if not lines or lines[0].strip() != "---":
+        return 0
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return i + 1
+    return 0  # unterminated — not frontmatter, reflow it like any other prose
+
+
 def reflow(source: str) -> str:
     lines = source.split("\n")
-    out: list[str] = []
+    fm = _frontmatter_end(lines)
+    out: list[str] = lines[:fm]
+    lines = lines[fm:]
     block: list[str] = []
     block_prefix = ""
     in_fence = False
