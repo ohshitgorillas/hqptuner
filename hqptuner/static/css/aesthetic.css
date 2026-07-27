@@ -66,7 +66,7 @@ button:not(:disabled):hover,
   color: var(--accent);
 }
 .knob-dial:hover .knob-face {
-  fill: var(--bg-2);
+  fill: var(--surface-card);
 }
 
 /* ── Type: tabular mono numerals on every value ── */

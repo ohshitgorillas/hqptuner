@@ -20,7 +20,7 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: var(--bg);
+  background: var(--surface-page);
 }
 
 /* tabs — spread across the full container width, one equal cell each */
@@ -43,7 +43,7 @@
 }
 .tab-nav button.active {
   color: var(--fg);
-  background: var(--bg-2);
+  background: var(--surface-card);
   border-bottom: 2px solid var(--accent);
 }
 /* A tab holding staged (unapplied) edits — accent its label so changes are not

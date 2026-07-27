@@ -65,7 +65,7 @@
   padding: 0.2rem 0.55rem;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
   white-space: nowrap;
@@ -110,7 +110,7 @@
   gap: var(--sp-2);
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--bg-2);
+  background: var(--surface-card);
   padding: var(--sp-2) var(--sp-3);
   min-width: 0;
 }
@@ -133,7 +133,7 @@
 .mtx-tool {
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   color: var(--fg-2);
   font-size: var(--fs-caption);
   padding: 0.15rem 0.45rem;
@@ -152,7 +152,7 @@ select.mtx-ch {
   appearance: none;
   border: 1px solid var(--chip-ch);
   border-radius: 999px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   color: var(--chip-ch);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);

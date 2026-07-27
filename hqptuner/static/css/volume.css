@@ -33,7 +33,7 @@
   top: 28px;
   height: 16px;
   border-radius: 8px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
 }
 .vr-track.disabled {
   opacity: 0.45;
@@ -100,7 +100,7 @@
   --thumb-h: 26px;
   --thumb-r: 3px;
   --thumb-bg: var(--accent);
-  --thumb-border: 2px solid var(--bg);
+  --thumb-border: 2px solid var(--surface-page);
   --thumb-cursor: ew-resize;
 }
 /* Startup: a hollow pin riding ABOVE the bar. Different shape, different fill,
@@ -113,7 +113,7 @@
   --thumb-w: 12px;
   --thumb-h: 22px;
   --thumb-r: 6px 6px 2px 2px;
-  --thumb-bg: var(--bg);
+  --thumb-bg: var(--surface-page);
   --thumb-border: 2px solid var(--accent);
   --thumb-cursor: ew-resize;
 }
@@ -124,7 +124,7 @@
   transform: translate(-50%, -100%);
   padding: 0.15rem 0.45rem;
   border-radius: 0.3rem;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   border: 1px solid var(--line);
   font-size: var(--fs-micro);
   color: var(--fg);
@@ -150,11 +150,11 @@
   height: 16px;
   border-radius: 2px;
   background: var(--accent);
-  border: 2px solid var(--bg);
+  border: 2px solid var(--surface-page);
 }
 .vr-key-startup {
   border-radius: 5px 5px 2px 2px;
-  background: var(--bg);
+  background: var(--surface-page);
   border: 2px solid var(--accent);
 }
 .vr-box.dirty > span {
@@ -242,7 +242,7 @@
   padding: 0.35rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--bg-3);
+  background: var(--surface-raised);
   font-size: var(--fs-caption);
   color: var(--fg);
 }

@@ -118,7 +118,8 @@ const pctOf = (v, lo, hi) => (hi === lo ? 0 : Math.max(0, Math.min(1, (Number(v)
 // The track sets `appearance: none`, so the fill is drawn here either way — a
 // bare `accent-color` renders nothing once the native track is gone.
 const fillStyle = (pct, anchor) => {
-  const [from, to] = anchor === "min" ? ["var(--accent)", "var(--bg-3)"] : ["var(--bg-3)", "var(--accent)"];
+  const [from, to] =
+    anchor === "min" ? ["var(--accent)", "var(--surface-raised)"] : ["var(--surface-raised)", "var(--accent)"];
   return `background:linear-gradient(to right, ${from} 0%, ${from} ${pct}%, ${to} ${pct}%, ${to} 100%)`;
 };
 

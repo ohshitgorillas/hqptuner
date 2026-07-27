@@ -46,7 +46,8 @@
   width: 100%;
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
-  background: var(--bg);
+  /* a well: text you paste INTO the card, same role as the log tail */
+  background: var(--surface-well);
   color: var(--fg);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -223,7 +224,7 @@
   cursor: pointer;
 }
 .mtx-lib-hit:hover {
-  background: var(--bg-3);
+  background: var(--surface-raised);
 }
 .mtx-lib-hit.selected {
   outline: 2px solid var(--accent);
@@ -270,8 +271,8 @@
 .band-strip {
   margin-top: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--bg-1);
-  border: 1px solid var(--bg-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
   display: flex;
   flex-direction: column;

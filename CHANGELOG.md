@@ -2,6 +2,12 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
+## [Unreleased]
+
+### Fixed
+
+- **Cards no longer come in slightly different shades.** A collapsible section — ALSA Backend, Network Backend, and the filter sections on Resampling — drew its frame but never painted its inside, so it sat on the page colour while the ordinary cards above and below it sat on card grey. On the Output tab that put General and DAC correction on one shade and the two backend sections on another. Collapsible sections are now cards like any other, header strip included, and a full-width row inside one no longer paints a dark band across itself. The live log tail and the matrix paste box, which are text you read into a card rather than panels sitting on one, are now both recessed — previously the log tail sat *above* its card and the paste box sat below it, opposite directions for the same kind of surface. Under the hood every surface in the interface is now named for its role (page, card, raised, well) rather than picked by shade, and the build fails if a stylesheet names a shade directly, so a future card cannot quietly land a colour of its own.
+
 ## [0.9.0] — 2026-07-27
 
 ### Added

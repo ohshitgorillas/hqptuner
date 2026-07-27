@@ -17,14 +17,25 @@ from pathlib import Path
 
 #: properties whose value must be a var(--…) reference
 TOKEN_PROPS = ("font-size", "font-weight", "letter-spacing")
+#: properties that paint a surface — the value must name a role, not a shade
+FILL_PROPS = ("background", "background-color")
 #: CSS-wide keywords, plus bare zero, that carry no design decision
 LITERAL_OK = frozenset({"inherit", "initial", "unset", "revert", "normal", "0"})
+#: painting nothing is a legal fill — it names no shade, so it cannot drift
+FILL_OK = LITERAL_OK | {"none", "transparent"}
 #: the file allowed to hold literals — it is where the tokens are defined
 DEFINITION_SITE = "tokens.css"
 PRAGMA = "token-exempt:"
 
 DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
+#: the raw elevation ladder — legal only where it is defined
+PRIMITIVE = re.compile(r"var\(\s*--bg\b")
+#: every token a fill may name: the four surface roles, plus the state colours
+FILL_TOKEN = re.compile(
+    r"var\(\s*--(?:surface-(?:page|card|raised|well)|accent(?:-glow)?|on-accent"
+    r"|line|dirty|muted|fg|green|amber|red|warn|thumb-bg)\b"
+)
 
 
 def check_decl(prop: str, value: str, custom: bool) -> str:
@@ -34,6 +45,10 @@ def check_decl(prop: str, value: str, custom: bool) -> str:
         return f"{prop}: {value} — use a var(--fs-*|--fw-*|--track-*) token"
     if not custom and COLOUR.search(value):
         return f"{prop}: {value} — use a colour token from {DEFINITION_SITE}"
+    if PRIMITIVE.search(value):
+        return f"{prop}: {value} — --bg* is a raw shade; name a --surface-* role"
+    if prop in FILL_PROPS and value not in FILL_OK and not FILL_TOKEN.search(value):
+        return f"{prop}: {value} — a fill must reference a --surface-* or state token"
     return ""
 
 

@@ -36,11 +36,26 @@
 }
 
 :root {
-  /* elevation scale: page → card → header/control → inset. Warm-neutral base
-     (off the old blue-gray) reads richer under the accent. */
+  /* elevation primitives: page → card → raised. Warm-neutral base (off the old
+     blue-gray) reads richer under the accent. These are the raw ladder and are
+     NEVER referenced outside this file — every rule names a --surface-* role
+     below, and check_css_tokens.py fails the build on a --bg* reference in any
+     other module. Naming surfaces by shade is how one card ended up a different
+     colour from the card beside it. */
   --bg: #14161a;
-  --bg-2: #1c1f26;
+  --bg-2: #1a1d23;
   --bg-3: #242833;
+  /* ── Surfaces (binding, 4 roles — pick by ROLE, never by how light it looks) ─
+     --surface-page    the page itself, and any chrome painting the page lane
+     --surface-card    a card / panel body — the frame that holds fields
+     --surface-raised  anything sitting ON a card: card + collapsible heads,
+                       controls, chips, popovers, plots
+     --surface-well    a recessed reading surface: log tail, paste box
+     Nothing else is a surface. A fifth shade is a review flag. */
+  --surface-page: var(--bg);
+  --surface-card: var(--bg-2);
+  --surface-raised: var(--bg-3);
+  --surface-well: var(--bg);
   /* ── Text tiers (binding, 3 tiers — pick by ROLE, never by how dim it looks) ─
      --fg     primary   — content the user reads: values, control text, headings
      --fg-2   secondary — text that NAMES things: labels, keys, column heads
@@ -123,8 +138,9 @@
   --track-tight: 0.02em; /* the wordmark */
   --track-caps: 0.06em; /* uppercase headings (card-head, subhead, box-title) */
   --track-wide: 0.09em; /* micro-caps: cluster heads, chip labels */
-  /* aliases kept for existing rules that named these before they were defined */
-  --bg-1: var(--bg-3);
+  /* alias kept for existing rules that named this before it was defined. The
+     --bg-1 twin is gone: it aliased --bg-3, so the ladder had two names for one
+     colour and the lower-sounding name was the higher shade. */
   --fg-1: var(--fg);
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace;

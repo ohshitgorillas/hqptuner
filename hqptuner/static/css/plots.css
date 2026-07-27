@@ -4,8 +4,8 @@
 
 /* ── Response plot (client-side SVG, log-freq axis) ───────────────────── */
 .plot {
-  background: var(--bg-1);
-  border: 1px solid var(--bg-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
 }
@@ -60,7 +60,7 @@
   font-size: var(--fs-svg-sm);
   fill: var(--fg);
   paint-order: stroke;
-  stroke: var(--bg-2);
+  stroke: var(--surface-card);
   stroke-width: 3px;
   pointer-events: none;
 }
@@ -119,5 +119,5 @@
 }
 .swatch.active {
   border-color: var(--fg);
-  box-shadow: 0 0 0 2px var(--bg-2);
+  box-shadow: 0 0 0 2px var(--surface-card);
 }

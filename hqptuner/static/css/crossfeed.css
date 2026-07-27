@@ -48,7 +48,7 @@
 /* halo so right-aligned trace labels stay legible over curve tails */
 .plot-tlbl {
   paint-order: stroke;
-  stroke: var(--bg-2);
+  stroke: var(--surface-card);
   stroke-width: 3px;
 }
 /* hairline between the crossfeed knobs */
@@ -286,7 +286,7 @@
   fill: none;
 }
 .spk rect {
-  fill: var(--bg-3);
+  fill: var(--surface-raised);
   stroke: var(--line);
 }
 .spk-baffle {
@@ -297,7 +297,7 @@
   fill: var(--muted);
 }
 .spk-head {
-  fill: var(--bg-3);
+  fill: var(--surface-raised);
   stroke: var(--fg);
   stroke-width: 1.2;
 }
