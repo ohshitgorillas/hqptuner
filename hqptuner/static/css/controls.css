@@ -244,17 +244,24 @@ input[type="checkbox"]:disabled {
   text-align: right;
 }
 
-/* live playback volume — the tab's dominant element, styled distinctly from the
-   staged-config cards (accent-forward, no card chrome) to signal "writes live". */
-.playback {
-  margin-bottom: var(--sp-4);
-  padding: var(--sp-1) var(--sp-4);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--surface-card)), var(--surface-card));
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
-  border-radius: var(--r-lg);
-}
-.playback.off {
-  opacity: var(--o-off);
+/* live playback volume — the tab's dominant element, and a plain .card like
+   every other. This rule once gave it accent-forward chrome and no card frame,
+   from a time when the section was not a .card; once it became one, cards.css
+   (loaded after this file, equal specificity) took the background, border and
+   radius back, and the accent treatment stopped rendering. All that survived
+   were the two declarations .card does not set — a padding that stopped
+   .card-head reaching the card's edges the way every other head does, and a
+   margin-bottom that made this card end 24px short of the one beside it in
+   .card-grid. Both are gone; the card chrome owns the frame now.
+
+   Volume control unavailable: dim the knob only, at the same --o-dim every
+   other switched-off section uses. The head stays legible so the card is still
+   identifiable, and .playback-hint — which is the reason it is dead — stays
+   full strength rather than being faded along with the thing it explains. The
+   "Faster volume updates" checkbox is a page-local preference that keeps
+   working, so it is not dimmed either. */
+.playback.off .card-body {
+  opacity: var(--o-dim);
 }
 .playback-hint {
   margin-top: var(--sp-2);

@@ -226,12 +226,6 @@
   flex: 0 0 auto;
   padding: var(--sp-1) var(--sp-2);
 }
-/* one uniform dimming treatment for the knob group when volume control is
-   unavailable — not a mix of muted strokes and gray text. The notice pill is a
-   sibling of .knob, so it stays full-strength while the dial dims. */
-.playback.off .knob {
-  opacity: var(--o-off);
-}
 /* the reason is a notice, not microtext at the panel's edge */
 .playback-hint {
   display: inline-flex;
