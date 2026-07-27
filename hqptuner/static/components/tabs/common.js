@@ -42,6 +42,8 @@ export function Card({ title, collapse, cardClass, bodyClass, headClass, hint, c
         <span class="tri">${open ? "▾" : "▸"}</span> ${title}
       </button>`
     : html`<div class=${headCls}>${title}</div>`;
+  // .card.closed does the collapsed styling; there is no .card.open rule and none is wanted.
+  // class-exempt: "open" is the DOM's record of collapse state — the tab tests read it back.
   const cls = ["card", cardClass, collapse ? (open ? "open" : "closed") : null].filter(Boolean).join(" ");
   return html`
     <section class=${cls} title=${hint}>

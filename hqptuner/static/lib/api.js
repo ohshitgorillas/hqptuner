@@ -67,6 +67,7 @@ export const api = {
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   deletePreset: (name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
+  autoeq: () => getJSON("/api/autoeq"),
   uploadFilter: (file) => upload("/api/matrix/filter", "file", file),
   matrixProfile: (action, name) => send("/api/matrix/profile", "POST", { action, name }),
   volume: () => getJSON("/api/volume"),

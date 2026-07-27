@@ -127,6 +127,22 @@
      slow settle is what makes a needle look damped instead of twitchy. Duration
      and curve travel together because splitting them invites half-uses. */
   --sweep: 1s ease-out;
+  /* ── Opacity (binding) ────────────────────────────────────────────────
+     Two ladders sharing one scale, because opacity answers two questions.
+     STATE — is this control in play? — dims a whole control or region.
+     DEPTH — how far back does this graphic sit? — separates the layers of a
+     plot or diagram. It replaced 13 free-chosen values across 31 sites, nine
+     of them for the single idea "switched off", so one idle chip faded to
+     0.4 and the idle bar beside it to 0.55. Pick by role, never by number:
+     two roles landing on nearby values is fine, one role with two values is
+     the drift this ladder exists to stop. 0 and 1 stay literal — hidden and
+     fully painted are not shading decisions. */
+  --o-back: 0.3; /* DEPTH, furthest back: grid hairlines, excluded channels, fill washes */
+  --o-disabled: 0.45; /* STATE: a control that cannot be operated */
+  --o-off: 0.55; /* STATE: a control or chip switched off / inactive */
+  --o-mid: 0.6; /* DEPTH: reference marks — zero lines, ticks */
+  --o-dim: 0.7; /* STATE: a whole section that is off but still meant to be read */
+  --o-fore: 0.85; /* DEPTH: a secondary graphic sitting just under a primary one */
   /* ── Type scale (binding) ─────────────────────────────────────────────
      One ladder, named by ROLE. Pick the token whose role matches the text
      you are adding; never write a literal font-size. The scale replaced 24
@@ -208,5 +224,5 @@ body {
   padding-bottom: 3.5rem; /* token-exempt: clearance for the fixed pending bar, not rhythm — it must exceed that bar's height or the last row hides behind it */
 }
 .app.offline {
-  opacity: 0.75;
+  opacity: var(--o-dim);
 }

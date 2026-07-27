@@ -17,12 +17,12 @@
 .plot-grid {
   stroke: var(--line);
   stroke-width: 0.5;
-  opacity: 0.35;
+  opacity: var(--o-back);
 } /* hairline, quieter than traces */
 .plot-zero {
   stroke: var(--muted);
   stroke-width: 0.8;
-  opacity: 0.6;
+  opacity: var(--o-mid);
 }
 .plot-lbl {
   font-family: var(--font-mono);
@@ -37,7 +37,7 @@
 .plot-trace.ghost {
   stroke: var(--muted);
   stroke-dasharray: 4 3;
-  opacity: 0.85;
+  opacity: var(--o-fore);
 }
 .plot-trace.applied {
   stroke: var(--accent);

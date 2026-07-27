@@ -228,7 +228,7 @@ function BandKnob({ rows, t, a }) {
   };
   return html`
     <div class="band-arg">
-      <span class="band-arg-name t-label">${spec.name}</span>
+      <span class="t-label">${spec.name}</span>
       <${Knob}
         value=${Number.isFinite(v) ? clamp(v, spec.min, spec.max) : spec.min}
         min=${spec.min}
@@ -266,8 +266,8 @@ function BandKnob({ rows, t, a }) {
 function BandStrip({ rows }) {
   const t = stripTarget(rows);
   const head = t
-    ? html`<div class="band-head t-label mono">${stripName(rows, t.sel)} · ${t.st.args.type}</div>`
-    : html`<div class="band-head t-caption">No band selected — click a stage chip or a plot dot to edit it here.</div>`;
+    ? html`<div class="t-label mono">${stripName(rows, t.sel)} · ${t.st.args.type}</div>`
+    : html`<div class="t-caption">No band selected — click a stage chip or a plot dot to edit it here.</div>`;
   return html`
     <div class="band-strip">
       ${head}

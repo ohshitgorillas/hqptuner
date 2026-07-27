@@ -282,7 +282,7 @@ button.card-head {
 }
 /* nested control whose parent toggle is off: dim but legible + non-interactive */
 .indent.off {
-  opacity: 0.6;
+  opacity: var(--o-dim);
   pointer-events: none;
 }
 /* System · combined backup/restore — both buttons on one row */

@@ -61,7 +61,7 @@ export function LogTail() {
     if (el) el.scrollTop = el.scrollHeight;
   });
   return html`
-    <div class="log-tail-block">
+    <div>
       <label class="log-tail-toggle">
         <${Checkbox} value=${on ? "1" : "0"} onChange=${(v) => (shown.value = v === "1")} />
         Show live log tail (last ${LINES} lines)

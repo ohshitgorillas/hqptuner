@@ -54,6 +54,6 @@ button.primary:disabled {
   color: var(--muted);
 }
 button:disabled {
-  opacity: 0.4;
+  opacity: var(--o-disabled);
   cursor: not-allowed;
 }

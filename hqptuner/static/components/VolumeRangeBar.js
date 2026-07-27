@@ -133,7 +133,7 @@ export function VolumeRangeBar() {
         </div>
         <div class="vr-boxes">
           <label class="vr-box ${dirtyClass("volume_min")}">
-            <span class="vr-key vr-key-min"></span>
+            <span class="vr-key"></span>
             <span>Min</span>
             <${NumberBox}
               value=${min}
@@ -157,7 +157,7 @@ export function VolumeRangeBar() {
             />
           </label>
           <label class="vr-box ${dirtyClass("volume_max")}">
-            <span class="vr-key vr-key-max"></span>
+            <span class="vr-key"></span>
             <span>Max</span>
             <${NumberBox}
               value=${max}

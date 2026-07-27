@@ -7,6 +7,7 @@
 // by construction. Sources are never merged: every hit shows its measurement
 // source, with oratory1990 preferred in ranking on equal match quality.
 import { signal } from "@preact/signals";
+import { api } from "../lib/api.js";
 import { html } from "../lib/dom.js";
 import { parseEqText } from "../lib/eqimport.js";
 import { previewEq } from "./MatrixPlot.js";
@@ -23,9 +24,7 @@ async function loadDb() {
   if (db.value || dbState.value === "loading…") return;
   dbState.value = "loading…";
   try {
-    const r = await fetch("/api/autoeq");
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    db.value = await r.json();
+    db.value = await api.autoeq();
     dbState.value = "";
   } catch (e) {
     dbState.value = `library load failed: ${e.message}`;
@@ -83,7 +82,7 @@ function Hit({ p }) {
       class="mtx-lib-hit ${isSel ? "selected" : ""}"
       onClick=${() => (isSel ? clearLibrarySelection() : select(p))}
     >
-      <span class="mtx-lib-model">${p.model}</span>
+      <span>${p.model}</span>
       <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
     </button>
   `;
@@ -95,7 +94,7 @@ function Selection({ applyText }) {
   const parsed = parseEqText(p.text);
   return html`
     <div class="mtx-lib-sel">
-      <span class="mtx-lib-model">${p.model}</span>
+      <span>${p.model}</span>
       <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
       <span class="mtx-lib-bands"
         >${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on

@@ -36,7 +36,7 @@
   background: var(--surface-raised);
 }
 .vr-track.disabled {
-  opacity: 0.45;
+  opacity: var(--o-disabled);
 }
 /* the span actually reachable at runtime: Min..Max */
 .vr-fill {
@@ -45,7 +45,7 @@
   height: 16px;
   border-radius: var(--r-lg);
   background: var(--accent);
-  opacity: 0.3;
+  opacity: var(--o-back);
   pointer-events: none;
 }
 .vr-tick {
@@ -59,7 +59,7 @@
 .vr-tick.strong {
   height: 11px;
   background: var(--fg);
-  opacity: 0.5;
+  opacity: var(--o-mid);
 }
 .vr-tick-label {
   position: absolute;
@@ -175,7 +175,7 @@
    half-drawn. */
 .knob-lg .knob-track {
   stroke: var(--muted);
-  opacity: 0.85;
+  opacity: var(--o-fore);
 }
 /* in the lg column the slider is a horizontal control, not a flex child that
    should claim 160px of VERTICAL space (its row-layout basis) — that stretch is
@@ -191,7 +191,7 @@
 .knob-tick {
   stroke: var(--muted);
   stroke-width: 1.5;
-  opacity: 0.55;
+  opacity: var(--o-mid);
   stroke-linecap: round;
 }
 /* large knob stacks: dial, then the readout directly beneath it, so the value
@@ -230,7 +230,7 @@
    unavailable — not a mix of muted strokes and gray text. The notice pill is a
    sibling of .knob, so it stays full-strength while the dial dims. */
 .playback.off .knob {
-  opacity: 0.45;
+  opacity: var(--o-off);
 }
 /* the reason is a notice, not microtext at the panel's edge */
 .playback-hint {

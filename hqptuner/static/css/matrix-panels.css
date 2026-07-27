@@ -68,7 +68,7 @@
    palette); magnitude solid, phase dashed on the ±180° second axis. */
 .plot-trace.ph {
   stroke-dasharray: 4 3;
-  opacity: 0.7;
+  opacity: var(--o-fore);
 }
 .plot-trace.r0 {
   stroke: var(--chip-ch);
