@@ -19,6 +19,7 @@ import { AXIS_MIN, AXIS_MAX, num, clampVolume } from "../lib/volume.js";
 import { effective, edit, isDirty } from "../store/state.js";
 import { grayReason } from "../store/graying.js";
 import { NumberBox } from "./controls/index.js";
+import { Card } from "./tabs/common.js";
 
 const SPAN = AXIS_MAX - AXIS_MIN;
 
@@ -109,9 +110,7 @@ export function VolumeRangeBar() {
   const bub = active.value;
 
   return html`
-    <section class="card vr-card ${dirty ? "dirty" : ""}" title=${reason}>
-      <div class="card-head">Range</div>
-      <div class="card-body">
+    <${Card} title="Range" cardClass=${`vr-card ${dirty ? "dirty" : ""}`} hint=${reason}>
         <div class="vr-track ${reason ? "disabled" : ""}">
           <!-- the span the user will actually be able to reach at runtime -->
           <div class="vr-fill" style=${`left:${pct(min)}%;right:${100 - pct(max)}%`}></div>
@@ -170,7 +169,6 @@ export function VolumeRangeBar() {
             />
           </label>
         </div>
-      </div>
-    </section>
+    <//>
   `;
 }

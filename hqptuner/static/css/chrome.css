@@ -55,7 +55,15 @@
 main {
   flex: 1;
 }
+/* One gap on the container, not a margin on each child. The child rule this
+   replaced was `.tab-body > .card + .card`, which could only see two cards side
+   by side — a .card-grid between them matched nothing and its neighbour sat
+   flush against it. A container gap spaces every child whatever it is, so no
+   new kind of tab-body child can fall off a selector list. */
 .tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
   padding: 1rem var(--gutter);
 }
 .tab-body h2 {

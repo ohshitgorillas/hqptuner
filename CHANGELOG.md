@@ -2,6 +2,12 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
+## [Unreleased]
+
+### Changed
+
+- **A collapsible section is now literally a card.** Not "looks like one" — the same component, with a switch that makes its header a toggle. The two used to be separate pieces of code that happened to be styled alike, which is why they drifted apart into different shades in the first place; 0.9.1 repainted them to match, and this removes the second copy so they cannot part company again. Visible effects: sections that collapse (the backend sections on Output, the filter sections on Resampling, About HQPTuner on System) now carry the card header's dividing line and the card's slightly roomier inner padding, and cards stacked directly on top of each other now have the same gap between them that a collapsible section always had. The build now refuses card markup written anywhere outside the one component that owns it, with three exceptions that are written down and explained in the code.
+
 ## [0.9.1] — 2026-07-27
 
 ### Fixed

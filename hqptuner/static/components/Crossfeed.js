@@ -1,3 +1,7 @@
+/* eslint-disable hqptuner/no-hand-rolled-card -- the head carries a Segment
+   component beside its toggle button, and an issues strip sits BETWEEN head and
+   body. Expressing either through Card would mean a slot prop per position,
+   which is a worse trade than one written-down exemption. */
 // CROSSFEED — one card, two implementations behind a segmented toggle.
 //
 // Bauer is HQPlayer's own post-process (libbs2b) plus the compensation block.
@@ -214,7 +218,7 @@ function StructuralMode({ rows }) {
           </div>`
         : null
     }
-    <button type="button" class="collapsible-head" onClick=${() => (structPlotOpen.value = !structPlotOpen.value)}>
+    <button type="button" class="card-head" onClick=${() => (structPlotOpen.value = !structPlotOpen.value)}>
       <span class="tri">${structPlotOpen.value ? "▾" : "▸"}</span> Crossfeed response
       ${
         structPlotOpen.value
@@ -277,14 +281,14 @@ function BauerMode() {
           <span class="col-rule" aria-hidden="true"></span>
           <${Field} k="crossfeed_level" />
         </div>
-        <button type="button" class="collapsible-head" onClick=${() => (plotOpen.value = !open)}>
+        <button type="button" class="card-head" onClick=${() => (plotOpen.value = !open)}>
           <span class="tri">${open ? "▾" : "▸"}</span> Response plot
         </button>
         ${open ? html`<div class="dsp-plot"><${CrossfeedPlot} /></div>` : null}
       </div>
       <button
         type="button"
-        class="collapsible-head"
+        class="card-head"
         title="Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides, much as real speakers do. This brings the centered part back to neutral, without touching the crossfeed's stereo effect."
         onClick=${() => (compOpen.value = !compOpen.value)}
       >

@@ -7,6 +7,7 @@
 import js from "@eslint/js";
 import globals from "globals";
 import oneAssertionPerTest from "./eslint-rules/one-assertion-per-test.js";
+import noHandRolledCard from "./eslint-rules/no-hand-rolled-card.js";
 
 const RULES = {
   // xenon --max-absolute B => cyclomatic complexity <= 10 (ruff C901 uses the
@@ -26,7 +27,13 @@ export default [
   {
     files: ["hqptuner/static/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
-    rules: RULES,
+    plugins: { hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
+    rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
+  },
+  {
+    // The module that OWNS the card frame is the one place allowed to write it.
+    files: ["hqptuner/static/components/tabs/common.js"],
+    rules: { "hqptuner/no-hand-rolled-card": "off" },
   },
   {
     // Test suite runs under node's built-in runner, not in the browser. The

@@ -66,7 +66,7 @@ const section = (out, title) => {
 };
 
 // That disclosure's state — "open" or "closed" — off the section's own class.
-const MARK = '<section class="collapsible ';
+const MARK = '<section class="card ';
 const stateOf = (out, title) => {
   const head = out.indexOf(`</span> ${title}</button>`);
   const at = head < 0 ? -1 : out.lastIndexOf(MARK, head);

@@ -105,41 +105,7 @@
   font-size: var(--fs-body-lg);
   padding: 0.5rem 0.6rem;
 }
-.collapsible {
-  margin-top: 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  overflow: hidden;
-  /* a collapsible IS a card — same frame, same surface. Without this the body
-     fell through to the page colour, so an open collapsible read as a darker
-     card than the .card above it (Output: General vs Network Backend). */
-  background: var(--surface-card);
-}
-.collapsible-head {
-  width: 100%;
-  text-align: left;
-  /* a card head, so it takes the card-head surface. It was painting the card
-     BODY shade, which is why two headers on one page read as different cards. */
-  background: var(--surface-raised);
-  border: none;
-  border-radius: 0;
-  padding: 0.55rem 0.8rem;
-  font-size: var(--fs-head);
-  font-weight: var(--fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--track-caps);
-  color: var(--fg);
-}
-.collapsible.closed .collapsible-head {
-  color: var(--muted);
-}
-.collapsible-head .tri {
-  color: var(--accent);
-  margin-right: 0.55rem;
-  font-size: var(--fs-glyph);
-  line-height: 1;
-  vertical-align: -0.2em;
-}
-.collapsible-body {
-  padding: 0.5rem 0.4rem;
-}
+/* The .collapsible family used to live here — a second card idiom with its own
+   frame, head and body rules. It is gone: a collapsible is a .card whose head
+   is a button, and cards.css owns all of it. Keeping two idioms for one thing
+   is what let their surfaces drift apart in the first place. */
