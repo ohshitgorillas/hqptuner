@@ -22,7 +22,7 @@ import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
 import { dspMode, setDspMode } from "../store/dspmode.js";
 import { structuralBlock } from "../lib/xfmode.js";
-import { Section } from "./tabs/common.js";
+import { Section, Card } from "./tabs/common.js";
 
 const pipelinesCardOpen = signal(true);
 
@@ -31,18 +31,15 @@ const pipelinesCardOpen = signal(true);
 // are content-sized via .mtx-global.
 function GlobalCard() {
   return html`
-    <section class="card">
-      <div class="card-head">Matrix</div>
-      <div class="card-body">
-        <div class="mtx-global">
-          <${Field} k="matrix_enabled" />
-          <${Field} k="matrix_engine" />
-          <${Field} k="matrix_expand_hf" />
-          <${Field} k="matrix_iir2fir" />
-          <${Field} k="pipelines" />
-        </div>
+    <${Card} title="Matrix">
+      <div class="mtx-global">
+        <${Field} k="matrix_enabled" />
+        <${Field} k="matrix_engine" />
+        <${Field} k="matrix_expand_hf" />
+        <${Field} k="matrix_iir2fir" />
+        <${Field} k="pipelines" />
       </div>
-    </section>
+    <//>
   `;
 }
 
@@ -148,12 +145,9 @@ function HeadphoneEqCard() {
     if (open) clearLibrarySelection(); // collapsing drops selection + preview — no residue
   };
   return html`
-    <section class="card">
-      <button type="button" class="card-head mtx-eq-head" onClick=${toggle}>
-        <span class="tri">${open ? "▾" : "▸"}</span> Headphone Auto EQ
-      </button>
-      ${open ? html`<div class="card-body"><${ImportPanel} rows=${effectivePipelines.value} /></div>` : null}
-    </section>
+    <${Card} title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }} headClass="mtx-eq-head">
+      <${ImportPanel} rows=${effectivePipelines.value} />
+    <//>
   `;
 }
 
@@ -178,7 +172,9 @@ function PipelinesCard() {
     stagePipelines([...rows, { source, gain: "0", gainunit: "dB", mixdown: source, process: "" }]);
   };
   const body = open
-    ? html`<div class="card-body">
+    ? // htm has no <>...</> fragment shorthand — a template with several roots
+      // already yields an array, and Card wraps it in the card body.
+      html`
         ${
           notesVisible.value
             ? html`<div class="field-note mtx-pipelines-note">
@@ -234,15 +230,16 @@ function PipelinesCard() {
             })()}
           </div>
         </div>
-      </div>`
+      `
     : null;
   return html`
-    <section class="card">
-      <button type="button" class="card-head mtx-eq-head" onClick=${() => (pipelinesCardOpen.value = !open)}>
-        <span class="tri">${open ? "▾" : "▸"}</span> Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>
-      </button>
+    <${Card}
+      title=${html`Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>`}
+      collapse=${{ open, onToggle: () => (pipelinesCardOpen.value = !open) }}
+      headClass="mtx-eq-head"
+    >
       ${body}
-    </section>
+    <//>
   `;
 }
 

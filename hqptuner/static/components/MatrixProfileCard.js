@@ -22,6 +22,7 @@ import {
   stageProfileDelete,
 } from "../store/profiles.js";
 import { notesVisible } from "../store/prefs.js";
+import { Card } from "./tabs/common.js";
 
 const profileSel = signal(null); // picker value; null = follow the active profile
 const profileNewName = signal("");
@@ -97,9 +98,7 @@ export function ProfileCard() {
   const sel = profileSel.value ?? (active === "[Default]" ? "" : active);
   const busy = profileBusy.value;
   return html`
-    <section class="card">
-      <div class="card-head">Profile</div>
-      <div class="card-body mtx-profile">
+    <${Card} title="Profile" bodyClass="mtx-profile">
         <div class="mtx-read-row">
           <dt>Active</dt>
           <dd>${active}</dd>
@@ -155,7 +154,6 @@ export function ProfileCard() {
           its pipelines, since HQPlayer only knows the profiles it read at startup.
         <//>
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
-      </div>
-    </section>
+    <//>
   `;
 }

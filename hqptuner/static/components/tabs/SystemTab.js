@@ -15,7 +15,7 @@ import {
   setShowDescriptions,
   setKeepOptionDescriptions,
 } from "../../store/prefs.js";
-import { Section, Card, Collapsible } from "./common.js";
+import { Section, Card, collapseFrom } from "./common.js";
 
 const info = computed(() => (health.value && health.value.info) || {});
 const license = computed(() => (health.value && health.value.license) || {});
@@ -116,7 +116,7 @@ const aboutOverride = signal(null);
 const appVersion = computed(() => (health.value && health.value.app_version) || "");
 
 const AboutHqptuner = () => html`
-  <${Collapsible} title="About HQPTuner" auto=${aboutAuto} override=${aboutOverride}>
+  <${Card} title="About HQPTuner" collapse=${collapseFrom(aboutAuto, aboutOverride)}>
     <div class="abt-prose">
       <p>
         HQPTuner is a project by user oh shit, gorillas! to bring out the untapped UX potential of HQPlayer Embedded.

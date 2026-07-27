@@ -18,6 +18,8 @@ Do it yourself when you know the file (one Read beats a subagent), when the mate
 - Ask for pointers, not prose — `file:line` + one-line role. Pointers you can verify, prose you can only trust.
 - One delegation per question, not per file.
 - You own the result. Relaying an unverified subagent claim is confabulation with extra steps; "the agent said so" is not verification.
+- **Never delegate looking.** A subagent's measurements are trustworthy — computed styles, box geometry, gap arithmetic, error counts. Its *visual* review is not: ask one "does this look right" and it returns "no visual problems" on a screenshot with plainly broken controls in frame. This has happened repeatedly. Delegate the measuring and the screenshotting; read the screenshots yourself, and never let an agent's "looks fine" stand in for having looked.
+- **The user's eyes are the final say, always.** Not `make check`, not a green measurement table, not your own reading of a screenshot — those catch what they were pointed at, and the defects that ship are the ones nobody thought to point at. Every visual change goes in front of the user at the hand-back URL before it is called done, and their verdict outranks every gate above it.
 - Never delegate to duck the change budget or the plan gate. A subagent's writes are your writes.
 
 ## NEVER IDLE-GATE USER ACTIONS (binding)

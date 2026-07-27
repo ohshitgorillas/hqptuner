@@ -22,8 +22,6 @@
    tight intra-row gap for the ~1:3 proximity that keeps rows from blurring.
    Adjacent-sibling only, so it never fires inside horizontal groups (rate-stack)
    or the grid packs, which manage their own gap. */
-.card-body > .field + .field,
-.collapsible-body > .field + .field,
 .indent > .field + .field,
 .dsp-controls > .field + .field {
   margin-top: var(--sp-4);

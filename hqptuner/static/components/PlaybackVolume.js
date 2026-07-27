@@ -1,3 +1,6 @@
+/* eslint-disable hqptuner/no-hand-rolled-card -- the mute label and the hint
+   render AFTER the body but INSIDE the section, so this card has content in a
+   position Card has no slot for. */
 // Live playback volume — the Volume tab's dominant control and the app's only
 // real-time-write control. Deliberately NOT a schema/Field control: it reads
 // engine-reported volume + VolumeRange and writes immediately over the Control

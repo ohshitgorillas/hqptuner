@@ -12,6 +12,7 @@ import { api } from "../lib/api.js";
 import { metadata } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
+import { Card } from "./tabs/common.js";
 
 // settings.json system-group prose (Phase 1 manual/readme extraction). These four
 // engine attributes live outside the schema/Field path, so pull their notes here.
@@ -98,9 +99,7 @@ export function HardwareCard() {
     if (!loaded.value) load().catch((e) => (status.value = `Load failed: ${e}`));
   }, []);
   return html`
-    <section class="card">
-      <div class="card-head">Hardware acceleration</div>
-      <div class="card-body">
+    <${Card} title="Hardware acceleration">
         <!-- chain: CUDA offload + its device ids stack in the LEFT track, the CPU
              pair (Multicore DSP, E-core allocation) in the right, so each column
              is one subsystem instead of splitting them by source order. -->
@@ -184,8 +183,7 @@ export function HardwareCard() {
           <button type="button" class="btn" onClick=${apply}>Apply hardware settings</button>
           ${status.value ? html`<span class="hw-status">${status.value}</span>` : null}
         </div>
-      </div>
-    </section>
+    <//>
   `;
 }
 

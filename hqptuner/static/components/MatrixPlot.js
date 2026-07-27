@@ -18,6 +18,7 @@ import { Knob } from "./Knob.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { structuralLensTraces } from "./StructuralXfeed.js";
+import { Card } from "./tabs/common.js";
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
@@ -466,9 +467,7 @@ export function MatrixPlot() {
       (anyPartial ? " · partial: a convolution stage has no preview — re-upload its file to plot it" : "")
     : "No pipeline processing to plot yet — load a profile or add EQ / stages above";
   return html`
-    <section class="card">
-      <div class="card-head">Matrix response</div>
-      <div class="card-body">
+    <${Card} title="Matrix response">
         <${PlotFrame}
           traces=${traces}
           yMin=${Math.max(Math.floor(bounds.min / 6) * 6, -36)}
@@ -482,7 +481,6 @@ export function MatrixPlot() {
           autoColor=${true}
         />
         <${BandStrip} rows=${rows} />
-      </div>
-    </section>
+    <//>
   `;
 }

@@ -25,8 +25,35 @@
   letter-spacing: var(--track-caps);
   color: var(--fg);
 }
+/* a collapsible card's head IS the toggle, so it is a <button> and needs the
+   button chrome reset away. Everything else about it — surface, padding, type,
+   tracking — is the card head above, because it is the same head. */
+button.card-head {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.card.closed > .card-head {
+  color: var(--muted);
+}
+.card-head .tri {
+  color: var(--accent);
+  margin-right: 0.55rem;
+  font-size: var(--fs-glyph);
+  line-height: 1;
+  vertical-align: -0.2em;
+}
+/* Inter-child rhythm comes from the container, for the same reason .tab-body
+   carries its own gap: the rule this replaced (`.card-body > .field + .field`,
+   in fields.css) needed the PREVIOUS sibling to be a .field, so a field sitting
+   after a .pack — Blocks / cycle on System — got no separation at all. */
 .card-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
   padding: 0.6rem 0.6rem;
 }
 .card-grid {
@@ -117,15 +144,14 @@
   }
   /* A full-span row is one control across both tracks — the rule must not strike
      through it, so the row masks the line over its own height by painting its own
-     surface. Two surfaces exist: a card body and the bare page — and every
-     card-like container counts as a card body here, or the mask paints the
-     page colour over a card and reads as a dark band across the row. */
+     surface. Two surfaces exist: a card body and the bare page. There is only
+     one card-like container left to name — a collapsible IS a .card now — so
+     this selector no longer has a list that a new container can fall off. */
   .pack > .span {
     position: relative;
     background: var(--surface-page);
   }
-  .card .pack > .span,
-  .collapsible .pack > .span {
+  .card .pack > .span {
     background: var(--surface-card);
   }
   /* consecutive packs in one card are separate two-track groups (each draws its
@@ -137,9 +163,20 @@
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
      (column-first over two rows) with the secondary control in the right track,
      instead of splitting the chain across columns by raw source order. */
+  /* A chain packs each column as its OWN stack, not as grid rows shared with
+     the other column. As a grid, a row is as tall as its tallest item and
+     `align-items: start` leaves that slack under the shorter one — so the gap
+     below CUDA offload was set by the height of Multicore DSP beside it (28px
+     against the declared 12px). Independent columns give every field in a chain
+     the same rhythm regardless of what sits alongside. */
   .pack.chain {
-    grid-auto-flow: column;
-    grid-template-rows: repeat(2, auto);
+    display: block;
+    columns: 2;
+    column-gap: var(--sp-4);
+  }
+  .pack.chain > * {
+    break-inside: avoid;
+    margin-bottom: var(--sp-3);
   }
   .pack .field:not(.span) select,
   .pack .field:not(.span) input[type="text"] {

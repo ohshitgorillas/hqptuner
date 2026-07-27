@@ -6,7 +6,7 @@ import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
 import { optionsFor } from "../../store/options.js";
-import { Section, Card, Collapsible } from "./common.js";
+import { Section, Card, collapseFrom } from "./common.js";
 import { truthy } from "../../lib/coerce.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
@@ -79,7 +79,7 @@ export const Output = () => {
         <${Field} k="pre_before_meter" />
       </div>
     <//>
-    <${Collapsible} title="ALSA Backend" auto=${alsaOpen} override=${alsaOverride}>
+    <${Card} title="ALSA Backend" collapse=${collapseFrom(alsaOpen, alsaOverride)}>
       <div class="pack">
         <${Field} k="alsa_device" />
         <${Field} k="alsa_offset" />
@@ -89,7 +89,7 @@ export const Output = () => {
         <${Field} k="alsa_anydsd" />
       </div>
     <//>
-    <${Collapsible} title="Network Backend" auto=${netOpen} override=${netOverride}>
+    <${Card} title="Network Backend" collapse=${collapseFrom(netOpen, netOverride)}>
       <div class="pack">
         <${Field} k="net_device" />
         <${Field} k="net_bits" />

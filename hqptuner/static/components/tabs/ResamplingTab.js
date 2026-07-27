@@ -9,7 +9,7 @@ import { Field } from "../Field.js";
 import { effective } from "../../store/state.js";
 import { optionsFor } from "../../store/options.js";
 import { NarrowBar } from "../NarrowBar.js";
-import { Section, Collapsible } from "./common.js";
+import { Section, Card, collapseFrom } from "./common.js";
 
 // DSP chain cards auto-open by mode (auto shows both). PCM chain is irrelevant
 // in pure SDM mode and vice-versa; DSD-source decoding is irrelevant in PCM.
@@ -66,7 +66,7 @@ const fftOverride = signal(null);
 export const Resampling = () =>
   html`<${Section}>
     <${NarrowBar} />
-    <${Collapsible} title="PCM" auto=${pcmOpen} override=${pcmOverride}>
+    <${Card} title="PCM" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
       ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
       <div class="pack chain">
@@ -81,7 +81,7 @@ export const Resampling = () =>
         <${Field} k="dsd_gain_6db" />
       </div>
     <//>
-    <${Collapsible} title="SDM" auto=${sdmOpen} override=${sdmOverride}>
+    <${Card} title="SDM" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
       ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
       <div class="pack chain">
@@ -96,7 +96,7 @@ export const Resampling = () =>
         <${Field} k="direct_sdm" />
       </div>
     <//>
-    <${Collapsible} title="Filter length" auto=${fftOpen} override=${fftOverride}>
+    <${Card} title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
       <${Field} k="fft_size" />
     <//>
   <//>`;

@@ -1,13 +1,14 @@
 // Behavioral suite for components/tabs/common.js — the shared tab-layout
-// primitives every tab body is built from: Section (the tab wrapper), Card (a
-// titled, always-open group) and Collapsible (a group that auto-opens from app
-// state, with a manual override that wins).
+// primitives every tab body is built from: Section (the tab wrapper) and Card,
+// the one card component. A card handed a `collapse` handle grows a toggle head
+// and a body that comes and goes; handed none, it is a plain titled group.
+// There is no separate Collapsible component to test.
 //
-// Policy (docs/testing.md): public API only, one assertion per test. All three
-// are exported components and Collapsible's disclosure state is a pure function
-// of the two signals it is HANDED, so the whole contract is reachable by
-// rendering them with signals the test owns — nothing is stubbed and no module
-// private is touched.
+// Policy (docs/testing.md): public API only, one assertion per test. Both are
+// exported, and a card's disclosure state is a pure function of the handle it
+// is HANDED — collapseFrom() resolves the auto/override signal pair the caller
+// owns — so the whole contract is reachable by rendering with signals the test
+// owns. Nothing is stubbed and no module private is touched.
 //
 // NOT covered, because SSR never fires an event handler: the disclosure head's
 // onClick, which flips the caller's `override` signal. Both states that toggle
@@ -22,7 +23,7 @@ import { render } from "preact-render-to-string";
 import { signal } from "@preact/signals";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
-import { Section, Card, Collapsible } from "../../hqptuner/static/components/tabs/common.js";
+import { Section, Card, collapseFrom } from "../../hqptuner/static/components/tabs/common.js";
 
 const KID = html`<p>kid</p>`;
 
@@ -30,7 +31,7 @@ const KID = html`<p>kid</p>`;
 // state (which backend is selected, which output mode is running), `override` is
 // the user's own toggle — null meaning "follow app state".
 const disclosure = (auto, override = null) =>
-  render(html`<${Collapsible} title="ALSA Backend" auto=${signal(auto)} override=${signal(override)}>${KID}<//>`);
+  render(html`<${Card} title="ALSA Backend" collapse=${collapseFrom(signal(auto), signal(override))}>${KID}<//>`);
 
 // --- section ------------------------------------------------------------------
 
@@ -55,15 +56,15 @@ test("test_a_card_keeps_its_children_in_its_body", () => {
 // --- collapsible --------------------------------------------------------------
 
 test("test_a_collapsible_opens_when_app_state_says_it_should", () => {
-  assert.ok(disclosure(true).includes('<section class="collapsible open">'));
+  assert.ok(disclosure(true).includes('<section class="card open">'));
 });
 
 test("test_a_collapsible_closes_when_app_state_says_it_should", () => {
-  assert.ok(disclosure(false).includes('<section class="collapsible closed">'));
+  assert.ok(disclosure(false).includes('<section class="card closed">'));
 });
 
 test("test_an_open_collapsible_renders_its_children", () => {
-  assert.ok(disclosure(true).includes('<div class="collapsible-body"><p>kid</p></div>'));
+  assert.ok(disclosure(true).includes('<div class="card-body"><p>kid</p></div>'));
 });
 
 test("test_a_closed_collapsible_renders_no_children", () => {
@@ -71,11 +72,11 @@ test("test_a_closed_collapsible_renders_no_children", () => {
 });
 
 test("test_a_manual_open_wins_over_a_closed_app_state", () => {
-  assert.ok(disclosure(false, true).includes('<section class="collapsible open">'));
+  assert.ok(disclosure(false, true).includes('<section class="card open">'));
 });
 
 test("test_a_manual_close_wins_over_an_open_app_state", () => {
-  assert.ok(disclosure(true, false).includes('<section class="collapsible closed">'));
+  assert.ok(disclosure(true, false).includes('<section class="card closed">'));
 });
 
 test("test_an_open_collapsible_points_its_triangle_down", () => {
@@ -91,5 +92,5 @@ test("test_a_collapsible_names_itself_in_its_head", () => {
 });
 
 test("test_a_closed_collapsible_still_offers_its_head_to_open_it", () => {
-  assert.ok(disclosure(false).includes('<button type="button" class="collapsible-head">'));
+  assert.ok(disclosure(false).includes('<button type="button" class="card-head">'));
 });

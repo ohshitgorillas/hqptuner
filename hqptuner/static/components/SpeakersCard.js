@@ -1,3 +1,6 @@
+/* eslint-disable hqptuner/no-hand-rolled-card -- the body is not one subtree:
+   it branches to a different component when channel data has loaded and to a
+   plain fallback when it has not. Card takes children, not a body chooser. */
 // SPEAKERS — HQPlayer's per-channel speaker processing (readme §1.9): a level
 // trim (dBFS) and a distance (cm) for each of the daemon's eight channel slots,
 // plus the master switch.
