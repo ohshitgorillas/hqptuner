@@ -37,7 +37,7 @@
   border: none;
   color: var(--muted);
   padding: 0.5rem 0.9rem;
-  border-radius: 0.4rem 0.4rem 0 0;
+  border-radius: var(--r-md) var(--r-md) 0 0;
   cursor: pointer;
   font-size: var(--fs-body-lg);
 }

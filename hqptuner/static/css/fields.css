@@ -13,7 +13,7 @@
   gap: var(--sp-1) var(--sp-3);
   min-height: 2.4rem; /* uniform row rhythm across checkbox + dropdown rows */
   padding: 0.15rem 0.5rem;
-  border-radius: 0.4rem;
+  border-radius: var(--r-md);
 }
 .field.dirty {
   box-shadow: inset 0 0 0 1.5px var(--accent);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: static CSS uses design tokens, never literal type or colour values.
+"""Gate: static CSS uses design tokens, never literal type, colour, or shape.
 
 The stylesheet had drifted to 24 free-chosen font-size values and five
 different effective text greys (two colour tokens times three opacities).
@@ -31,6 +31,8 @@ DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 #: the raw elevation ladder — legal only where it is defined
 PRIMITIVE = re.compile(r"var\(\s*--bg\b")
+#: the two motion roles: --dur for a state change, --sweep for a live readout
+MOTION = re.compile(r"var\(\s*--(?:dur|sweep)\b")
 #: every token a fill may name: the four surface roles, plus the state colours
 FILL_TOKEN = re.compile(
     r"var\(\s*--(?:surface-(?:page|card|raised|well)|accent(?:-glow)?|on-accent"
@@ -38,9 +40,28 @@ FILL_TOKEN = re.compile(
 )
 
 
+def shape_complaint(prop: str, value: str) -> str:
+    """Return a complaint about a radius or transition declaration, or ''.
+
+    Radius checks every corner in the value, not just the first: a shorthand
+    may round some corners and square others, and `var(--r-md) 6px` is exactly
+    the drift the ladder exists to stop. Transition only has to *name* a motion
+    token — the rest of the value is property names and cannot drift.
+    """
+    if prop.endswith("radius"):
+        if all(corner.startswith("var(--") or corner == "0" for corner in value.split()):
+            return ""
+        return f"{prop}: {value} — use a var(--r-*) token from {DEFINITION_SITE}"
+    if prop == "transition" and not MOTION.search(value):
+        return f"{prop}: {value} — use var(--dur) var(--ease) for a state change, var(--sweep) for a live readout"
+    return ""
+
+
 def check_decl(prop: str, value: str, custom: bool) -> str:
     """Return a complaint about one declaration, or '' if it is clean."""
     literal = not value.startswith("var(--") and value not in LITERAL_OK
+    if not custom and (complaint := shape_complaint(prop, value)):
+        return complaint
     if prop in TOKEN_PROPS and not custom and literal:
         return f"{prop}: {value} — use a var(--fs-*|--fw-*|--track-*) token"
     if not custom and COLOUR.search(value):

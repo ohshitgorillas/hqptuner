@@ -24,7 +24,7 @@
   padding: 0.9rem;
   background: var(--surface-card);
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: var(--r-lg);
 }
 /* one shared box-label / card-title style — deliberately LARGER than control text */
 .box-title {

@@ -64,7 +64,7 @@
   gap: 0.3rem;
   padding: 0.2rem 0.55rem;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--surface-raised);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
@@ -95,7 +95,7 @@
 .psum {
   font-size: var(--fs-micro);
   border: 1px solid currentColor;
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   padding: 0 0.2rem;
   line-height: 1.1;
 }
@@ -109,7 +109,7 @@
   align-items: center;
   gap: var(--sp-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   background: var(--surface-card);
   padding: var(--sp-2) var(--sp-3);
   min-width: 0;
@@ -132,7 +132,7 @@
 }
 .mtx-tool {
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--surface-raised);
   color: var(--fg-2);
   font-size: var(--fs-caption);
@@ -151,7 +151,7 @@
 select.mtx-ch {
   appearance: none;
   border: 1px solid var(--chip-ch);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--surface-raised);
   color: var(--chip-ch);
   font-family: var(--font-mono);
@@ -181,7 +181,7 @@ select.mtx-ch {
 }
 .mtx-add-stage {
   border: 1px dashed var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--muted);
   font-family: var(--font-mono);
@@ -212,7 +212,7 @@ select.mtx-ch {
 .mtx-add-row {
   margin-top: var(--sp-3);
   border: 1px dashed var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--fg-2);
   font-size: var(--fs-label);

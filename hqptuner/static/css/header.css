@@ -46,7 +46,7 @@
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--surface-raised);
-  border-radius: 0.3rem;
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 .preset-del:hover {
@@ -56,7 +56,7 @@
 
 .pill {
   padding: 0.15rem 0.6rem;
-  border-radius: 1rem;
+  border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);
 }

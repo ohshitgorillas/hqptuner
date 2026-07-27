@@ -30,7 +30,7 @@
   font-size: var(--fs-micro);
   color: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0.1rem 0.5rem;
   white-space: nowrap;
 }
@@ -50,7 +50,7 @@
   background: var(--surface-well);
   color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   padding: var(--sp-2);
   resize: vertical;
 }
@@ -209,7 +209,7 @@
   max-height: 16rem;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 .mtx-lib-hit {
   display: flex;
@@ -273,7 +273,7 @@
   padding: var(--sp-2) var(--sp-3);
   background: var(--surface-raised);
   border: 1px solid var(--surface-raised);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
