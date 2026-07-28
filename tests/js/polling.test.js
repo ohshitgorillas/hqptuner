@@ -38,7 +38,7 @@ import {
   engineState,
 } from "../../hqptuner/static/store/state.js";
 import { activeTab } from "../../hqptuner/static/store/ui.js";
-import { quickSystemUpdates, fastVolumeUpdates } from "../../hqptuner/static/store/prefs.js";
+import { quickSystemUpdates, fastVolumeUpdates, liveMode } from "../../hqptuner/static/store/prefs.js";
 import { ok, bad } from "./wire.js";
 
 // --- the timer seam, faked for the file's life (see header) -------------------
@@ -90,6 +90,7 @@ const drain = () => new Promise((resolve) => setImmediate(resolve));
 activeTab.value = "output";
 quickSystemUpdates.value = false;
 fastVolumeUpdates.value = false;
+liveMode.value = false;
 wire();
 startPolling(2000);
 await drain();
@@ -149,6 +150,27 @@ test("test_the_volume_page_has_its_own_fast_opt_in", () => {
 test("test_leaving_the_quick_page_restores_the_default_cadence", () => {
   activeTab.value = "output";
   assert.equal(intervals.at(-1).ms, 2000);
+});
+
+// LIVE has no opt-in and needs none. It is a mode rather than a tab, so
+// `activeTab` still names the tab the user left while LIVE is shown — the page
+// polled at the default cadence no matter what until fastPollMs read the mode
+// itself. `activeTab` is left on `output`, whose opt-in does not exist, so only
+// the mode can account for the cadence below.
+
+test("test_live_mode_polls_at_half_a_second", () => {
+  liveMode.value = true;
+  assert.equal(intervals.at(-1).ms, 500);
+});
+
+test("test_leaving_live_returns_the_page_underneath_to_its_own_cadence", () => {
+  liveMode.value = false;
+  assert.equal(intervals.at(-1).ms, 2000);
+});
+
+test("test_a_tab_opt_in_still_holds_after_live_is_switched_off", () => {
+  activeTab.value = "system"; // system's opt-in went on further up and stayed on
+  assert.equal(intervals.at(-1).ms, 500);
 });
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------

@@ -47,3 +47,12 @@ test("a daemon in the verified series draws no notice", () => {
   health.value = { info: { engine: "6.0.4" }, license: null };
   assert.ok(!render(html`<${System} />`).includes("verified against"));
 });
+
+// LIVE renders the same engine-health card without its opt-in, since that page
+// is always fast. The tab is where the choice is still real, so the tickbox has
+// to survive here.
+
+test("the engine health card keeps its quick updates tickbox on the tab", () => {
+  health.value = { info: {}, license: null };
+  assert.ok(render(html`<${System} />`).includes("Quick updates"));
+});
