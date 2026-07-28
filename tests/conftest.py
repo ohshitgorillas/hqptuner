@@ -79,6 +79,12 @@ _DEFAULTS = {
     "_vol_enabled": "1",
     "_vol_adaptive": "0",
     "_metadata": "",  # optional <metadata> child injected into the Status frame
+    # Status reports the mode the engine is RUNNING as a display string, which is
+    # not always the configured one: in [source] mode it follows the source. The
+    # string is the same one GetModes gives that mode — verified against the live
+    # daemon (hqplayerd 6.0.4, 2026-07-27): configured mode 2 reports
+    # active_mode="SDM (DSD)", byte-identical to ModesItem index 2.
+    "_active_mode": "PCM",
 }
 
 
@@ -159,7 +165,7 @@ def _query(name: str, state: dict[str, str]) -> str | None:
         # active_* live on the Status root; the track <metadata> child is where the
         # daemon emits unescaped chars mid-playback (_metadata override).
         return (
-            f'<Status state="{state["state"]}" active_mode="PCM" '
+            f'<Status state="{state["state"]}" active_mode="{state["_active_mode"]}" '
             f'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
             f'active_rate="192000" volume="{state["volume"]}">'
             f'{state["_metadata"]}</Status>'

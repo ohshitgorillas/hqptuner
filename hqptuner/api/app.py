@@ -111,7 +111,14 @@ def health(manager: Mgr) -> dict[str, Any]:
 
 @router.get("/state")
 def state(manager: Mgr) -> dict[str, Any]:
-    return deps.snapshot(manager, manager.state)
+    # `active_chain` is not a State attribute: it is which filter/shaper chain the
+    # engine currently has loaded (livemap.active_chain — the configured mode when
+    # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
+    # here so the frontend knows which chain's controls are live-adjustable
+    # without duplicating that State/Status fallback in JS.
+    live = manager.state
+    data = None if live is None else {**live, "active_chain": livemap.active_chain(manager)}
+    return deps.snapshot(manager, data)
 
 
 @router.get("/status")
