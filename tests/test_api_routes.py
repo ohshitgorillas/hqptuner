@@ -4,12 +4,12 @@ faithful fake 8088 config daemon, so every route body serves what the fakes
 answered over the wire (docs/testing.md — fakes speak the wire protocol, no
 manager internals are touched)."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import wait_for_api
+from conftest import spawn_threaded_daemon, wait_for_api
 from fastapi.testclient import TestClient
 
 from hqptuner.api import create_app
@@ -75,6 +75,29 @@ def disabled_volume_api(threaded_disabled_volume_port: int, tmp_path: Path) -> I
     yield from _live_app(threaded_disabled_volume_port, tmp_path)
 
 
+@pytest.fixture
+def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
+    """Build the control-only app on a fake daemon carrying the given State and
+    Status overrides. A factory rather than a fixture per case: which chain the
+    engine has loaded is four different daemon situations, and a fixture pair for
+    each would be six near-identical fixtures for four one-line tests."""
+    daemons: list[Iterator[int]] = []
+    apps: list[Iterator[TestClient]] = []
+
+    def build(**overrides: str) -> TestClient:
+        daemon = spawn_threaded_daemon(overrides)
+        daemons.append(daemon)
+        app = _live_app(next(daemon), tmp_path)
+        apps.append(app)
+        return next(app)
+
+    yield build
+    for app in apps:
+        next(app, None)
+    for daemon in daemons:
+        next(daemon, None)
+
+
 # --- live snapshots (4321 lane) ----------------------------------------------
 
 
@@ -84,6 +107,41 @@ def test_state_serves_the_daemons_state_snapshot(live_api: TestClient) -> None:
 
 def test_state_is_not_stale_while_the_daemon_is_reachable(live_api: TestClient) -> None:
     assert live_api.get("/api/state").json()["stale"] is False
+
+
+# --- which chain's controls are live-adjustable -------------------------------
+# GetFilters/GetShapers answer for the ACTIVE mode's chain only, so the frontend
+# has to know which chain is loaded before it can offer a filter or shaper as a
+# live control. /api/state answers it rather than the browser, because the
+# fallback below is not derivable from State alone.
+#
+# Uncovered on purpose: the resolver also treats a `DSD`-prefixed active_mode as
+# SDM. No daemon has been observed emitting one — the live engine reports the
+# GetModes display name verbatim ("SDM (DSD)") — so a case for it would assert a
+# guess about the wire back at the fake.
+
+
+def test_a_configured_pcm_mode_is_the_live_chain(chain_api: Callable[..., TestClient]) -> None:
+    assert chain_api(mode="1").get("/api/state").json()["data"]["active_chain"] == "pcm"
+
+
+def test_a_configured_sdm_mode_is_the_live_chain(chain_api: Callable[..., TestClient]) -> None:
+    assert chain_api(mode="2").get("/api/state").json()["data"]["active_chain"] == "sdm"
+
+
+def test_auto_mode_takes_the_live_chain_from_the_running_engine(chain_api: Callable[..., TestClient]) -> None:
+    # [source] follows the source, so the configured mode cannot say which chain
+    # is loaded and Status's active mode is the only lane that can.
+    client = chain_api(mode="0", _active_mode="SDM (DSD)")
+    assert client.get("/api/state").json()["data"]["active_chain"] == "sdm"
+
+
+def test_an_unanswerable_chain_is_reported_as_unknown(chain_api: Callable[..., TestClient]) -> None:
+    # Neither lane can answer before playback starts. Null, never a guess: a
+    # wrong chain offers filters that would resolve against the other chain's
+    # enum IDs.
+    client = chain_api(mode="0", _active_mode="")
+    assert client.get("/api/state").json()["data"]["active_chain"] is None
 
 
 def test_status_serves_the_engines_active_mode(live_api: TestClient) -> None:
