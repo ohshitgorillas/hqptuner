@@ -89,7 +89,7 @@ export const F0 = 20;
 export const F1 = 20000;
 export const bandFreqs = (n) => logFreqs(F0, F1, n);
 
-// --- matrix pipeline stage responses (matrix-spec step 7) --------------------
+// --- matrix stage responses (matrix-spec.md "Response plot") -----------------
 // Same RBJ cookbook discipline as the loudness bands: exact coefficients, no
 // approximation. A pipeline chain's response is the per-stage sum (dB / deg).
 

@@ -169,7 +169,7 @@ class ControlClient:
     async def get_volume_range(self) -> dict[str, str]:
         """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
         The authority for live-volume slider bounds and whether volume control is
-        active at all (protocol.md §7.3)."""
+        active at all (protocol.md §6, "Volume commands")."""
         return await self._attrs("<VolumeRange/>")
 
     async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
@@ -200,7 +200,7 @@ class ControlClient:
 
     async def set_command(self, element_name: str, **attrs: str) -> ET.Element:
         """Setter with result check. result="OK" or absent (SetAdaptiveVolume
-        quirk, protocol.md §9.9) passes; result="Error" raises with the reason.
+        quirk, protocol.md §6) passes; result="Error" raises with the reason.
         Note result="OK" is not proof of application — callers verify by State
         readback (protocol.md §6 caveat)."""
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())

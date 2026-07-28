@@ -36,7 +36,7 @@ export function grayShapersByRate(options, kind) {
 // Live-enum option source (schema `optionsFrom: 'enum'` + `enumKey`), for the
 // 4321-lane controls that have no /config form field to take options from. The
 // running engine is the sole authority for names AND ordering (architecture §2), and
-// Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §9) — so
+// Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §4) — so
 // `index` is the value, never a shipped constant.
 export function enumOptions(name) {
   const list = (enums.value && enums.value[name]) || [];

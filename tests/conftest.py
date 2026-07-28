@@ -174,7 +174,7 @@ def _handle(body: str, state: dict[str, str]) -> str:
     if answer is not None:
         return answer
     if name == "Volume" and state["_vol_enabled"] == "0":
-        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §7.3)
+        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §6)
     value = attrs.get("value")
     if value == "err":
         return f'<{name} result="Error">bad value</{name}>'

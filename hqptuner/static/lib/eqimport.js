@@ -1,4 +1,4 @@
-// AutoEq / REW ParametricEQ text import (matrix-spec step 6). Both dialects
+// AutoEq / REW ParametricEQ text import (matrix-spec.md "AutoEq / REW import"). Both dialects
 // share one line grammar — AutoEq: "Filter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41"
 // preceded by "Preamp: -6.4 dB"; REW's Generic EQ export writes the same fields
 // with looser spacing under a header block. Anything that isn't a filter line
@@ -64,7 +64,7 @@ export function parseEqText(text) {
   return { preamp, stages, skipped };
 }
 
-// --- import plan (matrix-spec step 6, decision half) --------------------------
+// --- import plan (matrix-spec.md "AutoEq / REW import", decision half) --------
 //
 // Where the parsed filters land, given the current pipeline set. Pure: the tab's
 // `doImport` reads its private signals, calls this, and stages the result.

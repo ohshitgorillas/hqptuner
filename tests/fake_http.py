@@ -230,8 +230,8 @@ def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
 # No POST /matrix or POST /matrix/{load,save,delete} here. HQPTuner writes the
 # matrix only through /restore now: profile save/delete are staged
 # <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile
-# (matrix-spec round 5). Modelling routes nothing calls would be scaffolding for
-# a lane that is deliberately gone.
+# (matrix-spec.md "Probe findings — saved"). Modelling routes nothing calls
+# would be scaffolding for a lane that is deliberately gone.
 
 
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:
