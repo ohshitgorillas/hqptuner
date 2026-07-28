@@ -27,6 +27,7 @@ import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { ApodNarrow } from "./ApodNarrow.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
+import { EngineHealth } from "./EngineHealth.js";
 import { Section, Card } from "./tabs/common.js";
 
 const CHAIN_TITLE = { pcm: "PCM chain", sdm: "SDM chain" };
@@ -232,9 +233,17 @@ export function LiveView() {
         restart an Apply in the tabs view performs. After that the engine is back to its configured settings.
       </div>
       <${HeroRow} />
+      <!-- The same card the System tab carries, second on the page because on
+           LIVE it is the instrument you judge a write by: change the rate or the
+           filter and the needle is what tells you the engine took it. Both this
+           and PlaybackVolume drop their "quick updates" checkbox here — LIVE
+           polls at 500 ms unconditionally (store/ui.js). -->
+      <${Card} title="Engine health">
+        <${EngineHealth} showQuick=${false} />
+      <//>
       <${ChainCard} />
       <${ProcessingCard} />
-      <${PlaybackVolume} />
+      <${PlaybackVolume} showQuick=${false} />
       <${MatrixProfileCard} />
     <//>
   `;

@@ -81,7 +81,9 @@ function throttleSend(v) {
   if (timer == null) flush();
 }
 
-export function PlaybackVolume() {
+// `showQuick`: see EngineHealth.js. LIVE renders this card with it off because
+// that page's readback is already at 500 ms; the Volume tab's copy is untouched.
+export function PlaybackVolume({ showQuick = true }) {
   const { enabled, min, max } = knobRange();
   const engine = volume.value != null ? Number(volume.value) : min;
   const val = dragging.value ? display.value : engine;
@@ -116,11 +118,17 @@ export function PlaybackVolume() {
           onCommit=${onCommit}
         />
       </div>
-      <label class="poll-quick inline-check">
-        <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(v) => setFastVolumeUpdates(v === "1")} />
-        Faster volume updates
-        <span class="poll-quick-note">refresh twice a second while this page is open</span>
-      </label>
+      ${
+        showQuick
+          ? html`
+            <label class="poll-quick inline-check">
+              <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(v) => setFastVolumeUpdates(v === "1")} />
+              Faster volume updates
+              <span class="poll-quick-note">refresh twice a second while this page is open</span>
+            </label>
+          `
+          : null
+      }
       ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
     </section>
   `;
