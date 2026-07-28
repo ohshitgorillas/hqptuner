@@ -72,6 +72,35 @@ if [ "$TARGET" = main ] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null
     || die "tag $TAG already exists on a different commit — bump the version."
 fi
 
+# Checking out a promotion target writes every path that exists in its tree but
+# not in dev's. Git refuses when such a path is an untracked file on disk — but
+# NOT when the file is ignored: those it overwrites without a word. A file that
+# is ignored here and still tracked downstream is therefore destroyed by the
+# checkout, and the ff-merge then deletes it outright. That is not hypothetical;
+# it is how this script ate an in-flight docs/eq-assistant/todo.md.
+clobber_check() {   # clobber_check <ref>...
+  local ref path hit=0
+  for ref in "$@"; do
+    git rev-parse -q --verify "$ref" >/dev/null || continue
+    while IFS= read -r path; do
+      [ -n "$path" ] && [ -e "$path" ] || continue
+      echo "  $ref tracks '$path', which exists here untracked — checkout would overwrite it" >&2
+      hit=1
+    done < <(git diff --name-only --diff-filter=A HEAD "$ref")
+  done
+  return "$hit"
+}
+
+case "$TARGET" in
+  beta) CLOBBER_REFS=(origin/beta beta) ;;
+  main) CLOBBER_REFS=(origin/beta beta origin/main main) ;;
+  *)    CLOBBER_REFS=() ;;
+esac
+if [ ${#CLOBBER_REFS[@]} -gt 0 ] && ! clobber_check "${CLOBBER_REFS[@]}"; then
+  [ "$DRY" = 1 ] || die "move or delete the file(s) above, then rerun — promoting would destroy them."
+  echo "  WARNING: a real ship would stop here."
+fi
+
 echo "  version $PY_VER · dev at $(git rev-parse --short HEAD) · target $TARGET"
 if [ "$DRY" = 1 ]; then echo "  (dry run — nothing below is executed)"; fi
 
