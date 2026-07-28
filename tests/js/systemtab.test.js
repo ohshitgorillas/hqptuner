@@ -37,3 +37,13 @@ test("engine build string is labelled version", () => {
   health.value = { info: { engine: "6.0.0-test" }, license: null };
   assert.ok(render(html`<${System} />`).includes("<dt>Version</dt>"));
 });
+
+test("a daemon outside the verified series says so under its version", () => {
+  health.value = { info: { engine: "6.1.0" }, license: null };
+  assert.ok(render(html`<${System} />`).includes("verified against"));
+});
+
+test("a daemon in the verified series draws no notice", () => {
+  health.value = { info: { engine: "6.0.4" }, license: null };
+  assert.ok(!render(html`<${System} />`).includes("verified against"));
+});

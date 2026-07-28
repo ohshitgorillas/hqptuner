@@ -2,6 +2,12 @@
 
 Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/) once out of beta.
 
+## [Unreleased]
+
+### Added
+
+- **The About card now says when your daemon isn't the version HQPTuner was built against.** HQPTuner is developed and verified against the hqplayerd 6.0 series; running anything else, the System tab's About card says so directly under the version the daemon reports. Nothing is disabled and nothing is refused — the running engine has always been the authority for its own filter and modulator lists, so another series largely just works — but if something does misbehave, that difference is the first thing worth putting in a bug report.
+
 ## [0.9.2] — 2026-07-27
 
 ### Changed

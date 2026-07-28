@@ -28,6 +28,19 @@ const licenseLabel = (l) => {
   return trial ? "FALSE" : "TRUE";
 };
 
+// HQPTuner is developed and verified against the hqplayerd 6.0 series. Another
+// series is never refused and nothing is disabled for it — the running engine is
+// the authority for its own enumerations, so a different daemon largely just
+// works — but the mismatch is worth saying once, directly under the Version row
+// it is about. Empty string when the daemon matches or has not reported one.
+const VERIFIED_SERIES = "6.0";
+
+const engineMismatch = computed(() => {
+  const reported = info.value.engine || info.value.version || "";
+  const parts = /^(\d+)\.(\d+)/.exec(reported);
+  return parts && `${parts[1]}.${parts[2]}` !== VERIFIED_SERIES ? reported : "";
+});
+
 const About = () => {
   const i = info.value;
   const rows = [
@@ -46,6 +59,15 @@ const About = () => {
           </div>`,
       )}
     </dl>
+    ${
+      engineMismatch.value
+        ? html`<p class="field-note">
+          HQPTuner is verified against the hqplayerd ${VERIFIED_SERIES} series and this daemon reports
+          ${engineMismatch.value}. Nothing is disabled for it — but if something misbehaves, that difference is worth
+          putting in the report.
+        </p>`
+        : ""
+    }
   `;
 };
 
