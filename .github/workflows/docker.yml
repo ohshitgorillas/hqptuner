@@ -11,7 +11,14 @@ permissions:
   packages: write
 
 jobs:
+  # A red tree must not publish an image. Every tag this workflow pushes —
+  # :latest, :beta, and the semver tags — is gated on the same `make check`
+  # the pre-commit hooks run locally.
+  check:
+    uses: ./.github/workflows/check.yml
+
   build-push:
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
