@@ -35,7 +35,7 @@ markers = ["live: requires a reachable hqplayerd (deselect with '-m \"not live\"
 # as unused. min_confidence 60 is vulture's floor for unused module-level defs.
 paths = ["hqptuner"]
 min_confidence = 60
-ignore_decorators = ["@router.get", "@router.post", "@router.delete"]
+ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.delete"]
 
 [tool.ruff]
 line-length = 120

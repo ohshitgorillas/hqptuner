@@ -18,11 +18,12 @@ from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..control import ControlError
 from ..lanes import livelane, livemap
+from ..livepresets import LivePresetStore
 from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
 from ..presetstore import PresetError
 from ..writer import known_live_settings
-from . import deps, matrixapi
+from . import deps, livepresetapi, matrixapi
 from .deps import HttpMgr, Mgr
 
 
@@ -434,8 +435,10 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.static = static
     app.state.http_client = http_client
     app.state.pending = PendingStore()
+    app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.include_router(router)
     app.include_router(matrixapi.router)
+    app.include_router(livepresetapi.router)
     # Serve the SPA. Mounted last and at "/", so the /api routes above win; the
     # SPA's static assets and index.html fall through to here.
     static_dir = Path(__file__).resolve().parent.parent / "static"
