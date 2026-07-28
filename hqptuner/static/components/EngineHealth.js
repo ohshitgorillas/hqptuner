@@ -5,7 +5,8 @@
 // the input/output buffer fill, and flat counters for clips / apodizing
 // events (per-track deltas from store/health.js, totals muted beside).
 // All values are playback-time readings — idle dims the cluster and parks
-// the needle. Data is the same 2 s Status poll the alert strip uses; the
+// the needle. Data is the same Status poll the alert strip uses — 2 s on the
+// System tab unless quick updates is ticked, 500 ms on LIVE always; the
 // needle's CSS transform transition gives it damped-ballistics sweep
 // between polls.
 import { html } from "../lib/dom.js";
@@ -93,7 +94,11 @@ const Counter = ({ label, delta, total, alert }) => html`
   </div>
 `;
 
-export function EngineHealth() {
+// `showQuick` is the opt-in checkbox, on by default. LIVE renders this card with
+// it off: that page already polls at 500 ms unconditionally (store/ui.js), so an
+// unticked box promising faster updates would be describing something the page
+// is already doing. The System tab's copy is untouched.
+export function EngineHealth({ showQuick = true }) {
   const st = (engineStatus.value || {}).status || {};
   const playing = Number(st.state) === 2;
   const n = (v) => {
@@ -121,10 +126,16 @@ export function EngineHealth() {
         <${Counter} label="Apodizing events" delta=${apod} total=${n(st.apod)} alert=${false} />
       </div>
     </div>
-    <label class="poll-quick inline-check">
-      <${Checkbox} value=${quickSystemUpdates.value ? "1" : "0"} onChange=${(v) => setQuickSystemUpdates(v === "1")} />
-      Quick updates
-      <span class="poll-quick-note">refresh twice a second while this page is open</span>
-    </label>
+    ${
+      showQuick
+        ? html`
+          <label class="poll-quick inline-check">
+            <${Checkbox} value=${quickSystemUpdates.value ? "1" : "0"} onChange=${(v) => setQuickSystemUpdates(v === "1")} />
+            Quick updates
+            <span class="poll-quick-note">refresh twice a second while this page is open</span>
+          </label>
+        `
+        : null
+    }
   `;
 }
