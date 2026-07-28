@@ -10,11 +10,25 @@
 // not our JSON at all (a proxy error page, a dropped daemon). A 422 from
 // request validation answers with a list rather than a string — not a sentence
 // we can show, so it takes the fallback too.
+// The LIVE lane answers a refused batch with per-field reasons rather than one
+// sentence — {"filter": "the pcm chain is not loaded (engine chain: sdm)"} —
+// because it refuses field by field. Reading the values out keeps that sentence;
+// the alternative is the bare status code, which tells the control nothing. A
+// LIST detail stays on the fallback: that is FastAPI's request-validation shape,
+// a structure rather than prose.
+function detailOf(body) {
+  const d = body?.detail;
+  if (typeof d === "string") return d;
+  if (!d || typeof d !== "object" || Array.isArray(d)) return "";
+  return Object.values(d)
+    .filter((v) => typeof v === "string")
+    .join("; ");
+}
+
 async function failure(path, r) {
   let detail = "";
   try {
-    const body = await r.json();
-    if (typeof body?.detail === "string") detail = body.detail;
+    detail = detailOf(await r.json());
   } catch {
     detail = "";
   }
@@ -63,6 +77,9 @@ export const api = {
   stage: (body) => send("/api/config/stage", "POST", body),
   discard: () => send("/api/config/pending", "DELETE"),
   apply: (body) => send("/api/config/apply", "POST", body || {}),
+  // the LIVE view's whole write path: applied on the spot, readback-verified,
+  // never staged (store/live.js)
+  live: (fields) => send("/api/config/live", "POST", { fields }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
