@@ -17,7 +17,7 @@ from .. import __version__
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..control import ControlError
-from ..lanes import livemap
+from ..lanes import livelane, livemap
 from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
 from ..presetstore import PresetError
@@ -60,6 +60,10 @@ class ApplyBody(BaseModel):
     # optional: the user previewed this preset in the editor; apply loads it first
     # so it becomes active, then applies the staged tweaks on top of its snapshot.
     switch_to: str | None = None
+
+
+class LiveBody(BaseModel):
+    fields: dict[str, str] = {}
 
 
 class ProfileBody(BaseModel):
@@ -314,6 +318,32 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
         report["saved"] = await _save_after_apply(manager, body.save.name)
     store.clear()
     return report
+
+
+@router.post("/config/live")
+async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
+    """Apply live-lane config-form fields immediately, readback-verified — the
+    LIVE view's whole write path. Never staged and never persistent, so it cannot
+    restart the daemon and cannot flush what the tabs view has staged.
+
+    Routed through the lane rather than a manager method because the LIVE lane's
+    only caller is this route, and `/state` above already reads `livemap`
+    directly for the same reason.
+    """
+    if not body.fields:
+        raise HTTPException(status_code=422, detail="no live fields given")
+    unknown = sorted(set(body.fields) - set(livemap.live_fields()))
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown live fields: {unknown}")
+    try:
+        return await livelane.apply_now(manager, body.fields)
+    except livemap.LiveRouteError as exc:
+        # 409, not 422: every field is a real live control and its value was a
+        # real option — the engine's current chain or lists are what refuse it,
+        # so the reasons are per field and the batch applied nothing.
+        raise HTTPException(status_code=409, detail=exc.reasons) from exc
+    except ControlError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/engine")

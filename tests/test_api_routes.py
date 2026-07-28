@@ -176,6 +176,86 @@ def test_volume_write_is_rejected_when_the_daemon_disables_volume(disabled_volum
     assert disabled_volume_api.post("/api/volume", json={"level": "-20"}).status_code == 503
 
 
+# --- immediate live writes (POST /api/config/live) -----------------------------
+# The LIVE view's whole write path: config-form-domain values in, applied and
+# readback-verified on the spot. Never staged, never persistent — so the
+# assertions are on what the daemon reports afterwards, which is the only thing
+# that distinguishes an applied write from an accepted one (protocol.md §6).
+
+
+def test_a_live_write_lands_on_the_engine(live_api: TestClient) -> None:
+    live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
+    assert live_api.get("/api/state").json()["data"]["filter_junk"] == "1"
+
+
+def test_a_live_write_reports_each_setting_it_applied(live_api: TestClient) -> None:
+    resp = live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
+    assert resp.json()["live"] == [{"setting": "junk_filter", "ok": True}]
+
+
+def test_a_filter_value_is_translated_from_the_config_domain(chain_api: Callable[..., TestClient]) -> None:
+    # enum ID 23 is `sinc-M`, which sits at list INDEX 1 on the SDM chain. 23 is a
+    # plausible index as well, so a write that skipped the translation would land
+    # on a different filter rather than fail (protocol.md §4 — never mix domains).
+    client = chain_api(mode="2")
+    client.post("/api/config/live", json={"fields": {"oversampling": "23"}})
+    assert client.get("/api/state").json()["data"]["filterNx"] == "1"
+
+
+def test_a_one_sided_filter_write_keeps_its_sibling(chain_api: Callable[..., TestClient]) -> None:
+    # LIVE writes one control at a time, and `SetFilter value` alone sets BOTH
+    # halves — so every LIVE filter write is the one-sided case.
+    client = chain_api(filter1x="2", filterNx="0")
+    client.post("/api/config/live", json={"fields": {"filter": "40"}})
+    assert client.get("/api/state").json()["data"]["filter1x"] == "2"
+
+
+def test_a_filter_for_the_dormant_chain_is_refused(chain_api: Callable[..., TestClient]) -> None:
+    # `filter` is the PCM chain's field and the engine is running SDM, where enum
+    # ID 40 means a different filter entirely.
+    client = chain_api(mode="2")
+    assert client.post("/api/config/live", json={"fields": {"filter": "40"}}).status_code == 409
+
+
+def test_a_refused_batch_applies_nothing(chain_api: Callable[..., TestClient]) -> None:
+    # All-or-nothing: the LIVE page has no Apply button to retry from, so a half
+    # applied batch would leave the engine where no control on the page describes.
+    client = chain_api(mode="2")
+    client.post("/api/config/live", json={"fields": {"filter": "40", "junk_filter": "1"}})
+    assert client.get("/api/state").json()["data"]["filter_junk"] == "0"
+
+
+def test_a_mode_change_cannot_be_batched_with_other_settings(live_api: TestClient) -> None:
+    # SetMode swaps the enumerations every other value in the batch was resolved
+    # against, so those indices would be stale by the time their setter ran.
+    resp = live_api.post("/api/config/live", json={"fields": {"mode": "pcm", "junk_filter": "1"}})
+    assert resp.status_code == 409
+
+
+def test_a_rate_is_translated_from_hz_to_the_engines_index(live_api: TestClient) -> None:
+    # `SetRate` takes the RatesItem index; the value carried here is the actual
+    # rate in Hz, which is what the item reports (it has no `value` attribute).
+    live_api.post("/api/config/live", json={"fields": {"rate": "705600"}})
+    assert live_api.get("/api/state").json()["data"]["rate"] == "3"
+
+
+def test_a_rate_the_engine_does_not_offer_is_refused(live_api: TestClient) -> None:
+    assert live_api.post("/api/config/live", json={"fields": {"rate": "12345"}}).status_code == 409
+
+
+def test_an_unknown_live_field_is_refused(live_api: TestClient) -> None:
+    assert live_api.post("/api/config/live", json={"fields": {"nope": "1"}}).status_code == 422
+
+
+def test_a_live_write_leaves_the_staged_buffer_alone(live_api: TestClient) -> None:
+    # The pending buffer is shared with the tabs view and `POST /config/apply`
+    # flushes all of it — a LIVE control must never be the thing that applies an
+    # edit the user staged elsewhere.
+    live_api.post("/api/config/stage", json={"http": {"title": "Opal"}})
+    live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
+    assert live_api.get("/api/config/pending").json()["http"] == {"title": "Opal"}
+
+
 # --- matrix profiles (live lane) ------------------------------------------------
 
 

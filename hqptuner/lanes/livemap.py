@@ -282,3 +282,128 @@ def split_live(
     if "filter" in live and not _complete_filter_pair(live["filter"], mgr.state or {}):
         routed = _unroute_filter(live, routed)
     return _merge(live_edits, live), {k: v for k, v in http_fields.items() if k not in routed}
+
+
+# --- LIVE lane: the LIVE view's immediate, unstaged writes --------------------
+# The LIVE view writes each control the moment it changes, so its batches resolve
+# against the running enumerations exactly like the apply lane's live half above
+# — plus two controls that lane never routes. `lanes/livelane.py` applies what
+# this resolves.
+
+
+class LiveRouteError(Exception):
+    """A LIVE batch that could not be resolved, carrying one reason per field.
+
+    Raised rather than dropping the unroutable fields the way ``split_live``
+    does. Its fallback is the restore lane, which is always correct and only
+    slower; LIVE has no fallback, so a silently skipped field would leave its
+    control displaying a value the engine never took.
+    """
+
+    def __init__(self, reasons: dict[str, str]) -> None:
+        super().__init__("; ".join(f"{field}: {why}" for field, why in sorted(reasons.items())))
+        self.reasons = reasons
+
+
+_LIVE_ONLY: dict[str, LiveField] = {
+    # Target output rate. Deliberately absent from ROUTABLE, and for the reason
+    # stated there: the config form's `defaults_samplerate`/`defaults_bitrate` are
+    # a per-family ceiling under forced auto-family, a different slot from the
+    # target rate `SetRate` writes. LIVE carries the target slot itself, as an
+    # actual rate in Hz ("0" = auto) — and `RatesItem` has no `value` attribute
+    # (`<RatesItem index rate/>`, protocol.md §6), so this one joins on `rate`.
+    # A live-set rate is ephemeral by design: httplane.FORCED_CONFIG re-forces
+    # samplerate=0 on every persistent apply, so LIVE experiments never reach the
+    # config file.
+    "rate": LiveField("rate", "value", "rates", None, "rate"),
+    # Junk (playback) filter. Already index-domain on both sides — the daemon's
+    # /config form has no field for it, so the frontend has always carried the
+    # list index (store/schema.js `junk_filter`) — which makes the translation a
+    # membership check: an index the running enumeration does not carry is
+    # refused here instead of failing its readback afterwards.
+    "junk_filter": LiveField("junk_filter", "value", "junk_filters", None, "filter_junk"),
+}
+
+_FILTER_FIELDS = tuple(field for field, spec in ROUTABLE.items() if spec.setting == "filter")
+
+
+def live_fields() -> tuple[str, ...]:
+    """Every config-form field the LIVE lane accepts."""
+    return (*ROUTABLE, *_LIVE_ONLY, *DIRECT)
+
+
+def _index_for_rate(items: EnumItems, hz: str) -> str | None:
+    """The ``RatesItem`` index carrying this rate in Hz (``"0"`` = auto)."""
+    for item in items:
+        if str(item.get("rate")) == str(hz):
+            index = item.get("index")
+            return None if index is None else str(index)
+    return None
+
+
+def _known_index(items: EnumItems, index: str) -> str | None:
+    """``index`` back, but only if the running enumeration carries it."""
+    return str(index) if any(str(item.get("index")) == str(index) for item in items) else None
+
+
+def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
+    """The list index this LIVE field+value becomes, or None when it cannot."""
+    if field in ROUTABLE:
+        return _resolve(mgr, field, value, chain)
+    items = (mgr.enums or {}).get(_LIVE_ONLY[field].enum) or []
+    return _index_for_rate(items, value) if field == "rate" else _known_index(items, value)
+
+
+def _why_unresolved(field: str, value: str, chain: str | None) -> str:
+    """Why a field would not resolve, in terms the control that sent it can show."""
+    spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
+    if spec.chain is not None and spec.chain != chain:
+        return f"the {spec.chain} chain is not loaded (engine chain: {chain or 'unknown'})"
+    return f"{value} is not in the engine's live {spec.enum} list"
+
+
+def _route_live(
+    mgr: ConnectionManager, fields: dict[str, str], chain: str | None
+) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
+    """Every field as setter args, alongside the ones that would not resolve."""
+    edits: dict[str, dict[str, str]] = {}
+    reasons: dict[str, str] = {}
+    for field, value in fields.items():
+        if field in DIRECT:
+            # both sides are the same 0/1 flag, so there is nothing to translate,
+            # and the form field's name is already the writer's setting key
+            edits[field] = {"value": value}
+            continue
+        index = _live_index(mgr, field, value, chain)
+        if index is None:
+            reasons[field] = _why_unresolved(field, value, chain)
+            continue
+        spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
+        edits.setdefault(spec.setting, {})[spec.arg] = index
+    return edits, reasons
+
+
+def resolve_live(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, dict[str, str]]:
+    """A LIVE batch as ``writer.apply_live`` edits, or ``LiveRouteError``.
+
+    All-or-nothing: the whole batch resolves before a single setter runs, because
+    the LIVE page has no Apply button to retry from and a half-applied batch would
+    leave the engine in a state no control on the page describes.
+    """
+    # The whole batch, not just the ROUTABLE part `split_live` guards: the rate
+    # list is mode-dependent too (manual §4.6), so a mode change invalidates every
+    # index resolved beside it, not only the chain fields'.
+    if _mode_blocks_batch(fields):
+        raise LiveRouteError(
+            {
+                "mode": "an output-mode change cannot be batched with other live settings: SetMode swaps the "
+                "enumerations the other values were resolved against"
+            }
+        )
+    edits, reasons = _route_live(mgr, fields, active_chain(mgr))
+    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.state or {}):
+        unfillable = "State reports no current filter, so the other half of the SetFilter pair cannot be filled in"
+        reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS), unfillable))
+    if reasons:
+        raise LiveRouteError(reasons)
+    return edits
