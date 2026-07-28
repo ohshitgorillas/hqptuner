@@ -3,6 +3,7 @@
 Pure filesystem — no daemon, no wire. Each test drives one behaviour against a
 tmp_path store and asserts once."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -94,3 +95,21 @@ def test_import_missing_keeps_existing_preset(tmp_path: Path) -> None:
     store.save("Speakers", b"<mine/>")
     store.import_missing({"Speakers": b"<daemon/>"})
     assert store.read("Speakers") == b"<mine/>"
+
+
+# store.json is the store's on-disk layout contract — what a DIFFERENT HQPTuner
+# version reads to decide whether it understands this directory. A test writes it
+# by hand for the same reason a wire test writes a frame by hand: the situation
+# under test is one another version created.
+def test_a_store_from_a_newer_hqptuner_is_refused(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.save("Speakers", b"<a/>")
+    (tmp_path / "presets" / "store.json").write_text(json.dumps({"schema": 99}))
+    with pytest.raises(PresetError, match="schema 99"):
+        store.read("Speakers")
+
+
+def test_an_unstamped_store_is_adopted_rather_than_refused(tmp_path: Path) -> None:
+    (tmp_path / "presets").mkdir()
+    (tmp_path / "presets" / "Legacy.xml").write_bytes(b"<a/>")
+    assert _store(tmp_path).read("Legacy") == b"<a/>"
