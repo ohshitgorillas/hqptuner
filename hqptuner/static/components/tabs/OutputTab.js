@@ -51,21 +51,18 @@ export const Output = () => {
   return html`<${Section}>
     <${DeviceAlert} />
     <div class="top-row">
-      <div class="box seg-box">
-        <div class="box-title">Backend</div>
+      <${Card} title="Backend" center=${true} cardClass="seg-box">
         <${Field} k="backend" />
-      </div>
-      <div class="box seg-box">
-        <div class="box-title">Mode</div>
+      <//>
+      <${Card} title="Mode" center=${true} cardClass="seg-box">
         <${Field} k="output_mode" />
-      </div>
-      <div class="box">
-        <div class="box-title">Rate</div>
+      <//>
+      <${Card} title="Rate" center=${true}>
         <div class="rate-stack">
           <${Field} k="pcm_rate" />
           <${Field} k="sdm_rate" />
         </div>
-      </div>
+      <//>
     </div>
     <${Card} title="General">
       <div class="pack">

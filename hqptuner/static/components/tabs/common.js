@@ -34,9 +34,15 @@ export function collapseFrom(auto, override) {
 // body always renders; present, the head becomes the toggle button and the body
 // renders only when open. It carries {open, onToggle} rather than being a bare
 // boolean because the flag and the state it needs are the same fact.
-export function Card({ title, collapse, cardClass, bodyClass, headClass, hint, children }) {
+//
+// `center` is for a card whose body is ONE control spanning the whole frame —
+// the Output hero row. A head pinned to the left edge of a card that wide reads
+// as a caption on whatever happens to sit under its left edge rather than as
+// the name of the row beneath it, which is why the hero used to hand-roll its
+// own frame instead of taking this one.
+export function Card({ title, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
   const open = !collapse || collapse.open;
-  const headCls = headClass ? `card-head ${headClass}` : "card-head";
+  const headCls = ["card-head", center ? "center" : null, headClass].filter(Boolean).join(" ");
   const head = collapse
     ? html`<button type="button" class=${headCls} onClick=${collapse.onToggle}>
         <span class="tri">${open ? "▾" : "▸"}</span> ${title}

@@ -2,22 +2,21 @@
    Split out of app.css; cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
-/* DSP filter narrowing — a titled panel above the PCM/SDM filter cards. The
-   heading is its own line; the facet controls sit on the row beneath it. */
-.narrow-bar {
-  padding: var(--sp-2) var(--sp-3);
-  background: var(--surface-card);
-  border: 1px solid var(--surface-raised);
-  border-radius: var(--r-lg);
-  margin-bottom: var(--sp-2);
+/* DSP filter narrowing — the facet row inside the "Narrow filters" card. The
+   card frame and its head come from Card (components/tabs/common.js); nothing
+   here paints a surface. The panel used to draw its own, which is how it ended
+   up on the wrong border token and with a margin-bottom stacking on .tab-body's
+   own gap — 16px below the bar against 8px above it. */
+/* The one thing this card cannot inherit: .card clips to its own frame
+   (overflow: hidden), and every facet popover is absolutely positioned BELOW its
+   button, so clipping cut them off at the card edge and clicking a facet looked
+   like it did nothing. Overflow visible costs the corner clip that hid the
+   head's square fill, so the head takes the top radius back explicitly. */
+.card.narrow-card {
+  overflow: visible;
 }
-.narrow-header {
-  font-size: var(--fs-body);
-  font-weight: var(--fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--track-caps);
-  color: var(--fg-2);
-  margin-bottom: var(--sp-2);
+.card.narrow-card > .card-head {
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
 }
 .narrow-controls {
   display: flex;
@@ -43,13 +42,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-}
-.narrow-bar select {
-  padding: var(--sp-1) var(--sp-2);
-  background: var(--surface-raised);
-  color: var(--fg);
-  border: 1px solid var(--surface-raised);
-  border-radius: var(--r-md);
 }
 .narrow-right {
   margin-left: auto;

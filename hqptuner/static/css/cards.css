@@ -25,6 +25,18 @@
   letter-spacing: var(--track-caps);
   color: var(--fg);
 }
+/* A centred head names a card whose body is one control across the whole frame
+   (the Output hero row), where a left-pinned title would read as a caption on
+   whatever sits under its left edge. It drops the raised bar with the
+   alignment: behind a title that no longer starts at the edge, the strip reads
+   as an empty row of its own rather than as a header, so the head sits on the
+   card's own surface and carries the row's larger heading size instead. */
+.card-head.center {
+  background: var(--surface-card);
+  border-bottom: none;
+  text-align: center;
+  font-size: var(--fs-title);
+}
 /* a collapsible card's head IS the toggle, so it is a <button> and needs the
    button chrome reset away. Everything else about it — surface, padding, type,
    tracking — is the card head above, because it is the same head. */

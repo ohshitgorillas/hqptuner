@@ -19,9 +19,9 @@
 
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { hz } from "../lib/units.js";
-import { engineState, enums, modeName } from "./state.js";
+import { engineState, enums, modeName, configByName } from "./state.js";
 import { enumOptions } from "./options.js";
+import { narrowOptions } from "./narrowing.js";
 import { schema } from "./schema.js";
 
 // The control currently mid-write ("" = none), and the last error per control.
@@ -127,13 +127,6 @@ const CHAINS = {
   ],
 };
 
-// The live rate is the one control with no catalog key: its persistent twins are
-// the pcm_rate/sdm_rate pair, which write a different form field on a different
-// lane (defaults_samplerate / defaults_bitrate). It reads the manual's prose for
-// the rate control directly instead — settings.json `output.rate`, which is the
-// paragraph describing exactly this setting.
-const RATE_ENTRY = { key: "rate", entry: { group: "output" } };
-
 // Mode is the one live field whose value is a name rather than a number. The
 // modes enumeration is device-dependent — it drops SDM on a device that cannot
 // do DSD — so the form value is matched from the item's NAME, exactly as
@@ -148,13 +141,86 @@ function modeValue() {
 // `RatesItem` carries neither a name nor a value — it is `<RatesItem index rate/>`
 // (protocol.md §6) — so the rate in Hz is both what the lane takes back and its
 // own label, and rate "0" is "follow the source".
-function rateOptions() {
-  return items("rates").map((o) => ({ value: o.rate, label: o.rate === "0" ? "Auto" : hz(Number(o.rate), 3) }));
-}
-
 function rateValue() {
   const item = atIndex(items("rates"), stateOf("rate"));
   return item ? item.rate : "";
+}
+
+// --- the rate card -----------------------------------------------------------
+// The Output tab's rate box, as it is there: a PCM column and an SDM column with
+// a hairline between them, the one the running mode cannot use grayed (schema
+// grayWhen isSdm/isPcm), both reading the manual's rate prose on hover.
+//
+// The two sides write different slots, and that is the whole of what makes this
+// card different from its twin. The tab writes a per-mode CONFIG ceiling —
+// defaults_samplerate / defaults_bitrate, landing at the next restart — so each
+// of its columns always has a value of its own. LIVE writes SetRate, the engine
+// target slot, of which there is exactly one, and the engine's own rates list is
+// the only authority for what it accepts (architecture §2).
+//
+// So the column whose family the engine is actually running is the live control,
+// offering the tab's menu narrowed to what the engine has; the other column
+// shows that family's configured ceiling, grayed and read-only — the same number
+// its twin shows on the tab, and no pretence that changing it would reach the
+// engine.
+const RATE_KEY = { pcm: "pcm_rate", sdm: "sdm_rate" };
+// No PCM rate the engine offers reaches DSD64, so the lowest SDM rate separates
+// the two families outright — no rate is ambiguous between them.
+const SDM_FLOOR = 2822400;
+
+const rateFamily = (rate) => (Number(rate) >= SDM_FLOOR ? "sdm" : "pcm");
+
+// The engine also offers the 44.1k twin of every friendly rate (DSD512 is
+// 24576000 or 22579200). They are not listed, and listing them would duplicate
+// work the engine already does: under auto_family a nonzero target adjusts down
+// into the source's own family ("Real value can be equal or lower when auto
+// rate-family is used", readme §1.3.1), so DSD128 on a 44.1k source lands at
+// 5644800 whichever twin was written. Offering both would only ask the user to
+// pick a family the source has already decided.
+const offeredRates = () => new Set(items("rates").map((o) => String(o.rate)));
+
+// Which family the engine is running. The loaded chain answers it outright; with
+// no chain loaded the mode does, and in auto mode before playback nothing does —
+// there neither column is grayed, because the engine takes a rate for either.
+function liveFamily() {
+  const chain = (engineState.value || {}).active_chain;
+  if (chain) return chain;
+  const mode = modeValue();
+  return mode === "pcm" || mode === "sdm" ? mode : null;
+}
+
+function rateColumn(family) {
+  const live = liveFamily();
+  const enabled = live === null || live === family;
+  const key = RATE_KEY[family];
+  const rate = rateValue();
+  const mine = rate === "0" || rateFamily(rate) === family;
+  const configured = (configByName.value[schema[key].field] || {}).value;
+  const offered = offeredRates();
+  return {
+    field: "rate",
+    key,
+    entry: schema[key],
+    disabled: !enabled,
+    value: enabled && mine ? rate : configured,
+    // One menu for both columns — the tab's own table, in the tab's own order.
+    // The live column keeps the entries the engine is currently offering; the
+    // grayed one shows the whole table, because it is showing a configured
+    // value the engine has no list for.
+    options: enabled ? schema[key].options.filter((o) => offered.has(String(o.value))) : schema[key].options,
+  };
+}
+
+// Filter narrowing is the same feature the Resampling tab has, on the same
+// state: one set of facets narrows a control here and its twin there, because
+// they are the same control and the narrowing is the user's standing answer to
+// "which of these 77 filters am I willing to look at". Presentational only — it
+// never hides the running selection (store/narrowing.js), so no live value can
+// be narrowed off its own dropdown. Shapers carry `narrow` nowhere and are left
+// whole.
+function chainOptions(c, value) {
+  const options = idOptions(c.enumKey);
+  return c.entry.narrow ? narrowOptions(options, value, c.entry.narrow, c.key) : options;
 }
 
 // Everything the LIVE page renders, in one read. A single computed rather than a
@@ -168,7 +234,8 @@ export const liveModel = computed(() => {
     // `mode`'s config-form values are the stable strings auto/pcm/sdm, so its
     // option list is the catalog's own, not an enumeration.
     mode: { field: "mode", ...catalog("output_mode"), value: modeValue(), options: schema.output_mode.options },
-    rate: { field: "rate", ...RATE_ENTRY, value: rateValue(), options: rateOptions() },
+    pcmRate: rateColumn("pcm"),
+    sdmRate: rateColumn("sdm"),
     // The junk (playback) filter is index-domain on both sides: the daemon's own
     // /config form has no field for it, so the list index IS the value — which
     // is what enumOptions hands back, and what its per-option prose is keyed by.
@@ -179,12 +246,9 @@ export const liveModel = computed(() => {
       options: enumOptions("junk_filters"),
     },
     adaptive: { field: "adaptive_volume", ...catalog("adaptive_volume"), value: stateOf("adaptive") },
-    chainControls: (CHAINS[chain] || []).map((c) => ({
-      field: c.field,
-      key: c.key,
-      entry: c.entry,
-      value: idValue(c.enumKey, c.state),
-      options: idOptions(c.enumKey),
-    })),
+    chainControls: (CHAINS[chain] || []).map((c) => {
+      const value = idValue(c.enumKey, c.state);
+      return { field: c.field, key: c.key, entry: c.entry, value, options: chainOptions(c, value) };
+    }),
   };
 });

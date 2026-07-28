@@ -106,7 +106,7 @@ const CHAINS = {
 
 test("test_the_narrowing_bar_leads_the_tab", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(tab().includes('<div class="narrow-bar">'));
+  assert.ok(tab().includes("Narrow filters"));
 });
 
 // --- which card opens ---------------------------------------------------------

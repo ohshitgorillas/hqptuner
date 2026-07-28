@@ -27,6 +27,30 @@
   align-items: baseline;
   font-size: var(--fs-body-lg);
 }
+/* the LIVE switch — one latching button, not an ON|OFF pair, so the header costs
+   the same height in either mode. Off it reads as chrome; on it takes the accent,
+   which in this app means exactly one thing. The auto margin here and the one on
+   .presets split the header's free space evenly, which lands the switch midway
+   between the daemon state and the preset picker — the row's one empty stretch,
+   and no new alignment to maintain. */
+.live-toggle {
+  margin-left: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--muted);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+  cursor: pointer;
+  transition: var(--dur) var(--ease);
+}
+.live-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
 .presets {
   margin-left: auto;
   display: flex;

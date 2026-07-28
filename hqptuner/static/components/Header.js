@@ -6,6 +6,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { health, engineState, config, pendingPreset, previewPreset, deletePreset } from "../store/state.js";
+import { liveMode, setLiveMode } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
 import { StatusPill } from "./StatusPill.js";
@@ -50,6 +51,25 @@ function daemonIdentity() {
       <span class="muted">${info.engine ? `v${info.engine}` : ""}</span>
       <span class="muted">${PLAY[st.state] || ""}</span>
     </div>
+  `;
+}
+
+// The LIVE switch — one latching button, not an ON|OFF pair. It rides the header
+// rather than the tab bar because it is a mode over the whole app, not a peer of
+// the tabs, and because the header is the one row that exists in both modes: the
+// switch is in the same place going in as coming out.
+function LiveSwitch() {
+  const on = liveMode.value;
+  return html`
+    <button
+      type="button"
+      class="live-toggle ${on ? "on" : ""}"
+      aria-pressed=${on}
+      title=${on ? "Leave LIVE and go back to the tabs" : "Show only the settings the engine can change right now"}
+      onClick=${() => setLiveMode(!on)}
+    >
+      LIVE
+    </button>
   `;
 }
 
@@ -104,6 +124,7 @@ export function Header() {
         <span>HQPTuner</span>
       </div>
       ${daemonIdentity()}
+      <${LiveSwitch} />
       <div class="presets">${presetPicker()}</div>
       <${Ask} owner=${OWNER} />
       <${StatusPill} />
