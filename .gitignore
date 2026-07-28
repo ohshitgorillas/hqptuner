@@ -22,6 +22,9 @@ hqplayerd-readme.txt
 # and read from these local copies. Keep them, never commit them.
 docs/eq-assistant/*.pdf
 
+# EQ Assistant working checklist — churns every session, local for now
+docs/eq-assistant/todo.md
+
 # runtime pre-apply settings backups
 backups/
 
