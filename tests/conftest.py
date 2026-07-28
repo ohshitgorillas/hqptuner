@@ -120,10 +120,22 @@ _PCM_FILTERS = (("0", "none", "0"), ("1", "poly-sinc-gauss-long", "40"), ("2", "
 _SDM_FILTERS = (("0", "poly-sinc-gauss-long", "38"), ("1", "sinc-M", "23"))
 _PCM_SHAPERS = (("0", "none", "0"), ("1", "NS9", "5"))
 _SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
+_JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
+
+# `RatesItem` carries no `value`: it is `<RatesItem index rate/>` with the actual
+# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real — SDM
+# mode enumerates DSD rates, PCM mode 44.1k-768k — which is why the live rate
+# list has to be re-read after a mode change.
+_PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"))
+_SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"))
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
     return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
+
+
+def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
+    return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
 
 
 def _enumeration(name: str, state: dict[str, str]) -> str | None:
@@ -135,6 +147,10 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
         return f"<GetFilters>{_items('FiltersItem', _SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
     if name == "GetShapers":
         return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
+    if name == "GetRates":
+        return f"<GetRates>{_rate_items(_SDM_RATES if sdm else _PCM_RATES)}</GetRates>"
+    if name == "GetJunkFilters":
+        return f"<GetJunkFilters>{_items('JunkFiltersItem', _JUNK_FILTERS)}</GetJunkFilters>"
     return None
 
 
