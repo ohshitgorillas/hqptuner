@@ -150,10 +150,10 @@ All knobs are environment variables (see `hqptuner/config.py`):
 
 ## Development
 
-Backend and frontend carry matching gate suites. Run `npm install` once alongside the venv — the JS tooling is dev-only and never ships. Install the Python dev tools into the same venv, listed explicitly (the bracketed extras syntax can trip a permission hook):
+Backend and frontend carry matching gate suites. Run `npm install` once alongside the venv — the JS tooling is dev-only and never ships. The Python dev tools are the `dev` extra:
 
 ```sh
-.venv/bin/pip install pytest pytest-asyncio ruff black vulture mypy xenon pre-commit types-beautifulsoup4
+.venv/bin/pip install -e ".[dev]"
 ```
 
 
