@@ -1,0 +1,42 @@
+name: check
+
+on:
+  # dev only on push: beta, main and v* tags reach this same job through
+  # docker.yml's `needs: check`, so listing them here would run it twice.
+  push:
+    branches: [dev]
+  pull_request:
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history, not a shallow clone: check_file_length.py and the CSS
+      # gates enumerate their inputs with `git ls-files`.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches the development host. `requires-python` still admits 3.12+,
+          # but only what CI runs is actually known to work.
+          python-version: "3.14"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # The Makefile hardcodes .venv/bin, so CI builds the same venv layout a
+      # dev host has rather than reaching for a system interpreter.
+      - name: install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+          npm ci
+
+      # The offline half of the suite only: `make check` selects -m "not live",
+      # and no hqplayerd exists here to serve the live-marked tests.
+      - name: make check
+        run: make check
