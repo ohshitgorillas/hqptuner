@@ -23,13 +23,46 @@
   background: var(--surface-page);
 }
 
+/* the tab-bar row: the tabs themselves plus the LIVE switch on the right. The
+   gutter margin and the baseline rule moved here from .tab-nav so the row keeps
+   both when LIVE is on and the tab bar is gone. */
+.chrome-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  margin: 0 var(--gutter);
+  border-bottom: 1px solid var(--line);
+}
+
+/* the LIVE switch — one latching button, not an ON|OFF pair, so the row costs
+   the same height in either mode. Off it reads as chrome; on it takes the
+   accent, which on this page means exactly one thing. */
+.live-toggle {
+  margin-left: auto;
+  margin-bottom: var(--sp-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--muted);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+  cursor: pointer;
+  transition: var(--dur) var(--ease);
+}
+.live-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
 /* tabs — spread across the full container width, one equal cell each */
 .tab-nav {
   display: flex;
+  flex: 1;
   gap: var(--sp-1);
   padding: var(--sp-2) 0 0;
-  margin: 0 var(--gutter);
-  border-bottom: 1px solid var(--line);
 }
 .tab-nav button {
   flex: 1;

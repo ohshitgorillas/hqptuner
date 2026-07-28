@@ -1,0 +1,30 @@
+/* live — the LIVE page. Deliberately small: its controls reuse .card / .pack /
+   .field and its prose takes the shared text roles, so the only rules here are
+   the two things LIVE has that no other page does — a refused write, and the
+   reminder that the tabs view still holds staged edits.
+   Split out of app.css; cascade order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* Why the last write was refused, under its own control (grid col 2). Warn
+   colour rather than the caption grey: a caption is prose the user may read,
+   this is a failure they have to act on. */
+.live-error {
+  grid-column: 2;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-caption);
+  color: var(--warn);
+  max-width: var(--measure);
+}
+
+/* Staged edits waiting in the tabs view. Informational only — LIVE never
+   flushes the pending buffer and never blocks on it — so it reads as a chip
+   rather than a bar. */
+.live-chip {
+  align-self: flex-start;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}

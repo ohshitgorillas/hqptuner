@@ -6,16 +6,8 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { schema } from "../store/schema.js";
-import {
-  effective,
-  isDirty,
-  edit,
-  setLive,
-  metadata,
-  httpFieldMap,
-  formFieldName,
-  refreshDevices,
-} from "../store/state.js";
+import { effective, isDirty, edit, setLive, httpFieldMap, formFieldName, refreshDevices } from "../store/state.js";
+import { describe, selectionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { narrowOptions } from "../store/narrowing.js";
 import { grayReason } from "../store/graying.js";
@@ -35,71 +27,6 @@ const WIDGETS = {
   radio: RadioGroup,
   knob: Knob,
 };
-
-// Static per-control prose from settings.json (Phase 1 manual/readme extraction),
-// keyed by tab group. `entry.note` names the settings.json key when it differs
-// from the control key (e.g. alsa_bits + net_bits both -> "dac_bits", the rate
-// split -> "rate"); it defaults to the control key.
-function describe(entry, key) {
-  const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
-  return g[entry.note || key] || { label: key, tooltip: "" };
-}
-
-// The overlays are keyed by the ENGINE's own name, which reaches us as the
-// selected option's label (architecture §2: enumerations are the sole authority for
-// names; static data joins by name).
-function selectedLabel(options, value) {
-  const opt = (options || []).find((o) => String(o.value) === String(value));
-  return (opt && opt.label) || "";
-}
-
-// Filter join rules (data/filters.json _join_rules): exact -> alias -> strip a
-// '-2s' suffix and retry, which flags the two-stage variant. Returns the joined
-// entry (null on a miss) plus that flag.
-function joinFilter(name, fdb, aliases) {
-  let n = name;
-  let twoStage = false;
-  for (;;) {
-    const e = fdb[n] || fdb[aliases[n]];
-    if (e) return { entry: e, twoStage };
-    if (!n.endsWith("-2s")) return { entry: null, twoStage };
-    n = n.slice(0, -3);
-    twoStage = true;
-  }
-}
-
-// A two-stage filter reads as its base description plus the shared two-stage note.
-function filterDescription(name, md) {
-  const f = md.filters || {};
-  const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
-  if (!entry) return "";
-  const desc = entry.description || "";
-  return twoStage ? `${desc} ${f.two_stage_note || ""}`.trim() : desc;
-}
-
-// desc = dither|modulator -> name-keyed prose from the shapers overlay.
-function shaperDescription(kind, name, md) {
-  const shapers = md.shapers || {};
-  const db = kind === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
-  const e = db && db[name];
-  return (e && e.description) || "";
-}
-
-// Inline manual description for the current selection.
-//   desc = filter|dither|modulator -> name-keyed prose from the metadata overlay
-//     (filters.json / shapers.json), joined by the selected option's label.
-//   desc = config -> per-value prose from this control's settings.json `options`
-//     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
-//     conversion — enums whose meaning is per-value, not per-control).
-function selectionDescription(entry, value, options, meta) {
-  if (!entry.desc) return "";
-  if (entry.desc === "config") return (meta && meta.options && meta.options[String(value)]) || "";
-  const name = selectedLabel(options, value);
-  if (!name) return "";
-  const md = metadata.value || {};
-  if (entry.desc === "filter") return filterDescription(name, md);
-  return shaperDescription(entry.desc, name, md);
-}
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds). A schema entry may

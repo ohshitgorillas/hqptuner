@@ -16,6 +16,7 @@ const K_DESC = "hqptuner.showDescriptions";
 const K_KEEP = "hqptuner.keepOptionDescriptions";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_FAST_VOL = "hqptuner.fastVolumeUpdates";
+const K_LIVE = "hqptuner.liveMode";
 
 // A dead store is worth exactly one line of console noise: silence hides the
 // "prefs never persist" case (notably node/SSR, where every read is a default),
@@ -78,6 +79,15 @@ export function setQuickSystemUpdates(on) {
 export function setFastVolumeUpdates(on) {
   fastVolumeUpdates.value = !!on;
   persist(K_FAST_VOL, fastVolumeUpdates.value);
+}
+
+// The LIVE switch. Persisted like every other pref, so a reload lands back on
+// the page the user was working from rather than dropping them into the tabs.
+export const liveMode = signal(loadBool(K_LIVE, false));
+
+export function setLiveMode(on) {
+  liveMode.value = !!on;
+  persist(K_LIVE, liveMode.value);
 }
 
 // Static feature notes follow the master only.
