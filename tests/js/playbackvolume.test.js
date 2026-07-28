@@ -234,6 +234,14 @@ test("test_fixed_volume_outranks_a_zero_width_range_as_the_named_cause", async (
 });
 
 // --- the faster-updates opt-in -----------------------------------------------
+// LIVE renders this same card with the opt-in suppressed, because that page
+// polls at 500 ms regardless (store/ui.js). Everywhere else the choice is real,
+// so the card offers it unless a caller says otherwise.
+
+test("test_the_card_offers_the_faster_updates_opt_in_by_default", async () => {
+  await reset({ range: ON });
+  assert.ok(card().includes("Faster volume updates"));
+});
 
 test("test_the_faster_updates_checkbox_is_clear_by_default", async () => {
   await reset({ range: ON });

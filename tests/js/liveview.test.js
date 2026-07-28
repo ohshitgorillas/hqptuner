@@ -179,3 +179,19 @@ test("test_a_profile_the_engine_never_loaded_cannot_be_switched_to", async () =>
   await reset({ mtx: { file_profiles: { Room: [] }, live_profiles: [] } });
   assert.ok(page().includes("not loaded by the engine"));
 });
+
+// The engine-health card and the volume card are the System and Volume tabs'
+// own components, rendered here as well. Both carry a "quick updates" opt-in on
+// their tab; LIVE polls at 500 ms whatever they say (store/ui.js), so both drop
+// it here. The cadence itself is polling.test.js's — what is observable in the
+// markup is the card being present and the tickbox not.
+
+test("test_the_live_page_carries_the_engine_health_card", async () => {
+  await reset();
+  assert.ok(page().includes("process speed"));
+});
+
+test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
+  await reset();
+  assert.equal(page().includes("poll-quick"), false);
+});
