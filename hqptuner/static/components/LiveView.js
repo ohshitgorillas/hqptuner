@@ -24,6 +24,8 @@ import { notesVisible, descVisible } from "../store/prefs.js";
 import { stagedCount, refreshConfig } from "../store/state.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
+import { NarrowBar } from "./NarrowBar.js";
+import { ApodNarrow } from "./ApodNarrow.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { Section, Card } from "./tabs/common.js";
 
@@ -55,9 +57,12 @@ function LiveProse({ control, meta }) {
 const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "");
 
 // One live control: the widget, its in-flight mark, its prose, and the reason
-// the last write was refused. Disabled only while its OWN write is in flight —
-// two overlapping writes to one setting would resolve the second against lists
-// the first has already invalidated.
+// the last write was refused. Disabled while its OWN write is in flight — two
+// overlapping writes to one setting would resolve the second against lists the
+// first has already invalidated — or when the control carries no live setting at
+// all: the rate column for the family the engine is not running is the tab's
+// grayed column, showing the configured default (store/live.js). Nothing here is
+// ever disabled for playing (CLAUDE.md).
 function LiveField({ control, widget }) {
   const W = widget || Dropdown;
   const { entry } = control;
@@ -73,12 +78,13 @@ function LiveField({ control, widget }) {
         <${W}
           value=${control.value}
           options=${control.options}
-          disabled=${busy}
+          disabled=${busy || !!control.disabled}
           onChange=${(v) => writeLive(control.field, v)}
         />
         ${busy ? html`<span class="t-micro">writing…</span>` : null}
       </div>
       <${LiveProse} control=${control} meta=${meta} />
+      ${entry.apodNarrow ? html`<${ApodNarrow} field=${control.key} />` : null}
       ${error ? html`<div class="live-error">${error}</div>` : null}
     </div>
   `;
@@ -100,7 +106,11 @@ function ChainCard() {
       <//>
     `;
   }
+  // The narrow bar sits above the card it narrows, exactly as it does over the
+  // Resampling tab's filter cards — and only when a chain is loaded, since with
+  // no filter dropdowns on the page there is nothing for it to act on.
   return html`
+    <${NarrowBar} />
     <${Card} title=${CHAIN_TITLE[chain]}>
       ${liveReloading.value ? html`<div class="section-note">Reloading the engine's lists…</div>` : null}
       <div class="pack chain">${chainControls.map((c) => html`<${LiveField} control=${c} />`)}</div>
@@ -108,15 +118,26 @@ function ChainCard() {
   `;
 }
 
-function OutputCard() {
-  const { mode, rate } = liveModel.value;
+// Mode and Rate lead this page as the same hero cards that lead the Output tab —
+// same frame, same centred title, same segment and rate-stack treatment, because
+// they are the same two masters. The tab's third box, Backend, has no live twin:
+// changing backend rebuilds the audio path, which is a restart rather than a
+// live write. .top-row divides itself between however many cards it holds, so
+// the pair takes half the row each with no width rule of its own.
+function HeroRow() {
+  const { mode, pcmRate, sdmRate } = liveModel.value;
   return html`
-    <${Card} title="Output">
-      <div class="pack">
+    <div class="top-row">
+      <${Card} title="Mode" center=${true} cardClass="seg-box">
         <${LiveField} control=${mode} widget=${Segment} />
-        <${LiveField} control=${rate} />
-      </div>
-    <//>
+      <//>
+      <${Card} title="Rate" center=${true}>
+        <div class="rate-stack">
+          <${LiveField} control=${pcmRate} />
+          <${LiveField} control=${sdmRate} />
+        </div>
+      <//>
+    </div>
   `;
 }
 
@@ -210,7 +231,7 @@ export function LiveView() {
         and nothing waits for playback to stop — and what it writes lasts until the daemon next restarts, including the
         restart an Apply in the tabs view performs. After that the engine is back to its configured settings.
       </div>
-      <${OutputCard} />
+      <${HeroRow} />
       <${ChainCard} />
       <${ProcessingCard} />
       <${PlaybackVolume} />

@@ -1,12 +1,18 @@
-// Filter narrowing bar — a titled panel ABOVE the PCM/SDM filter cards. The
-// "Narrow filters" heading sits on its own line; the genre / quality / focus /
-// phase / length / ratio facets (all multi- or single-select popovers) sit on
-// the control row below it. Presentational only. Apodizing narrowing is NOT
-// here — it is 1x-only and per-chain, so it lives below each 1x dropdown
+// Filter narrowing bar — a card ABOVE the PCM/SDM filter cards, holding the
+// genre / quality / focus / phase / length / ratio facets (all multi- or
+// single-select popovers) on one row. Presentational only. Apodizing narrowing
+// is NOT here — it is 1x-only and per-chain, so it lives below each 1x dropdown
 // (ApodNarrow.js) rather than as a shared bar toggle.
+//
+// It is a real `Card`, not a panel of its own: it used to paint the card frame
+// itself — card surface, card radius, a hand-rolled heading — under its own
+// class name, which is how it drifted to the wrong border token and a doubled
+// bottom margin without any gate noticing. A card that reads as a card IS a
+// Card (docs/design-system.md).
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
+import { Card } from "./tabs/common.js";
 import {
   nGenre,
   nQuality,
@@ -201,8 +207,7 @@ export function NarrowBar() {
     return () => document.removeEventListener("pointerdown", onDown);
   }, []);
   return html`
-    <div class="narrow-bar">
-      <div class="narrow-header">Narrow filters</div>
+    <${Card} title="Narrow filters" cardClass="narrow-card">
       <div class="narrow-controls">
         <div class="narrow-facets">
           <${MultiSelect} open=${genreOpen} name="genre" label=${genreLabel()} items=${GENRES} sig=${nGenre} />
@@ -248,6 +253,6 @@ export function NarrowBar() {
           }
         </div>
       </div>
-    </div>
+    <//>
   `;
 }

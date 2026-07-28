@@ -53,6 +53,12 @@ test("test_a_card_keeps_its_children_in_its_body", () => {
   assert.ok(render(html`<${Card} title="General">${KID}<//>`).includes('<div class="card-body"><p>kid</p></div>'));
 });
 
+test("test_a_centered_card_marks_its_head_as_centered", () => {
+  assert.ok(
+    render(html`<${Card} title="Rate" center=${true}>${KID}<//>`).includes('<div class="card-head center">Rate</div>'),
+  );
+});
+
 // --- collapsible --------------------------------------------------------------
 
 test("test_a_collapsible_opens_when_app_state_says_it_should", () => {

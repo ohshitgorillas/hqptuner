@@ -4,8 +4,9 @@
 //
 // LIVE is a mode, not a tab. On, it replaces the tab bar, the tab body and the
 // pending bar with the LIVE page: those three are the staged-edit workflow, and
-// LIVE has no staged edits to show. The switch itself stays put in either mode —
-// it sits on the tab-bar row so turning LIVE on costs no vertical space.
+// LIVE has no staged edits to show. The switch itself lives in the header
+// (Header.js), which is the one row present in both modes — so it neither moves
+// nor costs vertical space when the tab bar goes away.
 import { html } from "../lib/dom.js";
 import { Header } from "./Header.js";
 import { SignalPath } from "./SignalPath.js";
@@ -14,22 +15,7 @@ import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./LiveView.js";
 import { PendingBar } from "./PendingBar.js";
 import { reachable } from "../store/state.js";
-import { liveMode, setLiveMode } from "../store/prefs.js";
-
-function LiveSwitch() {
-  const on = liveMode.value;
-  return html`
-    <button
-      type="button"
-      class="live-toggle ${on ? "on" : ""}"
-      aria-pressed=${on}
-      title=${on ? "Leave LIVE and go back to the tabs" : "Show only the settings the engine can change right now"}
-      onClick=${() => setLiveMode(!on)}
-    >
-      LIVE
-    </button>
-  `;
-}
+import { liveMode } from "../store/prefs.js";
 
 export function App() {
   const live = liveMode.value;
@@ -39,10 +25,11 @@ export function App() {
         <${Header} />
         <${SignalPath} />
         <${AlertStrip} />
-        <div class="chrome-tabs">
-          ${live ? null : html`<${TabBar} />`}
-          <${LiveSwitch} />
-        </div>
+        <!-- The row stays in both modes even when it holds nothing: its rule is
+             what closes the chrome off from the page below, and a rule that
+             disappears with the tab bar would leave the LIVE page hanging off
+             the signal path. -->
+        <div class="chrome-tabs">${live ? null : html`<${TabBar} />`}</div>
       </div>
       <main>${live ? html`<${LiveView} />` : html`<${TabBody} />`}</main>
       ${live ? null : html`<${PendingBar} />`}

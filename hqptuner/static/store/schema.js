@@ -95,7 +95,15 @@ const loudnessOff = (ctx) =>
 // Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
 // Frequency-carrying labels ("1x (44.1 / 48 kHz)") were tried and dropped —
 // they clip in the third-width Rate box (user decision 2026-07-21).
+//
+// "Auto" is 0, which both rate slots take as "automatic selection" (readme
+// §1.5/§1.6). It is not a ceiling at all: it hands the choice to the engine,
+// which then picks the highest rate the filter and DAC can reach in the
+// SOURCE's own base family. Every fixed entry below pins the rate instead —
+// the family still follows the source (auto_family, forced on every write by
+// lanes/httplane.py), but a 44.1k track can no longer climb past the pin.
 const PCM_RATES = [
+  { value: "0", label: "Auto" },
   { value: "48000", label: "1x" },
   { value: "96000", label: "2x" },
   { value: "192000", label: "4x" },
@@ -104,6 +112,7 @@ const PCM_RATES = [
   { value: "1536000", label: "32x" },
 ];
 const DSD_RATES = [
+  { value: "0", label: "Auto" },
   { value: "3072000", label: "DSD64" },
   { value: "6144000", label: "DSD128" },
   { value: "12288000", label: "DSD256" },

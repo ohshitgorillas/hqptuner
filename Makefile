@@ -28,6 +28,7 @@ lint-js:
 	npx knip
 	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
 	$(VENV)/python scripts/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/check_css_classes.py
 	$(VENV)/python scripts/check_control_catalog.py
 

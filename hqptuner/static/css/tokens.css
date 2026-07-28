@@ -155,7 +155,7 @@
   --fs-body: 0.9rem; /* DEFAULT control text: inputs, selects, field labels */
   --fs-head: 0.95rem; /* card-head, subhead — section headings */
   --fs-body-lg: 1rem; /* emphasised controls, tab buttons, h2 */
-  --fs-title: 1.1rem; /* box-title — the largest heading in a card */
+  --fs-title: 1.1rem; /* card-head.center — the largest heading in a card */
   --fs-brand: 1.25rem; /* the app wordmark. one use. */
   --fs-readout: 1.5rem; /* the big knob readout. one use. */
   --fs-glyph: 1.9rem; /* disclosure triangles — a glyph size, not a type size */
@@ -169,7 +169,7 @@
   --fw-bold: 700; /* the wordmark only */
   /* tracking — only ever paired with text-transform: uppercase */
   --track-tight: 0.02em; /* the wordmark */
-  --track-caps: 0.06em; /* uppercase headings (card-head, subhead, box-title) */
+  --track-caps: 0.06em; /* uppercase headings (card-head, subhead) */
   --track-wide: 0.09em; /* micro-caps: cluster heads, chip labels */
   /* alias kept for existing rules that named this before it was defined. The
      --bg-1 twin is gone: it aliased --bg-3, so the ladder had two names for one

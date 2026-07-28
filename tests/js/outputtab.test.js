@@ -94,12 +94,12 @@ const PRESENT = { alsa_device: alsaDev("hw:0"), net_device: netDev("naa:1") };
 
 test("test_the_backend_switch_leads_the_tab", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.ok(tab().includes('<div class="box-title">Backend</div>'));
+  assert.ok(tab().includes('<div class="card-head center">Backend</div>'));
 });
 
 test("test_the_mode_switch_leads_the_tab", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.ok(tab().includes('<div class="box-title">Mode</div>'));
+  assert.ok(tab().includes('<div class="card-head center">Mode</div>'));
 });
 
 test("test_the_rate_box_carries_the_pcm_family_rate", async () => {
