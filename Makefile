@@ -10,6 +10,7 @@ lint:
 	$(VENV)/mypy
 	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
 	$(VENV)/python scripts/check_test_assertions.py tests/*.py
+	$(VENV)/python scripts/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
 # prettier (black), tsc --checkJs (mypy), knip (vulture). The complexity ceiling

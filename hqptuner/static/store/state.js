@@ -78,7 +78,7 @@ export function formFieldName(entry) {
 // The saved-profile half of this model lives in store/profiles.js (round 5).
 const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows) || []);
 
-// --- pipeline set (matrix-spec step 3): staged as ONE atomic canonical-JSON
+// --- pipeline set (matrix-spec.md "Pipeline flow rows"): staged as ONE atomic canonical-JSON
 // field, matching the backend's read_pipelines serialization byte-for-byte
 // (alphabetical keys, compact, all-string values) so dirty-compare and the
 // apply's verify diff both reduce to string equality.

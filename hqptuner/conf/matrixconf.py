@@ -13,7 +13,8 @@ Saved profiles (``<matrix_profile name="...">``, readme §1.12) are written here
 too, because **hqplayerd does not persist them itself**: ``POST /matrix/save``
 registers a name in daemon memory, and the config file the daemon rewrites in
 the same breath carries no such element — so the profile is gone at the next
-daemon start (matrix-spec round 5). HQPTuner owns the element instead, which
+daemon start (matrix-spec.md "Probe findings — saved"). HQPTuner owns the
+element instead, which
 makes a save or a delete an ordinary staged config edit on the restore lane and
 gives the daemon the profiles back when it reads its config. Both verbs stage
 atomically, one field each, same shape as the row set.

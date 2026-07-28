@@ -1,4 +1,4 @@
-"""Convolution filter upload lane (matrix-spec step 4): parked wav/txt files
+"""Convolution filter upload lane (matrix-spec.md "Filter upload"): parked wav/txt files
 ride the next persistent apply's restore archive as data/<name> members — where
 the daemon lands them in its home dir, so the staged process path resolves."""
 

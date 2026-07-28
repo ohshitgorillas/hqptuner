@@ -1,4 +1,4 @@
-// Saved matrix profiles (matrix-spec round 5). Split out of state.js at the
+// Saved matrix profiles (matrix-spec.md "Probe findings — saved"). Split out of state.js at the
 // file-length gate; nothing here reaches into that module's private signals — it
 // stages through `edit` and reads staged values through `effective`, the same
 // public seams every other store module uses.

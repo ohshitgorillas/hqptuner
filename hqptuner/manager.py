@@ -401,7 +401,7 @@ class ConnectionManager:
             self.engine = engine
         return result
 
-    # --- matrix profiles (matrixlane, matrix-spec step 5) ------------------
+    # --- matrix profiles (matrixlane, matrix-spec.md "Profiles") -----------
     # Only the live switch lives here. Saving and deleting a profile are staged
     # <matrix_profile> edits on the persistent lane (conf/matrixconf.py, round 5).
 
@@ -418,7 +418,7 @@ class ConnectionManager:
     async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
         return await speakerlane.apply(self, enabled, channels)
 
-    # --- convolution filter uploads (filterpark, matrix-spec step 4) -------
+    # --- convolution uploads (filterpark, matrix-spec.md "Filter upload") --
 
     def park_filter(self, name: str, data: bytes) -> dict[str, str]:
         return self._filters.park(name, data)

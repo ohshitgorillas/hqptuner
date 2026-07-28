@@ -63,7 +63,7 @@ class MatrixProfileBody(BaseModel):
 
 @router.post("/matrix/profile")
 async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any]:
-    """Load a saved matrix profile into the running matrix (matrix-spec step 5,
+    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles",
     amended round 5): 4321 ``MatrixSetProfile``, live, no engine reload, playback
     undisturbed, post-process untouched. Needs no credentials — the Control API
     lane is unauthenticated.
@@ -112,7 +112,7 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
 async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> dict[str, str]:
     """Park an uploaded convolution filter (wav/txt) for the next apply, which
     injects it into the restore archive; returns the daemon-side absolute path
-    the pipeline process string should reference (matrix-spec step 4)."""
+    the pipeline process string should reference (matrix-spec.md "Filter upload")."""
     try:
         return manager.park_filter(file.filename or "", await file.read())
     except ValueError as exc:

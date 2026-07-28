@@ -55,7 +55,7 @@ export function withoutEq(process) {
   return serializeProcess(parseProcess(process).filter((s) => s.kind !== "iir"));
 }
 
-// --- stage editor support (matrix-spec step 4) -------------------------------
+// --- stage editor support (matrix-spec.md "Stage editor") --------------------
 
 // Per-plugin argument schema (manual §7.2–7.4, case-sensitive). IIR types list
 // their required args plus a one-of group (q OR bw OR s per type); biquad is

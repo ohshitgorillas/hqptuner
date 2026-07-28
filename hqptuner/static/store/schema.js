@@ -733,7 +733,7 @@ export const schema = {
     quietGray: true,
   },
 
-  // --- Matrix tab (matrix-spec step 3): global controls + the atomic pipeline
+  // --- Matrix tab (matrix-spec.md "Pipeline flow rows"): global controls + the atomic pipeline
   // set. Staged keys are the write lane's prefixed names (presetconf.FIELD_MAP);
   // formField is the daemon's bare form-field name for baseline/options reads.
   // matrix_pipelines is staged by the pipeline editor (stagePipelines), never
@@ -786,7 +786,7 @@ export const schema = {
     field: "matrix_pipelines",
     fileTruth: true,
   },
-  // The two saved-profile verbs (matrix-spec round 5). HQPTuner owns the
+  // The two saved-profile verbs (matrix-spec.md "Probe findings — saved"). HQPTuner owns the
   // <matrix_profile> element — hqplayerd keeps a saved profile in memory only and
   // never writes it — so a save or a delete is a staged config edit rather than a
   // daemon route. Staged by the profile card, never rendered as a Field; the

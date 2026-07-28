@@ -1,5 +1,5 @@
 // Behavioral suite for components/MatrixStageEditor.js — the docked inline
-// stage editor (matrix-spec step 4): kind picker, per-kind argument editors,
+// stage editor (matrix-spec.md "Stage editor"): kind picker, per-kind argument editors,
 // validation line and raw spec readout.
 //
 // Policy (docs/testing.md): public API only, one assertion per test. The

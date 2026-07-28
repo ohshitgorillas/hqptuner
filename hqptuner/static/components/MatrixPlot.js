@@ -1,4 +1,4 @@
-// RESPONSE card (matrix-spec step 7 + AutoEq library pass): a STANDING card at
+// RESPONSE card (matrix-spec.md "Response plot"): a STANDING card at
 // the section bottom, always rendered like the crossfeed/loudness graphs. With
 // nothing to plot it shows axes + an empty-state caption. Overlaid magnitude
 // (solid, dB left axis) + phase (dashed, ±180° second axis) for every

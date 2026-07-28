@@ -165,7 +165,7 @@ def active_chain(mgr: ConnectionManager) -> str | None:
     The configured mode answers it outright when set to pcm or sdm. In ``auto``
     the engine switches per source (readme §1.7, "Automatic switching"), so the
     configured value cannot say — but ``Status.active_mode`` reports the
-    currently ACTIVE mode as a display string (protocol.md §5), which is exactly
+    currently ACTIVE mode as a display string (protocol.md §6), which is exactly
     the chain that is loaded. None when neither can answer, which keeps the
     fields on the restore lane rather than guessing a chain.
     """

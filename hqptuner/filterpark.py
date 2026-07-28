@@ -1,4 +1,4 @@
-"""Parking area for uploaded convolution filter files (matrix-spec step 4).
+"""Parking area for uploaded convolution filters (matrix-spec.md "Filter upload").
 
 An upload parks on disk until the next persistent apply injects it into the
 restore archive as a ``data/<name>`` member — which the daemon lands in its

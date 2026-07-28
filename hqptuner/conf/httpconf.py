@@ -305,7 +305,8 @@ class HttpConfigClient:
 
     # No profile CRUD on this lane. ``POST /matrix/{load,save,delete}`` cost a
     # ~3 s engine reload each and never persisted a saved profile anyway (the
-    # daemon keeps it in memory only, matrix-spec round 5), so save/delete became
+    # daemon keeps it in memory only, matrix-spec.md "Probe findings — saved"),
+    # so save/delete became
     # staged ``<matrix_profile>`` config edits and load rides 4321
     # ``MatrixSetProfile``. Nothing here writes /matrix any more.
 
