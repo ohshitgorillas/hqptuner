@@ -140,7 +140,7 @@ test("test_an_idle_output_reads_as_a_dash", () => {
   assert.equal(chips(panel()).Output, "—");
 });
 
-test("test_a_pcm_output_rate_is_shown_in_kilohertz", () => {
+test("test_an_unreported_bit_depth_below_the_dsd_floor_shows_the_bare_rate", () => {
   assert.equal(chips(panel(PLAY)).Output, "705.6 kHz");
 });
 
@@ -155,6 +155,53 @@ test("test_a_zero_output_rate_reads_as_a_dash", () => {
 
 test("test_the_output_chip_is_the_hero_chip", () => {
   assert.ok(panel(PLAY).includes('class="chip chip-hero"'));
+});
+
+// --- output bit depth -------------------------------------------------------
+// The engine reports the negotiated output word length as status.active_bits,
+// a digit string like every other Status field. When it is there it is the
+// authority; when it is absent or "0" the chip falls back to inferring 1bit
+// from a rate at or above the DSD64 floor (2822400 Hz).
+
+// PLAY's source is 24bit, so the reported depth here is deliberately 32: a chip
+// rendering the SOURCE word length would pass a 24 and fail this.
+test("test_a_pcm_output_shows_the_reported_bit_depth", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_bits: "32" } });
+  assert.equal(chips(out).Output, "705.6 kHz / 32bit");
+});
+
+test("test_a_dsd_rate_output_reads_as_one_bit", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "22579200", active_bits: "1" } });
+  assert.equal(chips(out).Output, "22.579 MHz / 1bit");
+});
+
+test("test_a_reported_bit_depth_of_zero_falls_back_to_the_dsd_rate_floor", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "22579200", active_bits: "0" } });
+  assert.equal(chips(out).Output, "22.579 MHz / 1bit");
+});
+
+test("test_a_reported_bit_depth_of_zero_below_the_dsd_floor_shows_no_depth", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_bits: "0" } });
+  assert.equal(chips(out).Output, "705.6 kHz");
+});
+
+test("test_an_unreported_bit_depth_at_the_dsd_floor_infers_one_bit", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "2822400" } });
+  assert.equal(chips(out).Output, "2.822 MHz / 1bit");
+});
+
+test("test_a_zero_output_rate_with_a_reported_bit_depth_still_reads_as_a_dash", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "0", active_bits: "24" } });
+  assert.equal(chips(out).Output, "—");
+});
+
+test("test_a_missing_output_rate_with_a_reported_bit_depth_reads_as_a_dash", () => {
+  assert.equal(chips(panel({ ...PLAY, status: { active_bits: "24" } })).Output, "—");
+});
+
+test("test_a_paused_engine_shows_a_dash_whatever_bit_depth_is_reported", () => {
+  const out = panel({ ...PLAY, state: 1, status: { active_rate: "705600", active_bits: "24" } });
+  assert.equal(chips(out).Output, "—");
 });
 
 // --- PCM source -> PCM output -----------------------------------------------
