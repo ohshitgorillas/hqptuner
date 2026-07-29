@@ -10,7 +10,6 @@
    this is a failure they have to act on. */
 .live-error {
   grid-column: 2;
-  margin-top: var(--sp-1);
   font-size: var(--fs-caption);
   color: var(--warn);
   max-width: var(--measure);

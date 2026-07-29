@@ -138,7 +138,7 @@ function ChannelRow({ ch, sdm }) {
 // the set is client-side.
 function TopRow({ on, busy }) {
   return html`
-    <div class="pack split spkr-top">
+    <div class="pack split">
       <div class="field">
         <label>Speaker processing</label>
         <input type="checkbox" checked=${on} disabled=${busy} onChange=${(e) => (enabledEdit.value = e.target.checked)} />

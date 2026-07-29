@@ -6,9 +6,31 @@ different effective text greys (two colour tokens times three opacities).
 New text landed looking out of place because nothing said which value to
 pick. tokens.css now owns the ladder; this gate keeps it that way.
 
+It also holds the rhythm tokens to one mechanism, which is a different kind of
+rule: not "which value" but "which property may spend it". Space between
+siblings has two mechanisms in CSS — the container's `gap` and the child's
+margin — and when both are used they do not override, they add. `.top-row`
+carried `margin-bottom: var(--sp-4)` under a `.tab-body` already spending an
+8px gap, so the space under the hero cards was 32px against every other card
+pair's 8px; `.card-grid`'s `margin-top` did the same at 16px. Nothing about
+either rule looks wrong on its own — both are tokenised, both name a step on
+the scale — and the same bug was found and fixed by eye twice before that
+(narrowing.css, controls.css). It is not catchable by reading one rule, so it
+is a gate:
+
+- a `--rhythm-*` token is legal on `gap` / `row-gap` / `column-gap` and
+  nowhere else, and
+- no vertical margin may spend a spacing token at all. Between siblings the
+  container's gap is the only mechanism.
+
+A vertical margin may still be `0` or `auto`; a literal length was already
+rejected by the spacing rule above. Horizontal margins are untouched — they
+centre things and inset the chrome rows, and no gap competes with them.
+
 Escape hatch: put `/* token-exempt: <reason> */` on the offending line. It
 must carry a reason — an exemption you cannot justify in a clause is a
-value that belongs in tokens.css.
+value that belongs in tokens.css. For a vertical margin the clause has to say
+why the space is not between siblings, because if it is, it is the gap's.
 """
 
 import re
@@ -26,6 +48,25 @@ FILL_OK = LITERAL_OK | {"none", "transparent"}
 #: the file allowed to hold literals — it is where the tokens are defined
 DEFINITION_SITE = "tokens.css"
 PRAGMA = "token-exempt:"
+
+#: an exemption is honoured only when a reason follows the colon, the same
+#: contract check_css_cards.py enforces. The lookahead is what makes it real:
+#: without it the comment's own `*/` reads as a reason, and
+#: `/* token-exempt: */` — the form of an exemption nobody could justify —
+#: buys silence.
+EXEMPT = re.compile(re.escape(PRAGMA) + r"\s*(?!\*/)\S")
+#: the only properties a --rhythm-* token may appear on
+GAP_PROPS = frozenset({"gap", "row-gap", "column-gap"})
+#: a rhythm role, spendable on a gap and nothing else
+RHYTHM_TOKEN = re.compile(r"var\(\s*--rhythm-")
+#: the rhythm scale, in either form — what a vertical margin may not spend
+SPACING_TOKEN = re.compile(r"var\(\s*--(?:sp-\d|rhythm-)")
+#: margin properties that set space above or below. The shorthands need their
+#: components picked apart (see vertical_parts); the longhands are wholly
+#: vertical. margin-left/right/inline are absent on purpose: nothing competes
+#: with them, so `margin: 0 var(--gutter)` on a chrome row stays legal.
+VERTICAL_MARGINS = frozenset({"margin-top", "margin-bottom", "margin-block-start", "margin-block-end"})
+MARGIN_SHORTHANDS = frozenset({"margin", "margin-block"})
 
 DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
@@ -72,9 +113,67 @@ def is_spacing(prop: str) -> bool:
     return prop == "gap" or prop.endswith("-gap") or prop.startswith(("margin", "padding"))
 
 
+def components(value: str) -> list[str]:
+    """A shorthand's values, split on whitespace but never inside parentheses.
+
+    `calc(-1 * var(--sp-1)) 0 var(--sp-1)` is three components, not five: a
+    naive split would tear the calc() apart and read its interior as siblings.
+    """
+    parts: list[str] = []
+    depth, current = 0, ""
+    for char in value:
+        if char.isspace() and not depth:
+            if current:
+                parts.append(current)
+            current = ""
+            continue
+        depth += (char == "(") - (char == ")")
+        current += char
+    return parts + ([current] if current else [])
+
+
+def vertical_parts(prop: str, value: str) -> list[str]:
+    """The components of one declaration that set space above or below.
+
+    Empty for anything horizontal, which is how `margin: 0 var(--gutter)` — the
+    chrome rows' own inset — stays clear of a rule about sibling rhythm.
+    """
+    if prop in VERTICAL_MARGINS:
+        return [value]
+    if prop not in MARGIN_SHORTHANDS:
+        return []
+    parts = components(value)
+    if prop == "margin-block":  # both components are vertical
+        return parts
+    # 1 value sets all four sides, 2 sets vertical then horizontal, 3 and 4 set
+    # top and bottom at positions 0 and 2.
+    return parts[:1] if len(parts) < 3 else [parts[0], parts[2]]
+
+
+def rhythm_complaint(prop: str, value: str, custom: bool) -> str:
+    """Return a complaint about a misspent rhythm token, or ''.
+
+    The first half applies to a custom property too: re-exporting the role
+    under a local name (`--my-gap: var(--rhythm-row)`) is how a one-mechanism
+    rule gets a second mechanism back. The second half cannot — a custom
+    property called `--margin-top` sets no margin.
+    """
+    if RHYTHM_TOKEN.search(value) and prop not in GAP_PROPS:
+        return f"{prop}: {value} — a --rhythm-* token is a container's gap; it cannot be spent on {prop}"
+    if not custom and any(SPACING_TOKEN.search(part) for part in vertical_parts(prop, value)):
+        return (
+            f"{prop}: {value} — vertical space between siblings comes from the "
+            f"container's gap, which this adds to rather than replaces; set the "
+            f"gap on the parent"
+        )
+    return ""
+
+
 def check_decl(prop: str, value: str, custom: bool) -> str:
     """Return a complaint about one declaration, or '' if it is clean."""
     literal = not value.startswith("var(--") and value not in LITERAL_OK
+    if complaint := rhythm_complaint(prop, value, custom):
+        return complaint
     if not custom and (complaint := shape_complaint(prop, value)):
         return complaint
     if not custom and is_spacing(prop) and LENGTH.search(value):
@@ -96,7 +195,7 @@ def check_file(path: Path) -> list[str]:
     """Return one complaint per offending line in ``path``."""
     problems = []
     for num, line in enumerate(path.read_text().splitlines(), 1):
-        if PRAGMA in line:
+        if EXEMPT.search(line):
             continue
         match = DECL.match(line)
         if match is None:
@@ -116,8 +215,10 @@ def main() -> int:
     for problem in problems:
         print(problem)
     if problems:
-        print(f"\n{len(problems)} untokenised value(s). Add the value to tokens.css,")
-        print(f"or mark the line /* {PRAGMA} <reason> */ if it genuinely cannot be one.")
+        print(f"\n{len(problems)} value(s) off the ladder. Add the value to tokens.css — or, for a")
+        print("vertical margin, move the space to the parent's gap, which is the one mechanism")
+        print(f"for it. Mark the line /* {PRAGMA} <reason> */ if neither applies; the reason is")
+        print("required, and for a margin it has to say why the space is not between siblings.")
     return 1 if problems else 0
 
 

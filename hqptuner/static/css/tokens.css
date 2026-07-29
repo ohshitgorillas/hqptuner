@@ -95,6 +95,25 @@
   --sp-3: 12px;
   --sp-4: 24px;
   --sp-5: 32px;
+  /* ── Rhythm ───────────────────────────────────────────────────────────
+     Space BETWEEN siblings, named by the pair it separates. These are roles,
+     not a second scale: each one aliases a step above, and the gate in
+     scripts/check_css_tokens.py holds them to one mechanism — a --rhythm-*
+     token is legal on `gap` and nowhere else, and no vertical margin may
+     spend a spacing token at all.
+
+     One mechanism because two of them silently add. A container gap and a
+     child's margin-bottom both claim the same space and CSS pays both: the
+     hero row's own margin-bottom on top of .tab-body's gap made the space
+     under MODE/RATE/BACKEND 32px against every other card pair's 8px, and
+     .card-grid's margin-top did the same at 16px. Neither is visible in the
+     rule that causes it — `margin-bottom: var(--sp-4)` reads as correct and
+     tokenised until you know what the parent already spends. The same bug
+     had already been found and fixed by eye twice before (see the notes in
+     narrowing.css and controls.css), which is why it is a gate now. */
+  --rhythm-stack: var(--sp-2); /* card to card, down a tab body */
+  --rhythm-row: var(--sp-3); /* card to card, across a row */
+  --rhythm-field: var(--sp-4); /* field to field, down a card body */
   --w-label: 12rem; /* shared label column, pixel-identical across tabs */
   --w-num: 6.5rem; /* short numerics: DAC bits, buffer time, dB bounds */
   --w-select: 28rem; /* dropdowns / text — capped ~448px */

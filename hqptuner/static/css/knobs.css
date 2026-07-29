@@ -209,7 +209,18 @@
 .dsp-body.off input[type="range"] {
   accent-color: var(--muted);
 }
+/* the cluster row over the range group — this gap is the separation between
+   those two blocks, which the range group used to add to with a margin. */
 .dsp-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+/* "Range" head over its row — the same stack .cluster is, so it holds the same
+   gap. It was a bare block, and the head's own margin-bottom was the only thing
+   spacing the two; that margin was a duplicate inside .cluster and the sole
+   separator here, which is exactly the split a container gap removes. */
+.range-group {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -251,12 +262,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-}
-.cluster-head {
-  margin-bottom: var(--sp-1);
-}
-.range-group {
-  margin-top: var(--sp-3);
 }
 .range-row {
   display: grid;

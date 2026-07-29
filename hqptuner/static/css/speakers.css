@@ -11,7 +11,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-  margin-bottom: var(--sp-2);
 }
 .dsp-switcher .segment {
   /* full container width: a mode selector for the whole tab reads as a banner,
@@ -26,9 +25,6 @@
   font-size: var(--fs-head);
 }
 /* --- card --------------------------------------------------------------- */
-.spkr-top {
-  margin-bottom: var(--sp-4);
-}
 
 /* Two-column split: channel rows left, room plan right, with the centred rule
    every two-column card carries (CLAUDE.md). Collapses below 1100px, where the
@@ -100,7 +96,6 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  margin-top: var(--sp-4);
 }
 
 /* --- room plan ----------------------------------------------------------- */

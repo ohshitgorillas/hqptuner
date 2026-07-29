@@ -86,7 +86,7 @@
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: var(--sp-1);
+  margin-top: var(--sp-1); /* token-exempt: absolutely positioned — this offsets the popover from its button's bottom edge, it is not space between siblings */
   z-index: 20;
   background: var(--surface-raised);
   border: 1px solid var(--surface-raised);
@@ -114,7 +114,6 @@
   font-size: var(--fs-body);
   color: var(--fg-2);
   white-space: nowrap;
-  margin-top: var(--sp-1);
   padding-top: var(--sp-1);
   border-top: 1px solid var(--surface-raised);
 }
@@ -128,10 +127,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
-  margin-top: var(--sp-2);
-}
-.apod-narrow-note {
-  margin-top: var(--sp-1);
 }
 .apod-sub {
   margin-left: var(--sp-4);
@@ -172,7 +167,6 @@
   border: 1px solid var(--warn);
   border-radius: var(--r-md);
   padding: var(--sp-2) var(--sp-3);
-  margin-bottom: var(--sp-3);
   color: var(--fg);
   font-size: var(--fs-body);
   line-height: 1.35;
@@ -182,7 +176,6 @@
 .rescan-btn {
   grid-column: 2;
   justify-self: start;
-  margin: var(--sp-1) 0 var(--sp-1);
   padding: var(--sp-1) var(--sp-2);
   background: var(--surface-raised);
   color: var(--accent);
@@ -196,10 +189,11 @@
   cursor: default;
 }
 
-/* inline manual description — under the dropdown (grid col 2), not the label */
+/* inline manual description — under the dropdown (grid col 2), not the label.
+   No margin-top: these column-2 blocks are rows of the .field grid, whose own
+   row-gap (--sp-1) is the space above them. */
 .field-desc {
   grid-column: 2;
-  margin-top: var(--sp-1);
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
 
@@ -209,7 +203,6 @@
    flex .field-knob rows). Mode/Backend/Rate opt out (hoverNote) — tooltip only. */
 .field-note {
   grid-column: 2;
-  margin-top: var(--sp-1);
 }
 /* Grayed-control explanation — appended after the manual note (schema grayWhen
    reason). Italic + dimmer than .field-note so it reads as state, not prose. */
@@ -221,5 +214,4 @@
 .field-gray-reason {
   grid-column: 2;
   font-style: italic;
-  margin-top: var(--sp-1);
 }

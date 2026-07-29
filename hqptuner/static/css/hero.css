@@ -12,8 +12,11 @@
      control INSIDE a card is capped separately (.seg-box .segment) so a
      full-width card doesn't turn its buttons into banners. */
   grid-auto-columns: 1fr;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
+  gap: var(--rhythm-row);
+  /* No margin-bottom. .tab-body's own gap already spaces this row from the card
+     under it; the margin this row used to carry added to that gap rather than
+     replacing it, and left 32px under the hero cards against 8px everywhere
+     else. See the rhythm note in tokens.css. */
 }
 /* The frame and the head are Card's, painted once in cards.css — the hero row
    used to keep a second copy of both under the name .box. What is left here is

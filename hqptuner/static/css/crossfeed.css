@@ -11,7 +11,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--sp-2) var(--sp-3);
-  margin-bottom: var(--sp-3);
 }
 .xfc-strip.off .xfc-label {
   color: var(--muted);
@@ -54,7 +53,6 @@
 /* hairline between the crossfeed knobs */
 .xfc-badge {
   color: var(--fg-2);
-  margin-bottom: var(--sp-2);
 }
 .xfc-badge .xfc-stale,
 .xfc-badge.stale {
@@ -235,18 +233,13 @@
   opacity: var(--o-fore);
 }
 
-.xfs-plot {
-  margin-top: var(--sp-4);
-}
 .xfs-blocked {
   max-width: var(--measure);
-  margin-top: var(--sp-3);
 }
 .xfs-actions {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  margin-top: var(--sp-3);
 }
 
 /* top-down geometry */
