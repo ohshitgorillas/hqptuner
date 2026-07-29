@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tapping a card heading on a tablet now toggles it once.** On iPad Safari a single tap counted twice, so a collapsed card opened and shut again straight away. Buttons, dropdowns, checkboxes and radios are all affected.
+
 ### Changed
 
 - **Matrix stage chips carry their kind in the label, not the outline.** Violet for EQ and other processing, rose for convolution. The outline is now the hover and selection mark, in the accent; In/Out endpoints are accented too. Kind colours no longer sit on the accent palette, so the amber and green themes stop making chips look selected.
