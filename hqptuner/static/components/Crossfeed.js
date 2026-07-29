@@ -259,7 +259,7 @@ function StructuralPlot({ p0 }) {
     { points: trace((f) => magDb(cur(f).side)), kind: "xfs", label: "" },
   ];
   return html`
-    <div class="xfs-plot">
+    <div>
       <${PlotFrame} traces=${traces} yMin=${-6} yMax=${3} dbStep=${1} height=${200} handles=${[]} />
     </div>
   `;

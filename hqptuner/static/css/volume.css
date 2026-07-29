@@ -22,7 +22,6 @@
 .vr-track {
   position: relative;
   height: 74px;
-  margin: var(--sp-1) 0 0;
 }
 /* the bar */
 .vr-track::before {

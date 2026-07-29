@@ -197,10 +197,12 @@ input[type="checkbox"]:disabled {
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
+/* the box stacked over its sub-figure, so the gap between them lives here */
 .slidernum-readbox {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: var(--sp-1);
   flex: none;
 }
 /* the number box is a label wrapping a bare input, so an optional unit sits
@@ -238,7 +240,6 @@ input[type="checkbox"]:disabled {
   display: block;
   width: var(--w-num);
   flex: none;
-  margin-top: var(--sp-1);
   font-size: 0.8em; /* token-exempt: relative to the box above it — tracks that control, not the root */
   color: var(--muted);
   text-align: right;
@@ -264,7 +265,6 @@ input[type="checkbox"]:disabled {
   opacity: var(--o-dim);
 }
 .playback-hint {
-  margin-top: var(--sp-2);
   font-size: var(--fs-caption);
   color: var(--muted);
 }

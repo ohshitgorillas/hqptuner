@@ -65,17 +65,20 @@ button.card-head {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--rhythm-field);
   padding: var(--sp-2);
 }
 .card-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--sp-3);
+  gap: var(--rhythm-row);
   align-items: stretch; /* cards in a row share height — the shorter card's spare
                            space reads as deliberate margin inside its frame, not
                            a hole in the page */
-  margin-top: var(--sp-2); /* separate from a preceding collapsible (DSD sources) */
+  /* No margin-top. It was here to separate the grid from a preceding collapsible
+     (DSD sources), which .tab-body's gap already does — the two added instead,
+     putting 16px above a card-grid against 8px above every other card. See the
+     rhythm note in tokens.css. */
 }
 /* controls inside a half-width card-grid card must fit that half — the 28rem
    select token overflows a 12rem-label + half-container row (same math as the
@@ -103,7 +106,7 @@ button.card-head {
 .pack {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--rhythm-field);
   position: relative; /* anchors the centred two-column rule (see media query) */
 }
 @media (min-width: 1100px) {
@@ -166,12 +169,12 @@ button.card-head {
   .card .pack > .span {
     background: var(--surface-card);
   }
-  /* consecutive packs in one card are separate two-track groups (each draws its
-     own centred rule), so they need the same inter-field rhythm between them
-     that stacked rows get inside a pack. */
-  .pack + .pack {
-    margin-top: var(--sp-4);
-  }
+  /* Consecutive packs in one card are separate two-track groups (each draws its
+     own centred rule) and want the same inter-field rhythm between them that
+     stacked rows get inside a pack. That is --rhythm-field, which .card-body
+     already spends as its gap — so there is no rule here. The margin-top this
+     replaced added to that gap instead of setting it, and put 48px between two
+     packs against the 24px it named. */
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
      (column-first over two rows) with the secondary control in the right track,
      instead of splitting the chain across columns by raw source order. */
@@ -188,7 +191,7 @@ button.card-head {
   }
   .pack.chain > * {
     break-inside: avoid;
-    margin-bottom: var(--sp-3);
+    margin-bottom: var(--sp-3); /* token-exempt: a multi-column box has no gap between its ITEMS — column-gap separates the columns, so a margin is the only mechanism here */
   }
   .pack .field:not(.span) select,
   .pack .field:not(.span) input[type="text"] {
@@ -261,7 +264,10 @@ button.card-head {
   border-color: var(--accent);
 }
 /* card action row — hairline-separated and right-aligned (the pending-bar
-   convention), so the button reads as "applies THIS card", not page-global */
+   convention), so the button reads as "applies THIS card", not page-global.
+   padding-top only: it binds the hairline to the buttons UNDER it, which is a
+   space inside this row and so genuinely its own. The space ABOVE the hairline
+   is the card body's gap and is not repeated here. */
 .hw-apply {
   display: flex;
   align-items: center;
@@ -269,7 +275,6 @@ button.card-head {
   gap: var(--sp-3);
   flex-wrap: wrap;
   border-top: 1px solid var(--line);
-  margin-top: var(--sp-3);
   padding-top: var(--sp-3);
 }
 .hw-all {
@@ -309,7 +314,6 @@ button.card-head {
   gap: var(--sp-4);
   flex-wrap: wrap;
   align-items: flex-start;
-  margin-bottom: var(--sp-3);
 }
 .log-opts > .field {
   flex: 1 1 20rem;
@@ -325,14 +329,22 @@ button.card-head {
 }
 /* per-page "quick updates" opt-in — a low-key footer row under a live card */
 .poll-quick {
-  margin-top: var(--sp-3);
   font-size: var(--fs-label);
   color: var(--muted);
   white-space: normal;
 }
+/* the log tail's own wrapper (LogTail.js) — a stack of toggle then tail, so it
+   carries the gap between them. It exists as a named container because the
+   alternative is a margin on the tail, and a margin is the one mechanism this
+   stylesheet does not use for space between siblings (see tokens.css). */
+.log-tail-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
-  margin: var(--sp-2) 0 0;
+  margin: 0; /* <pre> carries a UA margin — the wrapper's gap owns the spacing */
   max-height: 22rem;
   overflow: auto;
   /* a well, not a raised panel: the tail is content you read INTO the card, and
@@ -350,7 +362,6 @@ button.card-head {
   overflow-x: hidden;
 }
 .log-tail-msg {
-  margin-top: var(--sp-2);
   color: var(--muted);
   font-size: var(--fs-label);
 }
@@ -363,18 +374,13 @@ button.card-head {
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
   color: var(--muted);
-  margin: var(--sp-3) 0 var(--sp-3);
   padding-left: var(--sp-2);
-}
-.subhead:first-child {
-  margin-top: var(--sp-1);
 }
 /* section-level informational note (not tied to one field) — same voice as
    .field-gray-reason but for a whole subsection (e.g. a mode-mismatch note
    under a "Sources" subhead when the current output mode doesn't use it). */
 .section-note {
   font-style: italic;
-  margin: 0 0 var(--sp-2);
 }
 .radio-group {
   display: inline-flex;

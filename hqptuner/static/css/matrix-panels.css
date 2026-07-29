@@ -148,14 +148,15 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+/* the note is pulled UP against the row it annotates, tightening the container's
+   gap rather than adding to it — the one space a gap cannot express, since a gap
+   has no negative. The positive half this replaced was ordinary sibling space
+   and is now the container's. */
 .mtx-profile .field-note {
-  margin: calc(-1 * var(--sp-1)) 0 var(--sp-1);
+  margin-top: calc(-1 * var(--sp-1)); /* token-exempt: negative pull toward the annotated row, not space between siblings */
 }
 .mtx-profile .mtx-profile-row:not(.mtx-profile-primary) {
   padding-top: var(--sp-1);
-}
-.mtx-pipelines-note {
-  margin-bottom: var(--sp-3);
 }
 
 /* ── Headphone AutoEQ card ───────────────────────────────────────────────
@@ -197,7 +198,6 @@
 /* maintenance row inside the About card — hairline-separated from the identity list */
 .about-maint {
   border-top: 1px solid var(--line);
-  margin-top: var(--sp-3);
   padding-top: var(--sp-3);
 }
 .mtx-lib-credit {
@@ -269,7 +269,6 @@
    hairlines — the fixed-split mechanism from the design system, extended to
    a three-column card (1fr 1px 1fr 1px 1fr + .col-rule spans). */
 .band-strip {
-  margin-top: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   background: var(--surface-raised);
   border: 1px solid var(--surface-raised);

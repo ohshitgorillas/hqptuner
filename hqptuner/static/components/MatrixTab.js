@@ -177,7 +177,7 @@ function PipelinesCard() {
       html`
         ${
           notesVisible.value
-            ? html`<div class="field-note mtx-pipelines-note">
+            ? html`<div class="field-note">
                 Each pipeline copies a source channel through a chain of processing stages — filter impulse-response
                 files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output
                 channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale;

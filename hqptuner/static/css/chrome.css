@@ -73,12 +73,12 @@ main {
 .tab-body {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--rhythm-stack);
   padding: var(--sp-3) var(--gutter);
 }
 .tab-body h2 {
   font-size: var(--fs-body-lg);
-  margin: 0 0 var(--sp-3);
+  margin: 0; /* h2 carries a UA margin; the tab body's own gap owns the spacing */
   color: var(--muted);
   font-weight: var(--fw-semibold);
 }

@@ -103,33 +103,40 @@ export function PlaybackVolume({ showQuick = true }) {
   return html`
     <section class="card playback ${enabled ? "" : "off"}">
       <div class="card-head">Playback volume</div>
-      <div class="card-body playback-knob">
-        <${Knob}
-          value=${val}
-          min=${min}
-          max=${max}
-          step=${0.5}
-          def=${-20}
-          unit="dB"
-          size="lg"
-          label="Playback volume"
-          disabled=${!enabled}
-          onLive=${onLive}
-          onCommit=${onCommit}
-        />
+      <!-- Everything the card shows lives INSIDE .card-body, so the body's own
+           gap is what spaces the knob, the opt-in and the hint. They used to sit
+           after it as children of .card, which has no gap — the space between
+           them was each one's own margin-top, and there was nothing to inherit
+           when those margins went. -->
+      <div class="card-body">
+        <div class="playback-knob">
+          <${Knob}
+            value=${val}
+            min=${min}
+            max=${max}
+            step=${0.5}
+            def=${-20}
+            unit="dB"
+            size="lg"
+            label="Playback volume"
+            disabled=${!enabled}
+            onLive=${onLive}
+            onCommit=${onCommit}
+          />
+        </div>
+        ${
+          showQuick
+            ? html`
+              <label class="poll-quick inline-check">
+                <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(v) => setFastVolumeUpdates(v === "1")} />
+                Faster volume updates
+                <span class="poll-quick-note">refresh twice a second while this page is open</span>
+              </label>
+            `
+            : null
+        }
+        ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
       </div>
-      ${
-        showQuick
-          ? html`
-            <label class="poll-quick inline-check">
-              <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(v) => setFastVolumeUpdates(v === "1")} />
-              Faster volume updates
-              <span class="poll-quick-note">refresh twice a second while this page is open</span>
-            </label>
-          `
-          : null
-      }
-      ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
     </section>
   `;
 }

@@ -18,14 +18,6 @@
 .field.dirty {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
-/* inter-field rhythm — clear separation between stacked rows, paired with the
-   tight intra-row gap for the ~1:3 proximity that keeps rows from blurring.
-   Adjacent-sibling only, so it never fires inside horizontal groups (rate-stack)
-   or the grid packs, which manage their own gap. */
-.indent > .field + .field,
-.dsp-controls > .field + .field {
-  margin-top: var(--sp-4);
-}
 .field > label {
   color: var(--fg);
   font-size: var(--fs-body);

@@ -10,6 +10,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The About card flags a daemon outside the tested version series.** HQPTuner is developed and verified against hqplayerd 6.0; on any other series the System tab's About card says so, under the version the daemon reports. The card is informational and nothing is disabled — the running engine remains the authority for its own filter and modulator lists. Worth including in a bug report if something misbehaves.
 
+### Fixed
+
+- **The gaps between cards are even again.** The row leading the Output tab — MODE, RATE and BACKEND — and the same pair leading LIVE had four times as much room beneath them as any other card: two separate rules were spacing them and the two added rather than replaced. The same doubling was sitting in forty-odd other places — notes under controls, subheads on Resampling, the log tail, action rows, Matrix pipelines, the speaker and crossfeed cards — so gaps that were quietly double or triple what they claimed are now the figure the layout intended. Spacing is a little tighter under headings and between stacked rows as a result. The build now rejects the second mechanism outright.
+
 ## [0.9.2] — 2026-07-27
 
 ### Changed

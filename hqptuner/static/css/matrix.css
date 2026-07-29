@@ -114,9 +114,6 @@
   padding: var(--sp-2) var(--sp-3);
   min-width: 0;
 }
-.mtx-row + .mtx-row {
-  margin-top: var(--sp-2);
-}
 .mtx-row.dirty {
   background: var(--dirty);
   border-color: var(--accent);
@@ -197,10 +194,6 @@ select.mtx-ch {
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-  margin-top: var(--sp-3);
-}
-.mtx-pipelines-actions .mtx-add-row {
-  margin-top: 0;
 }
 /* Load + Export sit together as the right-hand unit, so adding Export doesn't
    let space-between fling Load to the centre of the row. */
@@ -210,7 +203,6 @@ select.mtx-ch {
   gap: var(--sp-2);
 }
 .mtx-add-row {
-  margin-top: var(--sp-3);
   border: 1px dashed var(--line);
   border-radius: var(--r-md);
   background: transparent;
@@ -251,7 +243,6 @@ select.mtx-ch {
   border-color: var(--accent);
 }
 .mtx-editor {
-  margin-top: var(--sp-2);
   border-top: 1px solid var(--line);
   padding: var(--sp-3) var(--sp-2) var(--sp-1);
   display: flex;
