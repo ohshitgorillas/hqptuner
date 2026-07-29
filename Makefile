@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-js check mutate
+.PHONY: lint lint-js test test-live test-js check manual mutate
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -48,6 +48,15 @@ test-js:
 	node --import ./tests/js/vendor-resolve.js --test tests/js/*.test.js
 
 check: lint lint-js test test-js
+
+# Pre-parse the vendored Signalyst docs into docs/vendor/manual/ — one file per
+# manual subsection plus an index, so an agent reads the section it needs
+# instead of pdftotext'ing all 65 pages into context. Output is gitignored
+# (derived from copyrighted material) and rebuilt from hqplayer6desktop-manual.pdf
+# on demand; deliberately not part of `check`, which must stay runnable without
+# a copy of the manual in place.
+manual:
+	$(VENV)/python scripts/build_manual.py
 
 # Mutation testing — a periodic health check on the SUITE, deliberately absent
 # from `check` above and from the pre-commit hooks. It breaks the code on
