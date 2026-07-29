@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from ..control import ControlError
-from ..lanes import livelane, livemap
+from ..lanes import livelane, livemap, livesnapshot
 from ..livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
 from .deps import Mgr
 
@@ -47,7 +47,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any
     """Snapshot what the engine is playing right now under this name, overwriting
     any preset already saved under it. 409 when the loaded chain is unknowable —
     the record would claim a chain it never captured."""
-    snapshot = livemap.live_snapshot(manager)
+    snapshot = livesnapshot.live_snapshot(manager)
     if snapshot is None:
         raise HTTPException(
             status_code=409,
