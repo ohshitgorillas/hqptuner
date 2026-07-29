@@ -4,6 +4,18 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Matrix stage chips carry their kind in the label, not the outline.** Violet for EQ and other processing, rose for convolution. The outline is now the hover and selection mark, in the accent; In/Out endpoints are accented too. Kind colours no longer sit on the accent palette, so the amber and green themes stop making chips look selected.
+
+- **Raised elements — chips, buttons, dropdowns, card headings, plots — carry a 1px highlight on their top edge.** No colour or spacing changes.
+
+### Added
+
+- **The signal-path thread animates while the engine plays,** and the output rate readout glows. Both stop with playback, and neither runs under reduced-motion.
+
+- **The stopped signal path's `—` placeholders render in the readout face, dimmed.**
+
 ## [0.10.0] — 2026-07-29
 
 ### Added

@@ -26,7 +26,7 @@ Form lane gone from profile CRUD. Plain-Save cut at first delivery reversed — 
 
 ### Pipeline flow rows
 
-Each pipeline = one flow row: source-channel chip → ordered stage chips → gain chip → target-channel chip, connectors between. Chip colour encodes stage kind: channel endpoints blue, convolution green, gain neutral, **all other processing amber** (incl. `delay` and `riaa`). Row controls: add-stage affordance at chain end, plot toggle at row end, remove row, `∅` clear-chain tool (clears process chain, resets gain to 0 dB, keeps routing), add pipeline below list. Rows grouped or badged by target channel so summing visible; section header shows active/max count. Source/target selects cover wire 0–127 as labels 1–128 ("In n" / "Out n").
+Each pipeline = one flow row: source-channel chip → ordered stage chips → gain chip → target-channel chip, connectors between. Chip colour encodes stage kind, **on the label only — every stage chip keeps the neutral `--line` border**: convolution rose, gain neutral, **all other processing violet** (incl. `delay` and `riaa`). Channel endpoints are the one accent-coloured chip, border included; the outline elsewhere is reserved for hover and selection, which is what makes the edited stage findable in a 16-pipeline matrix. Kind hues stay off the accent palette (blue / green / amber) so no chip impersonates the accent under a theme switch. Row controls: add-stage affordance at chain end, plot toggle at row end, remove row, `∅` clear-chain tool (clears process chain, resets gain to 0 dB, keeps routing), add pipeline below list. Rows grouped or badged by target channel so summing visible; section header shows active/max count. Source/target selects cover wire 0–127 as labels 1–128 ("In n" / "Out n").
 
 ### Stage editor
 

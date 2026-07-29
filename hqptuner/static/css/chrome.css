@@ -12,6 +12,11 @@
 .signal-path.live .chip-hero .chip-val {
   color: var(--accent-glow);
   font-weight: var(--fw-medium);
+  /* phosphor bloom on the one live number the bar exists to show. Glass-tube
+     convention: an illuminated readout bleeds a little into the dark around it.
+     Weak enough to leave the glyph edges crisp — this is not a shadow that
+     could be mistaken for a blur, and the figure stays a value you can read. */
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent-glow) 45%, transparent);
 }
 
 /* sticky chrome — header + signal path + tab bar stay pinned while the tab

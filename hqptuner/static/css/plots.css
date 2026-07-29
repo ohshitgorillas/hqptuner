@@ -20,11 +20,15 @@
   height: auto;
   display: block;
 }
+/* hairline, quieter than traces — but it has to be one. --line at --o-back
+   composites to #272b37 on the plot's --surface-raised, under 1% off the
+   background: the grid was in the DOM and invisible. --muted at the same depth
+   step lands near #3f4450 — reads as a grid, still well under every trace. */
 .plot-grid {
-  stroke: var(--line);
+  stroke: var(--muted);
   stroke-width: 0.5;
   opacity: var(--o-back);
-} /* hairline, quieter than traces */
+}
 .plot-zero {
   stroke: var(--muted);
   stroke-width: 0.8;

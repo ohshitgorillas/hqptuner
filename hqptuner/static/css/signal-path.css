@@ -40,6 +40,18 @@
   font-weight: var(--fw-medium);
   color: var(--fg);
 }
+/* a chip with nothing to report — the stopped panel's SOURCE and OUTPUT. Same
+   treatment as a bypassed stage, plus the placeholder in mono: an em-dash set
+   in the value face is a deliberate blank in the readout, where the same dash
+   in the UI face is just a character that failed to become a number. */
+.chip-dash {
+  opacity: var(--o-off);
+}
+.chip-dash .chip-val {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-normal);
+  color: var(--muted);
+}
 /* a bypassed post-processing stage (crossfeed/correction off) reads muted */
 .chip-off {
   opacity: var(--o-off);
@@ -59,6 +71,41 @@
 }
 .signal-path.live .link {
   background: var(--accent); /* signal flowing through the chain */
+  position: relative;
+  overflow: hidden; /* the travelling band is clipped to its own segment */
+}
+/* the flow itself: a brighter band drifting source → output along every lit
+   segment. Every segment runs the same cycle in phase rather than staggering
+   down the chain — the chain's length changes with the mode (a DSD source adds
+   two stages, a bit-perfect path collapses to three chips), so any per-segment
+   delay would have to be nth-child arithmetic that silently mis-phases the
+   moment the chain grows. In phase, the bands read as one pulse crossing the
+   whole bar, which is the thing being depicted.
+
+   transform only, so it composites and never repaints; the element exists only
+   while .live is on, so a stopped engine animates nothing at all. */
+.signal-path.live .link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+  animation: signal-flow var(--flow) linear infinite;
+}
+@keyframes signal-flow {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+/* motion is the whole point of the effect, so there is no reduced version of it
+   to fall back to — the band is simply not drawn, leaving the accent thread the
+   bar has always had. */
+@media (prefers-reduced-motion: reduce) {
+  .signal-path.live .link::after {
+    display: none;
+  }
 }
 /* engine-health alert strip — warning row under the signal path; rendered only
    while a condition is active, so healthy playback adds zero chrome. */

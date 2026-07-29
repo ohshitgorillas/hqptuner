@@ -39,6 +39,51 @@ input,
     fill var(--dur) var(--ease);
 }
 
+/* ── Edge light: the raised surface's top lip ──────────────────────────────
+   One rule for one surface ROLE, not a decision per component: every element
+   that paints --surface-raised catches a 1px highlight on its top edge, the
+   way a raised panel does under a light source above it. That is what tells
+   the eye a control sits ON the card rather than being a hole cut into it —
+   the border system alone cannot say which, because a border is the same all
+   the way round.
+
+   The list is the set of selectors painting `background: var(--surface-raised)`.
+   Two kinds of raised-token user are deliberately absent. A RECESSED reading
+   surface — range track, meter trough, volume-bar track — is lit from the
+   wrong side by definition, and lighting its top lip would make it read as
+   proud of the card, the opposite of what it is. SVG `fill` users (knob face,
+   room diagrams) have no CSS box to inset a shadow into.
+
+   .multi-pop is absent for a different reason: it already spends box-shadow on
+   --shadow-pop, and this rule loads after narrowing.css, so it would replace
+   the popover's lift instead of adding to it. Its edge light is written into
+   that rule itself, where both shadows can sit in one value. */
+.card-head,
+.btn,
+.chip,
+.pchip,
+.mtx-tool,
+select.mtx-ch,
+.segment .seg,
+select,
+input[type="number"],
+input[type="text"],
+input[type="checkbox"],
+.slidernum-box,
+.knob .knob-box,
+.live-toggle,
+.live-chip,
+.multi,
+.multi-btn,
+.rescan-btn,
+.pending-bar .note.warn,
+.pending-bar button,
+.plot,
+.band-strip,
+.vr-bubble {
+  box-shadow: var(--edge-light);
+}
+
 /* ── Focus: accent ring, never browser-blue ── */
 input:focus-visible,
 select:focus-visible,
