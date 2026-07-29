@@ -23,6 +23,16 @@ import { describe, selectionDescription } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { stagedCount, refreshConfig } from "../store/state.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
+import {
+  livePresets,
+  livePresetsBusy,
+  livePresetError,
+  applyLivePreset,
+  saveLivePreset,
+  deleteLivePreset,
+} from "../store/livepresets.js";
+import { askName, askConfirm } from "../store/ask.js";
+import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { ApodNarrow } from "./ApodNarrow.js";
@@ -244,6 +254,102 @@ function MatrixProfileCard() {
   `;
 }
 
+// --- live presets ------------------------------------------------------------
+// Named combos of the settings on this page, saved by HQPTuner rather than by
+// the daemon (store/livepresets.js). Picking one applies it on the spot, like
+// every other control here — there is no Apply on this page for it to wait for.
+//
+// The picker deliberately sits beside the page's lede rather than under it: both
+// are about what LIVE is, and a preset is the fastest way to say "put the engine
+// back the way I had it", which is the first thing a returning user wants.
+const PRESET_OWNER = "livepresets";
+const selectedPreset = signal("");
+
+// Every preset is pickable whatever the engine is running. A preset carries its
+// own output mode, so one taken on the other chain applies by switching to it —
+// which is the point of saving it.
+function presetOptions(presets) {
+  return [
+    { value: "", label: presets.length ? "Select a preset…" : "No live presets saved" },
+    ...presets.map((p) => ({ value: p.name, label: p.name })),
+  ];
+}
+
+async function pickPreset(name) {
+  selectedPreset.value = name;
+  if (name) await applyLivePreset(name);
+}
+
+// Both questions are asked INLINE in the card (store/ask.js). Backing out of
+// either — Escape, Cancel, or an empty name — writes nothing.
+async function onSavePreset(presets) {
+  const name = await askName(PRESET_OWNER, "Save the engine's current live settings as:");
+  if (!name) return;
+  const exists = presets.some((p) => p.name === name);
+  if (exists && !(await askConfirm(PRESET_OWNER, `Live preset "${name}" already exists. Overwrite it?`))) return;
+  await saveLivePreset(name);
+  selectedPreset.value = name;
+}
+
+async function onDeletePreset(name) {
+  if (!(await askConfirm(PRESET_OWNER, `Delete live preset "${name}"? This cannot be undone.`))) return;
+  await deleteLivePreset(name);
+  selectedPreset.value = "";
+}
+
+function LivePresetPicker() {
+  const presets = livePresets.value || [];
+  const busy = !!livePresetsBusy.value;
+  const name = selectedPreset.value;
+  return html`
+    <div class="field live-presets">
+      <label>Live preset</label>
+      <div class="control">
+        <${Dropdown} value=${name} options=${presetOptions(presets)} disabled=${busy} onChange=${pickPreset} />
+        ${busy ? html`<span class="t-micro">working…</span>` : null}
+      </div>
+      <div class="live-preset-actions">
+        <button type="button" onClick=${() => onSavePreset(presets)} disabled=${busy}>Save…</button>
+        <button type="button" onClick=${() => onDeletePreset(name)} disabled=${busy || !name}>Delete</button>
+      </div>
+      <${Ask} owner=${PRESET_OWNER} />
+      <div class="field-note">
+        Saves what the engine is running right now: output mode, both filters, the dither or modulator, the
+        high-frequency filter, adaptive volume and the rate. Picking one puts all of it back, switching the output mode
+        first if it has to — which can interrupt playback, like every other control here.
+      </div>
+      ${livePresetError.value ? html`<div class="live-error">${livePresetError.value}</div>` : null}
+    </div>
+  `;
+}
+
+// The page's lede and its presets, in one frame. The lede used to float above
+// the page as bare text with no card of its own, which read as a stray caption
+// rather than as the thing that explains the whole page.
+function LiveModeCard() {
+  return html`
+    <${Card} title="LIVE MODE">
+      <div class="live-mode-cols">
+        <${LivePresetPicker} />
+        <span class="col-rule" aria-hidden="true"></span>
+        <div class="live-mode-lede">
+          <div class="t-caption">
+            Nothing on this page is saved. Every control writes to the running engine the moment you change it — no
+            Apply, and nothing waits for playback to stop — and what it writes lasts until the daemon next restarts,
+            including the restart an Apply in the tabs view performs. After that the engine is back to its configured
+            settings.
+          </div>
+          <div class="t-caption">
+            Live presets are this page's own: they hold what the engine is playing, not a configuration. The presets in
+            the header are whole settings files and restart the daemon; the matrix profiles further down are a
+            different thing again.
+          </div>
+        </div>
+      </div>
+    <//>
+  `;
+}
+
 // The tabs view's staged edits are none of this page's business, but leaving
 // them invisible is how a user forgets an Apply is still owed. Informational
 // only: LIVE never flushes the pending buffer and never blocks on it.
@@ -257,11 +363,7 @@ export function LiveView() {
   return html`
     <${Section}>
       <${StagedChip} />
-      <div class="t-caption">
-        Nothing on this page is saved. Every control writes to the running engine the moment you change it — no Apply,
-        and nothing waits for playback to stop — and what it writes lasts until the daemon next restarts, including the
-        restart an Apply in the tabs view performs. After that the engine is back to its configured settings.
-      </div>
+      <${LiveModeCard} />
       <${HeroRow} />
       <!-- The same card the System tab carries, second on the page because on
            LIVE it is the instrument you judge a write by: change the rate or the

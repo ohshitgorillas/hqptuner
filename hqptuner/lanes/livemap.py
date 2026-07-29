@@ -147,6 +147,22 @@ def _index_for_mode(items: EnumItems, form_value: str) -> str | None:
     return None
 
 
+def mode_form_value(items: EnumItems, index: str) -> str | None:
+    """The config-form mode value (auto|pcm|sdm) a ModesItem index denotes.
+
+    The inverse of ``_index_for_mode``, and public because two other lanes need
+    it: ``liveoverrides`` to report the running mode and ``livesnapshot`` to store
+    it in a live preset. Matched by NAME for the same reason the forward join is —
+    the modes enumeration is device-dependent, so positions are not stable.
+    """
+    for item in items:
+        if str(item.get("index")) != str(index):
+            continue
+        name = (item.get("name") or "").upper()
+        return next((form for form, want in MODE_NAMES.items() if name.startswith(want.upper())), None)
+    return None
+
+
 def _resolve(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
     """The live list index this form field+value becomes, or None when it cannot
     route live (wrong chain, missing enumeration, or an unknown value)."""

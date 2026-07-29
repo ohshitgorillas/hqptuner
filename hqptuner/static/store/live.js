@@ -50,13 +50,17 @@ function setError(field, message) {
 // A 200 still carries failures: the backend verifies each setter by State
 // readback and reports per setting, so an entry that did not verify is this
 // control's error just as much as a thrown 409 is.
-function reportError(report) {
+export function reportError(report) {
   const failed = ((report && report.live) || []).find((e) => !e.ok);
   if (!failed) return "";
   return failed.error || `${failed.setting} did not take`;
 }
 
-async function remirror(field, report) {
+// Re-read what a live write moved. Takes the batch's fields rather than one
+// name because a live preset applies several at once (store/livepresets.js) and
+// must re-mirror by exactly the rules a hand-made write already follows —
+// deciding that twice is how the two paths drift.
+export async function remirrorLive(fields, report) {
   const state = await api.state();
   engineState.value = state.data;
   // An edit to the chain the engine has not loaded is HELD, not applied
@@ -68,8 +72,8 @@ async function remirror(field, report) {
   // limits (livemap.live_overrides), and that overlay is what the dormant rate
   // column reads. Its own poll is on the slow cadence, so pull it here rather
   // than leave the column showing the pre-switch tier for a few seconds.
-  if (held || RATE_MIRRORED.has(field)) await refreshConfig();
-  if (held || !REENUMERATES.has(field)) return;
+  if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();
+  if (held || !fields.some((f) => REENUMERATES.has(f))) return;
   liveReloading.value = true;
   try {
     const fresh = await api.enumerations();
@@ -90,7 +94,7 @@ export async function writeLive(field, value) {
     // which member of it (see the base-family note below).
     const wire = field === "rate" ? forSource(String(value)) : String(value);
     const report = await api.live({ [field]: wire });
-    await remirror(field, report);
+    await remirrorLive([field], report);
     setError(field, reportError(report));
   } catch (e) {
     // a refused batch applied nothing, so the mirrors are still current

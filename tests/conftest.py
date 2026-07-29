@@ -77,6 +77,59 @@ async def split_filter_daemon_port() -> AsyncIterator[int]:
     await server.wait_closed()
 
 
+def _reachable(client: TestClient) -> bool:
+    return bool(client.get("/api/health").json()["reachable"])
+
+
+def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
+    """Control lane only — no credentials, so the app talks 4321 alone."""
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=control_port,
+        hqp_username="",
+        hqp_password="",
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        # never the repo's own state/ — a live-preset write in a test would land
+        # in the dev container's bind mount and outlive the run
+        live_preset_file=tmp_path / "live-presets.json",
+    )
+    with TestClient(create_app(cfg)) as client:
+        wait_for_api(client, _reachable)
+        yield client
+
+
+@pytest.fixture
+def live_api(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient]:
+    yield from _live_app(threaded_daemon_port, tmp_path)
+
+
+@pytest.fixture
+def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
+    """Build the control-only app on a fake daemon carrying the given State and
+    Status overrides. A factory rather than a fixture per case: which chain the
+    engine has loaded is four different daemon situations, and a fixture pair for
+    each would be six near-identical fixtures for four one-line tests.
+
+    Every client built here shares one preset store (``tmp_path``), which is what
+    lets a preset saved against one engine situation be applied against another."""
+    daemons: list[Iterator[int]] = []
+    apps: list[Iterator[TestClient]] = []
+
+    def build(**overrides: str) -> TestClient:
+        daemon = spawn_threaded_daemon(overrides)
+        daemons.append(daemon)
+        app = _live_app(next(daemon), tmp_path)
+        apps.append(app)
+        return next(app)
+
+    yield build
+    for app in apps:
+        next(app, None)
+    for daemon in daemons:
+        next(daemon, None)
+
+
 DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog, dict[str, str]]]]
 
 
@@ -336,6 +389,17 @@ def _closed_port() -> int:
 @pytest.fixture
 def closed_port() -> int:
     return _closed_port()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _never_the_hosts_metering_port() -> Iterator[None]:
+    """No test may open the host daemon's metering side channel. The default
+    port is the running daemon's (config.py), so point the default at a hole:
+    an app built without an explicit port then dials nothing. Cases that want a
+    stream pass ``hqp_metering_port`` themselves and are unaffected."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("HQPTUNER_HQP_METERING_PORT", str(_closed_port()))
+        yield
 
 
 @pytest.fixture

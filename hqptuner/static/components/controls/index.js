@@ -8,6 +8,11 @@ import { truthy } from "../../lib/coerce.js";
 
 const s = (v) => (v == null ? "" : String(v));
 
+// Clicking the button that is already active reports nothing: `onChange` means
+// the value changed, and every caller takes it as one. On the LIVE page that
+// event is a write to the engine — re-picking the running output mode would
+// re-enumerate and drop the engine's rate pin (store/live.js) for a selection the
+// user did not alter.
 export function Segment({ value, options, disabled, onChange }) {
   return html`
     <span class="segment">
@@ -17,7 +22,7 @@ export function Segment({ value, options, disabled, onChange }) {
             type="button"
             class=${s(o.value) === s(value) ? "seg active" : "seg"}
             disabled=${disabled}
-            onClick=${() => onChange(o.value)}
+            onClick=${() => s(o.value) !== s(value) && onChange(o.value)}
           >
             ${o.label}
           </button>

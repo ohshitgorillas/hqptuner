@@ -80,6 +80,13 @@ export const api = {
   // the LIVE view's whole write path: applied on the spot, readback-verified,
   // never staged (store/live.js)
   live: (fields) => send("/api/config/live", "POST", { fields }),
+  // Live presets — HQPTuner's own record, never the daemon's. A save takes no
+  // body: the backend snapshots the running engine itself, so the browser has
+  // nothing to send that the daemon has not already reported.
+  livePresets: () => getJSON("/api/livepresets"),
+  saveLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT"),
+  applyLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
+  deleteLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
   refreshDevices: () => send("/api/config/refresh", "POST"),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),

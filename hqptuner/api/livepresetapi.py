@@ -28,18 +28,15 @@ def _unreadable(exc: LivePresetSchemaError) -> HTTPException:
 
 
 @router.get("/livepresets")
-def live_presets(request: Request, manager: Mgr) -> dict[str, Any]:
-    """Every saved live preset, each flagged against the chain the engine has
-    loaded right now. An off-chain preset is still listed — its filter and shaper
-    IDs belong to the other chain's enumeration and would not resolve, so the card
-    shows it as incompatible rather than hiding it and losing the user's work."""
+def live_presets(request: Request) -> dict[str, Any]:
+    """Every saved live preset. Flat: a preset carries its own output mode, so
+    applying one taken on the other chain switches the engine to it rather than
+    conflicting with what is loaded — there is nothing here to gate on."""
     try:
         presets = _store(request).all()
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
-    chain = livemap.active_chain(manager)
-    listed = [{"name": name, **record, "compatible": record.get("chain") == chain} for name, record in presets.items()]
-    return {"chain": chain, "presets": listed}
+    return {"presets": [{"name": name, **record} for name, record in presets.items()]}
 
 
 @router.put("/livepresets/{name}")
@@ -69,23 +66,21 @@ def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any
 
 @router.post("/livepresets/{name}/apply")
 async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any]:
-    """Apply a saved preset as one live batch, readback-verified. The live lane's
-    all-or-nothing 409 carries over unchanged: a stored ID the running
-    enumerations no longer offer refuses the whole preset, naming the field."""
+    """Apply a saved preset, readback-verified. Its output mode goes first and the
+    rest follows against the enumerations that switch produced (``apply_preset``),
+    so a preset taken on the other chain applies by switching to it.
+
+    The live lane's all-or-nothing 409 carries over unchanged: a stored ID the
+    running enumerations no longer offer refuses the whole preset, naming the
+    field."""
     try:
         record = _store(request).read(name)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
     except LivePresetError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    chain = livemap.active_chain(manager)
-    if record.get("chain") != chain:
-        raise HTTPException(
-            status_code=409,
-            detail={"chain": f"this preset holds {record.get('chain')} settings (engine chain: {chain or 'unknown'})"},
-        )
     try:
-        return await livelane.apply_now(manager, record.get("fields") or {})
+        return await livelane.apply_preset(manager, record.get("fields") or {})
     except livemap.LiveRouteError as exc:
         raise HTTPException(status_code=409, detail=exc.reasons) from exc
     except ControlError as exc:
