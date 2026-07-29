@@ -276,14 +276,18 @@ function liveFamily() {
 // daemon restarts on it (~5.6 s, `lanes/httplane.py`). A restart is the one
 // thing the LIVE page exists not to do, so this is the rare control that sends
 // the user to the tabs view — and it says why, so the refusal does not read as
-// the setting being unreachable.
+// the setting being unreachable. Confirmed upstream (Jussi, email 2026-07-29):
+// the rate limit and family settings are specific to the selected output
+// hardware, so a live limit is impossible by design — but an explicit output
+// rate can be set on the fly, which is the escape hatch the caption offers.
 //
 // The tabs' own rate pair grays quietly (`quietGray`, store/schema.js) because
 // its reason changes with the mode and would reflow the row. This one does not
 // move: it is shown only in auto and says the same thing the whole time.
 const AUTO_RATE_REASON =
-  "In Auto the engine picks the rate per track, up to this limit. Changing the limit restarts the engine, " +
-  "so it cannot be set live — change it on the Output tab.";
+  "In Auto the engine picks the rate per track, up to this limit. The limit is tied to the output device " +
+  "and can never change live — set it on the Output tab (restarts the engine). To pin a rate on the fly, " +
+  "switch to PCM or SDM modes.";
 
 // --- what the dormant column shows -------------------------------------------
 // State reports one rate, the running family's, so the moment the engine changes
