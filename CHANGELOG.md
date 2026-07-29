@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **LIVE's rate caption in Auto now explains why, and offers a way out.** The rate limit is tied to the output device and can never change while running, so the caption says so, and points to switching the mode to PCM or SDM to pin a rate on the fly.
+
 ### Fixed
 
 - **The junk-filter recommendation no longer disappears when the music starts.** Advice now stays up for the rest of the track once earned, and clears when the track changes or the recommended filter is engaged. Persistent tones — tape bias, interference — are also detected while music plays, not just in quiet passages, after about 30 seconds of listening.
