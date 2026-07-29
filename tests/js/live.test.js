@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState, enums } from "../../hqptuner/static/store/state.js";
+import { engineState, enums, config } from "../../hqptuner/static/store/state.js";
 import { liveModel, liveErrors, liveBusy, writeLive } from "../../hqptuner/static/store/live.js";
 import { ok, bad } from "./wire.js";
 
@@ -61,31 +61,56 @@ const STATE = () => ({
 // so adopting them is observable.
 const RE_ENUMS = () => ({ ...ENUMS(), filters: [{ index: "0", value: "3", name: "poly-sinc-short" }] });
 
-// A live-lane server: the write path, plus the two endpoints a successful write
-// re-mirrors from. `report` is what /api/config/live answers on 200; `status` +
-// `detail` make it refuse instead.
-function liveWire({ status = 200, detail, report = { live: [] }, fresh } = {}) {
+// The SDM side of the engine. The rates enumeration is MODE-DEPENDENT (manual
+// §4.6) — SDM mode enumerates DSD rates — and the daemon holds ONE rate pin
+// that SetMode clears, so State can only ever answer for the running family.
+// The dormant family's rate reaches the frontend the other way, through
+// config.file (livemap.live_overrides), which is what these fixtures separate.
+const SDM_RATES = [
+  { index: "0", rate: "0" },
+  { index: "1", rate: "12288000" },
+  { index: "2", rate: "24576000" },
+];
+const SDM_ENUMS = () => ({ ...ENUMS(), rates: SDM_RATES, mode: { name: "SDM (DSD)" } });
+const SDM_STATE = () => ({ ...STATE(), mode: "2", rate: "1", active_chain: "sdm" });
+
+// `file` is the config XML overlaid with the engine's live settings, keyed by
+// FORM FIELD name: the PCM rate limit is `defaults_samplerate`, the SDM one
+// `defaults_bitrate` (store/schema.js pcm_rate / sdm_rate, both fileTruth).
+const FILE = () => ({ mode: "pcm" });
+
+// A live-lane server: the write path, plus the three endpoints a successful
+// write re-mirrors from. `report` is what /api/config/live answers on 200;
+// `status` + `detail` make it refuse instead. `fresh` / `mirrored` / `refreshed`
+// are what the daemon reports AFTER the write — enumerations, State, and the
+// config overlay — each defaulting to what the test seeded, so a fake that has
+// not moved answers what the signals already hold.
+function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored, file = FILE(), refreshed } = {}) {
   const w = { posts: [] };
   globalThis.fetch = async (path, opts = {}) => {
     if (path === "/api/config/live") {
       w.posts.push(JSON.parse(opts.body));
       return status === 200 ? ok(report) : bad(status, detail);
     }
-    if (path === "/api/state") return ok({ data: STATE() });
+    if (path === "/api/state") return ok({ data: mirrored || STATE() });
     if (path === "/api/enumerations") return ok({ data: fresh || ENUMS() });
+    if (path === "/api/config")
+      return ok({ data: { fields: [], file: refreshed || file, active: "", profiles: null } });
     return ok({});
   };
   return w;
 }
 
 // Total reset: module-level signals outlive a test, so a partial one makes cases
-// pass alone and fail in sequence.
-function reset(wire = {}) {
-  engineState.value = STATE();
-  enums.value = ENUMS();
+// pass alone and fail in sequence. `state` / `lists` / `file` seed the three
+// source signals a rate control reads; the rest goes to the wire.
+function reset({ state, lists, file = FILE(), ...wire } = {}) {
+  engineState.value = state || STATE();
+  enums.value = lists || ENUMS();
+  config.value = { fields: [], file, active: "", profiles: null };
   liveErrors.value = {};
   liveBusy.value = "";
-  return liveWire(wire);
+  return liveWire({ mirrored: state, file, ...wire });
 }
 
 const control = (field) => liveModel.value.chainControls.find((c) => c.field === field);
@@ -150,4 +175,57 @@ test("test_a_junk_filter_write_leaves_the_enumerations_alone", async () => {
   reset({ fresh: RE_ENUMS() });
   await writeLive("junk_filter", "0");
   assert.equal(enums.value.filters[0].name, "none");
+});
+
+// --- the two rate columns, one engine pin -----------------------------------
+// The engine is running SDM with DSD256 (12288000) pinned, and the config
+// overlay carries a different rate for each family — so a column that read the
+// wrong one of the two sources shows a rate no other fixture value matches.
+
+const SDM_RUNNING = () => ({
+  state: SDM_STATE(),
+  lists: SDM_ENUMS(),
+  file: { mode: "sdm", defaults_samplerate: "384000", defaults_bitrate: "24576000" },
+});
+
+test("test_the_dormant_pcm_column_reads_the_running_configs_limit", () => {
+  reset(SDM_RUNNING());
+  assert.equal(liveModel.value.pcmRate.value, "384000");
+});
+
+test("test_the_dormant_sdm_column_reads_the_running_configs_limit", () => {
+  // The mirror of the case above, with the engine in PCM: a store that sourced
+  // one column from State and the other from the overlay regardless of which
+  // family is running passes one of these two and fails the other.
+  reset({ file: { mode: "pcm", defaults_bitrate: "24576000" } });
+  assert.equal(liveModel.value.sdmRate.value, "24576000");
+});
+
+test("test_the_running_familys_column_reads_the_engines_own_pin", () => {
+  reset(SDM_RUNNING());
+  assert.equal(liveModel.value.sdmRate.value, "12288000");
+});
+
+// The engine ends a mode write in the other family, so the column that just went
+// dormant has no State to read and the overlay it reads instead has moved: the
+// daemon answers /api/config with the pin LIVE remembered for it. Asserting the
+// re-pull happened would go green on a store that threw the answer away.
+
+test("test_a_mode_write_adopts_the_config_overlay_it_changed", async () => {
+  reset({
+    ...SDM_RUNNING(),
+    mirrored: STATE(),
+    refreshed: { mode: "pcm", defaults_samplerate: "384000", defaults_bitrate: "49152000" },
+  });
+  await writeLive("mode", "pcm");
+  assert.equal(liveModel.value.sdmRate.value, "49152000");
+});
+
+test("test_a_rate_write_adopts_the_config_overlay_it_changed", async () => {
+  reset({
+    file: { mode: "pcm", defaults_bitrate: "3072000" },
+    refreshed: { mode: "pcm", defaults_bitrate: "6144000" },
+  });
+  await writeLive("rate", "192000");
+  assert.equal(liveModel.value.sdmRate.value, "6144000");
 });
