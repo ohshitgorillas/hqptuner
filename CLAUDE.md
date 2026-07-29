@@ -10,6 +10,10 @@ HQPTuner honors every user action, daemon playing or not — no 409, no disabled
 
 (Different thing, still fine: *dev probe scripts* writing to production daemon may check state first — protects host's listener, not UI user.)
 
+### No reverse engineering of HQPlayer
+
+Reverse engineering HQPlayer violates Signalyst's terms, so it is off the table — no probing the engine to characterise its DSP (tone, sweep or impulse tests to infer a filter's response, corner, slope or internal design), no disassembly, no inferring internals from observed behaviour, no ad-hoc experiment to answer "what does this filter actually do". HQPlayer's own docs are the sole authority for engine behaviour; where they are silent, the answer is "undocumented" — say so and plan around it. Reading the daemon's documented wire protocol and settings surface (`docs/protocol.md`) is a different thing and stays fine: it is how HQPTuner is built, and characterising the *interface* is not characterising the *DSP*. A plan step that proposes such a measurement is a defect — drop it, and treat the question as permanently unanswerable rather than answerable by experiment.
+
 ### Running engine is enumeration authority
 
 Running engine = sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (architecture §2).
