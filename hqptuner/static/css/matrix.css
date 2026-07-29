@@ -4,14 +4,23 @@
 
 /* ── Matrix tab (read-only phase) ─────────────────────────────────────────
    Pipeline flow rows: chips joined by connectors, one row per pipeline.
-   Chip hue encodes stage kind (matrix-spec §3) with FIXED hues, deliberately
-   independent of the switchable accent so the kinds stay distinguishable
-   under every accent theme: channel endpoints blue, IIR amber, convolution
-   green, other plugins + gain neutral. */
+   Chip hue encodes stage kind (matrix-spec §3), but only on the LABEL — the
+   border stays --line. A 16-pipeline headphone matrix draws ~50 stage chips,
+   and hue on the outline made every one of them shout at the same volume, so
+   the row had no focal point: the selected chip was one loud chip among fifty.
+   Colour on the text alone keeps the kinds readable and hands the outline back
+   to the two states worth spotting across the page — hover and selection.
+
+   The kind hues are also deliberately OFF the accent palette (blue / phosphor
+   green / VU amber). They used to be blue-amber-green, which is that palette
+   exactly: under the amber theme a wall of IIR chips read as accent, under the
+   green theme the convolution chips did. Violet and rose collide with no theme,
+   so a coloured chip never impersonates the accent. Endpoints are the one
+   exception and take the accent on purpose — they anchor the row's two ends. */
 :root {
-  --chip-ch: #4f9dde;
-  --chip-iir: #d1a13a;
-  --chip-conv: #3fa66a;
+  --chip-ch: var(--accent);
+  --chip-iir: #a98cd9;
+  --chip-conv: #d18ab0;
 }
 .mtx-read {
   display: flex;
@@ -74,12 +83,13 @@
   border-color: var(--chip-ch);
   color: var(--chip-ch);
 }
+/* label-only hue: the outline belongs to hover and selection (see the note at
+   the head of this file), so a stage chip carries its kind in the text and the
+   same --line border as every other chip in the row. */
 .pchip-iir {
-  border-color: var(--chip-iir);
   color: var(--chip-iir);
 }
 .pchip-conv {
-  border-color: var(--chip-conv);
   color: var(--chip-conv);
 }
 .pchip-plug {
@@ -230,9 +240,19 @@ select.mtx-ch {
 .mtx-stage {
   cursor: pointer;
 }
+/* the two states that own the accent on this row. Hover answers "what am I
+   about to click"; selection answers "what is the editor and the plot pointing
+   at" — and it has to survive a squint across a 16-row matrix, so it takes the
+   border and the label as well as the ring. */
+.mtx-stage:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .mtx-stage.selected {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .mtx-stage.bad {
   border-color: var(--red);

@@ -82,6 +82,14 @@
   --on-accent: #08121c;
   /* the one elevation shadow: popovers lifting off the page */
   --shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.4);
+  /* the edge light: a 1px inset highlight along the TOP edge of anything
+     painting --surface-raised. It is the surface role's own property, not a
+     per-component decision — a raised element catches light on its top lip and
+     a card does not, which is the whole difference between "sitting on" and
+     "cut into". Applied in one place (aesthetic.css); the border system is
+     untouched and no surface colour moves. Kept under 6% alpha deliberately:
+     at that strength it reads as edge geometry, and past it as a white line. */
+  --edge-light: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   /* ── Layout system (aesthetics pass) ──────────────────────────────────
      One spacing scale (4/8/12/24/32) and a small set of control-width
      tokens, so empty space reads as intentional, not leftover. Every
@@ -146,6 +154,13 @@
      slow settle is what makes a needle look damped instead of twitchy. Duration
      and curve travel together because splitting them invites half-uses. */
   --sweep: 1s ease-out;
+  /* the third motion role, and the only one that loops: the signal-path thread's
+     flow drift while the engine plays. It is ambient, not a response to anything
+     the user did, so it is slow enough to read as movement and never as an
+     animation demanding attention — under ~4s it starts to look like a progress
+     bar. Compositor-only (transform), and disabled outright under
+     prefers-reduced-motion. */
+  --flow: 6s;
   /* ── Opacity (binding) ────────────────────────────────────────────────
      Two ladders sharing one scale, because opacity answers two questions.
      STATE — is this control in play? — dims a whole control or region.

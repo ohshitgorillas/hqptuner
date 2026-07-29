@@ -73,6 +73,12 @@ const decode = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&am
 const chip = (out, label) => chips(out)[Object.keys(chips(out)).find((k) => decode(k) === label)];
 const has = (out, label) => labels(out).some((k) => decode(k) === label);
 
+// label -> that chip's own class attribute, verbatim.
+const chipClass = (out, label) => {
+  const marked = [...out.matchAll(/<span class="(chip[^"]*)"><span class="chip-label">([^<]*)<\/span>/g)];
+  return marked.find((m) => decode(m[2]) === label)?.[1] ?? "no such chip";
+};
+
 const PLAY = { state: PLAYING, metadata: { samplerate: "44100", bits: "24" }, status: { active_rate: "705600" } };
 // A DSD bitstream into a DSD output — the SDM→SDM remodulation path.
 const DSD_TO_SDM = {
@@ -408,4 +414,35 @@ test("test_the_chain_carries_one_connector_between_each_pair_of_chips", () => {
   const out = panel(PLAY);
   const links = [...out.matchAll(/<span class="link">/g)].length;
   assert.equal(links, labels(out).length - 1);
+});
+
+// --- placeholder chips ------------------------------------------------------
+// A chip standing in for a figure the engine is not reporting reads "—", and
+// says so in its class as well as its text, so the placeholder can be drawn in
+// the readout face rather than as ordinary chip text. The mark follows the
+// VALUE, not the transport: a stopped engine dashes every chip, but a chip can
+// read "—" mid-playback too (an engine reporting no filter) and is marked the
+// same.
+
+test("test_a_stopped_sources_placeholder_chip_is_marked_as_a_dash", () => {
+  assert.ok(chipClass(panel(), "Source").split(" ").includes("chip-dash"));
+});
+
+test("test_a_placeholder_chip_is_marked_as_a_dash_while_playing_too", () => {
+  // PLAY reports no active_filter, so the Filter chip reads "—" mid-playback
+  assert.ok(chipClass(panel(PLAY), "Filter").split(" ").includes("chip-dash"));
+});
+
+test("test_a_chip_carrying_a_real_value_is_not_marked_as_a_dash", () => {
+  assert.equal(chipClass(panel(PLAY), "Source"), "chip");
+});
+
+test("test_the_stopped_output_chip_is_both_the_hero_and_a_dash", () => {
+  const cls = chipClass(panel(), "Output").split(" ");
+  assert.deepEqual({ hero: cls.includes("chip-hero"), dash: cls.includes("chip-dash") }, { hero: true, dash: true });
+});
+
+test("test_a_chip_that_is_neither_hero_nor_placeholder_carries_no_empty_class_slots", () => {
+  const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
+  assert.equal(chipClass(out, "Filter"), "chip");
 });

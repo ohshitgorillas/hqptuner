@@ -34,11 +34,22 @@ function fmtRate(rate) {
   return n ? hz(n, 3) : "—";
 }
 
+// The placeholder every "nothing to report" path in this file already writes:
+// no source, no rate, no chain. Marked as its own state rather than left as
+// ordinary chip text, because a bare dash styled like a value reads as a value
+// that failed to load — the stopped panel should read as dormant, not broken.
+const DASH = "—";
+
 function Chip({ label, value, hero }) {
+  const shown = value || DASH;
+  // joined rather than interpolated in place: an inline ternary for each state
+  // leaves the empty slots behind as stray spaces in the attribute, and the
+  // chip's class list is asserted verbatim.
+  const cls = ["chip", hero ? "chip-hero" : "", shown === DASH ? "chip-dash" : ""].filter(Boolean).join(" ");
   return html`
-    <span class="chip ${hero ? "chip-hero" : ""}">
+    <span class=${cls}>
       <span class="chip-label">${label}</span>
-      <span class="chip-val">${value || "—"}</span>
+      <span class="chip-val">${shown}</span>
     </span>
   `;
 }

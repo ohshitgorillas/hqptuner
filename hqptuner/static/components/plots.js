@@ -22,7 +22,10 @@ const PADT = 16; // top band carries the y-axis unit labels
 const PADB = 20;
 const LOGSPAN = Math.log(F1 / F0);
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-const FREQ_GRID = [100, 1000, 10000]; // fewer, quieter vertical lines than labels
+// A vertical at EVERY labelled frequency. Three decade lines under ten labels
+// left seven figures on the axis with nothing rising from them, so reading a
+// feature's frequency off the plot meant eyeballing the gap between decades.
+const FREQ_GRID = FREQ_LABELS;
 
 const fmtHz = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 const xOf = (f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
