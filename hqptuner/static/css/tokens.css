@@ -234,6 +234,20 @@ body {
   font-family: var(--font-ui);
 }
 
+/* iPad Safari runs double-tap-zoom detection on every control, so a tap emits
+   its click and then a second, delayed compatibility click ~350ms later. One tap
+   on a collapsible card head therefore toggled it twice — open, then shut again.
+   `manipulation` opts controls out of double-tap zoom only; pinch zoom and page
+   panning are untouched. Range inputs are deliberately absent: they own their
+   own touch gesture, and knobs.css sets `touch-action: none` on the knob for the
+   same reason (it loads later, so it wins there). */
+button,
+select,
+input[type="checkbox"],
+input[type="radio"] {
+  touch-action: manipulation;
+}
+
 /* every *value* renders tabular mono — measurement-equipment convention, and
    fixed-width stops live numbers from reflowing as they change */
 .mono,
