@@ -7,6 +7,7 @@ event loop, from a background thread for the sync `TestClient` cases, and as a
 factory for tests that need several or need to move one mid-session."""
 
 import asyncio
+import contextlib
 import functools
 import socket
 import threading
@@ -18,6 +19,7 @@ from typing import Any
 import fake_http
 import pytest
 from fake_control import DEFAULTS, CommandLog, serve
+from fake_metering import MeteringStream
 from fastapi.testclient import TestClient
 
 from hqptuner.api import create_app
@@ -25,6 +27,7 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.control import ControlClient
 from hqptuner.manager import ConnectionManager
+from hqptuner.metering import MeteringReader, TrackContext
 
 
 @pytest.fixture(autouse=True)
@@ -432,6 +435,50 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -
     )
     with TestClient(create_app(cfg)) as test_client:
         yield test_client
+
+
+# --- fake metering stream (port 4322 lane), implemented in fake_metering ----
+
+#: A playing 96 kHz PCM track with no junk filter engaged — the context under
+#: which the metering reader accumulates evidence.
+PLAYING = TrackContext(playing=True, track_serial="track-1", samplerate=96000, sdm=False, junk_filter="none")
+
+
+@pytest.fixture
+async def metering_stream() -> AsyncIterator[Callable[..., Any]]:
+    """Fake 4322 streams on demand, each closed at teardown."""
+    streams: list[MeteringStream] = []
+
+    async def build(repeat: bytes | None = None) -> tuple[MeteringStream, int]:
+        stream = MeteringStream(repeat=repeat)
+        streams.append(stream)
+        return stream, await stream.start()
+
+    yield build
+    for stream in streams:
+        await stream.close()
+
+
+async def _instant(_seconds: float) -> None:
+    await asyncio.sleep(0)
+
+
+@contextlib.asynccontextmanager
+async def running_reader(
+    port: int,
+    cell: list[TrackContext | None],
+    sleep: Callable[[float], Any] = _instant,
+) -> AsyncIterator[tuple[MeteringReader, "asyncio.Task[None]"]]:
+    """A MeteringReader running against the given port, reading its context
+    from ``cell[0]``, stopped and awaited on exit."""
+    reader = MeteringReader("127.0.0.1", port, lambda: cell[0], sleep=sleep)
+    task = asyncio.create_task(reader.run())
+    try:
+        yield reader, task
+    finally:
+        reader.stop()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], tries: int = 10_000) -> None:
