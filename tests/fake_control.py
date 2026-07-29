@@ -43,11 +43,13 @@ DEFAULTS = {
     # Space-separated commands answered `result="OK"` without applying: the
     # `value="999"` caveat above (protocol.md §4), keyed by command instead.
     "_deaf": "",
-    # Status reports the mode the engine is RUNNING as a display string, which is
-    # not always the configured one: in [source] mode it follows the source. The
-    # string is the same one GetModes gives that mode — verified against the live
-    # daemon (hqplayerd 6.0.4, 2026-07-27): configured mode 2 reports
-    # active_mode="SDM (DSD)", byte-identical to ModesItem index 2.
+    # Which family the SOURCE is, which in [source] mode is which chain the engine
+    # has loaded (readme §1.7). Named for the Status attribute it used to be
+    # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
+    # there rather than resolving (see _reported_mode). With a mode configured the
+    # string does go out as-is — verified against the live daemon (hqplayerd 6.0.4,
+    # 2026-07-27): configured mode 2 reports active_mode="SDM (DSD)",
+    # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
 }
 
@@ -128,6 +130,32 @@ def _active_sdm(state: dict[str, str]) -> bool:
     return (state.get("_active_mode") or "").upper().startswith(("SDM", "DSD"))
 
 
+def _reported_mode(state: dict[str, str]) -> str:
+    """What ``Status.active_mode`` says on the wire.
+
+    It resolves to the mode's display name only when one is CONFIGURED. In
+    ``[source]`` the daemon echoes ``"[source]"`` straight back rather than naming
+    the family it settled on — measured 2026-07-29 while playing PCM
+    (``scripts/probe_rate_playing.py``). So ``_active_mode`` is the fake's knob for
+    which family the SOURCE is, and this is what actually goes out.
+    """
+    return state.get("_active_mode", "") if state.get("mode") in ("1", "2") else "[source]"
+
+
+def _active_rate(state: dict[str, str]) -> str:
+    """The rate the fake is running at, or ``"0"`` when it is running nothing.
+
+    Carried because it is the only thing on the Status frame that tells ``[source]``
+    mode which chain is loaded, ``active_mode`` having declined to
+    (``livemap._chain_from_status``). Nothing loaded is nothing running: no
+    configured family and no source family means no rate, which is what says
+    "unknowable" rather than guessing PCM.
+    """
+    if state.get("mode") not in ("1", "2") and not state.get("_active_mode"):
+        return "0"
+    return "2822400" if _active_sdm(state) else "192000"
+
+
 def _enumeration(name: str, state: dict[str, str]) -> str | None:
     """GetModes/GetFilters/GetShapers, scoped to the chain the fake has loaded."""
     sdm = _active_sdm(state)
@@ -171,9 +199,9 @@ def _query(name: str, state: dict[str, str]) -> str | None:
         # active_* live on the Status root; the track <metadata> child is where the
         # daemon emits unescaped chars mid-playback (_metadata override).
         return (
-            f'<Status state="{state["state"]}" active_mode="{state["_active_mode"]}" '
+            f'<Status state="{state["state"]}" active_mode="{_reported_mode(state)}" '
             f'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
-            f'active_rate="192000" volume="{state["volume"]}">'
+            f'active_rate="{_active_rate(state)}" volume="{state["volume"]}">'
             f'{state["_metadata"]}</Status>'
         )
     return None

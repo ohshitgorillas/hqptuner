@@ -13,8 +13,9 @@ Applies a staged change set to the live daemon:
 Live edits apply in a fixed safe order: mode first (it resets rate to auto and
 swaps the enumeration lists the other indices are relative to), then filter,
 shaper, rate, junk filter, adaptive volume, volume. No idle gate — live
-settings apply immediately even during playback (audio stops, client resets;
-that is the intended behavior).
+settings apply immediately even during playback: the engine reorients and audio
+pauses briefly before resuming. Nothing here restarts the daemon or drops the
+client; that is the http lane's `POST /restore`, above.
 """
 
 from collections.abc import Awaitable, Callable

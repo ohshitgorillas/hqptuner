@@ -206,17 +206,20 @@ class ConnectionManager:
         if client is None:
             raise ControlError("not connected")
         state = await client.get_state()
-        # mode switch swaps the enumeration lists wholesale (architecture §5) —
-        # re-enumerate rather than serve stale lists
+        # A mode switch swaps the lists wholesale (architecture §5), and playback
+        # state moves the rate list: what fills that one is the transport as well
+        # as the mode (manual p.18 §4.4), so an idle network backend answered
+        # GetRates with auto alone where the same daemon served thirteen PCM tiers
+        # once asked again (Opal 2026-07-29) — and the page grayed every tier.
         previous = self.state or {}
-        mode_changed = self.state is not None and state.get("mode") != previous.get("mode")
-        if mode_changed:
-            log.info("mode changed (%s -> %s), re-enumerating", previous.get("mode"), state.get("mode"))
+        moved = self.state is not None and any(state.get(a) != previous.get(a) for a in ("mode", "state"))
+        if moved:
+            log.info("engine moved (mode %s, state %s), re-enumerating", state.get("mode"), state.get("state"))
             self.enums = await client.get_all_enumerations()
         status, meta = await client.get_status()
         before = livemap.active_chain(self)
         self.state, self.status, self.status_metadata = state, status, meta
-        await livelane.chain_entered(self, client, before, mode_changed)
+        await livelane.chain_entered(self, client, before, moved)
         self.volume_range = await client.get_volume_range()
         with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
             self.matrix_profiles = await client.get_matrix_profiles()

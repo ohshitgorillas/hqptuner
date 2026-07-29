@@ -90,11 +90,15 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     a mode switch silently throws away the rate the user picked, and both this page
     and the Output tab fall back to the configured limit.
 
+    Asks ``pin_family`` rather than ``active_chain``, because leaving ``[source]``
+    is a switch this has to land on too: the rate was held for want of a pin slot,
+    not for want of a chain, and in ``[source]`` a chain is loaded the whole time.
+
     A tier the entered mode does not offer is forgotten rather than approximated:
     pinning the nearest rate the engine does offer would be a rate the user never
     picked.
     """
-    family = livemap.active_chain(mgr)
+    family = livemap.pin_family(mgr)
     hz = mgr.live.rates.get(family or "")
     if hz is None:
         return []
@@ -103,6 +107,15 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
         del mgr.live.rates[family or ""]
         return []
     return await apply_live(client, {"rate": {"value": index}})
+
+
+def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> dict[str, str]:
+    """Everything this batch held, flat, as the caller's `stored` answer — the
+    chains' fields and the off-family rate alike. Held is held: the frontend
+    re-reads the running config on any of it, which is where a held value shows
+    up (`liveoverrides.live_overrides`)."""
+    held = {field: value for chain_held in stored.values() for field, value in chain_held.items()}
+    return held if held_rate is None else {**held, "rate": held_rate}
 
 
 def _remember_chain(mgr: ConnectionManager, chain: str, fields: dict[str, str]) -> None:
@@ -175,11 +188,17 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
 
     Fields for the chain the engine has not loaded are held rather than refused —
     LIVE shows both chains at once — and come back under `stored` so the caller
-    knows the value it sent is real but not yet playing.
+    knows the value it sent is real but not yet playing. A rate the engine will not
+    pin — the other family's, or any at all while the mode is `[source]` — is held
+    on the same terms and for the same reason (`livemap.unpinnable_rate`), but into
+    its own memory: the engine's rate pin is one slot the mode switch clears, not a
+    per-chain list, so it is `LiveMemory.rates` that holds it and `_reassert_rate`
+    that lands it.
     """
     client = mgr.control
     if client is None:
         raise ControlError("daemon not connected")
+    fields, held_rate = livemap.split_unpinnable_rate(mgr, fields)
     edits, stored = livemap.resolve_live(mgr, fields)
     report = await apply_live(client, edits)
     mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
@@ -187,6 +206,8 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         mgr.enums = await client.get_all_enumerations()
     if _applied(report, "rate"):
         _remember_rate(mgr, fields["rate"])
+    if held_rate is not None:
+        _remember_rate(mgr, held_rate)
     for chain, held in stored.items():
         _remember_chain(mgr, chain, held)
     loaded = livemap.active_chain(mgr)
@@ -198,7 +219,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         # the entered chain's held settings against the lists SetMode just swapped
         report = report + await _reassert_rate(mgr, client) + await reassert_chain(mgr, client)
         mgr.state = await client.get_state()
-    return {"live": report, "stored": {field: value for held in stored.values() for field, value in held.items()}}
+    return {"live": report, "stored": _held_fields(stored, held_rate)}
 
 
 def _mode_already_running(mgr: ConnectionManager, want: str) -> bool:

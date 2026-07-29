@@ -237,6 +237,13 @@ const UNOFFERED = "unavailable";
 
 function rateOptions(key) {
   const offered = new Set(items("rates").map((o) => String(o.rate)));
+  // A list carrying nothing but auto is the engine declining to enumerate rather
+  // than the engine offering nothing. What fills the list is the transport as
+  // well as the mode (manual p.18 §4.4), so a backend whose device is not open
+  // reports exactly that — measured on Opal 2026-07-29, an idle network backend.
+  // Graying every tier against a list like that is what made the whole menu
+  // unselectable, so a list with nothing in it to judge by judges nothing.
+  if (offered.size <= 1) return schema[key].options;
   return schema[key].options.map((o) =>
     offered.has(forSource(String(o.value))) ? o : { ...o, disabled: true, reason: UNOFFERED },
   );
@@ -252,6 +259,32 @@ function liveFamily() {
   return mode === "pcm" || mode === "sdm" ? mode : null;
 }
 
+// --- the rate columns in auto ------------------------------------------------
+// In `[source]` the engine chooses the output rate itself, once per stream, from
+// the source rate, the filter's conversion capability and the configured limit
+// (manual §4.4) — and it accepts no rate on the wire while it is doing that.
+// Measured 2026-07-29 mid-playback, `scripts/probe_rate_source_effect.py`: two
+// requests for rates BELOW what was playing, a full second to settle each, left
+// `State.rate` at `"0"` and `Status.active_rate` unmoved. The limit is the only
+// thing that governs there and the Control API has no command for it
+// (protocol.md §6), so LIVE has nothing to write in auto and says so, rather
+// than taking an edit the engine would drop. The column still shows the limit,
+// which is what the engine is choosing under.
+//
+// The caption names the cost outright rather than just refusing: the limit IS
+// settable, on the config lane, and that lane pushes `POST /restore` and the
+// daemon restarts on it (~5.6 s, `lanes/httplane.py`). A restart is the one
+// thing the LIVE page exists not to do, so this is the rare control that sends
+// the user to the tabs view — and it says why, so the refusal does not read as
+// the setting being unreachable.
+//
+// The tabs' own rate pair grays quietly (`quietGray`, store/schema.js) because
+// its reason changes with the mode and would reflow the row. This one does not
+// move: it is shown only in auto and says the same thing the whole time.
+const AUTO_RATE_REASON =
+  "In Auto the engine picks the rate per track, up to this limit. Changing the limit restarts the engine, " +
+  "so it cannot be set live — change it on the Output tab.";
+
 // --- what the dormant column shows -------------------------------------------
 // State reports one rate, the running family's, so the moment the engine changes
 // family the other column has nothing of its own left to read — and the engine
@@ -265,6 +298,7 @@ function liveFamily() {
 function rateColumn(family) {
   const live = liveFamily();
   const enabled = live === null || live === family;
+  const auto = modeValue() === "auto";
   const key = RATE_KEY[family];
   const tier = rateValue();
   const mine = tier !== "" && rateFamily(tier) === family;
@@ -273,17 +307,28 @@ function rateColumn(family) {
     field: "rate",
     key,
     entry: schema[key],
-    disabled: !enabled,
+    // Disabled in auto and only there, both columns alike (AUTO_RATE_REASON):
+    // the engine takes no rate at all while it is following the source, so an
+    // enabled control would promise something nothing downstream can deliver.
+    // Keyed on the MODE, never on the loaded chain — in auto a chain is loaded
+    // the whole time and takes filter and shaper edits live, which is why the
+    // cards beside this one stay editable. Under an explicit mode NEITHER column
+    // is disabled, on the same terms as the dormant chain card
+    // (components/LiveView.js): a rate for the family the engine is not running
+    // is held and lands when that family loads (lanes/livemap.unpinnable_rate),
+    // so setting up the SDM side while PCM plays is an ordinary thing to do here.
+    disabled: auto,
+    reason: auto ? AUTO_RATE_REASON : "",
     // The engine's own pin when it is reporting one for this family, the running
-    // config's limit otherwise — which already carries the remembered pin. With
-    // no pin at all the limit is what the engine selects, so a column nothing has
-    // touched names the same tier the Output tab does instead of reporting the
-    // empty slot as "Auto".
-    value: enabled && mine ? tier : configured,
+    // config's limit otherwise — which already carries the remembered pin, held
+    // or applied (livemap.live_overrides). With no pin at all the limit is what
+    // the engine selects, so a column nothing has touched names the same tier the
+    // Output tab does instead of reporting the empty slot as "Auto".
+    value: mine ? tier : configured,
     // One menu for both columns — the tab's own table, in the tab's own order,
-    // whole either way. The live column grays what the engine is not offering;
-    // the disabled column is already grayed entire, and the engine has no list
-    // for the family it isn't running anyway.
+    // whole either way. The running family's column grays what the engine is not
+    // offering; the dormant one is offered whole, because GetRates answers for
+    // the loaded family only and has no list to judge the other against.
     options: enabled ? rateOptions(key) : schema[key].options,
   };
 }

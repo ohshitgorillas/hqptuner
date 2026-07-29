@@ -63,17 +63,27 @@ function LiveProse({ control, meta }) {
 
 // Hover carries the overall feature description for the controls that render a
 // per-selection one instead, for the ones whose note is hover-only, and for
-// everyone when the notes are toggled off — the same rule Field applies, minus
-// the gray reason, which is a staged-value concept this page has no equivalent of.
+// everyone when the notes are toggled off — the same rule Field applies.
 const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "");
 
-// One live control: the widget, its in-flight mark, its prose, and the reason
-// the last write was refused. Disabled while its OWN write is in flight — two
-// overlapping writes to one setting would resolve the second against lists the
-// first has already invalidated — or when the control carries no live setting at
-// all: the rate column for the family the engine is not running is the tab's
-// grayed column, showing the configured default (store/live.js). Nothing here is
-// ever disabled for playing (CLAUDE.md).
+// One live control: the widget, its in-flight mark, its prose, why it is grayed
+// if it is, and the reason the last write was refused. Disabled while its OWN
+// write is in flight — two overlapping writes to one setting would resolve the
+// second against lists the first has already invalidated — and otherwise only
+// where the engine has no live route for the setting at all, which is the rate
+// pair in auto and nothing else (store/live.js `AUTO_RATE_REASON`). Both chain
+// cards and, under an explicit mode, both rate columns take edits whichever
+// family is running, the dormant side's being held and landing when that family
+// loads (lanes/livemap.unpinnable_rate). Nothing here is ever disabled for
+// playing (CLAUDE.md).
+//
+// A grayed control ALWAYS carries its reason, never quietly — `quietGray` is the
+// tabs' answer to a caption that reflows the row as the mode changes, and this
+// page's one gray reason is fixed text shown in one mode only. It is not
+// rendered HERE, though: the rate pair grays as a PAIR, both columns carrying
+// the identical sentence, so the caption belongs to the card that holds them
+// both and `HeroRow` prints it once. A control that ever grays on its own would
+// need its own render; none does today.
 function LiveField({ control, widget }) {
   const W = widget || Dropdown;
   const { entry } = control;
@@ -118,11 +128,16 @@ const sdmOpen = computed(() => liveModel.value.mode.value !== "pcm");
 const pcmOverride = signal(null);
 const sdmOverride = signal(null);
 
-// No previous-value guard, unlike the Resampling twin: this reads one computed
-// rather than the whole staged map, and a computed notifies only when its value
-// actually changes — so an unrelated live write cannot slam a card shut here.
+// The mode as its own computed, and that is the whole point of it: `liveModel` is
+// rebuilt into a FRESH object on every poll (store/live.js), signals compare by
+// identity, so an effect reading `liveModel.value.mode.value` depends on the poll
+// rather than on the mode — `mode` is a plain property, not a signal, and reading
+// it subscribes to nothing. That is what dropped the overrides once a second and
+// snapped a card the user had just opened straight back shut. A computed over a
+// STRING settles: equal value, no notification.
+const liveModeValue = computed(() => liveModel.value.mode.value);
 effect(() => {
-  liveModel.value.mode.value;
+  liveModeValue.value;
   pcmOverride.value = null;
   sdmOverride.value = null;
 });
@@ -174,9 +189,14 @@ function HeroRow() {
       <//>
       <${Card} title="Rate" center=${true}>
         <div class="rate-stack">
-          <${LiveField} control=${pcmRate} />
-          <${LiveField} control=${sdmRate} />
+          <${LiveField} control=${pcmRate} quietReason=${true} />
+          <${LiveField} control=${sdmRate} quietReason=${true} />
         </div>
+        ${
+          pcmRate.reason || sdmRate.reason
+            ? html`<div class="field-gray-reason rate-gray">${pcmRate.reason || sdmRate.reason}</div>`
+            : null
+        }
       <//>
     </div>
   `;

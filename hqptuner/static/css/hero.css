@@ -75,6 +75,16 @@
   gap: var(--sp-3);
   width: 100%;
 }
+/* Both rate columns gray together and for one reason (store/live.js
+   AUTO_RATE_REASON), so the caption belongs to the CARD and not to either
+   column — printed under each it is the same sentence twice. Clears
+   .field-gray-reason's grid placement, which has no meaning outside a .field. */
+.rate-gray {
+  grid-column: auto;
+  max-width: var(--measure);
+  margin-inline: auto;
+  text-align: center;
+}
 .rate-stack .field {
   display: flex;
   flex-direction: column;
