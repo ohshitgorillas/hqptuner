@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-07-29
+
 ### Fixed
 
 - **LIVE's rate menus no longer show every tier as unavailable.** The engine's rate list depends on the output device as well as the mode, so it can come back empty, and HQPTuner kept serving an empty one until the mode changed. It now re-reads the list when playback starts or stops, and a list with nothing in it grays nothing.
