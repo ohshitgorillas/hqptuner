@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-change-budget — PreToolUse hook.
+"""change-budget — PreToolUse hook.
 
 Caps how much an agent may change between turns where the *user* actually
 speaks, then forces it to stop and report in words. A genuine human reply
@@ -34,30 +33,37 @@ prices the reviewable path (nine Edit calls) below the opaque one (one
 `python -c` that rewrites nine files), which is the opposite of what a single
 flat counter does.
 
+WHAT COUNTS AS THE USER SPEAKING. Only prose the user typed — see
+is_genuine_reply(). A slash command, a /clear, or a local command's stdout is
+the harness talking to itself; measured over 135 transcripts, half of all leash
+periods were opened by a row like that rather than by the user reading
+anything, and each one silently bought another five actions. One exception,
+window(): the first human row after one of this hook's own denials always
+resets, so answering a trip with a slash command cannot wedge the session.
+
+WHAT COUNTS AS THIS CALL. The pending call's assistant row is usually NOT in
+the transcript yet when PreToolUse fires — it had not been flushed in 37 of 46
+recorded trips — so counting whatever the file holds allowed one action past
+the limit. _pending_present() finds it if it is there and counts it exactly
+once either way, which makes the counts the pending call's ordinal.
+
 Free (never counted, never blocked):
   - the read-only tools in FREE_TOOLS (Read/Grep/Glob/WebFetch/WebSearch)
-  - Bash calls that are purely read-only — grounding, not mutation. Two
-    flavours, see is_free_bash():
-      * verification: `make check`, `pytest`, `ruff check`, `mypy`, …
-      * investigation: `grep`, `sed -n`, `ls`, `find`, `cat`, `head`, … and
-        `pdftotext` to stdout or the scratchpad.
-    A command qualifies only when EVERY &&/;-segment and EVERY pipe-stage is a
-    recognised read-only command, output goes only to /dev/null / an fd-dup /
-    the session scratchpad, and there is no subshell, backtick, chained
-    mutator, or file-writing flag. Operator detection is quote-aware: a `>` or
-    `|` inside a quoted argument (e.g. `grep -o '<m [^>]*'`) is data, not a
-    redirect. Any doubt -> it meters. A false-meter costs one report; a
-    false-free would let a mutation slip past the budget, so the bias is
-    always toward metering.
+  - Bash calls that are purely read-only — grounding, not mutation. The
+    allowlist and its parser live in free_bash.py; see that file for the rules.
 """
 import os
 import sys
 import json
 import re
-import shlex
+import importlib.util
 
 CHANGE_LIMIT = 5   # metered actions since the user last spoke; the next blocks
-EDIT_LIMIT = 15    # in-tree structured edits since the user last spoke
+# Measured over 135 transcripts: the change leash caught real drift 52.9% of the
+# time, the edit leash 11.1% — eight of its nine trips were the user saying
+# "continue" to work that was going fine. The edit allowance was interrupting
+# rather than catching, so it doubled; the change budget earned its number.
+EDIT_LIMIT = 30    # in-tree structured edits since the user last spoke
 FREE_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}  # read-only tools
 
 # structured edit tools -> the input field naming their target path
@@ -68,269 +74,30 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 # can't see the agent registry, so a guessed name is an unmetered write.
 READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
 
-# ---- read-only Bash allowlist (verification + investigation) ----------------
 
-# verifiers — meaningful only as a pipeline head.
-# lint-js / test-js / check-css are this repo's JS-side gates (make check =
-# lint lint-js test test-js); they verify and mutate nothing.
-FREE_MAKE_TARGETS = {"check", "test", "test-live", "lint", "typecheck",
-                     "fmt-check", "format-check",
-                     "lint-js", "test-js", "check-css"}
-FREE_PY_CMDS = {"pytest", "py.test", "unittest", "mypy", "xenon", "flake8", "pyright", "pylint"}
-# readers — read-only text tools, valid as a pipe head OR a downstream stage.
-# sed / find / sort are read-only only with restrictions, handled specially.
-READERS = {"grep", "egrep", "fgrep", "rg", "ls", "cat", "head", "tail", "wc",
-           "stat", "file", "diff", "comm", "cut", "uniq", "nl", "column",
-           "tr", "fold", "rev", "tac", "less", "more", "jq", "which", "whereis",
-           "echo", "printf"}
-# rpm/dpkg mutating flags — presence disqualifies the query
-RPM_BAD = {"-i", "-U", "-F", "-e", "--install", "--upgrade", "--freshen",
-           "--erase", "--import", "--rebuilddb", "--setperms", "--setugids"}
-# `find` actions that execute or mutate
-FIND_BAD = {"-exec", "-execdir", "-delete", "-ok", "-okdir",
-            "-fprint", "-fprint0", "-fprintf", "-fls"}
+def _load(name):
+    """Import a sibling hook module by path.
 
-# substrings that can never appear benignly OUTSIDE quotes in a read-only command
-BANNED_SUBSTR = ("`", "$(", "<(", ">(", "||", "--fix", "--write", "--in-place",
-                 "--output")
-
-_REDIR_OP = re.compile(r'(\d*)(&>>|&>|>>|>&|>)')      # optional fd + output op
-_BG_AMP = re.compile(r'(?<![>&])&(?![&>])')            # a lone background &
+    Not a plain `import`: this file is itself imported by path (by
+    read-volume.py, and by scripts/budget_common.py so the analysers measure the
+    rule that actually runs), and in those processes the hook directory is not
+    on sys.path.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), name + ".py")
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def _cmd_name(tok):
-    return tok.rsplit("/", 1)[-1]  # strip path: .venv/bin/pytest -> pytest
-
-
-def _is_scratch(p):
-    """A path under a session scratchpad dir (/tmp/claude-*/…/scratchpad/…)."""
-    return ".." not in p and bool(
-        re.match(r'/tmp/claude[^/]*/.+/scratchpad(?:/|$)', p)
-    )
-
-
-def _redir_target_ok(t):
-    return t == "/dev/null" or _is_scratch(t)
-
-
-def _mask(s):
-    """Replace the interior of every quoted span with 'x', preserving length and
-    all unquoted characters. Lets operator/redirect detection ignore quoted
-    data. Returns None on an unbalanced quote."""
-    res, q = [], None
-    for c in s:
-        if q:
-            res.append(c if c == q else "x")
-            if c == q:
-                q = None
-        elif c in ("'", '"'):
-            q = c
-            res.append(c)
-        else:
-            res.append(c)
-    return None if q is not None else "".join(res)
-
-
-def _split(masked, orig, pattern):
-    """Split orig at the positions where pattern matches in masked (same length).
-    Returns a list of (masked_part, orig_part)."""
-    parts, last = [], 0
-    for m in re.finditer(pattern, masked):
-        parts.append((masked[last:m.start()], orig[last:m.start()]))
-        last = m.end()
-    parts.append((masked[last:], orig[last:]))
-    return parts
-
-
-def _read_word(s, i):
-    """Read one shell word from s starting at i (skipping leading blanks),
-    respecting quotes. Returns (unquoted_value, end_index)."""
-    n = len(s)
-    while i < n and s[i] in " \t":
-        i += 1
-    val, q = [], None
-    while i < n:
-        c = s[i]
-        if q:
-            if c == q:
-                q = None
-            else:
-                val.append(c)
-        elif c in ("'", '"'):
-            q = c
-        elif c in " \t|;&<>":
-            break
-        else:
-            val.append(c)
-        i += 1
-    return "".join(val), i
-
-
-def _strip_prefix(toks):
-    """Drop leading env assignments and a runner prefix (uv run / poetry run / npx)."""
-    i = 0
-    while i < len(toks) and re.match(r'^[A-Za-z_]\w*=', toks[i]):
-        i += 1
-    if i < len(toks):
-        if toks[i] in ("uv", "poetry") and i + 1 < len(toks) and toks[i + 1] == "run":
-            i += 2
-        elif toks[i] == "npx":
-            i += 1
-    # `python -m <module>` — expose the module (pytest, mypy, …) to the allowlist;
-    # a non-verifier module (pip, http.server) still fails it and meters.
-    if (i + 2 < len(toks) and re.match(r'^python[0-9.]*$', _cmd_name(toks[i]))
-            and toks[i + 1] == "-m"):
-        i += 2
-    return toks[i:]
-
-
-def _analyze_redirects(mstage, ostage):
-    """Validate every output redirect targets only /dev/null, an fd-dup, or the
-    scratchpad, and reject a background `&`. Returns ostage with the redirect
-    tokens removed (ready for shlex), or None if anything is unsafe."""
-    if _BG_AMP.search(mstage):
-        return None
-    spans = []
-    for m in _REDIR_OP.finditer(mstage):
-        op = m.group(2)
-        tgt, wend = _read_word(ostage, m.end())
-        if op == ">&" and (tgt == "-" or tgt.isdigit()):
-            spans.append((m.start(), wend))          # fd dup, no file
-            continue
-        if not tgt or not _redir_target_ok(tgt):
-            return None
-        spans.append((m.start(), wend))
-    clean, last = [], 0
-    for a, b in sorted(spans):
-        clean.append(ostage[last:a])
-        last = b
-    clean.append(ostage[last:])
-    return "".join(clean)
-
-
-def _curl_ok(rest):
-    """A read-only curl: loopback URL only, GET/HEAD only, no data/upload/output
-    flags. Blocks POSTs, uploads, and file-writes; a side-effecting GET to a
-    local dev service is the accepted residual (can't tell read path from write
-    path by URL)."""
-    for a in rest:
-        short = a.startswith("-") and not a.startswith("--")
-        if short and a[:2] in ("-d", "-F", "-T", "-o", "-O"):
-            return False
-        if a.startswith(("--data", "--form", "--upload", "--output", "--remote-name")):
-            return False
-    i = 0
-    while i < len(rest):
-        a = rest[i]
-        if a in ("-X", "--request"):
-            m = rest[i + 1] if i + 1 < len(rest) else ""
-            if m.upper() not in ("GET", "HEAD"):
-                return False
-            i += 2
-            continue
-        if a.startswith("-X") and a[2:].upper() not in ("GET", "HEAD"):
-            return False
-        i += 1
-    urls = [a for a in rest if a.startswith(("http://", "https://"))]
-    if not urls:
-        return False
-    loop = re.compile(
-        r'^https?://(127\.0\.0\.1|localhost|\[::1\]|0\.0\.0\.0)(:\d+)?([/?].*)?$',
-        re.I,
-    )
-    return all(loop.match(u) for u in urls)
-
-
-def _stage_ok(mstage, ostage, is_head):
-    clean = _analyze_redirects(mstage, ostage)
-    if clean is None:
-        return False
-    try:
-        toks = _strip_prefix(shlex.split(clean, comments=False, posix=True))
-    except ValueError:
-        return False
-    if not toks:
-        return False
-    name = _cmd_name(toks[0])
-    rest = toks[1:]
-
-    # readers with read-only restrictions (valid head or downstream)
-    if name == "sed":
-        # read-only in no-autoprint mode (-n / -ne / -nE / --quiet / --silent),
-        # never in-place (-i / -i.bak / bundle containing i / --in-place)
-        short = [a for a in rest if a.startswith("-") and not a.startswith("--")]
-        quiet = (any(a in ("--quiet", "--silent") for a in rest)
-                 or any("n" in a for a in short))
-        inplace = (any(a.startswith("--in-place") for a in rest)
-                   or any("i" in a for a in short))
-        return quiet and not inplace
-    if name == "find":
-        return not any(a in FIND_BAD for a in rest)
-    if name == "sort":
-        return not any(a == "-o" or a.startswith("-o") or a.startswith("--output")
-                       for a in rest)
-    if name == "rpm":
-        # query mode only (-q / -ql / -qa / --query); never install/erase/etc.
-        qmode = any(a.startswith("-q") or a == "--query" for a in rest)
-        return qmode and not any(a in RPM_BAD for a in rest)
-    if name == "command":
-        return "-v" in rest or "-V" in rest      # locate only, never exec
-    if name == "curl":
-        return _curl_ok(rest)                     # loopback GET only
-    if name in ("pip", "pip3"):
-        # read-only query subcommands only; install/uninstall/download/config mutate
-        sub = next((a for a in rest if not a.startswith("-")), None)
-        return sub in {"list", "show", "freeze", "check", "inspect"}
-    if name in READERS:
-        return True
-
-    if not is_head:
-        return False
-
-    # head-only sources / verifiers
-    if name == "make":
-        targets = [a for a in rest if not a.startswith("-")]
-        return bool(targets) and all(t in FREE_MAKE_TARGETS for t in targets)
-    if name == "ruff":
-        return bool(rest) and rest[0] == "check"      # `ruff format` mutates
-    if name == "black":
-        return "--check" in rest                      # bare black reformats
-    if name == "pdftotext":
-        # output must be stdout (`-`) or a scratchpad file; never a repo path
-        pos = [a for a in rest if a == "-" or not a.startswith("-")]
-        return bool(pos) and (pos[-1] == "-" or _is_scratch(pos[-1]))
-    if name in FREE_PY_CMDS:
-        return True
-    return False
-
-
-def _seg_ok(mseg, oseg):
-    stages = _split(mseg, oseg, r'\|')     # || is banned earlier, so | is a pipe
-    if any(not o.strip() for _, o in stages):
-        return False
-    if not _stage_ok(stages[0][0], stages[0][1], True):
-        return False
-    return all(_stage_ok(m, o, False) for m, o in stages[1:])
-
-
-def is_free_bash(cmd):
-    """True only for a purely read-only command (verification or investigation).
-    Bias: any doubt returns False (the command meters)."""
-    try:
-        if not cmd or not cmd.strip():
-            return False
-        masked = _mask(cmd)
-        if masked is None:
-            return False
-        for b in BANNED_SUBSTR:
-            if b in masked:
-                return False
-        segs = [(m, o) for m, o in _split(masked, cmd, r'&&|;') if o.strip()]
-        if not segs:
-            return False
-        return all(_seg_ok(m, o) for m, o in segs)
-    except Exception:
-        return False  # parse failure -> not free -> meters (safe side)
+_free = _load("free_bash")
+# re-exported: the callers above reach for these through this module, which is
+# the one they load
+is_free_bash = _free.is_free_bash
+_curl_ok = _free._curl_ok
+_strip_prefix = _free._strip_prefix
+_cmd_name = _free._cmd_name
+READERS = _free.READERS
 
 
 # ---- transcript accounting --------------------------------------------------
@@ -341,9 +108,10 @@ def _msg(ev):
     return m if isinstance(m, dict) else ev
 
 
-def is_human_turn(ev):
-    """True only for a real user message — NOT a tool_result (which the
-    transcript also records with role=user)."""
+def is_human_row(ev):
+    """True for any user-role row that is not a tool_result. Includes the rows
+    the harness manufactures: slash commands, /clear, injected local-command
+    output. A row, not necessarily a turn — see is_genuine_reply()."""
     m = _msg(ev)
     if m.get("role") != "user":
         return False
@@ -355,6 +123,70 @@ def is_human_turn(ev):
         return not any(
             isinstance(b, dict) and b.get("type") == "tool_result" for b in content
         )
+    return False
+
+
+# Wrappers the harness puts around, or instead of, what the user typed. A row
+# made only of these is the harness talking to itself, not the user speaking.
+TAGS = ("system-reminder", "local-command-caveat", "local-command-stdout",
+        "command-name", "command-message", "command-args", "command-contents")
+HOOK_CONTEXT = re.compile(r"^.*hook additional context:.*$", re.M)
+
+
+def clean_reply(text):
+    """Strip the harness wrappers, leaving what the user actually typed.
+
+    Shared with scripts/budget_miner.py, which imports it from here — the
+    analyser and the hook must agree on what counts as the user speaking, or
+    the measurements describe a different rule than the one enforced.
+    """
+    for tag in TAGS:
+        text = re.sub(rf"<{tag}>.*?</{tag}>", " ", text, flags=re.S)
+        text = re.sub(rf"</?{tag}>", " ", text)
+    return HOOK_CONTEXT.sub(" ", text).strip()
+
+
+def _row_text(ev):
+    m = _msg(ev)
+    content = m.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(b.get("text", "") for b in content
+                         if isinstance(b, dict) and b.get("type") == "text")
+    return ""
+
+
+def is_genuine_reply(ev):
+    """True only when a human row carries prose the user typed.
+
+    The budget exists to make the agent surface its work *in words the user
+    reads*. A /clear, a slash command, or a local command's stdout is not the
+    user reading anything, so it must not buy another five actions.
+    """
+    if not is_human_row(ev):
+        return False
+    text = clean_reply(_row_text(ev))
+    return bool(text) and not text.startswith("/")
+
+
+BUDGET_SIGS = ("metered actions since the user last spoke",
+               "in-tree edits since the user last spoke")
+
+
+def is_budget_denial(ev):
+    """True for a row recording one of this hook's own denials."""
+    if ev.get("toolDenialKind") != "permission-rule":
+        return False
+    content = _msg(ev).get("content")
+    if not isinstance(content, list):
+        return False
+    for b in content:
+        if not isinstance(b, dict) or b.get("type") != "tool_result":
+            continue
+        text = b.get("content")
+        if isinstance(text, str) and any(s in text for s in BUDGET_SIGS):
+            return True
     return False
 
 
@@ -424,9 +256,112 @@ def count_blocks(ev, root, cwd):
     return changes, edits
 
 
+def window(rows):
+    """The rows since the last reset, oldest first.
+
+    Two ways a reset happens, and only two:
+
+      * the user speaks — is_genuine_reply(); or
+      * the first human row after one of this hook's own denials, whatever that
+        row is. Without this a user who answers a trip with a slash command
+        would stay wedged at the limit with no way to clear it except typing
+        prose, which is a trap rather than a budget.
+    """
+    escape = None
+    for i in range(len(rows) - 1, -1, -1):
+        ev = rows[i]
+        if is_human_row(ev):
+            if is_genuine_reply(ev):
+                return rows[i + 1:]
+            escape = i + 1          # candidate: a post-trip escape hatch
+        elif escape is not None and is_budget_denial(ev):
+            return rows[escape:]
+    return rows
+
+
+def _result_ids(rows):
+    """Every tool_use_id that already has a result — i.e. has finished."""
+    ids = set()
+    for ev in rows:
+        content = _msg(ev).get("content")
+        if not isinstance(content, list):
+            continue
+        for b in content:
+            if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id"):
+                ids.add(b["tool_use_id"])
+    return ids
+
+
+def _pending_present(rows, done, name, tool_input):
+    """True when the call PreToolUse is asking about is already in the transcript.
+
+    It usually is not, so counting only what the file holds silently allowed one
+    action past the limit. Identify the pending call as the one matching
+    (name, input) with no result yet, and count it exactly once either way.
+    """
+    for ev in rows:
+        m = _msg(ev)
+        if m.get("role") != "assistant" or not isinstance(m.get("content"), list):
+            continue
+        for b in m["content"]:
+            if (isinstance(b, dict) and b.get("type") == "tool_use"
+                    and b.get("name") == name
+                    and (b.get("input") or {}) == (tool_input or {})
+                    and b.get("id") not in done):
+                return True
+    return False
+
+
 _REPORT = ("Stop now and report in plain words: what you did, what you found, "
            "what you plan next. Do not run another command until you've "
            "surfaced this. A reply where the user speaks resets both budgets.")
+
+
+def evaluate(data, rows):
+    """The denial reason for this pending call, or None to allow it."""
+    cwd = data.get("cwd") or os.getcwd()
+    root = _repo_root(cwd)
+    name, tool_input = data.get("tool_name"), data.get("tool_input")
+
+    kind = classify(name, tool_input, root, cwd)
+    if kind == FREE:            # costs nothing: allow regardless of prior counts
+        return None
+
+    win = window(rows)
+    changes = edits = 0
+    for ev in win:
+        c, e = count_blocks(ev, root, cwd)
+        changes += c
+        edits += e
+    if not _pending_present(win, _result_ids(rows), name, tool_input):
+        changes += kind == CHANGE
+        edits += kind == EDIT
+
+    # Counts now include the pending call exactly once, so they are its ordinal:
+    # the Nth action since the reset. N > LIMIT is the first one past budget,
+    # which leaves LIMIT complete actions behind it.
+    if changes > CHANGE_LIMIT:
+        return (f"{changes} metered actions since the user last spoke "
+                f"(change budget {CHANGE_LIMIT}). " + _REPORT)
+    if edits > EDIT_LIMIT:
+        return (f"{edits} in-tree edits since the user last spoke "
+                f"(edit allowance {EDIT_LIMIT}). " + _REPORT)
+    return None
+
+
+def _rows(path):
+    with open(path) as f:
+        lines = f.read().splitlines()
+    rows = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rows.append(json.loads(line))
+        except Exception:
+            continue
+    return rows
 
 
 def main():
@@ -435,47 +370,23 @@ def main():
     except Exception:
         return  # never block on our own failure
 
+    # Cheap exit before touching the transcript: a free call can never be
+    # denied, and parsing a multi-megabyte file to learn that would put the
+    # cost of the budget on the calls the budget deliberately does not price.
     cwd = data.get("cwd") or os.getcwd()
-    root = _repo_root(cwd)
-
-    # pending call that costs nothing: allow regardless of prior counts
-    if classify(data.get("tool_name"), data.get("tool_input"), root, cwd) == FREE:
+    if classify(data.get("tool_name"), data.get("tool_input"), _repo_root(cwd), cwd) == FREE:
         return
 
     tp = data.get("transcript_path")
     if not tp:
         return
     try:
-        with open(tp) as f:
-            lines = f.read().splitlines()
+        rows = _rows(tp)
     except Exception:
         return
 
-    changes = edits = 0
-    for line in reversed(lines):
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            ev = json.loads(line)
-        except Exception:
-            continue
-        if is_human_turn(ev):
-            break
-        c, e = count_blocks(ev, root, cwd)
-        changes += c
-        edits += e
-
-    # Both counts include the pending call (its assistant message is already in
-    # the transcript when PreToolUse fires), so count == LIMIT+1 is the first
-    # call past that budget.
-    if changes > CHANGE_LIMIT:
-        reason = (f"{changes} metered actions since the user last spoke "
-                  f"(change budget {CHANGE_LIMIT}). " + _REPORT)
-    elif edits > EDIT_LIMIT:
-        reason = (f"{edits} in-tree edits since the user last spoke "
-                  f"(edit allowance {EDIT_LIMIT}). " + _REPORT)
-    else:
+    reason = evaluate(data, rows)
+    if not reason:
         return
 
     print(json.dumps({
@@ -487,5 +398,87 @@ def main():
     }))
 
 
+# ---- self-test --------------------------------------------------------------
+
+
+def _call(uuid, tool_id, name, tool_input):
+    content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]
+    return {"uuid": uuid, "message": {"role": "assistant", "content": content}}
+
+
+def _done(tool_id):
+    block = {"type": "tool_result", "tool_use_id": tool_id, "content": "ok"}
+    return {"message": {"role": "user", "content": [block]}}
+
+
+def _said(text):
+    return {"message": {"role": "user", "content": text}}
+
+
+def _tripped(text):
+    block = {"type": "tool_result", "is_error": True, "tool_use_id": "t", "content": text}
+    return {"toolDenialKind": "permission-rule",
+            "message": {"role": "user", "content": [block]}}
+
+
+def _ran(count, command="sudo ls", start=0):
+    """`count` completed metered calls, each with its result already recorded."""
+    rows = []
+    for i in range(start, start + count):
+        rows.append(_call(f"a{i}", f"t{i}", "Bash", {"command": f"{command} {i}"}))
+        rows.append(_done(f"t{i}"))
+    return rows
+
+
+def _verdict(rows, command="sudo pending"):
+    data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
+            "tool_name": "Bash", "tool_input": {"command": command}}
+    return evaluate(data, rows)
+
+
+def _check(label, condition):
+    print(f"  {'PASS' if condition else 'FAIL'}  {label}")
+    return condition
+
+
+def self_test():
+    limit = CHANGE_LIMIT
+    ok = [_check(f"action {limit} allowed with {limit - 1} complete",
+                 _verdict([_said("do it"), *_ran(limit - 1)]) is None)]
+    reason = _verdict([_said("do it"), *_ran(limit)])
+    ok.append(_check(f"action {limit + 1} denied with {limit} complete", bool(reason)))
+    ok.append(_check("denied count is the pending call's ordinal",
+                     reason.startswith(f"{limit + 1} metered actions")))
+    flushed = _verdict([_said("do it"), *_ran(limit), _call("z", "tz", "Bash", {"command": "sudo pending"})])
+    ok.append(_check("same verdict when the pending row is already flushed",
+                     flushed == reason))
+    ok.append(_check("a free call is never denied",
+                     _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
+
+    mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"), *_ran(2, start=3)]
+    ok.append(_check("a command row mid-burst does not reset the count", bool(_verdict(mid))))
+    ok.append(_check("prose mid-burst does reset the count",
+                     _verdict([_said("do it"), *_ran(limit + 1), _said("now do this other thing")]) is None))
+
+    after = [_said("do it"), *_ran(limit + 1),
+             _tripped(f"{limit + 1} metered actions since the user last spoke (change budget {limit})."),
+             _said("<command-name>/clear</command-name>")]
+    ok.append(_check("a command row right after a trip does reset", _verdict(after) is None))
+
+    edits = [_said("edit them")]
+    for i in range(EDIT_LIMIT):
+        edits += [_call(f"e{i}", f"u{i}", "Edit", {"file_path": __file__}), _done(f"u{i}")]
+    data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
+            "tool_name": "Edit", "tool_input": {"file_path": __file__}}
+    ok.append(_check(f"{EDIT_LIMIT} complete edits allowed, {EDIT_LIMIT + 1} denied",
+                     bool(evaluate(data, edits)) and evaluate(data, edits[:-2]) is None))
+
+    ok.append(_check("the bash allowlist still loads and still discriminates",
+                     is_free_bash("sed -n '1,5p' x") and not is_free_bash("cd /tmp && ls")))
+
+    print(f"\n{sum(ok)}/{len(ok)} passed")
+    return 0 if all(ok) else 1
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(self_test()) if "--self-test" in sys.argv else main()

@@ -20,6 +20,15 @@
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/md-softwrap.py"
           }
         ]
+      },
+      {
+        "matcher": "Read|Bash|Grep|Glob|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/read-volume.py"
+          }
+        ]
       }
     ]
   },
