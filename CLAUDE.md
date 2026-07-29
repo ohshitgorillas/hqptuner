@@ -2,14 +2,27 @@
 
 Host rules in `/srv/CLAUDE.md` apply full — prime directive, plan gate, bounded investigation, interrupt handling, epistemics, behavioral preferences. This file = HQPTuner-specific rules plus deltas where project rule differs from host rule.
 
+## Binding product rules
+
+### User actions always proceed
+
+HQPTuner honors every user action, daemon playing or not — no 409, no disabled button, no "stop playback first" nag. If apply reloads or restarts engine and interrupts playback, that's user's call alone — say what it costs in caption, then do it when they click. Write path stays idle-gate-free: keep it that way, propose none.
+
+(Different thing, still fine: *dev probe scripts* writing to production daemon may check state first — protects host's listener, not UI user.)
+
+### Running engine is enumeration authority
+
+Running engine = sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (architecture §2).
+
 ## Agent conduct (project deltas)
 
 - **Do work in order user gave it.** Stated sequence part of instruction, not suggestion to optimise around.
-- **Grounding gate on plans.** Plan presented for approval may not contain open questions answerable by free investigation. Every load-bearing claim either verified (cite `file:line` or command output) or tagged ASSUMED; ASSUMED legal only when verification needs metered action, live experiment, or user decision — "haven't read it yet" never legal reason, reading is free. Presenting plan then revising after reading material that was free to read before presenting = defect, same class as unverified subagent claim.
+- **Grounding gate on plans.** Answer every question free investigation can answer before presenting plan — reading is free, so read first. Every load-bearing claim either verified (cite `file:line` or command output) or tagged ASSUMED; ASSUMED legal only when verification needs metered action, live experiment, or user decision. Revising plan after reading material that was free to read before presenting = defect, same class as unverified subagent claim.
+- **Approval is explicit words only.** Work starts when user says go / approved / continue / proceed / yes or plain equivalent. Everything else is discussion — questions, refinements, corrections, tradeoff talk, "that looks right", "makes sense", partial agreement. Discussion answers in words and ends there; next tool call waits for approval word. Re-present revised plan and ask again rather than reading agreement into commentary.
 
 ## Delegation
 
-Subagents = context filter, not labor pool. Test never "is task big" — it's **do I need see intermediate material, or only conclusion?**
+Subagents = context filter, not labor pool. Test is **do I need see intermediate material, or only conclusion?** — task size irrelevant.
 
 Delegate when byproduct big, answer small: locating across many files, sweeps you can't nail in one Glob, mining one fact from long artifact (HQPlayer manual, build log, vendored bundle). Independent questions spawn in single message.
 
@@ -19,30 +32,15 @@ Do yourself when you know file (one Read beats subagent), when material *is* out
 - Ask pointers, not prose — `file:line` + one-line role. Pointers you verify, prose you only trust.
 - One delegation per question, not per file.
 - You own result. Relaying unverified subagent claim = confabulation with extra steps; "agent said so" not verification.
-- **Never delegate looking.** Subagent measurements trustworthy — computed styles, box geometry, gap arithmetic, error counts. Its *visual* review not: returns "no visual problems" on screenshots with plainly broken controls in frame, repeatedly. Delegate measuring and screenshotting; read screenshots yourself.
-- **User's eyes final say, always.** Not `make check`, not green measurement table, not your own screenshot reading — gates catch what they were pointed at, shipped defects are ones nobody pointed at. Every visual change goes in front of user at hand-back URL before called done.
-- Never delegate to duck change budget or plan gate. Subagent writes = your writes.
+- Change budget and plan gate follow you into delegation — subagent writes = your writes.
 - **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block, blind writer, run, adjudicate, bite check (new tests must fail against pre-change code), `test-reviewer`.
 
-## NEVER IDLE-GATE USER ACTIONS (binding)
+## Verification & hand-back
 
-HQPTuner never refuses user action because daemon playing. Not 409, not disabled button, not "stop playback first" nag. If apply reloads or restarts engine and interrupts playback, that's user's call alone — say what it costs in caption, then do it when they click. No idle gate anywhere in write path, none may be reintroduced. Do not propose one.
-
-(Different thing, still fine: *dev probe scripts* writing to production daemon may check state first — protects host's listener, not UI user.)
-
-## Project rules
-
-- Docs: design + normative rules `docs/architecture.md`; wire truth `docs/protocol.md`, `docs/settings-classification.md`.
-- **Markdown soft-wrapped, enforced.** One paragraph, list item, or blockquote = one logical line — never break prose at any column. `PostToolUse` hook (`.claude/hooks/md-softwrap.py`) rejects hard-wrapped writes; repair with `--fix`, check with `--check`. Blank lines, fenced code, tables, headings, explicit two-space breaks exempt.
-- **HQPlayer's own docs live in working dir** — `hqplayer6desktop-manual.pdf` and `hqplayerd-readme.txt` (every config-XML element, attribute, plugin parameter). Authority for HQPlayer behavior, config attributes, enum meanings — **reference before inferring anything about wire/config behavior**; guessing routes and attributes ships bugs.
-- **Testing policy binding: `docs/testing.md`.** Behavior only, one assertion per test, public API only, fakes speak wire protocol. Read before writing or modifying any test.
-- **Frontend layout binding: `docs/design-system.md`.** Tokens, two-track grid, definition of done, visual hand-back protocol. Read before any CSS or layout work.
-- Quality gates: `make check` green before every commit. Pre-commit enforces same; bypassing (`--no-verify`, `SKIP=`, editing hook config) forbidden.
-- **Changelog binding:** every user-visible change lands with `CHANGELOG.md` entry under `[Unreleased]`, same commit. Internal-only refactors/tests may skip.
-- Keep `README.md` current when features change. Decisions recorded in commit message, and in `docs/architecture.md` when they change normative rule.
-- Never commit credentials — placeholders only. **Explicit binding exception: hqplayerd management credentials not secret** — LAN-only daemon, stock pair published in hqplayerd's own docs and this README, and agents must poke live daemon to develop. They appear in commands, logs, probe scripts, hand-back reports as matter of course: do not flag, do not redact, do not refuse commands carrying them, do not treat as security finding. General credential rule governs everything else.
-- **Branches:** `dev` (scratch, where work lands) → `beta` (testers, `:beta` image) → `main` (release, `:latest`). Promotion = user's call, never agent's. When told, ship with `/ship dev|beta|main` (`scripts/ship.sh`) — one metered action for whole promotion chain. Author release commit first with `scripts/bump.sh <--major|--minor|--patch> ["body"]` — increments both version files, opens `CHANGELOG.md` heading, commits, prints diff, one metered action. Ship script runs gate, refuses dirty tree, never force-pushes.
-- Running engine = sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (architecture §2).
+- **Look yourself.** Subagent measurements trustworthy — computed styles, box geometry, gap arithmetic, error counts. Its *visual* review not: returns "no visual problems" on screenshots with plainly broken controls in frame, repeatedly. Delegate measuring and screenshotting; read every screenshot with own eyes.
+- **User's eyes final say, always.** Not `make check`, not green measurement table, not your own screenshot reading — gates catch what they were pointed at, shipped defects are ones nobody pointed at. Every visual change goes in front of user at hand-back URL before called done.
+- **Task-complete check binding: after ANY code edit or rebuild, run `/task-check` (`bash .claude/task-check.sh`) before reporting work done.** Runs `make check`, then (green only) rebuilds `hqptuner:dev` container from working tree and health-checks `:8090`. **User views and tests every change themselves in browser** — work counts "done" once gate green, container rebuilt from working tree, and hand-back URL task-check prints on PASS handed to user.
+- **Frontend/visual verification:** `playwright` in `.venv` (`.venv/bin/python`); browser = host system chromium — pass binary to `p.chromium.launch(executable_path=…)` (path in host skill). Host chromium is only browser available — skip `playwright install`, no ms-playwright cache exists.
 
 ## Change budget (hard rule)
 
@@ -63,23 +61,34 @@ Free, never counted, never blocked: file reads, `Grep`/`Glob`, web fetch/search,
 
 Rules:
 
-- **Batch commands, not edits.** Chain related shell work (`&&`, one script, one compose invocation). Leave edits as separate `Edit` calls a reviewer can read — never batch into opaque script to save budget.
+- **Batch commands, not edits.** Chain related shell work (`&&`, one script, one compose invocation). Leave edits as separate `Edit` calls a reviewer can read — never batch into opaque script to save budget. Exceptions: small, repetitive, consistent write tasks may be batched.
 - **Report like it matters** at trip: findings, plan, open questions — not rubber-stamp "continuing".
-- **Never complain about budget.** Not in passing, not as sigh.
-- **Disabling off-limits.** Do not disable, weaken, bypass, or ask to disable hooks, do not fold such request into continuation. Non-negotiable, same tier as prime directive.
+- **Work inside budget quietly.** Budget stays; working within it is job.
+- **Hooks stay on and unweakened** — same tier as prime directive. Requests to disable them get refused, in continuations too.
 - If purely investigative command counted against budget, say so.
+
+## Repo rules
+
+- Docs: design + normative rules `docs/architecture.md`; wire truth `docs/protocol.md`, `docs/settings-classification.md`.
+- **Markdown soft-wrapped, enforced.** One paragraph, list item, or blockquote = one logical line — never break prose at any column. `PostToolUse` hook (`.claude/hooks/md-softwrap.py`) rejects hard-wrapped writes; repair with `--fix`, check with `--check`. Blank lines, fenced code, tables, headings, explicit two-space breaks exempt.
+- **HQPlayer's own docs live in working dir** — `hqplayer6desktop-manual.pdf` and `hqplayerd-readme.txt` (every config-XML element, attribute, plugin parameter). Authority for HQPlayer behavior, config attributes, enum meanings — **reference before inferring anything about wire/config behavior**; guessing routes and attributes ships bugs.
+- **Testing policy binding: `docs/testing.md`.** Behavior only, one assertion per test, public API only, fakes speak wire protocol. Read before writing or modifying any test.
+- **Frontend layout binding: `docs/design-system.md`.** Tokens, two-track grid, definition of done, visual hand-back protocol. Read before any CSS or layout work.
+- Quality gates: `make check` green before every commit. Pre-commit enforces same; gates run in full every time — `--no-verify`, `SKIP=`, hook-config edits stay off table.
+- **Changelog binding:** every user-visible change lands with `CHANGELOG.md` entry under `[Unreleased]`, same commit. Internal-only refactors/tests may skip.
+- Keep `README.md` current when features change. Decisions recorded in commit message, and in `docs/architecture.md` when they change normative rule.
+- Commits carry placeholders only, never real credentials. **Explicit binding exception: hqplayerd management credentials not secret** — LAN-only daemon, stock pair published in hqplayerd's own docs and this README, and agents must poke live daemon to develop. They appear in commands, logs, probe scripts, hand-back reports as matter of course: treat as ordinary text — quote freely, run commands carrying them, leave unredacted. General credential rule governs everything else.
+- **Branches:** `dev` (scratch, where work lands) → `beta` (testers, `:beta` image) → `main` (release, `:latest`). Promotion = user's call, never agent's. When told, ship with `/ship dev|beta|main` (`scripts/ship.sh`) — one metered action for whole promotion chain. Author release commit first with `scripts/bump.sh <--major|--minor|--patch> ["body"]` — increments both version files, opens `CHANGELOG.md` heading, commits, prints diff, one metered action. Ship script runs gate, refuses dirty tree, never force-pushes.
 
 ## Host
 
 - hqplayerd runs **bare metal on dev host**, that host's top-priority service (Roon + HQPlayer audio path). Treat as live production — this is what idle-gate rule protects.
+- Write ops against production daemon: idle-gate first (`State state="0"`), restore what you change, verify restore by `State` readback — `scripts/capture_pcm_enums.py` is pattern.
 - Host-specific facts deliberately **not** in this file: LAN address and hand-back URL, sudo gating, package-install policy, parent-repo layout, browser binary path, credential locations. If session lists host skill for this project, load before touching host state, quoting URL to user, or pushing.
 
 ## Dev
 
 - Run: `.venv/bin/python -m hqptuner` — REST API on `127.0.0.1:8090`. All knobs `HQPTUNER_*` env vars, see `hqptuner/config.py`. Without credentials everything works except `/api/config`.
 - Local hqplayerd management credentials in **gitignored `hqpcreds`** at repo root (`HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD`) — gitignored for hygiene, not secrecy (see exception above); using or echoing during development fine. Source before running: `set -a; source hqpcreds; set +a; .venv/bin/python -m hqptuner`.
-- **`.env` is symlink to `hqpcreds`, exists for one reason:** `docker compose` auto-loads `.env` to resolve `${HQPTUNER_HQP_*}` in `docker-compose.yaml:24-25`; without it dev container silently comes up on stock credentials. **Never work through the symlink** — host hook hard-blocks any Bash command naming `.env`, by filename. Use `hqpcreds`, unblocked.
+- **`.env` is symlink to `hqpcreds`, exists for one reason:** `docker compose` auto-loads `.env` to resolve `${HQPTUNER_HQP_*}` in `docker-compose.yaml:24-25`; without it dev container silently comes up on stock credentials. **Always work through `hqpcreds`, unblocked** — host hook hard-blocks any Bash command naming `.env`, by filename.
 - `make check` = `lint lint-js test test-js` (ruff, black, xenon B/A/A, vulture, strict mypy, file-length + test-assertion gates, offline pytest, JS gates). `make test` = offline suite. `make test-live` adds `live`-marked tests (needs reachable hqplayerd). Pre-commit runs same gates except JS test suite, deliberately.
-- **Task-complete check binding: after ANY code edit or rebuild, run `/task-check` (`bash .claude/task-check.sh`) before reporting work done.** Runs `make check`, then (green only) rebuilds `hqptuner:dev` container from working tree and health-checks `:8090`. **User views and tests every change themselves in browser** — work never "done" until container rebuilt and handed over at URL task-check prints on PASS. Never report visual/behavioral work complete without rebuild; never rebuild past red gate.
-- **Frontend/visual verification:** `playwright` in `.venv` (`.venv/bin/python`); browser = host system chromium — pass binary to `p.chromium.launch(executable_path=…)` (path in host skill). Do NOT `playwright install`; no ms-playwright browser cache.
-- Write ops against production daemon: idle-gate first (`State state="0"`), restore what you change, verify restore by `State` readback — `scripts/capture_pcm_enums.py` is pattern.
