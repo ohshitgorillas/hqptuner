@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The junk-filter recommendation no longer disappears when the music starts.** Advice now stays up for the rest of the track once earned, and clears when the track changes or the recommended filter is engaged. Persistent tones — tape bias, interference — are also detected while music plays, not just in quiet passages, after about 30 seconds of listening.
+
 ## [0.11.0] — 2026-07-29
 
 ### Fixed

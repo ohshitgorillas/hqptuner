@@ -18,6 +18,7 @@ import contextlib
 import logging
 import math
 import struct
+from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -37,6 +38,19 @@ RECONNECT_DELAY = 5.0
 DECIMATE = 4
 MAX_CHANNELS = 32
 MAX_BINS = 65_536
+
+# The spur rule's persistence window: per-bin minima are folded into blocks of
+# BLOCK_SECONDS coverage, and the window spectrum exists once WINDOW_BLOCKS
+# full blocks have been earned (~30 s). A tone must persist through the whole
+# window to survive the minimum — long enough that a sustained musical partial
+# cannot fake it, short enough that a bias tone is caught within the first
+# minute of a track.
+BLOCK_SECONDS = 5.0
+WINDOW_BLOCKS = 6
+# Frames quieter than this on every channel (RMS dBFS) are kept out of the
+# minimum: digital silence between songs carries no tone either, and one such
+# frame would collapse every bin's minimum to the floor.
+SILENT_RMS_DB = -90.0
 
 
 @dataclass(frozen=True)
@@ -84,7 +98,13 @@ def _int(value: str | None) -> int | None:
 
 
 class SpectralAggregate:
-    """Per-track mean power spectrum: per-bin power sums over ingested frames."""
+    """Per-track mean power spectrum plus a windowed per-bin minimum.
+
+    The mean is per-bin power sums over ingested frames. The minimum is kept
+    block-wise: each BLOCK_SECONDS of coverage folds into one per-bin-min
+    array, the last WINDOW_BLOCKS of which form the spur rule's persistence
+    window. Silent frames never touch the minimum (they carry no tone either),
+    and a block that saw only silence is dropped rather than pushed."""
 
     def __init__(self, bins: int, bandwidth: float) -> None:
         self.bins = bins
@@ -92,15 +112,44 @@ class SpectralAggregate:
         self.frames = 0
         self.seconds = 0.0
         self._power = [0.0] * bins
+        self._blocks: deque[list[float]] = deque(maxlen=WINDOW_BLOCKS)
+        self._block_min: list[float] | None = None
+        self._block_seconds = 0.0
 
-    def add(self, mags_sq: list[float], covered_seconds: float) -> None:
+    def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
         for i, p in enumerate(mags_sq):
             self._power[i] += p
         self.frames += 1
         self.seconds += covered_seconds
+        if not silent:
+            if self._block_min is None:
+                self._block_min = list(mags_sq)
+            else:
+                block = self._block_min
+                for i, p in enumerate(mags_sq):
+                    if p < block[i]:
+                        block[i] = p
+        self._block_seconds += covered_seconds
+        if self._block_seconds >= BLOCK_SECONDS:
+            if self._block_min is not None:
+                self._blocks.append(self._block_min)
+            self._block_min = None
+            self._block_seconds = 0.0
 
     def levels_db(self) -> list[float]:
         return [10 * math.log10(p / self.frames) if p > 0 else -200.0 for p in self._power]
+
+    def window_min_db(self) -> list[float] | None:
+        """Per-bin minimum (dB) over the last full persistence window, or None
+        until WINDOW_BLOCKS full blocks exist. The current partial block joins
+        the minimum too — it can only tighten it, never fake persistence."""
+        if len(self._blocks) < WINDOW_BLOCKS:
+            return None
+        arrays: list[list[float]] = list(self._blocks)
+        if self._block_min is not None:
+            arrays.append(self._block_min)
+        mins = [min(vals) for vals in zip(*arrays, strict=True)]
+        return [10 * math.log10(p) if p > 0 else -200.0 for p in mins]
 
 
 class MeteringReader:
@@ -121,24 +170,41 @@ class MeteringReader:
         self._stop = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._serial: str | None = None
+        self._verdict: dict[str, Any] | None = None
 
     def stop(self) -> None:
         self._stop.set()
 
     def recommendation(self) -> dict[str, Any] | None:
-        """The advisor's verdict for the current aggregate, or None. Computed on
-        demand — the status route calls this once per poll."""
+        """The advisor's verdict for the current track, or None. Computed on
+        demand — the status route calls this once per poll. A verdict latches
+        for the rest of the track: the signature is a property of the source,
+        and loud music masking it from the detector later in the track does not
+        make it go away (the Ænima case — a bias tone plainly visible on the
+        spectrogram, drowned out of the mean spectrum once the music starts).
+        The latch clears on track change or stream loss, and goes quiet while
+        the engaged junk filter treats it — engaging the filter is the user
+        acting on the advice, disengaging brings the advice back."""
         ctx, agg = self._context(), self._agg
         if ctx is None or agg is None or agg.frames == 0:
             return None
-        return junkadvisor.classify(
+        if ctx.track_serial != self._serial:
+            self._verdict = None  # the aggregate is the old track's evidence
+            return None
+        fresh = junkadvisor.classify(
             agg.levels_db(),
             agg.bandwidth,
             agg.seconds,
             samplerate=ctx.samplerate,
             sdm=ctx.sdm,
             junk_filter=ctx.junk_filter,
+            min_levels_db=agg.window_min_db(),
         )
+        if fresh is not None:
+            self._verdict = fresh
+        if self._verdict is None or junkadvisor.treated(ctx.junk_filter, str(self._verdict["filter"])):
+            return None
+        return self._verdict
 
     async def run(self) -> None:
         while not self._stop.is_set():
@@ -147,6 +213,7 @@ class MeteringReader:
             except (OSError, asyncio.IncompleteReadError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
             self._agg = None  # a broken stream ends the track's evidence
+            self._verdict = None
             if not self._stop.is_set():
                 await self._backoff()
 
@@ -192,7 +259,19 @@ class MeteringReader:
         if agg is None or ctx.track_serial != self._serial or agg.bins != bins or agg.bandwidth != bandwidth:
             agg = self._agg = SpectralAggregate(bins, bandwidth)
             self._serial = ctx.track_serial
-        agg.add(_frame_power(body, channels, bins), xform_time * DECIMATE)
+            self._verdict = None
+        agg.add(
+            _frame_power(body, channels, bins),
+            xform_time * DECIMATE,
+            silent=_frame_silent(body, channels, bins),
+        )
+
+
+def _frame_silent(body: bytes, channels: int, bins: int) -> bool:
+    """Whether every channel's RMS sits below the silence threshold. The RMS is
+    the third float of the per-channel level block (protocol.md §7)."""
+    stride = 16 + 8 * bins
+    return all(struct.unpack_from("<f", body, ch * stride + 8)[0] < SILENT_RMS_DB for ch in range(channels))
 
 
 def _frame_power(body: bytes, channels: int, bins: int) -> list[float]:

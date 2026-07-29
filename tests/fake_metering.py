@@ -17,17 +17,21 @@ from collections.abc import Iterator, Sequence
 _HEADER = struct.Struct("<4I3fI")
 
 
-def frame(levels_db: Sequence[float], bandwidth: float, transform_time: float, channels: int = 2) -> bytes:
+def frame(
+    levels_db: Sequence[float], bandwidth: float, transform_time: float, channels: int = 2, rms: float = -20.0
+) -> bytes:
     """One wire frame carrying the given per-bin spectrum (dB) in every channel.
 
     Bin k sits at ``k * bandwidth / (len(levels_db) - 1)`` Hz. The transform is
     two consecutive halves — all reals, then all imaginaries (protocol.md §7) —
-    so a bin at L dB becomes real ``10 ** (L / 20)``, imaginary 0."""
+    so a bin at L dB becomes real ``10 ** (L / 20)``, imaginary 0. ``rms`` is
+    the third float of every channel's level block (dBFS); pass a value below
+    -90 to build a frame the receiver must treat as silent."""
     bins = len(levels_db)
     header = _HEADER.pack(1, channels, bins, 16, bandwidth, transform_time, 2.0, 0)
     reals = struct.pack(f"<{bins}f", *(10 ** (level / 20.0) for level in levels_db))
     imags = struct.pack(f"<{bins}f", *([0.0] * bins))
-    meters = struct.pack("<4f", -6.0, -8.0, -20.0, -18.0)  # peakMax, peak, rms, rmsMax
+    meters = struct.pack("<4f", -6.0, -8.0, rms, -18.0)  # peakMax, peak, rms, rmsMax
     return header + (meters + reals + imags) * channels
 
 

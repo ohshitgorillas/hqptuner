@@ -1,10 +1,10 @@
 """The junk-filter advisor: per-track average spectra classified into advice.
 
 `classify` is pure, so the signature cases (fake hi-res cliff, HF spur,
-noise-shaping ramp) are synthesized spectra handed straight in. The reader
-cases run against a fake 4322 stream speaking the real binary frame layout over
-a real socket (`fake_metering`, protocol.md §7); the context cases run against
-the fake control daemon through a real `ConnectionManager`.
+noise-shaping ramp) are synthesized spectra handed straight in (`junk_spectra`).
+The reader cases run against a fake 4322 stream speaking the real binary frame
+layout over a real socket (`fake_metering`, protocol.md §7); the context cases
+run against the fake control daemon through a real `ConnectionManager`.
 
 Known gap: the spec's `/api/status` case names "the existing API client
 fixture", but `api_client` (closed control port) answers 503 on /api/status
@@ -13,63 +13,30 @@ app whose control daemon is fake and whose metering port has no listener.
 """
 
 import asyncio
-import contextlib
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import eventually, spawn_threaded_daemon, wait_for_api
-from fake_metering import MeteringStream, frame, spawn_threaded_stream
+from conftest import PLAYING, eventually, running_reader, spawn_threaded_daemon, wait_for_api
+from fake_metering import frame, spawn_threaded_stream
 from fastapi.testclient import TestClient
+from junk_spectra import (
+    FAKE_HIRES_FRAME,
+    decaying_176,
+    fake_hires_96k,
+    genuine_hires_96k,
+    shaping_ramp_176,
+    spectrum,
+    spur_min_176,
+)
 
 from hqptuner.api import create_app
 from hqptuner.config import Config
 from hqptuner.junkadvisor import MIN_SECONDS, classify
 from hqptuner.manager import ConnectionManager
-from hqptuner.metering import MeteringReader, TrackContext, context_from
-
-BINS = 1025
-
-
-def _spectrum(bandwidth: float, level_at: Callable[[float], float], bins: int = BINS) -> list[float]:
-    step = bandwidth / (bins - 1)
-    return [level_at(k * step) for k in range(bins)]
-
-
-def fake_hires_96k() -> list[float]:
-    """96 kHz container, strong flat content to ~22 kHz, then a cliff to the floor."""
-    return _spectrum(48000.0, lambda f: -20.0 if f <= 22000.0 else -140.0)
-
-
-def genuine_hires_96k() -> list[float]:
-    """Smooth gradual decay across the whole band — no cliff, no tones."""
-    return _spectrum(48000.0, lambda f: -20.0 - 120.0 * f / 48000.0)
-
-
-def _decay_176(f: float) -> float:
-    # music decaying naturally, reaching the floor by ~20 kHz — no cliff (6 dB/kHz)
-    return max(-20.0 - 6.0 * f / 1000.0, -140.0)
-
-
-def spur_176(tone_hz: float) -> list[float]:
-    """Naturally decaying 176.4 kHz-container spectrum plus one narrow tone far
-    above the music: a few bins wide, 95 dB above the floor it stands in."""
-    return _spectrum(88200.0, lambda f: -45.0 if abs(f - tone_hz) <= 130.0 else _decay_176(f))
-
-
-def shaping_ramp_176() -> list[float]:
-    """Music gone by ~20 kHz, then broadband noise rising smoothly to -60 at Nyquist."""
-
-    def level(f: float) -> float:
-        if f <= 20000.0:
-            return -20.0 - 90.0 * f / 20000.0
-        if f <= 24000.0:
-            return -110.0
-        return -110.0 + 50.0 * (f - 24000.0) / (88200.0 - 24000.0)
-
-    return _spectrum(88200.0, level)
+from hqptuner.metering import TrackContext, context_from
 
 
 def _classify(
@@ -80,8 +47,31 @@ def _classify(
     samplerate: int | None = 96000,
     sdm: bool = False,
     junk_filter: str | None = "none",
+    min_levels_db: list[float] | None = None,
 ) -> dict[str, Any] | None:
-    return classify(levels, bandwidth, seconds, samplerate=samplerate, sdm=sdm, junk_filter=junk_filter)
+    return classify(
+        levels,
+        bandwidth,
+        seconds,
+        samplerate=samplerate,
+        sdm=sdm,
+        junk_filter=junk_filter,
+        min_levels_db=min_levels_db,
+    )
+
+
+def _classify_spur(
+    tone_hz: float, *, junk_filter: str | None = "none", tone_db: float = -45.0
+) -> dict[str, Any] | None:
+    """The spur rule reads the windowed minimum spectrum: the tone rides in
+    ``min_levels_db`` while the mean alongside is ordinary decaying music."""
+    return _classify(
+        decaying_176(),
+        88200.0,
+        samplerate=176400,
+        junk_filter=junk_filter,
+        min_levels_db=spur_min_176(tone_hz, tone_db),
+    )
 
 
 # --- classify: guards -----------------------------------------------------------
@@ -102,7 +92,7 @@ def test_unknown_or_non_hires_samplerate_gets_no_verdict(samplerate: int | None)
 
 def test_narrow_bandwidth_gets_no_verdict() -> None:
     # the tap only shows the audible band — nothing above it to judge
-    levels = _spectrum(24000.0, lambda f: -20.0 if f <= 22000.0 else -140.0)
+    levels = spectrum(24000.0, lambda f: -20.0 if f <= 22000.0 else -140.0)
     assert _classify(levels, 24000.0) is None
 
 
@@ -128,10 +118,43 @@ def test_genuine_hires_gets_no_verdict() -> None:
     assert _classify(genuine_hires_96k(), 48000.0) is None
 
 
-@pytest.mark.parametrize(("tone_hz", "expected"), [(40000.0, "30k"), (60000.0, "40k")])
-def test_hf_spur_recommends_a_rolloff_above_the_tone(tone_hz: float, expected: str) -> None:
-    verdict = _classify(spur_176(tone_hz), 88200.0, samplerate=176400)
+def test_hf_tone_in_the_mean_alone_earns_no_spur_verdict() -> None:
+    # without the minimum spectrum there is no persistence evidence to read
+    assert _classify(spur_min_176(40000.0), 88200.0, samplerate=176400, min_levels_db=None) is None
+
+
+@pytest.mark.parametrize(
+    ("tone_hz", "expected"),
+    [
+        (40000.0, "30k"),
+        (44000.0, "30k"),  # just under the 45 kHz corner split
+        (46000.0, "40k"),  # just over it
+        (60000.0, "40k"),
+    ],
+)
+def test_persistent_hf_tone_recommends_a_rolloff_above_the_tone(tone_hz: float, expected: str) -> None:
+    verdict = _classify_spur(tone_hz)
     assert verdict is not None and verdict["filter"] == expected
+
+
+def test_spur_reason_names_the_filter() -> None:
+    verdict = _classify_spur(40000.0)
+    assert verdict is not None and "30k" in verdict["reason"]
+
+
+def test_spur_reports_the_tone_ceiling() -> None:
+    verdict = _classify_spur(40000.0)
+    assert verdict is not None and abs(verdict["ceiling_khz"] - 40.0) <= 1.5
+
+
+def test_tone_below_25_khz_earns_no_spur_verdict() -> None:
+    # spur hunting starts at 25 kHz — a tone just under it is the music's business
+    assert _classify_spur(24500.0) is None
+
+
+def test_tone_under_15_db_above_the_minimum_baseline_earns_no_verdict() -> None:
+    # the minimum-spectrum floor at 40 kHz is -140; -130 stands only 10 dB proud
+    assert _classify_spur(40000.0, tone_db=-130.0) is None
 
 
 def test_noise_shaping_ramp_recommends_the_50k_filter() -> None:
@@ -144,7 +167,7 @@ def test_noise_shaping_ramp_recommends_the_50k_filter() -> None:
 
 @pytest.mark.parametrize("engaged", [None, "none"])
 def test_no_engaged_filter_never_suppresses(engaged: str | None) -> None:
-    verdict = _classify(spur_176(40000.0), 88200.0, samplerate=176400, junk_filter=engaged)
+    verdict = _classify_spur(40000.0, junk_filter=engaged)
     assert verdict is not None and verdict["filter"] == "30k"
 
 
@@ -159,7 +182,7 @@ def test_no_engaged_filter_never_suppresses(engaged: str | None) -> None:
     ],
 )
 def test_engaged_filter_suppresses_a_covered_spur_verdict(engaged: str) -> None:
-    assert _classify(spur_176(40000.0), 88200.0, samplerate=176400, junk_filter=engaged) is None
+    assert _classify_spur(40000.0, junk_filter=engaged) is None
 
 
 def test_engaged_corner_above_the_recommendation_does_not_suppress() -> None:
@@ -168,45 +191,6 @@ def test_engaged_corner_above_the_recommendation_does_not_suppress() -> None:
 
 
 # --- MeteringReader against the fake 4322 stream --------------------------------
-
-PLAYING = TrackContext(playing=True, track_serial="track-1", samplerate=96000, sdm=False, junk_filter="none")
-
-#: 0.7 s of coverage per frame: 60 frames ≈ 42 s, comfortably past the minimum.
-FAKE_HIRES_FRAME = frame(fake_hires_96k(), 48000.0, 0.7)
-
-
-@pytest.fixture
-async def metering_stream() -> AsyncIterator[Callable[..., Any]]:
-    streams: list[MeteringStream] = []
-
-    async def build(repeat: bytes | None = None) -> tuple[MeteringStream, int]:
-        stream = MeteringStream(repeat=repeat)
-        streams.append(stream)
-        return stream, await stream.start()
-
-    yield build
-    for stream in streams:
-        await stream.close()
-
-
-async def _instant(_seconds: float) -> None:
-    await asyncio.sleep(0)
-
-
-@contextlib.asynccontextmanager
-async def running_reader(
-    port: int,
-    cell: list[TrackContext | None],
-    sleep: Callable[[float], Any] = _instant,
-) -> AsyncIterator[tuple[MeteringReader, "asyncio.Task[None]"]]:
-    reader = MeteringReader("127.0.0.1", port, lambda: cell[0], sleep=sleep)
-    task = asyncio.create_task(reader.run())
-    try:
-        yield reader, task
-    finally:
-        reader.stop()
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
 
 
 async def test_fake_hires_stream_yields_20k_advice(metering_stream: Callable[..., Any]) -> None:
