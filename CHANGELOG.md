@@ -6,9 +6,19 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **LIVE's rate menus no longer show every tier as unavailable.** The engine's rate list depends on the output device as well as the mode, so it can come back empty, and HQPTuner kept serving an empty one until the mode changed. It now re-reads the list when playback starts or stops, and a list with nothing in it grays nothing.
+
+- **Cards on the LIVE page stay open once you open them.** They were snapping shut about once a second, so clicking one looked like it did nothing.
+
+- **The LIVE page no longer offers a rate control that cannot work.** In Auto mode the engine chooses the output rate itself and accepts none over the wire, so both rate columns are now grayed there. The caption says what governs instead — the limit, which needs an engine restart to change, so it lives on the Output tab.
+
+- **The LIVE page knows which chain is playing in Auto mode.** It used to claim no chain was loaded even mid-playback, and hold filter and modulator edits that could have gone straight to the engine.
+
 - **Tapping a card heading on a tablet now toggles it once.** On iPad Safari a single tap counted twice, so a collapsed card opened and shut again straight away. Buttons, dropdowns, checkboxes and radios are all affected.
 
 ### Changed
+
+- **Both rate columns on the LIVE page take edits under PCM and SDM, whichever family the engine is running.** Setting the DSD rate while PCM plays now works the way the DSD filters and modulator already did: the edit is held and applied when that family loads.
 
 - **Matrix stage chips carry their kind in the label, not the outline.** Violet for EQ and other processing, rose for convolution. The outline is now the hover and selection mark, in the accent; In/Out endpoints are accented too. Kind colours no longer sit on the accent palette, so the amber and green themes stop making chips look selected.
 
