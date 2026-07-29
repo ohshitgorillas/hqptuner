@@ -11,7 +11,7 @@ import pytest
 
 from hqptuner.config import Config
 from hqptuner.control import ControlError
-from hqptuner.lanes import livemap
+from hqptuner.lanes import livemap, liveoverrides
 from hqptuner.manager import ConnectionManager
 
 
@@ -107,12 +107,12 @@ async def test_a_live_routed_filter_becomes_the_running_truth(running_manager: C
     # dropdown would snap back after Apply and re-picking the old value would
     # read as clean — leaving no way to select it again.
     await running_manager.apply({}, {"filter": "40"})
-    assert livemap.live_overrides(running_manager)["filter"] == "40"
+    assert liveoverrides.live_overrides(running_manager)["filter"] == "40"
 
 
 async def test_a_save_records_the_mode_the_engine_is_in(running_manager: ConnectionManager) -> None:
-    assert livemap.live_overrides(running_manager)["mode"] == "pcm"
+    assert liveoverrides.live_overrides(running_manager)["mode"] == "pcm"
 
 
 async def test_a_save_omits_the_dormant_chains_fields(running_manager: ConnectionManager) -> None:
-    assert "oversampling" not in livemap.live_overrides(running_manager)
+    assert "oversampling" not in liveoverrides.live_overrides(running_manager)

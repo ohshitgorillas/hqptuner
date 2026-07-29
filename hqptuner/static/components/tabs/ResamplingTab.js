@@ -66,7 +66,7 @@ const fftOverride = signal(null);
 export const Resampling = () =>
   html`<${Section}>
     <${NarrowBar} />
-    <${Card} title="PCM" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+    <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
       ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
       <div class="pack chain">
@@ -81,7 +81,7 @@ export const Resampling = () =>
         <${Field} k="dsd_gain_6db" />
       </div>
     <//>
-    <${Card} title="SDM" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+    <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
       ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
       <div class="pack chain">

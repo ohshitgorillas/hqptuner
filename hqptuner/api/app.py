@@ -17,7 +17,7 @@ from .. import __version__
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..control import ControlError
-from ..lanes import livelane, livemap
+from ..lanes import livelane, livemap, liveoverrides
 from ..livepresets import LivePresetStore
 from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
@@ -163,7 +163,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
             **form,
             "profiles": {"value": presets["value"], "options": presets["options"]},
             "active": presets["active"],
-            "file": {**(manager.file_config or {}), **livemap.live_overrides(manager)},
+            "file": {**(manager.file_config or {}), **liveoverrides.live_overrides(manager)},
         },
     )
 

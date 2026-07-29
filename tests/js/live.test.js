@@ -113,7 +113,7 @@ function reset({ state, lists, file = FILE(), ...wire } = {}) {
   return liveWire({ mirrored: state, file, ...wire });
 }
 
-const control = (field) => liveModel.value.chainControls.find((c) => c.field === field);
+const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
 
 test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", () => {
   reset();
@@ -133,12 +133,6 @@ test("test_the_junk_filter_control_speaks_list_indices", () => {
 test("test_the_mode_control_reads_pcm_from_the_engines_mode_name", () => {
   reset();
   assert.equal(liveModel.value.mode.value, "pcm");
-});
-
-test("test_a_dormant_chain_offers_no_filter_controls", () => {
-  reset();
-  engineState.value = { ...STATE(), active_chain: null };
-  assert.deepEqual(liveModel.value.chainControls, []);
 });
 
 test("test_writing_a_control_posts_one_field_to_the_live_lane", async () => {

@@ -215,18 +215,14 @@ def test_a_one_sided_filter_write_keeps_its_sibling(chain_api: Callable[..., Tes
     assert client.get("/api/state").json()["data"]["filter1x"] == "2"
 
 
-def test_a_filter_for_the_dormant_chain_is_refused(chain_api: Callable[..., TestClient]) -> None:
-    # `filter` is the PCM chain's field and the engine is running SDM, where enum
-    # ID 40 means a different filter entirely.
-    client = chain_api(mode="2")
-    assert client.post("/api/config/live", json={"fields": {"filter": "40"}}).status_code == 409
-
-
 def test_a_refused_batch_applies_nothing(chain_api: Callable[..., TestClient]) -> None:
     # All-or-nothing: the LIVE page has no Apply button to retry from, so a half
     # applied batch would leave the engine where no control on the page describes.
+    # `9999` is in no filter list the engine offers, which is what a refusal is
+    # now: a dormant-chain field is HELD rather than refused, so the batch that
+    # used to demonstrate this no longer refuses at all.
     client = chain_api(mode="2")
-    client.post("/api/config/live", json={"fields": {"filter": "40", "junk_filter": "1"}})
+    client.post("/api/config/live", json={"fields": {"oversampling": "9999", "junk_filter": "1"}})
     assert client.get("/api/state").json()["data"]["filter_junk"] == "0"
 
 

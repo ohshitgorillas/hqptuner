@@ -20,7 +20,7 @@
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { engineState, engineStatus, enums, modeName, runningValue, refreshConfig } from "./state.js";
-import { enumOptions } from "./options.js";
+import { enumOptions, optionsFor } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { schema } from "./schema.js";
 
@@ -56,15 +56,20 @@ function reportError(report) {
   return failed.error || `${failed.setting} did not take`;
 }
 
-async function remirror(field) {
+async function remirror(field, report) {
   const state = await api.state();
   engineState.value = state.data;
+  // An edit to the chain the engine has not loaded is HELD, not applied
+  // (lanes/livemap.resolve_live) — so State cannot show it and no engine list
+  // moved. The running config's live overlay is where a held edit appears, and
+  // that overlay is what the dormant chain's card reads back.
+  const held = !!(report && report.stored && Object.keys(report.stored).length);
   // A rate or mode write moves what the running config reports for BOTH rate
   // limits (livemap.live_overrides), and that overlay is what the dormant rate
   // column reads. Its own poll is on the slow cadence, so pull it here rather
   // than leave the column showing the pre-switch tier for a few seconds.
-  if (RATE_MIRRORED.has(field)) await refreshConfig();
-  if (!REENUMERATES.has(field)) return;
+  if (held || RATE_MIRRORED.has(field)) await refreshConfig();
+  if (held || !REENUMERATES.has(field)) return;
   liveReloading.value = true;
   try {
     const fresh = await api.enumerations();
@@ -85,7 +90,7 @@ export async function writeLive(field, value) {
     // which member of it (see the base-family note below).
     const wire = field === "rate" ? forSource(String(value)) : String(value);
     const report = await api.live({ [field]: wire });
-    await remirror(field);
+    await remirror(field, report);
     setError(field, reportError(report));
   } catch (e) {
     // a refused batch applied nothing, so the mirrors are still current
@@ -286,9 +291,32 @@ function rateColumn(family) {
 // never hides the running selection (store/narrowing.js), so no live value can
 // be narrowed off its own dropdown. Shapers carry `narrow` nowhere and are left
 // whole.
-function chainOptions(c, value) {
-  const options = idOptions(c.enumKey);
+function chainOptions(c, value, base) {
+  const options = base || idOptions(c.enumKey);
   return c.entry.narrow ? narrowOptions(options, value, c.entry.narrow, c.key) : options;
+}
+
+// One chain's three controls, whether or not the engine has that chain loaded.
+// Both cards are on the page at once, so the dormant one has to read from
+// somewhere the engine cannot answer for: GetFilters/GetShapers enumerate the
+// LOADED chain only. It reads the running configuration instead — the daemon's
+// own /config form for the options, and the config's live overlay for the value,
+// which already carries what LIVE set on this chain while it was dormant
+// (livemap.live_overrides). Both are the enum-ID domain the live lists use, so
+// the two sides of the card are the same kind of number and an edit made here
+// means the same thing when the chain loads and it is finally sent.
+function chainControls(chain, loaded) {
+  return CHAINS[chain].map((c) => {
+    const live = chain === loaded;
+    const value = live ? idValue(c.enumKey, c.state) : (runningValue(c.key) ?? "");
+    return {
+      field: c.field,
+      key: c.key,
+      entry: c.entry,
+      value,
+      options: chainOptions(c, value, live ? null : optionsFor("config", c.field)),
+    };
+  });
 }
 
 // Everything the LIVE page renders, in one read. A single computed rather than a
@@ -314,9 +342,7 @@ export const liveModel = computed(() => {
       options: enumOptions("junk_filters"),
     },
     adaptive: { field: "adaptive_volume", ...catalog("adaptive_volume"), value: stateOf("adaptive") },
-    chainControls: (CHAINS[chain] || []).map((c) => {
-      const value = idValue(c.enumKey, c.state);
-      return { field: c.field, key: c.key, entry: c.entry, value, options: chainOptions(c, value) };
-    }),
+    pcmChain: chainControls("pcm", chain),
+    sdmChain: chainControls("sdm", chain),
   };
 });

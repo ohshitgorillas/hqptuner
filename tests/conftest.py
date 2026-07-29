@@ -1,15 +1,10 @@
-"""Shared fixtures: a stateful fake hqplayerd speaking real Control API XML
-over a real socket (docs/testing.md — fakes speak the wire protocol).
+"""Shared fixtures over the two fake daemons (docs/testing.md — fakes speak the
+wire protocol, over a real socket).
 
-The fake keeps a per-connection settings dict and answers setters + State from
-it, so a `Set*` followed by `State` reads back the change — enough to exercise
-the readback-verify path. Two quirks are modelled for the write-path tests:
-`value="999"` returns `result="OK"` without applying (the OK-but-not-applied
-caveat, protocol.md §6); `value="err"` returns `result="Error"`; and `SetMode`
-resets `rate` to `0` (mode swaps the lists rate is relative to), which lets a
-test prove apply order (mode before rate).
-
-The port-8088 HTTP fake lives in `fake_http`; its fixtures are at the bottom."""
+The Control API fake itself is `fake_control`; the port-8088 HTTP fake is
+`fake_http`. What lives here is the ways of standing them up: in the test's own
+event loop, from a background thread for the sync `TestClient` cases, and as a
+factory for tests that need several or need to move one mid-session."""
 
 import asyncio
 import functools
@@ -22,7 +17,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from defusedxml.ElementTree import fromstring as _fromstring
+from fake_control import DEFAULTS, CommandLog, serve
 from fastapi.testclient import TestClient
 
 from hqptuner.api import create_app
@@ -30,12 +25,6 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.control import ControlClient
 from hqptuner.manager import ConnectionManager
-
-XML = '<?xml version="1.0" encoding="UTF-8"?>'
-
-#: Every frame a fake daemon received: (command, attributes). "The lane sent
-#: nothing" and "it sent the neutral value" leave the same daemon state behind.
-CommandLog = list[tuple[str, dict[str, str]]]
 
 
 @pytest.fixture(autouse=True)
@@ -66,174 +55,9 @@ def virtual_clock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ConnectionManager, "monotonic", monotonic)
 
 
-_DEFAULTS = {
-    "state": "0",
-    "mode": "1",
-    "filter1x": "0",
-    "filterNx": "0",
-    "shaper": "0",
-    "rate": "0",
-    "filter_junk": "0",
-    "adaptive": "0",
-    "volume": "-10.0",
-    "matrix_profile": "",
-    # underscore keys are internal to the fake (VolumeRange source), not emitted in State
-    "_vol_min": "-60",
-    "_vol_max": "0",
-    "_vol_enabled": "1",
-    "_vol_adaptive": "0",
-    "_metadata": "",  # optional <metadata> child injected into the Status frame
-    # Space-separated commands answered `result="OK"` without applying: the
-    # `value="999"` caveat above (protocol.md §4), keyed by command instead.
-    "_deaf": "",
-    # Status reports the mode the engine is RUNNING as a display string, which is
-    # not always the configured one: in [source] mode it follows the source. The
-    # string is the same one GetModes gives that mode — verified against the live
-    # daemon (hqplayerd 6.0.4, 2026-07-27): configured mode 2 reports
-    # active_mode="SDM (DSD)", byte-identical to ModesItem index 2.
-    "_active_mode": "PCM",
-}
-
-
-def _apply(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
-    value = attrs.get("value", "")
-    if name == "SetMode":
-        state["mode"] = value
-        state["rate"] = "0"  # mode resets rate to auto (protocol.md §6)
-    elif name == "SetFilter":
-        state["filterNx"] = value
-        state["filter1x"] = attrs.get("value1x", value)
-    elif name == "SetShaping":
-        state["shaper"] = value
-    elif name == "SetRate":
-        state["rate"] = value
-    elif name == "SetJunkFilter":
-        state["filter_junk"] = value
-    elif name == "SetAdaptiveVolume":
-        state["adaptive"] = value
-    elif name == "Volume":
-        state["volume"] = value
-    elif name == "MatrixSetProfile":
-        state["matrix_profile"] = value  # live switch; State reports it back
-
-
-# Enumerations are MODE-DEPENDENT on the real daemon: GetFilters/GetShapers
-# answer for the ACTIVE mode only, and the two chains number their enum IDs
-# differently — poly-sinc-gauss-long is enum 40 under PCM `filter` and 38 under
-# SDM `oversampling` (protocol.md §4, readme §1.5/§1.6). The fake models both
-# facts because the live-routing chain gate exists precisely to protect them.
-_MODES = (("0", "[source]", "-1"), ("1", "PCM", "0"), ("2", "SDM (DSD)", "1"))
-_PCM_FILTERS = (("0", "none", "0"), ("1", "poly-sinc-gauss-long", "40"), ("2", "sinc-M", "25"))
-_SDM_FILTERS = (("0", "poly-sinc-gauss-long", "38"), ("1", "sinc-M", "23"))
-_PCM_SHAPERS = (("0", "none", "0"), ("1", "NS9", "5"))
-_SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
-_JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
-
-# `RatesItem` carries no `value`: it is `<RatesItem index rate/>` with the actual
-# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real, and
-# each mode offers BOTH base families; the 48k-base members sit last here so no
-# existing index moves, not because the daemon orders them that way.
-_PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4", "384000"))
-_SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
-
-
-def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
-    return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
-
-
-def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
-    return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
-
-
-def _enumeration(name: str, state: dict[str, str]) -> str | None:
-    """GetModes/GetFilters/GetShapers, scoped to the mode the fake is in."""
-    sdm = state.get("mode") == "2"
-    if name == "GetModes":
-        return f"<GetModes>{_items('ModesItem', _MODES)}</GetModes>"
-    if name == "GetFilters":
-        return f"<GetFilters>{_items('FiltersItem', _SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
-    if name == "GetShapers":
-        return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
-    if name == "GetRates":
-        return f"<GetRates>{_rate_items(_SDM_RATES if sdm else _PCM_RATES)}</GetRates>"
-    if name == "GetJunkFilters":
-        return f"<GetJunkFilters>{_items('JunkFiltersItem', _JUNK_FILTERS)}</GetJunkFilters>"
-    return None
-
-
-def _query(name: str, state: dict[str, str]) -> str | None:
-    """Read-only commands answered from state; None for setters."""
-    enumerated = _enumeration(name, state)
-    if enumerated is not None:
-        return enumerated
-    if name == "GetInfo":
-        return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
-    if name == "GetLicense":
-        return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
-    if name == "ConfigurationGet":
-        return f'<ConfigurationGet result="OK" value="{state.get("_active_config", "")}"/>'
-    if name == "MatrixListProfiles":
-        items = "".join(f'<MatrixProfile name="{n}"/>' for n in ("Default", "Mch-to-Stereo mixdown"))
-        return f'<MatrixListProfiles result="OK">{items}</MatrixListProfiles>'
-    if name == "MatrixGetProfile":
-        return f'<MatrixGetProfile result="OK" value="{state.get("_matrix_profile", "")}"/>'
-    if name == "State":
-        return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items() if not k.startswith("_")) + "/>"
-    if name == "VolumeRange":
-        return (
-            f'<VolumeRange min="{state["_vol_min"]}" max="{state["_vol_max"]}" '
-            f'enabled="{state["_vol_enabled"]}" adaptive="{state["_vol_adaptive"]}"/>'
-        )
-    if name == "Status":
-        # active_* live on the Status root; the track <metadata> child is where the
-        # daemon emits unescaped chars mid-playback (_metadata override).
-        return (
-            f'<Status state="{state["state"]}" active_mode="{state["_active_mode"]}" '
-            f'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
-            f'active_rate="192000" volume="{state["volume"]}">'
-            f'{state["_metadata"]}</Status>'
-        )
-    return None
-
-
-def _handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str:
-    el = _fromstring(body)
-    name, attrs = el.tag, el.attrib
-    if log is not None:
-        log.append((name, dict(attrs)))
-    answer = _query(name, state)
-    if answer is not None:
-        return answer
-    if name == "Volume" and state["_vol_enabled"] == "0":
-        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §6)
-    value = attrs.get("value")
-    if value == "err":
-        return f'<{name} result="Error">bad value</{name}>'
-    deaf = state["_deaf"].split()
-    if value != "999" and name not in deaf:  # 999 = OK but not applied (readback-verify caveat)
-        _apply(name, attrs, state)
-    return f'<{name} result="OK"/>'
-
-
-async def _serve(
-    reader: asyncio.StreamReader,
-    writer: asyncio.StreamWriter,
-    overrides: dict[str, str] | None = None,
-    log: CommandLog | None = None,
-) -> None:
-    state = {**_DEFAULTS, **(overrides or {})}
-    while True:
-        data = await reader.read(4096)
-        if not data:
-            break
-        body = data.split(b"?>", 1)[-1].strip().decode()
-        writer.write(f"{XML}{_handle(body, state, log)}\n".encode())
-        await writer.drain()
-
-
 @pytest.fixture
 async def live_daemon_port() -> AsyncIterator[int]:
-    server = await asyncio.start_server(_serve, "127.0.0.1", 0)
+    server = await asyncio.start_server(serve, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
     yield port
     server.close()
@@ -245,35 +69,92 @@ async def split_filter_daemon_port() -> AsyncIterator[int]:
     """Daemon whose 1x and Nx filter slots DIFFER (1x=2, Nx=0). The default fake
     has both at index 0, where a preserved sibling and a clobbered one are the
     same value — so any test of the one-sided SetFilter case needs this one."""
-    serve = functools.partial(_serve, overrides={"filter1x": "2", "filterNx": "0"})
-    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    handler = functools.partial(serve, overrides={"filter1x": "2", "filterNx": "0"})
+    server = await asyncio.start_server(handler, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
     yield port
     server.close()
     await server.wait_closed()
 
 
-DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog]]]
+DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog, dict[str, str]]]]
 
 
 @pytest.fixture
 async def daemon() -> AsyncIterator[DaemonFactory]:
-    """Fake daemons on demand, each with its own recorded traffic. Keyword
-    arguments are the State overrides the fixtures above bake in one apiece:
-    ``daemon(rate="2", _deaf="SetMode")`` pins index 2 and never lands SetMode."""
+    """Fake daemons on demand, each with its own recorded traffic and its own
+    State. Keyword arguments are the State overrides the fixtures above bake in
+    one apiece: ``daemon(rate="2", _deaf="SetMode")`` pins index 2 and never lands
+    SetMode.
+
+    Returns the State dict alongside the port and the log. It is the daemon's
+    live State, shared across its connections — writing to it is how a test says
+    something changed on the daemon's side of the wire that no command caused,
+    which is the only way to express a source change under ``[source]`` mode."""
     servers: list[asyncio.Server] = []
 
-    async def spawn(**overrides: str) -> tuple[int, CommandLog]:
+    async def spawn(**overrides: str) -> tuple[int, CommandLog, dict[str, str]]:
         log: CommandLog = []
-        serve = functools.partial(_serve, overrides=overrides, log=log)
-        server = await asyncio.start_server(serve, "127.0.0.1", 0)
+        state = {**DEFAULTS, **overrides}
+        handler = functools.partial(serve, log=log, state=state)
+        server = await asyncio.start_server(handler, "127.0.0.1", 0)
         servers.append(server)
-        return int(server.sockets[0].getsockname()[1]), log
+        return int(server.sockets[0].getsockname()[1]), log, state
 
     yield spawn
     for server in servers:
         server.close()
         await server.wait_closed()
+
+
+#: A manager already connected to a fake daemon, that daemon's recorded traffic,
+#: and its live State — writing to the State is how a test says the engine moved
+#: with no command sent (a source change under ``[source]`` mode).
+LiveBuilt = tuple[ConnectionManager, CommandLog, dict[str, str]]
+LiveManager = Callable[..., Awaitable[LiveBuilt]]
+
+
+async def eventually(condition: Callable[[], bool], timeout: float = 3.0) -> None:
+    """Wait until the condition holds; a TimeoutError means the behavior never
+    happened. Real clock with tiny polls, because ``run()`` is deliberately
+    real-paced (docs/testing.md §7) — the lanes' own waits stay virtual."""
+
+    async def wait() -> None:
+        while not condition():
+            await asyncio.sleep(0.01)
+
+    await asyncio.wait_for(wait(), timeout)
+
+
+@pytest.fixture
+async def live_manager(daemon: DaemonFactory) -> AsyncIterator[LiveManager]:
+    """Build managers on fake daemons, stopping each at teardown.
+
+    Keyword arguments are the daemon's State overrides — ``rate="2"`` starts the
+    engine already pinned, ``mode="2"`` starts it with the SDM chain loaded,
+    ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying
+    (protocol.md §4: OK is not proof). A case that waits on the manager's own
+    poll loop passes a small ``poll_interval``; the rest keep the production
+    pacing, so no background poll interleaves with what they assert on.
+    """
+    started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
+
+    async def build(poll_interval: float | None = None, **overrides: str) -> LiveBuilt:
+        port, log, state = await daemon(**overrides)
+        settings: dict[str, Any] = {"hqp_host": "127.0.0.1", "hqp_control_port": port}
+        if poll_interval is not None:
+            settings["poll_interval"] = poll_interval
+        manager = ConnectionManager(Config(**settings))
+        task = asyncio.create_task(manager.run())
+        await eventually(lambda: manager.reachable)
+        started.append((manager, task))
+        return manager, log, state
+
+    yield build
+    for manager, task in started:
+        manager.stop()
+        await task
+        await manager.aclose()
 
 
 @pytest.fixture
@@ -291,8 +172,8 @@ async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
     '<' inside an attribute can't be repaired by the bare-'&' fix, so the root's
     active_* must be recovered by dropping the child (control.py _recover_root)."""
     bad = '<metadata artist="A&B" album="Foo <Bar> Baz"/>'
-    serve = functools.partial(_serve, overrides={"_metadata": bad})
-    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    handler = functools.partial(serve, overrides={"_metadata": bad})
+    server = await asyncio.start_server(handler, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
     client = ControlClient("127.0.0.1", port, timeout=2.0)
     await client.connect()
@@ -306,8 +187,8 @@ async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
 async def disabled_volume_client() -> AsyncIterator[ControlClient]:
     """A fake daemon with volume control disabled (VolumeRange enabled=0), so a
     Volume write is rejected — the live-slider gray/error case."""
-    serve = functools.partial(_serve, overrides={"_vol_enabled": "0"})
-    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    handler = functools.partial(serve, overrides={"_vol_enabled": "0"})
+    server = await asyncio.start_server(handler, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
     client = ControlClient("127.0.0.1", port, timeout=2.0)
     await client.connect()
@@ -321,7 +202,7 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
 # `TestClient` runs the app (and its ConnectionManager) inside its own thread's
 # event loop, where the in-loop asyncio fakes above are unreachable: their
 # server only accepts while the test's loop is running, and it is parked for
-# the duration of a sync test body. These serve the identical `_serve` protocol
+# the duration of a sync test body. These serve the identical `serve` protocol
 # from a dedicated thread over real TCP, reachable from any loop.
 
 
@@ -329,8 +210,8 @@ def spawn_threaded_daemon(overrides: dict[str, str] | None = None) -> Iterator[i
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    serve = functools.partial(_serve, overrides=overrides)
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(serve, "127.0.0.1", 0), loop).result()
+    handler = functools.partial(serve, overrides=overrides)
+    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, "127.0.0.1", 0), loop).result()
     port: int = server.sockets[0].getsockname()[1]
     yield port
     loop.call_soon_threadsafe(server.close)

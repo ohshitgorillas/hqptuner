@@ -81,8 +81,8 @@ const subsection = (chunk, name) => {
   return next < 0 ? chunk.slice(at) : chunk.slice(at, next);
 };
 
-const PCM = "PCM";
-const SDM = "SDM";
+const PCM = "PCM Chain";
+const SDM = "SDM Chain";
 const LENGTH = "Filter length";
 const FROM_PCM = "PCM Sources";
 const FROM_DSD = "DSD Sources";

@@ -63,7 +63,7 @@ ROUTABLE: dict[str, LiveField] = {
 # config form `mode` values -> the ModesItem name to match. Matched by NAME, not
 # by a hardcoded index: the modes enum is device-dependent (it drops SDM when the
 # active device can't do DSD), so positions are not stable.
-_MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
+MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
 
 # Live-lane fields the FRONTEND stages directly (schema `lane: "live"`), so they
 # never pass through `split_live` and are absent from ROUTABLE — but they make
@@ -73,16 +73,6 @@ _MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
 # the value (`adaptive_volume` <-> `<engine volume_adaptive>`).
 DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
 
-# Where a live rate lands on the config side. `SetRate` writes an exact rate, the
-# config form's rate menu writes the per-family LIMIT, and the two agree in the
-# only terms the menu speaks: the tier. A pinned DSD256 becomes a DSD256 limit,
-# which the engine then selects in the source's own base family — the same output,
-# and the only form a config write may take (measured 2026-07-28: a config rate
-# slot cannot pick a base family, so writing one would send 44.1k material out at
-# a 48k base rate behind the user's `any_dsd` setting).
-_RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
-_BASE_44K = 44100
-_BASE_48K = 48000
 # No PCM rate the engine offers reaches DSD64, so the lowest SDM rate separates
 # the two families outright — no rate in Hz is ambiguous between them.
 _SDM_FLOOR = 2822400
@@ -93,117 +83,9 @@ def rate_family(hz: str) -> str:
     return SDM if int(hz) >= _SDM_FLOOR else PCM
 
 
-# --- save side: live state expressed back as config-form fields ---------------
-# A live-routed edit never touched the config file, so the file is stale the
-# moment one lands. Saving a preset off that file would store settings the user
-# is not hearing, so `presetlane.save` folds these overrides into the working XML
-# first. The translation is the mirror of the apply side: State's list index ->
-# the enumeration item at that index -> its enum ID, which is what the file holds.
-
-
-def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
-    """The enum ID of the item at this list index (the index→ID join)."""
-    for item in items:
-        if str(item.get("index")) == str(index):
-            value = item.get("value")
-            return None if value is None else str(value)
-    return None
-
-
-def _mode_form_value(items: EnumItems, index: str) -> str | None:
-    """The config-form mode value (auto|pcm|sdm) for a ModesItem index."""
-    for item in items:
-        if str(item.get("index")) != str(index):
-            continue
-        name = (item.get("name") or "").upper()
-        return next((form for form, want in _MODE_NAMES.items() if name.startswith(want.upper())), None)
-    return None
-
-
-def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> str | None:
-    """One field's current live value in config-form terms, or None when the
-    engine cannot answer for it."""
-    spec = ROUTABLE[field]
-    index = state.get(spec.state)
-    if index is None:
-        return None
-    items = (mgr.enums or {}).get(spec.enum) or []
-    return _mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
-
-
-def _tier_rate(hz: str) -> str:
-    """A rate as the 48k-base member of its tier — what the rate menus carry.
-
-    Every tier is n x 44100 or n x 48000 for the same n, so the 44.1k member
-    converts exactly and anything else is already the 48k one.
-    """
-    value = int(hz)
-    return str(value // _BASE_44K * _BASE_48K) if value % _BASE_44K == 0 else hz
-
-
-def _pinned_rate(mgr: ConnectionManager, state: dict[str, str]) -> str | None:
-    """The rate in Hz the engine is pinned to right now, or None when it has none.
-
-    None when the engine has no pin of its own (``rate="0"``): the configured
-    limit is then already what it is following, so there is nothing to override.
-    """
-    index = state.get("rate")
-    if index is None:
-        return None
-    items = (mgr.enums or {}).get("rates") or []
-    hz = next((item.get("rate") for item in items if str(item.get("index")) == str(index)), None)
-    return None if hz is None or hz == "0" else hz
-
-
-def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, str]:
-    """Both families' live rates as config limit fields.
-
-    ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
-    (measured 2026-07-28, ``scripts/probe_mode_rate_pin.py``), so the engine can
-    only ever answer for the family it is running and only until the next mode
-    switch. ``mgr.live_rates`` is what LIVE pinned per family, which ``livelane``
-    puts back on the engine when that family comes round again — so reporting both
-    here says what the engine is set to rather than what it happens to report.
-
-    The engine still wins for the family it is running: a pin set from somewhere
-    other than LIVE is real, and this remembers only what LIVE itself wrote.
-    """
-    rates = dict(mgr.live_rates)
-    pinned = _pinned_rate(mgr, state)
-    if pinned is not None:
-        rates[rate_family(pinned)] = pinned
-    return {_RATE_LIMIT_FIELD[family]: _tier_rate(hz) for family, hz in rates.items()}
-
-
 def rate_index_for(mgr: ConnectionManager, hz: str) -> str | None:
     """The ``RatesItem`` index carrying this rate in Hz, in the engine's current list."""
     return _index_for_rate((mgr.enums or {}).get("rates") or [], hz)
-
-
-def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
-    """The engine's current live settings as config-form fields, so a save
-    captures what is actually playing rather than a stale file.
-
-    Only the ACTIVE chain is included: State reports one filter/shaper pair, and
-    attributing it to the dormant chain would overwrite that chain's saved
-    settings with the other one's."""
-    chain = active_chain(mgr)
-    state = mgr.state or {}
-    overrides = {}
-    for field, spec in ROUTABLE.items():
-        if spec.chain is not None and spec.chain != chain:
-            continue
-        value = _override_for(mgr, field, state)
-        if value is not None:
-            overrides[field] = value
-    for field, attr in DIRECT.items():
-        direct = state.get(attr)
-        if direct is not None:
-            overrides[field] = direct
-    # Rate is not chain-gated the way the filter/shaper pair is: the two families'
-    # limits are separate fields, so carrying both overwrites neither.
-    overrides.update(_rate_overrides(mgr, state))
-    return overrides
 
 
 def _chain_name(name: str) -> str | None:
@@ -255,7 +137,7 @@ def _index_for_enum_id(items: EnumItems, enum_id: str) -> str | None:
 
 def _index_for_mode(items: EnumItems, form_value: str) -> str | None:
     """The ModesItem index for a config-form mode value (auto|pcm|sdm)."""
-    want = _MODE_NAMES.get(str(form_value))
+    want = MODE_NAMES.get(str(form_value))
     if want is None:
         return None
     for item in items:
@@ -425,19 +307,25 @@ def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | Non
     return _index_for_rate(items, value) if field == "rate" else _known_index(items, value)
 
 
-def _why_unresolved(field: str, value: str, chain: str | None) -> str:
+def _why_unresolved(field: str, value: str) -> str:
     """Why a field would not resolve, in terms the control that sent it can show."""
     spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
-    if spec.chain is not None and spec.chain != chain:
-        return f"the {spec.chain} chain is not loaded (engine chain: {chain or 'unknown'})"
     return f"{value} is not in the engine's live {spec.enum} list"
+
+
+def _off_chain(field: str, chain: str | None) -> bool:
+    """Whether this field belongs to the chain the engine does NOT have loaded."""
+    spec = ROUTABLE.get(field)
+    return spec is not None and spec.chain is not None and spec.chain != chain
 
 
 def _route_live(
     mgr: ConnectionManager, fields: dict[str, str], chain: str | None
-) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
-    """Every field as setter args, alongside the ones that would not resolve."""
+) -> tuple[dict[str, dict[str, str]], dict[str, str], dict[str, str]]:
+    """Every field as setter args, alongside the ones held for a chain that is not
+    loaded and the ones that would not resolve at all."""
     edits: dict[str, dict[str, str]] = {}
+    stored: dict[str, str] = {}
     reasons: dict[str, str] = {}
     for field, value in fields.items():
         if field in DIRECT:
@@ -445,21 +333,37 @@ def _route_live(
             # and the form field's name is already the writer's setting key
             edits[field] = {"value": value}
             continue
+        if _off_chain(field, chain):
+            # No enumeration exists to resolve it against — GetFilters/GetShapers
+            # answer for the loaded chain only — so it is held as the config-form
+            # enum ID the caller sent and resolved when that chain loads. Not
+            # validated here for the same reason: there is nothing to validate it
+            # against until then, and `resolve_chain` drops what does not survive.
+            stored[field] = value
+            continue
         index = _live_index(mgr, field, value, chain)
         if index is None:
-            reasons[field] = _why_unresolved(field, value, chain)
+            reasons[field] = _why_unresolved(field, value)
             continue
         spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
         edits.setdefault(spec.setting, {})[spec.arg] = index
-    return edits, reasons
+    return edits, stored, reasons
 
 
-def resolve_live(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, dict[str, str]]:
-    """A LIVE batch as ``writer.apply_live`` edits, or ``LiveRouteError``.
+def resolve_live(
+    mgr: ConnectionManager, fields: dict[str, str]
+) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
+    """A LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or
+    ``LiveRouteError``.
 
     All-or-nothing: the whole batch resolves before a single setter runs, because
     the LIVE page has no Apply button to retry from and a half-applied batch would
     leave the engine in a state no control on the page describes.
+
+    A field for the chain the engine has not loaded is held rather than refused.
+    LIVE shows both chains' cards at once, so editing the dormant one is an
+    ordinary thing to do there; the edit is real and simply lands when that chain
+    does (``livelane._reassert_chain``).
     """
     # The whole batch, not just the ROUTABLE part `split_live` guards: the rate
     # list is mode-dependent too (manual §4.6), so a mode change invalidates every
@@ -471,10 +375,44 @@ def resolve_live(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, di
                 "enumerations the other values were resolved against"
             }
         )
-    edits, reasons = _route_live(mgr, fields, active_chain(mgr))
+    edits, stored, reasons = _route_live(mgr, fields, active_chain(mgr))
     if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.state or {}):
         unfillable = "State reports no current filter, so the other half of the SetFilter pair cannot be filled in"
-        reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS), unfillable))
+        reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS and f not in stored), unfillable))
     if reasons:
         raise LiveRouteError(reasons)
-    return edits
+    return edits, _by_chain(stored)
+
+
+def _by_chain(stored: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Held fields grouped under the chain each belongs to."""
+    grouped: dict[str, dict[str, str]] = {}
+    for field, value in stored.items():
+        grouped.setdefault(str(ROUTABLE[field].chain), {})[field] = value
+    return grouped
+
+
+def resolve_chain(mgr: ConnectionManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
+    """A chain's remembered settings as ``writer.apply_live`` edits, alongside the
+    fields the entered chain's own lists turned out not to carry.
+
+    Those are dropped rather than approximated, the same rule ``_reassert_rate``
+    applies to a tier the entered mode does not offer: the nearest filter the
+    engine does have is a filter the user never picked. Resolved against
+    ``mgr.enums`` as it stands, so the caller must re-enumerate after the mode
+    change first — the lists this joins through are the ones SetMode just swapped.
+    """
+    edits: dict[str, dict[str, str]] = {}
+    dropped: set[str] = set()
+    for field, value in (mgr.live.chain.get(chain) or {}).items():
+        spec = ROUTABLE[field]
+        index = _index_for_enum_id((mgr.enums or {}).get(spec.enum) or [], value)
+        if index is None:
+            dropped.add(field)
+            continue
+        edits.setdefault(spec.setting, {})[spec.arg] = index
+    # SetFilter sets both halves at once, so a one-sided re-assert would clobber
+    # the other; State supplies the missing half now that the chain is loaded.
+    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.state or {}):
+        del edits["filter"]
+    return edits, dropped
