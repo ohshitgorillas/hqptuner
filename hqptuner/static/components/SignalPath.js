@@ -61,8 +61,16 @@ function sourceLabel(md) {
   return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit`;
 }
 
-// A DSD bitstream is always 1-bit, so pair the MHz with "/ 1bit".
-function outputLabel(rate) {
+// The output chip reads like the source chip — rate and bit depth — and the
+// depth comes straight off the Status frame's `active_bits` (protocol.md), which
+// reports 1 on an SDM path and 24/32 on a PCM one. Falling back on the DSD floor
+// keeps the chip right when the field is absent, where the only depth derivable
+// without it is the 1 bit a DSD bitstream always carries.
+function outputLabel(st) {
+  const rate = st.active_rate;
+  const bits = Number(st.active_bits);
+  if (!Number(rate)) return "—"; // no rate, no chain — a bare depth reads as noise
+  if (bits) return `${fmtRate(rate)} / ${bits}bit`;
   if (Number(rate) >= DSD_FLOOR) return `${fmtRate(rate)} / 1bit`;
   return fmtRate(rate);
 }
@@ -149,7 +157,7 @@ function conversionStages(st, md) {
 // is output-rate-dependent and follows them.
 function chainStages(st, md, playing) {
   const source = { label: "Source", value: playing ? sourceLabel(md) : "—" };
-  const output = { label: "Output", value: playing ? outputLabel(st.active_rate) : "—", hero: true };
+  const output = { label: "Output", value: playing ? outputLabel(st) : "—", hero: true };
   // A bit-perfect pass-through has nothing between source and DAC, so the bar
   // must stop advertising a matrix, a crossfeed or a correction that the daemon
   // is not running (manual §5 excepts only speaker distance processing, which
