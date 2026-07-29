@@ -38,10 +38,27 @@ A failing test here means the spec and the code disagree. Exactly one of three t
 
 Report which one to the user before changing code or tests. Editing a test until it passes is forbidden without that statement. It is the failure mode this chain exists to catch, and it is silent: the suite goes green either way.
 
-## 5. Spawn the test-reviewer
+## 5. Bite check — prove the tests can fail
+
+Once the new tests are green against the working tree, prove they go red without it (`docs/testing.md` rule 8). Revert the implementation but keep the tests: stash every changed non-test path (usually `hqptuner/`; add `data/` or others if the change touched them), re-run the new test file, then restore. Chain it so the restore runs even when pytest errors:
+
+```
+git stash push -- hqptuner/ && (.venv/bin/pytest tests/<file> -q; git stash pop)
+```
+
+Confirm the restore afterwards — `git stash list` empty, working-tree diff back to what it was — before doing anything else.
+
+Read the result:
+
+- **Red — bite confirmed.** Assertion failures are the strong form. A collection or import error is a weak bite: it proves the tests reach the new surface, not that the assertions constrain it. Report which you got.
+- **Green — bite failure.** The test passes against code that lacks the change, so it constrains nothing. Do not hand-edit it into failing: name the vacuous test, work out which observable outcome the spec should have pinned, and re-run the writer with the spec tightened.
+
+Skip the check only when there is no pre-change state to fail against — characterization tests of existing behaviour, tests accompanying a pure refactor — and say so in the report instead of skipping silently.
+
+## 6. Spawn the test-reviewer
 
 Fresh context, same blindness. Give it the spec block and the test files. It returns a findings block: tautologies, uncovered spec behaviours, and policy violations the mechanical gates cannot see.
 
-## 6. Surface the findings
+## 7. Surface the findings
 
 Paste the reviewer's findings block to the user verbatim, with your own verdict per `BLOCKER` and `MAJOR` line — agree, or say why not. Do not act on them without a go. An empty findings block is a real result; report it as one rather than dressing it up.

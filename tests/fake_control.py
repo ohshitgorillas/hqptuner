@@ -102,6 +102,17 @@ def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
     return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
 
 
+def _modes(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
+    """The modes this device offers. Real ones differ: a DAC that cannot do DSD
+    gets a list with no SDM entry at all, which is why nothing may key a mode off
+    a fixed index. ``_no_sdm`` asks the fake for such a device — and the remaining
+    entries keep their own indices, so a caller that hardcoded them still finds
+    something and still gets it wrong."""
+    if not state.get("_no_sdm"):
+        return _MODES
+    return tuple(mode for mode in _MODES if not mode[1].startswith("SDM"))
+
+
 def _active_sdm(state: dict[str, str]) -> bool:
     """Whether the chain the fake currently has LOADED is the SDM one.
 
@@ -121,7 +132,7 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
     """GetModes/GetFilters/GetShapers, scoped to the chain the fake has loaded."""
     sdm = _active_sdm(state)
     if name == "GetModes":
-        return f"<GetModes>{_items('ModesItem', _MODES)}</GetModes>"
+        return f"<GetModes>{_items('ModesItem', _modes(state))}</GetModes>"
     if name == "GetFilters":
         return f"<GetFilters>{_items('FiltersItem', _SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
     if name == "GetShapers":

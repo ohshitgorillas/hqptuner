@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .livemap import _LIVE_ONLY, DIRECT, ROUTABLE, EnumItems, LiveField, active_chain
+from .livemap import _LIVE_ONLY, DIRECT, ROUTABLE, EnumItems, LiveField, active_chain, mode_form_value
 
 if TYPE_CHECKING:
     from ..manager import ConnectionManager
@@ -24,10 +24,13 @@ if TYPE_CHECKING:
 # `junk_filter` is index-domain on both sides, and `rate` is an actual rate in Hz.
 _SNAPSHOT_VALUE = {"junk_filter": "index", "rate": "rate"}
 
-# Mode is deliberately absent: `_mode_blocks_batch` refuses a mode change beside
-# any other live field, so a preset carrying one could never apply as a batch.
-# The chain tag the preset stores covers the same intent.
-_SNAPSHOT_FIELDS = tuple(field for field in (*ROUTABLE, *_LIVE_ONLY) if field != "mode")
+# Mode included. A single batch cannot carry it — `_mode_blocks_batch` refuses a
+# mode change beside anything else, because `SetMode` swaps the enumerations the
+# rest was resolved against — but a preset is not obliged to be one batch:
+# `livelane.apply_preset` writes the mode, re-enumerates, then applies the rest
+# against the lists the switch produced. Leaving mode out made a preset unable to
+# say "run SDM like this", which is most of what a preset is for.
+_SNAPSHOT_FIELDS = (*ROUTABLE, *_LIVE_ONLY)
 
 
 def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
@@ -48,6 +51,22 @@ def _spec(field: str) -> LiveField:
     return ROUTABLE.get(field) or _LIVE_ONLY[field]
 
 
+def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:
+    """The running output mode as ``{value, name}``.
+
+    Mode is the one field whose stored value is not an enum ID: the live lane
+    takes the config-form strings auto/pcm/sdm and matches them to the running
+    enumeration by NAME, because the modes list is device-dependent and its
+    positions are not stable (``livemap.MODE_NAMES``).
+    """
+    items = (mgr.enums or {}).get("modes") or []
+    form = mode_form_value(items, index)
+    if form is None:
+        return None
+    name = next((str(item.get("name")) for item in items if str(item.get("index")) == str(index)), form)
+    return {"value": form, "name": name}
+
+
 def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> dict[str, str] | None:
     """One field's current value+name, or None when it is off-chain or unreadable."""
     spec = _spec(field)
@@ -56,6 +75,8 @@ def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> di
     index = (mgr.state or {}).get(spec.state)
     if index is None:
         return None
+    if field == "mode":
+        return _mode_snapshot(mgr, index)
     return _named((mgr.enums or {}).get(spec.enum) or [], index, _SNAPSHOT_VALUE.get(field, "value"))
 
 

@@ -28,6 +28,8 @@ Normative rules:
 - **Live-vs-file divergence is real and must be surfaced, not assumed away.** hqplayerd never writes Control API changes to `hqplayerd.xml` — not while running, not at shutdown (verified: md5-identical across `systemctl stop` with unsaved change in memory). Running engine can differ from file indefinitely, and this is observed in wild, not only constructed in probe: on Opal running filters already differed from file's stored filters before any spike run. Read both lanes; show divergence.
 - **`result="OK"` is not proof of application.** Always verify by `State` readback.
 - **Live vs restart split.** Every control classified live or restart-required; pending-changes bar reports split before Apply. Tagging: `docs/settings-classification.md`.
+- **Two write paths, and they must not share staging state.** Tabs view stages into shared `PendingStore` and Apply flushes **everything** in it (`api/app.py`); LIVE writes one batch on the spot, readback-verified, and touches neither pending store nor 8088 lane, so it can never restart daemon (`POST /api/config/live` → `lanes/livelane.apply_now`). Rule is binding in both directions: LIVE control routed through stage+apply would apply edits user staged elsewhere and never asked for, which is why second path exists at all rather than reusing first.
+- **Mode cannot ride in one batch with chain fields, but a sequence may.** `SetMode` swaps enumerations remaining indices were resolved against, so `livemap._mode_blocks_batch` refuses such a batch outright. Applying mode alone, re-enumerating, then resolving the rest against post-switch lists is legal and is what `livelane.apply_preset` does — same sequence `apply_now` already runs after any verified mode write (`_reassert_rate`, `reassert_chain`). Refusal is about one batch, never about what engine can be told.
 
 ## 3. Auth, and the signal path order
 
@@ -50,6 +52,8 @@ Control set **not enumerated in prose** — that duplication is what rotted old 
 - `docs/settings-classification.md` — every control tagged live / http / file, with empirical evidence per field.
 
 Tabs are **Output · Volume · Resampling · DSP · System** (registry: `static/components/tabs/index.js` — that file is authority, not this list). Loudness lives on Volume; crossfeed and matrix pipelines on DSP.
+
+**LIVE is a mode, not a tab.** Header switch (`store/prefs.liveMode`) replaces whole tabbed body with one page of settings running engine can change in place (`static/components/LiveView.js`, fed by `store/live.js`). No staging and no Apply: every control writes on change and shows what engine reported back, not what was requested. Page is not second control surface — each control names its `schema.js` key and so carries same label, note and per-selection prose as its tab twin. Both filter chains render at once; edits to chain engine has not loaded are held per chain and applied when it loads, which is also how auto mode before playback works.
 
 **Transport params are per-backend, not mode-gated** — Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values). "DAC bits grays in SDM / DoP grays in PCM" behavior belongs to *desktop* app, does not apply here. IPv6 is Network-only. ALSA / Network sections collapse by backend rather than gray; every field still persists (daemon rejects partial form).
 
@@ -86,6 +90,10 @@ Five operations, all built on that one primitive (`presetstore.py` plus `manager
 - **Delete** — remove from store, plus `profile/delete` for daemon's mirror (one native profile route that works cleanly).
 - **Ephemeral Apply** — edit running config and restore it, touching neither store nor snapshot, so change reverts on next preset load. Lets user experiment freely without spending preset.
 - **Migration** — on first connect, import daemon's existing `data/cfgs/*.xml` into store. Idempotent, store presets win on name collision, active pointer seeded from daemon's reported active config.
+
+**Live presets are separate store, and deliberately so** (`hqptuner/livepresets.py`, routes in `api/livepresetapi.py`). Config preset above is whole `hqplayerd.xml` applied by restarting daemon; live preset is handful of enum IDs applied through LIVE lane, so it never writes config file and never restarts anything. Daemon never sees them — one JSON file HQPTuner owns, schema-stamped on `presetstore` pattern (refuse newer stamp, adopt unstamped on next write), same name rule.
+
+Record holds output **mode**, both chain filters, dither/modulator, junk filter, adaptive volume and rate, each as value plus display name at save time — values apply, names only render, because engine-built enumerations shift under stored preset. Playback volume deliberately excluded: restoring level hands listener loudness jump they never asked for. Mode is included and is why apply is `livelane.apply_preset` rather than one batch (§2): mode first, re-enumerate, rest against lists switch produced. **Applying preset saved on other chain is not conflict to refuse** — switching is request. Preset whose stored ID running enumerations no longer offer refuses whole preset, naming field.
 
 ## Provenance
 

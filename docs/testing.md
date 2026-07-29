@@ -25,6 +25,8 @@ Violations rejected in review even if tests pass.
 
    Reason: suite once took 84 s, ~80 s of it real sleeps. Now 7 s. Test reintroducing wall-clock wait is defective even when it passes.
 
+8. **New tests must bite.** A test written for new or changed behaviour must fail against the pre-change code — a test that is green both with and without the change constrains nothing, however well-shaped it looks to the mechanical gates. The `/tests` chain enforces this with a bite check: implementation reverted to HEAD (tests kept), new tests re-run, red expected. Assertion failure is the strong result; a collection or import error only proves the test reaches the new surface. Tests with no pre-change state to fail against — characterization of existing behaviour, tests accompanying a pure refactor — are exempt, and the exemption is stated in the hand-back rather than assumed silently; mutation testing (below) covers those over time.
+
 ## Markers
 
 - Default suite offline and deterministic; must pass on machine with no hqplayerd.

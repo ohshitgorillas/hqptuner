@@ -199,3 +199,41 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         report = report + await _reassert_rate(mgr, client) + await reassert_chain(mgr, client)
         mgr.state = await client.get_state()
     return {"live": report, "stored": {field: value for held in stored.values() for field, value in held.items()}}
+
+
+def _mode_already_running(mgr: ConnectionManager, want: str) -> bool:
+    """Whether the engine is already in the mode a preset asks for.
+
+    Worth checking because ``SetMode`` is not free even when it changes nothing:
+    it clears the engine's rate pin outright (measured 2026-07-28,
+    ``scripts/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
+    re-applied in the same mode should disturb neither.
+    """
+    index = (mgr.state or {}).get("mode")
+    if index is None:
+        return False
+    return livemap.mode_form_value((mgr.enums or {}).get("modes") or [], index) == want
+
+
+async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
+    """Apply a live preset — a batch that may carry the output mode.
+
+    ``resolve_live`` refuses mode beside anything else, and rightly: ``SetMode``
+    swaps the filter, shaper and rate enumerations, so indices resolved before it
+    ran are stale after. A preset is not obliged to be one batch, though. The mode
+    goes first on its own — which re-enumerates and re-asserts what LIVE had set
+    for the entered family and chain, exactly as a hand-made mode write does — and
+    the rest is then resolved against the lists that switch produced.
+
+    This is what lets a preset mean "run SDM, like this". Applying one saved on
+    the other chain is not a conflict to refuse: switching is the request.
+    """
+    mode = fields.get("mode")
+    rest = {field: value for field, value in fields.items() if field != "mode"}
+    if mode is None or not rest:
+        return await apply_now(mgr, fields)
+    first: dict[str, Any] = {"live": [], "stored": {}}
+    if not _mode_already_running(mgr, mode):
+        first = await apply_now(mgr, {"mode": mode})
+    second = await apply_now(mgr, rest)
+    return {"live": [*first["live"], *second["live"]], "stored": {**first["stored"], **second["stored"]}}

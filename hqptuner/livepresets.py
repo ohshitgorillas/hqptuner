@@ -16,10 +16,15 @@ unstamped file adopted on its next write.
 A record is::
 
     {"chain": "pcm",
-     "fields": {"filter": "40", "dither": "5", "rate": "0", ...},
-     "names":  {"filter": "poly-sinc-gauss-long", ...}}
+     "fields": {"mode": "pcm", "filter": "40", "dither": "5", "rate": "0", ...},
+     "names":  {"mode": "PCM", "filter": "poly-sinc-gauss-long", ...}}
 
-``fields`` is exactly the batch the live lane takes. ``names`` is display only:
+``fields`` is what the live lane takes, output mode included — a preset that could
+not say which mode to run could not put the engine back the way it was found. The
+mode is why applying one is ``livelane.apply_preset`` rather than a single batch:
+``SetMode`` swaps the enumerations the rest resolves against, so it goes first and
+alone. ``chain`` records which chain the snapshot was taken on, which is what the
+stored filter and shaper IDs index. ``names`` is display only:
 the enumerations are engine-built and can shift under a stored preset, so the
 card can still say what was saved even when an ID no longer resolves.
 """

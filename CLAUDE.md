@@ -22,7 +22,7 @@ Do yourself when you know file (one Read beats subagent), when material *is* out
 - **Never delegate looking.** Subagent measurements trustworthy — computed styles, box geometry, gap arithmetic, error counts. Its *visual* review not: returns "no visual problems" on screenshots with plainly broken controls in frame, repeatedly. Delegate measuring and screenshotting; read screenshots yourself.
 - **User's eyes final say, always.** Not `make check`, not green measurement table, not your own screenshot reading — gates catch what they were pointed at, shipped defects are ones nobody pointed at. Every visual change goes in front of user at hand-back URL before called done.
 - Never delegate to duck change budget or plan gate. Subagent writes = your writes.
-- **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block, blind writer, run, adjudicate, `test-reviewer`.
+- **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block, blind writer, run, adjudicate, bite check (new tests must fail against pre-change code), `test-reviewer`.
 
 ## NEVER IDLE-GATE USER ACTIONS (binding)
 

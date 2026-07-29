@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .livemap import DIRECT, MODE_NAMES, PCM, ROUTABLE, SDM, EnumItems, active_chain, rate_family
+from .livemap import DIRECT, PCM, ROUTABLE, SDM, EnumItems, active_chain, mode_form_value, rate_family
 
 if TYPE_CHECKING:
     from ..manager import ConnectionManager
@@ -40,16 +40,6 @@ def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
     return None
 
 
-def _mode_form_value(items: EnumItems, index: str) -> str | None:
-    """The config-form mode value (auto|pcm|sdm) for a ModesItem index."""
-    for item in items:
-        if str(item.get("index")) != str(index):
-            continue
-        name = (item.get("name") or "").upper()
-        return next((form for form, want in MODE_NAMES.items() if name.startswith(want.upper())), None)
-    return None
-
-
 def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> str | None:
     """One field's current live value in config-form terms, or None when the
     engine cannot answer for it."""
@@ -58,7 +48,7 @@ def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> 
     if index is None:
         return None
     items = (mgr.enums or {}).get(spec.enum) or []
-    return _mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
+    return mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
 
 
 def _tier_rate(hz: str) -> str:
