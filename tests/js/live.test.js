@@ -100,11 +100,6 @@ test("test_the_rate_control_reads_the_rate_in_hz", () => {
   assert.equal(liveModel.value.pcmRate.value, "96000");
 });
 
-test("test_the_auto_rate_option_is_labelled_auto", () => {
-  reset();
-  assert.equal(liveModel.value.pcmRate.options[0].label, "Auto");
-});
-
 test("test_the_junk_filter_control_speaks_list_indices", () => {
   reset();
   assert.equal(liveModel.value.junk.value, "1");

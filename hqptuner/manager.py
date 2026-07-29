@@ -70,6 +70,10 @@ class ConnectionManager:
         self.engine: dict[str, str] | None = None
         self.active_config: str | None = None
         self.enums: dict[str, list[dict[str, str]]] | None = None
+        # What LIVE has pinned per output family, in Hz. The engine holds ONE rate
+        # pin and `SetMode` clears it, so this is the only place the dormant
+        # family's survives a mode switch (`lanes/livelane`, `lanes/livemap`).
+        self.live_rates: dict[str, str] = {}
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
         self.matrix_form: dict[str, Any] | None = None

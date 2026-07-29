@@ -19,7 +19,7 @@
 
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { engineState, enums, modeName, configByName } from "./state.js";
+import { engineState, engineStatus, enums, modeName, runningValue, refreshConfig } from "./state.js";
 import { enumOptions } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { schema } from "./schema.js";
@@ -37,6 +37,8 @@ export const liveReloading = signal(false);
 // Writes whose own success invalidates an enumeration, in config-form terms.
 // Mirrors livelane._REENUMERATES, which names the same three by setter key.
 const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"]);
+// Writes that change what the running config reports for the two rate limits.
+const RATE_MIRRORED = new Set(["mode", "rate"]);
 
 function setError(field, message) {
   const next = { ...liveErrors.value };
@@ -57,6 +59,11 @@ function reportError(report) {
 async function remirror(field) {
   const state = await api.state();
   engineState.value = state.data;
+  // A rate or mode write moves what the running config reports for BOTH rate
+  // limits (livemap.live_overrides), and that overlay is what the dormant rate
+  // column reads. Its own poll is on the slow cadence, so pull it here rather
+  // than leave the column showing the pre-switch tier for a few seconds.
+  if (RATE_MIRRORED.has(field)) await refreshConfig();
   if (!REENUMERATES.has(field)) return;
   liveReloading.value = true;
   try {
@@ -73,7 +80,11 @@ export async function writeLive(field, value) {
   liveBusy.value = field;
   setError(field, "");
   try {
-    const report = await api.live({ [field]: String(value) });
+    // Rate is the one control whose menu value is not what goes on the wire: the
+    // menus name a tier, and only here is the source known well enough to say
+    // which member of it (see the base-family note below).
+    const wire = field === "rate" ? forSource(String(value)) : String(value);
+    const report = await api.live({ [field]: wire });
     await remirror(field);
     setError(field, reportError(report));
   } catch (e) {
@@ -139,11 +150,12 @@ function modeValue() {
 }
 
 // `RatesItem` carries neither a name nor a value — it is `<RatesItem index rate/>`
-// (protocol.md §6) — so the rate in Hz is both what the lane takes back and its
-// own label, and rate "0" is "follow the source".
+// (protocol.md §6) — so the rate in Hz is what the lane takes back. The menus
+// speak tiers, so State's rate comes back as the tier it belongs to; rate "0"
+// belongs to no tier and reads as "" (the engine has no pin of its own).
 function rateValue() {
   const item = atIndex(items("rates"), stateOf("rate"));
-  return item ? item.rate : "";
+  return TIER[item ? item.rate : ""] || "";
 }
 
 // --- the rate card -----------------------------------------------------------
@@ -151,18 +163,11 @@ function rateValue() {
 // a hairline between them, the one the running mode cannot use grayed (schema
 // grayWhen isSdm/isPcm), both reading the manual's rate prose on hover.
 //
-// The two sides write different slots, and that is the whole of what makes this
-// card different from its twin. The tab writes a per-mode CONFIG ceiling —
-// defaults_samplerate / defaults_bitrate, landing at the next restart — so each
-// of its columns always has a value of its own. LIVE writes SetRate, the engine
-// target slot, of which there is exactly one, and the engine's own rates list is
-// the only authority for what it accepts (architecture §2).
-//
-// So the column whose family the engine is actually running is the live control,
-// offering the tab's menu narrowed to what the engine has; the other column
-// shows that family's configured ceiling, grayed and read-only — the same number
-// its twin shows on the tab, and no pretence that changing it would reach the
-// engine.
+// The two sides write different slots. The tab writes the LIMIT
+// (defaults_samplerate / defaults_bitrate, landing at the next restart), which
+// the engine then follows in the source's own base family. LIVE writes SetRate,
+// an exact rate that ignores both the limit and the source's family. Same tier
+// either way — what differs is only that the live one has to name a member of it.
 const RATE_KEY = { pcm: "pcm_rate", sdm: "sdm_rate" };
 // No PCM rate the engine offers reaches DSD64, so the lowest SDM rate separates
 // the two families outright — no rate is ambiguous between them.
@@ -170,14 +175,63 @@ const SDM_FLOOR = 2822400;
 
 const rateFamily = (rate) => (Number(rate) >= SDM_FLOOR ? "sdm" : "pcm");
 
-// The engine also offers the 44.1k twin of every friendly rate (DSD512 is
-// 24576000 or 22579200). They are not listed, and listing them would duplicate
-// work the engine already does: under auto_family a nonzero target adjusts down
-// into the source's own family ("Real value can be equal or lower when auto
-// rate-family is used", readme §1.3.1), so DSD128 on a 44.1k source lands at
-// 5644800 whichever twin was written. Offering both would only ask the user to
-// pick a family the source has already decided.
-const offeredRates = () => new Set(items("rates").map((o) => String(o.rate)));
+// --- base family -------------------------------------------------------------
+// Every tier has a 44.1k and a 48k member (DSD512 is 22579200 or 24576000). The
+// menus carry the 48k one and mean the TIER, not that frequency. A config write
+// cannot choose between the two — it has no source — which is exactly why the
+// tab writes the limit slot and lets the engine decide. LIVE can choose, because
+// the engine reports what is playing, so a tier picked here resolves to that
+// source's own member and 44.1k material is never sent out at a 48k base rate.
+// Whether the DAC may use a 48k DSD base at all remains the user's setting
+// (alsa_anydsd / net_anydsd); this only declines to change it behind their back.
+//
+// Measured on Opal 2026-07-28, 44.1 kHz source, limit DSD512: no pin -> 22579200;
+// pinned 12288000 -> 12288000; pinned 49152000 -> 49152000 (over the limit).
+const BASE_44K = 44100;
+const TWIN_44K = {
+  48000: "44100",
+  96000: "88200",
+  192000: "176400",
+  384000: "352800",
+  768000: "705600",
+  1536000: "1411200",
+  3072000: "2822400",
+  6144000: "5644800",
+  12288000: "11289600",
+  24576000: "22579200",
+  49152000: "45158400",
+  98304000: "90316800",
+};
+// Either member of a tier back to the menu value that names it.
+const TIER = Object.entries(TWIN_44K).reduce((all, [base, twin]) => ({ ...all, [base]: base, [twin]: base }), {});
+
+// 44.1k when the playing source divides by it — true of 88.2/176.4/352.8 and of
+// every DSD rate, all of which are multiples. With nothing playing there is no
+// source to follow, so the menus' own 48k base stands, which is what a config
+// write would have used anyway.
+function sourceIs44k() {
+  const st = engineStatus.value || {};
+  const source = Number((st.metadata || {}).samplerate) || Number((st.status || {}).active_rate) || 0;
+  return source > 0 && source % BASE_44K === 0;
+}
+
+// A menu value as the rate to actually send.
+const forSource = (tier) => (sourceIs44k() && TWIN_44K[tier] ? TWIN_44K[tier] : tier);
+
+// A tier the engine is not currently offering is listed and grayed with the
+// reason, never dropped: a tier silently missing from the menu reads as one this
+// build doesn't support, rather than one the engine isn't offering right now.
+// Offered is judged on the member that would actually be sent, since that is
+// what SetRate has to find in the list. The enumeration says only that it is
+// absent, never why — so the reason says that and no more.
+const UNOFFERED = "unavailable";
+
+function rateOptions(key) {
+  const offered = new Set(items("rates").map((o) => String(o.rate)));
+  return schema[key].options.map((o) =>
+    offered.has(forSource(String(o.value))) ? o : { ...o, disabled: true, reason: UNOFFERED },
+  );
+}
 
 // Which family the engine is running. The loaded chain answers it outright; with
 // no chain loaded the mode does, and in auto mode before playback nothing does —
@@ -189,25 +243,39 @@ function liveFamily() {
   return mode === "pcm" || mode === "sdm" ? mode : null;
 }
 
+// --- what the dormant column shows -------------------------------------------
+// State reports one rate, the running family's, so the moment the engine changes
+// family the other column has nothing of its own left to read — and the engine
+// has genuinely forgotten it, because SetMode clears the pin outright (measured
+// 2026-07-28, scripts/probe_mode_rate_pin.py). What survives the switch is the
+// backend's own per-family memory of what LIVE pinned, which it re-asserts on the
+// engine when that family comes round again and reports in BOTH limit fields of
+// the running config (livemap.live_overrides). runningValue reads exactly that
+// overlay, so the dormant column here and the Output tab's column are one number
+// from one source rather than two guesses that drift apart.
 function rateColumn(family) {
   const live = liveFamily();
   const enabled = live === null || live === family;
   const key = RATE_KEY[family];
-  const rate = rateValue();
-  const mine = rate === "0" || rateFamily(rate) === family;
-  const configured = (configByName.value[schema[key].field] || {}).value;
-  const offered = offeredRates();
+  const tier = rateValue();
+  const mine = tier !== "" && rateFamily(tier) === family;
+  const configured = runningValue(key);
   return {
     field: "rate",
     key,
     entry: schema[key],
     disabled: !enabled,
-    value: enabled && mine ? rate : configured,
-    // One menu for both columns — the tab's own table, in the tab's own order.
-    // The live column keeps the entries the engine is currently offering; the
-    // grayed one shows the whole table, because it is showing a configured
-    // value the engine has no list for.
-    options: enabled ? schema[key].options.filter((o) => offered.has(String(o.value))) : schema[key].options,
+    // The engine's own pin when it is reporting one for this family, the running
+    // config's limit otherwise — which already carries the remembered pin. With
+    // no pin at all the limit is what the engine selects, so a column nothing has
+    // touched names the same tier the Output tab does instead of reporting the
+    // empty slot as "Auto".
+    value: enabled && mine ? tier : configured,
+    // One menu for both columns — the tab's own table, in the tab's own order,
+    // whole either way. The live column grays what the engine is not offering;
+    // the disabled column is already grayed entire, and the engine has no list
+    // for the family it isn't running anyway.
+    options: enabled ? rateOptions(key) : schema[key].options,
   };
 }
 

@@ -234,6 +234,7 @@ Mode switching is **live** (**verified** while stopped: takes effect immediately
 
 - `<GetRates/>` → `<RatesItem index="i" rate="352800"/>`* — actual rates in Hz; index 0 is `rate="0"` = auto (source-based). Mode-dependent (**verified**: SDM mode → DSD rates 2.8–24.6 MHz, PCM mode → 44100–768000 Hz).
 - `<SetRate value="N"/>` — N is the **`RatesItem` index** (**verified**: `value="7"` in SDM mode activated 22579200 Hz, index 7; takes effect immediately even while stopped). Sending the Hz value also returned `result="OK"` but was indistinguishable in that test — use the index form.
+- **The pin is single, and `SetMode` clears it** (**verified** 2026-07-28, `scripts/probe_mode_rate_pin.py`): pinned index 1 (2822400 Hz) in SDM; `SetMode` PCM → `State.rate="0"`; pinned index 1 (44100 Hz) there; `SetMode` back to SDM → `State.rate="0"`, the SDM pin gone. The daemon's two form fields (`samplerate`, `bitrate`) do not imply two live slots — the engine keeps one and drops it on every mode switch, so `State.rate` answers only for the family currently running and only until the next `SetMode`.
 
 ### SetJunkFilter / GetJunkFilters
 

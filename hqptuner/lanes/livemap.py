@@ -73,6 +73,25 @@ _MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
 # the value (`adaptive_volume` <-> `<engine volume_adaptive>`).
 DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
 
+# Where a live rate lands on the config side. `SetRate` writes an exact rate, the
+# config form's rate menu writes the per-family LIMIT, and the two agree in the
+# only terms the menu speaks: the tier. A pinned DSD256 becomes a DSD256 limit,
+# which the engine then selects in the source's own base family — the same output,
+# and the only form a config write may take (measured 2026-07-28: a config rate
+# slot cannot pick a base family, so writing one would send 44.1k material out at
+# a 48k base rate behind the user's `any_dsd` setting).
+_RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
+_BASE_44K = 44100
+_BASE_48K = 48000
+# No PCM rate the engine offers reaches DSD64, so the lowest SDM rate separates
+# the two families outright — no rate in Hz is ambiguous between them.
+_SDM_FLOOR = 2822400
+
+
+def rate_family(hz: str) -> str:
+    """Which output family a rate in Hz belongs to."""
+    return SDM if int(hz) >= _SDM_FLOOR else PCM
+
 
 # --- save side: live state expressed back as config-form fields ---------------
 # A live-routed edit never touched the config file, so the file is stale the
@@ -112,6 +131,55 @@ def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> 
     return _mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
 
 
+def _tier_rate(hz: str) -> str:
+    """A rate as the 48k-base member of its tier — what the rate menus carry.
+
+    Every tier is n x 44100 or n x 48000 for the same n, so the 44.1k member
+    converts exactly and anything else is already the 48k one.
+    """
+    value = int(hz)
+    return str(value // _BASE_44K * _BASE_48K) if value % _BASE_44K == 0 else hz
+
+
+def _pinned_rate(mgr: ConnectionManager, state: dict[str, str]) -> str | None:
+    """The rate in Hz the engine is pinned to right now, or None when it has none.
+
+    None when the engine has no pin of its own (``rate="0"``): the configured
+    limit is then already what it is following, so there is nothing to override.
+    """
+    index = state.get("rate")
+    if index is None:
+        return None
+    items = (mgr.enums or {}).get("rates") or []
+    hz = next((item.get("rate") for item in items if str(item.get("index")) == str(index)), None)
+    return None if hz is None or hz == "0" else hz
+
+
+def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, str]:
+    """Both families' live rates as config limit fields.
+
+    ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
+    (measured 2026-07-28, ``scripts/probe_mode_rate_pin.py``), so the engine can
+    only ever answer for the family it is running and only until the next mode
+    switch. ``mgr.live_rates`` is what LIVE pinned per family, which ``livelane``
+    puts back on the engine when that family comes round again — so reporting both
+    here says what the engine is set to rather than what it happens to report.
+
+    The engine still wins for the family it is running: a pin set from somewhere
+    other than LIVE is real, and this remembers only what LIVE itself wrote.
+    """
+    rates = dict(mgr.live_rates)
+    pinned = _pinned_rate(mgr, state)
+    if pinned is not None:
+        rates[rate_family(pinned)] = pinned
+    return {_RATE_LIMIT_FIELD[family]: _tier_rate(hz) for family, hz in rates.items()}
+
+
+def rate_index_for(mgr: ConnectionManager, hz: str) -> str | None:
+    """The ``RatesItem`` index carrying this rate in Hz, in the engine's current list."""
+    return _index_for_rate((mgr.enums or {}).get("rates") or [], hz)
+
+
 def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
     """The engine's current live settings as config-form fields, so a save
     captures what is actually playing rather than a stale file.
@@ -132,6 +200,9 @@ def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
         direct = state.get(attr)
         if direct is not None:
             overrides[field] = direct
+    # Rate is not chain-gated the way the filter/shaper pair is: the two families'
+    # limits are separate fields, so carrying both overwrites neither.
+    overrides.update(_rate_overrides(mgr, state))
     return overrides
 
 
@@ -407,68 +478,3 @@ def resolve_live(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, di
     if reasons:
         raise LiveRouteError(reasons)
     return edits
-
-
-# --- LIVE lane: the engine's current live settings, as a saveable record -------
-# A live preset (`livepresets.py`) is a snapshot of what the engine is playing
-# right now, taken in the same domain `resolve_live` accepts back — so applying a
-# preset is the same batch the LIVE view would have sent. The display name rides
-# along because the enumerations are engine-built and can shift under a preset;
-# the value is what applies, the name is only what the card shows.
-
-# Which enumeration-item attribute carries the value the LIVE lane takes back.
-# Filters and shapers translate ID<->index, so their stored value is the enum ID;
-# `junk_filter` is index-domain on both sides, and `rate` is an actual rate in Hz.
-_SNAPSHOT_VALUE = {"junk_filter": "index", "rate": "rate"}
-
-# Mode is deliberately absent: `_mode_blocks_batch` refuses a mode change beside
-# any other live field, so a preset carrying one could never apply as a batch.
-# The chain tag the preset stores covers the same intent.
-_SNAPSHOT_FIELDS = tuple(field for field in (*ROUTABLE, *_LIVE_ONLY) if field != "mode")
-
-
-def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
-    """The item at this list index as ``{value, name}``, or None when absent.
-
-    ``RatesItem`` carries no ``name`` (protocol.md §6, ``<RatesItem index rate/>``),
-    so the value doubles as its own label there."""
-    for item in items:
-        if str(item.get("index")) != str(index):
-            continue
-        value = item.get(value_key)
-        return None if value is None else {"value": str(value), "name": str(item.get("name") or value)}
-    return None
-
-
-def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> dict[str, str] | None:
-    """One field's current value+name, or None when it is off-chain or unreadable."""
-    spec = ROUTABLE.get(field) or _LIVE_ONLY[field]
-    if spec.chain is not None and spec.chain != chain:
-        return None
-    index = (mgr.state or {}).get(spec.state)
-    if index is None:
-        return None
-    return _named((mgr.enums or {}).get(spec.enum) or [], index, _SNAPSHOT_VALUE.get(field, "value"))
-
-
-def live_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]] | None:
-    """Every live setting the engine can currently report, as ``{value, name}``.
-
-    None when ``active_chain`` cannot say which chain is loaded: the chain fields
-    would be missing and the record would claim a chain it never captured, so the
-    snapshot is refused rather than half-taken.
-    """
-    chain = active_chain(mgr)
-    if chain is None:
-        return None
-    snapshot = {}
-    for field in _SNAPSHOT_FIELDS:
-        item = _snapshot_field(mgr, field, chain)
-        if item is not None:
-            snapshot[field] = item
-    for field, attr in DIRECT.items():
-        # a 0/1 flag with no enumeration behind it: the value is its own label
-        value = (mgr.state or {}).get(attr)
-        if value is not None:
-            snapshot[field] = {"value": str(value), "name": str(value)}
-    return snapshot
