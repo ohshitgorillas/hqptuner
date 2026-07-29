@@ -97,6 +97,15 @@ repos:
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
         exclude: ^hqptuner/static/vendor/
 
+      # Cross-cutting: the widget kinds live in schema.js and their staged-edit
+      # marking lives in the stylesheets, so the gate has to run when either moves.
+      - id: css-dirty
+        name: staged-edit marking gate
+        entry: .venv/bin/python scripts/check_css_dirty.py
+        language: system
+        pass_filenames: false
+        files: ^hqptuner/static/(css/.*\.css|store/schema\.js)$
+
       # Cross-cutting: one control is spelled out in schema.js, presetconf.py and
       # settings.json, so the gate has to run when ANY of the three moves.
       - id: control-catalog
