@@ -46,14 +46,18 @@ HQPTuner never refuses user action because daemon playing. Not 409, not disabled
 
 ## Change budget (hard rule)
 
-`.claude/hooks/change-budget.py` meters what you change between turns where user speaks, on **two separate leashes**. Whichever trips first stops you and forces report: what you did, what you found, what you plan next. Reply where user speaks resets both.
+`.claude/hooks/change-budget.py` meters what you change between turns where user speaks, on **two separate leashes**. Whichever trips first stops you and forces report: what you did, what you found, what you plan next.
+
+**Only prose you typed resets the leashes.** Slash command, `/clear`, local-command output — harness rows, not user reading anything, so they buy nothing. One exception: first human row after a trip always resets whatever it is, so answering a trip with slash command never wedges you.
 
 - **Change budget — 5.** Anything escaping working tree or not undoable from it: `sudo`, docker, `git commit`, `git push`, mutating `curl` (POST, upload, `-o`), `rm`, `python -c` / `python script.py`, package installs, writes outside repo.
-- **Edit allowance — 15.** `Write` / `Edit` / `NotebookEdit` to path inside git working tree.
+- **Edit allowance — 30.** `Write` / `Edit` / `NotebookEdit` to path inside git working tree.
 
 Free, never counted, never blocked: file reads, `Grep`/`Glob`, web fetch/search, delegation to read-only agent type, read-only `Bash` (investigation: `grep`, `sed -n`, `ls`, `find`, `cat`, `which`, `command -v`, `rpm -q…`, `pip show`/`list`, …; verification: `make check`, `make lint-js`, `make test-js`, `pytest`, `ruff check`, `mypy`, …), even piped to pager or redirected to `/dev/null` or scratchpad. Ground yourself in code, docs, live state before spending anything.
 
-**Free list = closed allowlist, one unrecognised stage meters whole pipeline.** Three read-only tools misfire constantly, worth memorising, verified against `.claude/hooks/change-budget.py`: `cd` and `awk` appear nowhere in hook, so any pipeline containing either is metered — chain with `&&` or pass paths to `grep` directly instead of `cd`, use `cut`/`column`/`grep -o` in place of `awk`; and `sed` free **only** in no-autoprint mode (`-n`), so `sed -E 's/…/'` counts while `sed -n '10,20p'` does not. Free stages that surprise other way: `column`, `tr`, `rev`, `tac`, `jq`, `nl`, `fold`, `comm` all on list.
+**Free list = closed allowlist, one unrecognised stage meters whole pipeline.** Three read-only tools misfire constantly, worth memorising, verified against `.claude/hooks/change-budget.py`: `cd` and `awk` appear nowhere in hook, so any pipeline containing either is metered — chain with `&&` or pass paths to `grep` directly instead of `cd`, use `cut`/`column`/`grep -o` in place of `awk`; and `sed` free **only** in no-autoprint mode (`-n`), so `sed -E 's/…/'` counts while `sed -n '10,20p'` does not. Free stages that surprise other way: `column`, `tr`, `rev`, `tac`, `jq`, `nl`, `fold`, `comm`, `sha256sum`, `md5sum`, `b2sum`, `cksum` all on list.
+
+**Two advisories, `.claude/hooks/read-volume.py` (PostToolUse). Advisory only — never deny, never meter, never block.** Read past 25 KB free reading in one leash period and it names the read-only agent types you can hand the reading to; free-read a path already in context that nothing has written to since and it says so once. Both derived from transcript each run, no state file. Measured cause: 38.5% of all free-read bytes were files the session had already read.
 
 `python -c`, `python script.py`, mutating `curl` stay metered — arbitrary code and network writes can't be inspected. For read-only grounding use free equivalents: `jq` for JSON (`curl -s http://127.0.0.1:<port>/api/… | jq '.data.file.x'` — loopback GETs free), `grep`/`sed -n` for text, `Read` tool for files.
 
