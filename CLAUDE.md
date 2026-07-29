@@ -10,9 +10,9 @@ HQPTuner honors every user action, daemon playing or not — no 409, no disabled
 
 (Different thing, still fine: *dev probe scripts* writing to production daemon may check state first — protects host's listener, not UI user.)
 
-### No reverse engineering of HQPlayer
+### Probing the engine: standard mathematics yes, proprietary design no
 
-Reverse engineering HQPlayer violates Signalyst's terms, so it is off the table — no probing the engine to characterise its DSP (tone, sweep or impulse tests to infer a filter's response, corner, slope or internal design), no disassembly, no inferring internals from observed behaviour, no ad-hoc experiment to answer "what does this filter actually do". HQPlayer's own docs are the sole authority for engine behaviour; where they are silent, the answer is "undocumented" — say so and plan around it. Reading the daemon's documented wire protocol and settings surface (`docs/protocol.md`) is a different thing and stays fine: it is how HQPTuner is built, and characterising the *interface* is not characterising the *DSP*. A plan step that proposes such a measurement is a defect — drop it, and treat the question as permanently unanswerable rather than answerable by experiment.
+Probing the running engine is fine where what you're after is standard mathematics, and HQPTuner is partly built that way — `scripts/probe_iir_q.py` established how the IIR plugin calculates Q, and a biquad is textbook mathematics Signalyst does not own. The decision gate is one question: **could the information I'm after be proprietary, or is it just standard mathematics?** Standard mathematics, documented interfaces and wire-protocol behaviour are fair game. Proprietary design is not, and **filter specifications are always proprietary unless published** — passband corner, transition width, roll-off slope, tap count, stop-band attenuation, the design of any resampling, noise-shaping or junk filter. Measuring those out of the engine is reverse engineering in violation of Signalyst's terms; where HQPlayer's own docs are silent on a filter's specification, the answer is "undocumented" — say so and plan around it, never measure it. A plan step proposing such a measurement is a defect. When a question's side of the line isn't obvious, ask before probing.
 
 ### Running engine is enumeration authority
 
