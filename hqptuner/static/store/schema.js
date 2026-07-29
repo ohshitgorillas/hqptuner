@@ -92,18 +92,17 @@ const loudnessGated = (ctx) => {
 const loudnessOff = (ctx) =>
   loudnessGated(ctx) || (truthy(ctx.effective("loudness_enabled")) ? "" : "Enable loudness to adjust.");
 
-// Fixed friendly rate menus. Values are the 48k-base ceilings (see pcm_rate).
+// Fixed friendly rate menus. Values are the 48k-base member of each tier, and
+// they mean a TIER rather than a frequency — see the rate-slot note on pcm_rate.
 // Frequency-carrying labels ("1x (44.1 / 48 kHz)") were tried and dropped —
 // they clip in the third-width Rate box (user decision 2026-07-21).
 //
-// "Auto" is 0, which both rate slots take as "automatic selection" (readme
-// §1.5/§1.6). It is not a ceiling at all: it hands the choice to the engine,
-// which then picks the highest rate the filter and DAC can reach in the
-// SOURCE's own base family. Every fixed entry below pins the rate instead —
-// the family still follows the source (auto_family, forced on every write by
-// lanes/httplane.py), but a 44.1k track can no longer climb past the pin.
+// No "Auto" entry, deliberately. The slot these write (defaults_*) has none on
+// the daemon's own form, and the slot LIVE writes reaches the same outcome by
+// picking the tier: measured 2026-07-28, an unset rate under a DSD512 limit and
+// a pinned DSD512 both play a 44.1k source at 22579200. A menu entry whose only
+// effect is to stop naming the tier is what made the two views disagree.
 const PCM_RATES = [
-  { value: "0", label: "Auto" },
   { value: "48000", label: "1x" },
   { value: "96000", label: "2x" },
   { value: "192000", label: "4x" },
@@ -112,7 +111,6 @@ const PCM_RATES = [
   { value: "1536000", label: "32x" },
 ];
 const DSD_RATES = [
-  { value: "0", label: "Auto" },
   { value: "3072000", label: "DSD64" },
   { value: "6144000", label: "DSD128" },
   { value: "12288000", label: "DSD256" },
@@ -215,8 +213,26 @@ export const schema = {
   // --- Output: per-family rate (both shown, inactive one grayed by mode) ---
   // Fixed friendly labels — NOT derived from the engine's rate list. HQPTuner
   // forces auto-family, so a per-family Nx/DSDx multiplier is the whole UX; each
-  // maps to the 48k-base ceiling value (the higher of the 44.1/48 pair) so a
-  // source of either family reaches its own Nx under the "equal or lower" cap.
+  // maps to the 48k-base member of its tier (the higher of the 44.1/48 pair) so
+  // a source of either family reaches its own Nx under the "equal or lower" cap.
+  //
+  // These write the LIMIT slot, `defaults_*`, and that is the only rate slot a
+  // config write may touch. The daemon has a second one — `samplerate`/`bitrate`,
+  // labelled "Sample rate"/"Bit rate" on its own form — which is an exact rate
+  // that ignores both the limit and the source's base family. Measured on Opal
+  // 2026-07-28 against a 44.1 kHz source with the limit at DSD512:
+  //
+  //   request unset        -> 22579200   limit caps, and follows the source family
+  //   request 12288000     -> 12288000   exact: a 44.1k source pinned to 48k base
+  //   request 49152000     -> 49152000   exact: overrides the limit outright
+  //
+  // A config write has no source to take a family from, so writing that slot
+  // would send 44.1k material out at a 48k base rate — which is the user's call
+  // to make via alsa_anydsd/net_anydsd, never HQPTuner's. httplane.FORCED_CONFIG
+  // therefore pins it to 0 on every write and this menu never goes near it.
+  // store/live.js writes it live, where the playing source IS known and the tier
+  // resolves to that source's own family member.
+  //
   // quietGray: the PCM/SDM pair next to the Mode segment explains itself.
   pcm_rate: {
     label: "PCM",
@@ -224,6 +240,11 @@ export const schema = {
     widget: "dropdown",
     lane: "http",
     field: "defaults_samplerate",
+    // Grounds on `file`, which is the config XML overlaid with the engine's live
+    // settings (livemap.live_overrides): a rate pinned in LIVE shows up here as
+    // its tier, so switching LIVE off leaves this control agreeing with it and
+    // Apply unlit — the same treatment the filter/shaper entries get below.
+    fileTruth: true,
     options: PCM_RATES,
     grayWhen: isSdm,
     quietGray: true,
@@ -235,6 +256,7 @@ export const schema = {
     widget: "dropdown",
     lane: "http",
     field: "defaults_bitrate",
+    fileTruth: true, // same as pcm_rate above
     options: DSD_RATES,
     grayWhen: isPcm,
     quietGray: true,
