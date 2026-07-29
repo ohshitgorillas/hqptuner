@@ -42,6 +42,8 @@ hqpcreds
 # Host-specific knowledge never lands here; it lives in a host skill.
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+# analyzer output over this machine's session transcripts (scripts/budget_miner.py)
+.claude/logs/
 
 # local docker test stack + its state
 docker-compose.yaml
