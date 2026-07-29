@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-07-29
+
 ### Added
 
 - **HQPTuner now spots junk-dominated "hi-res" sources and says which junk filter to engage.** It listens to the engine's own metering stream while a track plays, and when the source's spectrum shows a known junk signature — upsampled redbook sold as hi-res, an ultrasonic tone riding above the music, or the rising noise of a DSD-to-PCM transfer — a note appears in the alert strip naming the junk filter that treats it (20k, 30k/40k, or 50k). Advice only: nothing is changed for you, and the note clears once you engage a filter that handles it or the track changes.
