@@ -15,7 +15,30 @@
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-md);
 }
-.field.dirty {
+/* Staged edit: the control the edit belongs to turns its OWN border accent.
+   The row used to carry an inset ring instead, which cannot work for a control
+   that fills its row — an inset shadow paints on the field's background layer,
+   strictly under descendants, so the segment's opaque buttons covered three of
+   its four edges and the ring read as a loop diving behind the switch (hero
+   MODE and BACKEND, where hero.css strips the field to padding 0 and stretches
+   it past the control's height). A border cannot be overpainted: it belongs to
+   the element it marks. */
+.field.dirty .segment,
+.field.dirty select,
+.field.dirty input[type="text"],
+.field.dirty input[type="number"] {
+  border-color: var(--accent);
+}
+/* The three widgets with nothing of their own to recolour keep the row ring:
+   a checkbox already paints its border accent when CHECKED (controls.css), so
+   recolouring it would say nothing about staging, and knob and slidernum are
+   canvas/range primitives with no border at all. The ring is honest for all
+   three because their control never covers the row's edges — the failure above
+   needs a control that fills its field. `scripts/check_css_dirty.py` holds the
+   split. */
+.field-checkbox.dirty,
+.field-knob.dirty,
+.field-slidernum.dirty {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 .field > label {

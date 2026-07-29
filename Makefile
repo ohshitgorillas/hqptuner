@@ -30,6 +30,7 @@ lint-js:
 	$(VENV)/python scripts/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/check_css_classes.py
+	$(VENV)/python scripts/check_css_dirty.py
 	$(VENV)/python scripts/check_control_catalog.py
 
 test:
