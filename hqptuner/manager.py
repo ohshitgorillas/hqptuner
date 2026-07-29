@@ -22,7 +22,6 @@ import asyncio
 import contextlib
 import logging
 import time
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +33,17 @@ from .conf.httpconf import HttpConfigClient
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
 from .filterpark import FilterPark
-from .lanes import enginelane, httplane, livemap, matrixlane, presetlane, settle, speakerlane
+from .lanes import (
+    enginelane,
+    httpforms,
+    httplane,
+    livelane,
+    livemap,
+    matrixlane,
+    presetlane,
+    settle,
+    speakerlane,
+)
 from .presetstore import PresetStore
 from .writer import apply_live
 
@@ -70,10 +79,9 @@ class ConnectionManager:
         self.engine: dict[str, str] | None = None
         self.active_config: str | None = None
         self.enums: dict[str, list[dict[str, str]]] | None = None
-        # What LIVE has pinned per output family, in Hz. The engine holds ONE rate
-        # pin and `SetMode` clears it, so this is the only place the dormant
-        # family's survives a mode switch (`lanes/livelane`, `lanes/livemap`).
-        self.live_rates: dict[str, str] = {}
+        # What LIVE set that the engine cannot hold on to by itself — the dormant
+        # family's rate pin and the dormant chain's filters (`lanes/livelane`).
+        self.live = livelane.LiveMemory()
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
         self.matrix_form: dict[str, Any] | None = None
@@ -168,6 +176,7 @@ class ConnectionManager:
         self.volume_range = vrange
         self.enums = enums
         self.matrix_profiles = matrix_profiles
+        self.live.forget()
         self.loaded_at = time.time()
         self.reachable = True
         self.unreachable_since = None
@@ -193,11 +202,15 @@ class ConnectionManager:
         state = await client.get_state()
         # mode switch swaps the enumeration lists wholesale (architecture §5) —
         # re-enumerate rather than serve stale lists
-        if self.state is not None and state.get("mode") != self.state.get("mode"):
-            log.info("mode changed (%s -> %s), re-enumerating", self.state.get("mode"), state.get("mode"))
+        previous = self.state or {}
+        mode_changed = self.state is not None and state.get("mode") != previous.get("mode")
+        if mode_changed:
+            log.info("mode changed (%s -> %s), re-enumerating", previous.get("mode"), state.get("mode"))
             self.enums = await client.get_all_enumerations()
         status, meta = await client.get_status()
+        before = livemap.active_chain(self)
         self.state, self.status, self.status_metadata = state, status, meta
+        await livelane.chain_entered(self, client, before, mode_changed)
         self.volume_range = await client.get_volume_range()
         with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
             self.matrix_profiles = await client.get_matrix_profiles()
@@ -208,31 +221,8 @@ class ConnectionManager:
         self.loaded_at = time.time()
 
     async def refresh_http_forms(self) -> None:
-        """Best-effort refresh of the /config, /matrix and /speakers snapshots. A
-        failure on the 8088 lane must never fail the 4321 poll — the last-good
-        form is kept and only that form's error is recorded.
-
-        One table instead of three identical try/except blocks: a fourth polled
-        form is a row, not another block to keep in step. The getters are bound
-        methods rather than names looked up by string — reflection here would
-        hide them from the dead-code gate, which is how a genuinely orphaned
-        getter would then survive unnoticed."""
-        http = self._http
-        if http is None:
-            return
-        forms: tuple[tuple[str, str, Callable[[], Awaitable[dict[str, Any]]]], ...] = (
-            ("config_form", "config_error", http.get_config),
-            ("matrix_form", "matrix_error", http.get_matrix),
-            ("speakers_form", "speakers_error", http.get_speakers),
-        )
-        for form_attr, error_attr, getter in forms:
-            try:
-                form = await getter()
-            except Exception as exc:
-                setattr(self, error_attr, str(exc))
-                continue
-            setattr(self, form_attr, form)
-            setattr(self, error_attr, None)
+        """The three polled 8088 form snapshots (lanes/httpforms)."""
+        await httpforms.refresh(self)
 
     async def set_volume(self, db: str) -> dict[str, Any]:
         """Live playback-volume write — immediate, outside the staged-config

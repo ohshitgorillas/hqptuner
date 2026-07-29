@@ -1,0 +1,208 @@
+"""The fake hqplayerd Control API daemon — real XML over a real socket.
+
+Split out of `conftest` on size alone. It keeps a settings dict and answers
+setters plus `State` from it, so a `Set*` followed by `State` reads the change
+back, which is what exercises the readback-verify path. Four wire quirks are
+modelled because the write-path tests turn on them: `value="999"` answers
+`result="OK"` without applying (the OK-is-not-proof caveat, protocol.md §6),
+`value="err"` answers `result="Error"`, `SetMode` resets `rate` to `0` (the mode
+swaps the lists a rate is relative to), and the filter/shaper/rate enumerations
+answer for the chain the engine has LOADED rather than the one configured, which
+in `[source]` mode is whatever the source left running (readme §1.7).
+
+The port-8088 HTTP fake is `fake_http`; the fixtures over both are in `conftest`.
+"""
+
+import asyncio
+
+from defusedxml.ElementTree import fromstring as _fromstring
+
+XML = '<?xml version="1.0" encoding="UTF-8"?>'
+
+#: Every command the fake was asked, in order: (name, attrs).
+CommandLog = list[tuple[str, dict[str, str]]]
+
+
+DEFAULTS = {
+    "state": "0",
+    "mode": "1",
+    "filter1x": "0",
+    "filterNx": "0",
+    "shaper": "0",
+    "rate": "0",
+    "filter_junk": "0",
+    "adaptive": "0",
+    "volume": "-10.0",
+    "matrix_profile": "",
+    # underscore keys are internal to the fake (VolumeRange source), not emitted in State
+    "_vol_min": "-60",
+    "_vol_max": "0",
+    "_vol_enabled": "1",
+    "_vol_adaptive": "0",
+    "_metadata": "",  # optional <metadata> child injected into the Status frame
+    # Space-separated commands answered `result="OK"` without applying: the
+    # `value="999"` caveat above (protocol.md §4), keyed by command instead.
+    "_deaf": "",
+    # Status reports the mode the engine is RUNNING as a display string, which is
+    # not always the configured one: in [source] mode it follows the source. The
+    # string is the same one GetModes gives that mode — verified against the live
+    # daemon (hqplayerd 6.0.4, 2026-07-27): configured mode 2 reports
+    # active_mode="SDM (DSD)", byte-identical to ModesItem index 2.
+    "_active_mode": "PCM",
+}
+
+
+def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
+    value = attrs.get("value", "")
+    if name == "SetMode":
+        state["mode"] = value
+        state["rate"] = "0"  # mode resets rate to auto (protocol.md §6)
+    elif name == "SetFilter":
+        state["filterNx"] = value
+        state["filter1x"] = attrs.get("value1x", value)
+    elif name == "SetShaping":
+        state["shaper"] = value
+    elif name == "SetRate":
+        state["rate"] = value
+    elif name == "SetJunkFilter":
+        state["filter_junk"] = value
+    elif name == "SetAdaptiveVolume":
+        state["adaptive"] = value
+    elif name == "Volume":
+        state["volume"] = value
+    elif name == "MatrixSetProfile":
+        state["matrix_profile"] = value  # live switch; State reports it back
+
+
+# Enumerations are MODE-DEPENDENT on the real daemon: GetFilters/GetShapers
+# answer for the ACTIVE mode only, and the two chains number their enum IDs
+# differently — poly-sinc-gauss-long is enum 40 under PCM `filter` and 38 under
+# SDM `oversampling` (protocol.md §4, readme §1.5/§1.6). The fake models both
+# facts because the live-routing chain gate exists precisely to protect them.
+_MODES = (("0", "[source]", "-1"), ("1", "PCM", "0"), ("2", "SDM (DSD)", "1"))
+_PCM_FILTERS = (("0", "none", "0"), ("1", "poly-sinc-gauss-long", "40"), ("2", "sinc-M", "25"))
+_SDM_FILTERS = (("0", "poly-sinc-gauss-long", "38"), ("1", "sinc-M", "23"))
+_PCM_SHAPERS = (("0", "none", "0"), ("1", "NS9", "5"))
+_SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
+_JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
+
+# `RatesItem` carries no `value`: it is `<RatesItem index rate/>` with the actual
+# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real, and
+# each mode offers BOTH base families; the 48k-base members sit last here so no
+# existing index moves, not because the daemon orders them that way.
+_PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4", "384000"))
+_SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
+
+
+def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
+    return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
+
+
+def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
+    return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
+
+
+def _active_sdm(state: dict[str, str]) -> bool:
+    """Whether the chain the fake currently has LOADED is the SDM one.
+
+    Not the same question as the configured mode. In ``[source]`` the engine
+    follows the source (readme §1.7) and ``Status.active_mode`` is what reports
+    which chain that left loaded — so a fake that scoped its lists by the
+    configured mode alone could not represent the source changing family, which
+    is the one thing ``[source]`` mode does.
+    """
+    mode = state.get("mode")
+    if mode in ("1", "2"):
+        return mode == "2"
+    return (state.get("_active_mode") or "").upper().startswith(("SDM", "DSD"))
+
+
+def _enumeration(name: str, state: dict[str, str]) -> str | None:
+    """GetModes/GetFilters/GetShapers, scoped to the chain the fake has loaded."""
+    sdm = _active_sdm(state)
+    if name == "GetModes":
+        return f"<GetModes>{_items('ModesItem', _MODES)}</GetModes>"
+    if name == "GetFilters":
+        return f"<GetFilters>{_items('FiltersItem', _SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
+    if name == "GetShapers":
+        return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
+    if name == "GetRates":
+        return f"<GetRates>{_rate_items(_SDM_RATES if sdm else _PCM_RATES)}</GetRates>"
+    if name == "GetJunkFilters":
+        return f"<GetJunkFilters>{_items('JunkFiltersItem', _JUNK_FILTERS)}</GetJunkFilters>"
+    return None
+
+
+def _query(name: str, state: dict[str, str]) -> str | None:
+    """Read-only commands answered from state; None for setters."""
+    enumerated = _enumeration(name, state)
+    if enumerated is not None:
+        return enumerated
+    if name == "GetInfo":
+        return '<GetInfo name="Fake" engine="6.0.4" version="6"/>'
+    if name == "GetLicense":
+        return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
+    if name == "ConfigurationGet":
+        return f'<ConfigurationGet result="OK" value="{state.get("_active_config", "")}"/>'
+    if name == "MatrixListProfiles":
+        items = "".join(f'<MatrixProfile name="{n}"/>' for n in ("Default", "Mch-to-Stereo mixdown"))
+        return f'<MatrixListProfiles result="OK">{items}</MatrixListProfiles>'
+    if name == "MatrixGetProfile":
+        return f'<MatrixGetProfile result="OK" value="{state.get("_matrix_profile", "")}"/>'
+    if name == "State":
+        return "<State " + " ".join(f'{k}="{v}"' for k, v in state.items() if not k.startswith("_")) + "/>"
+    if name == "VolumeRange":
+        return (
+            f'<VolumeRange min="{state["_vol_min"]}" max="{state["_vol_max"]}" '
+            f'enabled="{state["_vol_enabled"]}" adaptive="{state["_vol_adaptive"]}"/>'
+        )
+    if name == "Status":
+        # active_* live on the Status root; the track <metadata> child is where the
+        # daemon emits unescaped chars mid-playback (_metadata override).
+        return (
+            f'<Status state="{state["state"]}" active_mode="{state["_active_mode"]}" '
+            f'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
+            f'active_rate="192000" volume="{state["volume"]}">'
+            f'{state["_metadata"]}</Status>'
+        )
+    return None
+
+
+def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str:
+    el = _fromstring(body)
+    name, attrs = el.tag, el.attrib
+    if log is not None:
+        log.append((name, dict(attrs)))
+    answer = _query(name, state)
+    if answer is not None:
+        return answer
+    if name == "Volume" and state["_vol_enabled"] == "0":
+        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §6)
+    value = attrs.get("value")
+    if value == "err":
+        return f'<{name} result="Error">bad value</{name}>'
+    deaf = state["_deaf"].split()
+    if value != "999" and name not in deaf:  # 999 = OK but not applied (readback-verify caveat)
+        apply_setter(name, attrs, state)
+    return f'<{name} result="OK"/>'
+
+
+async def serve(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    overrides: dict[str, str] | None = None,
+    log: CommandLog | None = None,
+    state: dict[str, str] | None = None,
+) -> None:
+    # A caller that passes `state` shares ONE dict across every connection, the
+    # way a real daemon does — which is what lets a test move the fake mid-session
+    # (a new track changing `_active_mode`) and have the manager's open connection
+    # see it. Without it each connection gets its own, and the move is invisible.
+    state = state if state is not None else {**DEFAULTS, **(overrides or {})}
+    while True:
+        data = await reader.read(4096)
+        if not data:
+            break
+        body = data.split(b"?>", 1)[-1].strip().decode()
+        writer.write(f"{XML}{handle(body, state, log)}\n".encode())
+        await writer.drain()

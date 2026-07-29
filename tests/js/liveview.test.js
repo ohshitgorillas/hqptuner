@@ -138,21 +138,6 @@ test("test_the_tab_bar_stands_with_live_off", async () => {
   assert.ok(chrome().includes('class="tab-nav"'));
 });
 
-test("test_the_live_page_names_the_loaded_pcm_chain", async () => {
-  await reset({ chain: "pcm" });
-  assert.ok(page().includes("PCM chain"));
-});
-
-test("test_the_live_page_names_the_loaded_sdm_chain", async () => {
-  await reset({ chain: "sdm" });
-  assert.ok(page().includes("SDM chain"));
-});
-
-test("test_an_unknown_chain_replaces_the_filter_controls_with_a_caption", async () => {
-  await reset({ chain: null });
-  assert.ok(page().includes("which filter chain is loaded is not known until playback"));
-});
-
 test("test_the_page_says_up_front_that_none_of_it_is_saved", async () => {
   await reset();
   assert.ok(page().includes("Nothing on this page is saved"));

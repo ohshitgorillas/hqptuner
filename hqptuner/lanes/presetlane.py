@@ -23,7 +23,7 @@ import httpx
 from ..conf import engineconf, presetconf
 from ..control import ControlError
 from ..presetstore import PresetError
-from . import livemap, settle
+from . import liveoverrides, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -123,7 +123,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         # file, so the working config is stale for exactly those settings. Fold
         # the engine's current values in first — a save stores what the user is
         # hearing, not what happens to be on disk.
-        working = presetconf.apply_edits(working, livemap.live_overrides(mgr))
+        working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
         mgr.store.save(name, working)
         mgr.store.set_active(name)
     except (ControlError, PresetError, httpx.HTTPError, presetconf.GroundingError) as exc:

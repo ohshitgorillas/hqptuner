@@ -77,7 +77,13 @@ HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*$")
 DECORATION = re.compile(r"[`*_]+")
 #: `"..."` or `“...”` — the quoted heading in a citation. A backtick may sit
 #: between the two: `docs/matrix-spec.md` "Heading" is the normal Markdown form.
-QUOTED = re.compile(r"\b([\w-]+)\.md[`\s]*[\"“]([^\"”\n]+)[\"”]")
+#:
+#: The name must NOT open with a double quote, or every Python string literal
+#: naming a doc reads as a citation of it and the code right after it reads as
+#: the heading — `(OUT / "INDEX.md").write_text(` was reported as citing a
+#: heading called `).write_text(`. A real citation delimits the name with a
+#: backtick or nothing at all; only a string literal wraps it in quotes.
+QUOTED = re.compile(r"(?<!\")\b([\w-]+)\.md[`\s]*[\"“]([^\"”\n]+)[\"”]")
 
 
 def normalise(text: str) -> str:

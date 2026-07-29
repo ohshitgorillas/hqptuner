@@ -12,7 +12,7 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import pytest
-from conftest import _serve
+from fake_control import serve as fake_serve
 
 from hqptuner.config import Config
 from hqptuner.control import ControlError
@@ -40,7 +40,7 @@ async def killable_daemon() -> AsyncIterator[KillableDaemon]:
 
     async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         writers.append(writer)
-        await _serve(reader, writer)
+        await fake_serve(reader, writer)
 
     server = await asyncio.start_server(serve, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]

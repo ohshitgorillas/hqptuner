@@ -15,7 +15,7 @@
 // and none of that exists here: the value a LIVE control shows is what the engine
 // reported back after the write, and its only state is "writing" or "this is why
 // it was refused".
-import { signal } from "@preact/signals";
+import { signal, computed, effect } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { liveModel, liveBusy, liveErrors, liveReloading, writeLive } from "../store/live.js";
@@ -28,9 +28,9 @@ import { NarrowBar } from "./NarrowBar.js";
 import { ApodNarrow } from "./ApodNarrow.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
-import { Section, Card } from "./tabs/common.js";
+import { Section, Card, collapseFrom } from "./tabs/common.js";
 
-const CHAIN_TITLE = { pcm: "PCM chain", sdm: "SDM chain" };
+const CHAIN_LABEL = { pcm: "PCM", sdm: "SDM" };
 
 // The prose under a live control, in the tabs' own reading order: the manual's
 // description of what is selected right now, then the control's feature note.
@@ -91,30 +91,60 @@ function LiveField({ control, widget }) {
   `;
 }
 
-// The chain card. Which chain is loaded decides which three controls exist at
-// all, and in auto mode before playback starts neither chain is knowably the
-// live one — so the card says so rather than guessing one (livemap.active_chain
-// answers null there, and the backend would refuse the write anyway).
-function ChainCard() {
-  const { chain, chainControls } = liveModel.value;
-  if (!chain) {
-    return html`
-      <${Card} title="Filters">
-        <div class="section-note">
-          Auto mode — the engine follows the source, so which filter chain is loaded is not known until playback
-          starts. These controls appear once it does.
-        </div>
-      <//>
-    `;
-  }
-  // The narrow bar sits above the card it narrows, exactly as it does over the
-  // Resampling tab's filter cards — and only when a chain is loaded, since with
-  // no filter dropdowns on the page there is nothing for it to act on.
+// Both chains, as the Resampling tab's own pair of collapsibles: the card for
+// the mode in use opens, the other collapses, and auto opens both because in
+// auto both are reachable. A card the user toggles by hand wins until the mode
+// changes, at which point the auto disclosure re-asserts — else a card closed in
+// auto would stay shut after switching to the mode that needs it.
+//
+// The dormant card is NOT disabled. Its edits are held per chain and applied the
+// moment that chain loads (lanes/livemap.resolve_live, manager.reassert_chain),
+// so setting up the SDM chain while PCM is playing is an ordinary thing to do
+// here. This is also what makes auto mode work: neither chain is loaded before
+// playback starts, and rather than hiding the controls behind a note until it
+// does, both cards take edits and the engine collects them when it picks a chain.
+const pcmOpen = computed(() => liveModel.value.mode.value !== "sdm");
+const sdmOpen = computed(() => liveModel.value.mode.value !== "pcm");
+const pcmOverride = signal(null);
+const sdmOverride = signal(null);
+
+// No previous-value guard, unlike the Resampling twin: this reads one computed
+// rather than the whole staged map, and a computed notifies only when its value
+// actually changes — so an unrelated live write cannot slam a card shut here.
+effect(() => {
+  liveModel.value.mode.value;
+  pcmOverride.value = null;
+  sdmOverride.value = null;
+});
+
+// What the card for a chain that is not loaded says: the edit is real, it is
+// simply not what is playing yet.
+function heldNote(chain, loaded) {
+  const mine = CHAIN_LABEL[chain];
+  if (loaded) return `The engine is running ${CHAIN_LABEL[loaded]}. Changes here apply when the ${mine} chain loads.`;
+  return `The engine follows the source in auto mode, so no chain is loaded yet. Changes here apply when the ${mine} chain does.`;
+}
+
+function ChainBody({ chain, loaded, controls }) {
+  const live = chain === loaded;
+  return html`
+    ${live && liveReloading.value ? html`<div class="section-note">Reloading the engine's lists…</div>` : null}
+    ${live ? null : html`<div class="section-note">${heldNote(chain, loaded)}</div>`}
+    <div class="pack chain">${controls.map((c) => html`<${LiveField} control=${c} />`)}</div>
+  `;
+}
+
+// The narrow bar sits above the cards it narrows, exactly as it does over the
+// Resampling tab's filter cards.
+function ChainCards() {
+  const { chain, pcmChain, sdmChain } = liveModel.value;
   return html`
     <${NarrowBar} />
-    <${Card} title=${CHAIN_TITLE[chain]}>
-      ${liveReloading.value ? html`<div class="section-note">Reloading the engine's lists…</div>` : null}
-      <div class="pack chain">${chainControls.map((c) => html`<${LiveField} control=${c} />`)}</div>
+    <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+      <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
+    <//>
+    <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+      <${ChainBody} chain="sdm" loaded=${chain} controls=${sdmChain} />
     <//>
   `;
 }
@@ -241,7 +271,7 @@ export function LiveView() {
       <${Card} title="Engine health">
         <${EngineHealth} showQuick=${false} />
       <//>
-      <${ChainCard} />
+      <${ChainCards} />
       <${ProcessingCard} />
       <${PlaybackVolume} showQuick=${false} />
       <${MatrixProfileCard} />
