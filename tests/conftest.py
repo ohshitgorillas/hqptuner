@@ -16,7 +16,7 @@ import functools
 import socket
 import threading
 import time
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +32,10 @@ from hqptuner.control import ControlClient
 from hqptuner.manager import ConnectionManager
 
 XML = '<?xml version="1.0" encoding="UTF-8"?>'
+
+#: Every frame a fake daemon received: (command, attributes). "The lane sent
+#: nothing" and "it sent the neutral value" leave the same daemon state behind.
+CommandLog = list[tuple[str, dict[str, str]]]
 
 
 @pytest.fixture(autouse=True)
@@ -79,6 +83,9 @@ _DEFAULTS = {
     "_vol_enabled": "1",
     "_vol_adaptive": "0",
     "_metadata": "",  # optional <metadata> child injected into the Status frame
+    # Space-separated commands answered `result="OK"` without applying: the
+    # `value="999"` caveat above (protocol.md §4), keyed by command instead.
+    "_deaf": "",
     # Status reports the mode the engine is RUNNING as a display string, which is
     # not always the configured one: in [source] mode it follows the source. The
     # string is the same one GetModes gives that mode — verified against the live
@@ -123,11 +130,11 @@ _SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
 _JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
 
 # `RatesItem` carries no `value`: it is `<RatesItem index rate/>` with the actual
-# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real — SDM
-# mode enumerates DSD rates, PCM mode 44.1k-768k — which is why the live rate
-# list has to be re-read after a mode change.
-_PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"))
-_SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"))
+# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real, and
+# each mode offers BOTH base families; the 48k-base members sit last here so no
+# existing index moves, not because the daemon orders them that way.
+_PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4", "384000"))
+_SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -189,9 +196,11 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     return None
 
 
-def _handle(body: str, state: dict[str, str]) -> str:
+def _handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str:
     el = _fromstring(body)
     name, attrs = el.tag, el.attrib
+    if log is not None:
+        log.append((name, dict(attrs)))
     answer = _query(name, state)
     if answer is not None:
         return answer
@@ -200,7 +209,8 @@ def _handle(body: str, state: dict[str, str]) -> str:
     value = attrs.get("value")
     if value == "err":
         return f'<{name} result="Error">bad value</{name}>'
-    if value != "999":  # 999 = OK but not applied (readback-verify caveat)
+    deaf = state["_deaf"].split()
+    if value != "999" and name not in deaf:  # 999 = OK but not applied (readback-verify caveat)
         _apply(name, attrs, state)
     return f'<{name} result="OK"/>'
 
@@ -209,6 +219,7 @@ async def _serve(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
     overrides: dict[str, str] | None = None,
+    log: CommandLog | None = None,
 ) -> None:
     state = {**_DEFAULTS, **(overrides or {})}
     while True:
@@ -216,7 +227,7 @@ async def _serve(
         if not data:
             break
         body = data.split(b"?>", 1)[-1].strip().decode()
-        writer.write(f"{XML}{_handle(body, state)}\n".encode())
+        writer.write(f"{XML}{_handle(body, state, log)}\n".encode())
         await writer.drain()
 
 
@@ -240,6 +251,29 @@ async def split_filter_daemon_port() -> AsyncIterator[int]:
     yield port
     server.close()
     await server.wait_closed()
+
+
+DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog]]]
+
+
+@pytest.fixture
+async def daemon() -> AsyncIterator[DaemonFactory]:
+    """Fake daemons on demand, each with its own recorded traffic. Keyword
+    arguments are the State overrides the fixtures above bake in one apiece:
+    ``daemon(rate="2", _deaf="SetMode")`` pins index 2 and never lands SetMode."""
+    servers: list[asyncio.Server] = []
+
+    async def spawn(**overrides: str) -> tuple[int, CommandLog]:
+        log: CommandLog = []
+        serve = functools.partial(_serve, overrides=overrides, log=log)
+        server = await asyncio.start_server(serve, "127.0.0.1", 0)
+        servers.append(server)
+        return int(server.sockets[0].getsockname()[1]), log
+
+    yield spawn
+    for server in servers:
+        server.close()
+        await server.wait_closed()
 
 
 @pytest.fixture
