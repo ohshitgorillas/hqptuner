@@ -21,6 +21,7 @@ from ..lanes import livelane, livemap, liveoverrides
 from ..livepresets import LivePresetStore
 from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
+from ..metering import MeteringReader, context_from
 from ..presetstore import PresetError
 from ..writer import known_live_settings
 from . import deps, livepresetapi, matrixapi
@@ -130,7 +131,8 @@ def state(manager: Mgr) -> dict[str, Any]:
 def status(manager: Mgr) -> dict[str, Any]:
     if manager.status is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
-    return deps.snapshot(manager, {"status": manager.status, "metadata": manager.status_metadata})
+    junk = manager.metering.recommendation() if manager.metering is not None else None
+    return deps.snapshot(manager, {"status": manager.status, "metadata": manager.status_metadata, "junk": junk})
 
 
 @router.get("/enumerations")
@@ -410,6 +412,18 @@ async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"delete preset failed: {exc}") from exc
 
 
+SHUTDOWN_GRACE = 2.0  # seconds the poll loop gets to notice its stop flag
+
+
+async def _finish(task: asyncio.Task[None], grace: float) -> None:
+    """Give a background task ``grace`` seconds to exit on its own stop flag,
+    then cancel it. Shutdown must not wait on a daemon that has stopped
+    answering: the poll loop's 8088 lane retries per request, so a wedged web
+    server otherwise costs a full multiple of the request timeout."""
+    with contextlib.suppress(asyncio.CancelledError, TimeoutError):
+        await asyncio.wait_for(task, grace)
+
+
 def create_app(cfg: Config | None = None) -> FastAPI:
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
@@ -423,9 +437,18 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     @contextlib.asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         task = asyncio.create_task(manager.run())
+        # junk-filter advisor's metering reader — best-effort alongside the poll
+        # loop; an absent 4322 stream just means "no recommendation"
+        reader = MeteringReader(cfg.hqp_host, cfg.hqp_metering_port, lambda: context_from(manager))
+        manager.metering = reader
+        metering_task = asyncio.create_task(reader.run())
         yield
         manager.stop()
-        await task
+        reader.stop()
+        await _finish(task, SHUTDOWN_GRACE)
+        # no grace for the reader: it blocks in readexactly, which its stop flag
+        # cannot interrupt, so waiting on it always costs the full grace
+        await _finish(metering_task, 0)
         await manager.aclose()
         if http_client is not None:
             await http_client.aclose()

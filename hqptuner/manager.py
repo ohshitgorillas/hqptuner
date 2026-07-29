@@ -23,7 +23,7 @@ import contextlib
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -46,6 +46,9 @@ from .lanes import (
 )
 from .presetstore import PresetStore
 from .writer import apply_live
+
+if TYPE_CHECKING:
+    from .metering import MeteringReader
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +85,9 @@ class ConnectionManager:
         # What LIVE set that the engine cannot hold on to by itself — the dormant
         # family's rate pin and the dormant chain's filters (`lanes/livelane`).
         self.live = livelane.LiveMemory()
+        # The 4322 metering reader (junk-filter advisor). Owned and started by
+        # the app lifespan; held here so the status route can ask for advice.
+        self.metering: MeteringReader | None = None
         self.config_form: dict[str, Any] | None = None
         self.config_error: str | None = None
         self.matrix_form: dict[str, Any] | None = None

@@ -1,0 +1,189 @@
+"""Junk-filter advice from the metering stream's spectral aggregate.
+
+Pure functions over a time-averaged power spectrum (``metering.py`` supplies
+it): detect the HF signatures the manual's junk-filter table addresses and name
+the filter that treats them. Advice only — nothing here writes to the engine;
+the caller surfaces the text and the user decides.
+
+Signatures (manual, "Junk filter"):
+- brick wall well below the container's Nyquist in a hi-res container →
+  upsampled redbook sold as hi-res → ``20k`` (sharp cut)
+- persistent narrow spurs above the music's natural decay (tape bias tones,
+  switching supplies) → ``30k`` / ``40k`` (slow roll-off above the corner)
+- HF noise rising with frequency (excessive noise shaping: ADC or DSD-to-PCM
+  transfers) → ``50k`` (very slow roll-off)
+
+The rate-relative filters (2x/4x/8x) are deliberately never recommended.
+
+Thresholds are conservative on purpose: only unambiguous signatures earn a
+recommendation, and every threshold is a module constant so tuning against real
+captures stays a one-line change.
+"""
+
+import statistics
+from typing import Any
+
+# Minimum accumulated coverage before any verdict — early in a track the
+# average still carries fades and silence.
+MIN_SECONDS = 15.0
+
+SMOOTH_BINS = 9  # median-filter width for the working curve (odd)
+FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
+
+# Brick wall: a >= BRICK_DROP_DB fall within +/- BRICK_SPAN_HZ of a candidate
+# edge inside BRICK_WINDOW_HZ, with everything above staying near the floor.
+BRICK_WINDOW_HZ = (18_000.0, 26_000.0)
+BRICK_DROP_DB = 30.0
+BRICK_SPAN_HZ = 1_500.0
+ABOVE_FLOOR_DB = 8.0  # "near the floor" allowance above the cliff
+FAKE_HIRES_MIN_RATE = 88_200
+
+# Spurs: narrow smoothed curve exceeding a wide smoothed baseline.
+SPUR_MIN_HZ = 25_000.0
+SPUR_DB = 15.0
+SPUR_BASELINE_BINS = 51
+SPUR_CORNER_SPLIT_HZ = 45_000.0  # spur above this → 40k corner still clears it
+
+# Noise-shaping ramp: rise from the lower HF region to the top of the band.
+RAMP_LO_HZ = 25_000.0
+RAMP_RISE_DB = 10.0
+RAMP_ABOVE_FLOOR_DB = 20.0  # a real ramp carries energy, not floor wobble
+
+
+def classify(
+    levels_db: list[float],
+    bandwidth: float,
+    seconds: float,
+    *,
+    samplerate: int | None,
+    sdm: bool,
+    junk_filter: str | None,
+) -> dict[str, Any] | None:
+    """The recommendation for this aggregate, or None when there is nothing to
+    say. ``levels_db`` is the mean power spectrum (dB, one value per bin up to
+    ``bandwidth`` = the source Nyquist); ``junk_filter`` is the engine's current
+    junk-filter *name*. The verdict is spectrum-only — the metering tap sees the
+    source, so engaging a filter never changes what the detector sees — and the
+    advice stands until the engaged filter actually treats the signature."""
+    if not _eligible(seconds, samplerate, sdm, bandwidth, len(levels_db)):
+        return None
+    smoothed = _median_smooth(levels_db, SMOOTH_BINS)
+    floor = _percentile(smoothed, FLOOR_PERCENTILE)
+    verdict = (
+        _brick_wall(smoothed, bandwidth, floor, samplerate or 0)
+        or _spurs(levels_db, bandwidth, floor)
+        or _ramp(smoothed, bandwidth, floor)
+    )
+    if verdict is None or _treated(junk_filter, str(verdict["filter"])):
+        return None
+    return verdict
+
+
+def _eligible(seconds: float, samplerate: int | None, sdm: bool, bandwidth: float, bins: int) -> bool:
+    if seconds < MIN_SECONDS or bins < SPUR_BASELINE_BINS:
+        return False
+    return not (sdm or samplerate is None or samplerate <= 48_000 or bandwidth <= 24_000.0)
+
+
+# Fixed-corner filters by corner frequency. A corner at or below the
+# recommended one also removes the junk (it cuts everything the recommended
+# corner would), so it counts as treatment.
+_CORNER_KHZ = {"20k": 20, "30k": 30, "40k": 40, "50k": 50}
+
+
+def _treated(junk_filter: str | None, recommended: str) -> bool:
+    """Whether the engaged junk filter already treats the detected signature.
+    ``none`` (or nothing engaged) never does; a fixed corner treats when it is
+    at or below the recommended corner; a rate-relative filter (2x/4x/8x) is a
+    deliberate manual choice and is never second-guessed."""
+    if junk_filter in (None, "none"):
+        return False
+    engaged = _CORNER_KHZ.get(junk_filter)
+    if engaged is None:
+        return True  # rate-relative or unknown — the user chose it, don't nag
+    return engaged <= _CORNER_KHZ[recommended]
+
+
+def _median_smooth(levels: list[float], width: int) -> list[float]:
+    half = width // 2
+    n = len(levels)
+    return [statistics.median(levels[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
+
+
+def _percentile(levels: list[float], pct: int) -> float:
+    ordered = sorted(levels)
+    return ordered[min(len(ordered) - 1, (len(ordered) * pct) // 100)]
+
+
+def _hz(i: int, bins: int, bandwidth: float) -> float:
+    return i * bandwidth / (bins - 1)
+
+
+def _bin(hz: float, bins: int, bandwidth: float) -> int:
+    return min(bins - 1, max(0, round(hz * (bins - 1) / bandwidth)))
+
+
+def _band_mean(levels: list[float], lo: int, hi: int) -> float:
+    band = levels[lo : hi + 1]
+    return sum(band) / len(band) if band else -200.0
+
+
+def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerate: int) -> dict[str, Any] | None:
+    if samplerate < FAKE_HIRES_MIN_RATE:
+        return None
+    bins = len(smoothed)
+    span = max(1, _bin(BRICK_SPAN_HZ, bins, bandwidth))
+    best_drop, edge = 0.0, -1
+    for i in range(_bin(BRICK_WINDOW_HZ[0], bins, bandwidth), _bin(BRICK_WINDOW_HZ[1], bins, bandwidth) + 1):
+        drop = smoothed[max(0, i - span)] - smoothed[min(bins - 1, i + span)]
+        if drop > best_drop:
+            best_drop, edge = drop, i
+    if best_drop < BRICK_DROP_DB or edge < 0:
+        return None
+    above = _band_mean(smoothed, min(bins - 1, edge + 2 * span), bins - 1)
+    if above > floor + ABOVE_FLOOR_DB:
+        return None  # real content (or junk another rule owns) lives above the edge
+    ceiling = _hz(edge, bins, bandwidth)
+    reason = (
+        f"Content stops at {ceiling / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container — "
+        f"likely fake hi-res. Engage the 20k junk filter."
+    )
+    return {"filter": "20k", "reason": reason, "ceiling_khz": round(ceiling / 1000, 1)}
+
+
+def _spurs(levels: list[float], bandwidth: float, floor: float) -> dict[str, Any] | None:
+    """Spurs are hunted in the RAW per-bin levels against a wide median
+    baseline: a persistent tone is only a few bins wide, which is exactly what
+    the working curve's 9-bin median erases — searching the smoothed curve can
+    never find one. The aggregate is already time-averaged over the whole
+    track, so raw bins are stable, not frame noise."""
+    bins = len(levels)
+    baseline = _median_smooth(levels, SPUR_BASELINE_BINS)
+    spur_hz, spur_db = 0.0, 0.0
+    for i in range(_bin(SPUR_MIN_HZ, bins, bandwidth), bins):
+        excess = levels[i] - baseline[i]
+        if excess >= SPUR_DB and levels[i] > floor + ABOVE_FLOOR_DB and excess > spur_db:
+            spur_hz, spur_db = _hz(i, bins, bandwidth), excess
+    if spur_hz == 0.0:
+        return None
+    corner = "40k" if spur_hz > SPUR_CORNER_SPLIT_HZ else "30k"
+    reason = (
+        f"Persistent tone at {spur_hz / 1000:.1f} kHz above the music's natural decay — "
+        f"likely an HF disturbance (tape bias, interference). Engage the {corner} junk filter."
+    )
+    return {"filter": corner, "reason": reason, "ceiling_khz": round(spur_hz / 1000, 1)}
+
+
+def _ramp(smoothed: list[float], bandwidth: float, floor: float) -> dict[str, Any] | None:
+    bins = len(smoothed)
+    lo = _bin(RAMP_LO_HZ, bins, bandwidth)
+    top_lo = _bin(0.85 * bandwidth, bins, bandwidth)
+    top = _band_mean(smoothed, top_lo, bins - 1)
+    rise = top - _band_mean(smoothed, lo, min(top_lo - 1, lo + (top_lo - lo) // 4))
+    if rise < RAMP_RISE_DB or top < floor + RAMP_ABOVE_FLOOR_DB:
+        return None
+    reason = (
+        f"HF noise rising toward {bandwidth / 1000:.0f} kHz — likely excessive noise shaping "
+        f"(ADC or DSD-to-PCM transfer). Engage the 50k junk filter."
+    )
+    return {"filter": "50k", "reason": reason, "ceiling_khz": round(bandwidth / 1000, 1)}

@@ -78,6 +78,11 @@
 .alert-crit {
   color: var(--red);
 }
+/* junk-filter advice chip — advisory tone, not a fault, so accent rather than
+   amber/red. Text only, no controls. */
+.alert-advice {
+  color: var(--accent);
+}
 
 /* engine-health meter cluster — VU gauge (process speed) + buffer bar meters
    + clip/apod counters, filling the full-width card. Idle dims the cluster
