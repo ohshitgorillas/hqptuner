@@ -14,6 +14,8 @@ class Config:
     hqp_host: str = field(default_factory=lambda: _env("HQP_HOST", "127.0.0.1"))
     hqp_control_port: int = field(default_factory=lambda: int(_env("HQP_CONTROL_PORT", "4321")))
     hqp_http_port: int = field(default_factory=lambda: int(_env("HQP_HTTP_PORT", "8088")))
+    # metering side channel (protocol.md §7) — control port + 1 on a stock daemon
+    hqp_metering_port: int = field(default_factory=lambda: int(_env("HQP_METERING_PORT", "4322")))
     # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
     # override only if the daemon's auth was re-provisioned.
     hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))

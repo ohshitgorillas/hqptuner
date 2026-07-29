@@ -280,9 +280,12 @@ Caveat (**observed**): a setter can return `result="OK"` without the setting act
 
 ## 7. Metering side channel
 
-A separate binary TCP stream on **port 4321 + 1 = 4322**. The reference client connects with no control-channel enable command. Framing repeats: one packed 32-byte header (version, channels, transform length, transform bits, bandwidth, transform time/gain), then per channel a 16-byte level block (`peakMax`, `peak`, `rms`, `rmsMax`) followed by `2 × xformLength` floats. Byte order is host order in the client (no swapping).
+A separate binary TCP stream on **port 4321 + 1 = 4322**. The daemon streams unconditionally on bare accept — no control-channel enable command (**verified** 2026-07-28, `scripts/probe_metering_stream.py`, hqplayerd on a 44.1k PCM source). One frame per transform hop (~43/s at 44.1k; hop = `xformLength − 1` samples). Layout (**verified** live, little-endian):
 
-Unused by HQPTuner. Take the exact struct layout from the `hqp-control` source if it is ever needed.
+- Header, 32 bytes: `u32 version` (1), `u32 channels`, `u32 xformLength` (spectrum bins, N/2+1; observed 1025 → N=2048), `u32 transformBits` (observed 16), `f32 bandwidth` (Nyquist, Hz), `f32 transformTime` (s, = hop/rate), `f32 gain` (observed 2.0), `u32 reserved` (0).
+- Per channel: `f32 peakMax, peak, rms, rmsMax` (dBFS), then `2 × xformLength` f32 transform values as **two consecutive halves** (reals then imaginaries, *not* interleaved pairs) — magnitude of bin `k` is `hypot(a[k], b[k])`, linear amplitude, bin `k` → `k · bandwidth / (xformLength − 1)` Hz.
+
+Consumed at runtime by `hqptuner/metering.py` (the junk-filter advisor's reader); `scripts/probe_metering_stream.py` captures and decodes it standalone.
 
 ## 8. Out of scope
 
@@ -295,7 +298,6 @@ Matrix editing was originally a non-goal and was un-cut on 2026-07-20; the `Matr
 Unverified against a live daemon. Everything else this document asserts has been checked.
 
 1. `Reset` scope — what it resets (playback engine vs settings).
-2. Metering stream availability — whether hqplayerd streams unconditionally on accept at 4322.
-3. `GetInfo` full attribute set on hqplayerd 5.x.
-4. `SetRate` Hz-form acceptance — returned `OK` at an ambiguous value; a discriminating test is needed if the Hz form is ever relied on.
+2. `GetInfo` full attribute set on hqplayerd 5.x.
+3. `SetRate` Hz-form acceptance — returned `OK` at an ambiguous value; a discriminating test is needed if the Hz form is ever relied on.
 5. Whether live setters behave differently during active playback — every spike ran with the engine stopped.
