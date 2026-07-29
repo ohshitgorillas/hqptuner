@@ -13,9 +13,13 @@ __pycache__/
 # agent failures for internal training
 docs/agent-failures.md
 
-# Signalyst reference material — copyrighted, not redistributable
+# Signalyst reference material — copyrighted, not redistributable.
+# docs/vendor/manual/ is the pre-parsed form of the manual that agents read
+# (scripts/build_manual.py, `make manual`) — derived from the same copyrighted
+# source, so it stays out of the repo too. The script is tracked; its output is not.
 hqplayer6desktop-manual.pdf
 hqplayerd-readme.txt
+docs/vendor/
 
 # EQ Assistant research papers — copyrighted, not redistributable.
 # Fetched by hand where automated retrieval failed; cited in docs/eq-assistant/SOURCES.md
