@@ -22,7 +22,11 @@ const RULES = {
 };
 
 export default [
-  { ignores: ["hqptuner/static/vendor/**", "node_modules/**", ".venv/**", "build/**", "dist/**"] },
+  // mutants/ is `make mutate`'s copy of the whole tree, static/ included. eslint
+  // is invoked as `eslint .`, so without this it lints the copy — 83 no-undef
+  // errors from a second, unconfigured root. knip and tsc are scoped by explicit
+  // globs and are unaffected.
+  { ignores: ["hqptuner/static/vendor/**", "node_modules/**", ".venv/**", "build/**", "dist/**", "mutants/**"] },
   js.configs.recommended,
   {
     files: ["hqptuner/static/**/*.js"],

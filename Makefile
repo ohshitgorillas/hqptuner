@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-js check
+.PHONY: lint lint-js test test-live test-js check mutate
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -48,3 +48,24 @@ test-js:
 	node --import ./tests/js/vendor-resolve.js --test tests/js/*.test.js
 
 check: lint lint-js test test-js
+
+# Mutation testing — a periodic health check on the SUITE, deliberately absent
+# from `check` above and from the pre-commit hooks. It breaks the code on
+# purpose, one edit at a time, and reports how many of those breakages the tests
+# noticed; a surviving mutant is a line no test constrains. The whole package
+# takes hours, so scope it while working:
+#
+#     make mutate                                    # everything under hqptuner/
+#     make mutate MUTATE='hqptuner.presetstore.*'    # one module
+#
+# MUTATE is an fnmatch pattern over mutant names (module dotted path, function,
+# counter), so the trailing `.*` is load-bearing: a bare module name matches no
+# mutant and mutmut asserts rather than running.
+#
+# `mutmut run` exits non-zero when mutants survive, which is the normal outcome
+# and not a reason to skip the report — hence the leading `-`. Scope and pytest
+# arguments live in pyproject.toml under [tool.mutmut]; the working copies go in
+# the gitignored mutants/ directory.
+mutate:
+	-$(VENV)/mutmut run $(MUTATE)
+	$(VENV)/mutmut results
