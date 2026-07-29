@@ -23,11 +23,31 @@ dev = [
     "black",
     "vulture",
     "types-beautifulsoup4",
+    "mutmut",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Collect only from tests/. Without this, `make mutate` leaves a full second
+# copy of the tree under mutants/ — including mutants/tests/ — and bare pytest
+# collects both, which is 38 collection errors from duplicate module basenames,
+# not a test failure. mutmut runs pytest with mutants/ as its root, so the same
+# relative path is still correct there.
+testpaths = ["tests"]
 markers = ["live: requires a reachable hqplayerd (deselect with '-m \"not live\"')"]
+
+[tool.mutmut]
+# Mutation testing, run by hand via `make mutate` — never in `make check` or
+# pre-commit (docs/testing.md "Mutation testing"). It asks the one question the
+# assertion gate cannot: would this test have failed if the code were wrong.
+source_paths = ["hqptuner"]
+# The frontend is JavaScript; mutmut mutates Python only and already skips
+# non-.py files, but naming static/ keeps the scope explicit rather than
+# incidental.
+do_not_mutate = ["hqptuner/static/*"]
+# Same suite the gate runs: offline and deterministic. A mutation run must never
+# reach the production daemon, so the live marker is deselected here too.
+pytest_add_cli_args = ["-m", "not live", "-x", "-q"]
 
 [tool.vulture]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not

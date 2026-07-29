@@ -52,3 +52,7 @@ node_modules/
 
 # setuptools build dir (pip wheel / python -m build)
 build/
+
+# mutmut's working copies of the tree, one per mutant (make mutate)
+mutants/
+.mutmut-cache

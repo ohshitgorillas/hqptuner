@@ -30,6 +30,21 @@ Violations rejected in review even if tests pass.
 - Default suite offline and deterministic; must pass on machine with no hqplayerd.
 - Tests needing real daemon marked `@pytest.mark.live`, must be read-only against it. Everything write-shaped runs against fakes — permanently: live tests never write to production daemon.
 
+## Mutation testing
+
+Periodic health check on the suite itself. **Not part of `make check`, not in pre-commit, never a merge gate** — it takes hours and its output is a reading exercise, not a pass/fail.
+
+`mutmut` breaks the code on purpose, one edit at a time — flips a comparison, drops a call, swaps a constant — and reruns the offline suite against each break. A mutant the suite fails on is *killed*: some test noticed. A mutant that **survives** is a line no test constrains, so the code there could be wrong and everything would still be green. That is the one question the assertion-count gate cannot ask: those gates check that a test is shaped right, never that it could fail.
+
+```
+make mutate                              # whole package, hours
+make mutate MUTATE=hqptuner.presetstore  # one module, minutes
+```
+
+Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.
+
+Reading the result: a survivor is a question, not a defect. Three honest answers — the behaviour is untested and wants a test; the mutated line has no observable effect and the mutant is equivalent, so nothing is owed; or the line is dead and should go. Chasing a score is how a suite fills with tests written to kill mutants rather than to state behaviour, which is rule 1 violated with extra steps. Run it when a module's coverage is in doubt, not on a schedule.
+
 ## Frontend
 
 Seven core rules are language-independent, bind JS suite identically. Runner is node's built-in `node --test`, via `make test-js`.
