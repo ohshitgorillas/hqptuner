@@ -51,6 +51,10 @@ DEFAULTS = {
     # 2026-07-27): configured mode 2 reports active_mode="SDM (DSD)",
     # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
+    # What Status.active_filter reports — the ACTIVE main filter as a display
+    # string (protocol.md: Status reports display strings, State numeric
+    # indices). Empty means the frame carries no active_filter attribute at all.
+    "_active_filter": "poly-sinc-gauss-long",
 }
 
 
@@ -198,9 +202,11 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     if name == "Status":
         # active_* live on the Status root; the track <metadata> child is where the
         # daemon emits unescaped chars mid-playback (_metadata override).
+        active_filter = state["_active_filter"]
+        filter_attr = f'active_filter="{active_filter}" ' if active_filter else ""
         return (
             f'<Status state="{state["state"]}" active_mode="{_reported_mode(state)}" '
-            f'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
+            f'{filter_attr}active_shaper="NS9" '
             f'active_rate="{_active_rate(state)}" volume="{state["volume"]}">'
             f'{state["_metadata"]}</Status>'
         )

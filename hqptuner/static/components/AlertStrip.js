@@ -6,7 +6,7 @@
 // The junk-filter advice chip (store/junkadvice.js) rides the same strip: it is
 // the same "the engine has something to tell you" surface, but advisory rather
 // than a fault, so it carries its own tone. Text only — no controls; it clears
-// itself when the track changes or the engaged junk filter treats the junk.
+// itself when the track changes or the engaged settings treat the junk.
 import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
 import { junkAdvice } from "../store/junkadvice.js";

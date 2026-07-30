@@ -6,11 +6,13 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Junk-filter advice no longer guesses at causes, and offers a filter-family alternative.** A persistent ultrasonic tone can be tape bias, but it can also be clipping in an authentic hi-res recording, so the advice now describes what it sees instead of naming a culprit. For persistent tones it also suggests the poly-sinc-gauss-hires and poly-sinc-ext2-hires filter families as an alternative to the junk filter, and goes quiet when one of them is engaged.
+
 - **LIVE's rate caption in Auto now explains why, and offers a way out.** The rate limit is tied to the output device and can never change while running, so the caption says so, and points to switching the mode to PCM or SDM to pin a rate on the fly.
 
 ### Fixed
 
-- **The junk-filter recommendation no longer disappears when the music starts.** Advice now stays up for the rest of the track once earned, and clears when the track changes or the recommended filter is engaged. Persistent tones — tape bias, interference — are also detected while music plays, not just in quiet passages, after about 30 seconds of listening.
+- **The junk-filter recommendation no longer disappears when the music starts.** Advice now stays up for the rest of the track once earned, and clears when the track changes or the recommended filter is engaged. Persistent tones are also detected while music plays, not just in quiet passages, after about 30 seconds of listening.
 
 ## [0.11.0] — 2026-07-29
 
