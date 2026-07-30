@@ -8,15 +8,21 @@ A standalone brief for an agent picking up this feature cold. Companions: `SOURC
 
 > **Revised 2026-07-26.** One structural change: **a third response branch, `discuss`**, so the user can ask questions and get an anchored answer that stages nothing (D16). The union is now three branches, only one of which may carry `changes`, and every prose answer declares a `basis`. Further amendments landing in the same pass are recorded in the plan's decision table (D17–D21); where this file has not caught up with them yet, the plan is authoritative for those and this file is authoritative for everything above.
 
+> **Revised 2026-07-30.** **The XOR guards the write path, not speech** (D22). Three consequences absorbed below: `diagnosis` carries two registers of one finding (`explains_symptom` technical, `in_plain_terms` plain), an acting turn may answer a question that arrived beside the complaint through an `answers` field, and numeric literals in prose are provenance-checked by the validator. D18's `variants` and D23's optional-by-design `alternatives_rejected` are now in the schema block. Three guardrail rows that existed in no other document — a ±12 dB gain clamp, a Q 0.18–6.0 clamp and a per-turn band budget — have been **removed**; D1's ±6 dB per turn is the only policy clamp, and D2 sets no band caps. **The `basis` enum is unsettled** — this file's `discuss` block and the plan's differ, and neither is authoritative until that is resolved; do not read either as final.
+
 ## What it is
 
 A card at the bottom of HQPTuner's DSP tab: one text input plus a session history. The user types a plain-language listening complaint — "too boomy", "vocals sound distant", "half the time they're perfect, half the time slightly too quiet" — and the feature returns a **structured, measured diff** that is **staged** into the app's existing pending-changes buffer. The user batches several turns, reviews, and presses **Apply** once.
 
-**It is a bounded tool-using agent, not a single completion.** A turn runs: diagnose → compute the chain's actual response → generate candidate fixes → measure each → select. It has one tool:
+**It is a bounded tool-using agent, not a single completion.** A turn runs: diagnose → compute the chain's actual response → generate candidate fixes → measure each → select. It has two tools:
 
 ```
 evaluate_chain(base_bands[], candidate_changes[], at_frequencies[])
     -> { hz: net_db }, band averages, spread
+
+fit_chain(...)   // D17 — solves the inverse problem: given a target curve,
+                 // find the bands that reach it. Backs `replace_segment`
+                 // and the uploaded-measurement path. See the plan for its signature.
 ```
 
 Pure computation — no daemon contact, no staging, callable many times per turn. **The loop is not optional and cannot be replaced by a bigger prompt**: measuring a candidate means evaluating a chain that does not exist yet, so nothing preloaded into context substitutes for it. Evaluate at *musical* frequencies — the note fundamentals of whatever the complaint names — not a uniform log grid. "E2 is fine, A2 is not" explains a symptom; "there is a trough at 168 Hz" does not.
@@ -111,7 +117,7 @@ Mangling the AutoEq correction is a cheap, one-click-recoverable outcome — the
 
 **Verified finding — state it exactly as follows.** The compensation block is not a flag but **eight literal mid/side pipeline rows**. The app **re-detects it purely structurally every render** and compares the stored shelf frequency/Q against a **fresh fit for the current crossfeed parameters**. A mismatch marks it **stale** and surfaces a **"Rebuild" prompt** — **the app never silently recomputes.**
 
-Consequence for this feature: **any AI-proposed crossfeed parameter change must, in the same turn, emit a recompiled compensation block at the preserved strength percentage.** This holds whether or not the block was already stale beforehand. Preserve the *strength*; recompute the *fit*. The rebuild is itself a pipeline change, so it appears in the turn's structured diff like any other change — it needs no narration, and narrating it would violate the schema union below.
+Consequence for this feature: **any AI-proposed crossfeed parameter change must, in the same turn, emit a recompiled compensation block at the preserved strength percentage.** This holds whether or not the block was already stale beforehand. Preserve the *strength*; recompute the *fit*. The rebuild is itself a pipeline change, so it appears in the turn's structured diff like any other change. **It earns exactly one sentence in `in_plain_terms`** (D3 as amended by D22) — *the crossfeed moved, so the compensation was rebuilt to match*. The original rule said it needed no narration because the diff shows it, which is sound for a reader who reads diffs; to anyone else a twelve-stage block appearing under a complaint about bass is alarming, and an unexplained change is the one most likely to be discarded wholesale. One sentence in a field, never a branch, so the union is untouched.
 
 ### The tilt, and its direction
 
@@ -149,9 +155,12 @@ The **final answer** must validate against a union of exactly three branches. In
 ```jsonc
 // branch 1 — the model acted
 {
-  "diagnosis":   { "method", "finding", "explains_symptom", "measured": {...} },
-  "changes":     [ ... ],
+  "diagnosis":   { "method", "finding", "explains_symptom", "in_plain_terms", "measured": {...} },
+  "changes":     [ /* band / crossfeed / compensation changes */ ],
+  "answers":     { /* optional: same body as branch 3, mandatory basis */ },
   "alternatives_rejected": [ /* candidates with measured figures + reason */ ],
+  "variants":    [ /* co-equal candidates for the user to audition */ ],  // optional
+  "recommends":  [ /* advisory: settings the model cannot touch */ ],     // optional
   "metrics":     { "<name>": { "before": <n>, "after": <n> } },
   "side_effect": { "metric", "delta", "judgment", "remedy" }   // optional
 }
@@ -162,17 +171,22 @@ The **final answer** must validate against a union of exactly three branches. In
 // branch 3 — the user asked; the model answered and changed nothing
 { "discuss": { "answer": "<prose, length-bounded>",
                "measured": { /* what the tool returned */ },
-               "basis": "measured" | "vocabulary" | "unverified" } }
+               "basis": "measured" | "vocabulary" | "unverified",   // enum unsettled — see 2026-07-30 block
+               "recommends": [ /* optional, same shape as on branch 1 */ ] } }
 ```
 
 * **Exactly one branch.** Never two at once, no fourth branch, no extra top-level keys.
-* **`discuss` stages nothing, structurally.** `changes` is *absent*, not an empty array, so the union stays a real XOR over the write path. Answer-then-act is two turns.
+* **`discuss` stages nothing, structurally.** `changes` is *absent*, not an empty array, so the union stays a real XOR over the write path. **The asymmetry runs one way only** (D22): a `discuss` turn can never stage, but an acting turn *may answer* through `answers`, so a question arriving beside an actionable complaint no longer costs a turn. Answering a question and staging a change in the same turn is the expected behaviour, not a violation — `discuss` alone, when the utterance also carried an actionable complaint, is the deflection-into-chat failure.
+* **`diagnosis` carries two registers of one finding** (D22): `explains_symptom` technical, `in_plain_terms` plain. **The plain register is a restatement, not an extension** — it may introduce no claim, mechanism, citation or fact absent from the technical field beside it. Quote the magnitude in plain terms on every change turn; that is the point, not the risk, because it calibrates the user's ear-to-number mapping and the next complaint arrives as "another dB or so" instead of "a bit less". A trailing "how does that sound?" is prose and is fine; "shall I go ahead?" is not, because it strands the user at the Apply gate.
+* **`variants` are for genuine taste forks only** (D18). Co-equal candidates the user auditions by ear, distinct from `alternatives_rejected` which is what the model discarded *with reasons*. Swapping one is a re-stage, never an apply. Offering them to look thorough is a failure, not diligence.
+* **`alternatives_rejected` is optional by design** (D23). It is the strongest thing a change has to defend itself with and it renders expanded by default — but mandating it would manufacture straw candidates to fill the slot, which is the same padding `variants` is scored down for.
 * **`basis` is mandatory on `discuss`, and it is rendered.** Nothing can tell whether a question was tool-answerable, so the model declares its footing instead: `basis: "measured"` requires a non-empty `measured`. **A measured answer and a recalled one must not look alike in the card** — that is the whole safety property, and it is what lets the user see which claims they can check.
 * **A `discuss` turn never appends to a metric series.** The chain did not move, and a series entry with no checkpoint behind it shows fake drift and breaks metric-series recomputation, which assumes entries map 1:1 to checkpoints.
 * **`discuss` turns are prunable as a class** — "forget the discussion, keep the tuning".
-* **`diagnosis`, `changes` and `metrics` are all required** on branch 1. A change with no diagnosis, or one that reports only the metric it aimed at, is rejected.
+* **`diagnosis`, `changes` and `metrics` are all required** on branch 1, and `diagnosis` must carry `method`, `finding`, `explains_symptom`, `in_plain_terms` and `measured`. A change with no diagnosis, one missing its plain register, or one that reports only the metric it aimed at, is rejected.
 * **`side_effect` needs its `remedy`.** Flagging a regression without naming the fix is rejected. The real session disclosed a `v_db` rise of +0.38 *before* applying and pre-named the remedy (+0.4 on the 750 Hz band rather than reverting) — that is the bar.
-* **The anchoring rule is structural.** Prose may appear only as a field of an object that also carries numbers; `explains_symptom` sits beside `measured` and cannot wander from it. Nothing inspects what the prose *says* — the check is on shape, never on content.
+* **The anchoring rule is structural.** Prose may appear only as a field of an object that also carries numbers; `explains_symptom` sits beside `measured` and cannot wander from it. Nothing inspects what the prose *means* — the check is on shape, never on content.
+* **But numeric provenance is checked** (D22, D2a). Every numeric literal in every prose field must match a value the same turn already carries in `measured`, `changes`, `metrics` or `alternatives_rejected`, modulo rounding. An unmatched literal rejects the answer wholesale. This keeps the structural character of the rule: it asks only where a number came from, never what the sentence around it means. Whether the plain register faithfully restates the technical one is semantic and stays in the eval.
 * **Rejection rule:** any answer that fails validation is discarded outright. Not repaired, not partially applied, and its prose is never shown. Surface a generic failure and let the user retype.
 * **`clarify` has three modes**, and the third is the most common in practice:
   1. **Scope deflection** — out of surface (feature toggles, filters, "make it louder").
@@ -207,7 +221,7 @@ What holds regardless — mechanism, not judgement about the user:
 
 ## The vocabulary map
 
-`vocabulary.json` has `_meta`, `tonal` (25 entries) and `spatial` (13 entries). Each tonal entry carries `term`, `aliases`, `region_hz`, `suggested_fc_hz`, `suggested_type`, `direction`, `typical_gain_db`, `typical_q`, `named_quality`, `sources`, `confidence`, and a `notes` line naming any source disagreement. Spatial entries map instead to a crossfeed `parameter` with a `direction`, a typical delta, an optional `secondary` parameter, and a mandatory `tonal_side_effect` line.
+`vocabulary.json` has `_meta`, `tonal` (26 entries), `spatial` (13 entries) and `consistency` (6 entries). Each tonal entry carries `term`, `aliases`, `region_hz`, `suggested_fc_hz`, `suggested_type`, `direction`, `typical_gain_db`, `typical_q`, `named_quality`, `sources`, `confidence`, and a `notes` line naming any source disagreement. Spatial entries map instead to a crossfeed `parameter` with a `direction`, a typical delta, an optional `secondary` parameter, and a mandatory `tonal_side_effect` line.
 
 **Direction convention (stated in `_meta`, repeat it in the system prompt): `direction` is what to do TO THE NAMED REGION TO SATISFY THE USER — not what the word means.** "Too boomy" → `cut` 60–150 Hz. "Warmer" → `boost` 100–300 Hz. The `named_quality` field says whether the entry is written for an unwanted quality or a wanted one; when the user's sentence inverts that polarity ("not bright enough"), invert `direction` and keep the region, Q and magnitude. `_meta.conflict_pairs` lists term sets that must not be emitted together because they cancel.
 
@@ -225,15 +239,12 @@ What holds regardless — mechanism, not judgement about the user:
 
 | Guard | Value | Provenance |
 |---|---|---|
-| EQ gain, hard clamp | **±12.0 dB** | AutoEq `DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0`; both graphic-EQ configs use the same |
-| EQ gain, per-turn soft | ±6.0 dB | AutoEq `DEFAULT_MAX_GAIN = 6.0`, `DEFAULT_TREBLE_MAX_GAIN = 6.0`; also a project decision (D1) |
-| Q, hard clamp | **0.18 – 6.0** | AutoEq `DEFAULT_PEAKING_FILTER_MIN_Q = 0.18248`, `MAX_Q = 6.0` |
+| **EQ gain, per turn — the one policy clamp** | **±6.0 dB** | AutoEq `DEFAULT_MAX_GAIN = 6.0`, `DEFAULT_TREBLE_MAX_GAIN = 6.0`; project decision D1. **There is no absolute gain ceiling and no Q clamp** — AutoEq's `DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0` and `DEFAULT_PEAKING_FILTER_MIN_Q/MAX_Q = 0.18248/6.0` describe *that tool's* envelope, not ours, and were removed from this table on 2026-07-30 because they appeared nowhere else and contradicted the paragraph above |
 | Q, voicing preferred | 0.5 – 1.6 | Toole: broad low-Q colourations are what listeners actually notice over repeated listening; narrow deep bands are less audible and more likely mis-aimed |
 | Q, narrowband ceiling | 4.0 | reserved for `sibilant`, `shrill`, `piercing` only |
 | Shelf Q | **fixed 0.7** | AutoEq `DEFAULT_SHELF_FILTER_MAX_Q = 0.7`; every shipped oratory1990 shelf is `Q 0.70` |
 | Centre frequency | 20 – 20000 Hz | AutoEq shelf/peaking `MIN_FC = 20.0`; note AutoEq's optimiser caps at 10 kHz |
 | Band scope | **all bands amendable, AutoEq included** | user decision 2026-07-22; supersedes the withdrawn protected-segment design |
-| Per-turn band budget | amend ≤ 2, append ≤ 1 | keeps a turn's diff reviewable |
 | Crossfeed frequency | **300 – 2000 Hz** | libbs2b `BS2B_MINFCUT` / `BS2B_MAXFCUT`. Read the live `/matrix` form at runtime rather than hardcoding — this is HQPlayer's form, not bs2b's library |
 | Crossfeed level | **1.0 – 15.0 dB** | libbs2b `BS2B_MINFEED` / `BS2B_MAXFEED` = 10 / 150, encoded as dB × 10. Same runtime caveat |
 | Compensation strength | 0 – 150 % | app-defined |

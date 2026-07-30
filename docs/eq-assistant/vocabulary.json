@@ -182,7 +182,10 @@
       "oratory1990-data": "oratory1990 headphone EQ presets as vendored in AutoEq results/oratory1990/. Observed preset DATA only — his written reasoning was not reachable (Reddit blocked). Community/practitioner.",
       "bs2b": "Mikhaylov, B., Bauer stereophonic-to-binaural DSP; bs2b.sourceforge.net and libbs2b 3.1.0 src/bs2b.h, src/bs2b.c. Primary source code. Authority for all crossfeed bounds and the centre-tilt algebra.",
       "meier": "Meier, J., 'A DIY Headphone Amplifier With Natural Crossfeed', HeadWize (mirrored at headwizememorial.wordpress.com). Designer's primary writing.",
-      "binaural-lit": "Binaural/crossfeed perception background: ILD, ITD and inter-channel coherence as the dominant externalization cues, ITD/ILD dominant below ~1.5 kHz, low ICC producing greater spaciousness. Read via secondary summary only — see SOURCES.md 3.3."
+      "binaural-lit": "Binaural/crossfeed perception background: ILD, ITD and inter-channel coherence as the dominant externalization cues, ITD/ILD dominant below ~1.5 kHz, low ICC producing greater spaciousness. Read via secondary summary only — see SOURCES.md 3.3.",
+      "holt": "Holt, J. Gordon, 'Sounds Like? An Audio Glossary', Stereophile; also published as The Audio Glossary (Audio Amateur Press, 1990, ISBN 0962419141). Practitioner / journalistic — not peer-reviewed, not an elicited-and-validated vocabulary. Assigns frequencies freely, but every frequency in Holt is ASSERTED: no measurement, experiment or panel is cited for any number. See LEXICONS.md section 3.",
+      "rumsey": "Rumsey, F., 'Spatial Quality Evaluation for Reproduced Sound: Terminology, Meaning, and a Scene-Based Paradigm', JAES 50(9), 2002, pp. 651-666. Peer-reviewed, carrying the author's own caveat that it is 'a contribution to the debate rather than a definitive account of completed work'. Gives spatial definitions, NO frequencies.",
+      "saqi": "Lindau, A., Erbes, V., Lepa, S., Maempel, H.-J., Brinkmann, F. & Weinzierl, S., 'A Spatial Audio Quality Inventory for Virtual Acoustic Environments (SAQI)', Acta Acustica united with Acustica 100(5), 2014, pp. 984-994, DOI 10.3813/AAA.918778; SAQI Test Manual, DOI 10.14279/depositonce-1. Peer-reviewed plus primary research instrument. Gives definitions, NO frequencies."
     },
     "corrections": [
       "2026-07-22: centre-tilt direction was inverted throughout. Tilt DECREASES as feed rises and is independent of crossover frequency. Corrected against lib/xfeed.js.",
@@ -1569,7 +1572,7 @@
         "typical_delta_hz": 100
       },
       "definition": "Early-stereo production with whole instruments panned fully to one channel.",
-      "tonal_side_effect": "The largest spatial move in this map, and still only about 0.43 dB of tilt change — raising feed REDUCES tilt. Recompile the compensation block at the preserved strength in the same turn.",
+      "tonal_side_effect": "The largest feed move in this map, and still only about 0.43 dB of tilt change — not the largest tilt change, because tilt is compressive and a 2 dB feed CUT moves it further (0.47 dB). Raising feed REDUCES tilt. Recompile the compensation block at the preserved strength in the same turn.",
       "sources": [
         "meier",
         "bs2b"
