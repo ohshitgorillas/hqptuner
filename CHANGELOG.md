@@ -12,6 +12,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **A live setting the daemon never answers now says so.** It used to come back as a bare server error with no message, which is what an output-mode switch looked like when it took hqplayerd's engine down. The control now shows what happened, and re-reads the engine afterwards instead of assuming the write never landed.
+
 - **The junk-filter recommendation no longer disappears when the music starts.** Advice now stays up for the rest of the track once earned, and clears when the track changes or the recommended filter is engaged. Persistent tones are also detected while music plays, not just in quiet passages, after about 30 seconds of listening.
 
 ## [0.11.0] — 2026-07-29
