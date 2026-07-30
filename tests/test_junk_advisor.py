@@ -34,7 +34,7 @@ from junk_spectra import (
 
 from hqptuner.api import create_app
 from hqptuner.config import Config
-from hqptuner.junkadvisor import MIN_SECONDS, classify
+from hqptuner.junkadvisor import MIN_SECONDS, classify, treats
 from hqptuner.manager import ConnectionManager
 from hqptuner.metering import TrackContext, context_from
 
@@ -48,6 +48,7 @@ def _classify(
     sdm: bool = False,
     junk_filter: str | None = "none",
     min_levels_db: list[float] | None = None,
+    filter_name: str | None = None,
 ) -> dict[str, Any] | None:
     return classify(
         levels,
@@ -57,11 +58,16 @@ def _classify(
         sdm=sdm,
         junk_filter=junk_filter,
         min_levels_db=min_levels_db,
+        filter_name=filter_name,
     )
 
 
 def _classify_spur(
-    tone_hz: float, *, junk_filter: str | None = "none", tone_db: float = -45.0
+    tone_hz: float,
+    *,
+    junk_filter: str | None = "none",
+    tone_db: float = -45.0,
+    filter_name: str | None = None,
 ) -> dict[str, Any] | None:
     """The spur rule reads the windowed minimum spectrum: the tone rides in
     ``min_levels_db`` while the mean alongside is ordinary decaying music."""
@@ -71,6 +77,7 @@ def _classify_spur(
         samplerate=176400,
         junk_filter=junk_filter,
         min_levels_db=spur_min_176(tone_hz, tone_db),
+        filter_name=filter_name,
     )
 
 
@@ -364,3 +371,113 @@ def test_status_payload_serves_the_advisors_verdict(advising_app_client: TestCli
 
     wait_for_api(advising_app_client, advised)
     assert advising_app_client.get("/api/status").json()["data"]["junk"]["filter"] == "20k"
+
+
+# --- classify: spur family alternative -------------------------------------------
+
+SPUR_FAMILIES = ["poly-sinc-gauss-hires", "poly-sinc-ext2-hires"]
+
+
+@pytest.mark.parametrize("needle", ["30k", "hires"])
+def test_spur_reason_names_the_corner_and_the_hires_alternative(needle: str) -> None:
+    verdict = _classify_spur(40000.0)
+    assert verdict is not None and needle in verdict["reason"]
+
+
+def test_spur_verdict_offers_the_hires_families() -> None:
+    verdict = _classify_spur(40000.0)
+    assert verdict is not None and verdict["families"] == SPUR_FAMILIES
+
+
+@pytest.mark.parametrize(
+    ("filter_name", "engaged"),
+    [
+        ("poly-sinc-gauss-hires-lp", "none"),
+        ("poly-sinc-gauss-hires-ip", None),
+        ("poly-sinc-ext2-hires-mp", "none"),
+        ("poly-sinc-ext2-hires-lp", None),
+    ],
+)
+def test_active_hires_family_filter_suppresses_the_spur_verdict(filter_name: str, engaged: str | None) -> None:
+    assert _classify_spur(40000.0, junk_filter=engaged, filter_name=filter_name) is None
+
+
+@pytest.mark.parametrize("filter_name", ["poly-sinc-ext2", "poly-sinc-gauss-long", "sinc-L"])
+def test_filter_outside_the_hires_families_does_not_suppress_the_spur(filter_name: str) -> None:
+    verdict = _classify_spur(40000.0, filter_name=filter_name)
+    assert verdict is not None and verdict["filter"] == "30k"
+
+
+def test_unknown_active_filter_does_not_suppress_the_spur() -> None:
+    verdict = _classify_spur(40000.0, filter_name=None)
+    assert verdict is not None and verdict["filter"] == "30k"
+
+
+def test_hires_family_filter_leaves_the_brickwall_verdict_standing() -> None:
+    verdict = _classify(fake_hires_96k(), 48000.0, filter_name="poly-sinc-gauss-hires-lp")
+    assert verdict is not None and verdict["filter"] == "20k"
+
+
+def test_brickwall_verdict_offers_no_families() -> None:
+    verdict = _classify(fake_hires_96k(), 48000.0)
+    assert verdict is not None and not verdict.get("families")
+
+
+def test_shaping_ramp_verdict_offers_no_families() -> None:
+    verdict = _classify(shaping_ramp_176(), 88200.0, samplerate=176400)
+    assert verdict is not None and not verdict.get("families")
+
+
+# --- treats -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("engaged", "filter_name", "expected"),
+    [
+        ("30k", None, True),  # corner at the recommendation treats
+        ("20k", None, True),  # corner below it treats
+        ("2x", None, True),  # rate-relative is a deliberate choice, never second-guessed
+        ("40k", None, False),  # corner above the recommendation does not
+        ("none", "poly-sinc-gauss-hires-lp", True),  # family filter treats the spur
+        (None, "poly-sinc-ext2-hires-mp", True),
+        ("none", "poly-sinc-gauss-long", False),  # ... other families do not
+        ("none", None, False),
+    ],
+)
+def test_treats_reads_the_spur_verdict_against_the_engine_settings(
+    engaged: str | None, filter_name: str | None, expected: bool
+) -> None:
+    verdict = _classify_spur(40000.0)
+    assert verdict is not None and treats(verdict, engaged, filter_name) is expected
+
+
+def test_family_filter_does_not_treat_the_brickwall_verdict() -> None:
+    verdict = _classify(fake_hires_96k(), 48000.0)
+    assert verdict is not None and treats(verdict, "none", "poly-sinc-gauss-hires-lp") is False
+
+
+def test_engaged_20k_corner_treats_the_brickwall_verdict() -> None:
+    verdict = _classify(fake_hires_96k(), 48000.0)
+    assert verdict is not None and treats(verdict, "20k", None) is True
+
+
+# --- context_from: the active main filter ----------------------------------------
+
+
+async def test_context_reports_the_active_main_filter(live_manager: Any) -> None:
+    manager, _, _ = await live_manager(
+        poll_interval=0.05,
+        state="2",
+        _metadata=METADATA_96K_PCM,
+        _active_filter="poly-sinc-gauss-hires-lp",
+    )
+    await eventually(lambda: _settled(manager))
+    context = context_from(manager)
+    assert context is not None and context.filter == "poly-sinc-gauss-hires-lp"
+
+
+async def test_context_filter_is_none_when_status_omits_the_attribute(live_manager: Any) -> None:
+    manager, _, _ = await live_manager(poll_interval=0.05, state="2", _metadata=METADATA_96K_PCM, _active_filter="")
+    await eventually(lambda: _settled(manager))
+    context = context_from(manager)
+    assert context is not None and context.filter is None

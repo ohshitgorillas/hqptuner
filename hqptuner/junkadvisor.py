@@ -5,13 +5,18 @@ it): detect the HF signatures the manual's junk-filter table addresses and name
 the filter that treats them. Advice only — nothing here writes to the engine;
 the caller surfaces the text and the user decides.
 
-Signatures (manual, "Junk filter"):
+Signatures (manual p.53, "Playback filter"):
 - brick wall well below the container's Nyquist in a hi-res container →
-  upsampled redbook sold as hi-res → ``20k`` (sharp cut)
-- persistent narrow spurs above the music's natural decay (tape bias tones,
-  switching supplies) → ``30k`` / ``40k`` (slow roll-off above the corner)
-- HF noise rising with frequency (excessive noise shaping: ADC or DSD-to-PCM
-  transfers) → ``50k`` (very slow roll-off)
+  ``20k`` (sharp cut; the manual's "fake high-res content" case)
+- persistent narrow spurs above the music's natural decay → ``30k`` / ``40k``
+  (slow roll-off above the corner). The manual's example cause is analog-tape
+  transfers, but clipping harmonics of an authentic hi-res recording look the
+  same to this rule (field report: an authentic 96k recording with clipping
+  fired it), so the cause is unknowable from the spectrum. The verdict states
+  the observation only and offers the hires filter families as an alternative
+  to the corner filter.
+- HF noise rising with frequency → ``50k`` (very slow roll-off; the manual's
+  "excessive noise shaping" case — some ADCs, DSD-to-PCM conversions)
 
 The brick-wall and ramp rules read the track's mean spectrum — both are
 broadband shapes that only firm up under a long average. The spur rule instead
@@ -20,8 +25,8 @@ tone is present in every frame, so it survives the minimum, while music energy
 at the same frequency is intermittent and any quiet moment inside the window
 drops its bin to the hiss floor. The mean spectrum can never separate the two —
 loud broadband music raises the spur's local baseline until the tone
-disappears into it (observed live: a 30.3 kHz bias tone 15 dB proud during a
-quiet intro fell to 6 dB of excess once the music started).
+disappears into it (observed live: a persistent 30.3 kHz tone 15 dB proud
+during a quiet intro fell to 6 dB of excess once the music started).
 
 The rate-relative filters (2x/4x/8x) are deliberately never recommended.
 
@@ -54,6 +59,11 @@ SPUR_DB = 15.0
 SPUR_BASELINE_BINS = 51
 SPUR_CORNER_SPLIT_HZ = 45_000.0  # spur above this → 40k corner still clears it
 
+# Filter families a spur verdict offers as an alternative to the corner filter
+# (manual p.34/p.32: "for HiRes content", "also suitable for playback of lossy
+# compression"). Name prefixes — each family ships -lp/-ip/-mp phase variants.
+SPUR_FAMILIES = ("poly-sinc-gauss-hires", "poly-sinc-ext2-hires")
+
 # Noise-shaping ramp: rise from the lower HF region to the top of the band.
 RAMP_LO_HZ = 25_000.0
 RAMP_RISE_DB = 10.0
@@ -69,16 +79,17 @@ def classify(
     sdm: bool,
     junk_filter: str | None,
     min_levels_db: list[float] | None = None,
+    filter_name: str | None = None,
 ) -> dict[str, Any] | None:
     """The recommendation for this aggregate, or None when there is nothing to
     say. ``levels_db`` is the mean power spectrum (dB, one value per bin up to
     ``bandwidth`` = the source Nyquist); ``min_levels_db`` is the windowed
     per-bin minimum spectrum the spur rule reads, or None while the window has
     not yet been earned (no spur verdicts until it has); ``junk_filter`` is the
-    engine's current junk-filter *name*. The verdict is spectrum-only — the
-    metering tap sees the source, so engaging a filter never changes what the
-    detector sees — and the advice stands until the engaged filter actually
-    treats the signature."""
+    engine's current junk-filter *name* and ``filter_name`` the active main
+    filter's. The verdict is spectrum-only — the metering tap sees the source,
+    so engaging a filter never changes what the detector sees — and the advice
+    stands until the engaged settings actually treat the signature."""
     if not _eligible(seconds, samplerate, sdm, bandwidth, len(levels_db)):
         return None
     smoothed = _median_smooth(levels_db, SMOOTH_BINS)
@@ -88,7 +99,7 @@ def classify(
         or _spurs(min_levels_db, bandwidth)
         or _ramp(smoothed, bandwidth, floor)
     )
-    if verdict is None or treated(junk_filter, str(verdict["filter"])):
+    if verdict is None or treats(verdict, junk_filter, filter_name):
         return None
     return verdict
 
@@ -116,6 +127,16 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
     if engaged is None:
         return True  # rate-relative or unknown — the user chose it, don't nag
     return engaged <= _CORNER_KHZ[recommended]
+
+
+def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
+    """Whether the engine's current settings already treat the verdict's
+    signature: the engaged junk filter (corner logic above), or — for verdicts
+    that offer filter families — an active main filter from one of them."""
+    if treated(junk_filter, str(verdict["filter"])):
+        return True
+    families: list[str] = verdict.get("families") or []
+    return filter_name is not None and any(filter_name.startswith(f) for f in families)
 
 
 def _median_smooth(levels: list[float], width: int) -> list[float]:
@@ -160,7 +181,7 @@ def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerat
     ceiling = _hz(edge, bins, bandwidth)
     reason = (
         f"Content stops at {ceiling / 1000:.1f} kHz in a {samplerate / 1000:g} kHz container — "
-        f"likely fake hi-res. Recommend engaging 20k high-frequency filter."
+        f"consistent with fake hi-res. Recommend engaging the 20k high-frequency filter."
     )
     return {"filter": "20k", "reason": reason, "ceiling_khz": round(ceiling / 1000, 1)}
 
@@ -187,10 +208,15 @@ def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] |
         return None
     corner = "40k" if spur_hz > SPUR_CORNER_SPLIT_HZ else "30k"
     reason = (
-        f"Persistent tone at {spur_hz / 1000:.1f} kHz above the music's natural decay — "
-        f"likely an HF disturbance (tape bias, interference). Recommend engaging {corner} high-frequency filter."
+        f"Persistent tone at {spur_hz / 1000:.1f} kHz — "
+        f"recommend switching to a 'hires' resampling filter or engaging the {corner} high-frequency filter."
     )
-    return {"filter": corner, "reason": reason, "ceiling_khz": round(spur_hz / 1000, 1)}
+    return {
+        "filter": corner,
+        "families": list(SPUR_FAMILIES),
+        "reason": reason,
+        "ceiling_khz": round(spur_hz / 1000, 1),
+    }
 
 
 def _ramp(smoothed: list[float], bandwidth: float, floor: float) -> dict[str, Any] | None:
@@ -202,7 +228,7 @@ def _ramp(smoothed: list[float], bandwidth: float, floor: float) -> dict[str, An
     if rise < RAMP_RISE_DB or top < floor + RAMP_ABOVE_FLOOR_DB:
         return None
     reason = (
-        f"HF noise rising toward {bandwidth / 1000:.0f} kHz — likely excessive noise shaping "
-        f"(ADC or DSD-to-PCM transfer). Recommend engaging 50k high-frequency filter."
+        f"HF noise rising toward {bandwidth / 1000:.0f} kHz — consistent with excessive noise shaping "
+        f"(some ADCs, DSD-to-PCM transfers). Recommend engaging the 50k high-frequency filter."
     )
     return {"filter": "50k", "reason": reason, "ceiling_khz": round(bandwidth / 1000, 1)}

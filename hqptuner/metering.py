@@ -62,6 +62,7 @@ class TrackContext:
     samplerate: int | None
     sdm: bool
     junk_filter: str | None
+    filter: str | None = None  # active main filter's display name
 
 
 def context_from(manager: "ConnectionManager") -> TrackContext | None:
@@ -77,6 +78,7 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
         samplerate=_int(rate) if rate else None,
         sdm=meta.get("sdm") in ("1", "true"),
         junk_filter=_junk_filter_name(status, manager.enums),
+        filter=status.get("active_filter") or None,
     )
 
 
@@ -180,10 +182,11 @@ class MeteringReader:
         demand — the status route calls this once per poll. A verdict latches
         for the rest of the track: the signature is a property of the source,
         and loud music masking it from the detector later in the track does not
-        make it go away (the Ænima case — a bias tone plainly visible on the
-        spectrogram, drowned out of the mean spectrum once the music starts).
-        The latch clears on track change or stream loss, and goes quiet while
-        the engaged junk filter treats it — engaging the filter is the user
+        make it go away (the Ænima case — a persistent tone plainly visible on
+        the spectrogram, drowned out of the mean spectrum once the music
+        starts). The latch clears on track change or stream loss, and goes
+        quiet while the engaged junk filter — or, for spur verdicts, a main
+        filter from a recommended family — treats it: engaging is the user
         acting on the advice, disengaging brings the advice back."""
         ctx, agg = self._context(), self._agg
         if ctx is None or agg is None or agg.frames == 0:
@@ -199,10 +202,11 @@ class MeteringReader:
             sdm=ctx.sdm,
             junk_filter=ctx.junk_filter,
             min_levels_db=agg.window_min_db(),
+            filter_name=ctx.filter,
         )
         if fresh is not None:
             self._verdict = fresh
-        if self._verdict is None or junkadvisor.treated(ctx.junk_filter, str(self._verdict["filter"])):
+        if self._verdict is None or junkadvisor.treats(self._verdict, ctx.junk_filter, ctx.filter):
             return None
         return self._verdict
 
