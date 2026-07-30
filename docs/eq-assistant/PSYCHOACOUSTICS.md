@@ -45,7 +45,7 @@ Corroboration from an independent open-access source: Lopez-Poveda et al. `[VA]`
 
 ### What this licenses
 
-A filter much narrower than one ERB is being placed *inside* a single auditory filter, where the ear cannot resolve it as a separate spectral feature. At 1 kHz an ERB is ~133 Hz wide; a peaking filter at 1 kHz has a −3 dB bandwidth of `f₀/Q`, so **Q ≈ 7.5 is roughly one ERB at 1 kHz**, and anything substantially narrower is operating below the ear's resolution.
+A filter much narrower than one ERB is being placed *inside* a single auditory filter, where the ear cannot resolve it as a separate spectral feature. At 1 kHz an ERB is ~133 Hz wide; a peaking filter at 1 kHz has a half-gain bandwidth of `f₀/Q` (**not** a −3 dB bandwidth — that definition is band-pass and notch only, `FILTER-MATH.md` §1.1 trap 2), so **Q ≈ 7.5 is roughly one ERB at 1 kHz**, and anything substantially narrower is operating below the ear's resolution.
 
 This is a *supporting* argument for the existing low-Q default, not a new clamp, and it must not be over-read: an ERB is the auditory filter's bandwidth, not a hard audibility threshold for a spectral feature, and narrow high-Q *resonances* in a transducer are genuinely audible (`TRANSDUCERS.md` §1.1) which is exactly why narrow corrective filters have a legitimate use. The honest statement is that **broad moves act across many auditory filters and narrow ones act within one**, which is why broad colourations are the ones a listener notices over a whole album — and why `SOURCES.md`'s "broader beats narrower" ruling is right for *voicing* while narrow filters remain correct for *named resonances*.
 
@@ -115,7 +115,7 @@ Verbatim: "the *Q* = 1 response curve is about ± 1.5 dB, the *Q* = 10 curve is 
 
 Expressed against programme spectrum level instead, p. 124: "A resonance with *Q* = 1 […] can be heard in noise when its maximum steady-state level is 25 dB below the spectrum level of the program, while one with *Q* = 50 can approach to within 10 dB […] before being heard."
 
-**Programme material dominates**, p. 123: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and much reduced sensitivity when using popular music." Our users listen to music. Noise-derived thresholds are lower bounds.
+**Programme material dominates**, p. 123: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and with much reduced sensitivity when using popular music." Our users listen to music. Noise-derived thresholds are lower bounds.
 
 **Peaks beat dips**, p. 123, summarising Bücklein: "peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases."
 
@@ -154,14 +154,14 @@ Method: 168 filter conditions, ten listeners, naturalness rated 1–10, levels "
 Findings, from §V Conclusions and §III.B verbatim:
 
 * **Direction does not matter.** "The effects were similar for positive and negative tilts"; the ANOVA main effect of tilt direction "was not significant" for either music or speech.
-* **Extent matters more than location.** Wide-range tilt scored 5.8 (music) / 5.7 (speech) against 7.2–7.8 for the subranges. The authors attribute this to end-to-end level difference: "for a fixed tilt value in dB/ERB_N, the difference in level between the start and end of the tilt was greater" over the wide range.
+* **Extent matters more than location.** Wide-range tilt scored 5.8 (music) / 5.7 (speech) against 7.2–7.8 for the music subranges and 7.1–7.9 for the speech subranges. The authors attribute this to end-to-end level difference: "for a fixed tilt value in dB/ERB_N, the difference in level between the start and end of the tilt was greater" over the wide range.
 * **High-frequency-only tilt is nearly free.** Tilts "restricted to the high-frequency range (2503–6981 Hz) have relatively little perceptual effect, until they are rather extreme."
 
 **On ripple: 0.2 ripples/ERB_N is the *worst* density, and denser ripple is less damaging.** Verbatim: "naturalness at first decreased with increasing ripple rate, but then increased again." Mean ratings for music at 0.05 / 0.1 / 0.2 / 0.5 ripples/ERB_N were **6.8, 6.1, 5.5, 6.2**; for speech, 7.2, 6.3, 5.7, 5.9.
 
 Two calibrating remarks from the authors, worth keeping because they place our own use case: a 5 dB peak-to-valley ripple is what "occur[s] quite commonly in the frequency response of good-quality transducers" and has "only a moderate effect on perceived naturalness"; a 10 dB ripple is "the kind of spectral ripple that might be found in the response of lower-quality transducers, such as those in medium quality headphones."
 
-**Bandwidth thresholds**, from the Conclusions — useful because they bound where extension stops paying: for music, little effect raising the lower cutoff from 55 to 123 Hz "but further increases led to a degradation", and little effect lowering the upper cutoff from 16 854 to 10 869 Hz "but further decreases led to a degradation."
+**Bandwidth thresholds**, from the Conclusions — and they split by signal, which matters because our users are listening to music, not speech. The forgiving result is the **speech** one: little effect "of increasing the lower cutoff frequency from 55 to 123 Hz, but further increases led to a degradation of naturalness", and likewise little effect of decreasing the upper cutoff from 16 854 to 10 869 Hz. **Music has no such free margin**: "the highest naturalness was obtained for the broadband signal (55–16 854 Hz). Increasing the lower cutoff frequency from 55 Hz resulted in a clear degradation of naturalness. There was also a distinct degradation as the upper cutoff frequency was decreased." The authors contrast the two explicitly. So on music, bandwidth extension keeps paying all the way to the edges tested — do not read the speech margins as headroom.
 
 ### 4.4 Still not obtained
 
