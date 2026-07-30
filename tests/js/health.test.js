@@ -199,10 +199,62 @@ test("test_the_track_counter_reports_the_delta_not_the_total", () => {
 
 // --- apodizing events -------------------------------------------------------
 
+// The alert fires only once the per-track delta reaches APOD_MIN; anything
+// below that is silent even on a non-apodizing filter. Counts used by the
+// "never flagged" cases are deliberately at or above the threshold, so they
+// would fire if the filter's apodizing-ness were misread.
+const APOD_MIN = 5;
+
 test("test_apodizing_events_alert_when_the_active_filter_is_not_apodizing", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
-  assert.ok(texts(poll({ apod: "3", active_filter: "plain-filter" })).includes("non-apodizing"));
+  assert.equal(
+    texts(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })),
+    "Apodizing events ×5 this track, but plain-filter is non-apodizing — consider an apodizing filter.",
+  );
+});
+
+test("test_an_apodizing_alert_is_a_warning", () => {
+  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+  reset({ apod: "0", active_filter: "plain-filter" });
+  assert.deepEqual(sevs(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })), ["warn"]);
+});
+
+for (const count of [1, 2, 3, 4]) {
+  test(`test_an_apodizing_delta_below_the_threshold_is_silent: ${count}`, () => {
+    enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+    reset({ apod: "0", active_filter: "plain-filter" });
+    assert.deepEqual(poll({ apod: String(count), active_filter: "plain-filter" }), []);
+  });
+}
+
+test("test_an_apodizing_delta_above_the_threshold_still_alerts", () => {
+  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+  reset({ apod: "0", active_filter: "plain-filter" });
+  assert.ok(texts(poll({ apod: "12", active_filter: "plain-filter" })).includes("×12 this track"));
+});
+
+test("test_the_apodizing_alert_counts_the_track_delta_not_the_total", () => {
+  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+  reset({ apod: "100", active_filter: "plain-filter" });
+  assert.ok(texts(poll({ apod: "106", active_filter: "plain-filter" })).includes("×6 this track"));
+});
+
+test("test_the_apodizing_alert_accrues_across_polls_within_one_track", () => {
+  // no single poll steps by APOD_MIN; only the per-track total reaches it
+  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+  reset({ apod: "0", active_filter: "plain-filter" });
+  poll({ apod: "2", active_filter: "plain-filter" });
+  poll({ apod: "4", active_filter: "plain-filter" });
+  assert.ok(texts(poll({ apod: "6", active_filter: "plain-filter" })).includes("×6 this track"));
+});
+
+test("test_a_new_track_rebaselines_the_apodizing_counter", () => {
+  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+  reset({ apod: "0", active_filter: "plain-filter" });
+  poll({ apod: "9", active_filter: "plain-filter" });
+  reset({ apod: "9", active_filter: "plain-filter" });
+  assert.deepEqual(poll({ apod: "9", active_filter: "plain-filter" }), []);
 });
 
 test("test_apodizing_events_are_not_flagged_on_an_apodizing_filter", () => {
@@ -210,19 +262,25 @@ test("test_apodizing_events_are_not_flagged_on_an_apodizing_filter", () => {
   // a field; only ½-apodizing is read off the raw arg client-side
   enums.value = { filters: [{ name: "apod-filter", apodizing: true, desc: "5/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "apod-filter" });
-  assert.deepEqual(poll({ apod: "3", active_filter: "apod-filter" }), []);
+  assert.deepEqual(poll({ apod: "20", active_filter: "apod-filter" }), []);
 });
 
 test("test_apodizing_events_are_not_flagged_on_a_half_apodizing_filter", () => {
   enums.value = { filters: [{ name: "half-filter", arg: 2, desc: "4/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "half-filter" });
-  assert.deepEqual(poll({ apod: "3", active_filter: "half-filter" }), []);
+  assert.deepEqual(poll({ apod: "20", active_filter: "half-filter" }), []);
 });
 
 test("test_apodizing_events_are_not_flagged_on_an_unknown_filter", () => {
   enums.value = { filters: [] };
   reset({ apod: "0", active_filter: "mystery" });
-  assert.deepEqual(poll({ apod: "3", active_filter: "mystery" }), []);
+  assert.deepEqual(poll({ apod: "20", active_filter: "mystery" }), []);
+});
+
+test("test_apodizing_events_are_not_flagged_while_the_engine_is_idle", () => {
+  enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
+  reset({ apod: "0", active_filter: "plain-filter" });
+  assert.deepEqual(poll({ state: "0", apod: "20", active_filter: "plain-filter" }), []);
 });
 
 // --- ordering and combination -----------------------------------------------

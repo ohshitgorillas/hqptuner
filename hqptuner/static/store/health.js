@@ -17,6 +17,9 @@ const PLAYING = 2;
 const SPEED_WARN = 1.05;
 const SPEED_CRIT = 1.0;
 const SUSTAIN = 3; // consecutive polls (~6 s at the 2 s cadence)
+// A handful of apodizing events per track is normal on ordinary material; the
+// alert is only worth the user's attention once they pile up.
+const APOD_MIN = 5;
 
 // per-track counter baselines + consecutive-poll streaks (internal state)
 const track = signal({ serial: null, clips0: 0, apod0: 0 });
@@ -128,7 +131,7 @@ function clipAlert(clips) {
 // Only worth raising when the running filter is one an apodizing swap would
 // help — silent for an unknown filter rather than guessing.
 function apodAlert(apod, filterName) {
-  if (apod <= 0) return null;
+  if (apod < APOD_MIN) return null;
   const f = filterFacets.value[filterName];
   if (!f || f.apodizing || f.apodizingHalf) return null;
   const text = `Apodizing events ×${apod} this track, but ${filterName} is non-apodizing — consider an apodizing filter.`;
