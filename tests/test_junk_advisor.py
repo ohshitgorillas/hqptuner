@@ -384,6 +384,12 @@ def test_spur_reason_names_the_corner_and_the_hires_alternative(needle: str) -> 
     assert verdict is not None and needle in verdict["reason"]
 
 
+def test_spur_reason_tracks_the_recommended_corner() -> None:
+    # a tone above the corner split earns 40k — the reason must follow, not hardcode 30k
+    verdict = _classify_spur(60000.0)
+    assert verdict is not None and "40k" in verdict["reason"]
+
+
 def test_spur_verdict_offers_the_hires_families() -> None:
     verdict = _classify_spur(40000.0)
     assert verdict is not None and verdict["families"] == SPUR_FAMILIES
