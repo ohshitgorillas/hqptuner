@@ -43,6 +43,12 @@ DEFAULTS = {
     # Space-separated commands answered `result="OK"` without applying: the
     # `value="999"` caveat above (protocol.md §4), keyed by command instead.
     "_deaf": "",
+    # Space-separated commands answered NOT AT ALL — the connection stays open and
+    # nothing comes back, so the client's read deadline is what ends the wait. What
+    # hqplayerd 6.0.4 did with SetMode when the mode switch took the engine down
+    # under it (2026-07-29, /tmp/hqplayerd.log): command accepted, no response,
+    # connection dropped later. Distinct from `_deaf`, which does answer.
+    "_stall": "",
     # Which family the SOURCE is, which in [source] mode is which chain the engine
     # has loaded (readme §1.7). Named for the Status attribute it used to be
     # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
@@ -213,11 +219,14 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     return None
 
 
-def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str:
+def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | None:
+    """The answer to one command, or None for a command the fake stalls on."""
     el = _fromstring(body)
     name, attrs = el.tag, el.attrib
     if log is not None:
         log.append((name, dict(attrs)))
+    if name in state["_stall"].split():
+        return None  # received, logged, never answered
     answer = _query(name, state)
     if answer is not None:
         return answer
@@ -249,5 +258,8 @@ async def serve(
         if not data:
             break
         body = data.split(b"?>", 1)[-1].strip().decode()
-        writer.write(f"{XML}{handle(body, state, log)}\n".encode())
+        answer = handle(body, state, log)
+        if answer is None:
+            continue  # stalled: keep the connection open and say nothing
+        writer.write(f"{XML}{answer}\n".encode())
         await writer.drain()

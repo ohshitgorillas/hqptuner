@@ -223,3 +223,31 @@ test("test_a_rate_write_adopts_the_config_overlay_it_changed", async () => {
   await writeLive("rate", "192000");
   assert.equal(liveModel.value.sdmRate.value, "6144000");
 });
+
+// --- a write the backend refused outright -------------------------------------
+// A Control API command the daemon receives and never answers comes back as 503
+// with FastAPI's `detail` string (a plain string, not the per-field object a 409
+// carries). The write may well have landed on the engine before the silence — the
+// daemon's own log shows the command accepted — so the store cannot assume
+// nothing changed: it re-reads State rather than leaving the controls describing
+// an engine that has moved.
+
+const STALL_DETAIL = "State: no reply within 5.0s (the daemon may have restarted)";
+
+// The engine ends up on filterNx index 0, enum ID 0 (`none`) — neither the 25 the
+// signals were seeded with nor the 40 the write asked for. So this value can only
+// come from an actual /api/state re-read: a store that kept the old value fails,
+// and so does one that optimistically applied the written value.
+const REFUSED = () => ({ status: 503, detail: STALL_DETAIL, mirrored: { ...STATE(), filterNx: "0" } });
+
+test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => {
+  reset(REFUSED());
+  await writeLive("filter", "40");
+  assert.equal(control("filter").value, "0");
+});
+
+test("test_a_write_the_backend_refused_names_its_reason_on_the_control", async () => {
+  reset(REFUSED());
+  await writeLive("filter", "40");
+  assert.match(liveErrors.value.filter, /no reply within/);
+});

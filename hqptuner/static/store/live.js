@@ -97,7 +97,12 @@ export async function writeLive(field, value) {
     await remirrorLive([field], report);
     setError(field, reportError(report));
   } catch (e) {
-    // a refused batch applied nothing, so the mirrors are still current
+    // A refused batch (409) applied nothing, but a thrown error is not always a
+    // refusal: the daemon can accept a setter and then die under it, which leaves
+    // the mirrors describing a chain that is no longer loaded. Re-read rather than
+    // assume, best effort — if the daemon is gone the read fails too, and the
+    // mirrors are then as current as anything can make them.
+    await remirrorLive([field]).catch(() => {});
     setError(field, e.message);
   } finally {
     liveBusy.value = "";

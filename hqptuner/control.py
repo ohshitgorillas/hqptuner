@@ -9,10 +9,12 @@ values are unescaped once more after parsing (reference-client behavior).
 """
 
 import asyncio
+import contextlib
 import logging
 import re
 import socket
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
 
 from defusedxml.ElementTree import fromstring as _safe_fromstring
 
@@ -39,6 +41,30 @@ class ControlError(Exception):
 
 class CommandError(ControlError):
     """Daemon answered result="Error"."""
+
+
+def _element_name(element: str) -> str:
+    """The command name out of a request document, for error messages."""
+    match = re.match(r"<([A-Za-z][\w-]*)", element)
+    return match.group(1) if match is not None else "request"
+
+
+@contextlib.contextmanager
+def _as_control_error(what: str, timeout: float) -> Iterator[None]:
+    """Raw socket failures as ``ControlError``, which is what callers handle.
+
+    ``asyncio.wait_for`` raises a bare ``TimeoutError`` and a dead transport
+    raises ``OSError``; neither is a ``ControlError``, so both escaped every
+    caller — ``writer._apply_one`` could not record the setting as failed and the
+    API answered a bodiless 500. Observed on 6.0.4 when the daemon accepted
+    ``SetMode`` and then restarted without answering it.
+    """
+    try:
+        yield
+    except TimeoutError as exc:
+        raise ControlError(f"{what}: no reply within {timeout:g}s (the daemon may have restarted)") from exc
+    except OSError as exc:
+        raise ControlError(f"{what}: connection failed: {exc}") from exc
 
 
 def _lenient_fromstring(body: str) -> ET.Element:
@@ -97,7 +123,8 @@ class ControlClient:
         self._lock = asyncio.Lock()
 
     async def connect(self) -> None:
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), self._timeout)
+        with _as_control_error("connect", self._timeout):
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), self._timeout)
         self._reader, self._writer = reader, writer
         sock = writer.get_extra_info("socket")
         if sock is not None:
@@ -117,9 +144,13 @@ class ControlClient:
         if self._writer is None:
             raise ControlError("not connected")
         async with self._lock:
-            self._writer.write((XML_HDR + element).encode())
-            await asyncio.wait_for(self._writer.drain(), self._timeout)
-            return await self._recv_document()
+            # covers the receive too: `_recv_document`'s own read deadline is the
+            # one a stalled command trips, and it is this command's name that says
+            # which command stalled
+            with _as_control_error(_element_name(element), self._timeout):
+                self._writer.write((XML_HDR + element).encode())
+                await asyncio.wait_for(self._writer.drain(), self._timeout)
+                return await self._recv_document()
 
     async def _recv_document(self) -> ET.Element:
         reader = self._reader

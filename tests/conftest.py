@@ -13,6 +13,7 @@ import socket
 import threading
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -84,7 +85,7 @@ def _reachable(client: TestClient) -> bool:
     return bool(client.get("/api/health").json()["reachable"])
 
 
-def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
+def _live_app(control_port: int, tmp_path: Path, request_timeout: float | None = None) -> Iterator[TestClient]:
     """Control lane only — no credentials, so the app talks 4321 alone."""
     cfg = Config(
         hqp_host="127.0.0.1",
@@ -97,6 +98,8 @@ def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
         # in the dev container's bind mount and outlive the run
         live_preset_file=tmp_path / "live-presets.json",
     )
+    if request_timeout is not None:  # real wall clock, unlike the virtualized one
+        cfg = replace(cfg, request_timeout=request_timeout)
     with TestClient(create_app(cfg)) as client:
         wait_for_api(client, _reachable)
         yield client
@@ -262,11 +265,15 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
 # from a dedicated thread over real TCP, reachable from any loop.
 
 
-def spawn_threaded_daemon(overrides: dict[str, str] | None = None) -> Iterator[int]:
+def spawn_threaded_daemon(
+    overrides: dict[str, str] | None = None, state: dict[str, str] | None = None
+) -> Iterator[int]:
+    # `state` shares ONE dict across connections, as the `daemon` fixture does —
+    # how a sync test moves a daemon the app has already connected to
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    handler = functools.partial(serve, overrides=overrides)
+    handler = functools.partial(serve, overrides=overrides, state=state)
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, "127.0.0.1", 0), loop).result()
     port: int = server.sockets[0].getsockname()[1]
     yield port
