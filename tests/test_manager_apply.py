@@ -116,3 +116,71 @@ async def test_a_save_records_the_mode_the_engine_is_in(running_manager: Connect
 
 async def test_a_save_omits_the_dormant_chains_fields(running_manager: ConnectionManager) -> None:
     assert "oversampling" not in liveoverrides.live_overrides(running_manager)
+
+
+# --- staged mode change routes live, mode first ------------------------------
+# A batch carrying the output mode plus a chain field of the TARGET mode applies
+# without touching the restore lane: SetMode goes first, then the chain field is
+# resolved against the enumeration lists the switch produced (SetMode swaps the
+# filter/shaper/rate lists wholesale — protocol.md §4). Enum "3" (ASDM7EC) exists
+# only in the fake's SDM shaper list, so its verified landing proves the ordering.
+
+
+async def test_a_mode_switch_with_a_target_chain_field_never_restarts_the_daemon(
+    running_manager: ConnectionManager,
+) -> None:
+    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    assert report["persistent"] is None
+
+
+async def test_a_chain_field_of_the_target_mode_lands_after_the_switch(
+    running_manager: ConnectionManager,
+) -> None:
+    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    assert next((r["ok"] for r in report["live"] if r["setting"] == "shaper"), False) is True
+
+
+async def test_the_mode_itself_lands_and_verifies(running_manager: ConnectionManager) -> None:
+    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    assert next((r["ok"] for r in report["live"] if r["setting"] == "mode"), False) is True
+
+
+async def test_the_switched_mode_becomes_the_running_truth(running_manager: ConnectionManager) -> None:
+    await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    assert liveoverrides.live_overrides(running_manager)["mode"] == "sdm"
+
+
+async def test_the_switched_chain_field_becomes_the_running_truth(
+    running_manager: ConnectionManager,
+) -> None:
+    await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    assert liveoverrides.live_overrides(running_manager)["modulator"] == "3"
+
+
+async def test_a_mode_equal_to_the_running_mode_is_not_resent(running_manager: ConnectionManager) -> None:
+    # SetMode clears the engine's single rate pin even when the mode does not
+    # change (protocol.md §6), so a surviving pin proves no SetMode went out.
+    await running_manager.apply({"rate": {"value": "1"}}, {})
+    await running_manager.apply({}, {"mode": "pcm", "dither": "5"})
+    assert running_manager.state["rate"] == "1"
+
+
+async def test_a_mode_batch_with_a_leftover_field_still_routes_the_mode_live(
+    running_manager: ConnectionManager,
+) -> None:
+    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
+    assert next((r["ok"] for r in report["live"] if r["setting"] == "mode"), False) is True
+
+
+async def test_a_mode_batch_with_a_leftover_field_still_routes_the_chain_field_live(
+    running_manager: ConnectionManager,
+) -> None:
+    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
+    assert next((r["ok"] for r in report["live"] if r["setting"] == "shaper"), False) is True
+
+
+async def test_the_leftover_field_rides_the_persistent_lane(running_manager: ConnectionManager) -> None:
+    # running_manager has no HTTP credentials, so the restore lane reports the
+    # submission it could not make rather than staying silent (persistent None).
+    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
+    assert report["persistent"]["submitted"] is False

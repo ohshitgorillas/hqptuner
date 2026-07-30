@@ -263,16 +263,17 @@ class ConnectionManager:
         if switch_to is not None:
             switched = await presetlane.switch(self, switch_to)
         # Form fields the Control API can set outright route live instead, so a
-        # fully routable batch never restarts. Skipped on a LOAD, which reloads
+        # fully routable batch never restarts — a staged mode goes first as its
+        # own batch (livelane.mode_then_split). Skipped on a LOAD, which reloads
         # anyway; an unload does not, so its staged edits still split.
-        if not switch_to:
-            live_edits, http_fields = livemap.split_live(self, http_fields, live_edits)
         live_report: list[dict[str, Any]] = []
+        if not switch_to:
+            live_report, live_edits, http_fields = await livelane.mode_then_split(self, http_fields, live_edits)
         if live_edits:
             client = self._client
             if client is None:
                 raise ControlError("daemon not connected")
-            live_report = await apply_live(client, live_edits)
+            live_report = live_report + await apply_live(client, live_edits)
             self.state = await client.get_state()  # live edits bypass the file: refresh running truth
         persistent = await httplane.apply(self, http_fields) if http_fields else None
         if persistent is not None and persistent.get("applied"):

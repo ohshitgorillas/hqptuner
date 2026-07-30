@@ -194,6 +194,13 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     its own memory: the engine's rate pin is one slot the mode switch clears, not a
     per-chain list, so it is `LiveMemory.rates` that holds it and `_reassert_rate`
     that lands it.
+
+    Everything after `apply_live` is bookkeeping for the NEXT write — the write
+    itself is already readback-verified — so a control-connection failure there is
+    logged, not raised. `SetFilter` and `SetMode` reload the engine and the daemon
+    can drop the connection under the refresh that follows; raising turned a change
+    the user watched land into an error on the control they just touched. The poll
+    loop reconnects and reloads state and enumerations (`manager._connect_and_load`).
     """
     client = mgr.control
     if client is None:
@@ -201,9 +208,12 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     fields, held_rate = livemap.split_unpinnable_rate(mgr, fields)
     edits, stored = livemap.resolve_live(mgr, fields)
     report = await apply_live(client, edits)
-    mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
-    if _REENUMERATES & set(edits):
-        mgr.enums = await client.get_all_enumerations()
+    try:
+        mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
+        if _REENUMERATES & set(edits):
+            mgr.enums = await client.get_all_enumerations()
+    except ControlError as exc:
+        log.warning("post-apply refresh failed: %s", exc)
     if _applied(report, "rate"):
         _remember_rate(mgr, fields["rate"])
     if held_rate is not None:
@@ -217,12 +227,15 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         # after the re-enumeration above: the rates list is mode-dependent
         # (manual §4.6), so the remembered rate resolves against the NEW list, and
         # the entered chain's held settings against the lists SetMode just swapped
-        report = report + await _reassert_rate(mgr, client) + await reassert_chain(mgr, client)
-        mgr.state = await client.get_state()
+        try:
+            report = report + await _reassert_rate(mgr, client) + await reassert_chain(mgr, client)
+            mgr.state = await client.get_state()
+        except ControlError as exc:
+            log.warning("post-apply re-assert failed: %s", exc)
     return {"live": report, "stored": _held_fields(stored, held_rate)}
 
 
-def _mode_already_running(mgr: ConnectionManager, want: str) -> bool:
+def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
     """Whether the engine is already in the mode a preset asks for.
 
     Worth checking because ``SetMode`` is not free even when it changes nothing:
@@ -254,7 +267,47 @@ async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[s
     if mode is None or not rest:
         return await apply_now(mgr, fields)
     first: dict[str, Any] = {"live": [], "stored": {}}
-    if not _mode_already_running(mgr, mode):
+    if not mode_already_running(mgr, mode):
         first = await apply_now(mgr, {"mode": mode})
     second = await apply_now(mgr, rest)
     return {"live": [*first["live"], *second["live"]], "stored": {**first["stored"], **second["stored"]}}
+
+
+def _mode_apart(http_fields: dict[str, str]) -> str | None:
+    """The staged mode value when it cannot ride its batch: beside other routable
+    fields, ``SetMode`` swaps the lists they resolve against
+    (``livemap._mode_blocks_batch``), so it has to go first on its own."""
+    routable = [field for field in http_fields if field in livemap.ROUTABLE]
+    return http_fields["mode"] if "mode" in routable and len(routable) > 1 else None
+
+
+async def mode_then_split(
+    mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, str]], dict[str, str]]:
+    """Route the tabs view's staged batch, mode first — ``apply_preset``'s
+    two-batch workaround, ported to the apply lane.
+
+    A staged mode beside other routable fields used to send the whole batch to
+    the restore lane (``livemap._mode_blocks_batch``) — one daemon restart,
+    playback interrupted — for want of a re-enumeration between ``SetMode`` and
+    the rest. ``apply_now`` is that re-enumeration (plus the rate-pin and chain
+    re-asserts a verified mode write always needs), so the mode goes through it
+    alone and the remainder splits against the lists the switch produced. A mode
+    the engine is already running is dropped rather than re-sent — ``SetMode``
+    clears the rate pin even when it changes nothing (``mode_already_running``).
+    A mode batch that cannot resolve or apply sends the whole batch to the
+    restore lane, exactly as before.
+    """
+    mode = _mode_apart(http_fields)
+    report: list[dict[str, Any]] | None = None
+    if mode is not None:
+        try:
+            report = [] if mode_already_running(mgr, mode) else (await apply_now(mgr, {"mode": mode}))["live"]
+        except (livemap.LiveRouteError, ControlError) as exc:
+            log.warning("mode-first batch fell back to the restore lane: %s", exc)
+    if report is None:
+        edits, remainder = livemap.split_live(mgr, http_fields, live_edits)
+        return [], edits, remainder
+    rest = {field: value for field, value in http_fields.items() if field != "mode"}
+    edits, remainder = livemap.split_live(mgr, rest, live_edits)
+    return report, edits, remainder
