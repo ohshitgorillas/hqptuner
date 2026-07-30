@@ -41,7 +41,7 @@ No counts in the header itself: they would go stale against the live enum, which
 | 5 | Cut | not a chip — card vocabulary. HQPlayer's word for its steepness is "roll-off", in the per-filter description at `prose.js:48-65` | no values; a shape with three parts |
 | 6 | Phase | narrow bar, `hqptuner/static/components/NarrowBar.js:51-56`; parsed from `-lp`/`-mp`/`-ip` suffixes, `hqptuner/static/store/facets.js:83-89` | Linear / Minimum / Intermediate |
 | 7 | Length | narrow bar, `NarrowBar.js:57-62`; tap-count classification `facets.js:104-128` | Short / Medium / Long / Extra long |
-| 8 | Apodizing | per-chain 1x control, `hqptuner/static/components/ApodNarrow.js`; live arg bit 0 = apodizing | full / none |
+| 8 | Apodizing | per-chain 1x narrowing control, `hqptuner/static/components/ApodNarrow.js`; live arg bit 0 = apodizing, bit 1 = half | manual's Apod column carries three values, Y / ½ / N; the card explains Y and N and stays silent on ½ |
 
 "Cut" and "Attack" are this document's words, not HQPlayer's. Both glosses name the manual's word alongside, so the reader meets the on-screen vocabulary too.
 
@@ -160,7 +160,7 @@ Not an HQPlayer coinage. SoX and libsoxr name the same setting, at position 25 o
 
 ## 8. Apodizing
 
-**Gloss draft.** An apodizing filter targets ringing that is already in the recording, put there by filters in the equipment that made it — not ringing the playback filter is about to add. It replaces that inherited response with a shorter one. What it costs is a gentler cut and weaker rejection of what sits above the music.
+**Gloss draft.** An apodizing filter targets ringing that is already in the recording, put there by filters in the equipment that made it — not ringing the playback filter is about to add. It cannot subtract that ringing. The inherited response and the playback filter become a single response, and an apodizing filter is shaped so the combined result is the short one.
 
 Mechanism only, no when-to-use guidance: the app already carries an automatic apodization warning. The manual's own trigger rule (the Apod counter, `04-06:8-11`) is therefore out, and so is `04-06:12-13`, which decodes the recurring phrase "Only suitable for highest technical quality source materials" by restating that rule. Consequence accepted: that phrase appears verbatim in several non-apodizing filter descriptions, including the A/B pair below, and the card will not explain it.
 
@@ -170,8 +170,11 @@ Mechanism only, no when-to-use guidance: the app already carries an automatic ap
 | Independent statement of the same, naming the decimation filters | `basic` | `[sourced]` | "Apodizing filters are generally used to correct/reduce errors in the source data, introduced by the ADC digital decimation filters, or at later stage conversion tools used to produce the final deliverables." — Ferrum technical article `[V]` |
 | **The mechanism: it shortens the impulse response already present** | `basic` | `[sourced]` | "illustrating how the highly dispersive time response of the brickwall filter in Figure 2A is shortened by application of the apodising filter to the compact time response in Figure 2B." — patent EP3155617A1 (Meridian, Craven/Stuart) `[V]` |
 | Same, in frequency terms | `adv` | `[sourced]` | "an ``apodising'' filter operating at the 96kHz rate can widen the effective transition band, narrowing the dispersion of impulse energy" — EP3155617A1 `[V]` |
-| **The cost** | `basic` | `[sourced]` | "this operation is making the slope of the filter less steep and attenuation in stopband is a little lower, therefore unwanted higher frequencies are less rejected." — Ferrum `[V]` |
-| A clean A/B exists in the filter list: same filter, same length, apodizing the only difference | `basic` | `[sourced]` | "Very steep 8 times longer version of poly-sinc-ext2-long." (`04-06:215-216`, Apod=Y) vs "Very steep 8 times longer non-apodizing version of poly-sinc-ext2-long. Only suitable for highest technical quality source materials." (`04-06:220-224`, Apod=N) |
+| The cost **in the general case, not HQPlayer's** | `adv` | `[sourced]` | "this operation is making the slope of the filter less steep and attenuation in stopband is a little lower, therefore unwanted higher frequencies are less rejected." — Ferrum `[V]`. General case only; not a cost of HQPlayer's apodizing filters |
+| **HQPlayer states no harm, and states the reverse risk** | `basic` | `[sourced]` | "There is no harm in using apodizing filter for content that doesn't need one. But there is harm using non-apodizing filter for content that would need one." — `02-06-apodization.txt:7-9`. Authoritative; out of the copy because the app's automatic warning already carries it |
+| A clean A/B exists in the filter list: same filter, same length, apodizing the only difference | `basic` | `[sourced]` | "Very steep 8 times longer version of poly-sinc-ext2-long." (`04-06:215-216`, `poly-sinc-ext2-xla`, Apod=Y) vs "Very steep 8 times longer non-apodizing version of poly-sinc-ext2-long. Only suitable for highest technical quality source materials." (`04-06:220-224`, `poly-sinc-ext2-xl`, Apod=N) |
+
+**The gloss states no cost, deliberately.** The general-case cost is real — widening the transition band to shorten the impulse response costs slope and stopband attenuation *at fixed length*. HQPlayer does not hold length fixed: both members of the A/B pair above are "8 times longer" versions, and §7's Kaiser relation has length paying for attenuation and steepness jointly, so the extra taps absorb the widened transition band. The apodizing member is "Very steep" at 5/5, identical to the non-apodizing one, and §4.6 states a cost for apodizing nowhere — the word appears once in the whole section. The cost lands in taps and CPU load, not in the shape of the cut. Any copy that gives apodizing a downside in slope or rejection contradicts the manual.
 
 ## Graph inventory — advanced tier
 
