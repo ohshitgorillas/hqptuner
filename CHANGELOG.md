@@ -8,11 +8,17 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Junk-filter advice no longer guesses at causes, and offers a filter-family alternative.** A persistent ultrasonic tone can be tape bias, but it can also be clipping in an authentic hi-res recording, so the advice now describes what it sees instead of naming a culprit. For persistent tones it also suggests the poly-sinc-gauss-hires and poly-sinc-ext2-hires filter families as an alternative to the junk filter, and goes quiet when one of them is engaged.
 
+- **The apodizing-events warning is quieter.** It now waits for five events on a track before it says anything, instead of firing on the first one.
+
 - **LIVE's rate caption in Auto now explains why, and offers a way out.** The rate limit is tied to the output device and can never change while running, so the caption says so, and points to switching the mode to PCM or SDM to pin a rate on the fly.
 
 ### Fixed
 
 - **Changing the mode and a filter or modulator together no longer restarts the engine.** Applying the two from the tabs view used to take the whole batch through a daemon restart, interrupting playback. The mode now applies first on its own, and the rest follows live — the same order the LIVE view's presets already used.
+
+- **A filter change that worked no longer reports an error.** Changing the filter or the output mode takes hqplayerd's engine down for a moment, and the connection can drop under it — which showed up as `GetShapers: connection failed: Connection lost` on a change the user had just watched land.
+
+- **Errors on LIVE controls clear when the daemon reconnects.** A failed write used to leave its message on the control until the next write. It now goes away once the connection is back, since the control is working again by then.
 
 - **A live setting the daemon never answers now says so.** It used to come back as a bare server error with no message, which is what an output-mode switch looked like when it took hqplayerd's engine down. The control now shows what happened, and re-reads the engine afterwards instead of assuming the write never landed.
 

@@ -65,6 +65,13 @@ def _as_control_error(what: str, timeout: float) -> Iterator[None]:
         raise ControlError(f"{what}: no reply within {timeout:g}s (the daemon may have restarted)") from exc
     except OSError as exc:
         raise ControlError(f"{what}: connection failed: {exc}") from exc
+    except ControlError as exc:
+        # `_recv_document`'s own failures ("connection closed by daemon", a frame
+        # that will not parse) name no command, and which command died is the whole
+        # diagnostic — a daemon that drops the connection under `SetFilter` fails
+        # some LATER command, and the message is the only place that pairing
+        # survives. Every other failure here already carries it.
+        raise ControlError(f"{what}: {exc}") from exc
 
 
 def _lenient_fromstring(body: str) -> ET.Element:

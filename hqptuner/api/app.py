@@ -106,6 +106,11 @@ def health(manager: Mgr) -> dict[str, Any]:
     return {
         "reachable": manager.reachable,
         "unreachable_since": manager.unreachable_since,
+        # When the CURRENT control connection was established. A brief drop can be
+        # shorter than the frontend's health poll, so `reachable` never visibly goes
+        # false and an edge on it cannot be seen; this changes on every reconnect,
+        # which is what the LIVE page keys its stale-error clearing on.
+        "connected_at": manager.loaded_at,
         "alarm": manager.alarm,
         "info": manager.info,
         "license": manager.license,

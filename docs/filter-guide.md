@@ -47,11 +47,13 @@ No counts in the header itself: they would go stale against the live enum, which
 
 ## 1. Filter
 
-**Gloss draft.** A filter's job is to pass some frequencies and remove others. When HQPlayer raises the sample rate, the new rate has room above the music that the original did not, and the filter is what fills the gap between the original samples and keeps unwanted material out of the space above them. It does that arithmetically: every output sample is a weighted sum of a stretch of neighbouring input samples. That is the whole reason a filter has a duration of its own — it is an event in time as much as it is a shape in frequency, and the two cannot both be made sharp. Precision about frequency is bought with length in time; brevity in time is bought with vagueness about frequency. Every other setting on this page is a choice about where to sit on that one trade.
+**Gloss draft.** Raising the sampling rate leaves "reflections" of the music sitting above the original rate. Filters remove these images while leaving the music below untouched. Removing them means band limiting the signal, and band limiting always has a cost in time: the more strictly a filter limits the band, the longer its own response lasts. This is the fundamental tension in filter design: frequency-domain accuracy comes at the cost of time blurring, and vice-versa. Rather than reaching for one extreme or the other, most filters find ways to strike a balance between the two.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
+| **Raising the rate leaves reflections of the music above the original rate, and removing them is the filter's job** | `basic` | `[structural]` | Sampling-theory entailment: a sampled signal's spectrum repeats around multiples of the original rate; the copy directly above Nyquist is frequency-reversed — reflected — and the images persist until filtered out |
 | **The trade, stated as the axis** | `basic` | `[structural]` | "filter length trades frequency-domain accuracy against time-domain compactness" — `eq-assistant/PRIMER.md:79` |
+| Removing the images is band limiting, and band limiting has a cost in time | `basic` | `[structural]` | Restatement of the axis: the images sit above the passband, so removing them is a band limit, and the trade row prices it in time |
 | A filter has a duration, set by how many samples it reaches across | `basic` | `[sourced]` | "for length \(N\) FIR filters, the duration of the transient response is \(N-1\) samples." — Smith, *Introduction to Digital Filters* §5.7 `[V]` |
 | **What a filter that removes too little leaks** | `basic` | `[sourced]` | "Poor stop-band rejection and will thus leak fairly high amount of ultrasonic distortion." — `04-06:369-375` (polynomial-1) |
 | Each output sample is a weighted sum of neighbouring input samples | `basic` | `[structural]` | Definition of FIR convolution; the tap count *is* the number of terms in that sum (see §4) |
@@ -62,7 +64,7 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 2. Attack
 
-**Gloss draft.** An attack, or transient, is the sudden start of a sound — a drum hit, a plucked string, the leading edge of a note. It matters here because a filter's own behaviour in time is only visible when what it is fed changes abruptly. Feed it a steady tone and the filter's response settles and disappears into the tone. Feed it an attack and the filter's response appears around it, which is what ringing is and why ringing is always described relative to an attack rather than on its own.
+**Gloss draft.** An attack, or transient, is the sudden start of a sound — a drum hit, a plucked string, the leading edge of a note. It matters here because a filter's own behaviour in time shows most plainly when what it is fed changes abruptly. Feed it a steady tone and the filter's response settles and merges into the tone. Feed it an attack and the filter's response spreads out around it, which is what ringing is, and why ringing is described relative to an attack rather than on its own.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
@@ -73,12 +75,13 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 3. Ringing
 
-**Gloss draft.** Ringing is the oscillation a filter adds around a sudden sound. Pre-ringing arrives before the attack, post-ringing after it. How long it lasts is set by the filter's length; where it sits is set by the filter's phase; and how much there is trades against how sharply the filter cuts. A filter with no ringing at all is possible, and it pays for that by passing through material it was supposed to remove.
+**Gloss draft.** Ringing is the spreading-out in time that comes with limiting a signal in frequency: a sharp cut in frequency and a long response in time are the same fact seen two ways. Pre-ringing arrives before the attack, post-ringing after it. Where it sits is set by the filter's phase. How long it lasts follows from how narrowly the filter separates what it keeps from what it removes — a sharper separation rings longer. A filter with no apparent ringing is possible, and it pays for that by passing through material it was supposed to remove.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
 | Pre-ringing originates at the oversampling filter | `basic` | `[structural]` | "Pre-echo is available only from the oversampling filter" — `eq-assistant/PHASE.md:33` |
-| Duration is set by length | `basic` | `[sourced]` | "the duration of the transient response is \(N-1\) samples" — Smith `[V]` (see §7) |
+| Length is the ceiling on duration — ringing cannot outlast the filter | `basic` | `[sourced]` | "the duration of the transient response is \(N-1\) samples" — Smith `[V]` (see §7). Ceiling, not setter: how much of the length actually rings follows from the sharpness of the cut |
+| Duration follows the sharpness of the separation | `basic` | `[sourced]` | Transition width is the window main-lobe width, which goes as 1/length — Smith, *SASP* §4.5 / §3.1.1 `[V]` (quotes in §7): a narrower transition demands a longer response, so sharper separation rings longer |
 | Placement is set by phase | `basic` | `[sourced]` | "equal amounts of ``pre-ringing'' and ``post-ringing'' due to the use of a linear-phase FIR filter" — Smith, *SASP* §8.4.1 `[V]` (see §6) |
 | Steepness is what less ringing is traded for | `basic` | `[sourced]` | "Minimizes amount of ringing by using slow roll-off filters." — `04-04-pcm.txt:147-148`. **Surface caveat:** the SDM→PCM Conversion drop list, not the oversampling Filter list; cite with that attribution |
 | …and bandwidth is the other thing traded | `basic` | `[sourced]` | "Optimized tradeoff between ringing and wide frequency response." — `04-04-pcm.txt:151-153`, same surface caveat |
@@ -91,11 +94,12 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 4. Taps
 
-**Gloss draft.** A tap is one step of a filter's arithmetic: one nearby input sample, and one weight applied to it. The filter's output is the sum of all of them, so the number of taps is both how much work the filter does per sample and how far the filter reaches in time. That is why length is quoted in taps rather than in milliseconds. One catch: the counts are usually relative rather than absolute — a filter quoted at 4096 taps per conversion ratio uses 16384 of them when upsampling by four, so the same filter is longer at higher rates.
+**Gloss draft.** A tap is one step of a filter's arithmetic: one nearby input sample, and one weight applied to it. The filter's output is the sum of all of them, so the number of taps is both how much work the filter does per output sample and how far it reaches, counted in samples. Tap counts are usually quoted relative to the conversion ratio — a filter quoted at 4096 taps per ratio uses 16384 when upsampling by four. Those taps run at four times the rate, so the filter spans the same stretch of time at every ratio; scaling the count is what holds its behaviour constant across rates.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
 | **Tap counts are usually ratio-relative, not absolute** | `basic` | `[sourced]` | "Number of taps is 4096 x conversion ratio." — `04-06:407-408` |
+| Ratio-scaling holds the filter's time span constant across rates | `basic` | `[structural]` | Arithmetic on the row above: 4096×ratio taps at ratio× the output rate span the same stretch of time at every ratio — the count scales precisely so the behaviour does not |
 | The tap count is what HQPTuner's Length classification is built on | `basic` | `[sourced]` | `facets.js:90-128` — `LENGTH_OVERRIDES` and its comment carry the per-filter tap counts (S=4096×ratio, L=131070×, Lm/Lh=16384×, Ll=65536×), because letter-coded names carry no readable length token |
 | Taps and duration are the same quantity in different units | `basic` | `[sourced]` | "for length \(N\) FIR filters, the duration of the transient response is \(N-1\) samples." — Smith §5.7 `[V]` |
 | A tap is one term of the weighted sum | `basic` | `[structural]` | Definition of FIR convolution (see §1) |
@@ -104,7 +108,7 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 5. Cut
 
-**Gloss draft.** Cut is shorthand for how a filter stops passing sound, and it has three separate parts: where the cut begins, how steeply it falls once it begins, and how far down it finally gets. HQPlayer names the middle part only: *roll-off*, slow or fast, is the steepness. Steep and deep are not the same thing — a filter can fall away quickly and still let a fair amount through, or fall away slowly and still end up thoroughly silent. Whatever a filter fails to remove stays in the signal alongside the music. One property sits next to the cut rather than in it: flatness, meaning how level the filter leaves what it passes, before the cut begins at all.
+**Gloss draft.** Cut is shorthand for how a filter stops passing what is above the music, and it has three separate parts: where the cut begins, how steeply it falls once it begins, and how far down it finally gets. HQPlayer names the middle part only: *roll-off*, slow or fast, is the steepness. Steep and deep are not the same thing — a filter can fall away quickly and still let a fair amount through, or fall away slowly and still end up thoroughly silent. What a filter fails to remove is passed on to the equipment downstream as ultrasonic distortion. One property sits next to the cut rather than in it: flatness, meaning how level the filter leaves what it passes, before the cut begins at all.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
@@ -118,10 +122,11 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 6. Phase
 
-**Gloss draft.** Phase decides where a filter's ringing sits relative to the sound that caused it. Linear phase splits the ringing evenly, so part of it arrives before the attack. Minimum phase moves all of it after the attack, and in exchange delays some frequencies more than others. Intermediate phase is a setting between those two, described by what it produces rather than by what it is.
+**Gloss draft.** Phase is about timing: how long a filter takes to pass each frequency through. Linear phase delays every frequency by the same amount, which is why its ringing spreads evenly on both sides of the attack — part of it arrives before. Minimum phase delays some frequencies more than others, and in exchange all of the ringing lands after the attack. Intermediate phase sits between the two, with a small amount of pre-ringing and a longer tail after.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
+| **Phase is timing: linear phase delays every frequency equally, minimum phase does not** | `basic` | `[structural]` | Definitional: linear phase ⇔ constant group delay; the symmetric-impulse row below carries the constant delay (half the length), and the MIT least-group-delay row carries the frequency-dependent minimum-phase case |
 | A linear-phase FIR produces equal amounts of ringing before and after the transient | `basic` | `[sourced]` | "Note the equal amounts of ``pre-ringing'' and ``post-ringing'' due to the use of a linear-phase FIR filter." — Smith, *SASP* §8.4.1 `[V]` |
 | Linear phase's cost is stated by HQPlayer as pre-ringing | `basic` | `[sourced]` | "Good phase response, but has some amount of pre-ringing." — `04-06:102-103` |
 | Minimum phase's cost is stated by HQPlayer as an altered phase response | `basic` | `[sourced]` | "Altered phase response, but no pre-ringing." — `04-06:107-108` |
@@ -140,7 +145,7 @@ Not an HQPlayer coinage. SoX and libsoxr name the same setting, at position 25 o
 
 ## 7. Length
 
-**Gloss draft.** Length is how long the filter's own response lasts, counted in taps. A longer filter can separate what it keeps from what it removes more sharply, and its ringing lasts proportionally longer. A shorter filter rings more briefly and separates more gently. Longer is not automatically better: the extra length is spent either on a sharper cut or on rejecting more of what is above it, and a shorter filter spending its length differently can beat a longer one.
+**Gloss draft.** Length is how long the filter's own response lasts, counted in taps. Extra length buys a sharper separation between what the filter keeps and what it removes, and a sharper separation rings for longer. The length can be spent two ways — on a steeper cut, or on rejecting more of what sits above it — so longer is not automatically better: a shorter filter that spends its length on the target you care about can beat a longer one that spreads it across both.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
@@ -160,7 +165,7 @@ Not an HQPlayer coinage. SoX and libsoxr name the same setting, at position 25 o
 
 ## 8. Apodizing
 
-**Gloss draft.** An apodizing filter targets ringing that is already in the recording, put there by filters in the equipment that made it — not ringing the playback filter is about to add. It cannot subtract that ringing. The inherited response and the playback filter become a single response, and an apodizing filter is shaped so the combined result is the short one.
+**Gloss draft.** An apodizing filter targets ringing that is already in the recording, put there by filters earlier in the chain — the converter that made the recording, or later rate conversion in mastering. The inherited response and the playback filter combine into a single response, and an apodizing filter cuts where the earlier filter cut or below it, so the combined result takes its shape — the short one — from the apodizing filter rather than the inherited one.
 
 Mechanism only, no when-to-use guidance: the app already carries an automatic apodization warning. The manual's own trigger rule (the Apod counter, `04-06:8-11`) is therefore out, and so is `04-06:12-13`, which decodes the recurring phrase "Only suitable for highest technical quality source materials" by restating that rule. Consequence accepted: that phrase appears verbatim in several non-apodizing filter descriptions, including the A/B pair below, and the card will not explain it.
 
@@ -169,7 +174,7 @@ Mechanism only, no when-to-use guidance: the app already carries an automatic ap
 | **The defect is upstream, in the recording chain** | `basic` | `[sourced]` | "For PCM source content, HQPlayer can detect need for an apodizing filter. This is based on detected errors that originate from the recording ADC or mastering tools." — `02-06-apodization.txt:2-3` |
 | Independent statement of the same, naming the decimation filters | `basic` | `[sourced]` | "Apodizing filters are generally used to correct/reduce errors in the source data, introduced by the ADC digital decimation filters, or at later stage conversion tools used to produce the final deliverables." — Ferrum technical article `[V]` |
 | **The mechanism: it shortens the impulse response already present** | `basic` | `[sourced]` | "illustrating how the highly dispersive time response of the brickwall filter in Figure 2A is shortened by application of the apodising filter to the compact time response in Figure 2B." — patent EP3155617A1 (Meridian, Craven/Stuart) `[V]` |
-| Same, in frequency terms | `adv` | `[sourced]` | "an ``apodising'' filter operating at the 96kHz rate can widen the effective transition band, narrowing the dispersion of impulse energy" — EP3155617A1 `[V]` |
+| **Why the combined result takes the apodizing filter's shape: it cuts at or below where the inherited filter cut** | `basic` | `[sourced]` | "an ``apodising'' filter operating at the 96kHz rate can widen the effective transition band, narrowing the dispersion of impulse energy" — EP3155617A1 `[V]`: widening the transition band from the inherited corner downward is what lets the apodizing response dominate the cascade |
 | The cost **in the general case, not HQPlayer's** | `adv` | `[sourced]` | "this operation is making the slope of the filter less steep and attenuation in stopband is a little lower, therefore unwanted higher frequencies are less rejected." — Ferrum `[V]`. General case only; not a cost of HQPlayer's apodizing filters |
 | **HQPlayer states no harm, and states the reverse risk** | `basic` | `[sourced]` | "There is no harm in using apodizing filter for content that doesn't need one. But there is harm using non-apodizing filter for content that would need one." — `02-06-apodization.txt:7-9`. Authoritative; out of the copy because the app's automatic warning already carries it |
 | A clean A/B exists in the filter list: same filter, same length, apodizing the only difference | `basic` | `[sourced]` | "Very steep 8 times longer version of poly-sinc-ext2-long." (`04-06:215-216`, `poly-sinc-ext2-xla`, Apod=Y) vs "Very steep 8 times longer non-apodizing version of poly-sinc-ext2-long. Only suitable for highest technical quality source materials." (`04-06:220-224`, `poly-sinc-ext2-xl`, Apod=N) |

@@ -15,6 +15,7 @@ pins a small `request_timeout` and the cases assert on what came back, never on
 how long it took.
 """
 
+import logging
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
@@ -135,18 +136,30 @@ def test_a_setter_that_stalls_carries_a_reason(stalling_setter_api: TestClient) 
     assert entry.get("error")
 
 
-def test_a_stalled_readback_makes_the_write_unavailable(
+def test_a_write_whose_readback_stalls_is_still_answered(
     stalling_readback_api: tuple[TestClient, dict[str, str]],
 ) -> None:
     client, _ = stalling_readback_api
     resp = client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
-    assert resp.status_code == 503
+    assert resp.status_code == 200
 
 
-def test_a_stalled_readback_says_why(stalling_readback_api: tuple[TestClient, dict[str, str]]) -> None:
+def test_a_write_whose_readback_stalls_is_reported_as_not_applied(
+    stalling_readback_api: tuple[TestClient, dict[str, str]],
+) -> None:
     client, _ = stalling_readback_api
     resp = client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
-    assert resp.json()["detail"]
+    entry = next(e for e in resp.json()["live"] if e["setting"] == STALLED_FIELD)
+    assert entry["ok"] is False
+
+
+def test_a_write_whose_readback_stalls_carries_a_reason(
+    stalling_readback_api: tuple[TestClient, dict[str, str]],
+) -> None:
+    client, _ = stalling_readback_api
+    resp = client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
+    entry = next(e for e in resp.json()["live"] if e["setting"] == STALLED_FIELD)
+    assert entry.get("error")
 
 
 def test_a_write_whose_readback_stalls_still_reached_the_engine(
@@ -176,3 +189,139 @@ def test_a_mode_setter_that_stalls_is_reported_as_not_applied(stalling_mode_api:
     resp = stalling_mode_api.post("/api/config/live", json={"fields": {"mode": "pcm"}})
     entry = next(e for e in resp.json()["live"] if e["setting"] == "mode")
     assert entry["ok"] is False
+
+
+# --- the connection dropped AFTER the write landed -----------------------------
+# The other shape hqplayerd 6.0.4 shows while the engine is down under it, and the
+# one actually seen in the field: the setter is answered, its readback verifies,
+# and a LATER command dies with the connection. `GetShapers: connection failed:
+# Connection lost` on a filter change that had visibly succeeded is what a user
+# was shown. Nothing the listener can hear went wrong — the setting is on the
+# engine — so the write is a success that lost its housekeeping, not a 503.
+
+
+#: The post-write housekeeping command the connection dies on. `SetFilter` and
+#: `SetMode` swap the enumerations behind them, so the route re-reads the lists
+#: after either (protocol.md §6 SetMode/GetModes, manual §4.6) — this is one of
+#: those reads, and the one named in the field report.
+HOUSEKEEPING_COMMAND = "GetShapers"
+
+#: A live field on the chain the fake has loaded (PCM by default), written by
+#: value: enum 40 is `poly-sinc-gauss-long`, index 1 of the fake's PCM list, so
+#: `State.filterNx` moving to "1" is the engine's own word that it landed.
+CLOSING_FIELD = "filter"
+CLOSING_VALUE = "40"
+CLOSING_STATE_ATTR = "filterNx"
+CLOSING_STATE_VALUE = "1"
+
+
+def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
+    """The control-only app on a daemon that answers everything until the app has
+    loaded, then drops the connection on `GetShapers` and answers nothing else.
+
+    Healthy first so the app can connect and enumerate; the knob goes on through
+    the shared State dict afterwards, which is also how a case reads the daemon's
+    side of the wire without asking it anything."""
+    state = dict(DEFAULTS)
+    daemon = spawn_threaded_daemon(state=state)
+    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT)
+    client = next(app)
+    state["_close"] = HOUSEKEEPING_COMMAND
+    yield client, state
+    next(app, None)
+    next(daemon, None)
+
+
+@pytest.fixture
+def closing_api(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
+    yield from _closing_app(tmp_path)
+
+
+@pytest.fixture
+def closing_mode_api(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
+    """The same daemon, for the mode write — which does strictly more housekeeping
+    after the setter than any other live field, so it reaches the dropped
+    connection by a different path."""
+    yield from _closing_app(tmp_path)
+
+
+def test_a_write_that_loses_the_connection_afterwards_is_still_answered(
+    closing_api: tuple[TestClient, dict[str, str]],
+) -> None:
+    client, _ = closing_api
+    resp = client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
+    assert resp.status_code == 200
+
+
+def test_a_write_verified_before_the_connection_dropped_is_reported_as_applied(
+    closing_api: tuple[TestClient, dict[str, str]],
+) -> None:
+    client, _ = closing_api
+    resp = client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
+    entry = next(e for e in resp.json()["live"] if e["setting"] == CLOSING_FIELD)
+    assert entry["ok"] is True
+
+
+def test_a_write_that_loses_the_connection_afterwards_still_reached_the_engine(
+    closing_api: tuple[TestClient, dict[str, str]],
+) -> None:
+    # What makes `ok: true` honest rather than optimistic: a live setting never
+    # touches the config file, so the daemon's own State is the only place it
+    # shows up, and it shows the new value.
+    client, state = closing_api
+    client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
+    assert state[CLOSING_STATE_ATTR] == CLOSING_STATE_VALUE
+
+
+def test_a_mode_write_that_loses_the_connection_afterwards_is_still_answered(
+    closing_mode_api: tuple[TestClient, dict[str, str]],
+) -> None:
+    client, _ = closing_mode_api
+    resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
+    assert resp.status_code == 200
+
+
+def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_applied(
+    closing_mode_api: tuple[TestClient, dict[str, str]],
+) -> None:
+    client, _ = closing_mode_api
+    resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
+    entry = next(e for e in resp.json()["live"] if e["setting"] == "mode")
+    assert entry["ok"] is True
+
+
+# The two below assert on a log record, which the testing policy otherwise keeps
+# off-limits (docs/testing.md §1). They are here because the operator-visible
+# contract for a swallowed failure IS the record: a housekeeping command that
+# died is invisible in the 200 the user gets, so the only place it survives is
+# the log, and a warning that does not name the command diagnoses nothing.
+
+
+def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
+    closing_api: tuple[TestClient, dict[str, str]], caplog: pytest.LogCaptureFixture
+) -> None:
+    client, _ = closing_api
+    with caplog.at_level(logging.WARNING):
+        client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
+    assert any(HOUSEKEEPING_COMMAND in record.getMessage() for record in caplog.records)
+
+
+def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
+    closing_api: tuple[TestClient, dict[str, str]], caplog: pytest.LogCaptureFixture
+) -> None:
+    client, _ = closing_api
+    with caplog.at_level(logging.WARNING):
+        client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
+    # Only that it is not swallowed silently; which command died is the test above.
+    assert any(record.levelno == logging.WARNING for record in caplog.records)
+
+
+# --- nothing written at all ----------------------------------------------------
+# The other side of the line: housekeeping failing after a write landed is a
+# success, but a write that never reached a daemon is not. `api_client` points
+# the control lane at a port nothing listens on.
+
+
+def test_a_write_with_no_control_connection_is_unavailable(api_client: TestClient) -> None:
+    resp = api_client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
+    assert resp.status_code == 503

@@ -83,6 +83,7 @@ Rules:
 - Keep `README.md` current when features change. Decisions recorded in commit message, and in `docs/architecture.md` when they change normative rule.
 - Commits carry placeholders only, never real credentials. **Explicit binding exception: hqplayerd management credentials not secret** — LAN-only daemon, stock pair published in hqplayerd's own docs and this README, and agents must poke live daemon to develop. They appear in commands, logs, probe scripts, hand-back reports as matter of course: treat as ordinary text — quote freely, run commands carrying them, leave unredacted. General credential rule governs everything else.
 - **Branches:** `dev` (scratch, where work lands) → `beta` (testers, `:beta` image) → `main` (release, `:latest`). Promotion = user's call, never agent's. When told, ship with `/ship dev|beta|main` (`scripts/ship.sh`) — one metered action for whole promotion chain. Author release commit first with `scripts/bump.sh <--major|--minor|--patch> ["body"]` — increments both version files, opens `CHANGELOG.md` heading, commits, prints diff, one metered action. Ship script runs gate, refuses dirty tree, never force-pushes.
+- **Trivia gets cut:** Any references to project "trivia" or "decision archaeology" DO NOT BELONG IN DOCUMENTATION at any level. They bloat context and cost tokens for no benefit. Before writing, ask yourself: does this assist the next agent, or is it just a random fact I know?
 
 ## Host
 

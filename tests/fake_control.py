@@ -49,6 +49,13 @@ DEFAULTS = {
     # under it (2026-07-29, /tmp/hqplayerd.log): command accepted, no response,
     # connection dropped later. Distinct from `_deaf`, which does answer.
     "_stall": "",
+    # Space-separated commands on which the connection is DROPPED: the command is
+    # received and logged, nothing comes back, and the socket closes under the
+    # client. The other half of what hqplayerd 6.0.4 does while SetFilter/SetMode
+    # take the audio engine down (2026-07-29) — the setter itself is answered and
+    # a LATER command dies with the connection. Distinct from `_stall`, which
+    # keeps the connection open, so the client waits out its deadline instead.
+    "_close": "",
     # Which family the SOURCE is, which in [source] mode is which chain the engine
     # has loaded (readme §1.7). Named for the Status attribute it used to be
     # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
@@ -219,12 +226,24 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     return None
 
 
-def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | None:
-    """The answer to one command, or None for a command the fake stalls on."""
+class Close:
+    """What the fake returns instead of a frame when it drops the connection."""
+
+
+#: Singleton of the above: the daemon received the command, logged it, answered
+#: nothing, and closed the socket (the `_close` knob).
+CLOSE = Close()
+
+
+def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | None:
+    """The answer to one command: a frame, `CLOSE` for a command the fake drops
+    the connection on, or None for one it stalls on."""
     el = _fromstring(body)
     name, attrs = el.tag, el.attrib
     if log is not None:
         log.append((name, dict(attrs)))
+    if name in state.get("_close", "").split():
+        return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
         return None  # received, logged, never answered
     answer = _query(name, state)
@@ -259,7 +278,10 @@ async def serve(
             break
         body = data.split(b"?>", 1)[-1].strip().decode()
         answer = handle(body, state, log)
+        if isinstance(answer, Close):
+            break  # dropped: the socket goes away with nothing on it
         if answer is None:
             continue  # stalled: keep the connection open and say nothing
         writer.write(f"{XML}{answer}\n".encode())
         await writer.drain()
+    writer.close()

@@ -17,9 +17,9 @@
 // No control here is ever refused because playback is running (CLAUDE.md): what
 // a live change costs mid-stream is the user's to spend, and the captions say so.
 
-import { signal, computed } from "@preact/signals";
+import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { engineState, engineStatus, enums, modeName, runningValue, refreshConfig } from "./state.js";
+import { engineState, engineStatus, enums, modeName, runningValue, refreshConfig, health } from "./state.js";
 import { enumOptions, optionsFor } from "./options.js";
 import { narrowOptions } from "./narrowing.js";
 import { schema } from "./schema.js";
@@ -39,6 +39,27 @@ export const liveReloading = signal(false);
 const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"]);
 // Writes that change what the running config reports for the two rate limits.
 const RATE_MIRRORED = new Set(["mode", "rate"]);
+
+// A live error is about one write and the connection that write died on. The
+// engine goes down briefly under SetFilter and SetMode, and the poll loop brings
+// a new connection up within seconds (manager._connect_and_load) — at which point
+// the message describes a moment that is over, and the control it sits on is
+// working again. So it goes when the connection does.
+//
+// Keyed on the connection's own timestamp, not on `reachable`: the drop can be
+// shorter than the health poll's interval, so the false that a reachable-edge
+// would need is never observed and the error would sit there forever.
+// The FIRST connection is not a reconnect: nothing on the page predates it, so
+// there is nothing of an older connection's to drop. Only a move from one
+// connection to another clears.
+let seenConnection;
+effect(() => {
+  const now = health.value && health.value.connected_at;
+  if (!now || now === seenConnection) return;
+  const first = seenConnection === undefined;
+  seenConnection = now;
+  if (!first) liveErrors.value = {};
+});
 
 function setError(field, message) {
   const next = { ...liveErrors.value };
