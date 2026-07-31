@@ -13,7 +13,8 @@
 # the CHANGELOG write. This script starts from a clean tree at that commit.
 #
 # What it does, in order:
-#   1. preflight   clean tree, on dev, versions agree, remotes fetched
+#   1. preflight   clean tree, on dev, versions agree, remotes fetched,
+#                  and for beta/main: HEAD is the bump.sh release commit
 #   2. make check  full gate; red aborts before anything is pushed
 #   3. push dev
 #   4. promote     ff-only merges dev->beta (and beta->main for `main`)
@@ -62,6 +63,16 @@ INIT_VER=$(grep -m1 '^__version__ = ' hqptuner/__init__.py | cut -d'"' -f2)
 [ -n "$PY_VER" ] || die "no version in pyproject.toml."
 [ "$PY_VER" = "$INIT_VER" ] || die "version mismatch: pyproject.toml=$PY_VER hqptuner/__init__.py=$INIT_VER"
 TAG="v$PY_VER"
+
+# Channel branches only ever point at release commits: a beta or main ship
+# promotes exactly what bump.sh authored, never unlabeled dev work.
+if [ "$TARGET" != dev ]; then
+  SUBJECT=$(git log -1 --format=%s)
+  if [ "$SUBJECT" != "release: $PY_VER" ]; then
+    [ "$DRY" = 1 ] || die "HEAD is '$SUBJECT', not 'release: $PY_VER' — run scripts/bump.sh first."
+    echo "  WARNING: HEAD is not the release commit for $PY_VER; a real ship would stop here."
+  fi
+fi
 
 git fetch --quiet origin
 git fetch --quiet --tags origin
