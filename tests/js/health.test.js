@@ -176,14 +176,14 @@ test("test_output_buffer_applies_once_a_positive_fill_is_seen", () => {
 
 test("test_clipping_within_a_track_alerts_on_the_delta", () => {
   reset({ clips: "10" });
-  assert.ok(texts(poll({ clips: "13" })).includes("×3 this track"));
+  assert.ok(texts(poll({ clips: "23" })).includes("×13 this track"));
 });
 
 test("test_a_new_track_rebaselines_the_clip_counter", () => {
   reset({ clips: "10" });
-  poll({ clips: "13" });
-  reset({ clips: "13" });
-  assert.deepEqual(poll({ clips: "13" }), []);
+  poll({ clips: "23" });
+  reset({ clips: "23" });
+  assert.deepEqual(poll({ clips: "23" }), []);
 });
 
 test("test_a_counter_that_goes_backwards_clamps_to_zero", () => {
@@ -203,14 +203,14 @@ test("test_the_track_counter_reports_the_delta_not_the_total", () => {
 // below that is silent even on a non-apodizing filter. Counts used by the
 // "never flagged" cases are deliberately at or above the threshold, so they
 // would fire if the filter's apodizing-ness were misread.
-const APOD_MIN = 5;
+const APOD_MIN = 10;
 
 test("test_apodizing_events_alert_when_the_active_filter_is_not_apodizing", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
   assert.equal(
     texts(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })),
-    "Apodizing events ×5 this track, but plain-filter is non-apodizing — consider an apodizing filter.",
+    "Apodizing events ×10 this track, but plain-filter is non-apodizing — consider an apodizing filter.",
   );
 });
 
@@ -220,7 +220,7 @@ test("test_an_apodizing_alert_is_a_warning", () => {
   assert.deepEqual(sevs(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })), ["warn"]);
 });
 
-for (const count of [1, 2, 3, 4]) {
+for (const count of [1, 4, 6, 9]) {
   test(`test_an_apodizing_delta_below_the_threshold_is_silent: ${count}`, () => {
     enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
     reset({ apod: "0", active_filter: "plain-filter" });
@@ -237,16 +237,16 @@ test("test_an_apodizing_delta_above_the_threshold_still_alerts", () => {
 test("test_the_apodizing_alert_counts_the_track_delta_not_the_total", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "100", active_filter: "plain-filter" });
-  assert.ok(texts(poll({ apod: "106", active_filter: "plain-filter" })).includes("×6 this track"));
+  assert.ok(texts(poll({ apod: "111", active_filter: "plain-filter" })).includes("×11 this track"));
 });
 
 test("test_the_apodizing_alert_accrues_across_polls_within_one_track", () => {
   // no single poll steps by APOD_MIN; only the per-track total reaches it
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
-  poll({ apod: "2", active_filter: "plain-filter" });
   poll({ apod: "4", active_filter: "plain-filter" });
-  assert.ok(texts(poll({ apod: "6", active_filter: "plain-filter" })).includes("×6 this track"));
+  poll({ apod: "8", active_filter: "plain-filter" });
+  assert.ok(texts(poll({ apod: "12", active_filter: "plain-filter" })).includes("×12 this track"));
 });
 
 test("test_a_new_track_rebaselines_the_apodizing_counter", () => {
@@ -293,7 +293,7 @@ test("test_a_sustained_low_buffer_adds_nothing_to_a_speed_alert", () => {
 
 test("test_independent_faults_are_reported_together", () => {
   reset({ clips: "0" });
-  assert.equal(repeat(SUSTAIN, { process_speed: "0.5", clips: "2" }).length, 2);
+  assert.equal(repeat(SUSTAIN, { process_speed: "0.5", clips: "12" }).length, 2);
 });
 
 // --- registration -----------------------------------------------------------

@@ -19,7 +19,9 @@ const SPEED_CRIT = 1.0;
 const SUSTAIN = 3; // consecutive polls (~6 s at the 2 s cadence)
 // A handful of apodizing events per track is normal on ordinary material; the
 // alert is only worth the user's attention once they pile up.
-const APOD_MIN = 5;
+const APOD_MIN = 10;
+// Same idea for clipping: wait for a pile-up rather than the first event.
+const CLIP_MIN = 10;
 
 // per-track counter baselines + consecutive-poll streaks (internal state)
 const track = signal({ serial: null, clips0: 0, apod0: 0 });
@@ -124,7 +126,7 @@ function speedAlert(s, sp) {
 }
 
 function clipAlert(clips) {
-  if (clips <= 0) return null;
+  if (clips < CLIP_MIN) return null;
   return { sev: "warn", text: `Clipping ×${clips} this track — reduce volume or gain.` };
 }
 

@@ -43,13 +43,13 @@ test("test_an_idle_engine_renders_no_strip_even_with_leftover_counters", () => {
 });
 
 test("test_a_clipping_track_puts_its_alert_on_screen", () => {
-  assert.ok(strip({ ...PLAYING, clips: "3" }).includes("Clipping ×3 this track"));
+  assert.ok(strip({ ...PLAYING, clips: "13" }).includes("Clipping ×13 this track"));
 });
 
 test("test_a_clip_alert_renders_at_warning_severity", () => {
-  assert.ok(strip({ ...PLAYING, clips: "3" }).includes('class="alert alert-warn"'));
+  assert.ok(strip({ ...PLAYING, clips: "13" }).includes('class="alert alert-warn"'));
 });
 
 test("test_the_alert_list_renders_inside_the_strip_row", () => {
-  assert.ok(strip({ ...PLAYING, clips: "3" }).includes('class="alert-strip"'));
+  assert.ok(strip({ ...PLAYING, clips: "13" }).includes('class="alert-strip"'));
 });
