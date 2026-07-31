@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-07-30
+
 ### Changed
 
 - **Junk-filter advice no longer guesses at causes, and offers a filter-family alternative.** A persistent ultrasonic tone can be tape bias, but it can also be clipping in an authentic hi-res recording, so the advice now describes what it sees instead of naming a culprit. For persistent tones it also suggests the poly-sinc-gauss-hires and poly-sinc-ext2-hires filter families as an alternative to the junk filter, and goes quiet when one of them is engaged.
