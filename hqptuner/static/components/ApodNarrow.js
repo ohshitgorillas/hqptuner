@@ -9,7 +9,16 @@
 // visible instead of hover-only.
 import { html } from "../lib/dom.js";
 import { metadata } from "../store/state.js";
-import { nApod, nApodHalf, nHideHires, nHiresOnly, setApod, setApodHalf, setHideHires, setHiresOnly } from "../store/narrowing.js";
+import {
+  nApod,
+  nApodHalf,
+  nHideHires,
+  nHiresOnly,
+  setApod,
+  setApodHalf,
+  setHideHires,
+  setHiresOnly,
+} from "../store/narrowing.js";
 
 function apodTip() {
   const s = (metadata.value && metadata.value.settings) || {};
