@@ -76,6 +76,10 @@ metadata.value = {
       "static-quality-5": { genre: [], quality: 5, focus: [], apodizing: "none", ratio: "integer" },
       "static-upsample": { genre: [], quality: 3, focus: [], apodizing: "none", ratio: "2x", upsample_only: true },
       "static-bidirectional": { genre: [], quality: 3, focus: [], apodizing: "none", ratio: "2x" },
+      // hi-res is derived from the NAME (isHires: /hires|mqa|mp3/i), so these two
+      // differ only in their key — the facets are otherwise identical.
+      "poly-sinc-hires-mp": { genre: [], quality: 3, focus: [], apodizing: "none", ratio: "integer" },
+      "poly-sinc-plain-mp": { genre: [], quality: 3, focus: [], apodizing: "none", ratio: "integer" },
     },
   },
 };
@@ -89,12 +93,15 @@ const OPTIONS = [
   { value: "5", label: "NOT-IN-FACETS" },
 ];
 
-// Apply exactly one facet from a clean slate. Apod defaults ON, so a case that
-// does not want apodizing narrowing must clear it explicitly (both chains).
+// Apply exactly one facet from a clean slate. Apod AND hide-hi-res both default
+// ON, so a case that wants a single facet in isolation must clear both on both
+// 1x chains first (Nx's show-only-hires defaults off and needs no clearing).
 function only(apply) {
   resetNarrowing();
   setApod("pcm_filter_1x", false);
   setApod("sdm_filter_1x", false);
+  setHideHires("pcm_filter_1x", false);
+  setHideHires("sdm_filter_1x", false);
   apply();
 }
 
@@ -279,6 +286,54 @@ test("test_half_apodizing_filters_appear_when_opted_in", () => {
   resetNarrowing();
   setApodHalf("pcm_filter_1x", true);
   assert.ok(kept().includes("poly-sinc-short-mp"));
+});
+
+// --- hi-res narrowing (1x hide, Nx show-only) -------------------------------
+// hide-hi-res defaults ON at 1x; the `only()` helper clears it, so these first
+// two re-enable it deliberately.
+
+test("test_hide_hires_drops_a_hires_filter_at_1x", () => {
+  only(() => setHideHires("pcm_filter_1x", true));
+  assert.equal(narrowOptions(opt("poly-sinc-hires-mp"), null, "1x", "pcm_filter_1x").length, 0);
+});
+
+test("test_hide_hires_keeps_a_non_hires_filter_at_1x", () => {
+  only(() => setHideHires("pcm_filter_1x", true));
+  assert.equal(narrowOptions(opt("poly-sinc-plain-mp"), null, "1x", "pcm_filter_1x").length, 1);
+});
+
+test("test_hide_hires_is_inert_on_the_nx_stage", () => {
+  // the hide flag lives only on 1x keys; an Nx dropdown never carries it.
+  only(() => {});
+  assert.equal(narrowOptions(opt("poly-sinc-hires-mp"), null, "Nx", "pcm_filter_nx").length, 1);
+});
+
+test("test_show_only_hires_keeps_a_hires_filter_at_nx", () => {
+  only(() => setHiresOnly("pcm_filter_nx", true));
+  assert.equal(narrowOptions(opt("poly-sinc-hires-mp"), null, "Nx", "pcm_filter_nx").length, 1);
+});
+
+test("test_show_only_hires_drops_a_non_hires_filter_at_nx", () => {
+  only(() => setHiresOnly("pcm_filter_nx", true));
+  assert.equal(narrowOptions(opt("poly-sinc-plain-mp"), null, "Nx", "pcm_filter_nx").length, 0);
+});
+
+test("test_show_only_hires_is_per_chain", () => {
+  // enabling it on PCM leaves the SDM Nx dropdown unrestricted.
+  only(() => setHiresOnly("pcm_filter_nx", true));
+  assert.equal(narrowOptions(opt("poly-sinc-plain-mp"), null, "Nx", "sdm_filter_nx").length, 1);
+});
+
+test("test_hide_hires_off_reads_as_active", () => {
+  resetNarrowing();
+  setHideHires("pcm_filter_1x", false);
+  assert.equal(narrowingActive.value, true);
+});
+
+test("test_show_only_hires_on_reads_as_active", () => {
+  resetNarrowing();
+  setHiresOnly("pcm_filter_nx", true);
+  assert.equal(narrowingActive.value, true);
 });
 
 // --- per-chain independence (the point of the per-dropdown move) -------------

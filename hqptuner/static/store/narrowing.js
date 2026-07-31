@@ -59,6 +59,19 @@ export function setHiresOnly(field, on) {
 // "narrowing is on" = the facets differ from their defaults, not merely that
 // some facet is set. Apod defaults ON for both chains, so a chain reads as
 // narrowing only when its apod is OFF or its ½-toggle is ON.
+// Whether ANY per-chain toggle departs from its default. Apod and hide-hires
+// default ON (so OFF = engaged); ½-apod and show-only-hires default OFF (so ON =
+// engaged). Split out of narrowingActive to keep that predicate's branch count
+// under the complexity gate.
+function chainTogglesEngaged() {
+  return (
+    APOD_KEYS.some((k) => !nApod.value[k]) ||
+    APOD_KEYS.some((k) => nApodHalf.value[k]) ||
+    HIDE_HIRES_KEYS.some((k) => !nHideHires.value[k]) ||
+    HIRES_ONLY_KEYS.some((k) => nHiresOnly.value[k])
+  );
+}
+
 export const narrowingActive = computed(
   () =>
     !!(
@@ -69,13 +82,7 @@ export const narrowingActive = computed(
       nLength.value.length ||
       nRatio.value.length ||
       nUpsampleOnly.value ||
-      APOD_KEYS.some((k) => !nApod.value[k]) ||
-      APOD_KEYS.some((k) => nApodHalf.value[k]) ||
-      // hide-hires defaults ON, so a 1x chain reads as narrowing only when its
-      // flag is turned OFF; show-only-hires defaults OFF, so an Nx chain reads
-      // as narrowing when its flag is turned ON — mirrors the apod convention.
-      HIDE_HIRES_KEYS.some((k) => !nHideHires.value[k]) ||
-      HIRES_ONLY_KEYS.some((k) => nHiresOnly.value[k])
+      chainTogglesEngaged()
     ),
 );
 

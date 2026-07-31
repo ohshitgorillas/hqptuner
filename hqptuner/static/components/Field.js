@@ -120,6 +120,26 @@ function fieldProse(entry, key, meta, reason, options) {
   `;
 }
 
+// Label row: the field name, optional sub-label, and the live narrow-result
+// badge ("14/68", accent once the list is actually reduced).
+function FieldLabel({ entry, label, badge }) {
+  return html`
+    <label>
+      ${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
+      ${badge ? html`<span class="narrow-count ${badge.on ? "on" : ""}">${badge.n}/${badge.total}</span>` : null}
+    </label>
+  `;
+}
+
+// The per-dropdown narrow controls that hang under a filter field: apodizing +
+// hide-hi-res on the 1x dropdowns, show-only-hi-res on the Nx dropdowns.
+function FieldNarrowControls({ entry, k }) {
+  return html`
+    ${entry.apodNarrow ? html`<${ApodNarrow} field=${k} />` : null}
+    ${entry.hiresNarrow ? html`<${HiresNarrow} field=${k} />` : null}
+  `;
+}
+
 export function Field({ k }) {
   const entry = schema[k];
   if (!entry) return null;
@@ -132,10 +152,7 @@ export function Field({ k }) {
   const classes = `${fieldClasses(entry, k)}${badge && badge.on ? " narrowed" : ""}`;
   return html`
     <div class=${classes} title=${hoverTitle(entry, meta, reason)}>
-      <label>
-        ${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
-        ${badge ? html`<span class="narrow-count ${badge.on ? "on" : ""}">${badge.n}/${badge.total}</span>` : null}
-      </label>
+      <${FieldLabel} entry=${entry} label=${label} badge=${badge} />
       <div class="control">
         <${W}
           value=${effective(k)}
@@ -158,8 +175,7 @@ export function Field({ k }) {
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${fieldProse(entry, k, meta, reason, options)}
-      ${entry.apodNarrow ? html`<${ApodNarrow} field=${k} />` : null}
-      ${entry.hiresNarrow ? html`<${HiresNarrow} field=${k} />` : null}
+      <${FieldNarrowControls} entry=${entry} k=${k} />
     </div>
   `;
 }
