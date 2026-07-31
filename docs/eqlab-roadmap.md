@@ -47,9 +47,16 @@ Landed on working tree:
 
 Status: done, committed. 46 tests via the blind chain: green first run, bite check red (weak form — import error, pre-change tree lacks `space.js` and the new metrics exports), reviewer returned 1 BLOCKER + 1 MAJOR + 4 MINOR, all six tightenings applied by writer re-run. Full gate green, task-check PASS.
 
-## S4 — chain I/O — PLANNED
+## S4 — chain I/O — DONE
 
-Read: daemon / preset XML / ParametricEQ.txt / saved eqlab chain JSON. Write: files only, never the daemon. Diff job between two chains; named snapshots.
+Landed on working tree:
+
+- New chain sources beside `daemon`/`bands` (`io.js` + `chain.js` dispatch): `{"from":"xml","path",row,eq_only}` reads a config-snapshot XML's `<matrix>` pipelines (channel-attribute selection, entity unescape mirroring `matrixconf.py`, `<matrix_profile>` rows never counted, tail consistency across all rows); `{"from":"parametric_eq","path"}` via shipped `parseEqText` (file preamp recorded as `file_preamp_db` provenance, never a stage; unimportable filter lines in `source.skipped`); `{"from":"snapshot","name"}` loads the store.
+- `diff` job: `against` takes any chain spec; both panels + `metric_deltas` (B−A), `response_delta` (rmse, signed maxdev + hz), band pairing by exact f (`matched` with per-parameter deltas / `only_a` / `only_b`; duplicated f never matches), note deltas.
+- `snapshot` job: `save` writes named JSON (process string is the single truth, plus provenance/fs/band_count/preamp_db) to `data/eqlab/` (gitignored) or job `dir`; overwrite guarded; `list` needs no chain.
+- `export` job: ParametricEQ text through shipped `rowToRewText`; Preamp line computed from the summed response and flagged `preamp_source: "computed_response"`; overwrite guarded. Writes go to files only — daemon contact stays the one GET.
+
+Status: done on working tree. 99 tests via the blind chain: 76/77 green first run, one failure adjudicated as spec defect (importer ignores non-filter lines by design — spec item corrected, writer re-run), bite check red (weak form — import error, pre-change tree lacks `io.js` exports and `diffJob`), reviewer returned 1 BLOCKER + 4 MAJOR + 6 MINOR, all applied by writer re-run under pinned spec. Full gate green, task-check PASS.
 
 ## S6 — confidence annotation, headroom, extended flags — PLANNED
 

@@ -9,7 +9,10 @@
 //
 // Job:
 //   { "fs": 44100,
-//     "chain":   {"from":"daemon","row":0,"eq_only":false} | {"bands":[{type,f,q,g},...]},
+//     "chain":   {"from":"daemon","row":0,"eq_only":false} | {"bands":[{type,f,q,g},...]}
+//              | {"from":"xml","path":"cfg.xml","row":0,"eq_only":false}      // config-snapshot XML <matrix> rows
+//              | {"from":"parametric_eq","path":"eq.txt"}                     // REW / EQ APO / AutoEq text
+//              | {"from":"snapshot","name":"..."},                            // saved eqlab snapshot (data/eqlab/)
 //     "target":  {"from":"current"|"flat"|"points"|"chain"|"parametric_eq", ...,
 //                 "smooth":{"octaves":1}, "tilt":{"db_per_octave":-0.5,"pivot":1000},
 //                 "override":[{"range":[1700,2600],"method":"interpolate_edges"}],
@@ -28,7 +31,12 @@
 //                 "refine":true | {"survivors":3,"max_evals":600,"tol":1e-5}}   // continuous refinement of grid winners
 //              | {"kind":"search","space":{...},"pareto":["minimize dev","maximize bass_50_150"],...}
 //              | {"kind":"refine","seed":{"amend":[...],"append":[...]},"space":{...},
-//                 "constraints":[...],"objective":"minimize dev"} }             // warm start from a previous result
+//                 "constraints":[...],"objective":"minimize dev"}               // warm start from a previous result
+//              | {"kind":"diff","against":{...chain spec...}}                   // chain A (job.chain) vs B, deltas B - A
+//              | {"kind":"snapshot","save":"name","overwrite":false}            // write chain to the snapshot store
+//              | {"kind":"snapshot","list":true}                                // list the store (needs no chain)
+//              | {"kind":"export","path":"eq.txt","format":"parametric_eq",
+//                 "overwrite":false} }                                          // write REW / EQ APO text file
 //
 // A search space's `amend`, `replace`, and `append` each take a LIST of change
 // specs; every spec contributes one concrete change per candidate, crossed
@@ -64,8 +72,17 @@
 // fuzz. Not found or not unique is an error, because this chain carries bands
 // 41 Hz apart (7959 and 8000) where a nearest-match would silently pick wrong.
 //
-// READ-ONLY BY CONSTRUCTION: the only request it makes is GET /api/matrix. It
-// emits a process string; applying it is a human's move.
+// `diff` answers "what changes going from A to B": both panels, metric deltas
+// (B minus A), the summed-response residual (rmse, maxdev + Hz), band pairing
+// by exact f (matched with per-parameter deltas / only_a / only_b), and note
+// deltas. `snapshot` and `export` are the write lane: named chain JSON in the
+// store eqlab owns (data/eqlab/), and ParametricEQ text via the shipped
+// serializer — the Preamp line is computed from the summed response and
+// flagged as such.
+//
+// NEVER WRITES THE DAEMON: the only request it makes is GET /api/matrix.
+// Writes go to files only — snapshots and exports. It emits a process string;
+// applying it is a human's move.
 //
 // TO THE AGENT DRIVING THIS: the numbers are yours. Search width, step size,
 // how many passes to run, which metrics to define, how to batch a space too big
@@ -79,14 +96,23 @@
 // instead of hedging the answer down to what happened to be implementable.
 
 import { resolveChain } from "./chain.js";
-import { evaluateJob, probe } from "./jobs.js";
+import { exportJob, snapshotJob } from "./io.js";
+import { diffJob, evaluateJob, probe } from "./jobs.js";
 import { curveOf, F_HI, F_LO, GRID_N, resolveMetricSpecs } from "./metrics.js";
 import { render } from "./render.js";
 import { refineJob, searchJob } from "./search.js";
 import { MAX_COMBOS, MAX_STEPS } from "./space.js";
 import { resolveTarget } from "./target.js";
 
-const KINDS = { probe, evaluate: evaluateJob, search: searchJob, refine: refineJob };
+const KINDS = {
+  probe,
+  evaluate: evaluateJob,
+  search: searchJob,
+  refine: refineJob,
+  diff: diffJob,
+  snapshot: snapshotJob,
+  export: exportJob,
+};
 
 // What this rig can and cannot do, on every run. `guards` are runaway stops to
 // plan batches around, not budgets to ask about; `not_modelled` is the list
@@ -113,7 +139,11 @@ async function run(job) {
   const spec = job.job || {};
   const handler = KINDS[spec.kind];
   if (!handler) throw new Error(`job.kind must be one of ${Object.keys(KINDS).join(" / ")}, got ${spec.kind}`);
-  const { stages, source, consistency } = await resolveChain(job.chain);
+  // Snapshot list is the one job with no chain: it reads the store, nothing else.
+  const listOnly = spec.kind === "snapshot" && spec.list;
+  const { stages, source, consistency } = listOnly
+    ? { stages: [], source: { kind: "none", stage_count: 0 }, consistency: null }
+    : await resolveChain(job.chain);
   const fs = Number(job.fs || 44100);
   // Target is derived from the BASE chain, once — before/after and every
   // search candidate score against the same reference.
@@ -121,6 +151,7 @@ async function run(job) {
   const ctx = {
     stages,
     fs,
+    source,
     metrics: resolveMetricSpecs(job.metrics),
     notes: job.notes,
     target: target && target.curve,
@@ -132,7 +163,7 @@ async function run(job) {
     tail_consistency: consistency,
     ...(target ? { target: target.meta } : {}),
     limits: LIMITS,
-    ...handler(spec, ctx),
+    ...(await handler(spec, ctx)),
   };
 }
 

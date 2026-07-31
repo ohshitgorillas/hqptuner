@@ -10,16 +10,30 @@ function table(headers, rows) {
   return [line(headers), widths.map((n) => "-".repeat(n)).join("  "), ...rows.map(line)].join("\n");
 }
 
+function whereOf(src) {
+  switch (src.kind) {
+    case "daemon":
+      return `daemon row ${src.row}${src.eq_only ? " (eq tail only)" : ""} <- ${src.url}`;
+    case "xml":
+      return `xml channel ${src.row}${src.eq_only ? " (eq tail only)" : ""} <- ${src.path}`;
+    case "parametric_eq":
+      return `parametric_eq <- ${src.path}${src.skipped.length ? ` (${src.skipped.length} line(s) skipped)` : ""}`;
+    case "snapshot":
+      return `snapshot "${src.name}" (${src.saved_at}) <- ${src.path}`;
+    case "none":
+      return "no chain (store operation)";
+    default:
+      return "bands from job";
+  }
+}
+
 function header(out) {
   const src = out.source;
-  const where =
-    src.kind === "daemon"
-      ? `daemon row ${src.row}${src.eq_only ? " (eq tail only)" : ""} <- ${src.url}`
-      : "bands from job";
+  const where = whereOf(src);
   const c = out.tail_consistency;
   const tail = c
     ? `tail_consistent=${c.tail_consistent} over ${c.rows_checked} rows${c.tail_consistent ? "" : ` (offending: ${c.offending_rows.join(", ")})`}`
-    : "tail check n/a (chain given as bands)";
+    : "tail check n/a (single-chain source)";
   const lim = out.limits;
   const limits = lim
     ? `grid: ${lim.grid.points} pts, ${lim.grid.f_lo_hz}-${lim.grid.f_hi_hz} Hz   not modelled: ${lim.not_modelled.length} (see limits in JSON)`
@@ -189,7 +203,58 @@ function renderSearch(out) {
   ].join("\n");
 }
 
-const BODY = { probe: renderProbe, evaluate: renderEvaluate, search: renderSearch, refine: renderRefine };
+function renderDiff(out) {
+  const rows = Object.keys(out.a.metrics).map((k) => [
+    k,
+    out.a.metrics[k].value.toFixed(3),
+    out.b.metrics[k].value.toFixed(3),
+    out.metric_deltas[k].toFixed(3),
+  ]);
+  const rd = out.response_delta;
+  const matched = out.bands.matched.map((m) => [
+    String(m.f),
+    Object.entries(m.deltas)
+      .filter(([, v]) => v !== 0)
+      .map(([k, v]) => `${k} ${v > 0 ? "+" : ""}${v}`)
+      .join(" ") || "identical",
+  ]);
+  const onlyLines = (label, list) =>
+    list.length ? `\n${label}:\n${list.map((a) => `  ${JSON.stringify(a)}`).join("\n")}` : "";
+  return [
+    `against: ${whereOf(out.against_source)}`,
+    `preamp: ${out.a.preamp_db.toFixed(2)} (A) vs ${out.b.preamp_db.toFixed(2)} (B) dB`,
+    `response delta (B - A): rmse ${rd.rmse} dB, maxdev ${rd.maxdev} dB @ ${rd.hz} Hz`,
+    `\nmetrics:\n${table(["metric", "A", "B", "B-A"], rows)}`,
+    matched.length ? `\nmatched bands (B - A):\n${table(["f", "delta"], matched)}` : "",
+    onlyLines("only in A", out.bands.only_a),
+    onlyLines("only in B", out.bands.only_b),
+    notesTable(out.note_deltas),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function renderSnapshot(out) {
+  if (out.saved) return `saved "${out.saved.name}" -> ${out.saved.path}\nprocess:\n${out.saved.process}`;
+  if (!out.snapshots.length) return `store ${out.dir}: empty`;
+  const rows = out.snapshots.map((s) => [s.name, s.saved_at, String(s.band_count), s.preamp_db.toFixed(2)]);
+  return `store ${out.dir}:\n${table(["name", "saved", "bands", "preamp"], rows)}`;
+}
+
+function renderExport(out) {
+  const skipped = out.skipped.length ? `\nskipped:\n${out.skipped.map((s) => `  ${s}`).join("\n")}` : "";
+  return `wrote ${out.filters} filter(s) -> ${out.path}\npreamp: ${out.preamp_db.toFixed(2)} dB (${out.preamp_source})${skipped}`;
+}
+
+const BODY = {
+  probe: renderProbe,
+  evaluate: renderEvaluate,
+  search: renderSearch,
+  refine: renderRefine,
+  diff: renderDiff,
+  snapshot: renderSnapshot,
+  export: renderExport,
+};
 
 /** Full stderr report for a finished job. */
 export function render(out) {

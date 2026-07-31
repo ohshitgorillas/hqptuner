@@ -35,6 +35,9 @@ backups/
 # HQPTuner-owned preset store — user data, not source
 presets/
 
+# eqlab snapshot store — named chain JSON, user data, not source
+data/eqlab/
+
 # local hqplayerd credentials — never commit.
 # Real file is hqpcreds; .env is a symlink to it that exists only so
 # `docker compose` finds the ${HQPTUNER_HQP_*} substitutions in

@@ -2,9 +2,11 @@
 // them. Everything here goes through the shipped process-string parser
 // (lib/matrixspec.js) — eqlab never writes its own `iir:` grammar.
 //
-// READ-ONLY. The one network call in this tool is the GET below.
+// The one network call in this tool is the GET below; file-backed sources
+// (xml, parametric_eq, snapshot) read through io.js.
 
 import { parseProcess, serializeProcess, editedStage, fmtArg } from "../../hqptuner/static/lib/matrixspec.js";
+import { readParametricEq, readSnapshot, readXmlRows } from "./io.js";
 
 const DEFAULT_URL = "http://127.0.0.1:8090/api/matrix";
 
@@ -13,7 +15,7 @@ const DEFAULT_URL = "http://127.0.0.1:8090/api/matrix";
 // into two groups that differ only by that lead-in.
 const EQ_TYPES = new Set(["peak", "lshelf", "hshelf"]);
 
-const isEq = (stage) => stage.kind === "iir" && EQ_TYPES.has(stage.args.type);
+export const isEq = (stage) => stage.kind === "iir" && EQ_TYPES.has(stage.args.type);
 
 /** The trailing run of parametric-EQ stages — the shared EQ tail of a row. */
 export function eqTail(stages) {
@@ -76,9 +78,71 @@ async function fromDaemon(spec) {
   };
 }
 
+async function fromXml(spec) {
+  if (!spec.path) throw new Error("chain: xml source needs a path");
+  const rows = await readXmlRows(spec.path);
+  const rowIndex = spec.row ?? 0;
+  const row = rows.find((r) => r.index === rowIndex);
+  if (!row) throw new Error(`xml: channel ${rowIndex} not found (rows ${rows.map((r) => r.index).join(", ")})`);
+  const all = parseProcess(row.process);
+  const stages = spec.eq_only ? eqTail(all) : all;
+  return {
+    stages,
+    source: {
+      kind: "xml",
+      path: spec.path,
+      row: rowIndex,
+      eq_only: Boolean(spec.eq_only),
+      stage_count: stages.length,
+      process: serializeProcess(stages),
+    },
+    consistency: tailConsistency(rows),
+  };
+}
+
+async function fromParametricEq(spec) {
+  if (!spec.path) throw new Error("chain: parametric_eq source needs a path");
+  const { stages, preamp, skipped } = await readParametricEq(spec.path);
+  return {
+    stages,
+    source: {
+      kind: "parametric_eq",
+      path: spec.path,
+      stage_count: stages.length,
+      process: serializeProcess(stages),
+      // File preamp is provenance only — eqlab chains carry band gains, and
+      // preamp_db is always computed from the summed response.
+      file_preamp_db: preamp === null ? null : Number(preamp),
+      skipped,
+    },
+    consistency: null,
+  };
+}
+
+async function fromSnapshot(spec) {
+  if (!spec.name) throw new Error("chain: snapshot source needs a name");
+  const snap = await readSnapshot(spec);
+  const stages = parseProcess(snap.process);
+  return {
+    stages,
+    source: {
+      kind: "snapshot",
+      name: snap.name,
+      path: snap.path,
+      saved_at: snap.saved_at,
+      stage_count: stages.length,
+      process: serializeProcess(stages),
+    },
+    consistency: null,
+  };
+}
+
+const SOURCES = { daemon: fromDaemon, xml: fromXml, parametric_eq: fromParametricEq, snapshot: fromSnapshot };
+
 /** Resolve the job's `chain` spec into stages plus provenance. */
 export async function resolveChain(spec) {
-  if (!spec) throw new Error('chain: give {"from":"daemon"} or {"bands":[...]}');
+  if (!spec)
+    throw new Error('chain: give {"from": "daemon" | "xml" | "parametric_eq" | "snapshot"} or {"bands":[...]}');
   if (Array.isArray(spec.bands)) {
     const stages = spec.bands.map(bandToStage);
     return {
@@ -87,8 +151,9 @@ export async function resolveChain(spec) {
       consistency: null,
     };
   }
-  if (spec.from !== "daemon") throw new Error(`chain: unknown source "${spec.from}"`);
-  return fromDaemon(spec);
+  const from = SOURCES[spec.from];
+  if (!from) throw new Error(`chain: unknown source "${spec.from}" (${Object.keys(SOURCES).join(", ")})`);
+  return from(spec);
 }
 
 /** Index of the band whose `f` equals `select` exactly. Never fuzzy. */
