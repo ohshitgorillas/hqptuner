@@ -24,7 +24,10 @@ function header(out) {
   const limits = lim
     ? `grid: ${lim.grid.points} pts, ${lim.grid.f_lo_hz}-${lim.grid.f_hi_hz} Hz   not modelled: ${lim.not_modelled.length} (see limits in JSON)`
     : "";
-  return [`source: ${where}`, `stages: ${src.stage_count}   fs: ${out.fs} Hz`, tail, limits].filter(Boolean).join("\n");
+  const target = out.target ? `target: ${out.target.summary}` : "";
+  return [`source: ${where}`, `stages: ${src.stage_count}   fs: ${out.fs} Hz`, tail, target, limits]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function metricRows(metrics) {
@@ -73,7 +76,55 @@ function renderEvaluate(out) {
   ].join("\n");
 }
 
+function rejectedSummary(out) {
+  const rejected = Object.entries(out.rejected_by)
+    .map(([k, n]) => `${k}=${n}`)
+    .join(" ");
+  return rejected ? `   rejected by: ${rejected}` : "";
+}
+
+function rejectLines(out) {
+  if (!out.rejected_top || out.rejected_top.length === 0) return "";
+  const rows = out.rejected_top.map((r) => [
+    r.score.toFixed(4),
+    r.reasons.map((x) => `${x.metric} ${x.bound}=${x.limit} by ${x.by}`).join("; "),
+    JSON.stringify(r.changes),
+  ]);
+  return `\nbest rejected:\n${table(["score", "failed", "changes"], rows)}`;
+}
+
+function sensitivityLines(out) {
+  if (!out.sensitivity || out.sensitivity.length === 0) return "";
+  return `\nsensitivity:\n${out.sensitivity
+    .map(
+      (s) =>
+        `  relax ${s.metric} ${s.bound} ${s.limit} by ${s.relax_by} -> score ${s.score}${s.gain === undefined ? "" : ` (gain ${s.gain})`}`,
+    )
+    .join("\n")}`;
+}
+
+function renderPareto(out) {
+  const exprs = out.pareto.objectives.map((o) => o.expr);
+  const names = (out.front.length ? Object.keys(out.front[0].metrics) : []).filter((n) => !exprs.includes(n));
+  const rows = out.front.map((c, i) => [
+    String(i + 1),
+    ...exprs.map((e) => c.scores[e].toFixed(4)),
+    ...names.map((n) => c.metrics[n].toFixed(3)),
+    c.preamp_db.toFixed(2),
+    JSON.stringify(c.changes),
+  ]);
+  return [
+    `pareto: ${out.pareto.objectives.map((o) => `${o.direction} ${o.expr}`).join("  |  ")}`,
+    `considered ${out.considered}, survived ${out.survived}, front ${out.front_size}, returned ${out.returned}${rejectedSummary(out)}`,
+    out.front.length
+      ? `\n${table(["#", ...exprs, ...names, "preamp", "changes"], rows)}`
+      : "\nno candidate satisfied the constraints",
+    rejectLines(out),
+  ].join("\n");
+}
+
 function renderSearch(out) {
+  if (out.pareto) return renderPareto(out);
   const names = out.top.length ? Object.keys(out.top[0].metrics) : [];
   const rows = out.top.map((c, i) => [
     String(i + 1),
@@ -82,15 +133,17 @@ function renderSearch(out) {
     c.preamp_db.toFixed(2),
     JSON.stringify(c.changes),
   ]);
-  const rejected = Object.entries(out.rejected_by)
-    .map(([k, n]) => `${k}=${n}`)
-    .join(" ");
+  const margin = out.margin === null ? "" : `   margin to #2: ${out.margin}`;
+  const binding = out.top[0] && out.top[0].binding;
   return [
     `objective: ${out.objective.direction} ${out.objective.expr}`,
-    `considered ${out.considered}, survived ${out.survived}, returned ${out.returned}${rejected ? `   rejected by: ${rejected}` : ""}`,
+    `considered ${out.considered}, survived ${out.survived}, returned ${out.returned}${margin}${rejectedSummary(out)}`,
     out.top.length
       ? `\n${table(["#", "score", ...names, "preamp", "changes"], rows)}`
       : "\nno candidate satisfied the constraints",
+    binding ? `\nbinding: ${binding.metric} ${binding.bound} (slack ${binding.slack})` : "",
+    sensitivityLines(out),
+    rejectLines(out),
     flagLines(out.top[0] && out.top[0].flags),
   ].join("\n");
 }

@@ -6,6 +6,7 @@
 
 import { chainResponse } from "../../hqptuner/static/lib/dsp.js";
 import { parse, evaluate } from "./expr.js";
+import { noteRange } from "./notes.js";
 
 export const F_LO = 20;
 export const F_HI = 20000;
@@ -82,6 +83,16 @@ function meanOver(curve, range) {
   return { value: sum / idx.length };
 }
 
+/** Least-squares line over [x, y] pairs -> { slope, icept }. */
+export function linfit(pts) {
+  const n = pts.length;
+  const [sx, sy] = [pts.reduce((s, p) => s + p[0], 0), pts.reduce((s, p) => s + p[1], 0)];
+  const [sxx, sxy] = [pts.reduce((s, p) => s + p[0] * p[0], 0), pts.reduce((s, p) => s + p[0] * p[1], 0)];
+  const d = n * sxx - sx * sx;
+  const slope = d === 0 ? 0 : (n * sxy - sx * sy) / d;
+  return { slope, icept: (sy - slope * sx) / n };
+}
+
 // Functions an `expr` metric may call. All reduce the summed curve; `at` is the
 // only one that reads a single frequency.
 function exprFuncs(curve) {
@@ -93,6 +104,72 @@ function exprFuncs(curve) {
   };
 }
 
+// ---- target-relative kinds -------------------------------------------------
+//
+// These score the curve's DEVIATION from a declared target (target.js), so an
+// objective like "minimize maxdev(1000,3500)" leaves nothing to game: every dB
+// of collateral damage inside the range scores against it directly.
+//
+// `domain: "erb"` weights the reduction by ERB-rate density (Glasberg & Moore
+// 1990, PSYCHOACOUSTICS.md §1) instead of log-uniform — one ERB is the ear's
+// resolution unit, and ERBs per octave RISE with frequency (~1 in the 20-40 Hz
+// octave, ~9 in 10-20 kHz), so a log-uniform grid over-weights the bass and
+// ERB weighting counts treble deviation for more, bass for less. Per
+// log-spaced grid point the weight is dz/d(ln f) ∝ u/(1+u) with u = 4.37·f/kHz;
+// the constant factor cancels in the weighted mean. `domain` applies to rmse
+// and mean_signed; a maximum is weight-independent.
+
+function needTarget(target, kind) {
+  if (!target) throw new Error(`metric kind "${kind}" needs a target — declare job.target`);
+  return target;
+}
+
+function deviation(curve, target, range) {
+  return rangeIndices(curve, range).map((i) => ({ f: curve.freqs[i], dev: curve.db[i] - target.db[i] }));
+}
+
+function weightOf(domain) {
+  if (domain === undefined || domain === "log") return () => 1;
+  if (domain === "erb") return (f) => (4.37 * f) / 1000 / (1 + (4.37 * f) / 1000);
+  throw new Error(`unknown domain "${domain}" (log or erb)`);
+}
+
+function weightedMean(pts, wf) {
+  let [sw, s] = [0, 0];
+  for (const p of pts) {
+    const w = wf(p.f);
+    sw += w;
+    s += w * p.val;
+  }
+  return s / sw;
+}
+
+function maxDev(curve, target, spec, signed) {
+  const pts = deviation(curve, needTarget(target, signed ? "maxdev_signed" : "maxdev"), spec.range);
+  let best = pts[0];
+  for (const p of pts) if (Math.abs(p.dev) > Math.abs(best.dev)) best = p;
+  return { value: signed ? best.dev : Math.abs(best.dev), hz: best.f };
+}
+
+// ---- shape kinds -----------------------------------------------------------
+
+// Peak height above local trend: the straight line in (log f, dB) joining the
+// curve's values at the range edges. Distinct from `max`, which conflates a
+// bump with the plateau under it — the plateau is what sets the preamp, the
+// prominence is what sets the colouration. The declared range IS the trend
+// width: widen it to measure against a broader baseline.
+function prominenceOver(curve, range) {
+  const [a, b] = range;
+  const [ya, yb] = [valueAt(curve, a), valueAt(curve, b)];
+  let best = null;
+  for (const i of rangeIndices(curve, range)) {
+    const base = ya + ((yb - ya) * Math.log(curve.freqs[i] / a)) / Math.log(b / a);
+    const p = curve.db[i] - base;
+    if (!best || p > best.value) best = { value: p, hz: curve.freqs[i] };
+  }
+  return best;
+}
+
 const KINDS = {
   max: (curve, spec) => extremum(curve, spec.range, true),
   min: (curve, spec) => extremum(curve, spec.range, false),
@@ -101,20 +178,74 @@ const KINDS = {
   expr: (curve, spec, vars) => ({
     value: evaluate(parse(spec.expr), { funcs: exprFuncs(curve), vars }),
   }),
+  rmse: (curve, spec, _vars, target) => ({
+    value: Math.sqrt(
+      weightedMean(
+        deviation(curve, needTarget(target, "rmse"), spec.range).map((p) => ({ f: p.f, val: p.dev * p.dev })),
+        weightOf(spec.domain),
+      ),
+    ),
+  }),
+  maxdev: (curve, spec, _vars, target) => maxDev(curve, target, spec, false),
+  maxdev_signed: (curve, spec, _vars, target) => maxDev(curve, target, spec, true),
+  mean_signed: (curve, spec, _vars, target) => ({
+    value: weightedMean(
+      deviation(curve, needTarget(target, "mean_signed"), spec.range).map((p) => ({ f: p.f, val: p.dev })),
+      weightOf(spec.domain),
+    ),
+  }),
+  prominence: (curve, spec) => prominenceOver(curve, spec.range),
+  ripple: (curve, spec) => ({
+    value: extremum(curve, spec.range, true).value - extremum(curve, spec.range, false).value,
+  }),
+  slope: (curve, spec) => ({
+    value: linfit(rangeIndices(curve, spec.range).map((i) => [Math.log2(curve.freqs[i]), curve.db[i]])).slope,
+  }),
+  note_spread: (curve, spec) => {
+    const vals = noteRange(spec.from, spec.to).map((n) => valueAt(curve, n.hz));
+    return { value: Math.max(...vals) - Math.min(...vals) };
+  },
 };
+
+// The standing panel PRIMER requires on every answer, as a named preset —
+// retyping it per job invites drift. `"metrics": "standard"` uses it as-is;
+// `{"preset": "standard", ...more}` extends it.
+export const PRESETS = {
+  standard: {
+    bass_50_150: { kind: "mean", range: [50, 150] },
+    oomph_80_160: { kind: "mean", range: [80, 160] },
+    mud_200_400: { kind: "mean", range: [200, 400] },
+    mid_400_1500: { kind: "mean", range: [400, 1500] },
+    treble_4k_10k: { kind: "mean", range: [4000, 10000] },
+    v_db: { kind: "expr", expr: "(mean(50,150)+mean(4000,10000))/2 - mean(400,1500)" },
+    ripple_150_1000: { kind: "ripple", range: [150, 1000] },
+    spread_A2_G4: { kind: "note_spread", from: "A2", to: "G4" },
+  },
+};
+
+/** job.metrics -> concrete spec object: a preset name, {preset, ...extras}, or specs as given. */
+export function resolveMetricSpecs(metrics) {
+  const name = typeof metrics === "string" ? metrics : metrics && metrics.preset;
+  if (!name) return metrics;
+  const preset = PRESETS[name];
+  if (!preset) throw new Error(`metrics: unknown preset "${name}" (${Object.keys(PRESETS).join(", ")})`);
+  const { preset: _p, ...extras } = typeof metrics === "string" ? { preset: name } : metrics;
+  return { ...preset, ...extras };
+}
 
 /**
  * Evaluate a caller-defined metric panel against one curve.
  * Metrics are evaluated in declaration order; an `expr` metric may reference
- * any metric declared before it by name.
+ * any metric declared before it by name. `target` (a curve from target.js) is
+ * required by the target-relative kinds and ignored by the rest.
  */
-export function computeMetrics(curve, specs) {
+export function computeMetrics(curve, specs, target) {
   const out = {};
   const vars = {};
   for (const [name, spec] of Object.entries(specs || {})) {
     const kind = KINDS[spec.kind];
     if (!kind) throw new Error(`metric "${name}": unknown kind "${spec.kind}"`);
-    out[name] = kind(curve, spec, vars);
+    out[name] = kind(curve, spec, vars, target);
     vars[name] = out[name].value;
   }
   return out;

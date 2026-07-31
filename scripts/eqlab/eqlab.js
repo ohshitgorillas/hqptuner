@@ -10,13 +10,32 @@
 // Job:
 //   { "fs": 44100,
 //     "chain":   {"from":"daemon","row":0,"eq_only":false} | {"bands":[{type,f,q,g},...]},
-//     "metrics": {"hot": {"kind":"max","range":[1700,2600]},
-//                 "body":{"kind":"mean","range":[1000,1800]},
+//     "target":  {"from":"current"|"flat"|"points"|"chain"|"parametric_eq", ...,
+//                 "smooth":{"octaves":1}, "tilt":{"db_per_octave":-0.5,"pivot":1000},
+//                 "override":[{"range":[1700,2600],"method":"interpolate_edges"}],
+//                 "align":"mean"|"none"|{"at":1000}},           // optional; grammar in target.js
+//     "metrics": "standard" | {"preset":"standard", ...more} |  // named panel preset (metrics.js PRESETS)
+//                {"hot": {"kind":"max","range":[1700,2600]},    // curve kinds: max min mean at expr
+//                 "dev": {"kind":"maxdev","range":[1000,3500]}, //   + ripple slope prominence note_spread
+//                 "fit": {"kind":"rmse","range":[200,8000],"domain":"erb"},
+//                        // target-relative kinds (need job.target): rmse maxdev maxdev_signed mean_signed
 //                 "v_db":{"kind":"expr","expr":"(mean(50,150)+mean(4000,10000))/2 - mean(400,1500)"}},
 //     "notes":   {"from":"G4","to":"E6","harmonics":[1,2,3,4,5]},
 //     "job":     {"kind":"probe"}
 //              | {"kind":"evaluate","changes":{"amend":[{"select":2090,"g":2.0}],"append":[{"f":1250,"q":1.4,"g":1.2}]}}
-//              | {"kind":"search","space":{...},"constraints":[...],"objective":"maximize body - hot","top":12} }
+//              | {"kind":"search","space":{...},"constraints":[...],"objective":"minimize dev","top":12}
+//              | {"kind":"search","space":{...},"pareto":["minimize dev","maximize bass_50_150"],...} }
+//
+// A search space's `amend` and `append` each take a LIST of change specs; every
+// spec contributes one concrete change per candidate, crossed independently —
+// a cut plus a broader lift is two entries in `append`.
+//
+// `pareto` replaces `objective` (never both): two or more "minimize/maximize
+// <expr>" strings, answered with the non-dominated front instead of a scalar
+// ranking. Every search also reports: per-survivor `binding` (the constraint
+// closest to its bound, with slack), `rejected_top` (best rejects with every
+// violated bound and by how much), and — scalar only — `margin` (winner vs
+// runner-up) and `sensitivity` (what relaxing each constraint alone would buy).
 //
 // `amend.select` matches an existing band's `f` EXACTLY — no nearest-match, no
 // fuzz. Not found or not unique is an error, because this chain carries bands
@@ -38,9 +57,10 @@
 
 import { resolveChain } from "./chain.js";
 import { evaluateJob, probe } from "./jobs.js";
-import { F_HI, F_LO, GRID_N } from "./metrics.js";
+import { curveOf, F_HI, F_LO, GRID_N, resolveMetricSpecs } from "./metrics.js";
 import { render } from "./render.js";
 import { MAX_COMBOS, MAX_STEPS, searchJob } from "./search.js";
+import { resolveTarget } from "./target.js";
 
 const KINDS = { probe, evaluate: evaluateJob, search: searchJob };
 
@@ -52,7 +72,8 @@ const LIMITS = {
   grid: { points: GRID_N, f_lo_hz: F_LO, f_hi_hz: F_HI },
   guards: { max_combinations: MAX_COMBOS, max_values_per_range: MAX_STEPS },
   not_modelled: [
-    "one `select` per search space — every candidate amends the same band",
+    "`select` is a literal per amend spec — a search varies band parameters, never which band a spec amends",
+    "search is exhaustive over the declared grid — no continuous local refinement yet",
     "16-row summation — one row's EQ tail is measured, guarded by tail_consistency",
     "phase and group delay",
     "non-iir stage synthesis (delay, riaa, convolution are measured, never proposed)",
@@ -71,8 +92,25 @@ async function run(job) {
   if (!handler) throw new Error(`job.kind must be one of ${Object.keys(KINDS).join(" / ")}, got ${spec.kind}`);
   const { stages, source, consistency } = await resolveChain(job.chain);
   const fs = Number(job.fs || 44100);
-  const ctx = { stages, fs, metrics: job.metrics, notes: job.notes };
-  return { job: spec.kind, fs, source, tail_consistency: consistency, limits: LIMITS, ...handler(spec, ctx) };
+  // Target is derived from the BASE chain, once — before/after and every
+  // search candidate score against the same reference.
+  const target = await resolveTarget(job.target, curveOf(stages, fs), fs);
+  const ctx = {
+    stages,
+    fs,
+    metrics: resolveMetricSpecs(job.metrics),
+    notes: job.notes,
+    target: target && target.curve,
+  };
+  return {
+    job: spec.kind,
+    fs,
+    source,
+    tail_consistency: consistency,
+    ...(target ? { target: target.meta } : {}),
+    limits: LIMITS,
+    ...handler(spec, ctx),
+  };
 }
 
 async function main() {

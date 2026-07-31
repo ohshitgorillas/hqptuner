@@ -140,7 +140,7 @@ test("test_an_expr_metric_referencing_a_metric_declared_after_it_is_rejected", (
 });
 
 test("test_an_unknown_metric_kind_names_the_metric_in_the_error", () => {
-  assert.throws(() => computeMetrics(PEAK_5, { tilt: { kind: "slope", range: [500, 2000] } }), /tilt/);
+  assert.throws(() => computeMetrics(PEAK_5, { tilt: { kind: "wibble", range: [500, 2000] } }), /tilt/);
 });
 
 test("test_a_range_containing_no_grid_point_is_rejected", () => {

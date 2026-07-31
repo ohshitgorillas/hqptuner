@@ -6,9 +6,9 @@ import { computeMetrics, curveOf, extrema, metricValues, preampDb, round } from 
 import { noteDeltas, noteTable } from "./notes.js";
 
 /** Everything measured about one chain: preamp, metric panel, process string. */
-export function panelOf(stages, fs, metricSpecs) {
+export function panelOf(stages, fs, metricSpecs, target) {
   const curve = curveOf(stages, fs);
-  const panel = computeMetrics(curve, metricSpecs);
+  const panel = computeMetrics(curve, metricSpecs, target);
   return {
     curve,
     panel,
@@ -33,7 +33,7 @@ const roundNotes = (rows) =>
   }));
 
 export function probe(_job, ctx) {
-  const { curve, out } = panelOf(ctx.stages, ctx.fs, ctx.metrics);
+  const { curve, out } = panelOf(ctx.stages, ctx.fs, ctx.metrics, ctx.target);
   return {
     ...out,
     extrema: extrema(curve).map((e) => ({ kind: e.kind, hz: round(e.hz, 2), db: round(e.db) })),
@@ -43,8 +43,8 @@ export function probe(_job, ctx) {
 
 export function evaluateJob(job, ctx) {
   const { stages, edits } = applyChanges(ctx.stages, job.changes || job);
-  const before = panelOf(ctx.stages, ctx.fs, ctx.metrics);
-  const after = panelOf(stages, ctx.fs, ctx.metrics);
+  const before = panelOf(ctx.stages, ctx.fs, ctx.metrics, ctx.target);
+  const after = panelOf(stages, ctx.fs, ctx.metrics, ctx.target);
   const [bv, av] = [metricValues(before.panel), metricValues(after.panel)];
   return {
     before: before.out,
