@@ -9,12 +9,12 @@ import { schema } from "../store/schema.js";
 import { effective, isDirty, edit, setLive, httpFieldMap, formFieldName, refreshDevices } from "../store/state.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
-import { narrowOptions } from "../store/narrowing.js";
+import { narrowOptions, narrowCount } from "../store/narrowing.js";
 import { grayReason } from "../store/graying.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Knob } from "./Knob.js";
-import { ApodNarrow } from "./ApodNarrow.js";
+import { ApodNarrow, HiresNarrow } from "./ApodNarrow.js";
 
 const WIDGETS = {
   segment: Segment,
@@ -66,14 +66,25 @@ function fieldClasses(entry, key) {
 // the active facets; shaper selects gray what the output rate can't reach.
 // The field key threads into narrowOptions so a 1x dropdown reads its OWN
 // apodizing state (per-chain, store/narrowing.js).
+function rawOptions(entry) {
+  if (entry.optionsFrom === "enum") return enumOptions(entry.enumKey);
+  if (entry.optionsFrom) return optionsFor(entry.optionsFrom, formFieldName(entry));
+  return entry.options;
+}
 function fieldOptions(entry, key) {
-  let options;
-  if (entry.optionsFrom === "enum") options = enumOptions(entry.enumKey);
-  else if (entry.optionsFrom) options = optionsFor(entry.optionsFrom, formFieldName(entry));
-  else options = entry.options;
+  let options = rawOptions(entry);
   if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow, key);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
   return options;
+}
+
+// Live result badge for a narrowable dropdown: "n/total" of how many options
+// survive the active facets, counted off the RAW (pre-narrow) list. `on` when
+// the list is actually reduced, so the field can flag itself accent.
+function narrowBadge(entry, key) {
+  if (!entry.narrow) return null;
+  const { n, total } = narrowCount(rawOptions(entry), entry.narrow, key);
+  return { n, total, on: n < total };
 }
 
 // A grayed control names WHY, visibly — the reason renders as a caption
@@ -117,9 +128,14 @@ export function Field({ k }) {
   const label = entry.label || meta.label;
   const reason = grayReason(k);
   const options = fieldOptions(entry, k);
+  const badge = narrowBadge(entry, k);
+  const classes = `${fieldClasses(entry, k)}${badge && badge.on ? " narrowed" : ""}`;
   return html`
-    <div class=${fieldClasses(entry, k)} title=${hoverTitle(entry, meta, reason)}>
-      <label>${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}</label>
+    <div class=${classes} title=${hoverTitle(entry, meta, reason)}>
+      <label>
+        ${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
+        ${badge ? html`<span class="narrow-count ${badge.on ? "on" : ""}">${badge.n}/${badge.total}</span>` : null}
+      </label>
       <div class="control">
         <${W}
           value=${effective(k)}
@@ -143,6 +159,7 @@ export function Field({ k }) {
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${fieldProse(entry, k, meta, reason, options)}
       ${entry.apodNarrow ? html`<${ApodNarrow} field=${k} />` : null}
+      ${entry.hiresNarrow ? html`<${HiresNarrow} field=${k} />` : null}
     </div>
   `;
 }

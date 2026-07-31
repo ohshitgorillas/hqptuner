@@ -24,6 +24,8 @@ import {
   resetNarrowing,
   setApod,
   setApodHalf,
+  setHideHires,
+  setHiresOnly,
   nGenre,
   nQuality,
   nFocus,
