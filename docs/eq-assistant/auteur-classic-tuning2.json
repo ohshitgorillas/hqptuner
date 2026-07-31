@@ -995,6 +995,98 @@
         "caveat": "computed by AutoEq's rule - negative of the maximum of the SUMMED response of the whole chain - evaluated over 20 Hz to 20 kHz. The 94 Hz shelf's asymptote continues to +4.40 dB below 20 Hz, so sub-20 Hz content could reach about +0.07 dBFS; -4.40 would cover the asymptote. No agreed inter-sample-peak margin exists in the literature (FILTER-MATH.md section 6).",
         "process_correction": "the listener's standing instruction was to keep the preamp adjusted on EVERY turn. Turns 19 and 20 deferred it to protect the A/B from level bias, disclosed both times but not done. The instruction was explicit and outranked the reasoning; correcting the preamp is now part of every turn's change set, and where it would contaminate a comparison the right move is to say so in one line and do it anyway."
       }
+    },
+    {
+      "turn": 21,
+      "model": "claude-opus-5",
+      "complaint": "I've been battling some sibilance that I'm having a hard time pinpointing. I've tried clawing back the 2K peak from 3dB, and it helps, but it doesn't take it away and just makes the headphones sound dark in an unpleasant way. 2.8-3.2 dB is definitely the right place for that peak. this sibilance hits a very specific range of guitars and female vocals, in the upper registers, but not the far upper registers. it's a very specific spot that vocals can 'pass over' and become sibilant only as they pass through it.",
+      "mid_turn_addition": "I'm also thinking that the 2k peak needs to come up by maybe a quarter dB... there's not as much energy as there could be. but god that sibilance",
+      "chain_before": {
+        "bands": [
+          {"type": "lshelf", "f_hz": 94, "gain_db": 4.4, "q": 0.6},
+          {"type": "peak", "f_hz": 230, "gain_db": 0.3, "q": 0.6},
+          {"type": "peak", "f_hz": 621, "gain_db": 1.4, "q": 0.62},
+          {"type": "peak", "f_hz": 2090, "gain_db": 3.0, "q": 3.16},
+          {"type": "peak", "f_hz": 3161, "gain_db": -2.7, "q": 5.18},
+          {"type": "peak", "f_hz": 3901, "gain_db": 0.0, "q": 6.0},
+          {"type": "peak", "f_hz": 4400, "gain_db": -1.0, "q": 2.5},
+          {"type": "peak", "f_hz": 5575, "gain_db": -7.5, "q": 4.63},
+          {"type": "peak", "f_hz": 7959, "gain_db": 5.5, "q": 0.98},
+          {"type": "peak", "f_hz": 8000, "gain_db": -0.6, "q": 2.2},
+          {"type": "hshelf", "f_hz": 10000, "gain_db": -4.3, "q": 0.7}
+        ],
+        "preamp_db": -4.33,
+        "note": "turn 17 S1 structure plus the turn 19/20 fill; read from the live daemon, not reconstructed. The preset XML on disk also carries a stale second row variant (95 Hz / 2093 Hz / lp1 f=1294.4) which is NOT live."
+      },
+      "diagnosis": {
+        "method": "net magnitude of the live 11-band chain at 44.1 kHz using the app's own RBJ math (static/lib/dsp.js); 6000-point log sweep 1-10 kHz for turning points, then every harmonic of every note G4-C6 evaluated to find which notes excite which feature",
+        "finding": "Above 1 kHz the chain has exactly two peaks and nothing else: 2083 Hz at +3.41 dB and 7867 Hz at +3.35 dB. Everything between is at or below zero - 2.5-3.5k averages -0.45, 3.4-4.6k -0.40, 4-5k -0.69, 5-6k -3.57.",
+        "explains_symptom": "The 2090 band at Q3.16 is the only positive feature anywhere between 1 kHz and 6 kHz, so it carries the entire presence load alone as a narrow spike on a depressed plateau. Reducing its gain lowers the spike and the plateau's only support together, which is the reported dark-and-unpleasant.",
+        "in_plain_terms": "One narrow band is doing two jobs at once - it is both the thing hurting you and the only thing holding the upper mids up. Turn it down and you lose both.",
+        "second_harmonic_window": "2f landing sits flat at +1.1 to +1.5 dB across G4-G5, climbs at A5 (+1.88) and spikes at B5 (+3.10) and C6 (+3.40), then falls away above C6 (D6 +2.18, E6 +0.86). A line walking up through that region gets its loudest overtone lifted ~2.3 dB relative to neighbouring notes and loses it again on the way out - a window passed through, closing at the top, matching 'upper registers but not the far upper registers'.",
+        "secondary_window": "same peak via the 3rd harmonic at E5 (1978 Hz, +3.11) and F5 (2095 Hz, +3.40); weaker because the 3rd harmonic carries less energy",
+        "turning_points_1k_10k": {"1288": 1.08, "2083": 3.41, "3171": -1.87, "3854": -0.18, "5550": -5.03, "7867": 3.35},
+        "band_averages_db": {"1800_2500": 2.67, "2500_3500": -0.45, "3400_4600": -0.4, "4000_5000": -0.69, "5000_6000": -3.57, "6000_7000": 1.07, "7000_9000": 3.15, "9000_11000": 1.48},
+        "h2_landing_db": {"G4_784": 1.46, "A4_880": 1.35, "B4_988": 1.24, "C5_1047": 1.19, "D5_1175": 1.1, "E5_1319": 1.08, "F5_1397": 1.1, "G5_1568": 1.3, "A5_1760": 1.88, "B5_1976": 3.1, "C6_2093": 3.4, "D6_2349": 2.18, "E6_2637": 0.86},
+        "hypothesis_stated_as_hypothesis": "read as CONTRAST - the note sticking out relative to its neighbours - with the alternative (absolute level in the region) named explicitly to the listener before applying, along with the discriminator: rides on sustained sung notes and moves with pitch = 2 kHz; rides on consonants regardless of pitch = 7-9 kHz",
+        "shape_vs_level": "For a peaking biquad the apex height IS the gain; Q sets width only. Widening the 2090 band does NOT lower its peak - the harmonic-window spread narrows purely by lifting the floor around it. Any proposal framed as 'widen it to bring the peak down' is wrong on the arithmetic before it is wrong by ear."
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 2090, "q_from": 3.16, "q_to": 1.6, "gain_from": 3.0, "gain_to": 3.25,
+         "rationale": "W1 - widen at slightly higher gain: raise the neighbours to close the harmonic window while adding the quarter dB of energy requested"}
+      ],
+      "alternatives_rejected": [
+        {"band": "W4 2090 Q1.60 +3.00", "h2_spread_db": 1.9, "presence_2500_3500": 0.33, "reason": "best contrast-per-risk in the table but delivers no extra energy"},
+        {"band": "W3 2090 Q1.20 +3.25", "h2_spread_db": 1.88, "presence_2500_3500": 0.86, "reason": "flattest window but lifts 2.5-3.5k by 1.31 dB and takes v_db to -0.18, into the region that drew the turn 12 'a little bit forward' complaint"},
+        {"band": "G1 2090 Q3.16 +2.40 (the listener's own prior experiment)", "peak_db": 2.81, "presence_2500_3500": -0.57, "upmid_1800_2500": 2.21, "reason": "reproduces the reported darkening in numbers - the whole upper midrange sags"},
+        {"band": "G2 2090 Q3.16 +3.25 (bare quarter dB, shape unchanged)", "h2_spread_db": 2.72, "reason": "worst row in the table for the actual complaint - straight gain on a Q3.16 band buys spikiness along with the energy"}
+      ],
+      "metrics": {
+        "peak_1500_3000_db": {"before": 3.41, "after": 3.66},
+        "peak_hz": {"before": 2083, "after": 2066},
+        "h2_spread_G4_E6_db": {"before": 2.54, "after": 2.12},
+        "presence_2500_3500_db": {"before": -0.45, "after": 0.44},
+        "upmid_1800_2500_db": {"before": 2.67, "after": 3.35},
+        "mid_400_1500_db": {"before": 1.37, "after": 1.64},
+        "mud_200_400_db": {"before": 1.2, "after": 1.22},
+        "treble_4k_10k_db": {"before": 0.41, "after": 0.55},
+        "v_db": {"before": 0.14, "after": -0.05},
+        "preamp_db": {"before": -4.33, "after": -4.33}
+      },
+      "headroom_finding": {
+        "required_db": -4.33,
+        "installed_db": -4.33,
+        "note": "identical before and after - the chain maximum is the 94 Hz shelf asymptote at 20 Hz, which a 2 kHz move does not reach. Checked rather than skipped, per the turn 20 standing instruction."
+      },
+      "outcome": "REJECTED BY EAR. Listener verdict: 'I think that's actually worse. It's hammering my ears now, and it feels like the area of damage has maybe widened.' Reverted to Q3.16 +3.0 the same turn; readback verified 16/16 rows, gains byte-identical, nothing saved to the preset.",
+      "what_the_rejection_settled": {
+        "mechanism": "ABSOLUTE level in the 2 kHz region, not contrast. Widening raised total energy across a wider span and the affected area widened with it - the specific direction that discriminates between the two hypotheses. The contrast reading is dead.",
+        "seven_to_nine_k_closed": "listener confirmed 7-9 kHz at +3.15 average 'looks hot but sounds correct to me'. Real fricative sibilance was never the complaint. Region held - do not propose moving it.",
+        "listener_vocabulary": "the listener reached for 'sibilance' for this percept and confirmed afterwards that it was the wrong word. On this profile read that term as a candidate pitch-dependent 2 kHz artifact first, not as 5-9 kHz ess energy."
+      }
+    },
+    {
+      "turn": 22,
+      "model": "claude-opus-5",
+      "complaint": "I'd like to hear D1. Calculate and stage, please.",
+      "note": "D1 was the decouple proposal from turn 21's post-rejection analysis: bring the 2090 band down to kill the hot spot, and put the missing energy back somewhere that is not hurting him. It did not survive measurement and NOTHING WAS STAGED OR APPLIED.",
+      "diagnosis": {
+        "method": "evaluated the naive D1 form (amend 2090 down, append a broad support band below it), then a 22680-combination grid search over amend gain/Q crossed with support frequency/Q/gain",
+        "finding_naive_d1": "the support band's upper skirt feeds straight back into the peak it is meant to relieve. D1a (2090 +2.2 | peak 1400 Q1.0 +1.0) moved the hot spot only 3.41 -> 3.21 dB while adding 0.77 dB of body. That is not decoupling, it is just body.",
+        "reference_points": {
+          "LIVE": {"hot": 3.41, "body_1000_1800": 1.25},
+          "D1a_2090_2.2_plus_1400_Q1.0_1.0": {"hot": 3.21, "body_1000_1800": 2.02},
+          "D1f_2090_2.2_plus_1400_Q1.4_1.0": {"hot": 3.04, "body_1000_1800": 1.95},
+          "D1e_2090_2.2_plus_2900_Q1.2_1.0": {"hot": 3.21, "body_1000_1800": 1.33, "presence_2500_3500": 0.34},
+          "R1_2090_2.2_no_support": {"hot": 2.61, "body_1000_1800": 1.12}
+        },
+        "search_result": "considered 22680, survived 6222, rejected by hot=8536 v_db=4302 body=3495 mud=125. Every one of the top twelve pinned the amend gain at 1.2, the floor of the range offered - the objective 'maximize body - hot' simply wanted the hot spot as low as possible, driving 2090 from +3.0 to +1.2 and taking presence to -0.66, WORSE than the -0.45 baseline. It bought its score by dumping energy at 1.3 kHz, which is a different sound (thicker low mids) rather than the presence lost when 2 kHz is cut.",
+        "key_insight": "Both scalar objectives tried were proxies invented because the real question was not expressible, and both were gamed by wrecking a region that happened to be unconstrained."
+      },
+      "changes": [],
+      "outcome": "NO CHANGE STAGED OR APPLIED. Chain remains on the turn 20 baseline.",
+      "question_the_tooling_could_not_express": "Find a change set that removes the local maximum in 1.7-2.6 kHz while leaving the net response across 1-3.5 kHz as close as possible to what it is now everywhere else. That is shape-matching against a target curve - fit_chain, PRIMER D17 - not any scalar over band averages. Every scalar substitute bought its score somewhere unconstrained.",
+      "listener_sensitivity": "Do not size or dismiss a move against published thresholds for this listener. Turn 19's +0.6 dB at Q 0.6 sat below Toole & Olive's per-Q floor, below midrange reseat variance, and below this headphone's own 0.21 dB native fine structure in that region - and was heard on first listen and called 'a hair much'. Thresholds bound how precisely a move may be narrated, never whether he will hear it."
     }
   ],
   "eq_profile_provenance": {
