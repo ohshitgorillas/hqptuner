@@ -2,7 +2,7 @@
 
 import { applyChanges, serialize } from "./chain.js";
 import { guidanceFlags } from "./guidance.js";
-import { computeMetrics, curveOf, extrema, metricValues, preampDb, round } from "./metrics.js";
+import { computeMetrics, curveOf, extrema, fitOfEdits, metricValues, preampDb, round } from "./metrics.js";
 import { noteDeltas, noteTable } from "./notes.js";
 
 /** Everything measured about one chain: preamp, metric panel, process string. */
@@ -41,16 +41,23 @@ export function probe(_job, ctx) {
   };
 }
 
+const editOut = (e) =>
+  e.kind === "replace"
+    ? { kind: e.kind, removed: e.removed, added: e.added }
+    : { kind: e.kind, index: e.index, before: e.before, after: e.after };
+
 export function evaluateJob(job, ctx) {
   const { stages, edits } = applyChanges(ctx.stages, job.changes || job);
   const before = panelOf(ctx.stages, ctx.fs, ctx.metrics, ctx.target);
   const after = panelOf(stages, ctx.fs, ctx.metrics, ctx.target);
   const [bv, av] = [metricValues(before.panel), metricValues(after.panel)];
+  const fit = fitOfEdits(edits, ctx.fs);
   return {
     before: before.out,
     after: after.out,
     metric_deltas: Object.fromEntries(Object.keys(av).map((k) => [k, round(av[k] - bv[k])])),
-    edits: edits.map((e) => ({ kind: e.kind, index: e.index, before: e.before, after: e.after })),
+    edits: edits.map(editOut),
+    ...(fit.length ? { fit } : {}),
     flags: guidanceFlags(edits, stages),
     note_deltas: roundNotes(noteDeltas(before.curve, after.curve, ctx.notes)),
   };

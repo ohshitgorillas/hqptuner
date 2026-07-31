@@ -9,105 +9,26 @@
 import { applyChanges, serialize } from "./chain.js";
 import { evaluate, parse } from "./expr.js";
 import { guidanceFlags } from "./guidance.js";
-import { computeMetrics, curveOf, metricValues, preampDb, round, sumCurves } from "./metrics.js";
+import { computeMetrics, curveOf, fitOfEdits, metricValues, preampDb, round, sumCurves } from "./metrics.js";
 import { refinePoint } from "./refine.js";
-
-// Runaway guards, nothing more. They exist so a typo'd step of 0.0001 fails in
-// a second instead of eating the machine — they are NOT a budget, and hitting
-// one is not a decision to escalate. A space too big for one pass is split and
-// run in batches. Measured rate: 2880 candidates in 4.3 s with two varied bands
-// on the 4096-point grid (~670/s), so plan batches by the clock, not by asking.
-export const MAX_COMBOS = 2_000_000;
-export const MAX_STEPS = 100_000;
+import { candidates, expandValue } from "./space.js";
 
 // How many of the best-scoring rejected candidates survive into the report.
 export const REJECTS_KEPT = 5;
 
-function rangeValues(from, to, step) {
-  if (!(step > 0)) throw new Error(`search: step must be positive, got ${step}`);
-  if (to < from) throw new Error(`search: range [${from}, ${to}] runs backwards`);
-  const n = Math.floor((to - from) / step + 1e-9) + 1;
-  if (n > MAX_STEPS)
-    throw new Error(`search: range [${from}, ${to}] step ${step} yields ${n} values (max ${MAX_STEPS})`);
-  return Array.from({ length: n }, (_, i) => round(from + i * step, 6));
-}
-
-const isTriple = (v) => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === "number");
-
-/** One parameter spec -> its list of values. [a,b,step] is a range; any other array is a literal list. */
-export function expandValue(spec) {
-  if (isTriple(spec)) return rangeValues(spec[0], spec[1], spec[2]);
-  if (Array.isArray(spec)) return spec;
-  if (spec && typeof spec === "object" && Array.isArray(spec.values)) return spec.values;
-  if (spec && typeof spec === "object" && "from" in spec) return rangeValues(spec.from, spec.to, spec.step);
-  return [spec];
-}
-
-/** A change spec with per-parameter value lists -> every concrete change object. */
-export function expandChange(spec) {
-  if (!spec) return [null];
-  const keys = Object.keys(spec);
-  return keys.reduce(
-    (acc, key) => acc.flatMap((partial) => expandValue(spec[key]).map((v) => ({ ...partial, [key]: v }))),
-    [{}],
-  );
-}
-
 const asList = (x) => (x === undefined ? [] : Array.isArray(x) ? x : [x]);
 
-// Every combination across a LIST of change specs — one concrete change per
-// spec per combination. This is what lets a space carry two appends (a cut
-// plus a broader lift): one append forced every candidate to solve a
-// two-feature problem with a single band.
-function crossChanges(specs) {
-  return specs.reduce((acc, spec) => acc.flatMap((set) => expandChange(spec).map((c) => [...set, c])), [[]]);
-}
-
-// `select` stays a literal inside each amend spec: a search varies band
-// parameters, never which band a spec amends — the fixed-index split in
-// makeMeasurer depends on it, and "which band" is a different question that a
-// second amend spec answers directly.
-function checkSelects(specs) {
-  for (const spec of specs) {
-    if (spec && typeof spec.select === "object")
-      throw new Error(
-        "search: select must be a literal frequency per amend spec — to vary which band moves, give one amend spec per band",
-      );
-  }
-}
-
-function candidates(space) {
-  const amendSpecs = asList(space.amend);
-  checkSelects(amendSpecs);
-  const amendSets = crossChanges(amendSpecs);
-  const appendSets = crossChanges(asList(space.append));
-  const out = [];
-  for (const amend of amendSets) {
-    for (const append of appendSets) {
-      out.push({ ...(amend.length ? { amend } : {}), ...(append.length ? { append } : {}) });
-    }
-  }
-  if (out.length > MAX_COMBOS) {
-    throw new Error(
-      `search: ${out.length} combinations exceeds the ${MAX_COMBOS} runaway guard — split the space and run it in batches`,
-    );
-  }
-  return out;
-}
-
-// Fixed part of the chain, summed once. Every candidate amends the same stage
-// indices (each amend spec's `select` is a literal frequency), so the split is
-// computed from one sample and reused.
+// Fixed part of the chain, summed once. Which stages a candidate touches is
+// constant across the space (amend selects and replace removals are literal
+// frequencies), so the untouched set is read off ONE sample by object identity
+// — applyChanges copies every stage it amends, removes, or adds — and reused.
 function makeMeasurer(ctx, sample) {
   const first = applyChanges(ctx.stages, sample);
-  const amended = new Set(first.edits.filter((e) => e.kind === "amend").map((e) => e.index));
-  const base = curveOf(
-    ctx.stages.filter((_, i) => !amended.has(i)),
-    ctx.fs,
-  );
+  const untouched = new Set(first.stages.filter((s) => ctx.stages.includes(s)));
+  const base = curveOf([...untouched], ctx.fs);
   return (changes) => {
     const { stages, edits } = applyChanges(ctx.stages, changes);
-    const varied = stages.filter((_, i) => amended.has(i) || i >= ctx.stages.length);
+    const varied = stages.filter((s) => !untouched.has(s));
     return { stages, edits, curve: sumCurves(base, curveOf(varied, ctx.fs)) };
   };
 }
@@ -179,7 +100,10 @@ function scoreCandidate(measure, changes, ctx, spec) {
   return cand;
 }
 
-function survivorOut(cand, spec, constraints) {
+// Fit is computed here, not in measureCandidate: survivors only — a rejected
+// candidate never reports one.
+function survivorOut(cand, spec, constraints, ctx) {
+  const fit = fitOfEdits(cand.edits, ctx.fs);
   return {
     changes: cand.changes,
     ...(spec.pareto
@@ -187,6 +111,7 @@ function survivorOut(cand, spec, constraints) {
       : { score: round(cand.scores[0], 4) }),
     metrics: Object.fromEntries(Object.entries(cand.values).map(([k, v]) => [k, round(v)])),
     preamp_db: round(cand.preamp, 2),
+    ...(fit.length ? { fit } : {}),
     ...(constraints.length ? { binding: bindingOf(constraints, cand.values) } : {}),
     process: serialize(cand.stages),
     partial: cand.partial,
@@ -254,7 +179,7 @@ function sweep(combos, measure, ctx, spec, constraints) {
       noteReject(acc.rejects, cand, reasons);
       if (reasons.length === 1) noteSoleReject(acc.sole, cand, reasons[0]);
     } else {
-      acc.survived.push({ signed: cand.signed, out: survivorOut(cand, spec, constraints) });
+      acc.survived.push({ signed: cand.signed, out: survivorOut(cand, spec, constraints, ctx) });
     }
   }
   return acc;
@@ -279,7 +204,7 @@ const CAP_EPS = 1e-9;
 // only has to dwarf any real objective improvement.
 const PENALTY = 1e3;
 
-function coordsOfSpec(group, spec, i) {
+function coordsOfSpec(group, spec, i, j) {
   const out = [];
   for (const key of Object.keys(spec || {})) {
     if (key === "select") continue;
@@ -287,41 +212,65 @@ function coordsOfSpec(group, spec, i) {
     if (values.length < 2 || !values.every((v) => typeof v === "number")) continue;
     const [lo, hi] = [Math.min(...values), Math.max(...values)];
     const log = LOG_PARAMS.has(key) && lo > 0;
-    out.push({ group, i, key, lo: log ? Math.log(lo) : lo, hi: log ? Math.log(hi) : hi, log });
+    out.push({
+      group,
+      i,
+      ...(j === undefined ? {} : { j }),
+      key,
+      lo: log ? Math.log(lo) : lo,
+      hi: log ? Math.log(hi) : hi,
+      log,
+    });
   }
   return out;
 }
 
-// Every free coordinate of a space: (group, spec index, parameter) plus its
-// box. Parameters given a single literal stay fixed; non-numeric lists (e.g. a
-// type sweep) are grid-only.
+// Every free coordinate of a space: (group, spec index[, band index],
+// parameter) plus its box. Parameters given a single literal stay fixed;
+// non-numeric lists (e.g. a type sweep) are grid-only. A replace spec's free
+// coordinates live on its `with` bands; `remove` is literal by definition.
 function coordsOf(space) {
   const amend = asList(space.amend).flatMap((spec, i) => coordsOfSpec("amend", spec, i));
+  const replace = asList(space.replace).flatMap((spec, i) =>
+    asList(spec.with).flatMap((band, j) => coordsOfSpec("replace", band, i, j)),
+  );
   const append = asList(space.append).flatMap((spec, i) => coordsOfSpec("append", spec, i));
-  const coords = [...amend, ...append];
+  const coords = [...amend, ...replace, ...append];
   if (!coords.length)
     throw new Error("refine: space declares no numeric parameter with more than one value — nothing to refine");
   return coords;
 }
 
+// The change object a coordinate addresses: the spec itself, or one of a
+// replace spec's `with` bands.
+const slotOf = (changes, c) => (c.j === undefined ? changes[c.group][c.i] : changes[c.group][c.i].with[c.j]);
+
 // Changes -> unit-box vector. A warm-start seed outside the box lands outside
 // [0,1] here; the optimizers clamp, so descent starts from the box edge.
 const encode = (changes, coords) =>
   coords.map((c) => {
-    const v = changes[c.group][c.i][c.key];
+    const v = slotOf(changes, c)[c.key];
     const t = c.log ? Math.log(v) : v;
     return c.hi === c.lo ? 0 : (t - c.lo) / (c.hi - c.lo);
   });
 
+// Deep copy of a change set, down to a replace spec's `with` bands.
+function copyChanges(changes) {
+  return {
+    ...(changes.amend ? { amend: changes.amend.map((c) => ({ ...c })) } : {}),
+    ...(changes.replace
+      ? { replace: changes.replace.map((r) => ({ ...r, with: asList(r.with).map((b) => ({ ...b })) })) }
+      : {}),
+    ...(changes.append ? { append: changes.append.map((c) => ({ ...c })) } : {}),
+  };
+}
+
 // Unit-box vector -> changes, free coordinates written over a copy of the seed.
 function decode(x, seed, coords) {
-  const out = {
-    ...(seed.amend ? { amend: seed.amend.map((c) => ({ ...c })) } : {}),
-    ...(seed.append ? { append: seed.append.map((c) => ({ ...c })) } : {}),
-  };
+  const out = copyChanges(seed);
   coords.forEach((c, k) => {
     const t = c.lo + x[k] * (c.hi - c.lo);
-    out[c.group][c.i][c.key] = round(c.log ? Math.exp(t) : t, 6);
+    slotOf(out, c)[c.key] = round(c.log ? Math.exp(t) : t, 6);
   });
   return out;
 }
@@ -353,7 +302,7 @@ function refineEntry(entry, coords, measure, ctx, spec, constraints, opts) {
   const endPt = objective(decode(r.x, seed, coords));
   const improved = endPt.val < seedPt.val && penaltyOf(endPt.cand, constraints, caps) === 0;
   const pick = improved ? endPt : seedPt;
-  const out = survivorOut(pick.cand, spec, constraints);
+  const out = survivorOut(pick.cand, spec, constraints, ctx);
   out.refined = {
     from_score: round(seedPt.cand.scores[0], 4),
     score: round(pick.cand.scores[0], 4),
@@ -436,10 +385,13 @@ export function searchJob(job, ctx) {
 
 function checkSeed(seed, coords) {
   for (const c of coords) {
-    const change = (seed[c.group] || [])[c.i];
+    const spec = (seed[c.group] || [])[c.i];
+    const change = c.j === undefined ? spec : spec && asList(spec.with)[c.j];
     if (!change || typeof change[c.key] !== "number")
       throw new Error(
-        `refine: seed carries no numeric "${c.key}" for ${c.group} spec ${c.i} — the seed must mirror the space's change specs`,
+        `refine: seed carries no numeric "${c.key}" for ${c.group} spec ${c.i}${
+          c.j === undefined ? "" : ` band ${c.j}`
+        } — the seed must mirror the space's change specs`,
       );
   }
 }
@@ -457,15 +409,16 @@ export function refineJob(job, ctx) {
     );
   const constraints = job.constraints || [];
   const given = job.seed || {};
-  const seed = {
-    ...(given.amend ? { amend: asList(given.amend).map((c) => ({ ...c })) } : {}),
-    ...(given.append ? { append: asList(given.append).map((c) => ({ ...c })) } : {}),
-  };
+  const seed = copyChanges({
+    ...(given.amend ? { amend: asList(given.amend) } : {}),
+    ...(given.replace ? { replace: asList(given.replace) } : {}),
+    ...(given.append ? { append: asList(given.append) } : {}),
+  });
   const coords = coordsOf(job.space || {});
   checkSeed(seed, coords);
   const measure = makeMeasurer(ctx, seed);
   const seedCand = scoreCandidate(measure, seed, ctx, spec);
-  const entry = { signed: seedCand.signed, out: survivorOut(seedCand, spec, constraints) };
+  const entry = { signed: seedCand.signed, out: survivorOut(seedCand, spec, constraints, ctx) };
   const rspec = refineSpecOf(job) || {};
   const refined = refineEntry(entry, coords, measure, ctx, spec, constraints, refineOptsOf(rspec));
   return {

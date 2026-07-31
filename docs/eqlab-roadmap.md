@@ -36,9 +36,16 @@ Landed on working tree:
 
 Status: done on working tree. 39 tests via the blind chain: green first run, bite check red (weak form — import error, pre-change search.js lacks the new exports), reviewer returned 1 BLOCKER + 2 MAJOR + 3 MINOR; BLOCKER (vacuous non-domination fixture) and one MAJOR (re-rank unpinned) fixed by writer re-run with tightened spec, two MINORs applied, one MAJOR and one MINOR adjudicated non-issues (spec omissions, not test defects). Full gate green, task-check PASS.
 
-## S5 — replace_segment — PLANNED (after S3)
+## S5 — replace_segment — DONE
 
-First-class replace change kind: N named bands out, M appended in — honest band count and process string (no g=0 workaround), fit residual (replacement response vs removed segment's contribution) reported. Full fit quality wants S3's descent; grid-only variant possible but user chose plan order over S5-lite.
+Landed on working tree:
+
+- `replace` change kind everywhere a change set goes (evaluate, search space, refine seed): `{"remove":[f,...],"with":[band,...],"fit_range":[a,b]}`. `remove` frequencies literal + exact-match (same rule as `select`); removed bands genuinely deleted, `with` bands inserted at the first removed position — honest band count and process string, no g=0 workaround. `with: []` = pure removal; a band amended and replaced in one change set is an error.
+- Fit residual per replace spec: replacement response minus removed segment's own contribution, `fit: [{rmse, maxdev, hz, range}]` on evaluate results and search survivors (never rejects), default range 20-20000 Hz. Reported, never gating.
+- `with` band parameters sweep on the grid and refine continuously like `append`'s (nested coordinates on the replace spec's bands); guidance flags treat removal as a gain change of −g and `with` bands like appends.
+- Space expansion split out of `search.js` into `space.js` (file-length gate).
+
+Status: done, committed. 46 tests via the blind chain: green first run, bite check red (weak form — import error, pre-change tree lacks `space.js` and the new metrics exports), reviewer returned 1 BLOCKER + 1 MAJOR + 4 MINOR, all six tightenings applied by writer re-run. Full gate green, task-check PASS.
 
 ## S4 — chain I/O — PLANNED
 

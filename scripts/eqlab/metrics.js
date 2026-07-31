@@ -104,6 +104,44 @@ function exprFuncs(curve) {
   };
 }
 
+/**
+ * Fit of a replacement segment against the segment it removed: the residual is
+ * the replacement bands' response minus the removed bands' contribution, each
+ * measured alone. Reported, never gating — a deliberate reshape has a large
+ * residual on purpose.
+ */
+export function residualFit(removedStages, addedStages, fs, range) {
+  const rem = curveOf(removedStages, fs);
+  const add = curveOf(addedStages, fs);
+  const residual = { freqs: rem.freqs, db: add.db.map((v, i) => v - rem.db[i]) };
+  const idx = rangeIndices(residual, range || [F_LO, F_HI]);
+  let [best, sq] = [idx[0], 0];
+  for (const i of idx) {
+    sq += residual.db[i] * residual.db[i];
+    if (Math.abs(residual.db[i]) > Math.abs(residual.db[best])) best = i;
+  }
+  return {
+    rmse: round(Math.sqrt(sq / idx.length)),
+    maxdev: round(Math.abs(residual.db[best])),
+    hz: round(residual.freqs[best], 2),
+    range: range || [F_LO, F_HI],
+  };
+}
+
+/** Per replace edit, its residual fit — [] when the change set replaced nothing. */
+export function fitOfEdits(edits, fs) {
+  return (edits || [])
+    .filter((e) => e.kind === "replace")
+    .map((e) =>
+      residualFit(
+        e.removed.map((r) => ({ kind: "iir", args: r.before })),
+        e.added.map((a) => ({ kind: "iir", args: a.after })),
+        fs,
+        e.fit_range,
+      ),
+    );
+}
+
 // ---- target-relative kinds -------------------------------------------------
 //
 // These score the curve's DEVIATION from a declared target (target.js), so an

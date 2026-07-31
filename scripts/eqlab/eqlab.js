@@ -22,16 +22,27 @@
 //                 "v_db":{"kind":"expr","expr":"(mean(50,150)+mean(4000,10000))/2 - mean(400,1500)"}},
 //     "notes":   {"from":"G4","to":"E6","harmonics":[1,2,3,4,5]},
 //     "job":     {"kind":"probe"}
-//              | {"kind":"evaluate","changes":{"amend":[{"select":2090,"g":2.0}],"append":[{"f":1250,"q":1.4,"g":1.2}]}}
+//              | {"kind":"evaluate","changes":{"amend":[{"select":2090,"g":2.0}],"append":[{"f":1250,"q":1.4,"g":1.2}],
+//                 "replace":[{"remove":[7959,8000],"with":[{"f":7980,"q":2.0,"g":-3.0}],"fit_range":[4000,12000]}]}}
 //              | {"kind":"search","space":{...},"constraints":[...],"objective":"minimize dev","top":12,
 //                 "refine":true | {"survivors":3,"max_evals":600,"tol":1e-5}}   // continuous refinement of grid winners
 //              | {"kind":"search","space":{...},"pareto":["minimize dev","maximize bass_50_150"],...}
 //              | {"kind":"refine","seed":{"amend":[...],"append":[...]},"space":{...},
 //                 "constraints":[...],"objective":"minimize dev"} }             // warm start from a previous result
 //
-// A search space's `amend` and `append` each take a LIST of change specs; every
-// spec contributes one concrete change per candidate, crossed independently —
-// a cut plus a broader lift is two entries in `append`.
+// A search space's `amend`, `replace`, and `append` each take a LIST of change
+// specs; every spec contributes one concrete change per candidate, crossed
+// independently — a cut plus a broader lift is two entries in `append`.
+//
+// `replace` swaps a segment first-class: the `remove` bands (literal
+// frequencies, exact-match like `select`) are genuinely deleted and the `with`
+// bands inserted in their place — honest band count and process string, no
+// g=0 workaround. `with` band parameters sweep and refine like `append`'s;
+// `with: []` is pure removal; a band is amended or replaced, never both. Every
+// answer carrying a replace reports `fit` per replace spec: the residual of
+// the replacement's response against the removed segment's own contribution
+// (rmse, maxdev + Hz) over `fit_range` (default 20-20000 Hz). Reported, never
+// gating — a deliberate reshape has a large residual on purpose.
 //
 // `pareto` replaces `objective` (never both): two or more "minimize/maximize
 // <expr>" strings, answered with the non-dominated front instead of a scalar
@@ -71,7 +82,8 @@ import { resolveChain } from "./chain.js";
 import { evaluateJob, probe } from "./jobs.js";
 import { curveOf, F_HI, F_LO, GRID_N, resolveMetricSpecs } from "./metrics.js";
 import { render } from "./render.js";
-import { MAX_COMBOS, MAX_STEPS, refineJob, searchJob } from "./search.js";
+import { refineJob, searchJob } from "./search.js";
+import { MAX_COMBOS, MAX_STEPS } from "./space.js";
 import { resolveTarget } from "./target.js";
 
 const KINDS = { probe, evaluate: evaluateJob, search: searchJob, refine: refineJob };

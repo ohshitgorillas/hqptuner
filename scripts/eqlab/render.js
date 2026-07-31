@@ -45,6 +45,13 @@ function notesTable(notes) {
   return `\nnotes (dB${notes[0].harmonics[0].delta === undefined ? "" : ", delta"}):\n${table(["note", "Hz", ...ns], rows)}`;
 }
 
+function fitLines(fit) {
+  if (!fit || fit.length === 0) return "";
+  const one = (f, i) =>
+    `  #${i + 1}: rmse ${f.rmse} dB, maxdev ${f.maxdev} dB @ ${f.hz} Hz (${f.range[0]}-${f.range[1]} Hz)`;
+  return `\nfit residual (replacement vs removed):\n${fit.map(one).join("\n")}`;
+}
+
 function flagLines(flags) {
   if (!flags || flags.length === 0) return "";
   return `\nflags:\n${flags.map((f) => `  [${f.severity}] ${f.rule}: ${f.detail}`).join("\n")}`;
@@ -71,6 +78,7 @@ function renderEvaluate(out) {
     `preamp: ${out.before.preamp_db.toFixed(2)} -> ${out.after.preamp_db.toFixed(2)} dB`,
     `\nmetrics:\n${table(["metric", "before", "after", "delta"], rows)}`,
     notesTable(out.note_deltas),
+    fitLines(out.fit),
     flagLines(out.flags),
     `\nprocess:\n${out.after.process}`,
   ].join("\n");
@@ -124,6 +132,7 @@ function renderRefine(out) {
     `preamp: ${b.preamp_db.toFixed(2)} dB`,
     `\nmetrics:\n${table(["metric", "value"], metricRows2)}`,
     violations,
+    fitLines(b.fit),
     flagLines(b.flags),
     `\nchanges: ${JSON.stringify(b.changes)}`,
     `\nprocess:\n${b.process}`,
@@ -172,6 +181,7 @@ function renderSearch(out) {
       ? `\n${table(["#", "score", ...names, "preamp", "changes"], rows)}`
       : "\nno candidate satisfied the constraints",
     binding ? `\nbinding: ${binding.metric} ${binding.bound} (slack ${binding.slack})` : "",
+    fitLines(out.top[0] && out.top[0].fit),
     refinedLines(out.top),
     sensitivityLines(out),
     rejectLines(out),

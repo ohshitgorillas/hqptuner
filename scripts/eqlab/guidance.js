@@ -12,11 +12,8 @@ const Q_HIGH = 6.0;
 
 const gainOf = (args) => Number(args.g ?? 0);
 
-function editFlags(edit) {
-  const after = gainOf(edit.after);
-  const delta = edit.kind === "append" ? after : after - gainOf(edit.before);
+function gainFlag(where, delta) {
   if (Math.abs(delta) <= TURN_GAIN_DB) return [];
-  const where = edit.kind === "append" ? `new band at ${edit.after.f} Hz` : `band at ${edit.before.f} Hz`;
   return [
     {
       severity: "policy",
@@ -24,6 +21,21 @@ function editFlags(edit) {
       detail: `${where}: ${delta > 0 ? "+" : ""}${delta.toFixed(2)} dB exceeds the +/-${TURN_GAIN_DB} dB per-turn policy`,
     },
   ];
+}
+
+// A removal is a gain change of -g at that band's frequency; a replacement's
+// new bands count like appends.
+function editFlags(edit) {
+  if (edit.kind === "replace") {
+    return [
+      ...edit.removed.flatMap((r) => gainFlag(`removed band at ${r.before.f} Hz`, -gainOf(r.before))),
+      ...edit.added.flatMap((a) => gainFlag(`new band at ${a.after.f} Hz`, gainOf(a.after))),
+    ];
+  }
+  const after = gainOf(edit.after);
+  const delta = edit.kind === "append" ? after : after - gainOf(edit.before);
+  const where = edit.kind === "append" ? `new band at ${edit.after.f} Hz` : `band at ${edit.before.f} Hz`;
+  return gainFlag(where, delta);
 }
 
 function qFlags(stages) {

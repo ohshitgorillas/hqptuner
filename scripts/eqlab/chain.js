@@ -115,12 +115,48 @@ function amendOne(stages, change) {
 
 const asList = (x) => (x === undefined ? [] : Array.isArray(x) ? x : [x]);
 
-/** Apply a change set {amend, append} to a stage list. Returns stages + edits. */
+// A band is amended or replaced, never both: the amend would be silently
+// discarded with its band, which is a contradiction in the change set, not a
+// resolvable order of operations.
+function replaceOne(stages, spec, amendedStages) {
+  const removeList = asList(spec.remove);
+  if (removeList.length === 0) throw new Error("replace: remove must name at least one band frequency");
+  const indices = removeList.map((f) => selectBand(stages, f));
+  if (new Set(indices).size !== indices.length)
+    throw new Error(`replace: remove names the same band twice (${removeList.join(", ")})`);
+  for (const i of indices) {
+    if (amendedStages.has(stages[i]))
+      throw new Error(`replace: band at f=${stages[i].args.f} is also amended — amend or replace, not both`);
+  }
+  const added = asList(spec.with).map(bandToStage);
+  const at = Math.min(...indices);
+  const removedSet = new Set(indices);
+  const kept = stages.filter((_, i) => !removedSet.has(i));
+  const next = [...kept.slice(0, at), ...added, ...kept.slice(at)];
+  return {
+    stages: next,
+    edit: {
+      kind: "replace",
+      removed: indices.sort((a, b) => a - b).map((i) => ({ index: i, before: stages[i].args })),
+      added: added.map((s, j) => ({ index: at + j, after: s.args })),
+      ...(spec.fit_range ? { fit_range: spec.fit_range } : {}),
+    },
+  };
+}
+
+/** Apply a change set {amend, replace, append} to a stage list. Returns stages + edits. */
 export function applyChanges(stages, changes) {
   const edits = [];
   let out = stages;
+  const amendedStages = new Set();
   for (const change of asList((changes || {}).amend)) {
     const r = amendOne(out, change);
+    out = r.stages;
+    amendedStages.add(out[r.edit.index]);
+    edits.push(r.edit);
+  }
+  for (const spec of asList((changes || {}).replace)) {
+    const r = replaceOne(out, spec, amendedStages);
     out = r.stages;
     edits.push(r.edit);
   }

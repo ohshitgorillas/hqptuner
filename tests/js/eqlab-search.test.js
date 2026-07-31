@@ -18,7 +18,8 @@ import assert from "node:assert/strict";
 
 import { valueAt } from "../../scripts/eqlab/metrics.js";
 import { resolveChain, applyChanges, serialize } from "../../scripts/eqlab/chain.js";
-import { expandValue, expandChange, searchJob } from "../../scripts/eqlab/search.js";
+import { searchJob } from "../../scripts/eqlab/search.js";
+import { expandValue, expandChange } from "../../scripts/eqlab/space.js";
 import { FS, near, band, curve, serveRows, REAL_FETCH } from "./eqlab-helpers.js";
 
 afterEach(() => {
