@@ -12,6 +12,8 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
+import { effective } from "../store/state.js";
+import { optionsFor } from "../store/options.js";
 import { Card } from "./tabs/common.js";
 import {
   nGenre,
@@ -23,6 +25,7 @@ import {
   nUpsampleOnly,
   narrowingActive,
   resetNarrowing,
+  previewCount,
 } from "../store/narrowing.js";
 
 const GENRES = [
@@ -137,13 +140,49 @@ function ratioLabel() {
 
 const oneLabel = (items, v, fallback) => (items.find(([iv]) => String(iv) === String(v)) || [null, fallback])[1];
 
+// add a value to a multi-select array without duplicating — a preview override
+// answers "what if this option were ALSO on", so a value already picked leaves
+// the selection (and its count) unchanged.
+const addVal = (arr, v) => (arr.includes(v) ? arr : [...arr, v]);
+
+// Per-option result counts hang off the ACTIVE chain only (user decision): PCM
+// unless the output mode is SDM. The two numbers are that chain's 1x / Nx list
+// sizes AFTER the option's override is merged onto the live selection — so the
+// popover reads "Rock 14/22" = 14 of the 1x filters, 22 of the Nx, survive if
+// Rock is added. Reads each dropdown's own field key so the preview honours that
+// chain's apod / hi-res toggles too.
+function chainCounts(overrides) {
+  const sdm = effective("output_mode") === "sdm";
+  const one = previewCount(
+    optionsFor("config", sdm ? "oversampling1x" : "filter1x"),
+    "1x",
+    sdm ? "sdm_filter_1x" : "pcm_filter_1x",
+    overrides,
+  );
+  const nx = previewCount(
+    optionsFor("config", sdm ? "oversampling" : "filter"),
+    "nx",
+    sdm ? "sdm_filter_nx" : "pcm_filter_nx",
+    overrides,
+  );
+  return { one, nx };
+}
+
+// The count chip shown right-aligned in each popover row. A pair that zeroes out
+// both stages reads `dead` — a dead-end pick, dimmed so it is visible before
+// clicking.
+function CountChip({ overrides }) {
+  const { one, nx } = chainCounts(overrides);
+  return html`<span class="opt-count ${one + nx === 0 ? "dead" : ""}">${one}/${nx}</span>`;
+}
+
 // single-select twin of MultiSelect — same button + popover chrome so genre,
 // quality, focus, and phase all render as one identical control (no native
 // <select> chrome mixed in). Picking a value closes the popover.
-function SingleSelect({ open, name, label, value, items, onPick }) {
+function SingleSelect({ open, name, label, value, items, onPick, active, count }) {
   return html`
     <div class="multi" data-multi=${name}>
-      <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
+      <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (open.value = !open.value)}>
         ${label} <span class="multi-caret">▾</span>
       </button>
       ${
@@ -160,7 +199,8 @@ function SingleSelect({ open, name, label, value, items, onPick }) {
                         open.value = false;
                       }}
                     />
-                    ${l}
+                    <span class="opt-label">${l}</span>
+                    ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                   </label>
                 `,
               )}
@@ -175,10 +215,10 @@ function SingleSelect({ open, name, label, value, items, onPick }) {
 // showing the summary label, a popover of checkboxes toggling `sig`'s array.
 // `extra` is an optional element appended below the item rows, divided off — the
 // ratio popover uses it for the orthogonal upsample-only checkbox.
-function MultiSelect({ open, name, label, items, sig, extra }) {
+function MultiSelect({ open, name, label, items, sig, extra, active, count }) {
   return html`
     <div class="multi" data-multi=${name}>
-      <button type="button" class="multi-btn" onClick=${() => (open.value = !open.value)}>
+      <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (open.value = !open.value)}>
         ${label} <span class="multi-caret">▾</span>
       </button>
       ${
@@ -188,7 +228,8 @@ function MultiSelect({ open, name, label, items, sig, extra }) {
                 ([v, l]) => html`
                   <label>
                     <input type="checkbox" checked=${sig.value.includes(v)} onChange=${() => toggleIn(sig, v)} />
-                    ${l}
+                    <span class="opt-label">${l}</span>
+                    ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                   </label>
                 `,
               )}
@@ -210,7 +251,15 @@ export function NarrowBar() {
     <${Card} title="Narrow filters" cardClass="narrow-card">
       <div class="narrow-controls">
         <div class="narrow-facets">
-          <${MultiSelect} open=${genreOpen} name="genre" label=${genreLabel()} items=${GENRES} sig=${nGenre} />
+          <${MultiSelect}
+            open=${genreOpen}
+            name="genre"
+            label=${genreLabel()}
+            items=${GENRES}
+            sig=${nGenre}
+            active=${!!nGenre.value.length}
+            count=${(v) => ({ genre: addVal(nGenre.value, v) })}
+          />
           <${SingleSelect}
             open=${qualityOpen}
             name="quality"
@@ -218,8 +267,18 @@ export function NarrowBar() {
             value=${nQuality.value}
             items=${QUALITY}
             onPick=${(v) => (nQuality.value = Number(v))}
+            active=${Number(nQuality.value) > 0}
+            count=${(v) => ({ quality: Number(v) })}
           />
-          <${MultiSelect} open=${focusOpen} name="focus" label=${focusLabel()} items=${FOCUS} sig=${nFocus} />
+          <${MultiSelect}
+            open=${focusOpen}
+            name="focus"
+            label=${focusLabel()}
+            items=${FOCUS}
+            sig=${nFocus}
+            active=${!!nFocus.value.length}
+            count=${(v) => ({ focus: addVal(nFocus.value, v) })}
+          />
           <${SingleSelect}
             open=${phaseOpen}
             name="phase"
@@ -227,21 +286,34 @@ export function NarrowBar() {
             value=${nPhase.value}
             items=${PHASES}
             onPick=${(v) => (nPhase.value = v)}
+            active=${!!nPhase.value}
+            count=${(v) => ({ phase: v })}
           />
-          <${MultiSelect} open=${lengthOpen} name="length" label=${lengthLabel()} items=${LENGTHS} sig=${nLength} />
+          <${MultiSelect}
+            open=${lengthOpen}
+            name="length"
+            label=${lengthLabel()}
+            items=${LENGTHS}
+            sig=${nLength}
+            active=${!!nLength.value.length}
+            count=${(v) => ({ length: addVal(nLength.value, v) })}
+          />
           <${MultiSelect}
             open=${ratioOpen}
             name="ratio"
             label=${ratioLabel()}
             items=${RATIOS}
             sig=${nRatio}
+            active=${!!nRatio.value.length || nUpsampleOnly.value}
+            count=${(v) => ({ ratio: addVal(nRatio.value, v) })}
             extra=${html`<label class="multi-extra">
               <input
                 type="checkbox"
                 checked=${nUpsampleOnly.value}
                 onChange=${() => (nUpsampleOnly.value = !nUpsampleOnly.value)}
               />
-              Upsample-only
+              <span class="opt-label">Upsample-only</span>
+              <${CountChip} overrides=${{ upsampleOnly: true }} />
             </label>`}
           />
         </div>

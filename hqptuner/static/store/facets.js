@@ -88,6 +88,17 @@ function phase(name) {
   return "";
 }
 
+// "hi-res" filters — the poly-sinc *-hires-* variants and the mqa/mp3 filters
+// (manual §4.6: "for HiRes content … also suitable for lossy compression such
+// as MP3 or MQA"). Detected by NAME, the same authority phase/length read from:
+// the class is baked into the engine's own naming, not a manual editorial bit,
+// so it survives on both the live-enum and static-overlay paths. Drives the two
+// hi-res narrow toggles (hidden from 1x by default, the sole survivors of the
+// Nx "hi-res only" toggle — store/narrowing.js).
+function isHires(name) {
+  return /hires|mqa|mp3/i.test(name || "");
+}
+
 // length — short / medium / long / xlong. Letter-coded names don't carry a
 // readable token, so they get explicit entries grounded in the manual /
 // filters.json tap counts: the sinc letter series (S=4096×ratio, M/Mx/MG/MGa =
@@ -152,6 +163,7 @@ function liveFacet(it, s) {
     focus: focus(it.description),
     phase: phase(it.name),
     length: length(it.name),
+    hires: isHires(it.name),
     apodizing: !!it.apodizing,
     apodizingHalf: (Number(it.arg) & 2) === 2,
     upsampleOnly: upsampleFlag(it.description, s),
@@ -169,6 +181,7 @@ function staticFacet(name, s) {
     focus: s.focus || [],
     phase: phase(name),
     length: length(name),
+    hires: isHires(name),
     apodizing: apod.apodizing,
     apodizingHalf: apod.apodizingHalf,
     upsampleOnly: !!s.upsample_only,
