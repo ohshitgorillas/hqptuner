@@ -65,6 +65,7 @@ Tabs are **Output · Volume · Resampling · DSP · System** (registry: `static/
 - **Filter narrowing.** Genre/focus/quality AND-combine across both 1x and Nx lists. Empty result shows explicit "no filters match — widen criteria" state, never stale selection.
 - **Graying reacts to staged values, not applied ones** — disclosure updates before Apply.
 - **E-core allocation** meaningful only on hybrid CPUs; carries muted "hybrid CPUs only" caption.
+- **Junk-filter advisor is advice-only.** Backend reads the engine's metering stream (`hqptuner/metering.py`, wire in `protocol.md` §7), classifies the playing track's spectrum (`hqptuner/junkadvisor.py` — signatures, thresholds and design rationale live in its module docstring), and surfaces a note in the alert-strip chip, present in both tabs and LIVE views. No apply button, no dismiss, no write path — user acts or ignores. Note clears on track change or once the engaged junk filter treats the signature (corner at or below the recommended one, or any rate-relative choice); `none` never clears it. Stream absence means "no recommendation", never a user-facing error. Rate-relative filters (2x/4x/8x) are never recommended.
 - **No idle gating.** HQPTuner never refuses user action because daemon is playing — see binding rule in `CLAUDE.md`.
 
 ## 6. Static metadata

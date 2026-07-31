@@ -76,7 +76,7 @@ const ENUMS = (modeName, list) => ({
 });
 
 // State reports the rate as a LIST INDEX and answers only for the family the
-// engine is running (live-mode-plan: one pin, cleared by SetMode).
+// engine is running (settings-classification.md: one pin, cleared by SetMode).
 const STATE = ({ mode, chain, rate }) => ({
   mode,
   filter1x: "0",
