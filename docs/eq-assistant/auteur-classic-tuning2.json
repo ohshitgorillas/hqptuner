@@ -1076,6 +1076,88 @@
       "outcome": "NO CHANGE STAGED OR APPLIED. Chain remains on the turn 20 baseline.",
       "question_the_tooling_could_not_express": "Find a change set that removes the local maximum in 1.7-2.6 kHz while leaving the net response across 1-3.5 kHz as close as possible to what it is now everywhere else. That is shape-matching against a target curve, not any scalar over band averages. Every scalar substitute bought its score somewhere unconstrained.",
       "listener_sensitivity": "Do not size or dismiss a move against published thresholds for this listener. Turn 19's +0.6 dB at Q 0.6 sat below Toole & Olive's per-Q floor, below midrange reseat variance, and below this headphone's own 0.21 dB native fine structure in that region - and was heard on first listen and called 'a hair much'. Thresholds bound how precisely a move may be narrated, never whether he will hear it."
+    },
+    {
+      "turn": 23,
+      "model": "claude-fable-5",
+      "complaint": "mid-flight resumption of the 2090 Hz problem: female vocals and guitar solos hit hard passing over a specific range; clawing the peak back sounds dark and dull, widening it increases the area of damage. Turn 22's inexpressible question was now expressible: shape-match against the current curve with the 1700-2600 Hz local maximum replaced by a straight line between its edges, everything else held.",
+      "chain_before": {
+        "bands": "turn 20/21 baseline, verified live: 11 bands, 2090 at Q 3.16 +3.0",
+        "preamp_db": -4.33
+      },
+      "diagnosis": {
+        "method": "43008-candidate grid over amend 2090 gain/Q crossed with optional support bands below (1200-1800) and above (2700-3300), scored by ERB-weighted rmse to the shaved target over 1-4 kHz, continuous refine on survivors",
+        "finding": "winner is amend-only: 2090 gain 3.0 -> 1.2, Q 3.16 -> 1.62, no support bands. Every candidate carrying a support band lost - the target-relative objective priced the skirt feedback that gamed turn 22's scalar objectives, and it priced added bands as pure cost.",
+        "numbers": "passover max 1700-2600: 3.41 -> 1.62 dB. Worst deviation from target anywhere 20 Hz-20 kHz: 0.28 dB. H2 window closed exactly where it hurt: B5 -1.49, C6 -1.80, C#6 -1.46, while G4-F#5 moved <= 0.05. Presence 2500-3500 -0.04, body -0.03, bass/mud/treble <= 0.02, preamp unchanged."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2090,
+          "q_from": 3.16,
+          "q_to": 1.62,
+          "gain_from": 3.0,
+          "gain_to": 1.2,
+          "rationale": "shave the 1700-2600 local maximum to the line joining its edges; widening at reduced gain holds the 2.5-3.5k plateau the turn-21 straight cut dropped"
+        }
+      ],
+      "outcome": "APPLIED, accepted by ear: 'a remarkable step in the right direction... dramatically improved and the pass-over region has significantly shrunk to something very small.' Residual carried to turn 24: region still hits a little hard, and the area around the passover lost a hair of presence.",
+      "what_this_turn_settled": {
+        "apex_constraint_was_shape_conditional": "'2.8-3.2 dB is definitely the right place for that peak' was learned at Q 3.16, where the apex carried the whole presence load alone. At Q 1.62 an apex of 1.2 holds presence and body at baseline (deltas <= 0.04 dB) and the ear accepted it. Treat ear-validated numbers as conditional on the shape they were validated under.",
+        "decoupling_via_added_bands_is_dead": "confirmed independently of turn 22: support bands feed the region they are meant to relieve. Shape-matching found the answer was fewer degrees of freedom, not more.",
+        "stage_only_rule": "NEW STANDING RULE born this turn: the assistant only ever stages changes; it never applies. Apply is the listener's alone (this turn's change was agent-applied, which prompted the rule)."
+      }
+    },
+    {
+      "turn": 24,
+      "model": "claude-fable-5",
+      "complaint": "that region still hits a little hard - cut the hardness by about 0.3 dB, and give the region around the passover a hair of presence back at the same time. 'So small I was debating not even bringing it up.'",
+      "diagnosis": {
+        "method": "constraint-box search, 24948 candidates: passover max 1900-2300 boxed to [-0.40, -0.25] vs live, both shoulders (mean 1400-1800, mean 2400-3000) boxed to [+0.02, +0.20], mud and treble guarded to +/-0.1; objective maximize the shoulder sum inside the box; amend 2090 crossed with one helper below and one above",
+        "finding": "the box did the work: 19889 candidates rejected for leaking back into the passover. Winner lowers and further widens 2090 while two gentle Q 2.8 helpers restore the flanks from outside the 1900-2300 window."
+      },
+      "changes": [
+        {
+          "kind": "amend_band",
+          "type": "peak",
+          "f_hz": 2090,
+          "q_from": 1.62,
+          "q_to": 0.9,
+          "gain_from": 1.2,
+          "gain_to": 0.7,
+          "rationale": "apex down 0.3-ish; widening keeps the skirt contribution to the shoulders"
+        },
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 1500,
+          "gain_db": 0.3,
+          "q": 2.8,
+          "rationale": "lower-shoulder presence, placed and Q'd to stay out of 1900-2300"
+        },
+        {
+          "kind": "append_band",
+          "type": "peak",
+          "f_hz": 2600,
+          "gain_db": 0.3,
+          "q": 2.8,
+          "rationale": "upper-shoulder presence, same containment"
+        }
+      ],
+      "metrics": {
+        "passover_1900_2300_max": {"before": 1.62, "after": 1.33},
+        "shoulder_1400_1800_mean": {"before": 1.28, "after": 1.45},
+        "shoulder_2400_3000_mean": {"before": 0.39, "after": 0.54},
+        "presence_2500_3500_db": {"before": -0.46, "after": -0.33},
+        "mud_200_400_db": {"before": 1.2, "after": 1.21},
+        "treble_4k_10k_db": {"before": 0.41, "after": 0.48},
+        "v_db": {"before": 0.12, "after": 0.05},
+        "preamp_db": {"before": -4.33, "after": -4.33}
+      },
+      "headroom_finding": "preamp unchanged and verified per candidate: the chain maximum is the 94 Hz shelf region, which nothing between 1.5 and 2.6 kHz reaches. Standing footnote: full-range max including the sub-20 Hz shelf asymptote is -4.4 vs installed -4.33, a 0.07 dB theoretical clip window below 20 Hz, pre-existing and inaudible.",
+      "outcome": "STAGED ONLY under the turn-23 rule; listener applied. Verdict: 'This is perfect at first listen, you nailed it.'",
+      "notes": "every step in this turn (-0.5 dB amend, +0.3 dB helpers) sits inside the rig's ~2 dB reseat variance and was heard anyway - listener_sensitivity from turn 22 holds. Chain is now 13 bands; a simplify pass is available later if it wins by ear long-term."
     }
   ],
   "eq_profile_provenance": {
