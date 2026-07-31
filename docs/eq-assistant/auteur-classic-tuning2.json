@@ -248,8 +248,7 @@
           "reason": "Flattest, but +0.40 dB at 500 Hz risks re-muddying a profile already burned twice by mud/muffle"
         }
       ],
-      "selected_spread_db": 1.96,
-      "verification": "applied idle-gated; matrix readback byte-exact; net_period buffer fix preserved through preset save"
+      "selected_spread_db": 1.96
     },
     {
       "complaint": "not muddied, very clear, but now sounding a bit V-shaped... and I hate V-shaped.",
@@ -299,8 +298,7 @@
           "reason": "Largest overshoot; lifts lowmid to +0.85 back toward mud"
         }
       ],
-      "selected_v_db": -0.07,
-      "verification": "applied idle-gated; matrix readback byte-exact; 13 EQ bands live"
+      "selected_v_db": -0.07
     },
     {
       "complaint": "that's vastly better, but two notes: big fuzzy bloomy guitars don't fill the space like they should, they're there and balanced but there's no OOMPH/wow/oversized feel to them. can we fix that without muddying things? also, I feel that there are peaks in the upper registers that haven't quite been tamed yet. female vocals and guitar solos aren't HOT or biting anymore per se, but they are a little bit forward.",
@@ -388,8 +386,7 @@
           "after": 0.38
         }
       },
-      "side_effect_flagged": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)",
-      "verification": "applied idle-gated; matrix readback byte-exact; preset saved with net_period fix intact"
+      "side_effect_flagged": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)"
     },
     {
       "complaint": "certain elements in the treble are a touch spicy, but it's hard for me to put my finger on whether it's the peak at ~3kish or the one around 9-10k. advise.",
@@ -476,8 +473,7 @@
           "before": 5.04,
           "after": 4.95
         }
-      },
-      "verification": "applied idle-gated; matrix readback byte-exact; preset saved"
+      }
     },
     {
       "complaint": "yeah, there's some spiciness up higher now",
@@ -550,8 +546,7 @@
           "before": 5.06,
           "after": 5.04
         }
-      },
-      "verification": "applied idle-gated after a paused-not-stopped abort (state 1 refused, state 0 required); matrix readback byte-exact; preset saved"
+      }
     },
     {
       "complaint": "hmm... I'm not sure about that last one. it's a very fine line between sparkle and spice, but we'll find it. that said, this took away some of the magic and sparkle from the trebe in a way I'm having a hard time putting my finger on. it's not spicy anymore, but it's not quite as insanely clear or correct anymore. we've taken a step away from that. also, Purity Rings' vocals have taken a hit as well with the last round it sounds like",
@@ -615,8 +610,7 @@
           "after_halving": 2.63
         }
       },
-      "listener_option_left_open": "if -0.6 still dulls the treble, preferring a touch of spice over any loss of sparkle is a legitimate endpoint rather than a failure",
-      "verification": "applied idle-gated after a playing-state abort (state 2 refused); matrix readback byte-exact; preset saved"
+      "listener_option_left_open": "if -0.6 still dulls the treble, preferring a touch of spice over any loss of sparkle is a legitimate endpoint rather than a failure"
     },
     {
       "complaint": "let's knock that 2kish peak down just a hair now",
@@ -668,8 +662,7 @@
           "before": 0.31,
           "after": 0.27
         }
-      },
-      "verification": "applied idle-gated; matrix readback byte-exact; preset saved"
+      }
     },
     {
       "complaint": "see how weirdly peaky the region from 50-500 is? ... wondering if simplifying the peaks throughout the midrange and upper/mid bass region and letting the auteur classics do their magic in that region might be one approach to try that might result in a more natural sound",
@@ -884,15 +877,13 @@
         ],
         "record_gap": "not derivable from base_bands plus the turn list: turn 18 was rejected and rolled back, and the shelf reached 94 Hz / Q0.60 / +4.4 by unlogged by-ear tuning after turn 17. Read from the live daemon rather than reconstructed.",
         "crossfeed": {
-          "kind": "structural binaural (docs/crossfeed-math.md section 6), NOT bs2b bauer - post_bauer_enabled=false",
-          "wire": "16 rows, iir:type=lp1;f=1143.2 + delay:t=0.000316465",
-          "recovered_parameters": {"lambda": 0.0, "centre_pct": 0, "alpha_near": 1.40895, "alpha_far": 0.2426, "head_radius_m": 0.0955, "k": 0.582103, "installed_preamp_db": -4.7},
-          "recovery_method": "solved the row Lin gains against binaural.js compileRows; predicted lp1 and lp1+delay coefficients match the wire to 9 decimal places",
-          "consequence": "lambda = 0 means the centre path is exactly flat at every frequency - no centre comb, no centre tilt - so the summed EQ response IS what the centre hears. The spatial half of vocabulary.json (bs2b level/crossover/compensation strength) does not describe this rig."
+          "kind": "structural binaural, NOT bs2b bauer",
+          "parameters": {"lambda": 0.0, "centre_pct": 0, "alpha_near": 1.40895, "alpha_far": 0.2426, "head_radius_m": 0.0955, "k": 0.582103, "installed_preamp_db": -4.7},
+          "consequence": "lambda = 0 means the centre path is exactly flat at every frequency - no centre comb, no centre tilt - so the summed EQ response IS what the centre hears. bs2b spatial vocabulary (level/crossover/compensation strength) does not describe this rig."
         }
       },
       "diagnosis": {
-        "method": "computed net magnitude of the live 10-band chain at 44.1 kHz with the app's own RBJ math (static/lib/dsp.js), swept 100-900 Hz at 1600 points for the true local minimum, then evaluated at note fundamentals A2-B4",
+        "method": "computed net magnitude of the live 10-band chain at 44.1 kHz with RBJ biquad math, swept 100-900 Hz at 1600 points for the true local minimum, then evaluated at note fundamentals A2-B4",
         "finding": "minimum +0.82 dB at 230 Hz, not 220. Left shoulder +2.10 at 100 Hz (94 Hz shelf skirt), right shoulder +1.49 at 624 Hz (621 Hz peak skirt). Depth 1.28 dB vs left, 0.67 dB vs right. Not a notch - the dished saddle between the two S1 bands, with nothing between them.",
         "explains_symptom": "spread across A2-G4 was 1.01 dB, smooth and monotone down-then-up: a bass line walking A2 (+1.83) up to A3 (+0.82) loses a decibel on the way, so the higher note reads slightly less substantial than the lower one for no musical reason. Register-dependent level, the consistency category rather than a tonal term.",
         "measured_at_fundamentals_db": {"110": 1.83, "131": 1.4, "147": 1.18, "165": 1.01, "196": 0.86, "220": 0.82, "262": 0.84, "294": 0.9, "330": 0.99, "392": 1.16, "494": 1.39},
@@ -940,11 +931,9 @@
         "installed_preamp_db": -4.7,
         "required_preamp_db": -4.33,
         "note": "the structural block still carries turn 17's S1 figure, so 0.37 dB of headroom is unused. Over-attenuated, which is the safe direction; clips=0 on the daemon.",
-        "deliberately_not_recovered": "rescaling the preamp would make everything 0.37 dB louder in the same breath as a 0.6 dB tonal change, and level bias is the classic way an A/B goes wrong (PSYCHOACOUSTICS.md section 3). Held at -4.70 so the fill could be judged level-clean; recovery deferred to its own change."
+        "deliberately_not_recovered": "rescaling the preamp would make everything 0.37 dB louder in the same breath as a 0.6 dB tonal change, and level bias is the classic way an A/B goes wrong. Held at -4.70 so the fill could be judged level-clean; recovery deferred to its own change."
       },
-      "answer": "'no, your method is fine. can we back off that by about half? it's good, warmer and fuller, but just like a hair much' - fill confirmed audible and in the right direction, magnitude too large. Reference material: crushing doom metal.",
-      "method_note": "staged as one atomic matrix_pipelines field - the same EQ stage appended to all 16 structural rows with every Lin gain byte-preserved, so the block's recognition (lambda, alpha pair, per-ear k) survived and no crossfeed off/on cycle was needed. Listener confirmed the method.",
-      "verification": "live readback before the next turn confirmed the +0.6 stage present in all 16 rows; gains unchanged"
+      "answer": "'no, your method is fine. can we back off that by about half? it's good, warmer and fuller, but just like a hair much' - fill confirmed audible and in the right direction, magnitude too large. Reference material: crushing doom metal."
     },
     {
       "turn": 20,
@@ -990,9 +979,9 @@
         "installed_before_db": -4.7,
         "set_to_db": -4.33,
         "delta_db": 0.37,
-        "method": "every row's Lin gain scaled by 10^(0.37/20) = 1.043518; EQ process strings byte-identical, so lambda, the alpha pair and the structural block's recognition are untouched. Preamp rounded away from zero so it can never under-attenuate.",
+        "method": "preamp rounded away from zero so it can never under-attenuate",
         "peak_after_preamp_dbfs": -0.0043,
-        "caveat": "computed by AutoEq's rule - negative of the maximum of the SUMMED response of the whole chain - evaluated over 20 Hz to 20 kHz. The 94 Hz shelf's asymptote continues to +4.40 dB below 20 Hz, so sub-20 Hz content could reach about +0.07 dBFS; -4.40 would cover the asymptote. No agreed inter-sample-peak margin exists in the literature (FILTER-MATH.md section 6).",
+        "caveat": "computed by AutoEq's rule - negative of the maximum of the SUMMED response of the whole chain - evaluated over 20 Hz to 20 kHz. The 94 Hz shelf's asymptote continues to +4.40 dB below 20 Hz, so sub-20 Hz content could reach about +0.07 dBFS; -4.40 would cover the asymptote. No agreed inter-sample-peak margin exists in the literature.",
         "process_correction": "the listener's standing instruction was to keep the preamp adjusted on EVERY turn. Turns 19 and 20 deferred it to protect the A/B from level bias, disclosed both times but not done. The instruction was explicit and outranked the reasoning; correcting the preamp is now part of every turn's change set, and where it would contaminate a comparison the right move is to say so in one line and do it anyway."
       }
     },
@@ -1019,7 +1008,7 @@
         "note": "turn 17 S1 structure plus the turn 19/20 fill; read from the live daemon, not reconstructed. The preset XML on disk also carries a stale second row variant (95 Hz / 2093 Hz / lp1 f=1294.4) which is NOT live."
       },
       "diagnosis": {
-        "method": "net magnitude of the live 11-band chain at 44.1 kHz using the app's own RBJ math (static/lib/dsp.js); 6000-point log sweep 1-10 kHz for turning points, then every harmonic of every note G4-C6 evaluated to find which notes excite which feature",
+        "method": "net magnitude of the live 11-band chain at 44.1 kHz using RBJ biquad math; 6000-point log sweep 1-10 kHz for turning points, then every harmonic of every note G4-C6 evaluated to find which notes excite which feature",
         "finding": "Above 1 kHz the chain has exactly two peaks and nothing else: 2083 Hz at +3.41 dB and 7867 Hz at +3.35 dB. Everything between is at or below zero - 2.5-3.5k averages -0.45, 3.4-4.6k -0.40, 4-5k -0.69, 5-6k -3.57.",
         "explains_symptom": "The 2090 band at Q3.16 is the only positive feature anywhere between 1 kHz and 6 kHz, so it carries the entire presence load alone as a narrow spike on a depressed plateau. Reducing its gain lowers the spike and the plateau's only support together, which is the reported dark-and-unpleasant.",
         "in_plain_terms": "One narrow band is doing two jobs at once - it is both the thing hurting you and the only thing holding the upper mids up. Turn it down and you lose both.",
@@ -1058,7 +1047,7 @@
         "installed_db": -4.33,
         "note": "identical before and after - the chain maximum is the 94 Hz shelf asymptote at 20 Hz, which a 2 kHz move does not reach. Checked rather than skipped, per the turn 20 standing instruction."
       },
-      "outcome": "REJECTED BY EAR. Listener verdict: 'I think that's actually worse. It's hammering my ears now, and it feels like the area of damage has maybe widened.' Reverted to Q3.16 +3.0 the same turn; readback verified 16/16 rows, gains byte-identical, nothing saved to the preset.",
+      "outcome": "REJECTED BY EAR. Listener verdict: 'I think that's actually worse. It's hammering my ears now, and it feels like the area of damage has maybe widened.' Reverted to Q3.16 +3.0 the same turn; nothing saved to the preset.",
       "what_the_rejection_settled": {
         "mechanism": "ABSOLUTE level in the 2 kHz region, not contrast. Widening raised total energy across a wider span and the affected area widened with it - the specific direction that discriminates between the two hypotheses. The contrast reading is dead.",
         "seven_to_nine_k_closed": "listener confirmed 7-9 kHz at +3.15 average 'looks hot but sounds correct to me'. Real fricative sibilance was never the complaint. Region held - do not propose moving it.",
@@ -1085,7 +1074,7 @@
       },
       "changes": [],
       "outcome": "NO CHANGE STAGED OR APPLIED. Chain remains on the turn 20 baseline.",
-      "question_the_tooling_could_not_express": "Find a change set that removes the local maximum in 1.7-2.6 kHz while leaving the net response across 1-3.5 kHz as close as possible to what it is now everywhere else. That is shape-matching against a target curve - fit_chain, PRIMER D17 - not any scalar over band averages. Every scalar substitute bought its score somewhere unconstrained.",
+      "question_the_tooling_could_not_express": "Find a change set that removes the local maximum in 1.7-2.6 kHz while leaving the net response across 1-3.5 kHz as close as possible to what it is now everywhere else. That is shape-matching against a target curve, not any scalar over band averages. Every scalar substitute bought its score somewhere unconstrained.",
       "listener_sensitivity": "Do not size or dismiss a move against published thresholds for this listener. Turn 19's +0.6 dB at Q 0.6 sat below Toole & Olive's per-Q floor, below midrange reseat variance, and below this headphone's own 0.21 dB native fine structure in that region - and was heard on first listen and called 'a hair much'. Thresholds bound how precisely a move may be narrated, never whether he will hear it."
     }
   ],

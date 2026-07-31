@@ -117,8 +117,7 @@
         {"band": "peak 200 Hz +1.3 dB Q0.70", "spread_db": 1.92,
          "reason": "Flattest, but +0.40 dB at 500 Hz risks re-muddying a profile already burned twice by mud/muffle"}
       ],
-      "selected_spread_db": 1.96,
-      "verification": "applied idle-gated; matrix readback byte-exact; net_period buffer fix preserved through preset save"
+      "selected_spread_db": 1.96
     },
     {
       "complaint": "not muddied, very clear, but now sounding a bit V-shaped... and I hate V-shaped.",
@@ -143,8 +142,7 @@
         {"band": "peak 700 Hz +2.2 dB Q0.50", "v_db": -0.70,
          "reason": "Largest overshoot; lifts lowmid to +0.85 back toward mud"}
       ],
-      "selected_v_db": -0.07,
-      "verification": "applied idle-gated; matrix readback byte-exact; 13 EQ bands live"
+      "selected_v_db": -0.07
     },
     {
       "complaint": "that's vastly better, but two notes: big fuzzy bloomy guitars don't fill the space like they should, they're there and balanced but there's no OOMPH/wow/oversized feel to them. can we fix that without muddying things? also, I feel that there are peaks in the upper registers that haven't quite been tamed yet. female vocals and guitar solos aren't HOT or biting anymore per se, but they are a little bit forward.",
@@ -187,8 +185,7 @@
         "fwd_1800_4000_db": {"before": 3.24, "after": 2.79},
         "v_db": {"before": -0.07, "after": 0.38}
       },
-      "side_effect_flagged": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)",
-      "verification": "applied idle-gated; matrix readback byte-exact; preset saved with net_period fix intact"
+      "side_effect_flagged": "V metric rises to +0.38 because the fill lands inside the bass band; judged acceptable since filling a notch reads as evenness rather than boost, and disclosed to the listener before applying with the remedy named in advance (+0.4 on the 750 Hz band rather than reverting)"
     },
     {
       "complaint": "certain elements in the treble are a touch spicy, but it's hard for me to put my finger on whether it's the peak at ~3kish or the one around 9-10k. advise.",
@@ -224,8 +221,7 @@
         "band_3400_4600_db": {"before": 2.30, "after": 0.79},
         "held_2000_db": {"before": 5.12, "after": 5.06},
         "held_8000_db": {"before": 5.04, "after": 4.95}
-      },
-      "verification": "applied idle-gated; matrix readback byte-exact; preset saved"
+      }
     },
     {
       "complaint": "yeah, there's some spiciness up higher now",
@@ -261,8 +257,7 @@
         "held_10000_16000_db": {"before": -0.17, "after": -0.33},
         "held_5500_7000_db": {"before": 0.60, "after": 0.13},
         "held_2000_db": {"before": 5.06, "after": 5.04}
-      },
-      "verification": "applied idle-gated after a paused-not-stopped abort (state 1 refused, state 0 required); matrix readback byte-exact; preset saved"
+      }
     },
     {
       "complaint": "hmm... I'm not sure about that last one. it's a very fine line between sparkle and spice, but we'll find it. that said, this took away some of the magic and sparkle from the trebe in a way I'm having a hard time putting my finger on. it's not spicy anymore, but it's not quite as insanely clear or correct anymore. we've taken a step away from that. also, Purity Rings' vocals have taken a hit as well with the last round it sounds like",
@@ -294,8 +289,7 @@
         "peak_hz": {"unnotched": 7917, "after_halving": 7877, "note": "shape preserved, peak not relocated"},
         "band_9000_11000_db": {"at_minus_1_2": 2.38, "after_halving": 2.63}
       },
-      "listener_option_left_open": "if -0.6 still dulls the treble, preferring a touch of spice over any loss of sparkle is a legitimate endpoint rather than a failure",
-      "verification": "applied idle-gated after a playing-state abort (state 2 refused); matrix readback byte-exact; preset saved"
+      "listener_option_left_open": "if -0.6 still dulls the treble, preferring a touch of spice over any loss of sparkle is a legitimate endpoint rather than a failure"
     },
     {
       "complaint": "let's knock that 2kish peak down just a hair now",
@@ -321,8 +315,7 @@
         "band_1800_2500_db": {"before": 4.39, "after": 4.01},
         "held_mid_400_1500_db": {"before": 2.03, "after": 2.01},
         "held_3000_4000_db": {"before": 0.31, "after": 0.27}
-      },
-      "verification": "applied idle-gated; matrix readback byte-exact; preset saved"
+      }
     }
   ]
 }
