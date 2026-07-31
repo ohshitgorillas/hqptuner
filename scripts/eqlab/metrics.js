@@ -47,6 +47,16 @@ export function preampDb(curve) {
   return -Math.max(...curve.db);
 }
 
+// The 20 Hz-bounded grid misses a low shelf whose plateau keeps rising below
+// the grid floor; this samples 1-20 Hz and folds the sub-bass maximum in.
+const SUB_GRID = logGrid(256, 1, F_LO);
+
+/** Preamp including the sub-20 Hz shelf asymptote: max over 1 Hz - 20 kHz. */
+export function preampDbFull(stages, fs, preamp) {
+  const subMax = Math.max(...SUB_GRID.map((f) => chainResponse(stages, f, fs).db));
+  return Math.min(preamp, -subMax);
+}
+
 /** Response at an arbitrary frequency, linearly interpolated in log f. */
 export function valueAt(curve, f) {
   const { freqs, db } = curve;

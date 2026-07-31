@@ -58,11 +58,16 @@ Landed on working tree:
 
 Status: done on working tree. 99 tests via the blind chain: 76/77 green first run, one failure adjudicated as spec defect (importer ignores non-filter lines by design — spec item corrected, writer re-run), bite check red (weak form — import error, pre-change tree lacks `io.js` exports and `diffJob`), reviewer returned 1 BLOCKER + 4 MAJOR + 6 MINOR, all applied by writer re-run under pinned spec. Full gate green, task-check PASS.
 
-## S6 — confidence annotation, headroom, extended flags — PLANNED
+## S6 — confidence annotation, headroom, extended flags — DONE
 
-- Measurement-confidence annotation: the two rig statements only (~2 dB midrange reseat variance; above 8 kHz outside qualified range). Annotates how much precision narration has earned, never what the user perceives — no audibility language, no per-Q figures, never filters or ranks candidates.
-- Sub-20 Hz shelf asymptote: `preamp_db_full` alongside the 20 Hz-bounded `preamp_db`; flag when they differ.
-- Extended guidance flags: high-Q large step, fitting above 8 kHz. Reports, never limits — no clamps, ever.
+Landed on working tree:
+
+- Severity `confidence` entries in the standing flags channel, the two rig statements only (PSYCHOACOUSTICS.md §5): a nonzero gain step under 2 dB on a band inside 500–5000 Hz inclusive is "inside measurement reseat variance"; any edit step on a band above 8 kHz is "above rig's qualified range". Precision-narration wording only, report-only, never filters or ranks.
+- `preamp_db_full` beside `preamp_db` on every panel (probe, evaluate before/after, diff a/b, search survivors): max over 1 Hz–20 kHz, catching a low shelf whose plateau keeps rising below the 20 Hz grid floor. Guidance flag `sub-20 Hz headroom` on evaluate/search when the two 2-dp values differ.
+- Extended guidance flags: `high-Q large step` — gain step on a q ≥ 2.5 band exceeding the per-Q threshold floor (±1.5 dB at Q=1, ±3 at Q=10, ±5 at Q=50, log-interpolated, clamped; SOURCES.md §2); `fitting above 8 kHz` — replace `fit_range` upper bound past 8 kHz. Reports, never limits — no clamps.
+- Replace removals and `with` bands count as gain steps (−g / +g) for every per-step rule, same as the policy flag.
+
+Status: done on working tree. 52 tests via the blind chain: 45 green first run, bite check red (weak form — import error, pre-change tree lacks the `headroomFlags`/`preampDbFull` exports), reviewer returned 3 BLOCKER + 3 MINOR (after-panel and survivor `preamp_db_full` unpinned, per-Q floor curve degenerate to a constant, probe typeof stub-passable, reseat endpoints and q-gate unprobed), all six applied by writer re-run under tightened spec. Full gate green.
 
 ## Pending outside the stages
 

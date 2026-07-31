@@ -1,21 +1,35 @@
 // The probe, evaluate and diff jobs, plus the panel shape all share with search.
 
 import { applyChanges, isEq, resolveChain, serialize } from "./chain.js";
-import { guidanceFlags } from "./guidance.js";
-import { computeMetrics, curveOf, extrema, fitOfEdits, metricValues, preampDb, round } from "./metrics.js";
+import { guidanceFlags, headroomFlags } from "./guidance.js";
+import {
+  computeMetrics,
+  curveOf,
+  extrema,
+  fitOfEdits,
+  metricValues,
+  preampDb,
+  preampDbFull,
+  round,
+} from "./metrics.js";
 import { noteDeltas, noteTable } from "./notes.js";
 
 /** Everything measured about one chain: preamp, metric panel, process string. */
 export function panelOf(stages, fs, metricSpecs, target) {
   const curve = curveOf(stages, fs);
   const panel = computeMetrics(curve, metricSpecs, target);
+  const preamp = preampDb(curve);
+  const preampFull = preampDbFull(stages, fs, preamp);
   return {
     curve,
     panel,
+    preamp,
+    preampFull,
     out: {
       process: serialize(stages),
       band_count: stages.length,
-      preamp_db: round(preampDb(curve), 2),
+      preamp_db: round(preamp, 2),
+      preamp_db_full: round(preampFull, 2),
       partial: curve.partial,
       metrics: Object.fromEntries(
         Object.entries(panel).map(([k, v]) => [k, { value: round(v.value), ...(v.hz ? { hz: round(v.hz, 2) } : {}) }]),
@@ -131,7 +145,7 @@ export function evaluateJob(job, ctx) {
     metric_deltas: Object.fromEntries(Object.keys(av).map((k) => [k, round(av[k] - bv[k])])),
     edits: edits.map(editOut),
     ...(fit.length ? { fit } : {}),
-    flags: guidanceFlags(edits, stages),
+    flags: [...guidanceFlags(edits, stages), ...headroomFlags(after.preamp, after.preampFull)],
     note_deltas: roundNotes(noteDeltas(before.curve, after.curve, ctx.notes)),
   };
 }

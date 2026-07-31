@@ -8,8 +8,17 @@
 
 import { applyChanges, serialize } from "./chain.js";
 import { evaluate, parse } from "./expr.js";
-import { guidanceFlags } from "./guidance.js";
-import { computeMetrics, curveOf, fitOfEdits, metricValues, preampDb, round, sumCurves } from "./metrics.js";
+import { guidanceFlags, headroomFlags } from "./guidance.js";
+import {
+  computeMetrics,
+  curveOf,
+  fitOfEdits,
+  metricValues,
+  preampDb,
+  preampDbFull,
+  round,
+  sumCurves,
+} from "./metrics.js";
 import { refinePoint } from "./refine.js";
 import { candidates, expandValue } from "./space.js";
 
@@ -104,6 +113,7 @@ function scoreCandidate(measure, changes, ctx, spec) {
 // candidate never reports one.
 function survivorOut(cand, spec, constraints, ctx) {
   const fit = fitOfEdits(cand.edits, ctx.fs);
+  const preampFull = preampDbFull(cand.stages, ctx.fs, cand.preamp);
   return {
     changes: cand.changes,
     ...(spec.pareto
@@ -111,11 +121,12 @@ function survivorOut(cand, spec, constraints, ctx) {
       : { score: round(cand.scores[0], 4) }),
     metrics: Object.fromEntries(Object.entries(cand.values).map(([k, v]) => [k, round(v)])),
     preamp_db: round(cand.preamp, 2),
+    preamp_db_full: round(preampFull, 2),
     ...(fit.length ? { fit } : {}),
     ...(constraints.length ? { binding: bindingOf(constraints, cand.values) } : {}),
     process: serialize(cand.stages),
     partial: cand.partial,
-    flags: guidanceFlags(cand.edits, cand.stages),
+    flags: [...guidanceFlags(cand.edits, cand.stages), ...headroomFlags(cand.preamp, preampFull)],
   };
 }
 
