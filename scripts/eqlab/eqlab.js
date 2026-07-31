@@ -23,8 +23,11 @@
 //     "notes":   {"from":"G4","to":"E6","harmonics":[1,2,3,4,5]},
 //     "job":     {"kind":"probe"}
 //              | {"kind":"evaluate","changes":{"amend":[{"select":2090,"g":2.0}],"append":[{"f":1250,"q":1.4,"g":1.2}]}}
-//              | {"kind":"search","space":{...},"constraints":[...],"objective":"minimize dev","top":12}
-//              | {"kind":"search","space":{...},"pareto":["minimize dev","maximize bass_50_150"],...} }
+//              | {"kind":"search","space":{...},"constraints":[...],"objective":"minimize dev","top":12,
+//                 "refine":true | {"survivors":3,"max_evals":600,"tol":1e-5}}   // continuous refinement of grid winners
+//              | {"kind":"search","space":{...},"pareto":["minimize dev","maximize bass_50_150"],...}
+//              | {"kind":"refine","seed":{"amend":[...],"append":[...]},"space":{...},
+//                 "constraints":[...],"objective":"minimize dev"} }             // warm start from a previous result
 //
 // A search space's `amend` and `append` each take a LIST of change specs; every
 // spec contributes one concrete change per candidate, crossed independently —
@@ -36,6 +39,15 @@
 // closest to its bound, with slack), `rejected_top` (best rejects with every
 // violated bound and by how much), and — scalar only — `margin` (winner vs
 // runner-up) and `sensitivity` (what relaxing each constraint alone would buy).
+//
+// `refine` runs a deterministic continuous descent (coordinate descent +
+// Nelder-Mead) from each grid winner over every parameter the space declared
+// more than one value for, bounded by that parameter's declared min/max.
+// Scalar mode refines the top `survivors` then re-ranks; pareto mode refines
+// each returned front member without letting any other objective worsen. The
+// standalone "refine" kind warm-starts from an explicit `seed` (a previous
+// result's `changes`) with no grid sweep — scalar objective only. `margin` and
+// `sensitivity` stay grid-derived.
 //
 // `amend.select` matches an existing band's `f` EXACTLY — no nearest-match, no
 // fuzz. Not found or not unique is an error, because this chain carries bands
@@ -59,10 +71,10 @@ import { resolveChain } from "./chain.js";
 import { evaluateJob, probe } from "./jobs.js";
 import { curveOf, F_HI, F_LO, GRID_N, resolveMetricSpecs } from "./metrics.js";
 import { render } from "./render.js";
-import { MAX_COMBOS, MAX_STEPS, searchJob } from "./search.js";
+import { MAX_COMBOS, MAX_STEPS, refineJob, searchJob } from "./search.js";
 import { resolveTarget } from "./target.js";
 
-const KINDS = { probe, evaluate: evaluateJob, search: searchJob };
+const KINDS = { probe, evaluate: evaluateJob, search: searchJob, refine: refineJob };
 
 // What this rig can and cannot do, on every run. `guards` are runaway stops to
 // plan batches around, not budgets to ask about; `not_modelled` is the list
@@ -73,7 +85,6 @@ const LIMITS = {
   guards: { max_combinations: MAX_COMBOS, max_values_per_range: MAX_STEPS },
   not_modelled: [
     "`select` is a literal per amend spec — a search varies band parameters, never which band a spec amends",
-    "search is exhaustive over the declared grid — no continuous local refinement yet",
     "16-row summation — one row's EQ tail is measured, guarded by tail_consistency",
     "phase and group delay",
     "non-iir stage synthesis (delay, riaa, convolution are measured, never proposed)",

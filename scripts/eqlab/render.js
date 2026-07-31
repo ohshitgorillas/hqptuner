@@ -103,6 +103,35 @@ function sensitivityLines(out) {
     .join("\n")}`;
 }
 
+const refinedNote = (r) =>
+  `${r.from_score} -> ${r.score} (evals ${r.evals}${r.converged ? "" : ", not converged"}${r.improved ? "" : ", grid point kept"})`;
+
+function refinedLines(list) {
+  const rows = (list || []).map((c, i) => ({ i, r: c.refined })).filter((x) => x.r);
+  if (!rows.length) return "";
+  return `\nrefined:\n${rows.map((x) => `  #${x.i + 1}: ${refinedNote(x.r)}`).join("\n")}`;
+}
+
+function renderRefine(out) {
+  const b = out.best;
+  const metricRows2 = Object.entries(b.metrics).map(([k, v]) => [k, v.toFixed(3)]);
+  const violations = b.violations
+    ? `\nviolations:\n${b.violations.map((v) => `  ${v.metric} ${v.bound}=${v.limit} by ${v.by}`).join("\n")}`
+    : "";
+  return [
+    `objective: ${out.objective.direction} ${out.objective.expr}`,
+    `seed ${refinedNote(b.refined)}`,
+    `preamp: ${b.preamp_db.toFixed(2)} dB`,
+    `\nmetrics:\n${table(["metric", "value"], metricRows2)}`,
+    violations,
+    flagLines(b.flags),
+    `\nchanges: ${JSON.stringify(b.changes)}`,
+    `\nprocess:\n${b.process}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function renderPareto(out) {
   const exprs = out.pareto.objectives.map((o) => o.expr);
   const names = (out.front.length ? Object.keys(out.front[0].metrics) : []).filter((n) => !exprs.includes(n));
@@ -119,6 +148,7 @@ function renderPareto(out) {
     out.front.length
       ? `\n${table(["#", ...exprs, ...names, "preamp", "changes"], rows)}`
       : "\nno candidate satisfied the constraints",
+    refinedLines(out.front),
     rejectLines(out),
   ].join("\n");
 }
@@ -142,13 +172,14 @@ function renderSearch(out) {
       ? `\n${table(["#", "score", ...names, "preamp", "changes"], rows)}`
       : "\nno candidate satisfied the constraints",
     binding ? `\nbinding: ${binding.metric} ${binding.bound} (slack ${binding.slack})` : "",
+    refinedLines(out.top),
     sensitivityLines(out),
     rejectLines(out),
     flagLines(out.top[0] && out.top[0].flags),
   ].join("\n");
 }
 
-const BODY = { probe: renderProbe, evaluate: renderEvaluate, search: renderSearch };
+const BODY = { probe: renderProbe, evaluate: renderEvaluate, search: renderSearch, refine: renderRefine };
 
 /** Full stderr report for a finished job. */
 export function render(out) {

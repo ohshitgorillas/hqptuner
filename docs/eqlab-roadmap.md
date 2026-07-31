@@ -25,9 +25,16 @@ Landed on working tree:
 
 Status: done on working tree (unshipped). 53 tests via the blind chain: 49 green first run, bite check red (weak form — import error on the new `REJECTS_KEPT` export), reviewer returned 2 MAJOR + 4 MINOR, all six tightenings applied on user go. Full gate green, task-check PASS.
 
-## S3 — continuous refinement — PLANNED
+## S3 — continuous refinement — DONE
 
-Coordinate descent + Nelder-Mead over survivors' (f, g, Q), seeded from grid winners, deterministic/seeded, warm start from a previous result. Closes the self-declared `not_modelled` line "search is exhaustive over the declared grid".
+Landed on working tree:
+
+- `refine.js`: deterministic optimizers on the unit box — fixed-pattern coordinate descent then Nelder-Mead polish (`refinePoint`), no randomness anywhere, same seed always walks the same path.
+- Search job takes `"refine": true | {survivors, max_evals, tol}`: refines grid winners over every parameter the space declared more than one value for, bounded by that parameter's declared min/max (f and Q in log space). Scalar mode refines top-N then re-ranks; pareto mode refines each returned front member under no-worsening caps on the other objectives, then prunes. Constraints enforced by penalty; the refined point replaces the grid winner only when feasible and strictly better. Every refined entry carries `refined: {from_score, score, evals, converged, improved}`.
+- Standalone `{"kind":"refine","seed":{...},"space":{...},"objective":...}`: warm start from a previous result's `changes`, no grid sweep, scalar objective only.
+- Closed the `not_modelled` line "search is exhaustive over the declared grid".
+
+Status: done on working tree. 39 tests via the blind chain: green first run, bite check red (weak form — import error, pre-change search.js lacks the new exports), reviewer returned 1 BLOCKER + 2 MAJOR + 3 MINOR; BLOCKER (vacuous non-domination fixture) and one MAJOR (re-rank unpinned) fixed by writer re-run with tightened spec, two MINORs applied, one MAJOR and one MINOR adjudicated non-issues (spec omissions, not test defects). Full gate green, task-check PASS.
 
 ## S5 — replace_segment — PLANNED (after S3)
 
@@ -46,4 +53,3 @@ Read: daemon / preset XML / ParametricEQ.txt / saved eqlab chain JSON. Write: fi
 ## Pending outside the stages
 
 - vocabulary.json:154/:227 ("a move below the floor for its own Q is inaudible, not subtle") loses to PSYCHOACOUSTICS.md:185; plus stale `_meta.clamps` bounds. Flagged twice; lands as ONE user-reviewed change, not yet green-lit.
-- S1+S2 unshipped: need `CHANGELOG.md` entry under `[Unreleased]`; ship is the user's call.
