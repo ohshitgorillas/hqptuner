@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Hi-res filter narrowing.** Each 1x filter dropdown gains a **Hide hi-res filters** toggle, on by default — at 1x the hi-res filters suit lossy material such as mp3 and MQA, so untick it when that is what you play. Each Nx dropdown gains the inverse, **Show only hi-res filters**. Every narrowable filter dropdown now also shows an n/total badge of how many filters survive the active narrowing, in both the tabs and LIVE views.
+
 ## [0.11.1] — 2026-07-30
 
 ### Changed

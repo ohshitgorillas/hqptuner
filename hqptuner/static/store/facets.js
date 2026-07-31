@@ -88,14 +88,18 @@ function phase(name) {
   return "";
 }
 
-// "hi-res" filters — the poly-sinc *-hires-* variants and the mqa/mp3 filters
-// (manual §4.6: "for HiRes content … also suitable for lossy compression such
-// as MP3 or MQA"). Detected by NAME, the same authority phase/length read from:
-// the class is baked into the engine's own naming, not a manual editorial bit,
-// so it survives on both the live-enum and static-overlay paths. Drives the two
-// hi-res narrow toggles (hidden from 1x by default, the sole survivors of the
-// Nx "hi-res only" toggle — store/narrowing.js).
+// "hi-res" filters, detected by NAME — the same authority phase/length read
+// from: the class is baked into the engine's own naming, not a manual editorial
+// bit, so it survives on both the live-enum and static-overlay paths. Two tiers
+// (store/narrowing.js): `hires` is the strict *-hires-* set the 1x hide toggle
+// drops — the mqa/mp3 filters stay out of it because they are exactly right at
+// 1x for lossy sources (manual §4.6). `hiresFamily` adds mqa/mp3 back and is
+// what the Nx "hi-res only" toggle keeps ("for HiRes content … also suitable
+// for lossy compression such as MP3 or MQA").
 function isHires(name) {
+  return /hires/i.test(name || "");
+}
+function isHiresFamily(name) {
   return /hires|mqa|mp3/i.test(name || "");
 }
 
@@ -164,6 +168,7 @@ function liveFacet(it, s) {
     phase: phase(it.name),
     length: length(it.name),
     hires: isHires(it.name),
+    hiresFamily: isHiresFamily(it.name),
     apodizing: !!it.apodizing,
     apodizingHalf: (Number(it.arg) & 2) === 2,
     upsampleOnly: upsampleFlag(it.description, s),
@@ -182,6 +187,7 @@ function staticFacet(name, s) {
     phase: phase(name),
     length: length(name),
     hires: isHires(name),
+    hiresFamily: isHiresFamily(name),
     apodizing: apod.apodizing,
     apodizingHalf: apod.apodizingHalf,
     upsampleOnly: !!s.upsample_only,

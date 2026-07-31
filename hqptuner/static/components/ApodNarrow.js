@@ -38,6 +38,13 @@ export function ApodNarrow({ field }) {
   return html`
     <div class="apod-narrow">
       <label class="narrow-apod">
+        <input type="checkbox" checked=${hideHires} onChange=${(e) => setHideHires(field, e.target.checked)} />
+        Hide hi-res filters
+      </label>
+      <div class="apod-narrow-note">
+        Hi-res filters are optimal for lossy material such as mp3 and MQA at 1x.
+      </div>
+      <label class="narrow-apod">
         <input type="checkbox" checked=${on} onChange=${(e) => setApod(field, e.target.checked)} />
         Show apodizing only
       </label>
@@ -51,13 +58,6 @@ export function ApodNarrow({ field }) {
         Show ½ apodizing filters
       </label>
       ${tip ? html`<div class="apod-narrow-note">${tip}</div>` : null}
-      <label class="narrow-apod narrow-hires">
-        <input type="checkbox" checked=${hideHires} onChange=${(e) => setHideHires(field, e.target.checked)} />
-        Hide hi-res filters
-      </label>
-      <div class="apod-narrow-note">
-        Hi-res filters are optimal for lossy material such as mp3 and MQA at 1x.
-      </div>
     </div>
   `;
 }
@@ -68,7 +68,7 @@ export function HiresNarrow({ field }) {
   const only = nHiresOnly.value[field] === true;
   return html`
     <div class="apod-narrow">
-      <label class="narrow-apod narrow-hires">
+      <label class="narrow-apod">
         <input type="checkbox" checked=${only} onChange=${(e) => setHiresOnly(field, e.target.checked)} />
         Show only hi-res filters
       </label>

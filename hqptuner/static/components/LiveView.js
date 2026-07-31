@@ -35,7 +35,7 @@ import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { NarrowBar } from "./NarrowBar.js";
-import { ApodNarrow } from "./ApodNarrow.js";
+import { ApodNarrow, HiresNarrow } from "./ApodNarrow.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
 import { Section, Card, collapseFrom } from "./tabs/common.js";
@@ -84,17 +84,25 @@ const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisi
 // the identical sentence, so the caption belongs to the card that holds them
 // both and `HeroRow` prints it once. A control that ever grays on its own would
 // need its own render; none does today.
+function LiveLabel({ entry, meta, badge }) {
+  return html`
+    <label>
+      ${entry.label || meta.label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
+      ${badge ? html`<span class="narrow-count">${badge.n}/${badge.total}</span>` : null}
+    </label>
+  `;
+}
+
 function LiveField({ control, widget }) {
   const W = widget || Dropdown;
   const { entry } = control;
   const meta = describe(entry, control.key);
   const busy = liveBusy.value === control.field;
   const error = liveErrors.value[control.field] || "";
+  const badge = control.badge;
   return html`
     <div class="field" title=${hoverTitle(entry, meta)}>
-      <label>
-        ${entry.label || meta.label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
-      </label>
+      <${LiveLabel} entry=${entry} meta=${meta} badge=${badge} />
       <div class="control">
         <${W}
           value=${control.value}
@@ -106,6 +114,7 @@ function LiveField({ control, widget }) {
       </div>
       <${LiveProse} control=${control} meta=${meta} />
       ${entry.apodNarrow ? html`<${ApodNarrow} field=${control.key} />` : null}
+      ${entry.hiresNarrow ? html`<${HiresNarrow} field=${control.key} />` : null}
       ${error ? html`<div class="live-error">${error}</div>` : null}
     </div>
   `;

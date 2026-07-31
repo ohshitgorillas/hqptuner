@@ -173,7 +173,8 @@ function chainCounts(overrides) {
 // clicking.
 function CountChip({ overrides }) {
   const { one, nx } = chainCounts(overrides);
-  return html`<span class="opt-count ${one + nx === 0 ? "dead" : ""}">${one}/${nx}</span>`;
+  const dead = one + nx === 0;
+  return html`<span class="opt-count ${dead ? "dead" : ""}">${one}/${nx}</span>`;
 }
 
 // single-select twin of MultiSelect — same button + popover chrome so genre,

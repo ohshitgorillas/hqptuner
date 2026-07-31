@@ -135,11 +135,12 @@ const FACET_CHECKS = [
   (f, s) => !s.ratio.length || ratioPass(f, s),
   (f, s) => !s.upsampleOnly || f.upsampleOnly === true,
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
-  // hide-hires (1x): drop the filters flagged hi-res. show-only-hires (Nx): the
-  // inverse — keep only those. Each engages only when its flag is set, so an
-  // untouched stage excludes nothing.
+  // hide-hires (1x): drop the strict *-hires-* set — the mqa/mp3 filters stay,
+  // they belong at 1x for lossy sources. show-only-hires (Nx): keep the whole
+  // hi-res family, mqa/mp3 included. Each engages only when its flag is set, so
+  // an untouched stage excludes nothing.
   (f, s) => !s.hideHires || !f.hires,
-  (f, s) => !s.hiresOnly || f.hires === true,
+  (f, s) => !s.hiresOnly || f.hiresFamily === true,
 ];
 
 function ratioPass(f, s) {

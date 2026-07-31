@@ -65,16 +65,12 @@
   cursor: pointer;
 }
 
-/* An ENGAGED facet button (non-default selection) reads accent — border, text,
-   and a faint accent wash — so the currently-active narrowing dropdowns stand
-   out from the untouched ones at a glance. */
+/* An ENGAGED facet button (non-default selection) reads accent — border and a
+   faint accent wash, text stays normal (user call) — so the currently-active
+   narrowing dropdowns stand out from the untouched ones at a glance. */
 .multi-btn.active {
   border-color: var(--accent);
-  color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
-}
-.multi-btn.active .multi-caret {
-  color: var(--accent);
 }
 
 /* Per-option result counts in a facet popover ("Rock  14/22"): the label takes
@@ -95,21 +91,13 @@
 }
 
 /* Live result badge in a filter dropdown's label row ("1x filter  14/68"):
-   muted by default, accent once the list is actually narrowed (n < total). */
+   always muted. No accent anywhere for narrowed state — accent on a control
+   means staged edit and nothing else (user call). */
 .narrow-count {
   margin-left: var(--sp-2);
   font-size: var(--fs-label);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-.narrow-count.on {
-  color: var(--accent);
-}
-
-/* A dropdown whose list is actively narrowed gets an accent frame on the select
-   itself, tying the badge to the control it counts. */
-.field.narrowed .control select {
-  border-color: var(--accent);
 }
 
 /* multi-select focus dropdown (checkbox hybrid) */
@@ -154,7 +142,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-body);
-  color: var(--fg-2);
+  color: var(--fg);
   white-space: nowrap;
 }
 /* orthogonal extra in a multi-select popover (ratio → upsample-only): divided
@@ -164,7 +152,7 @@
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-body);
-  color: var(--fg-2);
+  color: var(--fg);
   white-space: nowrap;
   padding-top: var(--sp-1);
   border-top: 1px solid var(--surface-raised);

@@ -21,7 +21,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { engineState, engineStatus, enums, modeName, runningValue, refreshConfig, health } from "./state.js";
 import { enumOptions, optionsFor } from "./options.js";
-import { narrowOptions } from "./narrowing.js";
+import { narrowOptions, narrowCount } from "./narrowing.js";
 import { schema } from "./schema.js";
 
 // The control currently mid-write ("" = none), and the last error per control.
@@ -375,6 +375,14 @@ function chainOptions(c, value, base) {
   return c.entry.narrow ? narrowOptions(options, value, c.entry.narrow, c.key) : options;
 }
 
+// The tab's "n/total" label badge, counted off the same RAW (pre-narrow) list
+// Field.js counts — null for the shapers, which carry `narrow` nowhere.
+function chainBadge(c, base) {
+  if (!c.entry.narrow) return null;
+  const raw = base || idOptions(c.enumKey);
+  return narrowCount(raw, c.entry.narrow, c.key);
+}
+
 // One chain's three controls, whether or not the engine has that chain loaded.
 // Both cards are on the page at once, so the dormant one has to read from
 // somewhere the engine cannot answer for: GetFilters/GetShapers enumerate the
@@ -388,12 +396,14 @@ function chainControls(chain, loaded) {
   return CHAINS[chain].map((c) => {
     const live = chain === loaded;
     const value = live ? idValue(c.enumKey, c.state) : (runningValue(c.key) ?? "");
+    const base = live ? null : optionsFor("config", c.field);
     return {
       field: c.field,
       key: c.key,
       entry: c.entry,
       value,
-      options: chainOptions(c, value, live ? null : optionsFor("config", c.field)),
+      options: chainOptions(c, value, base),
+      badge: chainBadge(c, base),
     };
   });
 }

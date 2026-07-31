@@ -79,12 +79,11 @@ function fieldOptions(entry, key) {
 }
 
 // Live result badge for a narrowable dropdown: "n/total" of how many options
-// survive the active facets, counted off the RAW (pre-narrow) list. `on` when
-// the list is actually reduced, so the field can flag itself accent.
+// survive the active facets, counted off the RAW (pre-narrow) list. Always
+// muted — accent on a control means staged edit, nothing else.
 function narrowBadge(entry, key) {
   if (!entry.narrow) return null;
-  const { n, total } = narrowCount(rawOptions(entry), entry.narrow, key);
-  return { n, total, on: n < total };
+  return narrowCount(rawOptions(entry), entry.narrow, key);
 }
 
 // A grayed control names WHY, visibly — the reason renders as a caption
@@ -121,12 +120,12 @@ function fieldProse(entry, key, meta, reason, options) {
 }
 
 // Label row: the field name, optional sub-label, and the live narrow-result
-// badge ("14/68", accent once the list is actually reduced).
+// badge ("14/68", always muted).
 function FieldLabel({ entry, label, badge }) {
   return html`
     <label>
       ${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
-      ${badge ? html`<span class="narrow-count ${badge.on ? "on" : ""}">${badge.n}/${badge.total}</span>` : null}
+      ${badge ? html`<span class="narrow-count">${badge.n}/${badge.total}</span>` : null}
     </label>
   `;
 }
@@ -149,7 +148,7 @@ export function Field({ k }) {
   const reason = grayReason(k);
   const options = fieldOptions(entry, k);
   const badge = narrowBadge(entry, k);
-  const classes = `${fieldClasses(entry, k)}${badge && badge.on ? " narrowed" : ""}`;
+  const classes = fieldClasses(entry, k);
   return html`
     <div class=${classes} title=${hoverTitle(entry, meta, reason)}>
       <${FieldLabel} entry=${entry} label=${label} badge=${badge} />
