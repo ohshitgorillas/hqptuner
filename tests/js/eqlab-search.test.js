@@ -60,6 +60,18 @@ test("test_a_backwards_range_is_rejected", () => {
   assert.throws(() => expandValue({ from: 2, to: 1, step: 0.5 }));
 });
 
+test("test_a_three_number_range_whose_step_exceeds_the_span_is_rejected", () => {
+  assert.throws(() => expandValue([0, 0.5, 1.0]));
+});
+
+test("test_the_collapsed_range_error_points_at_the_values_form", () => {
+  assert.throws(() => expandValue([0, 0.5, 1.0]), /values/);
+});
+
+test("test_an_explicit_values_object_of_three_numbers_stays_verbatim", () => {
+  assert.deepEqual(expandValue({ values: [0, 0.5, 1.0] }), [0, 0.5, 1.0]);
+});
+
 const CROSS = expandChange({ select: 2090, g: [1, 2, 1], q: [3, 4, 1] });
 
 test("test_a_change_over_two_swept_parameters_expands_to_their_cross_product", () => {

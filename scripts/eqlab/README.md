@@ -72,7 +72,7 @@ Transforms in fixed order: smooth, tilt, override, align (default `mean` — pre
 
 ### Search space
 
-`amend` / `replace` / `append` each take a LIST of change specs; each spec contributes one concrete change per candidate, crossed independently (a cut plus a broader lift = two `append` entries). Parameter values: `[from,to,step]` numeric triple = range; any other array = literal list; `{"from":…,"to":…,"step":…}` also accepted; scalar = fixed. `select` and `remove` stay literal — to vary which band moves, give one spec per band.
+`amend` / `replace` / `append` each take a LIST of change specs; each spec contributes one concrete change per candidate, crossed independently (a cut plus a broader lift = two `append` entries). Parameter values: `[from,to,step]` numeric triple = range; any other array = literal list; `{"values":[…]}` = literal list of any length; `{"from":…,"to":…,"step":…}` also accepted; scalar = fixed. TRAP: a 3-number array is ALWAYS a range, so a literal 3-value list must use `{"values":[0,0.5,1.0]}` — a triple whose range collapses to one value errors loudly rather than silently sweeping nothing. `select` and `remove` stay literal — to vary which band moves, give one spec per band.
 
 - `constraints`: `[{"metric":"name","min":…,"max":…}]` — at least one bound each; candidates judged against ALL constraints.
 - `objective`: `"minimize <expr>"` / `"maximize <expr>"` — full expression over metric panel names.

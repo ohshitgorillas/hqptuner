@@ -26,7 +26,18 @@ const isTriple = (v) => Array.isArray(v) && v.length === 3 && v.every((x) => typ
 
 /** One parameter spec -> its list of values. [a,b,step] is a range; any other array is a literal list. */
 export function expandValue(spec) {
-  if (isTriple(spec)) return rangeValues(spec[0], spec[1], spec[2]);
+  if (isTriple(spec)) {
+    const values = rangeValues(spec[0], spec[1], spec[2]);
+    // A triple whose range collapses to one value is never what anyone meant:
+    // a fixed value is a scalar, and [0, 0.5, 1.0] is almost always a literal
+    // three-value list that this grammar reads as a range. Fail loud.
+    if (values.length === 1)
+      throw new Error(
+        `search: range [${spec[0]}, ${spec[1]}] step ${spec[2]} yields a single value — ` +
+          `use a scalar for a fixed value, or {"values": [${spec.join(", ")}]} for a literal list`,
+      );
+    return values;
+  }
   if (Array.isArray(spec)) return spec;
   if (spec && typeof spec === "object" && Array.isArray(spec.values)) return spec.values;
   if (spec && typeof spec === "object" && "from" in spec) return rangeValues(spec.from, spec.to, spec.step);
