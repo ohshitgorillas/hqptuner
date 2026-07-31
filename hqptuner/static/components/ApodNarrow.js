@@ -9,7 +9,7 @@
 // visible instead of hover-only.
 import { html } from "../lib/dom.js";
 import { metadata } from "../store/state.js";
-import { nApod, nApodHalf, setApod, setApodHalf } from "../store/narrowing.js";
+import { nApod, nApodHalf, nHideHires, nHiresOnly, setApod, setApodHalf, setHideHires, setHiresOnly } from "../store/narrowing.js";
 
 function apodTip() {
   const s = (metadata.value && metadata.value.settings) || {};
@@ -17,9 +17,14 @@ function apodTip() {
   return (e && e.tooltip) || "";
 }
 
+// 1x-dropdown narrow control: apodizing (+½) and the hide-hi-res toggle. All
+// three bind to THIS chain's own keyed state (store/narrowing.js). Hide-hi-res
+// defaults ON — at 1x (base source rates) the hi-res / MQA-MP3 filters are the
+// off-topic entries, so they start hidden and the checkbox reveals them.
 export function ApodNarrow({ field }) {
   const on = nApod.value[field] === true;
   const half = nApodHalf.value[field] === true;
+  const hideHires = nHideHires.value[field] === true;
   const tip = apodTip();
   return html`
     <div class="apod-narrow">
@@ -37,6 +42,28 @@ export function ApodNarrow({ field }) {
         Show ½ apodizing filters
       </label>
       ${tip ? html`<div class="apod-narrow-note">${tip}</div>` : null}
+      <label class="narrow-apod narrow-hires">
+        <input type="checkbox" checked=${hideHires} onChange=${(e) => setHideHires(field, e.target.checked)} />
+        Hide hi-res filters
+      </label>
+      <div class="apod-narrow-note">
+        Hi-res filters are optimal for lossy material such as mp3 and MQA at 1x.
+      </div>
+    </div>
+  `;
+}
+
+// Nx-dropdown narrow control: the inverse hi-res toggle. Off by default — check
+// it to restrict the Nx list to the hi-res poly-sinc / MQA-MP3 filters only.
+export function HiresNarrow({ field }) {
+  const only = nHiresOnly.value[field] === true;
+  return html`
+    <div class="apod-narrow">
+      <label class="narrow-apod narrow-hires">
+        <input type="checkbox" checked=${only} onChange=${(e) => setHiresOnly(field, e.target.checked)} />
+        Show only hi-res filters
+      </label>
+      <div class="apod-narrow-note">Restricts the list to the hi-res poly-sinc and MQA/MP3 filters.</div>
     </div>
   `;
 }

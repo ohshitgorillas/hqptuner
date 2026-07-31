@@ -27,6 +27,20 @@ const halfDefaults = () => ({ pcm_filter_1x: false, sdm_filter_1x: false });
 export const nApod = signal(apodDefaults());
 export const nApodHalf = signal(halfDefaults());
 
+// Hi-res narrowing is ALSO per-dropdown, and splits by stage. On the two 1x
+// chains it HIDES hi-res filters (`nHideHires`, default ON — 1x covers base
+// rates where the hi-res/lossy-tuned filters are off-topic). On the two Nx
+// chains it does the inverse — SHOW ONLY hi-res (`nHiresOnly`, default OFF). Two
+// separate maps because the stages never share a key: the 1x fields carry the
+// hide flag, the Nx fields the show-only flag. Same per-chain independence and
+// identity-swap setters as apodizing above.
+const HIDE_HIRES_KEYS = ["pcm_filter_1x", "sdm_filter_1x"];
+const HIRES_ONLY_KEYS = ["pcm_filter_nx", "sdm_filter_nx"];
+const hideHiresDefaults = () => ({ pcm_filter_1x: true, sdm_filter_1x: true });
+const hiresOnlyDefaults = () => ({ pcm_filter_nx: false, sdm_filter_nx: false });
+export const nHideHires = signal(hideHiresDefaults());
+export const nHiresOnly = signal(hiresOnlyDefaults());
+
 // Flip one chain's flag without mutating the signal object in place (signals only
 // react to identity changes).
 export function setApod(field, on) {
@@ -34,6 +48,12 @@ export function setApod(field, on) {
 }
 export function setApodHalf(field, on) {
   nApodHalf.value = { ...nApodHalf.value, [field]: on };
+}
+export function setHideHires(field, on) {
+  nHideHires.value = { ...nHideHires.value, [field]: on };
+}
+export function setHiresOnly(field, on) {
+  nHiresOnly.value = { ...nHiresOnly.value, [field]: on };
 }
 
 // "narrowing is on" = the facets differ from their defaults, not merely that
@@ -50,7 +70,12 @@ export const narrowingActive = computed(
       nRatio.value.length ||
       nUpsampleOnly.value ||
       APOD_KEYS.some((k) => !nApod.value[k]) ||
-      APOD_KEYS.some((k) => nApodHalf.value[k])
+      APOD_KEYS.some((k) => nApodHalf.value[k]) ||
+      // hide-hires defaults ON, so a 1x chain reads as narrowing only when its
+      // flag is turned OFF; show-only-hires defaults OFF, so an Nx chain reads
+      // as narrowing when its flag is turned ON — mirrors the apod convention.
+      HIDE_HIRES_KEYS.some((k) => !nHideHires.value[k]) ||
+      HIRES_ONLY_KEYS.some((k) => nHiresOnly.value[k])
     ),
 );
 
@@ -64,6 +89,8 @@ export function resetNarrowing() {
   nUpsampleOnly.value = false;
   nApod.value = apodDefaults(); // matches the default above, not a bare clear
   nApodHalf.value = halfDefaults();
+  nHideHires.value = hideHiresDefaults(); // hide-hires back ON, not cleared
+  nHiresOnly.value = hiresOnlyDefaults();
 }
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
@@ -101,6 +128,11 @@ const FACET_CHECKS = [
   (f, s) => !s.ratio.length || ratioPass(f, s),
   (f, s) => !s.upsampleOnly || f.upsampleOnly === true,
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
+  // hide-hires (1x): drop the filters flagged hi-res. show-only-hires (Nx): the
+  // inverse — keep only those. Each engages only when its flag is set, so an
+  // untouched stage excludes nothing.
+  (f, s) => !s.hideHires || !f.hires,
+  (f, s) => !s.hiresOnly || f.hires === true,
 ];
 
 function ratioPass(f, s) {
@@ -129,6 +161,10 @@ function buildSel(stage, field) {
     family: family(field),
     apod: stage === "1x" && field != null && nApod.value[field] === true,
     half: field != null && nApodHalf.value[field] === true,
+    // keyed by the dropdown's own field; the maps only hold each stage's keys,
+    // so the flags are inert on the stage they do not belong to.
+    hideHires: stage === "1x" && field != null && nHideHires.value[field] === true,
+    hiresOnly: field != null && nHiresOnly.value[field] === true,
   };
 }
 
@@ -143,7 +179,9 @@ function anyEngaged(s) {
     s.length.length ||
     s.ratio.length ||
     s.upsampleOnly ||
-    s.apod
+    s.apod ||
+    s.hideHires ||
+    s.hiresOnly
   );
 }
 
@@ -152,4 +190,26 @@ export function narrowOptions(options, current, stage, field) {
   if (!anyEngaged(sel)) return options;
   const facets = filterFacets.value;
   return options.filter((o) => String(o.value) === String(current) || facetPass(facets[o.label], sel));
+}
+
+// ---- result counts (narrowing UI) -----------------------------------------
+// How many options a selection would keep. PURE: unlike narrowOptions it does
+// NOT force `current` visible — this is an honest "how many MATCH", the number
+// the live badge and the per-option popover previews report, not the dropdown's
+// rendered length. An all-default snapshot short-circuits to the full length.
+function countPass(options, sel) {
+  if (!anyEngaged(sel)) return options.length;
+  const facets = filterFacets.value;
+  return options.reduce((n, o) => (facetPass(facets[o.label], sel) ? n + 1 : n), 0);
+}
+
+// Live badge for one filter dropdown: { n, total } against the ACTIVE facets.
+export function narrowCount(options, stage, field) {
+  return { n: countPass(options, buildSel(stage, field)), total: options.length };
+}
+
+// Per-option popover preview: how many options survive if `overrides` were
+// merged onto the current selection (e.g. { genre: [...current, "rock"] }).
+export function previewCount(options, stage, field, overrides) {
+  return countPass(options, { ...buildSel(stage, field), ...overrides });
 }
