@@ -48,6 +48,14 @@ export default [
     rules: { ...RULES, "hqptuner/one-assertion-per-test": "error" },
   },
   {
+    // scripts/eqlab is a node CLI, not browser code: it imports the same
+    // static/lib modules the frontend does, but runs under node with stdin,
+    // stdout and fetch.
+    files: ["scripts/**/*.js"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
+    rules: RULES,
+  },
+  {
     // The config and its local rules run in node.
     files: ["eslint.config.js", "eslint-rules/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
