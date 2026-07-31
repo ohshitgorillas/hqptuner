@@ -30,16 +30,8 @@
       "disambiguate": "the question to ask when a polysemous term arrives with no disambiguating context. Phrased in LISTENING terms, never in filter terms."
     },
     "clamps": {
-      "eq_gain_db_hard": [
-        -12.0,
-        12.0
-      ],
       "eq_gain_db_per_turn_soft": [
         -6.0,
-        6.0
-      ],
-      "eq_q_hard": [
-        0.18,
         6.0
       ],
       "eq_q_voicing_preferred": [
@@ -65,7 +57,7 @@
         150.0
       ],
       "THIRD_CATEGORY": "The `consistency` array is a THIRD category alongside `tonal` and `spatial`, and it has a DIFFERENT SHAPE. Tonal and spatial entries map term -> region -> direction. Consistency entries map symptom -> net-curve property -> structural fix, because complaints like 'half the time perfect, half the time slightly too quiet' name an INCONSISTENCY rather than a region, and the remedy is flattening rather than shifting. Fields: symptom, aliases, curve_property (what is wrong with the net curve), diagnosis (how to measure it -- usually at NOTE FUNDAMENTALS, not a log grid), fix_class (fill / tame / trim), fix, measure (the metric to define and then carry forward as standing session state), `not` (the wrong fix that the naive reading suggests), worked_example. Check this category FIRST when a complaint describes variability, inconsistency, or something being present-but-not-right, since no tonal term will match and the tonal map will produce a flat level change that reproduces the complaint one register over.",
-      "ENFORCEMENT": "Only three things are enforced: VALIDITY (type in peak/lshelf/hshelf, crossfeed bounds read from the live /matrix form, strength 0-150, the response union), CORRECTNESS (headroom recompute and compensation rebuild -- both derived by the CLIENT, never emitted by the model), and POLICY (eq_gain_db_per_turn_soft, +/-6 dB, the only policy clamp; there is NO absolute gain ceiling). Every other value in this object is GUIDANCE the model applies by judgment and the user corrects in plain language. eq_q_hard / eq_q_voicing_preferred / eq_q_narrowband_max / shelf_q_fixed are starting points, NOT limits: Q is deliberately unclamped because a real session's root fault was a band at Q 0.26 eating 200-800 Hz and the fix was Q 0.70, a factor of nearly three that any safe-feeling bound would have blocked. Taste is measured in the eval, never enforced in the validator.",
+      "ENFORCEMENT": "Only three things are enforced: VALIDITY (type in peak/lshelf/hshelf, crossfeed bounds read from the live /matrix form, strength 0-150, the response union), CORRECTNESS (headroom recompute and compensation rebuild -- both derived by the CLIENT, never emitted by the model), and POLICY (eq_gain_db_per_turn_soft, +/-6 dB, the only policy clamp; there is NO absolute gain ceiling). Every other value in this object is GUIDANCE the model applies by judgment and the user corrects in plain language. eq_q_voicing_preferred / eq_q_narrowband_max / shelf_q_fixed are starting points, NOT limits: Q is deliberately unclamped because a real session's root fault was a band at Q 0.26 eating 200-800 Hz and the fix was Q 0.70, a factor of nearly three that any safe-feeling bound would have blocked. Taste is measured in the eval, never enforced in the validator.",
       "clamp_provenance": "eq gain hard bound matches AutoEq DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0 and both graphic-EQ configs. eq_q_hard matches AutoEq DEFAULT_PEAKING_FILTER_MIN_Q 0.18248 / MAX_Q 6.0. shelf_q_fixed matches AutoEq DEFAULT_SHELF_FILTER_MAX_Q 0.7 and every shipped oratory1990 shelf. crossfeed bounds are libbs2b BS2B_MINFCUT/MAXFCUT = 300/2000 Hz and BS2B_MINFEED/MAXFEED = 10/150 (dB x 10) = 1.0/15.0 dB. See SOURCES.md sections 1.1 and 3.1.",
       "band_scope": "All existing bands are amendable, AutoEq imports included. There is no protected segment and no provenance metadata in the wire format."
     },
@@ -151,7 +143,7 @@
       "POLYSEMOUS TERMS EMIT ONE SENSE. warm, bright, dark, presence and full carry a `senses` array instead of a single region. Pick exactly one sense per turn and emit only that sense's stage; never combine two senses of the same term. If the user's sentence does not choose a sense, ask the entry's `disambiguate` question as a `clarify` rather than guessing. See _meta.polysemy.",
       "ONE ENTRY NEEDS A PAIR OF SHELVES. `full` sense `both-ends-extension` is the sole exception to one-stage-per-complaint: ITU-R BS.2399 defines Full as extension at BOTH ends ('If both low and high frequencies are well represented with good extension the sound is Full'), so it requires a low shelf AND a high shelf together. Emitting only the low shelf under-delivers that sense. This pair counts as ONE append against the per-turn budget, not two.",
       "FILLS MUST BE LARGER THAN CUTS. Peaks are more audible than dips of equal magnitude (Toole & Olive 1988), so an additive fill needs more dB than the mirror-image cut to be equally audible. The typical_gain_db values assume symmetry and are starting points only. See _meta.boost_cut_asymmetry.",
-      "RESPECT THE PER-Q AUDIBILITY FLOOR. On music, threshold is about +/-1.5 dB at Q=1, +/-3 dB at Q=10, +/-5 dB at Q=50. A move below the floor for its own Q is inaudible, not subtle. Above 8 kHz the underlying measurement is outside its qualified range regardless of magnitude -- see TRANSDUCERS.md section 4."
+      "RESPECT THE PER-Q THRESHOLD FLOOR. On music, threshold is about +/-1.5 dB at Q=1, +/-3 dB at Q=10, +/-5 dB at Q=50. A move below the floor for its own Q is below the measured threshold -- expect it to go unheard, and never narrate it as precisely resolved; the user's ears remain the authority, and a below-floor move they can hear is a real move (PSYCHOACOUSTICS.md section 5). Above 8 kHz the underlying measurement is outside its qualified range regardless of magnitude -- see TRANSDUCERS.md section 4."
     ],
     "tonal_spatial_interaction": {
       "principle": "Crossfeed is not a width-only control, but its tonal side effect runs OPPOSITE to the common intuition. In bs2b the mid (centre) path is normalised to 0 dB at DC and rolls off to -tilt at high frequency, where tilt = 20*log10(1 - gHi + gLo), gLo = 10^((-5*feed/6 - 3)/20) and gHi = 1 - 10^((feed/6 - 3)/20). Tilt depends ONLY on feed -- the crossover frequency does not enter it -- and it DECREASES as feed rises: 2.70 dB at feed 1.0, 1.81 dB at 4.5 (default), 1.53 dB at 6.0, 1.09 dB at 9.5, 0.92 dB at 15.0. The relationship is compressive: the entire 14 dB feed range moves tilt by only 1.78 dB, so a +/-1.5 dB feed nudge near the default changes tilt by about 0.3 dB. Verified numerically against the shipped implementation in lib/xfeed.js, and corroborated by the app's own UI copy, which states a 1-2.7 dB range.",
@@ -224,7 +216,7 @@
       "finding": "Peaks are more audible than dips of equal magnitude, and both become more audible as they widen. Toole & Olive 1988, summarising Bucklein, read from the primary 2026-07-25: 'peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases.'",
       "consequence": "CUT AND BOOST ARE NOT SYMMETRIC. Filling a dip works on the less audible feature, so an additive fill must be LARGER than the equivalent cut to be equally audible. Every typical_gain_db in this file was set assuming symmetry; they are starting points, and a fill may need more.",
       "interaction_with_the_additive_fill_rule": "PRIMER.md prefers additive fills over clawing back levels the user approved by ear. That rule is still right — it protects by-ear decisions — but it is now known to be the acoustically WEAKER lever, so expect to need more dB than the mirror-image cut would have taken.",
-      "audibility_floor_by_q": "Toole & Olive 1988 section 4.1, thresholds on popular music (the least revealing programme class): Q=1 about +/-1.5 dB, Q=10 about +/-3 dB, Q=50 about +/-5 dB. A move below the floor for its own Q is not subtle, it is inaudible. See PSYCHOACOUSTICS.md section 4."
+      "audibility_floor_by_q": "Toole & Olive 1988 section 4.1, thresholds on popular music (the least revealing programme class): Q=1 about +/-1.5 dB, Q=10 about +/-3 dB, Q=50 about +/-5 dB. A move below the floor for its own Q is below the measured threshold on the least revealing programme -- expect it to go unheard, but the user's ears are the authority, and a below-floor move they can hear is a real move. See PSYCHOACOUSTICS.md section 5."
     }
   },
   "consistency": [
