@@ -34,8 +34,6 @@ Surfacing is the disabling, and only that — user's call 2026-08-01, on the gro
 
 Covered by 56 tests — 14 in `tests/js/store/live-reenum.test.js`, 42 in `tests/js/components/live-enumbusy.test.js`. Sixteen bite against the pre-fix code. Every "grays out" case is paired with an idle case pinning the same control ungrayed, so a control gray for its own reasons cannot pass by standing still; the auto-mode rate columns are disabled at idle regardless, so the rate cases run under an explicit mode. Each chain case runs with either chain loaded — a page that hardcoded the PCM/SDM split and never read `active_chain` fails one direction — and all six re-enumerating fields open the window in a case of their own, with `adaptive_volume` and `junk_filter` as the negative side.
 
-The suites were hardened after a blind review found four scenarios that went green on code lacking the behaviour: the chain hardcoded to PCM, only `rate` and `filter1x` ever opening the window, and two held-write cases holding `oversampling` — itself a re-enumerating field, so correct behaviour and no `stored` handling at all produced identical traffic. The held cases hold the dormant chain's modulator now. One finding was overruled: `/api/config` is re-read only on a held or mode/rate write, not on every write, so the config-read case did discriminate.
-
 The report's fourth claim — that a held write leaves the enumerations alone — was wrong and is not implemented. A held write calls `refreshConfig()`, whose first act is an enum mirror (`store/sync.js:58`), so the lists are re-read either way. Nothing re-enumerated, so they come back identical; the read is redundant, not incorrect.
 
 Original report:
