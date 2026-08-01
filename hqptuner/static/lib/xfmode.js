@@ -26,7 +26,7 @@
 import { signal } from "@preact/signals";
 
 import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
-import { effective, stagePipelines, edit, isDirty } from "../store/state.js";
+import { effective, stagePipelines, edit, effectivePipelines, pipelineBaseline } from "../store/state.js";
 // Upward, deliberately: the compensation block is recognized against the LIVE
 // bauer settings, and that reading lives with the strip that renders it. Nothing
 // in components/ imports this module's mode signal back, so the graph stays a DAG.
@@ -122,12 +122,18 @@ export function stageStructural(rows, params) {
   return note;
 }
 
-// Whether the staged pipelines differ from the applied ones — the Structural
-// gate's dirty state. Lives here rather than at the call site because the CSS
-// class checker follows identifiers in class position into their declarations,
-// and a "pipelines" string literal there reads as a class name.
+// The Structural gate's dirty state. The gate is ENGAGE/BYPASS, so the question
+// it asks is whether the BLOCK's presence is staged-different from the applied
+// one — not whether the rows changed. Retuning an installed block restages all
+// sixteen rows and leaves the gate clean on purpose: the crossfeed is engaged
+// either way, and the pending bar counts the row edit under matrix_pipelines.
+//
+// Presence rather than the "pipelines" row-count field, which this used to read:
+// that field is the Matrix tab's own count dropdown, so editing it (or a DSP-mode
+// restore) lit this gate with no crossfeed change staged, while install and
+// removal only registered because 2 <-> 16 happens to move the count.
 export function pipelinesDirty() {
-  return isDirty("pipelines");
+  return !!structuralBlock(effectivePipelines.value) !== !!structuralBlock(pipelineBaseline.value);
 }
 
 // --- which mode the user is LOOKING AT ---------------------------------------

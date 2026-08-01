@@ -15,37 +15,30 @@ import { schema } from "./schema.js";
 import { fastPollMs } from "./ui.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
+import {
+  health,
+  engineState,
+  engineStatus,
+  enums,
+  config,
+  matrixConfig,
+  metadata,
+  volume,
+  volumeRange,
+} from "./signals.js";
+// Re-exported whole so store/state.js stays the store's single import surface.
+export * from "./signals.js";
 
-// --- source signals ---
-export const health = signal(null); // {reachable, alarm, unreachable_since, info}
-export const engineState = signal(null); // /api/state data (live indices)
-export const engineStatus = signal(null); // /api/status data
-export const enums = signal(null); // /api/enumerations data (merged w/ static)
-export const config = signal(null); // /api/config data {fields, profiles}
 // Preset preview: picking a preset loads its saved settings into the editor as
 // the baseline (no daemon touch) so they can be tweaked before Apply commits the
 // switch. pendingPreset = the previewed name; previewConfig = its field values.
 export const pendingPreset = signal(null);
 const previewConfig = signal(null);
-// exported as part of the store surface: components read it via runningValue,
-// and tests/js drive the matrix-fed chips by assigning it directly.
-export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
-export const metadata = signal(null); // static: {filters, shapers, settings}
 const staged = signal({ live: {}, http: {} }); // mirrors server pending
 // Transient client-only overrides, set live while a knob is dragged so controls
 // and response plots update instantly with no server round-trip per pointer move.
 // Committed to `staged` on release, then cleared. Highest priority in effective().
 const liveOverride = signal({});
-
-// live playback volume — NOT a staged control: it lives in its own signals and
-// writes immediately via the Control API (never through the staged/apply flow).
-export const volume = signal(null); // engine-reported current volume (dB, string)
-export const volumeRange = signal(null); // {min, max, enabled, adaptive} from VolumeRange
-
-// --- derived: connection ---
-export const reachable = computed(() => !!(health.value && health.value.reachable));
-export const alarm = computed(() => !!(health.value && health.value.alarm));
-export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");
 
 // A form's fields keyed by name — the baseline/constraint source a control
 // reads from. Empty until that form has been polled at least once.
@@ -181,6 +174,10 @@ function formValue(entry) {
 
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
+  // Not a form field: with no file truth (read-only mode) formValue finds nothing
+  // and it reads permanently dirty against undefined. pipelineBaseline already
+  // picks file-truth-or-form-rows; re-canonicalized to keep the compare a string.
+  if (entry.field === "matrix_pipelines") return canonPipelines(pipelineBaseline.value);
   const grounded = previewedValue(entry) || fileValue(entry);
   return grounded ? grounded.value : formValue(entry);
 }

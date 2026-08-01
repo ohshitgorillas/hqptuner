@@ -31,8 +31,11 @@ import {
   config,
   matrixConfig,
   engineState,
+  stagePipelines,
+  effectivePipelines,
+  stagedCount,
 } from "../../hqptuner/static/store/state.js";
-import { ok } from "./wire.js";
+import { ok, stagingWire } from "./wire.js";
 
 // Fake wire. `apply` is the body /api/config/apply answers with; every other
 // path gets a minimal valid response so the surrounding flow completes.
@@ -391,4 +394,105 @@ test("test_a_rejected_apply_request_is_reported_rather_than_swallowed", async ()
     return ok({});
   };
   await assert.rejects(() => applyAll());
+});
+
+// --- baseline: the pipeline set ---------------------------------------------
+//
+// `matrix_pipelines` is the whole row set, staged atomically as one canonical
+// JSON string. Its applied value has two possible sources: the config XML read
+// back (`config.file.matrix_pipelines`) when management credentials exist, and
+// the parsed rows on the /matrix form (`matrixConfig.rows`) when they do not —
+// read-only mode has no file truth at all.
+//
+// `trees()` above seeds no /matrix ROWS, so these cases use the sibling helper:
+// same full reset of every source signal, plus the rows, plus the real staging
+// wire so `stagePipelines` rides the REST path rather than a fixed buffer.
+
+async function pipeTrees({ file = {}, rows = undefined } = {}) {
+  engineState.value = {};
+  config.value = { fields: [], file, active: "" };
+  matrixConfig.value = { fields: [], rows, active: "[Default]" };
+  stagingWire({
+    routes: (path) => {
+      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/matrix") return ok({ data: matrixConfig.value });
+      if (path === "/api/enumerations") return ok({ data: null });
+      return undefined;
+    },
+  });
+  await discardAll();
+}
+
+// A pipeline row carries exactly five keys; `gainunit` defaults to dB, the rest
+// to the wire's own defaults.
+const ROW = (patch) => ({ gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0", ...patch });
+// The backend's own serialization of `[ROW({gain: "-6"})]`, written out by hand:
+// alphabetical keys, compact, every value a string.
+const FILE_ROWS = '[{"gain":"-6","gainunit":"dB","mixdown":"0","process":"","source":"0"}]';
+
+test("test_pipelines_with_file_truth_and_nothing_staged_are_not_dirty", async () => {
+  await pipeTrees({ file: { matrix_pipelines: FILE_ROWS } });
+  assert.equal(isDirty("matrix_pipelines"), false);
+});
+
+// Read-only mode has no file to compare against; falling back to the /matrix
+// rows is what keeps it from reporting a permanent pending change nobody made.
+test("test_pipelines_with_only_the_matrix_rows_and_nothing_staged_are_not_dirty", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  assert.equal(isDirty("matrix_pipelines"), false);
+});
+
+test("test_pipelines_with_neither_file_truth_nor_matrix_rows_are_not_dirty", async () => {
+  await pipeTrees();
+  assert.equal(isDirty("matrix_pipelines"), false);
+});
+
+test("test_staging_rows_that_differ_from_the_matrix_rows_reads_dirty", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  await stagePipelines([ROW({ gain: "-3" })]);
+  assert.equal(isDirty("matrix_pipelines"), true);
+});
+
+test("test_staging_the_matrix_rows_unchanged_reads_clean", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  await stagePipelines([ROW({ gain: "-6" })]);
+  assert.equal(isDirty("matrix_pipelines"), false);
+});
+
+// The compare is over the canonical serialization — alphabetical keys, all
+// values strings — never the literal row objects.
+test("test_staging_the_matrix_rows_with_the_keys_in_another_order_reads_clean", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  await stagePipelines([{ source: "0", process: "", mixdown: "0", gainunit: "dB", gain: "-6" }]);
+  assert.equal(isDirty("matrix_pipelines"), false);
+});
+
+test("test_staging_the_matrix_rows_with_numeric_values_reads_clean", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  await stagePipelines([{ gain: -6, gainunit: "dB", mixdown: 0, process: "", source: 0 }]);
+  assert.equal(isDirty("matrix_pipelines"), false);
+});
+
+test("test_staging_rows_that_differ_from_the_file_rows_reads_dirty", async () => {
+  await pipeTrees({ file: { matrix_pipelines: FILE_ROWS } });
+  await stagePipelines([ROW({ gain: "-3" })]);
+  assert.equal(isDirty("matrix_pipelines"), true);
+});
+
+test("test_the_effective_pipelines_are_the_matrix_rows_when_the_file_is_silent", async () => {
+  const rows = [ROW({ gain: "-6" }), ROW({ source: "1", mixdown: "1" })];
+  await pipeTrees({ rows });
+  assert.equal(effectivePipelines.value[1].source, "1");
+});
+
+test("test_a_dirty_pipeline_edit_is_counted_as_a_staged_change", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  await stagePipelines([ROW({ gain: "-3" })]);
+  assert.equal(stagedCount.value, 1);
+});
+
+test("test_a_pipeline_edit_that_reads_clean_is_not_counted_as_a_staged_change", async () => {
+  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
+  await stagePipelines([ROW({ gain: "-6" })]);
+  assert.equal(stagedCount.value, 0);
 });
