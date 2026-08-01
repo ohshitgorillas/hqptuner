@@ -111,4 +111,4 @@ async def test_connect_imports_the_daemons_preset_snapshots(
     start_manager: StartManager, http_daemon: dict[str, Any]
 ) -> None:
     manager = await start_manager(http_daemon["_port"])
-    assert "Test" in [o["value"] for o in manager.presets()["options"]]
+    assert "Test" in [o["value"] for o in manager.presetops.presets()["options"]]

@@ -65,10 +65,10 @@ def test_an_apostrophe_in_a_process_string_survives_a_round_trip() -> None:
 
 
 async def test_minus_6_db_headroom_survives_an_apply(http_manager: ConnectionManager) -> None:
-    await http_manager.apply({}, {"volume_fixed": "2"})
+    await http_manager.applyops.apply({}, {"volume_fixed": "2"})
     assert (await http_manager.load_file_config())["volume_fixed"] == "2"
 
 
 async def test_headroom_apply_preserves_unrelated_settings(http_manager: ConnectionManager) -> None:
-    await http_manager.apply({}, {"volume_fixed": "2"})
+    await http_manager.applyops.apply({}, {"volume_fixed": "2"})
     assert (await http_manager.load_file_config())["channels"] == "2"

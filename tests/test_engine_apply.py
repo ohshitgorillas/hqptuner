@@ -21,28 +21,28 @@ def _archive_with_nblocks(value: str) -> bytes:
 
 
 async def test_applied_engine_attribute_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
-    await http_manager.apply_engine({"cuda": "convolution"})
+    await http_manager.applyops.apply_engine({"cuda": "convolution"})
     assert (await http_manager.read_engine())["cuda"] == "convolution"
 
 
 async def test_apply_engine_preserves_unrelated_attribute(http_manager: ConnectionManager) -> None:
-    await http_manager.apply_engine({"cuda": "0"})
+    await http_manager.applyops.apply_engine({"cuda": "0"})
     assert (await http_manager.read_engine())["multicore"] == "1"
 
 
 async def test_apply_engine_rejects_out_of_domain_value(http_manager: ConnectionManager) -> None:
     with pytest.raises(ValueError, match="not in"):
-        await http_manager.apply_engine({"cuda": "maybe"})
+        await http_manager.applyops.apply_engine({"cuda": "maybe"})
 
 
 async def test_applied_cuda_device_id_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
-    await http_manager.apply_engine({"cuda_dev": "1"})
+    await http_manager.applyops.apply_engine({"cuda_dev": "1"})
     assert (await http_manager.read_engine())["cuda_dev"] == "1"
 
 
 async def test_apply_engine_rejects_non_integer_device_id(http_manager: ConnectionManager) -> None:
     with pytest.raises(ValueError, match="must be an integer"):
-        await http_manager.apply_engine({"cuda_dev": "auto"})
+        await http_manager.applyops.apply_engine({"cuda_dev": "auto"})
 
 
 async def test_restored_archive_is_reflected_in_readback(http_manager: ConnectionManager) -> None:

@@ -13,7 +13,7 @@ lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
 Every apply is incremental against the RUNNING config. It used to rebuild from
 the active preset's snapshot so drift never survived; that reset every field the
 user had not staged in that particular apply, so sequential applies clobbered
-each other. See ``presetconf.restore_zip_from_running``.
+each other. See ``presetzip.restore_zip_from_running``.
 """
 
 from __future__ import annotations
@@ -23,9 +23,9 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from ..conf import engineconf, presetconf
+from ..conf import engineconf, presetconf, presetzip, xmledit
 from ..conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX_PROFILES
-from . import settle
+from . import presetlane, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -107,7 +107,7 @@ async def _one_pass(
     await mgr.await_http_ready()
     try:
         intended = await _restore_once(mgr, merged)
-    except presetconf.GroundingError as exc:
+    except xmledit.GroundingError as exc:
         return {"submitted": False, "error": str(exc)}, {}, None
     except httpx.HTTPError as exc:
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
@@ -131,13 +131,18 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     it, and return the intended config it should produce. Raises GroundingError
     (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped
     mid-write)."""
-    backup = await mgr.backup_or_cached(for_write=True)
-    mgr.persist_backup(backup)  # survives a crash mid-apply
+    backup = await mgr.presetops.backup_or_cached(for_write=True)
+    mgr.presetops.persist_backup(backup)  # survives a crash mid-apply
     # parked filter uploads ride the same restore (data/<name> members land in
     # the daemon's home dir, where staged process paths resolve)
-    restore_zip, intended_xml = presetconf.restore_zip_from_running(
-        backup, merged, mgr.parked_filter_members(), mgr.active_config
+    restore_zip, intended_xml = presetzip.restore_zip_from_running(
+        backup, merged, mgr.presetops.parked_filter_members(), mgr.active_config
     )
+    # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
+    # restore that is happening anyway — this one qualifies
+    mirror = presetlane.autosave_mirror(mgr, intended_xml)
+    if mirror:
+        restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
     await mgr.require_http().restore(restore_zip, scope="system")
     return presetconf.read_config(intended_xml)
 

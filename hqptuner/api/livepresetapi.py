@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from ..control import ControlError
-from ..lanes import livelane, livemap, livesnapshot
+from ..lanes import livechain, livelane, livemap, livesnapshot, presetlane
 from ..livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
 from .deps import Mgr
 
@@ -51,7 +51,7 @@ def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any
             detail={"chain": "the engine's active chain is unknown, so there is no live state to snapshot"},
         )
     record = {
-        "chain": livemap.active_chain(manager),
+        "chain": livechain.active_chain(manager),
         "fields": {field: item["value"] for field, item in snapshot.items()},
         "names": {field: item["name"] for field, item in snapshot.items()},
     }
@@ -80,7 +80,11 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
     except LivePresetError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:
-        return await livelane.apply_preset(manager, record.get("fields") or {})
+        report = await livelane.apply_preset(manager, record.get("fields") or {})
+        autosaved = await presetlane.autosave(manager)
+        if autosaved is not None:
+            report["autosaved"] = autosaved
+        return report
     except livemap.LiveRouteError as exc:
         raise HTTPException(status_code=409, detail=exc.reasons) from exc
     except ControlError as exc:

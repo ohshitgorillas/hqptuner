@@ -407,8 +407,3 @@ export function recognizeRows(rows, at = 0) {
 
   return { lambda, angle: angleSnapped, headRadius, preampDb, eqProcess: chains.eqProcess };
 }
-
-// --- installation ------------------------------------------------------------
-// Split to binaural-setup.js for the file-length gate, re-exported here so the
-// block presents one import site.
-export { blockConflicts, pairInfo, PRESETS, matchPreset } from "./binaural-setup.js";

@@ -9,7 +9,8 @@ import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { parseProcess, serializeProcess, stageLabel, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
 import { rowToRewText } from "../lib/eqexport.js";
-import { isPlotted, togglePlotted, selectedStage } from "./MatrixPlot.js";
+import { isPlotted, togglePlotted } from "./MatrixPlot.js";
+import { selectedStage } from "./BandStrip.js";
 import { StageEditor, setSelected } from "./MatrixStageEditor.js";
 
 // Push text to the browser as a .txt download (the Export EQ tools). No server

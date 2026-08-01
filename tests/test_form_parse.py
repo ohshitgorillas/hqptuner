@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.conf import presetconf
+from hqptuner.conf import fixedvol, presetconf
 from hqptuner.conf.httpconf import parse_config_form
 
 FIXTURE = Path(__file__).parent / "fixtures" / "config-form-6.0.4.html"
@@ -24,7 +24,7 @@ _FIELDS = {f["name"]: f for f in _PARSED["fields"]}
 # under us. post_*/matrix_* live on the /matrix form, not this one.
 OWNED_FIELDS = {
     name
-    for name in set(presetconf.FIELD_MAP) | {presetconf.NET_DEVICE, presetconf.FIXED_ENABLED, presetconf.FIXED_LEVEL}
+    for name in set(presetconf.FIELD_MAP) | {presetconf.NET_DEVICE, fixedvol.FIXED_ENABLED, fixedvol.FIXED_LEVEL}
     if not name.startswith(("post_", "matrix_"))
 }
 

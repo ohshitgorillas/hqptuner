@@ -157,11 +157,11 @@ export function PendingBar() {
   const off = inert(busy, pend, reach, target);
   return html`
     <footer class="pending-bar ${pend ? "active" : ""}">
-      <${AutosaveToggle} />
       <span class="count">${n ? `${n} staged` : ""}</span>
       ${statusLine(n, split.value, busy, reach, lastApply.value, switchName)}
       <${Ask} owner=${OWNER} />
       <span class="spacer"></span>
+      <${AutosaveToggle} />
       <button onClick=${discardAll} disabled=${off.discard}>Discard</button>
       <button class="primary" onClick=${onApply} disabled=${off.apply}>${busy ? "Applying…" : "Apply"}</button>
       <button onClick=${() => onApplySave(pend)} disabled=${off.save} title=${saveTitle(target, pend)}>

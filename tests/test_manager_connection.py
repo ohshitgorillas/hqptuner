@@ -137,13 +137,13 @@ async def test_a_mode_change_is_reenumerated_on_the_next_poll(outage_manager: Ou
 
 async def test_set_volume_echoes_the_readback_level(outage_manager: OutageManager) -> None:
     manager, _ = outage_manager
-    assert (await manager.set_volume("-20.0"))["volume"] == "-20.0"
+    assert (await manager.applyops.set_volume("-20.0"))["volume"] == "-20.0"
 
 
 async def test_set_volume_without_a_connection_raises() -> None:
     manager = ConnectionManager(Config())
     with pytest.raises(ControlError, match="not connected"):
-        await manager.set_volume("-20.0")
+        await manager.applyops.set_volume("-20.0")
 
 
 # --- mode-name join -----------------------------------------------------------

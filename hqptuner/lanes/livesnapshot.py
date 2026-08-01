@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .livemap import _LIVE_ONLY, DIRECT, ROUTABLE, EnumItems, LiveField, active_chain, mode_form_value
+from .livechain import EnumItems, active_chain
+from .livemap import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
     from ..manager import ConnectionManager

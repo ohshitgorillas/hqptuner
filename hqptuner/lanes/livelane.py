@@ -1,7 +1,7 @@
 """The LIVE view's write lane — one batch of live settings, applied on the spot.
 
 ``POST /api/config/live`` lands here. It is deliberately not stage+apply: the
-pending buffer is shared with the tabs view (``api/app.PendingStore``) and
+pending buffer is shared with the tabs view (``api/pendingapi.PendingStore``) and
 ``POST /config/apply`` flushes everything in it, so a LIVE control routed through
 that pair would also apply edits the user staged elsewhere and never asked for.
 This lane touches neither the pending store nor the persistent 8088 lane, so it
@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..control import ControlClient, ControlError
 from ..writer import apply_live
-from . import livemap
+from . import livechain, livemap
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -79,7 +79,7 @@ def _remember_rate(mgr: ConnectionManager, hz: str) -> None:
     if hz == "0":
         mgr.live.rates.clear()
         return
-    mgr.live.rates[livemap.rate_family(hz)] = hz
+    mgr.live.rates[livechain.rate_family(hz)] = hz
 
 
 async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[dict[str, Any]]:
@@ -98,11 +98,11 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     pinning the nearest rate the engine does offer would be a rate the user never
     picked.
     """
-    family = livemap.pin_family(mgr)
+    family = livechain.pin_family(mgr)
     hz = mgr.live.rates.get(family or "")
     if hz is None:
         return []
-    index = livemap.rate_index_for(mgr, hz)
+    index = livechain.rate_index_for(mgr, hz)
     if index is None:
         del mgr.live.rates[family or ""]
         return []
@@ -153,7 +153,7 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
     Resolves against `mgr.enums` as it stands, so the caller must re-enumerate
     first — these are the lists the chain change just swapped.
     """
-    chain = livemap.active_chain(mgr)
+    chain = livechain.active_chain(mgr)
     if chain is None:
         return []
     edits, dropped = livemap.resolve_chain(mgr, chain)
@@ -173,7 +173,7 @@ async def chain_entered(mgr: ConnectionManager, client: ControlClient, before: s
     the whole of the next track. `reenumerated` says the caller already pulled
     fresh lists for a mode change, so this does not pull them twice.
     """
-    after = livemap.active_chain(mgr)
+    after = livechain.active_chain(mgr)
     if after is None or after == before:
         return
     log.info("chain changed (%s -> %s)", before or "unknown", after)
@@ -190,7 +190,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     LIVE shows both chains at once — and come back under `stored` so the caller
     knows the value it sent is real but not yet playing. A rate the engine will not
     pin — the other family's, or any at all while the mode is `[source]` — is held
-    on the same terms and for the same reason (`livemap.unpinnable_rate`), but into
+    on the same terms and for the same reason (`livechain.unpinnable_rate`), but into
     its own memory: the engine's rate pin is one slot the mode switch clears, not a
     per-chain list, so it is `LiveMemory.rates` that holds it and `_reassert_rate`
     that lands it.
@@ -205,7 +205,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     client = mgr.control
     if client is None:
         raise ControlError("daemon not connected")
-    fields, held_rate = livemap.split_unpinnable_rate(mgr, fields)
+    fields, held_rate = livechain.split_unpinnable_rate(mgr, fields)
     edits, stored = livemap.resolve_live(mgr, fields)
     report = await apply_live(client, edits)
     try:
@@ -220,7 +220,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         _remember_rate(mgr, held_rate)
     for chain, held in stored.items():
         _remember_chain(mgr, chain, held)
-    loaded = livemap.active_chain(mgr)
+    loaded = livechain.active_chain(mgr)
     if loaded is not None:
         _remember_chain(mgr, loaded, _applied_chain_fields(report, fields))
     if _applied(report, "mode"):

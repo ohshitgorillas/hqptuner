@@ -24,8 +24,7 @@ saved from are byte-identical — which is what lets the apply's verify diff pro
 the element landed instead of trusting an HTTP 200.
 
 ``GroundingError`` lives in ``xmledit`` (the lowest layer, where the shared
-locators are) and is re-exported here and by ``presetconf`` for their existing
-importers.
+locators are).
 """
 
 from __future__ import annotations
@@ -54,9 +53,6 @@ _NAME_MAX = 128
 # cannot unescape it reads the literal "&apos;" as the value — which then never
 # matches what was written, so the apply can never converge.
 _ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), ("'", "&apos;"))
-
-
-__all__ = ["GroundingError"]  # re-exported: presetconf and the lanes import it from here
 
 
 def _attr_escape(value: str) -> str:

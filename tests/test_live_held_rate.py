@@ -30,7 +30,7 @@ import pytest
 from conftest import CommandLog, LiveManager
 from fastapi.testclient import TestClient
 
-from hqptuner.lanes import livelane, livemap
+from hqptuner.lanes import livechain, livelane
 
 
 def _rate_writes(log: CommandLog) -> list[str]:
@@ -43,19 +43,19 @@ def _rate_writes(log: CommandLog) -> list[str]:
 
 async def test_a_configured_pcm_mode_accepts_pins_for_the_pcm_family(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="1")
-    assert livemap.pin_family(manager) == "pcm"
+    assert livechain.pin_family(manager) == "pcm"
 
 
 async def test_a_configured_sdm_mode_accepts_pins_for_the_sdm_family(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="2")
-    assert livemap.pin_family(manager) == "sdm"
+    assert livechain.pin_family(manager) == "sdm"
 
 
 async def test_auto_mode_accepts_pins_for_no_family_at_all(live_manager: LiveManager) -> None:
     # [source] has no pin slot to write: the rate follows the source, and a
     # SetRate against the running list answers OK and moves nothing.
     manager, _, _ = await live_manager(mode="0", state="2", _active_mode="PCM")
-    assert livemap.pin_family(manager) is None
+    assert livechain.pin_family(manager) is None
 
 
 # --- which rates the engine will refuse as a pin ------------------------------
@@ -63,24 +63,24 @@ async def test_auto_mode_accepts_pins_for_no_family_at_all(live_manager: LiveMan
 
 async def test_a_pcm_rate_is_pinnable_while_pcm_is_configured(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="1")
-    assert livemap.unpinnable_rate(manager, "352800") is False
+    assert livechain.unpinnable_rate(manager, "352800") is False
 
 
 async def test_an_sdm_rate_is_unpinnable_while_pcm_is_configured(live_manager: LiveManager) -> None:
     # DSD64 has no index in the PCM list the engine enumerates, so there is no
     # wire form that pins it.
     manager, _, _ = await live_manager(mode="1")
-    assert livemap.unpinnable_rate(manager, "2822400") is True
+    assert livechain.unpinnable_rate(manager, "2822400") is True
 
 
 async def test_an_sdm_rate_is_pinnable_while_sdm_is_configured(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="2")
-    assert livemap.unpinnable_rate(manager, "2822400") is False
+    assert livechain.unpinnable_rate(manager, "2822400") is False
 
 
 async def test_a_pcm_rate_is_unpinnable_while_sdm_is_configured(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="2")
-    assert livemap.unpinnable_rate(manager, "352800") is True
+    assert livechain.unpinnable_rate(manager, "352800") is True
 
 
 @pytest.mark.parametrize("hz", ["352800", "2822400"])
@@ -88,7 +88,7 @@ async def test_no_rate_of_either_family_is_pinnable_in_auto_mode(live_manager: L
     # Playing, with the PCM chain loaded: playback is not what blocks the pin,
     # [source] is (protocol.md §6, measured mid-playback).
     manager, _, _ = await live_manager(mode="0", state="2", _active_mode="PCM")
-    assert livemap.unpinnable_rate(manager, hz) is True
+    assert livechain.unpinnable_rate(manager, hz) is True
 
 
 @pytest.mark.parametrize("mode", ["0", "1", "2"])
@@ -96,7 +96,7 @@ async def test_the_auto_rate_is_never_unpinnable(live_manager: LiveManager, mode
     # "0" is the value that means stop pinning; the engine takes it in any mode,
     # and holding it would leave the engine pinned to what the user just cleared.
     manager, _, _ = await live_manager(mode=mode)
-    assert livemap.unpinnable_rate(manager, "0") is False
+    assert livechain.unpinnable_rate(manager, "0") is False
 
 
 # --- splitting the unpinnable rate out of a batch -----------------------------
@@ -105,23 +105,23 @@ async def test_the_auto_rate_is_never_unpinnable(live_manager: LiveManager, mode
 async def test_the_batch_split_drops_a_rate_the_engine_will_not_pin(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="1")
     fields = {"rate": "2822400", "junk_filter": "1"}
-    assert livemap.split_unpinnable_rate(manager, fields)[0] == {"junk_filter": "1"}
+    assert livechain.split_unpinnable_rate(manager, fields)[0] == {"junk_filter": "1"}
 
 
 async def test_the_batch_split_hands_back_the_unpinnable_rate_in_hz(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="1")
     fields = {"rate": "2822400", "junk_filter": "1"}
-    assert livemap.split_unpinnable_rate(manager, fields)[1] == "2822400"
+    assert livechain.split_unpinnable_rate(manager, fields)[1] == "2822400"
 
 
 async def test_the_batch_split_keeps_a_rate_the_engine_will_pin(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="1")
-    assert livemap.split_unpinnable_rate(manager, {"rate": "352800"})[0] == {"rate": "352800"}
+    assert livechain.split_unpinnable_rate(manager, {"rate": "352800"})[0] == {"rate": "352800"}
 
 
 async def test_the_batch_split_hands_back_nothing_for_a_pinnable_rate(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager(mode="1")
-    assert livemap.split_unpinnable_rate(manager, {"rate": "352800"})[1] is None
+    assert livechain.split_unpinnable_rate(manager, {"rate": "352800"})[1] is None
 
 
 # --- applying a batch that carries an unpinnable rate -------------------------
@@ -265,14 +265,14 @@ async def test_auto_mode_running_a_pcm_source_has_the_pcm_chain_loaded(live_mana
     # running is what names the chain — and filter/shaper edits do go live here,
     # in the same situation where no rate is pinnable.
     manager, _, _ = await live_manager(mode="0", state="2", _active_mode="PCM")
-    assert livemap.active_chain(manager) == "pcm"
+    assert livechain.active_chain(manager) == "pcm"
 
 
 async def test_auto_mode_running_nothing_has_no_knowable_chain(live_manager: LiveManager) -> None:
     # Neither lane can answer before playback starts. None, never a guess: a
     # wrong chain resolves filters against the other chain's enum IDs.
     manager, _, _ = await live_manager(mode="0", _active_mode="")
-    assert livemap.active_chain(manager) is None
+    assert livechain.active_chain(manager) is None
 
 
 def test_state_reports_the_loaded_chain_of_an_auto_mode_pcm_source(chain_api: Callable[..., TestClient]) -> None:

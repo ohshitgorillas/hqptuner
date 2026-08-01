@@ -31,7 +31,7 @@ async def test_staged_persistent_change_is_applied(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
     manager, http = apply_via
-    await manager.apply({}, {"title": "Renamed"})
+    await manager.applyops.apply({}, {"title": "Renamed"})
     assert (await _readback(http))["title"] == "Renamed"
 
 
@@ -39,7 +39,7 @@ async def test_enabling_a_checkbox_is_applied(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
     manager, http = apply_via
-    await manager.apply({}, {"net_ipv6": "1"})
+    await manager.applyops.apply({}, {"net_ipv6": "1"})
     assert (await _readback(http))["net_ipv6"] is True
 
 
@@ -57,7 +57,7 @@ async def test_config_write_pins_the_field_regardless_of_staging(
     # with the opposite values (see _http_state), and nothing here stages these
     # fields — so seeing the pinned value proves the write forced it.
     manager, http = apply_via
-    await manager.apply({}, {"title": "Renamed"})
+    await manager.applyops.apply({}, {"title": "Renamed"})
     assert (await _readback(http))[field] == expected
 
 
@@ -67,7 +67,7 @@ async def test_a_value_the_daemon_refuses_reports_not_applied(
     # the daemon refuses the value on restore, so the running config never
     # reflects it — the apply must report not-applied, never a silent success
     manager, _ = apply_via
-    report = await manager.apply({}, {"title": "REJECT"})
+    report = await manager.applyops.apply({}, {"title": "REJECT"})
     assert report["persistent"]["applied"] is False
 
 
@@ -78,7 +78,7 @@ async def test_a_daemon_that_never_returns_reports_not_applied(
     # the daemon accepts the restore then never comes back; the apply must report
     # not-applied so the caller keeps the staging, not a false success
     manager = http_manager_factory(dying_http_daemon)
-    report = await manager.apply({}, {"title": "Renamed"})
+    report = await manager.applyops.apply({}, {"title": "Renamed"})
     assert report["persistent"]["applied"] is False
 
 
@@ -89,7 +89,7 @@ async def test_the_pre_apply_backup_is_written_to_disk(
     # a crash mid-apply must leave a recoverable copy behind, so the backup is
     # persisted before the POST, not just held in memory
     manager, _ = apply_via
-    await manager.apply({}, {"title": "Renamed"})
+    await manager.applyops.apply({}, {"title": "Renamed"})
     assert (tmp_path / "pre-apply-settings.zip").read_bytes().startswith(b"PK\x03\x04")
 
 
@@ -100,7 +100,7 @@ async def test_apply_verifies_through_the_post_restart_stale_window(
     # the daemon serves the old form for a read after the POST; a single-GET
     # verify would false-negative here — the poll must ride through the stale read
     manager = http_manager_factory(stale_http_daemon, alarm_threshold=3.0)
-    report = await manager.apply({}, {"title": "Renamed"})
+    report = await manager.applyops.apply({}, {"title": "Renamed"})
     assert report["persistent"]["applied"] is True
 
 
@@ -110,8 +110,8 @@ async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
     # Save as New = apply the working config, then persist it under a fresh preset
     # in the HQPTuner store; reading that preset back carries the change
     manager, _ = apply_via
-    await manager.apply({}, {"title": "Renamed"})
-    await manager.save_preset("Fresh")
+    await manager.applyops.apply({}, {"title": "Renamed"})
+    await manager.presetops.save_preset("Fresh")
     assert (await manager.read_preset("Fresh"))["title"] == "Renamed"
 
 
@@ -121,7 +121,7 @@ async def test_a_net_device_the_daemon_no_longer_offers_is_reported_unfixable(
     # the staged endpoint is not among the daemon's bindable devices, so no restart
     # can converge it — the apply must surface it as unfixable, never a false success
     manager, _ = apply_via
-    report = await manager.apply({}, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"})
+    report = await manager.applyops.apply({}, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"})
     assert "net_device" in report["persistent"]["unfixable"]
 
 
@@ -132,7 +132,7 @@ async def test_loudness_edit_persists_to_the_loudness_plugin(
     # <plugin type="loudness"> low_frequency — proving the post_loudness_lowfreq ->
     # low_frequency mapping, not just that some field moved
     manager, http = apply_via
-    await manager.apply({}, {"post_loudness_enabled": "1", "post_loudness_lowfreq": "120"})
+    await manager.applyops.apply({}, {"post_loudness_enabled": "1", "post_loudness_lowfreq": "120"})
     matrix = {f["name"]: f["value"] for f in (await http.get_matrix())["fields"]}
     assert matrix["post_loudness_lowfreq"] == 120
 
@@ -157,7 +157,7 @@ async def test_read_preset_reads_the_store_and_survives_an_empty_backup(
 ) -> None:
     # a preview reads the HQPTuner store, never the daemon — so it still works when
     # the daemon's /backup goes empty (the 6.0.4 post-load bug, protocol §3.6)
-    await http_manager.save_preset("Kept")  # snapshot the running config into the store
+    await http_manager.presetops.save_preset("Kept")  # snapshot the running config into the store
     http_daemon["_empty"] = True
     cfg = await http_manager.read_preset("Kept")
     assert cfg["title"] == "Opal"

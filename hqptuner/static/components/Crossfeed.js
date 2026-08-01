@@ -24,7 +24,8 @@ import { effective, effectivePipelines, isDirty } from "../store/resolve.js";
 import { edit } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 import { noteFor } from "../store/prose.js";
-import { pathParams, midSideResponse, magDb, PRESETS, matchPreset } from "../lib/binaural.js";
+import { pathParams, midSideResponse, magDb } from "../lib/binaural.js";
+import { PRESETS, matchPreset } from "../lib/binaural-setup.js";
 import {
   activeMode,
   setXfMode,

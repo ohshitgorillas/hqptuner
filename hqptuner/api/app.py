@@ -10,22 +10,22 @@ from typing import Annotated, Any
 import httpx
 from fastapi import APIRouter, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from starlette.types import Scope
 
 from .. import __version__
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..control import ControlError
-from ..lanes import livelane, livemap, liveoverrides
+from ..lanes import livechain, livelane, livemap, liveoverrides, presetlane
 from ..livepresets import LivePresetStore
 from ..manager import ConnectionManager
 from ..metadata import StaticMetadata, merge_enumerations
 from ..metering import MeteringReader, context_from
 from ..presetstore import PresetError
-from ..writer import known_live_settings
-from . import deps, livepresetapi, matrixapi
+from . import deps, livepresetapi, matrixapi, pendingapi
 from .deps import HttpMgr, Mgr
+from .models import ApplyBody, EngineBody, LiveBody, ProfileBody, VolumeBody
+from .pendingapi import PendingStore, _apply_succeeded, _pending
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -43,62 +43,6 @@ class NoCacheStaticFiles(StaticFiles):
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
-
-
-class StageBody(BaseModel):
-    live: dict[str, dict[str, str]] = {}
-    http: dict[str, str] = {}
-
-
-class SaveTarget(BaseModel):
-    name: str
-
-
-class ApplyBody(BaseModel):
-    # optional: after a successful apply, persist the (now clean) working config
-    # into this preset snapshot — the active one (Apply & Save) or a new name
-    # (Save as New). Absent = ephemeral apply (working config only).
-    save: SaveTarget | None = None
-    # optional: the user previewed this preset in the editor; apply loads it first
-    # so it becomes active, then applies the staged tweaks on top of its snapshot.
-    switch_to: str | None = None
-
-
-class LiveBody(BaseModel):
-    fields: dict[str, str] = {}
-
-
-class ProfileBody(BaseModel):
-    name: str = ""
-
-
-class VolumeBody(BaseModel):
-    level: str
-
-
-class EngineBody(BaseModel):
-    overrides: dict[str, str] = {}
-    all_presets: bool = False
-
-
-class PendingStore:
-    """Server-side staged-changes buffer. Survives browser reloads because it
-    lives on the backend, not the client."""
-
-    def __init__(self) -> None:
-        self.live: dict[str, dict[str, str]] = {}
-        self.http: dict[str, str] = {}
-
-    def stage(self, live: dict[str, dict[str, str]], http: dict[str, str]) -> None:
-        self.live.update(live)
-        self.http.update(http)
-
-    def clear(self) -> None:
-        self.live = {}
-        self.http = {}
-
-    def snapshot(self) -> dict[str, Any]:
-        return {"live": self.live, "http": self.http}
 
 
 @router.get("/health")
@@ -123,12 +67,12 @@ def health(manager: Mgr) -> dict[str, Any]:
 @router.get("/state")
 def state(manager: Mgr) -> dict[str, Any]:
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
-    # engine currently has loaded (livemap.active_chain — the configured mode when
+    # engine currently has loaded (livechain.active_chain — the configured mode when
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
     # here so the frontend knows which chain's controls are live-adjustable
     # without duplicating that State/Status fallback in JS.
     live = manager.state
-    data = None if live is None else {**live, "active_chain": livemap.active_chain(manager)}
+    data = None if live is None else {**live, "active_chain": livechain.active_chain(manager)}
     return deps.snapshot(manager, data)
 
 
@@ -163,13 +107,14 @@ def config(manager: HttpMgr) -> dict[str, Any]:
     # would report a setting the engine stopped using. The frontend grounds the
     # affected controls here, so a dropdown shows what is actually playing and
     # selecting the previous value still reads as a change.
-    presets = manager.presets()
+    presets = manager.presetops.presets()
     return deps.snapshot(
         manager,
         {
             **form,
             "profiles": {"value": presets["value"], "options": presets["options"]},
             "active": presets["active"],
+            "autosave": presets["autosave"],
             "file": {**(manager.file_config or {}), **liveoverrides.live_overrides(manager)},
         },
     )
@@ -207,7 +152,7 @@ async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
 @router.get("/backup")
 async def backup(manager: HttpMgr) -> Response:
     try:
-        data = await manager.backup()
+        data = await manager.presetops.backup()
     except ControlError as exc:
         raise HTTPException(status_code=502, detail=f"backup failed: {exc}") from exc
     return Response(
@@ -251,53 +196,9 @@ async def volume_set(body: VolumeBody, manager: Mgr) -> dict[str, Any]:
     volume control is disabled (the slider grays on that state, so this is the
     race backstop)."""
     try:
-        return await manager.set_volume(body.level)
+        return await manager.applyops.set_volume(body.level)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-
-
-def _pending(request: Request) -> PendingStore:
-    store: PendingStore = request.app.state.pending
-    return store
-
-
-def _apply_succeeded(report: dict[str, Any]) -> bool:
-    """Whether every staged change actually took. A live edit counts only if its
-    readback verified (`ok`); the persistent lane only if the running config
-    reflected the change after the restart (`applied`). A soft failure — a value
-    never converged, or a preset's endpoint is gone — returns False here so the
-    caller keeps the pending buffer instead of silently dropping the edits."""
-    if any(not entry.get("ok") for entry in report.get("live", [])):
-        return False
-    switched = report.get("switched")
-    if switched is not None and not switched.get("active"):
-        return False  # the preset switch never took — don't clear the preview
-    persistent = report.get("persistent")
-    return not (persistent is not None and not persistent.get("applied"))
-
-
-@router.post("/config/stage")
-def stage(body: StageBody, request: Request) -> dict[str, Any]:
-    unknown = set(body.live) - set(known_live_settings())
-    if unknown:
-        raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
-    store = _pending(request)
-    store.stage(body.live, body.http)
-    return store.snapshot()
-
-
-@router.get("/config/pending")
-def pending(request: Request) -> dict[str, Any]:
-    return _pending(request).snapshot()
-
-
-@router.delete("/config/pending")
-def discard(request: Request, manager: Mgr) -> dict[str, Any]:
-    store = _pending(request)
-    store.clear()
-    # parked filter uploads belong to the staged process strings just discarded
-    manager.clear_parked_filters()
-    return store.snapshot()
 
 
 # /api/matrix* routes live in matrixapi (mounted in create_app)
@@ -307,7 +208,7 @@ async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, 
     """Persist a clean, successful apply into the named preset (store + daemon
     mirror). Only called when the apply itself succeeded, so the running config
     already carries the edits. ``save_preset`` reports its own failure."""
-    return await manager.save_preset(name)
+    return await manager.presetops.save_preset(name)
 
 
 @router.post("/config/apply")
@@ -317,13 +218,17 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
     if not store.live and not store.http and switch_to is None:
         raise HTTPException(status_code=400, detail="nothing staged")
     try:
-        report = await manager.apply(store.live, store.http, switch_to)
+        report = await manager.applyops.apply(store.live, store.http, switch_to)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     if not _apply_succeeded(report):
         return report  # soft failure — keep staging so the user can retry
     if body is not None and body.save is not None:
         report["saved"] = await _save_after_apply(manager, body.save.name)
+    else:  # auto-save follows every clean apply that was not already a full save
+        autosaved = await presetlane.autosave(manager)
+        if autosaved is not None:
+            report["autosaved"] = autosaved
     store.clear()
     return report
 
@@ -344,7 +249,11 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live fields: {unknown}")
     try:
-        return await livelane.apply_now(manager, body.fields)
+        report = await livelane.apply_now(manager, body.fields)
+        autosaved = await presetlane.autosave(manager)
+        if autosaved is not None:
+            report["autosaved"] = autosaved
+        return report
     except livemap.LiveRouteError as exc:
         # 409, not 422: every field is a real live control and its value was a
         # real option — the engine's current chain or lists are what refuse it,
@@ -367,7 +276,11 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
     if not body.overrides:
         raise HTTPException(status_code=400, detail="no engine overrides given")
     try:
-        return await manager.apply_engine(body.overrides, body.all_presets)
+        report = await manager.applyops.apply_engine(body.overrides, body.all_presets)
+        autosaved = await presetlane.autosave(manager)
+        if autosaved is not None:
+            report["autosaved"] = autosaved
+        return report
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ControlError as exc:
@@ -387,9 +300,9 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr) -> d
 @router.post("/profile/{action}")
 async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any]:
     methods = {
-        "load": manager.load_preset,
-        "save": manager.save_preset,
-        "delete": manager.delete_preset,
+        "load": manager.presetops.load_preset,
+        "save": manager.presetops.save_preset,
+        "delete": manager.presetops.delete_preset,
     }
     if action not in methods:
         raise HTTPException(status_code=404, detail=f"unknown profile action: {action}")
@@ -410,7 +323,7 @@ async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror (Delete button
     on the preset picker)."""
     try:
-        return await manager.delete_preset(name)
+        return await manager.presetops.delete_preset(name)
     except PresetError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
@@ -465,6 +378,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.pending = PendingStore()
     app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.include_router(router)
+    app.include_router(pendingapi.router)
     app.include_router(matrixapi.router)
     app.include_router(livepresetapi.router)
     # Serve the SPA. Mounted last and at "/", so the /api routes above win; the

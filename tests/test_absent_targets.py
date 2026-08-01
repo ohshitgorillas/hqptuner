@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from hqptuner.conf import presetconf, xmledit
+from hqptuner.conf import matrixconf, presetconf, xmledit
 
 # Nothing but the root: every element the daemon would have written is absent.
 BARE = b"<hqplayerd/>"
@@ -59,8 +59,8 @@ def test_the_fused_network_device_lands_on_a_config_without_a_network_element() 
 
 def test_pipeline_rows_land_on_a_config_with_no_matrix_body() -> None:
     rows = '[{"gain":"0","gainunit":"dB","mixdown":"0","process":"","source":"0"}]'
-    edited = presetconf.apply_edits(BARE, {presetconf.MATRIX_PIPELINES: rows})
-    assert presetconf.read_config(edited)[presetconf.MATRIX_PIPELINES] == rows
+    edited = presetconf.apply_edits(BARE, {matrixconf.MATRIX_PIPELINES: rows})
+    assert presetconf.read_config(edited)[matrixconf.MATRIX_PIPELINES] == rows
 
 
 def test_a_profile_saves_against_a_config_with_no_matrix_element() -> None:
@@ -85,11 +85,11 @@ def test_placing_an_element_leaves_every_existing_byte_alone() -> None:
 def test_an_edit_with_nowhere_to_go_still_names_the_setting_that_failed() -> None:
     # "this snapshot has no hqplayerd root element" does not say which of four
     # staged changes is the one at fault; the form field's name does
-    with pytest.raises(presetconf.GroundingError, match="alsa_dop"):
+    with pytest.raises(xmledit.GroundingError, match="alsa_dop"):
         presetconf.apply_edits(b"<nonsense/>", {"alsa_dop": "1"})
 
 
 def test_an_unplaceable_edit_carries_no_angle_brackets() -> None:
     # the message is rendered in the pending bar; a browser eats "<alsa>" whole
-    with pytest.raises(presetconf.GroundingError, match=r"^[^<>]*$"):
+    with pytest.raises(xmledit.GroundingError, match=r"^[^<>]*$"):
         presetconf.apply_edits(b"<nonsense/>", {"alsa_dop": "1"})

@@ -19,7 +19,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { compileRows, recognizeRows, PRESETS, HEAD_RADIUS, SPEAKER_ANGLE } from "../../hqptuner/static/lib/binaural.js";
+import { compileRows, recognizeRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../hqptuner/static/lib/binaural.js";
+import { PRESETS } from "../../hqptuner/static/lib/binaural-setup.js";
 
 // [ok, message] for spreading into ONE assert.ok — see matrixspec.test.js.
 const near = (actual, expected, tol = 1e-9) => [

@@ -47,19 +47,19 @@ async def split_filter_manager(split_filter_daemon_port: int) -> AsyncIterator[C
 
 
 async def test_live_edit_applies_and_verifies(running_manager: ConnectionManager) -> None:
-    report = await running_manager.apply({"shaper": {"value": "5"}}, {})
+    report = await running_manager.applyops.apply({"shaper": {"value": "5"}}, {})
     assert report["live"][0]["ok"] is True
 
 
 async def test_live_edit_without_connection_raises() -> None:
     manager = ConnectionManager(Config())
     with pytest.raises(ControlError, match="not connected"):
-        await manager.apply({"shaper": {"value": "5"}}, {})
+        await manager.applyops.apply({"shaper": {"value": "5"}}, {})
 
 
 async def test_http_edit_without_credentials_reports_error() -> None:
     manager = ConnectionManager(Config())  # no http client configured
-    report = await manager.apply({}, {"channels": "2"})
+    report = await manager.applyops.apply({}, {"channels": "2"})
     assert report["persistent"]["submitted"] is False
 
 
@@ -70,12 +70,12 @@ async def test_http_edit_without_credentials_reports_error() -> None:
 
 
 async def test_a_filter_change_applies_live(running_manager: ConnectionManager) -> None:
-    report = await running_manager.apply({}, {"filter": "40"})
+    report = await running_manager.applyops.apply({}, {"filter": "40"})
     assert next((r["ok"] for r in report["live"] if r["setting"] == "filter"), False) is True
 
 
 async def test_a_fully_routable_batch_never_restarts_the_daemon(running_manager: ConnectionManager) -> None:
-    report = await running_manager.apply({}, {"filter": "40"})
+    report = await running_manager.applyops.apply({}, {"filter": "40"})
     assert report["persistent"] is None
 
 
@@ -106,7 +106,7 @@ async def test_a_live_routed_filter_becomes_the_running_truth(running_manager: C
     # The file still holds the old filter, so if this reported the file the
     # dropdown would snap back after Apply and re-picking the old value would
     # read as clean — leaving no way to select it again.
-    await running_manager.apply({}, {"filter": "40"})
+    await running_manager.applyops.apply({}, {"filter": "40"})
     assert liveoverrides.live_overrides(running_manager)["filter"] == "40"
 
 
@@ -129,58 +129,58 @@ async def test_a_save_omits_the_dormant_chains_fields(running_manager: Connectio
 async def test_a_mode_switch_with_a_target_chain_field_never_restarts_the_daemon(
     running_manager: ConnectionManager,
 ) -> None:
-    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3"})
     assert report["persistent"] is None
 
 
 async def test_a_chain_field_of_the_target_mode_lands_after_the_switch(
     running_manager: ConnectionManager,
 ) -> None:
-    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3"})
     assert next((r["ok"] for r in report["live"] if r["setting"] == "shaper"), False) is True
 
 
 async def test_the_mode_itself_lands_and_verifies(running_manager: ConnectionManager) -> None:
-    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3"})
     assert next((r["ok"] for r in report["live"] if r["setting"] == "mode"), False) is True
 
 
 async def test_the_switched_mode_becomes_the_running_truth(running_manager: ConnectionManager) -> None:
-    await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3"})
     assert liveoverrides.live_overrides(running_manager)["mode"] == "sdm"
 
 
 async def test_the_switched_chain_field_becomes_the_running_truth(
     running_manager: ConnectionManager,
 ) -> None:
-    await running_manager.apply({}, {"mode": "sdm", "modulator": "3"})
+    await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3"})
     assert liveoverrides.live_overrides(running_manager)["modulator"] == "3"
 
 
 async def test_a_mode_equal_to_the_running_mode_is_not_resent(running_manager: ConnectionManager) -> None:
     # SetMode clears the engine's single rate pin even when the mode does not
     # change (protocol.md §6), so a surviving pin proves no SetMode went out.
-    await running_manager.apply({"rate": {"value": "1"}}, {})
-    await running_manager.apply({}, {"mode": "pcm", "dither": "5"})
+    await running_manager.applyops.apply({"rate": {"value": "1"}}, {})
+    await running_manager.applyops.apply({}, {"mode": "pcm", "dither": "5"})
     assert running_manager.state["rate"] == "1"
 
 
 async def test_a_mode_batch_with_a_leftover_field_still_routes_the_mode_live(
     running_manager: ConnectionManager,
 ) -> None:
-    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
+    report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
     assert next((r["ok"] for r in report["live"] if r["setting"] == "mode"), False) is True
 
 
 async def test_a_mode_batch_with_a_leftover_field_still_routes_the_chain_field_live(
     running_manager: ConnectionManager,
 ) -> None:
-    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
+    report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
     assert next((r["ok"] for r in report["live"] if r["setting"] == "shaper"), False) is True
 
 
 async def test_the_leftover_field_rides_the_persistent_lane(running_manager: ConnectionManager) -> None:
     # running_manager has no HTTP credentials, so the restore lane reports the
     # submission it could not make rather than staying silent (persistent None).
-    report = await running_manager.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
+    report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
     assert report["persistent"]["submitted"] is False

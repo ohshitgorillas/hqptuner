@@ -19,7 +19,7 @@ mode-dependent (manual §4.6), so the PCM and SDM lists share no rate but index
 import pytest
 from conftest import CommandLog, LiveManager
 
-from hqptuner.lanes import livelane, livemap, liveoverrides
+from hqptuner.lanes import livechain, livelane, liveoverrides
 
 
 def _rate_writes(log: CommandLog) -> list[str]:
@@ -37,7 +37,7 @@ def _rate_writes(log: CommandLog) -> list[str]:
     [("44100", "pcm"), ("192000", "pcm"), ("768000", "pcm"), ("2822400", "sdm"), ("22579200", "sdm")],
 )
 def test_a_rate_names_the_output_family_it_belongs_to(hz: str, family: str) -> None:
-    assert livemap.rate_family(hz) == family
+    assert livechain.rate_family(hz) == family
 
 
 # --- joining Hz to the engine's own list ------------------------------------
@@ -47,12 +47,12 @@ async def test_a_rate_the_engine_offers_resolves_to_its_list_index(live_manager:
     # `RatesItem` is `<RatesItem index rate/>` — no name, no value — so the join
     # is on the rate in Hz, and `SetRate` wants the index (protocol.md §6).
     manager, _, _ = await live_manager()
-    assert livemap.rate_index_for(manager, "352800") == "2"
+    assert livechain.rate_index_for(manager, "352800") == "2"
 
 
 async def test_a_rate_the_engine_does_not_offer_resolves_to_nothing(live_manager: LiveManager) -> None:
     manager, _, _ = await live_manager()
-    assert livemap.rate_index_for(manager, "88200") is None
+    assert livechain.rate_index_for(manager, "88200") is None
 
 
 # --- what a LIVE rate write remembers ---------------------------------------

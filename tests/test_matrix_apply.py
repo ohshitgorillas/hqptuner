@@ -21,6 +21,6 @@ async def test_crossfeed_field_reaches_the_running_config(
     matrix_apply: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
     manager, http = matrix_apply
-    await manager.apply({}, {"post_bauer_frequency": "500"})
+    await manager.applyops.apply({}, {"post_bauer_frequency": "500"})
     fields = {f["name"]: f["value"] for f in (await http.get_matrix())["fields"]}
     assert fields["post_bauer_frequency"] == 500

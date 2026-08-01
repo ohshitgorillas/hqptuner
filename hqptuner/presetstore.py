@@ -131,6 +131,21 @@ class PresetStore:
             self.set_active(None)
 
     @property
+    def autosave(self) -> bool:
+        """Whether every successful apply/live write is folded back into the
+        active preset. Lives in ``store.json`` — a per-store fact, not a
+        per-browser one. Adding this field is not a schema bump: an older
+        HQPTuner ignoring it merely doesn't auto-save."""
+        return bool(self._meta().get("autosave"))
+
+    def set_autosave(self, enabled: bool) -> None:
+        meta = self._meta()
+        self._ensure_dir()
+        meta["schema"] = meta.get("schema", _SCHEMA)
+        meta["autosave"] = bool(enabled)
+        (self._dir / _STORE_FILE).write_text(json.dumps(meta))
+
+    @property
     def active(self) -> str | None:
         """The active preset name, or ``None`` when nothing is loaded / the pointer
         is unreadable."""

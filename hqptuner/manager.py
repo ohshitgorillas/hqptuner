@@ -22,30 +22,18 @@ import asyncio
 import contextlib
 import logging
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from . import logtail
+from .applyops import ApplyOps
 from .conf import engineconf, presetconf
 from .conf.httpconf import HttpConfigClient
 from .config import Config
 from .control import CommandError, ControlClient, ControlError
-from .filterpark import FilterPark
-from .lanes import (
-    enginelane,
-    httpforms,
-    httplane,
-    livelane,
-    livemap,
-    matrixlane,
-    presetlane,
-    settle,
-    speakerlane,
-)
-from .presetstore import PresetStore
-from .writer import apply_live
+from .lanes import httpforms, livechain, livelane, presetlane, settle
+from .presetops import PresetOps
 
 if TYPE_CHECKING:
     from .metering import MeteringReader
@@ -62,12 +50,10 @@ class ConnectionManager:
         self._http = http_client
         self._client: ControlClient | None = None
         self._stop = asyncio.Event()
-        # HQPTuner-owned preset store (presetstore) — the source of truth for
-        # presets. hqplayerd's own named-profile subsystem is unreliable, so we
-        # drive it only through restore-onto-[default] and keep data/cfgs mirrored.
-        self._store = PresetStore(cfg.preset_dir)
-        self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
-        self._migrated = False
+        # Preset lifecycle + filter parking + backup persistence (presetops).
+        self.presetops = PresetOps(cfg, self)
+        # Apply/dispatch operations (applyops).
+        self.applyops = ApplyOps(self)
 
         self.reachable = False
         self.unreachable_since: float | None = time.time()
@@ -100,7 +86,6 @@ class ConnectionManager:
         # unauthenticated, no reload). The active one is State.matrix_profile.
         self.matrix_profiles: list[str] | None = None
         self.loaded_at: float | None = None
-        self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
         # Running config read from the config FILE (the /backup archive's working
         # hqplayerd.xml), in form-field terms. The /config form is lossy for
         # settings whose XML domain is wider than the widget the daemon renders —
@@ -196,7 +181,7 @@ class ConnectionManager:
                 # the form still carries every field; only the lossy ones degrade
                 log.warning("file-config read failed: %s", exc)
             try:
-                await self._migrate_presets(active_config)
+                await self.presetops.migrate_once(active_config)
             except Exception as exc:
                 log.warning("preset migration skipped: %s", exc)
         log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
@@ -217,7 +202,7 @@ class ConnectionManager:
             log.info("engine moved (mode %s, state %s), re-enumerating", state.get("mode"), state.get("state"))
             self.enums = await client.get_all_enumerations()
         status, meta = await client.get_status()
-        before = livemap.active_chain(self)
+        before = livechain.active_chain(self)
         self.state, self.status, self.status_metadata = state, status, meta
         await livelane.chain_entered(self, client, before, moved)
         self.volume_range = await client.get_volume_range()
@@ -232,87 +217,6 @@ class ConnectionManager:
     async def refresh_http_forms(self) -> None:
         """The three polled 8088 form snapshots (lanes/httpforms)."""
         await httpforms.refresh(self)
-
-    async def set_volume(self, db: str) -> dict[str, Any]:
-        """Live playback-volume write — immediate, outside the staged-config
-        apply flow. Raises CommandError when volume control is disabled (fixed
-        volume / no-volume path; VolumeRange enabled=0). Returns the readback
-        level so the caller echoes the applied value."""
-        client = self._client
-        if client is None:
-            raise ControlError("daemon not connected")
-        await client.set_volume(db)
-        self.state = await client.get_state()
-        return {"volume": self.state.get("volume")}
-
-    # --- write path (Phase 3) -----------------------------------------
-
-    async def apply(
-        self,
-        live_edits: dict[str, dict[str, str]],
-        http_fields: dict[str, str],
-        switch_to: str | None = None,
-    ) -> dict[str, Any]:
-        """Apply staged changes. When ``switch_to`` is set the user previewed a
-        different preset — load it first so it becomes the active preset (the only
-        way HQPlayer sets the active label), then apply the staged tweaks on top of
-        its snapshot. Then the live setters (readback-verified), then the persistent
-        lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so
-        drift never survives — and self-corrects fixable divergence."""
-        switched: dict[str, Any] | None = None
-        if switch_to is not None:
-            switched = await presetlane.switch(self, switch_to)
-        # Form fields the Control API can set outright route live instead, so a
-        # fully routable batch never restarts — a staged mode goes first as its
-        # own batch (livelane.mode_then_split). Skipped on a LOAD, which reloads
-        # anyway; an unload does not, so its staged edits still split.
-        live_report: list[dict[str, Any]] = []
-        if not switch_to:
-            live_report, live_edits, http_fields = await livelane.mode_then_split(self, http_fields, live_edits)
-        if live_edits:
-            client = self._client
-            if client is None:
-                raise ControlError("daemon not connected")
-            live_report = live_report + await apply_live(client, live_edits)
-            self.state = await client.get_state()  # live edits bypass the file: refresh running truth
-        persistent = await httplane.apply(self, http_fields) if http_fields else None
-        if persistent is not None and persistent.get("applied"):
-            # the restore that just applied carried the parked filter files —
-            # they live on the daemon now, so the parking area is done with them
-            self.clear_parked_filters()
-        return {"live": live_report, "persistent": persistent, "switched": switched}
-
-    async def backup_or_cached(self, *, for_write: bool = False) -> bytes:
-        """Fetch ``/backup``, caching it whenever it's a usable archive. WORKAROUND
-        (docs/protocol.md): hqplayerd 6.0.4 serves an EMPTY ``settings.zip`` after a
-        named ``profile/load`` (and after ``profile/save`` — observed live) until
-        the service is restarted. When that happens, fall back to the last healthy
-        archive we saw.
-
-        ``for_write=True`` refuses that fallback. The cached archive carries a
-        stale working config, and a restore built on it silently resurrects
-        whatever the user changed since it was cached — writing old values back
-        over new ones. A read may be stale; a write may not."""
-        backup = await self.require_http().backup()
-        if engineconf.base_config_xml(backup, self.active_config):  # working config resolved → usable
-            self.last_healthy_backup = backup
-            return backup
-        summary = engineconf.archive_summary(backup)
-        if for_write:
-            # State the OBSERVATION, not a cause: an unresolvable archive reads
-            # identically to the daemon's empty-backup bug, and asserting the bug
-            # sent a reader chasing something a restart would not have cleared.
-            log.warning("refusing to build a restore: unusable /backup — %s", summary)
-            raise presetconf.GroundingError(
-                "no working config in the daemon's /backup archive, so there is nothing to build a restore "
-                "from. Either hqplayerd is serving an empty archive (a 6.0.4 bug after a profile load/save, "
-                "cleared by restarting the service) or its working config is under a member name HQPTuner "
-                f"could not resolve. The archive holds: {summary}"
-            )
-        if self.last_healthy_backup is not None:
-            log.warning("unusable /backup from daemon (%s) — using cached archive", summary)
-            return self.last_healthy_backup
-        return backup  # no cache yet — let the caller fail with a clear message
 
     async def read_preset(self, name: str) -> dict[str, str]:
         return await presetlane.read(self, name)
@@ -354,7 +258,7 @@ class ConnectionManager:
         base config (the only lane that carries them — they are not on the form).
         Fetched on demand, not per poll, since the backup archive is large."""
         engine = engineconf.read_engine_attrs(
-            engineconf.base_config_xml(await self.backup_or_cached(), self.active_config)
+            engineconf.base_config_xml(await self.presetops.backup_or_cached(), self.active_config)
         )
         self.engine = engine
         return engine
@@ -365,7 +269,7 @@ class ConnectionManager:
         (``volume_fixed``: 0/1/2 in XML, a bare checkbox on the form). Fetched on
         connect and refreshed by the apply's verify step — never per poll, since
         the archive is large."""
-        backup = await self.backup_or_cached()
+        backup = await self.presetops.backup_or_cached()
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
 
@@ -387,64 +291,10 @@ class ConnectionManager:
         action). The daemon self-restarts, interrupting playback if any."""
         await self.require_http().restore(data, scope=scope)
 
-    async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
-        """Apply hardware-acceleration engine attributes — the config-file-only
-        lane (`enginelane`). The restore restarts the daemon and interrupts
-        playback; nothing gates on that — the user decides when."""
-        engineconf.validate_overrides(overrides)
-        if self._http is None:
-            return {"submitted": False, "error": "no credentials for HTTP config lane"}
-        try:
-            backup = await self.backup_or_cached()
-            self.persist_backup(backup)
-            result = await enginelane.apply(self, backup, overrides, self.active_config, all_presets)
-        except httpx.HTTPError as exc:
-            return {"submitted": False, "error": str(exc)}
-        engine = result["verified"].get("engine")
-        if engine:
-            self.engine = engine
-        return result
-
-    # --- matrix profiles (matrixlane, matrix-spec.md "Profiles") -----------
-    # Only the live switch lives here. Saving and deleting a profile are staged
-    # <matrix_profile> edits on the persistent lane (conf/matrixconf.py, round 5).
-
-    async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
-        return await matrixlane.switch_profile(self, name)
-
     @property
     def control(self) -> ControlClient | None:
         """The live 4321 client, for the extracted lanes (None while unreachable)."""
         return self._client
-
-    # --- speaker processing (readme §1.9, speakerlane) ---------------------
-
-    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
-        return await speakerlane.apply(self, enabled, channels)
-
-    # --- convolution uploads (filterpark, matrix-spec.md "Filter upload") --
-
-    def park_filter(self, name: str, data: bytes) -> dict[str, str]:
-        return self._filters.park(name, data)
-
-    def parked_filter_members(self) -> dict[str, bytes]:
-        return self._filters.members()
-
-    def clear_parked_filters(self) -> None:
-        self._filters.clear()
-
-    def persist_backup(self, data: bytes) -> Path | None:
-        """Write the pre-apply settings backup to disk so a crash mid-apply still
-        leaves a recoverable copy (memory-only last_backup does not survive one).
-        Best-effort: a write failure must not block the apply itself."""
-        path = self._cfg.backup_dir / "pre-apply-settings.zip"
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
-        except OSError as exc:
-            log.warning("could not persist pre-apply backup to %s: %s", path, exc)
-            return None
-        return path
 
     async def refresh_devices(self) -> dict[str, Any]:
         """Trigger a daemon output-device re-scan, then refetch the /config and
@@ -454,36 +304,6 @@ class ConnectionManager:
         await self.require_http().refresh_devices()
         await self.refresh_http_forms()
         return {"refreshed": True}
-
-    # --- preset lane (presetlane) — thin delegators over the store + restore ---
-
-    @property
-    def store(self) -> PresetStore:
-        return self._store
-
-    def presets(self) -> dict[str, Any]:
-        return presetlane.listing(self)
-
-    async def load_preset(self, name: str) -> dict[str, Any]:
-        return await presetlane.load(self, name)
-
-    async def save_preset(self, name: str) -> dict[str, Any]:
-        return await presetlane.save(self, name)
-
-    async def delete_preset(self, name: str) -> dict[str, Any]:
-        return await presetlane.delete(self, name)
-
-    async def _migrate_presets(self, active_hint: str | None = None) -> None:
-        if self._migrated or self._http is None:
-            return
-        self._migrated = True
-        imported = await presetlane.migrate(self, active_hint)
-        if imported:
-            log.info("migrated presets into store: %s", ", ".join(imported))
-
-    async def backup(self) -> bytes:
-        """The daemon's current settings archive (a zip) for download."""
-        return await self.require_http().backup()
 
     def require_http(self) -> HttpConfigClient:
         if self._http is None:

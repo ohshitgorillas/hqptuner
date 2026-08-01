@@ -25,7 +25,8 @@
 
 import { signal } from "@preact/signals";
 
-import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
+import { compileRows, recognizeRows, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
+import { blockConflicts, pairInfo } from "./binaural-setup.js";
 import { effective, effectivePipelines, pipelineBaseline } from "../store/resolve.js";
 import { stagePipelines, edit } from "../store/actions.js";
 // Upward, deliberately: the compensation block is recognized against the LIVE

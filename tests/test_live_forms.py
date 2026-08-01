@@ -29,7 +29,7 @@ from typing import Any
 import httpx
 import pytest
 
-from hqptuner.conf import presetconf
+from hqptuner.conf import fixedvol, matrixconf, presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 
@@ -48,12 +48,12 @@ def _catalog_fields() -> set[str]:
     fields = (
         set(presetconf.FIELD_MAP)
         | set(presetconf.PLUGIN_MAP)
-        | {presetconf.NET_DEVICE, presetconf.FIXED_ENABLED, presetconf.FIXED_LEVEL}
+        | {presetconf.NET_DEVICE, fixedvol.FIXED_ENABLED, fixedvol.FIXED_LEVEL}
     )
     # The pipeline table reaches the wire as indexed source_N / process_N /
     # gain_N rows, so it has no flat name to look for — its own shape is
     # covered by the matrix row parser's tests.
-    return fields - {presetconf.MATRIX_PIPELINES}
+    return fields - {matrixconf.MATRIX_PIPELINES}
 
 
 CATALOG_FIELDS = sorted(_catalog_fields())

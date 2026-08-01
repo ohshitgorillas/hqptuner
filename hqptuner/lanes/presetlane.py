@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from ..conf import engineconf, presetconf
+from ..conf import engineconf, presetconf, presetzip, xmledit
 from ..control import ControlError
 from ..presetstore import PresetError
 from . import liveoverrides, settle
@@ -45,9 +45,9 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
     bookmark", and "(no preset)" says that without promising a settings reset it
     cannot deliver."""
     options: list[dict[str, str]] = [{"value": "", "label": "(no preset)"}]
-    options += [{"value": n, "label": n} for n in mgr.store.names()]
-    active = mgr.store.active or ""
-    return {"value": active, "options": options, "active": active}
+    options += [{"value": n, "label": n} for n in mgr.presetops.store.names()]
+    active = mgr.presetops.store.active or ""
+    return {"value": active, "options": options, "active": active, "autosave": mgr.presetops.store.autosave}
 
 
 async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
@@ -56,20 +56,20 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     selection reads the current running config."""
     if not name:
         return dict(mgr.file_config or await mgr.load_file_config())
-    return presetconf.read_config(mgr.store.read(name))
+    return presetconf.read_config(mgr.presetops.store.read(name))
 
 
 async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Load a stored preset: restore its config as the ``[default]`` working config
     (the reliable primitive) and mark it active, mirroring it into the daemon's
     ``data/cfgs`` so the native UI stays populated. Never ``profile/load``."""
-    xml = mgr.store.read(name)
+    xml = mgr.presetops.store.read(name)
     await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
-    backup = await mgr.backup_or_cached(for_write=True)
-    mgr.persist_backup(backup)
-    archive = presetconf.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
+    backup = await mgr.presetops.backup_or_cached(for_write=True)
+    mgr.presetops.persist_backup(backup)
+    archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     await mgr.require_http().restore(archive, scope="system")
-    mgr.store.set_active(name)
+    mgr.presetops.store.set_active(name)
     await mgr.await_http_ready()
     await mgr.load_file_config()
     await mgr.refresh_http_forms()
@@ -85,7 +85,7 @@ async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     # cache a healthy backup BEFORE the load — the load bug empties /backup, and
     # the persistent apply that follows needs the archive (docs/protocol.md)
     with contextlib.suppress(httpx.HTTPError):
-        await mgr.backup_or_cached()
+        await mgr.presetops.backup_or_cached()
     return await load(mgr, name)
 
 
@@ -99,7 +99,7 @@ async def unload(mgr: ConnectionManager) -> dict[str, Any]:
     before-the-preset version, so "unload" cannot mean "put the old settings
     back" — it means we stop claiming the current settings belong to a preset.
     Shaped like ``load``'s return so the apply report reads the same either way."""
-    mgr.store.set_active(None)
+    mgr.presetops.store.set_active(None)
     return {"name": "", "active": True}
 
 
@@ -115,7 +115,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     that was already there."""
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
-        backup = await mgr.backup_or_cached(for_write=True)
+        backup = await mgr.presetops.backup_or_cached(for_write=True)
         working = engineconf.base_config_xml(backup, mgr.active_config)
         if not working:
             raise ControlError("no running config to save")
@@ -124,14 +124,57 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         # the engine's current values in first — a save stores what the user is
         # hearing, not what happens to be on disk.
         working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
-        mgr.store.save(name, working)
-        mgr.store.set_active(name)
-    except (ControlError, PresetError, httpx.HTTPError, presetconf.GroundingError) as exc:
+        mgr.presetops.store.save(name, working)
+        mgr.presetops.store.set_active(name)
+    except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
     warning = await _mirror(mgr, name, working, backup)
     if warning is None:
         return {"name": name, "ok": True}
     return {"name": name, "ok": True, "warning": warning}
+
+
+async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
+    """Fold the current audible state back into the active preset's store file —
+    the auto-save checkbox's whole write path. Store only, never the daemon
+    mirror: the mirror costs a restore restart, so it catches up by riding the
+    next restore that happens anyway (``autosave_mirror``). Returns None when
+    auto-save is off or no preset is active; best-effort otherwise — a failed
+    auto-save reports itself and never fails the write it followed."""
+    name = mgr.presetops.store.active
+    if not name or not mgr.presetops.store.autosave:
+        return None
+    try:
+        backup = await mgr.presetops.backup_or_cached(for_write=True)
+        working = engineconf.base_config_xml(backup, mgr.active_config)
+        if not working:
+            raise ControlError("no running config to auto-save")
+        working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
+        mgr.presetops.store.save(name, working)
+    except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
+        log.warning("auto-save into preset %r failed: %s", name, exc)
+        return {"name": name, "ok": False, "error": str(exc)}
+    return {"name": name, "ok": True}
+
+
+def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -> dict[str, bytes]:
+    """The ``data/cfgs`` member a restore should carry so the daemon's native
+    profile list catches up with auto-save — auto-save itself never restores, so
+    the mirror rides restores that happen anyway. ``intended_xml`` is the working
+    config that restore lands; folded with the live overrides it is exactly what
+    the next auto-save will store. Without it (an engine-lane restore) the store
+    file itself is the freshest mirror. Empty when auto-save is off, no preset is
+    active, or the preset has no store file yet."""
+    name = mgr.presetops.store.active
+    if not name or not mgr.presetops.store.autosave or not mgr.presetops.store.exists(name):
+        return {}
+    member = engineconf.snapshot_member_name(name)
+    if intended_xml is None:
+        return {member: mgr.presetops.store.read(name)}
+    try:
+        return {member: presetconf.apply_edits(intended_xml, liveoverrides.live_overrides(mgr))}
+    except xmledit.GroundingError:
+        return {member: mgr.presetops.store.read(name)}
 
 
 async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> str | None:
@@ -144,7 +187,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     restarting and a single-shot POST reports a failure the next second would
     not have seen. Re-sending is safe — the archive is the same bytes either
     way."""
-    archive = presetconf.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
+    archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
 
     async def push() -> bool:
         await mgr.require_http().restore(archive, scope="system")
@@ -160,7 +203,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
 async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror via
     ``profile/delete`` — restore is additive and cannot remove a member."""
-    mgr.store.delete(name)
+    mgr.presetops.store.delete(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):
         await mgr.require_http().post_profile("delete", profile=name)
     return {"name": name, "ok": True}
@@ -171,8 +214,8 @@ async def migrate(mgr: ConnectionManager, active_hint: str | None) -> list[str]:
     so nothing is orphaned. Idempotent — existing store presets win. Seeds the
     active pointer from the daemon's reported active config when the store has
     none. Returns the imported names."""
-    snapshots = presetconf.snapshot_members(await mgr.backup_or_cached())
-    imported = mgr.store.import_missing(snapshots)
-    if mgr.store.active is None and active_hint and mgr.store.exists(active_hint):
-        mgr.store.set_active(active_hint)
+    snapshots = presetzip.snapshot_members(await mgr.presetops.backup_or_cached())
+    imported = mgr.presetops.store.import_missing(snapshots)
+    if mgr.presetops.store.active is None and active_hint and mgr.presetops.store.exists(active_hint):
+        mgr.presetops.store.set_active(active_hint)
     return imported

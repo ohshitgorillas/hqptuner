@@ -12,7 +12,36 @@
     "apodizing": "An apodizing filter should be used at least when the Apod counter increments higher than 10 during any single track. 'Only suitable for highest technical quality source materials' means material where the Apod counter stays below 10 for the entire track.",
     "quality_ratings": "Quality ratings are not absolute — relative guidance of a filter's output quality vs the other filters.",
     "author_recommendation": "Different variants of poly-sinc are the most recommended by the author.",
-    "source": "manual §4.6 intro"
+    "source": "manual §4.6 intro",
+    "axes": {
+      "length": {
+        "tradeoff": "Frequency-domain accuracy against time-domain compactness. Longer filters buy sharper roll-off and higher stop-band attenuation at the cost of longer pre- and post-ringing; shorter filters ring less but roll off slower and attenuate less.",
+        "mechanism": "Manual §4.6 states the trade in both directions: short variants have 'shorter pre- and post-ringings at the expense of filtering quality (not as sharp roll-off)'; long variants have 'longer pre- and post-ringings with improved filtering quality (faster roll-off)'.",
+        "symptoms_pointing_shorter": ["softened or smeared attacks on percussive or electronic material", "transient character described as blunted or slow"],
+        "symptoms_pointing_longer": ["top-octave texture described as coarse or grainy on dense material", "loss of fine timbre detail on well-recorded acoustic material"],
+        "contested": "The ringing a length change moves sits at or near Nyquist, where audibility is small and contested. The mechanism is real; the effect size on 44.1 kHz material is disputed and shrinks further at higher source rates."
+      },
+      "phase": {
+        "tradeoff": "Where the filter's ringing energy sits in time. Linear phase places it symmetrically around a transient, so energy arrives before the attack (pre-ringing); minimum phase moves all of it after the attack at the cost of frequency-dependent group delay; intermediate phase splits the difference with small pre-ringing and longer post-ringing.",
+        "mechanism": "Manual §4.6: minimum-phase variants have 'no pre-ringing, but somewhat long post-ringing'; linear-phase variants have symmetric pre- and post-ringing; intermediate-phase variants have 'small pre-ringing and longer post-ringing'. Phase is encoded in the filter name (-lp/-ip/-mp).",
+        "symptoms_pointing_minimum": ["pre-echo or a soft leading edge on strong transients, studio multi-track material"],
+        "symptoms_pointing_linear": ["spatial impression on material recorded in a real acoustic environment — the manual's 'space' focus rides the -lp variants"],
+        "contested": "No published discrimination test of minimum- versus linear-phase resampling exists (PHASE.md §10); adjacent group-delay audibility thresholds suggest small effects. State the mechanism, never a guaranteed audible difference."
+      },
+      "apodizing": {
+        "tradeoff": "Whether the filter also cleans up ringing already baked into the source by its original ADC or mastering decimation filter. Non-apodizing filters pass those artifacts through and are 'only suitable for highest technical quality source materials'.",
+        "mechanism": "Manual §4.6: an apodizing filter should be used at least when the Apod counter increments past 10 during any single track. The counter is the objective per-track signal — read it rather than guessing from genre or provenance.",
+        "symptoms_pointing_apodizing": ["hardness or glare present on some recordings and absent on others of the same kind — source-dependent, which EQ cannot fix without penalising the clean recordings"],
+        "contested": "Benefit depends entirely on the source's own mastering chain; on clean sources apodizing and non-apodizing variants converge. The Apod counter, not listening impressions, is the decision signal."
+      }
+    },
+    "one_axis_at_a_time": "A filter suggestion holds every other axis fixed and moves one — length, phase, or apodizing, never several at once. Moving two axes together makes the A/B unattributable and teaches nothing.",
+    "negative_rules": [
+      "Midrange tonality, nasality, boom, mud and sibilance are EQ symptoms, never filter symptoms. A filter recommendation for any of these is a confident non-answer.",
+      "EQ bands cannot pre-ring: any pre-echo in the chain comes from the oversampling filter alone (PHASE.md §1, §9). Never migrate a filter-phase explanation onto an EQ band or vice versa.",
+      "Filter axes plausibly touch only: transient character, top-octave texture, spatial diffuseness, and source-dependent hardness. A complaint outside those regions does not get a filter recommendation.",
+      "A phase or group-delay story must never become the escape hatch for a complaint the model cannot otherwise fix (PHASE.md §9)."
+    ]
   },
   "filters": {
     "none": {

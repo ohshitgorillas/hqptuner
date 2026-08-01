@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from ..conf.matrixconf import MATRIX_PROFILES
 from ..control import ControlError
+from ..lanes import presetlane
 from . import deps
 from .deps import HttpMgr, Mgr
 
@@ -76,7 +77,7 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
     if body.action != "switch":
         raise HTTPException(status_code=404, detail=f"unknown matrix profile action: {body.action}")
     try:
-        return await manager.matrix_switch_profile(body.name)
+        return await manager.applyops.matrix_switch_profile(body.name)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -101,7 +102,11 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
     the engine (~3 s), interrupting playback — never refused for it. The write is
     checkbox-safe and range-validated in ``httpconf.apply_speakers``."""
     try:
-        return await manager.apply_speakers(body.enabled, body.channels)
+        report = await manager.applyops.apply_speakers(body.enabled, body.channels)
+        autosaved = await presetlane.autosave(manager)
+        if autosaved is not None:
+            report["autosaved"] = autosaved
+        return report
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
@@ -114,6 +119,6 @@ async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> di
     injects it into the restore archive; returns the daemon-side absolute path
     the pipeline process string should reference (matrix-spec.md "Filter upload")."""
     try:
-        return manager.park_filter(file.filename or "", await file.read())
+        return manager.presetops.park_filter(file.filename or "", await file.read())
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ..conf import engineconf
-from . import settle
+from . import presetlane, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..manager import ConnectionManager
@@ -63,6 +63,12 @@ async def apply(
     ``all_presets`` edits every snapshot in the archive; otherwise just the base
     config plus the active preset's snapshot. Raises ``httpx.HTTPError`` if the
     restore itself fails; the caller decides how to report that."""
+    # under auto-save the active preset's data/cfgs mirror catches up on any
+    # restore that happens anyway — swap in the store's copy before editing, so
+    # the overrides land on the auto-saved state rather than a stale mirror
+    mirror = presetlane.autosave_mirror(mgr)
+    if mirror:
+        backup = engineconf.rewrite_zip(backup, mirror)
     members = engineconf.config_members(backup, active or None, all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
     await mgr.require_http().restore(modified, scope="system")

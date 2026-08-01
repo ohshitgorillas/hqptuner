@@ -8,7 +8,7 @@ import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { registerIr } from "../lib/dsp.js";
 import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
-import { selectedStage } from "./MatrixPlot.js";
+import { selectedStage } from "./BandStrip.js";
 import { hz } from "../lib/units.js";
 
 // selection: {row, stage} of the docked editor — the shared signal from

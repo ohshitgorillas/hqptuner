@@ -1,0 +1,106 @@
+"""Apply/dispatch operations (``manager.applyops``).
+
+Extracted from ``manager`` for the file cap: the staged-config apply, the
+engine-attribute apply, the speaker-processing apply, the live matrix-profile
+switch, and the live volume write form one self-contained collaborator. Each
+delegates to its extracted lane with the manager, exactly as before — this
+class owns the dispatch, not a second wire lane.
+"""
+
+from typing import TYPE_CHECKING, Any
+
+import httpx
+
+from .conf import engineconf
+from .control import ControlError
+from .lanes import enginelane, httplane, livelane, matrixlane, presetlane, speakerlane
+from .writer import apply_live
+
+if TYPE_CHECKING:  # avoid a circular import at runtime
+    from .manager import ConnectionManager
+
+
+class ApplyOps:
+    def __init__(self, mgr: "ConnectionManager") -> None:
+        self._mgr = mgr
+
+    async def set_volume(self, db: str) -> dict[str, Any]:
+        """Live playback-volume write — immediate, outside the staged-config
+        apply flow. Raises CommandError when volume control is disabled (fixed
+        volume / no-volume path; VolumeRange enabled=0). Returns the readback
+        level so the caller echoes the applied value."""
+        client = self._mgr.control
+        if client is None:
+            raise ControlError("daemon not connected")
+        await client.set_volume(db)
+        self._mgr.state = await client.get_state()
+        return {"volume": self._mgr.state.get("volume")}
+
+    # --- write path (Phase 3) -----------------------------------------
+
+    async def apply(
+        self,
+        live_edits: dict[str, dict[str, str]],
+        http_fields: dict[str, str],
+        switch_to: str | None = None,
+    ) -> dict[str, Any]:
+        """Apply staged changes. When ``switch_to`` is set the user previewed a
+        different preset — load it first so it becomes the active preset (the only
+        way HQPlayer sets the active label), then apply the staged tweaks on top of
+        its snapshot. Then the live setters (readback-verified), then the persistent
+        lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so
+        drift never survives — and self-corrects fixable divergence."""
+        mgr = self._mgr
+        switched: dict[str, Any] | None = None
+        if switch_to is not None:
+            switched = await presetlane.switch(mgr, switch_to)
+        # Form fields the Control API can set outright route live instead, so a
+        # fully routable batch never restarts — a staged mode goes first as its
+        # own batch (livelane.mode_then_split). Skipped on a LOAD, which reloads
+        # anyway; an unload does not, so its staged edits still split.
+        live_report: list[dict[str, Any]] = []
+        if not switch_to:
+            live_report, live_edits, http_fields = await livelane.mode_then_split(mgr, http_fields, live_edits)
+        if live_edits:
+            client = mgr.control
+            if client is None:
+                raise ControlError("daemon not connected")
+            live_report = live_report + await apply_live(client, live_edits)
+            mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
+        persistent = await httplane.apply(mgr, http_fields) if http_fields else None
+        if persistent is not None and persistent.get("applied"):
+            # the restore that just applied carried the parked filter files —
+            # they live on the daemon now, so the parking area is done with them
+            mgr.presetops.clear_parked_filters()
+        return {"live": live_report, "persistent": persistent, "switched": switched}
+
+    async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
+        """Apply hardware-acceleration engine attributes — the config-file-only
+        lane (`enginelane`). The restore restarts the daemon and interrupts
+        playback; nothing gates on that — the user decides when."""
+        mgr = self._mgr
+        engineconf.validate_overrides(overrides)
+        if mgr.http_client is None:
+            return {"submitted": False, "error": "no credentials for HTTP config lane"}
+        try:
+            backup = await mgr.presetops.backup_or_cached()
+            mgr.presetops.persist_backup(backup)
+            result = await enginelane.apply(mgr, backup, overrides, mgr.active_config, all_presets)
+        except httpx.HTTPError as exc:
+            return {"submitted": False, "error": str(exc)}
+        engine = result["verified"].get("engine")
+        if engine:
+            mgr.engine = engine
+        return result
+
+    # --- matrix profiles (matrixlane, matrix-spec.md "Profiles") -----------
+    # Only the live switch lives here. Saving and deleting a profile are staged
+    # <matrix_profile> edits on the persistent lane (conf/matrixconf.py, round 5).
+
+    async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
+        return await matrixlane.switch_profile(self._mgr, name)
+
+    # --- speaker processing (readme §1.9, speakerlane) ---------------------
+
+    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
+        return await speakerlane.apply(self._mgr, enabled, channels)
