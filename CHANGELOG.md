@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the four that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
+
 - **The LIVE switch is bigger.** The header's LIVE toggle now uses a larger label and more padding, so it is easier to hit and easier to spot.
 
 - **The clipping warning has a threshold too.** It used to fire on the first clipping event of a track. It now waits for ten.

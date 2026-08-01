@@ -3,6 +3,7 @@
 import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
+import { noteFor } from "../../store/prose.js";
 import { health } from "../../store/state.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { HardwareCard, BackupRestoreRow } from "../SystemHardware.js";
@@ -165,7 +166,7 @@ const AboutHqptuner = () => html`
 // Logging card — full width at the bottom of the tab. The two log-config options
 // sit side by side at the top; the live tail view (checkbox-gated) sits below.
 const LoggingCard = () =>
-  html`<${Card} title="Logging">
+  html`<${Card} title="Logging" subtitle=${noteFor("log_enabled")}>
     <div class="log-opts">
       <${Field} k="log_enabled" />
       <${Field} k="log_file" />

@@ -11,6 +11,7 @@ import { describe, selectionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
 import { grayReason } from "../store/graying.js";
+import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Knob } from "./Knob.js";
@@ -56,9 +57,22 @@ function RescanButton() {
   </button>`;
 }
 
+// A boolean field's value reaches us in two shapes: the daemon's form parses a
+// checkbox to a real `false`/`true`, while a staged edit is the string "1"/"0"
+// the control wrote. A checkbox reads both through truthy() and never noticed.
+// A segment does not — it matches its option values by string, so a `false`
+// baseline matched neither "1" nor "0" and the switch rendered with NO active
+// button at all. `bool` on the entry says "this control's value is a truth, not
+// a token": normalise it to the pair the options are written in.
+function controlValue(entry, key) {
+  const v = effective(key);
+  return entry.bool ? (truthy(v) ? "1" : "0") : v;
+}
+
 // Widget kind + the layout opt-ins + the dirty highlight, in that order.
-function fieldClasses(entry, key) {
-  return `field field-${entry.widget} ${entry.size === "lg" ? "field-lg" : ""} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
+function fieldClasses(entry, key, label) {
+  const size = entry.size === "lg" ? "field-lg" : entry.size === "gate" ? "field-gate" : "";
+  return `field field-${entry.widget} ${label ? "" : "field-nolabel"} ${size} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
 }
 
 // Option source: the schema's own list or the daemon form's, then the two
@@ -144,17 +158,21 @@ export function Field({ k }) {
   if (!entry) return null;
   const W = WIDGETS[entry.widget];
   const meta = describe(entry, k);
-  const label = entry.label || meta.label;
+  // An explicit empty label means the row has NO name column: the card's own
+  // head already names the thing the control switches, and a word repeating it
+  // beside the switch is noise. Distinct from a missing label, which still falls
+  // back to the manual's name for the control.
+  const label = entry.label === "" ? "" : entry.label || meta.label;
   const reason = grayReason(k);
   const options = fieldOptions(entry, k);
   const badge = narrowBadge(entry, k);
-  const classes = fieldClasses(entry, k);
+  const classes = fieldClasses(entry, k, label);
   return html`
     <div class=${classes} title=${hoverTitle(entry, meta, reason)}>
-      <${FieldLabel} entry=${entry} label=${label} badge=${badge} />
+      ${label ? html`<${FieldLabel} entry=${entry} label=${label} badge=${badge} />` : null}
       <div class="control">
         <${W}
-          value=${effective(k)}
+          value=${controlValue(entry, k)}
           options=${options}
           min=${cfgConstraint(entry, "min")}
           max=${cfgConstraint(entry, "max")}

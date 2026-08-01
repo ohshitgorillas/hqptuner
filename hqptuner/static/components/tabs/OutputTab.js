@@ -4,6 +4,7 @@
 import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
+import { noteFor } from "../../store/prose.js";
 import { effective } from "../../store/state.js";
 import { optionsFor } from "../../store/options.js";
 import { Section, Card, collapseFrom } from "./common.js";
@@ -96,7 +97,7 @@ export const Output = () => {
         <${Field} k="net_ipv6" />
       </div>
     <//>
-    <${Card} title="DAC correction">
+    <${Card} title="DAC correction" subtitle=${noteFor("dac_correction_enabled")}>
       <div class="pack">
         <${Field} k="dac_correction_enabled" />
         <div class="indent ${dacOn ? "" : "off"}">

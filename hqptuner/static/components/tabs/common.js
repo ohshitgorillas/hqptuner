@@ -35,14 +35,24 @@ export function collapseFrom(auto, override) {
 // renders only when open. It carries {open, onToggle} rather than being a bare
 // boolean because the flag and the state it needs are the same fact.
 //
+// `subtitle` is the feature's own prose. It belongs to the CARD and not to a
+// row: a card gated by a master switch has one explanation, and rendering it
+// under the switch made it read as a caption on the switch. It sits at the top
+// of the card BODY and not in the head strip — the head is a name plate, and a
+// paragraph inside it turns the strip into a block of raised surface taller than
+// the controls it introduces. The text comes from settings.json through
+// store/prose.js — a call site passes `noteFor("<gate key>")`, never a string of
+// its own.
+//
 // `center` is for a card whose body is ONE control spanning the whole frame —
 // the Output hero row. A head pinned to the left edge of a card that wide reads
 // as a caption on whatever happens to sit under its left edge rather than as
 // the name of the row beneath it, which is why the hero used to hand-roll its
 // own frame instead of taking this one.
-export function Card({ title, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
+export function Card({ title, subtitle, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
   const open = !collapse || collapse.open;
   const headCls = ["card-head", center ? "center" : null, headClass].filter(Boolean).join(" ");
+  const sub = subtitle ? html`<span class="card-sub t-caption">${subtitle}</span>` : null;
   const head = collapse
     ? html`<button type="button" class=${headCls} onClick=${collapse.onToggle}>
         <span class="tri">${open ? "▾" : "▸"}</span> ${title}
@@ -54,7 +64,7 @@ export function Card({ title, collapse, center, cardClass, bodyClass, headClass,
   return html`
     <section class=${cls} title=${hint}>
       ${head}
-      ${open ? html`<div class=${bodyClass ? `card-body ${bodyClass}` : "card-body"}>${children}</div>` : null}
+      ${open ? html`<div class=${bodyClass ? `card-body ${bodyClass}` : "card-body"}>${sub}${children}</div>` : null}
     </section>
   `;
 }

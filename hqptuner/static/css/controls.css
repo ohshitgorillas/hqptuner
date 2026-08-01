@@ -34,6 +34,15 @@
   padding: calc(var(--sp-1) * 1.1) calc(var(--sp-3) * 1.1);
   font-size: var(--fs-body);
 }
+/* schema `size: "gate"` — the switch that turns a whole CARD on. It is the only
+   control in its row (no name column beside it) and it governs everything below
+   it, so it takes the largest step: body-lg text on the next spacing steps up
+   from the standard segment's. Distinct from `lg`, which is a mode selector
+   sharing its row with a label and only wants a nudge. */
+.field-gate .segment .seg {
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-body-lg);
+}
 .segment .seg:disabled {
   opacity: var(--o-disabled);
   cursor: not-allowed;

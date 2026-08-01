@@ -41,6 +41,12 @@
 .field-slidernum.dirty {
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
+/* A row with no name column is one track, not an empty one — a blank first
+   track would leave the control hanging at the label gutter with nothing to its
+   left, which reads as a missing label rather than a deliberate absence. */
+.field-nolabel {
+  grid-template-columns: 1fr;
+}
 .field > label {
   color: var(--fg);
   font-size: var(--fs-body);

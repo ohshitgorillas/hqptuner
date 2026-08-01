@@ -6,6 +6,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
+import { noteFor } from "../store/prose.js";
 import { pipelineBaseline, effectivePipelines, canonPipelines, stagePipelines } from "../store/state.js";
 import { planEqImport } from "../lib/eqimport.js";
 import { pipelinesToRewText } from "../lib/eqexport.js";
@@ -31,7 +32,7 @@ const pipelinesCardOpen = signal(true);
 // are content-sized via .mtx-global.
 function GlobalCard() {
   return html`
-    <${Card} title="Matrix">
+    <${Card} title="Matrix" subtitle=${noteFor("matrix_enabled")}>
       <div class="mtx-global">
         <${Field} k="matrix_enabled" />
         <${Field} k="matrix_engine" />

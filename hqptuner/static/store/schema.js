@@ -133,6 +133,20 @@ const ISO_LEVELS = [
   { value: "1", label: "−3 dB" },
   { value: "2", label: "−6 dB" },
 ];
+// The card gate switches. A card's master switch is a state the card is IN, not
+// an item on a checklist, so the six of them render as a two-button segment
+// instead of a checkbox. Signal-path processing says ENGAGE / BYPASS — a
+// bypassed plugin passes the signal through untouched, which is what the daemon
+// actually does with it. Fixed volume and logging gate nothing in the signal
+// path (there is nothing to bypass), so they say ON / OFF.
+const ENGAGE_BYPASS = [
+  { value: "1", label: "ENGAGE" },
+  { value: "0", label: "BYPASS" },
+];
+const ON_OFF = [
+  { value: "1", label: "ON" },
+  { value: "0", label: "OFF" },
+];
 // Fixed mode segment — order PCM / SDM (DSD) / Auto, stable http `mode` values.
 const MODES = [
   { value: "pcm", label: "PCM" },
@@ -567,9 +581,13 @@ export const schema = {
   // Sub-controls are quietGray: the dimmed card body + enable checkbox already
   // say why; per-control captions would repeat it a dozen times.
   crossfeed_enabled: {
-    label: "Enable",
+    label: "",
+    bool: true,
+    size: "gate",
     group: "dsp",
-    widget: "checkbox",
+    widget: "segment",
+    options: ENGAGE_BYPASS,
+    hoverNote: true,
     lane: "http",
     endpoint: "matrix",
     field: "post_bauer_enabled",
@@ -613,10 +631,14 @@ export const schema = {
     quietGray: true,
   },
   dac_correction_enabled: {
-    label: "Enable",
+    label: "",
+    bool: true,
+    size: "gate",
     group: "dsp",
     note: "dac_correction",
-    widget: "checkbox",
+    widget: "segment",
+    options: ENGAGE_BYPASS,
+    hoverNote: true,
     lane: "http",
     endpoint: "matrix",
     field: "post_correction_enabled",
@@ -636,9 +658,13 @@ export const schema = {
   // PLUGIN_MAP into <post_process><plugin type="loudness">. Number bounds/steps
   // come from the form itself (cfgConstraint), so they track the daemon.
   loudness_enabled: {
-    label: "Enable",
+    label: "",
+    bool: true,
+    size: "gate",
     group: "dsp",
-    widget: "checkbox",
+    widget: "segment",
+    options: ENGAGE_BYPASS,
+    hoverNote: true,
     lane: "http",
     endpoint: "matrix",
     field: "post_loudness_enabled",
@@ -780,9 +806,13 @@ export const schema = {
   // matrix_pipelines is staged by the pipeline editor (stagePipelines), never
   // rendered as a Field — the entry exists so the pending bar counts and lanes it.
   matrix_enabled: {
-    label: "Enabled",
+    label: "",
+    bool: true,
+    size: "gate",
     group: "dsp",
-    widget: "checkbox",
+    widget: "segment",
+    options: ENGAGE_BYPASS,
+    hoverNote: true,
     lane: "http",
     endpoint: "matrix",
     field: "matrix_enabled",
@@ -856,9 +886,13 @@ export const schema = {
   // dBFS level only. Optimal ISO (volume_fixed) is an independent mode (see below).
   // Only adaptive_volume is live (SetAdaptiveVolume); the rest are http/restart.
   fixed_volume_enabled: {
-    label: "Fixed volume",
+    label: "",
+    bool: true,
+    size: "gate",
     group: "volume",
-    widget: "checkbox",
+    widget: "segment",
+    options: ON_OFF,
+    hoverNote: true,
     lane: "http",
     field: "fixed_volume_enabled",
     grayWhen: directSdm,
@@ -956,7 +990,17 @@ export const schema = {
     lane: "http",
     field: "pre_before_meter",
   },
-  log_enabled: { label: "Enable logging", group: "system", widget: "checkbox", lane: "http", field: "log_enabled" },
+  log_enabled: {
+    label: "",
+    bool: true,
+    size: "gate",
+    group: "system",
+    widget: "segment",
+    options: ON_OFF,
+    hoverNote: true,
+    lane: "http",
+    field: "log_enabled",
+  },
   log_file: {
     label: "Log file",
     group: "system",

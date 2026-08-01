@@ -10,6 +10,7 @@ import { effective, isDirty } from "../../store/state.js";
 import { loudnessSide } from "../../store/ui.js";
 import { grayReason } from "../../store/graying.js";
 import { LoudnessPlot } from "../plots.js";
+import { noteFor } from "../../store/prose.js";
 import { Section, Card } from "./common.js";
 import { truthy } from "../../lib/coerce.js";
 
@@ -27,7 +28,7 @@ function LoudnessCard() {
   const on = truthy(effective("loudness_enabled")) && !grayReason("loudness_enabled");
   const side = loudnessSide.value;
   return html`
-    <${Card} title="Loudness">
+    <${Card} title="Loudness" subtitle=${noteFor("loudness_enabled")}>
       <div class="dsp-card">
         <${Field} k="loudness_enabled" />
         <div class="dsp-body ${on ? "" : "off"}">
@@ -68,12 +69,12 @@ export const Volume = () =>
   html`<${Section}>
     <div class="card-grid">
       <${PlaybackVolume} />
-      <${Card} title="Fixed volume">
-        <${Field} k="optimal_iso" />
+      <${Card} title="Fixed volume" subtitle=${noteFor("fixed_volume_enabled")}>
         <${Field} k="fixed_volume_enabled" />
         <div class="indent">
           <${Field} k="fixed_volume" />
         </div>
+        <${Field} k="optimal_iso" />
       <//>
     </div>
     <${VolumeRangeBar} />

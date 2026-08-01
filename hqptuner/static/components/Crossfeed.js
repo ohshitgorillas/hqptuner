@@ -21,6 +21,7 @@ import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
 import { effective, effectivePipelines } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
+import { noteFor } from "../store/prose.js";
 import { pathParams, midSideResponse, magDb, PRESETS, matchPreset } from "../lib/binaural.js";
 import {
   activeMode,
@@ -272,6 +273,15 @@ function BauerMode() {
   const open = plotOpen.value;
   return html`
     <div class="dsp-card">
+      ${
+        // The crossfeed card holds two mutually exclusive implementations, so
+        // this note belongs to the BAUER view and not to the card's head — in
+        // the head it would describe libbs2b while the structural block is
+        // showing. Same class, same prose source, one level down.
+        noteFor("crossfeed_enabled")
+          ? html`<span class="card-sub t-caption">${noteFor("crossfeed_enabled")}</span>`
+          : null
+      }
       <div class="pack split">
         <${Field} k="crossfeed_enabled" />
         <${Field} k="crossfeed_preset" />

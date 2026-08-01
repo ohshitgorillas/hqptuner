@@ -74,6 +74,10 @@ const card = (out, title) => {
   return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
 };
 
+// A gate renders as a two-choice segmented strip, so its presence in a fragment
+// is read off the strip's button labels (card-gates.test.js).
+const buttonLabels = (s) => [...s.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
+
 const LOUDNESS = "Loudness";
 const DIMMED = 'class="dsp-body off"';
 const ON = { post_loudness_enabled: true };
@@ -93,9 +97,19 @@ test("test_the_fixed_volume_card_carries_auto_headroom", async () => {
   assert.ok(card(tab(), "Fixed volume").includes("<label>Auto headroom"));
 });
 
-test("test_the_fixed_volume_card_carries_the_fixed_volume_enable", async () => {
+test("test_the_fixed_volume_cards_first_segmented_strip_is_labelled_on_then_off", async () => {
   await reset();
-  assert.ok(card(tab(), "Fixed volume").includes("<label>Fixed volume</label>"));
+  assert.deepEqual(buttonLabels(card(tab(), "Fixed volume")).slice(0, 2), ["ON", "OFF"]);
+});
+
+// Top to bottom: the gate strip, then the level indented under it, then Auto
+// headroom. Read as source order of the three markers, so a control rendered
+// above the gate moves the gate out of first place and fails.
+test("test_the_fixed_volume_card_orders_gate_then_indented_level_then_auto_headroom", async () => {
+  await reset();
+  const body = card(tab(), "Fixed volume");
+  const at = ['<span class="segment">', '<div class="indent">', "<label>Auto headroom"].map((m) => body.indexOf(m));
+  assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2]);
 });
 
 test("test_the_fixed_volume_level_is_indented_under_its_enable", async () => {
@@ -137,7 +151,7 @@ test("test_the_loudness_body_stays_dimmed_while_the_volume_control_is_bypassed",
 
 test("test_the_loudness_enable_stays_outside_the_dimmed_body", async () => {
   await reset({ mtx: OFF });
-  assert.ok(card(tab(), LOUDNESS).split(DIMMED)[0].includes("<label>Enable</label>"));
+  assert.deepEqual(buttonLabels(card(tab(), LOUDNESS).split(DIMMED)[0]).slice(0, 2), ["ENGAGE", "BYPASS"]);
 });
 
 test("test_the_loudness_strip_rules_between_its_knobs", async () => {

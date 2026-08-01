@@ -25,6 +25,13 @@
   letter-spacing: var(--track-caps);
   color: var(--fg);
 }
+/* The card's explanation, first child of the body — NOT of the head. Size and
+   colour belong to the .t-caption role and are spent in typography.css; all it
+   needs here is to be a block, so it occupies a body row of its own and takes
+   the body's own gap between itself and the first control. */
+.card-sub {
+  display: block;
+}
 /* A centred head names a card whose body is one control across the whole frame
    (the Output hero row), where a left-pinned title would read as a caption on
    whatever sits under its left edge. It drops the raised bar with the

@@ -13,6 +13,8 @@
 // from here and neither writes prose of its own.
 
 import { metadata } from "./state.js";
+import { schema } from "./schema.js";
+import { notesVisible } from "./prefs.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -21,6 +23,17 @@ import { metadata } from "./state.js";
 export function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
   return g[entry.note || key] || { label: key, tooltip: "" };
+}
+
+// A card gate's note, addressed by control key, for that card's subtitle. The
+// subtitle is the SAME prose the row used to render inline, moved up a level, so
+// it follows the same pref: with the manual text switched off there is no
+// subtitle either. Returns '' rather than null so a call site can pass it
+// straight to Card (an empty subtitle renders nothing).
+export function noteFor(key) {
+  if (!notesVisible.value) return "";
+  const entry = schema[key];
+  return entry ? describe(entry, key).tooltip : "";
 }
 
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
