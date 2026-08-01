@@ -191,7 +191,7 @@
   --fs-body-lg: 1rem; /* emphasised controls, tab buttons, h2 */
   --fs-title: 1.1rem; /* card-head.center — the largest heading in a card */
   --fs-brand: 1.25rem; /* the app wordmark. one use. */
-  --fs-readout: 1.5rem; /* the big knob readout. one use. */
+  --fs-readout: 1.5rem; /* the big knob readout, the DSP mode switcher */
   --fs-glyph: 1.9rem; /* disclosure triangles — a glyph size, not a type size */
   /* SVG text: px, because SVG user units do not follow the root rem */
   --fs-svg-sm: 9px; /* plot tick + trace labels */

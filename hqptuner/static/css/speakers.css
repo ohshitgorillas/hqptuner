@@ -22,7 +22,7 @@
   flex: 1;
   text-align: center;
   padding: var(--sp-2) var(--sp-4);
-  font-size: var(--fs-head);
+  font-size: var(--fs-readout);
 }
 /* --- card --------------------------------------------------------------- */
 

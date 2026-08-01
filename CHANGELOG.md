@@ -24,6 +24,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Crossfeed card gets a card-level switch.** ENGAGE / BYPASS now sits at the top of the card and turns the crossfeed on or off in whichever view is showing — the Bauer flag, or install/removal of the Structural matrix block. The Bauer | Structural switch moved out of the card's header to sit beside it, with a short explanation of the two below, and Structural's separate Turn on / Turn off buttons are gone.
 
+- **The Speakers | Headphones switch is bigger.** Both labels on the DSP tab's mode banner now use the app's largest text size.
+
 - **The LIVE switch is bigger.** The header's LIVE toggle now uses a larger label and more padding, so it is easier to hit and easier to spot.
 
 - **The clipping warning has a threshold too.** It used to fire on the first clipping event of a track. It now waits for ten.
