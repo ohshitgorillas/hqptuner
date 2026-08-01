@@ -39,8 +39,8 @@
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   color: var(--muted);
-  padding: var(--sp-1) var(--sp-3);
-  font-size: var(--fs-label);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-title);
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
   cursor: pointer;

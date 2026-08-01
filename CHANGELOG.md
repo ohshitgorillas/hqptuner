@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The LIVE switch is bigger.** The header's LIVE toggle now uses a larger label and more padding, so it is easier to hit and easier to spot.
+
 - **The clipping warning has a threshold too.** It used to fire on the first clipping event of a track. It now waits for ten.
 
 - **The apodizing-events warning waits for ten events** on a track before firing, up from five.
