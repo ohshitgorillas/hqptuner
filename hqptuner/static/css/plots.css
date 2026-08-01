@@ -123,6 +123,9 @@
 .swatch.amber {
   background: #e0a63a; /* token-exempt: accent-picker swatch must show the theme colour, not the active one */
 }
+.swatch.violet {
+  background: #a78bfa; /* token-exempt: accent-picker swatch must show the theme colour, not the active one */
+}
 .swatch:hover {
   border-color: var(--fg-2);
 }

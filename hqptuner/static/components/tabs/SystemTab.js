@@ -97,7 +97,7 @@ const DescriptionPrefs = () => html`
   </div>
 `;
 
-const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber" };
+const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber", violet: "Violet" };
 
 // Swatches pick a preset; the hex box beside them holds that preset's value
 // (auto-filled on pick) and accepts any custom #rrggbb, which overrides the

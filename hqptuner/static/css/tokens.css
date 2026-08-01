@@ -220,6 +220,10 @@
   --accent: #e0a63a; /* VU-meter warmth */
   --accent-glow: #f5c14a;
 }
+:root[data-accent="violet"] {
+  --accent: #a78bfa; /* plasma display */
+  --accent-glow: #c4b0ff;
+}
 
 * {
   box-sizing: border-box;

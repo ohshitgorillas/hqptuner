@@ -9,11 +9,16 @@ import { signal } from "@preact/signals";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
-export const ACCENTS = ["blue", "green", "amber"];
+export const ACCENTS = ["blue", "green", "amber", "violet"];
 const DEFAULT = "blue";
 // each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
 // hex box when a swatch is picked, so custom colors start from the preset
-export const ACCENT_HEX = { blue: "#4f9dde", green: "#3fe0a0", amber: "#e0a63a" };
+export const ACCENT_HEX = {
+  blue: "#4f9dde",
+  green: "#3fe0a0",
+  amber: "#e0a63a",
+  violet: "#a78bfa",
+};
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 

@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **Violet accent theme.** A fourth swatch on the accent picker, beside blue, phosphor green and amber. Matrix IIR stage chips shift from violet to orchid so they stay distinct from the accent under the new theme.
+
 - **Device-aware rate and mode menus.** Rates the output device cannot play are grayed as unavailable, on the Output tab and on LIVE. SDM is grayed on a device with no DSD path; with DoP on, only the DSD rates the device can carry stay selectable. A setting on an unreachable value falls back to the highest rate the device can play, or to PCM, as a staged change. Nothing is grayed and nothing falls back when the device has not reported what it supports.
 
 - **Auto-save to the active preset.** A new **Auto-save** checkbox on the pending bar. With it on, every successful Apply and every LIVE change is saved into the active preset, so you always pick up where you left off. Saving this way never costs an extra daemon restart; HQPlayer's own profile list catches up on the next reload.

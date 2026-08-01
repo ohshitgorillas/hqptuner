@@ -24,7 +24,7 @@ in class position.
 
 The reverse direction — a selector no JS names — is NOT checked, and cannot be.
 ``class="swatch ${a}"`` names a class with no literal prefix at all, so the
-accent swatches ``.blue`` / ``.green`` / ``.amber`` are reachable while looking
+accent swatches ``.blue`` / ``.green`` / ``.amber`` / ``.violet`` are reachable while looking
 dead. A reverse gate would fail on live styling.
 
 Escape hatch: ``// class-exempt: <reason>`` on the offending line or the one
