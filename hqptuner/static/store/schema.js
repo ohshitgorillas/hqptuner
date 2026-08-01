@@ -680,6 +680,9 @@ export const schema = {
     grayWhen: loudnessOff,
     quietGray: true,
   },
+  // Frequency knobs: fallback bounds for daemon builds whose /matrix form omits
+  // min/max on the corner-frequency fields — values are the 6.0.4 form's own
+  // attributes; the live form wins whenever it ships them.
   loudness_low_freq: {
     label: "Frequency",
     group: "dsp",
@@ -690,6 +693,9 @@ export const schema = {
     endpoint: "matrix",
     field: "post_loudness_lowfreq",
     unit: "Hz",
+    min: 20,
+    max: 20000,
+    step: 1,
     grayWhen: loudnessOff,
     quietGray: true,
   },
@@ -745,6 +751,9 @@ export const schema = {
     endpoint: "matrix",
     field: "post_loudness_highfreq",
     unit: "Hz",
+    min: 20,
+    max: 20000,
+    step: 1,
     grayWhen: loudnessOff,
     quietGray: true,
   },

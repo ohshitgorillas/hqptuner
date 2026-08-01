@@ -56,7 +56,13 @@ const MTX = [
   { name: "post_loudness_rangehigh", value: "-10", min: "-90", max: "0" },
 ];
 
-async function reset() {
+// The same form as some daemon builds ship it: the corner-frequency fields
+// carry no min/max attributes at all (tests/fake_http.py renders them bare).
+const MTX_BARE = MTX.map((f) =>
+  f.name === "post_loudness_lowfreq" || f.name === "post_loudness_highfreq" ? { name: f.name, value: f.value } : f,
+);
+
+async function reset(fields = MTX) {
   stagingWire();
   engineState.value = {};
   enums.value = null;
@@ -67,7 +73,7 @@ async function reset() {
   keepOptionDescriptions.value = true;
   fastVolumeUpdates.value = false;
   loudnessSide.value = "low";
-  matrixConfig.value = { fields: MTX };
+  matrixConfig.value = { fields };
   config.value = { fields: formFields(FREE), file: {}, active: "", profiles: null };
   await discardAll();
 }
@@ -143,6 +149,30 @@ test("test_the_frequency_dial_takes_its_minimum_from_the_daemon_form", async () 
 test("test_the_frequency_dial_takes_its_maximum_from_the_daemon_form", async () => {
   await reset();
   assert.ok(knobAt(card(), "80").includes('aria-valuemax="20000"'));
+});
+
+// --- a form shipping no bounds falls back to the audible range --------------------
+
+test("test_a_bass_frequency_field_without_bounds_falls_back_to_a_20hz_minimum", async () => {
+  await reset(MTX_BARE);
+  assert.ok(knobAt(card(), "80").includes('aria-valuemin="20"'));
+});
+
+test("test_a_bass_frequency_field_without_bounds_falls_back_to_a_20khz_maximum", async () => {
+  await reset(MTX_BARE);
+  assert.ok(knobAt(card(), "80").includes('aria-valuemax="20000"'));
+});
+
+test("test_a_treble_frequency_field_without_bounds_falls_back_to_a_20hz_minimum", async () => {
+  await reset(MTX_BARE);
+  loudnessSide.value = "high";
+  assert.ok(knobAt(card(), "5000").includes('aria-valuemin="20"'));
+});
+
+test("test_a_treble_frequency_field_without_bounds_falls_back_to_a_20khz_maximum", async () => {
+  await reset(MTX_BARE);
+  loudnessSide.value = "high";
+  assert.ok(knobAt(card(), "5000").includes('aria-valuemax="20000"'));
 });
 
 // --- log knobs slide continuously, linear knobs step ------------------------------

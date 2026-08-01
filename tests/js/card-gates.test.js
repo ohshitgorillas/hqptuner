@@ -33,7 +33,7 @@ import { signal } from "@preact/signals";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { Card, collapseFrom } from "../../hqptuner/static/components/tabs/common.js";
 import { noteFor } from "../../hqptuner/static/store/prose.js";
-import { edit } from "../../hqptuner/static/store/state.js";
+import { edit, isDirty, stagedCount } from "../../hqptuner/static/store/state.js";
 import { reset, field, titleOf, line, activeSegment } from "./field-harness.js";
 import { stagingWire } from "./wire.js";
 
@@ -197,6 +197,95 @@ for (const key of GATES) {
 
   test(`test_a_string_valued_off_${key}_activates_its_second_choice`, async () => {
     assert.equal(activeSegment(await gate(key, { on: "0" })), CHOICES[key][1]);
+  });
+}
+
+// ============================================================================
+// a gate returned to its baseline is clean again
+// ============================================================================
+
+// The two domains a gate value lives in — the daemon's form parser hands a
+// checked checkbox over as the boolean `true`, a staged edit carries the wire
+// string "1" — meet in isDirty. A user who toggles a gate and toggles it back
+// has changed nothing, so nothing may stay latched: neither isDirty for the key
+// nor the count the pending-changes bar reads to decide whether to demand an
+// Apply. Staging twice in sequence needs the wire that ACCUMULATES its buffer
+// (tests/js/wire.js `stagingWire`), the way the server's pending buffer does.
+
+for (const key of GATES) {
+  test(`test_staging_${key}_off_against_an_on_baseline_reads_as_dirty`, async () => {
+    await gate(key, { on: true });
+    stagingWire();
+    await edit(key, "0");
+    assert.equal(isDirty(key), true);
+  });
+
+  test(`test_staging_${key}_on_against_an_off_baseline_reads_as_dirty`, async () => {
+    await gate(key, { on: false });
+    stagingWire();
+    await edit(key, "1");
+    assert.equal(isDirty(key), true);
+  });
+
+  test(`test_toggling_${key}_off_and_back_on_reads_clean`, async () => {
+    await gate(key, { on: true });
+    stagingWire();
+    await edit(key, "0");
+    await edit(key, "1");
+    assert.equal(isDirty(key), false);
+  });
+
+  test(`test_toggling_${key}_on_and_back_off_reads_clean`, async () => {
+    await gate(key, { on: false });
+    stagingWire();
+    await edit(key, "1");
+    await edit(key, "0");
+    assert.equal(isDirty(key), false);
+  });
+
+  // The OTHER baseline shape: the wire string "1" rather than the parsed
+  // checkbox boolean. Both sides are asserted — a wire-string baseline that
+  // never registered dirty at all would satisfy the clean case on its own.
+  test(`test_staging_a_string_valued_${key}_off_reads_as_dirty`, async () => {
+    await gate(key, { on: "1" });
+    stagingWire();
+    await edit(key, "0");
+    assert.equal(isDirty(key), true);
+  });
+
+  test(`test_toggling_a_string_valued_${key}_off_and_back_on_reads_clean`, async () => {
+    await gate(key, { on: "1" });
+    stagingWire();
+    await edit(key, "0");
+    await edit(key, "1");
+    assert.equal(isDirty(key), false);
+  });
+
+  // The pending-changes bar counts dirty keys, so a round trip must leave it
+  // asking for nothing.
+  //
+  // `volume_fixed` (Auto headroom) is supplied because it and
+  // fixed_volume_enabled are mutually exclusive fixed-volume modes: engaging the
+  // gate deliberately stages a second, visible edit clearing volume_fixed to
+  // "0". That is intended. With volume_fixed already false in the daemon's form
+  // that second edit lands back on its own baseline and the count still falls to
+  // zero; without the field in the form at all it would hold the count above
+  // zero for reasons that have nothing to do with the gate.
+  //
+  // So the count is zero because every staged entry matches its baseline, NOT
+  // because the staging buffer is empty — for fixed_volume_enabled a real
+  // volume_fixed="0" edit is still sitting in it.
+  test(`test_toggling_${key}_off_and_back_on_leaves_the_pending_count_at_zero`, async () => {
+    await gate(key, { on: true, config: [{ name: "volume_fixed", value: false }] });
+    stagingWire();
+    await edit(key, "0");
+    await edit(key, "1");
+    assert.equal(stagedCount.value, 0);
+  });
+
+  test(`test_an_unstaged_${key}_gate_is_not_dirty`, async () => {
+    await gate(key);
+    assert.equal(isDirty(key), false);
   });
 }
 

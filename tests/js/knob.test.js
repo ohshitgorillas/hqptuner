@@ -51,3 +51,27 @@ test("test_an_enabled_dial_sits_in_the_tab_order", () => {
 test("test_a_disabled_dial_leaves_the_tab_order", () => {
   assert.ok(knob({ disabled: true }).includes('tabindex="-1"'));
 });
+
+// --- log-scale knobs with a missing or zero minimum ------------------------------
+// These render Knob without the helper's baked-in min: the case under test is
+// the absent (or zero) minimum itself, which log math must not turn into
+// NaN/Infinity anywhere in the rendered dial or slider.
+
+const logKnob = (extra = {}) => render(html`<${Knob} scale="log" max=${20000} value=${80} ...${extra} />`);
+
+test("test_a_log_knob_with_no_minimum_renders_only_finite_values", () => {
+  assert.equal(/NaN|Infinity/.test(logKnob()), false);
+});
+
+test("test_a_log_knob_with_a_zero_minimum_renders_only_finite_values", () => {
+  assert.equal(/NaN|Infinity/.test(logKnob({ min: 0 })), false);
+});
+
+test("test_a_log_knob_with_a_zero_minimum_reports_a_positive_aria_minimum", () => {
+  const min = parseFloat((/aria-valuemin="([^"]*)"/.exec(logKnob({ min: 0 })) || [])[1]);
+  assert.ok(min > 0);
+});
+
+test("test_a_log_knob_with_no_minimum_defaults_its_aria_minimum_to_one", () => {
+  assert.ok(logKnob().includes('aria-valuemin="1"'));
+});

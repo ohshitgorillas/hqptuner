@@ -70,13 +70,18 @@ const DIAL_TICKS = [-135, -90, -45, 0, 45, 90, 135].map((a) => {
   return [x1.toFixed(2), y1.toFixed(2), x2.toFixed(2), y2.toFixed(2)];
 });
 
+// A log axis needs min > 0 — enc(0) is -Infinity and every downstream geometry
+// computation would go NaN — so a missing or non-positive min is floored to a
+// positive value (a daemon form may ship no bounds at all).
+const loOf = (min, log) => (log ? Math.max(num(min, 1), 1e-3) : num(min, 0));
+
 // `scale="log"`: the dial arc, slider track, and drag gesture work in log space
 // (equal travel per octave — what a 20 Hz–20 kHz or 0.1–16 Q axis needs) while
-// value, box, aria, and both callbacks stay in real units. min must be > 0.
+// value, box, aria, and both callbacks stay in real units.
 export function Knob({ value, min, max, step, def, size, slider, disabled, unit, label, scale, onLive, onCommit }) {
-  const lo = num(min, 0);
-  const hi = num(max, 100);
   const log = scale === "log";
+  const lo = loOf(min, log);
+  const hi = num(max, 100);
   const st = num(step, 1) || 1;
   const fine = st / 5;
   const val = clamp(num(value, lo), lo, hi);

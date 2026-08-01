@@ -115,7 +115,7 @@ test("test_the_live_page_carries_a_live_mode_card", async () => {
 
 test("test_the_live_mode_card_carries_the_pages_lede", async () => {
   await resetPage();
-  assert.ok(card(page(), "LIVE MODE").includes("Nothing on this page is saved"));
+  assert.ok(card(page(), "LIVE MODE").includes("writes to the engine when you select it"));
 });
 
 test("test_every_saved_preset_is_offered_by_name", async () => {
@@ -181,12 +181,11 @@ test("test_a_preset_failure_shows_on_the_card", async () => {
   assert.ok(/class="live-error">the preset store is not writable</.test(card(page(), "LIVE MODE")));
 });
 
-// The last three are PARTIAL by construction: the spec says the card tells the
-// user a save captures the output mode and an apply can switch it, and sets live
-// presets apart from the header's presets and the matrix profiles, but quotes no
-// copy for any of them. Only the claim is pinned, loosely enough to survive a
-// rewording — the words asserted are the spec's own, and what the sentences
-// actually say is a reading job, not a unit test's.
+// The last one is PARTIAL by construction: the spec says the card tells the
+// user a preset stores the whole page, but quotes no copy for it. Only the
+// claim is pinned, loosely enough to survive a rewording — the words asserted
+// are the spec's own, and what the sentence actually says is a reading job,
+// not a unit test's.
 
 // What the user actually READS: markup out first, then entities in. Matching the
 // raw fragment let class names, `title` attributes and the fixtures' own control
@@ -202,28 +201,8 @@ const prose = (frag) =>
 const sentences = (frag) => prose(frag).split(/[.!?]+/);
 const claims = (frag, ...parts) => sentences(frag).some((s) => parts.every((re) => re.test(s)));
 
-test("test_the_live_mode_card_says_a_preset_saves_the_output_mode", async () => {
+test("test_the_live_mode_card_says_a_preset_stores_the_page", async () => {
   await resetPage({ presets: BOTH() });
   const saves = /\b(saves?|saved|stores?|captur\w+|includ\w+|records?|remember\w*)/i;
-  assert.ok(claims(card(page(), "LIVE MODE"), saves, /output mode/i));
-});
-
-test("test_the_live_mode_card_says_applying_a_preset_can_switch_the_output_mode", async () => {
-  // Three parts in one sentence, because two of them alone are the claim the
-  // test above already pins: the sentence naming the saved settings mentions the
-  // output mode too, and would otherwise satisfy this by itself. What is new
-  // here is that USING a preset moves the mode.
-  await resetPage({ presets: BOTH() });
-  const using = /\b(appl\w+|pick\w*|select\w*|load\w*)/i;
-  const moves = /\b(switch\w*|chang\w*|put\w*)/i;
-  assert.ok(claims(card(page(), "LIVE MODE"), using, moves, /output mode/i));
-});
-
-test("test_the_live_mode_card_sets_live_presets_apart_from_the_other_two_kinds", async () => {
-  // Both words tied to the thing they name, in a sentence: bare "header" and
-  // "matrix" occur in class names and unrelated copy all over the page, so their
-  // mere presence distinguishes nothing.
-  await resetPage({ presets: BOTH() });
-  const frag = card(page(), "LIVE MODE");
-  assert.ok(claims(frag, /presets/i, /header/i) && claims(frag, /matrix profiles/i));
+  assert.ok(claims(card(page(), "LIVE MODE"), saves, /everything on this page/i));
 });

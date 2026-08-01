@@ -138,9 +138,9 @@ test("test_the_tab_bar_stands_with_live_off", async () => {
   assert.ok(chrome().includes('class="tab-nav"'));
 });
 
-test("test_the_page_says_up_front_that_none_of_it_is_saved", async () => {
+test("test_the_page_says_up_front_that_controls_write_live", async () => {
   await reset();
-  assert.ok(page().includes("Nothing on this page is saved"));
+  assert.ok(page().includes("writes to the engine when you select it"));
 });
 
 test("test_a_refused_write_shows_its_reason_on_the_control", async () => {

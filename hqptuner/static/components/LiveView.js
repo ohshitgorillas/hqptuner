@@ -339,9 +339,7 @@ function LivePresetPicker() {
       </div>
       <${Ask} owner=${PRESET_OWNER} />
       <div class="field-note">
-        Saves what the engine is running right now: output mode, both filters, the dither or modulator, the
-        high-frequency filter, adaptive volume and the rate. Picking one puts all of it back, switching the output mode
-        first if it has to — which can interrupt playback, like every other control here.
+        Live presets store everything on this page (except filter narrowing settings) for fast switching.
       </div>
       ${livePresetError.value ? html`<div class="live-error">${livePresetError.value}</div>` : null}
     </div>
@@ -359,15 +357,11 @@ function LiveModeCard() {
         <span class="col-rule" aria-hidden="true"></span>
         <div class="live-mode-lede">
           <div class="t-caption">
-            Nothing on this page is saved. Every control writes to the running engine the moment you change it — no
-            Apply, and nothing waits for playback to stop — and what it writes lasts until the daemon next restarts,
-            including the restart an Apply in the tabs view performs. After that the engine is back to its configured
-            settings.
+            Every control on this page writes to the engine when you select it — no staging, no Apply. Music may be
+            interrupted briefly while the engine reorients itself.
           </div>
           <div class="t-caption">
-            Live presets are this page's own: they hold what the engine is playing, not a configuration. The presets in
-            the header are whole settings files and restart the daemon; the matrix profiles further down are a
-            different thing again.
+            Note that changing output mode and another setting too quickly may cause the engine to reset itself.
           </div>
         </div>
       </div>

@@ -220,17 +220,18 @@ export function effective(key) {
   return sv !== undefined ? sv : baseline(e);
 }
 
-// checkbox values cross domains: config baseline is a bool, staged is "1"/"0".
-// Compare in the control's own domain so a checkbox toggled back to its original
-// stops reading as dirty (else it stays highlighted until Discard).
-
+// Boolean values cross domains: config baseline is a bool, staged is "1"/"0".
+// Compare in the control's own domain so a control toggled back to its original
+// stops reading as dirty (else it stays highlighted until Discard). That is every
+// checkbox plus every `bool` entry — the enable gates render as two-button
+// segments but their value is a truth, not a token (see Field.js controlValue).
 export function isDirty(key) {
   const e = schema[key];
   if (!e) return false;
   const sv = stagedValue(e);
   if (sv === undefined) return false;
   const base = baseline(e);
-  if (e.widget === "checkbox") return truthy(sv) !== truthy(base);
+  if (e.widget === "checkbox" || e.bool) return truthy(sv) !== truthy(base);
   return String(sv) !== String(base);
 }
 
