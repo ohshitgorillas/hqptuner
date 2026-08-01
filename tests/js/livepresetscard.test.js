@@ -181,11 +181,6 @@ test("test_a_preset_failure_shows_on_the_card", async () => {
   assert.ok(/class="live-error">the preset store is not writable</.test(card(page(), "LIVE MODE")));
 });
 
-test("test_a_preset_call_in_flight_says_so_on_the_card", async () => {
-  await resetPage({ presets: BOTH(), busy: "Living Room" });
-  assert.ok(card(page(), "LIVE MODE").includes("working…"));
-});
-
 // The last three are PARTIAL by construction: the spec says the card tells the
 // user a save captures the output mode and an apply can switch it, and sets live
 // presets apart from the header's presets and the matrix profiles, but quotes no

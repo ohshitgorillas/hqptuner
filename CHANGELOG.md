@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **No more in-flight chatter on LIVE.** The LIVE view no longer prints "writing…", "switching…", "working…" or "Reloading the engine's lists…" beside a control while its write is in flight. Controls still gray out until the write lands.
+
 - **Narrowing counts say what they count.** Each facet popover now heads its count column with **1x / Nx**, and the Narrow filters card carries a line explaining that a popover pair is the surviving 1x and Nx filters while a dropdown badge is matching / total.
 
 - **EQ file controls consolidated.** The Headphone Auto EQ card no longer carries its own **Load AutoEq / REW .txt…** button — the one in the Pipelines card's action row does the same thing. The **mirror to stereo pair** checkbox moved there too, beside it.

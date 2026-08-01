@@ -29,10 +29,6 @@ import { schema } from "./schema.js";
 // failed write is about the control the user just touched.
 export const liveBusy = signal("");
 export const liveErrors = signal({});
-// True while the enumerations are being re-pulled. The lists a re-enumerating
-// write invalidated are stale until it clears, so the sections built from them
-// say "reloading" instead of offering options the engine may no longer have.
-export const liveReloading = signal(false);
 
 // Writes whose own success invalidates an enumeration, in config-form terms.
 // Mirrors livelane._REENUMERATES, which names the same three by setter key.
@@ -95,13 +91,8 @@ export async function remirrorLive(fields, report) {
   // than leave the column showing the pre-switch tier for a few seconds.
   if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();
   if (held || !fields.some((f) => REENUMERATES.has(f))) return;
-  liveReloading.value = true;
-  try {
-    const fresh = await api.enumerations();
-    enums.value = fresh.data;
-  } finally {
-    liveReloading.value = false;
-  }
+  const fresh = await api.enumerations();
+  enums.value = fresh.data;
 }
 
 // Write one live control. Returns nothing on purpose: the outcome lives on the

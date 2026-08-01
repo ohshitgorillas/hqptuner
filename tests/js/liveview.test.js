@@ -149,12 +149,6 @@ test("test_a_refused_write_shows_its_reason_on_the_control", async () => {
   assert.ok(page().includes('<div class="live-error">the pcm chain is not loaded</div>'));
 });
 
-test("test_a_control_being_written_says_so", async () => {
-  await reset();
-  liveBusy.value = "rate";
-  assert.ok(page().includes("writing…"));
-});
-
 test("test_staged_edits_in_the_tabs_view_show_as_a_chip", async () => {
   await reset({ staged: { live: {}, http: { upnp_freewheel: "1" } } });
   assert.ok(page().includes("1 staged change waiting in the tabs view"));

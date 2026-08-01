@@ -18,7 +18,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
-import { liveModel, liveBusy, liveErrors, liveReloading, writeLive } from "../store/live.js";
+import { liveModel, liveBusy, liveErrors, writeLive } from "../store/live.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { stagedCount, refreshConfig } from "../store/state.js";
@@ -66,7 +66,7 @@ function LiveProse({ control, meta }) {
 // everyone when the notes are toggled off — the same rule Field applies.
 const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "");
 
-// One live control: the widget, its in-flight mark, its prose, why it is grayed
+// One live control: the widget, its prose, why it is grayed
 // if it is, and the reason the last write was refused. Disabled while its OWN
 // write is in flight — two overlapping writes to one setting would resolve the
 // second against lists the first has already invalidated — and otherwise only
@@ -110,7 +110,6 @@ function LiveField({ control, widget }) {
           disabled=${busy || !!control.disabled}
           onChange=${(v) => writeLive(control.field, v)}
         />
-        ${busy ? html`<span class="t-micro">writing…</span>` : null}
       </div>
       <${LiveProse} control=${control} meta=${meta} />
       ${entry.apodNarrow ? html`<${ApodNarrow} field=${control.key} />` : null}
@@ -162,7 +161,6 @@ function heldNote(chain, loaded) {
 function ChainBody({ chain, loaded, controls }) {
   const live = chain === loaded;
   return html`
-    ${live && liveReloading.value ? html`<div class="section-note">Reloading the engine's lists…</div>` : null}
     ${live ? null : html`<div class="section-note">${heldNote(chain, loaded)}</div>`}
     <div class="pack chain">${controls.map((c) => html`<${LiveField} control=${c} />`)}</div>
   `;
@@ -270,7 +268,6 @@ function MatrixProfileCard() {
             disabled=${profileBusy.value}
             onChange=${switchProfile}
           />
-          ${profileBusy.value ? html`<span class="t-micro">switching…</span>` : null}
         </div>
         <div class="field-note">
           Switches the running matrix immediately — no engine reload, and your crossfeed, DAC correction and loudness
@@ -335,7 +332,6 @@ function LivePresetPicker() {
       <label>Live preset</label>
       <div class="control">
         <${Dropdown} value=${name} options=${presetOptions(presets)} disabled=${busy} onChange=${pickPreset} />
-        ${busy ? html`<span class="t-micro">working…</span>` : null}
       </div>
       <div class="live-preset-actions">
         <button type="button" onClick=${() => onSavePreset(presets)} disabled=${busy}>Save…</button>
