@@ -14,6 +14,8 @@
 //                or 'config' (the form field's own <option> set)
 //   grayWhen     optional fn(ctx) -> reason string | ''; ctx.effective(key) reads
 //                the *staged* value, so graying reacts before Apply (architecture §5)
+//   deviceGray   'pcm' | 'sdm' | 'mode': narrow this control's options against
+//                what the selected output device announced (store/devicecaps.js)
 //   quietGray    suppress the visible gray caption (hover title only) — for
 //                controls whose graying is already explained by context (the
 //                rate pair, dimmed post-process card bodies)
@@ -110,7 +112,7 @@ const PCM_RATES = [
   { value: "768000", label: "16x" },
   { value: "1536000", label: "32x" },
 ];
-const DSD_RATES = [
+export const DSD_RATES = [
   { value: "3072000", label: "DSD64" },
   { value: "6144000", label: "DSD128" },
   { value: "12288000", label: "DSD256" },
@@ -118,6 +120,31 @@ const DSD_RATES = [
   { value: "49152000", label: "DSD1024" },
   { value: "98304000", label: "DSD2048" },
 ];
+// Every tier above has a 44.1k member as well as the 48k one the menus carry
+// (DSD512 is 22579200 or 24576000), and a menu entry means the TIER rather than
+// the frequency beside it. Anything asking "is this tier reachable" — the LIVE
+// rate columns, the device-capability narrowing — has to ask about both members,
+// so the pairing lives here with the tables it pairs.
+export const TWIN_44K = {
+  48000: "44100",
+  96000: "88200",
+  192000: "176400",
+  384000: "352800",
+  768000: "705600",
+  1536000: "1411200",
+  3072000: "2822400",
+  6144000: "5644800",
+  12288000: "11289600",
+  24576000: "22579200",
+  49152000: "45158400",
+  98304000: "90316800",
+};
+// Either member of a tier back to the menu value that names it.
+export const TIER = Object.entries(TWIN_44K).reduce(
+  (all, [base, twin]) => ({ ...all, [base]: base, [twin]: base }),
+  {},
+);
+
 // Backend http-field values are stable strings (not volatile enum indices), so
 // the segment order + labels are fixed here — ALSA / Network / Combo.
 const BACKENDS = [
@@ -164,6 +191,7 @@ export const schema = {
     appliesLive: true,
     field: "mode",
     options: MODES,
+    deviceGray: "mode",
     hoverNote: true,
   },
   backend: {
@@ -260,6 +288,7 @@ export const schema = {
     // Apply unlit — the same treatment the filter/shaper entries get below.
     fileTruth: true,
     options: PCM_RATES,
+    deviceGray: "pcm",
     grayWhen: isSdm,
     quietGray: true,
     hoverNote: true,
@@ -272,6 +301,7 @@ export const schema = {
     field: "defaults_bitrate",
     fileTruth: true, // same as pcm_rate above
     options: DSD_RATES,
+    deviceGray: "sdm",
     grayWhen: isPcm,
     quietGray: true,
     hoverNote: true,
@@ -324,7 +354,12 @@ export const schema = {
     widget: "checkbox",
     lane: "http",
     field: "alsa_dop",
-    grayWhen: isPcm,
+    // NOT grayed in PCM, unlike its neighbours. On a device with no native DSD
+    // path this switch is the only thing that makes SDM reachable at all, and
+    // SDM grays until it is on (store/devicecaps.js) — graying it in PCM too
+    // locks the user out of DSD entirely, with both controls pointing at each
+    // other. Same reasoning as volume min/max under a bypassed volume: never
+    // gray the one control that escapes the state.
   },
   alsa_anydsd: {
     label: "48kHz DSD rates",
@@ -375,7 +410,7 @@ export const schema = {
     widget: "checkbox",
     lane: "http",
     field: "net_dop",
-    grayWhen: isPcm,
+    // see alsa_dop — never grayed in PCM, it is the escape from it
   },
   net_anydsd: {
     label: "48kHz DSD rates",

@@ -29,7 +29,7 @@ import httpx
 from ..conf import engineconf, presetconf
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
-from ..engine import logtail
+from ..engine import devicecaps, logtail
 from ..engine.control import CommandError, ControlClient, ControlError
 from ..lanes import httpforms, livechain, livelane, presetlane, settle
 from ..presets.presetops import PresetOps
@@ -42,6 +42,10 @@ log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
+# How long to wait before looking for a device announcement that was not there
+# last time (Manager.refresh_device_caps). Long, because the reader is a full log
+# fetch and the announcement only appears when the daemon opens the device.
+_CAPS_RETRY = 30.0
 
 
 class ConnectionManager:
@@ -94,6 +98,13 @@ class ConnectionManager:
         # the frontend schema read their baseline from here instead. Refreshed on
         # connect and after every persistent apply (never per-poll: /backup is ~5 MB).
         self.file_config: dict[str, str] | None = None
+        # What the selected output device announced it can carry (engine/devicecaps).
+        # None means nothing is known about it and no menu narrows. Refreshed on
+        # connect and whenever the selected device changes (never per-poll: GET
+        # /log pulls the whole log, and the announcement only moves on a connect).
+        self.device_caps: dict[str, Any] | None = None
+        self._caps_device: str | None = None
+        self._caps_at: float = 0.0
 
     @property
     def alarm(self) -> bool:
@@ -175,6 +186,7 @@ class ConnectionManager:
             # best-effort 8088 lane — a failure here must not undo the 4321 connect.
             # refresh_http_forms populates config/matrix/speakers (+ their *_error).
             await self.refresh_http_forms()
+            await self.refresh_device_caps(force=True)
             try:
                 await self.load_file_config()
             except Exception as exc:
@@ -215,8 +227,14 @@ class ConnectionManager:
         self.loaded_at = time.time()
 
     async def refresh_http_forms(self) -> None:
-        """The three polled 8088 form snapshots (lanes/httpforms)."""
+        """The three polled 8088 form snapshots (lanes/httpforms), and the device
+        capability that hangs off them. The capability is read for whichever
+        device the config form says is selected, so it belongs wherever that form
+        is refreshed — the poll loop, connect, and the rescan route alike — rather
+        than at the poll loop alone, which leaves every other path serving a stale
+        answer or none."""
         await httpforms.refresh(self)
+        await self.refresh_device_caps()
 
     async def read_preset(self, name: str) -> dict[str, str]:
         return await presetlane.read(self, name)
@@ -272,6 +290,35 @@ class ConnectionManager:
         backup = await self.presetops.backup_or_cached()
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
+
+    async def refresh_device_caps(self, force: bool = False) -> None:
+        """Re-learn what the selected output device can carry (engine/devicecaps).
+
+        Reading it costs a whole ``GET /log``, so this is deliberately not a
+        per-poll job: the announcement only moves when the daemon opens a device,
+        which is a connect. The log is fetched when the selection changed, on
+        connect (``force``), and — while the selection has no announcement yet —
+        no more often than ``_CAPS_RETRY``, since that announcement may simply not
+        have been written when we last looked.
+        """
+        selected = devicecaps.selected_device(self.config_form)
+        stale = self.device_caps is None and self.monotonic() - self._caps_at >= _CAPS_RETRY
+        if not force and not stale and selected == self._caps_device:
+            return
+        self._caps_device, self._caps_at = selected, self.monotonic()
+        if selected is None:
+            self.device_caps = None
+            return
+        base_url = f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}"
+        try:
+            text = await logtail.fetch_log(base_url)
+        except httpx.HTTPError as exc:
+            # No log, no capability, no narrowing — the menus stay whole, which is
+            # the correct answer to "the device has not told us anything".
+            log.debug("device capability read failed: %s", exc)
+            self.device_caps = None
+            return
+        self.device_caps = devicecaps.caps_for(text, selected)
 
     async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
         """Static tail of the daemon's log for the System-tab live view. Not a

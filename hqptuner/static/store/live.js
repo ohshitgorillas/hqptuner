@@ -24,7 +24,8 @@ import { runningValue } from "./resolve.js";
 import { refreshConfig } from "./sync.js";
 import { enumOptions, optionsFor } from "./options.js";
 import { narrowOptions, narrowCount } from "./narrowing.js";
-import { schema } from "./schema.js";
+import { schema, TWIN_44K, TIER } from "./schema.js";
+import { grayRatesByDevice, grayModesByDevice } from "./devicecaps.js";
 
 // The control currently mid-write ("" = none), and the last error per control.
 // One error per control and latest wins: the page has no toast stack, and a
@@ -215,23 +216,8 @@ const rateFamily = (rate) => (Number(rate) >= SDM_FLOOR ? "sdm" : "pcm");
 //
 // Measured on Opal 2026-07-28, 44.1 kHz source, limit DSD512: no pin -> 22579200;
 // pinned 12288000 -> 12288000; pinned 49152000 -> 49152000 (over the limit).
+// The tier pairing itself lives beside the rate tables it pairs (store/schema.js).
 const BASE_44K = 44100;
-const TWIN_44K = {
-  48000: "44100",
-  96000: "88200",
-  192000: "176400",
-  384000: "352800",
-  768000: "705600",
-  1536000: "1411200",
-  3072000: "2822400",
-  6144000: "5644800",
-  12288000: "11289600",
-  24576000: "22579200",
-  49152000: "45158400",
-  98304000: "90316800",
-};
-// Either member of a tier back to the menu value that names it.
-const TIER = Object.entries(TWIN_44K).reduce((all, [base, twin]) => ({ ...all, [base]: base, [twin]: base }), {});
 
 // 44.1k when the playing source divides by it — true of 88.2/176.4/352.8 and of
 // every DSD rate, all of which are multiples. With nothing playing there is no
@@ -352,7 +338,10 @@ function rateColumn(family) {
     // whole either way. The running family's column grays what the engine is not
     // offering; the dormant one is offered whole, because GetRates answers for
     // the loaded family only and has no list to judge the other against.
-    options: enabled ? rateOptions(key) : schema[key].options,
+    // Device capability grays BOTH columns, running and dormant alike: what the
+    // hardware can carry does not depend on which chain is loaded, so the column
+    // GetRates has nothing to say about still knows its own device's ceiling.
+    options: grayRatesByDevice(enabled ? rateOptions(key) : schema[key].options, family),
   };
 }
 
@@ -411,7 +400,12 @@ export const liveModel = computed(() => {
     chain,
     // `mode`'s config-form values are the stable strings auto/pcm/sdm, so its
     // option list is the catalog's own, not an enumeration.
-    mode: { field: "mode", ...catalog("output_mode"), value: modeValue(), options: schema.output_mode.options },
+    mode: {
+      field: "mode",
+      ...catalog("output_mode"),
+      value: modeValue(),
+      options: grayModesByDevice(schema.output_mode.options),
+    },
     pcmRate: rateColumn("pcm"),
     sdmRate: rateColumn("sdm"),
     // The junk (playback) filter is index-domain on both sides: the daemon's own

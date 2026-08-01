@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **Device-aware rate and mode menus.** Rates the output device cannot play are grayed as unavailable, on the Output tab and on LIVE. SDM is grayed on a device with no DSD path; with DoP on, only the DSD rates the device can carry stay selectable. A setting on an unreachable value falls back to the highest rate the device can play, or to PCM, as a staged change. Nothing is grayed and nothing falls back when the device has not reported what it supports.
+
 - **Auto-save to the active preset.** A new **Auto-save** checkbox on the pending bar. With it on, every successful Apply and every LIVE change is saved into the active preset, so you always pick up where you left off. Saving this way never costs an extra daemon restart; HQPlayer's own profile list catches up on the next reload.
 
 - **Apodizing narrowing on the Nx dropdowns.** Each Nx filter dropdown gains the same **Show apodizing only** and **Show ½ apodizing filters** checkboxes the 1x dropdowns have, off by default so the Nx list is unchanged until you opt in.

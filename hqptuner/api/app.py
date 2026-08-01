@@ -116,6 +116,10 @@ def config(manager: HttpMgr) -> dict[str, Any]:
             "active": presets["active"],
             "autosave": presets["autosave"],
             "file": {**(manager.file_config or {}), **liveoverrides.live_overrides(manager)},
+            # What the selected output device announced it can carry, or null when
+            # nothing is known about it (core/manager.refresh_device_caps). The rate
+            # menus gray against this; null grays nothing.
+            "device_caps": manager.device_caps,
         },
     )
 

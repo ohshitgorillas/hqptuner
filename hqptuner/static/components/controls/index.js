@@ -21,7 +21,8 @@ export function Segment({ value, options, disabled, onChange }) {
           <button
             type="button"
             class=${s(o.value) === s(value) ? "seg active" : "seg"}
-            disabled=${disabled}
+            disabled=${disabled || !!o.disabled}
+            title=${o.reason || undefined}
             onClick=${() => s(o.value) !== s(value) && onChange(o.value)}
           >
             ${o.label}${o.dirty ? html`<span class="seg-dirty-dot" aria-label="staged edits" />` : null}

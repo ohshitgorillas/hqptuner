@@ -11,6 +11,7 @@ import { edit, setLive } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
+import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
 import { grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
@@ -90,6 +91,10 @@ function fieldOptions(entry, key) {
   let options = rawOptions(entry);
   if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow, key);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
+  // Last, because it is about the hardware rather than the settings: what the
+  // selected output device announced it can carry (store/devicecaps.js).
+  if (entry.deviceGray === "mode") options = grayModesByDevice(options);
+  else if (entry.deviceGray) options = grayRatesByDevice(options, entry.deviceGray);
   return options;
 }
 
