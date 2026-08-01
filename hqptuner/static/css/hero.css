@@ -44,6 +44,12 @@
 .seg-box .field > label {
   display: none;
 }
+/* .control sits between .field and .segment — stretch it too, or the flex
+   chain from card body down to the buttons breaks here. */
+.seg-box .field .control {
+  flex: 1;
+  align-items: stretch;
+}
 .seg-box .segment {
   flex-direction: row;
   /* fill the card up to a cap and centre — a full-width Backend card keeps its
@@ -51,7 +57,11 @@
   width: 100%;
   max-width: 46rem;
   margin-inline: auto;
-  height: 100%;
+  /* grow to fill the card body (height: 100% resolves against the flex
+     field's indefinite height and collapses) — the buttons span the same
+     vertical band as the Rate card's label+select stack, so the three hero
+     cards' controls line up. */
+  flex: 1;
 }
 .seg-box .segment .seg {
   flex: 1;
@@ -59,7 +69,7 @@
   border-left: 1px solid var(--line);
   text-align: center;
   padding: var(--sp-2) var(--sp-3);
-  font-size: var(--fs-head);
+  font-size: var(--fs-title);
   color: var(--fg);
 }
 .seg-box .segment .seg:first-child {

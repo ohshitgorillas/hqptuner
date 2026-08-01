@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **BACKEND and MODE switches sized up.** Their buttons now fill the hero card's full height, level with the RATE card's dropdowns, and their labels are larger.
+
 - **DAC correction card reflowed.** The ENGAGE / BYPASS switch now sits above the Profile row instead of beside it, and the Profile row dims while the correction is bypassed.
 
 - **Fixed volume card reflowed.** The ON / OFF switch and the dBFS level now share one labelled row — **Fixed level** — with **Auto headroom** as a matching row beneath it.
