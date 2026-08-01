@@ -39,7 +39,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC = ROOT / "hqptuner" / "static"
 PRAGMA = "class-exempt:"
 #: stands in for a ${...} run while a class value is split into words

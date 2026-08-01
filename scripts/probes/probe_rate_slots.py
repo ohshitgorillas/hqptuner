@@ -32,7 +32,7 @@ engine must be PLAYING (``State state="2"``) — the reverse of this repo's othe
 probes, which refuse to run unless it is idle. Each rate change re-syncs the DAC,
 so the listener hears a brief gap per measurement.
 
-    .venv/bin/python scripts/probe_rate_slots.py
+    .venv/bin/python scripts/probes/probe_rate_slots.py
 """
 
 import asyncio

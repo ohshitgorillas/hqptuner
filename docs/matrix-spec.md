@@ -2,7 +2,7 @@
 
 Approved 2026-07-20, seven phases, all done. Reverses architecture §1's "matrix editing cut" non-goal. Spec of record for Matrix tab; wire truth + probe results appended below. Per-phase hand-back reports live in `CHANGELOG.md` and git history.
 
-**Headings are the citation contract.** Code in `hqptuner/` and `tests/` cites this file by heading text; `scripts/check_doc_refs.py` fails build when cited heading vanishes. Reword heading, update citers same commit. Reorganise freely otherwise — that's why headings, not section numbers.
+**Headings are the citation contract.** Code in `hqptuner/` and `tests/` cites this file by heading text; `scripts/gates/check_doc_refs.py` fails build when cited heading vanishes. Reword heading, update citers same commit. Reorganise freely otherwise — that's why headings, not section numbers.
 
 Post-probe corrections folded into text, not appended: what this doc says is what's true now.
 

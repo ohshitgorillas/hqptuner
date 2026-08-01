@@ -1,7 +1,7 @@
 """The per-family rate memory LIVE keeps for the engine (docs/testing.md).
 
 hqplayerd holds ONE output-rate pin, not one per output family, and `SetMode`
-clears it outright (measured 2026-07-28, `scripts/probe_mode_rate_pin.py`): pin
+clears it outright (measured 2026-07-28, `scripts/probes/probe_mode_rate_pin.py`): pin
 DSD64 in SDM, switch to PCM and `State rate` reads 0, switch back and it still
 reads 0. So `State` answers for the family the engine is running and only until
 the next mode switch, which is why HQPTuner remembers per family what LIVE

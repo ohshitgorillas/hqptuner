@@ -29,10 +29,10 @@ so the enumeration lists never move underneath the readbacks):
 restart. Refuses to run unless the engine is idle (`State state="0"`): each rate
 change re-syncs the DAC, and this repo's write probes do not interrupt a
 listener. The original pin is put back and verified by `State` readback
-(`result="OK"` is not proof, protocol.md §6) — `scripts/capture_pcm_enums.py`
+(`result="OK"` is not proof, protocol.md §6) — `scripts/probes/capture_pcm_enums.py`
 is the pattern.
 
-    .venv/bin/python scripts/probe_rate_hz.py
+    .venv/bin/python scripts/probes/probe_rate_hz.py
 """
 
 import asyncio

@@ -322,7 +322,7 @@ Row `gain` (dB) is the preamp. With compensation on it is folded into the Lin ga
 
 ### F6 · Gate constraints that force the architecture
 
-- 500-line file cap (`scripts/check_file_length.py`), xenon B/A/A, strict mypy, vulture → new Python lands as a package `hqptuner/ai/`, several small modules.
+- 500-line file cap (`scripts/gates/check_file_length.py`), xenon B/A/A, strict mypy, vulture → new Python lands as a package `hqptuner/ai/`, several small modules.
 - `docs/testing.md`: fakes speak the wire protocol; mocking our own code is forbidden → a **fake OpenAI-compatible HTTP endpoint**, mirroring `tests/fake_http.py`.
 - **The JS side has a test runner too:** `make test-js` runs `node --test` over `tests/js/` (`docs/testing.md`), so new frontend code lands with a test.
 

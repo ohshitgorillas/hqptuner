@@ -1,5 +1,5 @@
 // Gate: every test contains exactly one assertion (docs/testing.md rule 2).
-// The JS peer of scripts/check_test_assertions.py, with the same semantics:
+// The JS peer of scripts/gates/check_test_assertions.py, with the same semantics:
 //
 //   zero        — a smoke test hiding as a test
 //   more than 1 — muddies failure attribution; a red test must name ONE broken

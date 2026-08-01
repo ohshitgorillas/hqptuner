@@ -282,7 +282,7 @@ function liveFamily() {
 // In `[source]` the engine chooses the output rate itself, once per stream, from
 // the source rate, the filter's conversion capability and the configured limit
 // (manual §4.4) — and it accepts no rate on the wire while it is doing that.
-// Measured 2026-07-29 mid-playback, `scripts/probe_rate_source_effect.py`: two
+// Measured 2026-07-29 mid-playback, `scripts/probes/probe_rate_source_effect.py`: two
 // requests for rates BELOW what was playing, a full second to settle each, left
 // `State.rate` at `"0"` and `Status.active_rate` unmoved. The limit is the only
 // thing that governs there and the Control API has no command for it
@@ -312,7 +312,7 @@ const AUTO_RATE_REASON =
 // State reports one rate, the running family's, so the moment the engine changes
 // family the other column has nothing of its own left to read — and the engine
 // has genuinely forgotten it, because SetMode clears the pin outright (measured
-// 2026-07-28, scripts/probe_mode_rate_pin.py). What survives the switch is the
+// 2026-07-28, scripts/probes/probe_mode_rate_pin.py). What survives the switch is the
 // backend's own per-family memory of what LIVE pinned, which it re-asserts on the
 // engine when that family comes round again and reports in BOTH limit fields of
 // the running config (livemap.live_overrides). runningValue reads exactly that

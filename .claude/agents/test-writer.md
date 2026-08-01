@@ -38,7 +38,7 @@ Running the suite is allowed even though a traceback may quote implementation so
 
 Tests under `tests/`, and nothing else. You do not touch `hqptuner/`, `docs/`, `Makefile`, or any config. If a test cannot be written without a new fixture or a new capability in a fake, add it to `tests/conftest.py` or the relevant `tests/fake_*.py` — a fake speaks the wire protocol, so extending one means teaching it a real frame, never teaching it to return what your test wants.
 
-Verify before you report: run the tests you wrote (`.venv/bin/pytest tests/<file> -q`) and the mechanical gates that apply to them (`.venv/bin/ruff check tests`, `.venv/bin/black --check tests`, `.venv/bin/python scripts/check_test_assertions.py tests/*.py`).
+Verify before you report: run the tests you wrote (`.venv/bin/pytest tests/<file> -q`) and the mechanical gates that apply to them (`.venv/bin/ruff check tests`, `.venv/bin/black --check tests`, `.venv/bin/python scripts/gates/check_test_assertions.py tests/*.py`).
 
 ## What you report back
 

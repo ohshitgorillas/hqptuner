@@ -21,7 +21,7 @@ import re
 import shlex
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 HOOK_PATH = ROOT / ".claude" / "hooks" / "change-budget.py"
 LOG_DIR = ROOT / ".claude" / "logs"
 TRANSCRIPT_DIR = Path.home() / ".claude" / "projects" / "-srv-hqptuner"

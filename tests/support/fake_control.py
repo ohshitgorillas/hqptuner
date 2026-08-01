@@ -153,7 +153,7 @@ def _reported_mode(state: dict[str, str]) -> str:
     It resolves to the mode's display name only when one is CONFIGURED. In
     ``[source]`` the daemon echoes ``"[source]"`` straight back rather than naming
     the family it settled on — measured 2026-07-29 while playing PCM
-    (``scripts/probe_rate_playing.py``). So ``_active_mode`` is the fake's knob for
+    (``scripts/probes/probe_rate_playing.py``). So ``_active_mode`` is the fake's knob for
     which family the SOURCE is, and this is what actually goes out.
     """
     return state.get("_active_mode", "") if state.get("mode") in ("1", "2") else "[source]"

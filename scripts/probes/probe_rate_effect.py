@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Probe: does a rate pin move the OUTPUT rate mid-stream, or only `State.rate`?
 
-`scripts/probe_rate_playing.py` established that `SetRate` takes in an explicit
+`scripts/probes/probe_rate_playing.py` established that `SetRate` takes in an explicit
 mode and is ignored in `[source]`. It also left one thing unexplained: the pin
 that took (`State.rate="9"`, 705600 Hz) did not move `Status.active_rate`, which
 stayed at 1411200. Two readings fit that, and they mean very different things for
@@ -25,7 +25,7 @@ that only lands between streams is exactly what this is looking for. `SetMode`
 pauses audio briefly while the engine reorients. Run with the listener's say-so
 (granted 2026-07-29, drive test).
 
-    .venv/bin/python scripts/probe_rate_effect.py
+    .venv/bin/python scripts/probes/probe_rate_effect.py
 """
 
 import asyncio

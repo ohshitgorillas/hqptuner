@@ -34,7 +34,7 @@ from typing import Any
 
 from hqptuner.conf import fixedvol, matrixconf, presetconf
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 SCHEMA_JS = ROOT / "hqptuner" / "static" / "store" / "schema.js"
 SETTINGS_JSON = ROOT / "hqptuner" / "data" / "settings.json"
 

@@ -51,7 +51,7 @@ Reading the result: a survivor is a question, not a defect. Three honest answers
 
 Seven core rules are language-independent, bind JS suite identically. Runner is node's built-in `node --test`, via `make test-js`.
 
-- **One assertion per test enforced, not merely asked for.** `eslint-rules/one-assertion-per-test.js` is peer of `scripts/check_test_assertions.py`. Does not look inside nested functions, so assertion wrapped in helper or `.then()` callback counts as **zero** and is flagged. Deliberate: gate you defeat by moving assert into function is not a gate. Keep assert at call site — if helper builds condition, have it return `[ok, message]` and spread into one `assert.ok(...)`.
+- **One assertion per test enforced, not merely asked for.** `eslint-rules/one-assertion-per-test.js` is peer of `scripts/gates/check_test_assertions.py`. Does not look inside nested functions, so assertion wrapped in helper or `.then()` callback counts as **zero** and is flagged. Deliberate: gate you defeat by moving assert into function is not a gate. Keep assert at call site — if helper builds condition, have it return `[ok, message]` and spread into one `assert.ok(...)`.
 - **Fakes go at wire, never over our own code.** Components and stores driven by assigning exported signals and faking `globalThis.fetch` on real REST paths (`hqptuner/static/lib/api.js`) with real response shapes. No store function ever stubbed.
 - **Components render through `preact-render-to-string`.** Assertions on rendered output — classes, attributes, text — never internal flags.
 

@@ -279,7 +279,7 @@ That is a stronger signal than the readme's flat argument list, because it repro
 One route remains:
 
 1. ~~A statement in `hqplayer6desktop-manual.pdf`~~ — **checked, does not contain one.**
-2. An empirical check: emit a known peaking stage, read the realised response, and compare against both conventions. The gain-dependence makes them easy to distinguish — measure at a large `g` where `A` is far from 1. Note this is a *write* against the production daemon, so it follows the dev-probe pattern in `scripts/capture_pcm_enums.py`: check state, restore what you change, verify the restore by readback.
+2. An empirical check: emit a known peaking stage, read the realised response, and compare against both conventions. The gain-dependence makes them easy to distinguish — measure at a large `g` where `A` is far from 1. Note this is a *write* against the production daemon, so it follows the dev-probe pattern in `scripts/probes/capture_pcm_enums.py`: check state, restore what you change, verify the restore by readback.
 
 **Sharpen route 2 into a solve, not a two-way comparison** `[V]`. Orfanidis' Eq. (11.4.6), p. 583, gives the design parameter for a peaking section as `β = sqrt((G_B² − G₀²)/(G² − G_B²)) · tan(Δω/2)`, where `G_B` is the bandwidth reference gain the implementation chose. Rather than testing HQPlayer against two candidate conventions and hoping one fits, measure the realised response and **solve for the implied `G_B`** — then read off which convention that value corresponds to:
 

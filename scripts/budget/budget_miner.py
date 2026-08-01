@@ -33,9 +33,9 @@ be a guess.
 
 Usage::
 
-    .venv/bin/python scripts/budget_miner.py              # mine + both tables
-    .venv/bin/python scripts/budget_miner.py --self-test  # synthetic acceptances
-    .venv/bin/python scripts/budget_miner.py --label-ambiguous
+    .venv/bin/python scripts/budget/budget_miner.py              # mine + both tables
+    .venv/bin/python scripts/budget/budget_miner.py --self-test  # synthetic acceptances
+    .venv/bin/python scripts/budget/budget_miner.py --label-ambiguous
 """
 
 from __future__ import annotations

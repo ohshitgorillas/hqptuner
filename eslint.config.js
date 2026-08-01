@@ -41,7 +41,7 @@ export default [
   },
   {
     // Test suite runs under node's built-in runner, not in the browser. The
-    // one-assertion gate is the JS peer of scripts/check_test_assertions.py.
+    // one-assertion gate is the JS peer of scripts/gates/check_test_assertions.py.
     files: ["tests/js/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
     plugins: { hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest } } },

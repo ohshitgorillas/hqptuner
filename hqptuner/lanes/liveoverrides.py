@@ -80,7 +80,7 @@ def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, 
     """Both families' live rates as config limit fields.
 
     ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
-    (measured 2026-07-28, ``scripts/probe_mode_rate_pin.py``), so the engine can
+    (measured 2026-07-28, ``scripts/probes/probe_mode_rate_pin.py``), so the engine can
     only ever answer for the family it is running and only until the next mode
     switch. ``mgr.live.rates`` is what LIVE pinned per family, which ``livelane``
     puts back on the engine when that family comes round again — so reporting both

@@ -30,7 +30,7 @@ readback-verified... no reload, engine untouched"). ``GET /matrix`` is captured
 before and compared after; the run fails loudly if a single byte moved. Nothing
 here POSTs to ``/matrix`` itself, which WOULD write and reload.
 
-    .venv/bin/python scripts/probe_iir_q.py
+    .venv/bin/python scripts/probes/probe_iir_q.py
 """
 
 import asyncio

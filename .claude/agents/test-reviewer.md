@@ -25,7 +25,7 @@ The **spec block** (in your task prompt) and the **test files** named alongside 
 
 **(b) Spec behaviours with no covering test.** Walk the spec block's behaviour list and match each to a test. Report every one with no match, and every one whose only match tests the happy path while the spec states a failure mode, a boundary, or a quirk.
 
-**(c) Policy violations the mechanical gates cannot see.** `scripts/check_test_assertions.py` counts assertions and `ruff` reads syntax; neither can see meaning. You are looking for:
+**(c) Policy violations the mechanical gates cannot see.** `scripts/gates/check_test_assertions.py` counts assertions and `ruff` reads syntax; neither can see meaning. You are looking for:
 
 - **Golden-dump anchoring** — whole-structure equality against a snapshot, or a long literal copied from output rather than a named field with a known meaning (rule 5).
 - **Implementation-shaped assertions** — a test that asserts on call order, internal state, private names, log text or module layout rather than the observable contract (rules 1 and 3); a test that would break under a refactor that preserves behaviour.

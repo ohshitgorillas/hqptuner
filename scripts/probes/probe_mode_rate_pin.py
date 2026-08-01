@@ -29,7 +29,7 @@ original mode are put back and verified by readback.
 Refuses to run unless the engine is idle (``State state="0"``): a mode switch
 mid-stream re-syncs the DAC.
 
-    .venv/bin/python scripts/probe_mode_rate_pin.py
+    .venv/bin/python scripts/probes/probe_mode_rate_pin.py
 """
 
 import asyncio

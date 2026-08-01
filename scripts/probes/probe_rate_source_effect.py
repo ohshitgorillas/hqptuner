@@ -2,7 +2,7 @@
 """Probe: in `[source]` mode, does `SetRate` move the OUTPUT even though
 `State.rate` keeps reading `"0"`?
 
-`scripts/probe_rate_playing.py` concluded `[source]` refuses every pin. That
+`scripts/probes/probe_rate_playing.py` concluded `[source]` refuses every pin. That
 conclusion is not sound and this probe exists to replace it. Two flaws:
 
   1  it pinned 705600 while the engine was ALREADY outputting 705600, so the
@@ -31,7 +31,7 @@ playing and clearly apart from each other, give each a full second, and judge by
 its rate "during playback time", so there is nothing to measure stopped. Run with
 the listener's say-so (granted 2026-07-29, drive test).
 
-    .venv/bin/python scripts/probe_rate_source_effect.py
+    .venv/bin/python scripts/probes/probe_rate_source_effect.py
 """
 
 import asyncio

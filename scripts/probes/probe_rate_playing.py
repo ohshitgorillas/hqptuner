@@ -34,7 +34,7 @@ probes it runs WHILE PLAYING and deliberately so: that is the condition under
 test. `SetMode` pauses audio briefly while the engine reorients. Run it only
 with the listener's say-so (granted 2026-07-29 for this drive test).
 
-    .venv/bin/python scripts/probe_rate_playing.py
+    .venv/bin/python scripts/probes/probe_rate_playing.py
 """
 
 import asyncio

@@ -14,7 +14,7 @@ Not a pytest test: it drives the real module through node, and ``docs/testing.md
 forbids mocking our own code. Run it by hand, or in CI where node exists. With no
 node on PATH it skips rather than fails, so ``make check`` stays green.
 
-Usage: ``python scripts/check_binaural.py [--verbose]``
+Usage: ``python scripts/gates/check_binaural.py [--verbose]``
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ HEAD_RADIUS = 0.0875
 ALPHA_MIN = 0.1
 THETA_MIN = 150.0
 
-LIB = Path(__file__).resolve().parent.parent / "hqptuner" / "static" / "lib" / "binaural.js"
+LIB = Path(__file__).resolve().parent.parent.parent / "hqptuner" / "static" / "lib" / "binaural.js"
 
 FREQS = [20, 50, 100, 200, 400, 624, 1000, 1248, 2000, 4000, 8000, 16000, 20000]
 LAMBDAS = [0.0, 0.25, 0.5, 1.0, 1.5]

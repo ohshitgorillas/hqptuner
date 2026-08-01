@@ -8,9 +8,9 @@ lint:
 	$(VENV)/xenon --max-absolute B --max-average A --max-modules A hqptuner
 	$(VENV)/vulture
 	$(VENV)/mypy
-	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/check_test_assertions.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
+	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
+	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
+	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
 # prettier (black), tsc --checkJs (mypy), knip (vulture). The complexity ceiling
@@ -26,12 +26,12 @@ lint-js:
 	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/eqlab/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx knip
-	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
-	$(VENV)/python scripts/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
-	$(VENV)/python scripts/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
-	$(VENV)/python scripts/check_css_classes.py
-	$(VENV)/python scripts/check_css_dirty.py
-	$(VENV)/python scripts/check_control_catalog.py
+	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
+	$(VENV)/python scripts/gates/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/gates/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/gates/check_css_classes.py
+	$(VENV)/python scripts/gates/check_css_dirty.py
+	$(VENV)/python scripts/gates/check_control_catalog.py
 
 test:
 	$(VENV)/pytest -m "not live" -q

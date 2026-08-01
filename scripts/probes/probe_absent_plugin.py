@@ -18,7 +18,7 @@ archive captured up front is restored and verified at the end.
 
 Aborts before any write unless the engine is stopped.
 
-    .venv/bin/python scripts/probe_absent_plugin.py
+    .venv/bin/python scripts/probes/probe_absent_plugin.py
 """
 
 import asyncio

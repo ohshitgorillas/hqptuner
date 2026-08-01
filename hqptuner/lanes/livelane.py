@@ -42,7 +42,7 @@ class LiveMemory:
     """What LIVE has set that the engine itself cannot hold on to.
 
     The engine keeps ONE rate pin and ONE filter/shaper pair, and `SetMode` clears
-    the pin outright (measured 2026-07-28, `scripts/probe_mode_rate_pin.py`), so
+    the pin outright (measured 2026-07-28, `scripts/probes/probe_mode_rate_pin.py`), so
     the moment the output family or the loaded chain changes there is nothing left
     on the engine to say what LIVE set for the other one. This is that record, and
     it is what `liveoverrides.live_overrides` reports for whichever is dormant.
@@ -86,7 +86,7 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     """Put the entered family's remembered pin back on the engine.
 
     ``SetMode`` clears the rate pin outright — the engine keeps one, not one per
-    family (measured 2026-07-28, ``scripts/probe_mode_rate_pin.py``). Without this
+    family (measured 2026-07-28, ``scripts/probes/probe_mode_rate_pin.py``). Without this
     a mode switch silently throws away the rate the user picked, and both this page
     and the Output tab fall back to the configured limit.
 
@@ -240,7 +240,7 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
 
     Worth checking because ``SetMode`` is not free even when it changes nothing:
     it clears the engine's rate pin outright (measured 2026-07-28,
-    ``scripts/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
+    ``scripts/probes/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
     re-applied in the same mode should disturb neither.
     """
     index = (mgr.state or {}).get("mode")

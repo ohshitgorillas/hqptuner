@@ -46,7 +46,7 @@ from check_control_catalog import load_schema
 from check_css_cards import rule_blocks
 
 PRAGMA = "dirty-mark-exempt:"
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 STYLESHEETS = ROOT / "hqptuner" / "static" / "css"
 #: where the split itself is written, so a complaint points at the rules
 DEFINITION_SITE = "hqptuner/static/css/fields.css"

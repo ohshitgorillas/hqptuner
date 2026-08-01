@@ -31,12 +31,12 @@ repos:
         types: [python]
       - id: file-length
         name: max 500 lines per source file
-        entry: .venv/bin/python scripts/check_file_length.py
+        entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [python]
       - id: single-assertion
         name: one assertion per test
-        entry: .venv/bin/python scripts/check_test_assertions.py
+        entry: .venv/bin/python scripts/gates/check_test_assertions.py
         language: system
         types: [python]
         files: ^tests/
@@ -76,14 +76,14 @@ repos:
         types: [javascript]
       - id: file-length-js
         name: max 500 lines per source file (js)
-        entry: .venv/bin/python scripts/check_file_length.py
+        entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [javascript]
         exclude: ^(hqptuner/static/vendor/|hqptuner/static/store/schema\.js$)
 
       - id: css-tokens
         name: css design-token gate
-        entry: .venv/bin/python scripts/check_css_tokens.py
+        entry: .venv/bin/python scripts/gates/check_css_tokens.py
         language: system
         files: ^hqptuner/static/css/.*\.css$
 
@@ -91,7 +91,7 @@ repos:
       # CSS side, so the gate has to run when EITHER side moves.
       - id: css-classes
         name: css orphaned-class gate
-        entry: .venv/bin/python scripts/check_css_classes.py
+        entry: .venv/bin/python scripts/gates/check_css_classes.py
         language: system
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
@@ -101,7 +101,7 @@ repos:
       # marking lives in the stylesheets, so the gate has to run when either moves.
       - id: css-dirty
         name: staged-edit marking gate
-        entry: .venv/bin/python scripts/check_css_dirty.py
+        entry: .venv/bin/python scripts/gates/check_css_dirty.py
         language: system
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|store/schema\.js)$
@@ -110,7 +110,7 @@ repos:
       # settings.json, so the gate has to run when ANY of the three moves.
       - id: control-catalog
         name: control catalog cross-check
-        entry: .venv/bin/python scripts/check_control_catalog.py
+        entry: .venv/bin/python scripts/gates/check_control_catalog.py
         language: system
         pass_filenames: false
         files: ^(hqptuner/static/store/schema\.js|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$

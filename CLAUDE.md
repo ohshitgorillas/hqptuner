@@ -12,7 +12,7 @@ HQPTuner honors every user action, daemon playing or not — no 409, no disabled
 
 ### Probing the engine: standard mathematics yes, proprietary design no
 
-Probing the running engine is fine where what you're after is standard mathematics, and HQPTuner is partly built that way — `scripts/probe_iir_q.py` established how the IIR plugin calculates Q, and a biquad is textbook mathematics Signalyst does not own. The decision gate is one question: **could the information I'm after be proprietary, or is it just standard mathematics?** Standard mathematics, documented interfaces and wire-protocol behaviour are fair game. Proprietary design is not, and **filter specifications are always proprietary unless published** — passband corner, transition width, roll-off slope, tap count, stop-band attenuation, the design of any resampling, noise-shaping or junk filter. Measuring those out of the engine is reverse engineering in violation of Signalyst's terms; where HQPlayer's own docs are silent on a filter's specification, the answer is "undocumented" — say so and plan around it, never measure it. A plan step proposing such a measurement is a defect. When a question's side of the line isn't obvious, ask before probing.
+Probing the running engine is fine where what you're after is standard mathematics, and HQPTuner is partly built that way — `scripts/probes/probe_iir_q.py` established how the IIR plugin calculates Q, and a biquad is textbook mathematics Signalyst does not own. The decision gate is one question: **could the information I'm after be proprietary, or is it just standard mathematics?** Standard mathematics, documented interfaces and wire-protocol behaviour are fair game. Proprietary design is not, and **filter specifications are always proprietary unless published** — passband corner, transition width, roll-off slope, tap count, stop-band attenuation, the design of any resampling, noise-shaping or junk filter. Measuring those out of the engine is reverse engineering in violation of Signalyst's terms; where HQPlayer's own docs are silent on a filter's specification, the answer is "undocumented" — say so and plan around it, never measure it. A plan step proposing such a measurement is a defect. When a question's side of the line isn't obvious, ask before probing.
 
 ### Running engine is enumeration authority
 
@@ -88,7 +88,7 @@ Rules:
 ## Host
 
 - hqplayerd runs **bare metal on dev host**, that host's top-priority service (Roon + HQPlayer audio path). Treat as live production — this is what idle-gate rule protects.
-- Write ops against production daemon: idle-gate first (`State state="0"`), restore what you change, verify restore by `State` readback — `scripts/capture_pcm_enums.py` is pattern.
+- Write ops against production daemon: idle-gate first (`State state="0"`), restore what you change, verify restore by `State` readback — `scripts/probes/capture_pcm_enums.py` is pattern.
 - Host-specific facts deliberately **not** in this file: LAN address and hand-back URL, sudo gating, package-install policy, parent-repo layout, browser binary path, credential locations. If session lists host skill for this project, load before touching host state, quoting URL to user, or pushing.
 
 ## Dev

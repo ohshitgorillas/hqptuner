@@ -19,7 +19,7 @@ Checks, in the order they matter:
 Not a pytest test: it drives the real modules through node, and ``docs/testing.md``
 forbids mocking our own code. With no node on PATH it skips rather than fails.
 
-Usage: ``python scripts/check_xfeed.py``
+Usage: ``python scripts/gates/check_xfeed.py``
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-LIB = Path(__file__).resolve().parent.parent / "hqptuner" / "static" / "lib" / "xfeed.js"
+LIB = Path(__file__).resolve().parent.parent.parent / "hqptuner" / "static" / "lib" / "xfeed.js"
 
 DRIVER = """
 import {{ msCompile, msRecognize, fitComp, applyEqToBlock }} from "{lib}";

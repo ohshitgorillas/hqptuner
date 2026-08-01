@@ -6,7 +6,7 @@ window can take the revert down with it. This is the standalone recovery: push
 the pristine archive back and prove byte-identity of the working config by
 readback, never by the POST's 200.
 
-    .venv/bin/python scripts/restore_pristine.py
+    .venv/bin/python scripts/probes/restore_pristine.py
 """
 
 import asyncio

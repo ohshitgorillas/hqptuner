@@ -3,7 +3,7 @@
 
 `SetRate` does not — it returns `result="OK"` and leaves `State.rate` at `"0"`
 until an explicit mode is configured (measured 2026-07-29,
-`scripts/probe_rate_playing.py`). HQPTuner now resolves the loaded chain in
+`scripts/probes/probe_rate_playing.py`). HQPTuner now resolves the loaded chain in
 `[source]` from `Status.active_rate` and sends filter and shaper edits live there
 rather than holding them, so the same question has to be asked of the chain
 setters before that is shipped: a setter that is silently ignored produces the
@@ -20,7 +20,7 @@ write, no `/restore`, no daemon restart. Runs mid-playback deliberately: that is
 the condition under test, and a filter change re-primes the pipeline rather than
 stopping it. Run with the listener's say-so (granted 2026-07-29, drive test).
 
-    .venv/bin/python scripts/probe_chain_source.py
+    .venv/bin/python scripts/probes/probe_chain_source.py
 """
 
 import asyncio
