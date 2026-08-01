@@ -26,7 +26,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { LogTail } from "../../hqptuner/static/components/LogTail.js";
-import { config, matrixConfig, discardAll, edit } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../hqptuner/static/store/actions.js";
 import { stagingWire } from "./wire.js";
 
 // Full reset: a real staging wire (docs/testing.md rule 4), the /config form

@@ -33,7 +33,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { Header } from "../../hqptuner/static/components/Header.js";
 import { askConfirm, answer, cancel } from "../../hqptuner/static/store/ask.js";
-import { health, engineState, config, pendingPreset } from "../../hqptuner/static/store/state.js";
+import { health, engineState, config, pendingPreset } from "../../hqptuner/static/store/signals.js";
 
 // The contract is the text a user reads — `Delete preset "Night"` — not its
 // HTML encoding.

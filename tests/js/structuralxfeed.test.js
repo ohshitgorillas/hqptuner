@@ -15,7 +15,8 @@ import { render } from "preact-render-to-string";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { structuralLensTraces, StructuralBadge } from "../../hqptuner/static/components/StructuralXfeed.js";
 import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";
-import { config, matrixConfig, discardAll } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../hqptuner/static/store/actions.js";
 import { staticWire } from "./wire.js";
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-6";

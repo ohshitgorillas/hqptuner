@@ -28,7 +28,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { VolumeRangeBar } from "../../hqptuner/static/components/VolumeRangeBar.js";
-import { config, enums, engineState, matrixConfig, discardAll, edit } from "../../hqptuner/static/store/state.js";
+import { config, enums, engineState, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "./wire.js";
 
 // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST

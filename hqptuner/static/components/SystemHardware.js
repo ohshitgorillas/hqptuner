@@ -9,7 +9,7 @@ import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
-import { metadata } from "../store/state.js";
+import { metadata } from "../store/signals.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
 import { Card } from "./tabs/common.js";

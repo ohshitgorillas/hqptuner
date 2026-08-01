@@ -25,7 +25,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../hqptuner/static/components/MatrixTab.js";
-import { config, matrixConfig, stagePipelines, discardAll } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { stagePipelines, discardAll } from "../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { plottedRows, selectedStage, togglePlotted } from "../../hqptuner/static/components/MatrixPlot.js";
 import { stagingWire } from "./wire.js";

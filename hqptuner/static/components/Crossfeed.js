@@ -20,7 +20,8 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
-import { effective, effectivePipelines, edit, isDirty } from "../store/state.js";
+import { effective, effectivePipelines, isDirty } from "../store/resolve.js";
+import { edit } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 import { noteFor } from "../store/prose.js";
 import { pathParams, midSideResponse, magDb, PRESETS, matchPreset } from "../lib/binaural.js";

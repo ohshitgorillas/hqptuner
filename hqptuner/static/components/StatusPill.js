@@ -4,7 +4,8 @@
 //   amber  — apply in flight (daemon may be restarting), or an outage alarm
 //   red    — unreachable
 import { html } from "../lib/dom.js";
-import { reachable, alarm, applying } from "../store/state.js";
+import { reachable, alarm } from "../store/signals.js";
+import { applying } from "../store/actions.js";
 
 export function StatusPill() {
   const state = applying.value || alarm.value ? "amber" : !reachable.value ? "red" : "green";

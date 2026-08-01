@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState, enums, config } from "../../hqptuner/static/store/state.js";
+import { engineState, enums, config } from "../../hqptuner/static/store/signals.js";
 import { liveModel, liveErrors, liveBusy, writeLive } from "../../hqptuner/static/store/live.js";
 import { ok, bad } from "./wire.js";
 

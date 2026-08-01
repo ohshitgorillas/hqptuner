@@ -8,7 +8,7 @@ import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
-import { effective } from "../store/state.js";
+import { effective } from "../store/resolve.js";
 import { Checkbox } from "./controls/index.js";
 import { truthy } from "../lib/coerce.js";
 

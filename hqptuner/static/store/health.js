@@ -8,7 +8,7 @@
 // edges, so its alerts require SUSTAIN consecutive below-threshold polls before
 // firing (and clear instantly on recovery).
 import { signal, computed, effect } from "@preact/signals";
-import { engineStatus } from "./state.js";
+import { engineStatus } from "./signals.js";
 import { filterFacets } from "./facets.js";
 
 const PLAYING = 2;

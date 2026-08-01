@@ -1,4 +1,4 @@
-// Behavioral suite for store/state.js — the three-tree resolution (`baseline`,
+// Behavioral suite for the store core — store/resolve.js's three-tree resolution (`baseline`,
 // reached through `effective`/`isDirty`) and the apply summary (`summarize`,
 // reached through `applyAll`). Written BEFORE the complexity refactor of those
 // two (11 and 19).
@@ -19,22 +19,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { config, matrixConfig, engineState } from "../../hqptuner/static/store/signals.js";
 import {
   effective,
   isDirty,
   runningValue,
-  setLive,
-  edit,
-  applyAll,
-  lastApply,
-  discardAll,
-  config,
-  matrixConfig,
-  engineState,
-  stagePipelines,
   effectivePipelines,
   stagedCount,
-} from "../../hqptuner/static/store/state.js";
+} from "../../hqptuner/static/store/resolve.js";
+import { setLive, edit, applyAll, lastApply, discardAll, stagePipelines } from "../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "./wire.js";
 
 // Fake wire. `apply` is the body /api/config/apply answers with; every other

@@ -6,7 +6,7 @@ import { Field } from "../Field.js";
 import { Segment } from "../controls/index.js";
 import { PlaybackVolume } from "../PlaybackVolume.js";
 import { VolumeRangeBar } from "../VolumeRangeBar.js";
-import { effective, isDirty } from "../../store/state.js";
+import { effective, isDirty } from "../../store/resolve.js";
 import { loudnessSide } from "../../store/ui.js";
 import { grayReason } from "../../store/graying.js";
 import { LoudnessPlot } from "../plots.js";

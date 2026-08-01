@@ -19,7 +19,9 @@
 
 import { signal, computed, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { engineState, engineStatus, enums, modeName, runningValue, refreshConfig, health } from "./state.js";
+import { engineState, engineStatus, enums, modeName, health } from "./signals.js";
+import { runningValue } from "./resolve.js";
+import { refreshConfig } from "./sync.js";
 import { enumOptions, optionsFor } from "./options.js";
 import { narrowOptions, narrowCount } from "./narrowing.js";
 import { schema } from "./schema.js";

@@ -20,7 +20,8 @@
 // the headphone setup.
 import { signal } from "@preact/signals";
 
-import { effective, effectivePipelines, stagePipelines, canonPipelines, edit } from "./state.js";
+import { effective, effectivePipelines, canonPipelines } from "./resolve.js";
+import { stagePipelines, edit } from "./actions.js";
 import { structuralBlock, removeStructural, disableBauer } from "../lib/xfmode.js";
 import { truthy } from "../lib/coerce.js";
 

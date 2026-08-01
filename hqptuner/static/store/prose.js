@@ -12,7 +12,7 @@
 // different strings is how a UI ends up disagreeing with itself, so both read
 // from here and neither writes prose of its own.
 
-import { metadata } from "./state.js";
+import { metadata } from "./signals.js";
 import { schema } from "./schema.js";
 import { notesVisible } from "./prefs.js";
 

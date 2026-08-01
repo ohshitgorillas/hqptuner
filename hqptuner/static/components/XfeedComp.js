@@ -7,7 +7,8 @@
 // preset → (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { effective, effectivePipelines, stagePipelines, edit } from "../store/state.js";
+import { effective, effectivePipelines } from "../store/resolve.js";
+import { stagePipelines, edit } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { chainResponse, bandFreqs } from "../lib/dsp.js";

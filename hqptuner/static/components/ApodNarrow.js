@@ -8,7 +8,7 @@
 // dsp.show_apodizing_only) — a novice-facing "what is apodizing" line, now
 // visible instead of hover-only.
 import { html } from "../lib/dom.js";
-import { metadata } from "../store/state.js";
+import { metadata } from "../store/signals.js";
 import {
   nApod,
   nApodHalf,

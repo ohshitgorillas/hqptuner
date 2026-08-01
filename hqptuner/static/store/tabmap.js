@@ -7,7 +7,7 @@
 // matrix_*) light it without being enumerated.
 import { computed } from "@preact/signals";
 import { schema } from "./schema.js";
-import { isDirty } from "./state.js";
+import { isDirty } from "./resolve.js";
 
 const TAB_KEYS = {
   output: new Set([

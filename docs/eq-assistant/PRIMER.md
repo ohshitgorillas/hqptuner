@@ -245,8 +245,8 @@ What holds regardless — mechanism, not judgement about the user:
 | Shelf Q | **fixed 0.7** | AutoEq `DEFAULT_SHELF_FILTER_MAX_Q = 0.7`; every shipped oratory1990 shelf is `Q 0.70` |
 | Centre frequency | 20 – 20000 Hz | AutoEq shelf/peaking `MIN_FC = 20.0`; note AutoEq's optimiser caps at 10 kHz |
 | Band scope | **all bands amendable, AutoEq included** | user decision 2026-07-22; supersedes the withdrawn protected-segment design |
-| Crossfeed frequency | **300 – 2000 Hz** | libbs2b `BS2B_MINFCUT` / `BS2B_MAXFCUT`. Read the live `/matrix` form at runtime rather than hardcoding — this is HQPlayer's form, not bs2b's library |
-| Crossfeed level | **1.0 – 15.0 dB** | libbs2b `BS2B_MINFEED` / `BS2B_MAXFEED` = 10 / 150, encoded as dB × 10. Same runtime caveat |
+| Crossfeed frequency | **300 – 2000 Hz, step 1** | libbs2b `BS2B_MINFCUT` / `BS2B_MAXFCUT`. **Probed live 2026-07-31:** the daemon's `/matrix` form serves `min="300" max="2000" step="1"` — no divergence from the library constants. Read the live form at runtime rather than hardcoding — this is HQPlayer's form, not bs2b's library |
+| Crossfeed level | **1.0 – 15.0 dB, step 0.1** | libbs2b `BS2B_MINFEED` / `BS2B_MAXFEED` = 10 / 150, encoded as dB × 10. **Probed live 2026-07-31:** the form serves `min="1" max="15" step="0.1"` — no divergence. Same runtime caveat |
 | Compensation strength | 0 – 150 % | app-defined |
 | **Headroom recompute** | on any net positive gain | AutoEq emits `Preamp: {-compound.max_gain:.1f} dB` — the negative of the maximum of the **summed** magnitude response of the whole chain. **Not** the negative sum of positive gains, and **not** the negative of the largest single band. Verified against the shipped HD 650 preset: largest band `+6.4` dB, preamp `-6.1` dB, because a `-3.1` dB band partially cancels it. |
 

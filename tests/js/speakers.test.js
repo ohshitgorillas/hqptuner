@@ -26,14 +26,9 @@ import {
   loadSpeakers,
 } from "../../hqptuner/static/store/speakers.js";
 import { dspMode, setDspMode } from "../../hqptuner/static/store/dspmode.js";
-import {
-  config,
-  matrixConfig,
-  effective,
-  effectivePipelines,
-  stagePipelines,
-  discardAll,
-} from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { effective, effectivePipelines } from "../../hqptuner/static/store/resolve.js";
+import { stagePipelines, discardAll } from "../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
 import { compileRows, HEAD_RADIUS } from "../../hqptuner/static/lib/binaural.js";

@@ -31,7 +31,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { Resampling } from "../../hqptuner/static/components/tabs/ResamplingTab.js";
-import { config, matrixConfig, metadata, engineState, enums, discardAll } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig, metadata, engineState, enums } from "../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "./wire.js";
@@ -43,7 +44,7 @@ const formFields = (spec) =>
   Object.entries(spec).map(([name, v]) => (v && v.options ? { name, ...v } : { name, value: v }));
 
 // `mode` is the output mode as the running config file reports it — the baseline
-// an appliesLive control reads (store/state.js fileValue).
+// an appliesLive control reads (store/resolve.js fileValue).
 async function reset({ cfg = {}, mode = "auto" } = {}) {
   stagingWire();
   engineState.value = {};

@@ -13,7 +13,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { dirtyTabs } from "../../hqptuner/static/store/tabmap.js";
-import { config, engineState, discardAll, edit } from "../../hqptuner/static/store/state.js";
+import { config, engineState } from "../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../hqptuner/static/store/actions.js";
 import { stagingWire } from "./wire.js";
 
 async function reset() {

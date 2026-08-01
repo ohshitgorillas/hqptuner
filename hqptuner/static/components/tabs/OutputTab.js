@@ -5,7 +5,7 @@ import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { noteFor } from "../../store/prose.js";
-import { effective } from "../../store/state.js";
+import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
 import { Section, Card, collapseFrom } from "./common.js";
 import { truthy } from "../../lib/coerce.js";

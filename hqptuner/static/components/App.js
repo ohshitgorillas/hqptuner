@@ -14,7 +14,7 @@ import { AlertStrip } from "./AlertStrip.js";
 import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./LiveView.js";
 import { PendingBar } from "./PendingBar.js";
-import { reachable } from "../store/state.js";
+import { reachable } from "../store/signals.js";
 import { liveMode } from "../store/prefs.js";
 
 export function App() {

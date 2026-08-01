@@ -1,9 +1,9 @@
 // Apply-report summarization: turns the backend's apply report into the
 // {ok, text} pair the apply pill and the pending bar both render.
 //
-// Pure — it reads no signal and imports nothing from store/state.js — which is
-// why it can sit outside the three-tree module with no risk of an import cycle
-// and no signal crossing a file boundary. state.js imports `summarize`; the
+// Pure — it reads no signal and imports nothing from the store — which is why it
+// can sit outside the three-tree modules with no risk of an import cycle and no
+// signal crossing a file boundary. store/actions.js imports `summarize`; the
 // rest stays private to this module.
 
 // `count` is the number of staged edits captured before apply — the http/matrix

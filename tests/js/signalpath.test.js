@@ -20,7 +20,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { SignalPath } from "../../hqptuner/static/components/SignalPath.js";
-import { engineState, engineStatus, matrixConfig, config } from "../../hqptuner/static/store/state.js";
+import { engineState, engineStatus, matrixConfig, config } from "../../hqptuner/static/store/signals.js";
 
 const PLAYING = 2;
 

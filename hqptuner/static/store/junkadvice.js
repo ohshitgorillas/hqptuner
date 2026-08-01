@@ -4,6 +4,6 @@
 // it themselves. It clears by itself when the track changes or the engaged
 // settings treat the detected signature (the backend decides what counts).
 import { computed } from "@preact/signals";
-import { engineStatus } from "./state.js";
+import { engineStatus } from "./signals.js";
 
 export const junkAdvice = computed(() => (engineStatus.value || {}).junk || null);

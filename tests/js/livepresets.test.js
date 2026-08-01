@@ -20,7 +20,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState } from "../../hqptuner/static/store/state.js";
+import { engineState } from "../../hqptuner/static/store/signals.js";
 import { liveMode } from "../../hqptuner/static/store/prefs.js";
 import {
   livePresets,

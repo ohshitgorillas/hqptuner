@@ -4,7 +4,8 @@
 // schema.js; the mode segment is the http `mode` field, not the volatile live
 // enumeration, so no enum-derived option building lives here anymore.
 
-import { configByName, matrixByName, metadata, effective, enums } from "./state.js";
+import { metadata, enums } from "./signals.js";
+import { configByName, matrixByName, effective } from "./resolve.js";
 import { hz } from "../lib/units.js";
 
 // Gray shaper (dither/modulator) options the selected output rate can't reach.

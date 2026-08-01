@@ -6,7 +6,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
-import { effective } from "../../store/state.js";
+import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
 import { NarrowBar } from "../NarrowBar.js";
 import { Section, Card, collapseFrom } from "./common.js";

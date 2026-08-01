@@ -6,7 +6,9 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { schema } from "../store/schema.js";
-import { effective, isDirty, edit, setLive, httpFieldMap, formFieldName, refreshDevices } from "../store/state.js";
+import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
+import { edit, setLive } from "../store/actions.js";
+import { refreshDevices } from "../store/sync.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";

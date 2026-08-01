@@ -10,7 +10,7 @@
 // needle's CSS transform transition gives it damped-ballistics sweep
 // between polls.
 import { html } from "../lib/dom.js";
-import { engineStatus } from "../store/state.js";
+import { engineStatus } from "../store/signals.js";
 import { trackCounters, outputBufferApplies } from "../store/health.js";
 import { quickSystemUpdates, setQuickSystemUpdates } from "../store/prefs.js";
 import { Checkbox } from "./controls/index.js";

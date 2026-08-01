@@ -22,7 +22,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { AlertStrip } from "../../hqptuner/static/components/AlertStrip.js";
 import { junkAdvice } from "../../hqptuner/static/store/junkadvice.js";
-import { engineStatus } from "../../hqptuner/static/store/state.js";
+import { engineStatus } from "../../hqptuner/static/store/signals.js";
 
 // An idle engine: health derives no alerts from a non-playing state, so the
 // strip's output is governed by the advice chip alone.

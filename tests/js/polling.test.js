@@ -1,4 +1,4 @@
-// Behavioral suite for store/state.js's polling layer — startPolling's initial
+// Behavioral suite for store/sync.js, the polling layer — startPolling's initial
 // prime, the reactive fast-cadence reschedule (store/ui.js fastPollMs), the
 // mirror's keep-last-good-value contract (via the exported refreshConfig), and
 // the two immediate write paths that ride the same signals: setVolume's
@@ -25,10 +25,6 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  startPolling,
-  refreshConfig,
-  refreshDevices,
-  setVolume,
   health,
   metadata,
   volume,
@@ -36,7 +32,9 @@ import {
   config,
   matrixConfig,
   engineState,
-} from "../../hqptuner/static/store/state.js";
+} from "../../hqptuner/static/store/signals.js";
+import { startPolling, refreshConfig, refreshDevices } from "../../hqptuner/static/store/sync.js";
+import { setVolume } from "../../hqptuner/static/store/actions.js";
 import { activeTab } from "../../hqptuner/static/store/ui.js";
 import { quickSystemUpdates, fastVolumeUpdates, liveMode } from "../../hqptuner/static/store/prefs.js";
 import { ok, bad } from "./wire.js";

@@ -16,7 +16,8 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { AXIS_MIN, AXIS_MAX, num, clampVolume } from "../lib/volume.js";
-import { effective, edit, isDirty } from "../store/state.js";
+import { effective, isDirty } from "../store/resolve.js";
+import { edit } from "../store/actions.js";
 import { grayReason } from "../store/graying.js";
 import { NumberBox } from "./controls/index.js";
 import { Card } from "./tabs/common.js";

@@ -256,7 +256,7 @@ Established by reading the code on 2026-07-22, not inferred.
 
 **Bounds are not hardcoded.** They arrive from the daemon's `/matrix` form constraints at runtime via `matrixByName`. The old design sketch's "300–2000 / 1–15" is only that — a sketch; libbs2b's own `BS2B_MINFCUT`/`MAXFCUT` and `BS2B_MINFEED`/`MAXFEED` agree with it, but the validator still reads bounds from the served form, with constants as fallback only. Otherwise a HQPlayer version bump silently desyncs the clamps.
 
-`state.js:applyBauerCoupling` — editing frequency or level auto-sets the preset to `custom` within the same stage POST. The AI path routes through `edit()` to inherit this rather than writing the field directly.
+`actions.js:applyBauerCoupling` — editing frequency or level auto-sets the preset to `custom` within the same stage POST. The AI path routes through `edit()` to inherit this rather than writing the field directly.
 
 ### F2 · Compensation consistency is invalidate-and-prompt, not recompute
 

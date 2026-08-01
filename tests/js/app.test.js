@@ -20,7 +20,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { App } from "../../hqptuner/static/components/App.js";
-import { health, engineState, engineStatus, config, matrixConfig, enums } from "../../hqptuner/static/store/state.js";
+import { health, engineState, engineStatus, config, matrixConfig, enums } from "../../hqptuner/static/store/signals.js";
 
 // Full reset on every call: module signals outlive a test, and every child of
 // App reads the store, so each case states the whole world it renders in.

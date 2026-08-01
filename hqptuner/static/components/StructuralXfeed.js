@@ -8,7 +8,7 @@
 // visible as the pipeline rows' own curves, so the crossfeed is plotted alone —
 // which is also the thing the three controls actually move.
 import { html } from "../lib/dom.js";
-import { effectivePipelines } from "../store/state.js";
+import { effectivePipelines } from "../store/resolve.js";
 import { bandFreqs, chainResponse } from "../lib/dsp.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { midSideResponse, magDb } from "../lib/binaural.js";

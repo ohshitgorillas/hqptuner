@@ -48,7 +48,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState, engineStatus, enums, config, metadata } from "../../hqptuner/static/store/state.js";
+import { engineState, engineStatus, enums, config, metadata } from "../../hqptuner/static/store/signals.js";
 import { liveModel, liveErrors, liveBusy } from "../../hqptuner/static/store/live.js";
 import { staticWire } from "./wire.js";
 

@@ -39,16 +39,8 @@ import { render } from "preact-render-to-string";
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { PendingBar } from "../../hqptuner/static/components/PendingBar.js";
 import { askName, askConfirm, answer, cancel, clearRefusal } from "../../hqptuner/static/store/ask.js";
-import {
-  health,
-  config,
-  engineState,
-  applying,
-  lastApply,
-  pendingPreset,
-  discardAll,
-  edit,
-} from "../../hqptuner/static/store/state.js";
+import { health, config, engineState, pendingPreset } from "../../hqptuner/static/store/signals.js";
+import { applying, lastApply, discardAll, edit } from "../../hqptuner/static/store/actions.js";
 import { ok, staticWire } from "./wire.js";
 
 function wire(staged = { live: {}, http: {} }) {

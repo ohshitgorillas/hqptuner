@@ -1,5 +1,5 @@
-// Saved matrix profiles (matrix-spec.md "Probe findings — saved"). Split out of state.js at the
-// file-length gate; nothing here reaches into that module's private signals — it
+// Saved matrix profiles (matrix-spec.md "Probe findings — saved"). Split out of the store core at
+// the file-length gate; nothing here reaches into its private signals — it
 // stages through `edit` and reads staged values through `effective`, the same
 // public seams every other store module uses.
 //
@@ -15,7 +15,9 @@
 // plus a name staged but not yet applied — which exists as far as the user is
 // concerned, and is the one case a load cannot switch live.
 import { computed } from "@preact/signals";
-import { matrixConfig, effective, edit } from "./state.js";
+import { matrixConfig } from "./signals.js";
+import { effective } from "./resolve.js";
+import { edit } from "./actions.js";
 
 const SAVE = "matrix_profile_save";
 const DELETE = "matrix_profile_delete";

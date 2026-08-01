@@ -19,7 +19,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { AlertStrip } from "../../hqptuner/static/components/AlertStrip.js";
-import { engineStatus } from "../../hqptuner/static/store/state.js";
+import { engineStatus } from "../../hqptuner/static/store/signals.js";
 
 // One status frame — always a fresh object (writing the same reference to a
 // signal does not notify), then the rendered strip.

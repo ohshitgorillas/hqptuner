@@ -7,7 +7,7 @@
 // at runtime by the importmap in hqptuner/static/index.html, which points each
 // one at a vendored bundle under hqptuner/static/vendor/. Node has no importmap
 // support, so `import { signal } from "@preact/signals"` inside e.g.
-// store/state.js is an unresolvable specifier under `node --test` and the module
+// store/signals.js is an unresolvable specifier under `node --test` and the module
 // cannot be loaded at all. That blocks unit-testing the whole store layer.
 //
 // This hook installs a synchronous `resolve` customization (node:module's

@@ -29,9 +29,8 @@ import {
   enums,
   volume,
   volumeRange,
-  edit,
-  discardAll,
-} from "../../hqptuner/static/store/state.js";
+} from "../../hqptuner/static/store/signals.js";
+import { edit, discardAll } from "../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../hqptuner/static/store/ui.js";
 import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "./wire.js";

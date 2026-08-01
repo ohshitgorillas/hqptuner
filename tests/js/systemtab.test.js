@@ -21,7 +21,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { System } from "../../hqptuner/static/components/tabs/SystemTab.js";
-import { health } from "../../hqptuner/static/store/state.js";
+import { health } from "../../hqptuner/static/store/signals.js";
 
 test("about hqptuner prose stays unrendered until the subsection is opened", () => {
   health.value = { info: {}, license: null };

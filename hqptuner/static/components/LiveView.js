@@ -21,7 +21,8 @@ import { api } from "../lib/api.js";
 import { liveModel, liveBusy, liveErrors, writeLive } from "../store/live.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
-import { stagedCount, refreshConfig } from "../store/state.js";
+import { stagedCount } from "../store/resolve.js";
+import { refreshConfig } from "../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
 import {
   livePresets,

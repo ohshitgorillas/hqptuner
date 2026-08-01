@@ -31,7 +31,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { CrossfeedCard } from "../../hqptuner/static/components/Crossfeed.js";
-import { config, matrixConfig, discardAll, edit, stagePipelines } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { discardAll, edit, stagePipelines } from "../../hqptuner/static/store/actions.js";
 import { setShowDescriptions } from "../../hqptuner/static/store/prefs.js";
 import {
   xfMode,

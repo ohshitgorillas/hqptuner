@@ -20,7 +20,7 @@ import { useEffect } from "preact/hooks";
 
 import { html } from "../lib/dom.js";
 import { NumberBox, Segment } from "./controls/index.js";
-import { effective } from "../store/state.js";
+import { effective } from "../store/resolve.js";
 import { notesVisible } from "../store/prefs.js";
 import {
   speakers,

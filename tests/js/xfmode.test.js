@@ -28,16 +28,9 @@ import {
   stageStructural,
   pipelinesDirty,
 } from "../../hqptuner/static/lib/xfmode.js";
-import {
-  config,
-  matrixConfig,
-  effective,
-  effectivePipelines,
-  stagePipelines,
-  discardAll,
-  edit,
-  isDirty,
-} from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { effective, effectivePipelines, isDirty } from "../../hqptuner/static/store/resolve.js";
+import { stagePipelines, discardAll, edit } from "../../hqptuner/static/store/actions.js";
 import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../hqptuner/static/lib/binaural.js";
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../hqptuner/static/lib/xfeed.js";
 import { ok, stagingWire } from "./wire.js";

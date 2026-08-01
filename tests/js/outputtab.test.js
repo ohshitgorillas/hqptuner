@@ -28,7 +28,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { Output } from "../../hqptuner/static/components/tabs/OutputTab.js";
-import { config, matrixConfig, metadata, engineState, enums, discardAll } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig, metadata, engineState, enums } from "../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "./wire.js";
 

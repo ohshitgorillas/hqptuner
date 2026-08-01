@@ -4,7 +4,7 @@ import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { noteFor } from "../../store/prose.js";
-import { health } from "../../store/state.js";
+import { health } from "../../store/signals.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { HardwareCard, BackupRestoreRow } from "../SystemHardware.js";
 import { LogTail } from "../LogTail.js";

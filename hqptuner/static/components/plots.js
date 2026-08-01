@@ -10,7 +10,9 @@
 
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { effective, volume, setLive, edit } from "../store/state.js";
+import { volume } from "../store/signals.js";
+import { effective } from "../store/resolve.js";
+import { setLive, edit } from "../store/actions.js";
 import { loudnessSide } from "../store/ui.js";
 import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../lib/dsp.js";
 import { clamp, num } from "../lib/coerce.js";

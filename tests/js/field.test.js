@@ -13,7 +13,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { enums } from "../../hqptuner/static/store/state.js";
+import { enums } from "../../hqptuner/static/store/signals.js";
 import { nPhase, nApod } from "../../hqptuner/static/store/narrowing.js";
 import {
   reset,

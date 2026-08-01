@@ -4,7 +4,7 @@ Five confirmed issues from the 2026-07-31 pre-v1 code review (`/code-review high
 
 ## 1. Segment enable gates latch permanently dirty — FIXED 2026-07-31
 
-`isDirty` (`hqptuner/static/store/state.js:233`) now compares through `truthy()` for `bool` schema entries as well as `widget: "checkbox"`, so a gate returned to its baseline reads clean and `stagedCount` drops back to zero. Covered by 48 tests in `tests/js/card-gates.test.js` (8 behaviours x 6 gates); 18 of them bite against the pre-fix code. No changelog entry — the gates are unreleased, so the latch never shipped.
+`isDirty` (`hqptuner/static/store/resolve.js:178`) now compares through `truthy()` for `bool` schema entries as well as `widget: "checkbox"`, so a gate returned to its baseline reads clean and `stagedCount` drops back to zero. Covered by 48 tests in `tests/js/card-gates.test.js` (8 behaviours x 6 gates); 18 of them bite against the pre-fix code. No changelog entry — the gates are unreleased, so the latch never shipped.
 
 Original report:
 
@@ -24,7 +24,7 @@ Original report:
 
 `hqptuner/static/lib/xfmode.js:129`
 
-`pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`Crossfeed.js:172` → `state.js:129`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`MatrixTab.js:179`) or a DSP-mode restore (`dspmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
+`pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`Crossfeed.js:172` → `actions.js:20`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`MatrixTab.js:179`) or a DSP-mode restore (`dspmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
 
 ## 3. Stale-enumeration window after a mode write, with no surfacing left
 

@@ -26,7 +26,8 @@
 import { signal } from "@preact/signals";
 
 import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
-import { effective, stagePipelines, edit, effectivePipelines, pipelineBaseline } from "../store/state.js";
+import { effective, effectivePipelines, pipelineBaseline } from "../store/resolve.js";
+import { stagePipelines, edit } from "../store/actions.js";
 // Upward, deliberately: the compensation block is recognized against the LIVE
 // bauer settings, and that reading lives with the strip that renders it. Nothing
 // in components/ imports this module's mode signal back, so the graph stays a DAG.

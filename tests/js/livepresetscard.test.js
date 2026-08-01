@@ -37,8 +37,8 @@ import {
   metadata,
   volume,
   volumeRange,
-  discardAll,
-} from "../../hqptuner/static/store/state.js";
+} from "../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../hqptuner/static/store/live.js";
 import { liveMode } from "../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../hqptuner/static/store/livepresets.js";

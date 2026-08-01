@@ -12,7 +12,9 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
-import { effectivePipelines, stagePipelines, refreshConfig } from "../store/state.js";
+import { effectivePipelines } from "../store/resolve.js";
+import { stagePipelines } from "../store/actions.js";
+import { refreshConfig } from "../store/sync.js";
 import {
   savedProfiles,
   matrixActiveProfile,

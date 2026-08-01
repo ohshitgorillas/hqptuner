@@ -16,7 +16,8 @@
 // effective: the front panel reflects the active state, so a previewed preset
 // or a staged-but-unapplied edit must not move these chips).
 import { html } from "../lib/dom.js";
-import { engineStatus, engineState, runningValue, formFieldName } from "../store/state.js";
+import { engineStatus, engineState } from "../store/signals.js";
+import { runningValue, formFieldName } from "../store/resolve.js";
 import { matrixActiveProfile } from "../store/profiles.js";
 import { schema } from "../store/schema.js";
 import { optionsFor } from "../store/options.js";

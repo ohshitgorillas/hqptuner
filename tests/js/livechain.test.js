@@ -40,8 +40,8 @@ import {
   metadata,
   volume,
   volumeRange,
-  discardAll,
-} from "../../hqptuner/static/store/state.js";
+} from "../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../hqptuner/static/store/actions.js";
 import { liveModel, liveErrors, liveBusy } from "../../hqptuner/static/store/live.js";
 import { staticWire } from "./wire.js";
 

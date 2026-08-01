@@ -88,6 +88,7 @@ export const api = {
   applyLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
   deleteLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
   refreshDevices: () => send("/api/config/refresh", "POST"),
+  setAutosave: (enabled) => send("/api/autosave", "POST", { enabled }),
   profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
   preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   deletePreset: (name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),

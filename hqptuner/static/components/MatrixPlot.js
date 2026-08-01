@@ -9,7 +9,8 @@
 // their IR was uploaded this session (registerIr); otherwise marked partial.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { effectivePipelines, pipelineBaseline, stagePipelines } from "../store/state.js";
+import { effectivePipelines, pipelineBaseline } from "../store/resolve.js";
+import { stagePipelines } from "../store/actions.js";
 import { parseProcess, serializeProcess, IIR_TYPES } from "../lib/matrixspec.js";
 import { chainResponse, bandFreqs } from "../lib/dsp.js";
 import { clamp } from "../lib/coerce.js";

@@ -5,7 +5,8 @@
 // preset comes from config.active (the truly-loaded ConfigurationGet name).
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { health, engineState, config, pendingPreset, previewPreset, deletePreset } from "../store/state.js";
+import { health, engineState, config, pendingPreset } from "../store/signals.js";
+import { previewPreset, deletePreset } from "../store/actions.js";
 import { liveMode, setLiveMode } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";

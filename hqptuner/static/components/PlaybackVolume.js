@@ -15,7 +15,9 @@
 // a daemon value, so a reset never jumps to full volume).
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { volume, volumeRange, setVolume, effective, runningValue } from "../store/state.js";
+import { volume, volumeRange } from "../store/signals.js";
+import { effective, runningValue } from "../store/resolve.js";
+import { setVolume } from "../store/actions.js";
 import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
 import { Knob } from "./Knob.js";
 import { Checkbox } from "./controls/index.js";

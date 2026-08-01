@@ -5,7 +5,8 @@
 // slots in here as more rules, with no store or component changes.
 
 import { schema } from "./schema.js";
-import { modeName, effective } from "./state.js";
+import { modeName } from "./signals.js";
+import { effective } from "./resolve.js";
 
 // grayReason(key) -> '' when enabled, else a short human reason (the control's
 // tooltip when disabled). Every field is applyable now; graying is purely the

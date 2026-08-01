@@ -10,19 +10,9 @@
 import { html } from "../lib/dom.js";
 import { Ask } from "./Ask.js";
 import { askName, askConfirm } from "../store/ask.js";
-import {
-  stagedCount,
-  hasPending,
-  pendingPreset,
-  split,
-  discardAll,
-  applyAll,
-  savePresetOnly,
-  reachable,
-  applying,
-  lastApply,
-  config,
-} from "../store/state.js";
+import { pendingPreset, reachable, config } from "../store/signals.js";
+import { stagedCount, hasPending, split } from "../store/resolve.js";
+import { discardAll, applyAll, savePresetOnly, applying, lastApply, autosave, setAutosave } from "../store/actions.js";
 
 // Questions this bar asks render inside it, not in a native dialog.
 const OWNER = "pending";
@@ -81,6 +71,28 @@ async function onSaveNew(pend) {
 }
 
 const HELD = "Daemon unreachable — changes held, Apply resumes on reconnect";
+
+// Auto-save toggle: with it on, the backend folds every successful apply and
+// live change into the active preset — store only, no extra restart (the daemon
+// mirror catches up on the next reload). Needs an active preset to write to,
+// so it disables on "(no preset)".
+function AutosaveToggle() {
+  const active = !!(config.value && config.value.active);
+  const title = active
+    ? "Save every apply and live change into the active preset (no extra restart)"
+    : "Auto-save needs an active preset";
+  return html`
+    <label class="autosave" title=${title}>
+      <input
+        type="checkbox"
+        checked=${autosave.value}
+        disabled=${!active}
+        onChange=${(e) => setAutosave(e.target.checked)}
+      />
+      Auto-save
+    </label>
+  `;
+}
 
 // How the previewed switch target reads in the bar. Null is nothing previewed;
 // the empty string is the "(no preset)" option, a real target whose name happens
@@ -145,6 +157,7 @@ export function PendingBar() {
   const off = inert(busy, pend, reach, target);
   return html`
     <footer class="pending-bar ${pend ? "active" : ""}">
+      <${AutosaveToggle} />
       <span class="count">${n ? `${n} staged` : ""}</span>
       ${statusLine(n, split.value, busy, reach, lastApply.value, switchName)}
       <${Ask} owner=${OWNER} />

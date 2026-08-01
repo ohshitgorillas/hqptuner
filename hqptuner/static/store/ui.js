@@ -1,6 +1,6 @@
 // Client-only UI state shared between the store and components: the active tab
 // and the derived fast-poll cadence. Kept in the store (not in the tab
-// component) so state.js can read it without a component->store import cycle.
+// component) so store/sync.js can read it without a component->store import cycle.
 import { signal, computed } from "@preact/signals";
 import { quickSystemUpdates, fastVolumeUpdates, liveMode } from "./prefs.js";
 

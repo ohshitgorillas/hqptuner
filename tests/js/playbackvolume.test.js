@@ -29,15 +29,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { PlaybackVolume } from "../../hqptuner/static/components/PlaybackVolume.js";
-import {
-  volume,
-  volumeRange,
-  config,
-  engineState,
-  matrixConfig,
-  discardAll,
-  edit,
-} from "../../hqptuner/static/store/state.js";
+import { volume, volumeRange, config, engineState, matrixConfig } from "../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../hqptuner/static/store/actions.js";
 import { fastVolumeUpdates } from "../../hqptuner/static/store/prefs.js";
 import { ok, stagingWire } from "./wire.js";
 

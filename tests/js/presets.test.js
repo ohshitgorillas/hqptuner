@@ -1,4 +1,4 @@
-// Behavioral suite for store/state.js's preset lane: previewPreset /
+// Behavioral suite for store/actions.js's preset lane: previewPreset /
 // clearPreview / deletePreset (the picker's verbs) and savePresetOnly (the
 // standalone "I like this, keep it" save).
 //
@@ -14,22 +14,18 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
+import { pendingPreset, config, matrixConfig, engineState } from "../../hqptuner/static/store/signals.js";
+import { hasPending, effective } from "../../hqptuner/static/store/resolve.js";
 import {
   previewPreset,
   clearPreview,
   deletePreset,
   savePresetOnly,
   applyAll,
-  pendingPreset,
-  hasPending,
-  effective,
   applying,
   lastApply,
-  config,
-  matrixConfig,
-  engineState,
   discardAll,
-} from "../../hqptuner/static/store/state.js";
+} from "../../hqptuner/static/store/actions.js";
 import { ok, bad } from "./wire.js";
 
 const REAL_FETCH = globalThis.fetch;

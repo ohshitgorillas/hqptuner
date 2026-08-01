@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { health } from "../../hqptuner/static/store/state.js";
+import { health } from "../../hqptuner/static/store/signals.js";
 import { liveErrors, liveBusy } from "../../hqptuner/static/store/live.js";
 
 // /api/health as the frontend receives it. `connected_at` is when the CURRENT

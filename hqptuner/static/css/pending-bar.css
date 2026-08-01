@@ -21,6 +21,18 @@
 .pending-bar .count {
   font-weight: var(--fw-semibold);
 }
+.pending-bar .autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.pending-bar .autosave:has(input:disabled) {
+  opacity: var(--o-disabled);
+  cursor: not-allowed;
+}
 .pending-bar.active {
   border-top-color: var(--accent);
 }

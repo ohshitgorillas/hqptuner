@@ -15,7 +15,8 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState, edit, discardAll } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig, engineState } from "../../hqptuner/static/store/signals.js";
+import { edit, discardAll } from "../../hqptuner/static/store/actions.js";
 import {
   savedProfiles,
   profileRows,

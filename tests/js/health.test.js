@@ -18,7 +18,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineStatus, enums } from "../../hqptuner/static/store/state.js";
+import { engineStatus, enums } from "../../hqptuner/static/store/signals.js";
 import { initHealth, engineAlerts, trackCounters, outputBufferApplies } from "../../hqptuner/static/store/health.js";
 
 initHealth();

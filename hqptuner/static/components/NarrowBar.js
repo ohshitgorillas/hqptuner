@@ -12,7 +12,7 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
-import { effective } from "../store/state.js";
+import { effective } from "../store/resolve.js";
 import { optionsFor } from "../store/options.js";
 import { Card } from "./tabs/common.js";
 import {
