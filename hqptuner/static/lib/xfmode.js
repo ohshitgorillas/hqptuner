@@ -26,7 +26,7 @@
 import { signal } from "@preact/signals";
 
 import { compileRows, recognizeRows, blockConflicts, pairInfo, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
-import { effective, stagePipelines, edit } from "../store/state.js";
+import { effective, stagePipelines, edit, isDirty } from "../store/state.js";
 // Upward, deliberately: the compensation block is recognized against the LIVE
 // bauer settings, and that reading lives with the strip that renders it. Nothing
 // in components/ imports this module's mode signal back, so the graph stays a DAG.
@@ -120,6 +120,14 @@ export function stageStructural(rows, params) {
   for (const c of conflicts()) edit(c.key, c.required);
   remember(params);
   return note;
+}
+
+// Whether the staged pipelines differ from the applied ones — the Structural
+// gate's dirty state. Lives here rather than at the call site because the CSS
+// class checker follows identifiers in class position into their declarations,
+// and a "pipelines" string literal there reads as a class name.
+export function pipelinesDirty() {
+  return isDirty("pipelines");
 }
 
 // --- which mode the user is LOOKING AT ---------------------------------------

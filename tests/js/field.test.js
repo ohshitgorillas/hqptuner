@@ -62,16 +62,6 @@ test("test_a_field_without_a_sublabel_renders_no_label_alt", async () => {
 // class assembly
 // ============================================================================
 
-test("test_a_large_field_carries_the_field_lg_class", async () => {
-  await reset();
-  assert.ok(hasClass(field("optimal_iso"), "field-lg"));
-});
-
-test("test_a_normal_sized_field_is_not_marked_large", async () => {
-  await reset();
-  assert.equal(hasClass(field("volume_max"), "field-lg"), false);
-});
-
 test("test_a_wide_field_carries_the_wide_class", async () => {
   await reset();
   assert.ok(hasClass(field("log_file"), "wide"));

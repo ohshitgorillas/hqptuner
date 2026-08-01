@@ -31,11 +31,18 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../hqptuner/static/lib/dom.js";
 import { CrossfeedCard } from "../../hqptuner/static/components/Crossfeed.js";
-import { config, matrixConfig, discardAll } from "../../hqptuner/static/store/state.js";
+import { config, matrixConfig, discardAll, edit, stagePipelines } from "../../hqptuner/static/store/state.js";
 import { setShowDescriptions } from "../../hqptuner/static/store/prefs.js";
-import { xfMode, liveParams, remember } from "../../hqptuner/static/lib/xfmode.js";
+import {
+  xfMode,
+  liveParams,
+  remember,
+  stageStructural,
+  removeStructural,
+  structuralBlock,
+} from "../../hqptuner/static/lib/xfmode.js";
 import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../hqptuner/static/lib/binaural.js";
-import { staticWire } from "./wire.js";
+import { staticWire, stagingWire } from "./wire.js";
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 
@@ -97,12 +104,12 @@ test("test_the_card_opens_expanded_by_default", async () => {
   assert.ok(card().includes('<div class="card-body">'));
 });
 
-test("test_the_card_head_offers_the_bauer_view", async () => {
+test("test_the_card_offers_the_bauer_view", async () => {
   await reset();
   assert.notEqual(button(card(), "Bauer"), undefined);
 });
 
-test("test_the_card_head_offers_the_structural_view", async () => {
+test("test_the_card_offers_the_structural_view", async () => {
   await reset();
   assert.notEqual(button(card(), "Structural"), undefined);
 });
@@ -212,16 +219,6 @@ test("test_off_preset_controls_gain_a_custom_option", async () => {
   assert.ok(card().includes('value="custom"'));
 });
 
-test("test_structural_without_a_block_offers_turn_on", async () => {
-  await reset({ mode: "structural" });
-  assert.notEqual(button(card(), "Turn on"), undefined);
-});
-
-test("test_structural_with_a_block_offers_turn_off", async () => {
-  await reset({ rows: structural(), mode: "structural" });
-  assert.notEqual(button(card(), "Turn off"), undefined);
-});
-
 test("test_the_structural_response_plot_is_collapsed_by_default", async () => {
   await reset({ mode: "structural" });
   assert.equal(card().includes('class="xfs-plot"'), false);
@@ -257,4 +254,155 @@ test("test_a_clean_config_shows_no_blocker_note", async () => {
 test("test_an_installed_block_shows_no_blocker_note", async () => {
   await reset({ rows: structural(), mode: "structural", enabled: true });
   assert.equal(card().includes("xfs-blocked"), false);
+});
+
+// --- the card-level gate stack ------------------------------------------------------
+// The head is a plain collapse toggle; the ENGAGE|BYPASS gate, the view switch
+// and the explanatory caption live in an `xfs-top` stack at the top of the body,
+// in both views. The gate reads Bauer's `crossfeed_enabled` in one view and the
+// installed-block fact in the other, and carries the staged-edit dirty accent.
+
+const CAPTION =
+  "Bauer crossfeed is built into HQPlayer and is the default. " +
+  "Structural crossfeed is HQPTuner's own and uses the Matrix pipelines.";
+
+// Class list of the gate wrapper element.
+const gateClass = (out) => (out.match(/class="([^"]*\bxfs-gate\b[^"]*)"/) || ["", ""])[1].split(" ");
+
+// The text a user reads: browsers collapse runs of whitespace, so the caption
+// comparison does too rather than pinning the source string's line breaks.
+const collapsed = (out) => out.replace(/\s+/g, " ");
+
+test("test_the_card_head_carries_no_view_segment", async () => {
+  await reset();
+  assert.equal(card().split('<div class="card-body">')[0].includes('class="seg'), false);
+});
+
+test("test_the_card_head_names_the_card_crossfeed", async () => {
+  await reset();
+  assert.ok(card().split('<div class="card-body">')[0].includes("Crossfeed"));
+});
+
+test("test_the_top_stack_precedes_the_per_mode_body", async () => {
+  await reset({ mode: "bauer" });
+  const out = card();
+  assert.ok(out.indexOf('class="xfs-top"') < out.indexOf("dsp-body"), "xfs-top after the Bauer body");
+});
+
+test("test_bauer_view_opens_with_the_gate_stack", async () => {
+  await reset({ mode: "bauer" });
+  assert.ok(card().includes('class="xfs-top"'));
+});
+
+test("test_structural_view_opens_with_the_same_gate_stack", async () => {
+  await reset({ mode: "structural" });
+  assert.ok(card().includes('class="xfs-top"'));
+});
+
+test("test_the_top_stack_orders_gate_then_view_switch_then_caption", async () => {
+  await reset({ mode: "bauer" });
+  const out = collapsed(card());
+  const [g, v, c] = [out.indexOf("xfs-gate"), out.indexOf(">Bauer<"), out.indexOf(CAPTION)];
+  assert.ok(g > -1 && g < v && v < c, `order gate=${g} switch=${v} caption=${c}`);
+});
+
+test("test_bauer_view_explains_the_two_crossfeeds_verbatim", async () => {
+  await reset({ mode: "bauer" });
+  assert.ok(collapsed(card()).includes(CAPTION));
+});
+
+test("test_structural_view_explains_the_two_crossfeeds_verbatim", async () => {
+  await reset({ mode: "structural" });
+  assert.ok(collapsed(card()).includes(CAPTION));
+});
+
+test("test_bauer_gate_lights_engage_while_crossfeed_is_enabled", async () => {
+  await reset({ mode: "bauer", enabled: true });
+  assert.ok(attrs(button(card(), "ENGAGE")).includes('class="seg active"'));
+});
+
+test("test_bauer_gate_lights_bypass_while_crossfeed_is_disabled", async () => {
+  await reset({ mode: "bauer", enabled: false });
+  assert.ok(attrs(button(card(), "BYPASS")).includes('class="seg active"'));
+});
+
+test("test_bauer_gate_follows_a_staged_enable_over_the_applied_baseline", async () => {
+  await reset({ mode: "bauer", enabled: false });
+  stagingWire();
+  await edit("crossfeed_enabled", "1");
+  assert.ok(attrs(button(card(), "ENGAGE")).includes("active"));
+});
+
+test("test_structural_gate_lights_engage_when_a_block_is_installed", async () => {
+  await reset({ rows: structural(), mode: "structural" });
+  assert.ok(attrs(button(card(), "ENGAGE")).includes('class="seg active"'));
+});
+
+test("test_structural_gate_lights_bypass_when_no_block_is_installed", async () => {
+  await reset({ rows: pair(), mode: "structural" });
+  assert.ok(attrs(button(card(), "BYPASS")).includes('class="seg active"'));
+});
+
+test("test_a_staged_crossfeed_edit_marks_the_bauer_gate_dirty", async () => {
+  await reset({ mode: "bauer", enabled: false });
+  stagingWire();
+  await edit("crossfeed_enabled", "1");
+  assert.ok(gateClass(card()).includes("dirty"));
+});
+
+test("test_an_untouched_bauer_gate_is_not_dirty", async () => {
+  await reset({ mode: "bauer", enabled: false });
+  assert.equal(gateClass(card()).includes("dirty"), false);
+});
+
+test("test_a_staged_install_of_the_block_marks_the_structural_gate_dirty", async () => {
+  await reset({ rows: pair(), mode: "structural" });
+  stagingWire();
+  await stageStructural(pair(), { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS });
+  assert.ok(gateClass(card()).includes("dirty"));
+});
+
+test("test_a_staged_removal_of_the_block_marks_the_structural_gate_dirty", async () => {
+  await reset({ rows: structural(), mode: "structural" });
+  stagingWire();
+  await removeStructural(structural(), structuralBlock(structural()));
+  assert.ok(gateClass(card()).includes("dirty"));
+});
+
+test("test_row_edits_alone_leave_the_structural_gate_clean", async () => {
+  // The block stays installed either way — retuning it is row dirt, not gate dirt.
+  await reset({ rows: structural(), mode: "structural" });
+  stagingWire();
+  await stagePipelines(structural({ angle: 45 }));
+  assert.equal(gateClass(card()).includes("dirty"), false);
+});
+
+test("test_an_untouched_structural_gate_is_not_dirty", async () => {
+  await reset({ rows: pair(), mode: "structural" });
+  assert.equal(gateClass(card()).includes("dirty"), false);
+});
+
+test("test_the_structural_view_offers_no_turn_on_button", async () => {
+  await reset({ rows: pair(), mode: "structural" });
+  assert.equal(button(card(), "Turn on"), undefined);
+});
+
+test("test_the_structural_view_offers_no_turn_off_button", async () => {
+  await reset({ rows: structural(), mode: "structural" });
+  assert.equal(button(card(), "Turn off"), undefined);
+});
+
+test("test_the_bauer_view_renders_exactly_one_gate", async () => {
+  await reset({ mode: "bauer" });
+  assert.equal(card().split("xfs-gate").length - 1, 1);
+});
+
+test("test_the_bauer_view_renders_exactly_one_engage_button", async () => {
+  await reset({ mode: "bauer" });
+  assert.equal(buttons(card()).filter((b) => b.slice(b.indexOf(">") + 1).trim() === "ENGAGE").length, 1);
+});
+
+test("test_the_bauer_preset_row_keeps_its_preset_dropdown", async () => {
+  await reset({ mode: "bauer", enabled: true });
+  assert.ok(card().includes("Preset"));
 });

@@ -583,7 +583,6 @@ export const schema = {
   crossfeed_enabled: {
     label: "",
     bool: true,
-    size: "gate",
     group: "dsp",
     widget: "segment",
     options: ENGAGE_BYPASS,
@@ -633,7 +632,6 @@ export const schema = {
   dac_correction_enabled: {
     label: "",
     bool: true,
-    size: "gate",
     group: "dsp",
     note: "dac_correction",
     widget: "segment",
@@ -660,7 +658,6 @@ export const schema = {
   loudness_enabled: {
     label: "",
     bool: true,
-    size: "gate",
     group: "dsp",
     widget: "segment",
     options: ENGAGE_BYPASS,
@@ -808,7 +805,6 @@ export const schema = {
   matrix_enabled: {
     label: "",
     bool: true,
-    size: "gate",
     group: "dsp",
     widget: "segment",
     options: ENGAGE_BYPASS,
@@ -888,7 +884,6 @@ export const schema = {
   fixed_volume_enabled: {
     label: "",
     bool: true,
-    size: "gate",
     group: "volume",
     widget: "segment",
     options: ON_OFF,
@@ -919,7 +914,6 @@ export const schema = {
   optimal_iso: {
     label: "Auto headroom",
     sublabel: "(Optimal ISO)",
-    size: "lg",
     group: "volume",
     widget: "segment",
     lane: "http",
@@ -993,7 +987,6 @@ export const schema = {
   log_enabled: {
     label: "",
     bool: true,
-    size: "gate",
     group: "system",
     widget: "segment",
     options: ON_OFF,

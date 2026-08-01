@@ -12,6 +12,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the four that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
 
+- **One switch size everywhere.** All segmented switches now share the large size the card enables use. The hero MODE / BACKEND / RATE segments and the SPEAKERS | HEADPHONES banner keep their own sizes.
+
+- **Crossfeed card gets a card-level switch.** ENGAGE / BYPASS now sits at the top of the card and turns the crossfeed on or off in whichever view is showing — the Bauer flag, or install/removal of the Structural matrix block. The Bauer | Structural switch moved out of the card's header to sit beside it, with a short explanation of the two below, and Structural's separate Turn on / Turn off buttons are gone.
+
 - **The LIVE switch is bigger.** The header's LIVE toggle now uses a larger label and more padding, so it is easier to hit and easier to spot.
 
 - **The clipping warning has a threshold too.** It used to fire on the first clipping event of a track. It now waits for ten.

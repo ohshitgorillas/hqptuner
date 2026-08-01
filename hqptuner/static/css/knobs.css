@@ -259,12 +259,6 @@
   display: flex;
   align-items: center;
 }
-/* the side switch picks what the whole strip edits — same 1.1x weight the
-   size-lg mode segments carry (controls.css .field-lg rule). */
-.loudness-side-row .seg {
-  padding: calc(var(--sp-1) * 1.1) calc(var(--sp-3) * 1.1);
-  font-size: var(--fs-body);
-}
 .loudness-strip .band-slots > .field {
   min-width: 0;
 }

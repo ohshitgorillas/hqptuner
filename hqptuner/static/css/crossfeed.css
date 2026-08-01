@@ -75,49 +75,26 @@
 }
 
 /* ── Structural crossfeed ────────────────────────────────────────────────
-   Card head carries the Bauer|Structural segment; the body is the binding
-   two-column split (1fr 1px 1fr + .col-rule) with controls left, geometry
-   right, so its rule stacks with every other card's down the page. */
-.xfs-head {
+   Plain collapsible head; the body opens with the gate/mode/caption stack,
+   then the binding two-column split (1fr 1px 1fr + .col-rule) with controls
+   left, geometry right, so its rule stacks with every other card's down the
+   page. */
+/* card-level gate + Bauer|Structural view switch on one row, explanation
+   below — stacking the switches left a column of dead space to their right. */
+.xfs-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
+  gap: var(--sp-3) var(--sp-4);
 }
-/* the header is as tall as the ▾ tri (1.9rem), so a base segment floats inside it
-   looking undersized. Stretch it to the head's content box instead of naming a
-   height — the tri stays the one thing that sets this header's height — and match
-   the segment type to the card-head's, so mode labels read as a peer of the
-   title rather than as UA button text. */
-.xfs-head .segment {
-  align-self: stretch;
+.xfs-top .field-note {
+  flex-basis: 100%;
+  max-width: var(--measure);
 }
-.xfs-head .segment .seg {
-  font-size: var(--fs-head);
-  display: flex;
-  align-items: center;
-}
-.xfs-head-toggle {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  /* a button does not inherit the card-head typography on its own, and the other
-     collapsible cards dodge this by putting card-head ON the button. This header
-     also holds the mode segment, so the button is nested and has to be told. */
-  color: inherit;
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  text-transform: inherit;
-  letter-spacing: inherit;
-}
-.xfs-head-toggle .tri {
-  color: var(--accent);
-  margin-right: var(--sp-2);
-  font-size: var(--fs-glyph);
-  line-height: 1;
-  vertical-align: -0.2em;
+/* the gate is a hand-rolled Segment (mode-aware, not a schema Field), so the
+   staged-edit accent from fields.css cannot reach it — same border rule here. */
+.xfs-gate.dirty .segment {
+  border-color: var(--accent);
 }
 .xfs-cols {
   display: grid;

@@ -1,7 +1,6 @@
-/* eslint-disable hqptuner/no-hand-rolled-card -- the head carries a Segment
-   component beside its toggle button, and an issues strip sits BETWEEN head and
-   body. Expressing either through Card would mean a slot prop per position,
-   which is a worse trade than one written-down exemption. */
+/* eslint-disable hqptuner/no-hand-rolled-card -- an issues strip sits BETWEEN
+   head and body. Expressing that through Card would mean a slot prop per
+   position, which is a worse trade than one written-down exemption. */
 // CROSSFEED — one card, two implementations behind a segmented toggle.
 //
 // Bauer is HQPlayer's own post-process (libbs2b) plus the compensation block.
@@ -9,17 +8,19 @@
 // (docs/crossfeed-math.md). They are mutually exclusive by construction: the
 // matrix runs before post-process, so both at once is two crossfeeds in series.
 //
-// The toggle is a VIEW selector that disables what it leaves. Selecting a mode
-// switches off the other one — the block, or the post-process flag and its
-// compensation rows — and turns NOTHING on: arriving at a view is a request to
-// see its controls, not to have its processing switched on behind the user's
-// back. Turning either implementation on is a button in its own half of the card.
-// The disable stages like any other edit: the pending bar counts it, Discard
-// undoes it, nothing reaches the daemon until Apply.
+// The body opens with two switches: a card-level ENGAGE|BYPASS gate, and under
+// it the Bauer|Structural toggle. The toggle is a VIEW selector that disables
+// what it leaves. Selecting a mode switches off the other one — the block, or
+// the post-process flag and its compensation rows — and turns NOTHING on:
+// arriving at a view is a request to see its controls, not to have its
+// processing switched on behind the user's back. Turning a mode on is the gate,
+// acting on whichever view is showing. Everything stages like any other edit:
+// the pending bar counts it, Discard undoes it, nothing reaches the daemon
+// until Apply.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { Field } from "./Field.js";
-import { effective, effectivePipelines } from "../store/state.js";
+import { effective, effectivePipelines, edit, isDirty } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import { noteFor } from "../store/prose.js";
 import { pathParams, midSideResponse, magDb, PRESETS, matchPreset } from "../lib/binaural.js";
@@ -33,6 +34,7 @@ import {
   conflicts,
   remember,
   liveParams,
+  pipelinesDirty,
 } from "../lib/xfmode.js";
 import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
 import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
@@ -51,6 +53,51 @@ const issueNote = signal("");
 
 function params(rows) {
   return structuralParams(rows);
+}
+
+// A compensation block occupies the same rows and carries Lin gains, so it has
+// to be dismantled back to its plain EQ pair before the structural compiler can
+// build from it. Doing that here rather than refusing is the difference between
+// a gate that works and one that silently does nothing.
+function installStructural(rows) {
+  const comp = xfeedBlock(rows).rec;
+  const base = comp ? uncompensatedRows(rows, comp) : rows;
+  issueNote.value = stageStructural(base, params(base)) || "";
+}
+
+// --- card-level gate ---------------------------------------------------------
+
+// One gate, two mechanisms. In the Bauer view it drives the daemon's
+// crossfeed_enabled flag; in the Structural view "on" is not a config key at
+// all — it is whether the sixteen-row matrix block is installed, so ENGAGE
+// installs it and BYPASS removes it. Hand-rolled rather than a schema Field
+// because no single key can carry both readings. Everything stages; Apply is
+// the user's.
+const GATE_OPTIONS = [
+  { value: "1", label: "ENGAGE" },
+  { value: "0", label: "BYPASS" },
+];
+
+function Gate({ rows, active }) {
+  const bauer = active !== "structural";
+  const rec = structuralBlock(rows);
+  const on = bauer ? truthy(effective("crossfeed_enabled")) : !!rec;
+  const dirty = bauer ? isDirty("crossfeed_enabled") : pipelinesDirty();
+  const toggle = (v) => {
+    if (bauer) {
+      edit("crossfeed_enabled", v);
+    } else if (v === "1") {
+      installStructural(rows);
+    } else {
+      removeStructural(rows, rec);
+      issueNote.value = "";
+    }
+  };
+  return html`
+    <div class="xfs-gate ${dirty ? "dirty" : ""}">
+      <${Segment} value=${on ? "1" : "0"} options=${GATE_OPTIONS} onChange=${toggle} />
+    </div>
+  `;
 }
 
 // --- controls ----------------------------------------------------------------
@@ -125,16 +172,6 @@ function StructuralMode({ rows }) {
     if (rec) issueNote.value = stageStructural(rows, next) || "";
   };
 
-  // A compensation block occupies the same rows and carries Lin gains, so it has
-  // to be dismantled back to its plain EQ pair before the structural compiler can
-  // build from it. Doing that here rather than refusing is the difference between
-  // a button that works and one that silently does nothing.
-  const install = () => {
-    const comp = xfeedBlock(rows).rec;
-    const base = comp ? uncompensatedRows(rows, comp) : rows;
-    issueNote.value = stageStructural(base, params(base)) || "";
-  };
-
   return html`
     <div class="xfs-cols">
       <div class="xfs-controls">
@@ -150,20 +187,6 @@ function StructuralMode({ rows }) {
             ${PRESETS.map((x) => html`<option value=${x.id}>${x.label}</option>`)}
             ${matchPreset(p0) === "custom" ? html`<option value="custom">Custom</option>` : null}
           </select>
-          ${
-            rec
-              ? html`<button
-                  type="button"
-                  class="mtx-tool mtx-remove"
-                  onClick=${() => {
-                    removeStructural(rows, rec);
-                    issueNote.value = "";
-                  }}
-                >
-                  Turn off
-                </button>`
-              : html`<button type="button" class="mtx-tool mtx-primary" onClick=${install}>Turn on</button>`
-          }
         </div>
         <${Control}
           label="Speaker angle"
@@ -283,7 +306,6 @@ function BauerMode() {
           : null
       }
       <div class="pack split">
-        <${Field} k="crossfeed_enabled" />
         <${Field} k="crossfeed_preset" />
       </div>
       <div class="dsp-body ${on ? "" : "off"}">
@@ -326,23 +348,28 @@ export function CrossfeedCard() {
 
   return html`
     <section class="card">
-      <div class="card-head xfs-head">
-        <button type="button" class="xfs-head-toggle" onClick=${() => (cardOpen.value = !open)}>
-          <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed
-        </button>
-        <${Segment}
-          value=${active}
-          options=${[
-            { value: "bauer", label: "Bauer" },
-            { value: "structural", label: "Structural" },
-          ]}
-          onChange=${(v) => setXfMode(v, rows)}
-        />
-      </div>
+      <button type="button" class="card-head" onClick=${() => (cardOpen.value = !open)}>
+        <span class="tri">${open ? "▾" : "▸"}</span> Crossfeed
+      </button>
       ${issueNote.value ? html`<div class="mtx-issues">${issueNote.value}</div>` : null}
       ${
         open
           ? html`<div class="card-body">
+              <div class="xfs-top">
+                <${Gate} rows=${rows} active=${active} />
+                <${Segment}
+                  value=${active}
+                  options=${[
+                    { value: "bauer", label: "Bauer" },
+                    { value: "structural", label: "Structural" },
+                  ]}
+                  onChange=${(v) => setXfMode(v, rows)}
+                />
+                <div class="field-note">
+                  Bauer crossfeed is built into HQPlayer and is the default. Structural crossfeed is HQPTuner's own and
+                  uses the Matrix pipelines.
+                </div>
+              </div>
               ${active === "structural" ? html`<${StructuralMode} rows=${rows} />` : html`<${BauerMode} />`}
             </div>`
           : null

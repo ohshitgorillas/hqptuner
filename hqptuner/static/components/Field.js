@@ -71,8 +71,7 @@ function controlValue(entry, key) {
 
 // Widget kind + the layout opt-ins + the dirty highlight, in that order.
 function fieldClasses(entry, key, label) {
-  const size = entry.size === "lg" ? "field-lg" : entry.size === "gate" ? "field-gate" : "";
-  return `field field-${entry.widget} ${label ? "" : "field-nolabel"} ${size} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
+  return `field field-${entry.widget} ${label ? "" : "field-nolabel"} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
 }
 
 // Option source: the schema's own list or the daemon form's, then the two
