@@ -139,9 +139,12 @@ def check_file(path: Path) -> list[str]:
 
 def main() -> int:
     complaints: list[str] = []
+    self_path = Path(__file__).resolve()
     for name in sys.argv[1:]:
         path = Path(name)
-        if path.is_file():
+        # this file is the one place the blocked phrases may be spelled out —
+        # the docstring above names them as examples
+        if path.is_file() and path.resolve() != self_path:
             complaints.extend(check_file(path))
     for complaint in complaints:
         print(complaint)
