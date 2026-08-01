@@ -243,7 +243,7 @@ test("test_a_pcm_source_into_a_dsd_output_still_shows_the_oversampling_filter", 
 // Integrator + SDM→SDM conversion, and neither an oversampling filter nor a
 // modulator: the converter carries its own noise shaping (manual §4.5). The
 // engine keeps reporting active_filter/active_shaper here regardless, which is
-// exactly the stale modulator this path must stop showing (features.md 9).
+// exactly the stale modulator this path must stop showing.
 
 test("test_a_dsd_source_into_a_dsd_output_shows_no_modulator_chip", () => {
   assert.equal(has(panel(DSD_TO_SDM), "Modulator"), false);
