@@ -128,11 +128,20 @@ for (const key of GATES) {
   });
 
   // A gate row has no name column: the card's own title names it, so nothing
-  // renders a <label> for the key.
-  test(`test_the_${key}_gate_row_renders_no_label`, async () => {
-    assert.equal(/<label[\s>]/.test(await gate(key)), false);
-  });
+  // renders a <label> for the key. One exception below — the fixed-volume gate
+  // shares its row with the level field, so it carries a name column.
+  if (key !== "fixed_volume_enabled") {
+    test(`test_the_${key}_gate_row_renders_no_label`, async () => {
+      assert.equal(/<label[\s>]/.test(await gate(key)), false);
+    });
+  }
 }
+
+// The one gate WITH a name column: the fixed-volume gate sits beside the dBFS
+// level on a shared row, so the row names the pair "Fixed level".
+test("test_the_fixed_volume_enabled_gate_row_carries_a_fixed_level_label", async () => {
+  assert.ok((await gate("fixed_volume_enabled")).includes("<label>Fixed level"));
+});
 
 // ============================================================================
 // what the two choices are called

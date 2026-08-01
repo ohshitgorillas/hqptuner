@@ -59,6 +59,22 @@ const card = (out, title) => {
   return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
 };
 
+// The dsp-body wrapper's full extent: from its opening tag to its matching
+// close, tracked by <div>/</div> depth so nested row divs stay inside. Empty
+// string when the fragment carries no dsp-body at all.
+const dspBody = (frag) => {
+  const start = frag.indexOf('<div class="dsp-body');
+  if (start < 0) return "";
+  const re = /<div\b|<\/div>/g;
+  re.lastIndex = start;
+  let depth = 0;
+  for (let m; (m = re.exec(frag));) {
+    depth += m[0] === "</div>" ? -1 : 1;
+    if (depth === 0) return frag.slice(start, m.index + m[0].length);
+  }
+  return frag.slice(start);
+};
+
 // One backend disclosure's fragment, keyed by the title in its head.
 const section = (out, title) => {
   const head = out.indexOf(`</span> ${title}</button>`);
@@ -228,14 +244,37 @@ test("test_the_general_card_leaves_the_device_lists_to_the_backend_sections", as
   assert.equal(card(tab(), "General").includes("Topping DAC"), false);
 });
 
+// Top to bottom: the ENGAGE|BYPASS gate strip, then the body wrapper. The
+// Profile row must fall INSIDE the dsp-body's extent (opening tag to matching
+// close), so a Profile rendered after the body's close, or above the gate,
+// fails.
+test("test_the_correction_profile_sits_in_a_body_below_the_gate_strip", async () => {
+  await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
+  const frag = card(tab(), "DAC correction");
+  const gate = frag.indexOf('<span class="segment">');
+  assert.ok(
+    gate >= 0 && gate < frag.indexOf('<div class="dsp-body') && dspBody(frag).includes("<label>Profile</label>"),
+  );
+});
+
+// Off state: the body wrapper carries the `off` class AND the Profile row sits
+// inside its extent — a dimmed wrapper with the Profile rendered outside it
+// would dim nothing.
 test("test_the_correction_profile_is_dimmed_while_dac_correction_is_off", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
-  assert.ok(card(tab(), "DAC correction").includes('<div class="indent off">'));
+  const body = dspBody(card(tab(), "DAC correction"));
+  assert.ok(body.startsWith('<div class="dsp-body off">') && body.includes("<label>Profile</label>"));
 });
 
 test("test_the_correction_profile_is_live_once_dac_correction_is_on", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
-  assert.equal(card(tab(), "DAC correction").includes('<div class="indent off">'), false);
+  assert.equal(card(tab(), "DAC correction").includes('<div class="dsp-body off">'), false);
+});
+
+// The old indented layout is gone from this card entirely.
+test("test_the_dac_correction_card_has_no_indented_layout", async () => {
+  await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
+  assert.equal(card(tab(), "DAC correction").includes('<div class="indent'), false);
 });
 
 test("test_the_dac_correction_card_carries_the_correction_profile", async () => {

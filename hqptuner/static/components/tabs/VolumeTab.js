@@ -69,9 +69,9 @@ export const Volume = () =>
   html`<${Section}>
     <div class="card-grid">
       <${PlaybackVolume} />
-      <${Card} title="Fixed volume" subtitle=${noteFor("fixed_volume_enabled")}>
-        <${Field} k="fixed_volume_enabled" />
-        <div class="indent">
+      <${Card} title="Fixed volume" cardClass="fxv-card" subtitle=${noteFor("fixed_volume_enabled")}>
+        <div class="fxv-row">
+          <${Field} k="fixed_volume_enabled" />
           <${Field} k="fixed_volume" />
         </div>
         <${Field} k="optimal_iso" />

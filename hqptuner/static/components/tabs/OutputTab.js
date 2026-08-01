@@ -98,9 +98,9 @@ export const Output = () => {
       </div>
     <//>
     <${Card} title="DAC correction" subtitle=${noteFor("dac_correction_enabled")}>
-      <div class="pack">
+      <div class="dsp-card">
         <${Field} k="dac_correction_enabled" />
-        <div class="indent ${dacOn ? "" : "off"}">
+        <div class="dsp-body ${dacOn ? "" : "off"}">
           <${Field} k="dac_correction_profile" />
         </div>
       </div>

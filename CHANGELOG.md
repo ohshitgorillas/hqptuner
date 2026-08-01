@@ -10,6 +10,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **DAC correction card reflowed.** The ENGAGE / BYPASS switch now sits above the Profile row instead of beside it, and the Profile row dims while the correction is bypassed.
+
+- **Fixed volume card reflowed.** The ON / OFF switch and the dBFS level now share one labelled row — **Fixed level** — with **Auto headroom** as a matching row beneath it.
+
 - **The Speakers card's channel list is indented** off the card's left edge, so it reads as the card's detail rather than a second column of top-level controls.
 
 - **No more in-flight chatter on LIVE.** The LIVE view no longer prints "writing…", "switching…", "working…" or "Reloading the engine's lists…" beside a control while its write is in flight. Controls still gray out until the write lands.

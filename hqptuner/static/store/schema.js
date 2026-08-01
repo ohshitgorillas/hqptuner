@@ -882,7 +882,7 @@ export const schema = {
   // dBFS level only. Optimal ISO (volume_fixed) is an independent mode (see below).
   // Only adaptive_volume is live (SetAdaptiveVolume); the rest are http/restart.
   fixed_volume_enabled: {
-    label: "",
+    label: "Fixed level",
     bool: true,
     group: "volume",
     widget: "segment",
@@ -897,7 +897,7 @@ export const schema = {
   // feature off came back as the daemon's number and read as "reverted". The file
   // carries the user's, parked in a commented <fixed> line, so it is the authority.
   fixed_volume: {
-    label: "Fixed volume level",
+    label: "",
     group: "volume",
     widget: "number",
     lane: "http",
@@ -905,6 +905,7 @@ export const schema = {
     fileTruth: true,
     unit: "dBFS",
     grayWhen: levelGray,
+    quietGray: true,
   },
   // volume_fixed's XML domain is wider than the daemon's own form: 0 = off /
   // 1 = −3 dB / 2 = −6 dB, but /config renders a bare checkbox that can only

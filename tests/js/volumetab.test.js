@@ -102,19 +102,49 @@ test("test_the_fixed_volume_cards_first_segmented_strip_is_labelled_on_then_off"
   assert.deepEqual(buttonLabels(card(tab(), "Fixed volume")).slice(0, 2), ["ON", "OFF"]);
 });
 
-// Top to bottom: the gate strip, then the level indented under it, then Auto
-// headroom. Read as source order of the three markers, so a control rendered
-// above the gate moves the gate out of first place and fails.
-test("test_the_fixed_volume_card_orders_gate_then_indented_level_then_auto_headroom", async () => {
+// The gate and the dBFS level share one row: inside the fxv-row container the
+// gate strip renders first and the level field second. The level is identified
+// by its own dBFS unit span, not by any bare <input>, and it must land before
+// the Auto headroom row that follows the shared row (position pinned by the
+// neighbouring test below) — so a level rendered above the gate or outside the
+// row fails.
+test("test_the_fixed_volume_gate_and_level_share_one_row_gate_first", async () => {
   await reset();
   const body = card(tab(), "Fixed volume");
-  const at = ['<span class="segment">', '<div class="indent">', "<label>Auto headroom"].map((m) => body.indexOf(m));
-  assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2]);
+  const marks = [
+    '<div class="fxv-row">',
+    '<span class="segment">',
+    '<span class="unit">dBFS</span>',
+    "<label>Auto headroom",
+  ];
+  const at = marks.map((m) => body.indexOf(m));
+  assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2] && at[2] < at[3]);
 });
 
-test("test_the_fixed_volume_level_is_indented_under_its_enable", async () => {
+// The shared row's name column: "Fixed level" names the gate-and-level pair.
+test("test_the_fixed_volume_row_is_named_fixed_level", async () => {
   await reset();
-  assert.ok(card(tab(), "Fixed volume").includes('<div class="indent">'));
+  assert.ok(card(tab(), "Fixed volume").includes("<label>Fixed level"));
+});
+
+// The level renders no <label> of its own — the card carries exactly the two
+// labels pinned above, Fixed level and Auto headroom, and nothing else.
+test("test_the_fixed_volume_level_carries_no_label_of_its_own", async () => {
+  await reset();
+  assert.equal((card(tab(), "Fixed volume").match(/<label[\s>]/g) || []).length, 2);
+});
+
+test("test_the_auto_headroom_row_follows_the_shared_fixed_level_row", async () => {
+  await reset();
+  const body = card(tab(), "Fixed volume");
+  const at = ['<div class="fxv-row">', "<label>Auto headroom"].map((m) => body.indexOf(m));
+  assert.ok(at[0] >= 0 && at[0] < at[1]);
+});
+
+// The old indented layout is gone from this card entirely.
+test("test_the_fixed_volume_card_has_no_indented_layout", async () => {
+  await reset();
+  assert.equal(card(tab(), "Fixed volume").includes('<div class="indent'), false);
 });
 
 test("test_the_volume_range_bar_follows_the_knob_and_the_fixed_card", async () => {
