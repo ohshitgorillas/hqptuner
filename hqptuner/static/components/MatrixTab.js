@@ -48,15 +48,28 @@ function GlobalCard() {
 // Standing collapsible card between PIPELINES and RESPONSE. Default collapsed —
 // not everyone is listening to headphones. Two lanes, one contract: the AutoEq
 // library picker (search → preview on RESPONSE → apply) and the .txt load both
-// REPLACE the profile on pipeline 1 (+ optional stereo-pair mirror = the
-// adjacent row) on a single click, mapping a Preamp line onto the row gain (dB)
+// REPLACE the profile on pipeline 1 — the library lane always onto its stereo
+// pair too, the .txt lane per the mirror checkbox beside it — on a single
+// click, mapping a Preamp line onto the row gain (dB)
 // — one atomic stagePipelines op, Discard undoes it. A row's own "Import EQ"
 // still APPENDS the loaded text to that row, for retargeting at an arbitrary
 // pipeline.
 const eqCardOpen = signal(true);
 const importText = signal("");
-const importMirror = signal(true);
+// Mirroring is per DSP mode. A headphone profile is one curve for a headphone
+// model, both ears, so headphones default it on; speaker correction is per
+// channel — the two speakers measure differently — so speakers default it off.
+// Each mode keeps its own answer, so switching across and back does not lose it.
+const importMirrorHeadphones = signal(true);
+const importMirrorSpeakers = signal(false);
+const importMirror = () => (dspMode.value === "speakers" ? importMirrorSpeakers : importMirrorHeadphones);
+// One note per card: the library lane writes libraryNote, which renders in the
+// Headphone Auto EQ card; the .txt and per-row lanes write importNote, which
+// renders in the Pipelines card. A lane never writes into a card the click did
+// not come from — and the Pipelines card is on screen in both DSP modes, so its
+// lanes can still report a parse failure with the headphone card unmounted.
 const importNote = signal("");
+const libraryNote = signal("");
 
 // Import is PER PIPELINE: every source (paste / .txt load / library profile)
 // only fills importText; the append happens from the target row's own
@@ -65,42 +78,45 @@ const importNote = signal("");
 // Every decision here — target clamping, the mirror pair, replace-vs-append, the
 // preamp fold, and routing into a recognized crossfeed compensation block rather
 // than onto one of its eight rows — is pure, and lives in eqimport.js's
-// planEqImport. This wrapper only reads the private import signals, stages the
-// plan, and extends the plot selection.
-function doImport(rows, targetIndex, replace = false) {
+// planEqImport. This wrapper only reads the import text, stages the plan, and
+// extends the plot selection. Mirroring arrives from the calling lane rather
+// than being read here, and the note is returned rather than assigned, so each
+// lane decides both for itself.
+function doImport(rows, targetIndex, { replace = false, mirror }) {
   const { bs, rec } = xfeedBlock(rows);
   const plan = planEqImport(rows, targetIndex, {
     text: importText.value,
     replace,
-    mirror: importMirror.value,
+    mirror,
     block: rec,
     bauer: bs,
     structural: structuralBlock(rows),
   });
-  importNote.value = plan.note;
-  if (!plan.rows) return;
-  stagePipelines(plan.rows);
-  // auto-plot the rows the EQ just landed on, so the response curve (and its
-  // drag dots) appears without hunting for the ◉ toggle. In default mode the
-  // rows now carry stages, so they auto-plot already — only an explicit toggle
-  // selection needs extending, or it would hide the freshly-imported rows.
-  if (plottedRows.value.size) plottedRows.value = new Set([...plottedRows.value, ...plan.targets]);
+  if (plan.rows) {
+    stagePipelines(plan.rows);
+    // auto-plot the rows the EQ just landed on, so the response curve (and its
+    // drag dots) appears without hunting for the ◉ toggle. In default mode the
+    // rows now carry stages, so they auto-plot already — only an explicit toggle
+    // selection needs extending, or it would hide the freshly-imported rows.
+    if (plottedRows.value.size) plottedRows.value = new Set([...plottedRows.value, ...plan.targets]);
+  }
+  return plan.note;
 }
 
 // Loading a .txt IS loading the EQ — one click, the same contract the library
 // picker already had. It lands on pipeline 1 (+ its stereo pair per the mirror
-// checkbox), the standard headphone case. Filling a textarea and waiting for a
-// second press on some row's "Import EQ" reads as a button that did nothing.
-// The parsed text stays in `importText` afterwards, so the per-row
-// buttons still work for retargeting EQ at an arbitrary pipeline.
-// Input value resets so the same file re-fires.
+// checkbox beside it), which covers both a headphone profile and a per-channel
+// speaker measurement. Filling a textarea and waiting for a second press on some
+// row's "Import EQ" reads as a button that did nothing. The parsed text stays in
+// `importText` afterwards, so the per-row buttons still work for retargeting EQ
+// at an arbitrary pipeline. Input value resets so the same file re-fires.
 function loadEqFile(e) {
   const file = e.target.files[0];
   if (!file) return;
   file.text().then((t) => {
     importText.value = t;
-    eqCardOpen.value = true;
-    doImport(effectivePipelines.value, 0, true); // a load REPLACES the previous profile
+    // a load REPLACES the previous profile
+    importNote.value = doImport(effectivePipelines.value, 0, { replace: true, mirror: importMirror().value });
   });
   e.target.value = "";
 }
@@ -115,16 +131,19 @@ function LoadEqButton() {
 
 function ImportPanel({ rows }) {
   // Library "Load profile" is ONE click: the profile's verbatim ParametricEQ.txt
-  // applies immediately to pipeline 1 (+ its stereo pair per the mirror
-  // checkbox) — the standard headphone case, same contract as the .txt lane.
+  // applies immediately to pipeline 1 and its stereo pair — always both, never
+  // the mirror checkbox's answer. A library profile is one curve for a headphone
+  // model, and there is no such thing as a left-ear-only one; the checkbox has
+  // no meaningful answer on this lane, and it lives in another card besides.
   const loadText = (text) => {
     importText.value = text;
-    doImport(rows, 0, true); // library load REPLACES the previous profile
+    // library load REPLACES the previous profile
+    libraryNote.value = doImport(rows, 0, { replace: true, mirror: true });
   };
   return html`
     <div class="mtx-import">
       <${LibraryPicker} applyText=${loadText} />
-      ${importNote.value ? html`<div class="mtx-issues">${importNote.value}</div>` : null}
+      ${libraryNote.value ? html`<div class="mtx-issues">${libraryNote.value}</div>` : null}
     </div>
   `;
 }
@@ -192,7 +211,7 @@ function PipelinesCard() {
               eqLoaded=${eqLoaded}
               update=${(patch) => update(i, patch)}
               remove=${() => remove(i)}
-              importHere=${() => doImport(rows, i)}
+              importHere=${() => (importNote.value = doImport(rows, i, { mirror: importMirror().value }))}
             />
           `,
         )}
@@ -204,8 +223,8 @@ function PipelinesCard() {
             <label class="mtx-import-mirror">
               <input
                 type="checkbox"
-                checked=${importMirror.value}
-                onChange=${(e) => (importMirror.value = e.target.checked)}
+                checked=${importMirror().value}
+                onChange=${(e) => (importMirror().value = e.target.checked)}
               />
               mirror to stereo pair
             </label>
@@ -232,6 +251,7 @@ function PipelinesCard() {
             })()}
           </div>
         </div>
+        ${importNote.value ? html`<div class="mtx-issues">${importNote.value}</div>` : null}
       `
     : null;
   return html`

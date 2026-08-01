@@ -52,7 +52,17 @@ Original report:
 
 `loudness_low_freq` / `loudness_high_freq` carry no schema min/max fallback, and Knob has no `lo <= 0` guard for log scale. Against a daemon build whose `/matrix` form omits `min`/`max` attributes on `post_loudness_lowfreq` (the project's own `fake_http.py:137` renders exactly that; the 6.0.4 fixture happens to ship `min="20"`), `cfgConstraint` (`Field.js:36-41`) returns undefined, `lo = num(min, 0) = 0`, `enc(0, log) = -Infinity`, and `angleOf` becomes NaN — the knob notch and value arc get `x1="NaN"`, the slider gets `min="-Infinity"`, and a pointer drag stages NaN. The steepness knobs got `min: 0.1` / `max: 10` in schema; these two got nothing, and `loudness-strip.test.js` injects min/max in its fixture, so the missing-constraint case is untested.
 
-## 5. Mirror checkbox governs an import lane in a different card
+## 5. Mirror checkbox governs an import lane in a different card — FIXED 2026-08-01
+
+Mirroring is per lane now (`docs/matrix-spec.md`, "AutoEq / REW import"). `doImport` takes `mirror` from its caller instead of reading the checkbox, so the library lane passes `true` outright — a headphone profile is one curve for a model and has no one-ear form — while the `.txt` and per-row lanes, both of which sit in the card holding the checkbox, pass its value. The checkbox is per DSP mode: on for headphones, off for speakers, each mode keeping its own value, since speaker correction is per channel. `doImport` returns its note rather than assigning one, and each lane writes its own signal: `libraryNote` renders in the Headphone Auto EQ card, `importNote` in the Pipelines card.
+
+The report understated one half. `HeadphoneEqCard` mounts only in headphones mode (`MatrixTab.js:279`) and was the sole renderer of `importNote`, so in speakers mode a `.txt` load or row import had nowhere at all to report — a file with no parseable filters returned `"no filters found"` (`eqimport.js:174-179`) into a signal nothing rendered, and the button read as dead. Splitting the notes closes that: the Pipelines card is mounted in both modes. The `.txt` lane no longer force-opens the headphone card either; it did so only to reveal the note that now renders beside it.
+
+`eqimport.js` is unchanged — the planner was already right and already covered (6 mirror cases, `tests/js/lib/eqimport.test.js:111-138`). The defect was entirely in which lane passed what.
+
+Covered by 4 tests in `tests/js/components/matrixtab-mirror.test.js`. One bites against the pre-fix code on an assertion: the speakers-mode default. The other three are characterization — the checkbox rendered in both modes before, and checked under headphones before. What the checkbox *does* to an import stays uncovered by choice: the lanes fire from click handlers and the JS suite is `preact-render-to-string` with no DOM and no event dispatch, so reaching them would mean faking an event. That half rides on the browser hand-back.
+
+Original report:
 
 `hqptuner/static/components/MatrixTab.js:203`
 
