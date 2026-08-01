@@ -47,6 +47,17 @@
 .field-nolabel {
   grid-template-columns: 1fr;
 }
+/* Everything a field can stack under its control — note, description, gray
+   reason, narrow controls — is placed in column 2, which is where it sits in a
+   row that HAS a name column. This row does not have one, and a grid item asking
+   for a column its grid does not define gets an implicit one: the gray reason
+   was landing to the RIGHT of the switch with the row's width between them,
+   rather than under it. One track, so everything is in track one. Specificity
+   beats the `.field-gray-reason` placements in narrowing.css whatever order the
+   stylesheets load in. */
+.field.field-nolabel > * {
+  grid-column: 1;
+}
 .field > label {
   color: var(--fg);
   font-size: var(--fs-body);
