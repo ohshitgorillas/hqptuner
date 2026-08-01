@@ -2,14 +2,9 @@
 """read-volume — PostToolUse advisory. Never denies, never meters, never blocks.
 
 The change budget prices what an agent *changes*. Nothing prices what it
-*reads*, and reading is where the context window actually goes. Two measurements
-over 135 sessions of this project say where the waste is:
-
-  * 38.5% of all free-read bytes — 6.5 MB — were files the session had already
-    read. The content was still in the context window; the agent read it again
-    anyway.
-  * 63 leash periods spent more than 50 KB on reads and produced zero edits.
-    Grounding that led nowhere.
+*reads*, and reading is where the context window actually goes — the bulk of
+free-read bytes are re-reads of files already in context, and heavy read
+periods often produce zero edits.
 
 So this emits two advisories, both purely informational:
 

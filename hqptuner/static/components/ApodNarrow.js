@@ -1,8 +1,8 @@
 // Per-1x-dropdown apodizing narrow control. Renders below a 1x filter dropdown
 // (schema `apodNarrow`, Field.js), bound to THAT chain's independent apod state
 // (keyed by the field key in store/narrowing.js). Apodizing narrowing is 1x-only
-// and per-chain (user decision 2026-07-24) — moved here from the shared narrow
-// bar so PCM and SDM 1x lists narrow independently.
+// and per-chain (user decision) — it lives below each 1x dropdown rather than
+// on the shared narrow bar so PCM and SDM 1x lists narrow independently.
 //
 // The caption is the existing settings tooltip verbatim (data/settings.json
 // dsp.show_apodizing_only) — a novice-facing "what is apodizing" line, now

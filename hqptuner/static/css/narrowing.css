@@ -4,8 +4,8 @@
 
 /* DSP filter narrowing — the facet row inside the "Narrow filters" card. The
    card frame and its head come from Card (components/tabs/common.js); nothing
-   here paints a surface. The panel used to draw its own, which is how it ended
-   up on the wrong border token and with a margin-bottom stacking on .tab-body's
+   here paints a surface. A panel that draws its own ends up on the wrong
+   border token and with a margin-bottom stacking on .tab-body's
    own gap — 16px below the bar against 8px above it. */
 /* The one thing this card cannot inherit: .card clips to its own frame
    (overflow: hidden), and every facet popover is absolutely positioned BELOW its

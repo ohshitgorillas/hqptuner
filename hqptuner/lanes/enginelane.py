@@ -3,8 +3,8 @@
 ``engineconf`` holds the pure XML/zip editing; this module is the IO around it —
 fetch a ``/backup`` archive, edit the ``<engine>`` tag of the right members, push
 it through ``POST /restore``, and confirm by reading the attributes back after
-the daemon's self-restart. Split out of ``manager`` because the connection
-manager owns reachability and polling, not this lane's retry loop.
+the daemon's self-restart. The connection manager owns reachability and
+polling, not this lane's retry loop.
 
 The hardware-acceleration attributes (``cuda``, ``multicore``, ``ecores``,
 ``nblocks``, ``cuda_dev``, ``cuda_cdev``) have no ``/config`` form field and no
@@ -24,9 +24,9 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..core.manager import ConnectionManager
 
 # readback window after the restore, before reporting the apply unconfirmed —
-# the restore restart measured ~5.6 s on 6.0.4. Deliberately its own deadline
-# rather than the alarm threshold: this lane's restart cost is known, and the
-# window predates the shared settle helper by design, not by accident.
+# the restore restart measures ~5.6 s on 6.0.4. Deliberately its own deadline
+# rather than the alarm threshold or the shared settle helper: this lane's
+# restart cost is known.
 _VERIFY_WINDOW = 10.0
 _VERIFY_INTERVAL = 0.5
 

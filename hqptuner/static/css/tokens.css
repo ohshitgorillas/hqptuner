@@ -74,8 +74,7 @@
   --amber: #d1a13a;
   --red: #d4574e;
   --dirty: #3a3320;
-  /* --warn was referenced as `var(--warn, #e0a030)` in narrowing.css without
-     ever being defined, so it always resolved to the fallback. Defined here. */
+  /* referenced as `var(--warn, #e0a030)` in narrowing.css — keep in step */
   --warn: #e0a030;
   /* ink for text sitting ON an accent fill (primary buttons, active segments) —
      near-black with the accent's hue, so it stays legible on every accent */
@@ -116,9 +115,9 @@
      under MODE/RATE/BACKEND 32px against every other card pair's 8px, and
      .card-grid's margin-top did the same at 16px. Neither is visible in the
      rule that causes it — `margin-bottom: var(--sp-4)` reads as correct and
-     tokenised until you know what the parent already spends. The same bug
-     had already been found and fixed by eye twice before (see the notes in
-     narrowing.css and controls.css), which is why it is a gate now. */
+     tokenised until you know what the parent already spends — not catchable
+     by reading one rule, which is why it is a gate
+     (scripts/gates/check_css_tokens.py). */
   --rhythm-stack: var(--sp-2); /* card to card, down a tab body */
   --rhythm-row: var(--sp-3); /* card to card, across a row */
   --rhythm-field: var(--sp-4); /* field to field, down a card body */
@@ -205,9 +204,7 @@
   --track-tight: 0.02em; /* the wordmark */
   --track-caps: 0.06em; /* uppercase headings (card-head, subhead) */
   --track-wide: 0.09em; /* micro-caps: cluster heads, chip labels */
-  /* alias kept for existing rules that named this before it was defined. The
-     --bg-1 twin is gone: it aliased --bg-3, so the ladder had two names for one
-     colour and the lower-sounding name was the higher shade. */
+  /* alias — some rules name this spelling */
   --fg-1: var(--fg);
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace;

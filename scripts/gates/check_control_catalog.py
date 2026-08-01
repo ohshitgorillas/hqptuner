@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gate: the control catalog agrees across the three tables that describe it.
 
-One knob is spelled out in three places, and nothing used to check that they
+One knob is spelled out in three places, and nothing else checks that they
 still agree:
 
 - ``static/store/schema.js`` — UI key -> widget, lane, and the form field it writes
@@ -13,10 +13,10 @@ the control ships with no tooltip, or the write path silently has nowhere to
 persist it. Both are invisible until a user hits them.
 
 The schema is read by *importing* schema.js through node, never by pattern
-matching it. A regex sweep over that file was tried first and produced false
-hits (it reported ``output_mode`` as unjoined when the join is clean) — the
-entries are a mix of multi-line and single-line objects with computed values,
-so the only trustworthy reader is the JS engine itself.
+matching it: a regex sweep produces false hits (``output_mode`` reported as
+unjoined when the join is clean) — the entries are a mix of multi-line and
+single-line objects with computed values, so the only trustworthy reader is
+the JS engine itself.
 
 Reverse directions are reported, not failed. An XML target with no control is a
 daemon setting HQPTuner deliberately does not expose; prose with no control is a

@@ -3,9 +3,9 @@
 // as a collapse handle), and the checkbox-truth normalizer used across tab
 // bodies.
 //
-// Card markup lives HERE and nowhere else. It used to be hand-rolled at ten
-// call sites, which is how a surface fix had to be applied ten times and how
-// cards.css's .span mask ended up enumerating container classes by hand. The
+// Card markup lives HERE and nowhere else. Hand-rolled at every call site, a
+// surface fix has to be applied at each one and cards.css's .span mask ends up
+// enumerating container classes by hand. The
 // eslint rule hqptuner/no-hand-rolled-card holds the line; the three sites
 // whose structure genuinely does not fit carry a disable comment with a reason.
 //
@@ -47,8 +47,7 @@ export function collapseFrom(auto, override) {
 // `center` is for a card whose body is ONE control spanning the whole frame —
 // the Output hero row. A head pinned to the left edge of a card that wide reads
 // as a caption on whatever happens to sit under its left edge rather than as
-// the name of the row beneath it, which is why the hero used to hand-roll its
-// own frame instead of taking this one.
+// the name of the row beneath it.
 export function Card({ title, subtitle, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
   const open = !collapse || collapse.open;
   const headCls = ["card-head", center ? "center" : null, headClass].filter(Boolean).join(" ");

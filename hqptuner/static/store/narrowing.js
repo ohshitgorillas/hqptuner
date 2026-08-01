@@ -16,7 +16,7 @@ export const nRatio = signal([]); // multi-select: integer | 2x | 1:1 ([] = any)
 // checkbox in the ratio popover, ANDing with any ratio class picked.
 export const nUpsampleOnly = signal(false);
 
-// Apodizing narrowing is PER-DROPDOWN, not global (user decision 2026-07-24):
+// Apodizing narrowing is PER-DROPDOWN, not global (user decision):
 // each filter chain — 1x and Nx, PCM and SDM — owns an independent apod state,
 // keyed by the schema field key. On by default on the 1x chains (the unfiltered
 // 1x list is 60-77 entries and apodizing is the sane starting point), off on the

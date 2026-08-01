@@ -7,14 +7,13 @@ alone. Nothing here writes config. Saving and deleting a profile are staged
 ``<matrix_profile>`` edits carried by the persistent restore lane instead
 (``conf/matrixconf.py``), because hqplayerd never persists a profile of its own
 accord — its ``/matrix/save`` registers a name in memory and the config it
-writes in the same breath omits the element (round 5).
+writes in the same breath omits the element.
 
-The form lane (``POST /matrix/{load,save,delete}``) is gone from profile work
-entirely. It cost a ~3 s engine reload per op, and ``load`` cost two: the
-daemon's own load replaces the whole matrix context, clearing crossfeed / DAC
-correction / loudness, so HQPTuner had to snapshot post-process and re-apply it
-afterwards. Riding ``MatrixSetProfile`` never disturbs post-process, which
-deletes the whole dance.
+The form lane (``POST /matrix/{load,save,delete}``) plays no part in profile
+work: it costs a ~3 s engine reload per op, and its ``load`` replaces the whole
+matrix context — crossfeed / DAC correction / loudness cleared — forcing a
+snapshot-and-reapply of post-process. Riding ``MatrixSetProfile`` never
+disturbs post-process.
 """
 
 from __future__ import annotations

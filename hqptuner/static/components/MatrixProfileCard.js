@@ -63,7 +63,7 @@ function ProfileNote({ children }) {
 
 // Save: name box + its button. An existing name is allowed — HQPTuner writes the
 // element, so a save onto a name replaces it (the daemon's own route silently
-// no-ops instead, which is why this used to be refused).
+// no-ops instead).
 function ProfileSaveRow({ saved, busy }) {
   const newName = profileNewName.value.trim();
   const exists = saved.includes(newName);

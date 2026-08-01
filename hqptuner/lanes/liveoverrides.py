@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # config form's rate menu writes the per-family LIMIT, and the two agree in the
 # only terms the menu speaks: the tier. A pinned DSD256 becomes a DSD256 limit,
 # which the engine then selects in the source's own base family — the same output,
-# and the only form a config write may take (measured 2026-07-28: a config rate
+# and the only form a config write may take (probe-verified on 6.0.4: a config rate
 # slot cannot pick a base family, so writing one would send 44.1k material out at
 # a 48k base rate behind the user's `any_dsd` setting).
 _RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
@@ -80,7 +80,7 @@ def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, 
     """Both families' live rates as config limit fields.
 
     ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
-    (measured 2026-07-28, ``scripts/probes/probe_mode_rate_pin.py``), so the engine can
+    (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``), so the engine can
     only ever answer for the family it is running and only until the next mode
     switch. ``mgr.live.rates`` is what LIVE pinned per family, which ``livelane``
     puts back on the engine when that family comes round again — so reporting both

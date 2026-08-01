@@ -12,9 +12,9 @@
    to the two states worth spotting across the page — hover and selection.
 
    The kind hues are also deliberately OFF the accent palette (blue / phosphor
-   green / VU amber). They used to be blue-amber-green, which is that palette
-   exactly: under the amber theme a wall of IIR chips read as accent, under the
-   green theme the convolution chips did. Violet and rose collide with no theme,
+   green / VU amber). Blue-amber-green is that palette
+   exactly: under the amber theme a wall of IIR chips reads as accent, under the
+   green theme the convolution chips do. Violet and rose collide with no theme,
    so a coloured chip never impersonates the accent. Endpoints are the one
    exception and take the accent on purpose — they anchor the row's two ends. */
 :root {

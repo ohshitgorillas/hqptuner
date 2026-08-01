@@ -48,14 +48,13 @@ def restore_zip_from_running(
     definition is left untouched (edits are ephemeral until the user Saves).
     Returns ``(restore_zip, intended_working_xml)``.
 
-    This used to rebuild from the active preset's SNAPSHOT so that daemon-side
-    drift never survived an apply. That reset every field the user had not
-    staged in this particular apply back to the preset's stored value, so two
-    sequential applies clobbered each other: staging direct_sdm reverted
-    volume_fixed, staging volume_fixed reverted direct_sdm (both reproduced
-    against the live 6.0.4 daemon). Applies must be incremental against what is
-    actually running; discarding drift is not worth discarding the user's own
-    previous edits."""
+    Never rebuild from the active preset's SNAPSHOT to shed daemon-side drift:
+    that resets every field the user did not stage in this particular apply back
+    to the preset's stored value, so two sequential applies clobber each other
+    (staging direct_sdm reverts volume_fixed and vice versa — reproduced against
+    the live 6.0.4 daemon). Applies must be incremental against what is actually
+    running; discarding drift is not worth discarding the user's own previous
+    edits."""
     intended = apply_edits(snapshot_member(zip_bytes, None, active), edits)
     # The live config is hqplayerd.xml, or the root <Profile>.xml when a named
     # preset is active — rewrite THAT member and leave the cfgs snapshots (the

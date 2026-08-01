@@ -9,8 +9,7 @@ can't run a long silent burst the user has to interrupt to stop.
 Enforcement is self-tripping: it does NOT depend on the user noticing the
 spam and interrupting. The counters are the tripwire.
 
-TWO LEASHES, because reversibility differs and the old single counter priced
-them identically:
+TWO LEASHES, because reversibility differs:
 
   * CHANGE_LIMIT (metered actions) — anything that escapes the working tree or
     can't be undone from it: sudo, docker, git commit/push, mutating curl, rm,
@@ -35,16 +34,13 @@ flat counter does.
 
 WHAT COUNTS AS THE USER SPEAKING. Only prose the user typed — see
 is_genuine_reply(). A slash command, a /clear, or a local command's stdout is
-the harness talking to itself; measured over 135 transcripts, half of all leash
-periods were opened by a row like that rather than by the user reading
-anything, and each one silently bought another five actions. One exception,
+the harness talking to itself and buys nothing. One exception,
 window(): the first human row after one of this hook's own denials always
 resets, so answering a trip with a slash command cannot wedge the session.
 
 WHAT COUNTS AS THIS CALL. The pending call's assistant row is usually NOT in
-the transcript yet when PreToolUse fires — it had not been flushed in 37 of 46
-recorded trips — so counting whatever the file holds allowed one action past
-the limit. _pending_present() finds it if it is there and counts it exactly
+the transcript yet when PreToolUse fires, so counting whatever the file holds
+allows one action past the limit. _pending_present() finds it if it is there and counts it exactly
 once either way, which makes the counts the pending call's ordinal.
 
 Free (never counted, never blocked):
@@ -59,10 +55,6 @@ import re
 import importlib.util
 
 CHANGE_LIMIT = 5   # metered actions since the user last spoke; the next blocks
-# Measured over 135 transcripts: the change leash caught real drift 52.9% of the
-# time, the edit leash 11.1% — eight of its nine trips were the user saying
-# "continue" to work that was going fine. The edit allowance was interrupting
-# rather than catching, so it doubled; the change budget earned its number.
 EDIT_LIMIT = 30    # in-tree structured edits since the user last spoke
 FREE_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}  # read-only tools
 

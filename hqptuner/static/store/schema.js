@@ -97,11 +97,11 @@ const loudnessOff = (ctx) =>
 // Fixed friendly rate menus. Values are the 48k-base member of each tier, and
 // they mean a TIER rather than a frequency — see the rate-slot note on pcm_rate.
 // Frequency-carrying labels ("1x (44.1 / 48 kHz)") were tried and dropped —
-// they clip in the third-width Rate box (user decision 2026-07-21).
+// they clip in the third-width Rate box (user decision).
 //
 // No "Auto" entry, deliberately. The slot these write (defaults_*) has none on
 // the daemon's own form, and the slot LIVE writes reaches the same outcome by
-// picking the tier: measured 2026-07-28, an unset rate under a DSD512 limit and
+// picking the tier: verified live on 6.0.4, an unset rate under a DSD512 limit and
 // a pinned DSD512 both play a 44.1k source at 22579200. A menu entry whose only
 // effect is to stop naming the tier is what made the two views disagree.
 const PCM_RATES = [
@@ -261,8 +261,8 @@ export const schema = {
   // These write the LIMIT slot, `defaults_*`, and that is the only rate slot a
   // config write may touch. The daemon has a second one — `samplerate`/`bitrate`,
   // labelled "Sample rate"/"Bit rate" on its own form — which is an exact rate
-  // that ignores both the limit and the source's base family. Measured on Opal
-  // 2026-07-28 against a 44.1 kHz source with the limit at DSD512:
+  // that ignores both the limit and the source's base family. Verified live on
+  // 6.0.4 against a 44.1 kHz source with the limit at DSD512:
   //
   //   request unset        -> 22579200   limit caps, and follows the source family
   //   request 12288000     -> 12288000   exact: a 44.1k source pinned to 48k base

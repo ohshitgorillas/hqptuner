@@ -1,11 +1,11 @@
 // Gate: card markup is written once, in components/tabs/common.js.
 //
-// It used to be hand-rolled at ten call sites. Two costs followed. A surface or
-// structure fix had to be found and applied ten times — the 0.9.1 shading bug
-// was exactly that, a collapsible head painting the card BODY shade because the
-// two idioms had drifted. And cards.css's .span hairline mask had to enumerate
-// every card-like container class by hand, so a new container silently painted
-// the page colour over a card and read as a dark band across the row.
+// Hand-rolled card markup carries two costs. A surface or structure fix has to
+// be found and applied at every call site — the 0.9.1 shading bug was exactly
+// that, a collapsible head painting the card BODY shade because two idioms had
+// drifted. And cards.css's .span hairline mask has to enumerate every card-like
+// container class by hand, so a new container silently paints the page colour
+// over a card and reads as a dark band across the row.
 //
 // One component means one place to fix and one selector to mask. This rule
 // keeps it that way: no `class="card"`, `card-head` or `card-body` in a

@@ -6,8 +6,8 @@ applying a preset is the same batch the LIVE view would have sent. The display
 name rides along because the enumerations are engine-built and can shift under a
 preset; the value is what applies, the name is only what the card shows.
 
-Split out of ``livemap`` on size alone: the routing there is about turning form
-fields into setter args, and this is about reading the result back out.
+``livemap`` turns form fields into setter args; this module reads the result
+back out.
 """
 
 from __future__ import annotations

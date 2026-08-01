@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Gate: static CSS uses tokens, never literal type, colour, shape, space, or shading.
 
-The stylesheet had drifted to 24 free-chosen font-size values and five
-different effective text greys (two colour tokens times three opacities).
-New text landed looking out of place because nothing said which value to
-pick. tokens.css now owns the ladder; this gate keeps it that way.
+Left ungated, the stylesheet drifts to free-chosen font-size values and a
+spread of effective text greys, and new text lands looking out of place
+because nothing says which value to pick. tokens.css owns the ladder; this
+gate keeps it that way.
 
 It also holds the rhythm tokens to one mechanism, which is a different kind of
 rule: not "which value" but "which property may spend it". Space between
@@ -14,9 +14,7 @@ carried `margin-bottom: var(--sp-4)` under a `.tab-body` already spending an
 8px gap, so the space under the hero cards was 32px against every other card
 pair's 8px; `.card-grid`'s `margin-top` did the same at 16px. Nothing about
 either rule looks wrong on its own — both are tokenised, both name a step on
-the scale — and the same bug was found and fixed by eye twice before that
-(narrowing.css, controls.css). It is not catchable by reading one rule, so it
-is a gate:
+the scale. It is not catchable by reading one rule, so it is a gate:
 
 - a `--rhythm-*` token is legal on `gap` / `row-gap` / `column-gap` and
   nowhere else, and

@@ -2,12 +2,11 @@
 """Gate: a citation into a design doc names a heading that still exists.
 
 Code comments across ``hqptuner/`` and ``tests/`` point at the design docs for
-the reasoning behind a piece of behaviour. Those citations used to be
-*positional* — ``matrix-spec §8 step 3``, ``probe round 5``, ``protocol.md
-§9`` — and a positional label is silently invalidated by any edit above it. A
-docs restructure broke eighteen of them at once, and seven more had been stale
-since long before that, all of them unnoticed because nothing checked. The
-prose had become load-bearing: sections survived only to be pointed at.
+the reasoning behind a piece of behaviour. A *positional* citation —
+``matrix-spec §8 step 3``, ``probe round 5``, ``protocol.md §9`` — is silently
+invalidated by any edit above it, and nothing else checks: a docs restructure
+strands them wholesale, unnoticed. The prose becomes load-bearing — sections
+survive only to be pointed at.
 
 The fix is to cite the target's **heading text**, which moves with the content
 it names instead of with its position::
@@ -48,11 +47,10 @@ renderer does not support them and would print the braces into the page.
 **HQPlayer's own documentation is out of scope and must never be flagged.**
 This codebase cites ``manual §7.2``, ``readme §1.11`` and ``§11.8`` constantly,
 and those section numbers are the vendor's, not ours — we cannot rename them
-and they do not rot when our docs move. An earlier draft of this gate matched
-``§`` case-insensitively against every ``*.md`` stem in the repo and so read
-``readme §1.9`` as a citation of this project's ``README.md``: thirteen false
-positives on the vendor's own manual. Match a repo doc name, never a bare
-``§``.
+and they do not rot when our docs move. Matching ``§`` case-insensitively
+against every ``*.md`` stem in the repo reads ``readme §1.9`` as a citation of
+this project's ``README.md`` — false positives on the vendor's own manual.
+Match a repo doc name, never a bare ``§``.
 
 A citation inside a doc that points at *itself* by bare section number (``see
 §3.6 below``) is also out of scope — same-file navigation is not a
@@ -123,8 +121,8 @@ def ordinal_re(stems: list[str]) -> re.Pattern[str]:
 
     The gap between the two tolerates the punctuation a citation picks up in
     prose (a closing backtick or quote) and up to two intervening words
-    (``matrix-spec.md probe round 3``). An earlier version allowed only
-    whitespace and a comma, and so read straight past both forms.
+    (``matrix-spec.md probe round 3``). Allowing only
+    whitespace and a comma reads straight past both forms.
     """
     names = "|".join(re.escape(s) for s in sorted(stems, key=len, reverse=True))
     gap = r"[`\"'\s,)(]*(?:\w+[\s,]+){0,2}"

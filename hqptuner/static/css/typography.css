@@ -1,6 +1,6 @@
 /* typography — the canonical text roles. Loaded LAST on purpose: it is the
    single source of truth for the size + colour of every piece of text, and it
-   has to win over the per-module declarations that used to own them.
+   has to win over any per-module declaration.
    (This is the one module whose position is "last"; see the note in
    index.html. Everything else keeps its concern-ordered slot.)
 

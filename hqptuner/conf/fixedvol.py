@@ -94,10 +94,10 @@ def _remember_fixed(xml: bytes, level: str) -> bytes:
 
     This is the daemon's own convention, not an invention: a real 6.0.4 config
     whose fixed volume is off carries ``<!--<fixed volume="-3"/>-->``, and
-    ``_remembered_level`` has always read it back. Only the write side disagreed —
-    disabling deleted the element outright, so a level typed before the feature was
-    switched off was destroyed, and the box then showed the daemon's own remembered
-    value instead of the user's. Our disable was lossier than hqplayerd's."""
+    ``_remembered_level`` reads it back. Deleting the element outright instead
+    destroys a level typed before the feature was switched off, and the box then
+    shows the daemon's own remembered value instead of the user's — a disable
+    lossier than hqplayerd's."""
     return _insert_root_child(xml, f'<!--<fixed volume="{level}"/>-->'.encode())
 
 

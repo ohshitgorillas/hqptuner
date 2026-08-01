@@ -1,9 +1,8 @@
 """Byte-faithful primitives for editing hqplayerd's config XML in place.
 
-Split out of ``presetconf`` when that file passed the 500-line gate. The seam is
-the one the module's own header already argued for: two axes — element vs
-plugin, read vs write — are four operations built from two locators and two
-attribute primitives, not four hand-written regex pairs. The open-tag and
+Two axes — element vs plugin, read vs write — are four operations built from
+two locators and two attribute primitives, not four hand-written regex pairs.
+The open-tag and
 attribute patterns are spelled ONCE here; retyping ``rb"<TAG\\b[^>]*?/?>"`` per
 call site is how one copy quietly stops matching a self-closing tag while its
 siblings still do.
@@ -44,8 +43,8 @@ ROOT = "hqplayerd"
 # a config that never had loudness configured carries no <plugin type="loudness">,
 # and one that never had matrix processing on carries no <matrix> body. The daemon
 # fills none of it back in on load — it just runs with its documented defaults. So
-# a write path that can only edit what already exists cannot reach roughly half of
-# its own form on a config like that, which is what "my preset won't save" was.
+# a write path that can only edit what already exists cannot reach roughly half
+# of its own form on a config like that.
 PARENT: dict[str, str] = {
     "title": ROOT,
     "output": ROOT,

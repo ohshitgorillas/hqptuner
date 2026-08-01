@@ -16,7 +16,7 @@
   border-radius: var(--r-md);
 }
 /* Staged edit: the control the edit belongs to turns its OWN border accent.
-   The row used to carry an inset ring instead, which cannot work for a control
+   A row-level inset ring cannot work for a control
    that fills its row — an inset shadow paints on the field's background layer,
    strictly under descendants, so the segment's opaque buttons covered three of
    its four edges and the ring read as a loop diving behind the switch (hero

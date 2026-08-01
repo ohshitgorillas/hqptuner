@@ -59,11 +59,11 @@ export function blockConflicts(effective) {
 
 // What the block should carry in from rows 0+1, and whether it could read them.
 //
-// This NEVER refuses. An earlier version returned an issue and blocked the mode
-// switch, which was wrong twice: the guard was inherited from the compensation
-// block, where it protected a round trip that here is guaranteed by stashing the
-// original rows instead; and a control that silently declines to go where the
-// user pointed it is worse than one that goes and explains.
+// This NEVER refuses — blocking the mode switch on an issue would be wrong
+// twice: the round trip such a guard protects in the compensation block is
+// guaranteed here by stashing the original rows instead; and a control that
+// silently declines to go where the user pointed it is worse than one that
+// goes and explains.
 //
 // A straight-through dB pair hands its chains and gains to the block, per ear.
 // Anything else is SET ASIDE — the block installs with no EQ of its own, the

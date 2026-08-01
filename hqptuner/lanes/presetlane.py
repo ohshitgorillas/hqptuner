@@ -1,8 +1,6 @@
 """HQPTuner-owned preset lane (``presetstore`` + the daemon's restore primitive).
 
-Extracted from ``manager`` for the same reason ``httplane``/``enginelane`` were:
-the preset operations are a self-contained lane, and the manager had grown past
-the file cap. Presets live in a store HQPTuner owns (``presetstore``); the daemon
+Presets live in a store HQPTuner owns (``presetstore``); the daemon
 is driven only through ``POST /restore`` onto ``[default]`` with a ``data/cfgs``
 mirror — never ``profile/load``/``profile/save``, which are unreliable
 (docs/protocol.md §3.6). ``profile/delete`` is the one profile route kept, for

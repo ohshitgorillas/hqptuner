@@ -1,5 +1,5 @@
-// Small shared value helpers. Each of these existed in three to ten copies
-// before this module — they are one-liners, which is exactly why they drifted.
+// Small shared value helpers, shared because they are one-liners — exactly the
+// kind of copy that drifts when every consumer hand-rolls its own.
 //
 // A checkbox's truth crosses domains — the daemon's form reports a real bool, a
 // staged edit carries "1"/"0" — so every consumer normalizes through `truthy`.

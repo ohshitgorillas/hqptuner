@@ -28,8 +28,8 @@
   background: var(--surface-page);
 }
 
-/* the tab-bar row. The gutter margin and the baseline rule moved here from
-   .tab-nav so the row keeps both when LIVE is on and the row is empty — the rule
+/* the tab-bar row. The gutter margin and the baseline rule live on this row,
+   not .tab-nav, so the row keeps both when LIVE is on and the row is empty — the rule
    is what closes the chrome off from the page whichever mode is showing. */
 .chrome-tabs {
   display: flex;

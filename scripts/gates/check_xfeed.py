@@ -44,8 +44,8 @@ const WITH_DELAY = OLD + ",delay:t=0.0001";
 const block = msCompile(OLD, -6.3, fit, 1.0, 0, 1);
 const rec = msRecognize(block, 0, 700, 4.5);
 
-// what doImport used to do: append to the target row and its mirror, and
-// overwrite their gain with the profile's preamp in dB
+// the legacy doImport behaviour this gate pins against: append to the target
+// row and its mirror, and overwrite their gain with the profile's preamp in dB
 const legacy = block.map((r, i) =>
   i === 0 || i === 1 ? {{ ...r, process: `${{r.process}},${{NEW}}`, gain: "-6.5", gainunit: "dB" }} : r,
 );

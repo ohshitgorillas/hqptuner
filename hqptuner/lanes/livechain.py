@@ -32,11 +32,10 @@ def pin_family(mgr: ConnectionManager) -> str | None:
 
     The CONFIGURED mode answers this, never the running chain, and the two come
     apart in exactly the case that matters: in ``[source]`` the engine has a chain
-    loaded and still refuses every pin. Measured 2026-07-29 mid-playback
-    (``scripts/probes/probe_rate_playing.py``): ``SetRate value="9"`` returned
-    ``result="OK"`` with ``State.rate`` unmoved at ``"0"``, and the same index took
-    the moment ``SetMode PCM`` ran. In ``[source]`` the output rate follows the
-    source (readme §1.7), so there is no pin slot to write.
+    loaded and still refuses every pin — ``SetRate`` answers ``result="OK"`` with
+    ``State.rate`` unmoved (probe-verified on 6.0.4,
+    ``scripts/probes/probe_rate_playing.py``). In ``[source]`` the output rate
+    follows the source (readme §1.7), so there is no pin slot to write.
     """
     return _chain_from_state(mgr)
 
@@ -110,8 +109,8 @@ def _chain_from_status(mgr: ConnectionManager) -> str | None:
 
     ``Status.active_mode`` looks like the whole answer and is not: it echoes the
     CONFIGURED mode, so in ``[source]`` — the one case this is reached in on a
-    live daemon — it reads ``"[source]"`` and nothing else (measured 2026-07-29,
-    ``scripts/probes/probe_rate_playing.py``, while playing PCM). ``Status.active_rate``
+    live daemon — it reads ``"[source]"`` and nothing else (probe-verified on
+    6.0.4, ``scripts/probes/probe_rate_playing.py``). ``Status.active_rate``
     does answer, and unambiguously: it is the rate coming out, and its family is
     the chain that produced it (``rate_family``, no rate lands between the two).
     """

@@ -1,9 +1,8 @@
 // Dynamic favicon — the tab icon follows the DSP tab's mode: 🔊 for speakers,
-// 🎧 for headphones. It used to sniff the active preset's NAME for the words
-// "headphone"/"speaker", which was true only for users who named their presets
-// that way; the mode is the same fact, stated rather than guessed.
-// Rendered as an inline SVG-text data URI, so no icon files are shipped and
-// the old /favicon.ico 404 goes away via the static link in index.html.
+// 🎧 for headphones. The mode is the fact itself — sniffing the active preset's
+// NAME for "headphone"/"speaker" holds only for users who name presets that way.
+// Rendered as an inline SVG-text data URI, so no icon files are shipped;
+// index.html's static link answers /favicon.ico.
 import { effect } from "@preact/signals";
 import { dspMode } from "./dspmode.js";
 

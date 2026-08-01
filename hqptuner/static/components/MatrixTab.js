@@ -89,9 +89,9 @@ function doImport(rows, targetIndex, replace = false) {
 
 // Loading a .txt IS loading the EQ — one click, the same contract the library
 // picker already had. It lands on pipeline 1 (+ its stereo pair per the mirror
-// checkbox), the standard headphone case. It used to only fill a textarea and
-// wait for a second press on some row's "Import EQ", which read as a button that
-// did nothing. The parsed text stays in `importText` afterwards, so the per-row
+// checkbox), the standard headphone case. Filling a textarea and waiting for a
+// second press on some row's "Import EQ" reads as a button that did nothing.
+// The parsed text stays in `importText` afterwards, so the per-row
 // buttons still work for retargeting EQ at an arbitrary pipeline.
 // Input value resets so the same file re-fires.
 function loadEqFile(e) {

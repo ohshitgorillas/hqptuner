@@ -133,8 +133,8 @@ const directPassThrough = (st, md) => sourceIsDsd(md) && outputIsSdm(st) && on(r
 //
 // Status.active_filter / active_shaper report the CONFIGURED filter and shaper
 // whatever the source is — hqplayerd's own web UI shows the same pair regardless
-// — so a DSD source in SDM mode used to display a modulator that was not in its
-// path at all. Both fields are now read only on the paths that
+// — so reading them unconditionally shows a DSD source in SDM mode a modulator
+// that is not in its path at all. Both fields are read only on the paths that
 // actually use them.
 //
 // Note the two filter enumerations are distinct: <pcm filter> (67 entries) and

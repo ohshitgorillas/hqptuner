@@ -30,7 +30,7 @@ const pct = (db) => ((Number(db) - AXIS_MIN) / SPAN) * 100;
 // Labelled gridlines, most-important first. 0 is the limiter threshold (manual
 // §2.5: the soft-knee limiter engages above 0 dB) and -3 the recommended ceiling
 // when resampling (manual §2.15), so both draw a strong line. Order here IS the
-// priority order used to drop labels that would collide.
+// priority order for dropping labels that would collide.
 const TICKS = [
   { db: 0, label: "0", strong: true },
   { db: -60, label: "-60" },

@@ -4,8 +4,8 @@
 
 /* ── Response plot (client-side SVG, log-freq axis) ───────────────────── */
 /* the plot box stacks its SVG over its caption, so it carries the gap between
-   them — the caption used to bring its own margin-top, which is the mechanism
-   this stylesheet reserves for nothing (see tokens.css). */
+   them — a caption margin-top is the mechanism this stylesheet reserves for
+   nothing (see tokens.css). */
 .plot {
   display: flex;
   flex-direction: column;

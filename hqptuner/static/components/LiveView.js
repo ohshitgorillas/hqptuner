@@ -350,9 +350,9 @@ function LivePresetPicker() {
   `;
 }
 
-// The page's lede and its presets, in one frame. The lede used to float above
-// the page as bare text with no card of its own, which read as a stray caption
-// rather than as the thing that explains the whole page.
+// The page's lede and its presets, in one frame. Bare text floating above the
+// page reads as a stray caption rather than as the thing that explains the
+// whole page.
 function LiveModeCard() {
   return html`
     <${Card} title="LIVE MODE">

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Gate: a staged edit is marked on every control kind, and marked where it shows.
 
-The staged-edit highlight used to be one rule for all of them — an inset ring on
-the ``.field`` row (``fields.css``). An inset box-shadow paints on the element's
-own background layer, strictly below its descendants, so the ring is only
-visible where the control does NOT cover the row. That held for a checkbox and a
-dropdown and stopped holding for the hero MODE and BACKEND segments, where
-``hero.css`` strips the field to ``padding: 0`` and stretches it to the hero
-row's height: the segment's opaque buttons painted over three of the ring's four
-edges, and what was left read as an accent loop diving behind the switch and
-re-emerging as an empty trough beneath it. Every gate was green; the rule was
-fully tokenised and named a real colour role. Only a screenshot showed it.
+One rule for all of them — an inset ring on the ``.field`` row (``fields.css``)
+— cannot hold: an inset box-shadow paints on the element's own background
+layer, strictly below its descendants, so the ring is only visible where the
+control does NOT cover the row. That holds for a checkbox and a dropdown and
+fails for the hero MODE and BACKEND segments, where ``hero.css`` strips the
+field to ``padding: 0`` and stretches it to the hero row's height: the
+segment's opaque buttons paint over three of the ring's four edges, and what is
+left reads as an accent loop diving behind the switch and re-emerging as an
+empty trough beneath it. Every gate stays green — the rule is fully tokenised
+and names a real colour role; only a screenshot shows it.
 
 So the marking is split by what the control can carry, and this gate holds the
 split:

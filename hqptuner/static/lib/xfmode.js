@@ -130,10 +130,10 @@ export function stageStructural(rows, params) {
 // sixteen rows and leaves the gate clean on purpose: the crossfeed is engaged
 // either way, and the pending bar counts the row edit under matrix_pipelines.
 //
-// Presence rather than the "pipelines" row-count field, which this used to read:
-// that field is the Matrix tab's own count dropdown, so editing it (or a DSP-mode
-// restore) lit this gate with no crossfeed change staged, while install and
-// removal only registered because 2 <-> 16 happens to move the count.
+// Presence rather than the "pipelines" row-count field:
+// that field is the Matrix tab's own count dropdown, so reading it (or a DSP-mode
+// restore) lights this gate with no crossfeed change staged, while install and
+// removal only register because 2 <-> 16 happens to move the count.
 export function pipelinesDirty() {
   return !!structuralBlock(effectivePipelines.value) !== !!structuralBlock(pipelineBaseline.value);
 }

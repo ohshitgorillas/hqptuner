@@ -1,8 +1,5 @@
-"""Persistent config write lane (HTTP 8088).
-
-Extracted from ``manager`` for the same reason ``enginelane`` was: the manager
-had grown past the file cap and this is a self-contained lane with its own
-retry/verify loop.
+"""Persistent config write lane (HTTP 8088) — a self-contained lane with its
+own retry/verify loop.
 
 The lane writes by **restore**, not by form POST: build an archive whose working
 ``hqplayerd.xml`` is the running config with the staged edits applied, push it to
@@ -10,10 +7,10 @@ The lane writes by **restore**, not by form POST: build an archive whose working
 only route that can express settings the daemon's own ``/config`` form renders
 lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
 
-Every apply is incremental against the RUNNING config. It used to rebuild from
-the active preset's snapshot so drift never survived; that reset every field the
-user had not staged in that particular apply, so sequential applies clobbered
-each other. See ``presetzip.restore_zip_from_running``.
+Every apply is incremental against the RUNNING config, never a rebuild from the
+active preset's snapshot: a rebuild resets every field the user did not stage in
+that particular apply, so sequential applies clobber each other. See
+``presetzip.restore_zip_from_running``.
 """
 
 from __future__ import annotations

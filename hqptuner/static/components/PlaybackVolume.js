@@ -26,7 +26,7 @@ import { truthy } from "../lib/coerce.js";
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
 // *why*. Name the actual cause from the RUNNING config — the engine is what is
 // holding the knob, so a staged-but-unapplied disable must not change the
-// message (it used to fall through to "no active stream" mid-playback). When
+// message (otherwise it falls through to "no active stream" mid-playback). When
 // the user HAS staged the disable, say the missing step is Apply.
 function disabledReason() {
   // running-on but edited-off = the user already staged the disable; the

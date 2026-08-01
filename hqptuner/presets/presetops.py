@@ -1,10 +1,10 @@
 """Preset lifecycle + filter parking + backup persistence (``manager.presetops``).
 
-Extracted from ``manager`` for the file cap: the preset store, the parked filter
-uploads, and the settings-archive persistence (pre-apply disk copy plus the
-empty-``/backup`` workaround cache) form one self-contained collaborator. The
-daemon-driving operations delegate to ``lanes/presetlane`` with the manager,
-exactly as before — this class owns the state, not a second wire lane.
+The preset store, the parked filter uploads, and the settings-archive
+persistence (pre-apply disk copy plus the empty-``/backup`` workaround cache)
+form one self-contained collaborator. The daemon-driving operations delegate
+to ``lanes/presetlane`` with the manager — this class owns the state, not a
+second wire lane.
 """
 
 import logging

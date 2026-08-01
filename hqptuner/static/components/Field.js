@@ -107,7 +107,7 @@ function narrowBadge(entry, key) {
 }
 
 // A grayed control names WHY, visibly — the reason renders as a caption
-// appended after the manual note (user decision 2026-07-21; hover-only reasons
+// appended after the manual note (user decision; hover-only reasons
 // proved undiscoverable) unless the schema suppresses it (quietGray).
 const captionVisible = (entry, reason) => !!reason && !entry.quietGray;
 

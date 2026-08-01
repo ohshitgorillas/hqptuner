@@ -379,7 +379,7 @@ async def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     findings: list[str] = []
     # captured BEFORE the try: the revert below reads them, and a capture that
-    # failed half-way used to leave the finally raising NameError over the top of
+    # fails half-way inside the try leaves the finally raising NameError over
     # the real error — losing both the diagnosis and the revert
     pristine = await _backup(http)
     (OUT / "pristine-settings.zip").write_bytes(pristine)

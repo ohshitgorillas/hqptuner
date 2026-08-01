@@ -39,9 +39,8 @@ const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "o
 // True while a write that invalidates the lists is in flight. Every control
 // whose options come from an enumeration is unsafe for that whole window: its
 // list is the pre-write one, and the IDs in it stop meaning what they meant the
-// moment the engine re-enumerates. Disabling them is the surfacing — a note in
-// the row reflowed it for the seconds a mode write takes, which is why the old
-// one was removed (fix(live): drop the in-flight text marks).
+// moment the engine re-enumerates. Disabling them is the surfacing — an in-row
+// text note would reflow the row for the seconds a mode write takes.
 export const liveEnumBusy = computed(() => REENUMERATES.has(liveBusy.value));
 // Writes that change what the running config reports for the two rate limits.
 const RATE_MIRRORED = new Set(["mode", "rate"]);
@@ -225,7 +224,7 @@ const rateFamily = (rate) => (Number(rate) >= SDM_FLOOR ? "sdm" : "pcm");
 // Whether the DAC may use a 48k DSD base at all remains the user's setting
 // (alsa_anydsd / net_anydsd); this only declines to change it behind their back.
 //
-// Measured on Opal 2026-07-28, 44.1 kHz source, limit DSD512: no pin -> 22579200;
+// Verified live on 6.0.4 (44.1 kHz source, limit DSD512): no pin -> 22579200;
 // pinned 12288000 -> 12288000; pinned 49152000 -> 49152000 (over the limit).
 // The tier pairing itself lives beside the rate tables it pairs (store/schema.js).
 const BASE_44K = 44100;
@@ -256,7 +255,7 @@ function rateOptions(key) {
   // A list carrying nothing but auto is the engine declining to enumerate rather
   // than the engine offering nothing. What fills the list is the transport as
   // well as the mode (manual p.18 §4.4), so a backend whose device is not open
-  // reports exactly that — measured on Opal 2026-07-29, an idle network backend.
+  // reports exactly that — verified live on 6.0.4 against an idle network backend.
   // Graying every tier against a list like that is what made the whole menu
   // unselectable, so a list with nothing in it to judge by judges nothing.
   if (offered.size <= 1) return schema[key].options;
@@ -279,9 +278,9 @@ function liveFamily() {
 // In `[source]` the engine chooses the output rate itself, once per stream, from
 // the source rate, the filter's conversion capability and the configured limit
 // (manual §4.4) — and it accepts no rate on the wire while it is doing that.
-// Measured 2026-07-29 mid-playback, `scripts/probes/probe_rate_source_effect.py`: two
-// requests for rates BELOW what was playing, a full second to settle each, left
-// `State.rate` at `"0"` and `Status.active_rate` unmoved. The limit is the only
+// Probe-verified on 6.0.4 mid-playback (`scripts/probes/probe_rate_source_effect.py`):
+// requests for rates BELOW what was playing leave `State.rate` at `"0"` and
+// `Status.active_rate` unmoved. The limit is the only
 // thing that governs there and the Control API has no command for it
 // (protocol.md §6), so LIVE has nothing to write in auto and says so, rather
 // than taking an edit the engine would drop. The column still shows the limit,
@@ -292,7 +291,7 @@ function liveFamily() {
 // daemon restarts on it (~5.6 s, `lanes/httplane.py`). A restart is the one
 // thing the LIVE page exists not to do, so this is the rare control that sends
 // the user to the tabs view — and it says why, so the refusal does not read as
-// the setting being unreachable. Confirmed upstream (Jussi, email 2026-07-29):
+// the setting being unreachable. Confirmed upstream (Jussi, email 2026-07-29; history-ok: upstream attribution, kept by decision):
 // the rate limit and family settings are specific to the selected output
 // hardware, so a live limit is impossible by design — but an explicit output
 // rate can be set on the fly, which is the escape hatch the caption offers.
@@ -308,8 +307,8 @@ const AUTO_RATE_REASON =
 // --- what the dormant column shows -------------------------------------------
 // State reports one rate, the running family's, so the moment the engine changes
 // family the other column has nothing of its own left to read — and the engine
-// has genuinely forgotten it, because SetMode clears the pin outright (measured
-// 2026-07-28, scripts/probes/probe_mode_rate_pin.py). What survives the switch is the
+// has genuinely forgotten it, because SetMode clears the pin outright
+// (probe-verified on 6.0.4, scripts/probes/probe_mode_rate_pin.py). What survives the switch is the
 // backend's own per-family memory of what LIVE pinned, which it re-asserts on the
 // engine when that family comes round again and reports in BOTH limit fields of
 // the running config (livemap.live_overrides). runningValue reads exactly that

@@ -1,6 +1,5 @@
 // Tab registry + navigation. Order: Output, Volume, Resampling, DSP, System
-// (2026-07-21 reorg: Loudness lives on Volume, Crossfeed on the ex-Matrix tab,
-// which took over the DSP name — the old post-process tab is gone). Bar and
+// (Loudness lives on Volume, Crossfeed on DSP). Bar and
 // body render separately so the bar can live inside the sticky chrome wrapper
 // (App.js) while the body scrolls beneath it.
 import { html } from "../../lib/dom.js";

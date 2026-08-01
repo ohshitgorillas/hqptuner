@@ -30,7 +30,7 @@
 // KEMAR data, and those travel together. The difference is 0.7 us of ITD, under
 // the 22.7 us sample floor at 44.1 kHz and dominated ~37x by head-radius spread
 // across adults (+/-26 us) — which is why `a` is a control and c is not.
-// m/s — Brown & Duda §II.A, per the note above. Not a parameter anywhere downstream: compileRows and recognizeRows both used to take a speedOfSound argument, nothing ever passed one, and a mismatch between the two recovered a silently wrong head radius (0.08673 m for a compiled 0.0875 m) rather than declining the block.
+// m/s — Brown & Duda §II.A, per the note above. Deliberately a constant, not a compileRows/recognizeRows parameter: a mismatch between the two recovers a silently wrong head radius (0.08673 m for a compiled 0.0875 m) rather than declining the block.
 import { fmtArg } from "./matrixspec.js";
 
 const SPEED_OF_SOUND = 343;

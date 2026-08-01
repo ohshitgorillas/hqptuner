@@ -14,13 +14,12 @@
   grid-auto-columns: 1fr;
   gap: var(--rhythm-row);
   /* No margin-bottom. .tab-body's own gap already spaces this row from the card
-     under it; the margin this row used to carry added to that gap rather than
-     replacing it, and left 32px under the hero cards against 8px everywhere
-     else. See the rhythm note in tokens.css. */
+     under it; a margin here adds to that gap rather than replacing it, leaving
+     32px under the hero cards against 8px everywhere else. See the rhythm note
+     in tokens.css. */
 }
-/* The frame and the head are Card's, painted once in cards.css — the hero row
-   used to keep a second copy of both under the name .box. What is left here is
-   the rhythm, which a hero card does want for itself: it holds ONE control, not
+/* The frame and the head are Card's, painted once in cards.css; here lives
+   only the rhythm, which a hero card does want for itself: it holds ONE control, not
    a stack of fields, so head and body share the card's own inset rather than
    the tighter padding a packed card wants. Head bottom to body top is the one
    gap between the title and the control it names. */
@@ -121,7 +120,6 @@
   font-size: var(--fs-body-lg);
   padding: var(--sp-2) var(--sp-2);
 }
-/* The .collapsible family used to live here — a second card idiom with its own
-   frame, head and body rules. It is gone: a collapsible is a .card whose head
-   is a button, and cards.css owns all of it. Keeping two idioms for one thing
-   is what let their surfaces drift apart in the first place. */
+/* No .collapsible family here: a collapsible is a .card whose head is a
+   button, and cards.css owns all of it — two idioms for one thing is how
+   their surfaces drift apart. */

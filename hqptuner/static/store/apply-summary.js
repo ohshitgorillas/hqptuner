@@ -8,7 +8,7 @@
 
 // `count` is the number of staged edits captured before apply — the http/matrix
 // lanes each collapse many field edits into a single POST, so counting reports
-// (the old bug: "2 staged" -> "Applied 1 change") undercounts the real changes.
+// ("2 staged" -> "Applied 1 change") undercounts the real changes.
 const failure = (text) => ({ ok: false, text });
 
 // A live setter that didn't take. Reported first and alone — a rejected setting

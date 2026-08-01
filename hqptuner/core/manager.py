@@ -205,9 +205,9 @@ class ConnectionManager:
         state = await client.get_state()
         # A mode switch swaps the lists wholesale (architecture §5), and playback
         # state moves the rate list: what fills that one is the transport as well
-        # as the mode (manual p.18 §4.4), so an idle network backend answered
-        # GetRates with auto alone where the same daemon served thirteen PCM tiers
-        # once asked again (Opal 2026-07-29) — and the page grayed every tier.
+        # as the mode (manual p.18 §4.4), so an idle network backend answers
+        # GetRates with auto alone where the same daemon serves thirteen PCM tiers
+        # once asked again (verified live on 6.0.4) — and the page grayed every tier.
         previous = self.state or {}
         moved = self.state is not None and any(state.get(a) != previous.get(a) for a in ("mode", "state"))
         if moved:

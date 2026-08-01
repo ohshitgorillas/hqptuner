@@ -42,7 +42,7 @@ class LiveMemory:
     """What LIVE has set that the engine itself cannot hold on to.
 
     The engine keeps ONE rate pin and ONE filter/shaper pair, and `SetMode` clears
-    the pin outright (measured 2026-07-28, `scripts/probes/probe_mode_rate_pin.py`), so
+    the pin outright (probe-verified on 6.0.4, `scripts/probes/probe_mode_rate_pin.py`), so
     the moment the output family or the loaded chain changes there is nothing left
     on the engine to say what LIVE set for the other one. This is that record, and
     it is what `liveoverrides.live_overrides` reports for whichever is dormant.
@@ -86,7 +86,7 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     """Put the entered family's remembered pin back on the engine.
 
     ``SetMode`` clears the rate pin outright — the engine keeps one, not one per
-    family (measured 2026-07-28, ``scripts/probes/probe_mode_rate_pin.py``). Without this
+    family (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``). Without this
     a mode switch silently throws away the rate the user picked, and both this page
     and the Output tab fall back to the configured limit.
 
@@ -239,7 +239,7 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
     """Whether the engine is already in the mode a preset asks for.
 
     Worth checking because ``SetMode`` is not free even when it changes nothing:
-    it clears the engine's rate pin outright (measured 2026-07-28,
+    it clears the engine's rate pin outright (probe-verified on 6.0.4,
     ``scripts/probes/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
     re-applied in the same mode should disturb neither.
     """
@@ -287,10 +287,10 @@ async def mode_then_split(
     """Route the tabs view's staged batch, mode first — ``apply_preset``'s
     two-batch workaround, ported to the apply lane.
 
-    A staged mode beside other routable fields used to send the whole batch to
-    the restore lane (``livemap._mode_blocks_batch``) — one daemon restart,
-    playback interrupted — for want of a re-enumeration between ``SetMode`` and
-    the rest. ``apply_now`` is that re-enumeration (plus the rate-pin and chain
+    Without a re-enumeration between ``SetMode`` and the rest, a staged mode
+    beside other routable fields sends the whole batch to the restore lane
+    (``livemap._mode_blocks_batch``) — one daemon restart, playback
+    interrupted. ``apply_now`` is that re-enumeration (plus the rate-pin and chain
     re-asserts a verified mode write always needs), so the mode goes through it
     alone and the remainder splits against the lists the switch produced. A mode
     the engine is already running is dropped rather than re-sent — ``SetMode``

@@ -1,10 +1,9 @@
 """Apply/dispatch operations (``manager.applyops``).
 
-Extracted from ``manager`` for the file cap: the staged-config apply, the
-engine-attribute apply, the speaker-processing apply, the live matrix-profile
-switch, and the live volume write form one self-contained collaborator. Each
-delegates to its extracted lane with the manager, exactly as before — this
-class owns the dispatch, not a second wire lane.
+The staged-config apply, the engine-attribute apply, the speaker-processing
+apply, the live matrix-profile switch, and the live volume write form one
+self-contained collaborator. Each delegates to its lane with the manager —
+this class owns the dispatch, not a second wire lane.
 """
 
 from typing import TYPE_CHECKING, Any

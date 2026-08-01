@@ -26,9 +26,9 @@ export function describe(entry, key) {
 }
 
 // A card gate's note, addressed by control key, for that card's subtitle. The
-// subtitle is the SAME prose the row used to render inline, moved up a level, so
-// it follows the same pref: with the manual text switched off there is no
-// subtitle either. Returns '' rather than null so a call site can pass it
+// subtitle is the same prose a row note carries, so it follows the same pref:
+// with the manual text switched off there is no subtitle either. Returns ''
+// rather than null so a call site can pass it
 // straight to Card (an empty subtitle renders nothing).
 export function noteFor(key) {
   if (!notesVisible.value) return "";

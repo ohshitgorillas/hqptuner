@@ -18,9 +18,9 @@ import { structuralBlock, structuralParams } from "../lib/xfmode.js";
 
 // What centered sound and the sides actually get, EQ included.
 //
-// Bare crossfeed curves were the earlier version and they were wrong for the
-// shared chart: a ~2 dB response next to a tuned headphone EQ reads as noise, and
-// with the EQ hidden it read as the whole picture. Folding the EQ in is what the
+// Bare crossfeed curves are wrong for the shared chart: a ~2 dB response next
+// to a tuned headphone EQ reads as noise, and
+// with the EQ hidden it reads as the whole picture. Folding the EQ in is what the
 // compensation lens does, and why it works — the center shift shows as the gap
 // between the EQ alone and the EQ heard through the crossfeed.
 export function structuralLensTraces(rows, bounds) {

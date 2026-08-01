@@ -315,6 +315,5 @@ export function CompMiniPlot() {
   `;
 }
 
-// Compensation used to be its own card here (2026-07-21 reorg). It now renders
-// inside the Crossfeed card's Bauer mode from `XfeedStrip` + `CompMiniPlot`
-// directly, so there is no card wrapper in this file to keep in step with it.
+// Compensation renders inside the Crossfeed card's Bauer mode from `XfeedStrip`
+// + `CompMiniPlot` directly — no card wrapper in this file to keep in step.

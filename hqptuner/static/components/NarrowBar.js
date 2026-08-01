@@ -4,11 +4,11 @@
 // is NOT here — it is 1x-only and per-chain, so it lives below each 1x dropdown
 // (ApodNarrow.js) rather than as a shared bar toggle.
 //
-// It is a real `Card`, not a panel of its own: it used to paint the card frame
-// itself — card surface, card radius, a hand-rolled heading — under its own
-// class name, which is how it drifted to the wrong border token and a doubled
-// bottom margin without any gate noticing. A card that reads as a card IS a
-// Card (docs/design-system.md).
+// It is a real `Card`, not a panel of its own: painting the card frame itself —
+// card surface, card radius, a hand-rolled heading — under its own class name
+// is how a panel drifts to the wrong border token and a doubled bottom margin
+// without any gate noticing. A card that reads as a card IS a Card
+// (docs/design-system.md).
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";

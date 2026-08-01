@@ -1,6 +1,5 @@
 // Volume tab: the live playback knob, the three-handle volume range, the
-// fixed/automatic volume cards, and Loudness (volume-adaptive by definition —
-// moved here from the dissolved post-process tab, 2026-07-21 reorg).
+// fixed/automatic volume cards, and Loudness (volume-adaptive by definition).
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { Segment } from "../controls/index.js";

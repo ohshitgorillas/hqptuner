@@ -209,16 +209,15 @@
 .dsp-body.off input[type="range"] {
   accent-color: var(--muted);
 }
-/* the strip over the range group — this gap is the separation between
-   those two blocks, which the range group used to add to with a margin. */
+/* the strip over the range group — this gap is the sole separation between
+   those two blocks (no child margins; see tokens.css). */
 .dsp-controls {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
 }
-/* "Range" head over its row. It was a bare block, and the head's own
-   margin-bottom was the only thing spacing the two; that margin was the sole
-   separator here, which is exactly the split a container gap removes. */
+/* "Range" head over its row — the container gap spaces them, not a
+   head margin. */
 .range-group {
   display: flex;
   flex-direction: column;
