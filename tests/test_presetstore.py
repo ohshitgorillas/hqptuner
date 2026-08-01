@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.presetstore import PresetError, PresetStore
+from hqptuner.presets.presetstore import PresetError, PresetStore
 
 PAYLOAD = b"<hqplayerd/>"
 

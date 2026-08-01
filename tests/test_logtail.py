@@ -4,9 +4,9 @@ daemon's 8088 lane (docs/testing.md — public API, fake speaks the wire)."""
 
 from typing import Any
 
-from hqptuner import logtail
 from hqptuner.config import Config
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine import logtail
 
 
 def test_tail_text_returns_the_last_n_lines() -> None:

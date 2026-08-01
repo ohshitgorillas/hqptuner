@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from .conf import engineconf
-from .control import ControlError
-from .lanes import enginelane, httplane, livelane, matrixlane, presetlane, speakerlane
+from ..conf import engineconf
+from ..engine.control import ControlError
+from ..lanes import enginelane, httplane, livelane, matrixlane, presetlane, speakerlane
 from .writer import apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime

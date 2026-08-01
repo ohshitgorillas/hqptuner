@@ -17,7 +17,7 @@ import pytest
 from hqptuner.conf import xmledit
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 # --- backup_or_cached: the workaround itself ----------------------------------
 

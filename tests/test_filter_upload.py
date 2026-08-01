@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from conftest import ManagerFactory
 
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 ROWS = json.dumps(
     [

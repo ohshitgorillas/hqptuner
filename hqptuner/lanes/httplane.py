@@ -28,7 +28,7 @@ from ..conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX
 from . import presetlane, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

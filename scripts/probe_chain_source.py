@@ -26,7 +26,7 @@ stopping it. Run with the listener's say-so (granted 2026-07-29, drive test).
 import asyncio
 import sys
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 
 def _other_index(items: list[dict[str, str]], current: str) -> str | None:

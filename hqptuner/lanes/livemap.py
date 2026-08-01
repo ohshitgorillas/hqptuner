@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from .livechain import PCM, SDM, EnumItems, active_chain, index_for_rate
 
 if TYPE_CHECKING:
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 
 class LiveField(NamedTuple):

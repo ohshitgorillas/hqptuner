@@ -1,8 +1,8 @@
 """apply_live orchestration: ordering, readback verification, and per-setting
 outcome reporting against the stateful fake daemon (docs/testing.md)."""
 
-from hqptuner.control import ControlClient
-from hqptuner.writer import apply_live
+from hqptuner.core.writer import apply_live
+from hqptuner.engine.control import ControlClient
 
 
 async def test_successful_edit_reports_ok(live_client: ControlClient) -> None:

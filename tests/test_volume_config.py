@@ -16,7 +16,7 @@ snapshot of the engine, the same seam ``virtual_clock`` uses for the clock.
 from typing import Any
 
 from hqptuner.conf import presetconf
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 # 6.0.4 shape, fixed volume OFF: the daemon keeps the last level in a COMMENTED
 # top-level line, and that comment is its memory. HQPTuner used to delete the

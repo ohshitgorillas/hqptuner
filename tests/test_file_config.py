@@ -10,7 +10,7 @@ form POST. If that lane ever goes back to posting the form, these fail.
 """
 
 from hqptuner.conf import presetconf
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 
 def test_fixed_volume_headroom_level_is_read_from_the_engine_element() -> None:

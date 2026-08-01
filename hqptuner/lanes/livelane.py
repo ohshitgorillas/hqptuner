@@ -21,12 +21,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ..control import ControlClient, ControlError
-from ..writer import apply_live
+from ..core.writer import apply_live
+from ..engine.control import ControlClient, ControlError
 from . import livechain, livemap
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

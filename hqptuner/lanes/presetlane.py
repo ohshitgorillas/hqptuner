@@ -21,12 +21,12 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ..conf import engineconf, presetconf, presetzip, xmledit
-from ..control import ControlError
-from ..presetstore import PresetError
+from ..engine.control import ControlError
+from ..presets.presetstore import PresetError
 from . import liveoverrides, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

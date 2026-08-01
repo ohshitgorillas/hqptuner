@@ -16,7 +16,7 @@ import httpx
 from . import settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 _POLL = 1.0  # cadence for polling /speakers back after the reload
 

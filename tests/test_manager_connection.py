@@ -15,8 +15,8 @@ import pytest
 from fake_control import serve as fake_serve
 
 from hqptuner.config import Config
-from hqptuner.control import ControlError
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.control import ControlError
 
 KillableDaemon = tuple[int, Callable[[], Awaitable[None]]]
 OutageManager = tuple[ConnectionManager, Callable[[], Awaitable[None]]]

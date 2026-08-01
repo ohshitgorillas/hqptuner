@@ -10,9 +10,9 @@ from collections.abc import AsyncIterator
 import pytest
 
 from hqptuner.config import Config
-from hqptuner.control import ControlError
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.control import ControlError
 from hqptuner.lanes import livemap, liveoverrides
-from hqptuner.manager import ConnectionManager
 
 
 async def _until_reachable(manager: ConnectionManager, timeout: float = 2.0) -> None:

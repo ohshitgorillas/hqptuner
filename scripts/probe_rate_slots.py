@@ -38,7 +38,7 @@ so the listener hears a brief gap per measurement.
 import asyncio
 import sys
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 PLAYING = "2"
 SETTLE_S = 5.0

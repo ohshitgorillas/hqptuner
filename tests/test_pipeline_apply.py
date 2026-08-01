@@ -8,7 +8,7 @@ daemon would store round-trips."""
 
 import json
 
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "0", "gainunit": "dB", "mixdown": "1", "process": ""}

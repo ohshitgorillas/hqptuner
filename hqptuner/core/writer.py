@@ -21,7 +21,7 @@ client; that is the http lane's `POST /restore`, above.
 from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple
 
-from .control import ControlClient, ControlError
+from ..engine.control import ControlClient, ControlError
 
 _VOLUME_TOLERANCE = 0.05
 

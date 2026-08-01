@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..conf.matrixconf import MATRIX_PROFILES
-from ..control import ControlError
+from ..engine.control import ControlError
 from ..lanes import presetlane
 from . import deps
 from .deps import HttpMgr, Mgr

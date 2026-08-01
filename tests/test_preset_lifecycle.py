@@ -15,7 +15,7 @@ from conftest import ManagerFactory
 from hqptuner.conf import presetzip
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 
 def _zip(members: dict[str, bytes]) -> bytes:

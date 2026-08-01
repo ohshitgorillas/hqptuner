@@ -16,7 +16,7 @@ from conftest import DaemonFactory, spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, serve
 from fake_metering import MeteringStream
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 
 @pytest.fixture

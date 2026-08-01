@@ -37,7 +37,7 @@ the listener's say-so (granted 2026-07-29, drive test).
 import asyncio
 import sys
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 SETTLE = 1.0
 TARGETS = ("352800", "176400")

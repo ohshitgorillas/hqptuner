@@ -16,7 +16,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request
 
-from ..manager import ConnectionManager
+from ..core.manager import ConnectionManager
 
 
 def manager_of(request: Request) -> ConnectionManager:

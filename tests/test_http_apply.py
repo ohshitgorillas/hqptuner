@@ -13,7 +13,7 @@ import pytest
 from conftest import ManagerFactory
 
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 
 @pytest.fixture

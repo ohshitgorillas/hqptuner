@@ -21,7 +21,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+from .. import __version__
 
 # A preset name is also a filename and a daemon profile name: alphanumeric start,
 # then alphanumerics / space / underscore / dot / hyphen (covers "Headphones -

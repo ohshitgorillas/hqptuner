@@ -24,7 +24,7 @@ from conftest import DaemonFactory, _live_app, spawn_threaded_daemon
 from fake_control import DEFAULTS
 from fastapi.testclient import TestClient
 
-from hqptuner.control import ControlClient, ControlError
+from hqptuner.engine.control import ControlClient, ControlError
 
 #: The per-command deadline these cases wait out, in real seconds. Small because
 #: an unanswered command is only observable by the deadline expiring; production

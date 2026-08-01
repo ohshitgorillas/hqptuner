@@ -15,8 +15,8 @@ round-trips here.
 import json
 from typing import Any
 
-from hqptuner.control import ControlClient
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.control import ControlClient
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}

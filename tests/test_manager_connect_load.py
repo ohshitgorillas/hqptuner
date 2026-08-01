@@ -14,7 +14,7 @@ import pytest
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 StartManager = Callable[..., Coroutine[Any, Any, ConnectionManager]]
 

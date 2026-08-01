@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..writer import known_live_settings
+from ..core.writer import known_live_settings
 from .deps import Mgr
 from .models import AutosaveBody, StageBody
 

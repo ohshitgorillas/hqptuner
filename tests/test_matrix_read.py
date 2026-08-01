@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from hqptuner.conf.httpconf import HttpConfigClient, parse_matrix_form
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 REAL_PAGE = (Path(__file__).parent / "fixtures" / "matrix-6.0.4.html").read_text()
 

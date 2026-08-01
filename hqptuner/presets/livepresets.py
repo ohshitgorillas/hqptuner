@@ -36,7 +36,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+from .. import __version__
 
 # Same shape as presetstore's: alphanumeric start, then alphanumerics / space /
 # underscore / dot / hyphen. A live preset is never a filename, but sharing the

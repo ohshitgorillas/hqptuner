@@ -40,7 +40,7 @@ with the listener's say-so (granted 2026-07-29 for this drive test).
 import asyncio
 import sys
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 PIN_HZ = "705600"
 PCM_MODE_NAME = "PCM"

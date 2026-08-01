@@ -18,7 +18,7 @@ from .livechain import PCM, SDM, EnumItems, active_chain, rate_family
 from .livemap import DIRECT, ROUTABLE, mode_form_value
 
 if TYPE_CHECKING:
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 # Where a live rate lands on the config side. `SetRate` writes an exact rate, the
 # config form's rate menu writes the per-family LIMIT, and the two agree in the

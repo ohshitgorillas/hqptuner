@@ -31,7 +31,7 @@ pauses audio briefly while the engine reorients. Run with the listener's say-so
 import asyncio
 import sys
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 SETTLE = 1.0
 TARGETS = ("352800", "176400")

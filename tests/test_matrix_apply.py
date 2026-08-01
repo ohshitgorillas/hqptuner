@@ -7,7 +7,7 @@ restore lane — the manager edits its <post_process><plugin> node in the snapsh
 import pytest
 
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 
 @pytest.fixture

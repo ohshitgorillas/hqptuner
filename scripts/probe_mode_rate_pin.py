@@ -35,7 +35,7 @@ mid-stream re-syncs the DAC.
 import asyncio
 import sys
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 IDLE = "0"
 SETTLE_S = 2.0

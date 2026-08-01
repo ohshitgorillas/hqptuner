@@ -21,7 +21,7 @@ from ..conf import engineconf
 from . import presetlane, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 # readback window after the restore, before reporting the apply unconfirmed —
 # the restore restart measured ~5.6 s on 6.0.4. Deliberately its own deadline

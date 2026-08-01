@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from . import junkadvisor
 
 if TYPE_CHECKING:
-    from .manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

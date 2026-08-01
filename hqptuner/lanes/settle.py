@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 ZIP_MAGIC = b"PK\x03\x04"
 

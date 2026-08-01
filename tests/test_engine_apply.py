@@ -9,7 +9,7 @@ import zipfile
 
 import pytest
 
-from hqptuner.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 
 def _archive_with_nblocks(value: str) -> bytes:

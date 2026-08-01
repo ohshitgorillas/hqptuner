@@ -35,7 +35,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.conf.httpconf import HttpConfigClient, serialize_matrix_form
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 PLUGIN = "loudness"
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")

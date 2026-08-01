@@ -23,7 +23,7 @@ from fake_metering import MeteringStream, frame
 from junk_spectra import BINS as WIRE_BINS
 from junk_spectra import FAKE_HIRES_FRAME, flat_fullband_96k, spur_min_176
 
-from hqptuner.metering import BLOCK_SECONDS, DECIMATE, WINDOW_BLOCKS, SpectralAggregate, TrackContext
+from hqptuner.engine.metering import BLOCK_SECONDS, DECIMATE, WINDOW_BLOCKS, SpectralAggregate, TrackContext
 
 # --- SpectralAggregate: the windowed minimum -------------------------------------
 

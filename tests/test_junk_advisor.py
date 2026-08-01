@@ -34,9 +34,9 @@ from junk_spectra import (
 
 from hqptuner.api import create_app
 from hqptuner.config import Config
-from hqptuner.junkadvisor import MIN_SECONDS, classify, treats
-from hqptuner.manager import ConnectionManager
-from hqptuner.metering import TrackContext, context_from
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.junkadvisor import MIN_SECONDS, classify, treats
+from hqptuner.engine.metering import TrackContext, context_from
 
 
 def _classify(

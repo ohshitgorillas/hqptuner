@@ -3,7 +3,7 @@ fake daemon (docs/testing.md — behavior via public API, one assertion each).""
 
 import pytest
 
-from hqptuner.control import CommandError, ControlClient
+from hqptuner.engine.control import CommandError, ControlClient
 
 
 async def test_filter_value_alone_sets_both_1x_and_nx(live_client: ControlClient) -> None:

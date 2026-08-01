@@ -6,7 +6,7 @@ Status root attributes (active_filter/active_shaper/active_rate) rather than
 blocking to timeout — otherwise the signal-path display goes blank mid-track.
 """
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 
 async def test_get_status_recovers_root_when_metadata_is_malformed(

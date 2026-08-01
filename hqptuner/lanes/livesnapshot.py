@@ -18,7 +18,7 @@ from .livechain import EnumItems, active_chain
 from .livemap import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
-    from ..manager import ConnectionManager
+    from ..core.manager import ConnectionManager
 
 # Which enumeration-item attribute carries the value the LIVE lane takes back.
 # Filters and shapers translate ID<->index, so their stored value is the enum ID;

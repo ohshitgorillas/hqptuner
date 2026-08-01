@@ -14,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 DATA = Path(__file__).resolve().parent.parent / "hqptuner" / "data"
 PCM_MODE_INDEX = "1"

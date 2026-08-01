@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from hqptuner.control import CommandError, ControlClient
+from hqptuner.engine.control import CommandError, ControlClient
 
 XML = '<?xml version="1.0" encoding="UTF-8"?>'
 

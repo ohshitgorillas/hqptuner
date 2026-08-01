@@ -11,14 +11,14 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .conf import engineconf, xmledit
+from ..conf import engineconf, xmledit
 from .filterpark import FilterPark
-from .lanes import presetlane
+from ..lanes import presetlane
 from .presetstore import PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from .config import Config
-    from .manager import ConnectionManager
+    from ..config import Config
+    from ..core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

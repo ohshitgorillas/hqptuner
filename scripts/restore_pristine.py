@@ -19,7 +19,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.control import ControlClient
+from hqptuner.engine.control import ControlClient
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))

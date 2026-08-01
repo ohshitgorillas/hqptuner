@@ -27,8 +27,8 @@ from fastapi.testclient import TestClient
 from hqptuner.api import create_app
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
-from hqptuner.manager import ConnectionManager
-from hqptuner.metering import MeteringReader, TrackContext
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.metering import MeteringReader, TrackContext
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 

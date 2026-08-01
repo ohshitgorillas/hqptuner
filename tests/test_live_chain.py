@@ -26,8 +26,8 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api import create_app
 from hqptuner.config import Config
+from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes import livelane, liveoverrides
-from hqptuner.manager import ConnectionManager
 
 #: A manager whose daemon connections a test can cut with the listener left up.
 SeverableManager = tuple[ConnectionManager, Callable[[], Awaitable[None]]]
