@@ -9,8 +9,9 @@
 //   * When no facet is active the SAME array object is returned, not a copy.
 //     Asserting "always returns a new array" fails.
 //
-// Apodizing narrowing is PER 1x-CHAIN (keyed by the dropdown's field key) and
-// 1x-only, so narrowOptions takes that key as its fourth argument. The facet
+// Apodizing narrowing is PER-CHAIN (keyed by the dropdown's field key) on both
+// stages — defaults ON on the 1x chains, OFF on the Nx chains — so
+// narrowOptions takes that key as its fourth argument. The facet
 // signals are module-level and persist across cases, so every test starts from
 // resetNarrowing() via `only()`.
 
@@ -118,8 +119,8 @@ test("test_no_active_facet_returns_the_option_list_unchanged", () => {
   assert.equal(narrowOptions(OPTIONS, null, "1x", "pcm_filter_1x"), OPTIONS);
 });
 
-test("test_apodizing_narrowing_is_ignored_outside_the_1x_stage", () => {
-  resetNarrowing(); // apod defaults on
+test("test_nx_apodizing_defaults_off_so_the_nx_list_is_untouched", () => {
+  resetNarrowing(); // apod defaults on at 1x, off at Nx
   assert.equal(narrowOptions(OPTIONS, null, "Nx", "pcm_filter_nx"), OPTIONS);
 });
 

@@ -16,14 +16,25 @@ export const nRatio = signal([]); // multi-select: integer | 2x | 1:1 ([] = any)
 // checkbox in the ratio popover, ANDing with any ratio class picked.
 export const nUpsampleOnly = signal(false);
 
-// Apodizing narrowing is PER 1x-DROPDOWN, not global (user decision 2026-07-24):
-// the two 1x filter chains — PCM (`pcm_filter_1x`) and SDM (`sdm_filter_1x`) —
-// each own an independent apod state, keyed by the schema field key. On by
-// default for both: the unfiltered 1x list is 60-77 entries and apodizing is the
-// sane starting point. ½-apodizing sub-toggle is off by default, also per chain.
-const APOD_KEYS = ["pcm_filter_1x", "sdm_filter_1x"];
-const apodDefaults = () => ({ pcm_filter_1x: true, sdm_filter_1x: true });
-const halfDefaults = () => ({ pcm_filter_1x: false, sdm_filter_1x: false });
+// Apodizing narrowing is PER-DROPDOWN, not global (user decision 2026-07-24):
+// each filter chain — 1x and Nx, PCM and SDM — owns an independent apod state,
+// keyed by the schema field key. On by default on the 1x chains (the unfiltered
+// 1x list is 60-77 entries and apodizing is the sane starting point), off on the
+// Nx chains so their default list is untouched. ½-apodizing sub-toggle is off by
+// default everywhere, also per chain.
+const APOD_KEYS = ["pcm_filter_1x", "sdm_filter_1x", "pcm_filter_nx", "sdm_filter_nx"];
+const apodDefaults = () => ({
+  pcm_filter_1x: true,
+  sdm_filter_1x: true,
+  pcm_filter_nx: false,
+  sdm_filter_nx: false,
+});
+const halfDefaults = () => ({
+  pcm_filter_1x: false,
+  sdm_filter_1x: false,
+  pcm_filter_nx: false,
+  sdm_filter_nx: false,
+});
 export const nApod = signal(apodDefaults());
 export const nApodHalf = signal(halfDefaults());
 
@@ -57,15 +68,18 @@ export function setHiresOnly(field, on) {
 }
 
 // "narrowing is on" = the facets differ from their defaults, not merely that
-// some facet is set. Apod defaults ON for both chains, so a chain reads as
-// narrowing only when its apod is OFF or its ½-toggle is ON.
-// Whether ANY per-chain toggle departs from its default. Apod and hide-hires
-// default ON (so OFF = engaged); ½-apod and show-only-hires default OFF (so ON =
-// engaged). Split out of narrowingActive to keep that predicate's branch count
-// under the complexity gate.
+// some facet is set. Apod defaults ON on the 1x chains and OFF on the Nx chains,
+// so a chain reads as narrowing only when its apod departs from its own default
+// or its ½-toggle is ON.
+// Whether ANY per-chain toggle departs from its default. Apod is compared
+// against its per-chain default map; hide-hires defaults ON (so OFF = engaged);
+// ½-apod and show-only-hires default OFF (so ON = engaged). Split out of
+// narrowingActive to keep that predicate's branch count under the complexity
+// gate.
 function chainTogglesEngaged() {
+  const apodDef = apodDefaults();
   return (
-    APOD_KEYS.some((k) => !nApod.value[k]) ||
+    APOD_KEYS.some((k) => nApod.value[k] !== apodDef[k]) ||
     APOD_KEYS.some((k) => nApodHalf.value[k]) ||
     HIDE_HIRES_KEYS.some((k) => !nHideHires.value[k]) ||
     HIRES_ONLY_KEYS.some((k) => nHiresOnly.value[k])
@@ -119,10 +133,10 @@ function ratioOf(f, fam) {
 
 // Filter a filter-field option list by the active facets. Options whose name
 // carries no facet data pass through — narrowing hides only what it can
-// positively exclude. `current` is never hidden. The apodizing filter applies to
-// 1x filters only (stage "1x") and reads THAT dropdown's own state (keyed by
-// `field`); Nx filters ignore it. With apod on, full-apodizing filters pass;
-// ½-apodizing ones pass only when that chain's ½-toggle is also on.
+// positively exclude. `current` is never hidden. The apodizing filter reads
+// THAT dropdown's own state (keyed by `field`) on every stage. With apod on,
+// full-apodizing filters pass; ½-apodizing ones pass only when that chain's
+// ½-toggle is also on.
 // Each entry reads "facet not engaged, or the filter passes it", so an unset
 // facet excludes nothing. "any" is the escape hatch for genre and ratio — a
 // filter the manual marks agnostic survives every selection of that facet.
@@ -155,8 +169,8 @@ const facetPass = (f, sel) => !f || FACET_CHECKS.every((check) => check(f, sel))
 
 // The active selection snapshot. Number() on quality — the raw signal in
 // narrowingActive and this can disagree: a non-numeric value reads as active in
-// the bar but narrows nothing. Apod is 1x-only and reads the given chain's own
-// keyed state.
+// the bar but narrows nothing. Apod reads the given chain's own keyed state on
+// every stage.
 function buildSel(stage, field) {
   return {
     genre: nGenre.value,
@@ -167,7 +181,7 @@ function buildSel(stage, field) {
     ratio: nRatio.value,
     upsampleOnly: nUpsampleOnly.value,
     family: family(field),
-    apod: stage === "1x" && field != null && nApod.value[field] === true,
+    apod: field != null && nApod.value[field] === true,
     half: field != null && nApodHalf.value[field] === true,
     // keyed by the dropdown's own field; the maps only hold each stage's keys,
     // so the flags are inert on the stage they do not belong to.

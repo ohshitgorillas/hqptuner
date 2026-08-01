@@ -26,13 +26,34 @@ function apodTip() {
   return (e && e.tooltip) || "";
 }
 
+// Apodizing checkbox pair (+½ sub-toggle), bound to one chain's own keyed state
+// (store/narrowing.js). Shared by the 1x and Nx narrow controls; the novice
+// caption stays on the 1x control only (user decision).
+function ApodPair({ field }) {
+  const on = nApod.value[field] === true;
+  const half = nApodHalf.value[field] === true;
+  return html`
+    <label class="narrow-apod">
+      <input type="checkbox" checked=${on} onChange=${(e) => setApod(field, e.target.checked)} />
+      Show apodizing only
+    </label>
+    <label class="narrow-apod apod-sub ${on ? "" : "off"}">
+      <input
+        type="checkbox"
+        checked=${half}
+        disabled=${!on}
+        onChange=${(e) => setApodHalf(field, e.target.checked)}
+      />
+      Show ½ apodizing filters
+    </label>
+  `;
+}
+
 // 1x-dropdown narrow control: apodizing (+½) and the hide-hi-res toggle. All
 // three bind to THIS chain's own keyed state (store/narrowing.js). Hide-hi-res
 // defaults ON — at 1x (base source rates) the hi-res / MQA-MP3 filters are the
 // off-topic entries, so they start hidden and the checkbox reveals them.
 export function ApodNarrow({ field }) {
-  const on = nApod.value[field] === true;
-  const half = nApodHalf.value[field] === true;
   const hideHires = nHideHires.value[field] === true;
   const tip = apodTip();
   return html`
@@ -44,26 +65,15 @@ export function ApodNarrow({ field }) {
       <div class="apod-narrow-note">
         Hi-res filters are optimal for lossy material such as mp3 and MQA at 1x.
       </div>
-      <label class="narrow-apod">
-        <input type="checkbox" checked=${on} onChange=${(e) => setApod(field, e.target.checked)} />
-        Show apodizing only
-      </label>
-      <label class="narrow-apod apod-sub ${on ? "" : "off"}">
-        <input
-          type="checkbox"
-          checked=${half}
-          disabled=${!on}
-          onChange=${(e) => setApodHalf(field, e.target.checked)}
-        />
-        Show ½ apodizing filters
-      </label>
+      <${ApodPair} field=${field} />
       ${tip ? html`<div class="apod-narrow-note">${tip}</div>` : null}
     </div>
   `;
 }
 
-// Nx-dropdown narrow control: the inverse hi-res toggle. Off by default — check
-// it to restrict the Nx list to the hi-res poly-sinc / MQA-MP3 filters only.
+// Nx-dropdown narrow control: the inverse hi-res toggle (off by default — check
+// it to restrict the Nx list to the hi-res poly-sinc / MQA-MP3 filters only)
+// plus the same apodizing pair as 1x, defaulting off, without the caption.
 export function HiresNarrow({ field }) {
   const only = nHiresOnly.value[field] === true;
   return html`
@@ -73,6 +83,7 @@ export function HiresNarrow({ field }) {
         Show only hi-res filters
       </label>
       <div class="apod-narrow-note">Restricts the list to the hi-res poly-sinc and MQA/MP3 filters.</div>
+      <${ApodPair} field=${field} />
     </div>
   `;
 }

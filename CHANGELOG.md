@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **Apodizing narrowing on the Nx dropdowns.** Each Nx filter dropdown gains the same **Show apodizing only** and **Show ½ apodizing filters** checkboxes the 1x dropdowns have, off by default so the Nx list is unchanged until you opt in.
+
 - **Hi-res filter narrowing.** Each 1x filter dropdown gains a **Hide hi-res filters** toggle, on by default — at 1x the hi-res filters suit lossy material such as mp3 and MQA, so untick it when that is what you play. Each Nx dropdown gains the inverse, **Show only hi-res filters**. Every narrowable filter dropdown now also shows an n/total badge of how many filters survive the active narrowing, in both the tabs and LIVE views.
 
 ### Changed

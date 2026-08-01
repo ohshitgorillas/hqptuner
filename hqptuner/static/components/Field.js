@@ -144,7 +144,8 @@ function FieldLabel({ entry, label, badge }) {
 }
 
 // The per-dropdown narrow controls that hang under a filter field: apodizing +
-// hide-hi-res on the 1x dropdowns, show-only-hi-res on the Nx dropdowns.
+// hide-hi-res on the 1x dropdowns, show-only-hi-res + apodizing on the Nx
+// dropdowns.
 function FieldNarrowControls({ entry, k }) {
   return html`
     ${entry.apodNarrow ? html`<${ApodNarrow} field=${k} />` : null}
