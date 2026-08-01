@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["hqptuner/static/app.js", "tests/js/*.test.js", "tests/js/vendor-resolve.js"],
+  "entry": ["hqptuner/static/app.js", "tests/js/**/*.test.js", "tests/js/support/vendor-resolve.js"],
   "project": ["hqptuner/static/**/*.js", "tests/js/**/*.js"],
   "ignore": ["hqptuner/static/vendor/**"],
   "ignoreDependencies": ["eslint", "prettier"],

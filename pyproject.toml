@@ -34,6 +34,9 @@ asyncio_mode = "auto"
 # not a test failure. mutmut runs pytest with mutants/ as its root, so the same
 # relative path is still correct there.
 testpaths = ["tests"]
+# Fakes and shared fixtures live in tests/support/; tests import them bare
+# (`from fake_control import serve`), so both directories go on sys.path.
+pythonpath = ["tests", "tests/support"]
 markers = ["live: requires a reachable hqplayerd (deselect with '-m \"not live\"')"]
 
 [tool.mutmut]
@@ -84,7 +87,7 @@ select = [
 max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S106", "S108"]  # asserts are the point; hardcoded creds/paths are fake-daemon fixtures, not secrets
+"tests/**/*.py" = ["S101", "S106", "S108"]  # asserts are the point; hardcoded creds/paths are fake-daemon fixtures, not secrets
 "scripts/*" = ["S101"]
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
 

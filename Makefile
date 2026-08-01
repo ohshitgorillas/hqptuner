@@ -9,7 +9,7 @@ lint:
 	$(VENV)/vulture
 	$(VENV)/mypy
 	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/check_test_assertions.py tests/*.py
+	$(VENV)/python scripts/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
@@ -23,7 +23,7 @@ lint:
 # it past 500. vendor/ is upstream and exempt from every gate.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/*.js" "eslint-rules/*.js" "scripts/eqlab/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/eqlab/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx knip
 	$(VENV)/python scripts/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
@@ -46,7 +46,7 @@ test-live:
 # Explicit file list, not `tests/js/`: node's test runner rejects a bare
 # directory argument here (ERR_UNSUPPORTED_DIR_IMPORT), hook or no hook.
 test-js:
-	node --import ./tests/js/vendor-resolve.js --test tests/js/*.test.js
+	node --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js
 
 check: lint lint-js test test-js
 
