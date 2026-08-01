@@ -660,7 +660,9 @@ export const schema = {
   loudness_low_freq: {
     label: "Frequency",
     group: "dsp",
-    widget: "number",
+    widget: "knob",
+    slider: true,
+    scale: "log",
     lane: "http",
     endpoint: "matrix",
     field: "post_loudness_lowfreq",
@@ -668,13 +670,15 @@ export const schema = {
     grayWhen: loudnessOff,
     quietGray: true,
   },
-  // Steepness sliders: the /matrix form ships no min/max for the slope factor
+  // Steepness knobs: the /matrix form ships no min/max for the slope factor
   // (readme documents none), so the schema carries a pragmatic 0.1–10 slider
   // range covering all three type domains (shelf slope, Q, bandwidth).
   loudness_low_steep: {
     label: "Steepness / Q",
     group: "dsp",
-    widget: "slidernum",
+    widget: "knob",
+    slider: true,
+    scale: "log",
     lane: "http",
     endpoint: "matrix",
     field: "post_loudness_lowsteep",
@@ -711,7 +715,9 @@ export const schema = {
   loudness_high_freq: {
     label: "Frequency",
     group: "dsp",
-    widget: "number",
+    widget: "knob",
+    slider: true,
+    scale: "log",
     lane: "http",
     endpoint: "matrix",
     field: "post_loudness_highfreq",
@@ -722,7 +728,9 @@ export const schema = {
   loudness_high_steep: {
     label: "Steepness / Q",
     group: "dsp",
-    widget: "slidernum",
+    widget: "knob",
+    slider: true,
+    scale: "log",
     lane: "http",
     endpoint: "matrix",
     field: "post_loudness_highsteep",

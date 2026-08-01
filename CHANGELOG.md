@@ -16,6 +16,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The apodizing-events warning waits for ten events** on a track before firing, up from five.
 
+- **Loudness visual enhancements.** Three knobs/sliders/textboxes, similar to the Matrix Response plot's knobs, toggled between Bass and Treble by a switch above. This buys a little extra vertical space on the Volume tab, and (imho) looks cooler.
+
 ## [0.11.1] — 2026-07-30
 
 ### Changed

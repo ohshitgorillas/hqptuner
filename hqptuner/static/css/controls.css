@@ -38,6 +38,17 @@
   opacity: var(--o-disabled);
   cursor: not-allowed;
 }
+/* staged-edit marker on a segment button whose (hidden) controls are dirty —
+   the Loudness strip's inactive side. Same accent the dirty border rule uses. */
+.seg-dirty-dot {
+  display: inline-block;
+  width: 6px; /* token-exempt: dot mark sized to its text's cap height, not a spacing step */
+  height: 6px; /* token-exempt: dot mark sized to its text's cap height, not a spacing step */
+  margin-left: var(--sp-1);
+  border-radius: var(--r-circle);
+  background: var(--accent);
+  vertical-align: middle;
+}
 
 select,
 input[type="number"],

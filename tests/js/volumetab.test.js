@@ -140,17 +140,7 @@ test("test_the_loudness_enable_stays_outside_the_dimmed_body", async () => {
   assert.ok(card(tab(), LOUDNESS).split(DIMMED)[0].includes("<label>Enable</label>"));
 });
 
-test("test_the_loudness_card_carries_a_bass_cluster", async () => {
-  await reset({ mtx: ON });
-  assert.ok(card(tab(), LOUDNESS).includes('<div class="cluster-head">Bass</div>'));
-});
-
-test("test_the_loudness_card_carries_a_treble_cluster", async () => {
-  await reset({ mtx: ON });
-  assert.ok(card(tab(), LOUDNESS).includes('<div class="cluster-head">Treble</div>'));
-});
-
-test("test_the_loudness_card_rules_between_bass_and_treble", async () => {
+test("test_the_loudness_strip_rules_between_its_knobs", async () => {
   await reset({ mtx: ON });
   assert.ok(card(tab(), LOUDNESS).includes('<span class="col-rule" aria-hidden="true"></span>'));
 });

@@ -134,28 +134,29 @@ test("test_a_staged_edit_outranks_the_form_baseline", async () => {
 // ============================================================================
 
 test("test_an_http_number_takes_its_minimum_from_the_daemon_form", async () => {
-  await reset({ matrix: [{ name: "post_loudness_lowfreq", value: "100", min: "20", max: "500" }] });
-  assert.equal(attrOf(field("loudness_low_freq"), "min"), "20");
+  await reset({ matrix: [{ name: "post_loudness_rangelow", value: "-60", min: "-90", max: "0" }] });
+  assert.equal(attrOf(field("loudness_range_low"), "min"), "-90");
 });
 
 test("test_an_http_number_takes_its_maximum_from_the_daemon_form", async () => {
-  await reset({ matrix: [{ name: "post_loudness_lowfreq", value: "100", min: "20", max: "500" }] });
-  assert.equal(attrOf(field("loudness_low_freq"), "max"), "500");
+  await reset({ matrix: [{ name: "post_loudness_rangelow", value: "-60", min: "-90", max: "0" }] });
+  assert.equal(attrOf(field("loudness_range_low"), "max"), "0");
 });
 
 test("test_a_schema_fallback_bound_is_used_when_the_form_carries_none", async () => {
   await reset({ matrix: [{ name: "post_loudness_lowsteep", value: "1" }] });
-  assert.equal(attrOf(field("loudness_low_steep"), "min"), "0.1");
+  assert.equal(attrOf(field("loudness_low_steep"), "aria-valuemin"), "0.1");
 });
 
 test("test_the_form_bound_wins_over_the_schema_fallback", async () => {
   await reset({ matrix: [{ name: "post_loudness_lowsteep", value: "1", min: "2" }] });
-  assert.equal(attrOf(field("loudness_low_steep"), "min"), "2");
+  assert.equal(attrOf(field("loudness_low_steep"), "aria-valuemin"), "2");
 });
 
 test("test_a_schema_fallback_step_is_used_when_the_form_carries_none", async () => {
+  // the knob's readout renders with the step's decimals — 0.1 makes "1.0"
   await reset({ matrix: [{ name: "post_loudness_lowsteep", value: "1" }] });
-  assert.equal(attrOf(field("loudness_low_steep"), "step"), "0.1");
+  assert.equal(attrOf(field("loudness_low_steep"), "aria-valuetext"), "1.0");
 });
 
 // ============================================================================

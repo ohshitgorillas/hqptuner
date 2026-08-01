@@ -11,6 +11,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { effective, volume, setLive, edit } from "../store/state.js";
+import { loudnessSide } from "../store/ui.js";
 import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../lib/dsp.js";
 import { clamp, num } from "../lib/coerce.js";
 import { db as fmtLevel, dbOffset } from "../lib/units.js";
@@ -272,10 +273,12 @@ export function LoudnessPlot() {
   // streams live overrides (instant repaint) and stages both params on release.
   // Steepness/Q/type stay on their own controls.
   const r1 = (v) => Math.round(v * 10) / 10;
-  const handle = (fk, lk, f, lvl, label) => ({
+  const handle = (side, fk, lk, f, lvl, label) => ({
     f,
     db: lvl,
     label,
+    // grabbing a dot points the Loudness strip at that dot's side
+    onSelect: () => (loudnessSide.value = side),
     onDrag: (nf, ndb) => {
       setLive(fk, Math.round(nf));
       setLive(lk, r1(ndb));
@@ -301,8 +304,8 @@ export function LoudnessPlot() {
     height: 210,
     caption: `at ${fmtLevel(vol, 1)} volume: ${pct}% of maximum shelving applied`,
     handles: [
-      handle("loudness_low_freq", "loudness_low_level", p.lowFreq, p.lowLevel, "low shelf"),
-      handle("loudness_high_freq", "loudness_high_level", p.highFreq, p.highLevel, "high shelf"),
+      handle("low", "loudness_low_freq", "loudness_low_level", p.lowFreq, p.lowLevel, "low shelf"),
+      handle("high", "loudness_high_freq", "loudness_high_level", p.highFreq, p.highLevel, "high shelf"),
     ],
   });
 }

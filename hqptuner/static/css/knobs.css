@@ -209,16 +209,15 @@
 .dsp-body.off input[type="range"] {
   accent-color: var(--muted);
 }
-/* the cluster row over the range group — this gap is the separation between
+/* the strip over the range group — this gap is the separation between
    those two blocks, which the range group used to add to with a margin. */
 .dsp-controls {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
 }
-/* "Range" head over its row — the same stack .cluster is, so it holds the same
-   gap. It was a bare block, and the head's own margin-bottom was the only thing
-   spacing the two; that margin was a duplicate inside .cluster and the sole
+/* "Range" head over its row. It was a bare block, and the head's own
+   margin-bottom was the only thing spacing the two; that margin was the sole
    separator here, which is exactly the split a container gap removes. */
 .range-group {
   display: flex;
@@ -231,8 +230,7 @@
 /* Two-column card splits (see CLAUDE.md): an explicit 1px rule TRACK puts the
    hairline exactly on the card centre line, so every divider on the page lines
    up. Narrow viewports collapse to one column and drop the rule. */
-.knob-cluster,
-.cluster-row {
+.knob-cluster {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
@@ -241,8 +239,7 @@
   display: none;
 }
 @media (min-width: 1100px) {
-  .knob-cluster,
-  .cluster-row {
+  .knob-cluster {
     display: grid;
     grid-template-columns: 1fr 1px 1fr;
     gap: var(--sp-4);
@@ -255,13 +252,21 @@
     background: var(--line);
   }
 }
-/* No border-left here: the centred rule between the two tracks is the divider
-   (CLAUDE.md two-column rule). A per-cluster left border put a second line to the
-   left of BOTH Bass and Treble. */
-.cluster {
+/* Loudness strip: Matrix band-strip geometry reused for the Bass/Treble
+   control strip — segment switch + Type row on top, the three knob Fields in
+   the band-slots grid below (.band-strip/.band-slots in matrix-panels.css). */
+.loudness-side-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+  align-items: center;
+}
+/* the side switch picks what the whole strip edits — same 1.1x weight the
+   size-lg mode segments carry (controls.css .field-lg rule). */
+.loudness-side-row .seg {
+  padding: calc(var(--sp-1) * 1.1) calc(var(--sp-3) * 1.1);
+  font-size: var(--fs-body);
+}
+.loudness-strip .band-slots > .field {
+  min-width: 0;
 }
 .range-row {
   display: grid;
@@ -271,21 +276,19 @@
 .range-row > * {
   min-width: 0;
 }
-/* compact fields inside clusters / range: shorter label column */
-.cluster .field:not(.field-knob),
+/* compact fields inside the strip head / range: shorter label column */
+.loudness-strip .field:not(.field-knob),
 .range-row .field {
   grid-template-columns: 8rem 1fr;
 }
-/* clusters / knob rows must shrink to their column too, or the knob slider and
+/* knob rows must shrink to their column too, or the knob slider and
    the value box overflow and clip (item 1: Loudness Treble value box cut off). */
-.cluster,
-.cluster-row > *,
 .knob-cluster > * {
   min-width: 0;
 }
-/* NB: only selects — a .cluster input[type=text] is the knob readout box, which
-   must keep its fixed --w-num width, not stretch to fill the cluster. */
-.cluster select {
+/* NB: only selects — a strip input[type=text] is the knob readout box, which
+   must keep its fixed --w-num width, not stretch to fill the row. */
+.loudness-strip select {
   width: 100%;
   max-width: 100%;
   min-width: 0;

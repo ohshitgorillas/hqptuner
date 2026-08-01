@@ -6,6 +6,12 @@ import { quickSystemUpdates, fastVolumeUpdates, liveMode } from "./prefs.js";
 
 export const activeTab = signal("output");
 
+// Which shelf the Loudness strip edits ("low" | "high") — client-only UI
+// state, never touches the store trees or the server. Lives here so the plot
+// (plots.js) can flip it when a corner dot is grabbed without importing from
+// the tab component.
+export const loudnessSide = signal("low");
+
 // Fast (status/volume) poll cadence. 500 ms only when the user has opted a page
 // into quick updates AND is currently looking at it; the default 2 s otherwise.
 // Scoping the bump to the active page keeps the extra daemon load off pages the

@@ -162,6 +162,7 @@ export function Field({ k }) {
           ticks=${entry.ticks}
           def=${entry.def}
           slider=${entry.slider}
+          scale=${entry.scale}
           unit=${entry.unit}
           label=${label}
           disabled=${!!reason}
