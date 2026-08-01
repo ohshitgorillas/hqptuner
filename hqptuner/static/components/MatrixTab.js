@@ -104,7 +104,8 @@ function loadEqFile(e) {
   e.target.value = "";
 }
 
-// Carried by both the Headphone Auto EQ card and the Pipelines card's action row.
+// Lives in the Pipelines card's action row, next to the mirror checkbox that
+// decides where a load lands.
 function LoadEqButton() {
   return html`<label class="btn mtx-file-btn">
     Load AutoEq / REW .txt…<input type="file" accept=".txt" style="display:none" onChange=${loadEqFile} />
@@ -122,17 +123,6 @@ function ImportPanel({ rows }) {
   return html`
     <div class="mtx-import">
       <${LibraryPicker} applyText=${loadText} />
-      <div class="mtx-profile-row">
-        <${LoadEqButton} />
-        <label class="mtx-import-mirror">
-          <input
-            type="checkbox"
-            checked=${importMirror.value}
-            onChange=${(e) => (importMirror.value = e.target.checked)}
-          />
-          mirror to stereo pair
-        </label>
-      </div>
       ${importNote.value ? html`<div class="mtx-issues">${importNote.value}</div>` : null}
     </div>
   `;
@@ -210,6 +200,14 @@ function PipelinesCard() {
             + Add pipeline
           </button>
           <div class="mtx-file-actions">
+            <label class="mtx-import-mirror">
+              <input
+                type="checkbox"
+                checked=${importMirror.value}
+                onChange=${(e) => (importMirror.value = e.target.checked)}
+              />
+              mirror to stereo pair
+            </label>
             <${LoadEqButton} />
             ${(() => {
               const eqExport = pipelinesToRewText(rows);
