@@ -10,15 +10,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **No more in-flight chatter on LIVE.** The LIVE view no longer prints "writing…", "switching…", "working…" or "Reloading the engine's lists…" beside a control while its write is in flight. Controls still gray out until the write lands.
+- **The Speakers card's channel list is indented** off the card's left edge, so it reads as the card's detail rather than a second column of top-level controls.
 
-- **Narrowing counts say what they count.** Each facet popover now heads its count column with **1x / Nx**, and the Narrow filters card carries a line explaining that a popover pair is the surviving 1x and Nx filters while a dropdown badge is matching / total.
+- **No more in-flight chatter on LIVE.** The LIVE view no longer prints "writing…", "switching…", "working…" or "Reloading the engine's lists…" beside a control while its write is in flight. Controls still gray out until the write lands.
 
 - **EQ file controls consolidated.** The Headphone Auto EQ card no longer carries its own **Load AutoEq / REW .txt…** button — the one in the Pipelines card's action row does the same thing. The **mirror to stereo pair** checkbox moved there too, beside it.
 
 - **DSP pipelines moved.** The DSP pipelines setting now sits at the top of the Pipelines card instead of the Matrix card, beside the pipeline count it governs.
 
-- **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the four that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
+- **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Speakers, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the five that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
 
 - **One switch size everywhere.** All segmented switches now share the large size the card enables use. The hero MODE / BACKEND / RATE segments and the SPEAKERS | HEADPHONES banner keep their own sizes.
 

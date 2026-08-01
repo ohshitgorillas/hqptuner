@@ -19,7 +19,7 @@ import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
 import { html } from "../lib/dom.js";
-import { NumberBox } from "./controls/index.js";
+import { NumberBox, Segment } from "./controls/index.js";
 import { effective } from "../store/state.js";
 import { notesVisible } from "../store/prefs.js";
 import {
@@ -136,12 +136,23 @@ function ChannelRow({ ch, sdm }) {
 // The card's own two settings. Not `Field`s: neither has a schema entry, because
 // neither lives in the config lane — the switch belongs to the /speakers form and
 // the set is client-side.
-function TopRow({ on, busy }) {
+const GATE_OPTIONS = [
+  { value: "1", label: "ENGAGE" },
+  { value: "0", label: "BYPASS" },
+];
+
+function TopRow({ on, busy, gateDirty }) {
   return html`
     <div class="pack split">
       <div class="field">
-        <label>Speaker processing</label>
-        <input type="checkbox" checked=${on} disabled=${busy} onChange=${(e) => (enabledEdit.value = e.target.checked)} />
+        <div class="spkr-gate ${gateDirty ? "dirty" : ""}">
+          <${Segment}
+            value=${on ? "1" : "0"}
+            options=${GATE_OPTIONS}
+            disabled=${busy}
+            onChange=${(v) => (enabledEdit.value = v === "1")}
+          />
+        </div>
       </div>
       <div class="field">
         <label>Speaker set</label>
@@ -165,12 +176,16 @@ function Actions({ dirty, busy, apply }) {
   `;
 }
 
-function CardNote() {
+// The card's description, in the .card-sub slot every other card fills from
+// noteFor(<gate key>). This one carries its own string: speaker processing has
+// no schema key to address — it is the /speakers form, not the config lane —
+// so there is no settings.json entry for prose.js to read.
+function CardSub() {
   return notesVisible.value
-    ? html`<div class="field-note">
+    ? html`<span class="card-sub t-caption">
         Level trims each channel's output; distance delays the nearer speakers so every channel arrives at the
         listening position together. Applying reloads the engine (~3 s) and needs it stopped — it is not a live change.
-      </div>`
+      </span>`
     : null;
 }
 
@@ -186,7 +201,8 @@ function Body({ data }) {
   const sdm = truthy(effective("direct_sdm"));
   const on = enabledEdit.value ?? !!data.enabled;
   const rows = merged(data);
-  const dirty = Object.keys(edits.value).length > 0 || on !== !!data.enabled;
+  const gateDirty = on !== !!data.enabled;
+  const dirty = Object.keys(edits.value).length > 0 || gateDirty;
   const busy = speakersBusy.value;
   const apply = async () => {
     if (!(await applySpeakers(on, edits.value))) return;
@@ -195,10 +211,13 @@ function Body({ data }) {
   };
   return html`
     <div class="card-body">
-      <${TopRow} on=${on} busy=${busy} />
+      <${CardSub} />
+      <${TopRow} on=${on} busy=${busy} gateDirty=${gateDirty} />
       <div class="spkr-cols">
-        <div class="spkr-rows">
-          ${rows.filter((c) => active.has(c.index)).map((c) => html`<${ChannelRow} ch=${c} sdm=${sdm} />`)}
+        <div class="spkr-left">
+          <div class="spkr-rows">
+            ${rows.filter((c) => active.has(c.index)).map((c) => html`<${ChannelRow} ch=${c} sdm=${sdm} />`)}
+          </div>
           ${
             sdm
               ? html`<div class="field-note spkr-sdm">
@@ -210,7 +229,6 @@ function Body({ data }) {
         <span class="col-rule" aria-hidden="true"></span>
         <div class="spkr-right"><${SpeakersDiagram} channels=${rows} active=${active} /></div>
       </div>
-      <${CardNote} />
       <${Actions} dirty=${dirty} busy=${busy} apply=${apply} />
       ${speakersError.value ? html`<div class="mtx-issues">${speakersError.value}</div>` : null}
     </div>

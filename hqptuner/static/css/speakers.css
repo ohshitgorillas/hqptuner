@@ -46,19 +46,51 @@
   }
 }
 
+/* The gate carries no label — ENGAGE|BYPASS in a Speakers card says what it
+   does — so it takes both tracks of its .field rather than sitting in the empty
+   label column. */
+.spkr-gate {
+  grid-column: 1 / -1;
+}
+
+/* Staged gate, same accent border the crossfeed gate takes (design-system.md:
+   staged-edit highlight goes on the control's own border). */
+.spkr-gate.dirty .segment {
+  border-color: var(--accent);
+}
+
+/* The left half's contents: the centred channel block, and the SDM note under
+   it. The note keeps the standard measure and so is NOT inside .spkr-rows —
+   a max-content block sized by a paragraph is sized by the paragraph. */
+.spkr-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* Centred in its half-track rather than flush left: the rows are the card's
+   detail, and against the room plan opposite, a block hugging the card's left
+   edge reads as one column pushed aside rather than as half of a pair. Sized to
+   its content (the row template is content-tracked below) so "centred" means the
+   block, not text inside a full-width row. */
 .spkr-rows {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 /* name + two numeric cells. The name column matches nothing else on the tab on
    purpose: it is a channel identity ("Left rear"), not a control label, and at
    --w-label it would push both numbers off the half-track. */
+/* Content-tracked, not 1fr: the block's whole width has to be knowable for
+   .spkr-rows to size to max-content and centre. */
 .spkr-row {
   display: grid;
-  grid-template-columns: 7rem 1fr 1fr;
+  grid-template-columns: 7rem auto auto;
   align-items: center;
   gap: var(--sp-3);
   min-width: 0;
@@ -74,8 +106,8 @@
   min-width: 0;
 }
 .spkr-cell input[type="number"] {
-  width: 100%;
-  max-width: var(--w-num);
+  width: var(--w-num);
+  max-width: 100%;
   min-width: 0;
 }
 .spkr-unit {
