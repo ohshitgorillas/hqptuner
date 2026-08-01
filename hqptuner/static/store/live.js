@@ -36,6 +36,13 @@ export const liveErrors = signal({});
 // Writes whose own success invalidates an enumeration, in config-form terms.
 // Mirrors livelane._REENUMERATES, which names the same three by setter key.
 const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"]);
+// True while a write that invalidates the lists is in flight. Every control
+// whose options come from an enumeration is unsafe for that whole window: its
+// list is the pre-write one, and the IDs in it stop meaning what they meant the
+// moment the engine re-enumerates. Disabling them is the surfacing — a note in
+// the row reflowed it for the seconds a mode write takes, which is why the old
+// one was removed (fix(live): drop the in-flight text marks).
+export const liveEnumBusy = computed(() => REENUMERATES.has(liveBusy.value));
 // Writes that change what the running config reports for the two rate limits.
 const RATE_MIRRORED = new Set(["mode", "rate"]);
 
@@ -82,20 +89,24 @@ export function reportError(report) {
 // deciding that twice is how the two paths drift.
 export async function remirrorLive(fields, report) {
   const state = await api.state();
-  engineState.value = state.data;
   // An edit to the chain the engine has not loaded is HELD, not applied
   // (lanes/livemap.resolve_live) — so State cannot show it and no engine list
   // moved. The running config's live overlay is where a held edit appears, and
   // that overlay is what the dormant chain's card reads back.
   const held = !!(report && report.stored && Object.keys(report.stored).length);
+  // The new lists are pulled BEFORE either signal is installed, and the pair is
+  // then installed together. State carries the new active_chain, so installing
+  // it first rendered the new chain's card against the pre-switch lists for as
+  // long as the enumerations request took — a filter picked in that window
+  // posted an ID from a list the engine had already replaced.
+  const fresh = !held && fields.some((f) => REENUMERATES.has(f)) ? await api.enumerations() : null;
+  engineState.value = state.data;
+  if (fresh) enums.value = fresh.data;
   // A rate or mode write moves what the running config reports for BOTH rate
   // limits (livemap.live_overrides), and that overlay is what the dormant rate
   // column reads. Its own poll is on the slow cadence, so pull it here rather
   // than leave the column showing the pre-switch tier for a few seconds.
   if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();
-  if (held || !fields.some((f) => REENUMERATES.has(f))) return;
-  const fresh = await api.enumerations();
-  enums.value = fresh.data;
 }
 
 // Write one live control. Returns nothing on purpose: the outcome lives on the
@@ -328,6 +339,10 @@ function rateColumn(family) {
     // so setting up the SDM side while PCM plays is an ordinary thing to do here.
     disabled: auto,
     reason: auto ? AUTO_RATE_REASON : "",
+    // Which tiers the engine is offering is read off the rates enumeration, so
+    // this column's gray marks are as stale as any other list during a
+    // re-enumerating write.
+    enumBacked: true,
     // The engine's own pin when it is reporting one for this family, the running
     // config's limit otherwise — which already carries the remembered pin, held
     // or applied (livemap.live_overrides). With no pin at all the limit is what
@@ -386,6 +401,10 @@ function chainControls(chain, loaded) {
       value,
       options: chainOptions(c, value, base),
       badge: chainBadge(c, base),
+      // The loaded chain's lists come from the enumerations; the dormant one's
+      // come from the running config's form and are not invalidated by an
+      // engine re-enumeration.
+      enumBacked: live,
     };
   });
 }
@@ -416,6 +435,7 @@ export const liveModel = computed(() => {
       ...catalog("junk_filter"),
       value: stateOf("filter_junk"),
       options: enumOptions("junk_filters"),
+      enumBacked: true,
     },
     adaptive: { field: "adaptive_volume", ...catalog("adaptive_volume"), value: stateOf("adaptive") },
     pcmChain: chainControls("pcm", chain),

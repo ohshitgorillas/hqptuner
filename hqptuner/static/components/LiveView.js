@@ -18,7 +18,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
-import { liveModel, liveBusy, liveErrors, writeLive } from "../store/live.js";
+import { liveModel, liveBusy, liveEnumBusy, liveErrors, writeLive } from "../store/live.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { stagedCount } from "../store/resolve.js";
@@ -70,9 +70,12 @@ const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisi
 // One live control: the widget, its prose, why it is grayed
 // if it is, and the reason the last write was refused. Disabled while its OWN
 // write is in flight — two overlapping writes to one setting would resolve the
-// second against lists the first has already invalidated — and otherwise only
-// where the engine has no live route for the setting at all, which is the rate
-// pair in auto and nothing else (store/live.js `AUTO_RATE_REASON`). Both chain
+// second against lists the first has already invalidated — and, for a control
+// whose options come from an enumeration, while ANY re-enumerating write is in
+// flight (store/live.js `liveEnumBusy`): its list is the pre-write one for that
+// whole window, so an ID picked out of it means something else by the time it
+// lands. Otherwise only where the engine has no live route for the setting at
+// all, which is the rate pair in auto and nothing else (`AUTO_RATE_REASON`). Both chain
 // cards and, under an explicit mode, both rate columns take edits whichever
 // family is running, the dormant side's being held and landing when that family
 // loads (lanes/livemap.unpinnable_rate). Nothing here is ever disabled for
@@ -98,7 +101,7 @@ function LiveField({ control, widget }) {
   const W = widget || Dropdown;
   const { entry } = control;
   const meta = describe(entry, control.key);
-  const busy = liveBusy.value === control.field;
+  const busy = liveBusy.value === control.field || (control.enumBacked && liveEnumBusy.value);
   const error = liveErrors.value[control.field] || "";
   const badge = control.badge;
   return html`

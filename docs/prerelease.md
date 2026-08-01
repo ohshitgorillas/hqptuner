@@ -26,13 +26,27 @@ Original report:
 
 `pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`Crossfeed.js:172` → `actions.js:20`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`MatrixTab.js:179`) or a DSP-mode restore (`dspmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
 
-## 3. Stale-enumeration window after a mode write, with no surfacing left
+## 3. Stale-enumeration window after a mode write, with no surfacing left — FIXED 2026-08-01
+
+The window is closed rather than narrowed: `remirrorLive` (`hqptuner/static/store/live.js`) now fetches the fresh enumerations *before* installing either signal and assigns `engineState` and `enums` together, so no render can see the post-write chain beside the pre-write lists. `refreshConfig()` moves after that pair; it is independent of both.
+
+Surfacing is the disabling, and only that — user's call 2026-08-01, on the grounds that the window is short. `liveEnumBusy` (a computed over `liveBusy`) is true while any REENUMERATES write is in flight, and every control whose options come from an enumeration disables for it: the loaded chain's three, the junk filter, and both rate columns. The dormant chain reads the running config's form rather than an enumeration and stays live, as do adaptive volume and the mode switch. No caption returns — the old one reflowed the control row, which is why it was removed (`fix(live): drop the in-flight text marks`), and a note that costs layout is worse than a gray control that costs none.
+
+Covered by 39 tests — 15 in `tests/js/store/live-reenum.test.js`, 24 in `tests/js/components/live-enumbusy.test.js`. Seven bite against the pre-fix code. Every "grays out" case is paired with an idle case pinning the same control ungrayed, so a control gray for its own reasons cannot pass by standing still; the auto-mode rate columns are disabled at idle regardless, so the rate cases run under an explicit mode.
+
+The report's fourth claim — that a held write leaves the enumerations alone — was wrong and is not implemented. A held write calls `refreshConfig()`, whose first act is an enum mirror (`store/sync.js:58`), so the lists are re-read either way. Nothing re-enumerated, so they come back identical; the read is redundant, not incorrect.
+
+Original report:
 
 `hqptuner/static/store/live.js:94`
 
 Removing the `liveReloading` signal leaves the re-enumeration window with zero surfacing. On a REENUMERATES write (e.g. output mode flip), `liveBusy` disables only the field being written (`LiveView.js:100`), while `live.js:81` installs the new `active_chain` before the enum refetch at `live.js:94` — so the new chain card renders live against the pre-switch enum lists. Picking a filter during that seconds-long window posts an enum ID from the old list: a refused write, or a silently different filter than the name clicked. The deleted "Reloading the engine's lists…" note was the only surfacing, and the two tests touching `liveBusy` were deleted with it, so dropping `busy` from the disabled expression would still pass the suite green.
 
-## 4. Log-scale loudness frequency knobs break on missing min/max
+## 4. Log-scale loudness frequency knobs break on missing min/max — FIXED 2026-07-31
+
+Shipped in `b3181d7`, which this list did not record. `loOf` (`hqptuner/static/components/Knob.js`) floors a missing or non-positive log-scale min to a positive value, so no daemon form can produce `-Infinity`/NaN geometry, and both frequency knobs carry schema fallbacks (`min: 20`, `max: 20000` — the 6.0.4 form's own attributes; a live form's values still win). Covered in `tests/js/components/knob.test.js` and `tests/js/components/loudness-strip.test.js`.
+
+Original report:
 
 `hqptuner/static/components/Knob.js:74`
 

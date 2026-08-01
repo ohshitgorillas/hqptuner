@@ -26,6 +26,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **No more in-flight chatter on LIVE.** The LIVE view no longer prints "writing…", "switching…", "working…" or "Reloading the engine's lists…" beside a control while its write is in flight. Controls still gray out until the write lands.
 
+- **LIVE grays every menu the engine is rebuilding.** Changing output mode, a filter or the rate makes the engine rebuild its menus. Until the new ones arrive, the running chain's filters, the high-frequency filter and both rate columns gray out instead of offering entries the engine has already replaced. The other chain's controls, adaptive volume and the mode switch stay usable throughout.
+
 - **EQ file controls consolidated.** The Headphone Auto EQ card no longer carries its own **Load AutoEq / REW .txt…** button — the one in the Pipelines card's action row does the same thing. The **mirror to stereo pair** checkbox moved there too, beside it.
 
 - **DSP pipelines moved.** The DSP pipelines setting now sits at the top of the Pipelines card instead of the Matrix card, beside the pipeline count it governs.
