@@ -21,6 +21,14 @@
 // once the new State is joined to the NEW one. So a store that commits the two
 // halves separately shows a filter no fixture ever configured.
 //
+// LIMIT OF THE TOGETHERNESS PROBE. "The two halves are never visible apart" is a
+// statement about every instant, and a suite can only read the instants it can
+// stand in. The probe below stands in one: inside the outstanding
+// /api/enumerations request. A store that committed the new State in that
+// request's own handler and the new lists a tick later would pass it and still
+// be wrong. Catching that would take a recorder on every signal notification,
+// which is a mechanism no caller has; the gap is documented rather than covered.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live-reenum.test.js
 
 import test from "node:test";
@@ -90,22 +98,36 @@ const FILE = () => ({ mode: "pcm" });
 // from. `report` is what /api/config/live answers on 200; `status` + `detail`
 // make it refuse instead. `gate(w)` is awaited BEFORE /api/enumerations answers,
 // which is the window this suite is about — a reader running then sees whatever
-// the store has already committed. Every GET is recorded on `w.gets`, so a lane
-// that was never walked is observable without stubbing anything.
-function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored, file = FILE(), gate } = {}) {
+// the store has already committed. `refreshed` is the running configuration the
+// daemon answers AFTER the write, defaulting to what the test seeded. Every GET
+// is recorded on `w.gets`, so a lane that was never walked, or walked twice, is
+// observable without stubbing anything.
+function liveWire({
+  status = 200,
+  detail,
+  report = { live: [] },
+  fresh,
+  mirrored,
+  file = FILE(),
+  refreshed,
+  gate,
+} = {}) {
   const w = { posts: [], gets: [], seen: [] };
+  const state = mirrored || STATE();
+  const lists = fresh || ENUMS();
+  const overlay = refreshed || file;
   globalThis.fetch = async (path, opts = {}) => {
     if (path === "/api/config/live") {
       w.posts.push(JSON.parse(opts.body));
       return status === 200 ? ok(report) : bad(status, detail);
     }
     w.gets.push(path);
-    if (path === "/api/state") return ok({ data: mirrored || STATE() });
+    if (path === "/api/state") return ok({ data: state });
     if (path === "/api/enumerations") {
       if (gate) await gate(w);
-      return ok({ data: fresh || ENUMS() });
+      return ok({ data: lists });
     }
-    if (path === "/api/config") return ok({ data: { fields: [], file, active: "", profiles: null } });
+    if (path === "/api/config") return ok({ data: { fields: [], file: overlay, active: "", profiles: null } });
     return ok({});
   };
   return w;
@@ -186,13 +208,10 @@ const PLAIN = [
   { field: "junk_filter", value: "0" },
 ];
 
+// Only the traffic is asserted: lists that were never fetched cannot have been
+// adopted, so a second case reading the names back states nothing the first does
+// not already forbid.
 for (const c of PLAIN) {
-  test(`test_a_${c.field}_write_leaves_the_enumerations_alone`, async () => {
-    reset({ fresh: RE_ENUMS(), report: { live: [{ setting: c.field, ok: true }] } });
-    await writeLive(c.field, c.value);
-    assert.equal(filterName(), "none");
-  });
-
   test(`test_a_${c.field}_write_asks_the_daemon_for_no_enumerations`, async () => {
     const w = reset({ fresh: RE_ENUMS(), report: { live: [{ setting: c.field, ok: true }] } });
     await writeLive(c.field, c.value);
@@ -217,18 +236,39 @@ test("test_a_write_that_rebuilds_nothing_still_adopts_the_engines_new_state", as
 // with it; what a held write must not do is a re-enumeration pull of its OWN on
 // top of that read.
 
-const HELD = () => ({ fresh: RE_ENUMS(), report: { live: [], stored: { oversampling: "38" } } });
+// The field held is the SDM chain's MODULATOR, and deliberately not one of the
+// six that re-enumerate: with a re-enumerating field held, a store that handled
+// `stored` correctly and one that ignored it entirely both walk the enumerations
+// lane exactly once, and the count below could not fail. The modulator separates
+// them — one read if the held report sent the store to the configuration, none
+// at all if it did not.
+const HELD = () => ({
+  fresh: RE_ENUMS(),
+  file: { mode: "pcm", modulator: "3" },
+  refreshed: { mode: "pcm", modulator: "7" },
+  report: { live: [], stored: { modulator: "7" } },
+});
 
-test("test_a_held_write_re_reads_the_running_configuration", async () => {
-  const w = reset(HELD());
-  await writeLive("oversampling", "38");
-  assert.equal(w.gets.includes("/api/config"), true);
+test("test_a_held_write_shows_the_held_value_on_the_dormant_control", async () => {
+  // The overlay is the only lane a held edit reaches the frontend by, so a store
+  // that issued the re-read and threw the answer away is still showing 3 here.
+  // What this cannot separate is adoption from the overlay and adoption from the
+  // report's own `stored` — both end on 7, and only the wire tells them apart.
+  reset(HELD());
+  await writeLive("modulator", "7");
+  assert.equal(control("modulator").value, "7");
 });
 
 test("test_a_held_write_reads_the_enumerations_no_more_than_that_re_read_carries", async () => {
   // The configuration re-read brings one set of lists with it. A store that
   // treated a held write as a re-enumeration as well would walk that lane twice.
   const w = reset(HELD());
-  await writeLive("oversampling", "38");
+  await writeLive("modulator", "7");
   assert.equal(w.gets.filter((p) => p === "/api/enumerations").length, 1);
+});
+
+test("test_a_held_write_adopts_the_lists_that_re_read_brought_back", async () => {
+  reset(HELD());
+  await writeLive("modulator", "7");
+  assert.equal(filterName(), "poly-sinc-short");
 });
