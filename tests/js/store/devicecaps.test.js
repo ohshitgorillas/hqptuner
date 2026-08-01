@@ -1,34 +1,21 @@
 // Behavioral suite for store/devicecaps.js — graying the rate menus and the
 // mode segment against what the SELECTED OUTPUT DEVICE can actually carry.
 //
-// The daemon does not report device capability; HQPTuner learns it from the
-// log and serves it on /api/config as `device_caps`:
+// The other half of the contract, correcting a setting that already SITS on
+// something the device cannot reach, is devicecaps-fallback.test.js. The
+// fixtures, the capability shapes and the menu-reading helpers both suites run
+// on live in ../support/devicecaps-harness.js.
 //
-//   { device: "naa-office/hw:CARD=…,DEV=0", pcm_rates: [...], dsd_rates: [...] }
-//
-// `null` when nothing is known. Rates on the wire are INTEGERS while option
-// values are STRINGS, so every fixture below leaves them in their real types
-// and every menu lookup here compares STRICTLY — a suite that coerced with
-// String() would read the same whether the menu carried "192000" or 192000,
-// and so would pin nothing about the join.
-//
-// The menus name a TIER, not a frequency: every tier has a 44.1k member and a
-// 48k member and the option's value carries the 48k one, so 192000 is the 4x
-// tier and also means 176400. A device that announced EITHER member can play
-// the tier, which is why the cases below announce some tiers by their 44.1k
-// twin alone.
+// A device that announced EITHER member of a tier can play that tier, which is
+// why some cases below announce a tier by its 44.1k twin alone.
 //
 // DoP (v1.1) carries DSD inside a PCM carrier at one sixteenth of the DSD rate
 // — DSD64 needs 176400, DSD128 needs 352800. Nothing on the wire reports
 // whether a device supports DoP, so the user's own switch (`net_dop` on the
-// network backend, `alsa_dop` on ALSA) is the only signal there is, and these
+// network backend, `alsa_dop` on ALSA) is the only signal there is, and the
 // fixtures supply it as an ordinary config field. The two switches are pinned
 // in both directions: each fixture that turns one on turns the other off, so a
 // store reading `net_dop || alsa_dop` fails rather than passing everywhere.
-//
-// Graying reacts to STAGED values, not applied ones (architecture.md §5), so
-// the last two cases drive the real `edit()` against a staging wire and expect
-// the menus to move with no apply and no change to the config payload.
 //
 // Every grayed RATE option reads exactly "unavailable" — one word, both menus,
 // all three routes to a gray (past the device's PCM ceiling, no native DSD, no
@@ -38,162 +25,51 @@
 // still explains why.
 //
 // The governing principle throughout: when the capability cannot speak for the
-// control, NOTHING is grayed — combo backend, a staged device the daemon has
-// not opened, no capability at all. And what is grayed is still LISTED: a
+// control, NOTHING is grayed — combo backend, a device the announcement does
+// not describe, no capability at all. And what is grayed is still LISTED: a
 // vanished entry reads as "this build does not support it", a grayed one as
 // "your hardware cannot do it", so every named tier comes back present.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no store
 // function stubbed — the exported `config` signal carries the /api/config
-// payload exactly as the endpoint serves it, and the staged buffer is reached
-// through `edit()` / `discardAll()` over the real REST paths.
+// payload exactly as the endpoint serves it.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/devicecaps.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { config } from "../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { DSD_RATES, schema } from "../../../hqptuner/static/store/schema.js";
+import { DSD_RATES } from "../../../hqptuner/static/store/schema.js";
 import { grayRatesByDevice, grayModesByDevice } from "../../../hqptuner/static/store/devicecaps.js";
-import { stagingWire } from "../support/wire.js";
-
-// Tier menu members, 48k side — the numbers the options carry, as strings.
-const PCM_2X = "96000";
-const PCM_4X = "192000";
-const PCM_8X = "384000";
-const PCM_16X = "768000";
-const PCM_32X = "1536000";
-const DSD64 = "3072000";
-const DSD128 = "6144000";
-const DSD256 = "12288000";
-const DSD512 = "24576000";
-
-// The tiers each menu is required to offer, named here rather than counted off
-// the menu itself: an expectation built from the array under test degenerates
-// to a tautology the moment that array changes or empties.
-const PCM_TIERS = ["48000", PCM_2X, PCM_4X, PCM_8X, PCM_16X, PCM_32X];
-const DSD_TIERS = [DSD64, DSD128, DSD256, DSD512, "49152000", "98304000"];
-
-const PCM_OPTIONS = schema.pcm_rate.options;
-const MODE_OPTIONS = schema.output_mode.options;
-
-// A net_device is an `endpoint/device` pair as one string; an alsa_device is a
-// bare ALSA name. The capability's `device` carries the same joined form the
-// corresponding config field does, so the two are deliberately unalike here:
-// a store matching against the wrong field finds no match and grays nothing.
-const NET_DEVICE = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
-const OTHER_NET_DEVICE = "S26/hw:CARD=Output,DEV=0";
-const ALSA_DEVICE = "hw:CARD=NVidia,DEV=3";
-
-// What the log-derived capability looks like on the wire: integers, both
-// families, the device it was observed on.
-const caps = (device, pcmRates, dsdRates) => ({
-  device,
-  pcm_rates: pcmRates,
-  dsd_rates: dsdRates,
-});
-
-// A device topping out at 192 kHz. 88200/176400 are announced but 96000 is
-// too, so the 2x tier is answered by its own 48k member and only the 4x tier
-// rests on its 44.1k twin.
-const PCM_TO_192 = [44100, 48000, 88200, 96000, 176400, 192000];
-
-// The same device announcing 176400 but NOT 192000: the 4x tier is then
-// reachable only through the 44.1k member the option's value does not carry.
-const PCM_TO_176 = [44100, 48000, 88200, 96000, 176400];
-
-// A yield long enough for the fall-back effect to run and for the staged edit
-// it makes to complete its round trip over the wire. Not a wall-clock wait:
-// zero-delay turns of the loop, so the suite pins what the effect concludes,
-// never how long it takes.
-const tick = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await new Promise((resolve) => setTimeout(resolve, 0));
-};
-
-// The whole /api/config payload, plus an empty staged buffer, and the returned
-// staging wire holds the pending buffer the way the backend does — so `edit()`
-// and the store's own corrective edit both ride the real REST path and both
-// read back through `w.staged`.
-//
-// Every field the graying reads is present in every fixture, so a case never
-// passes because the field it should have consulted was simply absent.
-// Checkbox fields carry the daemon's own shape — real booleans — except where
-// a case names the staged "1"/"0" strings. The three CONTROL values are seeded
-// only when a case names one, and are mirrored into `file` as well as `fields`:
-// the running-config layer is the truth for controls whose edits go out live,
-// and liverate.test.js seeds the rate pair the same way.
-//
-// The buffer is cleared BEFORE the fixture payload lands, never after: the
-// correction is an effect on the capability and the current values, so a
-// discard afterwards would wipe the very thing these cases measure.
-async function reset({
-  backend = "network",
-  netDevice = NET_DEVICE,
-  alsaDevice = ALSA_DEVICE,
-  netDop = false,
-  alsaDop = false,
-  deviceCaps = null,
-  pcmRate,
-  sdmRate,
-  mode,
-} = {}) {
-  const w = stagingWire();
-  config.value = { fields: [], file: {}, active: "", profiles: null, device_caps: null };
-  await discardAll();
-
-  const fields = [
-    { name: "backend", value: backend },
-    { name: "net_device", value: netDevice },
-    { name: "alsa_device", value: alsaDevice },
-    { name: "net_dop", value: netDop },
-    { name: "alsa_dop", value: alsaDop },
-  ];
-  const file = {};
-  const control = (name, value) => {
-    if (value === undefined) return;
-    fields.push({ name, value });
-    file[name] = value;
-  };
-  control("defaults_samplerate", pcmRate);
-  control("defaults_bitrate", sdmRate);
-  control("mode", mode);
-
-  config.value = { fields, file, active: "", profiles: null, device_caps: deviceCaps };
-  await tick();
-  return w;
-}
-
-// --- reading the narrowed menus -----------------------------------------------
-
-// An entry by the tier it names, matched strictly against the string the menu
-// is required to carry. A miss throws rather than quietly measuring nothing:
-// an option list that has LOST an entry — or drifted to numeric values — must
-// fail loudly, since dropping what the device cannot reach is exactly the
-// behaviour house policy forbids.
-function optionFor(options, value) {
-  const hit = options.find((o) => o.value === value);
-  if (!hit) throw new Error(`the menu offers no ${value} entry`);
-  return hit;
-}
-
-// The two marks an entry can carry, read as a pair: whether it can be picked
-// and what it says about itself. An entry disabled without a reason leaves the
-// user guessing; a reason on a selectable entry grays nothing.
-const marks = (o) => [o.disabled === true, typeof o.reason === "string" && o.reason.length > 0];
-const GRAYED = [true, true];
-const UNTOUCHED = [false, false];
-
-const markedCount = (options) => options.filter((o) => o.disabled || o.reason).length;
-
-// The named tiers that came back grayed / untouched, in the order named. Read
-// against the full tier list, a short or reordered answer names which tier
-// went the wrong way.
-const grayedAmong = (options, tiers) => tiers.filter((v) => optionFor(options, v).disabled === true);
-const untouchedAmong = (options, tiers) =>
-  tiers.filter((v) => !optionFor(options, v).disabled && !optionFor(options, v).reason);
+import {
+  ALSA_DEVICE,
+  DSD64,
+  DSD128,
+  DSD256,
+  DSD512,
+  DSD_TIERS,
+  GRAYED,
+  MODE_OPTIONS,
+  NET_DEVICE,
+  OTHER_NET_DEVICE,
+  PCM_16X,
+  PCM_2X,
+  PCM_32X,
+  PCM_4X,
+  PCM_8X,
+  PCM_OPTIONS,
+  PCM_TIERS,
+  PCM_TO_176,
+  PCM_TO_192,
+  UNTOUCHED,
+  caps,
+  grayedAmong,
+  markedCount,
+  marks,
+  optionFor,
+  reset,
+  untouchedAmong,
+} from "../support/devicecaps-harness.js";
 
 // --- the menus' own shape -----------------------------------------------------
 
@@ -488,102 +364,4 @@ test("test_the_network_backend_does_not_take_alsa_dop_for_its_own", async () => 
   });
   const out = grayRatesByDevice(DSD_RATES, "sdm");
   assert.deepEqual(marks(optionFor(out, DSD64)), GRAYED);
-});
-
-// --- graying reacts to staged values, not applied ones ------------------------
-// architecture.md §5. The config payload never moves in these two: the only
-// thing that changes is the pending buffer, and the menus follow it.
-
-test("test_staging_a_dop_edit_relights_the_sdm_mode_without_an_apply", async () => {
-  // The daemon's form says DoP is off and the device has no native DSD, so the
-  // SDM button starts grayed. Ticking the box has to relight it there and then
-  // — a store reading the applied form alone leaves the user staring at a dead
-  // button until apply.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  await edit("net_dop", "1");
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
-
-test("test_staging_a_device_change_grays_no_pcm_tier", async () => {
-  // The capability describes the device the daemon has open, which is still
-  // what the config payload names; the user has picked a different one. Until
-  // that is applied and observed, nothing is known about its limits.
-  await reset({ netDevice: NET_DEVICE, deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
-  await edit("net_device", OTHER_NET_DEVICE);
-  assert.equal(markedCount(grayRatesByDevice(PCM_OPTIONS, "pcm")), 0);
-});
-
-// --- falling back off a selection the device cannot reach ---------------------
-// Graying an option the user cannot click is half the job: the setting may
-// already SIT on one, carried in from a preset, from a previous device, or from
-// unticking DoP on a device whose only DSD path was DoP. The store corrects it
-// as an ordinary STAGED edit — visible in the pending bar, discardable, and
-// never a display-only substitution, because the editor has to show what would
-// actually apply. So each case below reads the correction off the same pending
-// buffer an `edit()` writes to, and every staged value is a string.
-
-test("test_a_pcm_rate_the_device_cannot_reach_falls_back_to_its_highest_announced_tier", async () => {
-  // The form says 32x on a device that tops out at 192 kHz.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), mode: "pcm", pcmRate: "1536000" });
-  assert.equal(w.staged.http.defaults_samplerate, "192000");
-});
-
-test("test_an_sdm_rate_the_device_cannot_reach_falls_back_to_its_highest_announced_tier", async () => {
-  const w = await reset({
-    deviceCaps: caps(NET_DEVICE, PCM_TO_192, [3072000, 6144000, 12288000]),
-    mode: "sdm",
-    sdmRate: "49152000",
-  });
-  assert.equal(w.staged.http.defaults_bitrate, "12288000");
-});
-
-test("test_a_pcm_rate_the_device_can_reach_is_left_alone", async () => {
-  // Otherwise the correction fires on every load and the pending bar is never
-  // empty.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), mode: "pcm", pcmRate: "96000" });
-  assert.deepEqual(w.staged.http, {});
-});
-
-test("test_with_no_capability_known_an_unreachable_looking_rate_is_left_alone", async () => {
-  // Unknown capability corrects nothing, exactly as it grays nothing.
-  const w = await reset({ deviceCaps: null, mode: "pcm", pcmRate: "1536000" });
-  assert.deepEqual(w.staged.http, {});
-});
-
-test("test_the_sdm_mode_is_left_alone_while_dop_still_gives_the_device_a_dsd_path", async () => {
-  // First half of the DoP case: no native DSD, but DoP is on and the 176.4 kHz
-  // carrier is announced, so SDM is reachable and there is nothing to correct.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true, mode: "sdm" });
-  assert.deepEqual(w.staged.http, {});
-});
-
-test("test_unticking_dop_falls_the_mode_back_to_pcm", async () => {
-  // Second half: the only DSD path this device had was DoP, and the user has
-  // just switched it off. SDM stops being reachable, so the mode goes with it.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true, mode: "sdm" });
-  await edit("net_dop", "0");
-  await tick();
-  assert.equal(w.staged.http.mode, "pcm");
-});
-
-test("test_the_pcm_mode_is_never_corrected", async () => {
-  // The device has no DSD path at all, which grays SDM — but PCM is what the
-  // mode already sits on, and nothing about a missing DSD path makes PCM
-  // unreachable.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false, mode: "pcm" });
-  assert.equal("mode" in w.staged.http, false);
-});
-
-test("test_an_sdm_rate_is_left_alone_when_the_device_can_reach_no_dsd_rate_at_all", async () => {
-  // There is no reachable tier to fall back TO, so falling back onto one would
-  // stage a rate the device cannot play either. The mode correction is what
-  // handles this case.
-  const w = await reset({
-    deviceCaps: caps(NET_DEVICE, PCM_TO_192, []),
-    netDop: false,
-    mode: "sdm",
-    sdmRate: "49152000",
-  });
-  assert.equal("defaults_bitrate" in w.staged.http, false);
 });
