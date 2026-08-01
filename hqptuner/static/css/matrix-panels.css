@@ -137,7 +137,7 @@
   flex-direction: column;
   gap: var(--sp-4);
 }
-.card-grid .mtx-global .field select {
+.mtx-global .field select {
   width: auto;
   max-width: 100%;
 }

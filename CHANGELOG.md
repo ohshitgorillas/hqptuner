@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **DSP pipelines moved.** The DSP pipelines setting now sits at the top of the Pipelines card instead of the Matrix card, beside the pipeline count it governs.
+
 - **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the four that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
 
 - **One switch size everywhere.** All segmented switches now share the large size the card enables use. The hero MODE / BACKEND / RATE segments and the SPEAKERS | HEADPHONES banner keep their own sizes.

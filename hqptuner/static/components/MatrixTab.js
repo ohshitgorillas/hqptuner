@@ -38,7 +38,6 @@ function GlobalCard() {
         <${Field} k="matrix_engine" />
         <${Field} k="matrix_expand_hf" />
         <${Field} k="matrix_iir2fir" />
-        <${Field} k="pipelines" />
       </div>
     <//>
   `;
@@ -186,6 +185,9 @@ function PipelinesCard() {
               </div>`
             : null
         }
+        <div class="mtx-global">
+          <${Field} k="pipelines" />
+        </div>
         <${XfeedBadge} />
         <${StructuralBadge} />
         ${rows.map(
