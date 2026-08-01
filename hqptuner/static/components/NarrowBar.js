@@ -68,7 +68,7 @@ const LENGTHS = [
 // Upsample-only ("up" in the manual) rides in the popover as an extra checkbox.
 const RATIOS = [
   ["integer", "Integer"],
-  ["2x", "2×"],
+  ["2x", "2x"],
   ["1:1", "1:1"],
 ];
 
@@ -168,6 +168,11 @@ function chainCounts(overrides) {
   return { one, nx };
 }
 
+// Column head for the count chips, the popover's first row. The bare pair
+// ("17/47") reads as a fraction and is not one, so the column says what its two
+// numbers are: the active chain's 1x list size and its Nx list size.
+const CountHead = () => html`<div class="multi-head t-label">1x / Nx</div>`;
+
 // The count chip shown right-aligned in each popover row. A pair that zeroes out
 // both stages reads `dead` — a dead-end pick, dimmed so it is visible before
 // clicking.
@@ -189,6 +194,7 @@ function SingleSelect({ open, name, label, value, items, onPick, active, count }
       ${
         open.value
           ? html`<div class="multi-pop">
+              ${count ? html`<${CountHead} />` : null}
               ${items.map(
                 ([v, l]) => html`
                   <label>
@@ -225,6 +231,7 @@ function MultiSelect({ open, name, label, items, sig, extra, active, count }) {
       ${
         open.value
           ? html`<div class="multi-pop">
+              ${count ? html`<${CountHead} />` : null}
               ${items.map(
                 ([v, l]) => html`
                   <label>
@@ -250,6 +257,10 @@ export function NarrowBar() {
   }, []);
   return html`
     <${Card} title="Narrow filters" cardClass="narrow-card">
+      <div class="t-caption">
+        Counts in a facet popover are the 1x / Nx filters that survive the pick; the badge on a filter dropdown is
+        matching / total.
+      </div>
       <div class="narrow-controls">
         <div class="narrow-facets">
           <${MultiSelect}

@@ -89,6 +89,14 @@
 .opt-count.dead {
   opacity: var(--o-off);
 }
+/* Column head over those counts: right-aligned to the same edge the chips end
+   on (the rows are flex with .opt-label taking the slack, so the chip column is
+   flush right), divided off the rows below it like .multi-extra is above. */
+.multi-head {
+  text-align: right;
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--surface-raised);
+}
 
 /* Live result badge in a filter dropdown's label row ("1x filter  14/68"):
    always muted. No accent anywhere for narrowed state — accent on a control
