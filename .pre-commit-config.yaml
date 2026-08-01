@@ -30,7 +30,7 @@ repos:
         pass_filenames: false
         types: [python]
       - id: file-length
-        name: max 500 lines per source file
+        name: max 500 source / 800 test lines
         entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [python]
@@ -75,7 +75,7 @@ repos:
         pass_filenames: false
         types: [javascript]
       - id: file-length-js
-        name: max 500 lines per source file (js)
+        name: max 500 source / 800 test lines (js)
         entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [javascript]
