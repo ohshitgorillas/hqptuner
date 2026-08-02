@@ -21,7 +21,6 @@ import { api } from "../lib/api.js";
 import { liveModel, liveBusy, liveEnumBusy, liveErrors, writeLive } from "../store/live.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
-import { stagedCount } from "../store/resolve.js";
 import { refreshConfig } from "../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
 import {
@@ -36,7 +35,6 @@ import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { NarrowBar } from "./NarrowBar.js";
-import { ApodNarrow, HiresNarrow } from "./ApodNarrow.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
 import { Section, Card, collapseFrom } from "./tabs/common.js";
@@ -116,8 +114,6 @@ function LiveField({ control, widget }) {
         />
       </div>
       <${LiveProse} control=${control} meta=${meta} />
-      ${entry.apodNarrow ? html`<${ApodNarrow} field=${control.key} />` : null}
-      ${entry.hiresNarrow ? html`<${HiresNarrow} field=${control.key} />` : null}
       ${error ? html`<div class="live-error">${error}</div>` : null}
     </div>
   `;
@@ -373,19 +369,9 @@ function LiveModeCard() {
   `;
 }
 
-// The tabs view's staged edits are none of this page's business, but leaving
-// them invisible is how a user forgets an Apply is still owed. Informational
-// only: LIVE never flushes the pending buffer and never blocks on it.
-function StagedChip() {
-  const n = stagedCount.value;
-  if (!n) return null;
-  return html`<div class="live-chip">${n} staged change${n === 1 ? "" : "s"} waiting in the tabs view</div>`;
-}
-
 export function LiveView() {
   return html`
     <${Section}>
-      <${StagedChip} />
       <${LiveModeCard} />
       <${HeroRow} />
       <!-- The same card the System tab carries, second on the page because on

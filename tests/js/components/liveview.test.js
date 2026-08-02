@@ -149,11 +149,6 @@ test("test_a_refused_write_shows_its_reason_on_the_control", async () => {
   assert.ok(page().includes('<div class="live-error">the pcm chain is not loaded</div>'));
 });
 
-test("test_staged_edits_in_the_tabs_view_show_as_a_chip", async () => {
-  await reset({ staged: { live: {}, http: { upnp_freewheel: "1" } } });
-  assert.ok(page().includes("1 staged change waiting in the tabs view"));
-});
-
 test("test_a_profile_the_engine_never_loaded_cannot_be_switched_to", async () => {
   await reset({ mtx: { file_profiles: { Room: [] }, live_profiles: [] } });
   assert.ok(page().includes("not loaded by the engine"));
