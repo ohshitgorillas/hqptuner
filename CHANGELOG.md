@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- **A note when the matrix engine is bypassed.** The Pipelines card, the Headphone Auto EQ card and the Crossfeed card in Structural view now say "Matrix engine is bypassed. These settings have no effect." while the Matrix card's switch is on BYPASS. The Matrix response card says "Matrix engine is bypassed. The changes below are not applied." above the curve, and stays quiet when there is nothing plotted. Staging ENGAGE clears it straight away. Nothing is disabled — a profile can still be built against a bypassed engine and engaged afterwards.
+- **A note when the matrix engine is bypassed.** The Pipelines card, the Headphone Auto EQ card and the Crossfeed card in Structural view now say "Matrix engine is bypassed. These settings have no effect." while the General card's switch is on BYPASS. The Matrix response card says "Matrix engine is bypassed. The changes below are not applied." above the curve, and stays quiet when there is nothing plotted. Staging ENGAGE clears it straight away. Nothing is disabled — a profile can still be built against a bypassed engine and engaged afterwards.
 
 - **Violet accent theme.** A fourth swatch on the accent picker, beside blue, phosphor green and amber. Matrix IIR stage chips shift from violet to orchid so they stay distinct from the accent under the new theme.
 
@@ -18,7 +18,11 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **Switches are bigger.** All segmented switches now share the large size the card enables use. The hero BACKEND and MODE buttons fill the card's full height, level with the RATE dropdowns; the DSP tab's SPEAKERS | HEADPHONES banner uses the app's largest text; and the header's LIVE toggle takes a larger label and more padding.
+- **The DSP tab is now the Matrix tab.** Resampling is DSP too, so the old name said less than it looked like it did. The card at the top of it, previously **Matrix**, is now **General**.
+
+- **PCM gain compensation fills the right way round.** The slider on the Output tab filled from the right; it now fills from the left like every other slider in the app.
+
+- **Switches are bigger.** All segmented switches now share the large size the card enables use. The hero BACKEND and MODE buttons fill the card's full height, level with the RATE dropdowns; the Matrix tab's SPEAKERS | HEADPHONES banner uses the app's largest text; and the header's LIVE toggle takes a larger label and more padding.
 
 - **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Speakers, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the five that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
 

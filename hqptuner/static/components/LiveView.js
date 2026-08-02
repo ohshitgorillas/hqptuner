@@ -271,7 +271,7 @@ function MatrixProfileCard() {
         </div>
         <div class="field-note">
           Switches the running matrix immediately — no engine reload, and your crossfeed, DAC correction and loudness
-          settings are left alone. A live switch alone is dropped at the next daemon restart; save it from the DSP tab
+          settings are left alone. A live switch alone is dropped at the next daemon restart; save it from the Matrix tab
           to keep it.
         </div>
         ${profileError.value ? html`<div class="live-error">${profileError.value}</div>` : null}

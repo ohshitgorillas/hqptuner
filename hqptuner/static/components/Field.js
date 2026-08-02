@@ -174,6 +174,7 @@ export function Field({ k }) {
           max=${cfgConstraint(entry, "max")}
           step=${cfgConstraint(entry, "step")}
           ticks=${entry.ticks}
+          anchor=${entry.anchor}
           def=${entry.def}
           slider=${entry.slider}
           scale=${entry.scale}

@@ -34,7 +34,7 @@ const pipelinesCardOpen = signal(true);
 // are content-sized via .mtx-global.
 function GlobalCard() {
   return html`
-    <${Card} title="Matrix" subtitle=${noteFor("matrix_enabled")}>
+    <${Card} title="General" subtitle=${noteFor("matrix_enabled")}>
       <div class="mtx-global">
         <${Field} k="matrix_enabled" />
         <${Field} k="matrix_engine" />

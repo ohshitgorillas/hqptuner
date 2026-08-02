@@ -999,6 +999,7 @@ export const schema = {
     note: "gain_compensation",
     unit: "dB",
     ticks: [0, -6],
+    anchor: "min",
   },
   adaptive_volume: {
     label: "Adaptive volume",

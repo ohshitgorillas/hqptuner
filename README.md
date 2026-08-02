@@ -52,7 +52,7 @@ The above three features are my flagships, but the following benefits are offere
 
 <img width="1195" height="1876" alt="image" src="https://github.com/user-attachments/assets/0cf921af-7f43-4503-917c-988b77561383" />
 
-*The DSP tab demonstrating the effects of structural crossfeed mode on the Matrix Response plot.*
+*The Matrix tab demonstrating the effects of structural crossfeed mode on the Matrix Response plot.*
 
 ## Drawbacks of HQPTuner
 

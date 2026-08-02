@@ -1,5 +1,5 @@
-// Tab registry + navigation. Order: Output, Volume, Resampling, DSP, System
-// (Loudness lives on Volume, Crossfeed on DSP). Bar and
+// Tab registry + navigation. Order: Output, Volume, Resampling, Matrix, System
+// (Loudness lives on Volume, Crossfeed on Matrix). Bar and
 // body render separately so the bar can live inside the sticky chrome wrapper
 // (App.js) while the body scrolls beneath it.
 import { html } from "../../lib/dom.js";
@@ -15,7 +15,7 @@ const TABS = [
   ["output", "Output", Output],
   ["volume", "Volume", Volume],
   ["resampling", "Resampling", Resampling],
-  ["matrix", "DSP", MatrixTab],
+  ["matrix", "Matrix", MatrixTab],
   ["system", "System", System],
 ];
 
