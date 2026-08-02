@@ -109,6 +109,30 @@ export function line(out, cls) {
   return m ? m[1] : null;
 }
 
+// Inner HTML of the field's control row — the <div class="control">…</div>
+// fragment — with nested <div>s honoured. Null when there is no control row.
+export function controlRow(out) {
+  const open = /<div class="[^"]*\bcontrol\b[^"]*"[^>]*>/.exec(out);
+  if (!open) return null;
+  const start = open.index + open[0].length;
+  const tags = /<(\/?)div\b[^>]*>/g;
+  tags.lastIndex = start;
+  let depth = 1;
+  let m;
+  while ((m = tags.exec(out)) !== null) {
+    depth += m[1] ? -1 : 1;
+    if (depth === 0) return out.slice(start, m.index);
+  }
+  return null;
+}
+
+// Text of the gray-reason element in a fragment, whatever tag carries the class.
+export function grayReason(fragment) {
+  const re = /<(\w+)[^>]*\bclass="[^"]*\bfield-gray-reason\b[^"]*"[^>]*>([\s\S]*?)<\/\1>/;
+  const m = re.exec(fragment || "");
+  return m ? m[2] : null;
+}
+
 export const span = (out, cls) => {
   const m = new RegExp(`<span class="${cls}">([\\s\\S]*?)</span>`).exec(out);
   return m ? m[1] : null;

@@ -28,6 +28,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **PCM gain compensation fills the right way round.** The slider on the Output tab filled from the right; it now fills from the left like every other slider in the app.
 
+- **Grayed-out reasons sit beside the control.** DAC bits on both output backends, Adaptive volume and Loudness now carry their "why is this grayed" note to the right of the control instead of on a line below it.
+
+- **The DAC correction profile picker is now called DAC model.** It picks the DAC being corrected for, and the old name collided with the matrix profiles on LIVE.
+
 - **Switches are bigger.** All segmented switches now share the large size the card enables use. The hero BACKEND and MODE buttons fill the card's full height, level with the RATE dropdowns; the Matrix tab's SPEAKERS | HEADPHONES banner uses the app's largest text; and the header's LIVE toggle takes a larger label and more padding.
 
 - **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Speakers, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the five that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.

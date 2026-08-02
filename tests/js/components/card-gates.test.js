@@ -35,7 +35,7 @@ import { Card, collapseFrom } from "../../../hqptuner/static/components/tabs/com
 import { noteFor } from "../../../hqptuner/static/store/prose.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
 import { isDirty, stagedCount } from "../../../hqptuner/static/store/resolve.js";
-import { reset, field, titleOf, line, activeSegment } from "../support/field-harness.js";
+import { reset, field, titleOf, grayReason, activeSegment } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
 
 // --- the gates ----------------------------------------------------------------
@@ -321,12 +321,12 @@ for (const key of GATES) {
 const PINNED = [{ name: "fixed_volume_enabled", value: true }];
 
 test("test_a_gate_grayed_by_a_bypassed_volume_control_names_it_in_the_caption", async () => {
-  const reason = line(await gate("loudness_enabled", { config: PINNED }), "field-gray-reason");
+  const reason = grayReason(await gate("loudness_enabled", { config: PINNED }));
   assert.match(String(reason), /volume/i);
 });
 
 test("test_a_gate_with_a_live_volume_control_carries_no_gray_caption", async () => {
-  assert.equal(line(await gate("loudness_enabled"), "field-gray-reason"), null);
+  assert.equal(grayReason(await gate("loudness_enabled")), null);
 });
 
 // ============================================================================

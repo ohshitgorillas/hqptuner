@@ -19,6 +19,10 @@
 //   quietGray    suppress the visible gray caption (hover title only) — for
 //                controls whose graying is already explained by context (the
 //                rate pair, dimmed post-process card bodies)
+//   inlineGray   render the gray caption in the control row, right of the
+//                widget, instead of stacked under the manual note — for short
+//                reasons on narrow controls, where a line of its own reads as
+//                unrelated prose rather than as this control's state
 //
 // Output is the full architecture §4 set. DSP/Volume/System still carry the step-1
 // subset — filled next, tab by tab.
@@ -336,6 +340,7 @@ export const schema = {
     lane: "http",
     field: "alsa_bits",
     grayWhen: isSdm,
+    inlineGray: true,
   },
   alsa_period: {
     label: "Buffer time",
@@ -392,6 +397,7 @@ export const schema = {
     lane: "http",
     field: "net_bits",
     grayWhen: isSdm,
+    inlineGray: true,
   },
   net_period: {
     label: "Buffer time",
@@ -673,7 +679,7 @@ export const schema = {
     field: "post_correction_enabled",
   },
   dac_correction_profile: {
-    label: "Profile",
+    label: "DAC model",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -697,6 +703,7 @@ export const schema = {
     endpoint: "matrix",
     field: "post_loudness_enabled",
     grayWhen: loudnessGated,
+    inlineGray: true,
   },
   loudness_low_level: {
     label: "Level",
@@ -1009,6 +1016,7 @@ export const schema = {
     stateField: "adaptive",
     liveKey: "adaptive_volume",
     grayWhen: volumeBypassed,
+    inlineGray: true,
   },
   playlist_album_gain: {
     label: "Playlist album gain",

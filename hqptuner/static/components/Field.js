@@ -109,6 +109,11 @@ function narrowBadge(entry, key) {
 // appended after the manual note (user decision; hover-only reasons
 // proved undiscoverable) unless the schema suppresses it (quietGray).
 const captionVisible = (entry, reason) => !!reason && !entry.quietGray;
+// `inlineGray` moves that caption off the stack and into the control row, to
+// the right of the widget itself, for short reasons on narrow controls where a
+// line of its own under the manual note reads as unrelated prose.
+const inlineCaption = (entry, reason) => captionVisible(entry, reason) && !!entry.inlineGray;
+const stackedCaption = (entry, reason) => captionVisible(entry, reason) && !entry.inlineGray;
 
 // Hover title. desc-carrying fields (filters, DSD sources) render the
 // per-selection prose inline, so their hover always carries the OVERALL feature
@@ -134,7 +139,7 @@ function fieldProse(entry, key, meta, reason, options) {
   return html`
     ${showDesc ? html`<div class="field-desc">${selectionDescription(entry, effective(key), options, meta)}</div>` : null}
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
-    ${captionVisible(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}
+    ${stackedCaption(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}
   `;
 }
 
@@ -187,6 +192,7 @@ export function Field({ k }) {
         />
         ${entry.unit && entry.widget !== "knob" ? html`<span class="unit">${entry.unit}</span>` : null}
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
+        ${inlineCaption(entry, reason) ? html`<span class="field-gray-reason">${reason}</span>` : null}
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${fieldProse(entry, k, meta, reason, options)}

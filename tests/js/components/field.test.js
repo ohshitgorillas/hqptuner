@@ -22,6 +22,8 @@ import {
   hasClass,
   line,
   span,
+  controlRow,
+  grayReason,
   attrOf,
   optionLabels,
   optionByLabel,
@@ -56,6 +58,11 @@ test("test_a_sublabel_renders_beside_the_label", async () => {
 test("test_a_field_without_a_sublabel_renders_no_label_alt", async () => {
   await reset();
   assert.equal(span(field("volume_max"), "label-alt"), null);
+});
+
+test("test_the_dac_correction_profile_is_labelled_dac_model", async () => {
+  await reset();
+  assert.ok(field("dac_correction_profile").includes("<label>DAC model"));
 });
 
 // ============================================================================
@@ -301,6 +308,54 @@ test("test_a_quiet_gray_field_shows_no_caption", async () => {
 test("test_a_quiet_gray_field_is_still_disabled", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
   assert.ok(isDisabled(field("pcm_rate")));
+});
+
+// ============================================================================
+// graying — inline placement
+//
+// Some keys carry their gray reason INSIDE the control row rather than as the
+// stacked caption below it. The observable contract is placement plus text: the
+// reason element sits within <div class="control">…</div> and carries the
+// field-gray-reason class, whatever tag it is written with.
+// ============================================================================
+
+test("test_an_inline_gray_bit_depth_shows_its_reason_inside_the_control_row", async () => {
+  await reset({ fields: [{ name: "mode", value: "sdm" }] });
+  assert.equal(grayReason(controlRow(field("alsa_bits"))), "Only relevant to PCM output mode.");
+});
+
+test("test_an_inline_gray_network_bit_depth_shows_its_reason_inside_the_control_row", async () => {
+  await reset({ fields: [{ name: "mode", value: "sdm" }] });
+  assert.equal(grayReason(controlRow(field("net_bits"))), "Only relevant to PCM output mode.");
+});
+
+test("test_inline_gray_adaptive_volume_names_the_direct_sdm_bypass_inside_the_control_row", async () => {
+  await reset({ fields: [{ name: "direct_sdm", value: true }] });
+  assert.equal(grayReason(controlRow(field("adaptive_volume"))), "Direct SDM bypasses the volume control.");
+});
+
+test("test_inline_gray_loudness_explains_why_adaptive_loudness_cannot_adapt", async () => {
+  await reset({ fields: [{ name: "direct_sdm", value: true }] });
+  assert.equal(
+    grayReason(controlRow(field("loudness_enabled"))),
+    "Direct SDM bypasses the volume control. Volume-adaptive loudness cannot adapt — use a Matrix EQ" +
+      " for a volume-agnostic equivalent.",
+  );
+});
+
+test("test_an_inline_gray_field_renders_no_stacked_gray_caption", async () => {
+  await reset({ fields: [{ name: "mode", value: "sdm" }] });
+  assert.equal(line(field("alsa_bits"), "field-gray-reason"), null);
+});
+
+test("test_an_ungrayed_inline_gray_field_renders_no_reason_at_all", async () => {
+  await reset({ fields: [{ name: "mode", value: "pcm" }] });
+  assert.equal(grayReason(field("alsa_bits")), null);
+});
+
+test("test_an_inline_gray_field_is_still_disabled_when_grayed", async () => {
+  await reset({ fields: [{ name: "mode", value: "sdm" }] });
+  assert.ok(isDisabled(field("alsa_bits")));
 });
 
 // ============================================================================

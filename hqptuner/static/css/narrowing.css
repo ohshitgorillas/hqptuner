@@ -296,3 +296,10 @@
   grid-column: 2;
   font-style: italic;
 }
+/* Inline placement (schema `inlineGray`): the reason rides in the control row's
+   flex, right of the widget. No grid-column — it is not a grid item here — and
+   no --measure clamp, because the caption's job in this position is to sit on
+   one line beside a narrow control rather than form a paragraph under it. */
+.control > .field-gray-reason {
+  max-width: none;
+}

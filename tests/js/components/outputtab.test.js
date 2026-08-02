@@ -246,25 +246,25 @@ test("test_the_general_card_leaves_the_device_lists_to_the_backend_sections", as
 });
 
 // Top to bottom: the ENGAGE|BYPASS gate strip, then the body wrapper. The
-// Profile row must fall INSIDE the dsp-body's extent (opening tag to matching
-// close), so a Profile rendered after the body's close, or above the gate,
+// DAC model row must fall INSIDE the dsp-body's extent (opening tag to matching
+// close), so a DAC model row rendered after the body's close, or above the gate,
 // fails.
 test("test_the_correction_profile_sits_in_a_body_below_the_gate_strip", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
   const frag = card(tab(), "DAC correction");
   const gate = frag.indexOf('<span class="segment">');
   assert.ok(
-    gate >= 0 && gate < frag.indexOf('<div class="dsp-body') && dspBody(frag).includes("<label>Profile</label>"),
+    gate >= 0 && gate < frag.indexOf('<div class="dsp-body') && dspBody(frag).includes("<label>DAC model</label>"),
   );
 });
 
-// Off state: the body wrapper carries the `off` class AND the Profile row sits
-// inside its extent — a dimmed wrapper with the Profile rendered outside it
+// Off state: the body wrapper carries the `off` class AND the DAC model row sits
+// inside its extent — a dimmed wrapper with the row rendered outside it
 // would dim nothing.
 test("test_the_correction_profile_is_dimmed_while_dac_correction_is_off", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
   const body = dspBody(card(tab(), "DAC correction"));
-  assert.ok(body.startsWith('<div class="dsp-body off">') && body.includes("<label>Profile</label>"));
+  assert.ok(body.startsWith('<div class="dsp-body off">') && body.includes("<label>DAC model</label>"));
 });
 
 test("test_the_correction_profile_is_live_once_dac_correction_is_on", async () => {
@@ -280,5 +280,5 @@ test("test_the_dac_correction_card_has_no_indented_layout", async () => {
 
 test("test_the_dac_correction_card_carries_the_correction_profile", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
-  assert.ok(card(tab(), "DAC correction").includes("<label>Profile</label>"));
+  assert.ok(card(tab(), "DAC correction").includes("<label>DAC model</label>"));
 });
