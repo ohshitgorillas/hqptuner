@@ -21,7 +21,7 @@ Running engine = sole authority for enumeration names/IDs/ordering; static `data
 ## Agent conduct (project deltas)
 
 - **Do work in order user gave it.** Stated sequence part of instruction, not suggestion to optimise around.
-- **Grounding gate on plans.** Answer every question free investigation can answer before presenting plan — reading is free, so read first. Every load-bearing claim either verified (cite `file:line` or command output) or tagged ASSUMED; ASSUMED legal only when verification needs metered action, live experiment, or user decision. Revising plan after reading material that was free to read before presenting = defect, same class as unverified subagent claim.
+- **Grounding gate on plans.** Answer every question free investigation can answer before presenting plan — reading is free, so read first. Every load-bearing claim either verified (cite `file:line` or command output) or tagged ASSUMED; ASSUMED legal only when verification needs metered action, live experiment, or user decision. Revising plan after reading material that was free to read before presenting = defect, same class as unverified subagent claim. Plans for changes that add or alter observable behavior carry the finished spec block, per `/tests`.
 - **Approval is explicit words only.** Work starts when user says go / approved / continue / proceed / yes or plain equivalent. Everything else is discussion — questions, refinements, corrections, tradeoff talk, "that looks right", "makes sense", partial agreement. Discussion answers in words and ends there; next tool call waits for approval word. Re-present revised plan and ask again rather than reading agreement into commentary.
 
 ## Delegation
@@ -37,7 +37,7 @@ Do yourself when you know file (one Read beats subagent), when material *is* out
 - One delegation per question, not per file.
 - You own result. Relaying unverified subagent claim = confabulation with extra steps; "agent said so" not verification.
 - Change budget and plan gate follow you into delegation — subagent writes = your writes.
-- **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block, blind writer, run, adjudicate, bite check (new tests must fail against pre-change code), `test-reviewer`.
+- **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block at plan gate, blind writer before implementation, red run as bite proof (new tests must fail against pre-change tree), implement, green run, then `test-reviewer` in parallel with `/task-check`.
 
 ## Verification & hand-back
 

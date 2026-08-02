@@ -47,6 +47,9 @@ Free (never counted, never blocked):
   - the read-only tools in FREE_TOOLS (Read/Grep/Glob/WebFetch/WebSearch)
   - Bash calls that are purely read-only — grounding, not mutation. The
     allowlist and its parser live in free_bash.py; see that file for the rules.
+  - spawns of the read-only agent types, and of the /tests chain's own agents
+    whose tool calls these hooks already meter — READ_ONLY_AGENTS,
+    FREE_SPAWN_AGENTS.
 """
 import os
 import sys
@@ -65,6 +68,13 @@ EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path",
 # Agent types that cannot write. Exact names only, never a pattern: the hook
 # can't see the agent registry, so a guessed name is an unmetered write.
 READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
+
+# Agent types whose *spawn* is free even though they may write. These run inside
+# the /tests chain, and their own tool calls are metered by these same hooks in
+# the subagent's context — so charging the spawn as well double-counts, and the
+# double charge is what trips the leash in the middle of a chain the project
+# requires. Freeing the spawn unmeters no write. Exact names only, as above.
+FREE_SPAWN_AGENTS = {"test-writer", "test-reviewer"}
 
 
 def _load(name):
@@ -219,8 +229,10 @@ def classify(name, tool_input, root, cwd):
         return FREE
     if name == "Agent":
         # delegating a read-only search costs the user less than running it
-        # inline, so the budget must not tax it
-        return FREE if tool_input.get("subagent_type") in READ_ONLY_AGENTS else CHANGE
+        # inline, so the budget must not tax it; the /tests agents are free for
+        # the double-counting reason at FREE_SPAWN_AGENTS
+        agent = tool_input.get("subagent_type")
+        return FREE if agent in READ_ONLY_AGENTS or agent in FREE_SPAWN_AGENTS else CHANGE
     if name == "Bash":
         return FREE if is_free_bash(tool_input.get("command", "")) else CHANGE
     if name in EDIT_TOOLS:
@@ -446,6 +458,11 @@ def self_test():
                      flushed == reason))
     ok.append(_check("a free call is never denied",
                      _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
+
+    spawn = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Agent",
+             "tool_input": {"subagent_type": "test-writer", "prompt": "spec"}}
+    ok.append(_check("a /tests agent spawn is free past the limit",
+                     evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
 
     mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"), *_ran(2, start=3)]
     ok.append(_check("a command row mid-burst does not reset the count", bool(_verdict(mid))))
