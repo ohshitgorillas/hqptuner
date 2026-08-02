@@ -9,80 +9,46 @@ export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] =
 export const nQuality = signal(0); // 0 = any, else minimum quality (3 | 4 | 5)
 export const nFocus = signal([]); // multi-select: transients | timbre | space
 export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)
-export const nLength = signal([]); // multi-select: short | medium | long ([] = any)
-export const nRatio = signal([]); // multi-select: integer | 2x | 1:1 ([] = any)
+// Length and ratio are SINGLE-select, unlike genre and focus: a filter carries
+// exactly one length and one ratio class, so an intersection of two picks is
+// empty by construction and a multi-select would offer a choice it cannot
+// honour. "" = any.
+export const nLength = signal("");
+export const nRatio = signal("");
 // ratio-dropdown extra: the manual fuses "up" (upsample-only) INTO the ratio
 // column ("Integer up"). Not a ratio class — orthogonal — so it rides as a
 // checkbox in the ratio popover, ANDing with any ratio class picked.
 export const nUpsampleOnly = signal(false);
 
-// Apodizing narrowing is PER-DROPDOWN, not global (user decision):
-// each filter chain — 1x and Nx, PCM and SDM — owns an independent apod state,
-// keyed by the schema field key. On by default on the 1x chains (the unfiltered
-// 1x list is 60-77 entries and apodizing is the sane starting point), off on the
-// Nx chains so their default list is untouched. ½-apodizing sub-toggle is off by
-// default everywhere, also per chain.
-const APOD_KEYS = ["pcm_filter_1x", "sdm_filter_1x", "pcm_filter_nx", "sdm_filter_nx"];
-const apodDefaults = () => ({
-  pcm_filter_1x: true,
-  sdm_filter_1x: true,
-  pcm_filter_nx: false,
-  sdm_filter_nx: false,
-});
-const halfDefaults = () => ({
-  pcm_filter_1x: false,
-  sdm_filter_1x: false,
-  pcm_filter_nx: false,
-  sdm_filter_nx: false,
-});
-export const nApod = signal(apodDefaults());
-export const nApodHalf = signal(halfDefaults());
+// Apodizing and hi-res narrowing are PER-STAGE, not per-chain (user decision):
+// one state each for 1x and Nx, shared by PCM and SDM, driven by the segmented
+// switches on the narrow bar. Apodizing values: "all" (no narrowing), "only"
+// (full-apodizing filters only), "half" ("only" plus the ½-apodizing set). 1x
+// defaults to "only" — the unfiltered 1x list is 60-77 entries and apodizing is
+// the sane starting point; Nx defaults to "all" so its list starts untouched.
+const APOD_1X_DEFAULT = "only";
+const APOD_NX_DEFAULT = "all";
+export const nApod1x = signal(APOD_1X_DEFAULT);
+export const nApodNx = signal(APOD_NX_DEFAULT);
 
-// Hi-res narrowing is ALSO per-dropdown, and splits by stage. On the two 1x
-// chains it HIDES hi-res filters (`nHideHires`, default ON — 1x covers base
-// rates where the hi-res/lossy-tuned filters are off-topic). On the two Nx
-// chains it does the inverse — SHOW ONLY hi-res (`nHiresOnly`, default OFF). Two
-// separate maps because the stages never share a key: the 1x fields carry the
-// hide flag, the Nx fields the show-only flag. Same per-chain independence and
-// identity-swap setters as apodizing above.
-const HIDE_HIRES_KEYS = ["pcm_filter_1x", "sdm_filter_1x"];
-const HIRES_ONLY_KEYS = ["pcm_filter_nx", "sdm_filter_nx"];
-const hideHiresDefaults = () => ({ pcm_filter_1x: true, sdm_filter_1x: true });
-const hiresOnlyDefaults = () => ({ pcm_filter_nx: false, sdm_filter_nx: false });
-export const nHideHires = signal(hideHiresDefaults());
-export const nHiresOnly = signal(hiresOnlyDefaults());
-
-// Flip one chain's flag without mutating the signal object in place (signals only
-// react to identity changes).
-export function setApod(field, on) {
-  nApod.value = { ...nApod.value, [field]: on };
-}
-export function setApodHalf(field, on) {
-  nApodHalf.value = { ...nApodHalf.value, [field]: on };
-}
-export function setHideHires(field, on) {
-  nHideHires.value = { ...nHideHires.value, [field]: on };
-}
-export function setHiresOnly(field, on) {
-  nHiresOnly.value = { ...nHiresOnly.value, [field]: on };
-}
+// Hi-res narrowing splits by stage: the 1x switch HIDES hi-res filters
+// ("hide" | "show", default "hide" — 1x covers base rates where the
+// hi-res/lossy-tuned filters are off-topic), the Nx switch does the inverse and
+// restricts to the hi-res family ("all" | "only", default "all").
+const HIRES_1X_DEFAULT = "hide";
+const HIRES_NX_DEFAULT = "all";
+export const nHires1x = signal(HIRES_1X_DEFAULT);
+export const nHiresNx = signal(HIRES_NX_DEFAULT);
 
 // "narrowing is on" = the facets differ from their defaults, not merely that
-// some facet is set. Apod defaults ON on the 1x chains and OFF on the Nx chains,
-// so a chain reads as narrowing only when its apod departs from its own default
-// or its ½-toggle is ON.
-// Whether ANY per-chain toggle departs from its default. Apod is compared
-// against its per-chain default map; hide-hires defaults ON (so OFF = engaged);
-// ½-apod and show-only-hires default OFF (so ON = engaged). Split out of
-// narrowingActive to keep that predicate's branch count under the complexity
-// gate.
-function chainTogglesEngaged() {
-  const apodDef = apodDefaults();
+// some facet is set — each stage switch reads as narrowing only when it departs
+// from its own default (1x apod defaults "only", 1x hi-res defaults "hide").
+function stageTogglesEngaged() {
   return (
-    APOD_KEYS.some((k) => nApod.value[k] !== apodDef[k]) ||
-    APOD_KEYS.some((k) => nApodHalf.value[k]) ||
-    HIDE_HIRES_KEYS.some((k) => !nHideHires.value[k]) ||
-    HIRES_ONLY_KEYS.some((k) => nHiresOnly.value[k])
+    nApod1x.value !== APOD_1X_DEFAULT ||
+    nApodNx.value !== APOD_NX_DEFAULT ||
+    nHires1x.value !== HIRES_1X_DEFAULT ||
+    nHiresNx.value !== HIRES_NX_DEFAULT
   );
 }
 
@@ -93,10 +59,10 @@ export const narrowingActive = computed(
       nQuality.value ||
       nFocus.value.length ||
       nPhase.value ||
-      nLength.value.length ||
-      nRatio.value.length ||
+      nLength.value ||
+      nRatio.value ||
       nUpsampleOnly.value ||
-      chainTogglesEngaged()
+      stageTogglesEngaged()
     ),
 );
 
@@ -105,13 +71,13 @@ export function resetNarrowing() {
   nQuality.value = 0;
   nFocus.value = [];
   nPhase.value = "";
-  nLength.value = [];
-  nRatio.value = [];
+  nLength.value = "";
+  nRatio.value = "";
   nUpsampleOnly.value = false;
-  nApod.value = apodDefaults(); // matches the default above, not a bare clear
-  nApodHalf.value = halfDefaults();
-  nHideHires.value = hideHiresDefaults(); // hide-hires back ON, not cleared
-  nHiresOnly.value = hiresOnlyDefaults();
+  nApod1x.value = APOD_1X_DEFAULT; // back to per-stage defaults, not a bare clear
+  nApodNx.value = APOD_NX_DEFAULT;
+  nHires1x.value = HIRES_1X_DEFAULT; // 1x hi-res back to "hide", not cleared
+  nHiresNx.value = HIRES_NX_DEFAULT;
 }
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
@@ -133,20 +99,23 @@ function ratioOf(f, fam) {
 
 // Filter a filter-field option list by the active facets. Options whose name
 // carries no facet data pass through — narrowing hides only what it can
-// positively exclude. `current` is never hidden. The apodizing filter reads
-// THAT dropdown's own state (keyed by `field`) on every stage. With apod on,
-// full-apodizing filters pass; ½-apodizing ones pass only when that chain's
-// ½-toggle is also on.
+// positively exclude. `current` is never hidden. The apodizing check reads the
+// dropdown's STAGE switch (1x or Nx): on "only", full-apodizing filters pass;
+// ½-apodizing ones pass only on "half".
 // Each entry reads "facet not engaged, or the filter passes it", so an unset
 // facet excludes nothing. "any" is the escape hatch for genre and ratio — a
 // filter the manual marks agnostic survives every selection of that facet.
+//
+// Multi-select facets (genre, focus) INTERSECT: every value picked must hold, so
+// each further pick narrows. Picking Transients then Space leaves the filters
+// tagged both, which is what the per-option counts promise.
 const FACET_CHECKS = [
-  (f, s) => !s.genre.length || s.genre.some((x) => f.genre.includes(x)) || f.genre.includes("any"),
+  (f, s) => !s.genre.length || s.genre.every((x) => f.genre.includes(x)) || f.genre.includes("any"),
   (f, s) => !s.quality || (f.quality != null && f.quality >= s.quality),
-  (f, s) => !s.focus.length || s.focus.some((x) => f.focus.includes(x)),
+  (f, s) => !s.focus.length || s.focus.every((x) => f.focus.includes(x)),
   (f, s) => !s.phase || f.phase === s.phase,
-  (f, s) => !s.length.length || s.length.includes(f.length),
-  (f, s) => !s.ratio.length || ratioPass(f, s),
+  (f, s) => !s.length || f.length === s.length,
+  (f, s) => !s.ratio || ratioPass(f, s),
   (f, s) => !s.upsampleOnly || f.upsampleOnly === true,
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
   // hide-hires (1x): drop the strict *-hires-* set — the mqa/mp3 filters stay,
@@ -159,7 +128,7 @@ const FACET_CHECKS = [
 
 function ratioPass(f, s) {
   const r = ratioOf(f, s.family);
-  return r != null && (r === "any" || s.ratio.includes(r));
+  return r != null && (r === "any" || r === s.ratio);
 }
 
 // A filter with no facet record passes untouched — narrowing hides only what it
@@ -169,9 +138,10 @@ const facetPass = (f, sel) => !f || FACET_CHECKS.every((check) => check(f, sel))
 
 // The active selection snapshot. Number() on quality — the raw signal in
 // narrowingActive and this can disagree: a non-numeric value reads as active in
-// the bar but narrows nothing. Apod reads the given chain's own keyed state on
-// every stage.
+// the bar but narrows nothing. Apod and hi-res read the dropdown's STAGE
+// switch; `field` only selects the ratio family (pcm vs sdm).
 function buildSel(stage, field) {
+  const apod = stage === "1x" ? nApod1x.value : nApodNx.value;
   return {
     genre: nGenre.value,
     quality: Number(nQuality.value),
@@ -181,12 +151,10 @@ function buildSel(stage, field) {
     ratio: nRatio.value,
     upsampleOnly: nUpsampleOnly.value,
     family: family(field),
-    apod: field != null && nApod.value[field] === true,
-    half: field != null && nApodHalf.value[field] === true,
-    // keyed by the dropdown's own field; the maps only hold each stage's keys,
-    // so the flags are inert on the stage they do not belong to.
-    hideHires: stage === "1x" && field != null && nHideHires.value[field] === true,
-    hiresOnly: field != null && nHiresOnly.value[field] === true,
+    apod: apod !== "all",
+    half: apod === "half",
+    hideHires: stage === "1x" && nHires1x.value === "hide",
+    hiresOnly: stage === "nx" && nHiresNx.value === "only",
   };
 }
 
@@ -198,8 +166,8 @@ function anyEngaged(s) {
     s.quality ||
     s.focus.length ||
     s.phase ||
-    s.length.length ||
-    s.ratio.length ||
+    s.length ||
+    s.ratio ||
     s.upsampleOnly ||
     s.apod ||
     s.hideHires ||

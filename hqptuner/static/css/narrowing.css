@@ -43,22 +43,20 @@
   align-items: center;
   justify-content: space-between;
 }
-.narrow-right {
-  margin-left: auto;
+/* Reset lives in the card head, top right — off the control rows entirely, so
+   its appearing/disappearing never changes the facet dropdowns' widths. The
+   head flexes only on this card; the button inherits the head's uppercase. */
+.card.narrow-card > .card-head {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
 }
-.narrow-apod {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  font-size: var(--fs-body);
-  color: var(--fg-2);
-  white-space: nowrap;
+.card-head .narrow-reset {
+  margin-left: auto;
 }
 .narrow-reset {
-  font-size: var(--fs-label);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
   color: var(--accent);
   background: none;
   border: none;
@@ -166,21 +164,56 @@
   border-top: 1px solid var(--surface-raised);
 }
 
-/* per-1x-dropdown apodizing narrow control (ApodNarrow.js) — sits in the field's
-   column 2, below the dropdown's manual description: two stacked checkboxes plus
-   the manual apodizing caption (verbatim settings tooltip), capped at --measure.
-   ½-apodizing tabs under the main toggle and grays unless the main is on. */
-.apod-narrow {
-  grid-column: 2;
+/* Per-stage apodizing / hi-res switch block under the facet row (NarrowBar.js):
+   the binding two-column split (1fr 1px 1fr + .col-rule on the card centre
+   line, design-system §Rules). Left column Apodizing, right Hi-res; each group
+   is a title beside its stacked 1x / Nx switch rows with the description under
+   them. Below the 1100px breakpoint the groups stack and the rule hides
+   (.col-rule's default in knobs.css). */
+.narrow-switchcols {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
+  gap: var(--sp-4);
 }
-.apod-sub {
-  margin-left: var(--sp-4);
+@media (min-width: 1100px) {
+  .narrow-switchcols {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
 }
-.apod-sub.off {
-  opacity: var(--o-off);
+.narrow-group {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.narrow-group-title {
+  flex: none;
+}
+.narrow-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.narrow-stage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* "1x" and "Nx" render at different widths; a shared minimum keeps the two
+   rows' segments (and counts) vertically aligned. */
+.narrow-stage-row .t-label {
+  min-width: 1.5rem;
+}
+/* Hi-res group only (user call — apodizing side untouched): its two switches
+   carry different words (Show|Hide vs All|Only), so a shared minimum button
+   width keeps both rows' right edges flush. Wide enough to swallow the widest
+   word ("Show") — every button then sits at exactly this width. */
+.narrow-hires .segment .seg {
+  min-width: 6rem;
 }
 
 /* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of

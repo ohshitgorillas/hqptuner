@@ -14,7 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { enums } from "../../../hqptuner/static/store/signals.js";
-import { nPhase, nApod } from "../../../hqptuner/static/store/narrowing.js";
+import { nPhase, nApod1x } from "../../../hqptuner/static/store/narrowing.js";
 import {
   reset,
   stageEdit,
@@ -194,7 +194,7 @@ test("test_narrowing_drops_an_option_the_active_facets_exclude", async () => {
     ],
   });
   enums.value = { filters: [{ name: "poly-sinc-mp" }, { name: "sinc-Lm" }] };
-  nApod.value = false;
+  nApod1x.value = "all";
   nPhase.value = "minimum";
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["poly-sinc-mp"]);
 });
@@ -213,7 +213,7 @@ test("test_narrowing_never_hides_the_selected_option", async () => {
     ],
   });
   enums.value = { filters: [{ name: "poly-sinc-mp" }, { name: "sinc-Lm" }] };
-  nApod.value = false;
+  nApod1x.value = "all";
   nPhase.value = "minimum";
   assert.ok(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"));
 });

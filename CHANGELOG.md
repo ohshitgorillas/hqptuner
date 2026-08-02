@@ -12,9 +12,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Auto-save to the active preset.** A new **Auto-save** checkbox on the pending bar. With it on, every successful Apply and every LIVE change is saved into the active preset, so you always pick up where you left off. Saving this way never costs an extra daemon restart; HQPlayer's own profile list catches up on the next reload.
 
-- **Apodizing narrowing on the Nx dropdowns.** Each Nx filter dropdown gains the same **Show apodizing only** and **Show ½ apodizing filters** checkboxes the 1x dropdowns have, off by default so the Nx list is unchanged until you opt in.
-
-- **Hi-res filter narrowing.** Each 1x filter dropdown gains a **Hide hi-res filters** toggle, on by default — at 1x the hi-res filters suit lossy material such as mp3 and MQA, so untick it when that is what you play. Each Nx dropdown gains the inverse, **Show only hi-res filters**. Every narrowable filter dropdown now also shows an n/total badge of how many filters survive the active narrowing, in both the tabs and LIVE views.
+- **Apodizing and hi-res narrowing switches.** The Narrow filters card gains two switch groups — **Apodizing filters** and **Hi-res filters** — each with a segmented switch per stage (1x and Nx, shared across the PCM and SDM chains). Counts after each switch preview how many filters every choice would leave, and the manual's apodizing and hi-res guidance sits under the switches. Every narrowable filter dropdown also shows an n/total badge of how many filters survive the active narrowing, in both the tabs and LIVE views. The Reset button moved up beside the card's caption so it no longer resizes the facet dropdowns when it appears.
 
 ### Changed
 
@@ -49,6 +47,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The apodizing-events warning waits for ten events** on a track before firing, up from five.
 
 - **Loudness visual enhancements.** Three knobs/sliders/textboxes, similar to the Matrix Response plot's knobs, toggled between Bass and Treble by a switch above. This buys a little extra vertical space on the Volume tab, and (imho) looks cooler.
+
+### Removed
+
+- **The staged-changes chip on LIVE.** LIVE no longer carries the reminder that the tabs view holds unapplied edits.
 
 ## [0.11.1] — 2026-07-30
 

@@ -1,8 +1,8 @@
 // Filter narrowing bar — a card ABOVE the PCM/SDM filter cards, holding the
 // genre / quality / focus / phase / length / ratio facets (all multi- or
-// single-select popovers) on one row. Presentational only. Apodizing narrowing
-// is NOT here — it is 1x-only and per-chain, so it lives below each 1x dropdown
-// (ApodNarrow.js) rather than as a shared bar toggle.
+// single-select popovers) on one row, and the per-stage apodizing / hi-res
+// segmented switches on a second row (global across PCM and SDM, separate for
+// 1x and Nx — user decision). Presentational only.
 //
 // It is a real `Card`, not a panel of its own: painting the card frame itself —
 // card surface, card radius, a hand-rolled heading — under its own class name
@@ -14,7 +14,9 @@ import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { effective } from "../store/resolve.js";
 import { optionsFor } from "../store/options.js";
+import { metadata } from "../store/signals.js";
 import { Card } from "./tabs/common.js";
+import { Segment } from "./controls/index.js";
 import {
   nGenre,
   nQuality,
@@ -23,6 +25,10 @@ import {
   nLength,
   nRatio,
   nUpsampleOnly,
+  nApod1x,
+  nApodNx,
+  nHires1x,
+  nHiresNx,
   narrowingActive,
   resetNarrowing,
   previewCount,
@@ -58,15 +64,18 @@ const PHASES = [
   ["intermediate", "Intermediate"],
 ];
 const LENGTHS = [
+  ["", "Any length"],
   ["short", "Short"],
   ["medium", "Medium"],
   ["long", "Long"],
   ["xlong", "Extra long"],
 ];
-// "any" is the ratio escape-hatch (a filter the manual marks any-ratio survives
-// every ratio selection) — not offered as a pick, same as genre's "All genres".
-// Upsample-only ("up" in the manual) rides in the popover as an extra checkbox.
+// The manual's own "any" ratio class is an escape hatch, not a pick: a filter it
+// marks any-ratio survives every ratio selection. The "" row here is the
+// separate "not narrowed by ratio at all". Upsample-only ("up" in the manual)
+// rides in the popover as an extra checkbox.
 const RATIOS = [
+  ["", "Any ratio"],
   ["integer", "Integer"],
   ["2x", "2x"],
   ["1:1", "1:1"],
@@ -119,20 +128,12 @@ function genreLabel() {
   return `${sel.length} genres`;
 }
 
-function lengthLabel() {
-  const sel = nLength.value;
-  if (!sel.length) return "Any length";
-  if (sel.length === 1) return oneLabel(LENGTHS, sel[0], sel[0]);
-  return `${sel.length} lengths`;
-}
-
 // The ratio button also reports the upsample-only extra: "Integer", "Upsample
 // only", or "Integer + upsample-only" when both are set.
 function ratioLabel() {
   const sel = nRatio.value;
   const parts = [];
-  if (sel.length === 1) parts.push(oneLabel(RATIOS, sel[0], sel[0]));
-  else if (sel.length) parts.push(`${sel.length} ratios`);
+  if (sel) parts.push(oneLabel(RATIOS, sel, sel));
   if (nUpsampleOnly.value) parts.push("upsample-only");
   if (!parts.length) return "Any ratio";
   return parts.join(" + ");
@@ -140,17 +141,18 @@ function ratioLabel() {
 
 const oneLabel = (items, v, fallback) => (items.find(([iv]) => String(iv) === String(v)) || [null, fallback])[1];
 
-// add a value to a multi-select array without duplicating — a preview override
-// answers "what if this option were ALSO on", so a value already picked leaves
-// the selection (and its count) unchanged.
-const addVal = (arr, v) => (arr.includes(v) ? arr : [...arr, v]);
+// The selection a click on this row would PRODUCE: picked values drop out,
+// unpicked ones join. Same transform `toggleIn` performs, so the count a row
+// shows is the count the click actually lands on — an already-picked row
+// previews its own removal, not the state it is already in.
+const toggleVal = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
 // Per-option result counts hang off the ACTIVE chain only (user decision): PCM
 // unless the output mode is SDM. The two numbers are that chain's 1x / Nx list
-// sizes AFTER the option's override is merged onto the live selection — so the
-// popover reads "Rock 14/22" = 14 of the 1x filters, 22 of the Nx, survive if
-// Rock is added. Reads each dropdown's own field key so the preview honours that
-// chain's apod / hi-res toggles too.
+// sizes for the selection CLICKING THAT ROW WOULD PRODUCE — so with Transients
+// already on, the Space row reads how many filters carry both. Reads each
+// dropdown's own field key so the preview honours that chain's apod / hi-res
+// toggles too.
 function chainCounts(overrides) {
   const sdm = effective("output_mode") === "sdm";
   const one = previewCount(
@@ -182,10 +184,13 @@ function CountChip({ overrides }) {
   return html`<span class="opt-count ${dead ? "dead" : ""}">${one}/${nx}</span>`;
 }
 
-// single-select twin of MultiSelect — same button + popover chrome so genre,
-// quality, focus, and phase all render as one identical control (no native
-// <select> chrome mixed in). Picking a value closes the popover.
-function SingleSelect({ open, name, label, value, items, onPick, active, count }) {
+// single-select twin of MultiSelect — same button + popover chrome so every
+// facet renders as one identical control (no native <select> chrome mixed in).
+// Picking a value closes the popover. Quality, phase, length and ratio use it:
+// each is a facet a filter carries exactly one of, so two picks could only
+// intersect to nothing. `extra` matches MultiSelect's — the ratio popover hangs
+// its orthogonal upsample-only checkbox there.
+function SingleSelect({ open, name, label, value, items, onPick, active, count, extra }) {
   return html`
     <div class="multi" data-multi=${name}>
       <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (open.value = !open.value)}>
@@ -211,6 +216,7 @@ function SingleSelect({ open, name, label, value, items, onPick, active, count }
                   </label>
                 `,
               )}
+              ${extra || null}
             </div>`
           : null
       }
@@ -249,6 +255,72 @@ function MultiSelect({ open, name, label, items, sig, extra, active, count }) {
   `;
 }
 
+// Per-stage segmented switches: every segment names the LIST YOU GET, never an
+// action — "All" is uniformly "narrowing off", so any switch not on its
+// leftmost/neutral value reads as narrowing at a glance. `ov` is the selection
+// override that segment stands for, merged onto the live facets to preview how
+// many filters the pick would leave (the count inside each button).
+const APOD_SEGS = [
+  { value: "all", label: "All", ov: { apod: false, half: false } },
+  { value: "only", label: "Only", ov: { apod: true, half: false } },
+  { value: "half", label: "+½", ov: { apod: true, half: true } },
+];
+const HIRES_1X_SEGS = [
+  { value: "show", label: "Show", ov: { hideHires: false } },
+  { value: "hide", label: "Hide", ov: { hideHires: true } },
+];
+const HIRES_NX_SEGS = [
+  { value: "all", label: "All", ov: { hiresOnly: false } },
+  { value: "only", label: "Only", ov: { hiresOnly: true } },
+];
+
+// The manual's apodizing explainer (data/settings.json dsp.apodizing tooltip) —
+// stays a VISIBLE caption under the switch row (user decision), as it was under
+// the 1x dropdowns.
+function apodTip() {
+  const s = (metadata.value && metadata.value.settings) || {};
+  const e = s.dsp && s.dsp.apodizing;
+  return (e && e.tooltip) || "";
+}
+
+const HIRES_TIP =
+  "Hi-res filters suit high-rate sources (88.2 kHz+) and lossy material like MP3 and MQA. " +
+  "Use them at 1x for lossy sources; at Nx, Only narrows to filters built for them.";
+
+// One stage's switch row: muted stage micro-label, the segment, then preview
+// counts trailing the switch in button order — how many filters in that stage's
+// ACTIVE-chain list (PCM unless the output mode is SDM) each pick would leave
+// under the other live facets.
+function StageSeg({ stage, sig, options }) {
+  const sdm = effective("output_mode") === "sdm";
+  const one = stage === "1x";
+  const cfgKey = one ? (sdm ? "oversampling1x" : "filter1x") : sdm ? "oversampling" : "filter";
+  const field = one ? (sdm ? "sdm_filter_1x" : "pcm_filter_1x") : sdm ? "sdm_filter_nx" : "pcm_filter_nx";
+  const list = optionsFor("config", cfgKey);
+  const counts = options.map((o) => previewCount(list, stage, field, o.ov));
+  return html`
+    <div class="narrow-stage-row">
+      <span class="t-label">${one ? "1x" : "Nx"}</span>
+      <${Segment} value=${sig.value} options=${options} onChange=${(v) => (sig.value = v)} />
+      <span class="narrow-count">${counts.join(" · ")}</span>
+    </div>
+  `;
+}
+
+// One function group: title beside its two stage rows, description under the
+// rows in the same column.
+function SwitchGroup({ title, desc, cls, children }) {
+  return html`
+    <div class="narrow-group ${cls || ""}">
+      <span class="t-label narrow-group-title">${title}</span>
+      <div class="narrow-group-body">
+        ${children}
+        ${desc ? html`<div class="t-caption">${desc}</div>` : null}
+      </div>
+    </div>
+  `;
+}
+
 export function NarrowBar() {
   useEffect(() => {
     const onDown = (e) => closeExcept(e.target);
@@ -256,10 +328,18 @@ export function NarrowBar() {
     return () => document.removeEventListener("pointerdown", onDown);
   }, []);
   return html`
-    <${Card} title="Narrow filters" cardClass="narrow-card">
+    <${Card}
+      title=${html`Narrow filters${
+        narrowingActive.value
+          ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
+          : null
+      }`}
+      cardClass="narrow-card"
+    >
       <div class="t-caption">
-        Counts in a facet popover are the 1x / Nx filters that survive the pick; the badge on a filter dropdown is
-        matching / total.
+        Reduce the number of filters in the dropdowns below by selecting which features you're looking for. Dropdown
+        counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing data are sourced
+        directly from the HQPlayer manual.
       </div>
       <div class="narrow-controls">
         <div class="narrow-facets">
@@ -270,7 +350,7 @@ export function NarrowBar() {
             items=${GENRES}
             sig=${nGenre}
             active=${!!nGenre.value.length}
-            count=${(v) => ({ genre: addVal(nGenre.value, v) })}
+            count=${(v) => ({ genre: toggleVal(nGenre.value, v) })}
           />
           <${SingleSelect}
             open=${qualityOpen}
@@ -289,7 +369,7 @@ export function NarrowBar() {
             items=${FOCUS}
             sig=${nFocus}
             active=${!!nFocus.value.length}
-            count=${(v) => ({ focus: addVal(nFocus.value, v) })}
+            count=${(v) => ({ focus: toggleVal(nFocus.value, v) })}
           />
           <${SingleSelect}
             open=${phaseOpen}
@@ -301,23 +381,25 @@ export function NarrowBar() {
             active=${!!nPhase.value}
             count=${(v) => ({ phase: v })}
           />
-          <${MultiSelect}
+          <${SingleSelect}
             open=${lengthOpen}
             name="length"
-            label=${lengthLabel()}
+            label=${oneLabel(LENGTHS, nLength.value, "Any length")}
+            value=${nLength.value}
             items=${LENGTHS}
-            sig=${nLength}
-            active=${!!nLength.value.length}
-            count=${(v) => ({ length: addVal(nLength.value, v) })}
+            onPick=${(v) => (nLength.value = v)}
+            active=${!!nLength.value}
+            count=${(v) => ({ length: v })}
           />
-          <${MultiSelect}
+          <${SingleSelect}
             open=${ratioOpen}
             name="ratio"
             label=${ratioLabel()}
+            value=${nRatio.value}
             items=${RATIOS}
-            sig=${nRatio}
-            active=${!!nRatio.value.length || nUpsampleOnly.value}
-            count=${(v) => ({ ratio: addVal(nRatio.value, v) })}
+            onPick=${(v) => (nRatio.value = v)}
+            active=${!!nRatio.value || nUpsampleOnly.value}
+            count=${(v) => ({ ratio: v })}
             extra=${html`<label class="multi-extra">
               <input
                 type="checkbox"
@@ -329,13 +411,17 @@ export function NarrowBar() {
             </label>`}
           />
         </div>
-        <div class="narrow-right">
-          ${
-            narrowingActive.value
-              ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
-              : null
-          }
-        </div>
+      </div>
+      <div class="narrow-switchcols">
+        <${SwitchGroup} title="Apodizing filters" desc=${apodTip()}>
+          <${StageSeg} stage="1x" sig=${nApod1x} options=${APOD_SEGS} />
+          <${StageSeg} stage="nx" sig=${nApodNx} options=${APOD_SEGS} />
+        <//>
+        <span class="col-rule"></span>
+        <${SwitchGroup} title="Hi-res filters" desc=${HIRES_TIP} cls="narrow-hires">
+          <${StageSeg} stage="1x" sig=${nHires1x} options=${HIRES_1X_SEGS} />
+          <${StageSeg} stage="nx" sig=${nHiresNx} options=${HIRES_NX_SEGS} />
+        <//>
       </div>
     <//>
   `;

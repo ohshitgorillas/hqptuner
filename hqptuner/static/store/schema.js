@@ -455,7 +455,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     narrow: "1x",
-    apodNarrow: true,
     desc: "filter",
   },
   pcm_filter_nx: {
@@ -469,7 +468,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     narrow: "nx",
-    hiresNarrow: true,
     desc: "filter",
   },
   pcm_dither: {
@@ -496,7 +494,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     narrow: "1x",
-    apodNarrow: true,
     desc: "filter",
   },
   sdm_filter_nx: {
@@ -510,7 +507,6 @@ export const schema = {
     optionsFrom: "config",
     wide: true,
     narrow: "nx",
-    hiresNarrow: true,
     desc: "filter",
   },
   sdm_modulator: {

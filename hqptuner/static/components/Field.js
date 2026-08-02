@@ -18,7 +18,6 @@ import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Knob } from "./Knob.js";
-import { ApodNarrow, HiresNarrow } from "./ApodNarrow.js";
 
 const WIDGETS = {
   segment: Segment,
@@ -150,16 +149,6 @@ function FieldLabel({ entry, label, badge }) {
   `;
 }
 
-// The per-dropdown narrow controls that hang under a filter field: apodizing +
-// hide-hi-res on the 1x dropdowns, show-only-hi-res + apodizing on the Nx
-// dropdowns.
-function FieldNarrowControls({ entry, k }) {
-  return html`
-    ${entry.apodNarrow ? html`<${ApodNarrow} field=${k} />` : null}
-    ${entry.hiresNarrow ? html`<${HiresNarrow} field=${k} />` : null}
-  `;
-}
-
 export function Field({ k }) {
   const entry = schema[k];
   if (!entry) return null;
@@ -200,7 +189,6 @@ export function Field({ k }) {
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${fieldProse(entry, k, meta, reason, options)}
-      <${FieldNarrowControls} entry=${entry} k=${k} />
     </div>
   `;
 }
