@@ -23,6 +23,7 @@ import {
   line,
   span,
   controlRow,
+  outsideControlRow,
   grayReason,
   attrOf,
   optionLabels,
@@ -62,7 +63,7 @@ test("test_a_field_without_a_sublabel_renders_no_label_alt", async () => {
 
 test("test_the_dac_correction_profile_is_labelled_dac_model", async () => {
   await reset();
-  assert.ok(field("dac_correction_profile").includes("<label>DAC model"));
+  assert.ok(field("dac_correction_profile").includes("<label>DAC model</label>"));
 });
 
 // ============================================================================
@@ -345,12 +346,27 @@ test("test_inline_gray_loudness_explains_why_adaptive_loudness_cannot_adapt", as
 
 test("test_an_inline_gray_field_renders_no_stacked_gray_caption", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(line(field("alsa_bits"), "field-gray-reason"), null);
+  assert.equal(grayReason(outsideControlRow(field("alsa_bits"))), null);
 });
 
 test("test_an_ungrayed_inline_gray_field_renders_no_reason_at_all", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
   assert.equal(grayReason(field("alsa_bits")), null);
+});
+
+test("test_an_ungrayed_inline_gray_network_bit_depth_renders_no_reason_at_all", async () => {
+  await reset({ fields: [{ name: "mode", value: "pcm" }] });
+  assert.equal(grayReason(field("net_bits")), null);
+});
+
+test("test_ungrayed_adaptive_volume_renders_no_reason_at_all", async () => {
+  await reset({ fields: [{ name: "direct_sdm", value: false }] });
+  assert.equal(grayReason(field("adaptive_volume")), null);
+});
+
+test("test_ungrayed_loudness_renders_no_reason_at_all", async () => {
+  await reset({ fields: [{ name: "direct_sdm", value: false }] });
+  assert.equal(grayReason(field("loudness_enabled")), null);
 });
 
 test("test_an_inline_gray_field_is_still_disabled_when_grayed", async () => {

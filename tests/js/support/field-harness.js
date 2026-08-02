@@ -109,21 +109,41 @@ export function line(out, cls) {
   return m ? m[1] : null;
 }
 
-// Inner HTML of the field's control row — the <div class="control">…</div>
-// fragment — with nested <div>s honoured. Null when there is no control row.
-export function controlRow(out) {
-  const open = /<div class="[^"]*\bcontrol\b[^"]*"[^>]*>/.exec(out);
-  if (!open) return null;
-  const start = open.index + open[0].length;
-  const tags = /<(\/?)div\b[^>]*>/g;
-  tags.lastIndex = start;
-  let depth = 1;
-  let m;
-  while ((m = tags.exec(out)) !== null) {
-    depth += m[1] ? -1 : 1;
-    if (depth === 0) return out.slice(start, m.index);
+// Locate the field's control row — the <div class="control">…</div> element the
+// spec names. The class attribute must carry `control` as a whole token, so
+// wrappers classed `field-control`, `control-row` or `controls` are not it.
+// Nested <div>s are honoured. Null when there is no control row.
+function findControlRow(out) {
+  const openers = /<div\b[^>]*>/g;
+  let open;
+  while ((open = openers.exec(out || "")) !== null) {
+    const cls = (/\bclass="([^"]*)"/.exec(open[0]) || [])[1] || "";
+    if (!cls.split(/\s+/).includes("control")) continue;
+    const start = open.index + open[0].length;
+    const tags = /<(\/?)div\b[^>]*>/g;
+    tags.lastIndex = start;
+    let depth = 1;
+    let m;
+    while ((m = tags.exec(out)) !== null) {
+      depth += m[1] ? -1 : 1;
+      if (depth === 0) return { outer: open.index, start, end: m.index, after: tags.lastIndex };
+    }
+    return null;
   }
   return null;
+}
+
+// Inner HTML of the field's control row. Null when there is no control row.
+export function controlRow(out) {
+  const at = findControlRow(out);
+  return at ? out.slice(at.start, at.end) : null;
+}
+
+// The field with its control-row element excised — everything a caption sibling
+// of the control row would live in. Unchanged when there is no control row.
+export function outsideControlRow(out) {
+  const at = findControlRow(out);
+  return at ? out.slice(0, at.outer) + out.slice(at.after) : out;
 }
 
 // Text of the gray-reason element in a fragment, whatever tag carries the class.
