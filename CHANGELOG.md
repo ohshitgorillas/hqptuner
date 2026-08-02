@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-08-02
+
 ### Added
 
 - **A note when the matrix engine is bypassed.** The Pipelines card, the Headphone Auto EQ card and the Crossfeed card in Structural view now say "Matrix engine is bypassed. These settings have no effect." while the General card's switch is on BYPASS. The Matrix response card says "Matrix engine is bypassed. The changes below are not applied." above the curve, and stays quiet when there is nothing plotted. Staging ENGAGE clears it straight away. Nothing is disabled — a profile can still be built against a bypassed engine and engaged afterwards.
