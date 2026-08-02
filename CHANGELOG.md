@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-08-02
+
 ### Fixed
 
 - **Two-column chain cards keep their controls in place.** In the PCM Chain, SDM Chain and Hardware acceleration cards, a control could jump to the other column and sit a row lower than the one beside it — the SDM Chain's modulator falling below the 1x filter, for instance. The columns no longer shift with feature descriptions turned on, or when a filter with a longer description is picked.
