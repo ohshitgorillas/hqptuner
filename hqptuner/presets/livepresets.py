@@ -32,16 +32,11 @@ card can still say what was saved even when an ID no longer resolves.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from .. import __version__
-
-# Same shape as presetstore's: alphanumeric start, then alphanumerics / space /
-# underscore / dot / hyphen. A live preset is never a filename, but sharing the
-# rule keeps one naming story across both preset surfaces.
-_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 _.\-]*")
+from . import names
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
@@ -63,9 +58,9 @@ class LivePresetSchemaError(LivePresetError):
 
 
 def _validate(name: str) -> str:
-    if name != name.strip() or not _NAME_RE.fullmatch(name):
-        raise LivePresetError(f"invalid live preset name: {name!r}")
-    return name
+    # A live preset is a JSON key, never a filename, but it shares the config
+    # store's rule so a name that saves on one surface saves on the other.
+    return names.validate_name(name, LivePresetError, "live preset")
 
 
 class LivePresetStore:

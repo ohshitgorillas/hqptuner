@@ -43,6 +43,16 @@ def test_restore_zip_writes_the_mirror_snapshot() -> None:
     assert _member(archive, "data/cfgs/Speakers.xml") == b"<new/>"
 
 
+def test_restore_zip_writes_a_non_ascii_mirror_snapshot_under_that_name() -> None:
+    # A preset name is a zip member name too (docs/protocol.md:91). Nothing in
+    # HQPlayer's docs constrains its charset, and an em dash round-trips through
+    # the live daemon, so the member must carry the name intact.
+    archive = presetzip.restore_zip_with_working(
+        _zip({"hqplayerd.xml": b"<x/>"}), b"<new/>", mirror_name="Headphones — ZMF Ori 3.0"
+    )
+    assert _member(archive, "data/cfgs/Headphones — ZMF Ori 3.0.xml") == b"<new/>"
+
+
 def test_restore_zip_inserts_hqplayerd_when_a_named_profile_was_active() -> None:
     # named profile active -> root <Name>.xml, no hqplayerd.xml; restore lands on
     # [default], so hqplayerd.xml must be inserted for it to have a config to run

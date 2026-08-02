@@ -17,17 +17,12 @@ store's own layout version plus per-preset provenance in ``store.json``.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from .. import __version__
+from . import names
 
-# A preset name is also a filename and a daemon profile name: alphanumeric start,
-# then alphanumerics / space / underscore / dot / hyphen (covers "Headphones -
-# DSD256"). No path separators, no leading dot — so a name can never escape the
-# store directory or shadow ``active.json``.
-_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 _.\-]*")
 _ACTIVE_FILE = "active.json"
 _STORE_FILE = "store.json"
 
@@ -46,9 +41,7 @@ class PresetError(ValueError):
 
 
 def _validate(name: str) -> str:
-    if name != name.strip() or ".." in name or not _NAME_RE.fullmatch(name):
-        raise PresetError(f"invalid preset name: {name!r}")
-    return name
+    return names.validate_name(name, PresetError, "preset")
 
 
 class PresetStore:

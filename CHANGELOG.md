@@ -50,6 +50,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Preset names accept punctuation and non-English text.** Saving `Headphones — ZMF Ori 3.0` failed with `invalid preset name`, as did any name with an em dash, an accent, non-Latin script, an emoji or most punctuation. Names now take anything hqplayerd and the filesystem accept. Path separators, leading dots, control characters and names too long to store are still refused, and a name too long is now refused with a clear error rather than silently vanishing.
+
 - **Changing the mode and a filter or modulator together no longer restarts the engine.** Applying the two from the tabs view used to take the whole batch through a daemon restart, interrupting playback. The mode now applies first on its own, and the rest follows live — the same order the LIVE view's presets already used.
 
 - **A filter change that worked no longer reports an error.** Changing the filter or the output mode takes hqplayerd's engine down for a moment, and the connection can drop under it — which showed up as `GetShapers: connection failed: Connection lost` on a change the user had just watched land.
