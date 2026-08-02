@@ -200,6 +200,16 @@ button.card-head {
     break-inside: avoid;
     margin-bottom: var(--sp-3); /* token-exempt: a multi-column box has no gap between its ITEMS — column-gap separates the columns, so a margin is the only mechanism here */
   }
+  /* The break is FORCED, not balanced. Left to balance, the split point moves
+     with content height: with descriptions on, the 1x/Nx pair no longer fits the
+     balanced column height, so Nx crossed to the right track and the modulator
+     dropped to a second row beneath it — the same card reflowing on a filter
+     change or a descriptions toggle. Every chain's left track is its leading
+     PAIR (1x + Nx filter, CUDA offload + devices), so the break belongs after
+     the second child, where content cannot move it. */
+  .pack.chain > :nth-child(2) {
+    break-after: column;
+  }
   .pack .field:not(.span) select,
   .pack .field:not(.span) input[type="text"] {
     width: 100%;
