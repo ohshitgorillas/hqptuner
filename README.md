@@ -2,46 +2,42 @@
 
 A polished and enhanced configuration interface for HQPlayer Embedded.
 
-<img width="1189" height="1430" alt="image" src="https://github.com/user-attachments/assets/653d74ff-aefc-4297-885d-52ddfd4a0298" />
+![The Output tab during DSD512 playback](docs/images/hqptuner-v1-output.png)
 
-*The Output tab during DSD512 playback: live signal path across the top, Backend / Mode / Rate master switches, and every setting explained in place.*
+*The Output tab during DSD512 playback: live signal path across the top, an advisory reading the source's noise profile, Backend / Mode / Rate master switches, and every setting explained in place.*
 
 ## Inspiration
 
 HQPlayer is, in my humble opinion, the best deal in all of high-end digital audio, with two caveats:
 1. You may go broke trying to afford CPUs and GPUs to feed it the power it craves.
-2. The UI is _bad_.
+2. The UI is about as bad as it can be without crossing into outright malicious.
 
-The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped and wasted potential. And let's be honest: HQPlayer is a complex program that takes time to learn. A bad UI doesn't just frustrate experienced users, it holds newbies back and drives away potential users. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
+The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped and wasted potential that I knew would never be acted on unless I did it myself.
 
 Let's take filter narrowing as an example. This is, in my very humble opinion, HQPTuner's #1 flagship feature and the one thing most badly missing from the stock UI.
 
-The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 50 filters with baffling names like `poly-sinc-gauss-halfband`. To select one, you open the manual, do your best to parse the descriptions (if you even know what "minimum phase" means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you'll want an apodizing filter to correct for mastering errors. Which of the 50+ are apodizing? The dropdown won't tell you. If you want the manual's information in the web UI, clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through.
+The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 75 filters with baffling names like `poly-sinc-gauss-halfband`. To select one, you open the manual, do your best to parse the descriptions (if you even know what "minimum phase" means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you'll probably want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The dropdown won't tell you. There's a wealth of information on filters in the manual including which are apodizing, but if you want to cross-reference anything, you're doing it in your head. The closest the stock UI gets to helping you here is that clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through, same as the manual.
 
-HQPTuner instead integrates all of the manual's knowledge directly into the interface, so filters can be narrowed by quality, genre, focus, phase, length, and/or rate limits. A simple checkbox restricts the 1x lists to apodizing filters only and is selected by default. Your dropdown is only a handful of relevant filters in a few clicks.
+HQPTuner instead integrates all of the manual's filter knowledge directly into the interface, so the lists can be narrowed by quality, genre, focus, phase, length, and/or rate limits. A simple switch restricts the 1x lists to apodizing filters only and is selected by default. Your dropdown is only a handful of relevant filters in a few clicks.
 
-The same philosophy runs through the whole project: you shouldn't need a PDF or separate tab open to figure out what you're doing in HQPlayer.
+HQPlayer is a complex program that takes time to learn. A bad UI doesn't just frustrate experienced users, it holds newbies back and drives away potential users. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
 
 ## Features and Improvements
 
 HQPTuner offers the following features and improvements over the stock web configuration UI.
 
-**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 50 opaque names narrow to the few that fit in a few clicks.
+**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks.
 
-**2. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style, without leaving the page.
+**2. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
 
 **3. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed: a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. It's good, but it's not my jam. So I built in an alternative: structural crossfeed feature modelling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference**, and **center character** (ok, the last one is hard to picture, but the plots make it easy to understand). It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. Integrates with and doesn't disturb your EQ curve.
-
-<img width="1193" height="954" alt="image" src="https://github.com/user-attachments/assets/75313c1d-2d13-45f6-b621-1d6df856b0b1" />
-
-*The Resampling tab showing filter narrowing options.*
 
 The above three features are my flagships, but the following benefits are offered as well:
 
 * **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
-* **More sensible organization**: Settings are organized into five tabs: Output, Volume, Resampling, DSP, and System.
-* **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the rate selection menu.
-* **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out _with reasons_.
+* **More sensible organization**: Settings are organized into five tabs: Output, Volume, Resampling, Matrix, and System.
+* **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the output rate menu.
+* **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out.
 * **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.
 * **Live volume control**: For those who rely on HQPlayer for volume adjustment.
@@ -50,21 +46,25 @@ The above three features are my flagships, but the following benefits are offere
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
 * **Log tail in the browser**: The daemon's log, right in the System tab.
 
-<img width="1195" height="1876" alt="image" src="https://github.com/user-attachments/assets/0cf921af-7f43-4503-917c-988b77561383" />
+![LIVE mode](docs/images/hqptuner-v1-live.png)
 
-*The Matrix tab demonstrating the effects of structural crossfeed mode on the Matrix Response plot.*
+*LIVE mode: engine health, filter narrowing with live per-dropdown counts, both filter chains, playback volume, and matrix profile on one page. No Apply — every control writes as you change it.*
+
+![The Matrix tab](docs/images/hqptuner-v1-matrix.png)
+
+*The Matrix tab: sixteen structural-crossfeed pipelines carrying a headphone EQ, the crossfeed model's geometry readout, and the combined result on the Matrix Response plot — each EQ band a draggable dot, with a knob row for the selected one.*
 
 ## Drawbacks of HQPTuner
 
-While it should cover the vast majority of use cases, this is **not** a full-featured configuration interface.
+While it should cover the vast majority of use cases, this is **not** a truly full-featured configuration interface.
 
-Unavailable features:
+Unavailable and unplanned features:
 * Media playback and library management (use Roon)
 * The convolution engine (use Matrix DSP)
 
-Furthermore, to maintain "friendly" output rate options, the "Auto-rate family" option is always forced and setting the max rate to 32kHz multiples is impossible. If you're one of those 32kHz weirdos, HQPTuner may not be for you.
+Furthermore, to maintain "friendly" output rate options, the "Auto-rate family" option is always forced and setting the max rate to 32kHz multiples is impossible. If you're one of those 32k weirdos, sorry, but HQPTuner may not be for you.
 
-**HQPTuner works with HQPlayer Embedded only.** HQPlayer Desktop has no web interface — the port-8088 configuration lane HQPTuner depends on doesn't exist there. Sorry!
+**HQPTuner works with HQPlayer Embedded only.** HQPlayer Desktop has no web interface — the port-8088 configuration lane HQPTuner depends on doesn't exist there. Integration is possible with Jussi's support, so feel free to email him and let him know you'd like to see HQPTuner available for Desktop control as well.
 
 ## How it works
 
@@ -79,8 +79,9 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 ## Requirements
 
-* A running HQPlayer **Embedded** daemon (developed and verified against 6.0.4; Desktop is not supported — see above)
+* A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets; read-only use and live settings work without it
+* Either Docker OR Python v3.12+ (developed on v3.14)
 
 ## Install & run
 
@@ -180,7 +181,9 @@ Design and reference docs:
 
 ## Status
 
-**Beta.** Backend and frontend are feature-complete and live-validated against hqplayerd 6.0.4, and Docker packaging is in. Testers welcome — especially advanced matrix users: pipeline setups beyond stereo EQ (multichannel routing, crossovers, per-stage convolution chains) have had far less real-world exercise than the rest of the app. Expect rough edges; back up your config (System → About → Backup) before experimenting. Bug reports with the raw pipeline strings involved are gold.
+**Stable.** v1.0.0 is the first release off the beta channel. Backend and frontend are feature-complete and live-validated against hqplayerd 6.0.4, and Docker images ship for amd64 and arm64 on the `:latest` tag.
+
+Bug reports and contributions are welcome and encouraged. See `CONTRIBUTING.md` for contribution guidelines.
 
 ## License
 
