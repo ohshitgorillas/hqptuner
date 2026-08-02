@@ -320,6 +320,16 @@ select.mtx-ch {
   color: var(--amber);
   max-width: var(--measure);
 }
+/* "Matrix engine is bypassed" — state, not prose, so it takes the amber the
+   card's other state lines take rather than the muted .field-note gloss: the
+   whole point is that it gets noticed by someone editing pipelines that are
+   not in the signal path. Sits at the top of the card body, above the
+   controls it qualifies. */
+.mtx-bypass-note {
+  font-size: var(--fs-caption);
+  color: var(--amber);
+  max-width: var(--measure);
+}
 .mtx-raw {
   flex: 1;
   min-width: 12rem;

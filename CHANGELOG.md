@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **A note when the matrix engine is bypassed.** The Pipelines card, the Headphone Auto EQ card and the Crossfeed card in Structural view now say "Matrix engine is bypassed. These settings have no effect." while the Matrix card's switch is on BYPASS. The Matrix response card says "Matrix engine is bypassed. The changes below are not applied." above the curve, and stays quiet when there is nothing plotted. Staging ENGAGE clears it straight away. Nothing is disabled — a profile can still be built against a bypassed engine and engaged afterwards.
+
 - **Violet accent theme.** A fourth swatch on the accent picker, beside blue, phosphor green and amber. Matrix IIR stage chips shift from violet to orchid so they stay distinct from the accent under the new theme.
 
 - **Device-aware rate and mode menus.** Rates the output device cannot play are grayed as unavailable, on the Output tab and on LIVE. SDM is grayed on a device with no DSD path; with DoP on, only the DSD rates the device can carry stay selectable. A setting on an unreachable value falls back to the highest rate the device can play, or to PCM, as a staged change. Nothing is grayed and nothing falls back when the device has not reported what it supports.

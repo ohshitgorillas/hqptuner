@@ -16,6 +16,7 @@ import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { structuralLensTraces } from "./StructuralXfeed.js";
 import { Card } from "./tabs/common.js";
+import { BypassNote } from "./MatrixBypassNote.js";
 import { BandStrip, selectedStage, dragEq, withDrag, keyAt, commitStage, BAND_ARGS, r1 } from "./BandStrip.js";
 import { rowTraces, eqOverviewTrace, editedAway, appliedTraces, previewTrace, HUES } from "./matrixplot-traces.js";
 
@@ -142,6 +143,11 @@ export function MatrixPlot() {
     : "No pipeline processing to plot yet — load a profile or add EQ / stages above";
   return html`
     <${Card} title="Matrix response">
+        ${
+          traces.length
+            ? html`<${BypassNote} text="Matrix engine is bypassed. The changes below are not applied." />`
+            : null
+        }
         <${PlotFrame}
           traces=${traces}
           yMin=${Math.max(Math.floor(bounds.min / 6) * 6, -36)}

@@ -38,6 +38,7 @@ import {
   liveParams,
   pipelinesDirty,
 } from "../lib/xfmode.js";
+import { BypassNote } from "./MatrixBypassNote.js";
 import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
 import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
@@ -357,6 +358,7 @@ export function CrossfeedCard() {
       ${
         open
           ? html`<div class="card-body">
+              ${active === "structural" ? html`<${BypassNote} />` : null}
               <div class="xfs-top">
                 <${Gate} rows=${rows} active=${active} />
                 <${Segment}

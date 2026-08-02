@@ -25,6 +25,7 @@ import { Segment } from "./controls/index.js";
 import { dspMode, setDspMode } from "../store/dspmode.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { Section, Card } from "./tabs/common.js";
+import { BypassNote } from "./MatrixBypassNote.js";
 
 const pipelinesCardOpen = signal(true);
 
@@ -156,6 +157,7 @@ function HeadphoneEqCard() {
   };
   return html`
     <${Card} title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }} headClass="mtx-eq-head">
+      <${BypassNote} />
       <${ImportPanel} rows=${effectivePipelines.value} />
     <//>
   `;
@@ -185,6 +187,7 @@ function PipelinesCard() {
     ? // htm has no <>...</> fragment shorthand — a template with several roots
       // already yields an array, and Card wraps it in the card body.
       html`
+        <${BypassNote} />
         ${
           notesVisible.value
             ? html`<div class="field-note">
