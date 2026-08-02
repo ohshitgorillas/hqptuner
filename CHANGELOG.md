@@ -10,43 +10,29 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Device-aware rate and mode menus.** Rates the output device cannot play are grayed as unavailable, on the Output tab and on LIVE. SDM is grayed on a device with no DSD path; with DoP on, only the DSD rates the device can carry stay selectable. A setting on an unreachable value falls back to the highest rate the device can play, or to PCM, as a staged change. Nothing is grayed and nothing falls back when the device has not reported what it supports.
 
-- **Auto-save to the active preset.** A new **Auto-save** checkbox on the pending bar. With it on, every successful Apply and every LIVE change is saved into the active preset, so you always pick up where you left off. Saving this way never costs an extra daemon restart; HQPlayer's own profile list catches up on the next reload.
+- **Auto-save to the active preset.** A new **Auto-save** checkbox on the pending bar. With it on, every successful Apply and every LIVE change is saved into the active preset, so you always pick up where you left off.
 
-- **Apodizing and hi-res narrowing switches.** The Narrow filters card gains two switch groups — **Apodizing filters** and **Hi-res filters** — each with a segmented switch per stage (1x and Nx, shared across the PCM and SDM chains). Counts after each switch preview how many filters every choice would leave, and the manual's apodizing and hi-res guidance sits under the switches. Every narrowable filter dropdown also shows an n/total badge of how many filters survive the active narrowing, in both the tabs and LIVE views. The Reset button moved up beside the card's caption so it no longer resizes the facet dropdowns when it appears.
+- **Apodizing and hi-res narrowing switches.** The Narrow filters card gains two switch groups — **Apodizing filters** and **Hi-res filters** — each with a segmented switch per stage. Counts after each switch preview how many filters every choice would leave, and every narrowable filter dropdown carries an n/total badge of how many survive the active narrowing, in both the tabs and LIVE views.
 
 ### Changed
 
-- **BACKEND and MODE switches sized up.** Their buttons now fill the hero card's full height, level with the RATE card's dropdowns, and their labels are larger.
+- **Switches are bigger.** All segmented switches now share the large size the card enables use. The hero BACKEND and MODE buttons fill the card's full height, level with the RATE dropdowns; the DSP tab's SPEAKERS | HEADPHONES banner uses the app's largest text; and the header's LIVE toggle takes a larger label and more padding.
 
-- **DAC correction card reflowed.** The ENGAGE / BYPASS switch now sits above the Profile row instead of beside it, and the Profile row dims while the correction is bypassed.
+- **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Speakers, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the five that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
 
-- **Fixed volume card reflowed.** The ON / OFF switch and the dBFS level now share one labelled row — **Fixed level** — with **Auto headroom** as a matching row beneath it.
+- **Crossfeed card gets a card-level switch.** ENGAGE / BYPASS now sits at the top of the card and turns the crossfeed on or off in whichever view is showing — the Bauer flag, or install/removal of the Structural matrix block. The Bauer | Structural switch moved out of the card's header to sit beside it, with a short explanation of the two below, and Structural's separate Turn on / Turn off buttons are gone.
 
-- **The Speakers card's channel list is indented** off the card's left edge, so it reads as the card's detail rather than a second column of top-level controls.
+- **Cards reflowed.** The DAC correction card's ENGAGE / BYPASS switch sits above the Profile row instead of beside it, and that row dims while the correction is bypassed. The Fixed volume card's ON / OFF switch and dBFS level share one labelled row — **Fixed level** — with **Auto headroom** beneath it. The Speakers card's channel list is indented off the card's left edge.
 
-- **No more in-flight chatter on LIVE.** The LIVE view no longer prints "writing…", "switching…", "working…" or "Reloading the engine's lists…" beside a control while its write is in flight. Controls still gray out until the write lands.
+- **Loudness gets knobs.** Three knobs, sliders and textboxes like the Matrix Response plot's, toggled between Bass and Treble by a switch above, which buys a little vertical space on the Volume tab.
 
-- **LIVE grays every menu the engine is rebuilding.** Changing output mode, a filter or the rate makes the engine rebuild its menus. Until the new ones arrive, the running chain's filters, the high-frequency filter and both rate columns gray out instead of offering entries the engine has already replaced. The other chain's controls, adaptive volume and the mode switch stay usable throughout.
+- **LIVE is quieter and safer while writes are in flight.** No more "writing…", "switching…" or "Reloading the engine's lists…" beside a control — it just grays out until the write lands. Changing the output mode, a filter or the rate makes the engine rebuild its menus, so the running chain's filters, the high-frequency filter and both rate columns gray out until the new lists arrive instead of offering entries the engine has already replaced. The other chain's controls, adaptive volume and the mode switch stay usable throughout.
 
 - **EQ file controls consolidated.** The Headphone Auto EQ card no longer carries its own **Load AutoEq / REW .txt…** button — the one in the Pipelines card's action row does the same thing. The **mirror to stereo pair** checkbox moved there too, beside it, and governs the lanes in that card; a library profile load always writes both channels. It starts unticked in Speakers mode. Import messages now report into the card you acted from.
 
 - **DSP pipelines moved.** The DSP pipelines setting now sits at the top of the Pipelines card instead of the Matrix card, beside the pipeline count it governs.
 
-- **Card enables are switches now.** Crossfeed, Loudness, DAC correction, Matrix, Speakers, Fixed volume and Logging each traded their Enable checkbox for a two-button switch — ENGAGE / BYPASS on the five that sit in the signal path, ON / OFF on the other two. Each card's explanation moved out of the switch's row and up under the card's title, where it describes the card rather than the switch.
-
-- **One switch size everywhere.** All segmented switches now share the large size the card enables use. The hero MODE / BACKEND / RATE segments and the SPEAKERS | HEADPHONES banner keep their own sizes.
-
-- **Crossfeed card gets a card-level switch.** ENGAGE / BYPASS now sits at the top of the card and turns the crossfeed on or off in whichever view is showing — the Bauer flag, or install/removal of the Structural matrix block. The Bauer | Structural switch moved out of the card's header to sit beside it, with a short explanation of the two below, and Structural's separate Turn on / Turn off buttons are gone.
-
-- **The Speakers | Headphones switch is bigger.** Both labels on the DSP tab's mode banner now use the app's largest text size.
-
-- **The LIVE switch is bigger.** The header's LIVE toggle now uses a larger label and more padding, so it is easier to hit and easier to spot.
-
-- **The clipping warning has a threshold too.** It used to fire on the first clipping event of a track. It now waits for ten.
-
-- **The apodizing-events warning waits for ten events** on a track before firing, up from five.
-
-- **Loudness visual enhancements.** Three knobs/sliders/textboxes, similar to the Matrix Response plot's knobs, toggled between Bass and Treble by a switch above. This buys a little extra vertical space on the Volume tab, and (imho) looks cooler.
+- **The clipping and apodizing-events warnings both wait for ten events** on a track before firing — up from the first event for clipping, and from five for apodizing.
 
 ### Removed
 
