@@ -268,6 +268,42 @@ function PipelinesCard() {
   `;
 }
 
+// The switcher's two glyphs. Drawn, not typed: the app ships Inter + JetBrains
+// Mono, so a 🔊/🎧 in a segment label renders as tofu wherever no emoji font is
+// installed. They stroke in currentColor, so they take the seg's own colour on
+// both sides of the switch, and are decoration beside a word that already says
+// which mode this is — aria-hidden, no title.
+const SEG_GLYPH = {
+  class: "seg-glyph",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  "stroke-width": "1.75",
+  "stroke-linecap": "round",
+  "stroke-linejoin": "round",
+  "aria-hidden": "true",
+};
+
+function SpeakerGlyph() {
+  return html`
+    <svg ...${SEG_GLYPH}>
+      <rect x="6" y="2.5" width="12" height="19" rx="2" />
+      <circle cx="12" cy="15" r="3.5" />
+      <circle cx="12" cy="7" r="1.25" />
+    </svg>
+  `;
+}
+
+function HeadphoneGlyph() {
+  return html`
+    <svg ...${SEG_GLYPH}>
+      <path d="M4 16v-4a8 8 0 0 1 16 0v4" />
+      <rect x="2.5" y="14.5" width="4" height="7" rx="2" />
+      <rect x="17.5" y="14.5" width="4" height="7" rx="2" />
+    </svg>
+  `;
+}
+
 // The mode switcher. A VIEW selector: it decides which listening setup's
 // controls are on screen and never turns processing on (store/dspmode.js). The
 // matrix, the pipelines and the response plot are common to both and stay put
@@ -279,10 +315,8 @@ function DspSwitcher() {
       <${Segment}
         value=${mode}
         options=${[
-          // Words only: the app ships Inter + JetBrains Mono, and a 🔊/🎧 in a
-          // segment label renders as tofu wherever no emoji font is installed.
-          { value: "speakers", label: "Speakers" },
-          { value: "headphones", label: "Headphones" },
+          { value: "speakers", label: html`<${SpeakerGlyph} />Speakers` },
+          { value: "headphones", label: html`<${HeadphoneGlyph} />Headphones` },
         ]}
         onChange=${setDspMode}
       />

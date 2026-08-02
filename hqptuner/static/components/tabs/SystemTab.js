@@ -82,7 +82,7 @@ const DescriptionPrefs = () => html`
     <div class="control">
       <${Checkbox} value=${showDescriptions.value ? "1" : "0"} onChange=${(v) => setShowDescriptions(v === "1")} />
     </div>
-    <div class="field-note">Show a manual note under each control</div>
+    <div class="field-note">Show the description from the manual under each feature. Disabling this converts those descriptions to hover tips.</div>
   </div>
   <div class="field">
     <label>Option descriptions</label>

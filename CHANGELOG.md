@@ -20,6 +20,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The DSP tab is now the Matrix tab.** Resampling is DSP too, so the old name said less than it looked like it did. The card at the top of it, previously **Matrix**, is now **General**.
 
+- **The Matrix tab's mode banner reads as a headline.** SPEAKERS | HEADPHONES is now uppercase and bold on both halves, taller, and each side carries a drawn speaker or headphone icon beside its word.
+
+- **Clearer wording for the feature-description setting on the System tab.** It now says what turning it off does: the descriptions become hover tips.
+
 - **PCM gain compensation fills the right way round.** The slider on the Output tab filled from the right; it now fills from the left like every other slider in the app.
 
 - **Switches are bigger.** All segmented switches now share the large size the card enables use. The hero BACKEND and MODE buttons fill the card's full height, level with the RATE dropdowns; the Matrix tab's SPEAKERS | HEADPHONES banner uses the app's largest text; and the header's LIVE toggle takes a larger label and more padding.

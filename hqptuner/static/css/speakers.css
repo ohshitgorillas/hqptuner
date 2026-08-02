@@ -18,11 +18,35 @@
   display: flex;
   width: 100%;
 }
+/* Headline typography, both halves. At the raised surface and full width the
+   strip otherwise reads as another .card-head bar stacked above the real ones;
+   caps + tracking + the heading weight, at a size no card head uses, make the
+   size gap read as hierarchy instead of as an echo. The unselected half keeps
+   the secondary tier (it NAMES the other choice) rather than the caption tier
+   the base .seg rule gives it — a muted half reads as one lit label, not as a
+   control with two sides. */
 .dsp-switcher .seg {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
   text-align: center;
-  padding: var(--sp-2) var(--sp-4);
+  padding: var(--sp-4);
   font-size: var(--fs-readout);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+  color: var(--fg-2);
+}
+/* Sized off the label's own type, not a fixed pixel box, so the glyph tracks
+   the switch's text at any root size. Caps are shorter than the em, so 1em of
+   glyph would tower over the word — 1.1em of a viewBox whose art fills it lands
+   the drawing at about cap height. */
+.dsp-switcher .seg-glyph {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
 }
 /* --- card --------------------------------------------------------------- */
 
