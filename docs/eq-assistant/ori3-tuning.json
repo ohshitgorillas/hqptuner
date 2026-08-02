@@ -152,6 +152,35 @@
         "preamp_note": "pure cut, summed max unchanged; Lin gains keep -4.79, correct as-is"
       },
       "staged": "Via scripts/eqstage (rows all, mode append) - one band appended to all 16 structural rows' tails, Lin gains untouched, posted and verified. Jobs docs/eq-assistant/ori3-boom-probe.json + ori3-boom-search.json; snapshot data/eqlab/ori3-v4-boomtrim. Apply is the listener's."
+    },
+    {
+      "complaint": "I wonder if the magnitude of the corrective peaks in the treble needs to be increased to match the actual amplitudes measured",
+      "clarify": "Answered as a measured question first (discuss, nothing staged), then acted on explicit 'Go'. Finding presented before acting: the v3 fit scored against a 1/3-oct-smoothed target, but the ear's filter in the treble is nearer 1/6 oct, so narrow peaks were shaved below their measured height and every treble cut inherited the undersizing.",
+      "answer": "Go",
+      "diagnosis": {
+        "method": "rescored the live chain against the same correction target at 1/6- and 1/12-oct smoothing; then 69984-candidate grid search over the four treble bands plus one appended ~11.5 kHz cut, followed by two warm-start refine passes with band centres freed (objective rmse_erb 5-12k + 0.5 * rmse_erb 14-17k vs the 1/6-oct target; constraints: 12-14 kHz canyon not driven below -8.5, |mean 2700-5200| <= 0.75)",
+        "finding": "Hunch upheld threefold at 1/6 oct: +1.9 dB survived at 8.36 kHz (band centred 7898 was off the measured centre), a +2.9 dB peak at 11.5 kHz was entirely untreated (1/3-oct smearing hid it - v3 read 9-12k as ~0), and +4.6 dB survived at 15.8 kHz after the -5.23 cut. Refit moved the 8k band to its measured centre (8215 Hz), deepened 15.5k to -10.2 (settled off the search bound, genuine optimum), and added an 11.6 kHz cut. Leftover 5-12k peaks now +0.4 to +0.7 dB; the 15.8k peak fully served (worst 14-17k residual now -1.8 dip-side).",
+        "explains_symptom": "1/3-oct smoothing is broader than the auditory filter above ~5 kHz, so the smoothed target systematically understated narrow resonance amplitudes and the cuts sized to it undershot the real peaks.",
+        "confidence_flags": "All bands above 8 kHz carry eqlab's above-qualified-range caveat; the Q 8.4 and Q 9.8 bands are far outside AutoEq's envelope - deliberate (narrow measured resonances at the 1/6-oct floor), but seating and head variance above 10 kHz run 10-15 dB, so the listener's ears adjudicate."
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 5862.3, "gain_db": -2.56, "q": 4.207, "rationale": "Was 6008.7 -2.21 Q4; centre and depth to the 1/6-oct measured peak at 5.5-5.9k"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 6873.1, "gain_db": -2.79, "q": 4.696, "rationale": "Was 6907.9 -1.43 Q4; deepened to the unsmoothed shoulder height"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 8215.3, "gain_db": -4.02, "q": 8.417, "rationale": "Was 7897.8 -2.51 Q4; measured peak sits at 8.36k, not 7.9k - recentred and deepened"},
+        {"kind": "amend_band", "type": "peak", "f_hz": 15556.4, "gain_db": -10.2, "q": 3.611, "rationale": "Was 15566 -5.23 Q2.918; 1/6-oct peak height +4.6 dB above the old cut; gain change 4.97 dB, inside the +/-6 per-turn clamp"},
+        {"kind": "append_band", "type": "peak", "f_hz": 11581.8, "gain_db": -2.32, "q": 9.774, "rationale": "+2.9 dB peak at 11.5 kHz invisible at 1/3 oct, untreated in v3"}
+      ],
+      "measured": {
+        "vs_1_6_oct_target": {
+          "objective_5k_17k": {"before": 2.032, "after": 1.178},
+          "dev_5200_6500": {"before": 1.02, "after": 0.435}, "dev_6500_7500": {"before": 0.789, "after": 0.363},
+          "dev_7500_9000": {"before": 1.906, "after": 0.729}, "dev_9000_12000": {"before": 2.919, "after": -2.271},
+          "dev_14000_17000": {"before": 4.596, "after": -1.828}, "dev_12000_14000_canyon": {"before": -7.008, "after": -7.51, "note": "null, deliberately unfilled; guard held at -8.5"},
+          "mean_2700_5200": -0.01
+        },
+        "preamp_note": "all cuts; chain optimum -4.77, Lin gains keep -4.79 - 0.02 dB surplus, untouched"
+      },
+      "staged": "Via scripts/eqstage (rows all, replace_tail) - full 9-band tail on all 16 structural rows, Lin gains untouched, posted and verified. Jobs docs/eq-assistant/ori3-treble-search.json + ori3-treble-refine.json; snapshot data/eqlab/ori3-v5-treble. Apply is the listener's."
     }
   ]
 }
