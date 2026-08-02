@@ -24,7 +24,7 @@ lint:
 # it past 500. vendor/ is upstream and exempt from every gate.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/eqlab/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/*/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx knip
 	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')

@@ -1,0 +1,62 @@
+{
+  "chain": { "bands": [] },
+  "target": {
+    "from": "difference",
+    "a": {
+      "from": "points", "path": "docs/eq-assistant/5128-df-target.txt", "format": "fr_text",
+      "tilt": { "db_per_octave": -1.0, "pivot": 1000 }
+    },
+    "b": {
+      "from": "points", "path": "docs/eq-assistant/ori3raw.txt", "format": "fr_text",
+      "despike": { "window": 7, "threshold_db": 3 }
+    },
+    "smooth": { "octaves": 0.3333 },
+    "override": [ { "range": [380, 480], "method": "interpolate_edges" } ],
+    "align": "mean"
+  },
+  "metrics": {
+    "fit_main": { "kind": "rmse", "range": [200, 10000], "domain": "erb" },
+    "fit_15k": { "kind": "rmse", "range": [13500, 17000] },
+    "bass_mean": { "kind": "mean", "range": [30, 180] },
+    "g912_min": { "kind": "min", "range": [9300, 12500] },
+    "g912_max": { "kind": "max", "range": [9300, 12500] },
+    "res_200_510": { "kind": "mean_signed", "range": [200, 510] },
+    "res_800_2300": { "kind": "mean_signed", "range": [800, 2300] },
+    "res_2700_5200": { "kind": "mean_signed", "range": [2700, 5200] },
+    "res_5200_6500": { "kind": "mean_signed", "range": [5200, 6500] },
+    "res_6500_9000": { "kind": "mean_signed", "range": [6500, 9000] },
+    "maxdev_200_10k": { "kind": "maxdev", "range": [200, 10000] }
+  },
+  "job": {
+    "kind": "refine",
+    "seed": {
+      "append": [
+        { "type": "peak", "f": 335, "g": 2.5, "q": 1.1 },
+        { "type": "peak", "f": 1260, "g": -3.5, "q": 1.1 },
+        { "type": "peak", "f": 3634, "g": 4.6, "q": 1.4 },
+        { "type": "peak", "f": 5800, "g": -1.2, "q": 2.5 },
+        { "type": "peak", "f": 6800, "g": -2.0, "q": 3.0 },
+        { "type": "peak", "f": 7900, "g": -2.3, "q": 2.3 },
+        { "type": "peak", "f": 15000, "g": -4.5, "q": 2.5 }
+      ]
+    },
+    "space": {
+      "append": [
+        { "type": "peak", "f": [250, 450, 10], "g": [0.5, 4.0, 0.25], "q": [0.6, 2.0, 0.1] },
+        { "type": "peak", "f": [900, 1700, 20], "g": [-6.0, -1.0, 0.25], "q": [0.5, 2.0, 0.1] },
+        { "type": "peak", "f": [3000, 4400, 25], "g": [1.0, 6.0, 0.25], "q": [0.8, 2.5, 0.1] },
+        { "type": "peak", "f": [5200, 6400, 25], "g": [-3.0, -0.2, 0.2], "q": [1.5, 4.0, 0.1] },
+        { "type": "peak", "f": [6400, 7300, 25], "g": [-4.0, -0.5, 0.25], "q": [1.5, 4.0, 0.1] },
+        { "type": "peak", "f": [7400, 8600, 25], "g": [-4.5, -0.5, 0.25], "q": [1.5, 4.0, 0.1] },
+        { "type": "peak", "f": [14000, 16000, 50], "g": [-6.0, -1.0, 0.25], "q": [1.5, 4.0, 0.1] }
+      ]
+    },
+    "constraints": [
+      { "metric": "bass_mean", "min": -0.75, "max": 0.75 },
+      { "metric": "g912_min", "min": -1.75 },
+      { "metric": "g912_max", "max": 0.75 }
+    ],
+    "objective": "minimize fit_main + 0.25*fit_15k",
+    "refine": { "max_evals": 8000, "tol": 1e-6 }
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "headphone": "ZMF Ori 3.0",
+  "model": "claude-fable-5",
+  "eq_profile": "none - built from scratch; no AutoEq database entry exists for the Ori 3.0",
+  "measurement": {
+    "file": "docs/eq-assistant/ori3raw.txt",
+    "source": "ZMF official website",
+    "form": "raw (uncompensated) SPL, 958 points, 20 Hz - 20 kHz",
+    "cleaning": "median/MAD despike, window 7, rejected 36 of 958 points; densely contaminated 388-470 Hz stretch handled by target override (interpolate_edges 380-480) because no median window survives >50% local contamination"
+  },
+  "yardstick": {
+    "file": "docs/eq-assistant/5128-df-target.txt",
+    "what": "B&K 5128 diffuse-field curve ('5128 DF', earphonesarchive.squig.link), untilted; verified shape ~0 dB flat LF, +16.25 dB apex at 3 kHz",
+    "used_as": "sizing reference with -1.0 dB/oct tilt pivoted at 1 kHz - never a tight fit target"
+  },
+  "turns": [
+    {
+      "complaint": "These measurements are actually from ZMF directly. From their website: \"All measurements taken with a Brüel & Kjær 5128. All measurements are taken at 94 dB/mW (Average Frequency Sweep Volume). All measurements represented, except those listed HATS, are taken on the Larson Davis AECM210 rigs using Audio Precision Software in an Anechoic Chamber.\" Based on my first listening impressions, I can tell you that it's fairly V-shaped with a solid bass boost and an obnoxious amount of energy at 2.5kHz making it strongly V-shaped. That seems to mirror the actual measurements, so my guess is raw-raw. As for the target, well, I don't like V-shaped... but I'm not sure I want to go full Harman either. Let's discuss the target curve more.",
+      "clarify": "Target options laid out: (1) Harman translated to 5128 - rejected, Harman is GRAS 711-family-referenced and pasting it onto 5128 data injects the inter-rig transfer difference into the EQ, worst in 2-9 kHz; (2) 5128 DF + downward tilt + bass shelf to taste; (3) minimal-corrective with no absolute target - fix the broad relative errors, voice by ear. Recommended 3 with 2 as yardstick.",
+      "answer": "Agreed on all counts, 3 for sure with 2 as a yardstick.",
+      "diagnosis": {
+        "method": "correction curve = (5128 DF with -1 dB/oct tilt) minus despiked measurement, overrides 380-480 (glitch stretch) and 2700-5200 (un-taken DF fill, kept out so it cannot bias neighbouring bands), smooth 1/3 oct, mean-aligned; bands sized by 32805-candidate grid search + continuous refinement against that target - three refined survivors converged to one optimum",
+        "finding": "The V is two features. A 200-400 Hz trough (-4.9 dB band mean vs measurement mean; correction wants +2 to +2.7 dB over 215-510 Hz), and a 0.8-2.3 kHz excess with correction apex -4.4 dB at 1264 Hz. The 2.5 kHz apex itself sits approximately on-target against 5128 DF, whose anatomy apex is +16 dB at 3 kHz. Also real: +7.7 dB (rel. mean) peak at 8.2 kHz, a 6.8 kHz shoulder wanting -2.3 dB, a -17 dB (rel. trend) canyon at 12.4-13 kHz, a collapse above 16.6 kHz.",
+        "explains_symptom": "The perceived 'obnoxious 2.5k' is a 1.2-1.5 kHz-centred shoulder excess plus contrast against dips on both sides - half the V is a missing lower-midrange, the other half an upper-mid excess sitting lower in frequency than it sounds.",
+        "deviation_filed": "The headphone measures ~5 dB shy of strict DF-tilt at 3.6-4 kHz. Not filled: listener reads presence energy as hot, and preference research (Lorho; Harman trained listeners) says pure DF over-serves 2-4 kHz. First suspect if the post-EQ verdict is 'too polite or distant up top'."
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 335.4, "gain_db": 3.0, "q": 1.13, "rationale": "Fill the 215-510 Hz trough"},
+        {"kind": "append_band", "type": "peak", "f_hz": 1261.4, "gain_db": -3.5, "q": 1.2, "rationale": "Broad cut over the 0.8-2.3 kHz excess"},
+        {"kind": "append_band", "type": "peak", "f_hz": 7900, "gain_db": -2.33, "q": 2.4, "rationale": "Tame the 8.2 kHz peak"}
+      ],
+      "disclosed": "+3.0 fill and -3.5 cut both sat pinned at the search bounds offered - the optimizer wanted at least this much. Conservative opening by design; deeper is measured and ready if it still sounds V by ear.",
+      "measured": {
+        "rmse_erb_150_10k_db": {"unequalized": 2.469, "after": 0.886},
+        "worst_residuals_db": {"upper_mid_2k": 1.0, "treble_7k": -1.6}
+      }
+    },
+    {
+      "complaint": "shouldn't the high treble where the resonances are be corrected more? I see you've got the big 8.2kHz peak down, but what about the rest of the treble? Every proper headphone EQ I've seen is crazy in the treble, not just one cut.",
+      "diagnosis": {
+        "method": "constrained search over widening/deepening the 7900 band crossed with an optional 6.4-7.4 kHz cut, objective treble RMSE vs the correction target, guards on 5-6 kHz and 10-11 kHz collateral",
+        "finding": "Challenge partly upheld: the single 7900 cut left -1.6 dB of the 6.5-7.5 kHz shoulder unserved. The 6.5-9.5 kHz excess is a double-humped plateau - two lighter cuts fit it 0.42 dB better at the worst spot with no 10 kHz+ collateral. Beyond that the search sits at the diminishing-returns wall: the binding constraint is 10-11 kHz collateral, and relaxing it 0.6 dB buys only 0.014 dB RMSE.",
+        "explains_symptom": "Published EQ profiles carry treble forests because they fit 711-family rig curves tightly - a rig that stops simulating an ear above ~8-10 kHz, at one seating, on a head that is not the listener's (10-15 dB individual spread above 10 kHz). Much of the forest corrects the coupler, not the headphone. The 5128 treble is qualified to 20 kHz, so the peaks cut here are real - but fine structure above 10 kHz stays for ears, not data."
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 7900, "gain_db": -1.5, "q": 2.8, "rationale": "Lightened from -2.33 Q2.4 once the shoulder band shares the load"},
+        {"kind": "append_band", "type": "peak", "f_hz": 6784, "gain_db": -1.63, "q": 3.0, "rationale": "The 6.8 kHz shoulder"}
+      ],
+      "preamp_db": -2.81,
+      "alternatives_rejected": [
+        {"approach": "fill 3.6-4 kHz to strict DF", "reason": "listener reads presence as hot; DF over-serves 2-4 kHz per preference research"},
+        {"approach": "single deeper 8 kHz cut", "reason": "leaves -1.6 dB at the 6.8 kHz shoulder; split treatment wins with no 10 kHz+ collateral"},
+        {"approach": "narrow corrections above 10 kHz (13 kHz canyon fill, 16.6 kHz cliff)", "reason": "the canyon is likely a cancellation null - boosting into a null adds power without filling it; dips are less audible than peaks; seating and head dependence dominate up there"}
+      ],
+      "measured": {
+        "rmse_erb_150_10k_db": {"before": 0.886, "after": 0.835},
+        "worst_treble_residual_db": {"before": -1.6, "after": -1.1}
+      }
+    },
+    {
+      "complaint": "okay, let's hear it.",
+      "outcome": "Final opening chain: peak 335.4 Hz +3.0 Q1.13 | peak 1261.4 Hz -3.5 Q1.2 | peak 6784 Hz -1.63 Q3.0 | peak 7900 Hz -1.5 Q2.8 | preamp -2.81 dB. Snapshot data/eqlab/ori3-v2-opening.json; EqualizerAPO export docs/eq-assistant/ori3-opening.txt. Not yet staged; Apply is the listener's."
+    },
+    {
+      "complaint": "I am rejecting the previous agent's curve. I am trying to do *corrective* EQ. That means correcting for pad reflections and the driver's deficiencies. The previous agent's \"corrective\" EQ curve was simply tonal EQing plus a piddly attempt at paring down two slight treble peaks. I want a CORRECTION.",
+      "clarify": "Target promoted from yardstick to fit target: 5128 DF, -1 dB/oct tilt pivoted 1 kHz, mean-aligned; tight fit, presence hole filled (previously withheld on preference grounds), full treble treatment where 5128 data is qualified, peaks cut but nulls never boosted (12.4-13 kHz canyon, >16.6 kHz collapse). One fork surfaced: bass - correct to target too, or leave below ~200 Hz untouched.",
+      "answer": "200Hz up for now",
+      "diagnosis": {
+        "method": "correction = (5128 DF tilted -1 dB/oct) minus despiked measurement, 1/3-oct smooth, 380-480 override, mean-align; probed region means with empty chain, then 7-band warm-start refine (21 free params, 4800 evals), objective rmse_erb 200-10k + 0.25 * rmse 13.5-17k, constraints: |mean 30-180| <= 0.75 (bass guard), 9.3-12.5 kHz collateral within [-1.75, +0.75]",
+        "finding": "Correction curve: +2.1 dB 200-510, -3.0 dB 800-2300, +5.1 dB apex 3634 Hz (presence hole), -1.2 dB 5.2-6.5k, -2.5 dB 6.5-9k double plateau (apex 7776), ~0 at 9-12k, +1.8 dB canyon-fill wish at 12 kHz (null, skipped), -5.4 dB peak at 15 kHz (pad/driver resonance, cut), collapse above 16.6 kHz (skipped). Bass-region correction ~0, so the 200 Hz fork costs no step.",
+        "explains_symptom": "The rejected curve treated symptoms at 1/3 the available depth and refused the presence fill outright; a true correction serves every measured deviation the rig is qualified for, and only physics (nulls, collapse) exempts a region."
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 353.8, "gain_db": 3.14, "q": 0.904, "rationale": "200-510 Hz lower-mid trough"},
+        {"kind": "append_band", "type": "peak", "f_hz": 1377.3, "gain_db": -4.91, "q": 0.829, "rationale": "0.8-2.3 kHz excess"},
+        {"kind": "append_band", "type": "peak", "f_hz": 3652.4, "gain_db": 6.0, "q": 1.586, "rationale": "Presence hole; pinned at the +/-6 dB per-turn policy clamp, target apex wants +5.1"},
+        {"kind": "append_band", "type": "peak", "f_hz": 6008.7, "gain_db": -2.21, "q": 4.0, "rationale": "6 kHz shoulder"},
+        {"kind": "append_band", "type": "peak", "f_hz": 6907.9, "gain_db": -1.43, "q": 4.0, "rationale": "6.9 kHz hump"},
+        {"kind": "append_band", "type": "peak", "f_hz": 7897.8, "gain_db": -2.51, "q": 4.0, "rationale": "7.9 kHz resonance; treble Qs pinned at 4.0 = the 1/3-oct smoothing floor"},
+        {"kind": "append_band", "type": "peak", "f_hz": 15566.0, "gain_db": -5.23, "q": 2.918, "rationale": "15.5 kHz pad/driver resonance; above-8k flag noted, 5128 qualified to 20 kHz"}
+      ],
+      "preamp_db": -4.79,
+      "measured": {
+        "rmse_erb_200_10k_db": {"unequalized": 2.66, "after": 0.315},
+        "region_residuals_db": {"200_510": 0.101, "800_2300": 0.072, "2700_5200": -0.019, "5200_9000": 0.189},
+        "worst_dev_db": {"in_band": {"value": -1.53, "hz": 9864}, "treble": {"value": -2.81, "hz": 13319, "note": "the untreated canyon, deliberate"}}
+      },
+      "staged": "Recompiled the live structural crossfeed block (recognized lambda 0, angle 34.5, head radius 0.0939, preamp 0/0) via binaural.js compileRows with the EQ chain per ear and -4.79 dB folded into the Lin gains; re-recognition verified before POST /api/config/stage (200). Export docs/eq-assistant/ori3-correction.txt; snapshot data/eqlab/ori3-v3-correction.json; jobs ori3-corr-probe/fit/final.json. Apply is the listener's."
+    },
+    {
+      "complaint": "This is a big improvement. The treble sounds more correct... not as correct as it could, but more corrected than raw. But there are still several issues with what I'm hearing... let's go one at a time. I'm still hearing the sound as a little bit V-shaped, certain guitar chords or vocals can sound slightly restrained. I think part of this is that the upper mids are still prominent. I want to make one change at a time, but I think these are tied together, so I'm not sure how to proceed.",
+      "diagnosis": {
+        "method": "no new measurement needed - post-EQ residual vs target is ~0 everywhere scored, so the complaint indicts the target realization itself; band 3 (+6.00 at 3652 Hz, pinned at the per-turn clamp) is the pre-filed deviation: turn-1 record warned pure DF over-serves 2-4 kHz per preference research",
+        "finding": "Both symptoms are contrast effects of a hot 2.5-4 kHz: reads directly as prominent upper mids, and pushes 800-2000 (guitar chord body, vocal fundamentals) into 'restrained' by contrast. Second suspect only if trim fails: band 2 (-4.91 at 1377, Q 0.829) over-deep.",
+        "explains_symptom": "Correct per the rig, hot per the ear - the exact failure mode filed at fit time."
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 3652.4, "gain_db": 4.5, "q": 1.586, "rationale": "Step 1 of the agreed one-at-a-time sequence: land between strict correction (+6) and the untreated hole; step 2 (ease 1377 to ~-4.0) only if still restrained after listening"}
+      ],
+      "measured": {
+        "rmse_erb_200_10k_db": {"before": 0.315, "after": 0.554},
+        "deviation_at_3652_db": -1.543,
+        "res_2700_5200_db": -0.966,
+        "preamp_note": "Lin gains still carry -4.79 folded in; trimmed chain needs only -3.29, so the block runs 1.5 dB of surplus headroom - harmless, tidy up on a future recompile"
+      },
+      "staged": "Via scripts/eqstage (rows all, mode replace_tail): band tails amended on all 16 structural rows, Lin gains untouched, posted and verified. Probe job docs/eq-assistant/ori3-corr-trim36.json. Apply is the listener's."
+    },
+    {
+      "complaint": "mids are better, but the upper mid cut made things a little duller",
+      "diagnosis": {
+        "method": "listening bisection on band 3, no new measurement: +6.00 shouty, +4.50 dull, complaint says overshoot by roughly half",
+        "finding": "Preferred value bracketed in [4.5, 6.0]; staged the midpoint +5.25. Deviation at the 3652 Hz apex moves -1.54 to -0.89 dB vs strict correction.",
+        "explains_symptom": "The 1.5 dB trim removed the shout and half again too much energy; 'a little duller' sizes the giveback at under half the trim."
+      },
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 3652.4, "gain_db": 5.25, "q": 1.586, "rationale": "Midpoint of the bracket; next bisection step is +/-0.4 dB by ear if needed"}
+      ],
+      "measured": {
+        "rmse_erb_200_10k_db": {"before": 0.554, "after": 0.386},
+        "deviation_at_3652_db": -0.885,
+        "res_2700_5200_db": -0.492,
+        "preamp_note": "chain optimum now -4.04; Lin gains still carry -4.79 - 0.75 dB surplus headroom, still harmless"
+      },
+      "staged": "Via scripts/eqstage (rows all, mode replace_tail), posted and verified. Probe job docs/eq-assistant/ori3-corr-trim36b.json. Apply is the listener's."
+    },
+    {
+      "complaint": "back up and undo the last two rounds of changes. I'm an idiot: I didn't have the fucking Matrix engine engaged (caught by the chips at the top-HQPTuner ftw) so that's why it still read to me as \"still V-shaped, upper mids still too much.\" because NOTHING WAS CHANGING. fuck me. okay, back to the original correction profile before any of my tweaks. not the one proposed by the last agent, but option 3 from earlier. go back to that.",
+      "interpreted": "\"the original correction profile before any of my tweaks\" = the v3 full correction (snapshot ori3-v3-correction), ruling out the previous agent's minimal opening chain; both band-3 trims and the impressions behind them were reactions to unEQ'd sound and carry no information.",
+      "changes": [
+        {"kind": "amend_band", "type": "peak", "f_hz": 3652.4, "gain_db": 6.0, "q": 1.586, "rationale": "Rewind: band 3 restored to the correction optimum; the two trims were fitted to phantom feedback and carry no information"}
+      ],
+      "measured": {
+        "rmse_erb_200_10k_db": {"restored": 0.315},
+        "preamp_note": "Lin gains carry -4.79 folded in; that is the correct preamp for this chain (summed max 4.79), surplus gone"
+      },
+      "staged": "Byte-exact restore from snapshot ori3-v3-correction via eqstage (rows all, replace_tail), posted and verified. The two trim turns stay in this ledger, marked contaminated by the disengaged matrix engine - the bisection bracket [4.5, 6.0] is void. Apply is the listener's."
+    },
+    {
+      "complaint": "Great! Okay, the profile *with the matrix engine engaged* is actually a big improvement. It's definitely not V-shaped anymore, but I'm getting a hint of mud/boom",
+      "interpreted": "\"a hint of mud/boom\" spans two vocabulary regions (mud 200-400, boom 60-150); measurement arbitrated rather than asking. Correction lands below 200 Hz, previously reserved by \"200Hz up for now\" - flagged at the budget checkpoint that this reads as reopening that region; user answered \"continue\", taken as approval.",
+      "diagnosis": {
+        "method": "probe of the live chain vs the v3 correction target (same target spec, finer bass slices), then 1404-candidate grid search + refine over one appended peak (f 90-210, g -2.0..-0.4, q 0.5-1.6), objective rmse_erb 60-600, constraints: res_30_60 >= -1.3, res_300_510 >= -0.5, rmse_200_10k <= 0.35",
+        "finding": "Mud region exonerated: 200-400 Hz sits on target (+0.10/+0.21 dB). The excess is the deliberately uncorrected sub-200 bass: +0.8 dB mean across 60-200 Hz (60-100 +0.77, 100-150 +0.88, 150-200 +0.80), worst +0.95 dB at 144 Hz, while 30-60 Hz already runs -0.85 dB under target - so a shelf cut is the wrong shape and a broad peak cut is right. Optimizer offered down to -2 dB and took -1.0.",
+        "explains_symptom": "'Hint of mud/boom' is the ~0.8-0.9 dB bass hump the 200-Hz-up fit deliberately left standing; its upper skirt (150-200 Hz) leaks into the perceived mud range even though 200-400 itself is on target."
+      },
+      "changes": [
+        {"kind": "append_band", "type": "peak", "f_hz": 109.9, "gain_db": -0.99, "q": 0.884, "rationale": "Flatten the 60-200 Hz hump without dragging the already-lean 30-60 Hz region further down"}
+      ],
+      "measured": {
+        "rmse_erb_200_10k_db": {"before": 0.315, "after": 0.311},
+        "region_residuals_db": {"res_30_60": {"before": -0.852, "after": -1.078}, "res_60_100": {"before": 0.769, "after": 0.063}, "res_100_150": {"before": 0.884, "after": -0.037}, "res_150_200": {"before": 0.801, "after": 0.212}, "res_200_300": {"before": 0.099, "after": -0.195}},
+        "preamp_note": "pure cut, summed max unchanged; Lin gains keep -4.79, correct as-is"
+      },
+      "staged": "Via scripts/eqstage (rows all, mode append) - one band appended to all 16 structural rows' tails, Lin gains untouched, posted and verified. Jobs docs/eq-assistant/ori3-boom-probe.json + ori3-boom-search.json; snapshot data/eqlab/ori3-v4-boomtrim. Apply is the listener's."
+    }
+  ]
+}

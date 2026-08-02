@@ -1,0 +1,35 @@
+{
+  "chain": { "from": "daemon", "row": 0, "eq_only": true },
+  "target": {
+    "from": "difference",
+    "a": {
+      "from": "points", "path": "docs/eq-assistant/5128-df-target.txt", "format": "fr_text",
+      "tilt": { "db_per_octave": -1.0, "pivot": 1000 }
+    },
+    "b": {
+      "from": "points", "path": "docs/eq-assistant/ori3raw.txt", "format": "fr_text",
+      "despike": { "window": 7, "threshold_db": 3 }
+    },
+    "smooth": { "octaves": 0.3333 },
+    "override": [ { "range": [380, 480], "method": "interpolate_edges" } ],
+    "align": "mean"
+  },
+  "metrics": {
+    "rmse_200_10k": { "kind": "rmse", "range": [200, 10000], "domain": "erb" },
+    "res_30_60": { "kind": "mean_signed", "range": [30, 60] },
+    "res_60_100": { "kind": "mean_signed", "range": [60, 100] },
+    "res_100_150": { "kind": "mean_signed", "range": [100, 150] },
+    "res_150_200": { "kind": "mean_signed", "range": [150, 200] },
+    "res_200_300": { "kind": "mean_signed", "range": [200, 300] },
+    "res_300_400": { "kind": "mean_signed", "range": [300, 400] },
+    "res_400_510": { "kind": "mean_signed", "range": [400, 510] },
+    "res_510_800": { "kind": "mean_signed", "range": [510, 800] },
+    "res_800_2300": { "kind": "mean_signed", "range": [800, 2300] },
+    "peak_60_150": { "kind": "maxdev_signed", "range": [60, 150] },
+    "peak_200_400": { "kind": "maxdev_signed", "range": [200, 400] },
+    "mud_200_400": { "kind": "mean", "range": [200, 400] },
+    "bass_50_150": { "kind": "mean", "range": [50, 150] },
+    "mid_400_1500": { "kind": "mean", "range": [400, 1500] }
+  },
+  "job": { "kind": "probe" }
+}
