@@ -167,6 +167,7 @@
     "sources": {
       "itu-bs2399": "Report ITU-R BS.2399-0 (03/2017), Methods for selecting and describing attributes and terms in the preparation of subjective tests — reproduces the FORCE Technology / SenseLab Sound Wheel lexicon (Pedersen & Zacharov, AES 138, Paper 9310, 2015). Standards body. Gives definitions, NO frequencies.",
       "olive-harman": "Olive, S. E., 'The Perception and Measurement of Headphone Sound Quality: What Do Listeners Prefer?', Acoustics Today 18(1), Spring 2022, pp. 58-65; and Harman 'How to Listen' listener training. Peer-reviewed-adjacent / primary author.",
+      "olive-moa-2025": "Olive, S. E., 'Determining the Preferred In-ear Headphone Target Response using a Method of Adjustment', AES International Conference on Headphone Technology, Espoo, 2025, conference paper 2. Primary author, read in full. NOT fully peer-reviewed by its own header — the abstract and 750-word precis were reviewed, the complete manuscript was not. Authority for the between-listener bass and treble spreads (6.7 dB and 6.3 dB) and for the 3 kHz null. See SOURCES.md section 2.2d.",
       "audio-commons": "AudioCommons (EU H2020) timbral models, Pearce, Brookes & Mason, Univ. of Surrey — Deliverable D5.8 and github.com/AudioCommons/timbral_models. Project deliverable + source code.",
       "owsinski": "Owsinski, B., The Mixing Engineer's Handbook; frequency-band and 'magic frequencies' tables as republished by the author on bobbyowsinski.blogspot.com and bobbyowsinskiblog.com. Practitioner heuristic, mixing-oriented.",
       "toole": "Toole, F. E., 'Loudspeakers and Rooms for Sound Reproduction — A Scientific Review', JAES 54(6), June 2006; citing Toole & Olive, JAES 36, pp.122-142 (1988). Peer-reviewed. Source of the broad-beats-narrow ruling.",
@@ -194,6 +195,15 @@
           "ADDED: per-Q audibility floors (Q=1 +/-1.5 dB, Q=10 +/-3 dB, Q=50 +/-5 dB on music).",
           "VERIFIED: '3 dB per doubling of Q' is Toole & Olive's own summary item. It had been briefly demoted to unsupported on 2026-07-25 after repeated fetch failures; that demotion was a reasoning error and was reversed. Failure to retrieve is evidence about the fetcher, not about the claim.",
           "UNSOURCED: the '0.25 dB at 5 kHz, Q=1' threshold is not in the primary and is not stated anywhere in this project."
+        ]
+      },
+      {
+        "date": "2026-08-01",
+        "summary": "Olive's 2025 method-of-adjustment study read in full (SOURCES.md section 2.2d). One note amended; no region, gain, Q or term changed.",
+        "changes": [
+          "AMENDED: `thin`.notes overstated its source. It read 'bass level is the dominant individual-preference axis' on the strength of Olive's 2018 segmentation, where the between-listener treble spread was only 1-2 dB. The 2025 method-of-adjustment study reproduces the bass spread (6.7 dB) but puts the treble spread at 6.3 dB. Bass is still the largest single axis and the note's conclusion stands; the word 'dominant' does not, and is gone. User ruling: amend the note rather than leave it.",
+          "NOT CHANGED, deliberately: no 3 kHz canal-resonance term was added. Olive 2025 offered 36 listeners a 3 kHz Q2 control spanning +6 to -10 dB and got a mean adjustment of +0.1 dB. The inter-individual ear-canal variance is why in-ear and over-ear targets differ as families, not a knob to expose. Recorded as the fourth must-be-told rule in PRIMER.md and in TRANSDUCERS.md section 3.2.",
+          "ADDED: _meta.sources key `olive-moa-2025`, and `thin`.sources now cites it. The existing `olive-harman` key covers the 2022 Acoustics Today article plus How to Listen, so the 2025 study needed its own entry rather than riding on that one. Its key records that the manuscript was not peer reviewed, which the 2022 key does not need to."
         ]
       }
     ],
@@ -486,11 +496,12 @@
       "named_quality": "unwanted",
       "sources": [
         "olive-harman",
+        "olive-moa-2025",
         "owsinski",
         "itu-bs2399"
       ],
       "confidence": "high",
-      "notes": "Olive's segmentation found bass level is the dominant individual-preference axis (15% of listeners want 4-6 dB more bass), so a shelf here is the highest-yield move in the whole map."
+      "notes": "A shelf here is the highest-yield move in the map: bass level is the largest single axis of individual preference, with a between-listener spread of roughly 7 dB in both Olive's 2018 segmentation (15% of listeners want 4-6 dB more bass) and his 2025 method-of-adjustment study (6.7 dB across four clusters). It is no longer the ONLY axis that matters -- the 2025 study puts the treble spread at 6.3 dB, against 1-2 dB in the earlier work. Most listeners are reachable within +/-3 dB of each shelf. See SOURCES.md sections 2.2a and 2.2d."
     },
     {
       "term": "boxy",
