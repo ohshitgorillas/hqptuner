@@ -11,7 +11,7 @@ echo '{"rows":"all","eq":{"bands":[{"type":"peak","f":107,"q":0.7,"g":-4},{"type
   | node scripts/eqstage/eqstage.js
 ```
 
-Design and verify the chain with **eqlab** first (`node scripts/eqlab/eqlab.js < job.json`, `scripts/eqlab/README.md`) — read-only, same math as the UI plots. `{"from":"snapshot","name":…}` in an eqstage job stages exactly what eqlab measured. Prior tuning-session records live beside this file (`auteur-classic-tuning*.json`).
+Design and verify the chain with **eqlab** first (`node scripts/eqlab/eqlab.js < job.json`, `scripts/eqlab/README.md`) — read-only, same math as the UI plots. `{"from":"snapshot","name":…}` in an eqstage job stages exactly what eqlab measured. Prior tuning-session records live under `sessions/<headphone>/` (`sessions/auteur/auteur-classic-tuning*.json`).
 
 **Forbidden either way: `POST /api/config/apply`.** Apply flushes the whole buffer to the daemon (`api/app.py:218-237`) and is the user's click, always — the agent stages, the user applies. Same for `POST /api/config/live` and any write to the daemon on 8088/4321. `DELETE /api/config/pending` clears everything staged including the user's own edits — only on explicit request.
 

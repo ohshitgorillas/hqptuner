@@ -1,6 +1,6 @@
 # Session records — writing the tuning JSON
 
-Binding spec for `*-tuning.json` files in this directory. Read before appending a turn.
+Binding spec for the `*-tuning.json` files under `sessions/<headphone>/`. Read before appending a turn.
 
 ## File shape
 

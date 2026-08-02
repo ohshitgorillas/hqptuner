@@ -330,7 +330,7 @@ Row `gain` (dB) is the preamp. With compensation on it is folded into the Lin ga
 
 ### F7 · A real tuning session, and what it corrected
 
-`docs/eq-assistant/auteur-classic-tuning.json` — nine turns from an actual session (ZMF Auteur Classic on an oratory1990 profile), exported after the fact. This is ground truth rather than invented examples, and it is the **source for P3's few-shot pairs and P5's eval cases**. Three things in it contradicted the design.
+`docs/eq-assistant/sessions/auteur/auteur-classic-tuning.json` — nine turns from an actual session (ZMF Auteur Classic on an oratory1990 profile), exported after the fact. This is ground truth rather than invented examples, and it is the **source for P3's few-shot pairs and P5's eval cases**. Three things in it contradicted the design.
 
 **The session was run with Opus 4.8, and that qualifies everything below.** It demonstrates what Opus-class reasoning produces; it is **not** evidence that a Haiku-class model reaches any of it. Cases derived from this file are therefore calibrated at the top of the ladder, so a weaker model failing them is the expected result rather than a surprise — P5 must tier them accordingly and must not read "these are real cases" as "these are baseline cases". The turns that reason over summed response (3, 4) and the Q diagnosis (2) are the ones most likely to separate model classes, and are the most useful gate material for exactly that reason.
 
@@ -375,7 +375,7 @@ evaluate_chain(candidate_changes[], at_frequencies[])
 
 ### F9 · `evaluate_chain` is forward-only, and the inverse problem is unreachable
 
-*Established 2026-07-26 from `docs/eq-assistant/auteur-classic-tuning2.json` — a real 18-turn session (Opus 4.8, ZMF Auteur Classic on the kr0mka AutoEq preset), recorded alongside the 9-turn file behind F7/F8.*
+*Established 2026-07-26 from `docs/eq-assistant/sessions/auteur/auteur-classic-tuning2.json` — a real 18-turn session (Opus 4.8, ZMF Auteur Classic on the kr0mka AutoEq preset), recorded alongside the 9-turn file behind F7/F8.*
 
 Late in that session the user pointed at the 50–500 Hz region — *"see how weirdly peaky ... wondering if simplifying the peaks"* — and got back **candidates, not a diff**: a set of simplified fills to audition, of which the user picked one (*"S1 is actually quite good... let's simplify further"*) and then asked for another pass. The model could do that only because it could **solve**, not merely evaluate.
 
@@ -538,7 +538,7 @@ Named-band arithmetic (`mud_200_400`, `oomph_80_160`, `v_db`) is expressed as da
 
 `docs/eq-assistant/prompt/`: `system.md`, `vocabulary.json` (from P0), `fewshot.json`, `ASSEMBLY.md` (concatenation order, token budget, ledger truncation rule), `VERSION`. The version stamps into every ledger entry.
 
-6–10 few-shot complaint→diff pairs. **Draw them from the two recorded sessions — `docs/eq-assistant/auteur-classic-tuning.json` (F7) and the 18-turn `auteur-classic-tuning2.json` (F9) — wherever they cover the case** — real complaints in the user's own words beat invented ones, and that file already supplies amend, append, multi-band, back-off, and two clarify examples. Invent only what it lacks: the spatial/crossfeed cases and the off-topic deflection.
+6–10 few-shot complaint→diff pairs. **Draw them from the two recorded sessions — `docs/eq-assistant/sessions/auteur/auteur-classic-tuning.json` (F7) and the 18-turn `auteur-classic-tuning2.json` (F9) — wherever they cover the case** — real complaints in the user's own words beat invented ones, and that file already supplies amend, append, multi-band, back-off, and two clarify examples. Invent only what it lacks: the spatial/crossfeed cases and the off-topic deflection.
 
 The set must include: a ledger-referencing "back off" turn, a compound trade-off, a spatial complaint resolving to a crossfeed change, a mixed tonal+spatial turn, an off-topic deflection, and **one clarify example of each of the three modes** (§1) — deflection, low-confidence inference, and magnitude proposal. At least one pair must demonstrate **amending an existing band** rather than appending, and one must demonstrate the reverse — appending because the nearest band is a narrow measurement correction that would be wrong to repurpose (F3). At least one must change a band's **Q** rather than only its gain (F7).
 
@@ -617,7 +617,7 @@ Derivation itself is tested in P6, where the client owns it: a crossfeed change 
 
 `docs/eq-assistant/eval/cases.json` — 12+ cases spanning tonal, spatial, mixed, clarify, off-topic, and ledger-referencing, with expected-region and parameter-direction pass criteria. `scripts/eval_tuner.py`, CI-runnable against a configured endpoint. The offline suite tests the runner's scoring, not the model.
 
-**Seed the set from `docs/eq-assistant/auteur-classic-tuning.json` (F7).** Its nine turns are real complaints with known-good outcomes, so they convert to eval cases directly; the invented cases fill the gaps it does not cover (spatial, off-topic, tilt direction).
+**Seed the set from `docs/eq-assistant/sessions/auteur/auteur-classic-tuning.json` (F7).** Its nine turns are real complaints with known-good outcomes, so they convert to eval cases directly; the invented cases fill the gaps it does not cover (spatial, off-topic, tilt direction).
 
 Four cases are mandatory and adversarial: **the tilt-direction case** (per F2a, a model's priors supply the wrong answer); a **band-suitability pair** — one where amending an existing band is right, one where the nearest band is a narrow measurement correction and appending is right; a **low-confidence product inference**, where the pass condition is `clarify`, not a guessed diff (P3); and an **over-wide band case** modelled on F7 turn 2, where the fault is a Q so low the band eats a neighbouring region and the fix is to narrow it — a model that only reaches for gain fails.
 

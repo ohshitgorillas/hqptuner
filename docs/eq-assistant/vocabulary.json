@@ -244,7 +244,7 @@
       "fix": "Append a broad band centred on the trough minimum. Choose Q so the fill spans the affected register without reaching a region that has already drawn a complaint.",
       "measure": "spread = max - min across the affected fundamentals; target under about 2 dB",
       "not": "A flat level change. Raising everything preserves the ripple and reproduces the original complaint one register over.",
-      "worked_example": "auteur-classic-tuning.json — 'crunchy bass guitar and power chords ... half of the time they're perfect'",
+      "worked_example": "sessions/auteur/auteur-classic-tuning.json — 'crunchy bass guitar and power chords ... half of the time they're perfect'",
       "confidence": "high"
     },
     {
@@ -261,7 +261,7 @@
       "fix": "Append a band centred in the notch. Score candidates by body-gain per unit of mud-band gain rather than by body gain alone.",
       "measure": "body band average (80-160 Hz) against the mud band (200-400 Hz); maximise the ratio",
       "not": "A bass shelf lift. The shortfall is a notch, not a deficit of bass, and a shelf raises the region that causes mud complaints.",
-      "worked_example": "auteur-classic-tuning.json — 'big fuzzy bloomy guitars don't fill the space'",
+      "worked_example": "sessions/auteur/auteur-classic-tuning.json — 'big fuzzy bloomy guitars don't fill the space'",
       "confidence": "high"
     },
     {
@@ -277,7 +277,7 @@
       "fix": "Append a broad mid band rather than lowering the flanking peaks, especially when those peak levels were set by ear in earlier turns and accepted.",
       "measure": "v_db; target near zero, and do not overshoot negative -- the listener asked for not-V, not mid-humped",
       "not": "Cutting the arms of the V. That claws back accepted by-ear decisions and tends to overshoot.",
-      "worked_example": "auteur-classic-tuning.json — 'now sounding a bit V-shaped ... and I hate V-shaped'",
+      "worked_example": "sessions/auteur/auteur-classic-tuning.json — 'now sounding a bit V-shaped ... and I hate V-shaped'",
       "confidence": "high"
     },
     {
@@ -309,7 +309,7 @@
       "fix": "Trim each contributing peak lightly rather than cutting one deeply, and check the result against any standing V metric since the band sits on the mid side of it.",
       "measure": "presence band average (1.8-4 kHz)",
       "not": "A single deep cut, or a broad dip, which overshoots for 'a little' and can re-open a scoop that was just closed.",
-      "worked_example": "auteur-classic-tuning.json — 'aren't HOT or biting anymore per se, but they are a little bit forward'",
+      "worked_example": "sessions/auteur/auteur-classic-tuning.json — 'aren't HOT or biting anymore per se, but they are a little bit forward'",
       "confidence": "high"
     },
     {
@@ -330,7 +330,7 @@
       "not_a_filter_symptom": "Midrange colouration is EQ's, never the oversampling filter's (D20 negative rules). Material-dependence does not change that -- it localises the resonance, it does not relocate the cause.",
       "worked_example": null,
       "confidence": "medium",
-      "notes": "No worked example in auteur-classic-tuning.json; this entry is reasoned from the mechanism rather than harvested from a session, hence medium confidence. Distinct from 'register-dependent level', which varies with note fundamentals inside one instrument's range; this varies across recordings."
+      "notes": "No worked example in sessions/auteur/auteur-classic-tuning.json; this entry is reasoned from the mechanism rather than harvested from a session, hence medium confidence. Distinct from 'register-dependent level', which varies with note fundamentals inside one instrument's range; this varies across recordings."
     }
   ],
   "tonal": [
