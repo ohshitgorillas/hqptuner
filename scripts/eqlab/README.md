@@ -43,13 +43,17 @@ Kinds: `max min mean at` (range/f), `ripple slope prominence note_spread` (shape
 ### target
 
 ```json
-{"from":"current"|"flat"|"points"|"chain"|"parametric_eq", …,
+{"from":"current"|"flat"|"points"|"chain"|"parametric_eq"|"difference", …,
  "smooth":{"octaves":1}, "tilt":{"db_per_octave":-0.5,"pivot":1000},
  "override":[{"range":[1700,2600],"method":"interpolate_edges"|"smooth"|"fit_trend"}],
  "align":"mean"|"none"|{"at":1000}}
 ```
 
 Transforms in fixed order: smooth, tilt, override, align (default `mean` — preamp owns level). Target derived from the BASE chain once; before/after and every search candidate score against the same reference. Target-relative objectives are ungameable: collateral damage inside a scored range costs the objective directly.
+
+`points` takes either inline `"points":[[hz,db],…]` or `"path":"fr.txt","format":"fr_text"` (never both) — `fr_text` is one point per line, whitespace-separated, first two numeric columns read as Hz and dB; further columns ignored, non-numeric lines (blank, comment, header) skipped and counted. Either form accepts `"despike":{"window":7,"threshold_db":3}`: a point is dropped when its deviation from the rolling window median exceeds BOTH `threshold_db` and 3 robust sigma (1.4826·MAD) — the dB threshold is an absolute floor, the MAD term stops a genuinely steep stretch of curve being shaved. Rejected points are dropped, not replaced; count and frequencies land in the answer's `target.detail`.
+
+`difference` composes two targets: `{"from":"difference","a":{…target spec…},"b":{…target spec…}}` is a − b. Each operand resolves in full — own source, own smooth/tilt/override/align — and this spec's pipeline then applies on top of the difference. A nested operand's `align` defaults to `none` rather than `mean`, because mean-aligning both operands before subtracting erases the offset the difference was asked for; an explicit nested `align` is still honoured.
 
 ### notes
 

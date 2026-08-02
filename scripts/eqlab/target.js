@@ -4,9 +4,12 @@
 // hiding outside whatever scalar proxy the objective happened to name.
 //
 // Job field:
-//   "target": { "from": "current" | "flat" | "points" | "chain" | "parametric_eq",
-//               ...source args (points: [[hz,db],...], chain: {bands}, parametric_eq: {path}),
-//               "smooth":   {"octaves": 1},                          // box smoothing in log f
+//   "target": { "from": "current" | "flat" | "points" | "chain" | "parametric_eq" | "difference",
+//               ...source args (points: [[hz,db],...] or {path, format:"fr_text"},
+//                               chain: {bands}, parametric_eq: {path},
+//                               difference: {a: {...target spec...}, b: {...target spec...}}),
+//               "despike": {"window": 7, "threshold_db": 3},        // points source only
+//               "smooth":   {"octaves": 1},                       // box smoothing in log f
 //               "tilt":     {"db_per_octave": -0.5, "pivot": 1000},
 //               "override": {"range": [1700, 2600], "method": "..."} | [ ... ],
 //               "align":    "mean" | "none" | {"at": 1000} }         // default "mean"
@@ -23,6 +26,13 @@
 //   fit_trend         — least-squares line in (log2 f, dB) fitted over flanking
 //                       context (flank_octaves each side, default 1, span itself
 //                       excluded), evaluated across the span.
+//
+// The `difference` source composes two target specs: a MINUS b, each operand
+// resolved in full (its own source and its own smooth/tilt/override/align),
+// with this spec's own transform pipeline applied on top of the difference.
+// A nested operand's `align` defaults to "none", not "mean" — mean-aligning
+// both operands before subtracting would erase the very offset a difference is
+// usually asked for. An explicit `align` inside an operand is still honoured.
 
 import { readFile } from "node:fs/promises";
 import { parseEqText } from "../../hqptuner/static/lib/eqimport.js";
@@ -43,6 +53,134 @@ function pointsDb(freqs, points) {
     const [[f0, y0], [f1, y1]] = [pts[i], pts[i + 1]];
     return y0 + ((y1 - y0) * ln(f / f0)) / ln(f1 / f0);
   });
+}
+
+// --- points sources ---------------------------------------------------------
+
+const NUMBER_RE = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+
+/**
+ * Plain measured-response text: one point per line, whitespace-separated,
+ * first two numeric columns taken as (Hz, dB). Any further columns (phase) are
+ * ignored, and any line whose first two tokens are not both numeric — blank,
+ * comment, header — is skipped and counted, because provenance varies.
+ */
+function parseFrText(text, path) {
+  const points = [];
+  let skipped = 0;
+  for (const line of text.split(/\r?\n/)) {
+    const tokens = line.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) continue;
+    if (tokens.length < 2 || !NUMBER_RE.test(tokens[0]) || !NUMBER_RE.test(tokens[1])) skipped += 1;
+    else points.push([Number(tokens[0]), Number(tokens[1])]);
+  }
+  if (points.length < 2) throw new Error(`target: fewer than two [hz, db] points parsed from ${path}`);
+  return { points, skipped };
+}
+
+const POINT_FORMATS = { fr_text: parseFrText };
+
+async function readPointsFile(spec) {
+  const parse = POINT_FORMATS[spec.format];
+  if (!parse) {
+    throw new Error(
+      `target: points file needs "format": one of ${Object.keys(POINT_FORMATS).join(", ")}, got ${JSON.stringify(spec.format)}`,
+    );
+  }
+  return parse(await readFile(spec.path, "utf8"), spec.path);
+}
+
+const median = (xs) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+// Consistency constant: MAD * 1.4826 estimates the standard deviation of
+// normally distributed data.
+const MAD_SCALE = 1.4826;
+
+function despikeOptions(spec) {
+  const opts = spec === true ? {} : spec;
+  if (!opts || typeof opts !== "object")
+    throw new Error(`target: despike must be an object, got ${JSON.stringify(spec)}`);
+  const window = opts.window ?? 7;
+  const threshold = opts.threshold_db ?? 3;
+  if (!(Number.isInteger(window) && window >= 3 && window % 2 === 1))
+    throw new Error(`target: despike window must be an odd integer >= 3, got ${JSON.stringify(opts.window)}`);
+  if (!(threshold > 0))
+    throw new Error(`target: despike threshold_db must be positive, got ${JSON.stringify(opts.threshold_db)}`);
+  return { half: (window - 1) / 2, threshold };
+}
+
+/**
+ * Median/MAD outlier rejection over a frequency-sorted point list. A point is
+ * dropped only when its deviation from the window median exceeds BOTH
+ * threshold_db and 3 robust sigma: the dB threshold is an absolute floor, and
+ * the MAD term keeps a genuinely steep — but real — stretch of curve from
+ * being shaved. Rejected points are dropped, not replaced; interpolation
+ * closes the gap.
+ */
+function despikePoints(points, spec) {
+  const { half, threshold } = despikeOptions(spec);
+  const kept = [];
+  const rejected = [];
+  points.forEach(([f, v], i) => {
+    const window = points.slice(Math.max(0, i - half), Math.min(points.length, i + half + 1)).map((p) => p[1]);
+    const med = median(window);
+    const dev = Math.abs(v - med);
+    if (dev > threshold && dev > 3 * MAD_SCALE * median(window.map((x) => Math.abs(x - med)))) rejected.push(f);
+    else kept.push([f, v]);
+  });
+  if (kept.length < 2) throw new Error(`target: despike rejected all but ${kept.length} of ${points.length} points`);
+  return { points: kept, rejected };
+}
+
+const REJECT_PREVIEW = 8;
+
+function rejectDetail(rejected, total) {
+  if (rejected.length === 0) return ", despiked 0 points";
+  const shown = rejected.slice(0, REJECT_PREVIEW).map((f) => round(f, 1));
+  const more = rejected.length > REJECT_PREVIEW ? `, +${rejected.length - REJECT_PREVIEW} more` : "";
+  return `, despiked ${rejected.length} of ${total} points (${shown.join(", ")}${more} Hz)`;
+}
+
+async function pointsList(spec) {
+  if (spec.path !== undefined) {
+    if (spec.points !== undefined) throw new Error('target: points source takes "points" or "path", never both');
+    const { points, skipped } = await readPointsFile(spec);
+    return { points, detail: `${points.length} points from ${spec.path}`, skipped };
+  }
+  if (!Array.isArray(spec.points) || spec.points.length < 2)
+    throw new Error("target: points needs two or more [hz, db] pairs");
+  return { points: spec.points, detail: `${spec.points.length} points`, skipped: 0 };
+}
+
+async function pointsSource(spec, freqs) {
+  const src = await pointsList(spec);
+  const sorted = [...src.points].sort((a, b) => a[0] - b[0]);
+  const skipNote = src.skipped ? `, ${src.skipped} non-numeric line(s) skipped` : "";
+  if (!spec.despike) return { db: pointsDb(freqs, sorted), partial: false, detail: `${src.detail}${skipNote}` };
+  const { points, rejected } = despikePoints(sorted, spec.despike);
+  return {
+    db: pointsDb(freqs, points),
+    partial: false,
+    detail: `${src.detail}${skipNote}${rejectDetail(rejected, sorted.length)}`,
+  };
+}
+
+async function differenceDb(spec, base, fs) {
+  for (const key of ["a", "b"]) {
+    if (!spec[key] || typeof spec[key] !== "object")
+      throw new Error(`target: difference needs "a" and "b" target specs, missing "${key}"`);
+  }
+  const a = await resolveTarget(spec.a, base, fs, { nested: true });
+  const b = await resolveTarget(spec.b, base, fs, { nested: true });
+  return {
+    db: a.curve.db.map((v, i) => v - b.curve.db[i]),
+    partial: a.curve.partial || b.curve.partial,
+    detail: `difference of (${a.meta.detail}) minus (${b.meta.detail})`,
+  };
 }
 
 async function parametricEqDb(spec, fs) {
@@ -67,13 +205,17 @@ async function sourceDb(spec, base, fs) {
     case "flat":
       return { db: base.freqs.map(() => spec.db ?? 0), partial: false, detail: `flat ${spec.db ?? 0} dB` };
     case "points":
-      return { db: pointsDb(base.freqs, spec.points), partial: false, detail: `${spec.points.length} points` };
+      return pointsSource(spec, base.freqs);
     case "chain":
       return chainDb(spec, fs);
     case "parametric_eq":
       return parametricEqDb(spec, fs);
+    case "difference":
+      return differenceDb(spec, base, fs);
     default:
-      throw new Error(`target: unknown source "${spec.from}" (current, flat, points, chain, parametric_eq)`);
+      throw new Error(
+        `target: unknown source "${spec.from}" (current, flat, points, chain, parametric_eq, difference)`,
+      );
   }
 }
 
@@ -157,8 +299,12 @@ function preview(freqs, db) {
  * { curve, meta } or null when no target is declared. The target is derived
  * from the BASE chain once, so before/after (and every search candidate) are
  * scored against the same reference.
+ *
+ * `opts.nested` marks an operand of a `difference` composer: its alignment
+ * defaults to "none" instead of "mean", so the subtraction sees the operands'
+ * own levels.
  */
-export async function resolveTarget(spec, base, fs) {
+export async function resolveTarget(spec, base, fs, opts = {}) {
   if (!spec) return null;
   const src = await sourceDb(spec, base, fs);
   let db = src.db;
@@ -175,9 +321,9 @@ export async function resolveTarget(spec, base, fs) {
     db = overrideSpan(base.freqs, db, ov);
     applied.push(`override ${ov.range[0]}-${ov.range[1]} ${ov.method}`);
   }
-  const shift = alignShift(base.freqs, db, base, spec.align);
+  const align = spec.align === undefined ? (opts.nested ? "none" : "mean") : spec.align;
+  const shift = alignShift(base.freqs, db, base, align);
   if (shift !== 0) db = db.map((v) => v + shift);
-  const align = spec.align === undefined ? "mean" : spec.align;
   const summary = `from ${spec.from}${applied.length ? `, ${applied.join(", ")}` : ""}, align ${JSON.stringify(align)} (shift ${round(shift, 2)} dB)`;
   return {
     curve: { freqs: base.freqs, db, fs, partial: src.partial },

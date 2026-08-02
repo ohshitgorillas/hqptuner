@@ -13,7 +13,11 @@
 //              | {"from":"xml","path":"cfg.xml","row":0,"eq_only":false}      // config-snapshot XML <matrix> rows
 //              | {"from":"parametric_eq","path":"eq.txt"}                     // REW / EQ APO / AutoEq text
 //              | {"from":"snapshot","name":"..."},                            // saved eqlab snapshot (data/eqlab/)
-//     "target":  {"from":"current"|"flat"|"points"|"chain"|"parametric_eq", ...,
+//     "target":  {"from":"current"|"flat"|"points"|"chain"|"parametric_eq"|"difference", ...,
+//                 // points: [[hz,db],...] inline, or {"path":"fr.txt","format":"fr_text"};
+//                 //         either form takes {"despike":{"window":7,"threshold_db":3}}
+//                 // difference: {"a":{...target spec...},"b":{...target spec...}} — a minus b,
+//                 //         each operand resolved in full, nested align defaulting to "none"
 //                 "smooth":{"octaves":1}, "tilt":{"db_per_octave":-0.5,"pivot":1000},
 //                 "override":[{"range":[1700,2600],"method":"interpolate_edges"}],
 //                 "align":"mean"|"none"|{"at":1000}},           // optional; grammar in target.js
