@@ -605,7 +605,7 @@ Every source that mentions Q says **broad**; not one names a numeric Q. Cutting 
 
 ## 8. Companion documents
 
-Six companions carry further material, on the same tagging discipline:
+Seven companions carry further material, on the same tagging discipline:
 
 | Document | Covers |
 |---|---|
@@ -614,4 +614,5 @@ Six companions carry further material, on the same tagging discipline:
 | `LEXICONS.md` | The validated attribute vocabularies in full — SAQI's 48 attributes, Rumsey's four-level spatial hierarchy, Holt's ~250 entries with his band map and vowel ladder — plus the cross-source collisions. |
 | `PSYCHOACOUSTICS.md` | Auditory filter bandwidth (ERB/Bark), equal-loudness contours, level matching in listening tests, resonance-audibility thresholds, spectral tilt and ripple, and the combined audibility floor. |
 | `FILTER-MATH.md` | The RBJ cookbook primary, the three bandwidth parameterisations and their traps, shelf Q ⇔ shelf slope, the W3C normative biquads, EQ APO's grammar, headroom and true peak. |
+| `CORRECTIVE.md` | Measurement-driven correction as a distinct mode from voicing. Yardstick selection and rig compatibility, reading and cleaning a measured FR, the error curve, smoothing as a decision, the reliability ceiling as a fitting rule, what is not correctable (nulls, rig anatomy, placement variance), fitting doctrine (objectives, constraints, band budget, diagnostics, preamp), anti-patterns, and channel imbalance. Doctrine extracted from the Ori and Blackwood session ledgers; session-only claims tagged `[session]`. |
 | `PHASE.md` | Phase and group delay. Why a minimum-phase band's phase is not a choice, the derived phase and group-delay figures for our own stages and for the real HD 650 chain, the group-delay audibility thresholds, the Moulana correction to finding 6 above, interchannel phase and what asymmetric per-ear EQ would cost, and why the crossfeed compensation must stay magnitude-only. |

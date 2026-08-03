@@ -4,7 +4,7 @@
     "version": "2.0.0+polysemy.2026-07-25",
     "compiled": "2026-07-22",
     "purpose": "Concatenated into the EQ Assistant system prompt. Translates a plain-language listening complaint into a bounded, structured parameter diff. Companion documents: SOURCES.md (citations and disagreements), PRIMER.md (feature contract).",
-    "use_case": "A finished stereo master, reproduced on headphones, already corrected toward the Harman target by an AutoEq baseline. Every range below is calibrated for that context, NOT for mixing individual multitrack elements on loudspeakers.",
+    "use_case": "VOICING MODE ONLY: a finished stereo master, reproduced on headphones, already corrected toward a measurement-grounded baseline (AutoEq import or an in-session corrective fit). Every range below is calibrated for that context, NOT for mixing individual multitrack elements on loudspeakers, and NOT for corrective work. When the session carries a measurement and a yardstick, CORRECTIVE.md governs instead: band placement, Q and gain come from the error curve, and this file's typical_gain_db / typical_q values do not size those moves.",
     "direction_convention": "`direction` is what to do TO THE NAMED REGION to SATISFY THE USER. It is never 'what the word means'. If the user says 'it's too boomy', the boomy entry's direction is `cut`, because cutting 60-150 Hz relieves boominess. If the user says 'I want it warmer', the warm entry's direction is `boost`, because boosting 100-300 Hz delivers warmth. Read `named_quality` to know which reading the entry is written for.",
     "named_quality_field": {
       "unwanted": "The term names something the user is complaining about. The stored `direction` counteracts it.",
@@ -204,6 +204,14 @@
           "AMENDED: `thin`.notes overstated its source. It read 'bass level is the dominant individual-preference axis' on the strength of Olive's 2018 segmentation, where the between-listener treble spread was only 1-2 dB. The 2025 method-of-adjustment study reproduces the bass spread (6.7 dB) but puts the treble spread at 6.3 dB. Bass is still the largest single axis and the note's conclusion stands; the word 'dominant' does not, and is gone. User ruling: amend the note rather than leave it.",
           "NOT CHANGED, deliberately: no 3 kHz canal-resonance term was added. Olive 2025 offered 36 listeners a 3 kHz Q2 control spanning +6 to -10 dB and got a mean adjustment of +0.1 dB. The inter-individual ear-canal variance is why in-ear and over-ear targets differ as families, not a knob to expose. Recorded as the fourth must-be-told rule in PRIMER.md and in TRANSDUCERS.md section 3.2.",
           "ADDED: _meta.sources key `olive-moa-2025`, and `thin`.sources now cites it. The existing `olive-harman` key covers the 2022 Acoustics Today article plus How to Listen, so the 2025 study needed its own entry rather than riding on that one. Its key records that the manuscript was not peer reviewed, which the 2022 key does not need to."
+        ]
+      },
+      {
+        "date": "2026-08-02",
+        "summary": "Corrective mode split out. CORRECTIVE.md created from the Ori and Blackwood session ledgers; this file's scope narrowed to voicing. No region, gain, Q or term changed.",
+        "changes": [
+          "AMENDED: _meta.use_case now declares this file voicing-mode-only and names CORRECTIVE.md as the governing document when a session carries a measurement and a yardstick. The old text presupposed an AutoEq Harman baseline; both real corrective sessions had none ('no AutoEq database entry exists'), and agents reading this file in those sessions applied voicing-sized gains to corrective-sized errors — the repeated, recorded failure in sessions/blackwood/blackwood-tuning.json.",
+          "NOT CHANGED, deliberately: no entry values moved. The voicing calibrations are correct for voicing; the failure was applying them out of scope."
         ]
       }
     ],

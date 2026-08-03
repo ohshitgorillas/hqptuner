@@ -8,6 +8,8 @@ node scripts/eqlab/eqlab.js < job.json    # JSON on stdout, table on stderr
 
 One job in, one answer out. Every answer carries `limits` (grid, runaway guards, `not_modelled`).
 
+This file is the *how*. For measurement-driven correction, the *when and why* — yardstick selection, error curves, smoothing choice, the treble reliability ceiling, band budget, anti-patterns — is `docs/eq-assistant/CORRECTIVE.md`; read it before designing a corrective fit.
+
 ## RULE: report deficiencies, never work around them
 
 If the job schema cannot express your question, a metric kind is missing, a chain shape is not modelled, or the answer needs an unpublished HQPlayer filter specification — **stop and tell the user, plainly**. Missing capability gets added to the tool; do not fudge, approximate around, or game the solver to force an answer it cannot honestly give. A hedged answer built on a workaround is a defect.

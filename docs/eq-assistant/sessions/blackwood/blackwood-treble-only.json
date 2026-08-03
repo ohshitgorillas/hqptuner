@@ -1,0 +1,71 @@
+{
+  "chain": { "bands": [] },
+  "target": {
+    "from": "difference",
+    "a": { "from": "flat" },
+    "b": {
+      "from": "points", "path": "docs/eq-assistant/sessions/blackwood/BlackwoodR.txt", "format": "fr_text",
+      "despike": { "window": 7, "threshold_db": 3 }
+    },
+    "smooth": { "octaves": 0.1667 },
+    "align": { "at": 1000 }
+  },
+  "metrics": {
+    "rmse_2k_14k": { "kind": "rmse", "range": [2000, 14000], "domain": "erb" },
+    "rmse_14k_17k": { "kind": "rmse", "range": [14000, 17000] },
+    "dev_1k_2k": { "kind": "maxdev", "range": [1000, 2000] },
+    "res_2k_3k2": { "kind": "mean_signed", "range": [2000, 3200] },
+    "res_3k2_5k2": { "kind": "mean_signed", "range": [3200, 5200] },
+    "dev_5k2_7k5": { "kind": "maxdev_signed", "range": [5200, 7500] },
+    "dev_7k5_10k5": { "kind": "maxdev_signed", "range": [7500, 10500] },
+    "dev_10k5_14k": { "kind": "maxdev_signed", "range": [10500, 14000] },
+    "dev_14k_17k": { "kind": "maxdev_signed", "range": [14000, 17000] },
+    "res_6171": { "kind": "mean_signed", "range": [6050, 6300] },
+    "res_6171_lo": { "kind": "mean_signed", "range": [5600, 5900] },
+    "res_6171_hi": { "kind": "mean_signed", "range": [6550, 6950] },
+    "bump_6171_lo": { "kind": "expr", "expr": "res_6171 - res_6171_lo" },
+    "bump_6171_hi": { "kind": "expr", "expr": "res_6171 - res_6171_hi" },
+    "res_13123": { "kind": "mean_signed", "range": [12950, 13300] },
+    "res_13123_lo": { "kind": "mean_signed", "range": [12300, 12700] },
+    "res_13123_hi": { "kind": "mean_signed", "range": [13500, 14000] },
+    "bump_13123_lo": { "kind": "expr", "expr": "res_13123 - res_13123_lo" },
+    "bump_13123_hi": { "kind": "expr", "expr": "res_13123 - res_13123_hi" }
+  },
+  "job": {
+    "kind": "refine",
+    "seed": {
+      "append": [
+        { "type": "peak", "f": 3691, "g": 4.3, "q": 1.13 },
+        { "type": "peak", "f": 4169, "g": 7.88, "q": 2.39 },
+        { "type": "peak", "f": 5911, "g": 4.55, "q": 1.28 },
+        { "type": "peak", "f": 6171, "g": -4.0, "q": 4.5 },
+        { "type": "peak", "f": 8950, "g": -10.92, "q": 2.24 },
+        { "type": "peak", "f": 12745, "g": 7.95, "q": 0.91 },
+        { "type": "peak", "f": 13123, "g": -3.5, "q": 4.0 },
+        { "type": "hshelf", "f": 13008, "g": 6.9, "q": 0.7 }
+      ]
+    },
+    "space": {
+      "append": [
+        { "type": "peak", "f": [3000, 3900, 25], "g": [2.0, 7.0, 0.25], "q": [0.8, 2.2, 0.05] },
+        { "type": "peak", "f": [3800, 4600, 25], "g": [3.0, 9.0, 0.25], "q": [0.9, 2.8, 0.05] },
+        { "type": "peak", "f": [5000, 6100, 25], "g": [1.0, 7.0, 0.25], "q": [0.8, 2.6, 0.05] },
+        { "type": "peak", "f": 6171, "g": [-8.0, -1.0, 0.25], "q": [3.0, 6.0, 0.25] },
+        { "type": "peak", "f": [8500, 9300, 25], "g": [-12.0, -4.0, 0.25], "q": [1.8, 4.0, 0.05] },
+        { "type": "peak", "f": [11500, 12900, 25], "g": [3.0, 9.0, 0.25], "q": [0.8, 2.4, 0.05] },
+        { "type": "peak", "f": 13123, "g": [-8.0, -1.0, 0.25], "q": [3.0, 6.0, 0.25] },
+        { "type": "hshelf", "f": [13000, 15000, 50], "g": [1.0, 8.0, 0.25], "q": 0.7 }
+      ]
+    },
+    "constraints": [
+      { "metric": "dev_1k_2k", "max": 1.0 },
+      { "metric": "dev_7k5_10k5", "min": -3.0, "max": 2.0 },
+      { "metric": "bump_6171_lo", "max": 0.0 },
+      { "metric": "bump_6171_hi", "max": 0.0 },
+      { "metric": "bump_13123_lo", "max": 0.0 },
+      { "metric": "bump_13123_hi", "max": 0.0 }
+    ],
+    "objective": "minimize rmse_2k_14k + 0.3 * rmse_14k_17k",
+    "refine": { "survivors": 3, "max_evals": 12000, "tol": 1e-6 }
+  }
+}

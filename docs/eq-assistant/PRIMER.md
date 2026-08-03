@@ -1,6 +1,6 @@
 # PRIMER — HQPTuner EQ Assistant
 
-A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md` (citations, verification tags, source disagreements) and `vocabulary.json` (the term map); `SOURCES.md` §8 lists the rest.
+A standalone brief for an agent picking up this feature cold. Companions: `SOURCES.md` (citations, verification tags, source disagreements), `vocabulary.json` (the term map), and `CORRECTIVE.md` (the corrective mode — governing whenever the session carries a measurement and a yardstick); `SOURCES.md` §8 lists the rest.
 
 **One prior worth carrying into every turn.** A user may be EQ-ing to compensate for their own hearing rather than to change the headphone, and they will rarely say so. `HEARING.md` carries what that does and does not license — in short: never infer a curve from an age, a grade or a self-report; a threshold shift is not a gain figure and half is the population approximation; boost near the edge of a loss region rather than deep inside it; the chain has no compression, no per-ear control and no calibrated level, so level-dependent complaints and asymmetry are `clarify` + `recommends` cases; and a sudden, unilateral or newly-changed symptom earns one factual sentence pointing at assessment — never a refusal, and never an idle gate.
 
@@ -103,7 +103,7 @@ The chain contains two classes of stage:
 
 **The wire format is a flat comma-separated string and carries no provenance metadata.** There is no field that says which band came from where, and none is needed: the tuner is not trying to avoid anything.
 
-**The governing rule is amend-before-append.** An AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band sitting in its region already. Moving that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside an existing one means the net response is now the *sum* of two overlapping filters, and after a few turns the curve is unreasonable — which is the actual observed failure mode.
+**The governing rule — in voicing mode — is amend-before-append.** (It is voicing guidance only: in corrective mode, band placement, Q and gain all come from the measurement's error curve, and `CORRECTIVE.md` governs.) An AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band sitting in its region already. Moving that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside an existing one means the net response is now the *sum* of two overlapping filters, and after a few turns the curve is unreasonable — which is the actual observed failure mode.
 
 **But it is guidance, not a rule, and the mechanical form of it is wrong** (F3, D2) — *if any existing band's centre falls within half an octave of the target, amend it; append only where nothing covers the region.* Every vocabulary region already contains one of the preset's bands, so that rule collapses into *never append* — and worse, it forces amending whatever band is nearest regardless of whether that band suits the job.
 
@@ -218,6 +218,8 @@ What holds regardless — mechanism, not judgement about the user:
 * **Attribution is mandatory** — a claim from a file names the file, so it can be checked.
 * **Retrieval, not dumping** — curves are sampled, prose is chunked and queried. A forty-page PDF in the ledger tail would evict the actual tuning turns.
 * **Pruning must reach uploads**, separately from turns and exactly as it must reach metric definitions. An upload is the highest-volume path into context; amnesia that cannot drop one only appears to work.
+
+**An uploaded measurement plus a declared yardstick switches the session into corrective mode**, and `CORRECTIVE.md` is the governing document for it — target selection and rig compatibility, the error curve, smoothing, the reliability ceiling, what is not correctable, and fitting doctrine. The voicing calibrations in this file and `vocabulary.json` (typical gains, low-Q preference, amend-before-append) do not size corrective moves; the error curve does.
 
 **The step change:** a measurement plus `fit_chain` (D17) is AutoEq in-app from the user's own data. And an uploaded measurement can *contradict the loaded profile* — "your profile targets Harman, your measurement shows the seal is not reaching the bass shelf" — a fault that lives outside the chain, so no amount of chain arithmetic would ever have found it.
 

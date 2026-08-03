@@ -1,0 +1,68 @@
+{
+  "chain": { "bands": [] },
+  "target": {
+    "from": "difference",
+    "a": {
+      "from": "points",
+      "points": [[20, 0], [8000, 0], [10000, -2.5], [13000, -4.5], [17000, -6.0], [20000, -6.5]]
+    },
+    "b": {
+      "from": "points", "path": "docs/eq-assistant/sessions/blackwood/BlackwoodR.txt", "format": "fr_text",
+      "despike": { "window": 7, "threshold_db": 3 }
+    },
+    "smooth": { "octaves": 0.1667 },
+    "align": { "at": 1000 }
+  },
+  "metrics": {
+    "chain_max": { "kind": "max", "range": [20, 20000] },
+    "rmse_20_2k": { "kind": "rmse", "range": [20, 2000], "domain": "erb" },
+    "dev_20_60": { "kind": "maxdev_signed", "range": [20, 60] },
+    "dev_60_100": { "kind": "maxdev_signed", "range": [60, 100] },
+    "dev_100_160": { "kind": "maxdev_signed", "range": [100, 160] },
+    "res_200_400": { "kind": "mean_signed", "range": [200, 400] },
+    "res_400_1k": { "kind": "mean_signed", "range": [400, 1000] },
+    "dev_1k_2k": { "kind": "maxdev", "range": [1000, 2000] },
+    "dev_2k_3k2": { "kind": "maxdev", "range": [2000, 3200] }
+  },
+  "job": {
+    "kind": "refine",
+    "seed": {
+      "append": [
+        { "type": "peak", "f": 133, "g": -3.0, "q": 1.4 },
+        { "type": "peak", "f": 300, "g": 1.8, "q": 1.0 },
+        { "type": "peak", "f": 3340.8738, "g": 3.18, "q": 0.8995 },
+        { "type": "peak", "f": 4564.6509, "g": 3.0, "q": 1.3661 },
+        { "type": "peak", "f": 5958.8267, "g": 1.98, "q": 1.8555 },
+        { "type": "peak", "f": 6171, "g": -5.08, "q": 5.3392 },
+        { "type": "peak", "f": 6874.0656, "g": 3.74, "q": 3.0249 },
+        { "type": "peak", "f": 9063.9685, "g": -11.01, "q": 2.4434 },
+        { "type": "peak", "f": 12708.0532, "g": 4.1, "q": 0.9256 },
+        { "type": "peak", "f": 13123, "g": -4.86, "q": 5.8862 },
+        { "type": "hshelf", "f": 13384.3502, "g": 5.21, "q": 0.7 }
+      ]
+    },
+    "space": {
+      "append": [
+        { "type": "peak", "f": [110, 160, 5], "g": [-4.0, -1.0, 0.25], "q": [1.0, 2.5, 0.05] },
+        { "type": "peak", "f": [200, 440, 10], "g": [0.0, 4.0, 0.25], "q": [0.5, 1.6, 0.05] },
+        { "type": "peak", "f": 3340.8738, "g": 3.18, "q": 0.8995 },
+        { "type": "peak", "f": 4564.6509, "g": 3.0, "q": 1.3661 },
+        { "type": "peak", "f": 5958.8267, "g": 1.98, "q": 1.8555 },
+        { "type": "peak", "f": 6171, "g": -5.08, "q": 5.3392 },
+        { "type": "peak", "f": 6874.0656, "g": 3.74, "q": 3.0249 },
+        { "type": "peak", "f": 9063.9685, "g": -11.01, "q": 2.4434 },
+        { "type": "peak", "f": 12708.0532, "g": 4.1, "q": 0.9256 },
+        { "type": "peak", "f": 13123, "g": -4.86, "q": 5.8862 },
+        { "type": "hshelf", "f": 13384.3502, "g": 5.21, "q": 0.7 }
+      ]
+    },
+    "constraints": [
+      { "metric": "chain_max", "max": 6.0 },
+      { "metric": "dev_20_60", "min": 0.0 },
+      { "metric": "dev_60_100", "min": -0.75 },
+      { "metric": "dev_1k_2k", "max": 1.0 }
+    ],
+    "objective": "minimize rmse_20_2k",
+    "refine": { "survivors": 3, "max_evals": 12000, "tol": 1e-6 }
+  }
+}

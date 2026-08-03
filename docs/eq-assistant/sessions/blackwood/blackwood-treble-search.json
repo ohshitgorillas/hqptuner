@@ -1,0 +1,34 @@
+{
+  "chain": { "bands": [] },
+  "target": {
+    "from": "difference",
+    "a": { "from": "flat" },
+    "b": {
+      "from": "points", "path": "docs/eq-assistant/sessions/blackwood/BlackwoodR.txt", "format": "fr_text",
+      "despike": { "window": 7, "threshold_db": 3 }
+    },
+    "smooth": { "octaves": 0.1667 },
+    "align": { "at": 1000 }
+  },
+  "metrics": {
+    "rmse_2k_10k5": { "kind": "rmse", "range": [2000, 10500], "domain": "erb" },
+    "res_2k_3k2": { "kind": "mean_signed", "range": [2000, 3200] },
+    "res_3k2_5k2": { "kind": "mean_signed", "range": [3200, 5200] },
+    "dev_5k2_7k": { "kind": "maxdev_signed", "range": [5200, 7000] },
+    "dev_7k_10k5": { "kind": "maxdev_signed", "range": [7000, 10500] },
+    "dev_10k5_14k": { "kind": "maxdev_signed", "range": [10500, 14000] },
+    "res_400_2k": { "kind": "mean_signed", "range": [400, 2000] }
+  },
+  "job": {
+    "kind": "search",
+    "space": {
+      "append": [
+        { "type": "peak", "f": [8300, 9100, 200], "g": [-6.0, -3.5, 0.5], "q": [2.0, 4.0, 0.4] },
+        { "type": "peak", "f": [3900, 4500, 200], "g": [3.0, 6.0, 0.5], "q": [0.8, 1.6, 0.2] }
+      ]
+    },
+    "objective": "minimize rmse_2k_10k5",
+    "refine": { "survivors": 3, "max_evals": 3000 },
+    "top": 5
+  }
+}

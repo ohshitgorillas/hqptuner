@@ -6,6 +6,15 @@ Binding spec for the `*-tuning.json` files under `sessions/<headphone>/`. Read b
 
 Top-level: `headphone`, `model`, `eq_profile`, `measurement`, `yardstick` (or `target`), then `turns` — an array, one entry per user turn, append-only. Never rewrite or delete history; a turn invalidated later (bad data, contaminated listening) stays in the ledger with the contamination noted in the entry that discovered it.
 
+## `measurement` and `yardstick`
+
+Present whenever the session is corrective (`CORRECTIVE.md`); both may be absent in a pure voicing session.
+
+- `measurement` — `file` (repo path to the data), `source` (who measured, on what rig, with what tool and settings — enough to judge trust), `form` (raw or compensated, channels, point count, resolution, frequency range; note any unparsed original kept as archive), `cleaning` (despike parameters, points rejected, any override stretches and why).
+- `yardstick` — `what` (the target curve and where it came from, or `flat-on-this-rig`), `basis` (the evidence the target rests on — rig family compatibility, or cited testimony for a nonstandard rig), `used_as` (tight fit target vs sizing reference, tilt and alignment applied), and `pending_upgrade` when the target's confidence is provisional (name what evidence is awaited and what it would change). `file` when the target is a data file.
+
+Both blocks are the session's epistemic ground: every `diagnosis.method` that computes an error curve refers back to them, so they carry the detail a later agent needs to re-derive the same target spec.
+
 ## The verbatim rule
 
 `complaint` and `answer` hold the user's words **byte-for-byte** — punctuation, casing, quote marks, profanity, typos, everything. Never summarize, reword, or clean up. Quoting the user inside any other field is also byte-for-byte or not at all.

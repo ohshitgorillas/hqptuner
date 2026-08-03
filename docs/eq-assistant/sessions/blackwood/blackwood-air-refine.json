@@ -1,0 +1,42 @@
+{
+  "chain": { "bands": [] },
+  "target": {
+    "from": "difference",
+    "a": { "from": "flat" },
+    "b": {
+      "from": "points", "path": "docs/eq-assistant/sessions/blackwood/BlackwoodR.txt", "format": "fr_text",
+      "despike": { "window": 7, "threshold_db": 3 }
+    },
+    "smooth": { "octaves": 0.1667 },
+    "align": { "at": 1000 }
+  },
+  "metrics": {
+    "rmse_2k_14k": { "kind": "rmse", "range": [2000, 14000], "domain": "erb" },
+    "rmse_10k5_14k": { "kind": "rmse", "range": [10500, 14000] },
+    "dev_7k_10k5": { "kind": "maxdev_signed", "range": [7000, 10500] },
+    "dev_10k5_14k": { "kind": "maxdev_signed", "range": [10500, 14000] },
+    "dev_14k_17k": { "kind": "maxdev_signed", "range": [14000, 17000] },
+    "res_400_2k": { "kind": "mean_signed", "range": [400, 2000] }
+  },
+  "job": {
+    "kind": "refine",
+    "seed": {
+      "append": [
+        { "type": "peak", "f": 8752.07, "g": -6.0, "q": 2.88 },
+        { "type": "peak", "f": 3971.17, "g": 6.0, "q": 1.09 },
+        { "type": "peak", "f": 5600, "g": 4.5, "q": 0.9 },
+        { "type": "peak", "f": 12400, "g": 6.0, "q": 1.2 }
+      ]
+    },
+    "space": {
+      "append": [
+        { "type": "peak", "f": 8752.07, "g": -6.0, "q": 2.88 },
+        { "type": "peak", "f": 3971.17, "g": 6.0, "q": 1.09 },
+        { "type": "peak", "f": 5600, "g": 4.5, "q": 0.9 },
+        { "type": "peak", "f": [11400, 13400, 100], "g": [3.0, 6.0, 0.25], "q": [0.8, 2.0, 0.1] }
+      ]
+    },
+    "objective": "minimize rmse_2k_14k",
+    "refine": { "max_evals": 4000, "tol": 1e-6 }
+  }
+}
