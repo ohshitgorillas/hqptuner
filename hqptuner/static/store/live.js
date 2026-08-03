@@ -115,9 +115,9 @@ export async function writeLive(field, value) {
   setError(field, "");
   try {
     // Rate is the one control whose menu value is not what goes on the wire: the
-    // menus name a tier, and only here is the source known well enough to say
-    // which member of it (see the base-family note below).
-    const wire = field === "rate" ? forSource(String(value)) : String(value);
+    // menus name a tier, and only here are the source and the engine's own list
+    // known well enough to say which member of it (see the base-family note below).
+    const wire = field === "rate" ? wireRate(String(value)) : String(value);
     const report = await api.live({ [field]: wire });
     await remirrorLive([field], report);
     setError(field, reportError(report));
@@ -229,29 +229,59 @@ const rateFamily = (rate) => (Number(rate) >= SDM_FLOOR ? "sdm" : "pcm");
 // The tier pairing itself lives beside the rate tables it pairs (store/schema.js).
 const BASE_44K = 44100;
 
-// 44.1k when the playing source divides by it — true of 88.2/176.4/352.8 and of
-// every DSD rate, all of which are multiples. With nothing playing there is no
-// source to follow, so the menus' own 48k base stands, which is what a config
-// write would have used anyway.
+// 44.1k when the playing source and 44100 divide either way — multiples cover
+// 88.2/176.4/352.8 and every DSD rate, and the other direction covers the
+// sub-44.1k members of the same family (22050, 11025), which are 44.1k material
+// as much as 88.2 is. With nothing playing there is no source to follow, so the
+// menus' own 48k base stands, which is what a config write would have used anyway.
 function sourceIs44k() {
   const st = engineStatus.value || {};
   const source = Number((st.metadata || {}).samplerate) || Number((st.status || {}).active_rate) || 0;
-  return source > 0 && source % BASE_44K === 0;
+  return source > 0 && (source % BASE_44K === 0 || BASE_44K % source === 0);
 }
 
-// A menu value as the rate to actually send.
+// The tier's member in the source's own base family — what LIVE would send if
+// the engine offered both.
 const forSource = (tier) => (sourceIs44k() && TWIN_44K[tier] ? TWIN_44K[tier] : tier);
+
+// The tier's other member, '' when the menu value has no twin.
+const otherMember = (tier, member) => (member === tier ? String(TWIN_44K[tier] || "") : tier);
+
+// The rates the engine is enumerating right now, as a set of Hz strings.
+const offeredRates = () => new Set(items("rates").map((o) => String(o.rate)));
+
+// Which member of a tier the engine is actually holding, '' for neither. The
+// source's own member first — a 44.1k track goes out at a 44.1k base wherever
+// there is a choice — and the tier's other member when that is the only one the
+// engine lists. A device doing DSD in one base family only enumerates one member
+// of every DSD tier, and judging the tier by the member we would have PREFERRED
+// grayed tiers that device plays perfectly well (and, on the write path, held a
+// pin the engine had no index for: livechain.rate_index_for).
+function offeredMember(tier, offered) {
+  const mine = forSource(tier);
+  if (offered.has(mine)) return mine;
+  const other = otherMember(tier, mine);
+  return other && offered.has(other) ? other : "";
+}
+
+// A menu value as the rate to actually send: the member the engine is holding,
+// falling back to the source's own when it holds neither — there is nothing
+// better to send, and the lane holds an unpinnable rate rather than dropping it.
+function wireRate(tier) {
+  return offeredMember(tier, offeredRates()) || forSource(tier);
+}
 
 // A tier the engine is not currently offering is listed and grayed with the
 // reason, never dropped: a tier silently missing from the menu reads as one this
 // build doesn't support, rather than one the engine isn't offering right now.
-// Offered is judged on the member that would actually be sent, since that is
-// what SetRate has to find in the list. The enumeration says only that it is
-// absent, never why — so the reason says that and no more.
+// Offered is judged on the TIER — either member answers for it, because either
+// one reaches it — never on the single member we would have preferred to send.
+// The enumeration says only that it is absent, never why — so the reason says
+// that and no more.
 const UNOFFERED = "unavailable";
 
 function rateOptions(key) {
-  const offered = new Set(items("rates").map((o) => String(o.rate)));
+  const offered = offeredRates();
   // A list carrying nothing but auto is the engine declining to enumerate rather
   // than the engine offering nothing. What fills the list is the transport as
   // well as the mode (manual p.18 §4.4), so a backend whose device is not open
@@ -260,7 +290,7 @@ function rateOptions(key) {
   // unselectable, so a list with nothing in it to judge by judges nothing.
   if (offered.size <= 1) return schema[key].options;
   return schema[key].options.map((o) =>
-    offered.has(forSource(String(o.value))) ? o : { ...o, disabled: true, reason: UNOFFERED },
+    offeredMember(String(o.value), offered) ? o : { ...o, disabled: true, reason: UNOFFERED },
   );
 }
 

@@ -14,14 +14,30 @@
 //
 // The menus name a TIER, not a frequency. Every tier has a 44.1k and a 48k
 // member and the menu carries the 48k one, so DSD512 is 24576000 in the menu
-// and 22579200 on a 44.1 kHz source. Which member would actually be SENT
-// depends on the SOURCE the engine reports playing — a source rate that divides
-// by 44100 takes the 44.1k member, anything else the 48k one — and that member
-// is what `SetRate` has to find in the engine's list, so it is what a tier is
-// judged by. Same list and same menu with a different source playing therefore
-// come out opposite ways round, which is what the pairs of cases below pin. The
-// source is not the engine's own output rate: oversampling puts those two in
-// different families routinely, so every playing fixture here separates them.
+// and 22579200 as the same tier's 44.1k twin. REACHABILITY and the RATE SENT
+// are two separate questions:
+//
+//   - a tier is reachable when the engine's list holds EITHER of its members,
+//     and grayed "unavailable" only when it holds NEITHER. A tier the engine is
+//     offering at one of its two rates is a tier the engine is offering, so the
+//     source playing cannot take an entry out of reach. This rule is scoped to
+//     the column for the family the engine is RUNNING, and only that one: the
+//     engine enumerates rates for the loaded family and says nothing about the
+//     other, so there is no list the DORMANT column could be judged against and
+//     it is offered whole, every tier reachable. The dormant-column cases below
+//     are not an exception to the either-member rule — they are the case where
+//     the rule has nothing to speak about.
+//   - which member actually leaves the browser DOES depend on the source: the
+//     source's own member when the engine's list holds it, otherwise the tier's
+//     other member when the list holds that one, otherwise the source's own
+//     member regardless. Those sends are pinned at the wire, on `w.posts`.
+//
+// The source is 44.1-family when its reported rate and 44100 divide either way,
+// and it is `metadata.samplerate` with `status.active_rate` as the fallback —
+// never the engine's own output rate while a source rate is reported, since
+// oversampling puts those two in different families routinely, so every playing
+// fixture here separates them. Nothing playing means no source at all, and the
+// 48k member is then the source's member.
 //
 // A tier the engine is not offering is LISTED and grayed, never dropped: an
 // entry that has vanished reads as a rate this build does not support rather
@@ -36,7 +52,7 @@
 // /api/config actually serve, the one write goes out over a faked
 // `globalThis.fetch` on the real REST path, and no store function is stubbed.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/liverate.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/liverate.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -61,8 +77,12 @@ const PCM_8X = "384000";
 const DSD256 = "12288000";
 const DSD512 = "24576000";
 const DSD1024 = "49152000";
-// The same DSD512 tier as a 44.1 kHz source reaches it.
+// The same tiers by their 44.1k members. Twin resolution is a rule about tiers,
+// not about DSD, so the PCM side is exercised too: an implementation whose twin
+// table covers the DSD rates alone, or one hard-coding this single pair, passes
+// every DSD case here and gets 192000 wrong.
 const DSD512_44K = "22579200";
+const PCM_4X_44K = "176400";
 
 // `<RatesItem index rate/>`, in list order, index 0 being auto.
 const rates = (...hz) => ["0", ...hz].map((rate, i) => ({ index: String(i), rate }));
@@ -109,6 +129,11 @@ const FILE = (mode, samplerate, bitrate) => ({
 // caller names the output rate separately, and the cases below put it in the
 // family the source is NOT in.
 const SOURCE_44K = (out) => ({ status: { active_rate: out }, metadata: { samplerate: "44100", bits: "24" } });
+
+// A source below the base rate: 22050 and 44100 divide the other way round, so
+// it is the same 44.1 family. A store testing only `rate % 44100 === 0` puts
+// this one in the 48k family and sends the wrong member.
+const SOURCE_22K = (out) => ({ status: { active_rate: out }, metadata: { samplerate: "22050", bits: "24" } });
 
 // Playing, with no source rate reported at all — metadata the daemon has not
 // been given. The engine's own output rate is then all there is to go on.
@@ -166,12 +191,31 @@ const PCM_RUNNING = () => ({
 });
 
 // The engine runs SDM and enumerates the DSD512 tier by its 44.1k member alone.
-// With nothing playing the 48k member is what would be sent, and the engine
-// does not offer it; with a 44.1 kHz source playing the 44.1k member is what
-// would be sent, and it does.
+// One of the tier's two members is listed, so the tier is reachable whatever is
+// playing; with nothing playing the source's own member is the 48k one, which
+// the list does not hold, so the write falls to the other member.
 const SDM_LIST_44K = (over = {}) => ({
   state: STATE({ mode: "2", chain: "sdm", rate: "1" }),
   lists: ENUMS("SDM (DSD)", rates(DSD512_44K)),
+  file: FILE("sdm", PCM_8X, DSD1024),
+  ...over,
+});
+
+// The PCM mirror of SDM_LIST_44K: the engine runs PCM and enumerates the 192000
+// tier by its 44.1k member 176400 alone. Nothing is playing, so the source's
+// member is the 48k one the list is missing and the write falls to the other.
+const PCM_LIST_44K = (over = {}) => ({
+  state: STATE({ mode: "1", chain: "pcm", rate: "1" }),
+  lists: ENUMS("PCM", rates(PCM_4X_44K)),
+  file: FILE("pcm", PCM_8X, DSD512),
+  ...over,
+});
+
+// The engine enumerates the DSD512 tier at BOTH of its members, so the list
+// rules nothing out and the source alone decides which one is sent.
+const SDM_LIST_BOTH = (over = {}) => ({
+  state: STATE({ mode: "2", chain: "sdm", rate: "1" }),
+  lists: ENUMS("SDM (DSD)", rates(DSD512_44K, DSD512)),
   file: FILE("sdm", PCM_8X, DSD1024),
   ...over,
 });
@@ -323,44 +367,131 @@ test("test_the_running_pcm_column_leaves_an_enumerated_tier_reachable", () => {
   assert.deepEqual(marks(optionFor(liveModel.value.pcmRate, PCM_2X)), REACHABLE);
 });
 
-// --- a tier is judged by the member that would be sent ------------------------
-// One engine list, one menu entry, two sources: the member `SetRate` would have
-// to find in the list is the 48k one with nothing playing and the 44.1k one
-// under a 44.1 kHz source, so the same DSD512 entry goes both ways.
+// --- either member listed makes the tier reachable -----------------------------
+// One engine list, one menu entry, two sources: the entry comes out reachable
+// both ways round, because the engine offering the tier at one of its two rates
+// is the engine offering the tier. What the source changes is the send, pinned
+// at the wire further down.
 
-test("test_with_nothing_playing_a_tier_the_engine_offers_only_at_44_1k_is_grayed", () => {
-  // Nothing is playing, so 24576000 is what would be sent — and the engine's
-  // list holds 22579200 alone.
+test("test_with_nothing_playing_a_tier_the_engine_lists_only_at_44_1k_is_reachable", () => {
+  // Nothing is playing, so the source's member is the 48k one and the engine's
+  // list holds 22579200 alone — the other member. A store graying on the
+  // source's member alone puts a tier the engine is enumerating out of reach.
   reset(SDM_LIST_44K());
-  assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), GRAYED);
+  assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), REACHABLE);
 });
 
 test("test_under_a_44_1k_source_a_tier_the_engine_offers_at_44_1k_is_reachable", () => {
-  // Same list, same menu entry: 22579200 is now what would be sent, and the
-  // engine offers exactly that. Graying it here would put the rate the engine
-  // is enumerating out of reach on every 44.1 kHz track. The engine's own
-  // output rate is 12288000 — the 48k family — so a store judging by that
-  // rather than by the source grays this entry and fails.
+  // Same list, same menu entry, a 44.1 kHz source: the engine offers exactly
+  // the member such a source would send. Graying it here would put the rate the
+  // engine is enumerating out of reach on every 44.1 kHz track.
   reset(SDM_LIST_44K({ status: SOURCE_44K(DSD256) }));
   assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), REACHABLE);
 });
 
-test("test_under_a_44_1k_source_a_tier_the_engine_offers_only_at_48k_is_grayed", () => {
-  // The mirror, and the other half of the source-not-output discrimination:
-  // the engine enumerates and is putting out 24576000, but a 44.1 kHz source
-  // sends 22579200, which the list does not hold. Judging by the menu's own
-  // number, or by what the engine is putting out, calls this one reachable.
+test("test_under_a_44_1k_source_a_tier_the_engine_offers_only_at_48k_is_reachable", () => {
+  // The mirror: the engine enumerates 24576000 alone while a 44.1 kHz source
+  // plays. The member matching the source is missing, and the tier is offered
+  // all the same — one listed member is enough. The send is the separate
+  // question, pinned below.
   reset(SDM_LIST_48K_ON_44K_SOURCE());
-  assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), GRAYED);
+  assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), REACHABLE);
 });
 
-test("test_with_no_source_rate_reported_the_engines_output_rate_stands_in", () => {
-  // Playing, but the daemon has no source rate to report. Its output rate is
-  // 22579200, so the 44.1k family is what the tier resolves against and the
-  // engine's 22579200 answers for DSD512; falling back to the 48k member here
-  // would gray a rate the engine is offering.
-  reset(SDM_LIST_44K({ status: NO_SOURCE_RATE(DSD512_44K) }));
-  assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), REACHABLE);
+test("test_with_nothing_playing_a_pcm_tier_the_engine_lists_only_at_44_1k_is_reachable", () => {
+  // The PCM half of the same rule: the engine offers 176400 alone, and the
+  // 192000 tier the menu names is reachable through it. A twin table covering
+  // the DSD rates alone grays this one.
+  reset(PCM_LIST_44K());
+  assert.deepEqual(marks(optionFor(liveModel.value.pcmRate, PCM_4X)), REACHABLE);
+});
+
+test("test_a_grayed_tier_is_still_listed_in_the_menu", () => {
+  // The engine offers DSD256 alone, so neither DSD512 member is listed and the
+  // entry grays — and it is still an entry. A store that dropped what it could
+  // not vouch for reads as a rate this build does not support rather than one
+  // the engine is not offering right now.
+  reset(SDM_RUNNING());
+  const found = liveModel.value.sdmRate.options.some((o) => String(o.value) === DSD512);
+  assert.ok(found, "the grayed DSD512 tier was dropped from the menu instead of listed");
+});
+
+// --- which member of a picked tier actually leaves the browser ----------------
+// The menu carries the 48k member as the tier's name, so every write below asks
+// for the same DSD512 entry and the number on the wire is the store's whole
+// answer. Order: the source's own member if the engine lists it, else the
+// tier's other member if the engine lists that, else the source's own member
+// regardless.
+
+test("test_a_write_of_a_tier_the_engine_lists_only_at_44_1k_sends_the_44_1k_member", async () => {
+  // Nothing playing, so the source's member is 24576000 and the engine does not
+  // list it; 22579200 is listed, so that is what `SetRate` can actually take.
+  const w = reset(SDM_LIST_44K());
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512_44K } }]);
+});
+
+test("test_a_write_of_a_pcm_tier_the_engine_lists_only_at_44_1k_sends_the_44_1k_member", async () => {
+  // The PCM half of the send rule. Nothing is playing, so the source's member
+  // is 192000 and the engine does not list it; 176400 is listed, so that is
+  // what `SetRate` can take. A store that resolves twins for DSD alone, or
+  // hard-codes the DSD512 pair, sends 192000 here.
+  const w = reset(PCM_LIST_44K());
+  await writeLive("rate", PCM_4X);
+  assert.deepEqual(w.posts, [{ fields: { rate: PCM_4X_44K } }]);
+});
+
+test("test_under_a_44_1k_source_a_write_of_a_tier_listed_only_at_48k_sends_the_48k_member", async () => {
+  // The mirror: the source's member is 22579200 and the engine does not list
+  // it, so the tier's other member — the one the engine does list — goes out.
+  const w = reset(SDM_LIST_48K_ON_44K_SOURCE());
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512 } }]);
+});
+
+test("test_under_a_44_1k_source_a_write_of_a_tier_listed_at_both_members_sends_the_44_1k_member", async () => {
+  // Both members listed, so the list settles nothing and the source decides.
+  // The engine is putting out 24576000 — the 48k family — while the source is
+  // 44.1 kHz, so a store reading the output rate instead of the source sends
+  // the wrong one of the two.
+  const w = reset(SDM_LIST_BOTH({ status: SOURCE_44K(DSD512) }));
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512_44K } }]);
+});
+
+test("test_under_a_22050_hz_source_a_write_of_a_tier_listed_at_both_members_sends_the_44_1k_member", async () => {
+  // 22050 is 44.1-family: it and 44100 divide the other way round. A store
+  // asking only whether the source rate is a multiple of 44100 calls this the
+  // 48k family and sends 24576000.
+  const w = reset(SDM_LIST_BOTH({ status: SOURCE_22K(DSD512) }));
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512_44K } }]);
+});
+
+test("test_with_no_source_rate_reported_a_write_falls_back_to_the_engines_output_rate", async () => {
+  // Playing, but the daemon has been given no source rate. The engine's output
+  // rate 22579200 stands in, putting the send in the 44.1 family; with both
+  // members listed nothing else in the fixture could produce that number.
+  const w = reset(SDM_LIST_BOTH({ status: NO_SOURCE_RATE(DSD512_44K) }));
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512_44K } }]);
+});
+
+test("test_with_nothing_playing_a_write_of_a_tier_the_engine_lists_at_neither_member_sends_the_48k_member", async () => {
+  // The engine offers DSD256 alone, so neither member can be found and the
+  // source's own member goes out unchanged. Nothing is playing, so that is the
+  // 48k one — the number the menu itself carries.
+  const w = reset(SDM_RUNNING());
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512 } }]);
+});
+
+test("test_under_a_44_1k_source_a_write_of_a_tier_the_engine_lists_at_neither_member_sends_the_44_1k_member", async () => {
+  // The mirror of the fallback: neither member is listed, so the source's own
+  // member goes out, and a 44.1 kHz source makes that 22579200.
+  const w = reset({ ...SDM_RUNNING(), status: SOURCE_44K(DSD256) });
+  await writeLive("rate", DSD512);
+  assert.deepEqual(w.posts, [{ fields: { rate: DSD512_44K } }]);
 });
 
 // --- a list with nothing to judge by ------------------------------------------
