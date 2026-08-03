@@ -51,9 +51,22 @@ const canonRow = (r) => ({
 });
 export const canonPipelines = (rows) => JSON.stringify(rows.map(canonRow));
 
+// Whether a matrix profile is switched live right now. The switch is memory-only
+// (4321 MatrixSetProfile), so the config file keeps its own rows while the engine
+// runs the profile's — the one case where file truth is not running truth.
+const liveProfileActive = computed(() => {
+  const name = (matrixConfig.value && matrixConfig.value.live_active) || "";
+  return name !== "" && name !== "[Default]";
+});
+
 // Baseline: the file-truth canonical JSON (read_config's matrix_pipelines) when
 // credentials allow it; the parsed /matrix form rows otherwise (read-only mode).
+// A live-active profile overrides that order — the editor and the matrix graph
+// must show the rows the engine is playing, not the ones the file happens to
+// hold, and an edit then stages a diff against what is actually running. Falls
+// back to the file when the daemon has reported no rows.
 export const pipelineBaseline = computed(() => {
+  if (liveProfileActive.value && matrixRows.value.length) return matrixRows.value.map(canonRow);
   const file = fileConfig.value.matrix_pipelines;
   if (file) {
     try {
