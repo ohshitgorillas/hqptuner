@@ -15,7 +15,7 @@
 // not blocked.
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../lib/dom.js";
-import { question, answer, cancel, clearRefusal } from "../store/ask.js";
+import { question, answer, cancel, clearRefusal, toggleChoice } from "../store/ask.js";
 
 function onKey(e) {
   if (e.key === "Enter") answer(e.currentTarget.value);
@@ -29,6 +29,34 @@ const nameField = (q, ref) => html`
     ${q.refused ? html`<span class="ask-refused">Enter a name first</span>` : null}
     <button class="primary" onClick=${() => answer(ref.current && ref.current.value)}>Save</button>
     <button onClick=${cancel}>Cancel</button>
+  </span>
+`;
+
+// The choices ask renders as a dropdown panel anchored under the row that
+// asked — .multi-pop is the app's one popover chrome (narrowing.css), borrowed
+// here so this reads as the same species as the filter facet dropdowns.
+const choicesList = (q) => html`
+  <span class="ask ask-choices">
+    <span class="multi-pop ask-pop">
+      <span class="ask-msg">${q.message}</span>
+      ${q.options.map(
+        (o) => html`
+          <label class=${o.disabled ? "ask-choice-pinned" : ""}>
+            <input
+              type="checkbox"
+              checked=${o.checked}
+              disabled=${o.disabled}
+              onChange=${() => toggleChoice(o.value)}
+            />
+            <span class="opt-label">${o.label}</span>
+          </label>
+        `,
+      )}
+      <span class="ask-pop-actions">
+        <button class="primary" onClick=${() => answer()}>Confirm</button>
+        <button onClick=${cancel}>Cancel</button>
+      </span>
+    </span>
   </span>
 `;
 
@@ -48,5 +76,6 @@ export function Ask({ owner }) {
     if (mine && ref.current) ref.current.focus();
   }, [mine]);
   if (!q || q.owner !== owner) return null;
+  if (q.kind === "choices") return choicesList(q);
   return q.kind === "name" ? nameField(q, ref) : confirmLine(q);
 }

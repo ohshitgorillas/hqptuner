@@ -45,6 +45,7 @@ from .matrixconf import (
     MATRIX_PROFILE_SAVE,
     MATRIX_PROFILES,
     delete_profile,
+    parse_delete,
     read_pipelines,
     read_profiles,
     replace_pipelines,
@@ -184,7 +185,8 @@ def _apply_profile_edits(xml: bytes, remaining: dict[str, str]) -> bytes:
     each, and the pair co-occurs only as a rename — drop the old name, write the
     new one — where saving first would delete what was just written."""
     if MATRIX_PROFILE_DELETE in remaining:
-        xml = delete_profile(xml, remaining.pop(MATRIX_PROFILE_DELETE))
+        name, _ = parse_delete(remaining.pop(MATRIX_PROFILE_DELETE))
+        xml = delete_profile(xml, name)
     if MATRIX_PROFILE_SAVE in remaining:
         xml = write_profile(xml, remaining.pop(MATRIX_PROFILE_SAVE))
     return xml

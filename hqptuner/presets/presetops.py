@@ -7,14 +7,15 @@ to ``lanes/presetlane`` with the manager — this class owns the state, not a
 second wire lane.
 """
 
+import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..conf import engineconf, xmledit
+from ..conf import engineconf, matrixconf, xmledit
 from .filterpark import FilterPark
 from ..lanes import presetlane
-from .presetstore import PresetStore
+from .presetstore import PresetStore, PresetError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..config import Config
@@ -45,6 +46,50 @@ class PresetOps:
 
     def clear_parked_filters(self) -> None:
         self._filters.clear()
+
+    # --- matrix-profile fan-out (matrix-spec.md "Profiles") ----------------
+
+    def fanout_profiles(self, edits: dict[str, str]) -> dict[str, str]:
+        """Apply the staged profile verbs' fan-out targets to stored presets.
+
+        A save or delete staged with a ``presets`` list also lands in those
+        stored preset XMLs — a pure file edit reusing the same element writers
+        as the config edit, so every copy is byte-identical. The daemon is never
+        touched: it sees a preset only when that preset is loaded. Returns
+        {preset: "ok" | error text}, empty when nothing was targeted; one bad
+        target never blocks another. Delete runs before save per preset, the
+        same rename ordering the config edit uses."""
+        save_value = edits.get(matrixconf.MATRIX_PROFILE_SAVE)
+        delete_value = edits.get(matrixconf.MATRIX_PROFILE_DELETE)
+        save_to = matrixconf.save_targets(save_value) if save_value else []
+        delete_name, delete_from = (
+            matrixconf.parse_delete(delete_value) if delete_value else ("", [])
+        )
+        results: dict[str, str] = {}
+        for preset in dict.fromkeys(delete_from + save_to):
+            try:
+                xml = self.store.read(preset)
+                if preset in delete_from:
+                    xml = matrixconf.delete_profile(xml, delete_name)
+                if save_value is not None and preset in save_to:
+                    xml = matrixconf.write_profile(xml, save_value)
+                self.store.save(preset, xml)
+                results[preset] = "ok"
+            except (PresetError, xmledit.GroundingError, OSError) as exc:
+                results[preset] = str(exc)
+        return results
+
+    def preset_profiles(self) -> dict[str, list[str]]:
+        """Each stored preset's saved matrix-profile names, sorted — the read
+        model behind the save/delete target pickers."""
+        out: dict[str, list[str]] = {}
+        for name in self.store.names():
+            try:
+                profiles = json.loads(matrixconf.read_profiles(self.store.read(name)))
+            except (PresetError, OSError, ValueError):
+                profiles = {}
+            out[name] = sorted(profiles)
+        return out
 
     # --- backup persistence ------------------------------------------------
 

@@ -71,6 +71,12 @@ class ApplyOps:
             # the restore that just applied carried the parked filter files —
             # they live on the daemon now, so the parking area is done with them
             mgr.presetops.clear_parked_filters()
+            # profile verbs staged with fan-out targets also land in those
+            # stored preset files — after the restore, so a refused apply
+            # fans out nothing (presetops.fanout_profiles)
+            fanout = mgr.presetops.fanout_profiles(http_fields)
+            if fanout:
+                persistent["profile_fanout"] = fanout
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:

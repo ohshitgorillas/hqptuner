@@ -36,6 +36,25 @@ export const askName = (owner, message) => open(owner, "name", message, null);
 // Ask for a yes/no. Resolves true only on an explicit confirm.
 export const askConfirm = (owner, message) => open(owner, "confirm", message, false);
 
+// Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
+// the checked values in option order, or null if the user backs out. A disabled
+// option's checked state is pinned — rendered for honesty, immune to clicks.
+export function askChoices(owner, message, options) {
+  const q = open(owner, "choices", message, null);
+  question.value = { ...question.value, options: options.map((o) => ({ ...o })) };
+  return q;
+}
+
+// Flip one choice by value. Disabled options stay as offered.
+export function toggleChoice(value) {
+  const q = question.value;
+  if (!q || q.kind !== "choices") return;
+  question.value = {
+    ...q,
+    options: q.options.map((o) => (o.value === value && !o.disabled ? { ...o, checked: !o.checked } : o)),
+  };
+}
+
 // Commit the answer. A blank or whitespace-only name is REFUSED: nothing is
 // committed and the field stays open, so a stray Enter cannot save a nameless
 // preset. The refusal is FLAGGED rather than silent — a field that swallows a
@@ -44,6 +63,10 @@ export const askConfirm = (owner, message) => open(owner, "confirm", message, fa
 export function answer(value) {
   const q = question.value;
   if (!q) return;
+  if (q.kind === "choices") {
+    close(q.options.filter((o) => o.checked).map((o) => o.value));
+    return;
+  }
   if (q.kind !== "name") {
     close(true);
     return;

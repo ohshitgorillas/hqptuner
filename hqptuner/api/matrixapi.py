@@ -53,6 +53,9 @@ def matrix(manager: HttpMgr) -> dict[str, Any]:
             "live_profiles": manager.matrix_profiles or [],
             "live_active": (manager.state or {}).get("matrix_profile", ""),
             "file_profiles": json.loads((manager.file_config or {}).get(MATRIX_PROFILES) or "{}"),
+            # each stored preset's profile names — the save/delete target pickers'
+            # read model, computed from the store at request time (pure filesystem)
+            "preset_profiles": manager.presetops.preset_profiles(),
         },
     )
 

@@ -12,6 +12,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
+import { config } from "../store/signals.js";
 import { effectivePipelines } from "../store/resolve.js";
 import { stagePipelines } from "../store/actions.js";
 import { refreshConfig } from "../store/sync.js";
@@ -20,11 +21,16 @@ import {
   matrixActiveProfile,
   isLiveProfile,
   profileRows,
+  presetProfiles,
   stageProfileSave,
   stageProfileDelete,
 } from "../store/profiles.js";
+import { askChoices } from "../store/ask.js";
 import { notesVisible } from "../store/prefs.js";
+import { Ask } from "./Ask.js";
 import { Card } from "./tabs/common.js";
+
+const OWNER = "matrix-profile";
 
 const profileSel = signal(null); // picker value; null = follow the active profile
 const profileNewName = signal("");
@@ -40,16 +46,39 @@ async function loadProfile(name) {
   if (!name || isLiveProfile(name)) {
     await api.matrixProfile("switch", name);
     await refreshConfig();
-    return rows ? "loaded — live, and staged so it persists" : "loaded — live, no reload";
   }
-  return "staged — this profile lands at your next apply";
 }
 
+// Which stored presets the profile verb should also land in. Saving offers
+// every stored preset; deleting offers only the presets that actually hold the
+// profile. The current preset is pinned checked — the staged edit writes the
+// applied config regardless, and pinning keeps the picker honest about that.
+// Resolves the chosen names, [] when there is nothing to ask (no popup), or
+// null when the user backs out.
+async function pickPresets(profileName, saving) {
+  const membership = presetProfiles.value;
+  const active = (config.value && config.value.active) || "";
+  const holds = (name) => (membership[name] || []).includes(profileName);
+  const options = Object.keys(membership)
+    .sort((a, b) => a.localeCompare(b))
+    .filter((name) => saving || holds(name) || name === active)
+    .map((name) => ({
+      value: name,
+      label: name === active ? `${name} (current)` : name,
+      checked: name === active || holds(name),
+      disabled: name === active,
+    }));
+  if (!options.some((o) => !o.disabled)) return options.filter((o) => o.checked).map((o) => o.value);
+  return askChoices(OWNER, "Select the presets for the profile:", options);
+}
+
+// Success is visually obvious (staged chips, the picker, the live tag), so an
+// action only ever writes a note on failure.
 async function act(action, run) {
   profileBusy.value = action;
   profileNote.value = "";
   try {
-    profileNote.value = await run();
+    await run();
   } catch (e) {
     profileNote.value = `${action} failed: ${e.message}`;
   } finally {
@@ -83,9 +112,10 @@ function ProfileSaveRow({ saved, busy }) {
         title=${exists ? `Replace "${newName}" with the current matrix` : "Save the current matrix under this name"}
         onClick=${() =>
           act("save", async () => {
-            await stageProfileSave(newName, effectivePipelines.value);
+            const targets = await pickPresets(newName, true);
+            if (targets === null) return;
+            await stageProfileSave(newName, effectivePipelines.value, targets);
             profileNewName.value = "";
-            return exists ? `"${newName}" will be replaced at your next apply` : "staged — applies at your next apply";
           })}
       >
         ${exists ? "Replace" : "Save"}
@@ -126,9 +156,10 @@ export function ProfileCard() {
             title="Delete this saved profile"
             onClick=${() =>
               act("delete", async () => {
-                await stageProfileDelete(sel);
+                const targets = await pickPresets(sel, false);
+                if (targets === null) return;
+                await stageProfileDelete(sel, targets);
                 profileSel.value = null;
-                return "staged — applies at your next apply";
               })}
           >
             Delete
@@ -148,9 +179,12 @@ export function ProfileCard() {
           persists once you apply; a live switch on its own is dropped at the next daemon restart.
         <//>
         <${ProfileSaveRow} saved=${saved} busy=${busy} />
+        <${Ask} owner=${OWNER} />
         <${ProfileNote}>
           Saves the matrix you are looking at, staged edits included, under this name — saving onto a name that
-          exists replaces it. Saving and deleting land with your next apply, which is also what makes them stick:
+          exists replaces it. With presets saved, a picker asks which presets the profile belongs in (the current
+          one always included); deleting asks the same of the presets that hold it. Saving and deleting land with
+          your next apply, which is also what makes them stick:
           HQPlayer keeps a saved profile in memory only and forgets it when the daemon restarts, so HQPTuner writes
           the profile into the configuration itself. A profile saved this way but not yet applied loads by staging
           its pipelines, since HQPlayer only knows the profiles it read at startup.

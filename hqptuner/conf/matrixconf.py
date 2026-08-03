@@ -235,22 +235,58 @@ def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes) -> bytes:
     return lead + open_tag + body + lead + b"</matrix_profile>"
 
 
-def write_profile(xml: bytes, value: str) -> bytes:
-    """Insert — or replace, when the name is taken — one ``<matrix_profile>``.
+def _validate_targets(raw: dict[str, Any], field: str) -> list[str]:
+    """The payload's fan-out preset names — the stored presets the profile verb
+    also applies to, beyond the config being edited. Optional; [] when absent."""
+    presets = raw.get("presets", [])
+    if not isinstance(presets, list) or any(not isinstance(p, str) for p in presets):
+        raise GroundingError(f"{field}: presets must be a list of preset names")
+    return presets
 
-    ``value`` is JSON ``{"name": str, "rows": [...]}``: the rows travel with the
-    name because a save captures the matrix the user is looking at, which may be
-    staged edits rather than anything the config currently holds. Replacement is
-    how overwrite-save works at all; the daemon's own ``/matrix/save`` silently
-    no-ops on an existing name (probe finding), ours does not."""
+
+def _parse_save(value: str) -> dict[str, Any]:
     try:
         raw = json.loads(value)
     except ValueError as exc:
         raise GroundingError(f"{MATRIX_PROFILE_SAVE}: not valid JSON: {exc}") from exc
     if not isinstance(raw, dict):
         raise GroundingError(f"{MATRIX_PROFILE_SAVE}: must be an object with name and rows")
+    return raw
+
+
+def parse_delete(value: str) -> tuple[str, list[str]]:
+    """(name, fan-out targets) of a staged delete. The value is either the plain
+    profile name (the original shape) or JSON ``{"name": ..., "presets": [...]}``;
+    a value that does not parse as a JSON object is a plain name."""
+    try:
+        raw = json.loads(value)
+    except ValueError:
+        return _validate_name(value), []
+    if isinstance(raw, dict) and "name" in raw:
+        return _validate_name(raw.get("name")), _validate_targets(raw, MATRIX_PROFILE_DELETE)
+    return _validate_name(value), []
+
+
+def save_targets(value: str) -> list[str]:
+    """The fan-out preset names of a staged save payload."""
+    return _validate_targets(_parse_save(value), MATRIX_PROFILE_SAVE)
+
+
+def write_profile(xml: bytes, value: str) -> bytes:
+    """Insert — or replace, when the name is taken — one ``<matrix_profile>``.
+
+    ``value`` is JSON ``{"name": str, "rows": [...]}`` plus an optional
+    ``"presets"`` target list (validated here so a bad list refuses the whole
+    apply, honoured by the fan-out in ``presetops``, ignored for this edit): the
+    rows travel with the name because a save captures the matrix the user is
+    looking at, which may be staged edits rather than anything the config
+    currently holds. Replacement is how overwrite-save works at all; the
+    daemon's own ``/matrix/save`` silently no-ops on an existing name (probe
+    finding), ours does not."""
+    raw = _parse_save(value)
     name = _validate_name(raw.get("name"))
     rows = _rows_from_list(raw.get("rows"), MATRIX_PROFILE_SAVE)
+    _validate_targets(raw, MATRIX_PROFILE_SAVE)
     # profiles anchor off <matrix>; a config that never had matrix processing on
     # has none, so place it rather than refuse the save
     xml = ensure_element(xml, "matrix")

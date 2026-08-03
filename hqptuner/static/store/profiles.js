@@ -48,11 +48,25 @@ function stagedSave() {
   }
 }
 
+// The staged delete's profile name. The staged value is either the plain name
+// (no fan-out) or JSON {name, presets} when stored presets were targeted too.
+function stagedDeleteName() {
+  const value = effective(DELETE);
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object") return parsed.name;
+  } catch {
+    // not JSON — the value is the name itself
+  }
+  return value;
+}
+
 export const savedProfiles = computed(() => {
   const staging = stagedSave();
   const names = new Set([...Object.keys(fileProfiles.value), ...daemonProfiles.value]);
   if (staging && staging.name) names.add(staging.name);
-  const dropped = effective(DELETE);
+  const dropped = stagedDeleteName();
   if (dropped) names.delete(dropped);
   return [...names].sort((a, b) => a.localeCompare(b));
 });
@@ -72,5 +86,13 @@ export function profileRows(name) {
 }
 
 // Rows arrive canonical from effectivePipelines, so they go out as they came.
-export const stageProfileSave = (name, rows) => edit(SAVE, JSON.stringify({ name, rows }));
-export const stageProfileDelete = (name) => edit(DELETE, name);
+// `presets` names the stored presets the verb also fans out to at apply; the
+// no-target payloads keep the original shapes on the wire.
+export const stageProfileSave = (name, rows, presets = []) =>
+  edit(SAVE, JSON.stringify(presets.length ? { name, rows, presets } : { name, rows }));
+export const stageProfileDelete = (name, presets = []) =>
+  edit(DELETE, presets.length ? JSON.stringify({ name, presets }) : name);
+
+// Each stored preset's saved profile names (/api/matrix preset_profiles) — the
+// fan-out pickers' read model. {} until the poll delivers one.
+export const presetProfiles = computed(() => (matrixConfig.value && matrixConfig.value.preset_profiles) || {});
