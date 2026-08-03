@@ -18,7 +18,6 @@
 import { html } from "../lib/dom.js";
 import { engineStatus, engineState } from "../store/signals.js";
 import { runningValue, formFieldName } from "../store/resolve.js";
-import { matrixActiveProfile } from "../store/profiles.js";
 import { schema } from "../store/schema.js";
 import { optionsFor } from "../store/options.js";
 import { truthy as on } from "../lib/coerce.js";
@@ -85,13 +84,6 @@ function outputLabel(st) {
   if (bits) return `${fmtRate(rate)} / ${bits}bit`;
   if (Number(rate) >= DSD_FLOOR) return `${fmtRate(rate)} / 1bit`;
   return fmtRate(rate);
-}
-
-// The matrix chip carries the ACTIVE profile name so A/B switches read straight
-// off the front panel; the unnamed default and over-long names fall back.
-function matrixLabel(prof) {
-  if (prof === "[Default]") return "On";
-  return prof.length > 20 ? `${prof.slice(0, 19)}…` : prof;
 }
 
 // Crossfeed and loudness share ONE post-process slot — both active collapses to
@@ -176,8 +168,10 @@ function chainStages(st, md, playing) {
   // this bar has never shown).
   if (directPassThrough(st, md)) return [source, { label: "Direct SDM", value: "Bit-perfect" }, output];
   const stages = [source];
+  // A stage indicator, never a profile readout: profile names run long enough to
+  // overrun the chip, so the chip states only that a matrix is in the path.
   if (on(runningValue("matrix_enabled"))) {
-    stages.push({ label: "Matrix", value: matrixLabel(matrixActiveProfile.value) });
+    stages.push({ label: "Matrix", value: "On" });
   }
   const post = postProcessStage(on(runningValue("crossfeed_enabled")), on(runningValue("loudness_enabled")));
   if (post) stages.push(post);

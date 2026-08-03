@@ -10,9 +10,11 @@
 // itself, so the whole contract is observable exactly as a user sees it.
 //
 // State is driven through the store's exported source signals. `panel()`
-// reassigns ALL of them on every call rather than only the ones a given case
-// cares about: module-level signals persist for the life of the process, so a
-// partial reset makes tests pass alone and fail in sequence.
+// reassigns all four it drives — engineState, engineStatus, config,
+// matrixConfig — on every call rather than only the ones a given case cares
+// about: module-level signals persist for the life of the process, so a partial
+// reset makes tests pass alone and fail in sequence. Any source signal this
+// suite never writes keeps whatever the store module initialised it to.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -41,6 +43,20 @@ function configFields(dsp) {
   ];
 }
 
+// The active profile name reaches the app on two carriers: `live_active`, the
+// memory-only 4321 MatrixSetProfile switch, and `active`, the name in the
+// working config XML. A live load is reflected on both (docs/matrix-spec.md),
+// and the store falls back from live_active to active when live_active is
+// empty. `matrix.profile` therefore drives BOTH — a case naming only one
+// carrier could not tell a chip that renders the other from one that renders
+// nothing. `liveProfile` / `storedProfile` drive a single carrier on purpose.
+function profileCarriers(matrix) {
+  return {
+    live_active: matrix.liveProfile ?? matrix.profile ?? "",
+    active: matrix.storedProfile ?? matrix.profile ?? "[Default]",
+  };
+}
+
 function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {} } = {}) {
   engineState.value = { state: String(state) };
   engineStatus.value = { status, metadata };
@@ -51,8 +67,7 @@ function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {} } 
       { name: "post_bauer_enabled", value: matrix.crossfeed ?? false },
       { name: "post_loudness_enabled", value: matrix.loudness ?? false },
     ],
-    live_active: matrix.profile,
-    active: "[Default]",
+    ...profileCarriers(matrix),
   };
   return render(html`<${SignalPath} />`);
 }
@@ -333,26 +348,43 @@ test("test_the_dsd_to_pcm_chain_runs_decode_then_resample", () => {
 // --- matrix chip ------------------------------------------------------------
 
 test("test_a_disabled_matrix_shows_no_chip", () => {
-  assert.equal("Matrix" in chips(panel(PLAY)), false);
+  const out = panel({ ...PLAY, matrix: { enabled: false, profile: "Blackwood" } });
+  assert.equal("Matrix" in chips(out), false);
 });
 
 test("test_an_enabled_matrix_on_the_default_profile_reads_as_on", () => {
   assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true } })).Matrix, "On");
 });
 
-test("test_an_enabled_matrix_shows_its_active_profile_name", () => {
-  const out = panel({ ...PLAY, matrix: { enabled: true, profile: "HD650" } });
-  assert.equal(chips(out).Matrix, "HD650");
+// The Matrix stage is a stage indicator, not a profile readout: an enabled
+// matrix reads "On" whatever profile is active, on either carrier, so no name
+// reaches the chip and there is nothing for a length limit to truncate.
+
+const LONG_PROFILE = "Wintermute Reference Curve, Revision 12";
+
+test("test_an_enabled_matrix_on_a_custom_profile_reads_on_rather_than_the_profile_name", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: "Blackwood" } });
+  assert.equal(chips(out).Matrix, "On");
 });
 
-test("test_an_over_long_profile_name_is_truncated", () => {
-  const out = panel({ ...PLAY, matrix: { enabled: true, profile: "a".repeat(30) } });
-  assert.equal(chips(out).Matrix, `${"a".repeat(19)}…`);
+test("test_an_enabled_matrix_named_only_by_the_stored_config_reads_on", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, storedProfile: "Blackwood" } });
+  assert.equal(chips(out).Matrix, "On");
 });
 
-test("test_a_profile_name_at_the_length_limit_is_not_truncated", () => {
-  const name = "b".repeat(20);
-  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, profile: name } })).Matrix, name);
+test("test_a_custom_profile_name_appears_nowhere_in_the_chain_bar", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: "Blackwood" } });
+  assert.equal(out.includes("Blackwood"), false);
+});
+
+test("test_a_long_profile_name_reads_on_with_no_truncation", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: LONG_PROFILE } });
+  assert.equal(chips(out).Matrix, "On");
+});
+
+test("test_no_fragment_of_a_long_profile_name_survives_into_the_chain_bar", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, profile: LONG_PROFILE } });
+  assert.equal(out.includes("Wintermute"), false);
 });
 
 // --- post-process slot ------------------------------------------------------
