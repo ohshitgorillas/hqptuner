@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-08-02
+
 ### Added
 
 - **Save a matrix profile to more than one preset.** Saving or deleting a profile now asks which presets it belongs in.
