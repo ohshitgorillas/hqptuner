@@ -32,8 +32,10 @@ docs/eq-assistant/todo.md
 # runtime pre-apply settings backups
 backups/
 
-# HQPTuner-owned preset store — user data, not source
-presets/
+# HQPTuner-owned preset store — user data, not source. Anchored: unanchored, it
+# also swallowed tests/presets/, so a new suite there was invisible to git and to
+# the gates that run over `git ls-files`.
+/presets/
 
 # eqlab snapshot store — named chain JSON, user data, not source
 data/eqlab/

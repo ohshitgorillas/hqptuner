@@ -293,7 +293,18 @@ def state(**extra: Any) -> dict[str, Any]:
         # GET /log body — the 8088 web interface serves the daemon's log here
         "_log": "\n".join(f"log line {i}" for i in range(1, 61)),
         "backend": "network",
+        # the live-routed set as the config file carries it: a control-lane write
+        # never reaches these, so a restore is the only way they ever change
+        "mode": "sdm",
         "filter": "40",
+        "filter1x": "47",
+        "dither": "3",
+        "oversampling": "41",
+        "oversampling1x": "42",
+        "modulator": "12",
+        # per-family rate LIMITS (<defaults>), not the request slots below
+        "defaults_samplerate": "192000",
+        "defaults_bitrate": "24576000",
         "samplerate": "192000",
         "bitrate": "22579200",
         "channels": "2",

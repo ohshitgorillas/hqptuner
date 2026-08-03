@@ -73,7 +73,10 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
     restart conjures absent hardware."""
     if mgr.http_client is None:
         return {"submitted": False, "error": "no credentials for HTTP config lane"}
-    merged = {**edits, **FORCED_CONFIG}
+    # the restore restarts the daemon onto the config it carries, and a live edit
+    # never reached that file — so the active preset's stored values for those
+    # settings ride along, under the staged edits, which win (presetlane)
+    merged = {**presetlane.stored_live_fields(mgr), **edits, **FORCED_CONFIG}
     diff: dict[str, dict[str, str | None]] = {}
     last_error: str | None = None
     for attempt in range(_PERSIST_RETRIES + 1):

@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..conf import engineconf, matrixconf, xmledit
-from .filterpark import FilterPark
 from ..lanes import presetlane
-from .presetstore import PresetStore, PresetError
+from .filterpark import FilterPark
+from .presetstore import PresetError, PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..config import Config
@@ -62,9 +62,7 @@ class PresetOps:
         save_value = edits.get(matrixconf.MATRIX_PROFILE_SAVE)
         delete_value = edits.get(matrixconf.MATRIX_PROFILE_DELETE)
         save_to = matrixconf.save_targets(save_value) if save_value else []
-        delete_name, delete_from = (
-            matrixconf.parse_delete(delete_value) if delete_value else ("", [])
-        )
+        delete_name, delete_from = matrixconf.parse_delete(delete_value) if delete_value else ("", [])
         results: dict[str, str] = {}
         for preset in dict.fromkeys(delete_from + save_to):
             try:

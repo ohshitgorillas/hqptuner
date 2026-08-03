@@ -43,9 +43,15 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         f"{fixed}"
         f'<output type="{st["backend"]}"/>'
         f'<title value="{st["title"]}"/>'
-        '<mode value="sdm"/>'
-        f'<pcm filter="{st["filter"]}" filter1x="47" dither="3" samplerate="{st["samplerate"]}"/>'
-        f'<sdm oversampling="41" oversampling1x="42" modulator="12" bitrate="{st["bitrate"]}"/>'
+        # the live-routed set: output mode, both chains' filters and shapers.
+        # 6.0.4 writes every one of them into the config file even though a live
+        # control-lane write never touches it, so they render from state and are
+        # adopted back on restore like any other attribute.
+        f'<mode value="{st["mode"]}"/>'
+        f'<pcm filter="{st["filter"]}" filter1x="{st["filter1x"]}" dither="{st["dither"]}" '
+        f'samplerate="{st["samplerate"]}"/>'
+        f'<sdm oversampling="{st["oversampling"]}" oversampling1x="{st["oversampling1x"]}" '
+        f'modulator="{st["modulator"]}" bitrate="{st["bitrate"]}"/>'
         '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
         # volume_fixed's XML domain is 0/1/2 (off / -3 dB / -6 dB) while the /config
         # form below renders it as a plain checkbox — the daemon's own lossy render,
@@ -55,7 +61,11 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         f'volume_max="{st["volume_max"]}" volume_min="{st["volume_min"]}" '
         f'volume_adaptive="{st["volume_adaptive"]}" '
         f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}">'
-        f'<defaults samplerate="192000" bitrate="24576000" volume="{st["defaults_volume"]}"/>'
+        # <defaults samplerate/bitrate> are the per-family RATE LIMITS, a
+        # different slot from <pcm samplerate>/<sdm bitrate> above
+        # (settings-classification.md) — rendered from their own state keys
+        f'<defaults samplerate="{st["defaults_samplerate"]}" bitrate="{st["defaults_bitrate"]}" '
+        f'volume="{st["defaults_volume"]}"/>'
         f'<network address="{net_addr}" device="{net_dev}" ipv6="{_b(st["net_ipv6"])}" '
         'dac_bits="15" period_time="0"/>'
         '<alsa device="hw:CARD=NVidia,DEV=3" dac_bits="24" period_time="100"/>'
@@ -240,9 +250,17 @@ def adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
     for key, tag, attr in (
         ("backend", "output", "type"),
         ("title", "title", "value"),
+        ("mode", "mode", "value"),
         ("filter", "pcm", "filter"),
+        ("filter1x", "pcm", "filter1x"),
+        ("dither", "pcm", "dither"),
         ("samplerate", "pcm", "samplerate"),
+        ("oversampling", "sdm", "oversampling"),
+        ("oversampling1x", "sdm", "oversampling1x"),
+        ("modulator", "sdm", "modulator"),
         ("bitrate", "sdm", "bitrate"),
+        ("defaults_samplerate", "defaults", "samplerate"),
+        ("defaults_bitrate", "defaults", "bitrate"),
         ("channels", "engine", "channels"),
         ("cuda", "engine", "cuda"),
         ("cuda_dev", "engine", "cuda_dev"),

@@ -168,6 +168,17 @@ def archive_summary(zip_bytes: bytes) -> str:
     return f"{len(zip_bytes)} bytes, {len(names)} members: {shown}"
 
 
+def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | None:
+    """Which member ``base_config_xml`` reads — for a caller that has to write the
+    working config back rather than only read it. None on unreadable bytes, on the
+    same terms as every other reader here."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            return running_config_name(z.namelist(), active)
+    except (zipfile.BadZipFile, OSError):
+        return None
+
+
 def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
     """The working-config member of a ``/backup`` archive (the config the running
     engine reflects): ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a

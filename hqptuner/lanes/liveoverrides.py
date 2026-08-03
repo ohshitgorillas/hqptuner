@@ -31,6 +31,12 @@ _RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
 _BASE_44K = 44100
 _BASE_48K = 48000
 
+# Every config field a live edit can reach — which is exactly the set the config
+# file cannot learn on its own, since a live edit never writes it. hqplayerd boots
+# from that file, so a restore-shaped write has to carry these from somewhere else
+# or the daemon comes back without them (``presetlane.stored_live_fields``).
+LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *_RATE_LIMIT_FIELD.values()})
+
 
 def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
     """The enum ID of the item at this list index (the index→ID join)."""

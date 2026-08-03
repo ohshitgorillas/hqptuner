@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Saved settings survive a restart.** An apply that restarted the engine used to bring it back on its old mode, filters and shapers. It now comes back on the active preset's saved ones.
+
 - **The signal path's MATRIX chip reads "On" instead of the profile name.** A long profile name overran the chip and pushed the chain bar out of shape. The chip now says only whether a matrix is in the path; the active profile name is still on the LIVE matrix profile card.
 
 - **Loading a matrix profile no longer pends an apply.** Loading a profile the daemon knows switched it live and also staged its pipelines, so Apply lit up for a change the engine was already running — the apply restarted the engine and changed nothing. A load is now live only. It lasts until the daemon restarts; save the matrix under a name to keep it. A profile saved in this session and not applied yet still loads by staging its rows, which is the only way to reach it.

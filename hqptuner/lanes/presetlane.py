@@ -155,6 +155,27 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
     return {"name": name, "ok": True}
 
 
+def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
+    """The active preset's stored values for the settings a live edit never writes
+    to the config file — output mode, both chains' filters and shapers, adaptive
+    volume, the per-family rate limits (``liveoverrides.LIVE_DOMAIN``).
+
+    hqplayerd boots from its config file and a live edit reaches only the running
+    engine, so a restore-shaped write that carries nothing from here boots the
+    daemon onto a file that never learned those settings. The preset store is the
+    record of what the user last saved, by explicit save or by auto-save, so it is
+    what a restore carries.
+
+    Deliberately NOT gated on the auto-save flag: auto-save decides whether the
+    store is UPDATED, never whether it is honoured. Empty when no preset is active
+    or the active one has no store file — nothing was saved, so nothing is owed."""
+    name = mgr.presetops.store.active
+    if not name or not mgr.presetops.store.exists(name):
+        return {}
+    stored = presetconf.read_config(mgr.presetops.store.read(name))
+    return {field: value for field, value in stored.items() if field in liveoverrides.LIVE_DOMAIN}
+
+
 def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -> dict[str, bytes]:
     """The ``data/cfgs`` member a restore should carry so the daemon's native
     profile list catches up with auto-save — auto-save itself never restores, so
