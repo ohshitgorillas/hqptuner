@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-08-02
+
 ### Fixed
 
 - **LIVE no longer marks a rate unavailable that the engine can play.** A DAC that does DSD at one base rate only — 22.5792 MHz but not 24.576 MHz, say — made the LIVE rate card gray DSD512 as "unavailable" even while DSD512 was playing. A rate tier is now reachable whenever the engine offers either of its two base rates, and LIVE sends the one the engine is actually offering.
