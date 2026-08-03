@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-08-03
+
 ### Fixed
 
 - **Saved settings survive a restart.** An apply that restarted the engine used to bring it back on its old mode, filters and shapers. It now comes back on the active preset's saved ones.
