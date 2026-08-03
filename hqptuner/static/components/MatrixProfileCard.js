@@ -103,7 +103,7 @@ function ProfileSaveRow({ saved, busy }) {
   const newName = profileNewName.value.trim();
   const exists = saved.includes(newName);
   return html`
-    <div class="mtx-profile-row">
+    <div class="control">
       <input
         type="text"
         placeholder="profile name"
@@ -137,11 +137,13 @@ export function ProfileCard() {
   const busy = profileBusy.value;
   return html`
     <${Card} title="Profile" bodyClass="mtx-profile">
-        <div class="mtx-read-row">
-          <dt>Active</dt>
-          <dd>${active}</dd>
+        <div class="field">
+          <label>Active</label>
+          <div class="t-value">${active}</div>
         </div>
-        <div class="mtx-profile-row mtx-profile-primary">
+        <div class="field">
+          <label>Saved profiles</label>
+          <div class="control">
           <select value=${sel} disabled=${!!busy} onChange=${(e) => (profileSel.value = e.target.value)}>
             <option value="">[Default]</option>
             ${saved.map((n) => html`<option value=${n}>${n}</option>`)}
@@ -175,11 +177,15 @@ export function ProfileCard() {
           Profiles load live with no engine restart. Matrix profiles include the settings in General and the
           current pipelines. Structural crossfeed is included; Bauer is not.
         <//>
-        <${ProfileSaveRow} saved=${saved} busy=${busy} />
+        </div>
+        <div class="field">
+          <label>Save as</label>
+          <${ProfileSaveRow} saved=${saved} busy=${busy} />
+          <${ProfileNote}>
+            Save the current Matrix settings to one or more presets.
+          <//>
+        </div>
         <${Ask} owner=${OWNER} />
-        <${ProfileNote}>
-          Save the current Matrix settings to one or more presets.
-        <//>
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
     <//>
   `;

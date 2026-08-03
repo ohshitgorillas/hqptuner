@@ -6,7 +6,7 @@
 .mtx-profile {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--sp-4);
 }
 .mtx-profile-row {
   display: flex;
@@ -144,16 +144,6 @@
 .mtx-tool.mtx-primary {
   color: var(--accent);
   border-color: var(--accent);
-}
-/* the note is pulled UP against the row it annotates, tightening the container's
-   gap rather than adding to it — the one space a gap cannot express, since a gap
-   has no negative. The positive half this replaced was ordinary sibling space
-   and is now the container's. */
-.mtx-profile .field-note {
-  margin-top: calc(-1 * var(--sp-1)); /* token-exempt: negative pull toward the annotated row, not space between siblings */
-}
-.mtx-profile .mtx-profile-row:not(.mtx-profile-primary) {
-  padding-top: var(--sp-1);
 }
 
 /* ── Headphone AutoEQ card ───────────────────────────────────────────────

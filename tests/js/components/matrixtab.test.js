@@ -100,12 +100,12 @@ const profileButtons = (out) =>
 
 test("test_the_active_profile_name_is_shown", async () => {
   await reset([ROW({})], { active: "Night" });
-  assert.ok(tab().includes("<dd>Night</dd>"));
+  assert.ok(tab().includes('t-value">Night<'));
 });
 
 test("test_the_unnamed_profile_is_shown_as_default", async () => {
   await reset([ROW({})], { active: "[Default]" });
-  assert.ok(tab().includes("<dd>[Default]</dd>"));
+  assert.ok(tab().includes('t-value">[Default]<'));
 });
 
 test("test_a_saved_profile_is_offered_in_the_picker", async () => {

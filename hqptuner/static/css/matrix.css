@@ -22,26 +22,6 @@
   --chip-iir: #c77ce0;
   --chip-conv: #d18ab0;
 }
-.mtx-read {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  margin: 0;
-}
-.mtx-read-row {
-  display: grid;
-  grid-template-columns: var(--w-label) 1fr;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-.mtx-read-row dt {
-  color: var(--fg-2);
-}
-.mtx-read-row dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--fs-label);
-}
 .mtx-count {
   margin-left: var(--sp-2);
   font-family: var(--font-mono);
