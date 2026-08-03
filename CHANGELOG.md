@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Matrix profile card notes rewritten in plain language.** The Load and Save notes now state what each does bluntly. The "live — no reload" status chip is gone.
+
 ## [1.1.1] — 2026-08-03
 
 ### Fixed

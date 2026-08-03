@@ -95,7 +95,6 @@ const profileButtons = (out) =>
     .slice(1)
     .map((s) => s.split("</button>")[0]);
 // The lane tag beside the picker: what a Load of the selected profile will do.
-const liveTag = (out) => profileCard(out).split('class="mtx-live-tag">')[1].split("</span>")[0];
 
 // --- profile card ------------------------------------------------------------
 
@@ -134,21 +133,9 @@ test("test_save_is_disabled_until_a_name_is_typed", async () => {
   assert.equal(isDisabled(profileButtons(tab())[SAVE]), true);
 });
 
-test("test_load_is_offered_as_the_live_lane", async () => {
+test("test_load_targets_the_running_matrix", async () => {
   await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.ok(profileButtons(tab())[LOAD].includes("live, no engine reload"));
-});
-
-test("test_a_profile_the_daemon_knows_loads_live", async () => {
-  await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.equal(liveTag(tab()), "live — no reload");
-});
-
-test("test_a_profile_only_the_config_carries_loads_by_staging", async () => {
-  // saved into the config but not read by the daemon yet: a live switch cannot
-  // reach it, and the tag must say so rather than promising "live"
-  await reset([ROW({})], { active: "Night", profiles: [], saved: { Night: [ROW({})] } });
-  assert.equal(liveTag(tab()), "stages — applies at next apply");
+  assert.ok(profileButtons(tab())[LOAD].includes("Load this profile into the running matrix"));
 });
 
 test("test_a_profile_only_the_config_carries_is_offered_in_the_picker", async () => {
@@ -158,22 +145,22 @@ test("test_a_profile_only_the_config_carries_is_offered_in_the_picker", async ()
 
 test("test_the_profile_load_caption_shows_with_feature_descriptions_on", async () => {
   await reset([ROW({})], { notes: true });
-  assert.ok(tab().includes("Load takes effect immediately"));
+  assert.ok(tab().includes("Profiles load live with no engine restart"));
 });
 
 test("test_the_profile_load_caption_hides_with_feature_descriptions_off", async () => {
   await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Load takes effect immediately"), false);
+  assert.equal(tab().includes("Profiles load live with no engine restart"), false);
 });
 
 test("test_the_profile_save_caption_shows_with_feature_descriptions_on", async () => {
   await reset([ROW({})], { notes: true });
-  assert.ok(tab().includes("Saves the matrix you are looking at"));
+  assert.ok(tab().includes("Save the current Matrix settings"));
 });
 
 test("test_the_profile_save_caption_hides_with_feature_descriptions_off", async () => {
   await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Saves the matrix you are looking at"), false);
+  assert.equal(tab().includes("Save the current Matrix settings"), false);
 });
 
 // --- flow rows ---------------------------------------------------------------

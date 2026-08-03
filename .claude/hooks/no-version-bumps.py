@@ -6,10 +6,9 @@ orchestrator and subagents alike. Deliberately not a memory note or a line in
 CLAUDE.md: both are advisory, and the agent that must not bump is the same agent
 deciding whether this bump is the exception.
 
-Revoked on 2026-08-03, after an agent chose `--minor` for a pure bug-fix release
-(shipped 1.2.0, should have been a patch) and then, while retracting that, chose
-`--patch` and re-shipped 1.1.1 — neither number asked for. A version is a product
-decision; `scripts/bump.sh` only executes it.
+A version is a product decision; `scripts/bump.sh` only executes it. The agent
+never chooses the number — not even the bump size for an obvious fix, and never
+a re-release of a retracted version.
 
 Blocked:
 

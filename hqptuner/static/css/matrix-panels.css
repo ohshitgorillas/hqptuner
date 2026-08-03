@@ -23,8 +23,6 @@
 .mtx-profile-row .field-note {
   margin: 0;
 }
-/* accent-role element (design pass item 1): tracks the switchable accent,
-   unlike the fixed chip-kind hues */
 .mtx-live-tag {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
@@ -34,7 +32,6 @@
   padding: var(--sp-1) var(--sp-2);
   white-space: nowrap;
 }
-
 /* ── Matrix tab step 6: AutoEq / REW import panel ────────────────────────── */
 /* lives in the Headphone AutoEQ card body — the card is the container now */
 .mtx-import {

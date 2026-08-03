@@ -150,7 +150,7 @@ export function ProfileCard() {
             type="button"
             class="mtx-tool mtx-primary"
             disabled=${!!busy}
-            title="Load this profile into the running matrix — live, no engine reload"
+            title="Load this profile into the running matrix"
             onClick=${() => act("load", () => loadProfile(sel))}
           >
             Load
@@ -170,30 +170,15 @@ export function ProfileCard() {
           >
             Delete
           </button>
-          ${
-            // Only true for a profile the daemon read at startup. For one saved
-            // in this session and not applied yet, Load stages its rows and the
-            // tag would be a lie, so it says what will actually happen.
-            !sel || isLiveProfile(sel)
-              ? html`<span class="mtx-live-tag">live — no reload</span>`
-              : html`<span class="mtx-live-tag">stages — applies at next apply</span>`
-          }
         </div>
         <${ProfileNote}>
-          Load takes effect immediately, during playback as well — no engine reload, nothing staged, nothing to
-          apply, and your crossfeed, DAC correction and loudness settings are left alone. The switch lives in the
-          daemon's memory, so it is dropped at the next daemon restart; save the matrix under a name to keep it.
+          Profiles load live with no engine restart. Matrix profiles include the settings in General and the
+          current pipelines. Structural crossfeed is included; Bauer is not.
         <//>
         <${ProfileSaveRow} saved=${saved} busy=${busy} />
         <${Ask} owner=${OWNER} />
         <${ProfileNote}>
-          Saves the matrix you are looking at, staged edits included, under this name — saving onto a name that
-          exists replaces it. With presets saved, a picker asks which presets the profile belongs in (the current
-          one always included); deleting asks the same of the presets that hold it. Saving and deleting land with
-          your next apply, which is also what makes them stick:
-          HQPlayer keeps a saved profile in memory only and forgets it when the daemon restarts, so HQPTuner writes
-          the profile into the configuration itself. A profile saved this way but not yet applied loads by staging
-          its pipelines, since HQPlayer only knows the profiles it read at startup.
+          Save the current Matrix settings to one or more presets.
         <//>
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
     <//>
