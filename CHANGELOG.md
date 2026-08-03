@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Loading a matrix profile no longer pends an apply.** Loading a profile the daemon knows switched it live and also staged its pipelines, so Apply lit up for a change the engine was already running — the apply restarted the engine and changed nothing. A load is now live only. It lasts until the daemon restarts; save the matrix under a name to keep it. A profile saved in this session and not applied yet still loads by staging its rows, which is the only way to reach it.
+
 ## [1.1.0] — 2026-08-02
 
 ### Added

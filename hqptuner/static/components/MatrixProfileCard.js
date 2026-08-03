@@ -2,13 +2,14 @@
 // for round 5. The four signals below are private to this module and have no
 // writer outside it.
 //
-// Nothing here reloads the engine. A load is the live 4321 lane
-// (MatrixSetProfile: instant, playback undisturbed, post-process untouched) plus
-// a staged pipeline set, so the choice also persists; a save or a delete is a
-// staged <matrix_profile> config edit, because hqplayerd registers a saved
-// profile in memory only and never writes the element — a profile saved its way
-// is gone at the next daemon start. Save and Load are therefore one lane each,
-// and neither is ever refused for playback state.
+// Nothing here reloads the engine. A load is the live 4321 lane and nothing
+// else (MatrixSetProfile: instant, playback undisturbed, post-process
+// untouched), so it lasts until the daemon restarts — HQPlayer's own semantics
+// for the switch. A save or a delete is a staged <matrix_profile> config edit,
+// because hqplayerd registers a saved profile in memory only and never writes
+// the element — a profile saved its way is gone at the next daemon start. Save
+// and Load are therefore one lane each, and neither is ever refused for
+// playback state.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
@@ -37,16 +38,21 @@ const profileNewName = signal("");
 const profileBusy = signal("");
 const profileNote = signal("");
 
-// A load has two halves and each is worth having on its own: the live switch
-// makes it audible now, the staged rows make it survive. A profile the daemon has
-// never read — saved in this session, not yet applied — has no live half.
-async function loadProfile(name) {
-  const rows = name ? profileRows(name) : null;
-  if (rows) await stagePipelines(rows);
+// A load is the live switch, and staging is not part of it: the switch already
+// installs the rows in the running engine, so staging them too would only pend a
+// config write whose sole effect at apply is an engine restart that changes
+// nothing. Persisting a matrix is what Save is for. The one profile with no live
+// half is one the daemon has never read — saved in this session, not yet applied
+// — and staging its rows is the only lane it has.
+/** @public — the Load button's action, and the seam the profile suite drives. */
+export async function loadProfile(name) {
   if (!name || isLiveProfile(name)) {
     await api.matrixProfile("switch", name);
     await refreshConfig();
+    return;
   }
+  const rows = profileRows(name);
+  if (rows) await stagePipelines(rows);
 }
 
 // Which stored presets the profile verb should also land in. Saving offers
@@ -174,9 +180,9 @@ export function ProfileCard() {
           }
         </div>
         <${ProfileNote}>
-          Load takes effect immediately, during playback as well — no engine reload, and your crossfeed, DAC
-          correction and loudness settings are left alone. The profile's pipelines are also staged, so the choice
-          persists once you apply; a live switch on its own is dropped at the next daemon restart.
+          Load takes effect immediately, during playback as well — no engine reload, nothing staged, nothing to
+          apply, and your crossfeed, DAC correction and loudness settings are left alone. The switch lives in the
+          daemon's memory, so it is dropped at the next daemon restart; save the matrix under a name to keep it.
         <//>
         <${ProfileSaveRow} saved=${saved} busy=${busy} />
         <${Ask} owner=${OWNER} />

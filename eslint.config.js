@@ -26,7 +26,19 @@ export default [
   // is invoked as `eslint .`, so without this it lints the copy — 83 no-undef
   // errors from a second, unconfigured root. knip and tsc are scoped by explicit
   // globs and are unaffected.
-  { ignores: ["hqptuner/static/vendor/**", "node_modules/**", ".venv/**", "build/**", "dist/**", "mutants/**"] },
+  // `**/*.mjs` is gitignored scratch — throwaway node scripts from tuning
+  // sessions, never shipped and never a gate's business.
+  {
+    ignores: [
+      "hqptuner/static/vendor/**",
+      "node_modules/**",
+      ".venv/**",
+      "build/**",
+      "dist/**",
+      "mutants/**",
+      "**/*.mjs",
+    ],
+  },
   js.configs.recommended,
   {
     files: ["hqptuner/static/**/*.js"],
