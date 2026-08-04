@@ -114,6 +114,9 @@ function rowHandles(rows, plotted) {
   return handles.sort((a, b) => (a.active ? 1 : 0) - (b.active ? 1 : 0));
 }
 
+// The lens toggle that gates the traces below lives on the CROSSFEED card
+// (components/Crossfeed.js), next to the crossfeed it describes — not here. This
+// card only draws what the toggle asks for.
 export function MatrixPlot() {
   const rows = effectivePipelines.value;
   const plotted = [...shownRows(rows)].filter((i) => i < rows.length).sort((a, b) => a - b);
@@ -137,7 +140,7 @@ export function MatrixPlot() {
   traces.push(...structuralLensTraces(rows, bounds));
   const caption = traces.length
     ? "magnitude solid (dB, left axis) · phase dashed (°, ±180)" +
-      (eqOverview ? " · EQ = your headphone EQ; the crossfeed pipelines are hidden — use ∿ what you hear" : "") +
+      (eqOverview ? " · EQ = your headphone EQ; the crossfeed pipelines are hidden — see ∿ what you hear above" : "") +
       (preview ? ` · preview dashed: ${preview.label}` : "") +
       (anyPartial ? " · partial: a convolution stage has no preview — re-upload its file to plot it" : "")
     : "No pipeline processing to plot yet — load a profile or add EQ / stages above";

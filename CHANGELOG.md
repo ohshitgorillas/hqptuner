@@ -18,6 +18,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Matrix profile card rows realigned.** The active profile, load and save rows now use the same label-and-control layout as the rest of the tab.
 
+- **The crossfeed lens is now a button.** "∿ what you hear" on the Crossfeed card turns it on and off. It used to draw itself whenever crossfeed was running.
+
 ### Fixed
 
 - **Engaging structural crossfeed can no longer wipe your EQ.** Over pipelines it could not read as a plain stereo pair, it used to install anyway and throw the EQ away. It now leaves your pipelines exactly as they are and says so.

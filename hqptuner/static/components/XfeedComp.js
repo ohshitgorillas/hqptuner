@@ -1,5 +1,7 @@
 // Crossfeed compensation (M/S) — crossfeed-comp spec steps 3+4. The control
-// strip lives on the RESPONSE card; the badge sits on the Pipelines card. The
+// strip lives in the Crossfeed card's Bauer view, the badge sits on the
+// Pipelines card, and the lens toggle this file's `lensOn` drives sits on the
+// RESPONSE card, where the traces it gates are drawn. The
 // compensated stereo pair is LITERAL wire rows (spec fork decision): 8 badged
 // pipelines the user can inspect and hand-edit — an edit that breaks the
 // structural pattern simply drops the badge/slider, never blocks or rewrites.
@@ -69,11 +71,17 @@ function pairInfo(rows) {
 
 const sliderDrag = signal(null); // % while the slider is being dragged
 const pendingPct = signal(null); // % chosen before any block exists — what Turn on uses
-// null = follow crossfeed-enabled (lens shows by default while crossfeed is on,
-// hidden when off); true/false = an explicit user toggle that overrides that.
-const lensOn = signal(null);
-function lensShown() {
-  return lensOn.value === null ? bauerSettings().enabled : lensOn.value;
+// The "what you hear" lens: off until the user asks for it. Public because the
+// button that writes it lives on the RESPONSE card (MatrixPlot) while the traces
+// it gates are built here and in StructuralXfeed — one toggle over both, so the
+// control covers whichever crossfeed is on screen.
+//
+// Off by default rather than following crossfeed-enabled: the lens answers a
+// question about the crossfeed, and the response plot's job is the EQ the user
+// is editing. Drawing three extra curves over it unasked buried that.
+export const lensOn = signal(false);
+export function lensShown() {
+  return lensOn.value;
 }
 
 function currentPct(rec) {
@@ -146,6 +154,15 @@ export function xfeedLensTraces(rows, bounds) {
       label: "stereo sides",
     },
   ];
+}
+
+// Whether the Bauer lens has anything to draw: crossfeed running, over rows this
+// file can read an EQ out of. The RESPONSE card asks before offering the toggle,
+// so the button appears only where pressing it would change the plot.
+export function xfeedLensAvailable(rows) {
+  const { bs, rec } = xfeedBlock(rows);
+  if (!bs.enabled) return false;
+  return rec ? true : !pairInfo(rows).issue;
 }
 
 // Badge on the Pipelines card when rows 0..7 are a recognized block.
@@ -263,14 +280,6 @@ export function XfeedStrip() {
         crossfeed dulls the center by ${db(tilt, 1)}
       </span>
       ${xfcActions(rows, rec, pair, pct, issue)}
-      <button
-        type="button"
-        class="mtx-tool ${lensShown() ? "active" : ""}"
-        title="Plot what actually reaches your ears through the crossfeed: corrected center, uncorrected center, and the stereo sides"
-        onClick=${() => (lensOn.value = !lensShown())}
-      >
-        ∿ what you hear
-      </button>
       <span class="xfc-scale">0% off · 100% neutral · above 100% brighter than neutral</span>
       <span class="xfc-scale"
         >Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or

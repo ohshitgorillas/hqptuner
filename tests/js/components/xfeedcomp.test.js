@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { XfeedStrip, xfeedLensTraces } from "../../../hqptuner/static/components/XfeedComp.js";
+import { XfeedStrip, xfeedLensTraces, lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { setShowDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -58,7 +58,8 @@ async function reset({ rows = [], enabled = true, preset = "default", notes = fa
   wire();
   matrixConfig.value = {
     fields: [
-      { name: "post_bauer_enabled", value: enabled },
+      // the daemon sends "0"/"1" on the wire, never a JS boolean
+      { name: "post_bauer_enabled", value: String(enabled ? 1 : 0) },
       { name: "post_bauer_preset", value: preset },
       { name: "post_bauer_frequency", value: "700" },
       { name: "post_bauer_level", value: "4.5" },
@@ -66,6 +67,10 @@ async function reset({ rows = [], enabled = true, preset = "default", notes = fa
   };
   config.value = { fields: [], file: { matrix_pipelines: JSON.stringify(rows) } };
   setShowDescriptions(notes);
+  // The lens toggle outlives a test like every other module signal, and its
+  // product default is OFF — so reset it here and let each case that asserts on
+  // drawn traces turn it on itself.
+  lensOn.value = false;
   await discardAll();
 }
 
@@ -194,16 +199,12 @@ test("test_a_correction_built_for_other_crossfeed_settings_offers_a_rebuild", as
 });
 
 // --- the lens ---------------------------------------------------------------
-
-test("test_the_lens_is_on_by_default_while_crossfeed_is_on", async () => {
-  await reset({ rows: pair() });
-  assert.ok(strip().includes('class="mtx-tool active"'));
-});
-
-test("test_the_lens_is_off_by_default_while_crossfeed_is_off", async () => {
-  await reset({ rows: block(), enabled: false });
-  assert.equal(strip().includes('class="mtx-tool active"'), false);
-});
+//
+// The strip's own lens button is gone: by product decision the toggle lives in
+// the Matrix response card head and its default flipped to off, so the two cases
+// that stood here (the button lit by default inside the strip) had nothing left
+// to assert. Both properties are pinned in xfeedlens.test.js — the strip's
+// ABSENCE of a button, the button's label, and when it carries "active".
 
 // --- inline notes -----------------------------------------------------------
 
@@ -219,57 +220,72 @@ test("test_shown_notes_explain_what_the_crossfeed_does", async () => {
 
 // --- the lens traces (xfeedLensTraces) ----------------------------------------
 //
-// The exported trace builder for the RESPONSE plot. Its gate follows the
-// crossfeed-enabled state, which staging can move (the same path a user's Apply
-// rides), so both sides of the gate are reachable without touching the private
-// lensOn signal — only the explicit "what you hear" override (lensOn true/false,
-// written by that button's onClick) stays with the playwright hand-back.
+// The exported trace builder for the RESPONSE plot. It has TWO gates and the
+// cases below are all about the first: the crossfeed-enabled state, which
+// staging can move (the same path a user's Apply rides), so both sides of it are
+// reachable here.
+//
+// The second gate is the "what you hear" toggle, now a public signal (`lensOn`)
+// and off by default. Every case here sets it explicitly, including the ones
+// asserting NO traces — with the toggle left off those would pass for the wrong
+// reason, and they exist to pin the crossfeed gate. The toggle's own contract
+// lives in xfeedlens.test.js; only its button's onClick stays with the playwright
+// hand-back, since SSR fires no handlers.
 
 const bounds = () => ({ min: 0, max: 0 });
 
 test("test_the_lens_draws_three_traces_for_an_eligible_pair", async () => {
   await reset({ rows: pair() });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces(pair(), bounds()).length, 3);
 });
 
 test("test_the_lens_hides_while_crossfeed_is_off", async () => {
   await reset({ rows: pair(), enabled: false });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces(pair(), bounds()).length, 0);
 });
 
 test("test_the_lens_draws_nothing_for_an_ineligible_pair", async () => {
   await reset({ rows: [row("0", "0")] });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces([row("0", "0")], bounds()).length, 0);
 });
 
 test("test_the_ghost_trace_shows_the_uncorrected_center", async () => {
   await reset({ rows: pair() });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces(pair(), bounds())[0].label, "center, uncorrected");
 });
 
 test("test_an_uninstalled_pair_corrects_at_full_strength_by_default", async () => {
   await reset({ rows: pair() });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces(pair(), bounds())[1].label, "center, corrected 100%");
 });
 
 test("test_the_corrected_trace_reads_the_installed_blocks_strength", async () => {
   // wire gains are 2-dp quantized, so the recovered percentage carries ~1 of slack
   await reset({ rows: block(DEF, 0.5) });
+  lensOn.value = true;
   assert.match(xfeedLensTraces(block(DEF, 0.5), bounds())[1].label, /^center, corrected (49|50|51)%$/);
 });
 
 test("test_the_sides_trace_is_labeled_stereo_sides", async () => {
   await reset({ rows: pair() });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces(pair(), bounds())[2].label, "stereo sides");
 });
 
 test("test_a_lens_trace_spans_the_plot_band", async () => {
   await reset({ rows: pair() });
+  lensOn.value = true;
   assert.equal(xfeedLensTraces(pair(), bounds())[0].points.length, 160);
 });
 
 test("test_the_lens_updates_the_shared_plot_bounds", async () => {
   await reset({ rows: pair() });
+  lensOn.value = true;
   const b = bounds();
   xfeedLensTraces(pair(), b);
   assert.ok(b.min < -2, `expected the -3 dB EQ plus the crossfeed dip to pull bounds.min below -2, got ${b.min}`);
@@ -277,6 +293,7 @@ test("test_the_lens_updates_the_shared_plot_bounds", async () => {
 
 test("test_staging_crossfeed_off_hides_the_lens", async () => {
   await reset({ rows: pair(), enabled: true });
+  lensOn.value = true;
   stagingWire();
   await edit("crossfeed_enabled", "0");
   assert.equal(xfeedLensTraces(pair(), bounds()).length, 0);
@@ -284,6 +301,7 @@ test("test_staging_crossfeed_off_hides_the_lens", async () => {
 
 test("test_staging_crossfeed_on_restores_the_lens", async () => {
   await reset({ rows: pair(), enabled: false });
+  lensOn.value = true;
   stagingWire();
   await edit("crossfeed_enabled", "1");
   assert.equal(xfeedLensTraces(pair(), bounds()).length, 3);

@@ -12,6 +12,9 @@ import { effectivePipelines } from "../store/resolve.js";
 import { bandFreqs, chainResponse } from "../lib/dsp.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { midSideResponse, magDb } from "../lib/binaural.js";
+// One toggle over both crossfeeds: the button is on the RESPONSE card and the
+// state it writes lives with the compensation lens, so the two gate together.
+import { lensShown } from "./XfeedComp.js";
 
 const FS = 48000;
 import { structuralBlock, structuralParams } from "../lib/xfmode.js";
@@ -24,6 +27,7 @@ import { structuralBlock, structuralParams } from "../lib/xfmode.js";
 // compensation lens does, and why it works — the center shift shows as the gap
 // between the EQ alone and the EQ heard through the crossfeed.
 export function structuralLensTraces(rows, bounds) {
+  if (!lensShown()) return [];
   const rec = structuralBlock(rows);
   if (!rec) return [];
   const p = structuralParams(rows);

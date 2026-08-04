@@ -18,7 +18,7 @@
 // the pending bar counts it, Discard undoes it, nothing reaches the daemon
 // until Apply.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 import { Field } from "./Field.js";
 import { effective, effectivePipelines, isDirty } from "../store/resolve.js";
 import { edit } from "../store/actions.js";
@@ -40,7 +40,7 @@ import {
 } from "../lib/xfmode.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
-import { XfeedStrip, CompMiniPlot, xfeedBlock } from "./XfeedComp.js";
+import { XfeedStrip, CompMiniPlot, xfeedBlock, lensOn, lensShown, xfeedLensAvailable } from "./XfeedComp.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
@@ -56,6 +56,30 @@ const issueNote = signal("");
 
 function params(rows) {
   return structuralParams(rows);
+}
+
+// The "what you hear" lens: it adds the ear-level curves to the RESPONSE card's
+// plot, further down the page, but the button belongs HERE — in the crossfeed's
+// own card, on the row that already carries the gate and the mode segment. It
+// governs whichever crossfeed is showing, so it sits above the Bauer|Structural
+// fork rather than inside either arm, and switching modes neither moves it nor
+// takes it away.
+//
+// Always rendered, never conditionally. A control that appears and disappears
+// shifts everything beneath it. With nothing for either lens to draw it is
+// simply disabled, and its title is one fixed string: a reason swapped in
+// alongside would be the same defect one level down.
+function LensToggle({ rows }) {
+  const drawable = xfeedLensAvailable(rows) || !!structuralBlock(rows);
+  return html`<button
+    type="button"
+    class="mtx-tool xfs-lens ${lensShown() ? "active" : ""}"
+    disabled=${!drawable}
+    title="Plot what actually reaches your ears through the crossfeed: centered sound and the stereo sides, with your EQ folded in"
+    onClick=${() => (lensOn.value = !lensShown())}
+  >
+    ∿ what you hear
+  </button>`;
 }
 
 // A compensation block occupies the same rows and carries Lin gains, so it has
@@ -186,6 +210,7 @@ function StructuralMode({ rows }) {
           <label class="xfs-label">Preset</label>
           <select
             value=${matchPreset(p0)}
+            onWheel=${wheelGuard}
             onChange=${(e) => {
               const hit = PRESETS.find((x) => x.id === e.target.value);
               if (hit) set({ angle: hit.angle, lambda: hit.lambda }, true);
@@ -373,6 +398,8 @@ export function CrossfeedCard() {
                   ]}
                   onChange=${(v) => setXfMode(v, rows)}
                 />
+                <${LensToggle} rows=${rows} />
+                <span class="row-break" aria-hidden="true"></span>
                 <div class="field-note">
                   Bauer crossfeed is built into HQPlayer and is the default. Structural crossfeed is HQPTuner's own and
                   uses the Matrix pipelines.

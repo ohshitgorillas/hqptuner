@@ -14,6 +14,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { structuralLensTraces, StructuralBadge } from "../../../hqptuner/static/components/StructuralXfeed.js";
+import { lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
 import { compileRows, HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
@@ -38,28 +39,41 @@ const near = (actual, expected, tol) => [
 ];
 
 // --- the lens traces ------------------------------------------------------------
+//
+// The builder's contract gained a second gate by product decision: the shared
+// "what you hear" toggle (`lensOn`, components/XfeedComp.js), off by default.
+// The cases below were right about the old behaviour and say the same thing
+// about the new one — they just turn the lens on first, including the one that
+// asserts NO traces, which pins the block RECOGNIZER and would otherwise pass
+// for the wrong reason. The toggle's own contract lives in xfeedlens.test.js.
 
 test("test_plain_rows_produce_no_lens_traces", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(pair(), bounds()).length, 0);
 });
 
 test("test_a_symmetric_block_draws_one_center_and_one_sides_trace", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block({ eqProcess: EQ }), bounds()).length, 2);
 });
 
 test("test_a_per_ear_block_draws_a_pair_of_traces_per_ear", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block({ eqProcess: { left: EQ, right: EQ2 } }), bounds()).length, 4);
 });
 
 test("test_the_center_trace_names_the_center_character", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block({ lambda: 0.7 }), bounds())[0].label, "center at 70%");
 });
 
 test("test_the_sides_trace_is_labeled_sides", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block(), bounds())[1].label, "sides");
 });
 
 test("test_per_ear_center_traces_name_their_ear", () => {
+  lensOn.value = true;
   assert.equal(
     structuralLensTraces(block({ eqProcess: { left: EQ, right: EQ2 } }), bounds())[0].label,
     "center left at 100%",
@@ -67,23 +81,28 @@ test("test_per_ear_center_traces_name_their_ear", () => {
 });
 
 test("test_per_ear_sides_traces_name_their_ear", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block({ eqProcess: { left: EQ, right: EQ2 } }), bounds())[3].label, "sides right");
 });
 
 test("test_the_center_trace_carries_the_center_plot_kind", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block(), bounds())[0].kind, "xfm");
 });
 
 test("test_the_sides_trace_carries_the_sides_plot_kind", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block(), bounds())[1].kind, "xfs");
 });
 
 test("test_a_lens_trace_spans_the_plot_band", () => {
+  lensOn.value = true;
   assert.equal(structuralLensTraces(block(), bounds())[0].points.length, 160);
 });
 
 test("test_the_ear_eq_folds_into_the_lens_curve", () => {
   // the -6 dB peak at 1 kHz must show in the center trace, EQ included
+  lensOn.value = true;
   const at1k = (traces) => {
     let best = traces[0].points[0];
     for (const p of traces[0].points) if (Math.abs(p[0] - 1000) < Math.abs(best[0] - 1000)) best = p;
@@ -95,6 +114,7 @@ test("test_the_ear_eq_folds_into_the_lens_curve", () => {
 });
 
 test("test_the_lens_updates_the_shared_plot_bounds", () => {
+  lensOn.value = true;
   const b = bounds();
   structuralLensTraces(block({ eqProcess: EQ }), b);
   assert.ok(b.min < -4, `expected the -6 dB peak to pull bounds.min below -4, got ${b.min}`);
