@@ -35,10 +35,23 @@ function makeMeasurer(ctx, sample) {
   const first = applyChanges(ctx.stages, sample);
   const untouched = new Set(first.stages.filter((s) => ctx.stages.includes(s)));
   const base = curveOf([...untouched], ctx.fs);
+  // Per-stage curve memo, scoped to this job. The space is a cross product, so
+  // the same varied band recurs across candidates; its curve is computed once
+  // per distinct (kind, args) and summed from cache. Args come out of
+  // editedStage in fixed schema order, so JSON.stringify is a stable key. An
+  // unplottable stage's `partial` lives on its cached curve and propagates
+  // through sumCurves.
+  const cache = new Map();
+  const stageCurve = (s) => {
+    const key = JSON.stringify([s.kind, s.args]);
+    let curve = cache.get(key);
+    if (!curve) cache.set(key, (curve = curveOf([s], ctx.fs)));
+    return curve;
+  };
   return (changes) => {
     const { stages, edits } = applyChanges(ctx.stages, changes);
     const varied = stages.filter((s) => !untouched.has(s));
-    return { stages, edits, curve: sumCurves(base, curveOf(varied, ctx.fs)) };
+    return { stages, edits, curve: varied.reduce((c, s) => sumCurves(c, stageCurve(s)), base) };
   };
 }
 

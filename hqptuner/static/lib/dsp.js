@@ -399,6 +399,84 @@ export function stageResponse(stage, f, fs) {
   return null;
 }
 
+// --- magnitude-only grid evaluation (eqlab search hot path) ------------------
+// Same math as chainResponse minus phase: coefficients built once per stage
+// (not per point), grid trig cached per (freqs, fs), no atan2 work. The UI
+// plots keep chainResponse; this path exists so a search can score thousands
+// of candidate chains per second.
+
+// freqs array -> (fs -> {cw, c2w, sw, s2w}); w depends on both, and the same
+// grid array is reused across stages, candidates, and jobs.
+const gridTrigCache = new WeakMap();
+
+function gridTrig(freqs, fs) {
+  let byFs = gridTrigCache.get(freqs);
+  if (!byFs) {
+    byFs = new Map();
+    gridTrigCache.set(freqs, byFs);
+  }
+  let t = byFs.get(fs);
+  if (t) return t;
+  const n = freqs.length;
+  t = { cw: new Float64Array(n), c2w: new Float64Array(n), sw: new Float64Array(n), s2w: new Float64Array(n) };
+  for (let i = 0; i < n; i += 1) {
+    const w = (TAU * freqs[i]) / fs;
+    t.cw[i] = Math.cos(w);
+    t.c2w[i] = Math.cos(2 * w);
+    t.sw[i] = Math.sin(w);
+    t.s2w[i] = Math.sin(2 * w);
+  }
+  byFs.set(fs, t);
+  return t;
+}
+
+// One biquad's magnitude accumulated across the grid — coefficients built once
+// by the caller, trig from the grid cache.
+function addBiquadGridDb(db, c, t) {
+  for (let i = 0; i < db.length; i += 1) {
+    const numRe = c.b0 + c.b1 * t.cw[i] + c.b2 * t.c2w[i];
+    const numIm = -(c.b1 * t.sw[i] + c.b2 * t.s2w[i]);
+    const denRe = 1 + c.a1 * t.cw[i] + c.a2 * t.c2w[i];
+    const denIm = -(c.a1 * t.sw[i] + c.a2 * t.s2w[i]);
+    db[i] += 10 * Math.log10((numRe * numRe + numIm * numIm) / (denRe * denRe + denIm * denIm));
+  }
+}
+
+// One stage's magnitude accumulated across the grid; false = unplottable
+// (mirrors stageResponse's null). Delay is pure phase — plottable, adds 0.
+function addStageGridDb(s, db, t, freqs, fs) {
+  if (s.kind === "iir") {
+    const c = iirStageCoeffs(s.args, fs);
+    if (c === null) return false;
+    addBiquadGridDb(db, c, t);
+    return true;
+  }
+  if (s.kind === "riaa") {
+    const subsonic = s.args.subsonic !== "0";
+    for (let i = 0; i < db.length; i += 1) db[i] += riaaResponse(freqs[i], subsonic).db;
+    return true;
+  }
+  if (s.kind === "conv") {
+    if (!irCache.get(s.file)) return false;
+    for (let i = 0; i < db.length; i += 1) db[i] += convResponse(s.file, freqs[i]).db;
+    return true;
+  }
+  return s.kind === "delay";
+}
+
+// Whole-chain magnitude in dB at every grid point. Mirrors chainResponse's
+// convention: an unplottable stage (bad args, conv file not registered,
+// unknown kind) contributes nothing and sets `partial`.
+export function chainMagDbGrid(stages, freqs, fs) {
+  const db = new Float64Array(freqs.length);
+  const t = gridTrig(freqs, fs);
+  let partial = false;
+  for (const s of stages) {
+    if (!addStageGridDb(s, db, t, freqs, fs)) partial = true;
+  }
+  return { db, partial };
+}
+
 // Whole-chain response: per-stage sum; `partial` when any stage is unplottable.
 export function chainResponse(stages, f, fs) {
   let db = 0;

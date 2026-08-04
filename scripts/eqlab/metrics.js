@@ -1,10 +1,10 @@
 // Response sampling, extrema, and metric evaluation — all on the SUMMED chain.
 //
-// Every number this file produces comes out of `chainResponse` (lib/dsp.js), the
-// same math the UI plots. No band is ever measured in isolation: a metric over a
-// range is a reduction over the summed curve inside that range.
+// Every number this file produces comes out of `chainMagDbGrid` (lib/dsp.js),
+// the same math the UI plots minus phase. No band is ever measured in isolation:
+// a metric over a range is a reduction over the summed curve inside that range.
 
-import { chainResponse } from "../../hqptuner/static/lib/dsp.js";
+import { chainMagDbGrid, chainResponse } from "../../hqptuner/static/lib/dsp.js";
 import { parse, evaluate } from "./expr.js";
 import { noteRange } from "./notes.js";
 
@@ -21,12 +21,7 @@ const GRID = logGrid(GRID_N, F_LO, F_HI);
 
 /** Summed response of a stage list over the standard 20 Hz - 20 kHz log grid. */
 export function curveOf(stages, fs) {
-  let partial = false;
-  const db = GRID.map((f) => {
-    const r = chainResponse(stages, f, fs);
-    if (r.partial) partial = true;
-    return r.db;
-  });
+  const { db, partial } = chainMagDbGrid(stages, GRID, fs);
   return { freqs: GRID, db, fs, partial };
 }
 
@@ -36,7 +31,9 @@ export function curveOf(stages, fs) {
  * recompute only the stages a candidate actually varies.
  */
 export function sumCurves(a, b) {
-  return { freqs: a.freqs, db: a.db.map((v, i) => v + b.db[i]), fs: a.fs, partial: a.partial || b.partial };
+  const db = new Float64Array(a.db.length);
+  for (let i = 0; i < db.length; i += 1) db[i] = a.db[i] + b.db[i];
+  return { freqs: a.freqs, db, fs: a.fs, partial: a.partial || b.partial };
 }
 
 /** Round for output — raw doubles print 17 digits of noise nobody can act on. */
@@ -44,7 +41,9 @@ export const round = (x, dp = 3) => (x === null || x === undefined ? null : Math
 
 /** Preamp per PRIMER guardrails: negative of the max of the SUMMED response. */
 export function preampDb(curve) {
-  return -Math.max(...curve.db);
+  let max = -Infinity;
+  for (let i = 0; i < curve.db.length; i += 1) if (curve.db[i] > max) max = curve.db[i];
+  return -max;
 }
 
 // The 20 Hz-bounded grid misses a low shelf whose plateau keeps rising below
@@ -68,29 +67,38 @@ export function valueAt(curve, f) {
   return db[i] + (db[i + 1] - db[i]) * (x - i);
 }
 
+// Closed-form bounds — the grid is uniform in log f, so the first and last
+// in-range indices need no scan. The one-step nudges settle float edge cases
+// so boundary membership matches the exact `f >= a && f <= b` test.
 function rangeIndices(curve, range) {
   const [a, b] = range;
-  const idx = [];
-  for (let i = 0; i < curve.freqs.length; i += 1) {
-    if (curve.freqs[i] >= a && curve.freqs[i] <= b) idx.push(i);
-  }
-  if (idx.length === 0) throw new Error(`metric range [${a}, ${b}] Hz contains no grid point`);
-  return idx;
+  const { freqs } = curve;
+  const n = freqs.length;
+  const k = Math.log(freqs[n - 1] / freqs[0]) / (n - 1);
+  let lo = Math.max(0, Math.min(n - 1, Math.ceil(Math.log(a / freqs[0]) / k)));
+  let hi = Math.max(0, Math.min(n - 1, Math.floor(Math.log(b / freqs[0]) / k)));
+  while (lo > 0 && freqs[lo - 1] >= a) lo -= 1;
+  while (lo < n && freqs[lo] < a) lo += 1;
+  while (hi < n - 1 && freqs[hi + 1] <= b) hi += 1;
+  while (hi >= 0 && freqs[hi] > b) hi -= 1;
+  if (lo > hi) throw new Error(`metric range [${a}, ${b}] Hz contains no grid point`);
+  return { lo, hi };
 }
 
 function extremum(curve, range, wantMax) {
-  const idx = rangeIndices(curve, range);
-  let best = idx[0];
-  for (const i of idx) {
+  const { lo, hi } = rangeIndices(curve, range);
+  let best = lo;
+  for (let i = lo; i <= hi; i += 1) {
     if (wantMax ? curve.db[i] > curve.db[best] : curve.db[i] < curve.db[best]) best = i;
   }
   return { value: curve.db[best], hz: curve.freqs[best] };
 }
 
 function meanOver(curve, range) {
-  const idx = rangeIndices(curve, range);
-  const sum = idx.reduce((acc, i) => acc + curve.db[i], 0);
-  return { value: sum / idx.length };
+  const { lo, hi } = rangeIndices(curve, range);
+  let sum = 0;
+  for (let i = lo; i <= hi; i += 1) sum += curve.db[i];
+  return { value: sum / (hi - lo + 1) };
 }
 
 /** Least-squares line over [x, y] pairs -> { slope, icept }. */
@@ -124,14 +132,14 @@ export function residualFit(removedStages, addedStages, fs, range) {
   const rem = curveOf(removedStages, fs);
   const add = curveOf(addedStages, fs);
   const residual = { freqs: rem.freqs, db: add.db.map((v, i) => v - rem.db[i]) };
-  const idx = rangeIndices(residual, range || [F_LO, F_HI]);
-  let [best, sq] = [idx[0], 0];
-  for (const i of idx) {
+  const { lo, hi } = rangeIndices(residual, range || [F_LO, F_HI]);
+  let [best, sq] = [lo, 0];
+  for (let i = lo; i <= hi; i += 1) {
     sq += residual.db[i] * residual.db[i];
     if (Math.abs(residual.db[i]) > Math.abs(residual.db[best])) best = i;
   }
   return {
-    rmse: round(Math.sqrt(sq / idx.length)),
+    rmse: round(Math.sqrt(sq / (hi - lo + 1))),
     maxdev: round(Math.abs(residual.db[best])),
     hz: round(residual.freqs[best], 2),
     range: range || [F_LO, F_HI],
@@ -172,22 +180,22 @@ function needTarget(target, kind) {
   return target;
 }
 
-function deviation(curve, target, range) {
-  return rangeIndices(curve, range).map((i) => ({ f: curve.freqs[i], dev: curve.db[i] - target.db[i] }));
-}
-
 function weightOf(domain) {
   if (domain === undefined || domain === "log") return () => 1;
   if (domain === "erb") return (f) => (4.37 * f) / 1000 / (1 + (4.37 * f) / 1000);
   throw new Error(`unknown domain "${domain}" (log or erb)`);
 }
 
-function weightedMean(pts, wf) {
+// Weighted mean of `fn(curve - target)` over a range, folded into one loop —
+// no per-point deviation objects.
+function weightedDevMean(curve, target, range, domain, fn) {
+  const wf = weightOf(domain);
+  const { lo, hi } = rangeIndices(curve, range);
   let [sw, s] = [0, 0];
-  for (const p of pts) {
-    const w = wf(p.f);
+  for (let i = lo; i <= hi; i += 1) {
+    const w = wf(curve.freqs[i]);
     sw += w;
-    s += w * p.val;
+    s += w * fn(curve.db[i] - target.db[i]);
   }
   return s / sw;
 }
@@ -205,10 +213,14 @@ function sideClip(dev, side) {
 }
 
 function maxDev(curve, target, spec, signed) {
-  const pts = deviation(curve, needTarget(target, signed ? "maxdev_signed" : "maxdev"), spec.range);
-  let best = pts[0];
-  for (const p of pts) if (Math.abs(p.dev) > Math.abs(best.dev)) best = p;
-  return { value: signed ? best.dev : Math.abs(best.dev), hz: best.f };
+  const t = needTarget(target, signed ? "maxdev_signed" : "maxdev");
+  const { lo, hi } = rangeIndices(curve, spec.range);
+  let [best, bestDev] = [lo, curve.db[lo] - t.db[lo]];
+  for (let i = lo + 1; i <= hi; i += 1) {
+    const dev = curve.db[i] - t.db[i];
+    if (Math.abs(dev) > Math.abs(bestDev)) [best, bestDev] = [i, dev];
+  }
+  return { value: signed ? bestDev : Math.abs(bestDev), hz: curve.freqs[best] };
 }
 
 // ---- shape kinds -----------------------------------------------------------
@@ -222,7 +234,8 @@ function prominenceOver(curve, range) {
   const [a, b] = range;
   const [ya, yb] = [valueAt(curve, a), valueAt(curve, b)];
   let best = null;
-  for (const i of rangeIndices(curve, range)) {
+  const { lo, hi } = rangeIndices(curve, range);
+  for (let i = lo; i <= hi; i += 1) {
     const base = ya + ((yb - ya) * Math.log(curve.freqs[i] / a)) / Math.log(b / a);
     const p = curve.db[i] - base;
     if (!best || p > best.value) best = { value: p, hz: curve.freqs[i] };
@@ -240,30 +253,27 @@ const KINDS = {
   }),
   rmse: (curve, spec, _vars, target) => ({
     value: Math.sqrt(
-      weightedMean(
-        deviation(curve, needTarget(target, "rmse"), spec.range).map((p) => {
-          const d = sideClip(p.dev, spec.side);
-          return { f: p.f, val: d * d };
-        }),
-        weightOf(spec.domain),
-      ),
+      weightedDevMean(curve, needTarget(target, "rmse"), spec.range, spec.domain, (dev) => {
+        const d = sideClip(dev, spec.side);
+        return d * d;
+      }),
     ),
   }),
   maxdev: (curve, spec, _vars, target) => maxDev(curve, target, spec, false),
   maxdev_signed: (curve, spec, _vars, target) => maxDev(curve, target, spec, true),
   mean_signed: (curve, spec, _vars, target) => ({
-    value: weightedMean(
-      deviation(curve, needTarget(target, "mean_signed"), spec.range).map((p) => ({ f: p.f, val: p.dev })),
-      weightOf(spec.domain),
-    ),
+    value: weightedDevMean(curve, needTarget(target, "mean_signed"), spec.range, spec.domain, (dev) => dev),
   }),
   prominence: (curve, spec) => prominenceOver(curve, spec.range),
   ripple: (curve, spec) => ({
     value: extremum(curve, spec.range, true).value - extremum(curve, spec.range, false).value,
   }),
-  slope: (curve, spec) => ({
-    value: linfit(rangeIndices(curve, spec.range).map((i) => [Math.log2(curve.freqs[i]), curve.db[i]])).slope,
-  }),
+  slope: (curve, spec) => {
+    const { lo, hi } = rangeIndices(curve, spec.range);
+    const pts = [];
+    for (let i = lo; i <= hi; i += 1) pts.push([Math.log2(curve.freqs[i]), curve.db[i]]);
+    return { value: linfit(pts).slope };
+  },
   note_spread: (curve, spec) => {
     const vals = noteRange(spec.from, spec.to).map((n) => valueAt(curve, n.hz));
     return { value: Math.max(...vals) - Math.min(...vals) };
@@ -273,7 +283,7 @@ const KINDS = {
 // The standing panel PRIMER requires on every answer, as a named preset —
 // retyping it per job invites drift. `"metrics": "standard"` uses it as-is;
 // `{"preset": "standard", ...more}` extends it.
-export const PRESETS = {
+const PRESETS = {
   standard: {
     bass_50_150: { kind: "mean", range: [50, 150] },
     oomph_80_160: { kind: "mean", range: [80, 160] },

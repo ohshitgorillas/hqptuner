@@ -90,7 +90,7 @@ Search answers report: survivors (changes, score(s), metrics, preamps, process, 
 
 ### Guards, performance
 
-`MAX_COMBOS` 2,000,000 / `MAX_STEPS` 100,000 — runaway stops, not budgets; hitting one means split the space and batch, not ask. Measured ~670 candidates/s (two varied bands); plan batches by the clock.
+`MAX_COMBOS` 2,000,000 / `MAX_STEPS` 100,000 — runaway stops, not budgets; hitting one means split the space and batch, not ask. Measured ~4,500 candidates/s (two varied bands, sweep-only); plan batches by the clock.
 
 ### Flags (evaluate/search answers)
 

@@ -15,7 +15,7 @@ import {
 import { noteDeltas, noteTable } from "./notes.js";
 
 /** Everything measured about one chain: preamp, metric panel, process string. */
-export function panelOf(stages, fs, metricSpecs, target) {
+function panelOf(stages, fs, metricSpecs, target) {
   const curve = curveOf(stages, fs);
   const panel = computeMetrics(curve, metricSpecs, target);
   const preamp = preampDb(curve);
