@@ -26,6 +26,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The mouse wheel no longer changes any control's value.** It was blocked only on a control you had not clicked — a clicked slider still moved under the wheel, and dropdowns took it everywhere. The wheel now scrolls the page over every slider, number box and dropdown.
 
+- **Setting a control back to where it started no longer leaves an edit staged.** The pending count already read zero, but the value still rode the next Apply and restarted the engine to write what it already had.
+
 ## [1.1.1] — 2026-08-03
 
 ### Fixed

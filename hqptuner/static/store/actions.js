@@ -8,15 +8,25 @@ import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset } from "./signals.js";
-import { canonPipelines, stagedCount, activePreset } from "./resolve.js";
+import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
 import { mirror, refreshConfig } from "./sync.js";
+
+// Latest-wins on the pipelines path: rapid successive edits (stage editor
+// keystrokes) each POST, and an EARLIER request's response must not clobber a
+// LATER optimistic value, so only the newest in-flight call is allowed to adopt
+// the server's echo.
+let stageSeq = 0;
+
+// Every stage POST also carries the entries that have gone clean (`drop`), which
+// the server removes from its buffer. Computed AFTER the optimistic merge below,
+// so the edit being staged is judged in the state the user just put it in: an
+// edit returning a control to its baseline reports itself, in the same request
+// that stages it, and the server's merge-then-drop order settles it.
+const stageBody = (body) => ({ ...body, drop: cleanStagedKeys() });
 
 // Stage the whole pipeline set (optimistic, like edit()). A set identical to
 // baseline still stages — isDirty's string compare then reads clean, same as any
-// field. Latest-wins: rapid successive edits (stage editor keystrokes) each POST;
-// an EARLIER request's response must not clobber a LATER optimistic value, so only
-// the newest in-flight call is allowed to adopt the server's echo.
-let stageSeq = 0;
+// field, and `drop` is what stops that clean entry sitting in the buffer.
 export async function stagePipelines(rows, extra = {}) {
   await stageHttp({ matrix_pipelines: canonPipelines(rows), ...extra });
 }
@@ -28,7 +38,7 @@ export async function stagePipelines(rows, extra = {}) {
 async function stageHttp(fields) {
   staged.value = { live: staged.value.live, http: { ...staged.value.http, ...fields } };
   const seq = ++stageSeq;
-  const echo = await api.stage({ live: {}, http: fields });
+  const echo = await api.stage(stageBody({ live: {}, http: fields }));
   if (seq === stageSeq) staged.value = echo;
 }
 
@@ -101,7 +111,7 @@ export async function edit(key, value) {
     http: { ...staged.value.http, ...body.http },
   };
   clearLive(key);
-  staged.value = await api.stage(body);
+  staged.value = await api.stage(stageBody(body));
 }
 
 export async function discardAll() {

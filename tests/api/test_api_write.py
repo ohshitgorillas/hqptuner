@@ -49,6 +49,114 @@ def test_successful_http_apply_clears_staging(http_client: TestClient) -> None:
     assert http_client.get("/api/config/pending").json()["http"] == {}
 
 
+# --- unstaging: the stage body's optional `drop` member ------------------------
+
+
+def test_dropped_http_field_leaves_no_entry_in_the_buffer(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    http_client.post(
+        "/api/config/stage",
+        json={"live": {"shaper": {"value": "5"}}, "drop": {"http": ["title"]}},
+    )
+    assert "title" not in http_client.get("/api/config/pending").json()["http"]
+
+
+def test_a_drop_of_a_never_staged_http_field_does_not_reject_the_call(http_client: TestClient) -> None:
+    # a rejected call would also leave the buffer untouched, so acceptance is
+    # pinned through the same call's own staged value landing
+    http_client.post(
+        "/api/config/stage",
+        json={"http": {"title": "Renamed"}, "drop": {"http": ["channels"]}},
+    )
+    assert http_client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
+
+
+def test_dropping_a_never_staged_http_field_leaves_the_buffer_alone(http_client: TestClient) -> None:
+    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    http_client.post("/api/config/stage", json={"drop": {"http": ["channels"]}})
+    assert http_client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
+
+
+def test_dropping_one_live_argument_keeps_the_other(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1", "value1x": "2"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value1x"]}}})
+    assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value": "1"}
+
+
+def test_dropping_every_live_argument_removes_the_bucket(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1", "value1x": "2"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value", "value1x"]}}})
+    assert "filter" not in api_client.get("/api/config/pending").json()["live"]
+
+
+def test_a_field_staged_and_dropped_in_one_call_is_absent(http_client: TestClient) -> None:
+    # merge happens before the drop, so the same call's own value is removed too
+    http_client.post(
+        "/api/config/stage",
+        json={"http": {"title": "Renamed"}, "drop": {"http": ["title"]}},
+    )
+    assert "title" not in http_client.get("/api/config/pending").json()["http"]
+
+
+def test_a_live_argument_staged_and_dropped_in_one_call_is_absent(api_client: TestClient) -> None:
+    # merge before drop on the live lane too, not only the http one
+    api_client.post(
+        "/api/config/stage",
+        json={"live": {"shaper": {"value": "5"}}, "drop": {"live": {"shaper": ["value"]}}},
+    )
+    assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
+
+
+def test_a_drop_of_a_never_staged_live_key_does_not_reject_the_call(api_client: TestClient) -> None:
+    api_client.post(
+        "/api/config/stage",
+        json={"live": {"shaper": {"value": "5"}}, "drop": {"live": {"filter": ["value"]}}},
+    )
+    assert api_client.get("/api/config/pending").json()["live"]["shaper"]["value"] == "5"
+
+
+def test_dropping_a_never_staged_live_key_leaves_the_buffer_alone(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value"]}}})
+    assert api_client.get("/api/config/pending").json()["live"] == {"shaper": {"value": "5"}}
+
+
+def test_dropping_an_absent_argument_keeps_the_staged_live_key(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"filter": ["value1x"]}}})
+    assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value": "1"}
+
+
+def test_restaging_a_live_key_replaces_its_whole_bucket(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1", "value1x": "2"}}})
+    api_client.post("/api/config/stage", json={"live": {"filter": {"value1x": "3"}}})
+    assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value1x": "3"}
+
+
+def test_a_stage_call_carrying_only_a_drop_still_unstages(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
+    assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
+
+
+def test_pending_reflects_a_drop_made_by_an_earlier_stage_call(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
+    assert api_client.get("/api/config/pending").json()["live"] == {}
+
+
+def test_a_stage_call_without_a_drop_member_still_merges(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1"}}})
+    assert api_client.get("/api/config/pending").json()["live"]["filter"]["value"] == "1"
+
+
+def test_apply_after_dropping_the_only_staged_edit_reports_nothing_staged(api_client: TestClient) -> None:
+    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
+    assert api_client.post("/api/config/apply").status_code == 400
+
+
 def test_unknown_profile_action_is_not_found(api_client: TestClient) -> None:
     assert api_client.post("/api/profile/bogus", json={"name": "x"}).status_code == 404
 

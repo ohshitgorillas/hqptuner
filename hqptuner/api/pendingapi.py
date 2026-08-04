@@ -28,6 +28,23 @@ class PendingStore:
         self.live.update(live)
         self.http.update(http)
 
+    def drop(self, live: dict[str, list[str]], http: list[str]) -> None:
+        """Remove named entries. Names that are not staged are ignored — the
+        client sends the whole set of entries that read clean, not a diff, so a
+        name it has already dropped must not be an error. A live bucket emptied
+        of its arguments goes with them: an empty bucket is not "no change", it
+        is a setter the apply would still call."""
+        for field in http:
+            self.http.pop(field, None)
+        for key, args in live.items():
+            bucket = self.live.get(key)
+            if bucket is None:
+                continue
+            for arg in args:
+                bucket.pop(arg, None)
+            if not bucket:
+                del self.live[key]
+
     def clear(self) -> None:
         self.live = {}
         self.http = {}
@@ -62,7 +79,10 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
     store = _pending(request)
+    # merge, THEN drop: one request both re-stages a field and reports it clean
+    # when an edit lands back on its baseline, and the drop is the later word.
     store.stage(body.live, body.http)
+    store.drop(body.drop.live, body.drop.http)
     return store.snapshot()
 
 

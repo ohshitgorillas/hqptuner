@@ -198,6 +198,35 @@ export function isDirty(key) {
   return String(sv) !== String(base);
 }
 
+// Every staged entry that no longer reads as a change, named the way the stage
+// endpoint's `drop` member names them. The server's buffer must never keep one:
+// it counts as nothing on screen, but it still rides the next apply and restarts
+// the daemon to write a value the daemon already has. Two ways an entry gets
+// here — the user returned a control to its baseline, or the baseline moved out
+// from under a staged value that now matches it.
+//
+// An entry no schema key claims is never reported. The store cannot judge what
+// it cannot ground, and silently dropping a field some other surface staged is
+// worse than carrying it.
+export function cleanStagedKeys() {
+  const st = staged.value;
+  const keys = Object.keys(schema);
+  const httpKeys = (field) => keys.filter((k) => schema[k].lane !== "live" && schema[k].field === field);
+  const liveKeys = (liveKey, arg) =>
+    keys.filter(
+      (k) => schema[k].lane === "live" && schema[k].liveKey === liveKey && (schema[k].arg || "value") === arg,
+    );
+  // grounded AND unanimous: a field two controls share is a change while either
+  // of them still reads dirty against it
+  const clean = (matches) => matches.length > 0 && !matches.some(isDirty);
+  const live = {};
+  for (const [liveKey, bucket] of Object.entries(st.live)) {
+    const args = Object.keys(bucket).filter((arg) => clean(liveKeys(liveKey, arg)));
+    if (args.length) live[liveKey] = args;
+  }
+  return { live, http: Object.keys(st.http).filter((field) => clean(httpKeys(field))) };
+}
+
 // --- derived: the pending-changes bar ---
 const dirtyKeys = computed(() => Object.keys(schema).filter(isDirty));
 export const stagedCount = computed(() => dirtyKeys.value.length);
