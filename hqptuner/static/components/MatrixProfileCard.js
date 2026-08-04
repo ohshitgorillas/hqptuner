@@ -12,7 +12,7 @@
 // and Load are therefore one lane each, and neither is ever refused for
 // playback state.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { config } from "../store/signals.js";
 import { effectivePipelines } from "../store/resolve.js";
@@ -147,7 +147,12 @@ export function ProfileCard() {
         <div class="field">
           <label>Saved profiles</label>
           <div class="control">
-          <select value=${sel} disabled=${!!busy} onChange=${(e) => (profileSel.value = e.target.value)}>
+          <select
+            value=${sel}
+            disabled=${!!busy}
+            onWheel=${wheelGuard}
+            onChange=${(e) => (profileSel.value = e.target.value)}
+          >
             <option value="">[Default]</option>
             ${saved.map((n) => html`<option value=${n}>${n}</option>`)}
           </select>

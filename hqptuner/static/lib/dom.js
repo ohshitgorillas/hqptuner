@@ -5,14 +5,22 @@ import htm from "htm";
 
 export const html = htm.bind(h);
 
-// Focus-gated wheel guard for native range/number inputs. A control reacts to
-// the mouse wheel only once engaged (focused/clicked); an unengaged control does
-// NOT eat the wheel — the page scrolls normally instead of the value jumping as
-// the cursor passes over it. Attach as onWheel on the input. (preact binds wheel
-// non-passive, so preventDefault takes effect.)
+// The mouse wheel never changes a control's value. The wheel is how you move
+// down the page, and a page this dense in sliders, number boxes and dropdowns
+// would otherwise hand out silent edits to anyone scrolling past one. The guard
+// takes the wheel off the control and scrolls the page by the same delta.
+//
+// There is no exception in here, deliberately: a focused control is guarded
+// exactly like an unfocused one. Exempting the focused control is what let a
+// clicked slider take the wheel and move. The control is also NOT blurred —
+// blurring a number box mid-type fires its change handler and commits a
+// half-typed figure.
+//
+// Attach as onWheel on every wheel-sensitive control: range, number, select.
+// (preact binds the listener on the element itself, where wheel is non-passive,
+// so preventDefault takes effect — unlike a document-level listener, which the
+// browser makes passive by default.)
 export function wheelGuard(e) {
-  if (document.activeElement === e.currentTarget) return;
   e.preventDefault();
-  e.currentTarget.blur();
   window.scrollBy(0, e.deltaY);
 }

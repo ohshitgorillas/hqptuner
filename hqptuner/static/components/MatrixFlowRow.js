@@ -6,7 +6,7 @@
 // verbatim and flagged — never dropped, never rewritten. Split out of
 // MatrixTab.js verbatim; `rawRows` and `dragFrom` are private to this module.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 import { parseProcess, serializeProcess, stageLabel, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
 import { rowToRewText } from "../lib/eqexport.js";
 import { isPlotted, togglePlotted } from "./MatrixPlot.js";
@@ -43,7 +43,7 @@ const Arrow = () => html`<span class="pconn" aria-hidden="true">→</span>`;
 
 function ChannelSelect({ value, prefix, onChange }) {
   return html`
-    <select class="mtx-ch pchip-ch" value=${String(value)} onChange=${(e) => onChange(e.target.value)}>
+    <select class="mtx-ch pchip-ch" value=${String(value)} onWheel=${wheelGuard} onChange=${(e) => onChange(e.target.value)}>
       ${CH_OPTIONS.map((i) => html`<option value=${String(i)}>${prefix} ${i + 1}</option>`)}
     </select>
   `;
@@ -131,8 +131,14 @@ function FlowChain({ row, index, raw, stages, summing, update, replaceStages, ad
             `
       }
       <span class="pchip pchip-gain mtx-gain">
-        <input type="number" step="0.01" value=${row.gain} onChange=${(e) => update({ gain: e.target.value })} />
-        <select value=${row.gainunit} onChange=${(e) => update({ gainunit: e.target.value })}>
+        <input
+          type="number"
+          step="0.01"
+          value=${row.gain}
+          onWheel=${wheelGuard}
+          onChange=${(e) => update({ gain: e.target.value })}
+        />
+        <select value=${row.gainunit} onWheel=${wheelGuard} onChange=${(e) => update({ gainunit: e.target.value })}>
           <option value="dB">dB</option>
           <option value="Lin">Lin</option>
         </select>

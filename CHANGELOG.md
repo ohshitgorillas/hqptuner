@@ -24,6 +24,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Engaging structural crossfeed can no longer wipe your EQ.** Over pipelines it could not read as a plain stereo pair, it used to install anyway and throw the EQ away. It now leaves your pipelines exactly as they are and says so.
 
+- **The mouse wheel no longer changes any control's value.** It was blocked only on a control you had not clicked — a clicked slider still moved under the wheel, and dropdowns took it everywhere. The wheel now scrolls the page over every slider, number box and dropdown.
+
 ## [1.1.1] — 2026-08-03
 
 ### Fixed

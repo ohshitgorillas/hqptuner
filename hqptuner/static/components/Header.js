@@ -4,7 +4,7 @@
 // header then shows "(pending apply)" until Apply commits the switch. The active
 // preset comes from config.active (the truly-loaded ConfigurationGet name).
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 import { health, engineState, config, pendingPreset } from "../store/signals.js";
 import { previewPreset, deletePreset } from "../store/actions.js";
 import { liveMode, setLiveMode } from "../store/prefs.js";
@@ -103,7 +103,7 @@ function presetPicker() {
   const shown = pending !== null ? pending : cfg.active || profiles.value || "";
   return html`
     <label class="muted">Preset</label>
-    <select value=${shown} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
+    <select value=${shown} onWheel=${wheelGuard} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
       ${(profiles.options || []).map((o) => html`<option value=${o.value}>${o.label || "(no preset)"}</option>`)}
     </select>
     ${deleteButton(shown)}

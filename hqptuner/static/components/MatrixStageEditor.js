@@ -4,7 +4,7 @@
 // private to this module, and `setSelected` lives here because clearing the
 // draft is exactly what it is for.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { registerIr } from "../lib/dsp.js";
 import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
@@ -90,7 +90,7 @@ function IirEditor({ stage, commit }) {
     <div class="mtx-editor-args">
       <label class="mtx-arg">
         <span>type</span>
-        <select value=${type} onChange=${(e) => commit({ type: e.target.value })}>
+        <select value=${type} onWheel=${wheelGuard} onChange=${(e) => commit({ type: e.target.value })}>
           ${Object.keys(IIR_TYPES).map((t) => html`<option value=${t}>${t}</option>`)}
         </select>
       </label>
@@ -112,7 +112,11 @@ function RiaaEditor({ stage, commit }) {
     <div class="mtx-editor-args">
       <label class="mtx-arg">
         <span>subsonic</span>
-        <select value=${stage.args.subsonic ?? "1"} onChange=${(e) => commit({ subsonic: e.target.value })}>
+        <select
+          value=${stage.args.subsonic ?? "1"}
+          onWheel=${wheelGuard}
+          onChange=${(e) => commit({ subsonic: e.target.value })}
+        >
           <option value="1">on</option>
           <option value="0">off</option>
         </select>
@@ -159,7 +163,7 @@ export function StageEditor({ stages, stageIndex, replaceStages }) {
   return html`
     <div class="mtx-editor">
       <div class="mtx-editor-head">
-        <select value=${stage.kind} onChange=${(e) => setKind(e.target.value)}>
+        <select value=${stage.kind} onWheel=${wheelGuard} onChange=${(e) => setKind(e.target.value)}>
           ${KINDS.map(([k, label]) => html`<option value=${k}>${label}</option>`)}
         </select>
         <button type="button" class="mtx-tool mtx-remove" title="Delete stage" onClick=${remove}>✕ stage</button>

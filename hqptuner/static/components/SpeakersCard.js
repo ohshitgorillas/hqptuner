@@ -18,7 +18,7 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
-import { html } from "../lib/dom.js";
+import { html, wheelGuard } from "../lib/dom.js";
 import { NumberBox, Segment } from "./controls/index.js";
 import { effective } from "../store/resolve.js";
 import { notesVisible } from "../store/prefs.js";
@@ -156,7 +156,12 @@ function TopRow({ on, busy, gateDirty }) {
       </div>
       <div class="field">
         <label>Speaker set</label>
-        <select value=${speakerSet.value} disabled=${busy} onChange=${(e) => chooseSet(e.target.value)}>
+        <select
+          value=${speakerSet.value}
+          disabled=${busy}
+          onWheel=${wheelGuard}
+          onChange=${(e) => chooseSet(e.target.value)}
+        >
           ${SETS.map((s) => html`<option value=${s.id}>${s.label}</option>`)}
         </select>
       </div>

@@ -1,19 +1,21 @@
-// Behavioral suite for lib/dom.js wheelGuard — the focus-gated wheel policy on
-// native range/number inputs: an engaged control takes the wheel, an unengaged
-// one hands it back to the page.
+// Behavioral suite for lib/dom.js wheelGuard — the policy that the mouse wheel
+// never changes a control's value. The wheel over a control scrolls the page and
+// nothing else: the event's default action is cancelled every time, whatever the
+// control's state, and the control is never blurred (blurring a number box
+// mid-type commits a half-typed figure through its change handler).
 //
 // document and window are environment seams; the event is a plain object
 // carrying exactly the surface a wheel event exposes to the handler. Both
 // globals are restored after every test.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/wheelguard.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/wheelguard.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { wheelGuard } from "../../../hqptuner/static/lib/dom.js";
 
-function setup({ focused }) {
+function setup({ focused, deltaY = 120, deltaMode = 0 }) {
   const target = {
     blurred: false,
     blur() {
@@ -22,7 +24,8 @@ function setup({ focused }) {
   };
   const event = {
     currentTarget: target,
-    deltaY: 120,
+    deltaY,
+    deltaMode,
     defaultPrevented: false,
     preventDefault() {
       this.defaultPrevented = true;
@@ -39,42 +42,58 @@ afterEach(() => {
   delete globalThis.window;
 });
 
-// --- an engaged control owns the wheel ----------------------------------------
+// --- the wheel never edits the control ----------------------------------------
 
-test("test_a_focused_control_keeps_the_wheel", () => {
+test("test_a_wheel_over_a_control_is_cancelled", () => {
+  const { event } = setup({ focused: false });
+  wheelGuard(event);
+  assert.equal(event.defaultPrevented, true);
+});
+
+test("test_a_wheel_over_a_focused_control_is_cancelled_too", () => {
   const { event } = setup({ focused: true });
   wheelGuard(event);
-  assert.equal(event.defaultPrevented, false);
+  assert.equal(event.defaultPrevented, true);
+});
+
+// --- the page gets the wheel instead --------------------------------------------
+
+test("test_the_page_scrolls_once_by_the_wheel_delta", () => {
+  const { event, scrolls } = setup({ focused: false });
+  wheelGuard(event);
+  assert.deepEqual(scrolls, [[0, 120]]);
+});
+
+test("test_a_focused_control_scrolls_the_page_the_same_way", () => {
+  const { event, scrolls } = setup({ focused: true });
+  wheelGuard(event);
+  assert.deepEqual(scrolls, [[0, 120]]);
+});
+
+// A line-mode wheel (deltaMode 1) reports its delta in LINES, not pixels; the
+// guard hands the raw figure to scrollBy without converting it.
+test("test_the_raw_delta_is_passed_through_whatever_its_unit", () => {
+  const { event, scrolls } = setup({ focused: false, deltaY: 3, deltaMode: 1 });
+  wheelGuard(event);
+  assert.deepEqual(scrolls, [[0, 3]]);
+});
+
+// --- the control keeps its focus -------------------------------------------------
+//
+// Both of these are ABSENCE assertions and neither constrains anything on its
+// own: a wheelGuard with an empty body passes them. They are spec item 5 and
+// worth stating — blurring a number box mid-type commits a half-typed figure —
+// but the weight is carried by the cancel and scroll cases above, which fail on
+// a guard that does nothing.
+
+test("test_an_unfocused_control_is_not_blurred", () => {
+  const { target, event } = setup({ focused: false });
+  wheelGuard(event);
+  assert.equal(target.blurred, false);
 });
 
 test("test_a_focused_control_is_not_blurred", () => {
   const { target, event } = setup({ focused: true });
   wheelGuard(event);
   assert.equal(target.blurred, false);
-});
-
-test("test_a_focused_control_does_not_scroll_the_page", () => {
-  const { event, scrolls } = setup({ focused: true });
-  wheelGuard(event);
-  assert.deepEqual(scrolls, []);
-});
-
-// --- an unengaged control hands the wheel to the page ---------------------------
-
-test("test_an_unengaged_control_blocks_the_value_change", () => {
-  const { event } = setup({ focused: false });
-  wheelGuard(event);
-  assert.equal(event.defaultPrevented, true);
-});
-
-test("test_an_unengaged_control_is_blurred", () => {
-  const { target, event } = setup({ focused: false });
-  wheelGuard(event);
-  assert.equal(target.blurred, true);
-});
-
-test("test_the_page_scrolls_by_the_wheel_delta_instead", () => {
-  const { event, scrolls } = setup({ focused: false });
-  wheelGuard(event);
-  assert.deepEqual(scrolls, [[0, 120]]);
 });

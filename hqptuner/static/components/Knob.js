@@ -7,8 +7,8 @@
 // circular); Shift = fine; double-click resets to default; arrow keys when
 // focused (Shift fine, PageUp/Down coarse, Home/End to bounds). The slider drags
 // horizontally; the box is directly editable. All three reflect the same value.
-// The wheel is deliberately NOT bound (nor on the slider): scrolling the page
-// past a knob must never change its value.
+// The wheel is deliberately NOT bound on the dial, and the slider carries the
+// wheelGuard: scrolling the page past a knob must never change its value.
 //
 // onLive(v) fires continuously during a drag (client-only, drives the plot with
 // no server hit); onCommit(v) fires on release / key / dbl-click / box edit and
