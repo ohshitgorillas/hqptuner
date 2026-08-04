@@ -150,8 +150,12 @@ test("test_an_installed_block_opens_on_structural", async () => {
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 
 // Sixteen rows the recognizer must not mistake for a block: a plain pass-through
-// pair repeated, so the count matches an installed block and nothing else does.
-const sixteenPlain = () => Array.from({ length: 8 }, () => pair()).flat();
+// pair, then fourteen more rows routed to mixdowns of their own, so the count
+// matches an installed block and nothing else does. The extra rows stay off the
+// two mixdowns the block owns — rows contending for those are a starting point
+// the install refuses outright, which is a different question than this one.
+const spare = (i) => ({ gain: "-3", gainunit: "dB", mixdown: String(i + 2), process: EQ, source: String(i + 2) });
+const sixteenPlain = () => [...pair(), ...Array.from({ length: 14 }, (_, i) => spare(i))];
 
 test("test_nothing_staged_over_a_plain_pair_is_not_pending", async () => {
   await reset({ rows: pair(), selected: "structural" });
@@ -225,4 +229,28 @@ test("test_discarding_the_staged_block_is_not_pending", async () => {
   stageStructural(live(), DEFAULTS);
   await discardAll();
   assert.equal(pipelinesDirty(), false);
+});
+
+// --- turning off and back on builds from the controls, not from the old block ---
+//
+// A removed block is gone. What comes back when the gate is pressed again is
+// compiled from the controls on screen at that moment — the block that was taken
+// off is not remembered and never rebuilt from.
+
+test("test_reengaging_after_a_removal_uses_the_angle_on_screen", async () => {
+  await reset({ rows: pair(), selected: "structural" });
+  stageStructural(live(), { ...DEFAULTS, angle: 30 });
+  removeStructural(live(), structuralBlock(live()));
+  stageStructural(live(), { ...DEFAULTS, angle: 45 });
+  const back = structuralBlock(live());
+  assert.ok(back && Math.abs(back.angle - 45) < 1e-3, `block came back as ${JSON.stringify(back)}`);
+});
+
+// The mode segment is the other way off: leaving the view removes the block, and
+// arriving back at the view turns nothing on (the ENGAGE gate does that).
+test("test_leaving_the_structural_view_and_returning_installs_no_block", async () => {
+  await reset({ rows: structural(), selected: "structural" });
+  setXfMode("bauer", live());
+  setXfMode("structural", live());
+  assert.equal(structuralBlock(live()), null);
 });

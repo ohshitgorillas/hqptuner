@@ -34,6 +34,7 @@ ALPHA_MIN = 0.1
 THETA_MIN = 150.0
 
 LIB = Path(__file__).resolve().parent.parent.parent / "hqptuner" / "static" / "lib" / "binaural.js"
+SETUP = LIB.parent / "binaural-setup.js"
 
 FREQS = [20, 50, 100, 200, 400, 624, 1000, 1248, 2000, 4000, 8000, 16000, 20000]
 LAMBDAS = [0.0, 0.25, 0.5, 1.0, 1.5]
@@ -48,8 +49,8 @@ TOLERANCE = 1e-12
 WIRE_TOLERANCE = 1e-8
 
 DRIVER = """
-import {{ midSideResponse, compileRows, pathParams, recognizeRows, blockConflicts, pairInfo,
-         PRESETS, matchPreset, magDb }} from "{lib}";
+import {{ midSideResponse, compileRows, pathParams, recognizeRows, magDb }} from "{lib}";
+import {{ blockConflicts, pairInfo, PRESETS, matchPreset }} from "{setup}";
 
 const responses = {cases}.map(([f, lambda, angle]) => {{
   const r = midSideResponse(f, {{ lambda, angle }});
@@ -113,8 +114,9 @@ const conflicts = conflictCases.map(([cfg, want]) => ({{
   cfg, want, got: blockConflicts((k) => cfg[k]).length,
 }}));
 
-// pairInfo accepts what the block can round-trip and refuses only what is
-// structurally wrong — asymmetry between the ears is not wrong.
+// pairInfo accepts what the block can round-trip and refuses everything else.
+// Asymmetry between the ears is not wrong; a shape the block cannot carry is,
+// and carrying it in partially would cost the user the EQ on those rows.
 const mkRow = (src, mix, process, gain, unit = "dB") =>
   ({{ source: src, mixdown: mix, process, gain, gainunit: unit }});
 const EL = "iir:type=peak;f=1000;q=1;g=3";
@@ -125,16 +127,23 @@ const pairCases = [
   ["asymmetric preamps", [mkRow("0", "0", EL, "-6"), mkRow("1", "1", EL, "-4.5")], true],
   ["asymmetric both", [mkRow("0", "0", EL, "-6"), mkRow("1", "1", ER, "-4.5")], true],
   ["In 2 first", [mkRow("1", "1", ER, "-4.5"), mkRow("0", "0", EL, "-6")], true],
-  ["crossed routing set aside", [mkRow("0", "1", EL, "-6"), mkRow("1", "0", EL, "-6")], false],
-  ["Lin gains set aside", [mkRow("0", "0", EL, "0.5", "Lin"), mkRow("1", "1", EL, "0.5", "Lin")], false],
+  ["Lin gains", [mkRow("0", "0", EL, "0.5", "Lin"), mkRow("1", "1", EL, "0.5", "Lin")], true],
+  ["crossed routing refused", [mkRow("0", "1", EL, "-6"), mkRow("1", "0", EL, "-6")], false],
+  ["Lin zero gain refused", [mkRow("0", "0", EL, "0", "Lin"), mkRow("1", "1", EL, "0.5", "Lin")], false],
+  ["Lin negative gain refused", [mkRow("0", "0", EL, "-0.5", "Lin"), mkRow("1", "1", EL, "0.5", "Lin")], false],
+  ["single row refused", [mkRow("0", "0", EL, "-6")], false],
+  ["later row on a block mixdown refused",
+   [mkRow("0", "0", EL, "-6"), mkRow("1", "1", ER, "-6"), mkRow("2", "0", EL, "-6")], false],
+  ["later row off the block mixdowns",
+   [mkRow("0", "0", EL, "-6"), mkRow("1", "1", ER, "-6"), mkRow("2", "2", EL, "-6")], true],
 ];
 const pairs = pairCases.map(([label, rows, want]) => {{
   const r = pairInfo(rows);
-  // pairInfo never refuses: `want` now means "readable as an EQ pair"
-  const ok = (r.setAside === undefined) === want;
+  // `want` means "readable as an EQ pair"; anything else is refused outright
+  const ok = (r.refused === undefined) === want;
   // an accepted pair must also survive a compile -> recognize round trip
   let survives = true;
-  if (r.setAside === undefined) {{
+  if (r.refused === undefined) {{
     const built = compileRows({{ lambda: 0.5, angle: 30, eqProcess: r.eq, preampDb: r.gain }});
     const back = recognizeRows(built);
     survives = back !== null && back.eqProcess.left === r.eq.left && back.eqProcess.right === r.eq.right;
@@ -207,6 +216,7 @@ def run_driver(node: str) -> dict[str, object]:
     cases = [[f, lam, ang] for ang in ANGLES for lam in LAMBDAS for f in FREQS]
     source = DRIVER.format(
         lib=LIB.as_uri(),
+        setup=SETUP.as_uri(),
         cases=json.dumps(cases),
         lambdas=json.dumps(LAMBDAS),
         angles=json.dumps(ANGLES),
@@ -283,7 +293,7 @@ def main() -> int:
         ("compile -> recognize -> compile is byte-identical", float(len(not_identical)), 0.0),
         (f"edited rows stop being recognized ({len(tamper)} edits)", float(len(still_recognized)), 0.0),
         (f"invariant conflicts reported ({len(conflicts)} configs)", float(len(miscounted)), 0.0),
-        (f"pair shapes read or set aside, never refused ({len(pairs)} cases)", float(len(bad_pairs)), 0.0),
+        (f"pair shapes read or refused, never carried in part ({len(pairs)} cases)", float(len(bad_pairs)), 0.0),
         (f"presets round-trip and exclude head size ({len(presets)} cases)", float(len(bad_presets)), 0.0),
     ]
     failed = False

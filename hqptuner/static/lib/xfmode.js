@@ -26,7 +26,7 @@
 import { signal } from "@preact/signals";
 
 import { compileRows, recognizeRows, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
-import { blockConflicts, pairInfo } from "./binaural-setup.js";
+import { blockConflicts, pairInfo, REFUSAL } from "./binaural-setup.js";
 import { effective, effectivePipelines, pipelineBaseline } from "../store/resolve.js";
 import { stagePipelines, edit } from "../store/actions.js";
 // Upward, deliberately: the compensation block is recognized against the LIVE
@@ -97,31 +97,33 @@ export function conflicts() {
   return blockConflicts(effective);
 }
 
-// Install or update the block. Always installs — never refuses. Returns a note
-// when the rows it took over could not be read as a headphone EQ pair, so the
-// block installs carrying no EQ of its own.
+// Install or update the block, or REFUSE. Returns null when the block is in, and
+// the refusal note when the rows it was pointed at are not a stereo pair it can
+// carry — see `pairInfo`.
+//
+// A refusal stages nothing whatever: not the rows, not the row count, and not
+// the conflict fixes an install writes alongside them. The rows are left as they
+// were found, EQ included, so a call that reports it did nothing has done
+// nothing.
 export function stageStructural(rows, params) {
   const rec = structuralBlock(rows);
   let eqProcess;
   let preampDb;
-  let note = null;
   if (rec) {
     eqProcess = rec.eqProcess;
     preampDb = rec.preampDb;
   } else {
     const pair = pairInfo(rows);
+    if (pair.refused) return REFUSAL;
     eqProcess = pair.eq;
     preampDb = pair.gain;
-    if (pair.setAside) {
-      note = `${pair.setAside} — they have been set aside, and the block carries no EQ of its own.`;
-    }
   }
   const next = [...compileRows({ ...params, srcA: 0, srcB: 1, preampDb, eqProcess }), ...rows.slice(rec ? 16 : 2)];
   stagePipelines(next);
   edit("pipelines", String(next.length));
   for (const c of conflicts()) edit(c.key, c.required);
   remember(params);
-  return note;
+  return null;
 }
 
 // The Structural gate's dirty state. The gate is ENGAGE/BYPASS, so the question

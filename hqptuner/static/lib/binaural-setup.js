@@ -1,8 +1,8 @@
 // Installation-side surface of the structural crossfeed block: the settings it
 // cannot coexist with, what it carries in from the rows it replaces, and the
 // named control points offered for it. Split from binaural.js for the
-// file-length gate; binaural.js re-exports these four names, so the block keeps
-// a single import site.
+// file-length gate; binaural.js holds the maths, this file the install surface,
+// and callers import from whichever they need.
 //
 // Like binaural.js, this module imports NOTHING — that is what lets the
 // binaural tests run under plain node with no shim.
@@ -57,33 +57,57 @@ export function blockConflicts(effective) {
 
 // --- what the block compiles from -------------------------------------------
 
-// What the block should carry in from rows 0+1, and whether it could read them.
+// What the block carries in from the rows it takes over, or a refusal.
 //
-// This NEVER refuses — blocking the mode switch on an issue would be wrong
-// twice: the round trip such a guard protects in the compensation block is
-// guaranteed here by stashing the original rows instead; and a control that
-// silently declines to go where the user pointed it is worse than one that
-// goes and explains.
+// The install is all-or-nothing, and this is the half that decides. A starting
+// point the block cannot carry is REFUSED, not carried in partially: the
+// alternative — installing an EQ-less block over rows that had EQ on them —
+// destroys settings the user already had, which is not honouring their action
+// but doing something they never asked for. Refusing costs them a click;
+// installing over the top costs them their tuning.
 //
-// A straight-through dB pair hands its chains and gains to the block, per ear.
-// Anything else is SET ASIDE — the block installs with no EQ of its own, the
-// original rows are stashed verbatim, and Turn off puts them back untouched.
+// Readable means a plain stereo pair: two rows, each routed from a source to
+// its own matching mixdown, with a gain the block can carry as a preamp. Ears
+// come off the SOURCE channel, never off row position. Gains marked dB carry as
+// they stand; gains marked Lin convert, which is undefined at or below zero.
+// Rows past the pair ride along untouched, so none of them may write into a
+// mixdown the block owns.
+export const REFUSAL =
+  "/!\\ Structural crossfeed requires a stereo starting point. Ensure the first two pipelines route to themselves.";
+
+const refused = () => ({ refused: true });
+
+// A row's gain in dB, or null when it has none the block can carry.
+//
+// Snapped to the 1e-3 dB grid the block's preamp lives on. `recognizeRows` snaps
+// to that grid and then re-derives all sixteen gains from the snapped value at a
+// far tighter tolerance, so a preamp compiled off-grid produces a block that is
+// not recognized as one — installed and instantly invisible. A converted linear
+// gain lands off-grid almost always, an entered dB gain occasionally, and both
+// come back out through `removeStructural` at this same precision anyway.
+const snapDb = (v) => Math.round(v * 1000) / 1000;
+
+function gainDb(row) {
+  const raw = Number(row.gain);
+  if (!Number.isFinite(raw)) return null;
+  if (row.gainunit === "dB") return snapDb(raw);
+  return raw > 0 ? snapDb(20 * Math.log10(raw)) : null;
+}
+
 export function pairInfo(rows) {
   const [a, b] = rows;
-  const aside = (why) => ({
-    eq: { left: "", right: "" },
-    gain: { left: 0, right: 0 },
-    setAside: why,
-  });
-  if (!a || !b) return aside("there was nothing on pipelines 1+2");
+  if (!a || !b) return refused();
   const straight = (x, ch) => x.source === ch && x.mixdown === ch;
-  const pair = (l, r) =>
-    l.gainunit === "dB" && r.gainunit === "dB"
-      ? { eq: { left: l.process, right: r.process }, gain: { left: Number(l.gain), right: Number(r.gain) } }
-      : aside("pipelines 1+2 use linear gain, which the block cannot carry as a preamp");
-  if (straight(a, "0") && straight(b, "1")) return pair(a, b);
-  if (straight(a, "1") && straight(b, "0")) return pair(b, a);
-  return aside("pipelines 1+2 do not route straight through");
+  let l;
+  let r;
+  if (straight(a, "0") && straight(b, "1")) [l, r] = [a, b];
+  else if (straight(a, "1") && straight(b, "0")) [l, r] = [b, a];
+  else return refused();
+  if (rows.slice(2).some((x) => x.mixdown === "0" || x.mixdown === "1")) return refused();
+  const left = gainDb(l);
+  const right = gainDb(r);
+  if (left === null || right === null) return refused();
+  return { eq: { left: l.process, right: r.process }, gain: { left, right } };
 }
 
 // --- presets -----------------------------------------------------------------
