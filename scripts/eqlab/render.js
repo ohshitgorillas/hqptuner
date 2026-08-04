@@ -246,6 +246,10 @@ function renderExport(out) {
   return `wrote ${out.filters} filter(s) -> ${out.path}\npreamp: ${out.preamp_db.toFixed(2)} dB (${out.preamp_source})${skipped}`;
 }
 
+function renderPlot(out) {
+  return `wrote plot -> ${out.path}\nseries: ${out.series.join(", ")}`;
+}
+
 const BODY = {
   probe: renderProbe,
   evaluate: renderEvaluate,
@@ -254,6 +258,7 @@ const BODY = {
   diff: renderDiff,
   snapshot: renderSnapshot,
   export: renderExport,
+  plot: renderPlot,
 };
 
 /** Full stderr report for a finished job. */

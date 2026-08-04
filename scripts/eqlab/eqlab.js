@@ -40,7 +40,10 @@
 //              | {"kind":"snapshot","save":"name","overwrite":false}            // write chain to the snapshot store
 //              | {"kind":"snapshot","list":true}                                // list the store (needs no chain)
 //              | {"kind":"export","path":"eq.txt","format":"parametric_eq",
-//                 "overwrite":false} }                                          // write REW / EQ APO text file
+//                 "overwrite":false}                                            // write REW / EQ APO text file
+//              | {"kind":"plot","path":"out.svg","show":["residual"],           // render curves to a self-contained SVG
+//                 "against":{...chain spec...},"range":[20,20000],"y":[-6,6],   // series: response target residual terrain
+//                 "overwrite":false} }                                          // (grammar and defaults in plot.js)
 //
 // A search space's `amend`, `replace`, and `append` each take a LIST of change
 // specs; every spec contributes one concrete change per candidate, crossed
@@ -103,6 +106,7 @@ import { resolveChain } from "./chain.js";
 import { exportJob, snapshotJob } from "./io.js";
 import { diffJob, evaluateJob, probe } from "./jobs.js";
 import { curveOf, F_HI, F_LO, GRID_N, resolveMetricSpecs } from "./metrics.js";
+import { plotJob } from "./plot.js";
 import { render } from "./render.js";
 import { refineJob, searchJob } from "./search.js";
 import { MAX_COMBOS, MAX_STEPS } from "./space.js";
@@ -116,6 +120,7 @@ const KINDS = {
   diff: diffJob,
   snapshot: snapshotJob,
   export: exportJob,
+  plot: plotJob,
 };
 
 // What this rig can and cannot do, on every run. `guards` are runaway stops to
