@@ -12,25 +12,21 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Matrix profiles now keep their crossfeed, DAC correction and loudness.** Saving a profile stored only its pipeline rows, so loading one handed back less than was saved. A profile saved from now on carries the whole matrix. Profiles saved before this keep nothing — save over them once to give them a chain.
 
+- **Engaging structural crossfeed can no longer wipe your EQ.** Over pipelines it could not read as a plain stereo pair, it used to install anyway and throw the EQ away. It now leaves your pipelines exactly as they are and says so.
+
+- **The mouse wheel no longer changes any control's value.** It was blocked only on a control you had not clicked — a clicked slider still moved under the wheel, and dropdowns took it everywhere. The wheel now scrolls the page over every slider, number box and dropdown.
+
+- **Setting a control back to where it started no longer leaves an edit staged.** The pending count already read zero, but the value still rode the next Apply and restarted the engine to write what it already had.
+
 ### Changed
 
 - **A bypassed matrix engine grays what it bypasses.** Crossfeed, DAC correction and loudness all run inside the matrix, so they did nothing while the engine was on BYPASS and nothing said so. Their controls are now disabled with the reason, and the three cards carry a note. The pipeline table stays editable.
 
 - **Engaging crossfeed, DAC correction or loudness no longer switches the matrix engine on.** The matrix switch also carries channel routing, and it is the user's to set. Engage the engine yourself when a card says it is bypassed.
 
-- **Matrix profile card notes rewritten in plain language.** The Load and Save notes now state what each does bluntly. The "live — no reload" status chip is gone.
-
-- **Matrix profile card rows realigned.** The active profile, load and save rows now use the same label-and-control layout as the rest of the tab.
+- **Matrix profile card cleaned up.** The Load and Save notes now state what each does bluntly, the "live — no reload" status chip is gone, and the active profile, load and save rows use the same label-and-control layout as the rest of the tab.
 
 - **The crossfeed lens is now a button.** "∿ what you hear" on the Crossfeed card turns it on and off. It used to draw itself whenever crossfeed was running.
-
-### Fixed
-
-- **Engaging structural crossfeed can no longer wipe your EQ.** Over pipelines it could not read as a plain stereo pair, it used to install anyway and throw the EQ away. It now leaves your pipelines exactly as they are and says so.
-
-- **The mouse wheel no longer changes any control's value.** It was blocked only on a control you had not clicked — a clicked slider still moved under the wheel, and dropdowns took it everywhere. The wheel now scrolls the page over every slider, number box and dropdown.
-
-- **Setting a control back to where it started no longer leaves an edit staged.** The pending count already read zero, but the value still rode the next Apply and restarted the engine to write what it already had.
 
 ## [1.1.1] — 2026-08-03
 
