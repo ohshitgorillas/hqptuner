@@ -26,6 +26,18 @@ export function collapseFrom(auto, override) {
   return { open, onToggle: () => (override.value = !open) };
 }
 
+// The head bar. A collapsible card's head IS the toggle, so it renders as a
+// `<button>` carrying the open/closed triangle; every other card's head is a
+// plain `<div>`.
+function cardHead({ title, collapse, open, headCls }) {
+  if (collapse) {
+    return html`<button type="button" class=${headCls} onClick=${collapse.onToggle}>
+      <span class="tri">${open ? "▾" : "▸"}</span> ${title}
+    </button>`;
+  }
+  return html`<div class=${headCls}>${title}</div>`;
+}
+
 // `title` may be a string or markup — a head with a badge or a count needs no
 // API of its own. `hint` is the section's tooltip: it cannot be called `title`
 // because that name is already the head content.
@@ -52,11 +64,7 @@ export function Card({ title, subtitle, collapse, center, cardClass, bodyClass, 
   const open = !collapse || collapse.open;
   const headCls = ["card-head", center ? "center" : null, headClass].filter(Boolean).join(" ");
   const sub = subtitle ? html`<span class="card-sub t-caption">${subtitle}</span>` : null;
-  const head = collapse
-    ? html`<button type="button" class=${headCls} onClick=${collapse.onToggle}>
-        <span class="tri">${open ? "▾" : "▸"}</span> ${title}
-      </button>`
-    : html`<div class=${headCls}>${title}</div>`;
+  const head = cardHead({ title, collapse, open, headCls });
   // .card.closed does the collapsed styling; there is no .card.open rule and none is wanted.
   // class-exempt: "open" is the DOM's record of collapse state — the tab tests read it back.
   const cls = ["card", cardClass, collapse ? (open ? "open" : "closed") : null].filter(Boolean).join(" ");

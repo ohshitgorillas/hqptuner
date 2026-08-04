@@ -36,6 +36,11 @@ export default [
       "build/**",
       "dist/**",
       "mutants/**",
+      // Agent worktrees are whole duplicate checkouts parked inside the
+      // gitignored dev-tooling directory. Linting a second copy of the app can
+      // only report the same files twice or, as it did, fail on a copy pinned to
+      // an older commit — never a finding about this tree's source.
+      ".claude/worktrees/**",
       "**/*.mjs",
     ],
   },
