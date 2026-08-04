@@ -38,7 +38,7 @@ Everything else — search width, step size, pass count, metric definitions, bat
 
 `"standard"` = named preset (bass_50_150, oomph_80_160, mud_200_400, mid_400_1500, treble_4k_10k, v_db, ripple_150_1000, spread_A2_G4). `{"preset":"standard", …more}` extends it. Custom panel: `{"name":{"kind":…,…}}`.
 
-Kinds: `max min mean at` (range/f), `ripple slope prominence note_spread` (shape), `expr` (expression; funcs `mean(a,b) max(a,b) min(a,b) at(f)`, ops `+ - * /`, unary `-`, parens; may reference earlier-declared metric names), and target-relative `rmse maxdev maxdev_signed mean_signed` (need `job.target`; `"domain":"erb"` weights rmse/mean_signed by ERB-rate density instead of log-uniform).
+Kinds: `max min mean at` (range/f), `ripple slope prominence note_spread` (shape), `expr` (expression; funcs `mean(a,b) max(a,b) min(a,b) at(f)`, ops `+ - * /`, unary `-`, parens; may reference earlier-declared metric names), and target-relative `rmse maxdev maxdev_signed mean_signed` (need `job.target`; `"domain":"erb"` weights rmse/mean_signed by ERB-rate density instead of log-uniform). `rmse` also accepts `side: "above" | "below"` — scores only deviation on that side of the target (the other side contributes zero but stays in the mean's denominator); use it when an objective must price unserved peaks without paying for valleys.
 
 `prominence` = peak height above the straight line joining the range edges (colouration), distinct from `max` (plateau, sets preamp).
 
@@ -70,7 +70,6 @@ Transforms in fixed order: smooth, tilt, override, align (default `mean` — pre
 - **diff** — `"against":{…chain spec…}`; deltas B−A: metric deltas, summed-response residual, band pairing by exact f, note deltas.
 - **snapshot** — `{"save":"name","overwrite":false}` writes chain JSON to `data/eqlab/`; `{"list":true}` needs no chain.
 - **export** — `{"path":"eq.txt","format":"parametric_eq","overwrite":false}`; Preamp line computed from the summed response.
-
 ### Change semantics
 
 - `amend.select` matches an existing band's `f` EXACTLY — no nearest-match; not-found or non-unique is an error.

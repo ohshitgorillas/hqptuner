@@ -192,6 +192,18 @@ function weightedMean(pts, wf) {
   return s / sw;
 }
 
+// One-sided scoring for target-relative kinds: "above" keeps only excess over
+// the target, "below" only shortfall. Zeroed points still count in the mean's
+// denominator — the metric prices unserved deviation on one side without
+// paying for the other, which is what lets an objective demand full peak
+// service while leaving valleys to explicit guards.
+function sideClip(dev, side) {
+  if (side === undefined) return dev;
+  if (side === "above") return Math.max(dev, 0);
+  if (side === "below") return Math.min(dev, 0);
+  throw new Error(`unknown side "${side}" (above or below)`);
+}
+
 function maxDev(curve, target, spec, signed) {
   const pts = deviation(curve, needTarget(target, signed ? "maxdev_signed" : "maxdev"), spec.range);
   let best = pts[0];
@@ -229,7 +241,10 @@ const KINDS = {
   rmse: (curve, spec, _vars, target) => ({
     value: Math.sqrt(
       weightedMean(
-        deviation(curve, needTarget(target, "rmse"), spec.range).map((p) => ({ f: p.f, val: p.dev * p.dev })),
+        deviation(curve, needTarget(target, "rmse"), spec.range).map((p) => {
+          const d = sideClip(p.dev, spec.side);
+          return { f: p.f, val: d * d };
+        }),
         weightOf(spec.domain),
       ),
     ),
