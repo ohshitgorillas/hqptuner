@@ -48,6 +48,26 @@ function parseObjective(text) {
   return { direction: m[1].toLowerCase(), ast: parse(m[2]), expr: m[2].trim() };
 }
 
+const SWEEP_KEYS = ["amend", "replace", "append"];
+
+// Fail fast on a missing or empty space. Without this, a sweep spec misplaced
+// at job level (job.replace instead of job.space.replace) is silently ignored
+// and the failure only surfaces later as refine's misleading "nothing to
+// refine" — so name the real problem before any grid work starts.
+function checkSpace(job) {
+  const space = job.space;
+  if (!space || typeof space !== "object" || Array.isArray(space)) {
+    const misplaced = space === undefined ? SWEEP_KEYS.filter((k) => job[k] !== undefined) : [];
+    const hint = misplaced.length
+      ? ` — found ${misplaced.map((k) => `"${k}"`).join(" and ")} directly under job; sweep specs belong under job.space`
+      : "";
+    throw new Error(`search: job.space must be an object declaring the sweep (amend / replace / append)${hint}`);
+  }
+  if (!SWEEP_KEYS.some((k) => asList(space[k]).length))
+    throw new Error("search: job.space declares no changes — give at least one non-empty amend, replace, or append");
+  return space;
+}
+
 // "objective" and "pareto" are mutually exclusive: a scalar ranking of a
 // multi-objective space is exactly the false ordering pareto exists to avoid.
 function parseObjectives(job) {
@@ -366,8 +386,9 @@ function paretoResult(survived, keep, rspec, job, measure, ctx, spec, constraint
 
 export function searchJob(job, ctx) {
   const spec = parseObjectives(job);
+  const space = checkSpace(job);
   const constraints = job.constraints || [];
-  const combos = candidates(job.space || {});
+  const combos = candidates(space);
   const measure = makeMeasurer(ctx, combos[0]);
   const { rejected, rejects, sole, survived } = sweep(combos, measure, ctx, spec, constraints);
   const keep = job.top ?? 10;
