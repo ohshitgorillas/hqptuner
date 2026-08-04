@@ -389,28 +389,38 @@ test("test_no_fragment_of_a_long_profile_name_survives_into_the_chain_bar", () =
 
 // --- post-process slot ------------------------------------------------------
 // Crossfeed and loudness share one slot: both on collapses to a single "DSP"
-// chip rather than crowding the panel with two.
+// chip rather than crowding the panel with two. The slot's labels are observed
+// under an ENGAGED matrix — <post_process> nests inside <matrix>
+// (hqplayerd-readme.txt §1.11.2), so a bypassed matrix carrying an enabled
+// post-process plugin is not a state the daemon can be in.
 
 test("test_crossfeed_alone_shows_a_crossfeed_chip", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { crossfeed: true } })).Crossfeed, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true } })).Crossfeed, "On");
 });
 
 test("test_loudness_alone_shows_a_loudness_chip", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { loudness: true } })).Loudness, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, loudness: true } })).Loudness, "On");
 });
 
 test("test_crossfeed_and_loudness_together_collapse_to_one_dsp_chip", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { crossfeed: true, loudness: true } })).DSP, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } })).DSP, "On");
 });
 
 test("test_the_collapsed_slot_replaces_the_individual_crossfeed_chip", () => {
-  const out = panel({ ...PLAY, matrix: { crossfeed: true, loudness: true } });
-  assert.equal("Crossfeed" in chips(out), false);
+  const out = panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } });
+  assert.equal(has(out, "Crossfeed"), false);
 });
 
-test("test_neither_post_process_shows_no_slot", () => {
-  const found = chips(panel(PLAY));
-  assert.ok(!("DSP" in found) && !("Crossfeed" in found) && !("Loudness" in found));
+test("test_neither_post_process_shows_no_dsp_chip", () => {
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "DSP"), false);
+});
+
+test("test_neither_post_process_shows_no_crossfeed_chip", () => {
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "Crossfeed"), false);
+});
+
+test("test_neither_post_process_shows_no_loudness_chip", () => {
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "Loudness"), false);
 });
 
 // --- DAC correction ---------------------------------------------------------
@@ -477,4 +487,36 @@ test("test_the_stopped_output_chip_is_both_the_hero_and_a_dash", () => {
 test("test_a_chip_that_is_neither_hero_nor_placeholder_carries_no_empty_class_slots", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
   assert.equal(chipClass(out, "Filter"), "chip");
+});
+
+// --- post-process runs only inside an engaged matrix -------------------------
+// <post_process> nests inside <matrix> (hqplayerd-readme.txt §1.11 / §1.11.2)
+// and the matrix `enabled` switch is the whole matrix processing switch, so a
+// bypassed matrix runs no post-process plugin whatever the plugin enables say.
+// The bar must not advertise a stage the daemon is not running.
+
+test("test_a_bypassed_matrix_shows_no_loudness_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, loudness: true } });
+  assert.equal(has(out, "Loudness"), false);
+});
+
+test("test_a_bypassed_matrix_shows_no_crossfeed_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, crossfeed: true } });
+  assert.equal(has(out, "Crossfeed"), false);
+});
+
+test("test_a_bypassed_matrix_shows_no_dsp_chip", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: false, crossfeed: true, loudness: true } });
+  assert.equal(has(out, "DSP"), false);
+});
+
+// The gate must remove one chip, not empty the bar or drop the chain into the
+// bit-perfect pass-through: the rest of the conversion chain still renders.
+test("test_a_bypassed_matrix_with_loudness_still_shows_the_rest_of_the_chain", () => {
+  const out = panel({
+    ...PLAY,
+    status: { active_rate: "705600", active_filter: "sinc-M" },
+    matrix: { loudness: true },
+  });
+  assert.equal(chips(out).Filter, "sinc-M");
 });

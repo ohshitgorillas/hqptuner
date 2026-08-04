@@ -4,7 +4,12 @@
 // Output. The mapping is sourced from the k= fields each tab component actually
 // renders — keep these sets in sync with tabs/*.js and ResamplingTab.js. The DSP
 // tab ("matrix") is the fallback: the remaining dsp-group fields (crossfeed_*,
-// matrix_*) light it without being enumerated.
+// matrix_*, pipelines) light it without being enumerated.
+//
+// Harvesting k= only finds keys rendered through Field, so a bespoke component's
+// keys are invisible to it and fall silently through to the DSP tab — which is
+// how the VolumeRangeBar trio below went missing. tabmap.test.js pins the DSP set
+// literally so the next one fails a test instead of accenting the wrong tab.
 import { computed } from "@preact/signals";
 import { schema } from "./schema.js";
 import { isDirty } from "./resolve.js";
@@ -55,6 +60,10 @@ const TAB_KEYS = {
     "loudness_high_type",
     "loudness_range_low",
     "loudness_range_high",
+    // VolumeRangeBar — a bespoke component, not Field, so the k= harvest missed these.
+    "volume_min",
+    "volume_max",
+    "startup_volume",
   ]),
   resampling: new Set([
     "pcm_filter_1x",

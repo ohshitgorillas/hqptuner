@@ -6,6 +6,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Volume range edits now accent the Volume tab.** Moving the minimum, maximum or startup volume lit the DSP tab instead, so an unapplied change looked like it belonged somewhere it wasn't.
+
+- **The signal path no longer shows crossfeed or loudness while the matrix engine is bypassed.** Both plugins run inside the matrix, so a bypassed engine runs neither — but the chain bar kept reading "Loudness: On" off the plugin's own switch. The chip now appears only when the engine is engaged.
+
 - **Matrix profiles now keep their crossfeed, DAC correction and loudness.** Saving a profile stored only its pipeline rows, so loading one handed back less than was saved. A profile saved from now on carries the whole matrix. Profiles saved before this keep nothing — save over them once to give them a chain.
 
 ### Changed

@@ -170,10 +170,18 @@ function chainStages(st, md, playing) {
   const stages = [source];
   // A stage indicator, never a profile readout: profile names run long enough to
   // overrun the chip, so the chip states only that a matrix is in the path.
-  if (on(runningValue("matrix_enabled"))) {
+  const matrixOn = on(runningValue("matrix_enabled"));
+  if (matrixOn) {
     stages.push({ label: "Matrix", value: "On" });
   }
-  const post = postProcessStage(on(runningValue("crossfeed_enabled")), on(runningValue("loudness_enabled")));
+  // `<post_process>` nests inside `<matrix>` (readme §1.11.2), so a bypassed
+  // engine runs neither plugin however their own enables read — a config the
+  // daemon reaches easily, since bypassing the matrix leaves the plugin switches
+  // alone. Same rule as the pass-through above: never advertise a stage that is
+  // not running.
+  const post = matrixOn
+    ? postProcessStage(on(runningValue("crossfeed_enabled")), on(runningValue("loudness_enabled")))
+    : null;
   if (post) stages.push(post);
   stages.push(...conversionStages(st, md));
   if (st.correction === "1") stages.push({ label: "Correction", value: "On" });
