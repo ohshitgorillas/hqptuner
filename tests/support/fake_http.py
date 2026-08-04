@@ -333,13 +333,18 @@ def state(**extra: Any) -> dict[str, Any]:
             {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
             {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
         ],
-        # saved profiles as the config file carries them (name -> raw attr rows) —
-        # the only place the daemon ever reads a profile from, so one ships here
+        # saved profiles as the config file carries them (name -> raw attr rows plus
+        # the profile's own raw <plugin> attrs) — the only place the daemon ever
+        # reads a profile from, so one ships here. "Stock" predates profiles storing
+        # a chain, so it carries none: the ordinary state of an already-saved profile.
         "_profiles": {
-            "Stock": [
-                {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
-                {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
-            ]
+            "Stock": {
+                "rows": [
+                    {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
+                    {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
+                ],
+                "plugins": [],
+            }
         },
         # /matrix page state: saved profile names (datalist), the printed active
         # label, and pipeline 0's process chain
@@ -350,6 +355,10 @@ def state(**extra: Any) -> dict[str, Any]:
         "post_bauer_frequency": "700",
         "post_loudness_enabled": False,
         "post_loudness_lowfreq": "80",
+        # DAC correction: off, with no filter file picked. dac0 reads empty right
+        # after a matrix reload too, while the output device re-discovers.
+        "post_correction_enabled": False,
+        "post_correction_dac0": "",
         "cuda": "1",
         "cuda_dev": "-1",
         "multicore": "1",

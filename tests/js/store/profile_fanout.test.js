@@ -35,6 +35,9 @@ afterEach(() => {
 // A canonical pipeline row, the shape rows travel in everywhere.
 const ROW = (gain) => ({ gain, gainunit: "dB", mixdown: "0", process: "", source: "0" });
 
+// A stored profile as the config carries it: rows plus its own post-process chain.
+const PROF = (rows, post = {}) => ({ rows, post });
+
 async function reset(m = {}) {
   stagingWire();
   engineState.value = {};
@@ -85,7 +88,7 @@ test("test_a_delete_with_presets_stages_a_json_object_naming_them", async () => 
 });
 
 test("test_a_targeted_delete_still_removes_the_name_from_the_picker", async () => {
-  await reset({ file_profiles: { X: [ROW("-1")], Kept: [ROW("-2")] } });
+  await reset({ file_profiles: { X: PROF([ROW("-1")]), Kept: PROF([ROW("-2")]) } });
   await stageProfileDelete("X", ["Office"]);
   assert.deepEqual(savedProfiles.value, ["Kept"]);
 });

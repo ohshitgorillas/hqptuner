@@ -77,15 +77,41 @@ def in_comment(xml: bytes, pos: int) -> bool:
     return xml.rfind(b"<!--", 0, pos) > xml.rfind(b"-->", 0, pos)
 
 
+#: A whole stored ``<matrix_profile>`` element (readme §1.12), self-closing or
+#: not. A profile is a stored matrix, so it carries ``<pipeline>`` rows and a
+#: ``<post_process>`` chain of its own — elements that share their tag names
+#: with the live matrix's.
+_STORED_PROFILE_RE = re.compile(
+    rb"<matrix_profile\b(?:[^>]*/>|[^>]*>.*?</matrix_profile>)",
+    re.DOTALL,
+)
+
+
+def _stored_profile_spans(xml: bytes) -> list[tuple[int, int]]:
+    return [m.span() for m in _STORED_PROFILE_RE.finditer(xml)]
+
+
 def live_tags(xml: bytes, tag_name: str) -> Iterator[re.Match[bytes]]:
-    """Every ``<tag_name ...>`` open tag that is NOT inside an XML comment.
+    """Every ``<tag_name ...>`` open tag that is NOT inside an XML comment and
+    NOT inside a stored ``<matrix_profile>``.
 
     hqplayerd parks superseded elements in comments and leaves them ABOVE the
     live one (a real config carries a commented ``<alsa .../>`` from a previous
     device). A first-match locator lands in that comment: the read reports a dead
     device, the write edits dead bytes, and since the readback re-reads the same
-    comment the apply verifies as converged while nothing changed."""
-    return (m for m in open_tag_re(tag_name).finditer(xml) if not in_comment(xml, m.start()))
+    comment the apply verifies as converged while nothing changed.
+
+    A stored profile is the same trap without the comment. Profiles are written
+    AHEAD of ``<matrix>``, so once one carries its own ``<post_process>`` the
+    first live ``<plugin>`` in the document belongs to the profile, not to the
+    matrix that is playing — every plugin read and every plugin write would land
+    in the stored copy."""
+    spans = _stored_profile_spans(xml)
+    return (
+        m
+        for m in open_tag_re(tag_name).finditer(xml)
+        if not in_comment(xml, m.start()) and not any(s <= m.start() < e for s, e in spans)
+    )
 
 
 def find_element(xml: bytes, tag_name: str) -> re.Match[bytes] | None:

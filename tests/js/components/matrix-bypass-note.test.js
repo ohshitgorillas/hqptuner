@@ -19,18 +19,17 @@
 // be unapplied, so a bare passthrough pipeline set stays silent even while the
 // engine is bypassed.
 //
-// Two exclusions, each with a negative case rather than a silence:
+// One exclusion, with a negative case rather than a silence: the Speakers card.
+// HQPlayer's `<speakers>` element carries its own `enabled` attribute independent
+// of `<matrix enabled>` (hqplayerd-readme.txt §1.9), so the level and distance
+// trims still take effect while the matrix engine is bypassed and the note would
+// be a false claim there.
 //
-//   * the Speakers card. HQPlayer's `<speakers>` element carries its own
-//     `enabled` attribute independent of `<matrix enabled>`
-//     (hqplayerd-readme.txt §1.9), so the level and distance trims still take
-//     effect while the matrix engine is bypassed and the note would be a false
-//     claim there.
-//
-//   * the Crossfeed card's Bauer view. Bauer is HQPlayer's own post-process
-//     plugin, not matrix rows, and whether `<matrix enabled="0">` stops
-//     post-process plugins is undocumented. Nothing here asserts anything about
-//     the Bauer view beyond the absence of THIS note.
+// The Crossfeed card's Bauer view takes the note in both views, and
+// matrix-postprocess-gating.test.js is where that is pinned: `<post_process>`
+// nests inside `<matrix>` (§1.11.2) and §1.11's `enabled` is the matrix
+// processing switch, so a bypassed matrix runs the Bauer plugin no more than it
+// runs structural rows.
 //
 // Policy (docs/testing.md): public API only, one assertion per test. Every case
 // renders the exported `MatrixTab` or the exported `SpeakersCard`, driven by the
@@ -277,17 +276,11 @@ test("test_an_engaged_matrix_engine_leaves_the_headphone_auto_eq_card_without_th
 // the Crossfeed card
 // ============================================================================
 // Structural crossfeed IS matrix pipeline rows, so a bypassed engine takes it
-// out of the signal path with everything else. Bauer is a post-process plugin
-// and gets no note.
+// out of the signal path with everything else.
 
 test("test_a_bypassed_matrix_engine_tells_the_structural_crossfeed_view_its_settings_are_inert", async () => {
   await reset({ on: "0", rows: STRUCTURAL(), view: "structural" });
   assert.equal(noteIn(crossfeedCard(tab())), true);
-});
-
-test("test_a_bypassed_matrix_engine_leaves_the_bauer_crossfeed_view_without_the_note", async () => {
-  await reset({ on: "0", rows: ROWS, view: "bauer" });
-  assert.equal(noteIn(crossfeedCard(tab())), false);
 });
 
 test("test_an_engaged_matrix_engine_leaves_the_structural_crossfeed_view_without_the_note", async () => {

@@ -86,7 +86,8 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
             for i, p in enumerate(st["_pipelines"])
         )
         + "<post_process>"
-        '<plugin type="correction" enabled="0" dac0=""/>'
+        f'<plugin type="correction" enabled="{_b(st["post_correction_enabled"])}" '
+        f'dac0="{st["post_correction_dac0"]}"/>'
         f'<plugin type="bauer" enabled="{_b(st["post_bauer_enabled"])}" '
         f'frequency="{st["post_bauer_frequency"]}" preset="default" level="4.5"/>'
         f'<plugin type="loudness" enabled="{_b(st["post_loudness_enabled"])}" '
@@ -132,33 +133,51 @@ def _adopt_matrix(st: dict[str, Any], xml: bytes) -> None:
     _adopt_profiles(st, xml)
 
 
+def _attrs(tag: bytes) -> dict[str, str]:
+    return {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', tag)}
+
+
 def _adopt_profiles(st: dict[str, Any], xml: bytes) -> None:
     """Adopt the ``<matrix_profile>`` elements of an uploaded config — the daemon
     re-reading the saved profiles from its config file, which is the only way it
-    ever learns one (its own /matrix/save keeps them in memory, round 5). Rows are
-    kept as raw attribute strings, like the live table, so the next /backup serves
-    back exactly what the writer produced."""
+    ever learns one (its own /matrix/save keeps them in memory, round 5). A profile
+    is a whole matrix context: its pipeline rows AND its own ``<post_process>``
+    chain (readme §1.11.2 nests the chain inside the matrix, and a profile is a
+    stored matrix). Both are kept as raw attribute strings, like the live table, so
+    the next /backup serves back exactly what the writer produced."""
     st["_profiles"] = {
-        m.group(1).decode(): [
-            {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
-            for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(2))
-        ]
+        m.group(1).decode(): {
+            "rows": [_attrs(pm.group(0)) for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(2))],
+            "plugins": [_attrs(pm.group(0)) for pm in re.finditer(rb"<plugin\b[^>]*?>", m.group(2))],
+        }
         for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.S)
     }
 
 
+def _render_profile_plugins(plugins: list[dict[str, str]]) -> str:
+    """A stored profile's post-process chain, verbatim from the adopted attribute
+    strings. A profile that carries no chain gets no ``<post_process>`` element at
+    all — the daemon writes the elements it has, and a profile saved before chains
+    were stored simply has none."""
+    if not plugins:
+        return ""
+    body = "".join("<plugin " + " ".join(f'{k}="{v}"' for k, v in p.items()) + "/>" for p in plugins)
+    return f"<post_process>{body}</post_process>"
+
+
 def _render_profiles(st: dict[str, Any]) -> str:
     """The saved profiles as the daemon writes them: siblings of ``<matrix>``,
-    ahead of it, each holding its own pipeline rows."""
+    ahead of it, each holding its own pipeline rows and its own plugin chain."""
     return "".join(
         f'<matrix_profile name="{name}">'
         + "".join(
             f'<pipeline channel="{i}" gain="{p["gain"]}" mixdown="{p["mixdown"]}" '
             f'process="{p["process"]}" source="{p["source"]}"/>'
-            for i, p in enumerate(rows)
+            for i, p in enumerate(prof["rows"])
         )
+        + _render_profile_plugins(prof["plugins"])
         + "</matrix_profile>"
-        for name, rows in st["_profiles"].items()
+        for name, prof in st["_profiles"].items()
     )
 
 
@@ -177,27 +196,40 @@ def _adopt_pipelines(st: dict[str, Any], xml: bytes) -> None:
         st["_pipelines"] = rows
 
 
+#: <plugin type> -> XML attribute -> fake state key. Read by the daemon's own
+#: attribute names (low_frequency, frequency, dac0, ...) independently of
+#: presetconf, so a wrong form->XML mapping in the writer surfaces here as a value
+#: that never lands. ``enabled`` is adopted as a bool, every other attr as a string.
+_PLUGIN_ATTRS: dict[bytes, dict[str, str]] = {
+    b"bauer": {"enabled": "post_bauer_enabled", "frequency": "post_bauer_frequency"},
+    b"loudness": {"enabled": "post_loudness_enabled", "low_frequency": "post_loudness_lowfreq"},
+    b"correction": {"enabled": "post_correction_enabled", "dac0": "post_correction_dac0"},
+}
+
+
+def _adopt_plugin_attrs(st: dict[str, Any], tag: bytes, attrs: dict[str, str]) -> None:
+    for attr, key in attrs.items():
+        v = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', tag)
+        if v is not None:
+            st[key] = v.group(1) == b"1" if attr == "enabled" else v.group(1).decode()
+
+
 def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
-    """Adopt post_process plugin attrs from an uploaded config — the daemon
-    re-reading its <plugin> nodes. Reads by XML attribute name (low_frequency,
-    frequency, ...) independently of presetconf, so a wrong form->XML mapping in
-    the writer surfaces here as a value that never lands."""
-    for m in re.finditer(rb"<plugin\b[^>]*?>", xml):
-        tag = m.group(0)
-        if b'type="bauer"' in tag:
-            freq = re.search(rb'\bfrequency="([^"]*)"', tag)
-            enabled = re.search(rb'\benabled="([^"]*)"', tag)
-            if freq:
-                st["post_bauer_frequency"] = freq.group(1).decode()
-            if enabled:
-                st["post_bauer_enabled"] = enabled.group(1) == b"1"
-        elif b'type="loudness"' in tag:
-            lowfreq = re.search(rb'\blow_frequency="([^"]*)"', tag)
-            enabled = re.search(rb'\benabled="([^"]*)"', tag)
-            if lowfreq:
-                st["post_loudness_lowfreq"] = lowfreq.group(1).decode()
-            if enabled:
-                st["post_loudness_enabled"] = enabled.group(1) == b"1"
+    """Adopt the LIVE post_process plugin attrs from an uploaded config — the
+    daemon re-reading the <plugin> nodes of the matrix that is playing.
+
+    Scoped to the ``<matrix>`` element's own body on purpose: a saved
+    ``<matrix_profile>`` carries a ``<post_process>`` chain of its own, and a
+    daemon does not confuse a stored profile with what is running. A scan over
+    every <plugin> in the document would adopt a profile's settings as the live
+    ones and quietly bless a writer that stored the wrong chain."""
+    matrix = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.S)
+    if matrix is None:
+        return
+    for m in re.finditer(rb"<plugin\b[^>]*?>", matrix.group(1)):
+        for ptype, attrs in _PLUGIN_ATTRS.items():
+            if b'type="' + ptype + b'"' in m.group(0):
+                _adopt_plugin_attrs(st, m.group(0), attrs)
 
 
 def _fixed_volume_of(m: re.Match[bytes] | None, default: str | None) -> str | None:

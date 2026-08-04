@@ -45,7 +45,8 @@ async function reset(rows, { active = "[Default]", profiles = [], saved = {}, no
   plottedRows.value = new Set();
   selectedStage.value = null;
   // `profiles` are the names the DAEMON read at startup (a live load can reach
-  // them); `saved` is what the CONFIG carries, name -> rows (persisted, and the
+  // them); `saved` is what the CONFIG carries, name -> {rows, post} (persisted,
+  // and the
   // only source that has rows to stage).
   matrixConfig.value = {
     fields: [],
@@ -139,7 +140,7 @@ test("test_load_targets_the_running_matrix", async () => {
 });
 
 test("test_a_profile_only_the_config_carries_is_offered_in_the_picker", async () => {
-  await reset([ROW({})], { active: "[Default]", profiles: [], saved: { Night: [ROW({})] } });
+  await reset([ROW({})], { active: "[Default]", profiles: [], saved: { Night: { rows: [ROW({})], post: {} } } });
   assert.ok(tab().includes('<option value="Night">Night</option>'));
 });
 

@@ -3,9 +3,10 @@
 // writer outside it.
 //
 // Nothing here reloads the engine. A load is the live 4321 lane and nothing
-// else (MatrixSetProfile: instant, playback undisturbed, post-process
-// untouched), so it lasts until the daemon restarts — HQPlayer's own semantics
-// for the switch. A save or a delete is a staged <matrix_profile> config edit,
+// else (MatrixSetProfile: instant, playback undisturbed), so it lasts until the
+// daemon restarts — HQPlayer's own semantics for the switch. A profile is a
+// whole matrix context, `<post_process>` included (readme §1.11.2), so the
+// switch installs the profile's plugin chain along with its rows. A save or a delete is a staged <matrix_profile> config edit,
 // because hqplayerd registers a saved profile in memory only and never writes
 // the element — a profile saved its way is gone at the next daemon start. Save
 // and Load are therefore one lane each, and neither is ever refused for
@@ -22,6 +23,7 @@ import {
   matrixActiveProfile,
   isLiveProfile,
   profileRows,
+  profilePost,
   presetProfiles,
   stageProfileSave,
   stageProfileDelete,
@@ -39,11 +41,12 @@ const profileBusy = signal("");
 const profileNote = signal("");
 
 // A load is the live switch, and staging is not part of it: the switch already
-// installs the rows in the running engine, so staging them too would only pend a
-// config write whose sole effect at apply is an engine restart that changes
-// nothing. Persisting a matrix is what Save is for. The one profile with no live
-// half is one the daemon has never read — saved in this session, not yet applied
-// — and staging its rows is the only lane it has.
+// installs the whole matrix context — rows and post-process chain — in the
+// running engine, so staging it too would only pend a config write whose sole
+// effect at apply is an engine restart that changes nothing. Persisting a matrix
+// is what Save is for. The one profile with no live half is one the daemon has
+// never read — saved in this session, not yet applied — and staging is the only
+// lane it has, which means staging its chain as well as its rows.
 /** @public — the Load button's action, and the seam the profile suite drives. */
 export async function loadProfile(name) {
   if (!name || isLiveProfile(name)) {
@@ -52,7 +55,7 @@ export async function loadProfile(name) {
     return;
   }
   const rows = profileRows(name);
-  if (rows) await stagePipelines(rows);
+  if (rows) await stagePipelines(rows, profilePost(name) || {});
 }
 
 // Which stored presets the profile verb should also land in. Saving offers
@@ -174,8 +177,8 @@ export function ProfileCard() {
           </button>
         </div>
         <${ProfileNote}>
-          Profiles load live with no engine restart. Matrix profiles include the settings in General and the
-          current pipelines. Structural crossfeed is included; Bauer is not.
+          Profiles load live with no engine restart. A profile holds the whole matrix: the settings in General, the
+          current pipelines, and the crossfeed, DAC correction and loudness that run with them.
         <//>
         </div>
         <div class="field">

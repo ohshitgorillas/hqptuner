@@ -60,7 +60,9 @@ async function reset({ cfg = FREE, mtx = {} } = {}) {
   showDescriptions.value = true;
   keepOptionDescriptions.value = true;
   fastVolumeUpdates.value = false;
-  matrixConfig.value = { fields: formFields(mtx) };
+  // matrix engaged unless a case says otherwise: a bypassed matrix grays the whole
+  // post-process chain, loudness included, which is a different behaviour
+  matrixConfig.value = { fields: formFields({ enabled: true, ...mtx }) };
   config.value = { fields: formFields(cfg), file: {}, active: "", profiles: null };
   await discardAll();
 }

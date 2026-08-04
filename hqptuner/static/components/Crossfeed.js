@@ -96,9 +96,13 @@ function Gate({ rows, active }) {
       issueNote.value = "";
     }
   };
+  // Both views run inside <matrix>: Bauer is a post-process plugin, structural
+  // is sixteen pipeline rows. A bypassed engine runs neither, so the gate is not
+  // a control the user can usefully reach until the engine is engaged.
+  const bypassed = !truthy(effective("matrix_enabled"));
   return html`
     <div class="xfs-gate ${dirty ? "dirty" : ""}">
-      <${Segment} value=${on ? "1" : "0"} options=${GATE_OPTIONS} onChange=${toggle} />
+      <${Segment} value=${on ? "1" : "0"} options=${GATE_OPTIONS} onChange=${toggle} disabled=${bypassed} />
     </div>
   `;
 }
@@ -358,7 +362,7 @@ export function CrossfeedCard() {
       ${
         open
           ? html`<div class="card-body">
-              ${active === "structural" ? html`<${BypassNote} />` : null}
+              <${BypassNote} />
               <div class="xfs-top">
                 <${Gate} rows=${rows} active=${active} />
                 <${Segment}

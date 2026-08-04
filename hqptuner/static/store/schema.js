@@ -86,12 +86,27 @@ const volumeBypassed = (ctx) =>
     ? "Volume min and max are both 0 — volume control is bypassed."
     : "");
 const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.");
+// The outer gate on every post-process control. `<post_process>` nests inside
+// `<matrix>` (readme §1.11.2) and §1.11's `enabled` is the matrix processing
+// switch, so a bypassed matrix runs no plugin in the chain: Bauer crossfeed, DAC
+// correction and loudness are all inert until the engine is engaged. It composes
+// AHEAD of a feature's own reason — a user reading "Enable crossfeed to adjust"
+// under a bypassed engine would enable crossfeed and still hear nothing.
+// One sentence, three consumers: this gate, the card note (MatrixBypassNote) and
+// Field's caption rule below — which shows this reason even on a quietGray field,
+// because the switch that causes it is on another tab and a silently grayed knob
+// leaves the user nothing to read.
+export const MATRIX_BYPASS_REASON = "Matrix engine is bypassed. These settings have no effect.";
+const matrixBypassed = (ctx) => (truthy(ctx.effective("matrix_enabled")) ? "" : MATRIX_BYPASS_REASON);
 // a post-process card's sub-controls gray out until the feature is enabled
-const crossfeedOff = (ctx) => (truthy(ctx.effective("crossfeed_enabled")) ? "" : "Enable crossfeed to adjust.");
+const crossfeedOff = (ctx) =>
+  matrixBypassed(ctx) || (truthy(ctx.effective("crossfeed_enabled")) ? "" : "Enable crossfeed to adjust.");
 // Loudness is volume-ADAPTIVE (manual §7): the applied fraction follows the
 // live volume across the loudness range. A bypassed/fixed volume pins it —
 // at −3/−6 dB (above any sane range upper bound) that means 0% applied, ever.
 const loudnessGated = (ctx) => {
+  const bypassed = matrixBypassed(ctx);
+  if (bypassed) return bypassed;
   const r = volumeBypassed(ctx);
   return r ? `${r} Volume-adaptive loudness cannot adapt — use a Matrix EQ for a volume-agnostic equivalent.` : "";
 };
@@ -627,6 +642,7 @@ export const schema = {
     lane: "http",
     endpoint: "matrix",
     field: "post_bauer_enabled",
+    grayWhen: matrixBypassed,
   },
   crossfeed_preset: {
     label: "Preset",
@@ -677,6 +693,7 @@ export const schema = {
     lane: "http",
     endpoint: "matrix",
     field: "post_correction_enabled",
+    grayWhen: matrixBypassed,
   },
   dac_correction_profile: {
     label: "DAC model",
@@ -687,6 +704,8 @@ export const schema = {
     field: "post_correction_dac0",
     optionsFrom: "matrix",
     wide: true,
+    grayWhen: matrixBypassed,
+    quietGray: true,
   },
   // Loudness plugin (bass/treble shelf-or-peak + loudness range). Fields read
   // from GET /matrix; on apply they ride the restore/XML lane via presetconf's
