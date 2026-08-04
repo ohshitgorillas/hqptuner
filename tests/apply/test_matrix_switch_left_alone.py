@@ -19,6 +19,7 @@ the writer is exercised against documents authored independently of it.
 
 from typing import Any
 
+import pytest
 from fake_config_xml import cfg_xml
 from fake_http import state
 
@@ -31,6 +32,13 @@ BARE = b"<hqplayerd/>"
 
 MATRIX_SWITCH = "matrix_enabled"
 PLUGIN_SWITCH = "post_loudness_enabled"
+
+#: Every plugin the chain carries, one per ``<plugin type=…>`` tag 6.0.4 writes
+#: inside ``<post_process>`` (readme §1.11.2), in the order they appear there.
+#: The switch is one attribute on one of three sibling tags, so a writer that
+#: locates the wrong sibling — or only ever the last one — reads correct against
+#: a single-plugin sweep.
+PLUGIN_SWITCHES = ["post_correction_enabled", "post_bauer_enabled", "post_loudness_enabled"]
 
 
 def cfg(**overrides: Any) -> bytes:
@@ -45,13 +53,15 @@ def switch_after(xml: bytes, edits: dict[str, str]) -> str | None:
 # --- a plugin switched on leaves the carrier alone -----------------------------
 
 
-def test_enabling_a_plugin_leaves_a_bypassed_matrix_bypassed() -> None:
-    assert switch_after(cfg(matrix_enabled=False), {PLUGIN_SWITCH: "1"}) == "0"
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+def test_enabling_a_plugin_leaves_a_bypassed_matrix_bypassed(plugin: str) -> None:
+    assert switch_after(cfg(matrix_enabled=False), {plugin: "1"}) == "0"
 
 
-def test_enabling_a_plugin_under_a_bypassed_matrix_still_lands_the_plugin_switch() -> None:
-    edited = presetconf.apply_edits(cfg(matrix_enabled=False), {PLUGIN_SWITCH: "1"})
-    assert presetconf.read_config(edited)[PLUGIN_SWITCH] == "1"
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+def test_enabling_a_plugin_under_a_bypassed_matrix_still_lands_the_plugin_switch(plugin: str) -> None:
+    edited = presetconf.apply_edits(cfg(matrix_enabled=False, **{plugin: False}), {plugin: "1"})
+    assert presetconf.read_config(edited)[plugin] == "1"
 
 
 def test_enabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix() -> None:
@@ -80,12 +90,14 @@ def test_a_staged_matrix_switch_of_zero_lands_bypassed_alongside_a_plugin_enable
 # --- a plugin switched off leaves the carrier alone too -------------------------
 
 
-def test_disabling_a_plugin_leaves_an_engaged_matrix_engaged() -> None:
-    assert switch_after(cfg(matrix_enabled=True, post_loudness_enabled=True), {PLUGIN_SWITCH: "0"}) == "1"
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+def test_disabling_a_plugin_leaves_an_engaged_matrix_engaged(plugin: str) -> None:
+    assert switch_after(cfg(matrix_enabled=True, **{plugin: True}), {plugin: "0"}) == "1"
 
 
-def test_disabling_a_plugin_leaves_a_bypassed_matrix_bypassed() -> None:
-    assert switch_after(cfg(matrix_enabled=False, post_loudness_enabled=True), {PLUGIN_SWITCH: "0"}) == "0"
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+def test_disabling_a_plugin_leaves_a_bypassed_matrix_bypassed(plugin: str) -> None:
+    assert switch_after(cfg(matrix_enabled=False, **{plugin: True}), {plugin: "0"}) == "0"
 
 
 def test_disabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix() -> None:
@@ -95,17 +107,34 @@ def test_disabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix(
 # --- through a whole apply ------------------------------------------------------
 
 
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
 async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_matrix_bypassed(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
 ) -> None:
     http_daemon["matrix_enabled"] = False
-    await http_manager.applyops.apply({}, {PLUGIN_SWITCH: "1"})
+    http_daemon[plugin] = False
+    await http_manager.applyops.apply({}, {plugin: "1"})
     assert http_daemon["matrix_enabled"] is False
 
 
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_engaged_matrix_engaged(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
+) -> None:
+    # the companion of the bypassed case above: the switch is not merely left at
+    # some fixed value, it is left where the daemon had it. A lane that ignored
+    # the key entirely could satisfy one of the pair, never both.
+    http_daemon["matrix_enabled"] = True
+    http_daemon[plugin] = False
+    await http_manager.applyops.apply({}, {plugin: "1"})
+    assert http_daemon["matrix_enabled"] is True
+
+
+@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
 async def test_an_apply_that_enables_a_plugin_under_a_bypassed_matrix_lands_the_plugin(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
 ) -> None:
     http_daemon["matrix_enabled"] = False
-    await http_manager.applyops.apply({}, {PLUGIN_SWITCH: "1"})
-    assert http_daemon[PLUGIN_SWITCH] is True
+    http_daemon[plugin] = False
+    await http_manager.applyops.apply({}, {plugin: "1"})
+    assert http_daemon[plugin] is True

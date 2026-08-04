@@ -36,9 +36,11 @@
 //
 //   * behaviour 3's "unchanged from today" is asserted forwards rather than
 //     against a snapshot of the old tree: with the matrix ENGAGED, a control
-//     whose own feature gate is off must not be grayed for a matrix reason, and
-//     with every gate engaged nothing is grayed at all. A literal comparison
-//     against pre-change output is not available at run time.
+//     whose own feature gate is off must not be grayed for a matrix reason, must
+//     still be disabled, and must still offer a reason of its own (on hover —
+//     these fields are quietGray); with every gate engaged nothing is grayed at
+//     all. A literal comparison against pre-change output is not available at run
+//     time.
 //
 //   * `grayReason(key)` (store/graying.js) is not called directly: what a user
 //     meets is the rendered field, and the rendered field is where both halves of
@@ -75,7 +77,7 @@ import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
 import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
-import { field, grayReason } from "../support/field-harness.js";
+import { field, grayReason, titleOf } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
 
 const NOTE = "Matrix engine is bypassed. These settings have no effect.";
@@ -130,6 +132,21 @@ const OWN_GATE = {
 const POST_PROCESS = Object.keys(WIRE);
 const SUB_CONTROLS = Object.keys(OWN_GATE);
 
+// Reset options that shut exactly one control's OWN gate and leave the other two
+// engaged, so whatever grays that control is the gate it hangs off and nothing
+// else. Spread over a `matrix` of the case's choosing.
+const ownGateShut = (key) => ({
+  crossfeed: OWN_GATE[key] === CROSSFEED_GATE ? "0" : "1",
+  correction: OWN_GATE[key] === CORRECTION_GATE ? "0" : "1",
+  loudness: OWN_GATE[key] === LOUDNESS_GATE ? "0" : "1",
+});
+
+// Of those, the ones behaviour 3's "a control WITH a gate of its own" is about:
+// the DAC correction dropdown has never grayed when its feature switch is off, so
+// it has no own-gate state for an engaged matrix to leave alone. It stays covered
+// by the matrix-gate cases like every other key.
+const OWN_GATED = SUB_CONTROLS.filter((key) => key !== "dac_correction_profile");
+
 // --- the daemon's forms ---------------------------------------------------------
 // Values as the wire strings "1"/"0"; the loudness numerics carry the min/max the
 // /matrix form ships them with, so the knobs have a scale to draw on.
@@ -170,8 +187,9 @@ const NET_DEVICES = [
   { value: "naa:1", label: "Living room NAA" },
 ];
 
-// A live volume control: loudness is volume-adaptive, so a pinned volume grays it
-// for a reason of its own that has nothing to do with the matrix.
+// A live (unpinned) volume control on a present device, so the Volume tab renders
+// its loudness card and the Output tab its DAC correction card against a working
+// output rather than a missing-device alert.
 const CONFIG_FORM = [
   { name: "backend", value: "alsa" },
   { name: "alsa_device", value: "hw:0", options: ALSA_DEVICES },
@@ -313,15 +331,48 @@ for (const key of POST_PROCESS) {
 
 for (const key of SUB_CONTROLS) {
   test(`test_an_engaged_matrix_does_not_blame_the_matrix_for_a_gated_${key}`, async () => {
-    await reset({ matrix: "1", crossfeed: "0", correction: "0", loudness: "0" });
+    await reset({ matrix: "1", ...ownGateShut(key) });
     assert.equal(namesMatrix(reasonOf(key)), false);
   });
 
   // Both gates shut at once: the matrix is the outer one and the reason the user
-  // reads is the matrix one.
+  // reads is the matrix one — the SAME sentence the control gets when only the
+  // matrix is bypassed, which a caption carrying the own-gate reason (alone or
+  // concatenated onto the matrix one) cannot equal.
   test(`test_a_bypassed_matrix_outranks_the_feature_gate_on_${key}`, async () => {
-    await reset({ matrix: "0", crossfeed: "0", correction: "0", loudness: "0" });
-    assert.equal(namesMatrix(reasonOf(key)), true);
+    await reset({ matrix: "0", ...ownGateShut(key) });
+    const bothShut = reasonOf(key);
+    await reset({ matrix: "0", crossfeed: "1", correction: "1", loudness: "1" });
+    const matrixOnly = reasonOf(key);
+    assert.ok(
+      bothShut !== null && bothShut === matrixOnly && namesMatrix(bothShut),
+      `reason with the own gate shut ${JSON.stringify(bothShut)} vs with it engaged ${JSON.stringify(matrixOnly)}`,
+    );
+  });
+}
+
+// ============================================================================
+// an engaged matrix leaves an own-gated control exactly as gated as it was
+// ============================================================================
+// The other half of "unchanged from today": engaging the matrix may not hand a
+// control back that its own feature gate is holding. These fields are quietGray,
+// so their reason is not a caption — it is the hover title (pinned as its own
+// behaviour in fielddesc.test.js); this suite loads no metadata, so any title such
+// a field carries is that reason and nothing else.
+
+for (const key of OWN_GATED) {
+  test(`test_an_engaged_matrix_leaves_a_gated_${key}_disabled_by_its_own_gate`, async () => {
+    await reset({ matrix: "1", ...ownGateShut(key) });
+    assert.equal(isDisabled(field(key)), true);
+  });
+
+  test(`test_an_engaged_matrix_leaves_a_gated_${key}_a_reason_of_its_own_on_hover`, async () => {
+    await reset({ matrix: "1", ...ownGateShut(key) });
+    const title = titleOf(field(key));
+    assert.ok(
+      title !== undefined && title.trim() !== "" && !namesMatrix(title),
+      `gated ${key} offers no reason of its own on hover: ${JSON.stringify(title)}`,
+    );
   });
 }
 
