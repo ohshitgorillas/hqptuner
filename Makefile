@@ -12,6 +12,9 @@ lint:
 	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
 	$(VENV)/python scripts/gates/check_archaeology.py $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
+	$(VENV)/python scripts/gates/check_gates_wired.py
+	$(VENV)/python scripts/gates/check_binaural.py
+	$(VENV)/python scripts/gates/check_xfeed.py
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
 # prettier (black), tsc --checkJs (mypy), knip (vulture). The complexity ceiling
