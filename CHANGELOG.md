@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.1.2] — 2026-08-04
+
 ### Fixed
 
 - **Volume range edits now accent the Volume tab.** Moving the minimum, maximum or startup volume lit the DSP tab instead, so an unapplied change looked like it belonged somewhere it wasn't.
