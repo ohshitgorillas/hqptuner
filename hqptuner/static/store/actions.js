@@ -17,11 +17,18 @@ import { mirror, refreshConfig } from "./sync.js";
 // an EARLIER request's response must not clobber a LATER optimistic value, so only
 // the newest in-flight call is allowed to adopt the server's echo.
 let stageSeq = 0;
-export async function stagePipelines(rows) {
-  const json = canonPipelines(rows);
-  staged.value = { live: staged.value.live, http: { ...staged.value.http, matrix_pipelines: json } };
+export async function stagePipelines(rows, extra = {}) {
+  await stageHttp({ matrix_pipelines: canonPipelines(rows), ...extra });
+}
+
+// Stage http-lane fields under their WIRE names, no schema lookup. `edit()` takes
+// a schema key and resolves `e.field` from it; a saved profile's post-process
+// mapping is already keyed by wire names (matrix_pipelines, post_bauer_*), so it
+// has no schema key to go through. Latest-wins like stagePipelines.
+async function stageHttp(fields) {
+  staged.value = { live: staged.value.live, http: { ...staged.value.http, ...fields } };
   const seq = ++stageSeq;
-  const echo = await api.stage({ live: {}, http: { matrix_pipelines: json } });
+  const echo = await api.stage({ live: {}, http: fields });
   if (seq === stageSeq) staged.value = echo;
 }
 

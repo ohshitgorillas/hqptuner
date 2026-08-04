@@ -14,6 +14,7 @@ Add a field to a map and it is covered without anyone remembering to; reintroduc
 a refusal for any class of absent target and the whole suite goes red at once.
 """
 
+import json
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -66,14 +67,7 @@ def test_pipeline_rows_land_on_a_config_with_no_matrix_body() -> None:
 def test_a_profile_saves_against_a_config_with_no_matrix_element() -> None:
     save = '{"name":"Night","rows":[{"gain":"0","gainunit":"dB","mixdown":"0","process":"","source":"0"}]}'
     edited = presetconf.apply_edits(BARE, {"matrix_profile_save": save})
-    assert "Night" in presetconf.read_config(edited)["matrix_profiles"]
-
-
-def test_enabling_a_plugin_also_places_the_matrix_switch_it_needs() -> None:
-    # <post_process> lives inside <matrix>, and the matrix switch gates the whole
-    # plugin chain — a plugin enabled under a matrix that is off is inert
-    edited = presetconf.apply_edits(BARE, {"post_loudness_enabled": "1"})
-    assert presetconf.read_config(edited)["matrix_enabled"] == "1"
+    assert "Night" in json.loads(presetconf.read_config(edited)["matrix_profiles"])
 
 
 def test_placing_an_element_leaves_every_existing_byte_alone() -> None:

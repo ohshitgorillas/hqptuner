@@ -27,10 +27,17 @@ def save(name: str, *rows: dict[str, str]) -> dict[str, str]:
     return {"matrix_profile_save": json.dumps({"name": name, "rows": list(rows) or [ROW0]})}
 
 
-async def saved_profiles(manager: ConnectionManager) -> dict[str, list[dict[str, str]]]:
-    """The profiles the running config carries, read back from the daemon."""
+async def saved_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
+    """The profiles the running config carries, read back from the daemon: each
+    one ``{"rows": [...], "post": {...}}``."""
     cfg = await manager.load_file_config()
     return json.loads(cfg["matrix_profiles"])
+
+
+async def saved_rows(manager: ConnectionManager, name: str) -> list[dict[str, str]]:
+    """One saved profile's pipeline rows."""
+    rows: list[dict[str, str]] = (await saved_profiles(manager))[name]["rows"]
+    return rows
 
 
 async def test_live_load_reads_back_from_state(live_client: ControlClient) -> None:
@@ -45,12 +52,12 @@ async def test_saved_profile_reaches_the_running_config(http_manager: Connection
 
 async def test_saved_profile_carries_its_rows(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, ROW1))
-    assert (await saved_profiles(http_manager))["Crossfeed EQ"][1]["gain"] == "-3"
+    assert (await saved_rows(http_manager, "Crossfeed EQ"))[1]["gain"] == "-3"
 
 
 async def test_saved_profile_row_count_is_its_own(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, save("One row", ROW0))
-    assert len((await saved_profiles(http_manager))["One row"]) == 1
+    assert len(await saved_rows(http_manager, "One row")) == 1
 
 
 async def test_save_reports_applied(http_manager: ConnectionManager) -> None:
@@ -60,7 +67,7 @@ async def test_save_reports_applied(http_manager: ConnectionManager) -> None:
 
 async def test_save_to_an_existing_name_replaces_it(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, save("Stock", {**ROW0, "gain": "-9"}))
-    assert (await saved_profiles(http_manager))["Stock"][0]["gain"] == "-9"
+    assert (await saved_rows(http_manager, "Stock"))[0]["gain"] == "-9"
 
 
 async def test_save_to_an_existing_name_does_not_duplicate_it(http_manager: ConnectionManager) -> None:

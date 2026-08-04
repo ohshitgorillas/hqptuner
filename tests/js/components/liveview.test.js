@@ -150,7 +150,7 @@ test("test_a_refused_write_shows_its_reason_on_the_control", async () => {
 });
 
 test("test_a_profile_the_engine_never_loaded_cannot_be_switched_to", async () => {
-  await reset({ mtx: { file_profiles: { Room: [] }, live_profiles: [] } });
+  await reset({ mtx: { file_profiles: { Room: { rows: [], post: {} } }, live_profiles: [] } });
   assert.ok(page().includes("not loaded by the engine"));
 });
 

@@ -6,7 +6,8 @@
 // reach the 4321 `MatrixSetProfile` lane, which is instant, needs no engine
 // reload and plays through playback (docs/matrix-spec.md, "4321 MatrixSetProfile
 // — clean live lane"). `matrixConfig.file_profiles` is `{name: rows}` out of the
-// config's `<matrix_profile>` elements; the daemon never read those, so no live
+// config's `<matrix_profile>` elements, each carrying that profile's rows and
+// its own post-process chain; the daemon never read those, so no live
 // switch can reach one and staging its rows is the only lane it has.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
@@ -30,6 +31,9 @@ import { stagingWire, ok } from "../support/wire.js";
 
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
+// A stored profile as the config carries it: rows plus its own post-process chain.
+const PROF = (rows, post = {}) => ({ rows, post });
+
 // The staging server plus the one endpoint this suite adds: the profile route,
 // recorded body-first so a case can say exactly which switch went out.
 function wire() {
@@ -45,7 +49,7 @@ function wire() {
 
 // Full reset every time — every one of these signals outlives a test.
 // `profiles` are the names the daemon read at startup; `saved` is what the
-// config carries, name -> rows.
+// config carries, name -> {rows, post}.
 async function reset(rows, { active = "[Default]", profiles = [], saved = {} } = {}) {
   const w = wire();
   matrixConfig.value = {
@@ -87,13 +91,13 @@ test("test_loading_a_profile_the_daemon_knows_stages_nothing", async () => {
 // Live wins: the switch goes out and nothing is staged.
 
 test("test_loading_a_profile_both_sources_know_posts_the_live_switch", async () => {
-  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Night: NIGHT } });
+  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Night: PROF(NIGHT) } });
   await loadProfile("Night");
   assert.deepEqual(w.posts, [{ action: "switch", name: "Night" }]);
 });
 
 test("test_loading_a_profile_both_sources_know_stages_nothing", async () => {
-  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Night: NIGHT } });
+  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Night: PROF(NIGHT) } });
   await loadProfile("Night");
   assert.equal("matrix_pipelines" in w.staged.http, false);
 });
@@ -118,13 +122,13 @@ test("test_loading_the_default_profile_stages_nothing", async () => {
 // --- a profile only the config carries: the staging lane ----------------------
 
 test("test_loading_a_profile_only_the_config_carries_stages_its_rows", async () => {
-  const w = await reset([ROW({})], { profiles: [], saved: { Night: NIGHT } });
+  const w = await reset([ROW({})], { profiles: [], saved: { Night: PROF(NIGHT) } });
   await loadProfile("Night");
   assert.equal(w.staged.http.matrix_pipelines, NIGHT_WIRE);
 });
 
 test("test_loading_a_profile_only_the_config_carries_posts_no_live_switch", async () => {
-  const w = await reset([ROW({})], { profiles: [], saved: { Night: NIGHT } });
+  const w = await reset([ROW({})], { profiles: [], saved: { Night: PROF(NIGHT) } });
   await loadProfile("Night");
   assert.deepEqual(w.posts, []);
 });
@@ -132,13 +136,13 @@ test("test_loading_a_profile_only_the_config_carries_posts_no_live_switch", asyn
 // --- a name neither source knows ---------------------------------------------
 
 test("test_loading_an_unknown_profile_stages_nothing", async () => {
-  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Day: NIGHT } });
+  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Day: PROF(NIGHT) } });
   await loadProfile("Nowhere");
   assert.equal("matrix_pipelines" in w.staged.http, false);
 });
 
 test("test_loading_an_unknown_profile_posts_no_live_switch", async () => {
-  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Day: NIGHT } });
+  const w = await reset([ROW({})], { profiles: ["Night"], saved: { Day: PROF(NIGHT) } });
   await loadProfile("Nowhere");
   assert.deepEqual(w.posts, []);
 });

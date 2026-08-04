@@ -4,7 +4,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Matrix profiles now keep their crossfeed, DAC correction and loudness.** Saving a profile stored only its pipeline rows, so loading one handed back less than was saved. A profile saved from now on carries the whole matrix. Profiles saved before this keep nothing — save over them once to give them a chain.
+
 ### Changed
+
+- **A bypassed matrix engine grays what it bypasses.** Crossfeed, DAC correction and loudness all run inside the matrix, so they did nothing while the engine was on BYPASS and nothing said so. Their controls are now disabled with the reason, and the three cards carry a note. The pipeline table stays editable.
+
+- **Engaging crossfeed, DAC correction or loudness no longer switches the matrix engine on.** The matrix switch also carries channel routing, and it is the user's to set. Engage the engine yourself when a card says it is bypassed.
 
 - **Matrix profile card notes rewritten in plain language.** The Load and Save notes now state what each does bluntly. The "live — no reload" status chip is gone.
 

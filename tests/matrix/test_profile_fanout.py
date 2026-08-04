@@ -47,7 +47,8 @@ def delete_from(name: str, presets: list[str]) -> dict[str, str]:
 def preset_xml(profiles: dict[str, list[dict[str, str]]] | None = None) -> bytes:
     """A stored preset: a full 6.0.4-shaped config XML snapshot carrying the
     given saved profiles and a title the fan-out must not disturb."""
-    return cfg_xml(state(title="Office desk", _profiles=profiles or {}))
+    stored = {name: {"rows": rows, "plugins": []} for name, rows in (profiles or {}).items()}
+    return cfg_xml(state(title="Office desk", _profiles=stored))
 
 
 def stored_profiles(xml: bytes) -> dict[str, list[dict[str, str]]]:
@@ -69,8 +70,9 @@ def without_profile(xml: bytes, name: str) -> bytes:
     return re.sub(pattern, b"", xml, flags=re.S)
 
 
-async def running_profiles(manager: ConnectionManager) -> dict[str, list[dict[str, str]]]:
-    """The profiles the running config carries, read back from the daemon."""
+async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:
+    """The profiles the running config carries, read back from the daemon: each
+    one its rows and its own post-process settings."""
     cfg = await manager.load_file_config()
     return json.loads(cfg["matrix_profiles"])
 

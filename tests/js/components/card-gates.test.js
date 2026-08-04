@@ -99,9 +99,12 @@ function formFields(baseline, overrides) {
 async function gate(key, { on = true, desc = true, config = [] } = {}) {
   const own = { name: MATRIX_FIELD[key] || key, value: on };
   const signalPath = key in MATRIX_FIELD;
+  // the matrix engine itself stays engaged: bypassed, it grays every post-process
+  // gate for a reason of its own, which is not what these cases are about
+  const engaged = { name: "enabled", value: "1" };
   await reset({
     meta: META,
-    matrix: signalPath ? [own] : [],
+    matrix: signalPath ? [engaged, own] : [engaged],
     fields: formFields(signalPath ? [FREE_VOLUME] : [own], config),
     desc,
     keep: desc,

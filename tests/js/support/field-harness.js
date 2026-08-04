@@ -70,7 +70,13 @@ const META = {
 
 // --- reset ------------------------------------------------------------------
 
-export async function reset({ fields = [], matrix = [], meta = META, desc = true, keep = true } = {}) {
+// The matrix defaults to ENGAGED. A post-process field under a bypassed matrix is
+// grayed for that reason alone (store/schema.js matrixBypassed), which is a
+// different behaviour from the ones these suites pin — a case that wants the
+// bypass passes its own `matrix`.
+const MATRIX_ENGAGED = [{ name: "enabled", value: "1" }];
+
+export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META, desc = true, keep = true } = {}) {
   wire();
   engineState.value = {};
   enums.value = null;

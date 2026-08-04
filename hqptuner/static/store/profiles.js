@@ -75,14 +75,30 @@ export const savedProfiles = computed(() => {
 // and not applied yet cannot be: the daemon only knows what it read at startup.
 export const isLiveProfile = (name) => daemonProfiles.value.includes(name);
 
+// A profile the config carries: {rows, post}. Null for a name only the daemon
+// knows (saved through its own route, before HQPTuner owned profiles).
+const fileProfile = (name) => fileProfiles.value[name] || null;
+
 // The rows a load would install: the staged save's own rows when that is the
 // profile in question, else what the config carries. Null when only the daemon
-// knows the name (saved through its own route, before HQPTuner owned profiles) —
-// there are no rows to stage, so such a load is live-only.
+// knows the name — there are no rows to stage, so such a load is live-only.
 export function profileRows(name) {
   const staging = stagedSave();
   if (staging && staging.name === name) return staging.rows;
-  return fileProfiles.value[name] || null;
+  const profile = fileProfile(name);
+  return profile ? profile.rows : null;
+}
+
+// The post-process chain a load would install, keyed by wire field name. `{}` for
+// a profile carrying no chain (saved before profiles stored one), and for a name
+// with a save staged this session — that save captures the chain that is already
+// live, so a load of it has nothing to install. Null for a name only the daemon
+// knows, matching profileRows.
+export function profilePost(name) {
+  const staging = stagedSave();
+  if (staging && staging.name === name) return {};
+  const profile = fileProfile(name);
+  return profile ? profile.post || {} : null;
 }
 
 // Rows arrive canonical from effectivePipelines, so they go out as they came.

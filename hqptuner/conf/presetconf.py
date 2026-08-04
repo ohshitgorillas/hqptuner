@@ -33,8 +33,6 @@ from .fixedvol import (
     FIXED_ENABLED,
     FIXED_LEVEL,
     any_fixed_level,
-    enable_matrix,
-    enables_post_process,
     find_active_fixed,
     fixed_level_of,
     reconcile_fixed,
@@ -44,6 +42,7 @@ from .matrixconf import (
     MATRIX_PROFILE_DELETE,
     MATRIX_PROFILE_SAVE,
     MATRIX_PROFILES,
+    PLUGIN_MAP,
     delete_profile,
     parse_delete,
     read_pipelines,
@@ -127,30 +126,10 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
     "upnp_freewheel": ("upnp", "freewheel"),
 }
 
-# <post_process><plugin type="X" ...>. Field -> (plugin type, attribute).
-PLUGIN_MAP: dict[str, tuple[str, str]] = {
-    "post_bauer_enabled": ("bauer", "enabled"),
-    "post_bauer_preset": ("bauer", "preset"),
-    "post_bauer_frequency": ("bauer", "frequency"),
-    "post_bauer_level": ("bauer", "level"),
-    "post_correction_enabled": ("correction", "enabled"),
-    "post_correction_dac0": ("correction", "dac0"),
-    # loudness plugin — form field -> XML attr, grounded by value-correlation: the
-    # live /matrix form defaults uniquely match the snapshot's <plugin
-    # type="loudness"> attributes (lowfreq=80<->low_frequency, lowtype=lshelf<->
-    # low_type, rangehigh=-20<->range_high, ...). readme §1.11.2.1 documents them.
-    "post_loudness_enabled": ("loudness", "enabled"),
-    "post_loudness_lowfreq": ("loudness", "low_frequency"),
-    "post_loudness_lowlevel": ("loudness", "low_level"),
-    "post_loudness_lowsteep": ("loudness", "low_steepness"),
-    "post_loudness_lowtype": ("loudness", "low_type"),
-    "post_loudness_highfreq": ("loudness", "high_frequency"),
-    "post_loudness_highlevel": ("loudness", "high_level"),
-    "post_loudness_highsteep": ("loudness", "high_steepness"),
-    "post_loudness_hightype": ("loudness", "high_type"),
-    "post_loudness_rangelow": ("loudness", "range_low"),
-    "post_loudness_rangehigh": ("loudness", "range_high"),
-}
+# PLUGIN_MAP (<post_process><plugin type="X">) is imported from matrixconf and
+# re-exported here, where its callers have always found it: a saved profile
+# carries a chain of its own, so naming those fields belongs to the module that
+# owns profiles.
 
 # net_device fuses two XML attributes: value "S26/hw:CARD=Output,DEV=0" splits on
 # the first "/" into <network address="S26" device="hw:CARD=Output,DEV=0">.
@@ -180,15 +159,22 @@ def _route(xml: bytes, field: str, value: str) -> bytes:
     raise GroundingError(f"unknown config field: {field!r}")
 
 
-def _apply_profile_edits(xml: bytes, remaining: dict[str, str]) -> bytes:
+def _pop_profile_edits(remaining: dict[str, str]) -> dict[str, str]:
+    """Take the saved-profile verbs out of the edit set. Separate from applying
+    them because they are applied LAST and the field loop refuses any key it does
+    not recognise — leaving them in place would raise "unknown config field"."""
+    return {k: remaining.pop(k) for k in (MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE) if k in remaining}
+
+
+def _apply_profile_edits(xml: bytes, verbs: dict[str, str]) -> bytes:
     """The saved-profile verbs, delete before save. Staging holds at most one of
     each, and the pair co-occurs only as a rename — drop the old name, write the
     new one — where saving first would delete what was just written."""
-    if MATRIX_PROFILE_DELETE in remaining:
-        name, _ = parse_delete(remaining.pop(MATRIX_PROFILE_DELETE))
+    if MATRIX_PROFILE_DELETE in verbs:
+        name, _ = parse_delete(verbs[MATRIX_PROFILE_DELETE])
         xml = delete_profile(xml, name)
-    if MATRIX_PROFILE_SAVE in remaining:
-        xml = write_profile(xml, remaining.pop(MATRIX_PROFILE_SAVE))
+    if MATRIX_PROFILE_SAVE in verbs:
+        xml = write_profile(xml, verbs[MATRIX_PROFILE_SAVE])
     return xml
 
 
@@ -199,22 +185,23 @@ def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
     element or plugin it is created there, carrying only the attribute being set.
     All other bytes of the snapshot are preserved exactly."""
     remaining = dict(edits)
+    profile_verbs = _pop_profile_edits(remaining)
     fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
     if fixed_edits:
         xml = reconcile_fixed(xml, fixed_edits)
     if MATRIX_PIPELINES in remaining:
         xml = replace_pipelines(xml, remaining.pop(MATRIX_PIPELINES))
-    xml = _apply_profile_edits(xml, remaining)
-    # <post_process> lives INSIDE <matrix>, and matrix processing must be on for any
-    # plugin to run at all (readme §1.11 / §1.11.2) — a preset with matrix enabled="0"
-    # silently swallows crossfeed/loudness/correction. So switching a post-process
-    # feature on also switches the matrix on. Deliberately never auto-OFF: matrix also
-    # carries channel routing, and disabling it would break a user's pipeline setup.
-    if enables_post_process(remaining, PLUGIN_MAP):
-        xml = enable_matrix(xml)
+    # The matrix switch is the user's. <post_process> lives INSIDE <matrix>, so a
+    # plugin under a bypassed matrix is inert (readme §1.11 / §1.11.2) — but that
+    # is a fact to TELL the user, not to act on behind them: matrix also carries
+    # channel routing, and the UI grays the whole chain and names the reason while
+    # the engine is bypassed (store/schema.js matrixBypassed).
     for field, value in remaining.items():
         xml = _apply_one(xml, field, value)
-    return xml
+    # LAST: a save copies the live <post_process> chain, so it has to run after
+    # this apply's own plugin edits — otherwise engaging correction and saving a
+    # profile in one apply stores the correction the user just turned OFF.
+    return _apply_profile_edits(xml, profile_verbs)
 
 
 def _read_attr(xml: bytes, tag_name: str, attr: str) -> str | None:

@@ -35,6 +35,10 @@ afterEach(() => {
 // A canonical pipeline row, the shape rows travel in everywhere.
 const ROW = (gain) => ({ gain, gainunit: "dB", mixdown: "0", process: "", source: "0" });
 
+// A stored profile as the config carries it: pipeline rows plus the profile's
+// own <post_process> chain, which nests inside <matrix> and so travels with it.
+const PROF = (rows, post = {}) => ({ rows, post });
+
 async function reset(m = {}) {
   stagingWire();
   engineState.value = {};
@@ -46,34 +50,34 @@ async function reset(m = {}) {
 // --- savedProfiles: the picker's union ------------------------------------------
 
 test("test_the_picker_unions_config_profiles_with_the_daemons_list", async () => {
-  await reset({ file_profiles: { FileOne: [ROW("-1")] }, live_profiles: ["DaemonOne"] });
+  await reset({ file_profiles: { FileOne: PROF([ROW("-1")]) }, live_profiles: ["DaemonOne"] });
   assert.deepEqual(savedProfiles.value, ["DaemonOne", "FileOne"]);
 });
 
 test("test_a_name_known_to_both_sources_appears_once", async () => {
-  await reset({ file_profiles: { Both: [ROW("-1")] }, live_profiles: ["Both"] });
+  await reset({ file_profiles: { Both: PROF([ROW("-1")]) }, live_profiles: ["Both"] });
   assert.deepEqual(savedProfiles.value, ["Both"]);
 });
 
 test("test_the_picker_sorts_its_names", async () => {
-  await reset({ file_profiles: { zed: [] }, live_profiles: ["alpha"] });
+  await reset({ file_profiles: { zed: PROF([]) }, live_profiles: ["alpha"] });
   assert.deepEqual(savedProfiles.value, ["alpha", "zed"]);
 });
 
 test("test_a_staged_save_adds_its_name_to_the_picker", async () => {
-  await reset({ file_profiles: { Old: [ROW("-1")] } });
+  await reset({ file_profiles: { Old: PROF([ROW("-1")]) } });
   await stageProfileSave("New", [ROW("-2")]);
   assert.deepEqual(savedProfiles.value, ["New", "Old"]);
 });
 
 test("test_a_staged_delete_removes_the_name_from_the_picker", async () => {
-  await reset({ file_profiles: { Old: [ROW("-1")], Kept: [ROW("-2")] } });
+  await reset({ file_profiles: { Old: PROF([ROW("-1")]), Kept: PROF([ROW("-2")]) } });
   await stageProfileDelete("Old");
   assert.deepEqual(savedProfiles.value, ["Kept"]);
 });
 
 test("test_a_corrupt_staged_save_is_treated_as_nothing_staged", async () => {
-  await reset({ file_profiles: { Old: [ROW("-1")] } });
+  await reset({ file_profiles: { Old: PROF([ROW("-1")]) } });
   await edit("matrix_profile_save", "{not json");
   assert.deepEqual(savedProfiles.value, ["Old"]);
 });
@@ -100,25 +104,25 @@ test("test_a_profile_saved_this_session_is_not_live_switchable", async () => {
 });
 
 test("test_a_config_only_profile_is_not_live_switchable", async () => {
-  await reset({ file_profiles: { FileOnly: [ROW("-1")] } });
+  await reset({ file_profiles: { FileOnly: PROF([ROW("-1")]) } });
   assert.equal(isLiveProfile("FileOnly"), false);
 });
 
 // --- profileRows: what a load would install -----------------------------------------
 
 test("test_profile_rows_come_from_the_config_for_a_saved_profile", async () => {
-  await reset({ file_profiles: { P: [ROW("-9")] } });
+  await reset({ file_profiles: { P: PROF([ROW("-9")]) } });
   assert.deepEqual(profileRows("P"), [ROW("-9")]);
 });
 
 test("test_a_staged_save_outranks_the_config_copy_of_the_same_profile", async () => {
-  await reset({ file_profiles: { P: [ROW("-9")] } });
+  await reset({ file_profiles: { P: PROF([ROW("-9")]) } });
   await stageProfileSave("P", [ROW("-1")]);
   assert.deepEqual(profileRows("P"), [ROW("-1")]);
 });
 
 test("test_a_staged_save_does_not_leak_rows_into_another_profile", async () => {
-  await reset({ file_profiles: { P: [ROW("-9")] } });
+  await reset({ file_profiles: { P: PROF([ROW("-9")]) } });
   await stageProfileSave("Other", [ROW("-1")]);
   assert.deepEqual(profileRows("P"), [ROW("-9")]);
 });

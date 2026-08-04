@@ -43,6 +43,39 @@ MATRIX_PROFILE_DELETE = "matrix_profile_delete"
 # Readback field: every profile in the snapshot, as canonical JSON.
 MATRIX_PROFILES = "matrix_profiles"
 
+# <post_process><plugin type="X" ...>. Field -> (plugin type, attribute).
+#
+# Lives here rather than in presetconf because a saved profile is a stored matrix
+# and carries a chain of its own: naming a profile's post-process fields is this
+# module's job. ``presetconf`` re-exports it, and imports it from here — the other
+# direction is a cycle, since presetconf already imports this module.
+PLUGIN_MAP: dict[str, tuple[str, str]] = {
+    "post_bauer_enabled": ("bauer", "enabled"),
+    "post_bauer_preset": ("bauer", "preset"),
+    "post_bauer_frequency": ("bauer", "frequency"),
+    "post_bauer_level": ("bauer", "level"),
+    "post_correction_enabled": ("correction", "enabled"),
+    "post_correction_dac0": ("correction", "dac0"),
+    # loudness plugin — form field -> XML attr, grounded by value-correlation: the
+    # live /matrix form defaults uniquely match the snapshot's <plugin
+    # type="loudness"> attributes (lowfreq=80<->low_frequency, lowtype=lshelf<->
+    # low_type, rangehigh=-20<->range_high, ...). readme §1.11.2.1 documents them.
+    "post_loudness_enabled": ("loudness", "enabled"),
+    "post_loudness_lowfreq": ("loudness", "low_frequency"),
+    "post_loudness_lowlevel": ("loudness", "low_level"),
+    "post_loudness_lowsteep": ("loudness", "low_steepness"),
+    "post_loudness_lowtype": ("loudness", "low_type"),
+    "post_loudness_highfreq": ("loudness", "high_frequency"),
+    "post_loudness_highlevel": ("loudness", "high_level"),
+    "post_loudness_highsteep": ("loudness", "high_steepness"),
+    "post_loudness_hightype": ("loudness", "high_type"),
+    "post_loudness_rangelow": ("loudness", "range_low"),
+    "post_loudness_rangehigh": ("loudness", "range_high"),
+}
+
+#: (plugin type, attribute) -> form field, for reading a stored chain back.
+_PLUGIN_FIELDS: dict[tuple[str, str], str] = {loc: field for field, loc in PLUGIN_MAP.items()}
+
 _GAIN_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _MAX_CHANNELS = 128
 _NAME_MAX = 128
@@ -227,11 +260,29 @@ def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
     return m.start(), b"" if indent is None else b"\n" + indent
 
 
-def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes) -> bytes:
-    """A complete profile element, laid out like its ``<matrix>`` sibling."""
+def _live_post_process(xml: bytes) -> bytes:
+    """The live ``<matrix>``'s ``<post_process>`` element, verbatim — b"" when the
+    snapshot has no matrix body or the matrix carries no chain.
+
+    Verbatim rather than re-serialized: the plugin attributes HQPTuner does not
+    map are still the user's settings, and a profile that dropped them would hand
+    back less than the matrix it was saved from."""
+    try:
+        start, close = _matrix_body_span(xml)
+    except GroundingError:
+        return b""
+    m = re.search(rb"<post_process\b[^>]*>.*?</post_process>", xml[start:close], re.DOTALL)
+    return m.group(0) if m is not None else b""
+
+
+def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: bytes) -> bytes:
+    """A complete profile element, laid out like its ``<matrix>`` sibling: the
+    pipeline rows and the post-process chain that was live at save time."""
     open_tag = f'<matrix_profile name="{_attr_escape(name)}">'.encode()
     row_lead = lead + b"\t" if lead else b""
     body = b"".join(row_lead + _pipeline_tag(i, row) for i, row in enumerate(rows))
+    if post:
+        body += row_lead + post
     return lead + open_tag + body + lead + b"</matrix_profile>"
 
 
@@ -282,16 +333,22 @@ def write_profile(xml: bytes, value: str) -> bytes:
     looking at, which may be staged edits rather than anything the config
     currently holds. Replacement is how overwrite-save works at all; the
     daemon's own ``/matrix/save`` silently no-ops on an existing name (probe
-    finding), ours does not."""
+    finding), ours does not.
+
+    The post-process chain comes from the config's own live ``<matrix>``, never
+    from the payload: what the user is looking at is the running chain, and the
+    apply has already written its own post-process edits by the time a save is
+    placed (``presetconf.apply_edits``)."""
     raw = _parse_save(value)
     name = _validate_name(raw.get("name"))
     rows = _rows_from_list(raw.get("rows"), MATRIX_PROFILE_SAVE)
     _validate_targets(raw, MATRIX_PROFILE_SAVE)
+    post = _live_post_process(xml)
     # profiles anchor off <matrix>; a config that never had matrix processing on
     # has none, so place it rather than refuse the save
     xml = ensure_element(xml, "matrix")
     at, lead = _profile_anchor(xml)
-    block = _profile_block(name, rows, lead)
+    block = _profile_block(name, rows, lead, post)
     existing = _profile_re(name).search(xml)
     if existing is not None:
         return xml[: existing.start()] + block + xml[existing.end() :]
@@ -309,13 +366,39 @@ def delete_profile(xml: bytes, name: str) -> bytes:
     return xml if match is None else xml[: match.start()] + xml[match.end() :]
 
 
+def _post_of(body: bytes) -> dict[str, str]:
+    """One stored profile's ``<post_process>`` chain in form-field terms — ``{}``
+    for a profile carrying no chain, which is every profile saved before profiles
+    stored one. Attributes outside ``PLUGIN_MAP`` are ignored here: they stay in
+    the element (the write copies it verbatim) but HQPTuner has no field to hand
+    them back through."""
+    out: dict[str, str] = {}
+    chain = re.search(rb"<post_process\b[^>]*>(.*?)</post_process>", body, re.DOTALL)
+    if chain is None:
+        return out
+    for pm in re.finditer(rb"<plugin\b[^>]*?>", chain.group(1)):
+        attrs = {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
+        ptype = attrs.get("type", "")
+        for attr, value in attrs.items():
+            field = _PLUGIN_FIELDS.get((ptype, attr))
+            if field is not None:
+                out[field] = _attr_unescape(value)
+    return out
+
+
 def read_profiles(xml: bytes) -> str:
-    """Every saved profile in the snapshot as canonical JSON — ``{name: rows}``,
-    sorted keys, compact separators. File truth for the picker, and the readback
-    the apply's verify diff proves a save or a delete against."""
-    out: dict[str, list[dict[str, str]]] = {}
+    """Every saved profile in the snapshot as canonical JSON — ``{name: {"rows":
+    [...], "post": {field: value}}}``, sorted keys, compact separators. File truth
+    for the picker, and the readback the apply's verify diff proves a save or a
+    delete against.
+
+    A profile is a whole matrix context, so ``post`` travels with ``rows``: it is
+    the only plumbing carrying a stored chain to the browser, and a load has
+    nothing to install without it."""
+    out: dict[str, dict[str, Any]] = {}
     for m in re.finditer(rb"<matrix_profile\b([^>]*)>(.*?)</matrix_profile>", xml, re.DOTALL):
         name_m = re.search(rb'name="([^"]*)"', m.group(1))
         if name_m is not None:
-            out[_attr_unescape(name_m.group(1).decode())] = _rows_of(m.group(2))
+            name = _attr_unescape(name_m.group(1).decode())
+            out[name] = {"rows": _rows_of(m.group(2)), "post": _post_of(m.group(2))}
     return json.dumps(out, sort_keys=True, separators=(",", ":"))

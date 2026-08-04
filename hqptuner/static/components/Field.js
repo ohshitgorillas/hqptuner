@@ -5,7 +5,7 @@
 
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { schema } from "../store/schema.js";
+import { schema, MATRIX_BYPASS_REASON } from "../store/schema.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
 import { edit, setLive } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
@@ -108,7 +108,10 @@ function narrowBadge(entry, key) {
 // A grayed control names WHY, visibly — the reason renders as a caption
 // appended after the manual note (user decision; hover-only reasons
 // proved undiscoverable) unless the schema suppresses it (quietGray).
-const captionVisible = (entry, reason) => !!reason && !entry.quietGray;
+// quietGray silences a reason whose cause is on the card itself ("Enable
+// crossfeed to adjust" — the gate is one row up). A bypassed matrix is not that:
+// its switch is on the Matrix tab, so the reason renders whatever the field says.
+const captionVisible = (entry, reason) => !!reason && (!entry.quietGray || reason === MATRIX_BYPASS_REASON);
 // `inlineGray` moves that caption off the stack and into the control row, to
 // the right of the widget itself, for short reasons on narrow controls where a
 // line of its own under the manual note reads as unrelated prose.

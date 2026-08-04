@@ -1,10 +1,10 @@
-"""Fixed-volume reconciliation onto the snapshot's ``<fixed>`` element, plus the matrix auto-enable for plugin edits."""
+"""Fixed-volume reconciliation onto the snapshot's ``<fixed>`` element."""
 
 from __future__ import annotations
 
 import re
 
-from .xmledit import GroundingError, edit_element, find_element, get_attr, open_tag_re
+from .xmledit import GroundingError, find_element, get_attr, open_tag_re
 
 # Fixed volume is a top-level ``<fixed volume="X"/>`` element whose PRESENCE means
 # "enabled" — there is no ``enabled`` attribute (readme §1.13 + live config). The
@@ -55,9 +55,8 @@ def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[byte
         # the enabled flag, so there is nowhere to park a level while the feature
         # is off — a level edit that left it off was silently discarded, and the
         # apply reported success because read_config then omits the field it just
-        # dropped. Same precedent as enables_post_process switching matrix on for
-        # a plugin edit. An explicit fixed_volume_enabled=0 still wins: it is
-        # handled above, so "turn it off" never resurrects the feature.
+        # dropped. An explicit fixed_volume_enabled=0 still wins: it is handled
+        # above, so "turn it off" never resurrects the feature.
         enabled = FIXED_LEVEL in fixed_edits or active is not None
     current = fixed_level_of(active.group(0)) if active is not None else None
     return enabled, fixed_edits.get(FIXED_LEVEL) or current or _remembered_level(xml)
@@ -113,18 +112,3 @@ def reconcile_fixed(xml: bytes, fixed_edits: dict[str, str]) -> bytes:
     # stack a fresh comment on every toggle and give _remembered_level a stale first hit
     xml = _COMMENTED_FIXED_RE.sub(b"", xml)
     return _insert_fixed(xml, level) if enabled else _remember_fixed(xml, level)
-
-
-def enables_post_process(edits: dict[str, str], plugin_map: dict[str, tuple[str, str]]) -> bool:
-    """True when any staged edit switches a ``<post_process>`` plugin ON."""
-    return any(
-        plugin_map.get(field, ("", ""))[1] == "enabled" and value.strip().lower() in _TRUTHY
-        for field, value in edits.items()
-    )
-
-
-def enable_matrix(xml: bytes) -> bytes:
-    """Switch ``<matrix enabled="1">`` on, placing the element when the snapshot
-    has none — which is exactly the config that needs it, since a plugin the
-    daemon never wrote lives in a matrix the daemon never wrote either."""
-    return edit_element(xml, "matrix", "enabled", "1")

@@ -18,7 +18,7 @@ Matrix tab between Volume and System. Section order: MATRIX (global card: Enable
 
 ### Profiles
 
-PROFILE card carries active-profile picker with **Load**, **Save as new**, **Save**, **Delete**. Load rides 4321 `MatrixSetProfile` (live, no reload) and stages nothing: switch already installs rows in running engine, so staging them too would pend config write whose only effect at apply is engine restart that changes nothing. Load therefore lasts until daemon restart, HQPlayer's own semantics; persisting matrix is Save's job. Only profile with no live half is one daemon never read (saved this session, unapplied) — staging its rows is its only lane. Save and Delete are staged `<matrix_profile>` edits on persistent restore lane (`conf/matrixconf.py`), so saved profile lands in `hqplayerd.xml` and daemon reads it at startup. HQPTuner writes element itself, so save to existing name = replace. Save/Load/Delete cost **zero engine reloads**; only restart is apply user chooses.
+PROFILE card carries active-profile picker with **Load**, **Save as new**, **Save**, **Delete**. Load rides 4321 `MatrixSetProfile` (live, no reload) and stages nothing: profile is whole matrix context, `<post_process>` included (readme §1.11.2), so switch already installs rows AND plugin chain in running engine, and staging them too would pend config write whose only effect at apply is engine restart that changes nothing. Load therefore lasts until daemon restart, HQPlayer's own semantics; persisting matrix is Save's job. Only profile with no live half is one daemon never read (saved this session, unapplied) — staging is its only lane, and it stages profile's rows and its `post_*` values both. Save and Delete are staged `<matrix_profile>` edits on persistent restore lane (`conf/matrixconf.py`), so saved profile lands in `hqplayerd.xml` and daemon reads it at startup. HQPTuner writes element itself, so save to existing name = replace. Save/Load/Delete cost **zero engine reloads**; only restart is apply user chooses.
 
 **Live-active profile grounds pipeline baseline (binding).** Switch is memory-only, so config file keeps its own rows while engine runs profile's — only case where file truth isn't running truth. `pipelineBaseline` (`store/resolve.js`) therefore takes daemon's `/matrix` rows whenever `live_active` names a profile, file JSON otherwise (and as fallback when daemon reported no rows). Editor and matrix graph show what's playing; edit stages diff against that. Miss this and a load leaves user reading config's EQ curve and pipeline while different profile plays.
 
@@ -102,7 +102,7 @@ Idle-gated, live 6.0.4.
 
 **`/matrix/load` replaces whole matrix context including post-process.** Loading pipelines-only profile cleared bauer/correction enable and `dac0`. Violates HQPTuner's "settings you send are settings you get back" contract, so `matrixlane.profile_action("load")` snapshots form's `post_*` slice (wire-encoded, checkbox contract intact), re-applies it with plain `POST /matrix` after load settles, readback-verifies past post-reload transient.
 
-**4321 `MatrixSetProfile` — clean live lane.** `MatrixListProfiles` / `MatrixGetProfile` / `MatrixSetProfile` work **unauthenticated, live, zero reload**; `State.matrix_profile` and stock UI's active label track switch; working XML untouched (memory-only — reverts on daemon restart, standard Control API semantics).
+**4321 `MatrixSetProfile` — clean live lane.** `MatrixListProfiles` / `MatrixGetProfile` / `MatrixSetProfile` work **unauthenticated, live, zero reload**; `State.matrix_profile` and stock UI's active label track switch; working XML untouched (memory-only — reverts on daemon restart, standard Control API semantics). Switch installs profile's whole matrix context, its `<post_process>` chain included: profile element's content model is `<matrix>`'s minus `enabled` (readme §1.12 → §1.11), so crossfeed / DAC correction / loudness move with it.
 
 **Client-code note:** 4321 responses arrive prefixed with `<?xml?>` declaration, which naive recv loop chokes on. `control.py` already handles this; any new `Matrix*` helper must go through it, not fresh socket reader.
 
@@ -154,6 +154,10 @@ plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
 That's why HQPTuner owns `<matrix_profile>` element and writes it on persistent restore lane — see "Profiles" above.
 
 `/matrix/save` to **existing** name is additionally silent no-op (HTTP 200, profile unchanged), exactly like config lane's `profile/save`. Irrelevant now HQPTuner writes element itself, but it's why daemon's own UI can't overwrite a profile.
+
+**Daemon registers profiles only at process start, and registry lands seconds after HTTP is back.** Profile written to config file becomes switchable at next daemon start and not before, so `MatrixListProfiles` read taken immediately after daemon serves HTTP again is stale — it answers before registry is populated. Any profile-list read across a restart must settle before it's believed.
+
+**`POST /matrix` and `POST /matrix/save` require multipart.** Urlencoded body returns HTTP 200 and is silently ignored — no error, no change. A 200 from either route proves nothing on its own; readback is the only evidence the write landed.
 
 ### Operational note — the daemon is single-writer
 
