@@ -29,6 +29,9 @@ existed simply could not reach that half of its own form.
 
 from __future__ import annotations
 
+import json
+
+from ..audit import AuditLog
 from .fixedvol import (
     FIXED_ENABLED,
     FIXED_LEVEL,
@@ -135,6 +138,55 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
 # the first "/" into <network address="S26" device="hw:CARD=Output,DEV=0">.
 NET_DEVICE = "net_device"
 
+#: ``target`` of a profile write that lands in the running config rather than in
+#: a stored preset — the fan-out uses ``preset:<name>`` (``presets/presetops``).
+CONFIG_TARGET = "config"
+
+
+def _profile_names(xml: bytes) -> set[str]:
+    """The profile names ``xml`` already carries. Membership is what answers the
+    audit log's ``replaced``/``found``, and only the pre-edit bytes can answer
+    it."""
+    try:
+        parsed = json.loads(read_profiles(xml))
+    except ValueError:
+        return set()
+    return set(parsed) if isinstance(parsed, dict) else set()
+
+
+def _save_payload(value: str) -> tuple[str, str]:
+    """(profile name, rows as they travel on the wire) of a staged save value.
+
+    Deliberately non-validating: the element writer rejects a bad payload with a
+    message of its own, and an audit emit must never be the thing that fails a
+    write. An unparseable value is logged whole — that is exactly what a reader
+    needs to see."""
+    try:
+        raw = json.loads(value)
+    except ValueError:
+        return "", value
+    if not isinstance(raw, dict):
+        return "", value
+    name = raw.get("name")
+    rows = raw.get("rows")
+    return (name if isinstance(name, str) else ""), (json.dumps(rows) if isinstance(rows, list) else value)
+
+
+def audit_profile_write(audit: AuditLog, xml: bytes, value: str, target: str) -> None:
+    """Record a ``<matrix_profile>`` save against the XML it is about to edit.
+
+    Lives here rather than in ``matrixconf``: the element writers are pure XML and
+    stay that way, so each of the two places a profile actually lands — the
+    running config and the fan-out into stored presets — emits at its own call
+    site with its own pre-edit bytes."""
+    name, rows = _save_payload(value)
+    audit.profile_write(name, rows, name in _profile_names(xml), target)
+
+
+def audit_profile_delete(audit: AuditLog, xml: bytes, name: str, target: str) -> None:
+    """Record a ``<matrix_profile>`` delete against the XML it is about to edit."""
+    audit.profile_delete(name, name in _profile_names(xml), target)
+
 
 def _apply_one(xml: bytes, field: str, value: str) -> bytes:
     """Route one staged edit to its grounded XML location, naming the SETTING in
@@ -166,24 +218,33 @@ def _pop_profile_edits(remaining: dict[str, str]) -> dict[str, str]:
     return {k: remaining.pop(k) for k in (MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE) if k in remaining}
 
 
-def _apply_profile_edits(xml: bytes, verbs: dict[str, str]) -> bytes:
+def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> bytes:
     """The saved-profile verbs, delete before save. Staging holds at most one of
     each, and the pair co-occurs only as a rename — drop the old name, write the
     new one — where saving first would delete what was just written."""
+    # Both audit flags are questions about the config as it stood, not about the
+    # half-edited bytes a rename leaves between the delete and the save.
+    before = xml
     if MATRIX_PROFILE_DELETE in verbs:
         name, _ = parse_delete(verbs[MATRIX_PROFILE_DELETE])
+        audit_profile_delete(audit, before, name, CONFIG_TARGET)
         xml = delete_profile(xml, name)
     if MATRIX_PROFILE_SAVE in verbs:
+        audit_profile_write(audit, before, verbs[MATRIX_PROFILE_SAVE], CONFIG_TARGET)
         xml = write_profile(xml, verbs[MATRIX_PROFILE_SAVE])
     return xml
 
 
-def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
+def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None) -> bytes:
     """Return ``xml`` with each staged form-field edit applied surgically.
 
     Every form field has a grounded location; when the snapshot lacks the target
     element or plugin it is created there, carrying only the attribute being set.
-    All other bytes of the snapshot are preserved exactly."""
+    All other bytes of the snapshot are preserved exactly.
+
+    ``audit`` arrives from the caller rather than a module-level handle so this
+    module stays independent of manager state; omitted, the profile verbs record
+    nothing."""
     remaining = dict(edits)
     profile_verbs = _pop_profile_edits(remaining)
     fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
@@ -201,7 +262,7 @@ def apply_edits(xml: bytes, edits: dict[str, str]) -> bytes:
     # LAST: a save copies the live <post_process> chain, so it has to run after
     # this apply's own plugin edits — otherwise engaging correction and saving a
     # profile in one apply stores the correction the user just turned OFF.
-    return _apply_profile_edits(xml, profile_verbs)
+    return _apply_profile_edits(xml, profile_verbs, audit if audit is not None else AuditLog(None))
 
 
 def _read_attr(xml: bytes, tag_name: str, attr: str) -> str | None:

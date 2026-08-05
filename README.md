@@ -149,6 +149,8 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
 | `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
+| `HQPTUNER_DEBUG_LOG` | unset (off) | Path to the append-only event log. Unset means no file and no records. Set it to record every durable write — staged edits, applies, profile writes, preset writes — as JSON Lines, e.g. `/state/audit.jsonl` in the container |
+| `HQPTUNER_LOG_LEVEL` | `INFO` | Level for ordinary prose logging. A level name, not a number; an unparseable value falls back to `INFO` rather than refusing to start |
 
 ## Development
 

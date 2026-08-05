@@ -4,6 +4,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **An append-only event log, off by default.** `HQPTUNER_DEBUG_LOG` names a path and HQPTuner records every durable write there as JSON Lines — staged edits, what each apply was handed, matrix profile writes and whether they replaced a profile, preset writes and what triggered them. Unset, nothing is written. No UI control: set it on the container and read the file with `jq`.
+
+- **`HQPTUNER_LOG_LEVEL` sets the log level**, which was pinned at `INFO` in code. An unparseable value falls back to `INFO`.
+
 ## [1.2.0] — 2026-08-04
 
 ### Added

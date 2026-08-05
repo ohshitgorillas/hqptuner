@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import zipfile
 
+from ..audit import AuditLog
 from . import engineconf
 from .presetconf import apply_edits
 from .xmledit import GroundingError
@@ -39,6 +40,7 @@ def restore_zip_from_running(
     edits: dict[str, str],
     extra_members: dict[str, bytes] | None = None,
     active: str | None = None,
+    audit: AuditLog | None = None,
 ) -> tuple[bytes, bytes]:
     """Build a ``POST /restore`` archive whose **working** config member
     (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is
@@ -54,8 +56,11 @@ def restore_zip_from_running(
     (staging direct_sdm reverts volume_fixed and vice versa — reproduced against
     the live 6.0.4 daemon). Applies must be incremental against what is actually
     running; discarding drift is not worth discarding the user's own previous
-    edits."""
-    intended = apply_edits(snapshot_member(zip_bytes, None, active), edits)
+    edits.
+
+    ``audit`` is carried straight through to ``apply_edits``, which is where the
+    running config's profile writes are recorded."""
+    intended = apply_edits(snapshot_member(zip_bytes, None, active), edits, audit)
     # The live config is hqplayerd.xml, or the root <Profile>.xml when a named
     # preset is active — rewrite THAT member and leave the cfgs snapshots (the
     # preset's saved definition) untouched, so edits stay ephemeral until Save.

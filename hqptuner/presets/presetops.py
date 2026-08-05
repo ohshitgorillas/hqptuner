@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..conf import engineconf, matrixconf, xmledit
+from ..conf import engineconf, matrixconf, presetconf, xmledit
 from ..lanes import presetlane
 from .filterpark import FilterPark
 from .presetstore import PresetError, PresetStore
@@ -31,7 +31,7 @@ class PresetOps:
         # HQPTuner-owned preset store (presetstore) — the source of truth for
         # presets. hqplayerd's own named-profile subsystem is unreliable, so we
         # drive it only through restore-onto-[default] and keep data/cfgs mirrored.
-        self.store = PresetStore(cfg.preset_dir)
+        self.store = PresetStore(cfg.preset_dir, mgr.audit)
         self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
@@ -67,11 +67,16 @@ class PresetOps:
         for preset in dict.fromkeys(delete_from + save_to):
             try:
                 xml = self.store.read(preset)
+                # target names WHICH copy the element landed in — a fan-out write
+                # is otherwise indistinguishable from the running-config one
+                before, target = xml, f"preset:{preset}"
                 if preset in delete_from:
+                    presetconf.audit_profile_delete(self._mgr.audit, before, delete_name, target)
                     xml = matrixconf.delete_profile(xml, delete_name)
                 if save_value is not None and preset in save_to:
+                    presetconf.audit_profile_write(self._mgr.audit, before, save_value, target)
                     xml = matrixconf.write_profile(xml, save_value)
-                self.store.save(preset, xml)
+                self.store.save(preset, xml, trigger="fanout")
                 results[preset] = "ok"
             except (PresetError, xmledit.GroundingError, OSError) as exc:
                 results[preset] = str(exc)

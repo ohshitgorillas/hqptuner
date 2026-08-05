@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from ..audit import AuditLog
 from ..core.writer import known_live_settings
 from .deps import Mgr
 from .models import AutosaveBody, StageBody
@@ -58,6 +59,11 @@ def _pending(request: Request) -> PendingStore:
     return store
 
 
+def _audit(request: Request) -> AuditLog:
+    log: AuditLog = request.app.state.audit
+    return log
+
+
 def _apply_succeeded(report: dict[str, Any]) -> bool:
     """Whether every staged change actually took. A live edit counts only if its
     readback verified (`ok`); the persistent lane only if the running config
@@ -83,6 +89,9 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
     # when an edit lands back on its baseline, and the drop is the later word.
     store.stage(body.live, body.http)
     store.drop(body.drop.live, body.drop.http)
+    # what THIS request carried, not the accumulated buffer: the buffer is a sum
+    # of requests and the log has to be able to attribute a field to one of them
+    _audit(request).stage(body.http, body.live, body.drop.model_dump())
     return store.snapshot()
 
 
@@ -94,7 +103,11 @@ def pending(request: Request) -> dict[str, Any]:
 @router.delete("/config/pending")
 def discard(request: Request, manager: Mgr) -> dict[str, Any]:
     store = _pending(request)
+    # snapshot before the clear: the discard's whole effect is to destroy this,
+    # so the record is the only surviving copy of what was thrown away
+    lost_http, lost_live = dict(store.http), dict(store.live)
     store.clear()
+    _audit(request).discard(lost_http, lost_live)
     # parked filter uploads belong to the staged process strings just discarded
     manager.presetops.clear_parked_filters()
     return store.snapshot()

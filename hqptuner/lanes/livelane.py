@@ -106,7 +106,7 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     if index is None:
         del mgr.live.rates[family or ""]
         return []
-    return await apply_live(client, {"rate": {"value": index}})
+    return await apply_live(client, {"rate": {"value": index}}, mgr.audit)
 
 
 def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> dict[str, str]:
@@ -159,7 +159,7 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
     edits, dropped = livemap.resolve_chain(mgr, chain)
     for field in dropped:
         del mgr.live.chain[chain][field]
-    return await apply_live(client, edits) if edits else []
+    return await apply_live(client, edits, mgr.audit) if edits else []
 
 
 async def chain_entered(mgr: ConnectionManager, client: ControlClient, before: str | None, reenumerated: bool) -> None:
@@ -207,7 +207,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         raise ControlError("daemon not connected")
     fields, held_rate = livechain.split_unpinnable_rate(mgr, fields)
     edits, stored = livemap.resolve_live(mgr, fields)
-    report = await apply_live(client, edits)
+    report = await apply_live(client, edits, mgr.audit)
     try:
         mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
         if _REENUMERATES & set(edits):
