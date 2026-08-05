@@ -36,7 +36,7 @@ function wire(staged = { live: {}, http: {} }) {
 // The /api/metadata payload shape: settings.json prose keyed by group, plus the
 // filters.json / shapers.json name-keyed overlays.
 
-const META = {
+export const META = {
   settings: {
     output: {
       output_mode: { label: "Output mode", tooltip: "Mode prose." },
@@ -166,7 +166,17 @@ export const span = (out, cls) => {
 
 export const attrOf = (fragment, name) => (new RegExp(`\\b${name}="([^"]*)"`).exec(fragment || "") || [])[1];
 
-const opts = (out) => [...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] }));
+// Options come in two markups: native <option> tags, and the combobox's
+// .dd-opt rows (desc-carrying dropdowns, controls/Combobox.js). Both expose
+// the same {a, label} shape — a grayed row's aria-disabled satisfies the same
+// \bdisabled\b probe the native attribute does.
+const opts = (out) => [
+  ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] })),
+  ...[...out.matchAll(/<div([^>]*\bclass="dd-opt[^"]*"[^>]*)>([\s\S]*?)<\/div>/g)].map((m) => ({
+    a: m[1],
+    label: m[2].trim(),
+  })),
+];
 export const optionLabels = (out) => opts(out).map((o) => o.label);
 export const optionByLabel = (out, label) => opts(out).find((o) => o.label.startsWith(label));
 

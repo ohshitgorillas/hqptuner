@@ -13,6 +13,7 @@ import { metadata } from "../store/signals.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
 import { Card } from "./tabs/common.js";
+import { ChainPack } from "./ChainPack.js";
 
 // settings.json system-group prose (Phase 1 manual/readme extraction). These four
 // engine attributes live outside the schema/Field path, so pull their notes here.
@@ -103,7 +104,7 @@ export function HardwareCard() {
         <!-- chain: CUDA offload + its device ids stack in the LEFT track, the CPU
              pair (Multicore DSP, E-core allocation) in the right, so each column
              is one subsystem instead of splitting them by source order. -->
-        <div class="pack chain">
+        <${ChainPack}>
           <div class="field" title=${hoverFor("cuda_offload")}>
             <label>CUDA offload</label>
             <div class="control">
@@ -151,9 +152,9 @@ export function HardwareCard() {
             </div>
             <${Note} k="ecore_allocation" />
           </div>
-        </div>
-        <!-- outside the chain pack: a full-span item in a column-flow grid has no
-             defined placement, so Blocks / cycle is a plain full-width row below. -->
+        <//>
+        <!-- outside the chain pack: it splits after the leading pair, so
+             Blocks / cycle is a plain full-width row below instead. -->
         <div class="field" title=${hoverFor("blocks_per_cycle")}>
           <label>Blocks / cycle</label>
           <div class="control">

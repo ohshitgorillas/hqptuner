@@ -34,6 +34,8 @@ import {
 import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
+import { widgetFor, tipsFor } from "./Field.js";
+import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
@@ -96,8 +98,10 @@ function LiveLabel({ entry, meta, badge }) {
 }
 
 function LiveField({ control, widget }) {
-  const W = widget || Dropdown;
   const { entry } = control;
+  // Same widget pick as the tabs (Field.js widgetFor): a desc-carrying dropdown
+  // is the tip-showing combobox on this page too — same knob, same words.
+  const W = widget || widgetFor(entry);
   const meta = describe(entry, control.key);
   const busy = liveBusy.value === control.field || (control.enumBacked && liveEnumBusy.value);
   const error = liveErrors.value[control.field] || "";
@@ -109,6 +113,7 @@ function LiveField({ control, widget }) {
         <${W}
           value=${control.value}
           options=${control.options}
+          tips=${tipsFor(entry, meta)}
           disabled=${busy || !!control.disabled}
           onChange=${(v) => writeLive(control.field, v)}
         />
@@ -162,7 +167,7 @@ function ChainBody({ chain, loaded, controls }) {
   const live = chain === loaded;
   return html`
     ${live ? null : html`<div class="section-note">${heldNote(chain, loaded)}</div>`}
-    <div class="pack chain">${controls.map((c) => html`<${LiveField} control=${c} />`)}</div>
+    <${ChainPack}>${controls.map((c) => html`<${LiveField} control=${c} />`)}<//>
   `;
 }
 

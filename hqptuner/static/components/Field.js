@@ -9,7 +9,7 @@ import { schema, MATRIX_BYPASS_REASON } from "../store/schema.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
 import { edit, setLive } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
-import { describe, selectionDescription } from "../store/prose.js";
+import { describe, selectionDescription, optionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
@@ -17,6 +17,7 @@ import { grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
+import { Combobox } from "./controls/Combobox.js";
 import { Knob } from "./Knob.js";
 
 const WIDGETS = {
@@ -30,6 +31,16 @@ const WIDGETS = {
   radio: RadioGroup,
   knob: Knob,
 };
+
+// A desc-carrying dropdown renders the custom combobox instead of a native
+// <select>: macOS never surfaces option tooltips, so per-option prose needs
+// rows the page owns. Every other dropdown keeps the native control. Exported
+// so the LIVE page's hand-rolled binder makes the identical pick — this
+// decision exists here and nowhere else.
+const tipped = (entry) => entry.desc && entry.widget === "dropdown";
+export const widgetFor = (entry) => (tipped(entry) ? Combobox : WIDGETS[entry.widget]);
+// The combobox's per-row tip resolver; undefined for every native widget.
+export const tipsFor = (entry, meta) => (tipped(entry) ? (o) => optionDescription(entry, o, meta) : undefined);
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds). A schema entry may
@@ -160,7 +171,7 @@ function FieldLabel({ entry, label, badge }) {
 export function Field({ k }) {
   const entry = schema[k];
   if (!entry) return null;
-  const W = WIDGETS[entry.widget];
+  const W = widgetFor(entry);
   const meta = describe(entry, k);
   // An explicit empty label means the row has NO name column: the card's own
   // head already names the thing the control switches, and a word repeating it
@@ -178,6 +189,7 @@ export function Field({ k }) {
         <${W}
           value=${controlValue(entry, k)}
           options=${options}
+          tips=${tipsFor(entry, meta)}
           min=${cfgConstraint(entry, "min")}
           max=${cfgConstraint(entry, "max")}
           step=${cfgConstraint(entry, "step")}

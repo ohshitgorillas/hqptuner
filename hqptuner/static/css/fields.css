@@ -25,6 +25,7 @@
    the element it marks. */
 .field.dirty .segment,
 .field.dirty select,
+.field.dirty .dd-box,
 .field.dirty input[type="text"],
 .field.dirty input[type="number"] {
   border-color: var(--accent);

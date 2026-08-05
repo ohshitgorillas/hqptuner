@@ -116,6 +116,12 @@ button.card-head {
   gap: var(--rhythm-field);
   position: relative; /* anchors the centred two-column rule (see media query) */
 }
+/* A chain pack's two column wrappers (ChainPack.js) dissolve below the
+   breakpoint so their fields join the pack's own single-column stack and take
+   its rhythm, exactly like every other pack. */
+.pack.chain > .chain-col {
+  display: contents;
+}
 @media (min-width: 1100px) {
   .pack {
     display: grid;
@@ -183,40 +189,30 @@ button.card-head {
      replaced added to that gap instead of setting it, and put 48px between two
      packs against the 24px it named. */
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
-     (column-first over two rows) with the secondary control in the right track,
-     instead of splitting the chain across columns by raw source order. */
-  /* A chain packs each column as its OWN stack, not as grid rows shared with
-     the other column. As a grid, a row is as tall as its tallest item and
-     `align-items: start` leaves that slack under the shorter one — so the gap
-     below CUDA offload was set by the height of Multicore DSP beside it (28px
-     against the declared 12px). Independent columns give every field in a chain
-     the same rhythm regardless of what sits alongside. */
-  .pack.chain {
-    display: block;
-    columns: 2;
-    column-gap: var(--sp-4);
-  }
-  .pack.chain > * {
-    break-inside: avoid;
-    margin-bottom: var(--sp-3); /* token-exempt: a multi-column box has no gap between its ITEMS — column-gap separates the columns, so a margin is the only mechanism here */
-  }
-  /* The break is FORCED, not balanced. Left to balance, the split point moves
-     with content height: with descriptions on, the 1x/Nx pair no longer fits the
-     balanced column height, so Nx crossed to the right track and the modulator
-     dropped to a second row beneath it — the same card reflowing on a filter
-     change or a descriptions toggle. Every chain's left track is its leading
-     PAIR (1x + Nx filter, CUDA offload + devices), so the break belongs after
-     the second child, where content cannot move it. */
-  .pack.chain > :nth-child(2) {
-    break-after: column;
+     with the secondary controls in the right track, instead of splitting the
+     chain across columns by raw source order. The split lives in the MARKUP
+     (ChainPack.js wraps the leading pair and the rest in two .chain-col
+     stacks): grid rows share height and leave slack under the shorter field,
+     and multicol needs a forced column break Firefox never implemented
+     (Bugzilla 549114) — it balances instead, so the split drifted with content
+     height. Each .chain-col is its own stack: the fields in a column keep one
+     rhythm regardless of what sits alongside, and the split point is fixed
+     where content cannot move it. */
+  .pack.chain > .chain-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    min-width: 0;
   }
   .pack .field:not(.span) select,
+  .pack .field:not(.span) .dd-box,
   .pack .field:not(.span) input[type="text"] {
     width: 100%;
     max-width: 100%;
     min-width: 0;
   }
   .pack .span select,
+  .pack .span .dd-box,
   .pack .span input[type="text"] {
     width: 100%;
     max-width: var(--w-select-wide);

@@ -4,11 +4,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
-### Changed
+### Added
+
+- **Dropdown options now explain themselves on hover.** Every dropdown whose options carry manual descriptions — the oversampling filter menus, dither, modulator, noise filter, integrator, both SDM/PCM conversions, the junk filter and the matrix engine pair — shows the hovered option's description in a tip beside the open list. Keyboard browsing shows the same tip at the highlighted option. These dropdowns open a page-drawn list instead of the native one, since macOS never shows tooltips on native options. The LIVE page's chain controls use the same dropdowns.
 
 - **The header no longer prints the playback state.** "Playing" / "Stopped" beside the daemon name duplicated what the signal path's chips already show.
 
 ### Fixed
+
+- **Chain cards no longer drift in Firefox.** The two-column chain layout relied on a forced CSS column break Firefox has never implemented, so the 1x/Nx filter pair could split across columns there. The split now lives in the markup and lands after the leading pair in every browser.
 
 - **Scrolling over a slider on macOS can no longer change it.** macOS browsers hand a scroll gesture's first ticks straight to the slider without dispatching a wheel event, so the wheel block never saw them and edits kept staging. Sliders and knobs now accept an edit only from a real drag, track click, or slider keystroke — anything else snaps back and stages nothing.
 
