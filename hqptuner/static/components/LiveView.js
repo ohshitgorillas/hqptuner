@@ -34,7 +34,7 @@ import {
 import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
-import { widgetFor, tipsFor } from "./Field.js";
+import { widgetFor, tipsFor, favFor } from "./Field.js";
 import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { PlaybackVolume } from "./PlaybackVolume.js";
@@ -106,6 +106,7 @@ function LiveField({ control, widget }) {
   const busy = liveBusy.value === control.field || (control.enumBacked && liveEnumBusy.value);
   const error = liveErrors.value[control.field] || "";
   const badge = control.badge;
+  const { fav, onFav } = favFor(entry) || {};
   return html`
     <div class="field" title=${hoverTitle(entry, meta)}>
       <${LiveLabel} entry=${entry} meta=${meta} badge=${badge} />
@@ -114,6 +115,8 @@ function LiveField({ control, widget }) {
           value=${control.value}
           options=${control.options}
           tips=${tipsFor(entry, meta)}
+          fav=${fav}
+          onFav=${onFav}
           disabled=${busy || !!control.disabled}
           onChange=${(v) => writeLive(control.field, v)}
         />

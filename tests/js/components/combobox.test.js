@@ -25,9 +25,17 @@ const openTag = (out, needle) => {
 };
 
 // The dd-opt rows of a rendered field: full opening tag + tag-stripped text.
+// The favorite-star button is an affordance riding in the row, not part of its
+// label — drop it whole (tag AND glyph) before stripping the remaining tags.
 function optRows(out) {
   const rows = [...(out || "").matchAll(/<(\w+)([^>]*\bclass="[^"]*\bdd-opt\b[^"]*"[^>]*)>([\s\S]*?)<\/\1>/g)];
-  return rows.map((m) => ({ tag: `<${m[1]}${m[2]}>`, text: m[3].replace(/<[^>]*>/g, "").trim() }));
+  return rows.map((m) => ({
+    tag: `<${m[1]}${m[2]}>`,
+    text: m[3]
+      .replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "")
+      .replace(/<[^>]*>/g, "")
+      .trim(),
+  }));
 }
 
 const FILTER_FIELDS = [

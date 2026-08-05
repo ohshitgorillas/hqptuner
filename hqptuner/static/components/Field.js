@@ -13,6 +13,7 @@ import { describe, selectionDescription, optionDescription } from "../store/pros
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
+import { isFavorite, toggleFavorite } from "../store/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
@@ -41,6 +42,12 @@ const tipped = (entry) => entry.desc && entry.widget === "dropdown";
 export const widgetFor = (entry) => (tipped(entry) ? Combobox : WIDGETS[entry.widget]);
 // The combobox's per-row tip resolver; undefined for every native widget.
 export const tipsFor = (entry, meta) => (tipped(entry) ? (o) => optionDescription(entry, o, meta) : undefined);
+// Favorite-star wiring for the four filter dropdowns (`narrow`-carrying
+// entries), keyed by option label = filter name (store/favorites.js); undefined
+// everywhere else, so dither/modulator comboboxes render starless. Shared with
+// the LIVE page's binder, same as widgetFor/tipsFor.
+export const favFor = (entry) =>
+  entry.narrow ? { fav: (o) => isFavorite(o.label), onFav: (o) => toggleFavorite(o.label) } : undefined;
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds). A schema entry may
@@ -194,6 +201,7 @@ export function Field({ k }) {
   const advice = adviceNote(k);
   const options = fieldOptions(entry, k);
   const badge = narrowBadge(entry, k);
+  const { fav, onFav } = favFor(entry) || {};
   const classes = fieldClasses(entry, k, label);
   return html`
     <div class=${classes} title=${hoverTitle(entry, meta, reason)}>
@@ -203,6 +211,8 @@ export function Field({ k }) {
           value=${controlValue(entry, k)}
           options=${options}
           tips=${tipsFor(entry, meta)}
+          fav=${fav}
+          onFav=${onFav}
           min=${cfgConstraint(entry, "min")}
           max=${cfgConstraint(entry, "max")}
           step=${cfgConstraint(entry, "step")}

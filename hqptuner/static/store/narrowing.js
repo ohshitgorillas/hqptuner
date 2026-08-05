@@ -4,6 +4,12 @@
 // the dropdown offers. The currently-selected option is always kept visible.
 import { signal, computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
+import { favoriteFilters, nFavOnly } from "./favorites.js";
+
+// Favorites-only rides the narrow bar with the facets, so narrowing is its
+// public surface; the signal itself lives in favorites.js beside the set it
+// depends on (removing the last star turns it off).
+export { nFavOnly };
 
 export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] = any)
 export const nQuality = signal(0); // 0 = any, else minimum quality (3 | 4 | 5)
@@ -62,6 +68,7 @@ export const narrowingActive = computed(
       nLength.value ||
       nRatio.value ||
       nUpsampleOnly.value ||
+      nFavOnly.value ||
       stageTogglesEngaged()
     ),
 );
@@ -74,6 +81,7 @@ export function resetNarrowing() {
   nLength.value = "";
   nRatio.value = "";
   nUpsampleOnly.value = false;
+  nFavOnly.value = false; // the switch only — reset clears narrowing, never the stars
   nApod1x.value = APOD_1X_DEFAULT; // back to per-stage defaults, not a bare clear
   nApodNx.value = APOD_NX_DEFAULT;
   nHires1x.value = HIRES_1X_DEFAULT; // 1x hi-res back to "hide", not cleared
@@ -136,6 +144,11 @@ function ratioPass(f, s) {
 // overlay carries no facets).
 const facetPass = (f, sel) => !f || FACET_CHECKS.every((check) => check(f, sel));
 
+// Favorites are NOT a facet check: a facet-less option passes facetPass
+// untouched, but favorites-only must still hide it. Keyed by option label —
+// the filter's name, the same key the facet overlay uses.
+const favPass = (label, sel) => !sel.favOnly || favoriteFilters.value.has(label);
+
 // The active selection snapshot. Number() on quality — the raw signal in
 // narrowingActive and this can disagree: a non-numeric value reads as active in
 // the bar but narrows nothing. Apod and hi-res read the dropdown's STAGE
@@ -150,6 +163,7 @@ function buildSel(stage, field) {
     length: nLength.value,
     ratio: nRatio.value,
     upsampleOnly: nUpsampleOnly.value,
+    favOnly: nFavOnly.value,
     family: family(field),
     apod: apod !== "all",
     half: apod === "half",
@@ -160,26 +174,28 @@ function buildSel(stage, field) {
 
 // Any facet actually narrowing? An unset facet excludes nothing, so an
 // all-default snapshot returns the option list untouched (same object).
+const SCALAR_FACETS = [
+  "quality",
+  "phase",
+  "length",
+  "ratio",
+  "upsampleOnly",
+  "favOnly",
+  "apod",
+  "hideHires",
+  "hiresOnly",
+];
 function anyEngaged(s) {
-  return (
-    s.genre.length ||
-    s.quality ||
-    s.focus.length ||
-    s.phase ||
-    s.length ||
-    s.ratio ||
-    s.upsampleOnly ||
-    s.apod ||
-    s.hideHires ||
-    s.hiresOnly
-  );
+  return s.genre.length || s.focus.length || SCALAR_FACETS.some((k) => s[k]);
 }
 
 export function narrowOptions(options, current, stage, field) {
   const sel = buildSel(stage, field);
   if (!anyEngaged(sel)) return options;
   const facets = filterFacets.value;
-  return options.filter((o) => String(o.value) === String(current) || facetPass(facets[o.label], sel));
+  return options.filter(
+    (o) => String(o.value) === String(current) || (favPass(o.label, sel) && facetPass(facets[o.label], sel)),
+  );
 }
 
 // ---- result counts (narrowing UI) -----------------------------------------
@@ -190,7 +206,7 @@ export function narrowOptions(options, current, stage, field) {
 function countPass(options, sel) {
   if (!anyEngaged(sel)) return options.length;
   const facets = filterFacets.value;
-  return options.reduce((n, o) => (facetPass(facets[o.label], sel) ? n + 1 : n), 0);
+  return options.reduce((n, o) => (favPass(o.label, sel) && facetPass(facets[o.label], sel) ? n + 1 : n), 0);
 }
 
 // Live badge for one filter dropdown: { n, total } against the ACTIVE facets.

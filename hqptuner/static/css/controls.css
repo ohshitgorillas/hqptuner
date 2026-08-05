@@ -149,11 +149,32 @@ select:disabled {
     var(--shadow-pop);
 }
 .dd-opt {
+  /* flex so the star pins right; the label + optional " — reason" are
+     contiguous text runs, which merge into one anonymous flex item */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-sm);
   font-size: var(--fs-body);
   white-space: nowrap;
   cursor: pointer;
+}
+/* Per-row favorite star (filter dropdowns only). Muted until starred or
+   hovered — never the accent, which means staged edit and nothing else. */
+.dd-fav {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  transition: color var(--dur) var(--ease);
+}
+.dd-fav:hover,
+.dd-fav.on {
+  color: var(--fg);
 }
 /* Shared hover/keyboard highlight — never the accent, which means staged edit
    and nothing else. */
