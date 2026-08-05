@@ -18,7 +18,7 @@
 import { html } from "../lib/dom.js";
 import { engineStatus, engineState } from "../store/signals.js";
 import { runningValue, formFieldName } from "../store/resolve.js";
-import { schema } from "../store/schema.js";
+import { schema, volumePinned } from "../store/schema.js";
 import { optionsFor } from "../store/options.js";
 import { truthy as on } from "../lib/coerce.js";
 import { hz } from "../lib/units.js";
@@ -179,8 +179,17 @@ function chainStages(st, md, playing) {
   // daemon reaches easily, since bypassing the matrix leaves the plugin switches
   // alone. Same rule as the pass-through above: never advertise a stage that is
   // not running.
+  // Loudness is additionally volume-ADAPTIVE (manual §7): the applied fraction
+  // follows the live volume, so a pinned volume — fixed volume, Auto headroom,
+  // or a 0/0 range — means 0% applied, ever. An engaged-but-pinned loudness is
+  // inaudible, so its chip must not show; crossfeed is not volume-adaptive and
+  // keeps its own gate. The combined "DSP" chip follows from the two shown
+  // chips, so it collapses only when both stages are actually audible.
   const post = matrixOn
-    ? postProcessStage(on(runningValue("crossfeed_enabled")), on(runningValue("loudness_enabled")))
+    ? postProcessStage(
+        on(runningValue("crossfeed_enabled")),
+        on(runningValue("loudness_enabled")) && !volumePinned(runningValue),
+      )
     : null;
   if (post) stages.push(post);
   stages.push(...conversionStages(st, md));
