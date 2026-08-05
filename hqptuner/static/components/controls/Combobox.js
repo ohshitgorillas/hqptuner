@@ -1,6 +1,8 @@
 // Custom dropdown for description-carrying enums: a native <select> cannot
 // show a per-option tip. Presentational like the rest of controls/ — no store
-// knowledge, value/options in, onChange(value) out on commit only.
+// knowledge, value/options in, onChange(value) out on commit only. Optional
+// fav(o)/onFav(o) pair adds a per-row favorite star (filter dropdowns); star
+// clicks toggle only, never commit.
 import { useRef, useState, useEffect, useLayoutEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 
@@ -55,7 +57,7 @@ function placeTip(t, p, row) {
 // otherwise pop over the open list.
 // Positioning is fixed + getBoundingClientRect in effects — ancestor-independent
 // (no transform/containing-block surprises) and identical across engines.
-export function Combobox({ value, options, tips, disabled, onChange }) {
+export function Combobox({ value, options, tips, fav, onFav, disabled, onChange }) {
   const opts = options || [];
   const [open, setOpen] = useState(false);
   const [hl, setHl] = useState(0);
@@ -182,6 +184,24 @@ export function Combobox({ value, options, tips, disabled, onChange }) {
             onClick=${() => commit(o)}
           >
             ${o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}
+            ${
+              fav
+                ? html`<button
+                    type="button"
+                    class=${fav(o) ? "dd-fav on" : "dd-fav"}
+                    aria-pressed=${!!fav(o)}
+                    aria-label=${`${fav(o) ? "Unfavorite" : "Favorite"} ${o.label}`}
+                    onClick=${(e) => {
+                      // never reaches the row's own click — a star toggle must
+                      // not commit the option or close the pop
+                      if (e && e.stopPropagation) e.stopPropagation();
+                      onFav(o);
+                    }}
+                  >
+                    ${fav(o) ? "★" : "☆"}
+                  </button>`
+                : null
+            }
           </div>
         `,
       )}

@@ -26,7 +26,7 @@ HQPlayer is a complex program that takes time to learn. A bad UI doesn't just fr
 
 HQPTuner offers the following features and improvements over the stock web configuration UI.
 
-**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks.
+**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks. Star the filters you keep coming back to and the ★ Favorites toggle narrows every filter dropdown to just those (saved per browser).
 
 **2. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
 

@@ -123,6 +123,11 @@
 .multi-caret {
   color: var(--muted);
 }
+/* the Favorites toggle with zero stars — nothing to narrow to */
+.multi-btn:disabled {
+  opacity: var(--o-disabled);
+  cursor: default;
+}
 .multi-pop {
   position: absolute;
   top: 100%;

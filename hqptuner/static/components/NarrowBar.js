@@ -25,6 +25,7 @@ import {
   nLength,
   nRatio,
   nUpsampleOnly,
+  nFavOnly,
   nApod1x,
   nApodNx,
   nHires1x,
@@ -33,6 +34,7 @@ import {
   resetNarrowing,
   previewCount,
 } from "../store/narrowing.js";
+import { favoriteFilters } from "../store/favorites.js";
 
 const GENRES = [
   ["pop", "Pop"],
@@ -410,6 +412,19 @@ export function NarrowBar() {
               <${CountChip} overrides=${{ upsampleOnly: true }} />
             </label>`}
           />
+          <button
+            type="button"
+            class="multi-btn ${nFavOnly.value ? "active" : ""}"
+            disabled=${!favoriteFilters.value.size}
+            title=${
+              favoriteFilters.value.size
+                ? "Show only the filters you starred in the dropdowns below"
+                : "Star a filter in a dropdown below to enable"
+            }
+            onClick=${() => (nFavOnly.value = !nFavOnly.value)}
+          >
+            ★ Favorites
+          </button>
         </div>
       </div>
       <div class="narrow-switchcols">
