@@ -43,6 +43,18 @@ function configFields(dsp) {
   ];
 }
 
+// The /config form's volume fields, defaulted to a NOT-pinned volume — an
+// adjustable -60..0 dB range with neither fixed-volume switch engaged — so
+// every case that never mentions volume keeps its pre-existing meaning.
+function volumeFields(volume) {
+  return [
+    { name: "fixed_volume_enabled", value: volume.fixedVolume ?? false },
+    { name: "volume_fixed", value: volume.volumeFixed ?? false },
+    { name: "volume_min", value: volume.min ?? "-60" },
+    { name: "volume_max", value: volume.max ?? "0" },
+  ];
+}
+
 // The active profile name reaches the app on two carriers: `live_active`, the
 // memory-only 4321 MatrixSetProfile switch, and `active`, the name in the
 // working config XML. A live load is reflected on both (docs/matrix-spec.md),
@@ -57,18 +69,19 @@ function profileCarriers(matrix) {
   };
 }
 
-function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {} } = {}) {
+function matrixFields(matrix) {
+  return [
+    { name: "enabled", value: matrix.enabled ?? false },
+    { name: "post_bauer_enabled", value: matrix.crossfeed ?? false },
+    { name: "post_loudness_enabled", value: matrix.loudness ?? false },
+  ];
+}
+
+function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {}, volume = {}, file } = {}) {
   engineState.value = { state: String(state) };
   engineStatus.value = { status, metadata };
-  config.value = { fields: configFields(dsp) };
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: matrix.enabled ?? false },
-      { name: "post_bauer_enabled", value: matrix.crossfeed ?? false },
-      { name: "post_loudness_enabled", value: matrix.loudness ?? false },
-    ],
-    ...profileCarriers(matrix),
-  };
+  config.value = { fields: [...configFields(dsp), ...volumeFields(volume)], file };
+  matrixConfig.value = { fields: matrixFields(matrix), ...profileCarriers(matrix) };
   return render(html`<${SignalPath} />`);
 }
 
@@ -519,4 +532,76 @@ test("test_a_bypassed_matrix_with_loudness_still_shows_the_rest_of_the_chain", (
     matrix: { loudness: true },
   });
   assert.equal(chips(out).Filter, "sinc-M");
+});
+
+// --- loudness is volume-adaptive ---------------------------------------------
+// Loudness compensation scales with how far the volume sits below reference
+// (manual §7): with the volume pinned, 0% of the loudness curve is applied, so
+// an engaged-but-pinned loudness stage is inaudible and the bar must not
+// advertise it. The volume is pinned by ANY of: `fixed_volume_enabled` on; Auto
+// headroom / Optimal ISO — the `volume_fixed` field, "0"/"1"/"2" in the config
+// XML (hqplayerd-readme.txt §1.9) when file truth rides `config.value.file`,
+// but a lossy bool on the /config form, and BOTH encodings gate; or a
+// volume_min/volume_max range collapsed to 0/0. Crossfeed is NOT
+// volume-adaptive, so its chip is untouched — and the combined "DSP" chip
+// exists only when both individual chips would show, so crossfeed plus a
+// pinned-volume loudness reads "Crossfeed", never "DSP".
+
+const LOUD = { ...PLAY, matrix: { enabled: true, loudness: true } };
+
+test("test_loudness_with_an_adjustable_volume_shows_the_loudness_chip", () => {
+  const out = panel({
+    ...LOUD,
+    volume: { fixedVolume: false, volumeFixed: false, min: "-60", max: "0" },
+    file: { volume_fixed: "0" },
+  });
+  assert.equal(chips(out).Loudness, "On");
+});
+
+test("test_fixed_volume_enabled_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, volume: { fixedVolume: true } }), "Loudness"), false);
+});
+
+test("test_file_truth_auto_headroom_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "1" } }), "Loudness"), false);
+});
+
+test("test_file_truth_optimal_iso_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "2" } }), "Loudness"), false);
+});
+
+test("test_the_form_volume_fixed_bool_true_suppresses_the_loudness_chip", () => {
+  // no `file` carrier: the lossy /config form checkbox is all there is to read
+  assert.equal(has(panel({ ...LOUD, volume: { volumeFixed: true } }), "Loudness"), false);
+});
+
+test("test_the_form_volume_fixed_bool_false_leaves_the_loudness_chip", () => {
+  assert.equal(chips(panel({ ...LOUD, volume: { volumeFixed: false } })).Loudness, "On");
+});
+
+test("test_a_zero_zero_volume_range_suppresses_the_loudness_chip", () => {
+  assert.equal(has(panel({ ...LOUD, volume: { min: "0", max: "0" } }), "Loudness"), false);
+});
+
+test("test_crossfeed_survives_a_pinned_volume", () => {
+  const out = panel({ ...PLAY, matrix: { enabled: true, crossfeed: true }, volume: { fixedVolume: true } });
+  assert.equal(chips(out).Crossfeed, "On");
+});
+
+test("test_both_post_processes_with_a_pinned_volume_read_crossfeed", () => {
+  const out = panel({
+    ...PLAY,
+    matrix: { enabled: true, crossfeed: true, loudness: true },
+    volume: { fixedVolume: true },
+  });
+  assert.equal(chips(out).Crossfeed, "On");
+});
+
+test("test_both_post_processes_with_a_pinned_volume_show_no_dsp_chip", () => {
+  const out = panel({
+    ...PLAY,
+    matrix: { enabled: true, crossfeed: true, loudness: true },
+    volume: { fixedVolume: true },
+  });
+  assert.equal(has(out, "DSP"), false);
 });

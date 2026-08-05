@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The signal path no longer shows loudness while the volume is pinned.** Loudness is volume-adaptive: with the volume fixed — Fixed level on, Auto headroom engaged, or the volume range collapsed to 0/0 — none of the loudness curve is applied, so an enabled loudness stage is inaudible. The chip (and the combined "DSP" chip) now appears only when loudness is actually in the signal; crossfeed is unaffected.
+
 ## [1.1.2] — 2026-08-04
 
 ### Fixed
