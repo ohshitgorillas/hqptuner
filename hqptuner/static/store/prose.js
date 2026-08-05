@@ -90,3 +90,14 @@ export function selectionDescription(entry, value, options, meta) {
   if (entry.desc === "filter") return filterDescription(name, md);
   return shaperDescription(entry.desc, name, md);
 }
+
+// Same joins, addressed by one option instead of the current selection — the
+// per-option hover tip in the combobox reads each row's prose through this.
+export function optionDescription(entry, option, meta) {
+  if (!entry.desc) return "";
+  if (entry.desc === "config") return (meta && meta.options && meta.options[String(option.value)]) || "";
+  if (!option.label) return "";
+  const md = metadata.value || {};
+  if (entry.desc === "filter") return filterDescription(option.label, md);
+  return shaperDescription(entry.desc, option.label, md);
+}

@@ -6,6 +6,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
+import { ChainPack } from "../ChainPack.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
 import { NarrowBar } from "../NarrowBar.js";
@@ -69,32 +70,32 @@ export const Resampling = () =>
     <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
       ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
-      <div class="pack chain">
+      <${ChainPack}>
         <${Field} k="pcm_filter_1x" />
         <${Field} k="pcm_filter_nx" />
         <${Field} k="pcm_dither" />
-      </div>
+      <//>
       <div class="subhead">DSD Sources</div>
-      <div class="pack chain">
+      <${ChainPack}>
         <${Field} k="noise_filter" />
         <${Field} k="pcm_conversion" />
         <${Field} k="dsd_gain_6db" />
-      </div>
+      <//>
     <//>
     <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
       ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
-      <div class="pack chain">
+      <${ChainPack}>
         <${Field} k="sdm_filter_1x" />
         <${Field} k="sdm_filter_nx" />
         <${Field} k="sdm_modulator" />
-      </div>
+      <//>
       <div class="subhead">DSD Sources</div>
-      <div class="pack chain">
+      <${ChainPack}>
         <${Field} k="sdm_integrator" />
         <${Field} k="sdm_conversion" />
         <${Field} k="direct_sdm" />
-      </div>
+      <//>
     <//>
     <${Card} title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
       <${Field} k="fft_size" />
