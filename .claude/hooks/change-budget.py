@@ -240,8 +240,20 @@ def classify(name, tool_input, root, cwd):
     return CHANGE
 
 
-def count_blocks(ev, root, cwd):
-    """(changes, edits) contributed by one transcript row."""
+def _label(b):
+    """A short quotable name for one metered call, so a denial can say WHICH
+    call it charged; a bare count leaves the agent guessing which stage of a
+    chained command was the metered one."""
+    inp = b.get("input") or {}
+    detail = str(inp.get("command") or inp.get("file_path")
+                 or inp.get("subagent_type") or "")
+    detail = " ".join(detail.split())[:70]
+    return f"{b.get('name')}({detail})" if detail else str(b.get("name"))
+
+
+def count_blocks(ev, root, cwd, labels=None):
+    """(changes, edits) contributed by one transcript row. `labels`, when given,
+    collects _label() for every CHANGE-class block seen."""
     m = _msg(ev)
     if m.get("role") != "assistant":
         return 0, 0
@@ -255,6 +267,8 @@ def count_blocks(ev, root, cwd):
         kind = classify(b.get("name"), b.get("input"), root, cwd)
         if kind == CHANGE:
             changes += 1
+            if labels is not None:
+                labels.append(_label(b))
         elif kind == EDIT:
             edits += 1
     return changes, edits
@@ -333,20 +347,25 @@ def evaluate(data, rows):
 
     win = window(rows)
     changes = edits = 0
+    labels = []
     for ev in win:
-        c, e = count_blocks(ev, root, cwd)
+        c, e = count_blocks(ev, root, cwd, labels)
         changes += c
         edits += e
     if not _pending_present(win, _result_ids(rows), name, tool_input):
         changes += kind == CHANGE
         edits += kind == EDIT
+        if kind == CHANGE:
+            labels.append(_label({"name": name, "input": tool_input}))
 
     # Counts now include the pending call exactly once, so they are its ordinal:
     # the Nth action since the reset. N > LIMIT is the first one past budget,
     # which leaves LIMIT complete actions behind it.
     if changes > CHANGE_LIMIT:
+        listing = "; ".join(labels[-(CHANGE_LIMIT + 1):])
         return (f"{changes} metered actions since the user last spoke "
-                f"(change budget {CHANGE_LIMIT}). " + _REPORT)
+                f"(change budget {CHANGE_LIMIT}). " + _REPORT
+                + f"\nMetered: {listing}")
     if edits > EDIT_LIMIT:
         return (f"{edits} in-tree edits since the user last spoke "
                 f"(edit allowance {EDIT_LIMIT}). " + _REPORT)
@@ -402,92 +421,6 @@ def main():
     }))
 
 
-# ---- self-test --------------------------------------------------------------
-
-
-def _call(uuid, tool_id, name, tool_input):
-    content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]
-    return {"uuid": uuid, "message": {"role": "assistant", "content": content}}
-
-
-def _done(tool_id):
-    block = {"type": "tool_result", "tool_use_id": tool_id, "content": "ok"}
-    return {"message": {"role": "user", "content": [block]}}
-
-
-def _said(text):
-    return {"message": {"role": "user", "content": text}}
-
-
-def _tripped(text):
-    block = {"type": "tool_result", "is_error": True, "tool_use_id": "t", "content": text}
-    return {"toolDenialKind": "permission-rule",
-            "message": {"role": "user", "content": [block]}}
-
-
-def _ran(count, command="sudo ls", start=0):
-    """`count` completed metered calls, each with its result already recorded."""
-    rows = []
-    for i in range(start, start + count):
-        rows.append(_call(f"a{i}", f"t{i}", "Bash", {"command": f"{command} {i}"}))
-        rows.append(_done(f"t{i}"))
-    return rows
-
-
-def _verdict(rows, command="sudo pending"):
-    data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
-            "tool_name": "Bash", "tool_input": {"command": command}}
-    return evaluate(data, rows)
-
-
-def _check(label, condition):
-    print(f"  {'PASS' if condition else 'FAIL'}  {label}")
-    return condition
-
-
-def self_test():
-    limit = CHANGE_LIMIT
-    ok = [_check(f"action {limit} allowed with {limit - 1} complete",
-                 _verdict([_said("do it"), *_ran(limit - 1)]) is None)]
-    reason = _verdict([_said("do it"), *_ran(limit)])
-    ok.append(_check(f"action {limit + 1} denied with {limit} complete", bool(reason)))
-    ok.append(_check("denied count is the pending call's ordinal",
-                     reason.startswith(f"{limit + 1} metered actions")))
-    flushed = _verdict([_said("do it"), *_ran(limit), _call("z", "tz", "Bash", {"command": "sudo pending"})])
-    ok.append(_check("same verdict when the pending row is already flushed",
-                     flushed == reason))
-    ok.append(_check("a free call is never denied",
-                     _verdict([_said("hi"), *_ran(limit + 5)], "ls -la") is None))
-
-    spawn = {"cwd": os.path.dirname(os.path.abspath(__file__)), "tool_name": "Agent",
-             "tool_input": {"subagent_type": "test-writer", "prompt": "spec"}}
-    ok.append(_check("a /tests agent spawn is free past the limit",
-                     evaluate(spawn, [_said("hi"), *_ran(limit + 5)]) is None))
-
-    mid = [_said("do it"), *_ran(3), _said("<command-name>/clear</command-name>"), *_ran(2, start=3)]
-    ok.append(_check("a command row mid-burst does not reset the count", bool(_verdict(mid))))
-    ok.append(_check("prose mid-burst does reset the count",
-                     _verdict([_said("do it"), *_ran(limit + 1), _said("now do this other thing")]) is None))
-
-    after = [_said("do it"), *_ran(limit + 1),
-             _tripped(f"{limit + 1} metered actions since the user last spoke (change budget {limit})."),
-             _said("<command-name>/clear</command-name>")]
-    ok.append(_check("a command row right after a trip does reset", _verdict(after) is None))
-
-    edits = [_said("edit them")]
-    for i in range(EDIT_LIMIT):
-        edits += [_call(f"e{i}", f"u{i}", "Edit", {"file_path": __file__}), _done(f"u{i}")]
-    data = {"cwd": os.path.dirname(os.path.abspath(__file__)),
-            "tool_name": "Edit", "tool_input": {"file_path": __file__}}
-    ok.append(_check(f"{EDIT_LIMIT} complete edits allowed, {EDIT_LIMIT + 1} denied",
-                     bool(evaluate(data, edits)) and evaluate(data, edits[:-2]) is None))
-
-    ok.append(_check("the bash allowlist still loads and still discriminates",
-                     is_free_bash("sed -n '1,5p' x") and not is_free_bash("cd /tmp && ls")))
-
-    print(f"\n{sum(ok)}/{len(ok)} passed")
-    return 0 if all(ok) else 1
-
-
 if __name__ == "__main__":
-    sys.exit(self_test()) if "--self-test" in sys.argv else main()
+    # fixtures live in budget_selftest.py; this file stays under the length gate
+    sys.exit(_load("budget_selftest").self_test()) if "--self-test" in sys.argv else main()

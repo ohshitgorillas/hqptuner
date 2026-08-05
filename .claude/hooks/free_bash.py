@@ -40,6 +40,18 @@ RPM_BAD = {"-i", "-U", "-F", "-e", "--install", "--upgrade", "--freshen",
 # `find` actions that execute or mutate
 FIND_BAD = {"-exec", "-execdir", "-delete", "-ok", "-okdir",
             "-fprint", "-fprint0", "-fprintf", "-fls"}
+# git subcommands that only read history/state. Deliberately absent: branch,
+# tag, stash, reflog, notes, config — each has a mutating flag form, and
+# telling those apart is not worth the parser.
+GIT_READ_SUBCMDS = {"log", "show", "diff", "status", "blame", "shortlog",
+                    "rev-parse", "rev-list", "ls-files", "ls-tree", "cat-file",
+                    "describe", "name-rev", "whatchanged"}
+# git global options that cannot change WHICH code runs. `-c k=v` is absent on
+# purpose: it can define an alias or a textconv filter that executes.
+GIT_GLOBAL_FLAGS = {"--no-pager", "-P", "--literal-pathspecs",
+                    "--no-replace-objects", "--bare"}
+# node flags that hand it a program on the command line instead of a test file
+NODE_BAD = {"-e", "--eval", "-p", "--print", "-i", "--interactive"}
 
 # substrings that can never appear benignly OUTSIDE quotes in a read-only command
 BANNED_SUBSTR = ("`", "$(", "<(", ">(", "||", "--fix", "--write", "--in-place",
@@ -192,6 +204,30 @@ def _curl_ok(rest):
     return all(loop.match(u) for u in urls)
 
 
+def _git_ok(rest):
+    """A read-only git: a query subcommand, reached through only the global
+    options above. History archaeology is investigation, not mutation."""
+    i = 0
+    while i < len(rest):
+        a = rest[i]
+        if a == "-C":
+            i += 2                                    # -C <path>
+        elif a in GIT_GLOBAL_FLAGS or a.startswith(("--git-dir=", "--work-tree=")):
+            i += 1
+        else:
+            break
+    return i < len(rest) and rest[i] in GIT_READ_SUBCMDS
+
+
+def _node_ok(rest):
+    """`node --test …` — the JS suite, identical to what `make test-js` runs
+    (free by its make target) but narrowable to one file. Any other node
+    invocation is an unbounded program and meters."""
+    if any(a in NODE_BAD or a.startswith(("--eval=", "--print=")) for a in rest):
+        return False
+    return "--test" in rest
+
+
 def _stage_ok(mstage, ostage, is_head):
     clean = _analyze_redirects(mstage, ostage)
     if clean is None:
@@ -252,6 +288,10 @@ def _stage_ok(mstage, ostage, is_head):
         return bool(pos) and (pos[-1] == "-" or _is_scratch(pos[-1]))
     if name in FREE_PY_CMDS:
         return True
+    if name == "git":
+        return _git_ok(rest)
+    if name in ("node", "nodejs"):
+        return _node_ok(rest)
     return False
 
 

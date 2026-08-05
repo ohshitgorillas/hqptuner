@@ -2,6 +2,8 @@
 
 Commands that metered against the change budget but are read-only, for later review of `.claude/hooks/free_bash.py`.
 
+Everything below is resolved as of 2026-08-04 — see the Resolution section at the end for what changed and what deliberately did not.
+
 ## 2026-08-03
 
 Running the JS test suite directly is metered, while the make target that runs the identical command is free:
@@ -24,3 +26,32 @@ diff -u .claude/worktrees/wheel-guard/hqptuner/static/lib/dom.js hqptuner/static
 `diff` reads two paths and writes nothing. `grep`, `cat` and `sed -n` over the same files are free; `diff` is the correct tool for the comparison and costs a budget slot.
 
 Uncertain which of the above the hook actually charged — the trip reported a count, not a list. Worth having the hook name the metered stage.
+
+## 2026-08-04
+
+Six read-only investigation commands (git history archaeology + grep) tripped the budget. `git log` / `git show --stat` appear absent from the free list:
+
+```
+git -C /srv/hqptuner log --oneline --all -20 && git -C /srv/hqptuner log --all --oneline --grep -i -E 'tooltip|hover|tip|revert' | head -30
+git -C /srv/hqptuner log --all --oneline -i --grep='tooltip' ; git -C /srv/hqptuner log --all --oneline -i --grep='hover' ; git -C /srv/hqptuner log --all --oneline -i --grep='revert'
+git -C /srv/hqptuner log --all --oneline -i --grep='filter desc' --grep='description' ; ls /srv/hqptuner/hqptuner/static/components/ | head -40 ; grep -rn -i 'option.*title\|title=.*option' /srv/hqptuner/hqptuner/static/components/ | head
+git -C /srv/hqptuner show ec903fc --stat ; git -C /srv/hqptuner log --all --oneline -- hqptuner/static/components/Field.js | head -20
+git -C /srv/hqptuner log --all --oneline -S 'option title' ; git -C /srv/hqptuner log --all --oneline -S 'title:' -- hqptuner/static/components/Field.js hqptuner/static/components/controls 2>/dev/null | head ; grep -rn 'option' /srv/hqptuner/hqptuner/static/components/Field.js | head
+git -C /srv/hqptuner log --all --oneline -- hqptuner/static/components/controls | head -20 ; ls /srv/hqptuner/hqptuner/static/components/controls ; git -C /srv/hqptuner log -S 'title' --oneline --all -- hqptuner/static/components/controls | head
+```
+
+All read-only: `git log`, `git show --stat`, `grep`, `ls`. History archaeology is pure investigation; `git log`/`git show` (read-only forms) belong on the free list.
+
+## Resolution — 2026-08-04
+
+`git` is free as a pipeline head when the subcommand is one of `GIT_READ_SUBCMDS` (`log show diff status blame shortlog rev-parse rev-list ls-files ls-tree cat-file describe name-rev whatchanged`), reached through only `-C <path>`, `--git-dir=`, `--work-tree=` and the flags in `GIT_GLOBAL_FLAGS`. `-c k=v` is excluded on purpose: it can define an alias or a textconv filter that executes. `branch`, `tag`, `stash`, `reflog`, `notes` and `config` are excluded because each has a mutating flag form.
+
+`node` is free as a pipeline head when `--test` is present and no `-e`/`--eval`/`-p`/`--print`/`-i` is — the same trust level `pytest` already has, and the only way to run one JS test file (`make test-js` takes no file argument).
+
+`diff` was already free (`READERS`); what metered was the `for … do … done` wrapper, whose `;`-split leaves `for f in <paths>` as a segment head. Shell loops stay unparsed and stay metered — the free alternatives are `diff -r -q dirA dirB` or `&&`-chained `diff` calls.
+
+The denial now names the calls it charged: `evaluate()` collects a `Tool(first 70 chars)` label per CHANGE-class block and appends `Metered: …` to the reason, so a trip no longer reports a bare count.
+
+Cases are pinned in `ALLOWLIST_CASES` in `.claude/hooks/budget_selftest.py`, which is where the hook's self-test moved so `change-budget.py` stays under the 500-line gate; run it with `python3 .claude/hooks/budget_selftest.py`.
+
+The host's own budget hook (`~/.claude/hooks/command-burst-guard.py`) loads a separate copy of `free_bash.py` and did not get these changes.
