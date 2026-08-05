@@ -14,7 +14,7 @@
 // the number boxes they replace: same dirty highlight, same Apply, same
 // restart. Nothing here writes to the daemon directly.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
+import { html, wheelGuard, userEdit } from "../lib/dom.js";
 import { AXIS_MIN, AXIS_MAX, num, clampVolume } from "../lib/volume.js";
 import { effective, isDirty } from "../store/resolve.js";
 import { edit } from "../store/actions.js";
@@ -96,10 +96,10 @@ export function VolumeRangeBar() {
       disabled=${!!reason}
       aria-label=${label}
       onWheel=${wheelGuard}
-      onInput=${(e) => {
+      onInput=${userEdit(db, (e) => {
         active.value = { which, db: Number(e.target.value) };
         set(which, key)(e.target.value);
-      }}
+      })}
       onPointerDown=${() => (active.value = { which, db })}
       onPointerUp=${() => (active.value = null)}
       onMouseEnter=${() => (active.value = { which, db })}

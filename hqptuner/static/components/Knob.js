@@ -15,7 +15,7 @@
 // persists through the store's optimistic edit.
 
 import { useRef, useEffect, useCallback } from "preact/hooks";
-import { html, wheelGuard } from "../lib/dom.js";
+import { html, wheelGuard, userEdit } from "../lib/dom.js";
 import { clamp, num } from "../lib/coerce.js";
 
 const decimals = (step) => (String(step).split(".")[1] || "").length;
@@ -38,8 +38,8 @@ function KnobSlider({ sliderRef, lo, hi, val, st, log, disabled, live, commit, s
     step=${log ? "any" : st}
     disabled=${disabled}
     onWheel=${wheelGuard}
-    onInput=${(e) => live(snap(dec(num(e.target.value, enc(val, log)), log), st))}
-    onChange=${(e) => commit(dec(num(e.target.value, enc(val, log)), log))}
+    onInput=${userEdit(enc(val, log), (e) => live(snap(dec(num(e.target.value, enc(val, log)), log), st)))}
+    onChange=${userEdit(enc(val, log), (e) => commit(dec(num(e.target.value, enc(val, log)), log)))}
   />`;
 }
 
@@ -113,6 +113,13 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
     (e) => {
       const d = drag.current;
       if (!d) return;
+      // A context menu opened mid-drag eats the pointerup, and pointer capture
+      // then feeds this handler a buttonless drag forever — the dial sticks to
+      // the mouse. No button, no drag: abandon without committing.
+      if (!(e.buttons & 1)) {
+        drag.current = null;
+        return;
+      }
       const quantum = e.shiftKey ? fine : st;
       // drag moves through encoded space, so a log dial sweeps octaves evenly
       const dv = ((d.y - e.clientY) / 200) * (enc(hi, log) - enc(lo, log)) * (e.shiftKey ? 0.25 : 1); // 200px ≈ full range

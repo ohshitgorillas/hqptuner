@@ -3,7 +3,7 @@
 // three-tree store by control key. Reusable and independently testable.
 
 import { useRef, useEffect } from "preact/hooks";
-import { html, wheelGuard } from "../../lib/dom.js";
+import { html, wheelGuard, userEdit } from "../../lib/dom.js";
 import { truthy } from "../../lib/coerce.js";
 
 const s = (v) => (v == null ? "" : String(v));
@@ -103,7 +103,7 @@ export function Slider({ value, min, max, step, disabled, onChange }) {
         step=${step == null ? 1 : step}
         disabled=${disabled}
         onWheel=${wheelGuard}
-        onChange=${(e) => onChange(e.target.value)}
+        onChange=${userEdit(s(value), (e) => onChange(e.target.value))}
       />
       <span class="slider-val">${s(value)}</span>
     </span>
@@ -200,8 +200,8 @@ export function SliderNumber(props) {
           disabled=${disabled}
           style=${fill}
           onWheel=${wheelGuard}
-          onInput=${(e) => drag(dec(e.target.value))}
-          onChange=${split ? (e) => commit(dec(e.target.value)) : null}
+          onInput=${userEdit(track.value, (e) => drag(dec(e.target.value)))}
+          onChange=${split ? userEdit(track.value, (e) => commit(dec(e.target.value))) : null}
           onPointerUp=${split && log ? (e) => commit(dec(e.target.value)) : null}
         />
         ${(ticks || []).map((t) => html`<span class="tick" style=${`left:${pctOf(enc(t), enc(lo), enc(hi))}%`}></span>`)}

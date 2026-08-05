@@ -4,6 +4,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Scrolling over a slider on macOS can no longer change it.** macOS browsers hand a scroll gesture's first ticks straight to the slider without dispatching a wheel event, so the wheel block never saw them and edits kept staging. Sliders and knobs now accept an edit only from a real drag, track click, or slider keystroke — anything else snaps back and stages nothing.
+
+- **A right-click during a slider drag no longer glues the slider to the mouse.** The context menu eats the mouse release, leaving the browser's drag running with no button held. Both sliders and knob dials now notice the button is gone and end the drag.
+
 ## [1.1.2] — 2026-08-04
 
 ### Fixed
