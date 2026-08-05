@@ -65,4 +65,22 @@
   max-width: 100%;
   min-width: 0;
 }
+/* Same cap, same reason, for the inline ask this row mounts: --w-name is a
+   chrome-row width and this is a half-track control column. The field takes
+   what the column has left once Save and Cancel have their labels, so the
+   three of them stay one line instead of the field claiming a line of its own
+   and pushing the buttons onto a third. */
+.live-presets .ask input[type="text"] {
+  flex: 1 1 0;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+/* The question is a whole sentence, far wider than what is left of the column
+   once the field and its buttons are in it. Give it the row to itself and it
+   wraps as prose; leave it in the line and flex shrinks it to one word per
+   line, since it is the only item in the row that can give. */
+.live-presets .ask-msg {
+  flex-basis: 100%;
+}
 

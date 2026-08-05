@@ -386,9 +386,17 @@ input[type="checkbox"]:disabled {
    Replaces the native prompt()/confirm(): styled with the app, always
    cancellable, and it works in the embedded browsers that block the native
    dialogs. It renders in the row that asked (pending bar, header), so it takes
-   that row's alignment and only sets its own internal gap. */
+   that row's alignment and only sets its own internal gap.
+
+   It wraps. In a chrome row nothing ever does, but the row is also mounted in
+   a half-width column's control track (the LIVE preset picker), narrower than
+   the row's own minimum width; without the wrap the message is the only
+   shrinkable item, so it collapses to one word per line and the buttons still
+   overrun the column. The buttons are the wrong thing to shrink either way —
+   their labels are already at their width. */
 .ask {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2);
 }
@@ -402,6 +410,7 @@ input[type="checkbox"]:disabled {
   width: var(--w-name);
 }
 .ask button {
+  flex: none;
   padding: var(--sp-1) var(--sp-3);
   font-size: var(--fs-label);
 }
