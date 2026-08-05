@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-08-04
+
 ### Added
 
 - **Dropdown options now explain themselves on hover.** Every dropdown whose options carry manual descriptions — the oversampling filter menus, dither, modulator, noise filter, integrator, both SDM/PCM conversions, the junk filter and the matrix engine pair — shows the hovered option's description in a tip beside the open list. Keyboard browsing shows the same tip at the highlighted option. These dropdowns open a page-drawn list instead of the native one, since macOS never shows tooltips on native options. The LIVE page's chain controls use the same dropdowns.
