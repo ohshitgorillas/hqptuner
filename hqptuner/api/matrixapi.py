@@ -60,6 +60,21 @@ def matrix(manager: HttpMgr) -> dict[str, Any]:
     )
 
 
+# The daemon refuses a live profile switch with nothing loaded to play, and says
+# so in C++ internals: `clHQPlayerEngine::MatrixSetProfile():
+# clPlaylist::GetTrackFile(): trackn > last` — the playlist has no track at the
+# index it went looking for. Observed on 6.0.4, documented nowhere. That text
+# tells a listener nothing, so this one refusal is translated and every other
+# error keeps the daemon's own words: a catch-all would hide the errors whose
+# text is the only clue there is.
+_NO_TRACK = "GetTrackFile"
+_NO_TRACK_MESSAGE = "Live playback is needed to load a matrix profile."
+
+
+def _switch_refusal(text: str) -> str:
+    return _NO_TRACK_MESSAGE if _NO_TRACK in text else text
+
+
 class MatrixProfileBody(BaseModel):
     action: str  # switch — the only verb this route has (4321, live)
     name: str = ""  # empty = the unnamed [Default]
@@ -82,7 +97,7 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
     try:
         return await manager.applyops.matrix_switch_profile(body.name)
     except ControlError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail=_switch_refusal(str(exc))) from exc
 
 
 @router.get("/speakers")

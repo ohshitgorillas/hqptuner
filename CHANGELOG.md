@@ -12,6 +12,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **`HQPTUNER_LOG_LEVEL` sets the log level**, which was pinned at `INFO` in code. An unparseable value falls back to `INFO`.
 
+### Fixed
+
+- **Loading a matrix profile with nothing playing now says why.** HQPlayer refuses the switch when no track is loaded, and the Profile card used to print its C++ diagnostic verbatim (`clHQPlayerEngine::MatrixSetProfile(): clPlaylist::GetTrackFile(): trackn > last`). It now reads `Live playback is needed to load a matrix profile.` Any other refusal still shows the daemon's own words.
+
 ## [1.2.0] — 2026-08-04
 
 ### Added

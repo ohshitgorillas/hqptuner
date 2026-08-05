@@ -2,7 +2,7 @@
 
 Split out of `conftest` on size alone. It keeps a settings dict and answers
 setters plus `State` from it, so a `Set*` followed by `State` reads the change
-back, which is what exercises the readback-verify path. Four wire quirks are
+back, which is what exercises the readback-verify path. Several wire quirks are
 modelled because the write-path tests turn on them: `value="999"` answers
 `result="OK"` without applying (the OK-is-not-proof caveat, protocol.md §6),
 `value="err"` answers `result="Error"`, `SetMode` resets `rate` to `0` (the mode
@@ -56,6 +56,13 @@ DEFAULTS = {
     # a LATER command dies with the connection. Distinct from `_stall`, which
     # keeps the connection open, so the client waits out its deadline instead.
     "_close": "",
+    # Space-separated commands the daemon REFUSES, reads as readily as writes: the
+    # command is received and answered `result="Error"`, with the daemon's
+    # diagnostic as the element's own text (protocol.md §6). `_error_text` is that
+    # diagnostic. What hqplayerd 6.0.4 does to `MatrixSetProfile` with an empty
+    # playlist: the switch is refused, not stalled and not silently dropped.
+    "_error": "",
+    "_error_text": "refused",
     # Which family the SOURCE is, which in [source] mode is which chain the engine
     # has loaded (readme §1.7). Named for the Status attribute it used to be
     # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
@@ -246,6 +253,9 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
         return None  # received, logged, never answered
+    if name in state.get("_error", "").split():
+        # above the query dispatch: a daemon refuses reads as readily as writes
+        return f'<{name} result="Error">{state.get("_error_text", "refused")}</{name}>'
     answer = _query(name, state)
     if answer is not None:
         return answer
