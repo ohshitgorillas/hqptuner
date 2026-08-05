@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **The header no longer prints the playback state.** "Playing" / "Stopped" beside the daemon name duplicated what the signal path's chips already show.
+
 ### Fixed
 
 - **Scrolling over a slider on macOS can no longer change it.** macOS browsers hand a scroll gesture's first ticks straight to the slider without dispatching a wheel event, so the wheel block never saw them and edits kept staging. Sliders and knobs now accept an edit only from a real drag, track click, or slider keystroke — anything else snaps back and stages nothing.

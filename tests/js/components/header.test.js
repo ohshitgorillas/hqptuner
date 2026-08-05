@@ -1,10 +1,11 @@
 // Behavioral suite for components/Header.js — the chrome header.
 // Written BEFORE the complexity refactor of Header (20).
 //
-// The header is a pure function of four exported store signals (health,
-// engineState, config, pendingPreset), so every branch it takes on its own data
-// is reachable from outside. `head()` reassigns ALL FOUR on every call: module
-// signals outlive a test, and a partial reset passes alone and fails in sequence.
+// The header is a pure function of exported store signals (health, config,
+// pendingPreset), so every branch it takes on its own data is reachable from
+// outside. `head()` reassigns them ALL on every call: module signals outlive a
+// test, and a partial reset passes alone and fails in sequence. engineState is
+// reset alongside them so a case can prove the header ignores it.
 //
 // NOT reachable, deliberately untested: the module-private `pickStatus` signal
 // ("Loading…" / "Deleting…" / "Failed: …"). It is written only by the select's
@@ -66,10 +67,9 @@ function head(o = {}) {
 // Re-render without resetting, for the cases that ask a question first.
 const again = () => decode(render(html`<${Header} />`));
 
-// The three identity spans, in render order.
+// The two identity spans, in render order.
 const NAME = 0;
 const VERSION = 1;
-const PLAYING = 2;
 
 const daemon = (out) => out.split('<div class="daemon">')[1].split("</div>")[0];
 const idents = (out) => [...daemon(out).matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
@@ -110,28 +110,14 @@ test("test_a_daemon_reporting_no_engine_version_shows_none", () => {
 
 // --- play state -------------------------------------------------------------
 
-test("test_a_stopped_engine_reads_as_stopped", () => {
-  assert.equal(idents(head({ engine: { state: "0" } }))[PLAYING], "Stopped");
+// The header no longer prints the transport state; the signal path's chips carry
+// it. A playing engine adds no third identity span.
+test("test_a_playing_engine_adds_no_state_label_to_the_identity", () => {
+  assert.equal(idents(head({ engine: { state: "2" } })).length, 2);
 });
 
-test("test_a_paused_engine_reads_as_paused", () => {
-  assert.equal(idents(head({ engine: { state: "1" } }))[PLAYING], "Paused");
-});
-
-test("test_a_playing_engine_reads_as_playing", () => {
-  assert.equal(idents(head({ engine: { state: "2" } }))[PLAYING], "Playing");
-});
-
-test("test_a_stopping_engine_reads_as_stopping", () => {
-  assert.equal(idents(head({ engine: { state: "3" } }))[PLAYING], "Stopping");
-});
-
-test("test_an_unrecognized_play_state_shows_no_label", () => {
-  assert.equal(idents(head({ engine: { state: "9" } }))[PLAYING], "");
-});
-
-test("test_a_missing_engine_snapshot_shows_no_play_label", () => {
-  assert.equal(idents(head({ engine: null }))[PLAYING], "");
+test("test_a_stopped_engine_adds_no_state_label_to_the_identity", () => {
+  assert.equal(idents(head({ engine: { state: "0" } })).length, 2);
 });
 
 // --- the preset picker ------------------------------------------------------

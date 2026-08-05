@@ -5,14 +5,12 @@
 // preset comes from config.active (the truly-loaded ConfigurationGet name).
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
-import { health, engineState, config, pendingPreset } from "../store/signals.js";
+import { health, config, pendingPreset } from "../store/signals.js";
 import { previewPreset, deletePreset } from "../store/actions.js";
 import { liveMode, setLiveMode } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
 import { askConfirm } from "../store/ask.js";
 import { StatusPill } from "./StatusPill.js";
-
-const PLAY = { 0: "Stopped", 1: "Paused", 2: "Playing", 3: "Stopping" };
 
 // Questions this header asks render beside the picker, not in a native dialog.
 const OWNER = "header";
@@ -42,15 +40,14 @@ async function onDelete(name) {
   }
 }
 
-// Daemon identity + live transport state.
+// Daemon identity. Transport state is not printed here — the signal path's chips
+// already show whether the engine is running.
 function daemonIdentity() {
   const info = (health.value && health.value.info) || {};
-  const st = engineState.value || {};
   return html`
     <div class="daemon">
       <span>${info.name || "hqplayerd"}</span>
       <span class="muted">${info.engine ? `v${info.engine}` : ""}</span>
-      <span class="muted">${PLAY[st.state] || ""}</span>
     </div>
   `;
 }
