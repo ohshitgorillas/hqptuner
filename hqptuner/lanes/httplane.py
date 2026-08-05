@@ -136,7 +136,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     # parked filter uploads ride the same restore (data/<name> members land in
     # the daemon's home dir, where staged process paths resolve)
     restore_zip, intended_xml = presetzip.restore_zip_from_running(
-        backup, merged, mgr.presetops.parked_filter_members(), mgr.active_config
+        backup, merged, mgr.presetops.parked_filter_members(), mgr.active_config, mgr.audit
     )
     # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
     # restore that is happening anyway — this one qualifies

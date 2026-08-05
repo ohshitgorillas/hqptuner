@@ -98,6 +98,21 @@ Five operations, all built on that one primitive (`presetstore.py` plus `manager
 
 Record holds output **mode**, both chain filters, dither/modulator, junk filter, adaptive volume and rate, each as value plus display name at save time — values apply, names only render, because engine-built enumerations shift under stored preset. Playback volume deliberately excluded: restoring level hands listener loudness jump they never asked for. Mode is included and is why apply is `livelane.apply_preset` rather than one batch (§2): mode first, re-enumerate, rest against lists switch produced. **Applying preset saved on other chain is not conflict to refuse** — switching is request. Preset whose stored ID running enumerations no longer offer refuses whole preset, naming field.
 
+## 8. The event log
+
+**Every durable write records what it was handed** (`hqptuner/audit.py`). Append-only JSON Lines, off unless `HQPTUNER_DEBUG_LOG` names a path; disabled instance is `AuditLog(None)` and its emitters are no-ops, so no call site ever guards on `enabled`.
+
+**Success path is the point.** Staged edits live in server-side buffer and the apply that drains it clears it in same request (`api/app.py` `/config/apply`), so a write that landed wrong has no evidence left unless it was recorded as it happened. Failure-only logging answers nothing here.
+
+Normative rules:
+
+- **One instance, threaded from `ConnectionManager.audit`.** Each instance resumes `seq` from file on construction, so second copy reissues numbers first already used. Sequence that repeats is worse than none — it reads authoritative.
+- **`conf/` stays pure.** XML editors take bytes and return bytes; no logging inside them. Profile writes emit at the two callers that land an element — fan-out into stored preset (`target` is `preset:<name>`) and running config (`target` is `config`) — which is also where pre-edit XML is in hand, so `replaced` is answerable.
+- **Emitters are typed per event, never free-form.** Vocabulary is the contract, and it is what tests assert; log *text* stays off-limits per `docs/testing.md` rule 1. New durable write path gets an emitter, or reuses one — silent write is defect.
+- **Values captured whole to 128 KB**, so a payload is recoverable from log rather than merely described by it; larger truncates, and record carries `truncated` plus `full_digests` keyed by dotted field path. File rolls to `<path>.1` past `max_bytes`.
+- **`password` / `secret` / `token` never reach a record**, at any depth.
+- **No UI, deliberately.** Operator's tool — set on container, read with `jq`, or over `GET /api/audit`, which exists only while the var is set.
+
 ## Provenance
 
 Control API implementation derived from Jussi Laako's official `hqp-control` utility source, itself MIT-licensed, with attribution. `unified-hifi-control` (PolyForm Noncommercial) and `hqpwv` (GPL-3) **not** to be opened or copied. HQPTuner carries MIT. Jussi has no objection to alternative interfaces.

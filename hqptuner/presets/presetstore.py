@@ -16,11 +16,13 @@ store's own layout version plus per-preset provenance in ``store.json``.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 from .. import __version__
+from ..audit import AuditLog
 from . import names
 
 _ACTIVE_FILE = "active.json"
@@ -48,8 +50,11 @@ class PresetStore:
     """Preset snapshots under ``directory``. The directory is created lazily on the
     first write, so an unconfigured install reads as simply empty."""
 
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, audit: AuditLog | None = None) -> None:
         self._dir = directory
+        # A store built without one still works; it just records nothing, which
+        # is what every offline test that does not care about the log wants.
+        self._audit = audit or AuditLog(None)
 
     def _path(self, name: str) -> Path:
         return self._dir / f"{_validate(name)}.xml"
@@ -108,10 +113,18 @@ class PresetStore:
             raise PresetError(f"no such preset: {name!r}")
         return path.read_bytes()
 
-    def save(self, name: str, xml: bytes) -> None:
-        """Write (or overwrite) a preset. Creates the store directory if needed."""
+    def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None:
+        """Write (or overwrite) a preset. Creates the store directory if needed.
+
+        ``trigger`` names WHO wrote — an explicit save, auto-save, a profile
+        fan-out, the one-time migration. The records are otherwise identical, and
+        "which of those wrote over my preset" is the first question an incident
+        asks."""
         self._ensure_dir()
-        self._path(name).write_bytes(xml)
+        path = self._path(name)
+        overwrote = path.is_file()  # asked before the write, which erases the answer
+        path.write_bytes(xml)
+        self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote)
 
     def delete(self, name: str) -> None:
         """Remove a preset. Raises ``PresetError`` if absent; clears the active
@@ -119,8 +132,10 @@ class PresetStore:
         path = self._path(name)
         if not path.is_file():
             raise PresetError(f"no such preset: {name!r}")
+        was_active = self.active == name  # unlinking does not touch the pointer
         path.unlink()
-        if self.active == name:
+        self._audit.preset_delete(name, was_active)
+        if was_active:
             self.set_active(None)
 
     @property
@@ -133,10 +148,12 @@ class PresetStore:
 
     def set_autosave(self, enabled: bool) -> None:
         meta = self._meta()
+        previous = bool(meta.get("autosave"))
         self._ensure_dir()
         meta["schema"] = meta.get("schema", _SCHEMA)
         meta["autosave"] = bool(enabled)
         (self._dir / _STORE_FILE).write_text(json.dumps(meta))
+        self._audit.autosave_set(bool(enabled), previous)
 
     @property
     def active(self) -> str | None:
@@ -157,8 +174,10 @@ class PresetStore:
     def set_active(self, name: str | None) -> None:
         if name is not None:
             _validate(name)
+        previous = self.active  # the write below is what makes it unreadable
         self._ensure_dir()
         (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
+        self._audit.active_set(name, previous)
 
     def import_missing(self, snapshots: dict[str, bytes]) -> list[str]:
         """One-time migration off hqplayerd's ``data/cfgs/*.xml``: copy in any
@@ -172,6 +191,6 @@ class PresetStore:
             except PresetError:
                 continue
             if not self.exists(valid):
-                self.save(valid, xml)
+                self.save(valid, xml, trigger="migration")
                 imported.append(valid)
         return sorted(imported)

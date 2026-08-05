@@ -21,6 +21,7 @@ client; that is the http lane's `POST /restore`, above.
 from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple
 
+from ..audit import AuditLog
 from ..engine.control import ControlClient, ControlError
 
 _VOLUME_TOLERANCE = 0.05
@@ -76,14 +77,20 @@ def known_live_settings() -> tuple[str, ...]:
     return tuple(SETTINGS)
 
 
-async def apply_live(client: ControlClient, edits: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
+async def apply_live(
+    client: ControlClient, edits: dict[str, dict[str, str]], audit: AuditLog | None = None
+) -> list[dict[str, Any]]:
     """Apply each live edit in the safe order, verifying by readback. One edit
-    failing does not abort the rest — each reports its own outcome."""
+    failing does not abort the rest — each reports its own outcome.
+
+    ``audit`` arrives from the caller rather than a module-level handle so this
+    stays a pure function of its arguments; omitting it logs nothing."""
+    log = audit if audit is not None else AuditLog(None)
     report: list[dict[str, Any]] = []
     for setting in SETTINGS:
         if setting not in edits:
             continue
-        report.append(await _apply_one(client, setting, edits[setting]))
+        report.append(await _apply_one(client, setting, edits[setting], log))
     return report
 
 
@@ -93,13 +100,18 @@ async def _apply_uniform(client: ControlClient, spec: LiveSetting, params: dict[
     await client.verify_state({spec.state: value})
 
 
-async def _apply_one(client: ControlClient, setting: str, params: dict[str, str]) -> dict[str, Any]:
+async def _apply_one(client: ControlClient, setting: str, params: dict[str, str], audit: AuditLog) -> dict[str, Any]:
     spec = SETTINGS[setting]
+    value = params.get("value", "")
     try:
         if isinstance(spec, LiveSetting):
             await _apply_uniform(client, spec, params)
         else:
             await spec(client, params)
     except (ControlError, KeyError, ValueError) as exc:
+        audit.live_write(setting, value, None, False)
         return {"setting": setting, "ok": False, "error": str(exc)}
+    # returning without raising means the readback matched, so the value sent is
+    # also the value confirmed — there is no other way for a setter to succeed
+    audit.live_write(setting, value, value, True)
     return {"setting": setting, "ok": True}

@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -13,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
 from .. import __version__
+from ..audit import AuditLog
 from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..core.manager import ConnectionManager
@@ -215,24 +217,36 @@ async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, 
     return await manager.presetops.save_preset(name)
 
 
+async def _persist_after_apply(manager: ConnectionManager, save: str | None, report: dict[str, Any]) -> None:
+    """Fold a clean apply into a preset — the named target the request asked for,
+    or whatever auto-save is armed for when it asked for none."""
+    if save is not None:
+        report["saved"] = await _save_after_apply(manager, save)
+        return
+    autosaved = await presetlane.autosave(manager)
+    if autosaved is not None:
+        report["autosaved"] = autosaved
+
+
 @router.post("/config/apply")
 async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -> dict[str, Any]:
     store = _pending(request)
     switch_to = body.switch_to if body else None
     if not store.live and not store.http and switch_to is None:
         raise HTTPException(status_code=400, detail="nothing staged")
+    # the staged set as it stands NOW — a clean apply clears the buffer below, so
+    # nothing captured after this point can say what was applied
+    staged_http, staged_live = dict(store.http), dict(store.live)
+    save = body.save.name if body is not None and body.save is not None else None
     try:
         report = await manager.applyops.apply(store.live, store.http, switch_to)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    if not _apply_succeeded(report):
+    ok = _apply_succeeded(report)
+    manager.audit.apply(staged_http, staged_live, switch_to, save, ok)
+    if not ok:
         return report  # soft failure — keep staging so the user can retry
-    if body is not None and body.save is not None:
-        report["saved"] = await _save_after_apply(manager, body.save.name)
-    else:  # auto-save follows every clean apply that was not already a full save
-        autosaved = await presetlane.autosave(manager)
-        if autosaved is not None:
-            report["autosaved"] = autosaved
+    await _persist_after_apply(manager, save, report)
     store.clear()
     return report
 
@@ -294,6 +308,7 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
 @router.post("/restore")
 async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr) -> dict[str, Any]:
     data = await cfgfile.read()
+    manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
     try:
         await manager.restore_config(data)
     except (ControlError, httpx.HTTPError) as exc:
@@ -346,6 +361,20 @@ async def _finish(task: asyncio.Task[None], grace: float) -> None:
         await asyncio.wait_for(task, grace)
 
 
+def _audit_router(audit: AuditLog) -> APIRouter:
+    """The event log's read route, built only when the log is on — an install
+    without ``HQPTUNER_DEBUG_LOG`` has no such endpoint rather than an endpoint
+    that answers empty. Nothing in the UI links here; it is an operator's
+    surface, and the file it reads is equally available to ``jq``."""
+    audit_api = APIRouter(prefix="/api")
+
+    @audit_api.get("/audit")
+    def records(limit: int = 200) -> dict[str, Any]:
+        return {"records": audit.tail(limit)}
+
+    return audit_api
+
+
 def create_app(cfg: Config | None = None) -> FastAPI:
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
@@ -380,6 +409,9 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.static = static
     app.state.http_client = http_client
     app.state.pending = PendingStore()
+    app.state.audit = manager.audit
+    if manager.audit.enabled:
+        app.include_router(_audit_router(manager.audit))
     app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.include_router(router)
     app.include_router(pendingapi.router)

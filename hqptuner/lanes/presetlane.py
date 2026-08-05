@@ -62,12 +62,14 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     (the reliable primitive) and mark it active, mirroring it into the daemon's
     ``data/cfgs`` so the native UI stays populated. Never ``profile/load``."""
     xml = mgr.presetops.store.read(name)
+    previous = mgr.presetops.store.active  # the load below overwrites the pointer
     await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     await mgr.require_http().restore(archive, scope="system")
     mgr.presetops.store.set_active(name)
+    mgr.audit.preset_load(name, previous)
     await mgr.await_http_ready()
     await mgr.load_file_config()
     await mgr.refresh_http_forms()
@@ -122,7 +124,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         # the engine's current values in first — a save stores what the user is
         # hearing, not what happens to be on disk.
         working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
-        mgr.presetops.store.save(name, working)
+        mgr.presetops.store.save(name, working, trigger="save")
         mgr.presetops.store.set_active(name)
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
@@ -148,7 +150,7 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
         if not working:
             raise ControlError("no running config to auto-save")
         working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
-        mgr.presetops.store.save(name, working)
+        mgr.presetops.store.save(name, working, trigger="autosave")
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         log.warning("auto-save into preset %r failed: %s", name, exc)
         return {"name": name, "ok": False, "error": str(exc)}

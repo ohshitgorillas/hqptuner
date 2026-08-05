@@ -9,6 +9,13 @@ def _env(name: str, default: str) -> str:
     return os.environ.get(f"HQPTUNER_{name}", default)
 
 
+def _optional_path(name: str) -> Path | None:
+    """A path var that is OFF when unset — an empty value is not a path to the
+    current directory, it is the absence of one."""
+    raw = _env(name, "").strip()
+    return Path(raw) if raw else None
+
+
 @dataclass
 class Config:
     hqp_host: str = field(default_factory=lambda: _env("HQP_HOST", "127.0.0.1"))
@@ -51,3 +58,12 @@ class Config:
     # (probe-verified on 6.0.4: data/impulse_0-0.wav <-> /var/lib/hqplayer/home/…).
     # Overridable for non-standard installs.
     hqp_home: str = field(default_factory=lambda: _env("HQP_HOME", "/var/lib/hqplayer/home"))
+    # Append-only event log (audit.py) — every durable write, as it was handed
+    # to us. Unset means the subsystem is inert: no file, no records, no cost.
+    # There is deliberately no UI for it; it is an operator's tool, set on the
+    # container (`-e HQPTUNER_DEBUG_LOG=/state/audit.jsonl`) and read with jq.
+    debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
+    # Level for ordinary prose logging (hqptuner/__main__.py). A name, not a
+    # number; anything unparseable falls back to INFO rather than refusing to
+    # start (audit.resolve_level).
+    log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))

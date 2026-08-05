@@ -8,6 +8,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Favorite filters.** Every row in the four oversampling-filter dropdowns (PCM/SDM × 1x/Nx) carries a star — click it to favorite that filter without changing your selection. A **★ Favorites** toggle on the narrow bar then restricts the dropdowns to your starred filters, combining with the other narrowing facets and their live counts; the toggle stays grayed until you've starred something, and unstarring the last filter turns it off. Favorites are keyed by filter name, shared across all four dropdowns and the LIVE page, and saved in the browser — they don't follow you across devices.
 
+- **An append-only event log, off by default.** `HQPTUNER_DEBUG_LOG` names a path and HQPTuner records every durable write there as JSON Lines — staged edits, what each apply was handed, matrix profile writes and whether they replaced a profile, preset writes and what triggered them. Unset, nothing is written. No UI control: set it on the container and read the file with `jq`.
+
+- **`HQPTUNER_LOG_LEVEL` sets the log level**, which was pinned at `INFO` in code. An unparseable value falls back to `INFO`.
+
 ## [1.2.0] — 2026-08-04
 
 ### Added
