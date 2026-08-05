@@ -54,7 +54,9 @@
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-md) var(--r-md) 0 0;
   cursor: pointer;
-  font-size: var(--fs-body-lg);
+  /* one step above the emphasised-control size the rest of the chrome uses —
+     the tab row is the page's top-level navigation, not a control */
+  font-size: var(--fs-title);
 }
 .tab-nav button.active {
   color: var(--fg);

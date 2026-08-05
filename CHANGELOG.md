@@ -6,6 +6,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **DAC bits and 48kHz DSD rates are no longer grayed out in the other output mode.** Both stayed editable settings you could only reach in one mode, so setting them up before switching meant staging the mode change, editing, then unstaging it again. They now stay editable in both modes and simply say which mode they apply to, in a note beside the control where every other note sits.
+
+- **The tab names are a size larger.** The row is the page's top-level navigation and was set at the same size as an emphasised control.
+
 - **The header no longer prints the playback state.** "Playing" / "Stopped" beside the daemon name duplicated what the signal path's chips already show.
 
 ### Fixed

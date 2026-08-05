@@ -13,7 +13,7 @@ import { describe, selectionDescription } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
-import { grayReason } from "../store/graying.js";
+import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
@@ -157,6 +157,16 @@ function FieldLabel({ entry, label, badge }) {
   `;
 }
 
+// The two captions that ride in the control row beside the widget: a gray
+// reason placed inline by schema `inlineGray`, and an advisory note (`adviseWhen`)
+// on a control that stays live.
+function ControlCaptions({ entry, reason, advice }) {
+  return html`
+    ${inlineCaption(entry, reason) ? html`<span class="field-gray-reason">${reason}</span>` : null}
+    ${advice ? html`<span class="field-advice">${advice}</span>` : null}
+  `;
+}
+
 export function Field({ k }) {
   const entry = schema[k];
   if (!entry) return null;
@@ -168,6 +178,9 @@ export function Field({ k }) {
   // back to the manual's name for the control.
   const label = entry.label === "" ? "" : entry.label || meta.label;
   const reason = grayReason(k);
+  // Advisory note (schema adviseWhen): always inline, never disables, never
+  // touches the hover title — it is already visible beside the control.
+  const advice = adviceNote(k);
   const options = fieldOptions(entry, k);
   const badge = narrowBadge(entry, k);
   const classes = fieldClasses(entry, k, label);
@@ -195,7 +208,7 @@ export function Field({ k }) {
         />
         ${entry.unit && entry.widget !== "knob" ? html`<span class="unit">${entry.unit}</span>` : null}
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
-        ${inlineCaption(entry, reason) ? html`<span class="field-gray-reason">${reason}</span>` : null}
+        <${ControlCaptions} entry=${entry} reason=${reason} advice=${advice} />
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
       ${fieldProse(entry, k, meta, reason, options)}

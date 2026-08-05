@@ -17,3 +17,16 @@ export function grayReason(key) {
   if (!e.grayWhen) return "";
   return e.grayWhen({ mode: modeName.value, effective }) || "";
 }
+
+// adviceNote(key) -> '' when the control's setting is live in the current state,
+// else a short note saying which state it belongs to. Same ctx and same shape as
+// grayReason, one difference that is the whole point: it never disables. A
+// setting that only bites in the OTHER output mode is still one the user may
+// want staged correctly before switching modes, so the control stays editable
+// and only says where it applies (schema `adviseWhen`).
+export function adviceNote(key) {
+  const e = schema[key];
+  if (!e) return "";
+  if (!e.adviseWhen) return "";
+  return e.adviseWhen({ mode: modeName.value, effective }) || "";
+}

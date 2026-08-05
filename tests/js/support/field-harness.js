@@ -159,6 +159,27 @@ export function grayReason(fragment) {
   return m ? m[2] : null;
 }
 
+// Text of the advisory element in a fragment, whatever tag carries the class.
+// Distinct from the gray reason: an advisory says a setting does not apply to
+// the staged output mode, while leaving it editable.
+//
+// The class is matched as a WHOLE TOKEN, split on whitespace the way hasClass
+// does, because `-` is a word boundary: a `\bfield-advice\b` needle happily
+// matches `field-advice-note` and would report a different element's text as
+// the advisory.
+export function advice(fragment) {
+  const openers = /<(\w+)[^>]*>/g;
+  let open;
+  while ((open = openers.exec(fragment || "")) !== null) {
+    const cls = (/\bclass="([^"]*)"/.exec(open[0]) || [])[1] || "";
+    if (!cls.split(/\s+/).includes("field-advice")) continue;
+    const rest = fragment.slice(open.index + open[0].length);
+    const close = new RegExp(`</${open[1]}>`).exec(rest);
+    return close ? rest.slice(0, close.index) : null;
+  }
+  return null;
+}
+
 export const span = (out, cls) => {
   const m = new RegExp(`<span class="${cls}">([\\s\\S]*?)</span>`).exec(out);
   return m ? m[1] : null;

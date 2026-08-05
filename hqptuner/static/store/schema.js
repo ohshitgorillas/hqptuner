@@ -14,6 +14,11 @@
 //                or 'config' (the form field's own <option> set)
 //   grayWhen     optional fn(ctx) -> reason string | ''; ctx.effective(key) reads
 //                the *staged* value, so graying reacts before Apply (architecture §5)
+//   adviseWhen   optional fn(ctx) -> note string | ''; same shape as grayWhen
+//                but advisory only — the control stays editable and the note
+//                renders in the control row. For settings that belong to the
+//                other output mode: the user may want them right BEFORE
+//                switching, so graying them forces a stage/unstage dance
 //   deviceGray   'pcm' | 'sdm' | 'mode': narrow this control's options against
 //                what the selected output device announced (store/devicecaps.js)
 //   quietGray    suppress the visible gray caption (hover title only) — for
@@ -364,8 +369,9 @@ export const schema = {
     widget: "number",
     lane: "http",
     field: "alsa_bits",
-    grayWhen: isSdm,
-    inlineGray: true,
+    // advisory, never grayed — see adviseWhen in the header: a PCM bit depth set
+    // while the output is in SDM is a perfectly reasonable thing to stage.
+    adviseWhen: isSdm,
   },
   alsa_period: {
     label: "Buffer time",
@@ -398,7 +404,7 @@ export const schema = {
     widget: "checkbox",
     lane: "http",
     field: "alsa_anydsd",
-    grayWhen: isPcm,
+    adviseWhen: isPcm, // see alsa_bits — staged in PCM, live once the mode is SDM
   },
 
   // --- Output: Network Audio backend section (backend network|combo) ---
@@ -421,8 +427,7 @@ export const schema = {
     widget: "number",
     lane: "http",
     field: "net_bits",
-    grayWhen: isSdm,
-    inlineGray: true,
+    adviseWhen: isSdm, // see alsa_bits
   },
   net_period: {
     label: "Buffer time",
@@ -450,7 +455,7 @@ export const schema = {
     widget: "checkbox",
     lane: "http",
     field: "net_anydsd",
-    grayWhen: isPcm,
+    adviseWhen: isPcm, // see alsa_bits
   },
   net_ipv6: {
     label: "IPv6 discovery",

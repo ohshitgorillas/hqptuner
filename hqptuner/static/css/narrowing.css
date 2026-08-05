@@ -303,3 +303,11 @@
 .control > .field-gray-reason {
   max-width: none;
 }
+
+/* Advisory note (schema `adviseWhen`) — same voice and placement as an inline
+   gray reason, but the control it sits beside is live: it says which state the
+   setting applies to, not that the control is off. */
+.field-advice {
+  font-style: italic;
+  max-width: none;
+}
