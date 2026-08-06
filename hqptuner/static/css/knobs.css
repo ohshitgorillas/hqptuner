@@ -279,10 +279,14 @@
 .knob-cluster > * {
   min-width: 0;
 }
-/* NB: only selects — a strip input[type=text] is the knob readout box, which
+/* Type is a three-token enum (lshelf / peak / peakq): size it to its longest
+   option like the Matrix flow chips, not to the row. --w-select is for form
+   fields carrying long strings; stretching a six-character select across the
+   full strip is the same defect item 3 fixed on the Matrix tab.
+   NB: only selects — a strip input[type=text] is the knob readout box, which
    must keep its fixed --w-num width, not stretch to fill the row. */
 .loudness-strip select {
-  width: 100%;
+  width: auto;
   max-width: 100%;
   min-width: 0;
 }

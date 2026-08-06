@@ -22,6 +22,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The Loudness Type dropdown is sized to its options.** It stretched the full width of the Bass/Treble strip for three six-character values; it now fits the longest one, like the Matrix flow controls.
+
 - **The Loudness plot and the Range bar needle now follow the volume knob as you drag it.** Both drew the level the daemon last reported, which arrives on the poll — every two seconds, or twice a second with Faster volume updates on — so through a whole drag the plot's applied curve, its caption and the needle sat still and then jumped on release. They now read the value under the pointer.
 
 - **The playback volume readout no longer cuts off its last digit.** Any level of -10.0 dB or lower overran the box and lost the tenths place: -22.0 dB read as `-22.C`. On the Volume tab and on LIVE.
