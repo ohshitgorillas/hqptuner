@@ -6,6 +6,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # editor scratch — vim swap files for anything open in the tree
 *.swp
@@ -35,6 +37,10 @@ docs/*plan.md
 
 # scratch audit reports — one-off review output, same lifetime as a plan doc.
 docs/*audit.md
+
+# scratch handover briefs — a task written up for the agent that picks it up,
+# dead once that agent lands the work.
+docs/*brief.md
 
 # EQ Assistant session dirs — measurement images, raw digitizations, and per-turn
 # agent working files stay local. Only curated tuning JSONs are tracked.
