@@ -179,6 +179,98 @@ function bubble(chain, event, prop, el, globals) {
   return reached;
 }
 
+// A keystroke, a focus change or a double click, shaped the way a browser shapes
+// one. `extra` carries the fields a handler reads off that particular kind of
+// event and nothing else.
+function uiEvent(type, el, extra) {
+  return {
+    type,
+    target: el,
+    currentTarget: el,
+    defaultPrevented: false,
+    propagationStopped: false,
+    preventDefault() {
+      this.defaultPrevented = true;
+    },
+    stopPropagation() {
+      this.propagationStopped = true;
+    },
+    ...extra,
+  };
+}
+
+const keyFields = (key, shiftKey) => ({
+  key,
+  shiftKey,
+  ctrlKey: false,
+  altKey: false,
+  metaKey: false,
+  repeat: false,
+});
+
+// Keyboard and focus over the dial of a rendered knob, on one render, so a case
+// can focus it, blur it and press a key against the same component instance.
+//
+// `document.activeElement` reports the BODY throughout, which is what it reports
+// on the engine this behaviour exists for: a scroll gesture over a `role=slider`
+// element arrives there as a trusted arrow keydown aimed at that element, with
+// focus never having moved. The seam is offered in that state deliberately —
+// a knob deciding on `activeElement` would answer the same either way, so the
+// harness declines to make that signal look usable.
+export function knobKeys(vnode) {
+  const { seen } = renderWith(vnode);
+  const dial = findDial(seen);
+  const parents = parentMap(seen);
+  const el = element("svg");
+  const body = element("BODY");
+  const listeners = new Map();
+
+  const chain = [];
+  for (let v = dial; v; v = parents.get(v)) chain.push(v);
+
+  const dispatch = (type, prop, extra) => {
+    const event = uiEvent(type, el, extra);
+    const globals = (listeners.get(type) || []).slice();
+    return withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, el, globals));
+  };
+
+  const fire = (type, prop, extra) => {
+    if (dispatch(type, prop, extra) === 0)
+      throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
+  };
+
+  // A browser announces a focus change twice: `focus`/`blur`, which do not
+  // bubble but are capturable, and `focusin`/`focusout`, which bubble. Both are
+  // delivered, in the order a browser fires them, so a case states "the dial was
+  // focused" rather than which of the two spellings the component chose to
+  // listen for. Only the pair reaching nobody at all is an error — a component
+  // listening for one spelling and not the other has still been told.
+  const firePair = (spellings) => {
+    let reached = 0;
+    for (const [type, prop] of spellings) reached += dispatch(type, prop, { relatedTarget: null });
+    if (reached === 0)
+      throw new Error(
+        `nothing received the focus change: no ${spellings.map(([, p]) => p).join("/")} on the dial's chain, ` +
+          `no listener for ${spellings.map(([t]) => t).join("/")}`,
+      );
+  };
+
+  return {
+    focus: () =>
+      firePair([
+        ["focus", "onFocus"],
+        ["focusin", "onFocusIn"],
+      ]),
+    blur: () =>
+      firePair([
+        ["blur", "onBlur"],
+        ["focusout", "onFocusOut"],
+      ]),
+    key: (key, { shiftKey = false } = {}) => fire("keydown", "onKeyDown", keyFields(key, shiftKey)),
+    dblClick: () => fire("dblclick", "onDblClick", { button: 0, buttons: 0, detail: 2, clientX: 24, clientY: 24 }),
+  };
+}
+
 // One gesture over the dial of a rendered knob.
 //
 // `down(clientY)` presses the primary button on the dial; `move(clientY,
@@ -190,15 +282,20 @@ export function knobDrag(vnode) {
   const dial = findDial(seen);
   const parents = parentMap(seen);
   const el = element("svg");
+  const body = element("BODY");
   const listeners = new Map();
 
   const chain = [];
   for (let v = dial; v; v = parents.get(v)) chain.push(v);
 
+  // `document.activeElement` reports the BODY throughout, exactly as `knobKeys`
+  // offers it: the harness declines to make that signal look usable anywhere, so
+  // a drag route narrowed to `activeElement === the dial` is caught here rather
+  // than passing on a seam no engine actually reports that way.
   const fire = (type, prop, clientY, buttons) => {
     const event = pointerEvent(type, el, clientY, buttons);
     const globals = (listeners.get(type) || []).slice();
-    const reached = withBrowserGlobals(listeners, el, () => bubble(chain, event, prop, el, globals));
+    const reached = withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, el, globals));
     if (reached === 0)
       throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
   };

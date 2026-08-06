@@ -88,6 +88,9 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
   const drag = useRef(null);
   const boxRef = useRef(null);
   const sliderRef = useRef(null);
+  // Whether the dial actually holds keyboard focus, tracked from its own focus
+  // and blur rather than read from `document.activeElement` — see onKeyDown.
+  const focused = useRef(false);
 
   // keep box + slider synced to the live value, but never while being interacted with
   useEffect(() => {
@@ -141,9 +144,24 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
     },
     [commit],
   );
+  // A key gesture is honored only on a dial that actually holds focus. WebKit
+  // turns a scroll over any element carrying `role="slider"` into TRUSTED
+  // ArrowLeft/ArrowRight keydowns aimed at that element, focused or not, so a
+  // page scrolled past a knob silently retunes it (measured on Safari 26.5:
+  // isTrusted true, activeElement BODY, one arrow per few wheel ticks). The
+  // wheel guard cannot help — those wheel events are non-cancelable, and the
+  // edit rides the key, not the wheel.
+  //
+  // Focus is tracked from the dial's own focus/blur, NOT read from
+  // `document.activeElement`: on the engine with the bug activeElement reports
+  // BODY throughout, so the one signal that would be simplest to write is the
+  // one that cannot see the difference. A keyboard user tabs or clicks to the
+  // dial, gets focus, and keeps every gesture below unchanged.
+  const onFocus = useCallback(() => (focused.current = true), []);
+  const onBlur = useCallback(() => (focused.current = false), []);
   const onKeyDown = useCallback(
     (e) => {
-      if (disabled) return;
+      if (disabled || !focused.current) return;
       const q = e.shiftKey ? fine : st;
       // linear keys step by `step`; log keys sweep 1% of the track per arrow —
       // a fixed real-unit step is useless across a decades-wide range
@@ -188,6 +206,8 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
         onPointerMove=${onPointerMove}
         onPointerUp=${onPointerUp}
         onKeyDown=${onKeyDown}
+        onFocus=${onFocus}
+        onBlur=${onBlur}
         onDblClick=${onDblClick}
       >
         <path class="knob-track" d=${arcPath(FROM, TO, 44)} />

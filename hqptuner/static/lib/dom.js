@@ -25,20 +25,25 @@ export function wheelGuard(e) {
   window.scrollBy(0, e.deltaY);
 }
 
-// wheelGuard's blind spot, closed: macOS engines route a scroll gesture's first
-// ticks over a slider straight to a value change at platform level, dispatching
-// NO wheel event — there is nothing to cancel, an `input` just appears on the
-// range (measured on the live page; the guard above never fires). A slider edit
-// is therefore honored only with explicit user provenance on that element:
+// wheelGuard's blind spot, closed: a scroll gesture over a slider on WebKit
+// does not arrive as a cancelable wheel at all. Measured on Safari 26.5, the
+// wheel events it does send are non-cancelable and the value change rides a
+// separate channel — for the ARIA slider role, TRUSTED ArrowLeft/ArrowRight
+// keydowns aimed at the element without focusing it (Knob.js onKeyDown carries
+// that case); for a native range, an `input` that simply appears, with the
+// guard above never firing. Neither can be prevented, so a slider edit is
+// honored only with explicit user provenance on that element:
 //
 //   held  — a pointer is down on it (drag, track-click). Cleared by pointerup /
 //           pointercancel, and by any pointermove reporting no buttons: a
 //           context menu opened mid-drag eats the pointerup, and without the
 //           buttons check the browser's stuck native drag would keep editing.
-//   armed — one-shot: a slider keystroke on it, or a drag release. Keyboard
-//           edits arrive with no pointer held, and a native range fires its
-//           committing `change` AFTER pointerup — both need their edit pair
-//           honored. Consumed by the `change` that closes the pair.
+//   armed — one-shot: a slider keystroke on it WHILE IT HOLDS FOCUS, or a drag
+//           release. Keyboard edits arrive with no pointer held, and a native
+//           range fires its committing `change` AFTER pointerup — both need
+//           their edit pair honored. Consumed by the `change` that closes the
+//           pair. The focus qualifier is what keeps WebKit's scroll-synthesized
+//           arrow key from arming a control the user never touched.
 //
 // The wheel-injected edit has neither and is refused. Trackers live on
 // document capture so they observe every gesture before any handler; the
@@ -47,6 +52,7 @@ export function wheelGuard(e) {
 const SLIDER_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
 let heldOn = null;
 let armedOn = null;
+let focusedOn = null;
 if (typeof document !== "undefined") {
   // Primary button only: a right-click's own pointerdown must not grant (or
   // refresh) provenance — it is the press that opens the context menu that eats
@@ -65,7 +71,22 @@ if (typeof document !== "undefined") {
   );
   document.addEventListener("pointercancel", () => (heldOn = null), true);
   document.addEventListener("pointermove", (e) => e.buttons === 0 && (heldOn = null), true);
-  document.addEventListener("keydown", (e) => SLIDER_KEYS.has(e.key) && (armedOn = e.target), true);
+  // A slider keystroke arms only the control that actually HOLDS focus. WebKit
+  // converts a scroll over a slider-role element into trusted arrow keydowns
+  // aimed at it without focusing it (see Knob.js onKeyDown); unqualified, that
+  // synthetic key hands the platform's own value change a licence to pass. Both
+  // spellings are tracked because `focus`/`blur` do not bubble and only reach a
+  // capture listener, while `focusin`/`focusout` do — engines differ in which
+  // they deliver first, and either one means the same thing here.
+  document.addEventListener("focusin", (e) => (focusedOn = e.target), true);
+  document.addEventListener("focus", (e) => (focusedOn = e.target), true);
+  document.addEventListener("focusout", () => (focusedOn = null), true);
+  document.addEventListener("blur", () => (focusedOn = null), true);
+  document.addEventListener(
+    "keydown",
+    (e) => SLIDER_KEYS.has(e.key) && focusedOn === e.target && (armedOn = e.target),
+    true,
+  );
 }
 
 // Wrap a slider's input/change handler: with provenance the edit passes to
@@ -75,11 +96,13 @@ if (typeof document !== "undefined") {
 export function userEdit(canonical, fn) {
   return (e) => {
     const el = e.target;
-    if (heldOn !== el && armedOn !== el) {
+    const held = heldOn === el;
+    const armed = armedOn === el;
+    if (!held && !armed) {
       el.value = String(canonical);
       return;
     }
-    if (armedOn === el && e.type === "change") armedOn = null;
+    if (armed && e.type === "change") armedOn = null;
     fn(e);
   };
 }

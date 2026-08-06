@@ -44,6 +44,19 @@ const cancel = (el) => documentSees("pointercancel", el, { buttons: 0 });
 const glide = (el, buttons) => documentSees("pointermove", el, { buttons });
 const keydown = (el, key) => documentSees("keydown", el, { key });
 
+// A browser announces a focus change twice, and a document-level capture listener
+// sees both: `focus`/`blur` (which do not bubble but are capturable) and
+// `focusin`/`focusout` (which bubble). Both spellings are delivered, in the order
+// a browser fires them, so a case states "the element was focused" rather than
+// which of the two the implementation chose to listen for. A slider keystroke
+// carries provenance only while the element holds focus (the whole of that gate
+// is owned by tests/js/lib/useredit-focus.test.js), so every keyboard edit here
+// is preceded by the focus a real keystroke implies.
+const focus = (el) => {
+  documentSees("focus", el, { relatedTarget: null });
+  documentSees("focusin", el, { relatedTarget: null });
+};
+
 // A range element mid-edit: the browser has already moved its value to 63 by
 // the time the input event fires; 50 is the canonical value the app last knew.
 function setup() {
@@ -83,6 +96,7 @@ test("test_input_between_pointerdown_and_pointerup_is_honored", () => {
 for (const key of SLIDER_KEYS) {
   test(`test_input_after_${key}_keydown_on_the_slider_is_honored`, () => {
     const { el, calls, handler } = setup();
+    focus(el);
     keydown(el, key);
     fire(handler, el, "input");
     assert.equal(calls.length, 1);
@@ -91,6 +105,7 @@ for (const key of SLIDER_KEYS) {
 
 test("test_the_change_following_a_key_honored_input_is_honored_too", () => {
   const { el, calls, handler } = setup();
+  focus(el);
   keydown(el, "ArrowUp");
   fire(handler, el, "input");
   fire(handler, el, "change");
@@ -192,6 +207,7 @@ for (const key of ["a", "Tab"]) {
 // carries no provenance.
 test("test_a_key_arm_is_consumed_by_its_input_change_pair", () => {
   const { el, calls, handler } = setup();
+  focus(el);
   keydown(el, "ArrowUp");
   fire(handler, el, "input");
   fire(handler, el, "change");
@@ -209,9 +225,14 @@ test("test_pointercancel_clears_the_held_pointer_so_later_input_is_refused", () 
   assert.deepEqual(calls, []);
 });
 
+// The element under test holds focus, and the keydown lands on a DIFFERENT
+// slider — so the target is the only thing that varies. Leaving `el` unfocused
+// here would confound "wrong target" with "no focus", and the case would pass
+// against an implementation that armed on ANY slider keydown.
 test("test_a_slider_keydown_on_a_different_element_lends_no_provenance", () => {
   const { el, calls, handler } = setup();
   const other = { tagName: "INPUT", type: "range", value: "10" };
+  focus(el);
   keydown(other, "ArrowUp");
   fire(handler, el, "input");
   assert.deepEqual(calls, []);

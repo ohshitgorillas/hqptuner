@@ -22,6 +22,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Scrolling the page past a knob no longer changes its value**, in Safari. Keyboard use, dragging, double-click-to-reset, the slider and the box are unchanged.
+
 - **The Loudness Type dropdown is sized to its options.** It stretched the full width of the Bass/Treble strip for three six-character values; it now fits the longest one, like the Matrix flow controls.
 
 - **The Loudness plot and the Range bar needle now follow the volume knob as you drag it.** Both drew the level the daemon last reported, which arrives on the poll — every two seconds, or twice a second with Faster volume updates on — so through a whole drag the plot's applied curve, its caption and the needle sat still and then jumped on release. They now read the value under the pointer.
