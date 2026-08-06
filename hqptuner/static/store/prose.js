@@ -58,13 +58,20 @@ function joinFilter(name, fdb, aliases) {
   }
 }
 
-// A two-stage filter reads as its base description plus the shared two-stage note.
+// An overlay entry's prose is its description plus its `notes`, which carry the
+// manual's own caveats — "Not recommended.", "Only suitable for highest technical
+// quality source materials.", NS1's ultrasonic-noise warning. Those sentences sat
+// unread in the data until this joined them, so the UI stayed silent where the
+// manual warns. Empty parts drop out rather than leaving a stray separator.
+const joinProse = (...parts) => parts.filter(Boolean).join(" ");
+
+// A two-stage filter reads as its base prose plus the shared two-stage note, which
+// describes the variant rather than the filter and so comes last.
 function filterDescription(name, md) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
   if (!entry) return "";
-  const desc = entry.description || "";
-  return twoStage ? `${desc} ${f.two_stage_note || ""}`.trim() : desc;
+  return joinProse(entry.description, entry.notes, twoStage ? f.two_stage_note : "");
 }
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
@@ -72,7 +79,7 @@ function shaperDescription(kind, name, md) {
   const shapers = md.shapers || {};
   const db = kind === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
   const e = db && db[name];
-  return (e && e.description) || "";
+  return e ? joinProse(e.description, e.notes) : "";
 }
 
 // Inline manual description for the current selection.

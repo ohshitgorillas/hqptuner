@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Setting, filter, dither and modulator descriptions now match the HQPlayer manual.** An audit of every shipped description against Signalyst's own text found prose that had drifted into paraphrase, claims the manual does not make, and warnings it does. Descriptions now quote the manual directly, which restores detail that condensing had dropped — the per-DAC PCM gain compensation figures, the R2R recommended-bit table on DAC bits, every per-algorithm description behind SDM to PCM conversion and the noise-filter list, the 128-channel ceiling, the IIR-to-FIR pre-ringing warning, and the apodizing detection mechanism. Corrections along the way: Bass steepness said higher was sharper when 1 is the maximum; the noise-filter list left out `medium-high` and the rule to use it instead of `medium` when PCM Conversion is `none`; DAC bits said "below 32-bit" where the manual says "something else than 32-bit"; Direct SDM now says it also pins PCM volume to a fixed -3 dBFS, and a zero-width volume range now carries the manual's warning that it causes inter-sample overs and limiting. The manual's caveat sentences — "Not recommended." on ASRC and the polynomial filters, "Only suitable for highest technical quality source materials." on the half-band variants, NS1's ultrasonic-noise warning, the AHM5EC5L/AHM7EC5L limited-SNR note — were held in a field nothing rendered, so a filter the manual advises against described itself in neutral terms; each description now reads description, then caveat, then the two-stage note where one applies. `poly-sinc-mqa/mp3-lp` and `-mp` are marked upsample-only to match the manual's "Integer up" ratio, so checking **Upsample-only** on the narrow bar no longer hides them. References to HQPlayer Desktop's own controls — its Settings dialog, Tools menu, grayed and checked checkboxes — are dropped or renamed to what HQPTuner actually shows.
+
 ## [1.3.0] — 2026-08-05
 
 ### Added

@@ -293,7 +293,10 @@ test("test_a_field_with_no_gray_reason_is_enabled", async () => {
 
 test("test_a_gray_reason_is_shown_as_a_visible_caption", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.equal(line(field("volume_max"), "field-gray-reason"), "Direct SDM bypasses the volume control.");
+  assert.equal(
+    line(field("volume_max"), "field-gray-reason"),
+    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
+  );
 });
 
 test("test_an_enabled_field_shows_no_gray_caption", async () => {
@@ -329,14 +332,18 @@ test("test_a_quiet_gray_field_is_still_disabled", async () => {
 
 test("test_inline_gray_adaptive_volume_names_the_direct_sdm_bypass_inside_the_control_row", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.equal(grayReason(controlRow(field("adaptive_volume"))), "Direct SDM bypasses the volume control.");
+  assert.equal(
+    grayReason(controlRow(field("adaptive_volume"))),
+    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
+  );
 });
 
 test("test_inline_gray_loudness_explains_why_adaptive_loudness_cannot_adapt", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
   assert.equal(
     grayReason(controlRow(field("loudness_enabled"))),
-    "Direct SDM bypasses the volume control. Volume-adaptive loudness cannot adapt — use a Matrix EQ" +
+    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value." +
+      " Volume-adaptive loudness cannot adapt — use a Matrix EQ" +
       " for a volume-agnostic equivalent.",
   );
 });

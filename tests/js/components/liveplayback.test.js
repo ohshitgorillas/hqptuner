@@ -112,7 +112,7 @@ const STATE = (level) => ({
 
 const ON = { enabled: "1", min: "-60", max: "0" };
 const OFF = { enabled: "0", min: "-60", max: "0" };
-const SDM_HINT = "Direct SDM bypasses the volume control.";
+const SDM_HINT = "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.";
 const FIXED_HINT = "Fixed volume in effect";
 
 // `running` is the daemon's own /config form, keyed by FORM FIELD name — the

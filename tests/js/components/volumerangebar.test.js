@@ -69,7 +69,7 @@ const ariaLabels = (out) => handles(out).map((t) => attr(t, "aria-label"));
 const count = (out, needle) => out.split(needle).length - 1;
 
 const DEFAULTS = { volume_min: "-60", volume_max: "0", defaults_volume: "-20" };
-const SDM = "Direct SDM bypasses the volume control.";
+const SDM = "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.";
 
 // --- what each handle reads --------------------------------------------------
 

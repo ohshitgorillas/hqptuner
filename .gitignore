@@ -33,6 +33,9 @@ docs/eq-assistant/todo.md
 # commit that lands it. Kept local so they can't dirty the tree at release time.
 docs/*plan.md
 
+# scratch audit reports — one-off review output, same lifetime as a plan doc.
+docs/*audit.md
+
 # EQ Assistant session dirs — measurement images, raw digitizations, and per-turn
 # agent working files stay local. Only curated tuning JSONs are tracked.
 docs/eq-assistant/sessions/**

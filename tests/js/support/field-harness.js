@@ -58,13 +58,30 @@ export const META = {
     },
   },
   filters: {
-    filters: { "sinc-M": { description: "A very long sinc." }, "xtr-mp": { description: "Extra transient." } },
+    filters: {
+      "sinc-M": { description: "A very long sinc." },
+      "xtr-mp": { description: "Extra transient." },
+      // The manual's caveat sentences ride alongside the description as
+      // `notes` (hqptuner/data/filters.json); three shapes of overlay record
+      // carry one: description + notes, empty description + notes, and notes
+      // with no description key at all.
+      "sinc-S": { description: "A short sinc.", notes: "Not recommended." },
+      "sinc-V": { description: "", notes: "Only note." },
+      "sinc-W": { notes: "Bare note." },
+    },
     aliases: { "poly-sinc-xtr-mp": "xtr-mp" },
     two_stage_note: "Two stage oversampling.",
   },
   shapers: {
-    pcm_dithers: { TPDF: { description: "Triangular dither." }, NS9: { min_rate_hz: 352800 } },
-    sdm_modulators: { ASDM7: { description: "Seventh order modulator." } },
+    pcm_dithers: {
+      TPDF: { description: "Triangular dither." },
+      NS9: { min_rate_hz: 352800 },
+      NS1: { description: "First noise shaper.", notes: "Produces ultrasonic noise." },
+    },
+    sdm_modulators: {
+      ASDM7: { description: "Seventh order modulator." },
+      AHM5EC5L: { description: "Fifth order AHM.", notes: "Limited SNR." },
+    },
   },
 };
 

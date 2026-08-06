@@ -205,7 +205,7 @@ test("test_a_disabled_control_explains_itself", async () => {
 
 test("test_direct_sdm_is_named_as_the_cause", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.ok(card().includes("Direct SDM bypasses the volume control."));
+  assert.ok(card().includes("Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value."));
 });
 
 test("test_a_running_direct_sdm_with_nothing_staged_offers_no_apply_hint", async () => {
@@ -269,7 +269,7 @@ test("test_an_unexplained_disable_reads_as_no_active_stream", async () => {
 
 test("test_direct_sdm_outranks_fixed_volume_as_the_named_cause", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1", fixed_volume_enabled: "1" } });
-  assert.ok(card().includes("Direct SDM bypasses the volume control."));
+  assert.ok(card().includes("Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value."));
 });
 
 test("test_fixed_volume_outranks_a_zero_width_range_as_the_named_cause", async () => {

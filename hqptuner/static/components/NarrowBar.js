@@ -286,7 +286,7 @@ function apodTip() {
 }
 
 const HIRES_TIP =
-  "Hi-res filters suit high-rate sources (88.2 kHz+) and lossy material like MP3 and MQA. " +
+  "Hi-res filters suit high-rate sources and lossy material like MP3 and MQA. " +
   "Use them at 1x for lossy sources; at Nx, Only narrows to filters built for them.";
 
 // One stage's switch row: muted stage micro-label, the segment, then preview

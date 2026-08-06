@@ -3,8 +3,8 @@
   "_join_note": "Match engine name to key case-sensitively. If no exact match, normalize both sides (casefold, collapse spaces) before declaring a gap.",
   "_source": "hqplayer6desktop-manual.pdf §4.4/§4.5; hqplayerd v6 readme.txt §1.5/§1.6",
   "guidance": {
-    "order": "Fifth order modulators suit DACs with simple analog reconstruction filters (typically one switching element); seventh order modulators offer better technical performance but demand more of the DAC's analog reconstruction filter (multi-element switching arrays). For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
-    "type": "DSD* modulators are fixed configuration; ASDM* modulators adapt in various ways based on the source signal.",
+    "order": "Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have potential for better performance on DACs that have multi-element switching arrays. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
+    "type": "DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on source signal.",
     "source": "manual §4.5"
   },
   "sdm_modulators": {
@@ -161,7 +161,7 @@
     "AMSDM7 512+fs": {
       "order": 7, "type": "adaptive-multibit",
       "min_rate_hz": 20480000, "min_rate_label": "≥ DSD512",
-      "description": "Special adaptive seventh order \"pseudo-multi-bit\" modulator optimized for rates >= 20.48 MHz."
+      "description": "Special adaptive seventh order \"pseudo-multi-bit\" modulator optimized for rates above >= 20.48 MHz."
     },
     "AMSDM7EC 512+fs": {
       "order": 7, "type": "adaptive-multibit",
@@ -172,13 +172,13 @@
       "order": 5, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "description": "Experimental fifth order five level hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz.",
-      "notes": "Limited SNR compared to other modulators; best suited for loudspeaker systems and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
+      "notes": "Limited SNR compared to other modulators, best suited for loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM7EC5L": {
       "order": 7, "type": "hybrid-5-level",
       "min_rate_hz": 40960000, "min_rate_label": "≥ DSD1024",
       "description": "Experimental seventh order five level hybrid modulator with extended compensation. Optimized for rates >= 40.96 MHz.",
-      "notes": "Limited SNR compared to other modulators; best suited for loudspeaker systems and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
+      "notes": "Limited SNR compared to other modulators, best suited for loudspeaker system and/or when digital volume control is not needed. Not recommended when HQPlayer's volume control is the primary volume control method."
     },
     "AHM5EC8B": {
       "order": 5, "type": "hybrid-8-bit",
@@ -194,35 +194,35 @@
   "pcm_dithers": {
     "none": {
       "min_rate_hz": null, "max_rate_hz": null,
-      "description": "No noise-shaping or dithering, only rounding. Mostly suitable for testing cases together with the 'none' filter selection, where bit-perfect output is needed. Not recommended."
+      "description": "No noise-shaping or dithering, only rounding. Mostly suitable for testing cases together with none filter selection, where bit-perfect output is needed. Not recommended."
     },
     "NS1": {
       "min_rate_hz": 176400, "min_rate_label": "≥ 4x (176.4/192 kHz)",
       "max_rate_hz": null,
-      "description": "Simple first order noise-shaping. Sample values are rounded and the quantization error is shaped so the error energy is pushed to higher frequencies. Suitable mostly for 176.4/192 kHz upsampling.",
-      "notes": "Not recommended with equipment sensitive to ultrasonic noise."
+      "description": "Simple first order noise-shaping. Sample values are rounded and the quantization error is shaped such way that the error energy is pushed to the higher frequencies. Suitable mostly for 176.4/192 kHz upsampling.",
+      "notes": "Use of \"NS1\" with equipment sensitive to ultrasonic noise is not recommended."
     },
     "NS4": {
       "min_rate_hz": 88200, "min_rate_label": "≥ 2x (88.2/96 kHz)",
       "max_rate_hz": null,
-      "description": "Fourth order noise-shaping. Similar in shape to 'shaped' dither. Suitable for all rates equal or higher than 88.2 kHz."
+      "description": "Fourth order noise-shaping. Similar in shape as \"shaped\" dither. Suitable for all rates equal or higher than 88.2 kHz."
     },
     "NS5": {
       "min_rate_hz": 192000, "min_rate_label": "≥ 192 kHz (designed for 8x/16x)",
       "max_rate_hz": null,
       "description": "Fifth order noise-shaping. Fairly aggressive noise-shaping designed for 8x and 16x rates (352.8/384/705.6/768 kHz). Not recommended for rates below 192 kHz.",
-      "notes": "Especially good for PCM1704 at the highest rates."
+      "notes": "Especially good for PCM1704 at those highest rates."
     },
     "NS9": {
       "min_rate_hz": 176400, "min_rate_label": "≥ 4x (176.4/192 kHz)",
       "max_rate_hz": null,
       "description": "Ninth order noise-shaping. Very aggressive noise-shaping designed especially for 4x rates (176.4/192 kHz) and recommended for these rates.",
-      "notes": "Especially good for older 16-bit 4x-rate capable multibit DACs like TDA154x."
+      "notes": "Especially good for older 16-bit 4x rate capable multibit-DACs like TDA154x etc."
     },
     "LNS15": {
       "min_rate_hz": 352800, "min_rate_label": "≥ 8x (352.8/384 kHz); designed for 16x",
       "max_rate_hz": null,
-      "description": "15th order linear noise shaping. Smooth noise-shaping slope designed especially for 16x rates (705.6/768 kHz) and recommended for these higher PCM rates. Can also be used at 8x rates (352.8/384 kHz), but not recommended for rates below."
+      "description": "15th order linear noise shaping. Smooth noise-shaping slope designed especially for 16x rates (705.6/768 kHz) and recommended for these higher PCM rates. Can be also used at 8x rates (352.8/384 kHz), but not recommended for rates below."
     },
     "RPDF": {
       "min_rate_hz": null, "max_rate_hz": null,
@@ -230,7 +230,7 @@
     },
     "TPDF": {
       "min_rate_hz": null, "max_rate_hz": null,
-      "description": "Triangular Probability Density Function. The industry standard simple dither mechanism. Suitable for any rate and recommended if playback rate is 44.1/48 kHz. Recommended for general purpose use."
+      "description": "Triangular Probability Density Function. This is the industry standard simple dither mechanism. Suitable for any rate and recommended if playback rate is 44.1/48 kHz. Recommended for general purpose use."
     },
     "Gauss1": {
       "min_rate_hz": null,
@@ -240,7 +240,7 @@
     "shaped": {
       "min_rate_hz": 88200, "min_rate_label": "≥ 88.2/96 kHz",
       "max_rate_hz": null,
-      "description": "Shaped dither. Noise used in this dither has a shaped frequency distribution to lower the audibility of the dither noise. Suitable for playback rates of 88.2/96 kHz or higher."
+      "description": "Shaped dither. Noise used in this dither has shaped frequency distribution to lower audibility of the dither noise. Suitable for playback rates of 88.2/96 kHz, or higher."
     }
   }
 }

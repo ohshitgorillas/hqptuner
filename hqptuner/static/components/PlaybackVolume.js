@@ -33,7 +33,7 @@ function disabledReason() {
   const pendingOff = (k) => truthy(runningValue(k)) && !truthy(effective(k));
   const hint = (staged) => (staged ? " Apply the staged change to free the volume control." : "");
   if (truthy(runningValue("direct_sdm")))
-    return `Direct SDM bypasses the volume control.${hint(pendingOff("direct_sdm"))}`;
+    return `Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.${hint(pendingOff("direct_sdm"))}`;
   if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
     const staged = pendingOff("fixed_volume_enabled") || pendingOff("optimal_iso");
     return `Fixed volume in effect — turn off Fixed volume / Auto headroom to adjust live.${hint(staged)}`;
@@ -41,7 +41,7 @@ function disabledReason() {
   // volume min = max = 0 bypasses volume control completely (manual §4.2)
   if (Number(runningValue("volume_min")) === 0 && Number(runningValue("volume_max")) === 0) {
     const staged = !(Number(effective("volume_min")) === 0 && Number(effective("volume_max")) === 0);
-    return `Volume min and max are both 0 — volume control is bypassed.${hint(staged)}`;
+    return `Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.${hint(staged)}`;
   }
   return "No active stream — volume adjusts live during playback.";
 }

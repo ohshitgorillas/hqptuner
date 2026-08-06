@@ -1,11 +1,13 @@
 // Behavioral suite for the prose a Field renders: the hover title, the inline
 // note, and the per-selection description.
 //
-// `selectionDescription` is private and stays that way: it is a pure function of
-// the schema entry, the effective value, the option list and the settings.json
-// entry — all four of which the rendered `.field-desc` line exposes. Every
-// assertion below is on rendered output (attributes and the three prose lines),
-// never on a helper.
+// `selectionDescription` is public (store/prose.js), and store/prose-notes.test.js
+// calls it directly. This suite asserts through the rendered `.field-desc` line
+// instead, because that line is the surface Field owns: the store function is a
+// pure function of the schema entry, the effective value, the option list and the
+// settings.json entry, and what Field adds is the decision to show it at all.
+// Every assertion below is on rendered output (attributes and the three prose
+// lines), never on a helper.
 //
 // Split out of field.test.js (file-length gate); the shared fixture, wire fake
 // and HTML-extraction helpers live in field-harness.js.
@@ -36,7 +38,10 @@ test("test_a_hover_note_field_with_no_tooltip_hovers_its_gray_reason", async () 
 
 test("test_a_visible_gray_caption_is_not_repeated_on_hover", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.notEqual(titleOf(field("volume_max")), "Direct SDM bypasses the volume control.");
+  assert.notEqual(
+    titleOf(field("volume_max")),
+    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
+  );
 });
 
 test("test_a_hidden_inline_note_moves_the_tooltip_to_the_hover", async () => {
@@ -100,6 +105,13 @@ test("test_a_config_desc_field_with_an_unmapped_value_describes_nothing", async 
 test("test_a_filter_desc_field_describes_the_selected_filter_by_name", async () => {
   await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M" }] }] });
   assert.equal(line(field("pcm_filter_1x"), "field-desc"), "A very long sinc.");
+});
+
+// The manual's caveat sentences reach the user: the notes-bearing overlay
+// record renders its caveat in the same line as its description.
+test("test_a_filter_desc_field_renders_the_manual_notes_after_the_description", async () => {
+  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-S" }] }] });
+  assert.equal(line(field("pcm_filter_1x"), "field-desc"), "A short sinc. Not recommended.");
 });
 
 test("test_a_filter_description_resolves_through_an_alias", async () => {

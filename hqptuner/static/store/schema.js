@@ -53,7 +53,10 @@ const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode."
 // therefore inert while it's on — the daemon accepts and stores the setting but
 // nothing reaches the output stage, so the UI has to say so. PlaybackVolume.js
 // already grays the live slider for the same reason.
-const directSdm = (ctx) => (truthy(ctx.effective("direct_sdm")) ? "Direct SDM bypasses the volume control." : "");
+const directSdm = (ctx) =>
+  truthy(ctx.effective("direct_sdm"))
+    ? "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value."
+    : "";
 // The fixed-volume dBFS *level* (the <fixed> element) only applies when fixed
 // volume is enabled. Optimal ISO (volume_fixed) is NOT gated by this — it is an
 // independent fixed-volume mode with its own 0/1/2 enable (readme §1.2, attr
@@ -98,7 +101,7 @@ const volumeRangeGray = (ctx) =>
 const volumeBypassed = (ctx) =>
   volumeRangeGray(ctx) ||
   (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0
-    ? "Volume min and max are both 0 — volume control is bypassed."
+    ? "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side."
     : "");
 const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.");
 // The outer gate on every post-process control. `<post_process>` nests inside
