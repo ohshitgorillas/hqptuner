@@ -107,10 +107,10 @@ const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable log
 // correction and loudness are all inert until the engine is engaged. It composes
 // AHEAD of a feature's own reason — a user reading "Enable crossfeed to adjust"
 // under a bypassed engine would enable crossfeed and still hear nothing.
-// One sentence, three consumers: this gate, the card note (MatrixBypassNote) and
-// Field's caption rule below — which shows this reason even on a quietGray field,
-// because the switch that causes it is on another tab and a silently grayed knob
-// leaves the user nothing to read.
+// One sentence, three consumers: this gate, the card note (MatrixBypassNote) —
+// the sole visible surface, once per card — and Field's caption rule, which
+// suppresses it per field so no card repeats it under every control; a grayed
+// knob still carries it on hover.
 export const MATRIX_BYPASS_REASON = "Matrix engine is bypassed. These settings have no effect.";
 const matrixBypassed = (ctx) => (truthy(ctx.effective("matrix_enabled")) ? "" : MATRIX_BYPASS_REASON);
 // a post-process card's sub-controls gray out until the feature is enabled

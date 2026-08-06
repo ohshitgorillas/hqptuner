@@ -73,7 +73,7 @@ export function blockConflicts(effective) {
 // Rows past the pair ride along untouched, so none of them may write into a
 // mixdown the block owns.
 export const REFUSAL =
-  "/!\\ Structural crossfeed requires a stereo starting point. Ensure the first two pipelines route to themselves.";
+  "⚠ Structural crossfeed requires a stereo starting point. Ensure the first two pipelines route to themselves.";
 
 const refused = () => ({ refused: true });
 

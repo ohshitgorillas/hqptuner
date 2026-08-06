@@ -4,10 +4,15 @@
 // §1.11's `enabled` is the matrix processing switch — so a matrix switched out of
 // the signal path runs no post-process plugin at all. Bauer crossfeed, DAC
 // correction and loudness are exactly those plugins, so while the matrix is
-// bypassed every control that configures one is inert: HQPTuner grays it, says
-// the matrix is bypassed, and the three cards carry the note
+// bypassed every control that configures one is inert: HQPTuner grays it, and
+// the three cards carry the note
 //
 //     Matrix engine is bypassed. These settings have no effect.
+//
+// That card-level note is the ONLY place the sentence appears as visible text:
+// no field repeats it in a ".field-gray-reason" caption. The sub-controls
+// (quietGray) carry it as their hover title instead, where it outranks any
+// own-gate reason when both gates are shut.
 //
 // The matrix TABLE is a different thing and stays editable: pipeline rows and
 // "+ Add pipeline" are how a user gets the engine back, so nothing here may
@@ -15,7 +20,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test. Every case
 // renders an exported component — `Field` (through the shared field harness),
-// `CrossfeedCard`, `Output`, `Volume`, `MatrixTab` — driven by the exported store
+// `CrossfeedCard`, `Output`, `Volume` — driven by the exported store
 // signals carrying the daemon's own /config and /matrix forms (`enabled` is the
 // daemon field behind the `matrix_enabled` schema key; the post-process fields
 // are `post_bauer_*`, `post_correction_*`, `post_loudness_*`), by the exported
@@ -26,21 +31,20 @@
 // Readings taken where the spec left room, reported in the hand-back:
 //
 //   * "renders disabled" is read off the rendered control tags — a field is
-//     disabled when one of its controls carries the disabled attribute. The
-//     element that carries it, and the caption's placement (stacked or inline),
-//     are free to change; the gray reason is looked up by its class anywhere in
-//     the field.
+//     disabled when one of its controls carries the disabled attribute; which
+//     element carries it is free to change, as is any caption's placement.
 //
-//   * "names the matrix being bypassed" is asserted as the reason mentioning the
-//     matrix, never as an exact sentence — the wording is not the contract.
+//   * caption ABSENCE is asserted as no gray-reason element at all: with every
+//     feature gate engaged no other reason exists, so an empty lookup is the
+//     whole behaviour and a caption in different words would still be the defect.
 //
-//   * behaviour 3's "unchanged from today" is asserted forwards rather than
-//     against a snapshot of the old tree: with the matrix ENGAGED, a control
-//     whose own feature gate is off must not be grayed for a matrix reason, must
-//     still be disabled, and must still offer a reason of its own (on hover —
-//     these fields are quietGray); with every gate engaged nothing is grayed at
-//     all. A literal comparison against pre-change output is not available at run
-//     time.
+//   * the hover title is asserted to contain the note verbatim — the spec quotes
+//     the sentence, so there (unlike own-gate reasons) wording IS the contract.
+//
+//   * "unchanged from today" is asserted forwards, not against a snapshot: with
+//     the matrix ENGAGED, an own-gated control must not blame the matrix, must
+//     still be disabled, and must still offer its own reason on hover (these
+//     fields are quietGray); with every gate engaged nothing is grayed at all.
 //
 //   * `grayReason(key)` (store/graying.js) is not called directly: what a user
 //     meets is the rendered field, and the rendered field is where both halves of
@@ -54,7 +58,6 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { CrossfeedCard } from "../../../hqptuner/static/components/Crossfeed.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
 import { chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
 import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
 import { Volume } from "../../../hqptuner/static/components/tabs/VolumeTab.js";
@@ -266,7 +269,6 @@ const decode = (out) =>
 const crossfeed = () => decode(render(html`<${CrossfeedCard} />`));
 const outputTab = () => decode(render(html`<${Output} />`));
 const volumeTab = () => decode(render(html`<${Volume} />`));
-const matrixTab = () => decode(render(html`<${MatrixTab} />`));
 
 // Whether any control of a rendered field carries the disabled attribute. Which
 // element carries it is not part of the contract, so all three control tags are
@@ -309,9 +311,19 @@ for (const key of POST_PROCESS) {
     assert.equal(isDisabled(field(key)), true);
   });
 
-  test(`test_a_bypassed_matrix_tells_${key}_the_matrix_is_why`, async () => {
+  // The card already says the sentence; no field repeats it as a caption. With
+  // every feature gate engaged no other reason exists either, so the field
+  // renders no gray-reason caption at all.
+  test(`test_a_bypassed_matrix_renders_no_caption_on_${key}`, async () => {
     await reset({ matrix: "0" });
-    assert.equal(namesMatrix(reasonOf(key)), true);
+    assert.equal(reasonOf(key), null);
+  });
+
+  // Same surface under a STAGED bypass — no apply, still no caption.
+  test(`test_a_staged_matrix_bypass_renders_no_caption_on_${key}`, async () => {
+    await reset({ matrix: "1" });
+    await edit("matrix_enabled", "0");
+    assert.equal(reasonOf(key), null);
   });
 
   // The other side: with the engine engaged and the control's own feature gate
@@ -330,23 +342,49 @@ for (const key of POST_PROCESS) {
 // say, they do not say the matrix did it.
 
 for (const key of SUB_CONTROLS) {
+  // These fields are quietGray, so their reason lives on the hover title — the
+  // caption is empty either way and cannot carry the blame.
   test(`test_an_engaged_matrix_does_not_blame_the_matrix_for_a_gated_${key}`, async () => {
     await reset({ matrix: "1", ...ownGateShut(key) });
-    assert.equal(namesMatrix(reasonOf(key)), false);
+    assert.equal(namesMatrix(titleOf(field(key))), false);
   });
 
-  // Both gates shut at once: the matrix is the outer one and the reason the user
-  // reads is the matrix one — the SAME sentence the control gets when only the
-  // matrix is bypassed, which a caption carrying the own-gate reason (alone or
+  // These sub-controls are quietGray: their reason is the hover title, not a
+  // caption, and under a bypassed matrix that title carries the card's sentence.
+  // This suite loads no metadata, so any title the field carries is that reason
+  // and nothing else.
+  test(`test_a_bypassed_matrix_puts_its_sentence_on_the_hover_title_of_${key}`, async () => {
+    await reset({ matrix: "0" });
+    const title = titleOf(field(key));
+    assert.ok(
+      title !== undefined && title.includes(NOTE),
+      `hover title under a bypassed matrix: ${JSON.stringify(title)}`,
+    );
+  });
+
+  // And under a STAGED bypass — same sentence, same title, no apply.
+  test(`test_a_staged_matrix_bypass_puts_its_sentence_on_the_hover_title_of_${key}`, async () => {
+    await reset({ matrix: "1" });
+    await edit("matrix_enabled", "0");
+    const title = titleOf(field(key));
+    assert.ok(
+      title !== undefined && title.includes(NOTE),
+      `hover title under a staged bypass: ${JSON.stringify(title)}`,
+    );
+  });
+
+  // Both gates shut at once: the matrix is the outer one and the hover title the
+  // user reads is the matrix one — the SAME sentence the control gets when only
+  // the matrix is bypassed, which a title carrying the own-gate reason (alone or
   // concatenated onto the matrix one) cannot equal.
   test(`test_a_bypassed_matrix_outranks_the_feature_gate_on_${key}`, async () => {
     await reset({ matrix: "0", ...ownGateShut(key) });
-    const bothShut = reasonOf(key);
+    const bothShut = titleOf(field(key));
     await reset({ matrix: "0", crossfeed: "1", correction: "1", loudness: "1" });
-    const matrixOnly = reasonOf(key);
+    const matrixOnly = titleOf(field(key));
     assert.ok(
-      bothShut !== null && bothShut === matrixOnly && namesMatrix(bothShut),
-      `reason with the own gate shut ${JSON.stringify(bothShut)} vs with it engaged ${JSON.stringify(matrixOnly)}`,
+      bothShut !== undefined && bothShut === matrixOnly && bothShut.includes(NOTE),
+      `hover title with the own gate shut ${JSON.stringify(bothShut)} vs with it engaged ${JSON.stringify(matrixOnly)}`,
     );
   });
 }
@@ -458,41 +496,5 @@ test("test_an_engaged_matrix_leaves_the_loudness_card_without_the_note", async (
   assert.equal(noteIn(cardTitled(volumeTab(), "Loudness")), false);
 });
 
-// ============================================================================
-// the matrix table itself stays editable
-// ============================================================================
-// The pipeline rows are how a user gets the engine back, so gating the
-// post-process plugins may not reach them. Asserted as the difference between a
-// bypassed and an engaged engine being nil, over rows proved to be there and to
-// carry controls.
-
-const pipelinesCard = (out) => {
-  const at = out.indexOf("Pipelines");
-  const start = out.lastIndexOf('<section class="card', at);
-  return at < 0 || start < 0 ? "" : out.slice(start, out.indexOf("</section>", at));
-};
-const rowsOf = (out) => out.split('<div class="mtx-row ').slice(1);
-const rowControlStates = (out) =>
-  rowsOf(pipelinesCard(out)).map((row) => controlTags(row).map((tag) => /\sdisabled\b/.test(tag)));
-
-test("test_a_bypassed_matrix_leaves_pipeline_row_controls_exactly_as_they_are", async () => {
-  await reset({ matrix: "0" });
-  const bypassed = rowControlStates(matrixTab());
-  await reset({ matrix: "1" });
-  const engaged = rowControlStates(matrixTab());
-  assert.ok(
-    bypassed.length === ROWS.length &&
-      bypassed.every((row) => row.length > 0) &&
-      JSON.stringify(bypassed) === JSON.stringify(engaged),
-    `bypassed rows ${JSON.stringify(bypassed)} vs engaged rows ${JSON.stringify(engaged)}`,
-  );
-});
-
-test("test_a_bypassed_matrix_leaves_add_pipeline_enabled", async () => {
-  await reset({ matrix: "0" });
-  const add = buttonsOf(pipelinesCard(matrixTab())).find((b) => b.includes("Add pipeline"));
-  assert.ok(
-    add !== undefined && !/\sdisabled\b/.test(attrsOf(add)),
-    add === undefined ? "no + Add pipeline button was rendered" : "+ Add pipeline rendered disabled",
-  );
-});
+// The matrix table staying editable under a bypass (pipeline rows, "+ Add
+// pipeline") is pinned by matrix-bypass-note.test.js and not repeated here.

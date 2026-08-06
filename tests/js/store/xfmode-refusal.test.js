@@ -185,7 +185,7 @@ test("test_install_with_extra_rows_outside_the_stereo_mixdowns_returns_no_note",
 // the rows carried.
 
 const REFUSAL_NOTE =
-  "/!\\ Structural crossfeed requires a stereo starting point. Ensure the first two pipelines route to themselves.";
+  "⚠ Structural crossfeed requires a stereo starting point. Ensure the first two pipelines route to themselves.";
 
 const REFUSALS = [
   ["a_crossed_pair", [dbRow("0", "1", "-3", EQ_L), dbRow("1", "0", "-3", EQ_R)]],

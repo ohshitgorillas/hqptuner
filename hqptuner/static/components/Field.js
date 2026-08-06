@@ -127,9 +127,11 @@ function narrowBadge(entry, key) {
 // appended after the manual note (user decision; hover-only reasons
 // proved undiscoverable) unless the schema suppresses it (quietGray).
 // quietGray silences a reason whose cause is on the card itself ("Enable
-// crossfeed to adjust" — the gate is one row up). A bypassed matrix is not that:
-// its switch is on the Matrix tab, so the reason renders whatever the field says.
-const captionVisible = (entry, reason) => !!reason && (!entry.quietGray || reason === MATRIX_BYPASS_REASON);
+// crossfeed to adjust" — the gate is one row up). The matrix-bypass reason is
+// suppressed too, on every field: its card already carries BypassNote saying
+// the same sentence once, so a per-field caption would repeat it under every
+// control on the card. The reason still grays and still reaches the hover title.
+const captionVisible = (entry, reason) => !!reason && !entry.quietGray && reason !== MATRIX_BYPASS_REASON;
 // `inlineGray` moves that caption off the stack and into the control row, to
 // the right of the widget itself, for short reasons on narrow controls where a
 // line of its own under the manual note reads as unrelated prose.

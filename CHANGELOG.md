@@ -20,6 +20,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
   Handles now sit on the values they hold. Every one of them was drawn up to half its own width away — a Max of -3 dB sat visibly left of the -3 gridline — because the browser insets a slider's thumb while the gridlines and fill were drawn across the full track. `-120` also lost its minus sign into the card edge; the labels at each end of the track now anchor to that end.
 
+- **The "Matrix engine is bypassed" sentence now appears once per card, not under every control.** A bypassed matrix printed the same line under all seventeen post-process controls on top of each card's own note. The card note stays; the controls stay grayed and carry the reason on hover.
+
 ### Fixed
 
 - **Scrolling the page past a knob no longer changes its value**, in Safari. Keyboard use, dragging, double-click-to-reset, the slider and the box are unchanged.
@@ -35,6 +37,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Naming a live preset no longer spills out of its card.** Clicking Save… under Live preset broke the prompt across six lines, one word each, and pushed the name field and its buttons over the text beside them. The prompt now reads as a sentence with the field and buttons under it.
 
 - **Loading a matrix profile with nothing playing now says why.** HQPlayer refuses the switch when no track is loaded, and the Profile card used to print its C++ diagnostic verbatim (`clHQPlayerEngine::MatrixSetProfile(): clPlaylist::GetTrackFile(): trackn > last`). It now reads `Live playback is needed to load a matrix profile.` Any other refusal still shows the daemon's own words.
+
+- **The structural-crossfeed warning shows a real warning sign.** The message opened with the literal characters `/!\` instead of ⚠.
 
 ## [1.2.0] — 2026-08-04
 
