@@ -29,6 +29,10 @@ docs/eq-assistant/*.pdf
 # EQ Assistant working checklist — churns every session, local for now
 docs/eq-assistant/todo.md
 
+# scratch plan docs — working notes for a change in flight, superseded by the
+# commit that lands it. Kept local so they can't dirty the tree at release time.
+docs/*plan.md
+
 # EQ Assistant session dirs — measurement images, raw digitizations, and per-turn
 # agent working files stay local. Only curated tuning JSONs are tracked.
 docs/eq-assistant/sessions/**
