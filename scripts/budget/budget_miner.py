@@ -134,7 +134,7 @@ def label_reply(text: str) -> str:
     if not text or text.startswith("/"):
         return "command"
     words = re.sub(r"[^\w\s]", " ", text).lower().split()
-    if 0 < len(words) <= 4 and all(word in CONTINUE_WORDS for word in words):
+    if words and all(word in CONTINUE_WORDS for word in words):
         return "continue"
     return "ambiguous"
 
@@ -309,7 +309,7 @@ def ask_claude(record: dict) -> str:
     for _ in range(2):
         try:
             result = subprocess.run(  # noqa: S603
-                [CLAUDE_CLI, "-p", prompt], capture_output=True, text=True, timeout=180
+                [CLAUDE_CLI, "-p", prompt], capture_output=True, text=True, timeout=180, check=False
             )
         except (OSError, subprocess.TimeoutExpired):
             continue
@@ -358,7 +358,7 @@ def _burst_rows(count: int, name: str, tool_input: dict) -> list[dict]:
     return [_assistant(f"a{i}", f"t{i}", name, tool_input) for i in range(count)]
 
 
-def _check(label: str, condition: bool) -> bool:
+def _check(label: str, *, condition: bool) -> bool:
     print(f"  {'PASS' if condition else 'FAIL'}  {label}")
     return condition
 
@@ -369,38 +369,53 @@ def _trip_checks() -> list[bool]:
         _assistant("a0", "t0", "Bash", {"command": "sudo ls"}),
         _denial("a0", "t0", "Permission denied by a different rule entirely."),
     ]
-    ok = [_check("non-budget denial yields no trip", mine_rows(decoy, "s") == [])]
+    ok = [_check("non-budget denial yields no trip", condition=mine_rows(decoy, "s") == [])]
 
     rows = [_human("do the thing"), *_burst_rows(6, "Bash", {"command": "sudo docker ps"})]
     rows += [_denial("a5", "t5", f"6 {CHANGE_SIG} (change budget 5)."), _human("<command-name>/clear</command-name>")]
     change = mine_rows(rows, "s")[0]
-    ok.append(_check("change trip detected", change["leash"] == "change" and change["reported"] == 6))
-    ok.append(_check("replayed count matches report", change["counts"]["changes"] == 6))
-    ok.append(_check("blocked call captured", (change["blocked_call"] or {}).get("tool_use_id") == "t5"))
-    ok.append(_check("blocked call excluded from burst", all(e["tool_use_id"] != "t5" for e in change["burst"])))
+    ok.append(_check("change trip detected", condition=change["leash"] == "change" and change["reported"] == 6))
+    ok.append(_check("replayed count matches report", condition=change["counts"]["changes"] == 6))
+    ok.append(_check("blocked call captured", condition=(change["blocked_call"] or {}).get("tool_use_id") == "t5"))
+    ok.append(
+        _check(
+            "blocked call excluded from burst",
+            condition=all(e["tool_use_id"] != "t5" for e in change["burst"]),
+        )
+    )
     changed = [e for e in change["burst"] if e["leash_class"] == hook.CHANGE]
-    ok.append(_check("burst change entries == counts.changes - 1", len(changed) == change["counts"]["changes"] - 1))
-    ok.append(_check("tripping class is sudo", change["blocked_call"]["cmd_class"] == "sudo"))
-    ok.append(_check("slash-command reply labels command", change["user_reply"]["label"] == "command"))
+    ok.append(
+        _check(
+            "burst change entries == counts.changes - 1",
+            condition=len(changed) == change["counts"]["changes"] - 1,
+        )
+    )
+    ok.append(_check("tripping class is sudo", condition=change["blocked_call"]["cmd_class"] == "sudo"))
+    ok.append(_check("slash-command reply labels command", condition=change["user_reply"]["label"] == "command"))
 
     rows = [_human("edit them"), *_burst_rows(16, "Write", {"file_path": str(ROOT / "x.py")})]
     rows += [_denial("a15", "t15", f"16 {EDIT_SIG} (edit allowance 15)."), _human("continue")]
     edit = mine_rows(rows, "s")[0]
-    ok.append(_check("edit trip detected", edit["leash"] == "edit" and edit["counts"]["edits"] == 16))
+    ok.append(_check("edit trip detected", condition=edit["leash"] == "edit" and edit["counts"]["edits"] == 16))
     edits = [e for e in edit["burst"] if e["leash_class"] == hook.EDIT]
-    ok.append(_check("burst edit entries == counts.edits - 1", len(edits) == 15))
-    ok.append(_check("change count untouched on edit trip", edit["counts"]["changes"] == 0))
-    ok.append(_check("in-tree write classed edit-in-tree", edit["blocked_call"]["cmd_class"] == "edit-in-tree"))
-    ok.append(_check("short affirmative labels continue", edit["user_reply"]["label"] == "continue"))
+    ok.append(_check("burst edit entries == counts.edits - 1", condition=len(edits) == 15))
+    ok.append(_check("change count untouched on edit trip", condition=edit["counts"]["changes"] == 0))
+    ok.append(
+        _check(
+            "in-tree write classed edit-in-tree",
+            condition=edit["blocked_call"]["cmd_class"] == "edit-in-tree",
+        )
+    )
+    ok.append(_check("short affirmative labels continue", condition=edit["user_reply"]["label"] == "continue"))
     return ok
 
 
 def self_test() -> int:
-    ok = [_check("hook imported outside __main__", hook.__name__ != "__main__")]
+    ok = [_check("hook imported outside __main__", condition=hook.__name__ != "__main__")]
     ok += _trip_checks()
     ok += profiler.self_checks(_check)
     chained = bash_class("git add -A && git commit -m x")
-    ok.append(_check("chained git commit outranks first token", chained == "git-commit"))
+    ok.append(_check("chained git commit outranks first token", condition=chained == "git-commit"))
     print(f"\n{sum(ok)}/{len(ok)} passed")
     return 0 if all(ok) else 1
 

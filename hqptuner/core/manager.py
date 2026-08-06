@@ -26,19 +26,19 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from ..audit import AuditLog
-from ..conf import engineconf, presetconf
-from ..conf.httpconf import HttpConfigClient
-from ..config import Config
-from ..engine import devicecaps, logtail
-from ..engine.control import CommandError, ControlClient, ControlError
-from ..lanes import httpforms, livechain, livelane, settle
-from ..presets import presetlane
-from ..presets.presetops import PresetOps
-from .applyops import ApplyOps
+from hqptuner.audit import AuditLog
+from hqptuner.conf import engineconf, presetconf
+from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.config import Config
+from hqptuner.core.applyops import ApplyOps
+from hqptuner.engine import devicecaps, logtail
+from hqptuner.engine.control import CommandError, ControlClient, ControlError
+from hqptuner.lanes import httpforms, livechain, livelane, settle
+from hqptuner.presets import presetlane
+from hqptuner.presets.presetops import PresetOps
 
 if TYPE_CHECKING:
-    from ..engine.metering import MeteringReader
+    from hqptuner.engine.metering import MeteringReader
 
 log = logging.getLogger(__name__)
 
@@ -222,7 +222,7 @@ class ConnectionManager:
         status, meta = await client.get_status()
         before = livechain.active_chain(self)
         self.state, self.status, self.status_metadata = state, status, meta
-        await livelane.chain_entered(self, client, before, moved)
+        await livelane.chain_entered(self, client, before, reenumerated=moved)
         self.volume_range = await client.get_volume_range()
         with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
             self.matrix_profiles = await client.get_matrix_profiles()
@@ -297,7 +297,7 @@ class ConnectionManager:
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
 
-    async def refresh_device_caps(self, force: bool = False) -> None:
+    async def refresh_device_caps(self, *, force: bool = False) -> None:
         """Re-learn what the selected output device can carry (engine/devicecaps).
 
         Reading it costs a whole ``GET /log``, so this is deliberately not a

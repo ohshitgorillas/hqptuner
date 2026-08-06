@@ -33,7 +33,7 @@ import json
 import re
 from typing import Any
 
-from .xmledit import GroundingError, ensure_body, ensure_element, in_comment
+from hqptuner.conf.xmledit import GroundingError, ensure_body, ensure_element, in_comment
 
 MATRIX_PIPELINES = "matrix_pipelines"
 # One staged field per profile verb. Save carries {"name", "rows"} so the rows
@@ -79,6 +79,7 @@ _PLUGIN_FIELDS: dict[tuple[str, str], str] = {loc: field for field, loc in PLUGI
 _GAIN_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _MAX_CHANNELS = 128
 _NAME_MAX = 128
+_FIRST_PRINTABLE = 0x20  # anything below is a control character the config XML cannot carry
 
 # minimal XML attribute escaping for the process string (order matters on unescape)
 # ``&apos;`` is in the table because the DAEMON writes it: an apostrophe in a
@@ -129,7 +130,7 @@ def _validate_row(row: Any) -> dict[str, str]:
     if unit not in ("dB", "Lin"):
         raise GroundingError(f"matrix_pipelines: bad gainunit {unit!r}")
     process = str(row.get("process", ""))
-    if any(ord(c) < 0x20 for c in process):
+    if any(ord(c) < _FIRST_PRINTABLE for c in process):
         raise GroundingError("matrix_pipelines: control characters in process string")
     return {"source": str(source), "gain": gain, "gainunit": unit, "mixdown": str(mixdown), "process": process}
 
@@ -226,7 +227,7 @@ def _validate_name(name: Any) -> str:
         raise GroundingError("matrix profile: name must not be empty")
     if len(cleaned) > _NAME_MAX:
         raise GroundingError(f"matrix profile: name longer than {_NAME_MAX} characters")
-    if any(ord(c) < 0x20 for c in cleaned):
+    if any(ord(c) < _FIRST_PRINTABLE for c in cleaned):
         raise GroundingError("matrix profile: control characters in name")
     return cleaned
 

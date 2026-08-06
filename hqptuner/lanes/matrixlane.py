@@ -22,10 +22,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..engine.control import ControlError
+from hqptuner.engine.control import ControlError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 
 async def switch_profile(mgr: ConnectionManager, name: str) -> dict[str, Any]:

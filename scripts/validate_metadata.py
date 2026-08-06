@@ -54,9 +54,11 @@ if isinstance(enums.get("shapers_pcm"), str):
         "re-validate when Phase 2 captures the PCM-mode list"
     )
 else:
-    for item in enums["shapers_pcm"]:
-        if item["name"] not in shapers["pcm_dithers"]:
-            errors.append(f"shapers.json: engine dither {item['name']!r} has no entry")
+    errors.extend(
+        f"shapers.json: engine dither {item['name']!r} has no entry"
+        for item in enums["shapers_pcm"]
+        if item["name"] not in shapers["pcm_dithers"]
+    )
 
 # 2. Filters: engine name coverage via join rules
 fdb = filters["filters"]
@@ -73,24 +75,30 @@ def resolve_filter(name):
     return None
 
 
-for item in enums["filters_sdm"]:
-    if resolve_filter(item["name"]) is None:
-        errors.append(f"filters.json: engine filter {item['name']!r} unresolved")
+errors.extend(
+    f"filters.json: engine filter {item['name']!r} unresolved"
+    for item in enums["filters_sdm"]
+    if resolve_filter(item["name"]) is None
+)
 if isinstance(enums.get("filters_pcm"), str):
     warnings.append("engine PCM filter list uncaptured — re-validate when Phase 2 captures it")
 else:
-    for item in enums["filters_pcm"]:
-        if resolve_filter(item["name"]) is None:
-            errors.append(f"filters.json: engine PCM filter {item['name']!r} unresolved")
+    errors.extend(
+        f"filters.json: engine PCM filter {item['name']!r} unresolved"
+        for item in enums["filters_pcm"]
+        if resolve_filter(item["name"]) is None
+    )
 
 # 3. Settings: every control has tooltip + source
 n_controls = 0
 for section in ("output", "dsp", "volume", "system"):
     for key, entry in settings[section].items():
         n_controls += 1
-        for field in ("label", "tooltip", "source"):
-            if not entry.get(field):
-                errors.append(f"settings.json: {section}.{key} missing {field}")
+        errors.extend(
+            f"settings.json: {section}.{key} missing {field}"
+            for field in ("label", "tooltip", "source")
+            if not entry.get(field)
+        )
 
 # 4. No live-facet duplication in filters.json
 LIVE_FACETS = {"quality", "focus", "ratio", "apodizing", "phase"}

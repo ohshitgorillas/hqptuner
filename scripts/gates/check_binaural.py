@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent reference check for ``static/lib/binaural.js``.
+"""Independent reference check for ``static/lib/binaural/``.
 
 The repo has no JS test runner, so the structural-crossfeed compiler has no
 in-suite coverage. This script is its safety net: it implements Brown & Duda's
@@ -33,8 +33,17 @@ HEAD_RADIUS = 0.0875
 ALPHA_MIN = 0.1
 THETA_MIN = 150.0
 
-LIB = Path(__file__).resolve().parent.parent.parent / "hqptuner" / "static" / "lib" / "binaural.js"
-SETUP = LIB.parent / "binaural-setup.js"
+# binaural.js was split into lib/binaural/, so the five symbols this gate drives
+# now come from four modules rather than one. SETUP stays in lib/ — it is the
+# preset/pairing layer, not part of the maths.
+_LIB_DIR = Path(__file__).resolve().parent.parent.parent / "hqptuner" / "static" / "lib"
+GEOMETRY = _LIB_DIR / "binaural" / "geometry.js"
+COMPILE = _LIB_DIR / "binaural" / "compile.js"
+RESPONSE = _LIB_DIR / "binaural" / "response.js"
+RECOGNIZE = _LIB_DIR / "binaural" / "recognize.js"
+SETUP = _LIB_DIR / "binaural-setup.js"
+#: every module the driver imports; all must exist before it is worth running
+SOURCES = (GEOMETRY, COMPILE, RESPONSE, RECOGNIZE, SETUP)
 
 FREQS = [20, 50, 100, 200, 400, 624, 1000, 1248, 2000, 4000, 8000, 16000, 20000]
 LAMBDAS = [0.0, 0.25, 0.5, 1.0, 1.5]
@@ -49,7 +58,10 @@ TOLERANCE = 1e-12
 WIRE_TOLERANCE = 1e-8
 
 DRIVER = """
-import {{ midSideResponse, compileRows, pathParams, recognizeRows, magDb }} from "{lib}";
+import {{ midSideResponse, magDb }} from "{response}";
+import {{ compileRows }} from "{compile}";
+import {{ pathParams }} from "{geometry}";
+import {{ recognizeRows }} from "{recognize}";
 import {{ blockConflicts, pairInfo, PRESETS, matchPreset }} from "{setup}";
 
 const responses = {cases}.map(([f, lambda, angle]) => {{
@@ -215,7 +227,10 @@ def run_driver(node: str) -> dict[str, object]:
     """Evaluate the real module and hand back its numbers."""
     cases = [[f, lam, ang] for ang in ANGLES for lam in LAMBDAS for f in FREQS]
     source = DRIVER.format(
-        lib=LIB.as_uri(),
+        geometry=GEOMETRY.as_uri(),
+        compile=COMPILE.as_uri(),
+        response=RESPONSE.as_uri(),
+        recognize=RECOGNIZE.as_uri(),
         setup=SETUP.as_uri(),
         cases=json.dumps(cases),
         lambdas=json.dumps(LAMBDAS),
@@ -263,8 +278,10 @@ def main() -> int:
     if node is None:
         print("check_binaural: node not on PATH — skipping (not a failure)")
         return 0
-    if not LIB.exists():
-        print(f"check_binaural: {LIB} not found")
+    missing = [src for src in SOURCES if not src.exists()]
+    if missing:
+        for src in missing:
+            print(f"check_binaural: {src} not found")
         return 1
 
     got = run_driver(node)

@@ -61,7 +61,7 @@ async def test_enabled_apply_sends_enabled_one(
     client: tuple[HttpConfigClient, list[dict[str, list[str]]]],
 ) -> None:
     c, posts = client
-    await c.apply_speakers(True, {})
+    await c.apply_speakers({}, enabled=True)
     assert posts[-1].get("enabled") == ["1"]
 
 
@@ -69,7 +69,7 @@ async def test_disabled_apply_omits_the_enabled_field(
     client: tuple[HttpConfigClient, list[dict[str, list[str]]]],
 ) -> None:
     c, posts = client
-    await c.apply_speakers(False, {})
+    await c.apply_speakers({}, enabled=False)
     assert "enabled" not in posts[-1]
 
 
@@ -81,14 +81,14 @@ async def test_out_of_range_or_nonnumeric_value_is_rejected(
 ) -> None:
     c, _ = client
     with pytest.raises(ValueError):
-        await c.apply_speakers(True, {"0": {field: value}})
+        await c.apply_speakers({"0": {field: value}}, enabled=True)
 
 
 async def test_applied_level_reaches_the_wire(
     client: tuple[HttpConfigClient, list[dict[str, list[str]]]],
 ) -> None:
     c, posts = client
-    await c.apply_speakers(True, {"0": {"level": "-3"}})
+    await c.apply_speakers({"0": {"level": "-3"}}, enabled=True)
     assert posts[-1].get("level_0") == ["-3"]
 
 
@@ -96,6 +96,6 @@ async def test_partial_override_still_posts_a_complete_form(
     client: tuple[HttpConfigClient, list[dict[str, list[str]]]],
 ) -> None:
     c, posts = client
-    await c.apply_speakers(True, {"0": {"level": "-3"}})
+    await c.apply_speakers({"0": {"level": "-3"}}, enabled=True)
     expected = {f"{kind}_{i}" for kind in ("level", "distance") for i in range(8)}
     assert expected <= set(posts[-1])

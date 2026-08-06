@@ -12,14 +12,14 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..conf import engineconf, matrixconf, presetconf, xmledit
-from . import presetlane
-from .filterpark import FilterPark
-from .presetstore import PresetError, PresetStore
+from hqptuner.conf import engineconf, matrixconf, presetconf, xmledit
+from hqptuner.presets import presetlane
+from hqptuner.presets.filterpark import FilterPark
+from hqptuner.presets.presetstore import PresetError, PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..config import Config
-    from ..core.manager import ConnectionManager
+    from hqptuner.config import Config
+    from hqptuner.core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

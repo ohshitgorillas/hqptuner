@@ -118,7 +118,7 @@ def analyze_main(argv: list[str]) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) >= 2 and sys.argv[1] == "analyze":
+    if sys.argv[1:2] == ["analyze"]:
         analyze_main(sys.argv[2:])
     else:
         capture_main(sys.argv[2:] if sys.argv[1:2] == ["capture"] else sys.argv[1:])

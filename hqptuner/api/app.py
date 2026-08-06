@@ -13,22 +13,22 @@ from fastapi import APIRouter, FastAPI, File, HTTPException, Request, Response, 
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
-from .. import __version__
-from ..audit import AuditLog
-from ..conf.httpconf import HttpConfigClient
-from ..config import Config
-from ..core.manager import ConnectionManager
-from ..engine.control import ControlError
-from ..engine.metering import MeteringReader, context_from
-from ..lanes import livechain, livelane, livemap, liveoverrides
-from ..metadata import StaticMetadata, merge_enumerations
-from ..presets import presetlane
-from ..presets.livepresets import LivePresetStore
-from ..presets.presetstore import PresetError
-from . import deps, livepresetapi, matrixapi, pendingapi
-from .deps import HttpMgr, Mgr
-from .models import ApplyBody, EngineBody, LiveBody, ProfileBody, VolumeBody
-from .pendingapi import PendingStore, _apply_succeeded, _pending
+from hqptuner import __version__
+from hqptuner.api import deps, livepresetapi, matrixapi, pendingapi
+from hqptuner.api.deps import HttpMgr, Mgr
+from hqptuner.api.models import ApplyBody, EngineBody, LiveBody, ProfileBody, VolumeBody
+from hqptuner.api.pendingapi import PendingStore, _apply_succeeded, _pending
+from hqptuner.audit import AuditLog
+from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.config import Config
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.engine.control import ControlError
+from hqptuner.engine.metering import MeteringReader, context_from
+from hqptuner.lanes import livechain, livelane, livemap, liveoverrides
+from hqptuner.metadata import StaticMetadata, merge_enumerations
+from hqptuner.presets import presetlane
+from hqptuner.presets.livepresets import LivePresetStore
+from hqptuner.presets.presetstore import PresetError
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -244,7 +244,7 @@ async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     ok = _apply_succeeded(report)
-    manager.audit.apply(staged_http, staged_live, switch_to, save, ok)
+    manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:
         return report  # soft failure — keep staging so the user can retry
     await _persist_after_apply(manager, save, report)
@@ -295,7 +295,7 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
     if not body.overrides:
         raise HTTPException(status_code=400, detail="no engine overrides given")
     try:
-        report = await manager.applyops.apply_engine(body.overrides, body.all_presets)
+        report = await manager.applyops.apply_engine(body.overrides, all_presets=body.all_presets)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

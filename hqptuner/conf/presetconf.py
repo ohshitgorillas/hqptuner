@@ -31,8 +31,8 @@ from __future__ import annotations
 
 import json
 
-from ..audit import AuditLog
-from .fixedvol import (
+from hqptuner.audit import AuditLog
+from hqptuner.conf.fixedvol import (
     FIXED_ENABLED,
     FIXED_LEVEL,
     any_fixed_level,
@@ -40,7 +40,7 @@ from .fixedvol import (
     fixed_level_of,
     reconcile_fixed,
 )
-from .matrixconf import (
+from hqptuner.conf.matrixconf import (
     MATRIX_PIPELINES,
     MATRIX_PROFILE_DELETE,
     MATRIX_PROFILE_SAVE,
@@ -53,14 +53,7 @@ from .matrixconf import (
     replace_pipelines,
     write_profile,
 )
-from .xmledit import (
-    GroundingError,
-    edit_element,
-    edit_plugin,
-    find_element,
-    find_plugin,
-    get_attr,
-)
+from hqptuner.conf.xmledit import GroundingError, edit_element, edit_plugin, find_element, find_plugin, get_attr
 
 # form field name -> (element tag, attribute). Every tag here occurs once in a
 # snapshot; multi-instance <plugin> lives in PLUGIN_MAP, keyed by its type attr.
@@ -180,12 +173,12 @@ def audit_profile_write(audit: AuditLog, xml: bytes, value: str, target: str) ->
     running config and the fan-out into stored presets — emits at its own call
     site with its own pre-edit bytes."""
     name, rows = _save_payload(value)
-    audit.profile_write(name, rows, name in _profile_names(xml), target)
+    audit.profile_write(name, rows, target, replaced=name in _profile_names(xml))
 
 
 def audit_profile_delete(audit: AuditLog, xml: bytes, name: str, target: str) -> None:
     """Record a ``<matrix_profile>`` delete against the XML it is about to edit."""
-    audit.profile_delete(name, name in _profile_names(xml), target)
+    audit.profile_delete(name, target, found=name in _profile_names(xml))
 
 
 def _apply_one(xml: bytes, field: str, value: str) -> bytes:

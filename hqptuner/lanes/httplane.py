@@ -20,12 +20,12 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from ..conf import engineconf, presetconf, presetzip, xmledit
-from ..conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX_PROFILES
-from . import presetfields, settle
+from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
+from hqptuner.conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX_PROFILES
+from hqptuner.lanes import presetfields, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 

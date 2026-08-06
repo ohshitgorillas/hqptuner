@@ -10,11 +10,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..engine.control import ControlError
-from ..lanes import livechain, livelane, livemap, livesnapshot
-from ..presets import presetlane
-from ..presets.livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
-from .deps import Mgr
+from hqptuner.api.deps import Mgr
+from hqptuner.engine.control import ControlError
+from hqptuner.lanes import livechain, livelane, livemap, livesnapshot
+from hqptuner.presets import presetlane
+from hqptuner.presets.livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
 
 router = APIRouter(prefix="/api")
 

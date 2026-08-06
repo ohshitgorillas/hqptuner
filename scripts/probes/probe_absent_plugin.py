@@ -295,7 +295,9 @@ async def _q7_element(http: HttpConfigClient, original: bytes, active: str | Non
     return out
 
 
-async def _probe(
+# Wide by necessity: the probe body needs both daemon handles plus all three
+# config snapshots it compares against, which share no identity to bundle under.
+async def _probe(  # noqa: PLR0913
     http: HttpConfigClient,
     raw: httpx.AsyncClient,
     pristine: bytes,

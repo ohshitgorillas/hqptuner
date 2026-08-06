@@ -23,10 +23,10 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from . import junkadvisor
+from hqptuner.engine import junkadvisor
 
 if TYPE_CHECKING:
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 
@@ -129,8 +129,7 @@ class SpectralAggregate:
             else:
                 block = self._block_min
                 for i, p in enumerate(mags_sq):
-                    if p < block[i]:
-                        block[i] = p
+                    block[i] = min(block[i], p)
         self._block_seconds += covered_seconds
         if self._block_seconds >= BLOCK_SECONDS:
             if self._block_min is not None:

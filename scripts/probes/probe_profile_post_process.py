@@ -118,7 +118,7 @@ def _profile_element(xml: bytes, name: str) -> bytes | None:
     return m.group(0) if m else None
 
 
-def _with_probe_profile(xml: bytes, carry_post: bool = True) -> bytes:
+def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
     """Insert one probe profile: the live pipeline rows, plus (unless
     ``carry_post`` is off) a verbatim copy of the live post-process block.
     Nothing else in the snapshot moves.
@@ -172,7 +172,7 @@ async def main() -> int:
         carry_post = os.environ.get("PROBE_VARIANT", "post") != "rows"
         print(f"variant: probe profile {'WITH' if carry_post else 'WITHOUT'} a <post_process>")
         working = engineconf.base_config_xml(pristine, active)
-        got = await _push(http, pristine, _with_probe_profile(working, carry_post), active)
+        got = await _push(http, pristine, _with_probe_profile(working, carry_post=carry_post), active)
 
         # Q1 — did the daemon keep the post-process we authored inside the profile?
         element = _profile_element(got, PROFILE)

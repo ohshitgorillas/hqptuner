@@ -86,9 +86,10 @@ def _unescape_attrs(root: ET.Element) -> ET.Element:
     for el in root.iter():
         for key, val in el.attrib.items():
             if "&" in val:
+                decoded = val
                 for ent, ch in _ENTITIES:
-                    val = val.replace(ent, ch)
-                el.attrib[key] = val
+                    decoded = decoded.replace(ent, ch)
+                el.attrib[key] = decoded
     return root
 
 

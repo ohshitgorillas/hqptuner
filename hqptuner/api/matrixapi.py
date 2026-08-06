@@ -11,11 +11,11 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from ..conf.matrixconf import MATRIX_PROFILES
-from ..engine.control import ControlError
-from ..presets import presetlane
-from . import deps
-from .deps import HttpMgr, Mgr
+from hqptuner.api import deps
+from hqptuner.api.deps import HttpMgr, Mgr
+from hqptuner.conf.matrixconf import MATRIX_PROFILES
+from hqptuner.engine.control import ControlError
+from hqptuner.presets import presetlane
 
 router = APIRouter(prefix="/api")
 
@@ -120,7 +120,7 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
     the engine (~3 s), interrupting playback — never refused for it. The write is
     checkbox-safe and range-validated in ``httpconf.apply_speakers``."""
     try:
-        report = await manager.applyops.apply_speakers(body.enabled, body.channels)
+        report = await manager.applyops.apply_speakers(body.channels, enabled=body.enabled)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

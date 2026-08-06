@@ -80,15 +80,37 @@ select = [
     "S",                # bandit security
     "N",                # naming
     "C90",              # mccabe complexity
+    "ERA",              # commented-out code
+    "PL",               # pylint
+    "SLF",              # private-member access
+    "A",                # builtin shadowing
+    "C4",               # comprehensions
+    "PIE",              # misc redundancy
+    "PERF",             # performance anti-patterns
+    "FBT",              # boolean-trap arguments
+    "TID",              # absolute imports only
     "RUF",
 ]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S106", "S108"]  # asserts are the point; hardcoded creds/paths are fake-daemon fixtures, not secrets
+"tests/**/*.py" = [
+    "S101", "S106", "S108",  # asserts are the point; hardcoded creds/paths are fake-daemon fixtures, not secrets
+    "PLR2004",  # the literal a test asserts against IS the expectation; hoisting it to a constant hides it from the reader
+    "PLR0911",  # the wire-protocol fakes dispatch on request path: one return per route
+    "PLR0913",  # a behaviour test takes one parameter per input it varies
+]
 "scripts/*" = ["S101"]
+"scripts/probes/**/*.py" = ["PLR0915"]  # probes are linear capture sequences, read top to bottom rather than decomposed
+"scripts/budget/**/*.py" = [
+    "SLF001",   # budget tooling reuses the change-budget hook's own classifiers so its accounting matches the hook's
+    "PLR2004",  # the remaining literals are self_checks() expectations: the number asserted IS the expectation
+]
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
 
 [tool.mypy]

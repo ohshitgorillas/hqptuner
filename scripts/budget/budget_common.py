@@ -61,16 +61,16 @@ PKG_SUBS = {"install", "uninstall", "remove", "erase", "upgrade", "update", "add
 PYTHON_RE = re.compile(r"^python[0-9.]*$")
 
 
+# Commands whose class is settled by the command name alone.
+NAME_CLASSES = {"sudo": "sudo", "docker": "docker", "docker-compose": "docker", "podman": "docker", "rm": "rm"}
+
+
 def _segment_class(name: str, rest: list[str]) -> str:
-    if name == "sudo":
-        return "sudo"
-    if name in ("docker", "docker-compose", "podman"):
-        return "docker"
+    if name in NAME_CLASSES:
+        return NAME_CLASSES[name]
     if name == "git":
         sub = next((a for a in rest if not a.startswith("-")), None)
         return {"commit": "git-commit", "push": "git-push"}.get(sub or "", "other")
-    if name == "rm":
-        return "rm"
     if name == "curl":
         return "other" if hook._curl_ok(rest) else "curl-mutating"
     if PYTHON_RE.match(name):
@@ -153,8 +153,8 @@ def text_of(content) -> str:
 
 def read_rows(path: Path) -> list[dict]:
     rows = []
-    for line in path.read_text(errors="replace").splitlines():
-        line = line.strip()
+    for raw in path.read_text(errors="replace").splitlines():
+        line = raw.strip()
         if not line:
             continue
         try:

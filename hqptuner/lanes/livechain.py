@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 PCM = "pcm"
 SDM = "sdm"

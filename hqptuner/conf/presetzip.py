@@ -5,10 +5,10 @@ from __future__ import annotations
 import io
 import zipfile
 
-from ..audit import AuditLog
-from . import engineconf
-from .presetconf import apply_edits
-from .xmledit import GroundingError
+from hqptuner.audit import AuditLog
+from hqptuner.conf import engineconf
+from hqptuner.conf.presetconf import apply_edits
+from hqptuner.conf.xmledit import GroundingError
 
 
 def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | None = None) -> bytes:

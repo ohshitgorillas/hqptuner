@@ -43,6 +43,7 @@ _ENGINE_TAG = re.compile(rb"<engine\b[^>]*>")
 # Where the daemon keeps its named preset snapshots inside a /backup archive.
 _CFGS_PREFIX = "data/cfgs/"
 _CFGS_SUFFIX = ".xml"
+_MEMBERS_SHOWN = 12  # archive members named in a failure log line before the rest are counted
 
 
 def snapshot_member_name(preset: str) -> str:
@@ -164,7 +165,9 @@ def archive_summary(zip_bytes: bytes) -> str:
             names = z.namelist()
     except (zipfile.BadZipFile, OSError) as exc:
         return f"{len(zip_bytes)} bytes, not a readable zip ({exc})"
-    shown = ", ".join(names[:12]) + (f", … (+{len(names) - 12} more)" if len(names) > 12 else "")
+    shown = ", ".join(names[:_MEMBERS_SHOWN]) + (
+        f", … (+{len(names) - _MEMBERS_SHOWN} more)" if len(names) > _MEMBERS_SHOWN else ""
+    )
     return f"{len(zip_bytes)} bytes, {len(names)} members: {shown}"
 
 
@@ -200,7 +203,7 @@ def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
     return b""
 
 
-def config_members(zip_bytes: bytes, active_snapshot: str | None, all_presets: bool) -> list[str]:
+def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets: bool) -> list[str]:
     """Which XML members of a ``/backup`` archive carry an ``<engine>`` to edit.
 
     Always the running-config member (``hqplayerd.xml``, or the root

@@ -10,14 +10,14 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from ..conf import engineconf
-from ..engine.control import ControlError
-from ..lanes import enginelane, httplane, livelane, matrixlane, speakerlane
-from ..lanes.writer import apply_live
-from ..presets import presetlane
+from hqptuner.conf import engineconf
+from hqptuner.engine.control import ControlError
+from hqptuner.lanes import enginelane, httplane, livelane, matrixlane, speakerlane
+from hqptuner.lanes.writer import apply_live
+from hqptuner.presets import presetlane
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from .manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 
 class ApplyOps:
@@ -80,7 +80,7 @@ class ApplyOps:
                 persistent["profile_fanout"] = fanout
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
-    async def apply_engine(self, overrides: dict[str, str], all_presets: bool = False) -> dict[str, Any]:
+    async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
         """Apply hardware-acceleration engine attributes — the config-file-only
         lane (`enginelane`). The restore restarts the daemon and interrupts
         playback; nothing gates on that — the user decides when."""
@@ -91,7 +91,7 @@ class ApplyOps:
         try:
             backup = await mgr.presetops.backup_or_cached()
             mgr.presetops.persist_backup(backup)
-            result = await enginelane.apply(mgr, backup, overrides, mgr.active_config, all_presets)
+            result = await enginelane.apply(mgr, backup, overrides, mgr.active_config, all_presets=all_presets)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         engine = result["verified"].get("engine")
@@ -108,5 +108,5 @@ class ApplyOps:
 
     # --- speaker processing (readme §1.9, speakerlane) ---------------------
 
-    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
-        return await speakerlane.apply(self._mgr, enabled, channels)
+    async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> dict[str, Any]:
+        return await speakerlane.apply(self._mgr, channels, enabled=enabled)

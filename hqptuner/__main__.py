@@ -2,9 +2,9 @@ import logging
 
 import uvicorn
 
-from .api import create_app
-from .audit import resolve_level
-from .config import Config
+from hqptuner.api import create_app
+from hqptuner.audit import resolve_level
+from hqptuner.config import Config
 
 cfg = Config()
 level = resolve_level(cfg.log_level)

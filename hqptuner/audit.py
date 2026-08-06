@@ -116,10 +116,8 @@ class AuditLog:
         copy sits beside it under the same name plus ``.1``."""
         if self._path is None or not self._path.is_file():
             return []
-        out: list[dict[str, Any]] = []
-        for line in self._path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                out.append(json.loads(line))
+        lines = self._path.read_text(encoding="utf-8").splitlines()
+        out: list[dict[str, Any]] = [json.loads(line) for line in lines if line.strip()]
         return out
 
     def tail(self, n: int) -> list[dict[str, Any]]:
@@ -174,13 +172,14 @@ class AuditLog:
         live: dict[str, dict[str, str]],
         switch_to: str | None,
         save: str | None,
+        *,
         ok: bool,
     ) -> None:
         """The staged set as it stood at ENTRY — the apply clears the buffer, so
         this is the only surviving copy of what was applied."""
         self._write("apply", {"http": http, "live": live, "switch_to": switch_to, "save": save, "ok": ok})
 
-    def profile_write(self, name: str, rows: str, replaced: bool, target: str) -> None:
+    def profile_write(self, name: str, rows: str, target: str, *, replaced: bool) -> None:
         self._write(
             "profile.write",
             {
@@ -193,16 +192,16 @@ class AuditLog:
             },
         )
 
-    def profile_delete(self, name: str, found: bool, target: str) -> None:
+    def profile_delete(self, name: str, target: str, *, found: bool) -> None:
         self._write("profile.delete", {"name": name, "found": found, "target": target})
 
-    def preset_write(self, name: str, trigger: str, size: int, digest: str, overwrote: bool) -> None:
+    def preset_write(self, name: str, trigger: str, size: int, digest: str, *, overwrote: bool) -> None:
         self._write(
             "preset.write",
             {"name": name, "trigger": trigger, "size": size, "digest": digest, "overwrote": overwrote},
         )
 
-    def preset_delete(self, name: str, was_active: bool) -> None:
+    def preset_delete(self, name: str, *, was_active: bool) -> None:
         self._write("preset.delete", {"name": name, "was_active": was_active})
 
     def preset_load(self, name: str, previous_active: str | None) -> None:
@@ -211,11 +210,11 @@ class AuditLog:
     def active_set(self, name: str | None, previous: str | None) -> None:
         self._write("active.set", {"name": name, "previous": previous})
 
-    def autosave_set(self, enabled: bool, previous: bool) -> None:
+    def autosave_set(self, *, enabled: bool, previous: bool) -> None:
         self._write("autosave.set", {"enabled": enabled, "previous": previous})
 
     def restore_upload(self, filename: str, size: int, digest: str) -> None:
         self._write("restore.upload", {"filename": filename, "size": size, "digest": digest})
 
-    def live_write(self, field: str, value: str, readback: str | None, ok: bool) -> None:
+    def live_write(self, field: str, value: str, readback: str | None, *, ok: bool) -> None:
         self._write("live.write", {"field": field, "value": value, "readback": readback, "ok": ok})

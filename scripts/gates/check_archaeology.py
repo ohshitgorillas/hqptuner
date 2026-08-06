@@ -88,7 +88,7 @@ def python_comment_lines(path: Path) -> list[tuple[int, str]]:
     return out
 
 
-def block_comment_lines(path: Path, line_comments: bool) -> list[tuple[int, str]]:
+def block_comment_lines(path: Path, *, line_comments: bool) -> list[tuple[int, str]]:
     """(line, text) for `/* … */` blocks, plus `//` comments when asked."""
     out: list[tuple[int, str]] = []
     in_block = False

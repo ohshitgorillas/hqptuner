@@ -46,7 +46,7 @@ def test_enabled_autosave_shows_in_the_config_payload(http_client: TestClient) -
 
 
 def test_autosave_flag_persists_across_store_instances(tmp_path: Path) -> None:
-    PresetStore(tmp_path / "presets").set_autosave(True)
+    PresetStore(tmp_path / "presets").set_autosave(enabled=True)
     assert PresetStore(tmp_path / "presets").autosave is True
 
 
@@ -210,7 +210,7 @@ def _point_autosave_at(preset_dir: Path, name: str = "Kept") -> None:
     store = PresetStore(preset_dir)
     store.save(name, b"<hqplayerd/>")
     store.set_active(name)
-    store.set_autosave(True)
+    store.set_autosave(enabled=True)
 
 
 def test_live_write_still_succeeds_when_autosave_cannot(live_api: TestClient, tmp_path: Path) -> None:

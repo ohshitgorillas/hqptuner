@@ -17,11 +17,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..conf import engineconf, presetconf
-from . import presetfields, settle
+from hqptuner.conf import engineconf, presetconf
+from hqptuner.lanes import presetfields, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 # readback window after the restore, before reporting the apply unconfirmed —
 # the restore restart measures ~5.6 s on 6.0.4. Deliberately its own deadline
@@ -73,6 +73,7 @@ async def apply(
     backup: bytes,
     overrides: dict[str, str],
     active: str | None,
+    *,
     all_presets: bool,
 ) -> dict[str, Any]:
     """Edit ``overrides`` into ``backup``'s ``<engine>`` tags and restore it.
@@ -87,7 +88,7 @@ async def apply(
     if mirror:
         backup = engineconf.rewrite_zip(backup, mirror)
     backup = _with_stored_live_fields(mgr, backup, active)
-    members = engineconf.config_members(backup, active or None, all_presets)
+    members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
     await mgr.require_http().restore(modified, scope="system")
     verified = await verify(mgr, overrides)

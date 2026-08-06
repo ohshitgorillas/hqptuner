@@ -315,7 +315,7 @@ class HttpConfigClient:
         the enabled switch and per-channel level (dBFS) + distance (cm)."""
         return parse_speakers_form((await self._get("/speakers")).text)
 
-    async def apply_speakers(self, enabled: bool, channels: dict[str, dict[str, str]]) -> None:
+    async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> None:
         """Apply speaker processing via the /speakers Apply form. Overlays the
         desired enabled + per-channel level/distance onto a fresh COMPLETE GET (a
         partial POST is silently ignored, same contract as /config and /matrix)

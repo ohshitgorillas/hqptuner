@@ -74,7 +74,7 @@ def test_names_is_empty_when_the_directory_was_never_created(tmp_path: Path) -> 
 
 
 @pytest.mark.parametrize(("name", "expected"), [("alpha", True), ("never-saved", False)])
-def test_exists_answers_for_saved_and_unsaved_names(tmp_path: Path, name: str, expected: bool) -> None:
+def test_exists_answers_for_saved_and_unsaved_names(tmp_path: Path, name: str, *, expected: bool) -> None:
     store = store_at(tmp_path)
     store.save("alpha", PAYLOAD)
     assert store.exists(name) is expected

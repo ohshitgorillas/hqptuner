@@ -288,20 +288,32 @@ def _synthetic() -> list[dict]:
 
 
 def self_checks(check) -> list[bool]:
-    """Acceptance checks for period profiling; `check(label, condition) -> bool`."""
+    """Acceptance checks for period profiling; `check(label, condition=...) -> bool`."""
     rec = profile_rows(_synthetic(), "s")
-    ok = [check("one record per human turn, preamble excluded", len(rec) == 3)]
-    ok.append(check("free read bytes summed per period", rec[0]["free_read_bytes"] == 1500))
-    ok.append(check("grep counted in bytes but not as a path", rec[0]["distinct_paths"] == 1))
-    ok.append(check("first read of a path is not a re-read", rec[0]["reread_count"] == 0))
-    ok.append(check("second read of same path counts as re-read", rec[1]["reread_count"] == 1))
-    ok.append(check("re-read bytes charged once per call", rec[1]["reread_bytes"] == 1000))
-    ok.append(check("edits attributed to their own period", rec[1]["edit_count"] == 1))
-    ok.append(check("period totals reconcile with session sum", sum(r["free_read_bytes"] for r in rec) == 2500))
-    ok.append(check("empty trailing period still emits a record", rec[2]["free_read_calls"] == 0))
+    ok = [check("one record per human turn, preamble excluded", condition=len(rec) == 3)]
+    ok.append(check("free read bytes summed per period", condition=rec[0]["free_read_bytes"] == 1500))
+    ok.append(check("grep counted in bytes but not as a path", condition=rec[0]["distinct_paths"] == 1))
+    ok.append(check("first read of a path is not a re-read", condition=rec[0]["reread_count"] == 0))
+    ok.append(check("second read of same path counts as re-read", condition=rec[1]["reread_count"] == 1))
+    ok.append(check("re-read bytes charged once per call", condition=rec[1]["reread_bytes"] == 1000))
+    ok.append(check("edits attributed to their own period", condition=rec[1]["edit_count"] == 1))
+    ok.append(
+        check(
+            "period totals reconcile with session sum",
+            condition=sum(r["free_read_bytes"] for r in rec) == 2500,
+        )
+    )
+    ok.append(check("empty trailing period still emits a record", condition=rec[2]["free_read_calls"] == 0))
     paths = read_paths("Bash", {"command": "sed -n '1,5p' docs/protocol.md"}, str(ROOT))
-    ok.append(check("bash operand resolved against the row cwd", paths == [str(ROOT / "docs" / "protocol.md")]))
-    ok.append(check("glob operand rejected as a path", read_paths("Bash", {"command": "cat a/*.py"}, "/") == []))
+    ok.append(
+        check("bash operand resolved against the row cwd", condition=paths == [str(ROOT / "docs" / "protocol.md")])
+    )
+    ok.append(
+        check(
+            "glob operand rejected as a path",
+            condition=read_paths("Bash", {"command": "cat a/*.py"}, "/") == [],
+        )
+    )
     redirected = read_paths("Bash", {"command": "ls /srv/x 2>/dev/null"}, "/")
-    ok.append(check("redirect target rejected as a path", redirected == ["/srv/x"]))
+    ok.append(check("redirect target rejected as a path", condition=redirected == ["/srv/x"]))
     return ok

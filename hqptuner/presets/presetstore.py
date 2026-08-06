@@ -21,9 +21,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .. import __version__
-from ..audit import AuditLog
-from . import names
+from hqptuner import __version__
+from hqptuner.audit import AuditLog
+from hqptuner.presets import names
 
 _ACTIVE_FILE = "active.json"
 _STORE_FILE = "store.json"
@@ -124,7 +124,7 @@ class PresetStore:
         path = self._path(name)
         overwrote = path.is_file()  # asked before the write, which erases the answer
         path.write_bytes(xml)
-        self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote)
+        self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote=overwrote)
 
     def delete(self, name: str) -> None:
         """Remove a preset. Raises ``PresetError`` if absent; clears the active
@@ -134,7 +134,7 @@ class PresetStore:
             raise PresetError(f"no such preset: {name!r}")
         was_active = self.active == name  # unlinking does not touch the pointer
         path.unlink()
-        self._audit.preset_delete(name, was_active)
+        self._audit.preset_delete(name, was_active=was_active)
         if was_active:
             self.set_active(None)
 
@@ -146,14 +146,14 @@ class PresetStore:
         HQPTuner ignoring it merely doesn't auto-save."""
         return bool(self._meta().get("autosave"))
 
-    def set_autosave(self, enabled: bool) -> None:
+    def set_autosave(self, *, enabled: bool) -> None:
         meta = self._meta()
         previous = bool(meta.get("autosave"))
         self._ensure_dir()
         meta["schema"] = meta.get("schema", _SCHEMA)
         meta["autosave"] = bool(enabled)
         (self._dir / _STORE_FILE).write_text(json.dumps(meta))
-        self._audit.autosave_set(bool(enabled), previous)
+        self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
     @property
     def active(self) -> str | None:

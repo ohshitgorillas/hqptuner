@@ -21,12 +21,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ..engine.control import ControlClient, ControlError
-from . import livechain, livemap
-from .writer import apply_live
+from hqptuner.engine.control import ControlClient, ControlError
+from hqptuner.lanes import livechain, livemap
+from hqptuner.lanes.writer import apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +162,9 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
     return await apply_live(client, edits, mgr.audit) if edits else []
 
 
-async def chain_entered(mgr: ConnectionManager, client: ControlClient, before: str | None, reenumerated: bool) -> None:
+async def chain_entered(
+    mgr: ConnectionManager, client: ControlClient, before: str | None, *, reenumerated: bool
+) -> None:
     """Handle the engine having loaded a different filter/shaper chain: refresh the
     lists it enumerates, then put back what LIVE set on the chain it entered.
 

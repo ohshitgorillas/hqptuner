@@ -65,6 +65,7 @@ SPACING_TOKEN = re.compile(r"var\(\s*--(?:sp-\d|rhythm-)")
 #: with them, so `margin: 0 var(--gutter)` on a chrome row stays legal.
 VERTICAL_MARGINS = frozenset({"margin-top", "margin-bottom", "margin-block-start", "margin-block-end"})
 MARGIN_SHORTHANDS = frozenset({"margin", "margin-block"})
+_SIDES_SPLIT = 3  # shorthand arity at which top and bottom stop sharing one component
 
 DECL = re.compile(r"^\s*(--)?([a-z-]+)\s*:\s*([^;]+);")
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
@@ -145,10 +146,10 @@ def vertical_parts(prop: str, value: str) -> list[str]:
         return parts
     # 1 value sets all four sides, 2 sets vertical then horizontal, 3 and 4 set
     # top and bottom at positions 0 and 2.
-    return parts[:1] if len(parts) < 3 else [parts[0], parts[2]]
+    return parts[:1] if len(parts) < _SIDES_SPLIT else [parts[0], parts[2]]
 
 
-def rhythm_complaint(prop: str, value: str, custom: bool) -> str:
+def rhythm_complaint(prop: str, value: str, *, custom: bool) -> str:
     """Return a complaint about a misspent rhythm token, or ''.
 
     The first half applies to a custom property too: re-exporting the role
@@ -167,21 +168,32 @@ def rhythm_complaint(prop: str, value: str, custom: bool) -> str:
     return ""
 
 
-def check_decl(prop: str, value: str, custom: bool) -> str:
-    """Return a complaint about one declaration, or '' if it is clean."""
+def _declared_value_complaint(prop: str, value: str) -> str:
+    """Return a complaint that a custom property is exempt from, or ''.
+
+    A custom property names a value; it does not set the property it is named
+    after, so none of these reach a rendered box.
+    """
     literal = not value.startswith("var(--") and value not in LITERAL_OK
-    if complaint := rhythm_complaint(prop, value, custom):
+    if complaint := shape_complaint(prop, value):
         return complaint
-    if not custom and (complaint := shape_complaint(prop, value)):
-        return complaint
-    if not custom and is_spacing(prop) and LENGTH.search(value):
+    if is_spacing(prop) and LENGTH.search(value):
         return f"{prop}: {value} — use a var(--sp-*) token from {DEFINITION_SITE}"
-    if prop == "opacity" and not custom and value not in OPACITY_OK and not OPACITY_TOKEN.search(value):
+    if prop == "opacity" and value not in OPACITY_OK and not OPACITY_TOKEN.search(value):
         return f"{prop}: {value} — use a var(--o-*) token from {DEFINITION_SITE}"
-    if prop in TOKEN_PROPS and not custom and literal:
+    if prop in TOKEN_PROPS and literal:
         return f"{prop}: {value} — use a var(--fs-*|--fw-*|--track-*) token"
-    if not custom and COLOUR.search(value):
+    if COLOUR.search(value):
         return f"{prop}: {value} — use a colour token from {DEFINITION_SITE}"
+    return ""
+
+
+def check_decl(prop: str, value: str, *, custom: bool) -> str:
+    """Return a complaint about one declaration, or '' if it is clean."""
+    if complaint := rhythm_complaint(prop, value, custom=custom):
+        return complaint
+    if not custom and (complaint := _declared_value_complaint(prop, value)):
+        return complaint
     if PRIMITIVE.search(value):
         return f"{prop}: {value} — --bg* is a raw shade; name a --surface-* role"
     if prop in FILL_PROPS and value not in FILL_OK and not FILL_TOKEN.search(value):
@@ -198,7 +210,7 @@ def check_file(path: Path) -> list[str]:
         match = DECL.match(line)
         if match is None:
             continue
-        complaint = check_decl(match.group(2), match.group(3).strip(), bool(match.group(1)))
+        complaint = check_decl(match.group(2), match.group(3).strip(), custom=bool(match.group(1)))
         if complaint:
             problems.append(f"{path}:{num}: {complaint}")
     return problems

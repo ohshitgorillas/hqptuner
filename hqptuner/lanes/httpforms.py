@@ -12,7 +12,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 
 async def refresh(mgr: ConnectionManager) -> None:

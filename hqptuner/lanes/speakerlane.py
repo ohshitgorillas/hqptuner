@@ -13,24 +13,24 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from . import settle
+from hqptuner.lanes import settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 _POLL = 1.0  # cadence for polling /speakers back after the reload
 
 
-async def apply(mgr: ConnectionManager, enabled: bool, channels: dict[str, dict[str, str]]) -> dict[str, Any]:
+async def apply(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, enabled: bool) -> dict[str, Any]:
     http = mgr.require_http()
-    await http.apply_speakers(enabled, channels)
-    applied = await _verify(mgr, enabled, channels)
+    await http.apply_speakers(channels, enabled=enabled)
+    applied = await _verify(mgr, channels, enabled=enabled)
     with contextlib.suppress(httpx.HTTPError):
         mgr.speakers_form = await http.get_speakers()
     return {"applied": applied, "speakers": mgr.speakers_form}
 
 
-async def _verify(mgr: ConnectionManager, enabled: bool, channels: dict[str, dict[str, str]]) -> bool:
+async def _verify(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, enabled: bool) -> bool:
     """Poll /speakers until it reflects the applied state (enabled flag + each
     written level/distance), riding past the post-reload window where the lane
     502s or serves the pre-restart form. Gives up at the alarm deadline and reports

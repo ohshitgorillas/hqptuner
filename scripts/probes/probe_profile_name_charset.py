@@ -22,6 +22,7 @@ from hqptuner.config import Config
 from hqptuner.engine.control import ControlClient
 
 CFG_PREFIX = "data/cfgs/"
+_NAME_COL = 42  # printed name column; anything longer is elided to fit the summary table
 NAMES = [
     "ZZprobe — Ori 3.0",
     "ZZprobe café Ünïcode",
@@ -193,7 +194,7 @@ async def main() -> int:
         print("\n" + "=" * 72)
         print(f"{'name':<44} {'round trip':<22} {'zip':<20} deleted")
         for name, verdict, zipnote, deleted in rows:
-            short = name if len(name) <= 42 else name[:39] + "..."
+            short = name if len(name) <= _NAME_COL else name[: _NAME_COL - 3] + "..."
             print(f"{short!r:<44} {verdict:<22} {zipnote:<20} {deleted}")
         final_active = await control.get_active_config()
         print(f"\nactive config now {final_active!r}")

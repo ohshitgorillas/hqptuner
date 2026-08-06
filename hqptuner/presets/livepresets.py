@@ -35,8 +35,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .. import __version__
-from . import names
+from hqptuner import __version__
+from hqptuner.presets import names
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
 # wrote it. A file stamped higher is refused rather than guessed at: applying a

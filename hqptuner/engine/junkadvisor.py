@@ -42,6 +42,11 @@ from typing import Any
 # average still carries fades and silence.
 MIN_SECONDS = 15.0
 
+# Eligibility floor: every signature lives above 24 kHz, so a container that
+# carries nothing up there has nothing for these rules to read.
+MIN_RATE_HZ = 48_000
+MIN_BANDWIDTH_HZ = 24_000.0
+
 SMOOTH_BINS = 9  # median-filter width for the working curve (odd)
 FLOOR_PERCENTILE = 10  # the aggregate's noise floor: a low percentile, not min
 
@@ -70,7 +75,10 @@ RAMP_RISE_DB = 10.0
 RAMP_ABOVE_FLOOR_DB = 20.0  # a real ramp carries energy, not floor wobble
 
 
-def classify(
+# Wide by necessity: every argument is an independent measurement or engine fact
+# the verdict reads, five of the eight are already keyword-only, and a parameter
+# object would rename them rather than reduce them.
+def classify(  # noqa: PLR0913
     levels_db: list[float],
     bandwidth: float,
     seconds: float,
@@ -90,7 +98,7 @@ def classify(
     filter's. The verdict is spectrum-only — the metering tap sees the source,
     so engaging a filter never changes what the detector sees — and the advice
     stands until the engaged settings actually treat the signature."""
-    if not _eligible(seconds, samplerate, sdm, bandwidth, len(levels_db)):
+    if not _eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
         return None
     smoothed = _median_smooth(levels_db, SMOOTH_BINS)
     floor = _percentile(smoothed, FLOOR_PERCENTILE)
@@ -104,10 +112,10 @@ def classify(
     return verdict
 
 
-def _eligible(seconds: float, samplerate: int | None, sdm: bool, bandwidth: float, bins: int) -> bool:
+def _eligible(seconds: float, samplerate: int | None, bandwidth: float, bins: int, *, sdm: bool) -> bool:
     if seconds < MIN_SECONDS or bins < SPUR_BASELINE_BINS:
         return False
-    return not (sdm or samplerate is None or samplerate <= 48_000 or bandwidth <= 24_000.0)
+    return not (sdm or samplerate is None or samplerate <= MIN_RATE_HZ or bandwidth <= MIN_BANDWIDTH_HZ)
 
 
 # Fixed-corner filters by corner frequency. A corner at or below the

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from .xmledit import GroundingError, find_element, get_attr, open_tag_re
+from hqptuner.conf.xmledit import GroundingError, find_element, get_attr, open_tag_re
 
 # Fixed volume is a top-level ``<fixed volume="X"/>`` element whose PRESENCE means
 # "enabled" — there is no ``enabled`` attribute (readme §1.13 + live config). The

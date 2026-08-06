@@ -41,7 +41,7 @@ const OLD = "iir:type=peak;f=105;q=0.70;g=5.5";
 const NEW = "iir:type=peak;f=60;q=0.70;g=4.0";
 const WITH_DELAY = OLD + ",delay:t=0.0001";
 
-const block = msCompile(OLD, -6.3, fit, 1.0, 0, 1);
+const block = msCompile(OLD, -6.3, {{ fit, s: 1.0 }}, {{ a: 0, b: 1 }});
 const rec = msRecognize(block, 0, 700, 4.5);
 
 // the legacy doImport behaviour this gate pins against: append to the target
@@ -50,13 +50,17 @@ const legacy = block.map((r, i) =>
   i === 0 || i === 1 ? {{ ...r, process: `${{r.process}},${{NEW}}`, gain: "-6.5", gainunit: "dB" }} : r,
 );
 
-const appended = msRecognize(applyEqToBlock(block, rec, fit, NEW, null, false), 0, 700, 4.5);
-const replaced = msRecognize(applyEqToBlock(block, rec, fit, NEW, "-6.5", true), 0, 700, 4.5);
+const appended = msRecognize(
+  applyEqToBlock(block, rec, fit, {{ addition: NEW, preamp: null, replace: false }}), 0, 700, 4.5,
+);
+const replaced = msRecognize(
+  applyEqToBlock(block, rec, fit, {{ addition: NEW, preamp: "-6.5", replace: true }}), 0, 700, 4.5,
+);
 
-const delayBlock = msCompile(WITH_DELAY, -6.3, fit, 1.0, 0, 1);
+const delayBlock = msCompile(WITH_DELAY, -6.3, {{ fit, s: 1.0 }}, {{ a: 0, b: 1 }});
 const delayRec = msRecognize(delayBlock, 0, 700, 4.5);
 const delayReplaced = msRecognize(
-  applyEqToBlock(delayBlock, delayRec, fit, NEW, null, true), 0, 700, 4.5,
+  applyEqToBlock(delayBlock, delayRec, fit, {{ addition: NEW, preamp: null, replace: true }}), 0, 700, 4.5,
 );
 
 const count = (s, re) => (s.match(re) || []).length;

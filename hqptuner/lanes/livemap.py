@@ -27,10 +27,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from .livechain import PCM, SDM, EnumItems, active_chain, index_for_rate
+from hqptuner.lanes.livechain import PCM, SDM, EnumItems, active_chain, index_for_rate
 
 if TYPE_CHECKING:
-    from ..core.manager import ConnectionManager
+    from hqptuner.core.manager import ConnectionManager
 
 
 class LiveField(NamedTuple):

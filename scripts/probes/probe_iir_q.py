@@ -2,7 +2,7 @@
 """Probe: is hqplayerd's ``iir`` peaking ``q`` the RBJ cookbook Q or the classic EE Q?
 
 ``docs/matrix-spec.md`` established that ``q`` occupies the Q slot rather than the
-bandwidth or shelf-slope slot (0.019 dB RMS against ``lib/dsp.js`` vs 2.66 / 0.18).
+bandwidth or shelf-slope slot (0.019 dB RMS against ``lib/dsp/biquad.js`` vs 2.66 / 0.18).
 It did NOT discriminate the two *Q conventions*, because the oracle reports only
 min/max over the plot grid and an isolated peaking filter's extremes are ``{0, g}``
 under either convention — the peak height is the specified gain regardless of Q.
@@ -87,7 +87,7 @@ def _mag_db(c: tuple[float, ...], f: float, fs: float) -> float:
     return 10 * math.log10(mag2)
 
 
-def _predict(chain: str, fs: float, as_ee_q: bool) -> tuple[float, float]:
+def _predict(chain: str, fs: float, *, as_ee_q: bool) -> tuple[float, float]:
     """min/max in dB of a chain over the plot grid, under one Q convention.
 
     ``as_ee_q`` reads the submitted ``q`` as the classic EE Q, so the cookbook Q

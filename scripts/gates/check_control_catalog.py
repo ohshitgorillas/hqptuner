@@ -57,6 +57,7 @@ def load_schema() -> Schema:
         capture_output=True,
         text=True,
         cwd=ROOT,
+        check=False,
     )
     if proc.returncode != 0:
         sys.exit(f"could not import {SCHEMA_JS.name} through node:\n{proc.stderr.strip()}")

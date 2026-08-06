@@ -58,8 +58,22 @@ COMPARISON = re.compile(r"[=!]=\s*$")
 
 
 def decomment(src: str) -> str:
-    """Drop comment prose, which is full of words shaped like class names."""
-    return BLOCK_COMMENT.sub("", LINE_COMMENT.sub("", src))
+    """Drop comment prose, which is full of words shaped like class names.
+
+    Line NUMBERS have to survive this, because the ``class-exempt`` pragma is
+    matched against the offending line and the one above it. ``LINE_COMMENT``
+    already preserves them (its ``[^\\n]*`` never eats the newline), but a block
+    comment spans lines, so substituting it with ``""`` collapsed every one of
+    them and shifted the rest of the file upward. A file carrying a 20-line
+    JSDoc block then reported a hit 20 lines above where it really was, the
+    two-line pragma window looked at the wrong place, and a correctly exempted
+    class failed the gate. Replace each block with its own newlines instead.
+    """
+
+    def keep_lines(match: re.Match[str]) -> str:
+        return "\n" * match.group(0).count("\n")
+
+    return BLOCK_COMMENT.sub(keep_lines, LINE_COMMENT.sub("", src))
 
 
 def attr_end(src: str, start: int) -> int:

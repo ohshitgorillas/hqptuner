@@ -16,7 +16,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request
 
-from ..core.manager import ConnectionManager
+from hqptuner.core.manager import ConnectionManager
 
 
 def manager_of(request: Request) -> ConnectionManager:

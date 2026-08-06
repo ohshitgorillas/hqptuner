@@ -9,10 +9,10 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ..audit import AuditLog
-from ..lanes.writer import known_live_settings
-from .deps import Mgr
-from .models import AutosaveBody, StageBody
+from hqptuner.api.deps import Mgr
+from hqptuner.api.models import AutosaveBody, StageBody
+from hqptuner.audit import AuditLog
+from hqptuner.lanes.writer import known_live_settings
 
 router = APIRouter(prefix="/api")
 
@@ -117,5 +117,5 @@ def discard(request: Request, manager: Mgr) -> dict[str, Any]:
 def set_autosave(body: AutosaveBody, manager: Mgr) -> dict[str, Any]:
     """Toggle auto-save: every successful apply/live write is folded back into
     the active preset's store file. Pure store flag — no daemon touch."""
-    manager.presetops.store.set_autosave(body.enabled)
+    manager.presetops.store.set_autosave(enabled=body.enabled)
     return {"autosave": manager.presetops.store.autosave}

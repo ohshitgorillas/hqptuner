@@ -118,7 +118,7 @@ def test_merge_keeps_the_engine_items_own_fields(static: StaticMetadata) -> None
 
 
 @pytest.mark.parametrize("arg,apodizing", [("0", False), ("1", True), ("2", False), ("3", True)])
-def test_merge_decodes_apodizing_from_arg_bit_zero(static: StaticMetadata, arg: str, apodizing: bool) -> None:
+def test_merge_decodes_apodizing_from_arg_bit_zero(static: StaticMetadata, arg: str, *, apodizing: bool) -> None:
     merged = merge_enumerations({"filters": [_filter_item("sinc-M", arg=arg)]}, static, "PCM")
     assert merged["filters"][0]["apodizing"] is apodizing
 

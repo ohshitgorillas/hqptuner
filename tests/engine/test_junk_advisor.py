@@ -451,7 +451,7 @@ def test_shaping_ramp_verdict_offers_no_families() -> None:
     ],
 )
 def test_treats_reads_the_spur_verdict_against_the_engine_settings(
-    engaged: str | None, filter_name: str | None, expected: bool
+    engaged: str | None, filter_name: str | None, *, expected: bool
 ) -> None:
     verdict = _classify_spur(40000.0)
     assert verdict is not None and treats(verdict, engaged, filter_name) is expected
