@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ..conf import engineconf, presetconf
-from . import presetlane, settle
+from . import presetfields, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..core.manager import ConnectionManager
@@ -57,8 +57,8 @@ def _with_stored_live_fields(mgr: ConnectionManager, backup: bytes, active: str 
 
     This restore restarts the daemon onto that member, and a live edit never wrote
     those settings to any file — so without this the engine-attribute apply costs
-    the user the mode, filters and shapers they saved (``presetlane``)."""
-    stored = presetlane.stored_live_fields(mgr)
+    the user the mode, filters and shapers they saved (``presetfields``)."""
+    stored = presetfields.stored_live_fields(mgr)
     working = engineconf.base_config_xml(backup, active or None)
     if not stored or not working:
         return backup
@@ -83,7 +83,7 @@ async def apply(
     # under auto-save the active preset's data/cfgs mirror catches up on any
     # restore that happens anyway — swap in the store's copy before editing, so
     # the overrides land on the auto-saved state rather than a stale mirror
-    mirror = presetlane.autosave_mirror(mgr)
+    mirror = presetfields.autosave_mirror(mgr)
     if mirror:
         backup = engineconf.rewrite_zip(backup, mirror)
     backup = _with_stored_live_fields(mgr, backup, active)

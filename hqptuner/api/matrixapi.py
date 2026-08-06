@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..conf.matrixconf import MATRIX_PROFILES
 from ..engine.control import ControlError
-from ..lanes import presetlane
+from ..presets import presetlane
 from . import deps
 from .deps import HttpMgr, Mgr
 

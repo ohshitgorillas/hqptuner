@@ -32,7 +32,8 @@ from ..conf.httpconf import HttpConfigClient
 from ..config import Config
 from ..engine import devicecaps, logtail
 from ..engine.control import CommandError, ControlClient, ControlError
-from ..lanes import httpforms, livechain, livelane, presetlane, settle
+from ..lanes import httpforms, livechain, livelane, settle
+from ..presets import presetlane
 from ..presets.presetops import PresetOps
 from .applyops import ApplyOps
 

@@ -22,7 +22,7 @@ import httpx
 
 from ..conf import engineconf, presetconf, presetzip, xmledit
 from ..conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX_PROFILES
-from . import presetlane, settle
+from . import presetfields, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from ..core.manager import ConnectionManager
@@ -75,8 +75,8 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
         return {"submitted": False, "error": "no credentials for HTTP config lane"}
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the active preset's stored values for those
-    # settings ride along, under the staged edits, which win (presetlane)
-    merged = {**presetlane.stored_live_fields(mgr), **edits, **FORCED_CONFIG}
+    # settings ride along, under the staged edits, which win (presetfields)
+    merged = {**presetfields.stored_live_fields(mgr), **edits, **FORCED_CONFIG}
     diff: dict[str, dict[str, str | None]] = {}
     last_error: str | None = None
     for attempt in range(_PERSIST_RETRIES + 1):
@@ -140,7 +140,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[
     )
     # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
     # restore that is happening anyway — this one qualifies
-    mirror = presetlane.autosave_mirror(mgr, intended_xml)
+    mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
     await mgr.require_http().restore(restore_zip, scope="system")

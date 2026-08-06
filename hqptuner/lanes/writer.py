@@ -21,8 +21,8 @@ client; that is the http lane's `POST /restore`, above.
 from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple
 
-from ..audit import AuditLog
-from ..engine.control import ControlClient, ControlError
+from hqptuner.audit import AuditLog
+from hqptuner.engine.control import ControlClient, ControlError
 
 _VOLUME_TOLERANCE = 0.05
 
@@ -109,9 +109,9 @@ async def _apply_one(client: ControlClient, setting: str, params: dict[str, str]
         else:
             await spec(client, params)
     except (ControlError, KeyError, ValueError) as exc:
-        audit.live_write(setting, value, None, False)
+        audit.live_write(setting, value, None, ok=False)
         return {"setting": setting, "ok": False, "error": str(exc)}
     # returning without raising means the readback matched, so the value sent is
     # also the value confirmed — there is no other way for a setter to succeed
-    audit.live_write(setting, value, value, True)
+    audit.live_write(setting, value, value, ok=True)
     return {"setting": setting, "ok": True}

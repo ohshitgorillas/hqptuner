@@ -20,8 +20,9 @@ from ..config import Config
 from ..core.manager import ConnectionManager
 from ..engine.control import ControlError
 from ..engine.metering import MeteringReader, context_from
-from ..lanes import livechain, livelane, livemap, liveoverrides, presetlane
+from ..lanes import livechain, livelane, livemap, liveoverrides
 from ..metadata import StaticMetadata, merge_enumerations
+from ..presets import presetlane
 from ..presets.livepresets import LivePresetStore
 from ..presets.presetstore import PresetError
 from . import deps, livepresetapi, matrixapi, pendingapi

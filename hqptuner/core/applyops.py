@@ -12,8 +12,9 @@ import httpx
 
 from ..conf import engineconf
 from ..engine.control import ControlError
-from ..lanes import enginelane, httplane, livelane, matrixlane, presetlane, speakerlane
-from .writer import apply_live
+from ..lanes import enginelane, httplane, livelane, matrixlane, speakerlane
+from ..lanes.writer import apply_live
+from ..presets import presetlane
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from .manager import ConnectionManager

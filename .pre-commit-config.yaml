@@ -29,6 +29,12 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      - id: import-linter
+        name: import layering gate
+        entry: .venv/bin/lint-imports
+        language: system
+        pass_filenames: false
+        types: [python]
       - id: file-length
         name: max 500 source / 800 test lines
         entry: .venv/bin/python scripts/gates/check_file_length.py

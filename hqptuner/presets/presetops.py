@@ -3,7 +3,7 @@
 The preset store, the parked filter uploads, and the settings-archive
 persistence (pre-apply disk copy plus the empty-``/backup`` workaround cache)
 form one self-contained collaborator. The daemon-driving operations delegate
-to ``lanes/presetlane`` with the manager — this class owns the state, not a
+to ``presets/presetlane`` with the manager — this class owns the state, not a
 second wire lane.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..conf import engineconf, matrixconf, presetconf, xmledit
-from ..lanes import presetlane
+from . import presetlane
 from .filterpark import FilterPark
 from .presetstore import PresetError, PresetStore
 
