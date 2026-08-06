@@ -124,6 +124,17 @@ repos:
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|store/schema\.js)$
 
+      # Cross-cutting: a clone has two ends and either one can move, and the
+      # threshold is a whole-tree percentage, so the gate reads the entire
+      # source set from .jscpd.json rather than the staged filenames.
+      - id: jscpd
+        name: copy-paste duplication gate
+        entry: npx jscpd
+        language: system
+        pass_filenames: false
+        files: ^(hqptuner|scripts|tests)/.*\.(py|js|css)$
+        exclude: ^hqptuner/static/vendor/
+
       # Cross-cutting: one control is spelled out in schema.js, presetconf.py and
       # settings.json, so the gate has to run when ANY of the three moves.
       - id: control-catalog

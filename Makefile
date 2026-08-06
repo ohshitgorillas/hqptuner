@@ -26,11 +26,18 @@ lint:
 # store/schema.js is exempt from the length gate: it is a one-entry-per-line
 # control table rather than logic, and prettier at printWidth 120 is what pushed
 # it past 500. vendor/ is upstream and exempt from every gate.
+#
+# jscpd is the one gate here that is not frontend-only: it reads Python, JS and
+# CSS in a single pass. It lives in this target rather than `lint` because it is
+# an npx tool, and `lint` is the venv-only half that has to stay runnable with
+# no node_modules installed. Its whole configuration — paths, formats, vendor
+# exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/*/*.js" eslint.config.js jsconfig.json knip.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/*/*.js" eslint.config.js jsconfig.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx knip
+	npx jscpd
 	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')
 	$(VENV)/python scripts/gates/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')

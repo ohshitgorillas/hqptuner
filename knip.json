@@ -8,6 +8,6 @@
   ],
   "project": ["hqptuner/static/**/*.js", "scripts/eqlab/**/*.js", "tests/js/**/*.js"],
   "ignore": ["hqptuner/static/vendor/**"],
-  "ignoreDependencies": ["eslint", "prettier"],
+  "ignoreDependencies": ["eslint", "prettier", "jscpd"],
   "exclude": ["unlisted", "binaries"]
 }
