@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-08-05
+
 ### Added
 
 - **Favorite filters.** Every row in the four oversampling-filter dropdowns (PCM/SDM × 1x/Nx) carries a star — click it to favorite that filter without changing your selection. A **★ Favorites** toggle on the narrow bar then restricts the dropdowns to your starred filters, combining with the other narrowing facets and their live counts; the toggle stays grayed until you've starred something, and unstarring the last filter turns it off. Favorites are keyed by filter name, shared across all four dropdowns and the LIVE page, and saved in the browser — they don't follow you across devices.
