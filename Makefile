@@ -35,11 +35,12 @@ lint-js:
 	$(VENV)/python scripts/gates/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/check_css_classes.py
+	$(VENV)/python scripts/gates/check_css_dead.py
 	$(VENV)/python scripts/gates/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
 test:
-	$(VENV)/pytest -m "not live" -q
+	$(VENV)/pytest -m "not live" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
 
 test-live:
 	$(VENV)/pytest -q

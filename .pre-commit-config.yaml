@@ -48,7 +48,7 @@ repos:
         files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
-        entry: .venv/bin/pytest -m "not live" -q
+        entry: .venv/bin/pytest -m "not live" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
         language: system
         pass_filenames: false
         always_run: true
@@ -98,6 +98,18 @@ repos:
       - id: css-classes
         name: css orphaned-class gate
         entry: .venv/bin/python scripts/gates/check_css_classes.py
+        language: system
+        pass_filenames: false
+        files: ^hqptuner/static/(css/.*\.css|.*\.js)$
+        exclude: ^hqptuner/static/vendor/
+
+      # Cross-cutting: a custom property is declared in CSS and may be read from
+      # either side — theme.js writes --accent through setProperty and
+      # controls/index.js reads var(--accent) out of a string — so the gate has
+      # to run when EITHER side moves.
+      - id: css-dead
+        name: css dead-property/keyframe gate
+        entry: .venv/bin/python scripts/gates/check_css_dead.py
         language: system
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
