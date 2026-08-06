@@ -31,3 +31,19 @@ export function clampVolume(which, v, { min, startup, max }) {
   if (which === "max") return Math.min(AXIS_MAX, Math.max(n, min, startup));
   return Math.max(min, Math.min(n, max)); // startup rides between the two
 }
+
+// Volume-adaptive loudness compensation's two bounds ride the same dBFS axis but
+// answer to their own form bounds, which stop at the limiter threshold: neither
+// bound takes positive gain (post_loudness_range{low,high} are min="-120"
+// max="0" step="1").
+const LOUD_MIN = -120;
+const LOUD_MAX = 0;
+
+// Clamp one loudness bound against those bounds and against its partner. The
+// pair shares the axis with Min / Startup / Max but not their ordering rule —
+// the only crossing forbidden here is the lower bound passing the upper.
+export function clampLoudness(which, v, { low, high }) {
+  const n = Math.round(num(v, 0));
+  if (which === "low") return Math.max(LOUD_MIN, Math.min(n, LOUD_MAX, high));
+  return Math.min(LOUD_MAX, Math.max(n, LOUD_MIN, low));
+}

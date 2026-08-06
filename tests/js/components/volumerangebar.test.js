@@ -62,7 +62,9 @@ const STARTUP_BOX = 1;
 const MAX_BOX = 2;
 
 const attr = (tag, name) => (new RegExp(`\\b${name}="([^"]*)"`).exec(tag) || [])[1];
-const labels = (out) => [...out.matchAll(/<span class="vr-tick-label"[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
+// A label carries its edge anchor as a second class word, so match the class as
+// a prefix rather than as the whole attribute.
+const labels = (out) => [...out.matchAll(/<span class="vr-tick-label[^"]*"[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
 const ariaLabels = (out) => handles(out).map((t) => attr(t, "aria-label"));
 const count = (out, needle) => out.split(needle).length - 1;
 
@@ -137,8 +139,10 @@ test("test_a_minimum_at_the_axis_midpoint_fills_from_halfway", async () => {
 // --- the shared dBFS axis ----------------------------------------------------
 
 test("test_every_gridline_is_drawn", async () => {
+  // one every 10 dB from -120 through 0, plus +12 and -3; the positions are
+  // pinned in tests/js/components/volumerangebar-axis.test.js
   await reset(DEFAULTS);
-  assert.equal(count(bar(), 'class="vr-tick '), 6);
+  assert.equal(count(bar(), 'class="vr-tick '), 15);
 });
 
 test("test_the_limiter_threshold_and_resampling_ceiling_are_drawn_strong", async () => {
@@ -151,20 +155,9 @@ test("test_the_limiter_threshold_is_labelled", async () => {
   assert.ok(labels(bar()).includes("0"));
 });
 
-test("test_the_axis_floor_is_labelled", async () => {
-  await reset(DEFAULTS);
-  assert.ok(labels(bar()).includes("-120"));
-});
-
 test("test_the_gain_ceiling_is_labelled", async () => {
   await reset(DEFAULTS);
   assert.ok(labels(bar()).includes("+12"));
-});
-
-test("test_the_crowded_minus_three_label_is_dropped", async () => {
-  // -3 sits 2.3% from 0 on the track — it keeps its line, loses its number
-  await reset(DEFAULTS);
-  assert.equal(labels(bar()).includes("-3"), false);
 });
 
 // --- graying -----------------------------------------------------------------

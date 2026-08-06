@@ -12,6 +12,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **`HQPTUNER_LOG_LEVEL` sets the log level**, which was pinned at `INFO` in code. An unparseable value falls back to `INFO`.
 
+### Changed
+
+- **The Range bar redrawn.** Gridlines run every 10 dB with a number every 30, instead of five scattered marks, and the labels name the unit. Min and Max are brackets facing inward at the span they enclose, so each names its own end rather than being two identical blocks. With volume-adaptive loudness switched on, its two bounds ride the same axis as draggable parentheses inside those brackets — the settings the Loudness card holds, so editing them in either place lights both cards; they are absent when there is no loudness running. The volume currently playing rides the axis too, as a tuner needle: it reports rather than sets, since the knob above already adjusts it, and it is absent whenever the engine has the volume control bypassed or has not reported a level. A legend names both marks.
+
+  Handles now sit on the values they hold. Every one of them was drawn up to half its own width away — a Max of -3 dB sat visibly left of the -3 gridline — because the browser insets a slider's thumb while the gridlines and fill were drawn across the full track. `-120` also lost its minus sign into the card edge; the labels at each end of the track now anchor to that end.
+
 ### Fixed
 
 - **Naming a live preset no longer spills out of its card.** Clicking Save… under Live preset broke the prompt across six lines, one word each, and pushed the name field and its buttons over the text beside them. The prompt now reads as a sentence with the field and buttons under it.

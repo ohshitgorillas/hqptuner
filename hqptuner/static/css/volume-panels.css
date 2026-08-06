@@ -1,0 +1,123 @@
+/* Volume tab, everything that is not the Range bar: the playback knob panel and
+   the Fixed volume card. Split out of volume.css when that file outgrew the
+   500-line gate — the Range bar is one coordinate system with its own vertical
+   band budget, and these two cards share nothing with it but the tab. */
+
+/* ── Playback volume panel + large knob ───────────────────────────────────
+   The full-sweep track was var(--line), too low-contrast to read against the
+   panel, so only the accent value arc was visible and the dial looked
+   half-drawn. */
+.knob-lg .knob-track {
+  stroke: var(--muted);
+  opacity: var(--o-fore);
+}
+/* in the lg column the slider is a horizontal control, not a flex child that
+   should claim 160px of VERTICAL space (its row-layout basis) — that stretch is
+   what made the panel read as mostly empty */
+/* absolute width (not %) so the group is wider than the dial — the column
+   otherwise shrinks to the dial and the knob reads as a tiny island. The slider's
+   width sets the whole group's footprint; the dial centres within it. */
+.knob-lg .knob-slider {
+  flex: 0 0 auto;
+  width: 460px;
+  max-width: 100%;
+}
+.knob-tick {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  opacity: var(--o-mid);
+  stroke-linecap: round;
+}
+/* large knob stacks: dial, then the readout directly beneath it, so the value
+   belongs to the dial instead of drifting to the far right of the row */
+.knob-lg {
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.knob-lg .knob-readout {
+  align-items: baseline;
+}
+.knob-lg .knob-box {
+  border-color: transparent;
+  background: none;
+  font-size: var(--fs-readout);
+  color: var(--fg);
+  width: 5rem;
+}
+.knob-lg .knob-unit {
+  font-size: var(--fs-label);
+}
+/* .playback is a .card; the body centers the knob group + notice vertically so
+   the panel doesn't read as mostly empty space */
+.playback-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  /* hug the content (don't flex-grow into the card) so the group fills the card
+     instead of floating centered in a tall void */
+  flex: 0 0 auto;
+  padding: var(--sp-1) var(--sp-2);
+}
+/* the reason is a notice, not microtext at the panel's edge */
+.playback-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  align-self: center;
+  max-width: 68ch;
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-raised);
+  font-size: var(--fs-caption);
+  color: var(--fg);
+}
+.playback-hint::before {
+  content: "⚠";
+  color: var(--accent);
+}
+
+/* ── Fixed volume: gate and level on one row ────────────────────────────────
+   The ON|OFF gate and its dBFS level share a row so the card's two modes —
+   fixed level and Auto headroom — read as siblings of identical geometry.
+   The two field boxes dissolve into one row grid (display: contents): label,
+   gate and number sit on the first grid row, and the level's captions drop
+   below spanning the control columns — the same lower-left, standard-measure
+   position Auto headroom's caption takes, instead of a sliver right of the
+   gate sized by whatever width the number's flex item happened to get. */
+.fxv-row {
+  display: grid;
+  grid-template-columns: var(--w-label) max-content 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  align-items: center;
+}
+/* display: contents strips the fxv-row's child .fields of their boxes, and the
+   .field side padding goes with them — so the card's remaining plain rows drop
+   theirs too, and every row in the card starts at the same edge. */
+.fxv-card .card-body > .field {
+  padding-inline: 0;
+}
+.fxv-row > .field {
+  display: contents;
+}
+.fxv-row > .field > label {
+  grid-column: 1;
+  grid-row: 1;
+}
+.fxv-row > .field-segment > .control {
+  grid-column: 2;
+  grid-row: 1;
+}
+.fxv-row > .field-number > .control {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
+}
+.fxv-row > .field-number > .field-desc,
+.fxv-row > .field-number > .field-note,
+.fxv-row > .field-number > .field-gray-reason {
+  grid-column: 2 / -1;
+  max-width: var(--measure);
+}

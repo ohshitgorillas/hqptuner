@@ -11,9 +11,14 @@
    Vertical bands inside .vr-track:
      0-26px   Startup pin (raised off the centerline so it stays grabbable when
               its value equals Min or Max)
-     28-44px  the bar itself, carrying the Min/Max thumbs
-     46-54px  tick marks
-     56px+    tick labels */
+     28-44px  the bar itself, carrying the Min/Max brackets and, inside them,
+              the loudness band and its two bound parentheses
+     52-66px  tick marks
+     68px+    tick labels
+
+   The tick row sits clear of the bar band rather than against it: the strongest
+   line is 14px and the labels are set in --fs-micro, so a shorter gap put the
+   0 line through its own number. */
 .vr-card .card-body {
   display: flex;
   flex-direction: column;
@@ -21,7 +26,7 @@
 }
 .vr-track {
   position: relative;
-  height: 74px;
+  height: 84px;
 }
 /* the bar */
 .vr-track::before {
@@ -37,36 +42,76 @@
 .vr-track.disabled {
   opacity: var(--o-disabled);
 }
-/* the span actually reachable at runtime: Min..Max */
+/* The span actually reachable at runtime: Min..Max. Square ends, unlike the bar
+   under it — each end terminates ON a bracket, and a rounded end curls away from
+   the bracket's spine and leaves a wedge. The bar keeps its rounding because its
+   ends are the axis, not a handle. */
 .vr-fill {
   position: absolute;
   top: 28px;
   height: 16px;
-  border-radius: var(--r-lg);
   background: var(--accent);
-  opacity: var(--o-back);
+  opacity: var(--o-mid);
   pointer-events: none;
 }
+/* Height AND weight state the line's job, together: the 10 dB rhythm, a line
+   carrying a number, or one of the two reference levels. A hairline in --line
+   at this length does not survive the card behind it, so the ladder is --fg on
+   the depth opacities. */
 .vr-tick {
   position: absolute;
-  top: 46px;
+  top: 52px;
   width: 1px;
-  height: 8px;
-  background: var(--line);
+  background: var(--fg);
   pointer-events: none;
 }
-.vr-tick.strong {
-  height: 11px;
-  background: var(--fg);
+.vr-tick.minor {
+  height: 6px;
+  opacity: var(--o-back);
+}
+.vr-tick.major {
+  height: 10px;
   opacity: var(--o-mid);
+}
+.vr-tick.strong {
+  width: 2px;
+  height: 14px;
+  opacity: var(--o-fore);
 }
 .vr-tick-label {
   position: absolute;
-  top: 58px;
-  transform: translateX(-50%);
+  top: 68px;
   font-size: var(--fs-micro);
   color: var(--muted);
   white-space: nowrap;
+  pointer-events: none;
+}
+/* an end label anchors to its end of the track, so the axis floor's minus sign
+   is not the half that hangs off the card */
+.vr-tick-label.edge-mid {
+  transform: translateX(-50%);
+}
+.vr-tick-label.edge-end {
+  transform: translateX(-100%);
+}
+.vr-tick-label.edge-start {
+  transform: translateX(0);
+}
+/* ── Loudness bounds ────────────────────────────────────────────────────────
+   Volume-adaptive compensation on the same bar, when it is switched on: the span
+   between the bounds, drawn inside the bar rather than beside it. Same accent as
+   the reachable range but at full strength against that range's wash, so the two
+   spans read as one axis at two depths rather than as two unrelated colours. */
+/* Full bar height, square ends landing on each arc's tip. An arc is a bow and a
+   band is a rectangle, so they meet exactly only at the tip; containment comes
+   from the parentheses being tall enough that the band spans just the middle
+   quarter of each curve, where the arc moves about 1px. That is why the marks
+   are 32px — see below. */
+.vr-loud {
+  position: absolute;
+  top: 28px;
+  height: 16px;
+  background: var(--accent);
   pointer-events: none;
 }
 /* shared handle plumbing: full-width invisible input, grabbable thumb only */
@@ -87,34 +132,160 @@
   background: none;
   border: none;
 }
-/* Min / Max: solid rectangles seated on the bar — the pair defining the range */
+/* A native range input insets its thumb by half the thumb's width at each end,
+   so a thumb's centre travels thumb-w/2 .. width-thumb-w/2 while the fill, the
+   gridlines and the lane are positioned across the full track. Left uncorrected
+   that offsets every handle from its own value by up to half a thumb, worst at
+   the ends.
+
+   The correction belongs on the input, not on the overlays, so everything else
+   keeps one plain percentage mapping: widen the input by one thumb and pull it
+   left by the distance from the thumb box's left edge to the mark that means
+   "the value". Each handle declares where its own mark is, below. */
+.vr-handle {
+  width: calc(100% + var(--thumb-w));
+}
+/* Min / Max: brackets seated on the bar, arms pointing inward at the span they
+   enclose. The two shapes are asymmetric so each names its own end without
+   relying on position to tell them apart. The spine IS the value. */
 .vr-min,
 .vr-max {
   top: 23px;
   height: 26px;
-}
-.vr-min,
-.vr-max {
-  --thumb-w: 14px;
+  /* the box width IS the arm length — the arms are this box's top and bottom
+     borders — so the arms are shortened here and the spine offsets below, both
+     written in terms of it, follow without touching */
+  --thumb-w: 9px;
   --thumb-h: 26px;
-  --thumb-r: 3px;
-  --thumb-bg: var(--accent);
-  --thumb-border: 2px solid var(--surface-page);
+  --thumb-r: var(--r-xs);
+  --thumb-bg: transparent;
+  --thumb-border: none;
   --thumb-cursor: ew-resize;
+  --arm: 3px;
+  --spine: 2px;
+}
+/* spine on the box's left edge, so the mark sits 1px in */
+.vr-min {
+  left: -1px;
+}
+/* spine on the right edge: one thumb in, less the spine's own half */
+.vr-max {
+  left: calc(1px - var(--thumb-w));
+}
+.vr-min::-webkit-slider-thumb {
+  border-left: var(--spine) solid var(--accent);
+  border-top: var(--arm) solid var(--accent);
+  border-bottom: var(--arm) solid var(--accent);
+}
+.vr-min::-moz-range-thumb {
+  border-left: var(--spine) solid var(--accent);
+  border-top: var(--arm) solid var(--accent);
+  border-bottom: var(--arm) solid var(--accent);
+}
+.vr-max::-webkit-slider-thumb {
+  border-right: var(--spine) solid var(--accent);
+  border-top: var(--arm) solid var(--accent);
+  border-bottom: var(--arm) solid var(--accent);
+}
+.vr-max::-moz-range-thumb {
+  border-right: var(--spine) solid var(--accent);
+  border-top: var(--arm) solid var(--accent);
+  border-bottom: var(--arm) solid var(--accent);
 }
 /* Startup: a hollow pin riding ABOVE the bar. Different shape, different fill,
-   different row — so it stays readable and draggable at Min or Max. */
+   different row — so it stays readable and draggable at Min or Max. Its mark is
+   the pin's own centreline. */
 .vr-startup {
   top: 0;
   height: 26px;
-}
-.vr-startup {
+  left: calc(var(--thumb-w) / -2);
   --thumb-w: 12px;
   --thumb-h: 22px;
-  --thumb-r: 6px 6px 2px 2px;
+  --thumb-r: var(--r-md) var(--r-md) var(--r-xs) var(--r-xs);
   --thumb-bg: var(--surface-page);
   --thumb-border: 2px solid var(--accent);
   --thumb-cursor: ew-resize;
+}
+/* Loudness bounds: parentheses seated inside the brackets, marking the ends of
+   the band above, in the band's own accent — what crosses the band merges with
+   it, and what reads as a mark is the arc standing 8px proud of the bar top and
+   bottom. The 32px height is set by containment, not taste: the band is the
+   bar's full 16px, so the marks must be tall enough that it spans only the
+   middle quarter of each curve, where the arc's horizontal travel is about a
+   pixel. Shorter marks let the band's corners run out past the arc.
+
+   The shape is a MASK, not a border, and that is load-bearing. A border-left
+   never reaches its own box's top or bottom edge: at each corner the browser
+   hands the ink to border-top / border-bottom, which are transparent here. On a
+   24px box the coloured arc ran roughly y=4..20 — exactly the bar's own 16px —
+   so the mark was flush with the bar at every width and radius, and no amount of
+   resizing could change that. Masking an accent rectangle with a stroked path
+   puts ink at y=0 and y=24, which is the whole point of the protrusion.
+
+   The fill stays var(--accent) because the mask carries the shape and the
+   background carries the colour; an SVG background image would hardcode the hex
+   and stop following the token. */
+.vr-loud-low,
+.vr-loud-high {
+  --paren-open: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M11 1.5Q3 16 11 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --paren-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M3 1.5Q11 16 3 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  top: 20px;
+  height: 32px;
+  --thumb-w: 14px;
+  --thumb-h: 32px;
+  --thumb-r: 0;
+  --thumb-bg: var(--accent);
+  --thumb-border: none;
+  --thumb-cursor: ew-resize;
+}
+/* the arc's stroke centreline at its bow — the value — sits 7px inside the box
+   edge the mark hangs on */
+.vr-loud-low {
+  left: -7px;
+}
+.vr-loud-high {
+  left: calc(7px - var(--thumb-w));
+}
+.vr-loud-low::-webkit-slider-thumb {
+  -webkit-mask: var(--paren-open) center / 100% 100% no-repeat;
+  mask: var(--paren-open) center / 100% 100% no-repeat;
+}
+.vr-loud-low::-moz-range-thumb {
+  mask: var(--paren-open) center / 100% 100% no-repeat;
+}
+.vr-loud-high::-webkit-slider-thumb {
+  -webkit-mask: var(--paren-close) center / 100% 100% no-repeat;
+  mask: var(--paren-close) center / 100% 100% no-repeat;
+}
+.vr-loud-high::-moz-range-thumb {
+  mask: var(--paren-close) center / 100% 100% no-repeat;
+}
+/* Playback volume: a tuner needle, and the only mark on this bar that reports
+   rather than sets. It is drawn in --fg, not --accent, because accent on this
+   card means "a setting you can change" — this one is state, and colouring it
+   accent would invite a grab that does not exist. Not a dark ink either: the
+   needle travels the whole axis, and outside the Min-Max span the track behind
+   it is bare card, where anything near-black disappears.
+   Geometry is a pointer's, not a tick's: 32px of blade tapering 7px -> 1px, tip
+   at 24px so it reaches the bar's top edge. The tip is flat rather than a
+   mathematical point — a point disappears into subpixel rounding.
+   The transition is --dur, not --sweep: the status poll lands every 500-2000ms
+   and a 1s ease would still be travelling when the next sample arrives.
+
+   No drop-shadow: a filter on an element whose `left` is transitioned makes the
+   browser under-invalidate the repaint rect, and the needle smeared a trail
+   across the bar as the volume moved. The blade is one clipped box for the same
+   reason — the fewer moving layers, the fewer artifacts. */
+.vr-needle {
+  position: absolute;
+  top: 24px;
+  height: 32px;
+  width: 7px;
+  transform: translateX(-50%);
+  background: var(--fg);
+  clip-path: polygon(calc(50% - 0.5px) 0, calc(50% + 0.5px) 0, 100% 100%, 0 100%);
+  pointer-events: none;
+  transition: left var(--dur) var(--ease);
 }
 /* value bubble on hover/drag */
 .vr-bubble {
@@ -151,6 +322,20 @@
   background: var(--accent);
   border: 2px solid var(--surface-page);
 }
+/* the brackets: same shape as the handle each names, at legend size */
+.vr-key-min,
+.vr-key-max {
+  background: none;
+  border: none;
+  border-top: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.vr-key-min {
+  border-left: 2px solid var(--accent);
+}
+.vr-key-max {
+  border-right: 2px solid var(--accent);
+}
 .vr-key-startup {
   border-radius: var(--r-md) var(--r-md) var(--r-xs) var(--r-xs);
   background: var(--surface-page);
@@ -159,6 +344,59 @@
 .vr-box.dirty > span {
   color: var(--accent);
 }
+/* the marks that have no number box of their own — the bounds and the needle —
+   get their own row below the three box groups: the boxes row is distributed
+   Min-left / Max-right and a fourth group in it would break that. Each entry
+   appears only when its mark is on the bar, so the row wraps rather than
+   reserving space for an entry that may not be there. */
+.vr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.vr-loud-legend,
+.vr-needle-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-caption);
+  color: var(--muted);
+}
+.vr-loud-keys {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+/* the same masked arc the marks use, at legend size, so the swatch is the shape
+   it names rather than an approximation of it */
+.vr-key-loud-low,
+.vr-key-loud-high {
+  width: 8px;
+  border: none;
+  border-radius: 0;
+  background: var(--accent);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.vr-key-loud-low {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M11 1.5Q3 16 11 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M11 1.5Q3 16 11 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.vr-key-loud-high {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M3 1.5Q11 16 3 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M3 1.5Q11 16 3 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+/* the needle at legend size: same taper, same colour, so the swatch is the shape
+   it names rather than an approximation of it. */
+.vr-key-needle {
+  width: 7px;
+  border: none;
+  border-radius: 0;
+  background: var(--fg);
+  clip-path: polygon(calc(50% - 0.5px) 0, calc(50% + 0.5px) 0, 100% 100%, 0 100%);
+}
 /* cap the Min/Startup/Max inputs at --w-num — they hold 3-char values, so a
    flex:1 input was full-bleed internal dead space. The groups stay distributed
    across the row (vr-box is flex:1); the slack now reads as gaps between groups. */
@@ -166,123 +404,4 @@
   min-width: 0;
   width: var(--w-num);
   flex: 0 0 auto;
-}
-
-/* ── Playback volume panel + large knob ───────────────────────────────────
-   The full-sweep track was var(--line), too low-contrast to read against the
-   panel, so only the accent value arc was visible and the dial looked
-   half-drawn. */
-.knob-lg .knob-track {
-  stroke: var(--muted);
-  opacity: var(--o-fore);
-}
-/* in the lg column the slider is a horizontal control, not a flex child that
-   should claim 160px of VERTICAL space (its row-layout basis) — that stretch is
-   what made the panel read as mostly empty */
-/* absolute width (not %) so the group is wider than the dial — the column
-   otherwise shrinks to the dial and the knob reads as a tiny island. The slider's
-   width sets the whole group's footprint; the dial centres within it. */
-.knob-lg .knob-slider {
-  flex: 0 0 auto;
-  width: 460px;
-  max-width: 100%;
-}
-.knob-tick {
-  stroke: var(--muted);
-  stroke-width: 1.5;
-  opacity: var(--o-mid);
-  stroke-linecap: round;
-}
-/* large knob stacks: dial, then the readout directly beneath it, so the value
-   belongs to the dial instead of drifting to the far right of the row */
-.knob-lg {
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.knob-lg .knob-readout {
-  align-items: baseline;
-}
-.knob-lg .knob-box {
-  border-color: transparent;
-  background: none;
-  font-size: var(--fs-readout);
-  color: var(--fg);
-  width: 5rem;
-}
-.knob-lg .knob-unit {
-  font-size: var(--fs-label);
-}
-/* .playback is a .card; the body centers the knob group + notice vertically so
-   the panel doesn't read as mostly empty space */
-.playback-knob {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  /* hug the content (don't flex-grow into the card) so the group fills the card
-     instead of floating centered in a tall void */
-  flex: 0 0 auto;
-  padding: var(--sp-1) var(--sp-2);
-}
-/* the reason is a notice, not microtext at the panel's edge */
-.playback-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  align-self: center;
-  max-width: 68ch;
-  padding: var(--sp-1) var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface-raised);
-  font-size: var(--fs-caption);
-  color: var(--fg);
-}
-.playback-hint::before {
-  content: "⚠";
-  color: var(--accent);
-}
-
-/* ── Fixed volume: gate and level on one row ────────────────────────────────
-   The ON|OFF gate and its dBFS level share a row so the card's two modes —
-   fixed level and Auto headroom — read as siblings of identical geometry.
-   The two field boxes dissolve into one row grid (display: contents): label,
-   gate and number sit on the first grid row, and the level's captions drop
-   below spanning the control columns — the same lower-left, standard-measure
-   position Auto headroom's caption takes, instead of a sliver right of the
-   gate sized by whatever width the number's flex item happened to get. */
-.fxv-row {
-  display: grid;
-  grid-template-columns: var(--w-label) max-content 1fr;
-  gap: var(--sp-1) var(--sp-3);
-  align-items: center;
-}
-/* display: contents strips the fxv-row's child .fields of their boxes, and the
-   .field side padding goes with them — so the card's remaining plain rows drop
-   theirs too, and every row in the card starts at the same edge. */
-.fxv-card .card-body > .field {
-  padding-inline: 0;
-}
-.fxv-row > .field {
-  display: contents;
-}
-.fxv-row > .field > label {
-  grid-column: 1;
-  grid-row: 1;
-}
-.fxv-row > .field-segment > .control {
-  grid-column: 2;
-  grid-row: 1;
-}
-.fxv-row > .field-number > .control {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: start;
-}
-.fxv-row > .field-number > .field-desc,
-.fxv-row > .field-number > .field-note,
-.fxv-row > .field-number > .field-gray-reason {
-  grid-column: 2 / -1;
-  max-width: var(--measure);
 }

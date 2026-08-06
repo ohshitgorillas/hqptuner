@@ -15,7 +15,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { clampVolume, num } from "../../../hqptuner/static/lib/volume.js";
+import { clampVolume, clampLoudness, num } from "../../../hqptuner/static/lib/volume.js";
 
 // The handles' current positions, which every clamp is relative to.
 const CUR = { min: -60, startup: -20, max: 0 };
@@ -120,4 +120,66 @@ test("test_a_string_value_is_accepted", () => {
 
 test("test_a_blank_value_lands_on_zero_before_clamping", () => {
   assert.equal(clampVolume("startup", "", CUR), 0);
+});
+
+// --- the loudness bounds ------------------------------------------------------
+//
+// Volume-adaptive loudness compensation (hqplayerd-readme.txt §1.11.2.1) rides
+// the same dBFS axis as Min / Startup / Max, but with the daemon's own form
+// bounds for its two fields: post_loudness_rangelow and post_loudness_rangehigh
+// are both min="-120" max="0" step="1" (tests/support/fixtures/matrix-6.0.4.html
+// line 81). The pair may not cross: a bound dragged past its partner stops
+// against it rather than swapping with it.
+
+// Each of the three rules — axis floor, 0 dBFS ceiling, cannot-cross — is pinned
+// once, on the bound where it can bite alone. Since low <= high <= 0 and
+// high >= low >= -120 always hold, the ceiling can only bind by itself on the
+// upper bound and the floor only on the lower: a case putting the partner on the
+// limit as well would pass whichever of the two rules the code implemented.
+//
+// The pair's present positions, which every loudness clamp is relative to. Wide
+// apart so a case that means to exercise an axis bound is not caught by the
+// cannot-cross rule instead.
+const LOUD = { low: -60, high: -20 };
+
+test("test_the_lower_bound_stops_at_the_axis_floor", () => {
+  assert.equal(clampLoudness("low", -300, LOUD), -120);
+});
+
+test("test_the_lower_bound_cannot_pass_the_upper_bound", () => {
+  // the ceiling is nowhere near: only the partner can produce -20
+  assert.equal(clampLoudness("low", -10, LOUD), -20);
+});
+
+test("test_the_upper_bound_is_capped_at_zero_dbfs", () => {
+  // the partner sits 60 dB below, so only the 0 dBFS ceiling can bite
+  assert.equal(clampLoudness("high", 5, LOUD), 0);
+});
+
+test("test_the_upper_bound_cannot_pass_below_the_lower_bound", () => {
+  assert.equal(clampLoudness("high", -80, LOUD), -60);
+});
+
+test("test_a_legal_lower_bound_is_kept", () => {
+  assert.equal(clampLoudness("low", -75, LOUD), -75);
+});
+
+test("test_a_legal_upper_bound_is_kept", () => {
+  assert.equal(clampLoudness("high", -12, LOUD), -12);
+});
+
+test("test_a_fractional_lower_bound_is_rounded_to_a_whole_decibel", () => {
+  assert.equal(clampLoudness("low", -3.6, { low: -60, high: 0 }), -4);
+});
+
+test("test_a_fractional_upper_bound_is_rounded_to_a_whole_decibel", () => {
+  assert.equal(clampLoudness("high", -3.4, LOUD), -3);
+});
+
+test("test_an_unreadable_lower_bound_lands_on_zero_before_clamping", () => {
+  assert.equal(clampLoudness("low", "auto", { low: -60, high: 0 }), 0);
+});
+
+test("test_an_unreadable_upper_bound_lands_on_zero_before_clamping", () => {
+  assert.equal(clampLoudness("high", "auto", LOUD), 0);
 });
