@@ -193,9 +193,14 @@ test("test_a_refused_change_resets_the_value_to_canonical", () => {
   assert.equal(el.value, "50");
 });
 
+// The element holds focus, so the KEY is the only thing that varies: a focused
+// slider, a non-slider key, nothing armed. Leaving `el` unfocused here would
+// confound "not a slider key" with "no focus", and the case would pass against
+// an implementation that armed on ANY key so long as it kept the focus gate.
 for (const key of ["a", "Tab"]) {
   test(`test_a_${key}_keydown_does_not_arm_the_slider`, () => {
     const { el, calls, handler } = setup();
+    focus(el);
     keydown(el, key);
     fire(handler, el, "input");
     assert.deepEqual(calls, []);
