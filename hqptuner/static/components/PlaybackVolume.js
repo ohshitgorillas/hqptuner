@@ -1,6 +1,3 @@
-/* eslint-disable hqptuner/no-hand-rolled-card -- the mute label and the hint
-   render AFTER the body but INSIDE the section, so this card has content in a
-   position Card has no slot for. */
 // Live playback volume — the Volume tab's dominant control and the app's only
 // real-time-write control. Deliberately NOT a schema/Field control: it reads
 // engine-reported volume + VolumeRange and writes immediately over the Control
@@ -22,6 +19,7 @@ import { setVolume } from "../store/actions.js";
 import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
 import { Knob } from "./Knob.js";
 import { Checkbox } from "./controls/index.js";
+import { Card } from "./tabs/common.js";
 import { truthy } from "../lib/coerce.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
@@ -81,9 +79,21 @@ function throttleSend(v) {
   if (timer == null) flush();
 }
 
-// `showQuick`: see EngineHealth.js. LIVE renders this card with it off because
-// that page's readback is already at 500 ms; the Volume tab's copy is untouched.
-export function PlaybackVolume({ showQuick = true }) {
+// The card's contents without the card frame: the dial, the opt-in and the
+// reason it is dead. Its own element rather than a fragment because the
+// volume-disabled state belongs HERE and not on the card — on LIVE this body is
+// one column of a card whose other column is Adaptive volume and the
+// high-frequency filter, and neither of those grays when the engine is holding
+// the volume control.
+//
+// `showQuick`: see EngineHealth.js. LIVE renders it off because that page's
+// readback is already at 500 ms; the Volume tab's copy is untouched.
+//
+// `showName`: the dial's own name under it, in the micro-caps role the page
+// gives a named readout (PROCESS SPEED under the Engine health gauge). On the
+// Volume tab the card head says it already, so only a body sharing a card with
+// other controls asks for it.
+export function PlaybackVolumeBody({ showQuick = true, showName = false }) {
   const { enabled, min, max } = knobRange();
   const engine = volume.value != null ? Number(volume.value) : min;
   const val = volumeDrag.value != null ? volumeDrag.value : engine;
@@ -101,15 +111,12 @@ export function PlaybackVolume({ showQuick = true }) {
   };
 
   return html`
-    <section class="card playback ${enabled ? "" : "off"}">
-      <div class="card-head">Playback volume</div>
-      <!-- Everything the card shows lives INSIDE .card-body, so the body's own
-           gap is what spaces the knob, the opt-in and the hint. They used to sit
-           after it as children of .card, which has no gap — the space between
-           them was each one's own margin-top, and there was nothing to inherit
-           when those margins went. -->
-      <div class="card-body">
-        <div class="playback-knob">
+    <!-- Everything lives INSIDE this one element, so its own gap is what spaces
+         the knob, the opt-in and the hint. They used to sit as children of
+         .card, which has no gap — the space between them was each one's own
+         margin-top, and there was nothing to inherit when those margins went. -->
+    <div class="playback-col ${enabled ? "" : "off"}">
+      <div class="playback-knob">
           <${Knob}
             value=${val}
             min=${min}
@@ -123,6 +130,7 @@ export function PlaybackVolume({ showQuick = true }) {
             onLive=${onLive}
             onCommit=${onCommit}
           />
+          ${showName ? html`<div class="t-eyebrow">Playback volume</div>` : null}
         </div>
         ${
           showQuick
@@ -135,8 +143,17 @@ export function PlaybackVolume({ showQuick = true }) {
             `
             : null
         }
-        ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
-      </div>
-    </section>
+      ${enabled ? null : html`<div class="playback-hint">Volume control disabled — ${disabledReason()}</div>`}
+    </div>
+  `;
+}
+
+// The Volume tab's card: the same body in a frame of its own. LIVE renders the
+// body directly instead, as one column of its Playback card.
+export function PlaybackVolume({ showQuick = true }) {
+  return html`
+    <${Card} title="Playback volume" cardClass="playback">
+      <${PlaybackVolumeBody} showQuick=${showQuick} />
+    <//>
   `;
 }

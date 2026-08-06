@@ -37,7 +37,7 @@ import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { widgetFor, tipsFor, favFor } from "./Field.js";
 import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
-import { PlaybackVolume } from "./PlaybackVolume.js";
+import { PlaybackVolumeBody } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
 import { Section, Card, collapseFrom } from "./tabs/common.js";
 
@@ -217,13 +217,25 @@ function HeroRow() {
   `;
 }
 
-function ProcessingCard() {
+// Everything about how loud the engine plays, in one card: the two live
+// settings that shape the level on the left, the master volume on the right.
+//
+// The dial comes in as PlaybackVolumeBody, not as the Volume tab's whole card —
+// a card inside a card is a frame nobody asked for, and the volume-disabled
+// state belongs to that column alone. Adaptive volume and the high-frequency
+// filter stay live whatever the engine is doing to the volume control: the junk
+// filter is switchable during playback (manual §2.8) and is never grayed.
+function PlaybackCard() {
   const { junk, adaptive } = liveModel.value;
   return html`
-    <${Card} title="Processing">
-      <div class="pack">
-        <${LiveField} control=${junk} />
-        <${LiveField} control=${adaptive} widget=${Checkbox} />
+    <${Card} title="Playback">
+      <div class="playback-cols">
+        <div class="pack">
+          <${LiveField} control=${adaptive} widget=${Checkbox} />
+          <${LiveField} control=${junk} />
+        </div>
+        <span class="col-rule" aria-hidden="true"></span>
+        <${PlaybackVolumeBody} showQuick=${false} showName=${true} />
       </div>
     <//>
   `;
@@ -385,14 +397,13 @@ export function LiveView() {
       <!-- The same card the System tab carries, second on the page because on
            LIVE it is the instrument you judge a write by: change the rate or the
            filter and the needle is what tells you the engine took it. Both this
-           and PlaybackVolume drop their "quick updates" checkbox here — LIVE
+           and the volume dial drop their "quick updates" checkbox here — LIVE
            polls at 500 ms unconditionally (store/ui.js). -->
       <${Card} title="Engine health">
         <${EngineHealth} showQuick=${false} />
       <//>
       <${ChainCards} />
-      <${ProcessingCard} />
-      <${PlaybackVolume} showQuick=${false} />
+      <${PlaybackCard} />
       <${MatrixProfileCard} />
     <//>
   `;

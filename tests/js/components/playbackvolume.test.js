@@ -33,6 +33,7 @@ import { volume, volumeRange, config, engineState, matrixConfig } from "../../..
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { ok, stagingWire } from "../support/wire.js";
+import { classes, disabledRegion, elements, hasAttr, labelled } from "../support/markup.js";
 
 // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST
 // paths, so `edit()` stages exactly as it does against the backend.
@@ -54,49 +55,99 @@ async function reset({ range = null, level = null, running = {}, fast = false } 
 }
 
 const card = () => render(html`<${PlaybackVolume} />`);
+const quietCard = () => render(html`<${PlaybackVolume} showQuick=${false} />`);
 
 // One attribute off the dial, which is the only element carrying ARIA values.
 const aria = (out, name) => (new RegExp(`${name}="([^"]*)"`).exec(out) || [])[1];
 
+// The dial itself: the one element carrying the `knob` class token, as opposed
+// to the `knob-*` parts it is built from.
+const isKnob = (el) => classes(el).includes("knob");
+
+function knob(out) {
+  const hit = elements(out).find(isKnob);
+  if (!hit) throw new Error("no dial in the fragment");
+  return hit;
+}
+
+// The tickbox a label announces: the input the label itself encloses.
+function tickbox(out, label) {
+  const hit = elements(labelled(out, label).html).find((el) => el.name === "input");
+  if (!hit) throw new Error(`the control labelled "${label}" encloses no input`);
+  return hit;
+}
+
 const ON = { enabled: "1", min: "-60", max: "0" };
 const OFF = { enabled: "0", min: "-60", max: "0" };
 const APPLY_HINT = "Apply the staged change to free the volume control.";
+const DISABLED = "Volume control disabled";
+const NO_STREAM = "No active stream — volume adjusts live during playback.";
+const QUICK = "Faster volume updates";
 
 // --- the enabled flag, in each of its three wire forms -----------------------
 
 test("test_a_string_one_enables_the_volume_control", async () => {
   await reset({ range: ON });
-  assert.ok(card().includes('class="card playback "'));
+  assert.equal(
+    elements(card()).some((el) => classes(el).includes("off")),
+    false,
+  );
 });
 
 test("test_a_numeric_one_enables_the_volume_control", async () => {
   await reset({ range: { ...ON, enabled: 1 } });
-  assert.ok(card().includes('class="card playback "'));
+  assert.equal(
+    elements(card()).some((el) => classes(el).includes("off")),
+    false,
+  );
 });
 
 test("test_a_boolean_true_enables_the_volume_control", async () => {
   await reset({ range: { ...ON, enabled: true } });
-  assert.ok(card().includes('class="card playback "'));
+  assert.equal(
+    elements(card()).some((el) => classes(el).includes("off")),
+    false,
+  );
 });
 
-test("test_a_zero_disables_the_volume_control", async () => {
+// Truthy to JavaScript, but not one of the three forms the daemon reports the
+// flag in, so it reads as disabled like anything else the engine did not say.
+test("test_an_unrecognised_enabled_value_disables_the_volume_control", async () => {
+  await reset({ range: { ...ON, enabled: "yes" } });
+  assert.ok(classes(knob(card())).includes("off"));
+});
+
+test("test_a_zero_puts_the_reason_hint_inside_the_disabled_region", async () => {
   await reset({ range: OFF });
-  assert.ok(card().includes('class="card playback off"'));
+  assert.ok(disabledRegion(card()).includes(NO_STREAM));
 });
 
-test("test_a_missing_volume_range_disables_the_volume_control", async () => {
+test("test_a_missing_volume_range_puts_the_reason_hint_inside_the_disabled_region", async () => {
   await reset();
-  assert.ok(card().includes('class="card playback off"'));
+  assert.ok(disabledRegion(card()).includes(NO_STREAM));
 });
 
 test("test_a_disabled_control_grays_the_knob", async () => {
   await reset({ range: OFF });
-  assert.ok(card().includes('class="knob knob-lg off"'));
+  assert.ok(classes(knob(card())).includes("off"));
 });
 
 test("test_an_enabled_control_leaves_the_knob_live", async () => {
   await reset({ range: ON });
-  assert.ok(card().includes('class="knob knob-lg "'));
+  assert.equal(classes(knob(card())).includes("off"), false);
+});
+
+// Behaviour 9: the dial, the opt-in beside it and the reason hint are ONE
+// region, so what the engine takes away it takes away in one piece.
+
+test("test_the_disabled_region_encloses_the_knob", async () => {
+  await reset({ range: OFF });
+  assert.ok(elements(disabledRegion(card())).some(isKnob));
+});
+
+test("test_the_disabled_region_encloses_the_faster_updates_tickbox", async () => {
+  await reset({ range: OFF });
+  assert.ok(disabledRegion(card()).includes(QUICK));
 });
 
 // --- the range the knob spans ------------------------------------------------
@@ -144,12 +195,12 @@ test("test_the_readout_carries_the_decibel_unit", async () => {
 
 test("test_an_enabled_control_shows_no_hint", async () => {
   await reset({ range: ON });
-  assert.equal(card().includes("playback-hint"), false);
+  assert.equal(card().includes(DISABLED), false);
 });
 
 test("test_a_disabled_control_explains_itself", async () => {
   await reset({ range: OFF });
-  assert.ok(card().includes("Volume control disabled"));
+  assert.ok(card().includes(DISABLED));
 });
 
 test("test_direct_sdm_is_named_as_the_cause", async () => {
@@ -233,15 +284,20 @@ test("test_fixed_volume_outranks_a_zero_width_range_as_the_named_cause", async (
 
 test("test_the_card_offers_the_faster_updates_opt_in_by_default", async () => {
   await reset({ range: ON });
-  assert.ok(card().includes("Faster volume updates"));
+  assert.ok(card().includes(QUICK));
+});
+
+test("test_a_caller_can_suppress_the_faster_updates_opt_in", async () => {
+  await reset({ range: ON });
+  assert.equal(quietCard().includes(QUICK), false);
 });
 
 test("test_the_faster_updates_checkbox_is_clear_by_default", async () => {
   await reset({ range: ON });
-  assert.equal(card().includes("checked"), false);
+  assert.equal(hasAttr(tickbox(card(), QUICK), "checked"), false);
 });
 
 test("test_the_faster_updates_checkbox_reflects_an_enabled_preference", async () => {
   await reset({ range: ON, fast: true });
-  assert.ok(card().includes("checked"));
+  assert.ok(hasAttr(tickbox(card(), QUICK), "checked"));
 });

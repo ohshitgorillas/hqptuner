@@ -25,7 +25,7 @@ input,
 }
 .dsp-body,
 .indent,
-.playback .card-body {
+.playback-col {
   transition: opacity var(--dur) var(--ease);
 }
 /* the disable→muted colour fade on the fancy controls (NOT their geometry) */

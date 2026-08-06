@@ -373,8 +373,13 @@ input[type="checkbox"]:disabled {
    identifiable, and .playback-hint — which is the reason it is dead — stays
    full strength rather than being faded along with the thing it explains. The
    "Faster volume updates" checkbox is a page-local preference that keeps
-   working, so it is not dimmed either. */
-.playback.off .card-body {
+   working, so it is not dimmed either.
+
+   The dim keys on the volume COLUMN, not on the card. On LIVE the dial shares
+   its card with Adaptive volume and the high-frequency filter, both of which
+   stay live while the engine holds the volume control — dimming the card would
+   fade two working controls to say something about a third. */
+.playback-col.off {
   opacity: var(--o-dim);
 }
 .playback-hint {

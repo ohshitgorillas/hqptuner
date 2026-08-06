@@ -36,6 +36,50 @@
   min-width: 0;
 }
 
+/* The Playback card: the two level settings on the left, the volume dial on the
+   right. Same split as LIVE MODE above — the 1px track puts the hairline on the
+   card's centre line with every other divider down the page. */
+.playback-cols {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+@media (min-width: 1100px) {
+  .playback-cols {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    gap: var(--sp-4);
+    align-items: start;
+  }
+}
+.playback-cols > * {
+  min-width: 0;
+}
+
+/* The Playback card's left column: its two settings, stacked. A .pack goes
+   two-up at the breakpoint (cards.css) — the right layout for a card body of
+   full width, and the wrong one for half of one, where two tracks leave each
+   field's caption a word wide. One track also means no centre line to draw on,
+   so the hairline a two-track pack carries is suppressed with it; the card's
+   own divider is the one between the columns. */
+.playback-cols .pack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-field);
+}
+.playback-cols .pack::before {
+  content: none;
+}
+
+/* The dial rides the middle of the card, not its top edge. The split aligns its
+   columns to `start` so the two settings sit under the head; the volume column
+   takes the full height instead and centres its own stack in it, which is the
+   same thing .playback-knob does inside the Volume tab's taller card. */
+.playback-cols .playback-col {
+  align-self: stretch;
+  justify-content: center;
+}
+
 /* The lede's two paragraphs. Their own measure is the card column, which is
    narrower than --measure, so the cap does no work here — the gap is all this
    needs. */

@@ -14,6 +14,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **One Playback card on LIVE.** Adaptive volume and the High-frequency (playback) filter sat in a card called Processing, with the volume knob in a card of its own below it. They are now one card: the two level settings on the left, the master volume on the right.
+
 - **The Range bar redrawn.** Gridlines run every 10 dB with a number every 30, instead of five scattered marks, and the labels name the unit. Min and Max are brackets facing inward at the span they enclose, so each names its own end rather than being two identical blocks. With volume-adaptive loudness switched on, its two bounds ride the same axis as draggable parentheses inside those brackets — the settings the Loudness card holds, so editing them in either place lights both cards; they are absent when there is no loudness running. The volume currently playing rides the axis too, as a tuner needle: it reports rather than sets, since the knob above already adjusts it, and it is absent whenever the engine has the volume control bypassed or has not reported a level. A legend names both marks.
 
   Handles now sit on the values they hold. Every one of them was drawn up to half its own width away — a Max of -3 dB sat visibly left of the -3 gridline — because the browser insets a slider's thumb while the gridlines and fill were drawn across the full track. `-120` also lost its minus sign into the card edge; the labels at each end of the track now anchor to that end.
