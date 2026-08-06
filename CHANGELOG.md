@@ -16,7 +16,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **One Playback card on LIVE.** Adaptive volume and the High-frequency (playback) filter sat in a card called Processing, with the volume knob in a card of its own below it. They are now one card: the two level settings on the left, the master volume on the right.
 
-- **The Range bar redrawn.** Gridlines run every 10 dB with a number every 30, instead of five scattered marks, and the labels name the unit. Min and Max are brackets facing inward at the span they enclose, so each names its own end rather than being two identical blocks. With volume-adaptive loudness switched on, its two bounds ride the same axis as draggable parentheses inside those brackets — the settings the Loudness card holds, so editing them in either place lights both cards; they are absent when there is no loudness running. The volume currently playing rides the axis too, as a tuner needle: it reports rather than sets, since the knob above already adjusts it, and it is absent whenever the engine has the volume control bypassed or has not reported a level. A legend names both marks.
+- **The Range bar redrawn.** Gridlines run every 10 dB with a number every 30, instead of five scattered marks, and the labels name the unit. Min and Max are brackets facing inward at the span they enclose, so each names its own end rather than being two identical blocks. With volume-adaptive loudness switched on, its two bounds ride the same axis as draggable parentheses inside those brackets — the settings the Loudness card holds, so editing them in either place lights both cards; they are absent when there is no loudness running. The volume currently playing rides the axis too, as a tuner needle: it reports rather than sets, since the knob above already adjusts it, and it tracks the knob live as you drag rather than waiting on the daemon's next poll. It is absent whenever the engine has the volume control bypassed or has not reported a level. A legend names both marks.
 
   Handles now sit on the values they hold. Every one of them was drawn up to half its own width away — a Max of -3 dB sat visibly left of the -3 gridline — because the browser insets a slider's thumb while the gridlines and fill were drawn across the full track. `-120` also lost its minus sign into the card edge; the labels at each end of the track now anchor to that end.
 
@@ -24,15 +24,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The playback volume readout no longer cuts off its last digit.** Any level of -10.0 dB or lower overran the box and lost the tenths place: -22.0 dB read as `-22.C`. On the Volume tab and on LIVE.
+
+- **The Loudness plot now follows the volume knob as you drag it.** It drew the level the daemon last reported, which arrives on the poll — every two seconds, or twice a second with Faster volume updates on — so through a whole drag the applied curve and its caption sat still and then jumped on release. The plot now reads the value under the pointer.
+
+- **A knob drag interrupted by a context menu now keeps the value you dragged to.** Right-clicking mid-drag swallows the mouse-up, and the knob abandoned the drag rather than finishing it — so the dial snapped back to where it started and everything reading the live value stayed parked on a level that never landed. It now ends at the value it had reached, exactly as a normal release does.
+
 - **Scrolling the page past a knob no longer changes its value**, in Safari. Keyboard use, dragging, double-click-to-reset, the slider and the box are unchanged.
 
 - **The Loudness Type dropdown is sized to its options.** It stretched the full width of the Bass/Treble strip for three six-character values; it now fits the longest one, like the Matrix flow controls.
-
-- **The Loudness plot and the Range bar needle now follow the volume knob as you drag it.** Both drew the level the daemon last reported, which arrives on the poll — every two seconds, or twice a second with Faster volume updates on — so through a whole drag the plot's applied curve, its caption and the needle sat still and then jumped on release. They now read the value under the pointer.
-
-- **The playback volume readout no longer cuts off its last digit.** Any level of -10.0 dB or lower overran the box and lost the tenths place: -22.0 dB read as `-22.C`. On the Volume tab and on LIVE.
-
-- **A volume drag interrupted by a context menu now releases.** Right-clicking mid-drag swallowed the mouse-up, and the knob stayed stuck to the pointer until clicked again. It now ends at the value it had reached, as a normal release does.
 
 - **Naming a live preset no longer spills out of its card.** Clicking Save… under Live preset broke the prompt across six lines, one word each, and pushed the name field and its buttons over the text beside them. The prompt now reads as a sentence with the field and buttons under it.
 
