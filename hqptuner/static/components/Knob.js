@@ -115,9 +115,12 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
       if (!d) return;
       // A context menu opened mid-drag eats the pointerup, and pointer capture
       // then feeds this handler a buttonless drag forever — the dial sticks to
-      // the mouse. No button, no drag: abandon without committing.
+      // the mouse. No button, no drag: end it where the last live report left it,
+      // exactly as a real release would. Dropping it uncommitted instead leaves
+      // every surface fed by onLive parked on a value nothing will ever land.
       if (!(e.buttons & 1)) {
         drag.current = null;
+        commit(d.last);
         return;
       }
       const quantum = e.shiftKey ? fine : st;
@@ -126,7 +129,7 @@ export function Knob({ value, min, max, step, def, size, slider, disabled, unit,
       d.last = snap(dec(enc(d.v, log) + dv, log), quantum);
       live(d.last);
     },
-    [live, snap, st, fine, hi, lo, log],
+    [live, commit, snap, st, fine, hi, lo, log],
   );
   const onPointerUp = useCallback(
     (e) => {

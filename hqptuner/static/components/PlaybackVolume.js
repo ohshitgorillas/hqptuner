@@ -9,13 +9,14 @@
 // volume, direct SDM, no active stream).
 //
 // Rendered as the large knob variant. onLive fires continuously while dragging
-// (throttled live writes so playback tracks the knob); onCommit lands the final
-// value and optimistically adopts it so the next 2 s poll doesn't snap the dial
-// back. Double-click resets to a moderate -20 dB (a deliberate safe default, not
-// a daemon value, so a reset never jumps to full volume).
-import { signal } from "@preact/signals";
+// (throttled live writes so playback tracks the knob) and publishes the value to
+// `volumeDrag`, which is what the Loudness plot and the Range bar needle read;
+// onCommit lands the final value and optimistically adopts it so the next 2 s
+// poll doesn't snap the dial back. Double-click resets to a moderate -20 dB (a
+// deliberate safe default, not a daemon value, so a reset never jumps to full
+// volume).
 import { html } from "../lib/dom.js";
-import { volume, volumeRange } from "../store/signals.js";
+import { volume, volumeRange, volumeDrag } from "../store/signals.js";
 import { effective, runningValue } from "../store/resolve.js";
 import { setVolume } from "../store/actions.js";
 import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
@@ -61,9 +62,6 @@ function knobRange() {
   };
 }
 
-const dragging = signal(false); // ignore engine syncs while true
-const display = signal(0); // live value shown while dragging
-
 // throttle: send the first move immediately, then at most once per 100 ms, with
 // a trailing send so the released value always lands.
 let pending = null;
@@ -88,18 +86,18 @@ function throttleSend(v) {
 export function PlaybackVolume({ showQuick = true }) {
   const { enabled, min, max } = knobRange();
   const engine = volume.value != null ? Number(volume.value) : min;
-  const val = dragging.value ? display.value : engine;
+  const val = volumeDrag.value != null ? volumeDrag.value : engine;
 
   const onLive = (v) => {
-    dragging.value = true;
-    display.value = Number(v);
+    volumeDrag.value = Number(v);
     throttleSend(String(v));
   };
   const onCommit = (v) => {
-    display.value = Number(v);
     throttleSend(String(v));
+    // adopt before clearing the drag: the other way round leaves one render
+    // reading the last polled level, and the plot and needle flick back to it
     volume.value = String(v); // optimistic adopt so the next poll doesn't snap
-    dragging.value = false;
+    volumeDrag.value = null;
   };
 
   return html`

@@ -32,6 +32,17 @@ export const metadata = signal(null); // static: {filters, shapers, settings}
 // writes immediately via the Control API (never through the staged/apply flow).
 export const volume = signal(null); // engine-reported current volume (dB, string)
 export const volumeRange = signal(null); // {min, max, enabled, adaptive} from VolumeRange
+// The value under the pointer while the playback knob is being dragged, null
+// otherwise. It lives here rather than inside PlaybackVolume because the knob is
+// not the only thing that draws the playing volume: the Loudness plot scales its
+// applied curve by it and the Range bar rides a needle on it, and a value private
+// to the knob left both sitting on the 2 s poll for the length of a drag.
+export const volumeDrag = signal(null);
+// What every display surface reads: the dragged value while a drag is in flight,
+// the engine's own report otherwise. A poll landing mid-drag writes `volume` as
+// usual and is masked here, so nothing jumps back to a stale level under the
+// pointer.
+export const volumeShown = computed(() => (volumeDrag.value != null ? String(volumeDrag.value) : volume.value));
 
 // --- editor state ---
 // Preset preview: picking a preset loads its saved settings into the editor as

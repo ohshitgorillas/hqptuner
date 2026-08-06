@@ -20,6 +20,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The Loudness plot and the Range bar needle now follow the volume knob as you drag it.** Both drew the level the daemon last reported, which arrives on the poll — every two seconds, or twice a second with Faster volume updates on — so through a whole drag the plot's applied curve, its caption and the needle sat still and then jumped on release. They now read the value under the pointer.
+
+- **The playback volume readout no longer cuts off its last digit.** Any level of -10.0 dB or lower overran the box and lost the tenths place: -22.0 dB read as `-22.C`. On the Volume tab and on LIVE.
+
+- **A volume drag interrupted by a context menu now releases.** Right-clicking mid-drag swallowed the mouse-up, and the knob stayed stuck to the pointer until clicked again. It now ends at the value it had reached, as a normal release does.
+
 - **Naming a live preset no longer spills out of its card.** Clicking Save… under Live preset broke the prompt across six lines, one word each, and pushed the name field and its buttons over the text beside them. The prompt now reads as a sentence with the field and buttons under it.
 
 - **Loading a matrix profile with nothing playing now says why.** HQPlayer refuses the switch when no track is loaded, and the Profile card used to print its C++ diagnostic verbatim (`clHQPlayerEngine::MatrixSetProfile(): clPlaylist::GetTrackFile(): trackn > last`). It now reads `Live playback is needed to load a matrix profile.` Any other refusal still shows the daemon's own words.

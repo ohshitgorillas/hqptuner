@@ -42,7 +42,9 @@
   background: none;
   font-size: var(--fs-readout);
   color: var(--fg);
-  width: 5rem;
+  /* --w-num is the shared knob-readout width. At --fs-readout a five-character
+     value ("-22.0") already overruns 5rem and the last digit is cut off. */
+  width: var(--w-num);
 }
 .knob-lg .knob-unit {
   font-size: var(--fs-label);

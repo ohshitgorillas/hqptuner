@@ -16,7 +16,7 @@
 import { signal } from "@preact/signals";
 import { html, wheelGuard, userEdit } from "../lib/dom.js";
 import { AXIS_MIN, AXIS_MAX, num, clampVolume, clampLoudness } from "../lib/volume.js";
-import { volume, volumeRange } from "../store/signals.js";
+import { volumeShown, volumeRange } from "../store/signals.js";
 import { effective, isDirty } from "../store/resolve.js";
 import { edit } from "../store/actions.js";
 import { grayReason } from "../store/graying.js";
@@ -107,7 +107,9 @@ const loudnessOn = () => !grayReason("loudness_range_low");
 function volumeLive() {
   const vr = volumeRange.value;
   if (!vr || !(vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true)) return null;
-  const db = num(volume.value, NaN);
+  // volumeShown, not volume: the needle tracks the knob under the pointer rather
+  // than waiting for the poll to report where the drag has already moved to
+  const db = num(volumeShown.value, NaN);
   return Number.isNaN(db) ? null : Math.max(AXIS_MIN, Math.min(AXIS_MAX, db));
 }
 

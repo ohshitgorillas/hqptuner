@@ -10,7 +10,7 @@
 
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { volume } from "../store/signals.js";
+import { volumeShown } from "../store/signals.js";
 import { effective } from "../store/resolve.js";
 import { setLive, edit } from "../store/actions.js";
 import { loudnessSide } from "../store/ui.js";
@@ -267,7 +267,9 @@ export function LoudnessPlot() {
   };
   const rangeLow = num(effective("loudness_range_low"), -60);
   const rangeHigh = num(effective("loudness_range_high"), -20);
-  const vol = num(volume.value, rangeHigh);
+  // volumeShown, not volume: the applied curve has to follow the knob under the
+  // pointer, and the engine's own report only lands on the poll
+  const vol = num(volumeShown.value, rangeHigh);
   const scale = shelfScale(vol, rangeLow, rangeHigh);
   const freqs = bandFreqs(160);
   const pct = Math.round(scale * 100);

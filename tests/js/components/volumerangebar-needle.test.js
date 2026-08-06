@@ -5,7 +5,9 @@
 // Policy (docs/testing.md): public API only, one assertion per test. Every case
 // renders the exported `VolumeRangeBar` — which takes no props — driven by the
 // exported store signals. `volume` carries the engine-reported level (a dB
-// string, null before the first report) and `volumeRange` carries the daemon's
+// string, null before the first report), `volumeDrag` the dB currently being
+// dragged on the playback-volume knob — null when no drag is in flight, and the
+// winner over `volume` while there is one — and `volumeRange` carries the daemon's
 // `VolumeRange` reply, `{min, max, enabled, adaptive}` (docs/protocol.md §6:
 // `<VolumeRange min="-60" max="0" enabled="1" adaptive="0"/>`, where enabled="0"
 // means the volume control is bypassed). Nothing is stubbed; the wire is a
@@ -53,6 +55,7 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { VolumeRangeBar } from "../../../hqptuner/static/components/VolumeRangeBar.js";
 import {
   volume,
+  volumeDrag,
   volumeRange,
   config,
   enums,
@@ -72,11 +75,12 @@ const FORM = { volume_min: "-60", volume_max: "0", defaults_volume: "-20" };
 const ON = { min: "-60", max: "0", enabled: "1", adaptive: "0" };
 const OFF = { ...ON, enabled: "0" };
 
-async function reset({ range = ON, level = null, running = FORM } = {}) {
+async function reset({ range = ON, level = null, drag = null, running = FORM } = {}) {
   // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST
   // paths, so the card's staged view is the one the backend would hand it.
   stagingWire({ fallback: (w) => ok(w.staged) });
   volume.value = level;
+  volumeDrag.value = drag;
   volumeRange.value = range;
   enums.value = null;
   engineState.value = {};
@@ -173,6 +177,36 @@ test("test_a_volume_below_the_axis_floor_lands_on_the_left_edge", async () => {
 test("test_a_volume_above_the_gain_ceiling_lands_on_the_right_edge", async () => {
   await reset({ level: "20" });
   assert.ok(near(needleLeft(bar()), 100));
+});
+
+// --- a drag on the playback knob, in flight ----------------------------------
+// While the user is dragging the playback-volume knob, `volumeDrag` carries the
+// dB being dragged and the needle follows the KNOB, not the level the last poll
+// reported: the needle is what tells the user where the drag has got to. The
+// engine level in these cases is -12, whose position is nowhere near any of the
+// dragged ones, so a needle still reading the poll lands far outside tolerance.
+
+test("test_a_drag_in_progress_puts_the_needle_at_the_dragged_value", async () => {
+  await reset({ level: "-12", drag: -54 });
+  assert.ok(near(needleLeft(bar()), pos(-54)));
+});
+
+test("test_a_drag_to_zero_decibels_puts_the_needle_at_the_zero_position", async () => {
+  // 0 dB is the trap: falsy, so a needle picking its source with `||` shows the
+  // engine's -12 instead of the top of the knob's travel
+  await reset({ level: "-12", drag: 0 });
+  assert.ok(near(needleLeft(bar()), pos(0)));
+});
+
+test("test_a_drag_before_the_first_engine_report_draws_a_needle", async () => {
+  await reset({ level: null, drag: -54 });
+  assert.equal(needles(bar()).length, 1);
+});
+
+test("test_a_released_drag_returns_the_needle_to_the_engine_report", async () => {
+  await reset({ level: "-12", drag: -54 });
+  volumeDrag.value = null;
+  assert.ok(near(needleLeft(bar()), pos(-12)));
 });
 
 // --- when there is no needle at all ------------------------------------------
