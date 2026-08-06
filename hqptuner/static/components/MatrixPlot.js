@@ -4,7 +4,7 @@
 // (solid, dB left axis) + phase (dashed, ±180° second axis) for every
 // plot-toggled pipeline, log 20 Hz–20 kHz; a library-picker preview overlays as
 // a dashed accent magnitude trace so candidate-vs-current is a visual A/B.
-// Pure client math (lib/dsp.js), recomputed per render off the staged
+// Pure client math (lib/dsp/chain.js), recomputed per render off the staged
 // pipeline signals — no server round-trip. Convolution stages plot only when
 // their IR was uploaded this session (registerIr); otherwise marked partial.
 import { signal } from "@preact/signals";
@@ -20,6 +20,21 @@ import { BypassNote } from "./MatrixBypassNote.js";
 import { BandStrip, selectedStage, dragEq, withDrag, keyAt, commitStage, BAND_ARGS, r1 } from "./BandStrip.js";
 import { rowTraces, eqOverviewTrace, editedAway, appliedTraces, previewTrace, HUES } from "./matrixplot-traces.js";
 
+/**
+ * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
+ *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
+ *   string, because the config XML and the /matrix form both carry text.
+ * @typedef {import("../lib/matrixspec.js").MatrixStage} Stage
+ *   One parsed `process` stage: a plugin spec with `args`, or a convolution
+ *   stage carrying `file`.
+ * @typedef {{
+ *   f: number, db: number, dbMin: number, dbMax: number, label: string, kind: string, active: boolean,
+ *   onSelect: () => void, onDrag: (f: number, db: number) => void, onEnd: (f: number, db: number) => void,
+ * }} DragHandle
+ *   A PlotHandle carrying this card's drag contract: the band-strip clamp range,
+ *   a readout label, and the select/drag/commit callbacks PlotFrame invokes.
+ */
+
 export const plottedRows = signal(new Set());
 // Library-picker preview: { label, stages } or null. Set by MatrixLibrary on
 // selection, cleared on deselect/panel close — never touches pipeline state.
@@ -32,9 +47,14 @@ export const previewEq = signal(null);
 // was built from (eqOverviewTrace). Empty result here means genuinely nothing to
 // plot as rows (no profile / bare passthrough / block-only — the last still
 // draws the EQ overview).
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {Set<number>}
+ */
 function autoDefaultRows(rows) {
   const { rec } = xfeedBlock(rows);
   const structural = structuralBlock(rows);
+  /** @type {Set<number>} */
   const out = new Set();
   rows.forEach((r, i) => {
     if (rec && i < 8) return; // internal crossfeed block — drawn as one EQ curve
@@ -47,6 +67,10 @@ function autoDefaultRows(rows) {
 // The set of rows actually on the plot: the user's explicit toggle selection if
 // any, else the auto-default, plus the selected stage's row so picking a chip
 // always draws its curve.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {Set<number>}
+ */
 function shownRows(rows) {
   const explicit = plottedRows.value;
   const base = explicit.size ? new Set(explicit) : autoDefaultRows(rows);
@@ -57,6 +81,10 @@ function shownRows(rows) {
 
 // True when row `index` is currently drawn (drives the ◉/○ toggle indicator so
 // it reflects the plot, including auto-defaulted rows).
+/**
+ * @param {number} index
+ * @returns {boolean}
+ */
 export function isPlotted(index) {
   return shownRows(effectivePipelines.value).has(index);
 }
@@ -64,6 +92,7 @@ export function isPlotted(index) {
 // Toggle materializes the current plotted base (explicit set, or the auto-default
 // on first click) then flips this row — so "what you see is what's toggled". The
 // live stage selection is deliberately not baked in here.
+/** @param {number} index */
 export function togglePlotted(index) {
   const rows = effectivePipelines.value;
   const explicit = plottedRows.value;
@@ -75,11 +104,17 @@ export function togglePlotted(index) {
 
 const GAIN_TYPES = new Set(["peak", "lshelf", "hshelf"]);
 
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number[]} plotted
+ * @returns {DragHandle[]}
+ */
 function rowHandles(rows, plotted) {
+  /** @type {DragHandle[]} */
   const handles = [];
   const sel = selectedStage.value;
   plotted.forEach((i, k) => {
-    withDrag(rows, i).forEach((s, j) => {
+    withDrag(rows, i).forEach((/** @type {Stage} */ s, /** @type {number} */ j) => {
       if (s.kind !== "iir" || !GAIN_TYPES.has(s.args.type)) return;
       const f = Number(s.args.f);
       const g = Number(s.args.g);

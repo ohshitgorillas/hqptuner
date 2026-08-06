@@ -39,7 +39,7 @@ import {
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/livepresets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwire.js";

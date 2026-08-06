@@ -18,7 +18,9 @@
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { api } from "../lib/api.js";
-import { liveModel, liveBusy, liveEnumBusy, liveErrors, writeLive } from "../store/live.js";
+import { liveModel } from "../store/live/model.js";
+import { liveBusy, liveEnumBusy, liveErrors } from "../store/live/state.js";
+import { writeLive } from "../store/live/write.js";
 import { describe, selectionDescription } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { refreshConfig } from "../store/sync.js";
@@ -41,6 +43,27 @@ import { PlaybackVolumeBody } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
 import { Section, Card, collapseFrom } from "./tabs/common.js";
 
+/**
+ * @typedef {import("./Field.js").FieldEntry} FieldEntry
+ * @typedef {import("./Field.js").FieldMeta} FieldMeta
+ * @typedef {import("./Field.js").NarrowBadge} NarrowBadge
+ * @typedef {ReturnType<typeof widgetFor>} Widget
+ *   Whatever Field.js's own widget pick resolves to — the LIVE page renders the
+ *   identical control, so it takes the identical type.
+ * @typedef {{
+ *   field: string, key: string, entry: FieldEntry, value: string | number,
+ *   options?: OptionItem[], badge?: NarrowBadge | null,
+ *   enumBacked?: boolean, disabled?: boolean, reason?: string,
+ * }} LiveControl
+ *   One control as store/live/model.js `liveModel` builds it: the live write's target
+ *   field, the catalog entry it borrows its words from, the engine's current
+ *   value, and the list it was chosen out of. The rate columns add `disabled`
+ *   and `reason`; the enumeration-backed ones add `enumBacked`.
+ * @typedef {{ name: string }} LivePreset
+ *   One saved live preset. /api/livepresets serves more per record (chain,
+ *   fields, names, compatible) — this page only ever reads the name.
+ */
+
 const CHAIN_LABEL = { pcm: "PCM", sdm: "SDM" };
 
 // The prose under a live control, in the tabs' own reading order: the manual's
@@ -48,6 +71,7 @@ const CHAIN_LABEL = { pcm: "PCM", sdm: "SDM" };
 // Both come from the catalog (store/prose.js), both obey the same header
 // toggles, and neither is written here — a control says the same thing on this
 // page as it does on its tab.
+/** @param {{ control: LiveControl, meta: FieldMeta }} props */
 function LiveProse({ control, meta }) {
   const { entry } = control;
   const showDesc = entry.desc && descVisible.value;
@@ -65,14 +89,15 @@ function LiveProse({ control, meta }) {
 // Hover carries the overall feature description for the controls that render a
 // per-selection one instead, for the ones whose note is hover-only, and for
 // everyone when the notes are toggled off — the same rule Field applies.
-const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "");
+const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ meta) =>
+  entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
 
 // One live control: the widget, its prose, why it is grayed
 // if it is, and the reason the last write was refused. Disabled while its OWN
 // write is in flight — two overlapping writes to one setting would resolve the
 // second against lists the first has already invalidated — and, for a control
 // whose options come from an enumeration, while ANY re-enumerating write is in
-// flight (store/live.js `liveEnumBusy`): its list is the pre-write one for that
+// flight (store/live/state.js `liveEnumBusy`): its list is the pre-write one for that
 // whole window, so an ID picked out of it means something else by the time it
 // lands. Otherwise only where the engine has no live route for the setting at
 // all, which is the rate pair in auto and nothing else (`AUTO_RATE_REASON`). Both chain
@@ -88,6 +113,7 @@ const hoverTitle = (entry, meta) => (entry.desc || entry.hoverNote || !notesVisi
 // the identical sentence, so the caption belongs to the card that holds them
 // both and `HeroRow` prints it once. A control that ever grays on its own would
 // need its own render; none does today.
+/** @param {{ entry: FieldEntry, meta: FieldMeta, badge: NarrowBadge | null | undefined }} props */
 function LiveLabel({ entry, meta, badge }) {
   return html`
     <label>
@@ -97,6 +123,7 @@ function LiveLabel({ entry, meta, badge }) {
   `;
 }
 
+/** @param {{ control: LiveControl, widget?: Widget }} props */
 function LiveField({ control, widget }) {
   const { entry } = control;
   // Same widget pick as the tabs (Field.js widgetFor): a desc-carrying dropdown
@@ -118,7 +145,7 @@ function LiveField({ control, widget }) {
           fav=${fav}
           onFav=${onFav}
           disabled=${busy || !!control.disabled}
-          onChange=${(v) => writeLive(control.field, v)}
+          onChange=${(/** @type {string} */ v) => writeLive(control.field, v)}
         />
       </div>
       <${LiveProse} control=${control} meta=${meta} />
@@ -145,7 +172,7 @@ const pcmOverride = signal(null);
 const sdmOverride = signal(null);
 
 // The mode as its own computed, and that is the whole point of it: `liveModel` is
-// rebuilt into a FRESH object on every poll (store/live.js), signals compare by
+// rebuilt into a FRESH object on every poll (store/live/model.js), signals compare by
 // identity, so an effect reading `liveModel.value.mode.value` depends on the poll
 // rather than on the mode — `mode` is a plain property, not a signal, and reading
 // it subscribes to nothing. That is what dropped the overrides once a second and
@@ -160,12 +187,19 @@ effect(() => {
 
 // What the card for a chain that is not loaded says: the edit is real, it is
 // simply not what is playing yet.
+/**
+ * @param {string} chain the card's own family, "pcm" or "sdm"
+ * @param {string | null} loaded the family the engine is running, null in auto before playback
+ * @returns {string}
+ */
 function heldNote(chain, loaded) {
-  const mine = CHAIN_LABEL[chain];
-  if (loaded) return `The engine is running ${CHAIN_LABEL[loaded]}. Changes here apply when the ${mine} chain loads.`;
+  const labels = /** @type {Record<string, string>} */ (CHAIN_LABEL);
+  const mine = labels[chain];
+  if (loaded) return `The engine is running ${labels[loaded]}. Changes here apply when the ${mine} chain loads.`;
   return `The engine follows the source in auto mode, so no chain is loaded yet. Changes here apply when the ${mine} chain does.`;
 }
 
+/** @param {{ chain: string, loaded: string | null, controls: LiveControl[] }} props */
 function ChainBody({ chain, loaded, controls }) {
   const live = chain === loaded;
   return html`
@@ -250,6 +284,7 @@ function PlaybackCard() {
 const profileBusy = signal(false);
 const profileError = signal("");
 
+/** @param {string} name */
 async function switchProfile(name) {
   profileBusy.value = true;
   profileError.value = "";
@@ -263,6 +298,7 @@ async function switchProfile(name) {
   }
 }
 
+/** @param {string[]} saved */
 function profileOptions(saved) {
   return [
     { value: "", label: "[Default]" },
@@ -314,6 +350,7 @@ const selectedPreset = signal("");
 // Every preset is pickable whatever the engine is running. A preset carries its
 // own output mode, so one taken on the other chain applies by switching to it —
 // which is the point of saving it.
+/** @param {LivePreset[]} presets */
 function presetOptions(presets) {
   return [
     { value: "", label: presets.length ? "Select a preset…" : "No live presets saved" },
@@ -321,6 +358,7 @@ function presetOptions(presets) {
   ];
 }
 
+/** @param {string} name */
 async function pickPreset(name) {
   selectedPreset.value = name;
   if (name) await applyLivePreset(name);
@@ -328,8 +366,13 @@ async function pickPreset(name) {
 
 // Both questions are asked INLINE in the card (store/ask.js). Backing out of
 // either — Escape, Cancel, or an empty name — writes nothing.
+/** @param {LivePreset[]} presets */
 async function onSavePreset(presets) {
-  const name = await askName(PRESET_OWNER, "Save the engine's current live settings as:");
+  // askName resolves whatever the prompt collected (store/ask.js types that
+  // `unknown`); a name prompt only ever settles a typed string or the cancel null.
+  const name = /** @type {string | null} */ (
+    await askName(PRESET_OWNER, "Save the engine's current live settings as:")
+  );
   if (!name) return;
   const exists = presets.some((p) => p.name === name);
   if (exists && !(await askConfirm(PRESET_OWNER, `Live preset "${name}" already exists. Overwrite it?`))) return;
@@ -337,6 +380,7 @@ async function onSavePreset(presets) {
   selectedPreset.value = name;
 }
 
+/** @param {string} name */
 async function onDeletePreset(name) {
   if (!(await askConfirm(PRESET_OWNER, `Delete live preset "${name}"? This cannot be undone.`))) return;
   await deleteLivePreset(name);

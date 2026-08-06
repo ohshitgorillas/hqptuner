@@ -73,11 +73,11 @@ const FOCUS_FILTERS = [
 ];
 
 const chainFields = (filters) => {
-  const options = filters.map((f) => ({ value: f.value, label: f.name }));
+  const opts = filters.map((f) => ({ value: f.value, label: f.name }));
   // The daemon's PCM chain names its two filter slots `filter1x` and `filter`.
   return [
-    { name: "filter1x", value: "0", options },
-    { name: "filter", value: "0", options },
+    { name: "filter1x", value: "0", options: opts },
+    { name: "filter", value: "0", options: opts },
   ];
 };
 

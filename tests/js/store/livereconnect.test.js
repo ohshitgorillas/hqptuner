@@ -1,5 +1,5 @@
 // Behavioral suite for the LIVE controls' error map across a daemon reconnect —
-// store/live.js's exported `liveErrors`, driven by the `health` signal the
+// store/live/state.js's exported `liveErrors`, driven by the `health` signal the
 // polling loop writes.
 //
 // Changing the filter or the output mode takes hqplayerd's audio engine down
@@ -25,7 +25,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
-import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 
 // /api/health as the frontend receives it. `connected_at` is when the CURRENT
 // control connection was established, so a fresh value means a reconnect.

@@ -1,4 +1,4 @@
-// Behavioral suite for the LIVE page's two chain cards — store/live.js's
+// Behavioral suite for the LIVE page's two chain cards — store/live/chains.js's
 // `pcmChain` / `sdmChain` and the cards components/LiveView.js renders from
 // them.
 //
@@ -42,7 +42,8 @@ import {
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { liveModel, liveErrors, liveBusy } from "../../../hqptuner/static/store/live.js";
+import { liveModel } from "../../../hqptuner/static/store/live/model.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../support/wire.js";
 
 // The daemon's two chain enumerations, verbatim in their numbering: the same

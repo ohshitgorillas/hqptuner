@@ -21,7 +21,9 @@ import assert from "node:assert/strict";
 
 import { parseEqText, planEqImport } from "../../../hqptuner/static/lib/eqimport.js";
 import { msCompile, msRecognize, fitComp } from "../../../hqptuner/static/lib/xfeed.js";
-import { compileRows, recognizeRows, HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
+import { recognizeRows } from "../../../hqptuner/static/lib/binaural/recognize.js";
 
 // One filter and a preamp — the smallest complete AutoEq profile.
 const EQ = "Preamp: -6.4 dB\nFilter 1: ON PK Fc 105 Hz Gain -3.2 dB Q 1.41";
@@ -38,7 +40,8 @@ const opts = (patch) => ({ text: EQ, replace: false, mirror: false, bauer: null,
 const BAUER = { fc: 700, feed: 4.5 };
 const OTHER = { fc: 650, feed: 9.5 };
 // A compiled compensation block for the In 1 / In 2 pair, at 100%.
-const block = (eq, preampDb, bauer = BAUER) => msCompile(eq, preampDb, fitComp(bauer.fc, bauer.feed), 1, 0, 1);
+const block = (eq, preampDb, bauer = BAUER) =>
+  msCompile(eq, preampDb, { fit: fitComp(bauer.fc, bauer.feed), s: 1 }, { a: 0, b: 1 });
 const recognized = (rows, bauer = BAUER) => msRecognize(rows, 0, bauer.fc, bauer.feed);
 // Plan an import into a compiled block, recognizing it the way the tab does.
 const intoBlock = (rows, targetIndex, patch) =>

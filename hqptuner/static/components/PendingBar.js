@@ -14,6 +14,15 @@ import { pendingPreset, reachable, config } from "../store/signals.js";
 import { stagedCount, hasPending, split } from "../store/resolve.js";
 import { discardAll, applyAll, savePresetOnly, applying, lastApply, autosave, setAutosave } from "../store/actions.js";
 
+/**
+ * @typedef {{ live: number, restart: number }} Split
+ *   How the staged edits divide by cost (store/resolve.js `split`): how many go
+ *   out live over the Control API, and how many restart the daemon.
+ * @typedef {{ ok: boolean, text: string }} ApplyResult
+ *   The most recent apply's outcome (store/apply-summary.js `summarize`), held
+ *   until the next edit clears it.
+ */
+
 // Questions this bar asks render inside it, not in a native dialog.
 const OWNER = "pending";
 
@@ -23,15 +32,17 @@ const OWNER = "pending";
 // the working config, which a plain Apply already writes. Tested against null so
 // previewing "(no preset)" yields no target — falling through to the active
 // preset would offer to save into the very preset the user is leaving.
+/** @returns {string} */
 function saveTarget() {
   const c = config.value || {};
   if (pendingPreset.value !== null) return pendingPreset.value;
   return c.active || (c.profiles && c.profiles.value) || "";
 }
 
+/** @returns {(string | number)[]} */
 function existingPresets() {
   const p = config.value && config.value.profiles;
-  return ((p && p.options) || []).map((o) => o.value).filter(Boolean);
+  return ((p && p.options) || []).map((/** @type {SchemaOption} */ o) => o.value).filter(Boolean);
 }
 
 async function onApply() {
@@ -44,6 +55,10 @@ async function onApply() {
 
 // With nothing staged, saving still works: it persists the CURRENT running
 // config to the preset (no arbitrary edit needed to light the button).
+/**
+ * @param {string} name
+ * @param {boolean} pend whether anything is staged — a save with edits applies them too
+ */
 async function saveVia(name, pend) {
   try {
     if (pend) await applyAll({ name });
@@ -53,6 +68,7 @@ async function saveVia(name, pend) {
   }
 }
 
+/** @param {boolean} pend */
 async function onApplySave(pend) {
   const name = saveTarget();
   if (name) await saveVia(name, pend);
@@ -60,8 +76,11 @@ async function onApplySave(pend) {
 
 // Both questions are asked INLINE in the bar (store/ask.js). Backing out of
 // either — Escape, Cancel, or an empty name — commits nothing.
+/** @param {boolean} pend */
 async function onSaveNew(pend) {
-  const name = await askName(OWNER, "Save current settings as a new preset:");
+  // askName resolves whatever the prompt collected (store/ask.js types that
+  // `unknown`); a name prompt only ever settles a typed string or the cancel null.
+  const name = /** @type {string | null} */ (await askName(OWNER, "Save current settings as a new preset:"));
   if (!name) return;
   if (existingPresets().includes(name)) {
     const overwrite = await askConfirm(OWNER, `Preset "${name}" already exists. Overwrite it?`);
@@ -87,7 +106,7 @@ function AutosaveToggle() {
         type="checkbox"
         checked=${autosave.value}
         disabled=${!active}
-        onChange=${(e) => setAutosave(e.target.checked)}
+        onChange=${(/** @type {{ target: HTMLInputElement }} */ e) => setAutosave(e.target.checked)}
       />
       Auto-save
     </label>
@@ -98,14 +117,19 @@ function AutosaveToggle() {
 // the empty string is the "(no preset)" option, a real target whose name happens
 // to be empty — so it must not collapse into "nothing pending". Named presets
 // keep their quotes, "(no preset)" carries its own parentheses instead.
-const switchLabel = (name) => (name === null ? null : name ? `"${name}"` : "(no preset)");
+const switchLabel = (/** @type {string | null} */ name) => (name === null ? null : name ? `"${name}"` : "(no preset)");
 
 // A persistent edit or a preset switch both restart the daemon, so say so while
 // the apply is in flight rather than leaving a silent pause.
-const applyingLine = (sp, switchName) =>
+const applyingLine = (/** @type {Split} */ sp, /** @type {string | null} */ switchName) =>
   html`<span class="note">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
 
 // What is waiting to go out, as a readable list.
+/**
+ * @param {number} n
+ * @param {Split} sp
+ * @param {string | null} switchName
+ */
 function pendingLine(n, sp, switchName) {
   const parts = [];
   if (switchName) parts.push(`switch to ${switchName}`);
@@ -113,10 +137,16 @@ function pendingLine(n, sp, switchName) {
   return html`<span class="muted">${parts.join(" · ")}</span>`;
 }
 
-const resultLine = (result) =>
+const resultLine = (/** @type {ApplyResult} */ result) =>
   html`<span class="note ${result.ok ? "ok" : "err"}">${result.ok ? "✓" : "✗"} ${result.text}</span>`;
 
-function statusLine(n, sp, busy, reach, result, switchName) {
+/**
+ * @param {number} n
+ * @param {Split} sp
+ * @param {{ busy: boolean, reach: boolean }} state
+ * @param {{ result: ApplyResult | null, switchName: string | null }} last
+ */
+function statusLine(n, sp, { busy, reach }, { result, switchName }) {
   if (busy) return applyingLine(sp, switchName);
   const pend = n > 0 || !!switchName;
   if (!pend) return result ? resultLine(result) : html`<span class="muted">No pending changes</span>`;
@@ -132,6 +162,13 @@ function statusLine(n, sp, busy, reach, result, switchName) {
 // Which buttons are inert. Discard is local, so it only wants something pending;
 // Apply additionally needs a reachable daemon; the save lane needs a reachable
 // daemon and a named target to write to.
+/**
+ * @param {boolean} busy
+ * @param {boolean} pend
+ * @param {boolean} reach
+ * @param {string} target
+ * @returns {{ discard: boolean, apply: boolean, save: boolean, saveNew: boolean }}
+ */
 function inert(busy, pend, reach, target) {
   return {
     discard: busy || !pend,
@@ -142,6 +179,11 @@ function inert(busy, pend, reach, target) {
 }
 
 // Why the save button is offered, and where it writes.
+/**
+ * @param {string} target
+ * @param {boolean} pend
+ * @returns {string}
+ */
 function saveTitle(target, pend) {
   if (!target) return "No preset selected — Save needs a named preset";
   return pend ? `Apply and save to "${target}"` : `Save the current settings to "${target}"`;
@@ -158,7 +200,7 @@ export function PendingBar() {
   return html`
     <footer class="pending-bar ${pend ? "active" : ""}">
       <span class="count">${n ? `${n} staged` : ""}</span>
-      ${statusLine(n, split.value, busy, reach, lastApply.value, switchName)}
+      ${statusLine(n, split.value, { busy, reach }, { result: lastApply.value, switchName })}
       <${Ask} owner=${OWNER} />
       <span class="spacer"></span>
       <${AutosaveToggle} />

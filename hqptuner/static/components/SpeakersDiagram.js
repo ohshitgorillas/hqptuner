@@ -23,6 +23,21 @@
 import { html } from "../lib/dom.js";
 import { polarAround } from "../lib/geometry.js";
 
+/**
+ * @typedef {{
+ *   index: number, label: string, level: number | string, distance: number | string,
+ *   level_min?: number | string, level_max?: number | string, level_step?: number | string,
+ *   distance_min?: number | string, distance_max?: number | string, distance_step?: number | string,
+ * }} SpeakerChannel
+ *   One channel of the daemon's /speakers form as conf/httpconf.py parses it:
+ *   index and the daemon's own label, the two settings, and each input's
+ *   min/max/step — present only where the form's `<input>` carried the
+ *   attribute, and text wherever the value did not parse as a number.
+ * @typedef {{ minX: number, maxX: number, minY: number, maxY: number }} Extent
+ *   How far one speaker's drawing reaches, in user units. Feeds the measured
+ *   viewBox.
+ */
+
 const CX = 160;
 const CY = 150;
 const R_MIN = 62; // ring radius at a distance of 0
@@ -48,6 +63,11 @@ const polar = polarAround(CX, CY);
 // any believable room size. Six metres spans the ring instead, so a 3 cm trim
 // moves its speaker by half a pixel, which is what 3 cm deserves.
 const DIST_FULL = 600; // cm at the outermost radius
+/**
+ * @param {number} index
+ * @param {number | string} distance
+ * @returns {number}
+ */
 function radiusOf(index, distance) {
   const d = Math.max(0, Math.min(DIST_FULL, Number(distance) || 0));
   const r = HEAD + (d / DIST_FULL) * (R_MAX - HEAD);
@@ -57,11 +77,17 @@ function radiusOf(index, distance) {
 // Where a speaker's two labels sit relative to its box: under it for everything
 // on the ring, and to the LEFT for the sub, which sits between the left and
 // left-side speakers where a label hung underneath lands on one of them.
-const labelPos = (index, x) =>
+const labelPos = (/** @type {number} */ index, /** @type {number} */ x) =>
   index === 3 ? { x: x - 13, anchor: "end", dy1: -4, dy2: 7 } : { x, anchor: "middle", dy1: 22, dy2: 33 };
 
 // How far a speaker's drawing reaches around its own centre — the rotated box,
 // plus wherever its labels land. Feeds the measured viewBox.
+/**
+ * @param {number} index
+ * @param {number} x
+ * @param {number} y
+ * @returns {Extent}
+ */
 function extent(index, x, y) {
   const box = 15; // rotated 20x16 box, half-diagonal
   const left = index === 3 ? 46 : 18; // sub's labels run out to its left
@@ -69,6 +95,7 @@ function extent(index, x, y) {
   return { minX: x - Math.max(box, left), maxX: x + box + 2, minY: y - box, maxY: y + down };
 }
 
+/** @param {{ channels: SpeakerChannel[] | null, active: Set<number> }} props */
 export function SpeakersDiagram({ channels, active }) {
   const rows = channels || [];
   // A speaker with no distance set has no position: it is not placed in the room
@@ -123,6 +150,12 @@ export function SpeakersDiagram({ channels, active }) {
   `;
 }
 
+/**
+ * @param {{
+ *   index: number, deg: number, x: number, y: number,
+ *   label: string, level: number | string, distance: number | string, on: boolean,
+ * }} props
+ */
 function Speaker({ index, deg, x, y, label, level, distance, on }) {
   const lp = labelPos(index, x);
   const cls = on ? "room-spk" : "room-spk room-off";

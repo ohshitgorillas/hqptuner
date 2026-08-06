@@ -13,7 +13,7 @@
 // "switching…" mark and a failed switch are not observable here and are not
 // reached by widening the module. The equivalent state on the LIVE controls IS
 // observable, because `liveBusy` / `liveErrors` are the store's public surface
-// (store/live.js) rather than this component's internals. The picker's own
+// (store/live/state.js) rather than this component's internals. The picker's own
 // in-flight behaviour belongs to the playwright hand-back protocol.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/liveview.test.js
@@ -37,7 +37,7 @@ import {
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 

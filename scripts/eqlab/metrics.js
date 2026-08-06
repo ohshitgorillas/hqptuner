@@ -1,10 +1,10 @@
 // Response sampling, extrema, and metric evaluation — all on the SUMMED chain.
 //
-// Every number this file produces comes out of `chainMagDbGrid` (lib/dsp.js),
+// Every number this file produces comes out of `chainMagDbGrid` (lib/dsp/chain.js),
 // the same math the UI plots minus phase. No band is ever measured in isolation:
 // a metric over a range is a reduction over the summed curve inside that range.
 
-import { chainMagDbGrid, chainResponse } from "../../hqptuner/static/lib/dsp.js";
+import { chainMagDbGrid, chainResponse } from "../../hqptuner/static/lib/dsp/chain.js";
 import { parse, evaluate } from "./expr.js";
 import { noteRange } from "./notes.js";
 
@@ -188,7 +188,7 @@ function weightOf(domain) {
 
 // Weighted mean of `fn(curve - target)` over a range, folded into one loop —
 // no per-point deviation objects.
-function weightedDevMean(curve, target, range, domain, fn) {
+function weightedDevMean(curve, target, { range, domain }, fn) {
   const wf = weightOf(domain);
   const { lo, hi } = rangeIndices(curve, range);
   let [sw, s] = [0, 0];
@@ -253,7 +253,7 @@ const KINDS = {
   }),
   rmse: (curve, spec, _vars, target) => ({
     value: Math.sqrt(
-      weightedDevMean(curve, needTarget(target, "rmse"), spec.range, spec.domain, (dev) => {
+      weightedDevMean(curve, needTarget(target, "rmse"), spec, (dev) => {
         const d = sideClip(dev, spec.side);
         return d * d;
       }),
@@ -262,7 +262,7 @@ const KINDS = {
   maxdev: (curve, spec, _vars, target) => maxDev(curve, target, spec, false),
   maxdev_signed: (curve, spec, _vars, target) => maxDev(curve, target, spec, true),
   mean_signed: (curve, spec, _vars, target) => ({
-    value: weightedDevMean(curve, needTarget(target, "mean_signed"), spec.range, spec.domain, (dev) => dev),
+    value: weightedDevMean(curve, needTarget(target, "mean_signed"), spec, (dev) => dev),
   }),
   prominence: (curve, spec) => prominenceOver(curve, spec.range),
   ripple: (curve, spec) => ({

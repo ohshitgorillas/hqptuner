@@ -213,7 +213,8 @@ function sensitivityOf(sole, winnerSigned) {
 }
 
 // One pass over every candidate: measure, score, judge against constraints.
-function sweep(combos, measure, ctx, spec, constraints) {
+function sweep(combos, env) {
+  const { measure, ctx, spec, constraints } = env;
   const acc = { rejected: {}, rejects: [], sole: new Map(), survived: [] };
   for (const changes of combos) {
     const cand = scoreCandidate(measure, changes, ctx, spec);
@@ -334,7 +335,8 @@ function penaltyOf(cand, constraints, caps) {
  * objective. Every entry comes back carrying a `refined` block; an infeasible
  * seed (standalone warm start) additionally reports its `violations`.
  */
-function refineEntry(entry, coords, measure, ctx, spec, constraints, opts) {
+function refineEntry(entry, coords, env, opts) {
+  const { measure, ctx, spec, constraints } = env;
   const seed = entry.out.changes;
   const caps = spec.pareto ? entry.signed : null;
   const objective = (changes) => {
@@ -366,30 +368,30 @@ const refineOptsOf = (spec) => ({ maxEvals: spec.max_evals ?? 600, tol: spec.tol
 
 // Scalar mode: refine the top-N survivors, then re-rank — a refined runner-up
 // may overtake the grid winner.
-function refineTop(survived, rspec, space, measure, ctx, spec, constraints) {
+function refineTop(survived, rspec, space, env) {
   const coords = coordsOf(space);
   const opts = refineOptsOf(rspec);
   const n = Math.min(rspec.survivors ?? 3, survived.length);
-  for (let i = 0; i < n; i += 1) survived[i] = refineEntry(survived[i], coords, measure, ctx, spec, constraints, opts);
+  for (let i = 0; i < n; i += 1) survived[i] = refineEntry(survived[i], coords, env, opts);
   survived.sort((a, b) => a.signed[0] - b.signed[0]);
 }
 
 // Pareto mode: refine each returned front member under no-worsening caps on
 // the other objectives, then prune — a refined member can come to dominate
 // another.
-function refineFront(entries, rspec, space, measure, ctx, spec, constraints) {
+function refineFront(entries, rspec, space, env) {
   const coords = coordsOf(space);
   const opts = refineOptsOf(rspec);
-  const refined = entries.map((e) => refineEntry(e, coords, measure, ctx, spec, constraints, opts));
+  const refined = entries.map((e) => refineEntry(e, coords, env, opts));
   return paretoFront(refined).sort((a, b) => a.signed[0] - b.signed[0]);
 }
 
-function paretoResult(survived, keep, rspec, job, measure, ctx, spec, constraints, common) {
+function paretoResult(survived, keep, env, { rspec, job, common }) {
   const front = paretoFront(survived).sort((a, b) => a.signed[0] - b.signed[0]);
   let kept = front.slice(0, keep);
-  if (rspec) kept = refineFront(kept, rspec, job.space || {}, measure, ctx, spec, constraints);
+  if (rspec) kept = refineFront(kept, rspec, job.space || {}, env);
   return {
-    pareto: { objectives: spec.objectives.map((o) => ({ direction: o.direction, expr: o.expr })) },
+    pareto: { objectives: env.spec.objectives.map((o) => ({ direction: o.direction, expr: o.expr })) },
     ...common,
     front_size: front.length,
     returned: kept.length,
@@ -402,8 +404,10 @@ export function searchJob(job, ctx) {
   const space = checkSpace(job);
   const constraints = job.constraints || [];
   const combos = candidates(space);
-  const measure = makeMeasurer(ctx, combos[0]);
-  const { rejected, rejects, sole, survived } = sweep(combos, measure, ctx, spec, constraints);
+  // Everything a candidate needs to be measured, scored and judged, carried as
+  // one value through the sweep and the refinement passes.
+  const env = { measure: makeMeasurer(ctx, combos[0]), ctx, spec, constraints };
+  const { rejected, rejects, sole, survived } = sweep(combos, env);
   const keep = job.top ?? 10;
   const common = {
     constraints,
@@ -413,9 +417,9 @@ export function searchJob(job, ctx) {
     rejected_top: rejects.map(({ score, changes, reasons }) => ({ score, changes, reasons })),
   };
   const rspec = refineSpecOf(job);
-  if (spec.pareto) return paretoResult(survived, keep, rspec, job, measure, ctx, spec, constraints, common);
+  if (spec.pareto) return paretoResult(survived, keep, env, { rspec, job, common });
   survived.sort((a, b) => a.signed[0] - b.signed[0]);
-  if (rspec) refineTop(survived, rspec, job.space || {}, measure, ctx, spec, constraints);
+  if (rspec) refineTop(survived, rspec, job.space || {}, env);
   return {
     objective: { direction: spec.objectives[0].direction, expr: spec.objectives[0].expr },
     ...common,
@@ -465,7 +469,7 @@ export function refineJob(job, ctx) {
   const seedCand = scoreCandidate(measure, seed, ctx, spec);
   const entry = { signed: seedCand.signed, out: survivorOut(seedCand, spec, constraints, ctx) };
   const rspec = refineSpecOf(job) || {};
-  const refined = refineEntry(entry, coords, measure, ctx, spec, constraints, refineOptsOf(rspec));
+  const refined = refineEntry(entry, coords, { measure, ctx, spec, constraints }, refineOptsOf(rspec));
   return {
     objective: { direction: spec.objectives[0].direction, expr: spec.objectives[0].expr },
     constraints,

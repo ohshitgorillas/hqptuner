@@ -1,8 +1,8 @@
 // Behavioral suite for components/PendingBar.js — the pending-changes footer.
 // Written BEFORE the complexity refactor of PendingBar (13) and statusLine (13).
 //
-// `statusLine` is private and stays that way: it is a pure function of six
-// values that are all exported store signals, so every one of its branches is
+// `statusLine` is private and stays that way: it is a pure function of store
+// values that are all exported signals, so every one of its branches is
 // reachable through the rendered bar.
 //
 // The bar's whole job is to explain WHY Apply is enabled or not, so a disabled
@@ -47,6 +47,7 @@ function wire(staged = { live: {}, http: {} }) {
   staticWire(staged, (path) => {
     if (path === "/api/config") return ok({ data: config.value });
     if (path === "/api/matrix") return ok({ data: null });
+    return undefined; // unhandled path: the wire's own fallback answers it
   });
 }
 

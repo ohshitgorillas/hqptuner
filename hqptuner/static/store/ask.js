@@ -11,10 +11,30 @@
 import { signal } from "@preact/signals";
 
 // The open question — { owner, kind, message, cancelled, refused } — or null.
+/**
+ * @typedef {object} Question
+ *   The one open question. `cancelled` is what "no answer" resolves to for this
+ *   kind: null for a name or a choice set, false for a confirm.
+ * @property {string} owner component that asked — where the question renders
+ * @property {string} kind name | confirm | choices
+ * @property {string} message
+ * @property {string | boolean | null} cancelled
+ * @property {boolean} refused a blank name was submitted and not committed
+ * @property {ChoiceOption[]} [options] choices only
+ */
+
+// The signals package is declared ambiently (types/vendor.d.ts), so `signal()`
+// answers `any` and the shape above cannot be pinned on the signal itself; the
+// two places that read `options` back name ChoiceOption inline instead.
 export const question = signal(null);
 
+/** @type {((value: unknown) => void) | null} */
 let settle = null;
 
+/**
+ * @param {unknown} value
+ * @returns {void}
+ */
 function close(value) {
   const done = settle;
   settle = null;
@@ -22,6 +42,13 @@ function close(value) {
   if (done) done(value);
 }
 
+/**
+ * @param {string} owner
+ * @param {string} kind
+ * @param {string} message
+ * @param {string | boolean | null} cancelled
+ * @returns {Promise<unknown>}
+ */
 function open(owner, kind, message, cancelled) {
   cancel(); // a second question supersedes the first rather than stranding it
   return new Promise((resolve) => {
@@ -31,14 +58,22 @@ function open(owner, kind, message, cancelled) {
 }
 
 // Ask for a name. Resolves the trimmed name, or null if the user backs out.
-export const askName = (owner, message) => open(owner, "name", message, null);
+export const askName = (/** @type {string} */ owner, /** @type {string} */ message) =>
+  open(owner, "name", message, null);
 
 // Ask for a yes/no. Resolves true only on an explicit confirm.
-export const askConfirm = (owner, message) => open(owner, "confirm", message, false);
+export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ message) =>
+  open(owner, "confirm", message, false);
 
 // Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
 // the checked values in option order, or null if the user backs out. A disabled
 // option's checked state is pinned — rendered for honesty, immune to clicks.
+/**
+ * @param {string} owner
+ * @param {string} message
+ * @param {ChoiceOption[]} options
+ * @returns {Promise<unknown>}
+ */
 export function askChoices(owner, message, options) {
   const q = open(owner, "choices", message, null);
   question.value = { ...question.value, options: options.map((o) => ({ ...o })) };
@@ -46,12 +81,18 @@ export function askChoices(owner, message, options) {
 }
 
 // Flip one choice by value. Disabled options stay as offered.
+/**
+ * @param {string} value
+ * @returns {void}
+ */
 export function toggleChoice(value) {
   const q = question.value;
   if (!q || q.kind !== "choices") return;
   question.value = {
     ...q,
-    options: q.options.map((o) => (o.value === value && !o.disabled ? { ...o, checked: !o.checked } : o)),
+    options: q.options.map((/** @type {ChoiceOption} */ o) =>
+      o.value === value && !o.disabled ? { ...o, checked: !o.checked } : o,
+    ),
   };
 }
 
@@ -60,11 +101,17 @@ export function toggleChoice(value) {
 // preset. The refusal is FLAGGED rather than silent — a field that swallows a
 // Save click without a word is indistinguishable from one that saved and did
 // nothing. A confirm has nothing to type — reaching here at all means yes.
+/**
+ * @param {string | null | undefined} [value] the typed name; unused by the other kinds
+ * @returns {void}
+ */
 export function answer(value) {
   const q = question.value;
   if (!q) return;
   if (q.kind === "choices") {
-    close(q.options.filter((o) => o.checked).map((o) => o.value));
+    close(
+      q.options.filter((/** @type {ChoiceOption} */ o) => o.checked).map((/** @type {ChoiceOption} */ o) => o.value),
+    );
     return;
   }
   if (q.kind !== "name") {

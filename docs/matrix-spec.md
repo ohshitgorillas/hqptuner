@@ -14,7 +14,7 @@ Done — all five open questions closed; see probe-findings sections below.
 
 ### Tab structure
 
-Matrix tab between Volume and System. Section order: MATRIX (global card: Enabled, Engine, Expand HF, IIR→FIR) | PROFILE card sharing row | PIPELINES section | RESPONSE section. Post-process controls stay on DSP tab — no duplication.
+Matrix tab between Volume and System. Section order: MATRIX (global card: Enabled, Engine, Expand HF, IIR→FIR) | PROFILE card sharing row | PIPELINES section | RESPONSE section. Post-process controls stay on Matrix tab — no duplication.
 
 ### Profiles
 
@@ -128,11 +128,11 @@ plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
 | `hshelf;f=1000;q=0.7;g=6` @ gain `Lin 0.242086` | −12.3205 → −6.3205 | −12.320555, −6.320863 |
 | `peak;f=2000;q=1;g=-9` @ same gain | −21.3205 → −12.3205 | −21.320607, −12.321677 |
 
-**Daemon's `iir` is RBJ cookbook and `q` is RBJ Q — measured, not assumed.** Six chains (single peak, two overlapping peaks, high-Q, ultrasonic, `lp`, `hp`) fitted against `lib/dsp.js`: **`q` → 0.019 dB RMS** over 12 numbers; `bw` → 2.66 dB; `s` → 0.18 dB. Shelf/peak parameterization grounded.
+**Daemon's `iir` is RBJ cookbook and `q` is RBJ Q — measured, not assumed.** Six chains (single peak, two overlapping peaks, high-Q, ultrasonic, `lp`, `hp`) fitted against `lib/dsp/biquad.js`: **`q` → 0.019 dB RMS** over 12 numbers; `bw` → 2.66 dB; `s` → 0.18 dB. Shelf/peak parameterization grounded.
 
 **Grid: 20 Hz – 20 kHz at FIXED rate ~96–99 kHz — not source rate.** `peak;f=30000` probe returned valid result, impossible below ~60 kHz Nyquist; joint fit for (rate, grid bounds) lands ~99 kHz / 20 Hz–20 kHz. **This lane can't answer what filter does at actual source rate.** Bilinear warping at running rate unverified — negligible for LF work (700 Hz pole sub-0.01 dB across every rate), potentially material near Nyquist.
 
-**Standing limitation:** min/max only, no curve. Can verify filter's *shape parameterization* via chains whose extremes encode answer, but can't render response. Use as validation harness for `lib/dsp.js` and any future port — daemon becomes ground truth instead of second implementation of our own assumptions. Journal read via `journalctl -u hqplayerd` or daemon's own `/log`.
+**Standing limitation:** min/max only, no curve. Can verify filter's *shape parameterization* via chains whose extremes encode answer, but can't render response. Use as validation harness for `lib/dsp/` and any future port — daemon becomes ground truth instead of second implementation of our own assumptions. Journal read via `journalctl -u hqplayerd` or daemon's own `/log`.
 
 ## Probe findings — saved matrix profiles do not persist
 

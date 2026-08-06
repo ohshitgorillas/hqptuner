@@ -15,12 +15,30 @@
 // than the card beside it.
 import { html } from "../../lib/dom.js";
 
+/**
+ * @typedef {{ open: boolean, onToggle: () => void }} CollapseHandle
+ *   What `collapse` carries: the card's current open state and the toggle its
+ *   head fires. One object rather than a boolean plus a callback because the
+ *   flag and the state it needs are the same fact.
+ * @typedef {unknown} Renderable
+ *   Markup or text a card interpolates and never inspects — a string, an htm
+ *   vnode, or a list of either.
+ */
+
+/**
+ * @param {{ children?: Renderable }} props
+ */
 export function Section({ children }) {
   return html`<section class="tab-body">${children}</section>`;
 }
 
 // The collapse handle for a card driven by app state: `auto` opens it from the
 // engine's own shape, a non-null `override` means the user has spoken and wins.
+/**
+ * @param {{ value: boolean }} auto
+ * @param {{ value: boolean | null }} override
+ * @returns {CollapseHandle}
+ */
 export function collapseFrom(auto, override) {
   const open = override.value === null ? auto.value : override.value;
   return { open, onToggle: () => (override.value = !open) };
@@ -29,6 +47,9 @@ export function collapseFrom(auto, override) {
 // The head bar. A collapsible card's head IS the toggle, so it renders as a
 // `<button>` carrying the open/closed triangle; every other card's head is a
 // plain `<div>`.
+/**
+ * @param {{ title: Renderable, collapse?: CollapseHandle, open: boolean, headCls: string }} props
+ */
 function cardHead({ title, collapse, open, headCls }) {
   if (collapse) {
     return html`<button type="button" class=${headCls} onClick=${collapse.onToggle}>
@@ -60,6 +81,11 @@ function cardHead({ title, collapse, open, headCls }) {
 // the Output hero row. A head pinned to the left edge of a card that wide reads
 // as a caption on whatever happens to sit under its left edge rather than as
 // the name of the row beneath it.
+/**
+ * @param {{ title: Renderable, subtitle?: Renderable, collapse?: CollapseHandle, center?: boolean,
+ *   cardClass?: string, bodyClass?: string, headClass?: string, hint?: string,
+ *   children?: Renderable }} props
+ */
 export function Card({ title, subtitle, collapse, center, cardClass, bodyClass, headClass, hint, children }) {
   const open = !collapse || collapse.open;
   const headCls = ["card-head", center ? "center" : null, headClass].filter(Boolean).join(" ");

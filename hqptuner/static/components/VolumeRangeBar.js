@@ -23,10 +23,21 @@ import { grayReason } from "../store/graying.js";
 import { NumberBox } from "./controls/index.js";
 import { Card } from "./tabs/common.js";
 
+/**
+ * @typedef {{ which: string, db: number }} ActiveHandle
+ *   Which handle the pointer, drag or focus is on, and the dB to print in its
+ *   bubble.
+ * @typedef {{ min: number, startup: number, max: number }} VolumeTrio
+ *   The three interdependent volume settings, as numbers on the dBFS axis.
+ * @typedef {(which: string, key: string) => (v: string | number) => void} SetVolume
+ *   Curried stager: pick the handle and its setting key, then hand it a value.
+ *   Clamping to the cannot-cross rule happens inside (lib/volume.js).
+ */
+
 const SPAN = AXIS_MAX - AXIS_MIN;
 
 // dB -> percentage across the track.
-const pct = (db) => ((Number(db) - AXIS_MIN) / SPAN) * 100;
+const pct = (/** @type {number} */ db) => ((Number(db) - AXIS_MIN) / SPAN) * 100;
 
 // The gridline rhythm: one line every 10 dB up to the limiter threshold, plus
 // the gain ceiling and the resampling ceiling, which do not fall on a decade.
@@ -55,6 +66,10 @@ const STRONG = new Set([0, -3]);
 
 // Line height states the line's job: a reference level, a level carrying a
 // number, or the 10 dB rhythm between them.
+/**
+ * @param {number} db
+ * @returns {string}
+ */
 function weightOf(db) {
   if (STRONG.has(db)) return "strong";
   return LABELS.has(db) ? "major" : "minor";
@@ -63,6 +78,10 @@ function weightOf(db) {
 // A label centred on a gridline at either end of the track hangs half its width
 // off that end (the axis floor lost its minus sign that way), so the end labels
 // anchor to the end instead and the span they describe stays inside the track.
+/**
+ * @param {number} pos percentage across the track
+ * @returns {string}
+ */
 function anchorOf(pos) {
   if (pos === 0) return "edge-start";
   return pos === 100 ? "edge-end" : "edge-mid";
@@ -104,6 +123,7 @@ const loudnessOn = () => !grayReason("loudness_range_low");
 // default: a needle at a made-up position is worse than no needle.
 //
 // Returns the dB to draw at, clamped onto the axis, or null for "do not draw".
+/** @returns {number | null} */
 function volumeLive() {
   const vr = volumeRange.value;
   if (!vr || !(vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true)) return null;
@@ -124,7 +144,14 @@ function PlaybackNeedle() {
 }
 
 // Which handle is being dragged or hovered, for the value bubble. Null = none.
+// Typed to the surface this file uses: @preact/signals is ambient `any`
+// (types/vendor.d.ts), so nothing else would describe what `.value` holds.
+/** @type {{ value: ActiveHandle | null }} */
 const active = signal(null);
+// "no handle touched", named once because a bare `null` literal types as `any`
+// under this checking tier and would leave every clearing handler untyped.
+/** @type {ActiveHandle | null} */
+const NONE = null;
 
 // The three settings are one feature to the user, so the card speaks for the
 // group: whichever key grays first supplies the reason (DirectSDM grays the
@@ -140,7 +167,7 @@ const groupReason = () => KEYS.reduce((found, k) => found || grayReason(k), "");
 const groupDirty = () => KEYS.some(isDirty) || (loudnessOn() && LOUD_KEYS.some(isDirty));
 
 // Per-control highlight: only the setting actually edited carries it.
-const dirtyClass = (key) => (isDirty(key) ? "dirty" : "");
+const dirtyClass = (/** @type {string} */ key) => (isDirty(key) ? "dirty" : "");
 
 // The bounds are two more handles on the same track. They do not join the
 // cannot-cross rule the volume trio obeys — that rule is about Min, Startup and
@@ -156,7 +183,12 @@ function LoudnessBounds() {
   const high = num(effective("loudness_range_high"), LOUD_HIGH);
   const cur = { low, high };
 
-  const bound = (which, key, db, label) => html`
+  const bound = (
+    /** @type {string} */ which,
+    /** @type {string} */ key,
+    /** @type {number} */ db,
+    /** @type {string} */ label,
+  ) => html`
     <input
       type="range"
       class="vr-handle vr-loud-${which} ${dirtyClass(key)}"
@@ -212,6 +244,85 @@ function BarLegend() {
   `;
 }
 
+// One draggable bound on the track. Hover, drag and focus all publish `active`,
+// which is what puts the dBFS bubble over the handle being touched.
+/**
+ * @param {{
+ *   which: string, hkey: string, db: number, label: string, disabled: boolean, set: SetVolume,
+ * }} props
+ */
+function RangeHandle({ which, hkey, db, label, disabled, set }) {
+  return html`
+    <input
+      type="range"
+      class="vr-handle vr-${which} ${dirtyClass(hkey)}"
+      min=${AXIS_MIN}
+      max=${AXIS_MAX}
+      step="1"
+      value=${db}
+      disabled=${disabled}
+      aria-label=${label}
+      onWheel=${wheelGuard}
+      onInput=${userEdit(db, (e) => {
+        active.value = { which, db: Number(e.target.value) };
+        set(which, hkey)(e.target.value);
+      })}
+      onPointerDown=${() => (active.value = { which, db })}
+      onPointerUp=${() => (active.value = NONE)}
+      onMouseEnter=${() => (active.value = { which, db })}
+      onMouseLeave=${() => (active.value = NONE)}
+      onBlur=${() => (active.value = NONE)}
+    />
+  `;
+}
+
+// The same three bounds as typed numbers. Startup is fenced by the other two, so
+// it can never be set outside the range it starts inside.
+/** @param {{ cur: VolumeTrio, reason: string, set: SetVolume }} props */
+function VolumeBoxes({ cur, reason, set }) {
+  const { min, startup, max } = cur;
+  return html`
+    <div class="vr-boxes">
+      <label class="vr-box ${dirtyClass("volume_min")}">
+        <span class="vr-key vr-key-min"></span>
+        <span>Min</span>
+        <${NumberBox}
+          value=${min}
+          min=${AXIS_MIN}
+          max=${0}
+          step="1"
+          disabled=${!!reason}
+          onChange=${set("min", "volume_min")}
+        />
+      </label>
+      <label class="vr-box ${dirtyClass("startup_volume")}">
+        <span class="vr-key vr-key-startup"></span>
+        <span>Startup</span>
+        <${NumberBox}
+          value=${startup}
+          min=${min}
+          max=${max}
+          step="1"
+          disabled=${!!reason}
+          onChange=${set("startup", "startup_volume")}
+        />
+      </label>
+      <label class="vr-box ${dirtyClass("volume_max")}">
+        <span class="vr-key vr-key-max"></span>
+        <span>Max</span>
+        <${NumberBox}
+          value=${max}
+          min=${AXIS_MIN}
+          max=${AXIS_MAX}
+          step="1"
+          disabled=${!!reason}
+          onChange=${set("max", "volume_max")}
+        />
+      </label>
+    </div>
+  `;
+}
+
 export function VolumeRangeBar() {
   const max = num(effective("volume_max"), 0);
   const min = num(effective("volume_min"), -60);
@@ -221,31 +332,17 @@ export function VolumeRangeBar() {
   const reason = groupReason();
   const dirty = groupDirty();
 
+  /** @type {SetVolume} */
   const set = (which, key) => (v) => edit(key, String(clampVolume(which, v, cur)));
 
-  const handle = (which, key, db, label) => html`
-    <input
-      type="range"
-      class="vr-handle vr-${which} ${dirtyClass(key)}"
-      min=${AXIS_MIN}
-      max=${AXIS_MAX}
-      step="1"
-      value=${db}
-      disabled=${!!reason}
-      aria-label=${label}
-      onWheel=${wheelGuard}
-      onInput=${userEdit(db, (e) => {
-        active.value = { which, db: Number(e.target.value) };
-        set(which, key)(e.target.value);
-      })}
-      onPointerDown=${() => (active.value = { which, db })}
-      onPointerUp=${() => (active.value = null)}
-      onMouseEnter=${() => (active.value = { which, db })}
-      onMouseLeave=${() => (active.value = null)}
-      onBlur=${() => (active.value = null)}
-    />
-  `;
+  const handle = (
+    /** @type {string} */ which,
+    /** @type {string} */ hkey,
+    /** @type {number} */ db,
+    /** @type {string} */ label,
+  ) => html`<${RangeHandle} which=${which} hkey=${hkey} db=${db} label=${label} disabled=${!!reason} set=${set} />`;
 
+  /** @type {Record<string, number>} */
   const bubbleFor = { min, startup, max };
   const bub = active.value;
 
@@ -281,44 +378,7 @@ export function VolumeRangeBar() {
               : null
           }
         </div>
-        <div class="vr-boxes">
-          <label class="vr-box ${dirtyClass("volume_min")}">
-            <span class="vr-key vr-key-min"></span>
-            <span>Min</span>
-            <${NumberBox}
-              value=${min}
-              min=${AXIS_MIN}
-              max=${0}
-              step="1"
-              disabled=${!!reason}
-              onChange=${set("min", "volume_min")}
-            />
-          </label>
-          <label class="vr-box ${dirtyClass("startup_volume")}">
-            <span class="vr-key vr-key-startup"></span>
-            <span>Startup</span>
-            <${NumberBox}
-              value=${startup}
-              min=${min}
-              max=${max}
-              step="1"
-              disabled=${!!reason}
-              onChange=${set("startup", "startup_volume")}
-            />
-          </label>
-          <label class="vr-box ${dirtyClass("volume_max")}">
-            <span class="vr-key vr-key-max"></span>
-            <span>Max</span>
-            <${NumberBox}
-              value=${max}
-              min=${AXIS_MIN}
-              max=${AXIS_MAX}
-              step="1"
-              disabled=${!!reason}
-              onChange=${set("max", "volume_max")}
-            />
-          </label>
-        </div>
+        <${VolumeBoxes} cur=${cur} reason=${reason} set=${set} />
         <${BarLegend} />
     <//>
   `;

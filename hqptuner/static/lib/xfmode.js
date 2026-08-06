@@ -25,7 +25,9 @@
 
 import { signal } from "@preact/signals";
 
-import { compileRows, recognizeRows, SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural.js";
+import { compileRows } from "./binaural/compile.js";
+import { SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural/geometry.js";
+import { recognizeRows } from "./binaural/recognize.js";
 import { blockConflicts, pairInfo, REFUSAL } from "./binaural-setup.js";
 import { effective, effectivePipelines, pipelineBaseline } from "../store/resolve.js";
 import { stagePipelines, edit } from "../store/actions.js";
@@ -34,6 +36,14 @@ import { stagePipelines, edit } from "../store/actions.js";
 // in components/ imports this module's mode signal back, so the graph stays a DAG.
 import { xfeedBlock, removeBlock as removeCompBlock } from "../components/XfeedComp.js";
 import { truthy } from "./coerce.js";
+
+/**
+ * @typedef {import("./matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("./binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ * @typedef {{ lambda?: number, angle?: number, headRadius?: number }} StructuralParams
+ *   The three controls the block compiles from, each optional so a partial
+ *   remember() or an in-flight drag can carry only what moved.
+ */
 
 const KEY = "hqptuner.structuralCrossfeed";
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
@@ -64,6 +74,7 @@ function persist() {
   }
 }
 
+/** @param {StructuralParams} params */
 export function remember(params) {
   remembered.value = { ...remembered.value, ...params };
   persist();
@@ -71,6 +82,10 @@ export function remember(params) {
 
 // The installed block, or null. Rows 0..15 only: the block owns the head of the
 // list the same way the compensation block owns rows 0..7.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {StructuralRecognition | null}
+ */
 export function structuralBlock(rows) {
   return rows.length >= 16 ? recognizeRows(rows, 0) : null;
 }
@@ -82,10 +97,15 @@ export const liveParams = signal(null);
 
 // Live controls, in precedence order: whatever is being dragged right now, then
 // the installed block's, then what we remember.
+/** @param {PipelineRow[]} rows */
 export function structuralParams(rows) {
   return liveParams.value ?? structuralBlock(rows) ?? remembered.value;
 }
 
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {string}
+ */
 function installedMode(rows) {
   return structuralBlock(rows) ? "structural" : "bauer";
 }
@@ -105,6 +125,11 @@ export function conflicts() {
 // the conflict fixes an install writes alongside them. The rows are left as they
 // were found, EQ included, so a call that reports it did nothing has done
 // nothing.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {StructuralParams} params
+ * @returns {string | null} the refusal note, or null once the block is in
+ */
 export function stageStructural(rows, params) {
   const rec = structuralBlock(rows);
   let eqProcess;
@@ -163,6 +188,10 @@ function loadSelected() {
 export const xfMode = signal(loadSelected());
 
 // The mode on screen: the user's choice, or what the rows say when there is none.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {string}
+ */
 export function activeMode(rows) {
   return xfMode.value ?? installedMode(rows);
 }
@@ -170,6 +199,7 @@ export function activeMode(rows) {
 // Everything Bauer puts in the signal path: the daemon's post-process flag AND
 // the compensation block that corrects for it. The block is matrix rows, so
 // leaving it behind means a correction still running against no crossfeed.
+/** @param {PipelineRow[]} rows */
 export function disableBauer(rows) {
   const { rec } = xfeedBlock(rows);
   if (rec) removeCompBlock(rows, rec);
@@ -184,6 +214,10 @@ export function disableBauer(rows) {
 //
 // Both directions stage like any other edit: the pending bar counts them and
 // Discard puts them back.
+/**
+ * @param {string} next the mode the user selected
+ * @param {PipelineRow[]} rows
+ */
 export function setXfMode(next, rows) {
   const m = next === "structural" ? "structural" : "bauer";
   xfMode.value = m;
@@ -212,8 +246,12 @@ export function setXfMode(next, rows) {
 // Gain is emitted on the 1e-3 grid `recognizeRows` snaps the preamp to: this is
 // the only path now, so rounding it coarser than the block demonstrably carries
 // would silently edit the user's number.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {StructuralRecognition} rec
+ */
 export function removeStructural(rows, rec) {
-  const row = (i, side) => ({
+  const row = (/** @type {number} */ i, /** @type {"left" | "right"} */ side) => ({
     gain: String(Math.round(rec.preampDb[side] * 1000) / 1000),
     gainunit: "dB",
     mixdown: rows[i].mixdown,

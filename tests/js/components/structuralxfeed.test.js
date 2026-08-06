@@ -5,7 +5,7 @@
 // the whole contract is reachable: `structuralLensTraces` is a pure function of
 // (rows, bounds), and `StructuralBadge` reads the exported `effectivePipelines`
 // computed, driven here through the config baseline exactly as the store fills
-// it. Blocks are built with the real compiler (lib/binaural.js) — a sixteen-row
+// it. Blocks are built with the real compiler (lib/binaural/compile.js) — a sixteen-row
 // block is the daemon's serialization, not a fixture.
 
 import test from "node:test";
@@ -15,7 +15,8 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { structuralLensTraces, StructuralBadge } from "../../../hqptuner/static/components/StructuralXfeed.js";
 import { lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
-import { compileRows, HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { staticWire } from "../support/wire.js";

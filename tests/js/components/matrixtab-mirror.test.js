@@ -6,7 +6,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test. Every case
 // renders the exported `MatrixTab` and drives it through exported signals
-// (`dspMode`, `config`, `matrixConfig`, `showDescriptions`, the plot/selection
+// (`matrixMode`, `config`, `matrixConfig`, `showDescriptions`, the plot/selection
 // signals); nothing private is touched.
 //
 // NOT covered: what the checkbox actually does to an import. The import lanes
@@ -22,7 +22,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
-import { dspMode } from "../../../hqptuner/static/store/dspmode.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -50,7 +50,7 @@ async function reset(rows, { mode = "speakers" } = {}) {
   };
   config.value = { fields: [], file: { matrix_pipelines: JSON.stringify(rows) } };
   await discardAll();
-  dspMode.value = mode;
+  matrixMode.value = mode;
 }
 
 const tab = () =>

@@ -1,0 +1,93 @@
+// --- what the controls read --------------------------------------------------
+// The running engine is the sole authority for enumeration names, IDs and
+// ordering (architecture §2), so every option list below is built from the
+// enumerations rather than from anything shipped.
+//
+// This module owns the read/derive core: the joins from /api/state and the
+// enumerations to the config-form domain the controls speak, and the two chain
+// descriptions built on them. Everything here is pure — no signal is written and
+// no request is made — which is why the rate card, the chain cards and the view
+// model can all sit on top of it without depending on each other.
+
+import { engineState, enums, modeName } from "../signals.js";
+import { schema, TIER } from "../schema.js";
+
+/**
+ * @typedef {import("../facets.js").EnumItem} EnumItem
+ *
+ * @typedef {object} MenuOption
+ *   One option as this page's menus carry them. Looser than OptionItem: the
+ *   lists here are the schema's own bare rate tables as well as OptionItem
+ *   lists, and either may pick up a gray mark on the way out.
+ * @property {string | number | undefined} value
+ * @property {string} label
+ * @property {boolean} [disabled]
+ * @property {string} [reason]
+ */
+
+/** @returns {EnumItem[]} */
+export const items = (/** @type {string} */ key) => (enums.value && enums.value[key]) || [];
+export const stateOf = (/** @type {string} */ attr) => (engineState.value || {})[attr];
+
+// State reports a LIST INDEX; the config-form domain these controls speak is the
+// enum ID (protocol.md §4). The enumeration item carries both, so the join is a
+// lookup and never a computation.
+const atIndex = (/** @type {EnumItem[]} */ list, /** @type {string | number | undefined} */ index) =>
+  list.find((o) => String(o.index) === String(index));
+
+/** @returns {MenuOption[]} */
+export const idOptions = (/** @type {string} */ key) => items(key).map((o) => ({ value: o.value, label: o.name }));
+
+/**
+ * @param {string} key
+ * @param {string} attr
+ * @returns {string}
+ */
+export function idValue(key, attr) {
+  const item = atIndex(items(key), stateOf(attr));
+  return item ? item.value : "";
+}
+
+// Every control here names its catalog key, and its words are then the tab
+// twin's words: the schema entry carries the label, the settings.json group its
+// tooltip lives in, and which description overlay its selection reads
+// (store/prose.js). Nothing on this page writes prose of its own — a live
+// control and its persistent twin are the same knob and must say the same
+// thing.
+export const catalog = (/** @type {string} */ key) => ({ key, entry: schema[key] });
+
+// The two chains' form fields, in signal order. Mirrors livemap.ROUTABLE, which
+// is what accepts these names back.
+/** @type {Record<string, import("./chains.js").ChainControl[]>} */
+export const CHAINS = {
+  pcm: [
+    { field: "filter1x", ...catalog("pcm_filter_1x"), enumKey: "filters", state: "filter1x" },
+    { field: "filter", ...catalog("pcm_filter_nx"), enumKey: "filters", state: "filterNx" },
+    { field: "dither", ...catalog("pcm_dither"), enumKey: "shapers", state: "shaper" },
+  ],
+  sdm: [
+    { field: "oversampling1x", ...catalog("sdm_filter_1x"), enumKey: "filters", state: "filter1x" },
+    { field: "oversampling", ...catalog("sdm_filter_nx"), enumKey: "filters", state: "filterNx" },
+    { field: "modulator", ...catalog("sdm_modulator"), enumKey: "shapers", state: "shaper" },
+  ],
+};
+
+// Mode is the one live field whose value is a name rather than a number. The
+// modes enumeration is device-dependent — it drops SDM on a device that cannot
+// do DSD — so the form value is matched from the item's NAME, exactly as
+// livemap._mode_form_value does on the other side.
+export function modeValue() {
+  const name = modeName.value.toUpperCase();
+  if (name.startsWith("[SOURCE]")) return "auto";
+  if (name.startsWith("PCM")) return "pcm";
+  return name.startsWith("SDM") || name.startsWith("DSD") ? "sdm" : "";
+}
+
+// `RatesItem` carries neither a name nor a value — it is `<RatesItem index rate/>`
+// (protocol.md §6) — so the rate in Hz is what the lane takes back. The menus
+// speak tiers, so State's rate comes back as the tier it belongs to; rate "0"
+// belongs to no tier and reads as "" (the engine has no pin of its own).
+export function rateValue() {
+  const item = atIndex(items("rates"), stateOf("rate"));
+  return TIER[item ? item.rate : ""] || "";
+}

@@ -37,7 +37,25 @@ const streak = signal({ warn: 0, crit: 0 });
 const outputActive = signal(false);
 export const outputBufferApplies = computed(() => outputActive.value);
 
-const num = (v) => {
+/**
+ * @typedef {object} StatusFrame
+ *   The daemon's Status frame as /api/status serves it under `status`. Every
+ *   attribute arrives as a string off the 4321 XML; the numeric ones are coerced
+ *   at the point of use.
+ * @property {string} [state]
+ * @property {string} [track_serial]
+ * @property {string} [clips]
+ * @property {string} [apod]
+ * @property {string} [process_speed]
+ * @property {string} [input_fill]
+ * @property {string} [output_fill]
+ * @property {string} [active_filter]
+ *
+ * @typedef {{ warn: number, crit: number }} Streak
+ *   Consecutive below-threshold polls, one count per severity.
+ */
+
+const num = (/** @type {string | number | undefined} */ v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
@@ -51,6 +69,7 @@ const num = (v) => {
 // sustain threshold to 2 polls, a third to 1. app.js calls this once, but
 // nothing enforced that, and the dispose handle was dropped so the duplicate
 // could never be unregistered. Returns the disposer for a caller that wants it.
+/** @type {(() => void) | null} */
 let dispose = null;
 
 export function initHealth() {
@@ -71,6 +90,10 @@ export function initHealth() {
 
 // Rebaseline the per-track counters when the track changes. Strict !== on the
 // raw value, so a serial that merely changes type still counts as a new track.
+/**
+ * @param {StatusFrame} st
+ * @returns {void}
+ */
 function rebaseline(st) {
   const t = track.peek();
   if (st.track_serial === t.serial) return;
@@ -80,12 +103,17 @@ function rebaseline(st) {
 
 // One streak step: count up while the reading qualifies, drop to zero the moment
 // it doesn't — recovery is immediate, never decayed.
-const step = (prev, qualifies) => (qualifies ? prev + 1 : 0);
+const step = (/** @type {number} */ prev, /** @type {boolean} */ qualifies) => (qualifies ? prev + 1 : 0);
 
 // A usable speed figure. 0 and negatives mean "no reading", not "infinitely
 // slow", so they reset the streak rather than tripping it.
-const usableSpeed = (sp) => sp !== null && sp > 0;
+const usableSpeed = (/** @type {number} */ sp) => sp !== null && sp > 0;
 
+/**
+ * @param {StatusFrame} st
+ * @param {Streak} s
+ * @returns {Streak}
+ */
 function nextStreak(st, s) {
   const playing = Number(st.state) === PLAYING;
   const sp = num(st.process_speed);
@@ -116,6 +144,11 @@ export const trackCounters = computed(() => {
 // network path to the device (connectivity has nothing to do with throughput).
 const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 
+/**
+ * @param {Streak} s
+ * @param {number} sp
+ * @returns {{ sev: string, text: string } | null}
+ */
 function speedAlert(s, sp) {
   if (s.crit >= SUSTAIN) {
     return { sev: "crit", text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}` };
@@ -125,6 +158,10 @@ function speedAlert(s, sp) {
   return null;
 }
 
+/**
+ * @param {number} clips
+ * @returns {{ sev: string, text: string } | null}
+ */
 function clipAlert(clips) {
   if (clips < CLIP_MIN) return null;
   return { sev: "warn", text: `Clipping ×${clips} this track — reduce volume or gain.` };
@@ -132,6 +169,11 @@ function clipAlert(clips) {
 
 // Only worth raising when the running filter is one an apodizing swap would
 // help — silent for an unknown filter rather than guessing.
+/**
+ * @param {number} apod
+ * @param {string} filterName
+ * @returns {{ sev: string, text: string } | null}
+ */
 function apodAlert(apod, filterName) {
   if (apod < APOD_MIN) return null;
   const f = filterFacets.value[filterName];

@@ -31,7 +31,8 @@ import {
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines, isDirty } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { ok, stagingWire } from "../support/wire.js";
 
@@ -48,7 +49,7 @@ const pair = () => [row("0", "0"), row("1", "1")];
 // The two installed shapes: sixteen structural rows, or eight compensation rows.
 const structural = (eqProcess = EQ, srcA = 0, srcB = 1) =>
   compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA, srcB, preampDb: -3, eqProcess });
-const compensation = () => msCompile(EQ, -3, fitComp(DEF.fc, DEF.feed), 1, 0, 1);
+const compensation = () => msCompile(EQ, -3, { fit: fitComp(DEF.fc, DEF.feed), s: 1 }, { a: 0, b: 1 });
 
 // Full reset every time — the mode signal and the staging buffer both outlive a test.
 async function reset({ rows = pair(), enabled = "0", selected = null, fields = [] } = {}) {

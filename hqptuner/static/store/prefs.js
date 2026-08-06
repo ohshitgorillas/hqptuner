@@ -23,6 +23,10 @@ const K_LIVE = "hqptuner.liveMode";
 // but warning per key would spam once per pref per session. One flag, one warn.
 let storageWarned = false;
 
+/**
+ * @param {string} verb
+ * @returns {void}
+ */
 function warnStorage(verb) {
   if (storageWarned) return;
   storageWarned = true;
@@ -33,6 +37,11 @@ function warnStorage(verb) {
   }
 }
 
+/**
+ * @param {string} key
+ * @param {boolean} dflt
+ * @returns {boolean}
+ */
 function loadBool(key, dflt) {
   try {
     const v = localStorage.getItem(key);
@@ -43,6 +52,11 @@ function loadBool(key, dflt) {
   }
 }
 
+/**
+ * @param {string} key
+ * @param {boolean} on
+ * @returns {void}
+ */
 function persist(key, on) {
   try {
     localStorage.setItem(key, on ? "1" : "0");
@@ -55,11 +69,19 @@ function persist(key, on) {
 export const showDescriptions = signal(loadBool(K_DESC, true));
 export const keepOptionDescriptions = signal(loadBool(K_KEEP, true));
 
+/**
+ * @param {boolean} on
+ * @returns {void}
+ */
 export function setShowDescriptions(on) {
   showDescriptions.value = !!on;
   persist(K_DESC, showDescriptions.value);
 }
 
+/**
+ * @param {boolean} on
+ * @returns {void}
+ */
 export function setKeepOptionDescriptions(on) {
   keepOptionDescriptions.value = !!on;
   persist(K_KEEP, keepOptionDescriptions.value);
@@ -71,11 +93,19 @@ export function setKeepOptionDescriptions(on) {
 export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
 export const fastVolumeUpdates = signal(loadBool(K_FAST_VOL, false));
 
+/**
+ * @param {boolean} on
+ * @returns {void}
+ */
 export function setQuickSystemUpdates(on) {
   quickSystemUpdates.value = !!on;
   persist(K_QUICK_SYS, quickSystemUpdates.value);
 }
 
+/**
+ * @param {boolean} on
+ * @returns {void}
+ */
 export function setFastVolumeUpdates(on) {
   fastVolumeUpdates.value = !!on;
   persist(K_FAST_VOL, fastVolumeUpdates.value);
@@ -85,6 +115,10 @@ export function setFastVolumeUpdates(on) {
 // the page the user was working from rather than dropping them into the tabs.
 export const liveMode = signal(loadBool(K_LIVE, false));
 
+/**
+ * @param {boolean} on
+ * @returns {void}
+ */
 export function setLiveMode(on) {
   liveMode.value = !!on;
   persist(K_LIVE, liveMode.value);

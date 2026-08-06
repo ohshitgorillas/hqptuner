@@ -1,5 +1,5 @@
-// DSP tab mode — SPEAKERS or HEADPHONES. A VIEW SELECTOR: it decides which
-// half of the DSP tab is on screen, and it never turns processing on by itself.
+// Matrix tab mode — SPEAKERS or HEADPHONES. A VIEW SELECTOR: it decides which
+// half of the Matrix tab is on screen, and it never turns processing on by itself.
 //
 // Switching to SPEAKERS SUPPRESSES crossfeed (the two are mutually exclusive
 // listening setups — a speaker rig has real ear-to-ear leakage, so synthesizing
@@ -25,6 +25,12 @@ import { stagePipelines, edit } from "./actions.js";
 import { structuralBlock, removeStructural, disableBauer } from "../lib/xfmode.js";
 import { truthy } from "../lib/coerce.js";
 
+// DELIBERATELY still says dspMode, and must stay that way. This module, its
+// signal and its setter were renamed dspMode -> matrixMode when the DSP tab
+// became the Matrix tab, but this string is a PERSISTED localStorage key, not an
+// internal name: every existing install has the user's speakers/headphones
+// choice filed under it. Renaming it to match would silently orphan that value
+// and drop everyone back to the default on upgrade. Leave it.
 const KEY = "hqptuner.dspMode";
 const SNAPSHOT_KEY = "hqptuner.crossfeedSuppressed";
 
@@ -50,6 +56,19 @@ function loadSnapshot() {
 
 let snapshot = loadSnapshot();
 
+/**
+ * @typedef {object} Suppressed
+ *   What the trip to the speaker side took away — the guard for putting exactly
+ *   that back, and nothing else.
+ * @property {import("./resolve.js").PipelineRow[]} rows the pipelines as they stood
+ * @property {string | number | boolean | undefined} crossfeed the Bauer flag as it stood
+ * @property {import("./resolve.js").PipelineRow[]} after what the suppression left behind
+ */
+
+/**
+ * @param {Suppressed | null} v
+ * @returns {void}
+ */
 function saveSnapshot(v) {
   snapshot = v;
   try {
@@ -60,7 +79,7 @@ function saveSnapshot(v) {
   }
 }
 
-export const dspMode = signal(load());
+export const matrixMode = signal(load());
 
 // EVERY crossfeed carrier, since any of them may be installed: the structural
 // block is sixteen matrix rows, Bauer is a post-process flag PLUS the eight
@@ -92,10 +111,14 @@ function restore() {
   if (truthy(snap.crossfeed)) edit("crossfeed_enabled", "1");
 }
 
-export function setDspMode(next) {
+/**
+ * @param {string} next "speakers" | "headphones"
+ * @returns {void}
+ */
+export function setMatrixMode(next) {
   const mode = next === "speakers" ? "speakers" : "headphones";
-  const prev = dspMode.value;
-  dspMode.value = mode;
+  const prev = matrixMode.value;
+  matrixMode.value = mode;
   try {
     localStorage.setItem(KEY, mode);
   } catch {

@@ -160,7 +160,7 @@ function withBrowserGlobals(listeners, active, body) {
 // The bubble: from the dial outwards, every ancestor carrying a handler for this
 // event, then the listeners installed on window/document. Returns how many
 // recipients the event actually had.
-function bubble(chain, event, prop, el, globals) {
+function bubble(chain, event, prop, { el, globals }) {
   let reached = 0;
   for (const v of chain) {
     const handler = v.props && v.props[prop];
@@ -231,7 +231,7 @@ export function knobKeys(vnode) {
   const dispatch = (type, prop, extra) => {
     const event = uiEvent(type, el, extra);
     const globals = (listeners.get(type) || []).slice();
-    return withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, el, globals));
+    return withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, { el, globals }));
   };
 
   const fire = (type, prop, extra) => {
@@ -295,7 +295,7 @@ export function knobDrag(vnode) {
   const fire = (type, prop, clientY, buttons) => {
     const event = pointerEvent(type, el, clientY, buttons);
     const globals = (listeners.get(type) || []).slice();
-    const reached = withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, el, globals));
+    const reached = withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, { el, globals }));
     if (reached === 0)
       throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
   };

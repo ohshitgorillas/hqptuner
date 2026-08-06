@@ -90,7 +90,7 @@ function storeDelete(w, name) {
 }
 
 // /api/livepresets/{name} and its /apply sub-path.
-function onePreset(w, c, name, isApply, method) {
+function onePreset(w, c, { name, isApply, method }) {
   if (isApply) return c.applyStatus === 200 ? ok(c.report) : bad(c.applyStatus, c.applyDetail);
   if (method === "PUT") return storeSave(w, c, name);
   if (method === "DELETE") return storeDelete(w, name);
@@ -124,7 +124,9 @@ export function presetWire(cfg = {}) {
       return c.listStatus === 200 ? ok({ presets: w.presets }) : bad(c.listStatus, c.listDetail);
     }
     const one = ONE.exec(path);
-    return one ? onePreset(w, c, decodeURIComponent(one[1]), Boolean(one[2]), method) : ambient(path, c);
+    return one
+      ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method })
+      : ambient(path, c);
   };
   return w;
 }

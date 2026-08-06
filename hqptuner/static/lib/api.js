@@ -16,6 +16,10 @@
 // the alternative is the bare status code, which tells the control nothing. A
 // LIST detail stays on the fallback: that is FastAPI's request-validation shape,
 // a structure rather than prose.
+/**
+ * @param {{ detail?: unknown } | null | undefined} body the parsed error body
+ * @returns {string} the sentence to show, "" when the body carries none
+ */
 function detailOf(body) {
   const d = body?.detail;
   if (typeof d === "string") return d;
@@ -25,6 +29,11 @@ function detailOf(body) {
     .join("; ");
 }
 
+/**
+ * @param {string} path
+ * @param {Response} r
+ * @returns {Promise<Error>}
+ */
 async function failure(path, r) {
   let detail = "";
   try {
@@ -35,13 +44,20 @@ async function failure(path, r) {
   return new Error(detail || `${path} -> ${r.status}`);
 }
 
+/** @param {string} path */
 async function getJSON(path) {
   const r = await fetch(path);
   if (!r.ok) throw await failure(path, r);
   return r.json();
 }
 
+/**
+ * @param {string} path
+ * @param {string} method
+ * @param {unknown} [body] JSON-serializable payload; omitted sends no body
+ */
 async function send(path, method, body) {
+  /** @type {RequestInit} */
   const opts = { method };
   if (body !== undefined) {
     opts.headers = { "Content-Type": "application/json" };
@@ -52,6 +68,11 @@ async function send(path, method, body) {
   return r.json();
 }
 
+/**
+ * @param {string} path
+ * @param {string} field the multipart field name
+ * @param {File} file
+ */
 async function upload(path, field, file) {
   const fd = new FormData();
   fd.append(field, file);
@@ -63,39 +84,41 @@ async function upload(path, field, file) {
 export const api = {
   health: () => getJSON("/api/health"),
   engine: () => getJSON("/api/engine"),
-  applyEngine: (body) => send("/api/engine", "POST", body),
-  restore: (file) => upload("/api/restore", "cfgfile", file),
+  applyEngine: (/** @type {unknown} */ body) => send("/api/engine", "POST", body),
+  restore: (/** @type {File} */ file) => upload("/api/restore", "cfgfile", file),
   state: () => getJSON("/api/state"),
   status: () => getJSON("/api/status"),
   enumerations: () => getJSON("/api/enumerations"),
   config: () => getJSON("/api/config"),
   matrix: () => getJSON("/api/matrix"),
   speakers: () => getJSON("/api/speakers"),
-  applySpeakers: (body) => send("/api/speakers", "POST", body),
+  applySpeakers: (/** @type {unknown} */ body) => send("/api/speakers", "POST", body),
   metadata: () => getJSON("/api/metadata"),
   pending: () => getJSON("/api/config/pending"),
-  stage: (body) => send("/api/config/stage", "POST", body),
+  stage: (/** @type {unknown} */ body) => send("/api/config/stage", "POST", body),
   discard: () => send("/api/config/pending", "DELETE"),
-  apply: (body) => send("/api/config/apply", "POST", body || {}),
+  apply: (/** @type {unknown} */ body) => send("/api/config/apply", "POST", body || {}),
   // the LIVE view's whole write path: applied on the spot, readback-verified,
-  // never staged (store/live.js)
-  live: (fields) => send("/api/config/live", "POST", { fields }),
+  // never staged (store/live/write.js)
+  live: (/** @type {Record<string, string>} */ fields) => send("/api/config/live", "POST", { fields }),
   // Live presets — HQPTuner's own record, never the daemon's. A save takes no
   // body: the backend snapshots the running engine itself, so the browser has
   // nothing to send that the daemon has not already reported.
   livePresets: () => getJSON("/api/livepresets"),
-  saveLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT"),
-  applyLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
-  deleteLivePreset: (name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
+  saveLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT"),
+  applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
+  deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
   refreshDevices: () => send("/api/config/refresh", "POST"),
-  setAutosave: (enabled) => send("/api/autosave", "POST", { enabled }),
-  profile: (action, name) => send(`/api/profile/${action}`, "POST", { name }),
-  preset: (name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
-  deletePreset: (name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
+  setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
+  profile: (/** @type {string} */ action, /** @type {string} */ name) =>
+    send(`/api/profile/${action}`, "POST", { name }),
+  preset: (/** @type {string} */ name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
+  deletePreset: (/** @type {string} */ name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
   autoeq: () => getJSON("/api/autoeq"),
-  uploadFilter: (file) => upload("/api/matrix/filter", "file", file),
-  matrixProfile: (action, name) => send("/api/matrix/profile", "POST", { action, name }),
+  uploadFilter: (/** @type {File} */ file) => upload("/api/matrix/filter", "file", file),
+  matrixProfile: (/** @type {string} */ action, /** @type {string} */ name) =>
+    send("/api/matrix/profile", "POST", { action, name }),
   volume: () => getJSON("/api/volume"),
-  setVolume: (level) => send("/api/volume", "POST", { level: String(level) }),
-  log: (lines = 50) => getJSON(`/api/log?lines=${lines}`),
+  setVolume: (/** @type {string | number} */ level) => send("/api/volume", "POST", { level: String(level) }),
+  log: (/** @type {number} */ lines = 50) => getJSON(`/api/log?lines=${lines}`),
 };

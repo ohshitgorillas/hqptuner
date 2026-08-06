@@ -29,6 +29,7 @@ const sdmOverride = signal(null);
 // effective() reads the whole staged + liveOverride signal maps, so ANY field
 // edit re-runs this effect. Without the guard, editing an unrelated setting
 // wipes the override and slams a card the user just opened shut.
+/** @type {string | number | boolean | undefined} */
 let prevMode;
 effect(() => {
   const mode = effective("output_mode");
@@ -58,7 +59,7 @@ const FILTER_CONTROLS = [
 const fftOpen = computed(() =>
   FILTER_CONTROLS.some(([key, field]) => {
     const v = String(effective(key));
-    const opt = optionsFor("config", field).find((o) => String(o.value) === v);
+    const opt = optionsFor("config", field).find((/** @type {OptionItem} */ o) => String(o.value) === v);
     return !!opt && /\bFFT\b/i.test(opt.label);
   }),
 );

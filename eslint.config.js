@@ -6,6 +6,7 @@
 // htm / signals bundles are upstream and excluded everywhere.
 import js from "@eslint/js";
 import globals from "globals";
+import sonarjs from "eslint-plugin-sonarjs";
 import oneAssertionPerTest from "./eslint-rules/one-assertion-per-test.js";
 import noHandRolledCard from "./eslint-rules/no-hand-rolled-card.js";
 
@@ -19,7 +20,19 @@ const RULES = {
   "no-var": "error",
   "prefer-const": "error",
   "no-console": ["error", { allow: ["warn", "error"] }],
+  "max-params": ["error", 4],
+  "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+  "no-else-return": "error",
+  "consistent-return": "error",
+  "no-shadow": "error",
+  "no-unused-private-class-members": "error",
+  // Cognitive complexity catches the deeply-nested-but-linear functions that
+  // cyclomatic complexity scores as cheap.
+  "sonarjs/cognitive-complexity": "error",
+  "sonarjs/no-identical-functions": "error",
 };
+
+const PLUGINS = { sonarjs };
 
 export default [
   // mutants/ is `make mutate`'s copy of the whole tree, static/ included. eslint
@@ -48,7 +61,7 @@ export default [
   {
     files: ["hqptuner/static/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
-    plugins: { hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
+    plugins: { ...PLUGINS, hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
     rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
   },
   {
@@ -61,7 +74,7 @@ export default [
     // one-assertion gate is the JS peer of scripts/gates/check_test_assertions.py.
     files: ["tests/js/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
-    plugins: { hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest } } },
+    plugins: { ...PLUGINS, hqptuner: { rules: { "one-assertion-per-test": oneAssertionPerTest } } },
     rules: { ...RULES, "hqptuner/one-assertion-per-test": "error" },
   },
   {
@@ -70,6 +83,7 @@ export default [
     // stdout and fetch.
     files: ["scripts/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
+    plugins: PLUGINS,
     rules: RULES,
   },
   {

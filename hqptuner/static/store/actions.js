@@ -22,11 +22,24 @@ let stageSeq = 0;
 // so the edit being staged is judged in the state the user just put it in: an
 // edit returning a control to its baseline reports itself, in the same request
 // that stages it, and the server's merge-then-drop order settles it.
-const stageBody = (body) => ({ ...body, drop: cleanStagedKeys() });
+/**
+ * @typedef {object} StageBody
+ *   One stage POST's edits, in the two lanes' own key domains: `live` is nested
+ *   one level (setter key -> arg -> value), `http` is flat form-field names.
+ * @property {Record<string, Record<string, string>>} live
+ * @property {Record<string, string>} http
+ */
+
+const stageBody = (/** @type {StageBody} */ body) => ({ ...body, drop: cleanStagedKeys() });
 
 // Stage the whole pipeline set (optimistic, like edit()). A set identical to
 // baseline still stages — isDirty's string compare then reads clean, same as any
 // field, and `drop` is what stops that clean entry sitting in the buffer.
+/**
+ * @param {import("./resolve.js").PipelineRow[]} rows
+ * @param {Record<string, string>} [extra] further http-lane fields, same POST
+ * @returns {Promise<void>}
+ */
 export async function stagePipelines(rows, extra = {}) {
   await stageHttp({ matrix_pipelines: canonPipelines(rows), ...extra });
 }
@@ -35,6 +48,10 @@ export async function stagePipelines(rows, extra = {}) {
 // a schema key and resolves `e.field` from it; a saved profile's post-process
 // mapping is already keyed by wire names (matrix_pipelines, post_bauer_*), so it
 // has no schema key to go through. Latest-wins like stagePipelines.
+/**
+ * @param {Record<string, string>} fields
+ * @returns {Promise<void>}
+ */
 async function stageHttp(fields) {
   staged.value = { live: staged.value.live, http: { ...staged.value.http, ...fields } };
   const seq = ++stageSeq;
@@ -47,10 +64,19 @@ async function stageHttp(fields) {
 // server pending store so staging survives a browser reload, then re-mirrors it.
 // Live knob-drag override (see liveOverride): setLive updates instantly with no
 // server hit; the commit path (edit) stages the value then clears the override.
+/**
+ * @param {string} key
+ * @param {string | number | boolean} value
+ * @returns {void}
+ */
 export function setLive(key, value) {
   liveOverride.value = { ...liveOverride.value, [key]: String(value) };
 }
 
+/**
+ * @param {string} key
+ * @returns {void}
+ */
 function clearLive(key) {
   if (!(key in liveOverride.value)) return;
   const next = { ...liveOverride.value };
@@ -63,11 +89,18 @@ function clearLive(key) {
 // switches the preset to "custom". Values are the libbs2b canonical parameter
 // sets HQPlayer's Bauer plugin is built on. Applied within the same stage POST
 // as the primary edit, so the coupled fields move together.
+/** @type {Record<string, [string, string]>} */
 const BAUER_PRESETS = { default: ["700", "4.5"], cmoy: ["700", "6.0"], jmeier: ["650", "9.5"] };
 
+/**
+ * @param {string} key
+ * @param {string | number | boolean} value
+ * @param {Record<string, string>} http the same POST's http lane, written in place
+ * @returns {void}
+ */
 function applyBauerCoupling(key, value, http) {
-  if (key === "crossfeed_preset" && BAUER_PRESETS[value]) {
-    const [f, l] = BAUER_PRESETS[value];
+  if (key === "crossfeed_preset" && BAUER_PRESETS[String(value)]) {
+    const [f, l] = BAUER_PRESETS[String(value)];
     http.post_bauer_frequency = f;
     http.post_bauer_level = l;
   } else if (key === "crossfeed_frequency" || key === "crossfeed_level") {
@@ -81,12 +114,23 @@ function applyBauerCoupling(key, value, http) {
 // Auto headroom kept the volume control locked with no reachable control left to
 // clear it. So enabling either mode CLEARS the other, as a visible staged edit
 // in the same POST — the pending bar shows both moves, nothing happens silently.
+/**
+ * @param {string} key
+ * @param {string | number | boolean} value
+ * @param {Record<string, string>} http the same POST's http lane, written in place
+ * @returns {void}
+ */
 function applyFixedVolumeCoupling(key, value, http) {
   const on = truthy(value);
   if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
   else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
 }
 
+/**
+ * @param {string} key
+ * @param {string | number | boolean} value
+ * @returns {Promise<void>}
+ */
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
@@ -95,6 +139,7 @@ export async function edit(key, value) {
   // count (a failed apply keeps its staging), and a stale one sitting next to a
   // fresh edit would read as this edit having failed before it was ever sent.
   lastApply.value = null;
+  /** @type {StageBody} */
   const body = { live: {}, http: {} };
   if (e.lane === "live") {
     const prior = staged.value.live[e.liveKey] || {};
@@ -128,6 +173,10 @@ export async function discardAll() {
 // would then fire a destructive `switch_to` reload of the preset already loaded.
 // Treat it as clearing the preview instead. Any staged field edits stand on
 // their own and still read as dirty over the active baseline.
+/**
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
 export async function previewPreset(name) {
   if (name === activePreset.value) {
     clearPreview();
@@ -148,6 +197,10 @@ export function clearPreview() {
 
 // Delete a stored preset (store + daemon mirror), then refresh so the picker
 // drops it. Clears the preview if the deleted preset was the one being previewed.
+/**
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
 export async function deletePreset(name) {
   if (!name) return;
   await api.deletePreset(name);
@@ -163,6 +216,12 @@ export const lastApply = signal(null); // {ok, text} of the most recent apply
 // pill and the pending bar can show it, and report a thrown failure as a
 // `lastApply` the user can read rather than a rejected promise nobody catches.
 // The lane still rethrows — the caller decides what a hard failure means.
+/**
+ * @template T
+ * @param {() => Promise<T>} run
+ * @param {string} what lane name, for the failure sentence
+ * @returns {Promise<T>}
+ */
 async function applyLane(run, what) {
   applying.value = true;
   try {
@@ -178,6 +237,12 @@ async function applyLane(run, what) {
 // Apply the staged set. The backend keeps staging on a soft failure, so on
 // return we re-mirror it: a failed/held edit stays staged and — once the poll
 // loop marks the daemon reachable again — the Apply button re-enables itself.
+/**
+ * @param {{ name: string }} [save] preset to save into as part of the apply. An
+ *   OBJECT, not a bare name: it goes out as the request body's `save`, and the
+ *   backend reads `body.save.name` (api/app.py:239, models.py SaveTarget).
+ * @returns {Promise<import("./apply-summary.js").ApplyReport>}
+ */
 export async function applyAll(save) {
   const count = stagedCount.value; // capture before apply clears the staged set
   // never send a switch to the preset already loaded — that reload is a no-op
@@ -188,6 +253,7 @@ export async function applyAll(save) {
   const previewed = pendingPreset.value;
   const switchTo = previewed !== null && previewed !== activePreset.value ? previewed : null;
   return applyLane(async () => {
+    /** @type {{ save?: { name: string }, switch_to?: string }} */
     const body = {};
     if (save) body.save = save;
     if (switchTo !== null) body.switch_to = switchTo;
@@ -202,6 +268,10 @@ export async function applyAll(save) {
 // Standalone save — persist the CURRENT running config to a named preset with
 // nothing staged (the "I like this, keep it" path). Reuses the applying signal:
 // the save lane POSTs /restore, so the daemon briefly restarts just like an apply.
+/**
+ * @param {string} name
+ * @returns {Promise<import("./apply-summary.js").SaveResult>}
+ */
 export async function savePresetOnly(name) {
   return applyLane(async () => {
     const r = await api.profile("save", name);
@@ -215,6 +285,10 @@ export async function savePresetOnly(name) {
 
 // Auto-save: with this preset-store flag on, the backend folds every successful apply/live write into the active preset.
 export const autosave = computed(() => !!(config.value && config.value.autosave));
+/**
+ * @param {boolean} enabled
+ * @returns {Promise<void>}
+ */
 export async function setAutosave(enabled) {
   await api.setAutosave(enabled);
   await mirror(api.config, config);
@@ -222,6 +296,10 @@ export async function setAutosave(enabled) {
 
 // Immediate live-volume write. Echoes the readback level into `volume` so the
 // slider reflects the applied value without waiting for the next poll.
+/**
+ * @param {string | number} level dB
+ * @returns {Promise<{ volume?: string }>}
+ */
 export async function setVolume(level) {
   const r = await api.setVolume(level);
   if (r && r.volume != null) volume.value = r.volume;

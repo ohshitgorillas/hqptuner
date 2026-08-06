@@ -9,8 +9,34 @@ import { config, engineState, matrixConfig, staged, liveOverride, previewConfig,
 
 // A form's fields keyed by name — the baseline/constraint source a control
 // reads from. Empty until that form has been polled at least once.
+/**
+ * @typedef {object} FormField
+ *   One field of a daemon form as conf/httpconf.py parses it — /config and
+ *   /matrix alike. `value` carries the widget's own domain: a real boolean for a
+ *   checkbox, a number for a number input, the selected option's string for a
+ *   select and a plain text input.
+ * @property {string} name
+ * @property {string} type checkbox | number | select | text | …
+ * @property {string | number | boolean} value
+ * @property {SchemaOption[]} [options] select only
+ * @property {number} [min] number only
+ * @property {number} [max]
+ * @property {number} [step]
+ * @property {string} [on_value] checkbox only: what the daemon expects on submit
+ * @property {string} [section]
+ * @property {string} [label]
+ *
+ * @typedef {Record<string, string | number | undefined>} PipelineRow
+ *   One matrix pipeline row, in the loose shape the editor and the /matrix form
+ *   hand around; canonRow is what narrows it to the all-string canonical form.
+ */
+
+/**
+ * @param {{ value: { fields?: FormField[] } }} form
+ */
 const byName = (form) =>
   computed(() => {
+    /** @type {Record<string, FormField>} */
     const map = {};
     for (const f of (form.value && form.value.fields) || []) map[f.name] = f;
     return map;
@@ -22,6 +48,10 @@ export const configByName = byName(config);
 export const matrixByName = byName(matrixConfig);
 
 // http-lane field source: /matrix for endpoint "matrix", /config otherwise.
+/**
+ * @param {SchemaField} entry
+ * @returns {Record<string, FormField>}
+ */
 export function httpFieldMap(entry) {
   return entry.endpoint === "matrix" ? matrixByName.value : configByName.value;
 }
@@ -30,6 +60,10 @@ export function httpFieldMap(entry) {
 // entry.field (also the staged key), but the matrix globals stage under prefixed
 // names (matrix_engine — the write lane's namespace) while the daemon's form
 // field is bare (engine): entry.formField carries the read-side name.
+/**
+ * @param {SchemaField} entry
+ * @returns {string}
+ */
 export function formFieldName(entry) {
   return entry.formField || entry.field;
 }
@@ -42,14 +76,14 @@ const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows
 // field, matching the backend's read_pipelines serialization byte-for-byte
 // (alphabetical keys, compact, all-string values) so dirty-compare and the
 // apply's verify diff both reduce to string equality.
-const canonRow = (r) => ({
+const canonRow = (/** @type {PipelineRow} */ r) => ({
   gain: String(r.gain ?? "0"),
   gainunit: r.gainunit || "dB",
   mixdown: String(r.mixdown ?? "0"),
   process: r.process || "",
   source: String(r.source ?? "0"),
 });
-export const canonPipelines = (rows) => JSON.stringify(rows.map(canonRow));
+export const canonPipelines = (/** @type {PipelineRow[]} */ rows) => JSON.stringify(rows.map(canonRow));
 
 // Whether a matrix profile is switched live right now. The switch is memory-only
 // (4321 MatrixSetProfile), so the config file keeps its own rows while the engine
@@ -108,6 +142,10 @@ export const activePreset = computed(() => (config.value && config.value.active)
 
 // A previewed preset's values are the baseline for its grounded fields, so the
 // editor shows the preset before it's applied and tweaks read as dirty over it.
+/**
+ * @param {SchemaField} entry
+ * @returns {{ value: string | number | boolean } | null}
+ */
 function previewedValue(entry) {
   const preview = previewConfig.value;
   return preview && entry.field in preview ? { value: preview[entry.field] } : null;
@@ -122,6 +160,10 @@ function previewedValue(entry) {
 // overlaid with the live lane's changes), which is what the control must show —
 // otherwise the dropdown snaps back after Apply and re-selecting the previous
 // filter reads as clean, leaving no way to go back to it.
+/**
+ * @param {SchemaField} entry
+ * @returns {{ value: string | number | boolean } | null}
+ */
 function fileValue(entry) {
   if (!entry.fileTruth && !entry.appliesLive) return null;
   const fv = fileConfig.value[entry.field];
@@ -131,6 +173,10 @@ function fileValue(entry) {
 // The daemon's own form, last. No file truth available (no credentials, or the
 // backup read failed) means falling back to the form's boolean, normalized into
 // the field's own domain so a staged "1" doesn't read as dirty against `true`.
+/**
+ * @param {SchemaField} entry
+ * @returns {string | number | boolean | undefined}
+ */
 function formValue(entry) {
   const f = httpFieldMap(entry)[formFieldName(entry)];
   if (!f) return undefined;
@@ -138,6 +184,10 @@ function formValue(entry) {
   return f.value;
 }
 
+/**
+ * @param {SchemaField} entry
+ * @returns {string | number | boolean | undefined}
+ */
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
   // Not a form field: with no file truth (read-only mode) formValue finds nothing
@@ -148,6 +198,10 @@ function baseline(entry) {
   return grounded ? grounded.value : formValue(entry);
 }
 
+/**
+ * @param {SchemaField} entry
+ * @returns {string | undefined}
+ */
 function stagedValue(entry) {
   const st = staged.value;
   if (entry.lane === "live") {
@@ -161,6 +215,10 @@ function stagedValue(entry) {
 // running config forms, ignoring staged edits AND preset preview. For surfaces
 // that must reflect what is actually processing right now (signal path, the
 // live-volume banner), never the editor's pending picture.
+/**
+ * @param {string} key
+ * @returns {string | number | boolean | undefined}
+ */
 export function runningValue(key) {
   const e = schema[key];
   if (!e) return undefined;
@@ -174,6 +232,10 @@ export function runningValue(key) {
 }
 
 // effective(key) — what a control renders: staged edit if present, else baseline.
+/**
+ * @param {string} key
+ * @returns {string | number | boolean | undefined}
+ */
 export function effective(key) {
   const e = schema[key];
   if (!e) return undefined;
@@ -188,6 +250,10 @@ export function effective(key) {
 // stops reading as dirty (else it stays highlighted until Discard). That is every
 // checkbox plus every `bool` entry — the enable gates render as two-button
 // segments but their value is a truth, not a token (see Field.js controlValue).
+/**
+ * @param {string} key
+ * @returns {boolean}
+ */
 export function isDirty(key) {
   const e = schema[key];
   if (!e) return false;
@@ -211,14 +277,16 @@ export function isDirty(key) {
 export function cleanStagedKeys() {
   const st = staged.value;
   const keys = Object.keys(schema);
-  const httpKeys = (field) => keys.filter((k) => schema[k].lane !== "live" && schema[k].field === field);
-  const liveKeys = (liveKey, arg) =>
+  const httpKeys = (/** @type {string} */ field) =>
+    keys.filter((k) => schema[k].lane !== "live" && schema[k].field === field);
+  const liveKeys = (/** @type {string} */ liveKey, /** @type {string} */ arg) =>
     keys.filter(
       (k) => schema[k].lane === "live" && schema[k].liveKey === liveKey && (schema[k].arg || "value") === arg,
     );
   // grounded AND unanimous: a field two controls share is a change while either
   // of them still reads dirty against it
-  const clean = (matches) => matches.length > 0 && !matches.some(isDirty);
+  const clean = (/** @type {string[]} */ matches) => matches.length > 0 && !matches.some(isDirty);
+  /** @type {Record<string, string[]>} */
   const live = {};
   for (const [liveKey, bucket] of Object.entries(st.live)) {
     const args = Object.keys(bucket).filter((arg) => clean(liveKeys(liveKey, arg)));

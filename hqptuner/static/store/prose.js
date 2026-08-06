@@ -20,6 +20,32 @@ import { notesVisible } from "./prefs.js";
 // names the settings.json key when it differs from the control key (e.g.
 // alsa_bits + net_bits both -> "dac_bits", the rate split -> "rate"); it
 // defaults to the control key.
+/**
+ * @typedef {object} ControlProse
+ *   One control's settings.json row.
+ * @property {string} label
+ * @property {string} tooltip
+ * @property {Record<string, string>} [options] per-VALUE prose (`desc: "config"`)
+ *
+ * @typedef {object} OverlayEntry
+ *   One filters.json / shapers.json row, as far as this module reads it.
+ * @property {string} [description]
+ * @property {string} [notes]
+ *
+ * @typedef {object} Metadata
+ *   The static overlay bundle /api/metadata serves.
+ * @property {{ filters?: Record<string, OverlayEntry>, aliases?: Record<string, string>,
+ *   two_stage_note?: string }} [filters]
+ * @property {{ sdm_modulators?: Record<string, OverlayEntry>,
+ *   pcm_dithers?: Record<string, OverlayEntry> }} [shapers]
+ * @property {Record<string, Record<string, ControlProse>>} [settings]
+ */
+
+/**
+ * @param {SchemaField} entry
+ * @param {string} key
+ * @returns {ControlProse}
+ */
 export function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
   return g[entry.note || key] || { label: key, tooltip: "" };
@@ -30,6 +56,10 @@ export function describe(entry, key) {
 // with the manual text switched off there is no subtitle either. Returns ''
 // rather than null so a call site can pass it
 // straight to Card (an empty subtitle renders nothing).
+/**
+ * @param {string} key
+ * @returns {string}
+ */
 export function noteFor(key) {
   if (!notesVisible.value) return "";
   const entry = schema[key];
@@ -38,6 +68,11 @@ export function noteFor(key) {
 
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
 // selected option's label.
+/**
+ * @param {{ value: string | number | undefined, label: string }[]} options
+ * @param {string | number | boolean | undefined} value
+ * @returns {string}
+ */
 function selectedLabel(options, value) {
   const opt = (options || []).find((o) => String(o.value) === String(value));
   return (opt && opt.label) || "";
@@ -46,6 +81,12 @@ function selectedLabel(options, value) {
 // Filter join rules (data/filters.json _join_rules): exact -> alias -> strip a
 // '-2s' suffix and retry, which flags the two-stage variant. Returns the joined
 // entry (null on a miss) plus that flag.
+/**
+ * @param {string} name
+ * @param {Record<string, OverlayEntry>} fdb
+ * @param {Record<string, string>} aliases
+ * @returns {{ entry: OverlayEntry | null, twoStage: boolean }}
+ */
 function joinFilter(name, fdb, aliases) {
   let n = name;
   let twoStage = false;
@@ -63,10 +104,15 @@ function joinFilter(name, fdb, aliases) {
 // quality source materials.", NS1's ultrasonic-noise warning. Those sentences sat
 // unread in the data until this joined them, so the UI stayed silent where the
 // manual warns. Empty parts drop out rather than leaving a stray separator.
-const joinProse = (...parts) => parts.filter(Boolean).join(" ");
+const joinProse = (/** @type {string[]} */ ...parts) => parts.filter(Boolean).join(" ");
 
 // A two-stage filter reads as its base prose plus the shared two-stage note, which
 // describes the variant rather than the filter and so comes last.
+/**
+ * @param {string} name
+ * @param {Metadata} md
+ * @returns {string}
+ */
 function filterDescription(name, md) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
@@ -75,6 +121,12 @@ function filterDescription(name, md) {
 }
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
+/**
+ * @param {string} kind "dither" | "modulator"
+ * @param {string} name
+ * @param {Metadata} md
+ * @returns {string}
+ */
 function shaperDescription(kind, name, md) {
   const shapers = md.shapers || {};
   const db = kind === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
@@ -88,6 +140,13 @@ function shaperDescription(kind, name, md) {
 //   desc = config -> per-value prose from this control's settings.json `options`
 //     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
 //     conversion — enums whose meaning is per-value, not per-control).
+/**
+ * @param {SchemaField} entry
+ * @param {string | number | boolean | undefined} value
+ * @param {{ value: string | number | undefined, label: string }[]} options
+ * @param {ControlProse} meta
+ * @returns {string}
+ */
 export function selectionDescription(entry, value, options, meta) {
   if (!entry.desc) return "";
   if (entry.desc === "config") return (meta && meta.options && meta.options[String(value)]) || "";
@@ -100,6 +159,12 @@ export function selectionDescription(entry, value, options, meta) {
 
 // Same joins, addressed by one option instead of the current selection — the
 // per-option hover tip in the combobox reads each row's prose through this.
+/**
+ * @param {SchemaField} entry
+ * @param {{ value: string | number | undefined, label: string }} option
+ * @param {ControlProse} meta
+ * @returns {string}
+ */
 export function optionDescription(entry, option, meta) {
   if (!entry.desc) return "";
   if (entry.desc === "config") return (meta && meta.options && meta.options[String(option.value)]) || "";

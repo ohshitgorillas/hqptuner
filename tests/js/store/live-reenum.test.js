@@ -1,4 +1,4 @@
-// Behavioral suite for store/live.js's RE-ENUMERATION WINDOW — what a live write
+// Behavioral suite for store/live/write.js's RE-ENUMERATION WINDOW — what a live write
 // that makes the engine rebuild its menus does to the lists the page reads, and
 // what a write that leaves the menus alone does not do.
 //
@@ -35,7 +35,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { engineState, enums, config } from "../../../hqptuner/static/store/signals.js";
-import { liveModel, liveErrors, liveBusy, writeLive } from "../../../hqptuner/static/store/live.js";
+import { liveModel } from "../../../hqptuner/static/store/live/model.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
+import { writeLive } from "../../../hqptuner/static/store/live/write.js";
 import { ok, bad } from "../support/wire.js";
 
 const FILTERS = [

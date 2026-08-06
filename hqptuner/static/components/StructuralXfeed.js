@@ -9,9 +9,10 @@
 // which is also the thing the three controls actually move.
 import { html } from "../lib/dom.js";
 import { effectivePipelines } from "../store/resolve.js";
-import { bandFreqs, chainResponse } from "../lib/dsp.js";
+import { bandFreqs } from "../lib/dsp/curves.js";
+import { chainResponse } from "../lib/dsp/chain.js";
 import { parseProcess } from "../lib/matrixspec.js";
-import { midSideResponse, magDb } from "../lib/binaural.js";
+import { midSideResponse, magDb } from "../lib/binaural/response.js";
 // One toggle over both crossfeeds: the button is on the RESPONSE card and the
 // state it writes lives with the compensation lens, so the two gate together.
 import { lensShown } from "./XfeedComp.js";
@@ -26,22 +27,33 @@ import { structuralBlock, structuralParams } from "../lib/xfmode.js";
 // with the EQ hidden it reads as the whole picture. Folding the EQ in is what the
 // compensation lens does, and why it works — the center shift shows as the gap
 // between the EQ alone and the EQ heard through the crossfeed.
+/**
+ * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ */
+
+/**
+ * @param {PipelineRow[]} rows the effective matrix pipelines
+ * @param {{ min: number, max: number }} bounds the chart's dB extent, widened in place
+ * @returns {PlotTrace[]}
+ */
 export function structuralLensTraces(rows, bounds) {
   if (!lensShown()) return [];
   const rec = structuralBlock(rows);
   if (!rec) return [];
   const p = structuralParams(rows);
   const freqs = bandFreqs(160);
+  /** @param {(f: number) => number} fn */
   const mk = (fn) =>
     freqs.map((f) => {
       const db = fn(f);
       bounds.min = Math.min(bounds.min, db);
       bounds.max = Math.max(bounds.max, db);
-      return [f, db];
+      return /** @type {[number, number]} */ ([f, db]);
     });
+  /** @param {string} chain a pipeline row's `process` string */
   const eqDb = (chain) => {
     const stages = parseProcess(chain);
-    return (f) => (stages.length ? chainResponse(stages, f, FS).db : 0);
+    return (/** @type {number} */ f) => (stages.length ? chainResponse(stages, f, FS).db : 0);
   };
   const symmetric = rec.eqProcess.left === rec.eqProcess.right;
   const ears = symmetric

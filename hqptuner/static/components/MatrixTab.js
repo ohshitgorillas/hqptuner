@@ -22,10 +22,14 @@ import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./MatrixFlowRow.js";
 import { setSelected } from "./MatrixStageEditor.js";
 import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
-import { dspMode, setDspMode } from "../store/dspmode.js";
+import { matrixMode, setMatrixMode } from "../store/matrixmode.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { Section, Card } from "./tabs/common.js";
 import { BypassNote } from "./MatrixBypassNote.js";
+
+/**
+ * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ */
 
 const pipelinesCardOpen = signal(true);
 
@@ -63,7 +67,7 @@ const importText = signal("");
 // Each mode keeps its own answer, so switching across and back does not lose it.
 const importMirrorHeadphones = signal(true);
 const importMirrorSpeakers = signal(false);
-const importMirror = () => (dspMode.value === "speakers" ? importMirrorSpeakers : importMirrorHeadphones);
+const importMirror = () => (matrixMode.value === "speakers" ? importMirrorSpeakers : importMirrorHeadphones);
 // One note per card: the library lane writes libraryNote, which renders in the
 // Headphone Auto EQ card; the .txt and per-row lanes write importNote, which
 // renders in the Pipelines card. A lane never writes into a card the click did
@@ -83,6 +87,12 @@ const libraryNote = signal("");
 // extends the plot selection. Mirroring arrives from the calling lane rather
 // than being read here, and the note is returned rather than assigned, so each
 // lane decides both for itself.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} targetIndex
+ * @param {{ replace?: boolean, mirror: boolean }} opts
+ * @returns {string} what the calling lane should report, ready to render
+ */
 function doImport(rows, targetIndex, { replace = false, mirror }) {
   const { bs, rec } = xfeedBlock(rows);
   const plan = planEqImport(rows, targetIndex, {
@@ -111,6 +121,7 @@ function doImport(rows, targetIndex, { replace = false, mirror }) {
 // row's "Import EQ" reads as a button that did nothing. The parsed text stays in
 // `importText` afterwards, so the per-row buttons still work for retargeting EQ
 // at an arbitrary pipeline. Input value resets so the same file re-fires.
+/** @param {{ target: HTMLInputElement }} e */
 function loadEqFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -130,13 +141,14 @@ function LoadEqButton() {
   </label>`;
 }
 
+/** @param {{ rows: PipelineRow[] }} props */
 function ImportPanel({ rows }) {
   // Library "Load profile" is ONE click: the profile's verbatim ParametricEQ.txt
   // applies immediately to pipeline 1 and its stereo pair — always both, never
   // the mirror checkbox's answer. A library profile is one curve for a headphone
   // model, and there is no such thing as a left-ear-only one; the checkbox has
   // no meaningful answer on this lane, and it lives in another card besides.
-  const loadText = (text) => {
+  const loadText = (/** @type {string} */ text) => {
     importText.value = text;
     // library load REPLACES the previous profile
     libraryNote.value = doImport(rows, 0, { replace: true, mirror: true });
@@ -163,18 +175,71 @@ function HeadphoneEqCard() {
   `;
 }
 
+// What a pipeline is, for anyone who has notes turned on.
+const PipelinesNote = () =>
+  notesVisible.value
+    ? html`<div class="field-note">
+        Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files
+        (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines
+        sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert
+        polarity (e.g. for M/S processing).
+      </div>`
+    : null;
+
+// Export every pipeline's parametric EQ as one REW / Equalizer APO file.
+/** @param {{ rows: PipelineRow[] }} props */
+function ExportEqButton({ rows }) {
+  const eqExport = pipelinesToRewText(rows);
+  return html`<button
+    type="button"
+    class="btn mtx-file-btn"
+    disabled=${!eqExport.count}
+    title=${
+      eqExport.count
+        ? `Export all ${eqExport.count} pipeline(s)' EQ as REW / Equalizer APO text${
+            eqExport.skipped.length ? ` (${eqExport.skipped.length} stage(s) not representable, omitted)` : ""
+          }`
+        : "No parametric EQ in the pipeline set to export"
+    }
+    onClick=${() => downloadText("hqptuner-matrix-eq.txt", eqExport.text)}
+  >
+    Export AutoEq / REW .txt…
+  </button>`;
+}
+
+// Add a pipeline, and the file lane: mirror toggle, load, export.
+/** @param {{ rows: PipelineRow[], add: () => void }} props */
+function PipelinesActions({ rows, add }) {
+  return html`
+    <div class="mtx-pipelines-actions">
+      <button type="button" class="mtx-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>+ Add pipeline</button>
+      <div class="mtx-file-actions">
+        <label class="mtx-import-mirror">
+          <input type="checkbox" checked=${importMirror().value} onChange=${(/** @type {{ target: HTMLInputElement }} */ e) => (importMirror().value = e.target.checked)} />
+          mirror to stereo pair
+        </label>
+        <${LoadEqButton} />
+        <${ExportEqButton} rows=${rows} />
+      </div>
+    </div>
+  `;
+}
+
 function PipelinesCard() {
   const open = pipelinesCardOpen.value;
-  const rows = effectivePipelines.value;
-  const baseline = pipelineBaseline.value;
+  const rows = /** @type {PipelineRow[]} */ (effectivePipelines.value);
+  const baseline = /** @type {PipelineRow[]} */ (pipelineBaseline.value);
   // The import signals are private to this module, so the row tools' "is EQ
   // text staged?" state rides down as a prop, the way `importHere` already does.
   const eqLoaded = !!importText.value.trim();
+  /** @type {Record<string, number>} */
   const perTarget = {};
   for (const r of rows) perTarget[r.mixdown] = (perTarget[r.mixdown] || 0) + 1;
-  const rowDirty = (i) => canonPipelines([rows[i]]) !== canonPipelines(baseline[i] ? [baseline[i]] : []);
-  const update = (i, patch) => stagePipelines(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const remove = (i) => {
+  const rowDirty = (/** @type {number} */ i) =>
+    canonPipelines([rows[i]]) !== canonPipelines(baseline[i] ? [baseline[i]] : []);
+  const update = (/** @type {number} */ i, /** @type {Partial<PipelineRow>} */ patch) =>
+    stagePipelines(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const remove = (/** @type {number} */ i) => {
     setSelected(null);
     stagePipelines(rows.filter((_, j) => j !== i));
   };
@@ -188,16 +253,7 @@ function PipelinesCard() {
       // already yields an array, and Card wraps it in the card body.
       html`
         <${BypassNote} />
-        ${
-          notesVisible.value
-            ? html`<div class="field-note">
-                Each pipeline copies a source channel through a chain of processing stages — filter impulse-response
-                files (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output
-                channel. Pipelines sharing an output channel are summed (Σ). Gain applies in dB or linear scale;
-                negative linear factors invert polarity (e.g. for M/S processing).
-              </div>`
-            : null
-        }
+        <${PipelinesNote} />
         <div class="mtx-global">
           <${Field} k="pipelines" />
         </div>
@@ -212,48 +268,13 @@ function PipelinesCard() {
               summing=${perTarget[r.mixdown] > 1}
               canRemove=${rows.length > 1}
               eqLoaded=${eqLoaded}
-              update=${(patch) => update(i, patch)}
+              update=${(/** @type {Partial<PipelineRow>} */ patch) => update(i, patch)}
               remove=${() => remove(i)}
               importHere=${() => (importNote.value = doImport(rows, i, { mirror: importMirror().value }))}
             />
           `,
         )}
-        <div class="mtx-pipelines-actions">
-          <button type="button" class="mtx-add-row" disabled=${rows.length >= MAX_CH} onClick=${add}>
-            + Add pipeline
-          </button>
-          <div class="mtx-file-actions">
-            <label class="mtx-import-mirror">
-              <input
-                type="checkbox"
-                checked=${importMirror().value}
-                onChange=${(e) => (importMirror().value = e.target.checked)}
-              />
-              mirror to stereo pair
-            </label>
-            <${LoadEqButton} />
-            ${(() => {
-              const eqExport = pipelinesToRewText(rows);
-              return html`<button
-                type="button"
-                class="btn mtx-file-btn"
-                disabled=${!eqExport.count}
-                title=${
-                  eqExport.count
-                    ? `Export all ${eqExport.count} pipeline(s)' EQ as REW / Equalizer APO text${
-                        eqExport.skipped.length
-                          ? ` (${eqExport.skipped.length} stage(s) not representable, omitted)`
-                          : ""
-                      }`
-                    : "No parametric EQ in the pipeline set to export"
-                }
-                onClick=${() => downloadText("hqptuner-matrix-eq.txt", eqExport.text)}
-              >
-                Export AutoEq / REW .txt…
-              </button>`;
-            })()}
-          </div>
-        </div>
+        <${PipelinesActions} rows=${rows} add=${add} />
         ${importNote.value ? html`<div class="mtx-issues">${importNote.value}</div>` : null}
       `
     : null;
@@ -305,27 +326,27 @@ function HeadphoneGlyph() {
 }
 
 // The mode switcher. A VIEW selector: it decides which listening setup's
-// controls are on screen and never turns processing on (store/dspmode.js). The
+// controls are on screen and never turns processing on (store/matrixmode.js). The
 // matrix, the pipelines and the response plot are common to both and stay put
 // below it — they are the signal path itself, not a headphone feature.
 function DspSwitcher() {
-  const mode = dspMode.value;
+  const mode = matrixMode.value;
   return html`
-    <div class="dsp-switcher">
+    <div class="matrix-switcher">
       <${Segment}
         value=${mode}
         options=${[
           { value: "speakers", label: html`<${SpeakerGlyph} />Speakers` },
           { value: "headphones", label: html`<${HeadphoneGlyph} />Headphones` },
         ]}
-        onChange=${setDspMode}
+        onChange=${setMatrixMode}
       />
     </div>
   `;
 }
 
 export function MatrixTab() {
-  const speakerMode = dspMode.value === "speakers";
+  const speakerMode = matrixMode.value === "speakers";
   return html`<${Section}>
     <${DspSwitcher} />
     <div class="card-grid">

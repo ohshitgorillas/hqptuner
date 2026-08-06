@@ -13,6 +13,7 @@ export const ACCENTS = ["blue", "green", "amber", "violet"];
 const DEFAULT = "blue";
 // each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
 // hex box when a swatch is picked, so custom colors start from the preset
+/** @type {Record<string, string>} */
 export const ACCENT_HEX = {
   blue: "#4f9dde",
   green: "#3fe0a0",
@@ -45,9 +46,13 @@ export const accentHex = signal(loadHex()); // "" = follow the preset swatch
 
 // --accent-glow is the brighter hero sibling; derive it from a custom hex by
 // pulling each channel 30% toward white (matches the presets' glow relationship)
+/**
+ * @param {string} hex
+ * @returns {string}
+ */
 function glowOf(hex) {
   const n = parseInt(hex.slice(1), 16);
-  const ch = (s) => {
+  const ch = (/** @type {number} */ s) => {
     const c = (n >> s) & 255;
     return Math.round(c + (255 - c) * 0.3)
       .toString(16)
@@ -56,6 +61,10 @@ function glowOf(hex) {
   return `#${ch(16)}${ch(8)}${ch(0)}`;
 }
 
+/**
+ * @param {string} hex
+ * @returns {void}
+ */
 function setInline(hex) {
   const st = document.documentElement.style;
   if (hex) {
@@ -70,6 +79,10 @@ function setInline(hex) {
 // Persist + apply a preset swatch. Sets the root attribute the CSS keys on and
 // drops any custom-hex override, so the swap is instant and every accent site
 // follows from the one variable.
+/**
+ * @param {string} name
+ * @returns {void}
+ */
 export function applyAccent(name) {
   const v = ACCENTS.includes(name) ? name : DEFAULT;
   accent.value = v;
@@ -86,6 +99,10 @@ export function applyAccent(name) {
 
 // Persist + apply a custom hex, overriding the preset via inline --accent.
 // Invalid input is ignored (the box simply doesn't take).
+/**
+ * @param {string} hex
+ * @returns {void}
+ */
 export function applyAccentHex(hex) {
   const v = (hex || "").trim().startsWith("#") ? hex.trim() : `#${(hex || "").trim()}`;
   if (!HEX_RE.test(v)) return;

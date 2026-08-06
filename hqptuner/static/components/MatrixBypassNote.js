@@ -36,6 +36,9 @@ import { truthy } from "../lib/coerce.js";
 // `text` overrides the sentence for a card whose grievance is not "these
 // settings": the Matrix response card is showing a CURVE rather than controls,
 // so it says what is not being applied instead of what has no effect.
+/**
+ * @param {{ text?: string }} props an override for the default sentence
+ */
 export function BypassNote({ text }) {
   if (truthy(effective("matrix_enabled"))) return null;
   return html`<div class="mtx-bypass-note">${text || MATRIX_BYPASS_REASON}</div>`;

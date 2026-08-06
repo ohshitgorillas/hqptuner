@@ -21,6 +21,25 @@ import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, 
 import { Combobox } from "./controls/Combobox.js";
 import { Knob } from "./Knob.js";
 
+/**
+ * @typedef {SchemaField & { narrow?: string, slider?: boolean }} FieldEntry
+ *   One schema catalog entry. `narrow` (which facet family a filter dropdown
+ *   narrows on) and `slider` (knob variant switch) are on the catalog entries in
+ *   store/schema.js but not on the ambient `SchemaField`, so they are added here.
+ *   Two more fields on that declaration disagree with the catalog and are NOT
+ *   patched here, because a local override would stop a FieldEntry being a
+ *   SchemaField everywhere the stores ask for one: `scale` and `rateGray` are
+ *   declared number and boolean while store/schema.js writes "log" and
+ *   "pcm"/"sdm". Those belong in types/shared.d.ts.
+ * @typedef {{ label: string, tooltip: string }} FieldMeta
+ *   What store/prose.js describe() resolves for a key: the manual's name for the
+ *   control and its prose.
+ * @typedef {{ n: number, total: number }} NarrowBadge
+ * @typedef {OptionItem[] | SchemaOption[] | undefined} FieldOptions
+ *   A control's option list — the stores' enriched form, the schema's bare
+ *   value+label form, or nothing at all for the non-list widgets.
+ */
+
 const WIDGETS = {
   segment: Segment,
   dropdown: Dropdown,
@@ -38,21 +57,32 @@ const WIDGETS = {
 // rows the page owns. Every other dropdown keeps the native control. Exported
 // so the LIVE page's hand-rolled binder makes the identical pick — this
 // decision exists here and nowhere else.
-const tipped = (entry) => entry.desc && entry.widget === "dropdown";
-export const widgetFor = (entry) => (tipped(entry) ? Combobox : WIDGETS[entry.widget]);
+const tipped = (/** @type {FieldEntry} */ entry) => entry.desc && entry.widget === "dropdown";
+export const widgetFor = (/** @type {FieldEntry} */ entry) =>
+  tipped(entry) ? Combobox : WIDGETS[/** @type {keyof typeof WIDGETS} */ (entry.widget)];
 // The combobox's per-row tip resolver; undefined for every native widget.
-export const tipsFor = (entry, meta) => (tipped(entry) ? (o) => optionDescription(entry, o, meta) : undefined);
+export const tipsFor = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ meta) =>
+  tipped(entry) ? (/** @type {OptionItem} */ o) => optionDescription(entry, o, meta) : undefined;
 // Favorite-star wiring for the four filter dropdowns (`narrow`-carrying
 // entries), keyed by option label = filter name (store/favorites.js); undefined
 // everywhere else, so dither/modulator comboboxes render starless. Shared with
 // the LIVE page's binder, same as widgetFor/tipsFor.
-export const favFor = (entry) =>
-  entry.narrow ? { fav: (o) => isFavorite(o.label), onFav: (o) => toggleFavorite(o.label) } : undefined;
+export const favFor = (/** @type {FieldEntry} */ entry) =>
+  entry.narrow
+    ? {
+        fav: (/** @type {OptionItem} */ o) => isFavorite(o.label),
+        onFav: (/** @type {OptionItem} */ o) => toggleFavorite(o.label),
+      }
+    : undefined;
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds). A schema entry may
 // carry fallback min/max/step for fields whose form gives none (loudness
 // steepness) — the form's value wins whenever it exists.
+/**
+ * @param {FieldEntry} entry
+ * @param {"min" | "max" | "step"} name
+ */
 function cfgConstraint(entry, name) {
   if (entry.lane !== "http") return entry[name];
   const f = httpFieldMap(entry)[formFieldName(entry)];
@@ -84,12 +114,22 @@ function RescanButton() {
 // baseline matched neither "1" nor "0" and the switch rendered with NO active
 // button at all. `bool` on the entry says "this control's value is a truth, not
 // a token": normalise it to the pair the options are written in.
+/**
+ * @param {FieldEntry} entry
+ * @param {string} key
+ */
 function controlValue(entry, key) {
   const v = effective(key);
   return entry.bool ? (truthy(v) ? "1" : "0") : v;
 }
 
 // Widget kind + the layout opt-ins + the dirty highlight, in that order.
+/**
+ * @param {FieldEntry} entry
+ * @param {string} key
+ * @param {string} label
+ * @returns {string}
+ */
 function fieldClasses(entry, key, label) {
   return `field field-${entry.widget} ${label ? "" : "field-nolabel"} ${entry.wide ? "wide" : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
 }
@@ -99,11 +139,20 @@ function fieldClasses(entry, key, label) {
 // the active facets; shaper selects gray what the output rate can't reach.
 // The field key threads into narrowOptions so a 1x dropdown reads its OWN
 // apodizing state (per-chain, store/narrowing.js).
+/**
+ * @param {FieldEntry} entry
+ * @returns {FieldOptions}
+ */
 function rawOptions(entry) {
   if (entry.optionsFrom === "enum") return enumOptions(entry.enumKey);
   if (entry.optionsFrom) return optionsFor(entry.optionsFrom, formFieldName(entry));
   return entry.options;
 }
+/**
+ * @param {FieldEntry} entry
+ * @param {string} key
+ * @returns {FieldOptions}
+ */
 function fieldOptions(entry, key) {
   let options = rawOptions(entry);
   if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow, key);
@@ -118,6 +167,11 @@ function fieldOptions(entry, key) {
 // Live result badge for a narrowable dropdown: "n/total" of how many options
 // survive the active facets, counted off the RAW (pre-narrow) list. Always
 // muted — accent on a control means staged edit, nothing else.
+/**
+ * @param {FieldEntry} entry
+ * @param {string} key
+ * @returns {NarrowBadge | null}
+ */
 function narrowBadge(entry, key) {
   if (!entry.narrow) return null;
   return narrowCount(rawOptions(entry), entry.narrow, key);
@@ -131,12 +185,15 @@ function narrowBadge(entry, key) {
 // suppressed too, on every field: its card already carries BypassNote saying
 // the same sentence once, so a per-field caption would repeat it under every
 // control on the card. The reason still grays and still reaches the hover title.
-const captionVisible = (entry, reason) => !!reason && !entry.quietGray && reason !== MATRIX_BYPASS_REASON;
+const captionVisible = (/** @type {FieldEntry} */ entry, /** @type {string} */ reason) =>
+  !!reason && !entry.quietGray && reason !== MATRIX_BYPASS_REASON;
 // `inlineGray` moves that caption off the stack and into the control row, to
 // the right of the widget itself, for short reasons on narrow controls where a
 // line of its own under the manual note reads as unrelated prose.
-const inlineCaption = (entry, reason) => captionVisible(entry, reason) && !!entry.inlineGray;
-const stackedCaption = (entry, reason) => captionVisible(entry, reason) && !entry.inlineGray;
+const inlineCaption = (/** @type {FieldEntry} */ entry, /** @type {string} */ reason) =>
+  captionVisible(entry, reason) && !!entry.inlineGray;
+const stackedCaption = (/** @type {FieldEntry} */ entry, /** @type {string} */ reason) =>
+  captionVisible(entry, reason) && !entry.inlineGray;
 
 // Hover title. desc-carrying fields (filters, DSD sources) render the
 // per-selection prose inline, so their hover always carries the OVERALL feature
@@ -148,6 +205,12 @@ const stackedCaption = (entry, reason) => captionVisible(entry, reason) && !entr
 // tooltip outranks the gray reason. Elsewhere the reason takes the hover only
 // when its visible caption is suppressed — a visible caption plus the same text
 // on hover is duplication.
+/**
+ * @param {FieldEntry} entry
+ * @param {FieldMeta} meta
+ * @param {string} reason
+ * @returns {string}
+ */
 function hoverTitle(entry, meta, reason) {
   const tip = entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
   if (entry.hoverNote) return tip || reason;
@@ -156,7 +219,13 @@ function hoverTitle(entry, meta, reason) {
 
 // The prose under the control, in reading order: per-selection manual text,
 // static feature note, gray reason.
-function fieldProse(entry, key, meta, reason, options) {
+/**
+ * @param {FieldEntry} entry
+ * @param {string} key
+ * @param {FieldMeta} meta
+ * @param {{ reason: string, options: FieldOptions }} state
+ */
+function fieldProse(entry, key, meta, { reason, options }) {
   const showDesc = entry.desc && descVisible.value;
   const showNote = !entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value;
   return html`
@@ -168,6 +237,9 @@ function fieldProse(entry, key, meta, reason, options) {
 
 // Label row: the field name, optional sub-label, and the live narrow-result
 // badge ("14/68", always muted).
+/**
+ * @param {{ entry: FieldEntry, label: string, badge: NarrowBadge | null }} props
+ */
 function FieldLabel({ entry, label, badge }) {
   return html`
     <label>
@@ -180,6 +252,9 @@ function FieldLabel({ entry, label, badge }) {
 // The two captions that ride in the control row beside the widget: a gray
 // reason placed inline by schema `inlineGray`, and an advisory note (`adviseWhen`)
 // on a control that stays live.
+/**
+ * @param {{ entry: FieldEntry, reason: string, advice: string }} props
+ */
 function ControlCaptions({ entry, reason, advice }) {
   return html`
     ${inlineCaption(entry, reason) ? html`<span class="field-gray-reason">${reason}</span>` : null}
@@ -187,8 +262,11 @@ function ControlCaptions({ entry, reason, advice }) {
   `;
 }
 
+/**
+ * @param {{ k: string }} props
+ */
 export function Field({ k }) {
-  const entry = schema[k];
+  const entry = /** @type {Record<string, FieldEntry>} */ (schema)[k];
   if (!entry) return null;
   const W = widgetFor(entry);
   const meta = describe(entry, k);
@@ -226,16 +304,16 @@ export function Field({ k }) {
           unit=${entry.unit}
           label=${label}
           disabled=${!!reason}
-          onChange=${(v) => edit(k, v)}
-          onLive=${(v) => setLive(k, v)}
-          onCommit=${(v) => edit(k, v)}
+          onChange=${(/** @type {string | number} */ v) => edit(k, v)}
+          onLive=${(/** @type {string | number} */ v) => setLive(k, v)}
+          onCommit=${(/** @type {string | number} */ v) => edit(k, v)}
         />
         ${entry.unit && entry.widget !== "knob" ? html`<span class="unit">${entry.unit}</span>` : null}
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
         <${ControlCaptions} entry=${entry} reason=${reason} advice=${advice} />
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
-      ${fieldProse(entry, k, meta, reason, options)}
+      ${fieldProse(entry, k, meta, { reason, options })}
     </div>
   `;
 }

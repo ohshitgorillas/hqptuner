@@ -9,7 +9,7 @@
 // reset every test. Blocks are built with the real compiler, never hand-typed.
 //
 // The readout numbers asserted here are physics of the published model (Brown &
-// Duda via lib/binaural.js) at stated control values — contract facts a listener
+// Duda via lib/binaural/geometry.js) at stated control values — contract facts a listener
 // reads off the card, not implementation echoes.
 //
 // NOT covered, because SSR never fires an event handler and module-private
@@ -42,7 +42,8 @@ import {
   removeStructural,
   structuralBlock,
 } from "../../../hqptuner/static/lib/xfmode.js";
-import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { staticWire, stagingWire } from "../support/wire.js";
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";

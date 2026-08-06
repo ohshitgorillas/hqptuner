@@ -71,10 +71,10 @@ import {
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../hqptuner/static/store/speakers.js";
-import { dspMode } from "../../../hqptuner/static/store/dspmode.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
 import { xfMode, liveParams, remember } from "../../../hqptuner/static/lib/xfmode.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
@@ -250,7 +250,7 @@ async function reset({ matrix = "0", crossfeed = "1", correction = "1", loudness
   };
   resetNarrowing();
   await discardAll();
-  dspMode.value = "headphones";
+  matrixMode.value = "headphones";
   liveParams.value = null;
   remember({ lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS });
   xfMode.value = view;

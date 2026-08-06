@@ -1,19 +1,20 @@
 // Field → tab, for accenting a tab whose staged edits are hidden behind the
 // pending bar. Schema `group` is NOT the tab: the "dsp" group straddles the
-// Resampling and DSP tabs, and dsp-group fields like `channels` render on
+// Resampling and Matrix tabs, and dsp-group fields like `channels` render on
 // Output. The mapping is sourced from the k= fields each tab component actually
-// renders — keep these sets in sync with tabs/*.js and ResamplingTab.js. The DSP
-// tab ("matrix") is the fallback: the remaining dsp-group fields (crossfeed_*,
-// matrix_*, pipelines) light it without being enumerated.
+// renders — keep these sets in sync with tabs/*.js and ResamplingTab.js. The
+// Matrix tab ("matrix") is the fallback: the remaining dsp-group fields
+// (crossfeed_*, matrix_*, pipelines) light it without being enumerated.
 //
 // Harvesting k= only finds keys rendered through Field, so a bespoke component's
-// keys are invisible to it and fall silently through to the DSP tab — which is
-// how the VolumeRangeBar trio below went missing. tabmap.test.js pins the DSP set
-// literally so the next one fails a test instead of accenting the wrong tab.
+// keys are invisible to it and fall silently through to the Matrix tab — which is
+// how the VolumeRangeBar trio below went missing. tabmap.test.js pins the Matrix
+// set literally so the next one fails a test instead of accenting the wrong tab.
 import { computed } from "@preact/signals";
 import { schema } from "./schema.js";
 import { isDirty } from "./resolve.js";
 
+/** @type {Record<string, Set<string>>} */
 const TAB_KEYS = {
   output: new Set([
     "output_mode",
@@ -83,6 +84,10 @@ const TAB_KEYS = {
   system: new Set(["log_enabled", "log_file"]),
 };
 
+/**
+ * @param {string} key
+ * @returns {string}
+ */
 function tabForKey(key) {
   for (const tab in TAB_KEYS) if (TAB_KEYS[tab].has(key)) return tab;
   return "matrix";

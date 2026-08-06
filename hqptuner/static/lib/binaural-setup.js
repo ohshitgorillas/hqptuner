@@ -29,23 +29,39 @@
 // the user can see, and a conflict arriving via a preset load (whose snapshot
 // carries post_bauer_enabled) has to be visible for the same reason.
 
+/**
+ * @typedef {import("./matrixspec.js").PipelineRow} PipelineRow
+ *   A type-only reference: JSDoc `import()` is erased, so this file still pulls
+ *   in nothing at runtime (see the header).
+ * @typedef {string | number | boolean | undefined} ConfigValue
+ *   One control's rendered value, as `effective` resolves it.
+ * @typedef {{ refused?: boolean, eq?: { left: string, right: string },
+ *   gain?: { left: number, right: number } }} PairInfo
+ *   What the block carries in from the pair it takes over — or `{refused: true}`,
+ *   which is why every other field is optional.
+ */
+
 const BLOCK_CONFLICTS = [
   {
     key: "crossfeed_enabled",
     required: "0",
-    conflicts: (value) => value === "1" || value === true,
+    conflicts: (/** @type {ConfigValue} */ value) => value === "1" || value === true,
     reason: "HQPlayer's own crossfeed runs after the matrix, so both at once is two crossfeeds in series.",
   },
   {
     key: "matrix_iir2fir",
     required: "0",
-    conflicts: (value) => String(value) === "2",
+    conflicts: (/** @type {ConfigValue} */ value) => String(value) === "2",
     reason: "Linear-phase conversion flattens the group delay, which is what carries the delay between your ears.",
   },
 ];
 
 // Conflicts standing between the current config and this block, as
 // [{ key, current, required, reason }]. Empty means the block is safe to install.
+/**
+ * @param {(key: string) => ConfigValue} effective
+ * @returns {{ key: string, current: ConfigValue, required: string, reason: string }[]}
+ */
 export function blockConflicts(effective) {
   return BLOCK_CONFLICTS.filter((c) => c.conflicts(effective(c.key))).map((c) => ({
     key: c.key,
@@ -85,8 +101,12 @@ const refused = () => ({ refused: true });
 // not recognized as one — installed and instantly invisible. A converted linear
 // gain lands off-grid almost always, an entered dB gain occasionally, and both
 // come back out through `removeStructural` at this same precision anyway.
-const snapDb = (v) => Math.round(v * 1000) / 1000;
+const snapDb = (/** @type {number} */ v) => Math.round(v * 1000) / 1000;
 
+/**
+ * @param {PipelineRow} row
+ * @returns {number | null}
+ */
 function gainDb(row) {
   const raw = Number(row.gain);
   if (!Number.isFinite(raw)) return null;
@@ -94,16 +114,20 @@ function gainDb(row) {
   return raw > 0 ? snapDb(20 * Math.log10(raw)) : null;
 }
 
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {PairInfo}
+ */
 export function pairInfo(rows) {
   const [a, b] = rows;
   if (!a || !b) return refused();
-  const straight = (x, ch) => x.source === ch && x.mixdown === ch;
+  const straight = (/** @type {PipelineRow} */ x, /** @type {string} */ ch) => x.source === ch && x.mixdown === ch;
   let l;
   let r;
   if (straight(a, "0") && straight(b, "1")) [l, r] = [a, b];
   else if (straight(a, "1") && straight(b, "0")) [l, r] = [b, a];
   else return refused();
-  if (rows.slice(2).some((x) => x.mixdown === "0" || x.mixdown === "1")) return refused();
+  if (rows.slice(2).some((/** @type {PipelineRow} */ x) => x.mixdown === "0" || x.mixdown === "1")) return refused();
   const left = gainDb(l);
   const right = gainDb(r);
   if (left === null || right === null) return refused();
@@ -135,6 +159,10 @@ export const PRESETS = [
 // Which preset the current controls correspond to, or "custom". Derived, never
 // stored — the same convention the Bauer preset dropdown follows, so any manual
 // touch of angle or center falls to Custom on its own.
+/**
+ * @param {{ angle: number, lambda: number }} controls
+ * @returns {string} the matching preset id, or "custom"
+ */
 export function matchPreset({ angle, lambda }) {
   const hit = PRESETS.find((p) => Math.abs(p.angle - angle) < 0.05 && Math.abs(p.lambda - lambda) < 0.005);
   return hit ? hit.id : "custom";

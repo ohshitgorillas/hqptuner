@@ -66,9 +66,10 @@ import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
 import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../hqptuner/static/store/speakers.js";
-import { dspMode } from "../../../hqptuner/static/store/dspmode.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { xfMode } from "../../../hqptuner/static/lib/xfmode.js";
-import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { edit, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -146,7 +147,7 @@ async function reset({ on = "0", rows = ROWS, mode = "headphones", view = null }
     profiles: null,
   };
   await discardAll();
-  dspMode.value = mode;
+  matrixMode.value = mode;
   xfMode.value = view;
   chooseSet("2.0");
 }

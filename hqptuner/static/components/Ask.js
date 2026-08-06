@@ -17,11 +17,26 @@ import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { question, answer, cancel, clearRefusal, toggleChoice } from "../store/ask.js";
 
+/**
+ * @typedef {{ owner: string, kind: string, message: string, refused?: boolean,
+ *   options?: ChoiceOption[] }} Question
+ *   The open question as store/ask.js publishes it. `options` exists on the
+ *   "choices" kind only; `refused` is set by the name kind's empty-answer path.
+ * @typedef {{ current: HTMLInputElement | null }} FieldRef
+ */
+
+/**
+ * @param {{ key: string, currentTarget: HTMLInputElement }} e
+ */
 function onKey(e) {
   if (e.key === "Enter") answer(e.currentTarget.value);
   else if (e.key === "Escape") cancel();
 }
 
+/**
+ * @param {Question} q
+ * @param {FieldRef} ref
+ */
 const nameField = (q, ref) => html`
   <span class="ask">
     <label class="ask-msg" for="ask-field">${q.message}</label>
@@ -35,6 +50,9 @@ const nameField = (q, ref) => html`
 // The choices ask renders as a dropdown panel anchored under the row that
 // asked — .multi-pop is the app's one popover chrome (narrowing.css), borrowed
 // here so this reads as the same species as the filter facet dropdowns.
+/**
+ * @param {Question} q
+ */
 const choicesList = (q) => html`
   <span class="ask ask-choices">
     <span class="multi-pop ask-pop">
@@ -60,6 +78,9 @@ const choicesList = (q) => html`
   </span>
 `;
 
+/**
+ * @param {Question} q
+ */
 const confirmLine = (q) => html`
   <span class="ask">
     <span class="ask-msg">${q.message}</span>
@@ -68,6 +89,9 @@ const confirmLine = (q) => html`
   </span>
 `;
 
+/**
+ * @param {{ owner: string }} props
+ */
 export function Ask({ owner }) {
   const ref = useRef(null);
   const q = question.value;

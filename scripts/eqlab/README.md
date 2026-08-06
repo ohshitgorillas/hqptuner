@@ -1,6 +1,6 @@
 # eqlab — agent operating manual
 
-Read-only measurement rig for the HQPTuner EQ chain. Same math the UI plots (`lib/dsp.js` `chainResponse`, grammar `lib/matrixspec.js`) — nothing reimplemented. Never writes the daemon: sole request is `GET /api/matrix`. Writes go to files only (snapshots, exports). It emits a process string; applying it is the human's move.
+Read-only measurement rig for the HQPTuner EQ chain. Same math the UI plots (`lib/dsp/chain.js` `chainResponse`, grammar `lib/matrixspec.js`) — nothing reimplemented. Never writes the daemon: sole request is `GET /api/matrix`. Writes go to files only (snapshots, exports). It emits a process string; applying it is the human's move.
 
 ```
 node scripts/eqlab/eqlab.js < job.json    # JSON on stdout, table on stderr

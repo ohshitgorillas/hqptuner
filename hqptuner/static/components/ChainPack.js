@@ -7,6 +7,9 @@
 import { toChildArray } from "preact";
 import { html } from "../lib/dom.js";
 
+/**
+ * @param {{ children?: unknown }} props the chain's controls, in sequence
+ */
 export function ChainPack({ children }) {
   const kids = toChildArray(children);
   return html`

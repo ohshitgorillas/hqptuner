@@ -21,6 +21,10 @@ import { Section, Card, collapseFrom } from "./common.js";
 const info = computed(() => (health.value && health.value.info) || {});
 const license = computed(() => (health.value && health.value.license) || {});
 
+/**
+ * @param {{ valid?: string | number | boolean } | null | undefined} l the health payload's `license` block
+ * @returns {string}
+ */
 const licenseLabel = (l) => {
   if (!l || l.valid == null) return "";
   // anything that isn't an explicit false/trial reads as licensed -> TRUE
@@ -80,7 +84,10 @@ const DescriptionPrefs = () => html`
   <div class="field">
     <label>Feature descriptions</label>
     <div class="control">
-      <${Checkbox} value=${showDescriptions.value ? "1" : "0"} onChange=${(v) => setShowDescriptions(v === "1")} />
+      <${Checkbox}
+        value=${showDescriptions.value ? "1" : "0"}
+        onChange=${(/** @type {string | number} */ v) => setShowDescriptions(v === "1")}
+      />
     </div>
     <div class="field-note">Show the description from the manual under each feature. Disabling this converts those descriptions to hover tips.</div>
   </div>
@@ -90,13 +97,14 @@ const DescriptionPrefs = () => html`
       <${Checkbox}
         value=${keepOptionDescriptions.value ? "1" : "0"}
         disabled=${showDescriptions.value}
-        onChange=${(v) => setKeepOptionDescriptions(v === "1")}
+        onChange=${(/** @type {string | number} */ v) => setKeepOptionDescriptions(v === "1")}
       />
     </div>
     <div class="field-note">Keep filter and DSD source option descriptions when feature descriptions are hidden</div>
   </div>
 `;
 
+/** @type {Record<string, string>} */
 const ACCENT_LABELS = { blue: "Blue", green: "Phosphor green", amber: "Amber", violet: "Violet" };
 
 // Swatches pick a preset; the hex box beside them holds that preset's value
@@ -122,8 +130,8 @@ const AccentPicker = () => html`
         type="text"
         class="accent-hex"
         maxlength="7"
-        value=${accentHex.value || ACCENT_HEX[accent.value]}
-        onChange=${(e) => applyAccentHex(e.target.value)}
+        value=${accentHex.value || ACCENT_HEX[/** @type {keyof typeof ACCENT_HEX} */ (accent.value)]}
+        onChange=${(/** @type {{ target: HTMLInputElement }} */ e) => applyAccentHex(e.target.value)}
         aria-label="Custom accent hex"
       />
     </div>

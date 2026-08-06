@@ -8,6 +8,11 @@
 // A factory rather than a plain polar(deg, r, cx, cy): each diagram has its own
 // centre constants, and binding them once keeps all eight call sites reading as
 // polar(angle, radius) instead of carrying the centre through every call.
+/**
+ * @param {number} cx
+ * @param {number} cy
+ * @returns {(deg: number, r: number) => number[]}
+ */
 export const polarAround = (cx, cy) => (deg, r) => {
   const rad = (deg * Math.PI) / 180;
   return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];

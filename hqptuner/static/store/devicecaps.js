@@ -20,8 +20,25 @@ import { truthy } from "../lib/coerce.js";
 // The form field naming the device each backend drives. Combo drives both at
 // once and is deliberately absent: the log announces one device, so which one's
 // limits apply is unknown and combo narrows nothing.
+/**
+ * @typedef {object} DeviceCaps
+ *   One output device's announcement, as engine/devicecaps.py serves it under
+ *   /api/config `device_caps`. Both rate lists are integer Hz.
+ * @property {string} device
+ * @property {number[]} pcm_rates
+ * @property {number[]} dsd_rates
+ *
+ * @typedef {object} DeviceOption
+ *   The one member of a menu option this module tests. Deliberately looser than
+ *   OptionItem: the lists reaching here are the schema's own bare {value, label}
+ *   rate tables as well as OptionItem lists from the option stores.
+ * @property {string | number | undefined} value
+ */
+
+/** @type {Record<string, string>} */
 const DEVICE_FIELD = { network: "net_device", alsa: "alsa_device" };
 // DoP is a per-backend switch, on the same map for the same reason.
+/** @type {Record<string, string>} */
 const DOP_FIELD = { network: "net_dop", alsa: "alsa_dop" };
 
 // DoP carries DSD inside an ordinary PCM stream, one DSD bit per carrier bit at
@@ -34,7 +51,7 @@ const backend = () => String(effective("backend") || "");
 
 // Both members of a tier — the menu's own 48k value and its 44.1k twin. A device
 // announcing either can play that tier, so both are asked about.
-const members = (tier) => [String(tier), TWIN_44K[tier]].filter(Boolean);
+const members = (/** @type {string | number | undefined} */ tier) => [String(tier), TWIN_44K[tier]].filter(Boolean);
 
 // The capability, but only when it is about the device the user is looking at.
 // The backend compares its announcement against the APPLIED device; the staged
@@ -62,6 +79,11 @@ const UNAVAILABLE = "unavailable";
 
 // Which DSD tiers the device can reach: the ones it announced outright, plus —
 // when DoP is on — the ones whose carrier it announced as a PCM rate.
+/**
+ * @param {DeviceCaps} caps
+ * @param {string | number | undefined} tier
+ * @returns {boolean}
+ */
 function dsdReachable(caps, tier) {
   const native = new Set((caps.dsd_rates || []).map(String));
   if (members(tier).some((r) => native.has(r))) return true;
@@ -70,6 +92,11 @@ function dsdReachable(caps, tier) {
   return members(tier).some((r) => pcm.has(String(Number(r) / DOP_DIVISOR)));
 }
 
+/**
+ * @param {DeviceCaps} caps
+ * @param {string | number | undefined} tier
+ * @returns {boolean}
+ */
 function pcmReachable(caps, tier) {
   const announced = new Set((caps.pcm_rates || []).map(String));
   return members(tier).some((r) => announced.has(r));
@@ -77,6 +104,12 @@ function pcmReachable(caps, tier) {
 
 // Gray the rate tiers the selected device cannot carry. `family` is 'pcm' or
 // 'sdm' — the menu being narrowed, not the running chain.
+/**
+ * @template {DeviceOption} T
+ * @param {T[]} options
+ * @param {string} family
+ * @returns {(T | (T & { disabled: boolean, reason: string }))[]}
+ */
 export function grayRatesByDevice(options, family) {
   const caps = deviceCaps.value;
   if (!caps) return options;
@@ -111,12 +144,19 @@ function sdmReason() {
 // at Apply is not a reason to withhold it (CLAUDE.md, "user actions always
 // proceed"): the restart is the user's to spend, at the moment they click.
 
+/** @type {Record<string, string>} */
 const RATE_KEY = { pcm: "pcm_rate", sdm: "sdm_rate" };
+/** @type {Record<string, (caps: DeviceCaps, tier: string | number | undefined) => boolean>} */
 const REACHES = { pcm: pcmReachable, sdm: dsdReachable };
 // One correction per key per value, so a stage the backend refuses cannot spin
 // the effect into re-POSTing it forever.
 const corrected = new Map();
 
+/**
+ * @param {string} key
+ * @param {string | number | undefined} value
+ * @returns {void}
+ */
 function correct(key, value) {
   if (corrected.get(key) === value) return;
   corrected.set(key, value);
@@ -125,11 +165,21 @@ function correct(key, value) {
 
 // The highest tier the device can carry, '' when it can carry none. The menus
 // run low to high, so the last survivor is the highest.
+/**
+ * @param {DeviceCaps} caps
+ * @param {string} family
+ * @returns {string | number | undefined}
+ */
 function highestReachable(caps, family) {
   const reachable = schema[RATE_KEY[family]].options.filter((o) => REACHES[family](caps, o.value));
   return reachable.length ? reachable[reachable.length - 1].value : "";
 }
 
+/**
+ * @param {DeviceCaps} caps
+ * @param {string} family
+ * @returns {void}
+ */
 function correctRate(caps, family) {
   const key = RATE_KEY[family];
   const current = String(effective(key) || "");
@@ -157,6 +207,11 @@ effect(() => {
 // Gray the SDM button on a mode segment when the device cannot do DSD. Auto is
 // left alone: in auto the engine picks the family per track and will settle on
 // PCM by itself, so there is nothing unreachable to warn about.
+/**
+ * @template {DeviceOption} T
+ * @param {T[]} options
+ * @returns {(T | (T & { disabled: boolean, reason: string }))[]}
+ */
 export function grayModesByDevice(options) {
   const reason = sdmReason();
   if (!reason) return options;

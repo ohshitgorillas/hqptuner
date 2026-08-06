@@ -18,10 +18,22 @@ const R = 104; // speaker distance, fixed — angle is the variable, not the rad
 // Head radius in metres to pixels. Real spread is ~7-10 cm and the difference
 // has to be visible without the head becoming a boulder, so the range is mapped
 // across a deliberately narrow band.
+/**
+ * @param {number} metres
+ * @returns {number}
+ */
 const headPx = (metres) => 15 + ((Math.min(0.105, Math.max(0.065, metres)) - 0.065) / 0.04) * 10;
+
+/**
+ * @typedef {[number, number]} Pt
+ *   An [x, y] point in the diagram's own viewBox coordinates.
+ */
 
 const polar = polarAround(CX, CY);
 
+/**
+ * @param {{ deg: number }} props degrees off the forward axis; negative is left
+ */
 function Speaker({ deg }) {
   const [x, y] = polar(deg, R);
   // rotate by the same angle so the baffle faces the listener — toed in
@@ -38,6 +50,11 @@ function Speaker({ deg }) {
 // Without this the control reads as moving the speakers wider and further away —
 // the constant radius is true but invisible, so the quantity being changed is not
 // the one the diagram appears to show.
+/**
+ * @param {number} deg
+ * @param {number} r arc radius, in viewBox units
+ * @returns {string} an SVG path
+ */
 function angleArc(deg, r) {
   const [sx, sy] = polar(0, r);
   const [ex, ey] = polar(deg, r);
@@ -84,15 +101,26 @@ const STANDOFF = 12;
 const BEND = (40 * Math.PI) / 180;
 const LEAD = 0.8; // how far along the graze ray the first control point sits
 
+/**
+ * @param {number} r
+ * @param {number} a angle in radians
+ * @returns {Pt}
+ */
 const at = (r, a) => [CX + r * Math.cos(a), CY + r * Math.sin(a)];
 
+/**
+ * @param {Pt} speaker the speaker's position
+ * @param {number} earDeg the far ear on the head circle: 0 = right, 180 = left
+ * @param {number} hr head radius in viewBox units
+ * @returns {string} an SVG path
+ */
 function farPath([sx, sy], earDeg, hr) {
   const ro = hr + STANDOFF;
   const theta = Math.atan2(sy - CY, sx - CX);
   const alpha = Math.acos(Math.min(1, ro / Math.hypot(sx - CX, sy - CY)));
   const dir = earDeg === 0 ? 1 : -1; // swing toward that ear: 0 = right, 180 = left
   const rad = (earDeg * Math.PI) / 180;
-  const f = (n) => n.toFixed(1);
+  const f = (/** @type {number} */ n) => n.toFixed(1);
 
   const [gx, gy] = at(ro, theta + dir * alpha); // where an undeflected ray grazes
   const [c1x, c1y] = [sx + (gx - sx) * LEAD, sy + (gy - sy) * LEAD];
@@ -101,13 +129,20 @@ function farPath([sx, sy], earDeg, hr) {
   return `M${f(sx)} ${f(sy)} C${f(c1x)} ${f(c1y)} ${f(c2x)} ${f(c2y)} ${f(ex)} ${f(ey)}`;
 }
 
+/**
+ * @param {{ angle: number, headRadius: number }} props speaker angle in degrees,
+ *   head radius in metres
+ */
 export function CrossfeedGeometry({ angle, headRadius }) {
   const hr = headPx(headRadius);
   const [lx, ly] = polar(-angle, R);
   const [rx, ry] = polar(angle, R);
+  /** @type {Pt} */
   const earL = [CX - hr, CY];
+  /** @type {Pt} */
   const earR = [CX + hr, CY];
-  const path = (from, to) => `M${from[0].toFixed(1)} ${from[1].toFixed(1)} L${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
+  const path = (/** @type {Pt} */ from, /** @type {Pt} */ to) =>
+    `M${from[0].toFixed(1)} ${from[1].toFixed(1)} L${to[0].toFixed(1)} ${to[1].toFixed(1)}`;
   return html`
     <svg
       class="spk-diagram"

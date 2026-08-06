@@ -17,6 +17,9 @@ const OWNER = "header";
 
 const pickStatus = signal(""); // "", "Loading…", or an error line
 
+/**
+ * @param {{ target: HTMLSelectElement }} e the picker's change event
+ */
 async function onPick(e) {
   const name = e.target.value;
   pickStatus.value = "Loading…";
@@ -28,6 +31,9 @@ async function onPick(e) {
   }
 }
 
+/**
+ * @param {string} name the preset to delete
+ */
 async function onDelete(name) {
   // a destructive action wants an explicit OK, asked inline beside the picker
   if (!name || !(await askConfirm(OWNER, `Delete preset "${name}"? This cannot be undone.`))) return;
@@ -73,6 +79,9 @@ function LiveSwitch() {
 
 // Deleting is offered for whichever preset the picker is showing; the unnamed
 // default ("") is not a deletable target.
+/**
+ * @param {string} name the preset the picker is showing
+ */
 function deleteButton(name) {
   if (!name) return null;
   return html`<button class="preset-del" title=${`Delete preset "${name}"`} onClick=${() => onDelete(name)}>
@@ -82,6 +91,9 @@ function deleteButton(name) {
 
 // One trailing note at most: a previewed preset's pending marker outranks the
 // pick status, which is what the "&& !pending" guard said when they were siblings.
+/**
+ * @param {string | null} pending the previewed preset, or null when nothing is previewed
+ */
 function presetNote(pending) {
   if (pending !== null) return html`<span class="preset-status pending-apply">(pending apply)</span>`;
   if (!pickStatus.value) return null;
@@ -101,7 +113,9 @@ function presetPicker() {
   return html`
     <label class="muted">Preset</label>
     <select value=${shown} onWheel=${wheelGuard} onChange=${onPick} disabled=${pickStatus.value === "Loading…"}>
-      ${(profiles.options || []).map((o) => html`<option value=${o.value}>${o.label || "(no preset)"}</option>`)}
+      ${(profiles.options || []).map(
+        (/** @type {SchemaOption} */ o) => html`<option value=${o.value}>${o.label || "(no preset)"}</option>`,
+      )}
     </select>
     ${deleteButton(shown)}
     ${presetNote(pending)}

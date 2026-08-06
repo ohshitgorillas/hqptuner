@@ -1,4 +1,4 @@
-// Behavioral suite for store/live.js — the LIVE view's store: the values and
+// Behavioral suite for store/live/ — the LIVE view's store: the values and
 // option lists its controls read, and the one path they write by.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
@@ -18,7 +18,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { engineState, enums, config } from "../../../hqptuner/static/store/signals.js";
-import { liveModel, liveErrors, liveBusy, writeLive } from "../../../hqptuner/static/store/live.js";
+import { liveModel } from "../../../hqptuner/static/store/live/model.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
+import { writeLive } from "../../../hqptuner/static/store/live/write.js";
 import { ok, bad } from "../support/wire.js";
 
 const FILTERS = [

@@ -17,6 +17,12 @@ import { hz } from "../lib/units.js";
 // target rate is the per-family ceiling (pcm_rate / sdm_rate). Native <option
 // disabled> — the Dropdown appends the reason to the option label (title attrs
 // on <option> don't hover reliably cross-browser).
+/**
+ * @template {{ label: string }} T
+ * @param {T[]} options
+ * @param {string} kind "pcm" | "sdm"
+ * @returns {(T | (T & { disabled: boolean, reason: string }))[]}
+ */
 export function grayShapersByRate(options, kind) {
   const shapers = metadata.value && metadata.value.shapers;
   if (!shapers) return options;
@@ -39,14 +45,25 @@ export function grayShapersByRate(options, kind) {
 // running engine is the sole authority for names AND ordering (architecture §2), and
 // Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §4) — so
 // `index` is the value, never a shipped constant.
+/**
+ * @param {string} name
+ * @returns {OptionItem[]}
+ */
 export function enumOptions(name) {
+  /** @type {import("./facets.js").EnumItem[]} */
   const list = (enums.value && enums.value[name]) || [];
   return list.map((o) => ({ value: o.index, label: o.name, disabled: false, reason: "" }));
 }
 
 // optionsFor(kind, field) -> [{value, label, disabled, reason}]
 // kind: 'config' (a /config form field) | 'matrix' (a /matrix form field).
+/**
+ * @param {string} kind
+ * @param {string} field
+ * @returns {OptionItem[]}
+ */
 export function optionsFor(kind, field) {
+  /** @type {Record<string, import("./resolve.js").FormField>} */
   const map = kind === "matrix" ? matrixByName.value : configByName.value;
   const f = map[field];
   return ((f && f.options) || []).map((o) => ({ value: o.value, label: o.label, disabled: false, reason: "" }));

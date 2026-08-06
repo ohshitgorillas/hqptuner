@@ -13,7 +13,7 @@
 // Everything here goes through the exported `MatrixTab`, so both cards under
 // discussion — Crossfeed and Matrix response — come out of one render and their
 // relative placement is a fact of the same DOM a user meets. Inputs are the
-// exported store signals (`config`, `matrixConfig`, `dspMode`, `showDescriptions`,
+// exported store signals (`config`, `matrixConfig`, `matrixMode`, `showDescriptions`,
 // the plot's `plottedRows`/`previewEq`, the view choice `xfMode`) over the real
 // REST paths of the staging wire fake. Nothing is stubbed and no module private
 // is touched.
@@ -59,12 +59,13 @@ import { lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
 import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
 import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
-import { dspMode } from "../../../hqptuner/static/store/dspmode.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { xfMode } from "../../../hqptuner/static/lib/xfmode.js";
 import { BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
-import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { stagingWire } from "../support/wire.js";
 
 // The lens's shipped default, read at import time — before any fixture in this
@@ -127,7 +128,7 @@ async function reset({ enabled = true, view = "bauer", rows = PAIR(), lens = fal
   };
   config.value = { fields: [], file: { matrix_pipelines: JSON.stringify(rows) }, active: "", profiles: null };
   await discardAll();
-  dspMode.value = "headphones";
+  matrixMode.value = "headphones";
   xfMode.value = view;
   lensOn.value = lens;
 }

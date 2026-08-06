@@ -1,4 +1,4 @@
-// Behavioral suite for lib/dsp.js — the client-side response math behind every
+// Behavioral suite for lib/dsp/ — the client-side response math behind every
 // plot. Written BEFORE the complexity refactor of iirStageCoeffs and wavSamples.
 //
 // Surface choice (docs/testing.md rule 3): these go through stageResponse /
@@ -14,7 +14,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { stageResponse, chainResponse, registerIr } from "../../../hqptuner/static/lib/dsp.js";
+import { stageResponse } from "../../../hqptuner/static/lib/dsp/stages.js";
+import { chainResponse } from "../../../hqptuner/static/lib/dsp/chain.js";
+import { registerIr } from "../../../hqptuner/static/lib/dsp/impulse.js";
 
 const FS = 48000;
 
@@ -195,11 +197,11 @@ function wavBuffer({ bits = 16, audioFormat = 1, channels = 1, rate = 48000, sam
   v.setUint16(34, bits, true);
   v.setUint32(36, 0x64617461, false); // "data"
   v.setUint32(40, dataSize, true);
-  samples.forEach((x, i) => writeSample(v, 44 + i * bytesPer * channels, x, bits, audioFormat));
+  samples.forEach((x, i) => writeSample(v, 44 + i * bytesPer * channels, x, { bits, audioFormat }));
   return buf;
 }
 
-function writeSample(v, at, x, bits, audioFormat) {
+function writeSample(v, at, x, { bits, audioFormat }) {
   if (audioFormat === 3) return v.setFloat32(at, x, true);
   if (bits === 8) return v.setUint8(at, Math.min(255, Math.round(x * 127) + 128)); // unsigned, per RIFF
   if (bits === 16) return v.setInt16(at, Math.min(32767, Math.round(x * 32768)), true);

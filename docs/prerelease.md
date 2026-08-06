@@ -24,7 +24,7 @@ Original report:
 
 `hqptuner/static/lib/xfmode.js:129`
 
-`pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`Crossfeed.js:172` → `actions.js:20`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`MatrixTab.js:179`) or a DSP-mode restore (`dspmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
+`pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`Crossfeed.js:172` → `actions.js:20`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`MatrixTab.js:179`) or a Matrix-mode restore (`matrixmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
 
 ## 3. Stale-enumeration window after a mode write, with no surfacing left — FIXED 2026-08-01
 

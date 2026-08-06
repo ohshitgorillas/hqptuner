@@ -24,7 +24,8 @@ import { effective, effectivePipelines, isDirty } from "../store/resolve.js";
 import { edit } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 import { noteFor } from "../store/prose.js";
-import { pathParams, midSideResponse, magDb } from "../lib/binaural.js";
+import { pathParams } from "../lib/binaural/geometry.js";
+import { midSideResponse, magDb } from "../lib/binaural/response.js";
 import { PRESETS, matchPreset } from "../lib/binaural-setup.js";
 import {
   activeMode,
@@ -44,9 +45,22 @@ import { XfeedStrip, CompMiniPlot, xfeedBlock, lensOn, lensShown, xfeedLensAvail
 import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
-import { bandFreqs } from "../lib/dsp.js";
+import { bandFreqs } from "../lib/dsp/curves.js";
 import { truthy } from "../lib/coerce.js";
 import { db, dbOffset } from "../lib/units.js";
+
+/**
+ * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {{ lambda: number, angle: number, headRadius: number }} StructParams
+ *   The three physical controls the structural block compiles from
+ *   (lib/xfmode.js DEFAULTS names the same trio).
+ * @typedef {{ alphaNear: number, alphaFar: number, itd: number, cornerHz: number,
+ *             groupDelayNear: number, groupDelayFar: number }} PathParams
+ *   What lib/binaural/geometry.js pathParams() derives from that geometry.
+ * @typedef {(patch: Partial<StructParams>, commit: boolean) => void} ParamWriter
+ *   The owner's writer: commit false streams live, true remembers and stages.
+ * @typedef {{ target: HTMLSelectElement }} SelectEv
+ */
 
 const cardOpen = signal(true);
 const plotOpen = signal(false);
@@ -54,6 +68,10 @@ const structPlotOpen = signal(false);
 const compOpen = signal(true);
 const issueNote = signal("");
 
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {StructParams}
+ */
 function params(rows) {
   return structuralParams(rows);
 }
@@ -69,6 +87,9 @@ function params(rows) {
 // shifts everything beneath it. With nothing for either lens to draw it is
 // simply disabled, and its title is one fixed string: a reason swapped in
 // alongside would be the same defect one level down.
+/**
+ * @param {{ rows: PipelineRow[] }} props
+ */
 function LensToggle({ rows }) {
   const drawable = xfeedLensAvailable(rows) || !!structuralBlock(rows);
   return html`<button
@@ -86,6 +107,10 @@ function LensToggle({ rows }) {
 // to be dismantled back to its plain EQ pair before the structural compiler can
 // build from it. Doing that here rather than refusing is the difference between
 // a gate that works and one that silently does nothing.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {void}
+ */
 function installStructural(rows) {
   const comp = xfeedBlock(rows).rec;
   const base = comp ? uncompensatedRows(rows, comp) : rows;
@@ -105,12 +130,15 @@ const GATE_OPTIONS = [
   { value: "0", label: "BYPASS" },
 ];
 
+/**
+ * @param {{ rows: PipelineRow[], active: string }} props
+ */
 function Gate({ rows, active }) {
   const bauer = active !== "structural";
   const rec = structuralBlock(rows);
   const on = bauer ? truthy(effective("crossfeed_enabled")) : !!rec;
   const dirty = bauer ? isDirty("crossfeed_enabled") : pipelinesDirty();
-  const toggle = (v) => {
+  const toggle = (/** @type {string} */ v) => {
     if (bauer) {
       edit("crossfeed_enabled", v);
     } else if (v === "1") {
@@ -136,6 +164,12 @@ function Gate({ rows, active }) {
 // One physical parameter: label, the shared slider+box control, caption. The
 // row is local (these are derived params, not schema fields, so Field.js cannot
 // own them); the control itself is the shared one.
+/**
+ * @param {{ label: string, unit?: string, min: string | number, max: string | number,
+ *           step: string | number, boxStep?: string | number, value: number,
+ *           format: (v: number) => string, onDrag: (v: number) => void, onCommit: (v: number) => void,
+ *           caption?: string, sub?: string }} props
+ */
 function Control({ label, unit, min, max, step, boxStep, value, format, onDrag, onCommit, caption, sub }) {
   return html`
     <div class="xfs-control">
@@ -150,8 +184,8 @@ function Control({ label, unit, min, max, step, boxStep, value, format, onDrag, 
         unit=${unit}
         sub=${sub}
         format=${format}
-        onDrag=${(v) => onDrag(Number(v))}
-        onCommit=${(v) => onCommit(Number(v))}
+        onDrag=${(/** @type {string | number} */ v) => onDrag(Number(v))}
+        onCommit=${(/** @type {string | number} */ v) => onCommit(Number(v))}
       />
       ${notesVisible.value && caption ? html`<div class="field-note xfs-caption">${caption}</div>` : null}
     </div>
@@ -160,6 +194,9 @@ function Control({ label, unit, min, max, step, boxStep, value, format, onDrag, 
 
 // --- structural mode ---------------------------------------------------------
 
+/**
+ * @param {{ p: PathParams, lambda: number }} props
+ */
 function Readouts({ p, lambda }) {
   const farDb = 20 * Math.log10(p.alphaFar);
   const centerDb = 20 * Math.log10(lambda * ((p.alphaNear + p.alphaFar) / 2) + (1 - lambda));
@@ -182,36 +219,20 @@ function Readouts({ p, lambda }) {
   `;
 }
 
-function StructuralMode({ rows }) {
-  const rec = structuralBlock(rows);
-  const p0 = params(rows);
-  const p = pathParams(p0.angle, p0.headRadius);
-  const blockers = conflicts();
-
-  // Drag updates the shared live params so the card AND the response plot track
-  // without restaging sixteen rows per pixel. Release remembers the value whether
-  // or not a block is installed — otherwise the slider springs back to the
-  // default the moment you let go, with nothing to hold the new position.
-  const set = (patch, commit) => {
-    const next = { ...params(rows), ...patch };
-    if (!commit) {
-      liveParams.value = next;
-      return;
-    }
-    liveParams.value = null;
-    remember(next);
-    if (rec) issueNote.value = stageStructural(rows, next) || "";
-  };
-
+// The three geometry knobs and the preset picker that drives them. `set(patch,
+// commit)` is the owner's writer: false streams live, true remembers and stages.
+/**
+ * @param {{ p0: StructParams, set: ParamWriter }} props
+ */
+function StructuralControls({ p0, set }) {
   return html`
-    <div class="xfs-cols">
       <div class="xfs-controls">
         <div class="xfs-preset">
           <label class="xfs-label">Preset</label>
           <select
             value=${matchPreset(p0)}
             onWheel=${wheelGuard}
-            onChange=${(e) => {
+            onChange=${(/** @type {SelectEv} */ e) => {
               const hit = PRESETS.find((x) => x.id === e.target.value);
               if (hit) set({ angle: hit.angle, lambda: hit.lambda }, true);
             }}
@@ -227,9 +248,9 @@ function StructuralMode({ rows }) {
           max="60"
           step="0.5"
           value=${p0.angle}
-          format=${(v) => v.toFixed(1)}
-          onDrag=${(v) => set({ angle: v }, false)}
-          onCommit=${(v) => set({ angle: v }, true)}
+          format=${(/** @type {number} */ v) => v.toFixed(1)}
+          onDrag=${(/** @type {number} */ v) => set({ angle: v }, false)}
+          onCommit=${(/** @type {number} */ v) => set({ angle: v }, true)}
           caption="How far apart the speakers being simulated are. Narrower blends the channels more; wider approaches plain headphones."
         />
         <${Control}
@@ -240,10 +261,10 @@ function StructuralMode({ rows }) {
           step="0.25"
           boxStep="any"
           value=${p0.headRadius * 2 * Math.PI * 100}
-          format=${(v) => v.toFixed(2)}
+          format=${(/** @type {number} */ v) => v.toFixed(2)}
           sub=${`${(p0.headRadius * 100).toFixed(2)} cm radius`}
-          onDrag=${(v) => set({ headRadius: v / 100 / (2 * Math.PI) }, false)}
-          onCommit=${(v) => set({ headRadius: v / 100 / (2 * Math.PI) }, true)}
+          onDrag=${(/** @type {number} */ v) => set({ headRadius: v / 100 / (2 * Math.PI) }, false)}
+          onCommit=${(/** @type {number} */ v) => set({ headRadius: v / 100 / (2 * Math.PI) }, true)}
           caption="Measure with a tape around your head just above the ears — the same figure hat sizes use. The model works from the radius, shown under the value. A larger head means a longer path around it: more delay between the ears and more treble shadowing."
         />
         <${Control}
@@ -253,12 +274,43 @@ function StructuralMode({ rows }) {
           max="150"
           step="1"
           value=${Math.round(p0.lambda * 100)}
-          format=${(v) => String(Math.round(v))}
-          onDrag=${(v) => set({ lambda: v / 100 }, false)}
-          onCommit=${(v) => set({ lambda: v / 100 }, true)}
+          format=${(/** @type {number} */ v) => String(Math.round(v))}
+          onDrag=${(/** @type {number} */ v) => set({ lambda: v / 100 }, false)}
+          onCommit=${(/** @type {number} */ v) => set({ lambda: v / 100 }, true)}
           caption="Speakers color centered sound — vocals, bass, most of a mix — slightly darker than the sides. 100% reproduces that; 0% leaves the center tonally neutral. The stereo image is identical at every setting: only the tone of centered sound changes."
         />
       </div>
+  `;
+}
+
+/**
+ * @param {{ rows: PipelineRow[] }} props
+ */
+function StructuralMode({ rows }) {
+  const rec = structuralBlock(rows);
+  const p0 = params(rows);
+  const p = pathParams(p0.angle, p0.headRadius);
+  const blockers = conflicts();
+
+  // Drag updates the shared live params so the card AND the response plot track
+  // without restaging sixteen rows per pixel. Release remembers the value whether
+  // or not a block is installed — otherwise the slider springs back to the
+  // default the moment you let go, with nothing to hold the new position.
+  /** @type {ParamWriter} */
+  const set = (patch, commit) => {
+    const next = { ...params(rows), ...patch };
+    if (!commit) {
+      liveParams.value = next;
+      return;
+    }
+    liveParams.value = null;
+    remember(next);
+    if (rec) issueNote.value = stageStructural(rows, next) || "";
+  };
+
+  return html`
+    <div class="xfs-cols">
+      <${StructuralControls} p0=${p0} set=${set} />
       <span class="col-rule" aria-hidden="true"></span>
       <div class="xfs-right">
         <div class="xfs-diagram">
@@ -301,18 +353,21 @@ function StructuralMode({ rows }) {
 // It belongs here rather than on the shared RESPONSE chart, which shows the
 // headphone EQ; an earlier arrangement put these there and buried the EQ behind
 // a 2 dB story.
+/**
+ * @param {{ p0: StructParams }} props
+ */
 function StructuralPlot({ p0 }) {
   const freqs = bandFreqs(140);
-  const at = (lambda) => (f) => midSideResponse(f, { ...p0, lambda });
+  const at = (/** @type {number} */ lambda) => (/** @type {number} */ f) => midSideResponse(f, { ...p0, lambda });
   const cur = at(p0.lambda);
   const lit = at(1);
-  const trace = (fn) => freqs.map((f) => [f, fn(f)]);
+  const trace = (/** @type {(f: number) => number} */ fn) => freqs.map((f) => [f, fn(f)]);
   // labels live in the section header, not on the curves: three traces converge
   // where the labels would sit and overlapped each other illegibly
   const traces = [
-    { points: trace((f) => magDb(lit(f).mid)), kind: "ghost", label: "" },
-    { points: trace((f) => magDb(cur(f).mid)), kind: "xfm", label: "" },
-    { points: trace((f) => magDb(cur(f).side)), kind: "xfs", label: "" },
+    { points: trace((/** @type {number} */ f) => magDb(lit(f).mid)), kind: "ghost", label: "" },
+    { points: trace((/** @type {number} */ f) => magDb(cur(f).mid)), kind: "xfm", label: "" },
+    { points: trace((/** @type {number} */ f) => magDb(cur(f).side)), kind: "xfs", label: "" },
   ];
   return html`
     <div>
@@ -396,7 +451,7 @@ export function CrossfeedCard() {
                     { value: "bauer", label: "Bauer" },
                     { value: "structural", label: "Structural" },
                   ]}
-                  onChange=${(v) => setXfMode(v, rows)}
+                  onChange=${(/** @type {string} */ v) => setXfMode(v, rows)}
                 />
                 <${LensToggle} rows=${rows} />
                 <span class="row-break" aria-hidden="true"></span>

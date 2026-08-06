@@ -17,7 +17,9 @@ export function AlertStrip() {
   if (!alerts.length && !advice) return null;
   return html`
     <div class="alert-strip">
-      ${alerts.map((a) => html`<span class="alert alert-${a.sev}">⚠ ${a.text}</span>`)}
+      ${alerts.map(
+        (/** @type {{ sev: string, text: string }} */ a) => html`<span class="alert alert-${a.sev}">⚠ ${a.text}</span>`,
+      )}
       ${advice && html`<span class="alert alert-advice">♪ ${advice.reason}</span>`}
     </div>
   `;

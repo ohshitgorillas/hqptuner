@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 
 import { stageStructural, removeStructural, structuralBlock } from "../../../hqptuner/static/lib/xfmode.js";
 import { pairInfo } from "../../../hqptuner/static/lib/binaural-setup.js";
-import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines, isDirty } from "../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";

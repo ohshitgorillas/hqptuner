@@ -9,10 +9,54 @@
 // `count` is the number of staged edits captured before apply — the http/matrix
 // lanes each collapse many field edits into a single POST, so counting reports
 // ("2 staged" -> "Applied 1 change") undercounts the real changes.
-const failure = (text) => ({ ok: false, text });
+/**
+ * @typedef {{ ok: boolean, text: string }} Verdict
+ *   What the apply pill and the pending bar render.
+ *
+ * @typedef {object} LiveResult
+ *   One live setter's outcome (writer.py, readback-verified).
+ * @property {boolean} ok
+ * @property {string} setting
+ * @property {string} [error]
+ *
+ * @typedef {object} SwitchResult
+ *   A preset switch's outcome (presetlane.switch). The empty name is the
+ *   picker's "(no preset)".
+ * @property {string} name
+ * @property {boolean} [active] whether the daemon reports it loaded afterwards
+ *
+ * @typedef {object} PersistentResult
+ *   The config lane's outcome (httplane).
+ * @property {boolean} [submitted]
+ * @property {boolean} [applied]
+ * @property {string} [reason] unconverged | unavailable
+ * @property {string} [error]
+ * @property {Record<string, unknown>} [diff] the fields that did not converge
+ * @property {{ net_device?: { want: string } }} [unfixable]
+ *
+ * @typedef {object} SaveResult
+ *   The save lane's outcome. A WARNED save is still a save.
+ * @property {boolean} ok
+ * @property {string} name
+ * @property {string} [error]
+ * @property {string} [warning]
+ *
+ * @typedef {object} ApplyReport
+ *   The whole apply report (core/applyops).
+ * @property {LiveResult[]} [live]
+ * @property {SwitchResult} [switched]
+ * @property {PersistentResult} [persistent]
+ * @property {SaveResult} [saved]
+ */
+
+const failure = (/** @type {string} */ text) => ({ ok: false, text });
 
 // A live setter that didn't take. Reported first and alone — a rejected setting
 // is the most actionable thing the report can carry.
+/**
+ * @param {ApplyReport} report
+ * @returns {Verdict | null}
+ */
 function liveFailure(report) {
   const fails = (report.live || []).filter((x) => !x.ok);
   if (!fails.length) return null;
@@ -22,6 +66,10 @@ function liveFailure(report) {
 // The persistent lane declined. A missing output endpoint is named rather than
 // folded into the generic message: it is the one cause with an obvious remedy
 // (power the NAA back on), so it earns its own wording.
+/**
+ * @param {PersistentResult} p
+ * @returns {Verdict | null}
+ */
 function persistentFailure(p) {
   if (!p || p.applied) return null;
   const nd = p.unfixable && p.unfixable.net_device;
@@ -38,9 +86,14 @@ function persistentFailure(p) {
 // How a switch target names itself in the report. The empty name is the picker's
 // "(no preset)" — dropping the active-preset bookmark — so quoting it as a preset
 // name would print `Switched to ""`.
-const switchName = (sw) => (sw.name ? `"${sw.name}"` : "(no preset)");
+const switchName = (/** @type {SwitchResult} */ sw) => (sw.name ? `"${sw.name}"` : "(no preset)");
 
 // What went right, before the save lane is appended.
+/**
+ * @param {SwitchResult} sw
+ * @param {number} count
+ * @returns {string}
+ */
 function successText(sw, count) {
   const changes = count ? `${count} change${count === 1 ? "" : "s"}` : "";
   if (!sw) return `Applied ${changes || "no changes"}`;
@@ -51,6 +104,11 @@ function successText(sw, count) {
 // is still a save: the preset is on disk and only hqplayerd's own mirror of it is
 // behind, so it reads as a success carrying the caveat rather than a failure —
 // reporting it as failed is what sent a user hunting for a preset already there.
+/**
+ * @param {string} base
+ * @param {SaveResult} saved
+ * @returns {Verdict}
+ */
 function savedSummary(base, saved) {
   if (!saved) return { ok: true, text: base };
   if (!saved.ok) return failure(`${base} — save to "${saved.name}" failed: ${saved.error}`);
@@ -58,6 +116,11 @@ function savedSummary(base, saved) {
   return { ok: true, text: `${base} · saved to "${saved.name}"${caveat}` };
 }
 
+/**
+ * @param {ApplyReport} report
+ * @param {number} count staged edits, captured before the apply cleared them
+ * @returns {Verdict}
+ */
 export function summarize(report, count) {
   const sw = report.switched;
   const failed =

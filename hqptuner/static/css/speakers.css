@@ -7,12 +7,12 @@
 /* Sits above every card on the tab, so it reads as the tab's own control rather
    than the first card's. The segment is left-aligned with the cards' content
    edge; the caption follows the standard measure. */
-.dsp-switcher {
+.matrix-switcher {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
 }
-.dsp-switcher .segment {
+.matrix-switcher .segment {
   /* full container width: a mode selector for the whole tab reads as a banner,
      not as a stray pair of buttons in the top-left corner. */
   display: flex;
@@ -25,7 +25,7 @@
    the secondary tier (it NAMES the other choice) rather than the caption tier
    the base .seg rule gives it — a muted half reads as one lit label, not as a
    control with two sides. */
-.dsp-switcher .seg {
+.matrix-switcher .seg {
   flex: 1;
   display: flex;
   align-items: center;
@@ -43,7 +43,7 @@
    the switch's text at any root size. Caps are shorter than the em, so 1em of
    glyph would tower over the word — 1.1em of a viewBox whose art fills it lands
    the drawing at about cap height. */
-.dsp-switcher .seg-glyph {
+.matrix-switcher .seg-glyph {
   width: 1.1em;
   height: 1.1em;
   flex: none;

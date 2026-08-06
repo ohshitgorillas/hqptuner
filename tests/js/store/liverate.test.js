@@ -1,4 +1,4 @@
-// Behavioral suite for the LIVE page's two rate menus — store/live.js's
+// Behavioral suite for the LIVE page's two rate menus — store/live/rates.js's
 // `pcmRate` / `sdmRate`: which of them a user may edit, which tiers each one
 // offers as reachable, and which source each column's own value comes from.
 //
@@ -58,7 +58,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { engineState, engineStatus, enums, config } from "../../../hqptuner/static/store/signals.js";
-import { liveModel, liveErrors, liveBusy, writeLive } from "../../../hqptuner/static/store/live.js";
+import { liveModel } from "../../../hqptuner/static/store/live/model.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
+import { writeLive } from "../../../hqptuner/static/store/live/write.js";
 import { ok } from "../support/wire.js";
 
 // The chain enumerations play no part here; they are present because the store
@@ -124,7 +126,7 @@ const FILE = (mode, samplerate, bitrate) => ({
 // `metadata.samplerate`; `status.active_rate` is what the engine is putting
 // out, a different number entirely with oversampling in the path. The tier
 // resolves against the source — settings-classification §LIVE: "engine report
-// what is playing, so store/live.js resolve the picked tier to that source's
+// what is playing, so store/live/rates.js resolve the picked tier to that source's
 // own member before sending (DSD512 on 44.1k track → 22579200)" — so the
 // caller names the output rate separately, and the cases below put it in the
 // family the source is NOT in.

@@ -19,7 +19,7 @@ const MHZ_FLOOR = 2822400; // DSD64 = 44.1k x 64
 
 // Trailing zeros are noise on a rate — "96 kHz", not "96.0 kHz". `dp` is
 // therefore a ceiling on the decimals rather than a count of them.
-const trim = (v, dp) => String(Number(v.toFixed(dp)));
+const trim = (/** @type {number} */ v, /** @type {number} */ dp) => String(Number(v.toFixed(dp)));
 
 /**
  * A frequency, unit picked by magnitude, carrying at most `dp` decimals.
@@ -32,8 +32,16 @@ export function hz(n, dp) {
   return `${trim(n, dp)} Hz`;
 }
 
-/** An absolute level. A level is not an offset, so a positive carries no sign. */
+/**
+ * An absolute level. A level is not an offset, so a positive carries no sign.
+ * @param {number | string} v decibels
+ * @param {number} dp decimals
+ */
 export const db = (v, dp) => `${Number(v).toFixed(dp)} dB`;
 
-/** A relative offset. A positive carries "+" so the direction reads at a glance. */
+/**
+ * A relative offset. A positive carries "+" so the direction reads at a glance.
+ * @param {number | string} v decibels
+ * @param {number} dp decimals
+ */
 export const dbOffset = (v, dp) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(dp)} dB`;

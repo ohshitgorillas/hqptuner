@@ -1,5 +1,5 @@
-// Behavioral suite for lib/binaural.js — the structural crossfeed compiler and
-// its recognizer. Written BEFORE the complexity refactor of recognizeRows (33).
+// Behavioral suite for lib/binaural/compile.js and lib/binaural/recognize.js — the
+// structural crossfeed compiler and its recognizer. Written BEFORE the complexity refactor of recognizeRows (33).
 //
 // The load-bearing property is compile -> recognize: rows built from parameters
 // P must be recognized back as P. It cannot be satisfied by anything except
@@ -19,7 +19,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { compileRows, recognizeRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
+import { recognizeRows } from "../../../hqptuner/static/lib/binaural/recognize.js";
 import { PRESETS } from "../../../hqptuner/static/lib/binaural-setup.js";
 
 // [ok, message] for spreading into ONE assert.ok — see matrixspec.test.js.

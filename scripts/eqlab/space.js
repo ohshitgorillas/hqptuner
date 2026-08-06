@@ -85,6 +85,15 @@ function expandReplace(spec) {
   }));
 }
 
+// A change set names only the sections that actually carry changes.
+function changeSet(amend, replace, append) {
+  return {
+    ...(amend.length ? { amend } : {}),
+    ...(replace.length ? { replace } : {}),
+    ...(append.length ? { append } : {}),
+  };
+}
+
 /** Every concrete candidate change set of a declared space. */
 export function candidates(space) {
   const amendSpecs = asList(space.amend);
@@ -95,18 +104,9 @@ export function candidates(space) {
     [[]],
   );
   const appendSets = crossChanges(asList(space.append));
-  const out = [];
-  for (const amend of amendSets) {
-    for (const replace of replaceSets) {
-      for (const append of appendSets) {
-        out.push({
-          ...(amend.length ? { amend } : {}),
-          ...(replace.length ? { replace } : {}),
-          ...(append.length ? { append } : {}),
-        });
-      }
-    }
-  }
+  const out = amendSets.flatMap((amend) =>
+    replaceSets.flatMap((replace) => appendSets.map((append) => changeSet(amend, replace, append))),
+  );
   if (out.length > MAX_COMBOS) {
     throw new Error(
       `search: ${out.length} combinations exceeds the ${MAX_COMBOS} runaway guard — split the space and run it in batches`,

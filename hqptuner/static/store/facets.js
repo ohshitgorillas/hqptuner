@@ -12,6 +12,55 @@
 import { computed } from "@preact/signals";
 import { enums, metadata } from "./signals.js";
 
+/**
+ * @typedef {object} StaticFilterEntry
+ *   One filter's manual-transcribed overlay row (data/filters.json), as the
+ *   backend merges it onto a live item and serves it under `metadata.filters`.
+ * @property {string[]} [genre]
+ * @property {number} [quality]
+ * @property {string[]} [focus]
+ * @property {string} [apodizing] "full" | "half" | anything else = none
+ * @property {string} [ratio]
+ * @property {string} [ratio_pcm] mode-split ratio: mqa/mp3 only
+ * @property {string} [ratio_sdm]
+ * @property {boolean} [upsample_only]
+ *
+ * @typedef {object} EnumItem
+ *   One item of a live enumeration. Every attribute the daemon sends arrives as
+ *   a STRING (engine/control.get_all_enumerations -> dict[str, str]); `apodizing`
+ *   and `static` are the two fields the backend adds when merging the overlay
+ *   (metadata.merge_enumerations).
+ * @property {string} index list index — what the Set* setters write
+ * @property {string} name
+ * @property {string} [value] enum id; absent on RatesItem, which carries `rate`
+ * @property {string} [description]
+ * @property {string} [arg] bit flags; bit 0 = apodizing, bit 1 = half-apodizing
+ * @property {string} [rate] RatesItem only: the rate in Hz
+ * @property {boolean} [apodizing] backend-derived from arg bit 0
+ * @property {StaticFilterEntry} [static] backend-merged overlay row, null on a miss
+ *
+ * @typedef {object} FilterFacet
+ *   One filter's narrowing record — the union of what the live description
+ *   carries and what the static overlay fills in.
+ * @property {string[]} genre
+ * @property {number} quality null when the description carries no "n/5"
+ * @property {string[]} focus
+ * @property {string} phase "" when the name carries no phase token
+ * @property {string} length short | medium | long | xlong
+ * @property {boolean} hires
+ * @property {boolean} hiresFamily
+ * @property {boolean} apodizing
+ * @property {boolean} apodizingHalf
+ * @property {boolean} upsampleOnly
+ * @property {string} ratio null for the mode-split filters, which use the pair below
+ * @property {string} ratioPcm
+ * @property {string} ratioSdm
+ */
+
+/**
+ * @param {string} desc
+ * @returns {number}
+ */
 function quality(desc) {
   const m = /(\d+)\s*\/\s*5/.exec(desc || "");
   return m ? Number(m[1]) : null;
@@ -29,6 +78,10 @@ const FOCUS_RE = new RegExp(`^\\s*\\d+/5\\s*(.*?)\\s*${ARROW}`);
 const TAIL_RE = new RegExp(`${ARROW}\\s*(.+?)\\s*$`);
 
 // "4/5 space, transients ⥮ Any" -> ["space", "transients"]; "1/5 ⥣ Int" -> []
+/**
+ * @param {string} desc
+ * @returns {string[]}
+ */
 function focus(desc) {
   const m = FOCUS_RE.exec(desc || "");
   if (!m || !m[1]) return [];
@@ -49,6 +102,10 @@ function focus(desc) {
 // normalized to a raw `int`/`2^x` that matches no narrow chip — and because `??`
 // only falls back on null, that truthy junk beat the correct static value.
 // Match the SHORT form; both spellings then land on the overlay's token.
+/**
+ * @param {string} s
+ * @returns {string}
+ */
 function normRatio(s) {
   const t = (s || "")
     .toLowerCase()
@@ -63,6 +120,10 @@ function normRatio(s) {
   if (t.startsWith("any")) return "any";
   return t;
 }
+/**
+ * @param {string} desc
+ * @returns {string}
+ */
 function ratioLive(desc) {
   const m = TAIL_RE.exec(desc || "");
   return m ? normRatio(m[1]) : null;
@@ -72,6 +133,11 @@ function ratioLive(desc) {
 // any-ratio on SDM, so they carry ratioPcm/ratioSdm and are resolved per chain
 // at check time (narrowing.js). Every other filter has a single ratio: the live
 // wire value (active-mode authority) if present, else the static class.
+/**
+ * @param {string} liveDesc
+ * @param {StaticFilterEntry} s
+ * @returns {{ ratio: string, ratioPcm: string, ratioSdm: string }}
+ */
 function ratioFacet(liveDesc, s) {
   if (s && (s.ratio_pcm != null || s.ratio_sdm != null)) {
     return { ratio: null, ratioPcm: s.ratio_pcm ?? null, ratioSdm: s.ratio_sdm ?? null };
@@ -80,6 +146,10 @@ function ratioFacet(liveDesc, s) {
   return { ratio: r, ratioPcm: null, ratioSdm: null };
 }
 
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function phase(name) {
   const n = name || "";
   if (/-ip\b|-ip$/.test(n)) return "intermediate";
@@ -96,9 +166,17 @@ function phase(name) {
 // 1x for lossy sources (manual §4.6). `hiresFamily` adds mqa/mp3 back and is
 // what the Nx "hi-res only" toggle keeps ("for HiRes content … also suitable
 // for lossy compression such as MP3 or MQA").
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isHires(name) {
   return /hires/i.test(name || "");
 }
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 function isHiresFamily(name) {
   return /hires|mqa|mp3/i.test(name || "");
 }
@@ -113,6 +191,7 @@ function isHiresFamily(name) {
 // else classifies by name token — xl/xla ("8-times-longer" variants) are xlong;
 // short / long / hb-s / hb-xs / hb-l as written — with the -2s two-stage suffix
 // stripped first; unmarked names read as medium.
+/** @type {Record<string, string>} */
 const LENGTH_OVERRIDES = {
   "sinc-S": "short",
   "sinc-M": "xlong",
@@ -132,6 +211,10 @@ const LENGTH_OVERRIDES = {
   "minringFIR-lp": "short",
   "minringFIR-mp": "short",
 };
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function length(name) {
   const n = name || "";
   const base = n.endsWith("-2s") ? n.slice(0, -3) : n;
@@ -144,22 +227,40 @@ function length(name) {
 
 // Y / ½ / N from the manual → the same shape the live arg bits produce: full sets
 // apodizing, half sets apodizingHalf, none sets neither.
+/**
+ * @param {string} a
+ * @returns {{ apodizing: boolean, apodizingHalf: boolean }}
+ */
 function apodFromStatic(a) {
   return { apodizing: a === "full", apodizingHalf: a === "half" };
 }
 
 // Upsample-only ("up" in the manual's ratio column, e.g. "Integer up") — the
 // live wire ratio may carry it; else the static overlay's banked bit.
+/**
+ * @param {string} desc
+ * @returns {boolean}
+ */
 function upsampleLive(desc) {
   const m = TAIL_RE.exec(desc || "");
   return m ? /\bup\b/i.test(m[1]) : false;
 }
+/**
+ * @param {string} desc
+ * @param {StaticFilterEntry} s
+ * @returns {boolean}
+ */
 function upsampleFlag(desc, s) {
   return upsampleLive(desc) || !!(s && s.upsample_only);
 }
 
 // A live enum item: quality/focus/ratio parsed from the wire description, apod
 // from arg bits, genre from the backend-merged static overlay.
+/**
+ * @param {EnumItem} it
+ * @param {StaticFilterEntry} s
+ * @returns {FilterFacet}
+ */
 function liveFacet(it, s) {
   return {
     genre: (it.static && it.static.genre) || (s && s.genre) || [],
@@ -178,6 +279,11 @@ function liveFacet(it, s) {
 
 // A static-only entry (a filter absent from the live enum — the inactive mode's
 // exclusive set). All facets from the manual overlay; phase/length from name.
+/**
+ * @param {string} name
+ * @param {StaticFilterEntry} s
+ * @returns {FilterFacet}
+ */
 function staticFacet(name, s) {
   const apod = apodFromStatic(s.apodizing);
   return {
@@ -200,6 +306,7 @@ function staticFacet(name, s) {
 export const filterFacets = computed(() => {
   const live = (enums.value && enums.value.filters) || [];
   const staticDb = (metadata.value && metadata.value.filters && metadata.value.filters.filters) || {};
+  /** @type {Record<string, FilterFacet>} */
   const map = {};
   for (const it of live) map[it.name] = liveFacet(it, staticDb[it.name]);
   for (const [name, s] of Object.entries(staticDb)) {

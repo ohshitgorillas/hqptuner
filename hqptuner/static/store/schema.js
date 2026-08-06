@@ -44,16 +44,16 @@ import { truthy } from "../lib/coerce.js";
 // grayWhen contract: return a reason STRING (rendered as a visible caption on
 // the grayed field unless quietGray, and as the hover title), '' when enabled —
 // a bare boolean leaks "true" into the title attribute.
-const inMode = (ctx, m) => String(ctx.effective("output_mode")) === m;
-const isSdm = (ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
-const isPcm = (ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
+const inMode = (/** @type {GrayCtx} */ ctx, /** @type {string} */ m) => String(ctx.effective("output_mode")) === m;
+const isSdm = (/** @type {GrayCtx} */ ctx) => (inMode(ctx, "sdm") ? "Only relevant to PCM output mode." : "");
+const isPcm = (/** @type {GrayCtx} */ ctx) => (inMode(ctx, "pcm") ? "Only relevant to SDM output mode." : "");
 
 // DirectSDM "will disable volume control and set PCM volume to fixed -3 dBFS
 // value" (manual §4.5). Every persistent control that sets a volume level is
 // therefore inert while it's on — the daemon accepts and stores the setting but
 // nothing reaches the output stage, so the UI has to say so. PlaybackVolume.js
 // already grays the live slider for the same reason.
-const directSdm = (ctx) =>
+const directSdm = (/** @type {GrayCtx} */ ctx) =>
   truthy(ctx.effective("direct_sdm"))
     ? "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value."
     : "";
@@ -62,7 +62,7 @@ const directSdm = (ctx) =>
 // independent fixed-volume mode with its own 0/1/2 enable (readme §1.2, attr
 // volume_fixed) — so it must not use fixedOff, or disabling fixed volume traps
 // a nonzero Optimal ISO the user can no longer clear.
-const fixedOff = (ctx) =>
+const fixedOff = (/** @type {GrayCtx} */ ctx) =>
   directSdm(ctx) || (truthy(ctx.effective("fixed_volume_enabled")) ? "" : "Requires Fixed volume to be enabled.");
 // Optimal ISO supersedes the manual level with an auto-optimized one (manual
 // §4.x "Fixed volume check box … optimized level setting"), so they're exclusive.
@@ -70,40 +70,42 @@ const fixedOff = (ctx) =>
 // the value reaches us either as one of those strings (file truth) or as a bare
 // bool (the /config form's checkbox, which cannot express 2). Normalize to the
 // XML domain so both sources read the same.
-const isoLevel = (v) => {
+const isoLevel = (/** @type {string | number | boolean | undefined} */ v) => {
   if (v === true) return "1";
   if (v === false || v == null) return "0";
   const s = String(v);
   if (s === "2") return "2";
   return s === "0" || s === "" || s === "false" ? "0" : "1";
 };
-const isoOn = (ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
+const isoOn = (/** @type {GrayCtx} */ ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
 // Whether the volume control is pinned (manual §4.2, §4.5): fixed volume, Auto
 // headroom (either encoding — file "0"/"1"/"2" or the /config form's lossy
 // bool, both normalized by isoLevel), or a volume range collapsed to 0/0.
 // Takes a getter (key => value) so one predicate serves any view of the config —
 // the signal path passes runningValue to gate the volume-adaptive loudness chip
 // on what the engine is actually applying.
-export const volumePinned = (get) =>
+export const volumePinned = (/** @type {(key: string) => string | number | boolean | undefined} */ get) =>
   truthy(get("fixed_volume_enabled")) ||
   isoLevel(get("optimal_iso")) !== "0" ||
   (Number(get("volume_min")) === 0 && Number(get("volume_max")) === 0);
-const levelGray = (ctx) => fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
+const levelGray = (/** @type {GrayCtx} */ ctx) =>
+  fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
 // The live volume control is bypassed in three documented cases (manual §4.2,
 // §4.5): Direct SDM, fixed volume / Optimal ISO, and volume min = max = 0.
 // Adaptive volume offsets the live volume, so it is inert in all three.
 // The range controls themselves (min / max / startup level) share the first two
 // reasons but deliberately NOT the third: min = max = 0 is a state you escape by
 // editing min or max, so graying them there would trap the user in it.
-const volumeRangeGray = (ctx) =>
+const volumeRangeGray = (/** @type {GrayCtx} */ ctx) =>
   directSdm(ctx) ||
   (truthy(ctx.effective("fixed_volume_enabled")) || isoOn(ctx) ? "Fixed volume bypasses the volume control." : "");
-const volumeBypassed = (ctx) =>
+const volumeBypassed = (/** @type {GrayCtx} */ ctx) =>
   volumeRangeGray(ctx) ||
   (Number(ctx.effective("volume_min")) === 0 && Number(ctx.effective("volume_max")) === 0
     ? "Volume min and max are both 0 — volume control is bypassed. Not suitable for normal cases, since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side."
     : "");
-const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.");
+const logOff = (/** @type {GrayCtx} */ ctx) =>
+  truthy(ctx.effective("log_enabled")) ? "" : "Enable logging to set a log file path.";
 // The outer gate on every post-process control. `<post_process>` nests inside
 // `<matrix>` (readme §1.11.2) and §1.11's `enabled` is the matrix processing
 // switch, so a bypassed matrix runs no plugin in the chain: Bauer crossfeed, DAC
@@ -115,20 +117,21 @@ const logOff = (ctx) => (truthy(ctx.effective("log_enabled")) ? "" : "Enable log
 // suppresses it per field so no card repeats it under every control; a grayed
 // knob still carries it on hover.
 export const MATRIX_BYPASS_REASON = "Matrix engine is bypassed. These settings have no effect.";
-const matrixBypassed = (ctx) => (truthy(ctx.effective("matrix_enabled")) ? "" : MATRIX_BYPASS_REASON);
+const matrixBypassed = (/** @type {GrayCtx} */ ctx) =>
+  truthy(ctx.effective("matrix_enabled")) ? "" : MATRIX_BYPASS_REASON;
 // a post-process card's sub-controls gray out until the feature is enabled
-const crossfeedOff = (ctx) =>
+const crossfeedOff = (/** @type {GrayCtx} */ ctx) =>
   matrixBypassed(ctx) || (truthy(ctx.effective("crossfeed_enabled")) ? "" : "Enable crossfeed to adjust.");
 // Loudness is volume-ADAPTIVE (manual §7): the applied fraction follows the
 // live volume across the loudness range. A bypassed/fixed volume pins it —
 // at −3/−6 dB (above any sane range upper bound) that means 0% applied, ever.
-const loudnessGated = (ctx) => {
+const loudnessGated = (/** @type {GrayCtx} */ ctx) => {
   const bypassed = matrixBypassed(ctx);
   if (bypassed) return bypassed;
   const r = volumeBypassed(ctx);
   return r ? `${r} Volume-adaptive loudness cannot adapt — use a Matrix EQ for a volume-agnostic equivalent.` : "";
 };
-const loudnessOff = (ctx) =>
+const loudnessOff = (/** @type {GrayCtx} */ ctx) =>
   loudnessGated(ctx) || (truthy(ctx.effective("loudness_enabled")) ? "" : "Enable loudness to adjust.");
 
 // Fixed friendly rate menus. Values are the 48k-base member of each tier, and
@@ -162,6 +165,7 @@ export const DSD_RATES = [
 // the frequency beside it. Anything asking "is this tier reachable" — the LIVE
 // rate columns, the device-capability narrowing — has to ask about both members,
 // so the pairing lives here with the tables it pairs.
+/** @type {Record<string, string>} */
 export const TWIN_44K = {
   48000: "44100",
   96000: "88200",
@@ -179,7 +183,7 @@ export const TWIN_44K = {
 // Either member of a tier back to the menu value that names it.
 export const TIER = Object.entries(TWIN_44K).reduce(
   (all, [base, twin]) => ({ ...all, [base]: base, [twin]: base }),
-  {},
+  /** @type {Record<string, string>} */ ({}),
 );
 
 // Backend http-field values are stable strings (not volatile enum indices), so
@@ -218,6 +222,7 @@ const MODES = [
   { value: "auto", label: "Auto" },
 ];
 
+/** @type {Record<string, SchemaField>} */
 export const schema = {
   // --- Output: always-visible masters + independents ---
   output_mode: {
@@ -309,7 +314,7 @@ export const schema = {
   // would send 44.1k material out at a 48k base rate — which is the user's call
   // to make via alsa_anydsd/net_anydsd, never HQPTuner's. httplane.FORCED_CONFIG
   // therefore pins it to 0 on every write and this menu never goes near it.
-  // store/live.js writes it live, where the playing source IS known and the tier
+  // store/live/rates.js writes it live, where the playing source IS known and the tier
   // resolves to that source's own family member.
   //
   // quietGray: the PCM/SDM pair next to the Mode segment explains itself.

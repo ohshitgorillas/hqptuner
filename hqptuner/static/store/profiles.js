@@ -29,7 +29,7 @@ const fileProfiles = computed(() => (matrixConfig.value && matrixConfig.value.fi
 const daemonProfiles = computed(() => {
   const m = matrixConfig.value || {};
   if (m.live_profiles && m.live_profiles.length) return m.live_profiles;
-  return ((m.profiles && m.profiles.options) || []).map((o) => o.value).filter(Boolean);
+  return ((m.profiles && m.profiles.options) || []).map((/** @type {SchemaOption} */ o) => o.value).filter(Boolean);
 });
 
 export const matrixActiveProfile = computed(() => {
@@ -42,7 +42,7 @@ function stagedSave() {
   const json = effective(SAVE);
   if (!json) return null;
   try {
-    return JSON.parse(json);
+    return JSON.parse(/** @type {string} */ (json));
   } catch {
     return null; // corrupt staged value — treat as nothing staged
   }
@@ -54,7 +54,7 @@ function stagedDeleteName() {
   const value = effective(DELETE);
   if (!value) return null;
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(/** @type {string} */ (value));
     if (parsed && typeof parsed === "object") return parsed.name;
   } catch {
     // not JSON — the value is the name itself
@@ -73,15 +73,19 @@ export const savedProfiles = computed(() => {
 
 // Whether a live switch can reach this profile. A profile saved in this session
 // and not applied yet cannot be: the daemon only knows what it read at startup.
-export const isLiveProfile = (name) => daemonProfiles.value.includes(name);
+export const isLiveProfile = (/** @type {string} */ name) => daemonProfiles.value.includes(name);
 
 // A profile the config carries: {rows, post}. Null for a name only the daemon
 // knows (saved through its own route, before HQPTuner owned profiles).
-const fileProfile = (name) => fileProfiles.value[name] || null;
+const fileProfile = (/** @type {string} */ name) => fileProfiles.value[name] || null;
 
 // The rows a load would install: the staged save's own rows when that is the
 // profile in question, else what the config carries. Null when only the daemon
 // knows the name — there are no rows to stage, so such a load is live-only.
+/**
+ * @param {string} name
+ * @returns {import("./resolve.js").PipelineRow[] | null}
+ */
 export function profileRows(name) {
   const staging = stagedSave();
   if (staging && staging.name === name) return staging.rows;
@@ -94,6 +98,10 @@ export function profileRows(name) {
 // with a save staged this session — that save captures the chain that is already
 // live, so a load of it has nothing to install. Null for a name only the daemon
 // knows, matching profileRows.
+/**
+ * @param {string} name
+ * @returns {Record<string, string> | null}
+ */
 export function profilePost(name) {
   const staging = stagedSave();
   if (staging && staging.name === name) return {};
@@ -104,9 +112,12 @@ export function profilePost(name) {
 // Rows arrive canonical from effectivePipelines, so they go out as they came.
 // `presets` names the stored presets the verb also fans out to at apply; the
 // no-target payloads keep the original shapes on the wire.
-export const stageProfileSave = (name, rows, presets = []) =>
-  edit(SAVE, JSON.stringify(presets.length ? { name, rows, presets } : { name, rows }));
-export const stageProfileDelete = (name, presets = []) =>
+export const stageProfileSave = (
+  /** @type {string} */ name,
+  /** @type {import("./resolve.js").PipelineRow[]} */ rows,
+  /** @type {string[]} */ presets = [],
+) => edit(SAVE, JSON.stringify(presets.length ? { name, rows, presets } : { name, rows }));
+export const stageProfileDelete = (/** @type {string} */ name, /** @type {string[]} */ presets = []) =>
   edit(DELETE, presets.length ? JSON.stringify({ name, presets }) : name);
 
 // Each stored preset's saved profile names (/api/matrix preset_profiles) — the

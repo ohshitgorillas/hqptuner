@@ -1,26 +1,54 @@
 // Trace builders for the matrix RESPONSE plot (MatrixPlot.js): working-row
 // magnitude/phase curves, the crossfeed-block EQ overview, applied-baseline
-// ghosts and the library-picker preview. Pure client math (lib/dsp.js),
+// ghosts and the library-picker preview. Pure client math (lib/dsp/chain.js),
 // recomputed per render off the staged pipeline signals — no server
 // round-trip.
 import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
-import { chainResponse, bandFreqs } from "../lib/dsp.js";
+import { chainResponse } from "../lib/dsp/chain.js";
+import { bandFreqs } from "../lib/dsp/curves.js";
 import { xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { withDrag, dragEq } from "./BandStrip.js";
+
+/**
+ * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
+ *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
+ *   string, because the config XML and the /matrix form both carry text.
+ * @typedef {import("../lib/matrixspec.js").MatrixStage} Stage
+ *   One parsed `process` stage, as lib/matrixspec.js parseProcess emits it.
+ * @typedef {{ min: number, max: number }} Bounds
+ *   The dB window the plot auto-scales to. Widened IN PLACE by every builder
+ *   here, so the caller's object is the accumulator.
+ * @typedef {{ stages: Stage[], idxs: number[] }} Group
+ *   Rows sharing a byte-identical chain, drawn as one curve labelled with every
+ *   pipeline number it covers.
+ * @typedef {PlotTrace & { ghost?: boolean }} GhostTrace
+ *   An applied-baseline curve: a PlotTrace flagged for the muted dashed style.
+ * @typedef {{ eqProcess: { left: string, right: string } }} StructuralRec
+ *   The part of a recognized structural crossfeed block these traces read: the
+ *   per-ear EQ chain it was built from (lib/xfmode.js).
+ */
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad
 // shape across 20 Hz–20 kHz is near rate-independent once fs is well above audio.
 const FS = 48000;
 export const HUES = ["r0", "r1", "r2", "r3"];
 
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number[]} plotted
+ * @param {Bounds} bounds
+ * @returns {{ traces: PlotTrace[], anyPartial: boolean }}
+ */
 export function rowTraces(rows, plotted, bounds) {
   const freqs = bandFreqs(160);
   // Collapse rows with an identical processing chain (stereo pairs land byte-
   // identical) into one curve, labeled with every pipeline number it covers —
   // so a stereo EQ is a single "1+2" trace, not two overlapping ones with
   // doubled legends.
+  /** @type {Group[]} */
   const groups = [];
+  /** @type {Map<string, Group>} */
   const byKey = new Map();
   plotted.forEach((i) => {
     const stages = withDrag(rows, i);
@@ -33,10 +61,13 @@ export function rowTraces(rows, plotted, bounds) {
     }
     g.idxs.push(i);
   });
+  /** @type {PlotTrace[]} */
   const traces = [];
   let anyPartial = false;
   groups.forEach((g, k) => {
+    /** @type {[number, number][]} */
     const mag = [];
+    /** @type {[number, number][]} */
     const ph = [];
     let partial = false;
     for (const f of freqs) {
@@ -63,6 +94,11 @@ export function rowTraces(rows, plotted, bounds) {
 // near-identical internal rows. Both block types hide their rows from the plot,
 // so without this the EQ — the curve the user actually tuned — disappears and a
 // ~2 dB crossfeed response is left dominating the chart.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {Bounds} bounds
+ * @returns {PlotTrace[] | null}
+ */
 export function eqOverviewTrace(rows, bounds) {
   const structural = structuralBlock(rows);
   if (structural) return structuralEqTraces(structural, bounds);
@@ -71,7 +107,9 @@ export function eqOverviewTrace(rows, bounds) {
   const stages = parseProcess(rec.eqProcess);
   if (!stages.length) return null;
   const freqs = bandFreqs(160);
+  /** @type {[number, number][]} */
   const mag = [];
+  /** @type {[number, number][]} */
   const ph = [];
   for (const f of freqs) {
     const r = chainResponse(stages, f, FS);
@@ -88,6 +126,11 @@ export function eqOverviewTrace(rows, bounds) {
 
 // Per ear, because the structural block carries a chain for each. One curve when
 // they agree, two labelled ones when they do not.
+/**
+ * @param {StructuralRec} rec
+ * @param {Bounds} bounds
+ * @returns {PlotTrace[] | null}
+ */
 function structuralEqTraces(rec, bounds) {
   const sides =
     rec.eqProcess.left === rec.eqProcess.right
@@ -97,11 +140,14 @@ function structuralEqTraces(rec, bounds) {
           ["EQ right", rec.eqProcess.right],
         ];
   const freqs = bandFreqs(160);
+  /** @type {PlotTrace[]} */
   const out = [];
   for (const [label, chain] of sides) {
     const stages = parseProcess(chain);
     if (!stages.length) continue;
+    /** @type {[number, number][]} */
     const mag = [];
+    /** @type {[number, number][]} */
     const ph = [];
     for (const f of freqs) {
       const r = chainResponse(stages, f, FS);
@@ -121,17 +167,30 @@ function structuralEqTraces(rec, bounds) {
 // working traces, present whenever the working picture differs (staged edits
 // or an in-flight drag). A block baseline (crossfeed applied) ghosts its
 // recovered EQ curve instead of the block's internal rows.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {PipelineRow[]} base
+ * @param {number[]} plotted
+ * @returns {boolean}
+ */
 export function editedAway(rows, base, plotted) {
   if (dragEq.value !== null) return true;
   if (rows.length !== base.length) return true;
   return plotted.some((i) => (rows[i].process || "") !== ((base[i] && base[i].process) || ""));
 }
 
+/**
+ * @param {PipelineRow[]} base
+ * @param {number[]} plotted
+ * @param {Bounds} bounds
+ * @returns {GhostTrace[]}
+ */
 export function appliedTraces(base, plotted, bounds) {
   if (structuralBlock(base) || xfeedBlock(base).rec) {
     const eq = eqOverviewTrace(base, bounds) || [];
     return eq.filter((t) => !t.y2).map((t) => ({ points: t.points, kind: "ghost", ghost: true, label: "applied" }));
   }
+  /** @type {Map<string, Group>} */
   const byKey = new Map();
   plotted.forEach((i) => {
     if (!base[i]) return;
@@ -147,6 +206,7 @@ export function appliedTraces(base, plotted, bounds) {
   });
   const freqs = bandFreqs(160);
   return [...byKey.values()].map((g) => {
+    /** @type {[number, number][]} */
     const mag = [];
     for (const f of freqs) {
       const r = chainResponse(g.stages, f, FS);
@@ -158,8 +218,14 @@ export function appliedTraces(base, plotted, bounds) {
   });
 }
 
+/**
+ * @param {{ label: string, stages: Stage[] }} preview
+ * @param {Bounds} bounds
+ * @returns {PlotTrace}
+ */
 export function previewTrace(preview, bounds) {
   const freqs = bandFreqs(160);
+  /** @type {[number, number][]} */
   const mag = [];
   for (const f of freqs) {
     const r = chainResponse(preview.stages, f, FS);

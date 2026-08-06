@@ -11,6 +11,10 @@ import { effective } from "./resolve.js";
 // grayReason(key) -> '' when enabled, else a short human reason (the control's
 // tooltip when disabled). Every field is applyable now; graying is purely the
 // schema's own mode/state rules (grayWhen).
+/**
+ * @param {string} key
+ * @returns {string}
+ */
 export function grayReason(key) {
   const e = schema[key];
   if (!e) return "";
@@ -24,6 +28,10 @@ export function grayReason(key) {
 // setting that only bites in the OTHER output mode is still one the user may
 // want staged correctly before switching modes, so the control stays editable
 // and only says where it applies (schema `adviseWhen`).
+/**
+ * @param {string} key
+ * @returns {string}
+ */
 export function adviceNote(key) {
   const e = schema[key];
   if (!e) return "";

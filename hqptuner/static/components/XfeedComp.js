@@ -13,7 +13,8 @@ import { effective, effectivePipelines } from "../store/resolve.js";
 import { stagePipelines, edit } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
 import { parseProcess } from "../lib/matrixspec.js";
-import { chainResponse, bandFreqs } from "../lib/dsp.js";
+import { chainResponse } from "../lib/dsp/chain.js";
+import { bandFreqs } from "../lib/dsp/curves.js";
 import { PlotFrame } from "./plots.js";
 import { SliderNumber } from "./controls/index.js";
 import {
@@ -29,11 +30,27 @@ import {
 import { truthy } from "../lib/coerce.js";
 import { db, hz } from "../lib/units.js";
 
+/**
+ * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../lib/xfeed.js").MsRecognition} MsRecognition
+ * @typedef {{ enabled: boolean, fc: number, feed: number }} BauerSettings
+ *   The running Bauer crossfeed the correction is fitted against: its on/off
+ *   flag and the (corner, feed) pair the preset or the two knobs resolve to.
+ * @typedef {{ issue?: string, eq?: string, gain?: number }} PairInfo
+ *   Rows 1+2 read as a symmetric stereo EQ pair — either the reason they are
+ *   not one, or the chain and preamp a block can be built from.
+ * @typedef {{ min: number, max: number }} Bounds
+ *   The plot's running dB extent, widened in place by the traces drawn into it.
+ */
+
 const FS = 48000;
 
+/**
+ * @returns {BauerSettings}
+ */
 function bauerSettings() {
   const preset = String(effective("crossfeed_preset") ?? "default");
-  const p = BAUER_PRESETS[preset];
+  const p = /** @type {Record<string, { fc: number, feed: number }>} */ (BAUER_PRESETS)[preset];
   return {
     enabled: truthy(effective("crossfeed_enabled")),
     fc: p ? p.fc : Number(effective("crossfeed_frequency")) || 700,
@@ -42,6 +59,10 @@ function bauerSettings() {
 }
 
 // The recognized block at rows 0..7 for the CURRENT bauer settings, or null.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {{ bs: BauerSettings, rec: MsRecognition | null }}
+ */
 export function xfeedBlock(rows) {
   const bs = bauerSettings();
   return { bs, rec: rows.length >= 8 ? msRecognize(rows, 0, bs.fc, bs.feed) : null };
@@ -52,14 +73,23 @@ export function xfeedBlock(rows) {
 // (live configs arrive with In 2 first), so the pair is accepted either way;
 // the compiled block always emits canonical In 1-first order. Returns
 // {eq, gain} when eligible, else {issue}.
-const straightThrough = (x, ch) => x.source === ch && x.mixdown === ch;
+const straightThrough = (/** @type {PipelineRow} */ x, /** @type {string} */ ch) => x.source === ch && x.mixdown === ch;
 
 // In 1→Out 1 / In 2→Out 2, in either row order.
+/**
+ * @param {PipelineRow} a
+ * @param {PipelineRow} b
+ * @returns {boolean}
+ */
 function straightPair(a, b) {
   const fwd = straightThrough(a, "0") && straightThrough(b, "1");
   return fwd || (straightThrough(a, "1") && straightThrough(b, "0"));
 }
 
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {PairInfo}
+ */
 function pairInfo(rows) {
   const [a, b] = rows;
   if (!a || !b) return { issue: "needs pipelines 1+2" };
@@ -84,6 +114,10 @@ export function lensShown() {
   return lensOn.value;
 }
 
+/**
+ * @param {MsRecognition | null} rec
+ * @returns {number}
+ */
 function currentPct(rec) {
   const drag = sliderDrag.value;
   if (drag !== null) return drag;
@@ -91,9 +125,19 @@ function currentPct(rec) {
   return pendingPct.value ?? 100;
 }
 
-function stageBlock(rows, eq, preampDb, pct, restFrom) {
+/**
+ * @param {PipelineRow[]} rows
+ * @param {{ eq: string, preampDb: number }} from the EQ chain and preamp to compile the block from
+ * @param {number} pct
+ * @param {number} restFrom index the rows AFTER the block resume at
+ * @returns {void}
+ */
+function stageBlock(rows, { eq, preampDb }, pct, restFrom) {
   const { fc, feed } = bauerSettings();
-  const next = [...msCompile(eq, preampDb, fitComp(fc, feed), pct / 100, 0, 1), ...rows.slice(restFrom)];
+  const next = [
+    ...msCompile(eq, preampDb, { fit: fitComp(fc, feed), s: pct / 100 }, { a: 0, b: 1 }),
+    ...rows.slice(restFrom),
+  ];
   stagePipelines(next);
   edit("pipelines", String(next.length));
 }
@@ -101,6 +145,11 @@ function stageBlock(rows, eq, preampDb, pct, restFrom) {
 // Public because leaving Bauer takes its rows with it, not just its enable flag:
 // the mode segment (lib/xfmode.js) and the DSP tab's Speakers switch both call
 // this, and a correction left behind would run against a crossfeed that is off.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {MsRecognition} rec
+ * @returns {void}
+ */
 export function removeBlock(rows, rec) {
   const g = String(Math.round(rec.preampDb * 100) / 100);
   const pair = [
@@ -116,6 +165,11 @@ export function removeBlock(rows, rec) {
 // receives through the crossfeed — center (with comp at the slider position),
 // the uncompensated center as a ghost, and the side path (deliberately
 // untouched). Magnitude only.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {Bounds} bounds
+ * @returns {PlotTrace[]}
+ */
 export function xfeedLensTraces(rows, bounds) {
   if (!lensShown()) return [];
   const { bs, rec } = xfeedBlock(rows);
@@ -127,29 +181,29 @@ export function xfeedLensTraces(rows, bounds) {
   const eq = parseProcess(eqProcess);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
   const freqs = bandFreqs(160);
-  const mk = (fn) => {
+  const mk = (/** @type {(f: number) => number} */ fn) => {
     const pts = freqs.map((f) => {
-      const db = fn(f);
-      bounds.min = Math.min(bounds.min, db);
-      bounds.max = Math.max(bounds.max, db);
-      return [f, db];
+      const level = fn(f);
+      bounds.min = Math.min(bounds.min, level);
+      bounds.max = Math.max(bounds.max, level);
+      return /** @type {[number, number]} */ ([f, level]);
     });
     return pts;
   };
-  const eqDb = (f) => chainResponse(eq, f, FS).db;
+  const eqDb = (/** @type {number} */ f) => chainResponse(eq, f, FS).db;
   return [
     {
-      points: mk((f) => eqDb(f) + centerMagDb(bs.fc, bs.feed, f)),
+      points: mk((/** @type {number} */ f) => eqDb(f) + centerMagDb(bs.fc, bs.feed, f)),
       kind: "ghost",
       label: "center, uncorrected",
     },
     {
-      points: mk((f) => eqDb(f) + chainResponse(comp, f, FS).db + centerMagDb(bs.fc, bs.feed, f)),
+      points: mk((/** @type {number} */ f) => eqDb(f) + chainResponse(comp, f, FS).db + centerMagDb(bs.fc, bs.feed, f)),
       kind: "xfm",
       label: `center, corrected ${pct}%`,
     },
     {
-      points: mk((f) => eqDb(f) + sideMagDb(bs.fc, bs.feed, f)),
+      points: mk((/** @type {number} */ f) => eqDb(f) + sideMagDb(bs.fc, bs.feed, f)),
       kind: "xfs",
       label: "stereo sides",
     },
@@ -159,6 +213,10 @@ export function xfeedLensTraces(rows, bounds) {
 // Whether the Bauer lens has anything to draw: crossfeed running, over rows this
 // file can read an EQ out of. The RESPONSE card asks before offering the toggle,
 // so the button appears only where pressing it would change the plot.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {boolean}
+ */
 export function xfeedLensAvailable(rows) {
   const { bs, rec } = xfeedBlock(rows);
   if (!bs.enabled) return false;
@@ -188,14 +246,20 @@ export function XfeedBadge() {
 // The strip's primary action. An installed block offers Turn off (plus Rebuild
 // once the crossfeed settings have moved out from under it); an uninstalled one
 // offers Turn on, grayed with the reason when the stereo pair is not eligible.
-function xfcActions(rows, rec, pair, pct, issue) {
+/**
+ * @param {PipelineRow[]} rows
+ * @param {MsRecognition | null} rec
+ * @param {PairInfo | null} pair
+ * @param {{ pct: number, issue: string }} state
+ */
+function xfcActions(rows, rec, pair, { pct, issue }) {
   if (!rec) {
     return html`<button
       type="button"
       class="mtx-tool mtx-primary"
       disabled=${!!issue}
       title=${issue || "Build the correction from pipelines 1+2 (they become 8 mid/side pipelines — see the Pipelines card)"}
-      onClick=${() => stageBlock(rows, pair.eq, pair.gain, pct, 2)}
+      onClick=${() => stageBlock(rows, { eq: pair.eq, preampDb: pair.gain }, pct, 2)}
     >
       Turn on
     </button>`;
@@ -207,7 +271,7 @@ function xfcActions(rows, rec, pair, pct, issue) {
             type="button"
             class="mtx-tool mtx-primary"
             title="The crossfeed settings changed after this correction was built — rebuild it to match them"
-            onClick=${() => stageBlock(rows, rec.eqProcess, rec.preampDb, pct, 8)}
+            onClick=${() => stageBlock(rows, { eq: rec.eqProcess, preampDb: rec.preampDb }, pct, 8)}
           >
             Rebuild
           </button>`
@@ -224,6 +288,10 @@ function xfcActions(rows, rec, pair, pct, issue) {
   `;
 }
 
+/**
+ * @param {BauerSettings} bs
+ * @param {number} tilt
+ */
 function xfcNote(bs, tilt) {
   if (!notesVisible.value) return null;
   return html`<div class="field-note xfc-note">
@@ -252,10 +320,10 @@ export function XfeedStrip() {
       </div>
     `;
   }
-  const commit = (v) => {
+  const commit = (/** @type {number} */ v) => {
     sliderDrag.value = null;
     const clamped = Math.max(0, Math.min(150, Math.round(v)));
-    if (rec) stageBlock(rows, rec.eqProcess, rec.preampDb, clamped, 8);
+    if (rec) stageBlock(rows, { eq: rec.eqProcess, preampDb: rec.preampDb }, clamped, 8);
     else pendingPct.value = clamped;
   };
   // nothing to aim at until there is a block or an eligible pair to build one from
@@ -270,8 +338,8 @@ export function XfeedStrip() {
         value=${pct}
         unit="%"
         disabled=${locked}
-        onDrag=${(v) => (sliderDrag.value = Number(v))}
-        onCommit=${(v) => commit(Number(v))}
+        onDrag=${(/** @type {string | number} */ v) => (sliderDrag.value = Number(v))}
+        onCommit=${(/** @type {string | number} */ v) => commit(Number(v))}
       />
       <span
         class="xfc-tilt"
@@ -279,7 +347,7 @@ export function XfeedStrip() {
       >
         crossfeed dulls the center by ${db(tilt, 1)}
       </span>
-      ${xfcActions(rows, rec, pair, pct, issue)}
+      ${xfcActions(rows, rec, pair, { pct, issue })}
       <span class="xfc-scale">0% off · 100% neutral · above 100% brighter than neutral</span>
       <span class="xfc-scale"
         >Guide: mixes that live in the center — vocals, pop, mono-ish recordings — take 100% or a touch more. Wide or
@@ -303,16 +371,16 @@ export function CompMiniPlot() {
   const pct = currentPct(rec);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
   const freqs = bandFreqs(120);
-  const trace = (fn) => freqs.map((f) => [f, fn(f)]);
-  const xf = (f) => centerMagDb(bs.fc, bs.feed, f);
-  const corr = (f) => chainResponse(comp, f, FS).db;
+  const trace = (/** @type {(f: number) => number} */ fn) => freqs.map((f) => [f, fn(f)]);
+  const xf = (/** @type {number} */ f) => centerMagDb(bs.fc, bs.feed, f);
+  const corr = (/** @type {number} */ f) => chainResponse(comp, f, FS).db;
   return html`
     <div class="xfc-mini">
       <${PlotFrame}
         traces=${[
           { points: trace(xf), kind: "ghost", label: "crossfeed", dy: 3 },
           { points: trace(corr), kind: "xfm", label: "correction", dy: -3 },
-          { points: trace((f) => xf(f) + corr(f)), kind: "applied", label: "result" },
+          { points: trace((/** @type {number} */ f) => xf(f) + corr(f)), kind: "applied", label: "result" },
         ]}
         yMin=${-3}
         yMax=${3}

@@ -70,12 +70,13 @@ import {
   pendingPreset,
 } from "../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../hqptuner/static/store/speakers.js";
-import { dspMode } from "../../../hqptuner/static/store/dspmode.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { xfMode, liveParams, remember } from "../../../hqptuner/static/lib/xfmode.js";
-import { compileRows, HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { cancel } from "../../../hqptuner/static/store/ask.js";
 import { stagingWire, quiesce, ok } from "../support/wire.js";
 import { renderWith, controlsIn, wheelAt, formValues } from "../support/wheel.js";
@@ -321,6 +322,7 @@ async function speakersCard() {
         x.posts.push(JSON.parse(opts.body));
         return ok({ applied: true, speakers: SPK });
       }
+      return undefined; // unhandled path: the wire's own fallback answers it
     },
   });
   showDescriptions.value = false;
@@ -336,7 +338,7 @@ async function speakersCard() {
     rows: [],
   };
   await discardAll();
-  dspMode.value = "speakers";
+  matrixMode.value = "speakers";
   chooseSet("2.0");
   return w;
 }

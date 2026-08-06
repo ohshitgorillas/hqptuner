@@ -3,7 +3,7 @@
 //
 //   node scripts/eqlab/eqlab.js < job.json      # JSON on stdout, table on stderr
 //
-// One job in, one answer out. The math is lib/dsp.js (`chainResponse`) and the
+// One job in, one answer out. The math is lib/dsp/chain.js (`chainResponse`) and the
 // process-string grammar is lib/matrixspec.js — this tool reimplements neither,
 // so what it reports is what the UI plots.
 //

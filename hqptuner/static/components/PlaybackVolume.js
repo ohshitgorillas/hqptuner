@@ -30,8 +30,9 @@ import { truthy } from "../lib/coerce.js";
 function disabledReason() {
   // running-on but edited-off = the user already staged the disable; the
   // missing step is Apply, so say that instead of repeating the toggle advice
-  const pendingOff = (k) => truthy(runningValue(k)) && !truthy(effective(k));
-  const hint = (staged) => (staged ? " Apply the staged change to free the volume control." : "");
+  const pendingOff = (/** @type {string} */ k) => truthy(runningValue(k)) && !truthy(effective(k));
+  const hint = (/** @type {boolean} */ staged) =>
+    staged ? " Apply the staged change to free the volume control." : "";
   if (truthy(runningValue("direct_sdm")))
     return `Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.${hint(pendingOff("direct_sdm"))}`;
   if (truthy(runningValue("fixed_volume_enabled")) || truthy(runningValue("optimal_iso"))) {
@@ -62,7 +63,9 @@ function knobRange() {
 
 // throttle: send the first move immediately, then at most once per 100 ms, with
 // a trailing send so the released value always lands.
+/** @type {string | null} the newest value not yet sent */
 let pending = null;
+/** @type {number | null} the open trailing-send timer, or null when idle */
 let timer = null;
 function flush() {
   if (pending == null) {
@@ -74,6 +77,7 @@ function flush() {
   setVolume(v).catch(() => {}); // grayed knob means this shouldn't fire; ignore races
   timer = setTimeout(flush, 100);
 }
+/** @param {string} v */
 function throttleSend(v) {
   pending = v;
   if (timer == null) flush();
@@ -98,11 +102,11 @@ export function PlaybackVolumeBody({ showQuick = true, showName = false }) {
   const engine = volume.value != null ? Number(volume.value) : min;
   const val = volumeDrag.value != null ? volumeDrag.value : engine;
 
-  const onLive = (v) => {
+  const onLive = (/** @type {string | number} */ v) => {
     volumeDrag.value = Number(v);
     throttleSend(String(v));
   };
-  const onCommit = (v) => {
+  const onCommit = (/** @type {string | number} */ v) => {
     throttleSend(String(v));
     // adopt before clearing the drag: the other way round leaves one render
     // reading the last polled level, and the plot and needle flick back to it
@@ -136,7 +140,7 @@ export function PlaybackVolumeBody({ showQuick = true, showName = false }) {
           showQuick
             ? html`
               <label class="poll-quick inline-check">
-                <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(v) => setFastVolumeUpdates(v === "1")} />
+                <${Checkbox} value=${fastVolumeUpdates.value ? "1" : "0"} onChange=${(/** @type {string | number} */ v) => setFastVolumeUpdates(v === "1")} />
                 Faster volume updates
                 <span class="poll-quick-note">refresh twice a second while this page is open</span>
               </label>

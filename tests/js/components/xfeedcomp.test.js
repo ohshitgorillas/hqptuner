@@ -40,7 +40,7 @@ function wire() {
 }
 
 // A plain stereo EQ row, the shape an AutoEq import leaves behind.
-const row = (source, mixdown, process = EQ, gain = "-3", gainunit = "dB") => ({
+const row = (source, mixdown, { process = EQ, gain = "-3", gainunit = "dB" } = {}) => ({
   gain,
   gainunit,
   mixdown,
@@ -51,7 +51,7 @@ const row = (source, mixdown, process = EQ, gain = "-3", gainunit = "dB") => ({
 const pair = () => [row("0", "0"), row("1", "1")];
 
 // A compiled compensation block at the given crossfeed settings and strength.
-const block = (p = DEF, s = 1) => msCompile(EQ, 0, fitComp(p.fc, p.feed), s, 0, 1);
+const block = (p = DEF, s = 1) => msCompile(EQ, 0, { fit: fitComp(p.fc, p.feed), s }, { a: 0, b: 1 });
 
 // Full reset every time.
 async function reset({ rows = [], enabled = true, preset = "default", notes = false } = {}) {
@@ -143,17 +143,19 @@ test("test_a_cross_routed_pair_explains_the_routing_it_wants", async () => {
 });
 
 test("test_a_pair_with_linear_gains_explains_that_it_wants_decibels", async () => {
-  await reset({ rows: [row("0", "0", EQ, "0.5", "Lin"), row("1", "1", EQ, "0.5", "Lin")] });
+  await reset({
+    rows: [row("0", "0", { gain: "0.5", gainunit: "Lin" }), row("1", "1", { gain: "0.5", gainunit: "Lin" })],
+  });
   assert.ok(titleOf(button(strip(), "Turn on")).includes("gains must be in dB"));
 });
 
 test("test_a_pair_carrying_different_eq_chains_is_rejected_as_asymmetric", async () => {
-  await reset({ rows: [row("0", "0", EQ), row("1", "1", EQ2)] });
+  await reset({ rows: [row("0", "0"), row("1", "1", { process: EQ2 })] });
   assert.ok(titleOf(button(strip(), "Turn on")).includes("not a symmetric stereo pair"));
 });
 
 test("test_a_pair_carrying_different_gains_is_rejected_as_asymmetric", async () => {
-  await reset({ rows: [row("0", "0", EQ, "-3"), row("1", "1", EQ, "-6")] });
+  await reset({ rows: [row("0", "0"), row("1", "1", { gain: "-6" })] });
   assert.ok(titleOf(button(strip(), "Turn on")).includes("not a symmetric stereo pair"));
 });
 

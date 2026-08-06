@@ -17,7 +17,18 @@ const dbState = signal(""); // "" | "loading…" | error text
 const query = signal("");
 const libSel = signal(null); // selected profile object
 
+/**
+ * @typedef {{ model: string, source: string, text: string, form?: string }} Profile
+ *   One AutoEq entry as GET /api/autoeq carries it: the headphone model, the
+ *   measurement source, the verbatim ParametricEQ.txt, and the optional form
+ *   factor that distinguishes two measurements of the same model.
+ */
+
 const LIMIT = 40;
+/**
+ * @param {string} s a measurement source
+ * @returns {number}
+ */
 const sourceRank = (s) => (s === "oratory1990" ? 0 : 1);
 
 async function loadDb() {
@@ -33,6 +44,11 @@ async function loadDb() {
 
 // All tokens must appear as substrings; rank by where they land
 // (start of model < word boundary < mid-word), then by source preference.
+/**
+ * @param {string} model
+ * @param {string[]} tokens
+ * @returns {number} the rank, or -1 when a token is missing
+ */
 function score(model, tokens) {
   const m = model.toLowerCase();
   let s = 0;
@@ -64,6 +80,7 @@ function results() {
   return { hits: scored.slice(0, LIMIT).map((h) => h[1]), more: Math.max(0, scored.length - LIMIT) };
 }
 
+/** @param {Profile} p */
 function select(p) {
   libSel.value = p;
   previewEq.value = { label: `${p.model} (${p.source})`, stages: parseEqText(p.text).stages };
@@ -74,6 +91,7 @@ export function clearLibrarySelection() {
   previewEq.value = null;
 }
 
+/** @param {{ p: Profile }} props */
 function Hit({ p }) {
   const isSel = libSel.value === p;
   return html`
@@ -88,6 +106,9 @@ function Hit({ p }) {
   `;
 }
 
+/**
+ * @param {{ applyText: (text: string) => void }} props the panel's paste-apply seam
+ */
 function Selection({ applyText }) {
   const p = libSel.value;
   if (!p) return null;
@@ -106,6 +127,9 @@ function Selection({ applyText }) {
   `;
 }
 
+/**
+ * @param {{ applyText: (text: string) => void }} props the panel's paste-apply seam
+ */
 export function LibraryPicker({ applyText }) {
   loadDb(); // lazy: first render of the open panel fetches the blob once
   const { hits, more } = results();
@@ -117,7 +141,7 @@ export function LibraryPicker({ applyText }) {
           type="text"
           placeholder="Search headphone model — e.g. HD 650…"
           value=${query.value}
-          onInput=${(e) => (query.value = e.target.value)}
+          onInput=${(/** @type {{ target: HTMLInputElement }} */ e) => (query.value = e.target.value)}
         />
         <span class="mtx-lib-credit">
           profiles:

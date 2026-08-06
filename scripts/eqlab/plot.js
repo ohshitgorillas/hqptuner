@@ -3,7 +3,7 @@
 // first-class output instead of hand-rolled one-off scripts.
 //
 // Same math as everything else here: every series comes out of `curveOf`
-// (metrics.js -> lib/dsp.js), the target out of target.js — nothing replotted
+// (metrics.js -> lib/dsp/chain.js), the target out of target.js — nothing replotted
 // from a different model. Writes go to the named file only.
 
 import { stat, writeFile } from "node:fs/promises";
@@ -137,7 +137,7 @@ function legend(series) {
   });
 }
 
-function svgOf(series, freqs, idx, range, ydom) {
+function svgOf(series, { freqs, idx }, range, ydom) {
   const sc = scales(range, ydom);
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
@@ -170,7 +170,7 @@ export async function plotJob(spec, ctx) {
   const series = buildSeries(show, curve, ctx.target, against);
   const idx = curve.freqs.flatMap((f, i) => (f >= range[0] && f <= range[1] ? [i] : []));
   if (idx.length === 0) throw new Error(`plot: range [${range[0]}, ${range[1]}] Hz contains no grid point`);
-  const svg = svgOf(series, curve.freqs, idx, range, yDomain(spec.y, series, idx));
+  const svg = svgOf(series, { freqs: curve.freqs, idx }, range, yDomain(spec.y, series, idx));
   if (!spec.overwrite && (await exists(spec.path))) {
     throw new Error(`plot: ${spec.path} exists — pass "overwrite": true to replace it`);
   }

@@ -1,5 +1,5 @@
 // Behavioral suite for the ONE setting the LIVE page refuses: the two output
-// rate columns under the `[source]` output mode — store/live.js's
+// rate columns under the `[source]` output mode — store/live/rates.js's
 // `pcmRate.disabled` / `.reason` / `.value` and their SDM mirrors.
 //
 // In `[source]` the engine accepts no rate over the wire at all (protocol.md
@@ -49,7 +49,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { engineState, engineStatus, enums, config, metadata } from "../../../hqptuner/static/store/signals.js";
-import { liveModel, liveErrors, liveBusy } from "../../../hqptuner/static/store/live.js";
+import { liveModel } from "../../../hqptuner/static/store/live/model.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../support/wire.js";
 
 // The daemon's two chain enumerations. Enum ID differs from list index, and the

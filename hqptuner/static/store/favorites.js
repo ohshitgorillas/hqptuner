@@ -17,6 +17,10 @@ const KEY = "hqptuner.favoriteFilters";
 
 let storageWarned = false;
 
+/**
+ * @param {string} verb
+ * @returns {void}
+ */
 function warnStorage(verb) {
   if (storageWarned) return;
   storageWarned = true;
@@ -37,6 +41,10 @@ function load() {
   }
 }
 
+/**
+ * @param {Set<string>} set
+ * @returns {void}
+ */
 function persist(set) {
   try {
     localStorage.setItem(KEY, JSON.stringify([...set]));
@@ -48,10 +56,18 @@ function persist(set) {
 export const favoriteFilters = signal(load());
 export const nFavOnly = signal(false);
 
+/**
+ * @param {string} name
+ * @returns {boolean}
+ */
 export function isFavorite(name) {
   return favoriteFilters.value.has(name);
 }
 
+/**
+ * @param {string} name
+ * @returns {void}
+ */
 export function toggleFavorite(name) {
   const next = new Set(favoriteFilters.value);
   if (next.has(name)) next.delete(name);

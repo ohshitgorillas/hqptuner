@@ -15,6 +15,15 @@ import { trackCounters, outputBufferApplies } from "../store/health.js";
 import { quickSystemUpdates, setQuickSystemUpdates } from "../store/prefs.js";
 import { Checkbox } from "./controls/index.js";
 
+/**
+ * @typedef {string | number | null | undefined} StatusValue
+ *   One field off the Status frame as the poll delivers it — numbers on the
+ *   wire arrive as strings, and an absent field as undefined.
+ * @typedef {number | null} Reading
+ *   A playback-time reading, or null for "nothing to show" (idle, absent or
+ *   not applicable).
+ */
+
 const TICKS = [0.5, 0.8, 1.0, 1.05, 1.2, 1.5, 2, 4];
 const A0 = -60;
 const A1 = 60;
@@ -22,6 +31,10 @@ const SEG = (A1 - A0) / (TICKS.length - 1);
 
 // value -> needle angle: equal angular spacing per tick interval, linear
 // within one, clamped (pegged) at both ends.
+/**
+ * @param {Reading} v
+ * @returns {number}
+ */
 function angleFor(v) {
   if (v === null || v <= TICKS[0]) return A0;
   if (v >= TICKS[TICKS.length - 1]) return A1;
@@ -33,10 +46,11 @@ function angleFor(v) {
 
 const CX = 110;
 const CY = 112;
-const rad = (deg) => (deg * Math.PI) / 180;
-const px = (a, r) => CX + r * Math.sin(rad(a));
-const py = (a, r) => CY - r * Math.cos(rad(a));
-const arc = (a, b, r) => `M ${px(a, r)} ${py(a, r)} A ${r} ${r} 0 0 1 ${px(b, r)} ${py(b, r)}`;
+const rad = (/** @type {number} */ deg) => (deg * Math.PI) / 180;
+const px = (/** @type {number} */ a, /** @type {number} */ r) => CX + r * Math.sin(rad(a));
+const py = (/** @type {number} */ a, /** @type {number} */ r) => CY - r * Math.cos(rad(a));
+const arc = (/** @type {number} */ a, /** @type {number} */ b, /** @type {number} */ r) =>
+  `M ${px(a, r)} ${py(a, r)} A ${r} ${r} 0 0 1 ${px(b, r)} ${py(b, r)}`;
 
 // zone arcs: red up to 1.00×, amber to 1.05×, neutral above
 const ZONES = [
@@ -45,6 +59,7 @@ const ZONES = [
   { from: angleFor(1.05), to: A1, cls: "vu-zone-ok" },
 ];
 
+/** @param {{ speed: Reading }} props */
 const VuGauge = ({ speed }) => html`
   <div class="vu">
     <svg viewBox="0 0 220 132" role="img" aria-label="Process speed gauge">
@@ -73,6 +88,7 @@ const VuGauge = ({ speed }) => html`
   </div>
 `;
 
+/** @param {{ label: string, frac: Reading }} props */
 const Meter = ({ label, frac }) => html`
   <div class="meter-row">
     <span class="meter-label">${label}</span>
@@ -86,6 +102,7 @@ const Meter = ({ label, frac }) => html`
   </div>
 `;
 
+/** @param {{ label: string, delta: Reading, total: Reading, alert: boolean }} props */
 const Counter = ({ label, delta, total, alert }) => html`
   <div class="eh-counter ${alert ? "alert" : ""}">
     <span class="eh-counter-label">${label}</span>
@@ -98,15 +115,18 @@ const Counter = ({ label, delta, total, alert }) => html`
 // it off: that page already polls at 500 ms unconditionally (store/ui.js), so an
 // unticked box promising faster updates would be describing something the page
 // is already doing. The System tab's copy is untouched.
+/** @param {{ showQuick?: boolean }} props */
 export function EngineHealth({ showQuick = true }) {
   const st = (engineStatus.value || {}).status || {};
   const playing = Number(st.state) === 2;
+  /** @param {StatusValue} v @returns {Reading} */
   const n = (v) => {
     const x = Number(v);
     return playing && v != null && v !== "" && Number.isFinite(x) ? x : null;
   };
   // fills are 0.0–1.0, but the daemon reports -1 when a buffer doesn't apply
   // (observed live: input_fill=-1 during NAA playback) — that's "n/a", not 0%.
+  /** @param {StatusValue} v @returns {Reading} */
   const fill = (v) => {
     const f = n(v);
     return f === null || f < 0 ? null : Math.min(f, 1);
@@ -130,7 +150,7 @@ export function EngineHealth({ showQuick = true }) {
       showQuick
         ? html`
           <label class="poll-quick inline-check">
-            <${Checkbox} value=${quickSystemUpdates.value ? "1" : "0"} onChange=${(v) => setQuickSystemUpdates(v === "1")} />
+            <${Checkbox} value=${quickSystemUpdates.value ? "1" : "0"} onChange=${(/** @type {string} */ v) => setQuickSystemUpdates(v === "1")} />
             Quick updates
             <span class="poll-quick-note">refresh twice a second while this page is open</span>
           </label>

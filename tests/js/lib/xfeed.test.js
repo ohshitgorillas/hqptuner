@@ -38,7 +38,7 @@ const near = (actual, expected, tol) => [
   `expected ${expected} ± ${tol}, got ${actual}`,
 ];
 
-const block = (eq = "", preamp = 0, s = 1, a = 0, b = 1) => msCompile(eq, preamp, FIT, s, a, b);
+const block = (eq = "", preamp = 0, s = 1) => msCompile(eq, preamp, { fit: FIT, s }, { a: 0, b: 1 });
 const rec = (rows) => msRecognize(rows, 0, fc, feed);
 
 // --- shape ------------------------------------------------------------------
@@ -104,7 +104,7 @@ test("test_full_strength_round_trips_exactly", () => {
 
 test("test_strength_recovery_stays_within_one_step_across_the_whole_range", () => {
   // jmeier is the worst preset for this — 68/150 values land off-grid
-  const jm = (s) => msRecognize(msCompile("", 0, JM_FIT, s, 0, 1), 0, JM.fc, JM.feed);
+  const jm = (s) => msRecognize(msCompile("", 0, { fit: JM_FIT, s }, { a: 0, b: 1 }), 0, JM.fc, JM.feed);
   const worst = Array.from({ length: 150 }, (_, i) => (i + 1) / 100)
     .map((s) => Math.abs(jm(s).sFraction - s))
     .reduce((a, b) => Math.max(a, b), 0);
@@ -155,7 +155,7 @@ test("test_a_block_at_a_later_offset_is_recognized", () => {
 test("test_a_block_feeding_both_halves_from_one_source_is_not_recognized", () => {
   // degenerate: no stereo pair to cross-feed. The structural recognizer refuses
   // its equivalent, and this one used to accept it.
-  assert.equal(rec(msCompile("", 0, FIT, 1, 0, 0)), null);
+  assert.equal(rec(msCompile("", 0, { fit: FIT, s: 1 }, { a: 0, b: 0 })), null);
 });
 
 test("test_a_row_with_a_decibel_gain_unit_is_not_recognized", () => {
@@ -239,7 +239,7 @@ for (const [name, p] of Object.entries(BAUER_PRESETS)) {
 
 test("test_every_bauer_preset_compiles_to_a_recognizable_block", () => {
   const ok = Object.values(BAUER_PRESETS).every((p) => {
-    const rows = msCompile(EQ, 0, fitComp(p.fc, p.feed), 1, 0, 1);
+    const rows = msCompile(EQ, 0, { fit: fitComp(p.fc, p.feed), s: 1 }, { a: 0, b: 1 });
     return msRecognize(rows, 0, p.fc, p.feed) !== null;
   });
   assert.ok(ok, "expected all three Bauer presets to round-trip");

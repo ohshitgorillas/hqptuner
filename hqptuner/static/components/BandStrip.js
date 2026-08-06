@@ -11,6 +11,18 @@ import { clamp } from "../lib/coerce.js";
 import { stagePipelines } from "../store/actions.js";
 import { Knob } from "./Knob.js";
 
+/**
+ * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {{ row: number, stage: number }} StageSel
+ *   Which pipeline row and which stage within it the editor points at.
+ * @typedef {{ name: string, min: number, max: number, step: number, unit?: string, scale?: string,
+ *             round: (v: number) => number }} BandSpec
+ *   One editable iir argument's UI policy — see BAND_ARGS.
+ * @typedef {{ sel: StageSel, st: Stage, shown: string[] }} StripTarget
+ *   The selected stage the strip can edit, plus the arg names it offers.
+ */
+
 // Stage selection ({row, stage}) shared with the pipeline editor (it lives
 // here, not in MatrixTab, so component imports stay one-way): the selected
 // chip's dot renders highlighted, so the editor and the plot point at the same
@@ -24,7 +36,13 @@ export const selectedStage = signal(null);
 // traffic; the release commits through stagePipelines like any pipeline edit.
 export const dragEq = signal(null);
 
-const stageKey = (s) => JSON.stringify({ kind: s.kind, args: s.args });
+const stageKey = (/** @type {Stage} */ s) => JSON.stringify({ kind: s.kind, args: s.args });
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} row
+ * @param {number} stageIdx
+ * @returns {string}
+ */
 export const keyAt = (rows, row, stageIdx) => stageKey(parseProcess(rows[row].process)[stageIdx]);
 
 // A byte-identical stage is ONE band rendered into many pipelines — a stereo
@@ -35,9 +53,20 @@ export const keyAt = (rows, row, stageIdx) => stageKey(parseProcess(rows[row].pr
 // byte-identical is left alone. This keeps merged curves merged mid-drag and
 // keeps a block's rows consistent — an index-based edit would silently
 // dismantle it.
+/**
+ * @param {Stage[]} stages
+ * @param {string} key
+ * @param {Record<string, string>} args
+ * @returns {Stage[]}
+ */
 const patched = (stages, key, args) =>
   stages.map((s) => (stageKey(s) === key ? { ...s, args: { ...s.args, ...args }, raw: undefined } : s));
 
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} i
+ * @returns {Stage[]}
+ */
 export function withDrag(rows, i) {
   const stages = parseProcess(rows[i].process);
   const d = dragEq.value;
@@ -45,6 +74,13 @@ export function withDrag(rows, i) {
 }
 
 // Release: rewrite the patched args on every byte-identical copy.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} row
+ * @param {number} stageIdx
+ * @param {Record<string, string>} patch
+ * @returns {void}
+ */
 export function commitStage(rows, row, stageIdx, patch) {
   dragEq.value = null;
   const key = keyAt(rows, row, stageIdx);
@@ -56,13 +92,14 @@ export function commitStage(rows, row, stageIdx, patch) {
   stagePipelines(next);
 }
 
-export const r1 = (v) => Math.round(v * 10) / 10;
-const r2 = (v) => Math.round(v * 100) / 100;
+export const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
+const r2 = (/** @type {number} */ v) => Math.round(v * 100) / 100;
 
 // Ranges are UI policy (hqplayerd documents the args, not their bounds): f
 // spans the audio band, g matches the plot's ±24 dB ceiling, Q/bw/s cover the
 // practical RBJ envelope; the docked editor still accepts anything outside
 // them.
+/** @type {Record<string, BandSpec>} */
 export const BAND_ARGS = {
   f: { name: "freq", min: 20, max: 20000, step: 1, unit: "Hz", scale: "log", round: Math.round },
   g: { name: "gain", min: -24, max: 24, step: 0.1, unit: "dB", round: r1 },
@@ -74,6 +111,10 @@ export const BAND_ARGS = {
 // The stage the strip can edit, or null: an iir stage of the selection whose
 // type schema carries at least one slider-able arg (biquad's raw coefficients
 // don't qualify — those keep the docked text editor only).
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {StripTarget | null}
+ */
 function stripTarget(rows) {
   const sel = selectedStage.value;
   if (!sel || sel.row >= rows.length) return null;
@@ -88,6 +129,11 @@ function stripTarget(rows) {
 // Strip title: every pipeline carrying a byte-identical copy — the same rule
 // commitStage moves copies by, so the name states what a commit will actually
 // touch. "1+2" for a stereo pair; a block's shared EQ names the row count.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {StageSel} sel
+ * @returns {string}
+ */
 function stripName(rows, sel) {
   const mine = keyAt(rows, sel.row, sel.stage);
   const idxs = rows.flatMap((r, i) => (parseProcess(r.process).some((s) => stageKey(s) === mine) ? [i] : []));
@@ -100,19 +146,27 @@ function stripName(rows, sel) {
 // arg the selection carries (q/bw/s); a slot whose arg the selection lacks —
 // or every slot, with nothing selected — renders the same knob disabled at a
 // neutral value.
+/** @type {Record<string, number>} */
 const IDLE_VALS = { f: 1000, g: 0, q: 1, bw: 1, s: 1 };
 const WIDTH_ARGS = ["q", "bw", "s"];
 
+/**
+ * @param {StripTarget | null} t
+ * @returns {string[]}
+ */
 function slotArgs(t) {
   const width = t && WIDTH_ARGS.find((a) => t.shown.includes(a));
   return ["f", "g", width || "q"];
 }
 
+/**
+ * @param {{ rows: PipelineRow[], t: StripTarget | null, a: string }} props
+ */
 function BandKnob({ rows, t, a }) {
   const spec = BAND_ARGS[a];
   const live = !!(t && t.shown.includes(a));
   const v = live ? Number(t.st.args[a]) : IDLE_VALS[a];
-  const patch = (nv) => {
+  const patch = (/** @type {number} */ nv) => {
     const n = Number(nv);
     return Number.isFinite(n) ? { [a]: String(spec.round(clamp(n, spec.min, spec.max))) } : null;
   };
@@ -130,7 +184,7 @@ function BandKnob({ rows, t, a }) {
         disabled=${!live}
         onLive=${
           live
-            ? (nv) => {
+            ? (/** @type {number} */ nv) => {
                 const p = patch(nv);
                 if (p) dragEq.value = { key: keyAt(rows, t.sel.row, t.sel.stage), args: p };
               }
@@ -138,7 +192,7 @@ function BandKnob({ rows, t, a }) {
         }
         onCommit=${
           live
-            ? (nv) => {
+            ? (/** @type {number} */ nv) => {
                 const p = patch(nv);
                 if (p) commitStage(rows, t.sel.row, t.sel.stage, p);
               }
@@ -153,6 +207,9 @@ function BandKnob({ rows, t, a }) {
 // block is there before anything is selected. No editable selection -> the
 // same knob trio, disabled, and a head line saying how to bind it. Never a
 // vanished or collapsed block.
+/**
+ * @param {{ rows: PipelineRow[] }} props
+ */
 export function BandStrip({ rows }) {
   const t = stripTarget(rows);
   const head = t

@@ -69,6 +69,7 @@ function reset() {
         x.posts.push(JSON.parse(opts.body));
         return ok({ volume: POLLED });
       }
+      return undefined; // unhandled path: the wire's own fallback answers it
     },
     fallback: (x) => ok(x.staged),
   });

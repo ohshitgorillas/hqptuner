@@ -47,7 +47,11 @@ const profileNote = signal("");
 // is what Save is for. The one profile with no live half is one the daemon has
 // never read — saved in this session, not yet applied — and staging is the only
 // lane it has, which means staging its chain as well as its rows.
-/** @public — the Load button's action, and the seam the profile suite drives. */
+/**
+ * @public — the Load button's action, and the seam the profile suite drives.
+ * @param {string} name the saved profile's name; "" is the default profile
+ * @returns {Promise<void>}
+ */
 export async function loadProfile(name) {
   if (!name || isLiveProfile(name)) {
     await api.matrixProfile("switch", name);
@@ -64,10 +68,17 @@ export async function loadProfile(name) {
 // applied config regardless, and pinning keeps the picker honest about that.
 // Resolves the chosen names, [] when there is nothing to ask (no popup), or
 // null when the user backs out.
+/**
+ * @param {string} profileName
+ * @param {boolean} saving true for a save, false for a delete
+ * @returns {Promise<string[] | null>}
+ */
 async function pickPresets(profileName, saving) {
   const membership = presetProfiles.value;
   const active = (config.value && config.value.active) || "";
+  /** @param {string} name */
   const holds = (name) => (membership[name] || []).includes(profileName);
+  /** @type {ChoiceOption[]} */
   const options = Object.keys(membership)
     .sort((a, b) => a.localeCompare(b))
     .filter((name) => saving || holds(name) || name === active)
@@ -78,11 +89,19 @@ async function pickPresets(profileName, saving) {
       disabled: name === active,
     }));
   if (!options.some((o) => !o.disabled)) return options.filter((o) => o.checked).map((o) => o.value);
-  return askChoices(OWNER, "Select the presets for the profile:", options);
+  // askChoices is declared as resolving `unknown` because store/ask.js serves
+  // three kinds through one promise; the choices kind resolves the checked
+  // values, or null when the user backs out.
+  return /** @type {Promise<string[] | null>} */ (askChoices(OWNER, "Select the presets for the profile:", options));
 }
 
 // Success is visually obvious (staged chips, the picker, the live tag), so an
 // action only ever writes a note on failure.
+/**
+ * @param {string} action the verb, shown as the busy marker and in a failure note
+ * @param {() => Promise<void>} run
+ * @returns {Promise<void>}
+ */
 async function act(action, run) {
   profileBusy.value = action;
   profileNote.value = "";
@@ -95,6 +114,9 @@ async function act(action, run) {
   }
 }
 
+/**
+ * @param {{ children?: unknown }} props
+ */
 function ProfileNote({ children }) {
   return notesVisible.value ? html`<div class="field-note">${children}</div>` : null;
 }
@@ -102,6 +124,9 @@ function ProfileNote({ children }) {
 // Save: name box + its button. An existing name is allowed — HQPTuner writes the
 // element, so a save onto a name replaces it (the daemon's own route silently
 // no-ops instead).
+/**
+ * @param {{ saved: string[], busy: string }} props
+ */
 function ProfileSaveRow({ saved, busy }) {
   const newName = profileNewName.value.trim();
   const exists = saved.includes(newName);
@@ -112,7 +137,7 @@ function ProfileSaveRow({ saved, busy }) {
         placeholder="profile name"
         value=${profileNewName.value}
         disabled=${!!busy}
-        onInput=${(e) => (profileNewName.value = e.target.value)}
+        onInput=${(/** @type {{ target: HTMLInputElement }} */ e) => (profileNewName.value = e.target.value)}
       />
       <button
         type="button"
@@ -133,17 +158,13 @@ function ProfileSaveRow({ saved, busy }) {
   `;
 }
 
-export function ProfileCard() {
-  const saved = savedProfiles.value;
-  const active = matrixActiveProfile.value;
-  const sel = profileSel.value ?? (active === "[Default]" ? "" : active);
-  const busy = profileBusy.value;
+// The saved-profile picker and its two actions. Load runs live; Delete asks
+// which presets the removal should reach before it touches anything.
+/**
+ * @param {{ saved: string[], sel: string, busy: string }} props
+ */
+function SavedProfilesField({ saved, sel, busy }) {
   return html`
-    <${Card} title="Profile" bodyClass="mtx-profile">
-        <div class="field">
-          <label>Active</label>
-          <div class="t-value">${active}</div>
-        </div>
         <div class="field">
           <label>Saved profiles</label>
           <div class="control">
@@ -151,7 +172,7 @@ export function ProfileCard() {
             value=${sel}
             disabled=${!!busy}
             onWheel=${wheelGuard}
-            onChange=${(e) => (profileSel.value = e.target.value)}
+            onChange=${(/** @type {{ target: HTMLSelectElement }} */ e) => (profileSel.value = e.target.value)}
           >
             <option value="">[Default]</option>
             ${saved.map((n) => html`<option value=${n}>${n}</option>`)}
@@ -186,6 +207,21 @@ export function ProfileCard() {
           current pipelines, and the crossfeed, DAC correction and loudness that run with them.
         <//>
         </div>
+  `;
+}
+
+export function ProfileCard() {
+  const saved = savedProfiles.value;
+  const active = matrixActiveProfile.value;
+  const sel = profileSel.value ?? (active === "[Default]" ? "" : active);
+  const busy = profileBusy.value;
+  return html`
+    <${Card} title="Profile" bodyClass="mtx-profile">
+        <div class="field">
+          <label>Active</label>
+          <div class="t-value">${active}</div>
+        </div>
+        <${SavedProfilesField} saved=${saved} sel=${sel} busy=${busy} />
         <div class="field">
           <label>Save as</label>
           <${ProfileSaveRow} saved=${saved} busy=${busy} />

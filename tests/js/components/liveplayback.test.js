@@ -44,7 +44,7 @@ import {
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live.js";
+import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { classes, disabledRegion, elements, enclosing, hasLabel, labelled, text } from "../support/markup.js";

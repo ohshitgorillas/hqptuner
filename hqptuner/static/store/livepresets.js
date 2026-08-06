@@ -13,7 +13,8 @@
 // the poll: it is read when LIVE opens and re-read after each save or delete.
 import { signal, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { remirrorLive, reportError } from "./live.js";
+import { reportError } from "./live/state.js";
+import { remirrorLive } from "./live/write.js";
 import { liveMode } from "./prefs.js";
 
 // Every saved preset, as /api/livepresets serves it: {name, chain, fields,
@@ -44,8 +45,18 @@ async function refreshLivePresets() {
 }
 
 // One preset's stored batch, for deciding what a successful apply invalidated.
-const fieldsOf = (name) => {
-  const record = (livePresets.value || []).find((p) => p.name === name);
+/**
+ * @typedef {object} LivePreset
+ *   One saved live preset, as /api/livepresets serves it.
+ * @property {string} name
+ * @property {string} chain
+ * @property {Record<string, string>} fields the stored batch, keyed by live form field
+ * @property {Record<string, string>} [names] each field's enum NAME, for display
+ * @property {boolean} [compatible]
+ */
+
+const fieldsOf = (/** @type {string} */ name) => {
+  const record = (livePresets.value || []).find((/** @type {LivePreset} */ p) => p.name === name);
   return Object.keys((record && record.fields) || {});
 };
 
@@ -53,6 +64,13 @@ const fieldsOf = (name) => {
 // complaint, report whatever went wrong. `after` runs only when the call itself
 // succeeded, so a refused apply re-mirrors nothing — a refused batch applied
 // nothing, so the page is still showing the truth.
+/**
+ * @template T
+ * @param {string} name
+ * @param {() => Promise<T>} call
+ * @param {(result: T) => Promise<void> | void} [after]
+ * @returns {Promise<void>}
+ */
 async function run(name, call, after) {
   livePresetsBusy.value = name;
   livePresetError.value = "";
@@ -69,12 +87,16 @@ async function run(name, call, after) {
 // Apply is the live lane's own batch: readback-verified by the backend, and
 // answered with the same per-setting report a hand-made write gets — so a 200
 // that carries a setting which did not verify is an error here too.
+/**
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
 export async function applyLivePreset(name) {
   const fields = fieldsOf(name);
   await run(
     name,
     () => api.applyLivePreset(name),
-    async (report) => {
+    async (/** @type {import("./live/state.js").LiveReport} */ report) => {
       await remirrorLive(fields, report);
       livePresetError.value = reportError(report);
     },
@@ -82,10 +104,18 @@ export async function applyLivePreset(name) {
 }
 
 // The backend snapshots the engine itself, so a save sends nothing but a name.
+/**
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
 export async function saveLivePreset(name) {
   await run(name, () => api.saveLivePreset(name), refreshLivePresets);
 }
 
+/**
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
 export async function deleteLivePreset(name) {
   await run(name, () => api.deleteLivePreset(name), refreshLivePresets);
 }

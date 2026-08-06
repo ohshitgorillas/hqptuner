@@ -1,0 +1,87 @@
+// The two chain cards' controls — narrowing, the count badge, and the per-card
+// assembly that decides whether a card reads the engine or the running config.
+// Its own module because that loaded/dormant split is a rule of its own: it is
+// the only place on this page where a control's options and value come from
+// somewhere other than the enumerations.
+
+import { runningValue } from "../resolve.js";
+import { optionsFor } from "../options.js";
+import { narrowOptions, narrowCount } from "../narrowing.js";
+import { CHAINS, idOptions, idValue } from "./derive.js";
+
+/**
+ * @typedef {import("./derive.js").MenuOption} MenuOption
+ *
+ * @typedef {object} ChainControl
+ *   One chain control's static half — its wire field plus the catalog entry
+ *   whose words it borrows from the tab twin.
+ * @property {string} field live form field (livemap.ROUTABLE)
+ * @property {string} key schema key
+ * @property {SchemaField} entry
+ * @property {string} enumKey which enumeration its options come from
+ * @property {string} state the /api/state attribute holding its current index
+ */
+
+// Filter narrowing is the same feature the Resampling tab has, on the same
+// state: one set of facets narrows a control here and its twin there, because
+// they are the same control and the narrowing is the user's standing answer to
+// "which of these 77 filters am I willing to look at". Presentational only — it
+// never hides the running selection (store/narrowing.js), so no live value can
+// be narrowed off its own dropdown. Shapers carry `narrow` nowhere and are left
+// whole.
+/**
+ * @param {ChainControl} c
+ * @param {string | number | boolean | undefined} value
+ * @param {MenuOption[] | null} base the dormant chain's list, null when live
+ * @returns {MenuOption[]}
+ */
+function chainOptions(c, value, base) {
+  const options = base || idOptions(c.enumKey);
+  return c.entry.narrow ? narrowOptions(options, value, c.entry.narrow, c.key) : options;
+}
+
+// The tab's "n/total" label badge, counted off the same RAW (pre-narrow) list
+// Field.js counts — null for the shapers, which carry `narrow` nowhere.
+/**
+ * @param {ChainControl} c
+ * @param {MenuOption[] | null} base
+ * @returns {{ n: number, total: number } | null}
+ */
+function chainBadge(c, base) {
+  if (!c.entry.narrow) return null;
+  const raw = base || idOptions(c.enumKey);
+  return narrowCount(raw, c.entry.narrow, c.key);
+}
+
+// One chain's three controls, whether or not the engine has that chain loaded.
+// Both cards are on the page at once, so the dormant one has to read from
+// somewhere the engine cannot answer for: GetFilters/GetShapers enumerate the
+// LOADED chain only. It reads the running configuration instead — the daemon's
+// own /config form for the options, and the config's live overlay for the value,
+// which already carries what LIVE set on this chain while it was dormant
+// (livemap.live_overrides). Both are the enum-ID domain the live lists use, so
+// the two sides of the card are the same kind of number and an edit made here
+// means the same thing when the chain loads and it is finally sent.
+/**
+ * @param {string} chain "pcm" | "sdm" — the card being built
+ * @param {string | null} loaded the chain the engine has loaded, if any
+ */
+export function chainControls(chain, loaded) {
+  return CHAINS[chain].map((c) => {
+    const live = chain === loaded;
+    const value = live ? idValue(c.enumKey, c.state) : (runningValue(c.key) ?? "");
+    const base = live ? null : optionsFor("config", c.field);
+    return {
+      field: c.field,
+      key: c.key,
+      entry: c.entry,
+      value,
+      options: chainOptions(c, value, base),
+      badge: chainBadge(c, base),
+      // The loaded chain's lists come from the enumerations; the dormant one's
+      // come from the running config's form and are not invalidated by an
+      // engine re-enumeration.
+      enumBacked: live,
+    };
+  });
+}

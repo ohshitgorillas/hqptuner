@@ -20,6 +20,14 @@ export const html = htm.bind(h);
 // (preact binds the listener on the element itself, where wheel is non-passive,
 // so preventDefault takes effect — unlike a document-level listener, which the
 // browser makes passive by default.)
+/**
+ * @typedef {Event & { target: HTMLInputElement }} ControlEvent
+ *   An input/change event from a form control. Every attachment site below is a
+ *   range, number or select element, so `target` is narrowed from the DOM's
+ *   nullable `EventTarget` to the element the handler actually reads.
+ */
+
+/** @param {WheelEvent} e */
 export function wheelGuard(e) {
   e.preventDefault();
   window.scrollBy(0, e.deltaY);
@@ -50,8 +58,11 @@ export function wheelGuard(e) {
 // typeof guard keeps this module importable in the SSR test harness, where the
 // suite installs its fake document before importing.
 const SLIDER_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+/** @type {EventTarget | null} */
 let heldOn = null;
+/** @type {EventTarget | null} */
 let armedOn = null;
+/** @type {EventTarget | null} */
 let focusedOn = null;
 if (typeof document !== "undefined") {
   // Primary button only: a right-click's own pointerdown must not grant (or
@@ -93,6 +104,11 @@ if (typeof document !== "undefined") {
 // `fn`; without it nothing is called and the control snaps back to `canonical`
 // — the value the component is already rendering, so refusal needs no stored
 // snapshot. Attach to every range input alongside wheelGuard.
+/**
+ * @param {string | number} canonical the value the component is already rendering
+ * @param {(e: ControlEvent) => void} fn the handler an edit with provenance reaches
+ * @returns {(e: ControlEvent) => void}
+ */
 export function userEdit(canonical, fn) {
   return (e) => {
     const el = e.target;

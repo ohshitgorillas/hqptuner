@@ -1,5 +1,5 @@
 // Behavioral suite for the DSP tab's SPEAKERS half: the mode switcher
-// (store/dspmode.js), the speaker card's rendered contract
+// (store/matrixmode.js), the speaker card's rendered contract
 // (components/SpeakersCard.js), and the apply lane (store/speakers.js).
 //
 // Policy (docs/testing.md): public API only, one assertion per test. The card's
@@ -25,13 +25,14 @@ import {
   applySpeakers,
   loadSpeakers,
 } from "../../../hqptuner/static/store/speakers.js";
-import { dspMode, setDspMode } from "../../../hqptuner/static/store/dspmode.js";
+import { matrixMode, setMatrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
-import { compileRows, HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural.js";
+import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
+import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { structuralBlock } from "../../../hqptuner/static/lib/xfmode.js";
 import { ok, bad, stagingWire } from "../support/wire.js";
 
@@ -41,7 +42,7 @@ const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 // The two installed crossfeed shapes, built with the real compilers: eight
 // compensation rows carrying the headphone EQ the way a real one does, or the
 // sixteen rows of a structural block.
-const compBlock = () => msCompile(EQ, -3, fitComp(DEF.fc, DEF.feed), 1, 0, 1);
+const compBlock = () => msCompile(EQ, -3, { fit: fitComp(DEF.fc, DEF.feed), s: 1 }, { a: 0, b: 1 });
 const structuralRows = () =>
   compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb: -3, eqProcess: EQ });
 
@@ -55,6 +56,7 @@ function wire() {
         w.posts.push(JSON.parse(opts.body));
         return ok({ applied: true, speakers: SPK });
       }
+      return undefined; // unhandled path: the wire's own fallback answers it
     },
   });
 }
@@ -97,7 +99,7 @@ async function reset({ mode = "speakers", set = "2.0", sdm = false, spk = SPK, c
     rows: [],
   };
   await discardAll();
-  dspMode.value = mode;
+  matrixMode.value = mode;
   chooseSet(set);
 }
 
@@ -130,7 +132,7 @@ test("test_headphones_mode_hides_the_speaker_card", async () => {
 
 test("test_switching_to_speakers_stages_crossfeed_off", async () => {
   await reset({ mode: "headphones", crossfeed: "1" });
-  await setDspMode("speakers");
+  await setMatrixMode("speakers");
   assert.equal(effective("crossfeed_enabled"), "0");
 });
 
@@ -139,37 +141,37 @@ test("test_switching_to_speakers_stages_crossfeed_off", async () => {
 // left it. What the switch never took away, it never puts back.
 test("test_switching_back_to_headphones_restores_the_crossfeed_it_suppressed", async () => {
   await reset({ mode: "headphones", crossfeed: "1" });
-  await setDspMode("speakers");
-  await setDspMode("headphones");
+  await setMatrixMode("speakers");
+  await setMatrixMode("headphones");
   assert.equal(effective("crossfeed_enabled"), "1");
 });
 
 test("test_switching_back_to_headphones_does_not_turn_an_off_crossfeed_on", async () => {
   await reset({ mode: "headphones", crossfeed: "0" });
-  await setDspMode("speakers");
-  await setDspMode("headphones");
+  await setMatrixMode("speakers");
+  await setMatrixMode("headphones");
   assert.equal(effective("crossfeed_enabled"), "0");
 });
 
 test("test_switching_back_to_headphones_restores_the_compensation_block", async () => {
   await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
-  await setDspMode("speakers");
-  await setDspMode("headphones");
+  await setMatrixMode("speakers");
+  await setMatrixMode("headphones");
   assert.ok(msRecognize(effectivePipelines.value, 0, DEF.fc, DEF.feed));
 });
 
 test("test_switching_back_to_headphones_restores_the_structural_block", async () => {
   await reset({ mode: "headphones", crossfeed: "0", pipes: structuralRows() });
-  await setDspMode("speakers");
-  await setDspMode("headphones");
+  await setMatrixMode("speakers");
+  await setMatrixMode("headphones");
   assert.ok(structuralBlock(effectivePipelines.value));
 });
 
 test("test_a_pipeline_edited_on_the_speaker_side_is_not_overwritten", async () => {
   await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
-  await setDspMode("speakers");
+  await setMatrixMode("speakers");
   stagePipelines([{ gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0" }]);
-  await setDspMode("headphones");
+  await setMatrixMode("headphones");
   assert.equal(effectivePipelines.value.length, 1);
 });
 
@@ -178,13 +180,13 @@ test("test_a_pipeline_edited_on_the_speaker_side_is_not_overwritten", async () =
 // with the headphone EQ profile trapped inside them.
 test("test_switching_to_speakers_dismantles_the_compensation_block", async () => {
   await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
-  await setDspMode("speakers");
+  await setMatrixMode("speakers");
   assert.equal(msRecognize(effectivePipelines.value, 0, DEF.fc, DEF.feed), null);
 });
 
 test("test_switching_to_speakers_keeps_the_eq_profile", async () => {
   await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
-  await setDspMode("speakers");
+  await setMatrixMode("speakers");
   assert.ok(effectivePipelines.value.every((r) => r.process === EQ));
 });
 

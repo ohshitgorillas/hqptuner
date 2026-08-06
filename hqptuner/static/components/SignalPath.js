@@ -23,12 +23,28 @@ import { optionsFor } from "../store/options.js";
 import { truthy as on } from "../lib/coerce.js";
 import { hz } from "../lib/units.js";
 
+/**
+ * @typedef {{
+ *   active_rate?: string, active_bits?: string, active_filter?: string, active_shaper?: string, correction?: string,
+ * }} Status
+ *   The Status-frame attributes this bar reads (protocol.md §Status). Every one
+ *   is an XML attribute, so it arrives as text or not at all.
+ * @typedef {{ samplerate?: string, bits?: string, sdm?: string }} Metadata
+ *   The `<metadata>` child's attributes this bar reads — same wire rule.
+ * @typedef {{ label: string, value?: string, hero?: boolean }} PathStage
+ *   One chip on the bar. `hero` marks the output chip, which glows on playback.
+ */
+
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64) — the lowest 1-bit bitstream rate
 
 // The front panel shows the actual frequency, not a DSD multiplier: a DSD
 // bitstream is a 1-bit stream at this rate, so "24.576 MHz" reads truer than
 // "DSD512" (and sidesteps the 44.1k-vs-48k base ambiguity that mislabeled it).
+/**
+ * @param {string | undefined} rate
+ * @returns {string}
+ */
 function fmtRate(rate) {
   const n = Number(rate);
   return n ? hz(n, 3) : "—";
@@ -40,6 +56,7 @@ function fmtRate(rate) {
 // that failed to load — the stopped panel should read as dormant, not broken.
 const DASH = "—";
 
+/** @param {PathStage} props */
 function Chip({ label, value, hero }) {
   const shown = value || DASH;
   // joined rather than interpolated in place: an inline ternary for each state
@@ -57,16 +74,28 @@ function Chip({ label, value, hero }) {
 // A /config dropdown reports the form's option VALUE ("2", "xfi"); the chip
 // needs the human label, so join through the same option list the control on the
 // DSP tab renders from rather than keeping a second copy of the enum here.
+/**
+ * @param {string} key
+ * @returns {string}
+ */
 function configLabel(key) {
   const raw = runningValue(key);
   if (raw === undefined || raw === "") return "";
-  const entry = schema[key];
-  const hit = optionsFor(entry.optionsFrom, formFieldName(entry)).find((o) => String(o.value) === String(raw));
+  // FieldEntry, not the ambient SchemaField: the catalog spells three fields
+  // differently and does not overlap it (components/Field.js states which).
+  const entry = /** @type {Record<string, import("./Field.js").FieldEntry>} */ (schema)[key];
+  const hit = optionsFor(entry.optionsFrom, formFieldName(entry)).find(
+    (/** @type {OptionItem} */ o) => String(o.value) === String(raw),
+  );
   return hit ? hit.label : String(raw);
 }
 
 // Source describes the incoming stream, so it only means anything while one
 // exists — a bare dash otherwise (not "N/A", not the engine's remembered rate).
+/**
+ * @param {Metadata} md
+ * @returns {string}
+ */
 function sourceLabel(md) {
   if (!md.samplerate) return "—";
   return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit`;
@@ -77,6 +106,10 @@ function sourceLabel(md) {
 // reports 1 on an SDM path and 24/32 on a PCM one. Falling back on the DSD floor
 // keeps the chip right when the field is absent, where the only depth derivable
 // without it is the 1 bit a DSD bitstream always carries.
+/**
+ * @param {Status} st
+ * @returns {string}
+ */
 function outputLabel(st) {
   const rate = st.active_rate;
   const bits = Number(st.active_bits);
@@ -88,6 +121,11 @@ function outputLabel(st) {
 
 // Crossfeed and loudness share ONE post-process slot — both active collapses to
 // "DSP" rather than a chip each, which would crowd the panel.
+/**
+ * @param {boolean} cf
+ * @param {boolean} loud
+ * @returns {PathStage | null}
+ */
 function postProcessStage(cf, loud) {
   if (cf && loud) return { label: "DSP", value: "On" };
   if (cf) return { label: "Crossfeed", value: "On" };
@@ -103,13 +141,14 @@ function postProcessStage(cf, loud) {
 // it on the wire against 6.0.4. The source rate is the independent check, since a
 // DSD bitstream reports its bitstream rate and that is always at or above DSD64.
 // Either one alone suffices, so the pair survives whichever turns out to be absent.
-const sourceIsDsd = (md) => on(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
-const outputIsSdm = (st) => Number(st.active_rate) >= DSD_FLOOR;
+const sourceIsDsd = (/** @type {Metadata} */ md) => on(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
+const outputIsSdm = (/** @type {Status} */ st) => Number(st.active_rate) >= DSD_FLOOR;
 
 // DirectSDM only means anything on the DSD→SDM path: it "disables all processing
 // when source is DSD content and output format is SDM to a DSD-device or file"
 // (manual §4.5). With a PCM track playing it is inert, however it is configured.
-const directPassThrough = (st, md) => sourceIsDsd(md) && outputIsSdm(st) && on(runningValue("direct_sdm"));
+const directPassThrough = (/** @type {Status} */ st, /** @type {Metadata} */ md) =>
+  sourceIsDsd(md) && outputIsSdm(st) && on(runningValue("direct_sdm"));
 
 // The four source→output combinations run four DISJOINT sets of controls
 // (manual §4.4 PCM tab, §4.5 SDM tab, §4.6 filter/oversampling):
@@ -133,6 +172,11 @@ const directPassThrough = (st, md) => sourceIsDsd(md) && outputIsSdm(st) && on(r
 // <sdm oversampling> (77, different enum IDs, no "none") — architecture §2's
 // mode-relative enumerations. The engine reports whichever the current mode uses,
 // so one `active_filter` read serves both branches.
+/**
+ * @param {Status} st
+ * @param {Metadata} md
+ * @returns {PathStage[]}
+ */
 function conversionStages(st, md) {
   const dsdIn = sourceIsDsd(md);
   const sdmOut = outputIsSdm(st);
@@ -159,6 +203,12 @@ function conversionStages(st, md) {
 // The chain in processing order, omitting disabled post-process stages: matrix
 // and crossfeed are input-side and precede the conversion stages; DAC correction
 // is output-rate-dependent and follows them.
+/**
+ * @param {Status} st
+ * @param {Metadata} md
+ * @param {boolean} playing
+ * @returns {PathStage[]}
+ */
 function chainStages(st, md, playing) {
   const source = { label: "Source", value: playing ? sourceLabel(md) : "—" };
   const output = { label: "Output", value: playing ? outputLabel(st) : "—", hero: true };
@@ -167,6 +217,7 @@ function chainStages(st, md, playing) {
   // is not running (manual §5 excepts only speaker distance processing, which
   // this bar has never shown).
   if (directPassThrough(st, md)) return [source, { label: "Direct SDM", value: "Bit-perfect" }, output];
+  /** @type {PathStage[]} */
   const stages = [source];
   // A stage indicator, never a profile readout: profile names run long enough to
   // overrun the chip, so the chip states only that a matrix is in the path.
@@ -207,6 +258,7 @@ export function SignalPath() {
   const md = s.metadata || {};
   const playing = Number((engineState.value || {}).state) === PLAYING;
 
+  /** @type {unknown[]} */
   const nodes = [];
   chainStages(st, md, playing).forEach((stage, i) => {
     if (i) nodes.push(html`<span class="link"></span>`);

@@ -14,8 +14,21 @@ export const speakersStale = signal(false);
 export const speakersError = signal("");
 export const speakersBusy = signal(false);
 
+/**
+ * @typedef {{ level?: string, distance?: string }} ChannelEdit
+ *   One channel's pending edit. Both fields are strings — the card writes what
+ *   the input holds (SpeakersCard.js editCh), and a field the user cleared is
+ *   DELETED rather than set empty, so "absent" means "leave the daemon's value".
+ */
+
+// Anything can be thrown, so the parameter is `unknown` and the `.message` read
+// goes through one narrowing binding. The condition is unchanged: a falsy `e`
+// still short-circuits to String(e), and a non-Error object carrying a message
+// still yields that message — `instanceof Error` would have narrowed that away.
+/** @param {unknown} e */
 function fail(e) {
-  speakersError.value = String(e && e.message ? e.message : e);
+  const err = /** @type {{ message?: unknown }} */ (e);
+  speakersError.value = String(e && err.message ? err.message : e);
 }
 
 export async function loadSpeakers() {
@@ -32,6 +45,11 @@ export async function loadSpeakers() {
 // `channels` is {index: {level?, distance?}} — a partial overlay. The server
 // re-reads the complete form and overlays these, so untouched channels keep
 // whatever the daemon currently holds.
+/**
+ * @param {boolean} enabled
+ * @param {Record<string, ChannelEdit>} channels keyed by channel index as a string
+ * @returns {Promise<boolean>} whether the daemon confirmed the new values
+ */
 export async function applySpeakers(enabled, channels) {
   speakersBusy.value = true;
   speakersError.value = "";

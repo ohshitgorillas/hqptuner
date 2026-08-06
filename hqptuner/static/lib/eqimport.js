@@ -7,9 +7,26 @@
 
 import { editedStage, serializeProcess, withoutEq } from "./matrixspec.js";
 import { applyEqToBlock, fitComp } from "./xfeed.js";
-import { compileRows } from "./binaural.js";
+import { compileRows } from "./binaural/compile.js";
 
 // REW/AutoEq type tokens -> iir plugin types (manual §7.3)
+/**
+ * @typedef {import("./matrixspec.js").MatrixStage} MatrixStage
+ * @typedef {import("./matrixspec.js").StageArgs} StageArgs
+ * @typedef {import("./matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("./xfeed.js").MsRecognition} MsRecognition
+ * @typedef {import("./binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ * @typedef {{ text: string, replace?: boolean, mirror?: boolean, block?: MsRecognition | null,
+ *   bauer?: { fc: number, feed: number }, structural?: StructuralRecognition | null }} ImportOpts
+ *   The tab's private signals, as planEqImport reads them (see the block above).
+ * @typedef {{ preamp: string | null, stages: MatrixStage[], skipped: string[], addition: string }} Cut
+ *   The parse result plus the serialized chain the filters became.
+ * @typedef {{ rows: PipelineRow[] | null, targets: number[], note: string }} ImportPlan
+ *   Where the filters land: the new row set (null = nothing to do), the rows the
+ *   EQ went onto (empty on a block path, which owns its whole block), and the note.
+ */
+
+/** @type {Record<string, string>} */
 const TYPE_MAP = {
   PK: "peak",
   PEQ: "peak",
@@ -27,6 +44,11 @@ const GAINLESS = new Set(["lp", "hp", "notch", "ap"]);
 const PREAMP_RE = /^Preamp\s*:\s*(-?\d+(?:\.\d+)?)\s*dB/i;
 const FILTER_RE = /^Filter\s*\d+\s*:\s*(ON|OFF)\s+([A-Za-z]+)\s*(.*)$/i;
 
+/**
+ * @param {string} line the trimmed source line, quoted back in any skip reason
+ * @param {RegExpMatchArray} m the FILTER_RE match
+ * @returns {{ skip?: string, stage?: MatrixStage }}
+ */
 function parseFilterLine(line, m) {
   if (m[1].toUpperCase() === "OFF") return { skip: `${line} — filter is OFF` };
   const type = TYPE_MAP[m[2].toUpperCase()];
@@ -36,6 +58,7 @@ function parseFilterLine(line, m) {
   if (!f) return { skip: `${line} — no Fc` };
   const g = rest.match(/Gain\s+(-?[\d.]+)\s*dB/i);
   const q = rest.match(/Q\s+([\d.]+)/i);
+  /** @type {StageArgs} */
   const args = { type, f: f[1] };
   if (q) args.q = q[1];
   if (g && !GAINLESS.has(type)) args.g = g[1];
@@ -43,8 +66,14 @@ function parseFilterLine(line, m) {
 }
 
 // parseEqText(text) -> { preamp: "-6.1" | null, stages: [iir stages], skipped: [reasons] }
+/**
+ * @param {string} text the raw AutoEq / REW text
+ * @returns {{ preamp: string | null, stages: MatrixStage[], skipped: string[] }}
+ */
 export function parseEqText(text) {
+  /** @type {MatrixStage[]} */
   const stages = [];
+  /** @type {string[]} */
   const skipped = [];
   let preamp = null;
   for (const rawLine of String(text || "").split(/\r?\n/)) {
@@ -83,17 +112,24 @@ export function parseEqText(text) {
 
 // The note suffixes both paths share. `cut` below is the parse result plus the
 // serialized chain the filters became — everything both planners need.
-const skipNote = (skipped) => (skipped.length ? ` · skipped: ${skipped.join("; ")}` : "");
-const preampNote = (preamp, tail) => (preamp !== null ? `, preamp ${preamp} dB${tail}` : "");
+const skipNote = (/** @type {string[]} */ skipped) => (skipped.length ? ` · skipped: ${skipped.join("; ")}` : "");
+const preampNote = (/** @type {string | null} */ preamp, /** @type {string} */ tail) =>
+  preamp !== null ? `, preamp ${preamp} dB${tail}` : "";
 
 // A recognized compensation block owns rows 0..7 as ONE unit: shared EQ, Lin
 // gains with the preamp folded in. Appending to one of its rows would break
 // recognition AND leave that row carrying the EQ twice at a dB gain — an audible
 // one-channel imbalance with no error shown. Route into the block instead.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {ImportOpts} opts
+ * @param {Cut} cut
+ * @returns {ImportPlan}
+ */
 function blockPlan(rows, opts, cut) {
   const fit = fitComp(opts.bauer.fc, opts.bauer.feed);
   return {
-    rows: applyEqToBlock(rows, opts.block, fit, cut.addition, cut.preamp, opts.replace),
+    rows: applyEqToBlock(rows, opts.block, fit, { addition: cut.addition, preamp: cut.preamp, replace: opts.replace }),
     targets: [],
     note:
       `${cut.stages.length} filter(s) → crossfeed compensation block (pipelines 1–8)` +
@@ -105,6 +141,12 @@ function blockPlan(rows, opts, cut) {
 
 // The target's stereo pair — the adjacent pipeline — or null when mirroring is
 // off, there is no second pipeline, or the partner is past the last row.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} target
+ * @param {boolean} mirror
+ * @returns {number | null}
+ */
 function mirrorPair(rows, target, mirror) {
   if (!mirror || rows.length < 2) return null;
   const pair = target % 2 === 0 ? target + 1 : target - 1;
@@ -113,12 +155,25 @@ function mirrorPair(rows, target, mirror) {
 
 // One target row with the EQ landed on it: appended (or replacing the row's
 // previous EQ, keeping its non-EQ stages), with any Preamp line as the row gain.
+/**
+ * @param {PipelineRow} row
+ * @param {ImportOpts} opts
+ * @param {Cut} cut
+ * @returns {PipelineRow}
+ */
 function eqRow(row, opts, cut) {
   const base = opts.replace ? withoutEq(row.process) : row.process;
   const process = base ? `${base},${cut.addition}` : cut.addition;
   return { ...row, process, ...(cut.preamp !== null ? { gain: cut.preamp, gainunit: "dB" } : {}) };
 }
 
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} target
+ * @param {ImportOpts} opts
+ * @param {Cut} cut
+ * @returns {ImportPlan}
+ */
 function rowPlan(rows, target, opts, cut) {
   const pair = mirrorPair(rows, target, opts.mirror);
   const targets = new Set(pair === null ? [target] : [target, pair]);
@@ -144,9 +199,15 @@ function rowPlan(rows, target, opts, cut) {
 // compileRows, so only the ear chains and the preamp change here. Channels come
 // from the installed rows rather than assumed: recognition accepts any distinct
 // pair, and a block built on In 3 / In 4 must come back on In 3 / In 4.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {ImportOpts} opts
+ * @param {Cut} cut
+ * @returns {ImportPlan}
+ */
 function structuralPlan(rows, opts, cut) {
   const rec = opts.structural;
-  const ear = (side) => {
+  const ear = (/** @type {"left" | "right"} */ side) => {
     const base = opts.replace ? "" : rec.eqProcess[side];
     return base ? `${base},${cut.addition}` : cut.addition;
   };
@@ -169,6 +230,12 @@ function structuralPlan(rows, opts, cut) {
   };
 }
 
+/**
+ * @param {PipelineRow[]} rows the current pipeline set
+ * @param {number} targetIndex the row the import is aimed at
+ * @param {ImportOpts} opts
+ * @returns {ImportPlan}
+ */
 export function planEqImport(rows, targetIndex, opts) {
   const { preamp, stages, skipped } = parseEqText(opts.text);
   if (!stages.length) {

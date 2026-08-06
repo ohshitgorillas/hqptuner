@@ -18,6 +18,7 @@ const POLL_MS = 3000;
 const shown = signal(null); // null = follow log_enabled; true/false = user choice
 const lines = signal([]);
 const message = signal(""); // reason when the tail isn't available (logging off, unreadable)
+/** @type {number | null} the open poll interval, or null when not polling */
 let timer = null;
 
 async function refresh() {
@@ -63,7 +64,7 @@ export function LogTail() {
   return html`
     <div class="log-tail-wrap">
       <label class="log-tail-toggle">
-        <${Checkbox} value=${on ? "1" : "0"} onChange=${(v) => (shown.value = v === "1")} />
+        <${Checkbox} value=${on ? "1" : "0"} onChange=${(/** @type {string | number} */ v) => (shown.value = v === "1")} />
         Show live log tail (last ${LINES} lines)
       </label>
       ${

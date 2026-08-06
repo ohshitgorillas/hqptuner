@@ -20,6 +20,10 @@ const SIDES = [
 ];
 // staged edits on the hidden side must never be invisible — the inactive
 // segment button carries an accent dot while any of that side's keys is dirty
+/**
+ * @param {string | number} s the side ("low" or "high")
+ * @returns {boolean}
+ */
 const sideDirty = (s) => ["freq", "level", "steep", "type"].some((f) => isDirty(`loudness_${s}_${f}`));
 
 function LoudnessCard() {
@@ -46,7 +50,7 @@ function LoudnessCard() {
                 <${Segment}
                   value=${side}
                   options=${SIDES.map((o) => ({ ...o, dirty: o.value !== side && sideDirty(o.value) }))}
-                  onChange=${(v) => (loudnessSide.value = v)}
+                  onChange=${(/** @type {string | number} */ v) => (loudnessSide.value = v)}
                 />
               </div>
               <${Field} k="loudness_${side}_type" />

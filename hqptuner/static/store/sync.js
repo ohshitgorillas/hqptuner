@@ -18,6 +18,18 @@ import {
   staged,
 } from "./signals.js";
 
+/**
+ * @typedef {{ data?: unknown }} Payload
+ *   What a polled endpoint answers with. Most wrap their snapshot as
+ *   `{stale, loaded_at, data}`; health/metadata/pending answer raw, which is
+ *   what `unwrap` selects between.
+ */
+
+/**
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T | null>}
+ */
 async function safe(fn) {
   try {
     return await fn();
@@ -29,7 +41,13 @@ async function safe(fn) {
 // Mirror one polled endpoint into its signal. A failed call leaves the last
 // good value in place rather than blanking the UI. Most endpoints answer with
 // the payload under `.data`; `unwrap` names the ones that answer raw.
-const raw = (r) => r;
+const raw = (/** @type {Payload} */ r) => r;
+/**
+ * @param {() => Promise<Payload>} fn
+ * @param {{ value: unknown }} sig
+ * @param {(r: Payload) => unknown} [unwrap]
+ * @returns {Promise<void>}
+ */
 export async function mirror(fn, sig, unwrap = (r) => r.data) {
   const r = await safe(fn);
   if (r) sig.value = unwrap(r);
@@ -70,6 +88,7 @@ export function startPolling(interval = 2000) {
   // The fast (status/volume) cadence is reactive: a page's "quick updates" opt-in
   // drops it to 500 ms while that page is shown (store/ui.js). Reschedule the
   // timer whenever the derived cadence changes; the config poll stays fixed.
+  /** @type {ReturnType<typeof setInterval>} */
   let fastTimer;
   effect(() => {
     const ms = fastPollMs.value;

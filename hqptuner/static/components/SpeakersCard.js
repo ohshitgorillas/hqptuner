@@ -33,6 +33,16 @@ import {
 import { SpeakersDiagram } from "./SpeakersDiagram.js";
 import { truthy } from "../lib/coerce.js";
 
+/**
+ * @typedef {import("./SpeakersDiagram.js").SpeakerChannel} SpeakerChannel
+ * @typedef {{ enabled: boolean, channels: SpeakerChannel[] }} SpeakersData
+ *   The /speakers form as store/speakers.js holds it (conf/httpconf.py
+ *   parse_speakers_form): the master switch and the daemon's eight slots.
+ * @typedef {{ level?: string, distance?: string }} ChannelEdit
+ *   One channel's pending edits — exactly the partial overlay the POST takes.
+ *   A field the user has not touched is absent, never blank.
+ */
+
 const SETS = [
   { id: "2.0", label: "2.0 — stereo", channels: [0, 1] },
   { id: "2.1", label: "2.1 — stereo + sub", channels: [0, 1, 3] },
@@ -44,7 +54,7 @@ const SETS = [
 
 // The daemon calls channel 3 "LFE"; everyone else calls the box on the floor a
 // subwoofer. Display name only — the wire is untouched.
-const displayName = (label) => (label === "LFE" ? "Sub" : label);
+const displayName = (/** @type {string} */ label) => (label === "LFE" ? "Sub" : label);
 
 const SET_KEY = "hqptuner.speakerSet";
 
@@ -66,6 +76,7 @@ const edits = signal({});
 const enabledEdit = signal(null); // null = follow the daemon's current switch
 const note = signal("");
 
+/** @param {string} id */
 export function chooseSet(id) {
   speakerSet.value = id;
   try {
@@ -79,8 +90,14 @@ export function chooseSet(id) {
 // level or distance, and a committed "" left the box empty with nothing to
 // restore it — so a non-numeric commit drops that field's pending edit and the
 // control falls back to the value the daemon holds.
+/**
+ * @param {number} index
+ * @param {"level" | "distance"} field
+ * @param {string} value
+ */
 function editCh(index, field, value) {
   const key = String(index);
+  /** @type {ChannelEdit} */
   const row = { ...(edits.value[key] || {}) };
   if (String(value).trim() === "" || Number.isNaN(Number(value))) delete row[field];
   else row[field] = String(value);
@@ -99,7 +116,9 @@ const activeSet = () => new Set((SETS.find((s) => s.id === speakerSet.value) || 
 
 // --- rows --------------------------------------------------------------------
 
+/** @param {{ ch: SpeakerChannel, sdm: boolean }} props */
 function ChannelRow({ ch, sdm }) {
+  /** @type {ChannelEdit} */
   const pending = edits.value[String(ch.index)] || {};
   const level = pending.level ?? ch.level;
   const distance = pending.distance ?? ch.distance;
@@ -114,7 +133,7 @@ function ChannelRow({ ch, sdm }) {
           max=${ch.level_max}
           step=${ch.level_step ?? 0.1}
           disabled=${sdm}
-          onChange=${(v) => editCh(ch.index, "level", v)}
+          onChange=${(/** @type {string} */ v) => editCh(ch.index, "level", v)}
         />
       </label>
       <label class="spkr-cell">
@@ -124,7 +143,7 @@ function ChannelRow({ ch, sdm }) {
           min=${ch.distance_min}
           max=${ch.distance_max}
           step=${ch.distance_step ?? 1}
-          onChange=${(v) => editCh(ch.index, "distance", v)}
+          onChange=${(/** @type {string} */ v) => editCh(ch.index, "distance", v)}
         />
       </label>
     </div>
@@ -141,6 +160,7 @@ const GATE_OPTIONS = [
   { value: "0", label: "BYPASS" },
 ];
 
+/** @param {{ on: boolean, busy: boolean, gateDirty: boolean }} props */
 function TopRow({ on, busy, gateDirty }) {
   return html`
     <div class="pack split">
@@ -150,7 +170,7 @@ function TopRow({ on, busy, gateDirty }) {
             value=${on ? "1" : "0"}
             options=${GATE_OPTIONS}
             disabled=${busy}
-            onChange=${(v) => (enabledEdit.value = v === "1")}
+            onChange=${(/** @type {string} */ v) => (enabledEdit.value = v === "1")}
           />
         </div>
       </div>
@@ -160,7 +180,7 @@ function TopRow({ on, busy, gateDirty }) {
           value=${speakerSet.value}
           disabled=${busy}
           onWheel=${wheelGuard}
-          onChange=${(e) => chooseSet(e.target.value)}
+          onChange=${(/** @type {{ target: HTMLSelectElement }} */ e) => chooseSet(e.target.value)}
         >
           ${SETS.map((s) => html`<option value=${s.id}>${s.label}</option>`)}
         </select>
@@ -169,6 +189,7 @@ function TopRow({ on, busy, gateDirty }) {
   `;
 }
 
+/** @param {{ dirty: boolean, busy: boolean, apply: () => void }} props */
 function Actions({ dirty, busy, apply }) {
   return html`
     <div class="spkr-actions">
@@ -196,8 +217,13 @@ function CardSub() {
 
 // Pending edits overlaid on the daemon's channels — what the rows and the room
 // plan both render, so an edited distance moves its speaker before Apply.
+/**
+ * @param {SpeakersData} data
+ * @returns {SpeakerChannel[]}
+ */
 const merged = (data) => (data.channels || []).map((c) => ({ ...c, ...(edits.value[String(c.index)] || {}) }));
 
+/** @param {{ data: SpeakersData }} props */
 function Body({ data }) {
   const active = activeSet();
   // Direct SDM bypasses volume processing, so the level trims do nothing — but

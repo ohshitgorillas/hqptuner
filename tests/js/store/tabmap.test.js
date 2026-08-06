@@ -1,12 +1,12 @@
 // Behavioral suite for store/tabmap.js — which tab a staged edit lights up.
 //
 // The mapping is hand-maintained (schema `group` is not the tab), and its
-// failure mode is silent: a key nobody listed falls through to the DSP tab, so a
+// failure mode is silent: a key nobody listed falls through to the Matrix tab, so a
 // change made on Output or Volume accents a tab the control isn't on. Three
 // things are pinned here. Named controls that moved between tabs and must land
 // where they are rendered; the VolumeRangeBar trio (volume_min, volume_max,
-// startup_volume), which is the reported defect — a volume edit accenting DSP;
-// and a sweep of the whole schema that pins the DSP tab's membership literally,
+// startup_volume), which is the reported defect — a volume edit accenting Matrix;
+// and a sweep of the whole schema that pins the Matrix tab's membership literally,
 // so any future fallthrough shows up as a changed set rather than as nothing.
 // Everything is driven through the real `edit()` against a staging wire
 // (docs/testing.md rule 4) rather than by assigning to the staged buffer.
@@ -59,17 +59,17 @@ test("a staged startup volume lights the volume tab", async () => {
   assert.deepEqual([...dirtyTabs.value], ["volume"]);
 });
 
-test("a staged minimum volume does not light the DSP tab", async () => {
+test("a staged minimum volume does not light the Matrix tab", async () => {
   await reset();
   await edit("volume_min", "-60");
   assert.equal(dirtyTabs.value.has("matrix"), false);
 });
 
 // The anti-recurrence guard for the whole schema. The mapping's fallback is
-// silent: a key no tab set claims lands on the DSP tab, so a control that lives
+// silent: a key no tab set claims lands on the Matrix tab, so a control that lives
 // on Output or Volume under a name nobody enumerated accents "matrix" with
-// nothing failing. A name prefix is not the test for DSP membership — `pipelines`
-// is a genuine DSP control carrying no prefix — so the DSP set is pinned
+// nothing failing. A name prefix is not the test for Matrix membership — `pipelines`
+// is a genuine Matrix control carrying no prefix — so the Matrix set is pinned
 // literally: any new fallthrough, prefixed or not, changes the observed set.
 //
 // Each key is driven through the real `edit()` with "1", a value that reads dirty
@@ -81,8 +81,8 @@ test("a staged minimum volume does not light the DSP tab", async () => {
 // merely containing it: a crossfeed key mis-mapped elsewhere would still show
 // "matrix" through its Bauer coupling partner and slip past a containment test.
 // The companion below catches the other direction — "matrix" turning up anywhere
-// in a non-DSP key's list.
-const DSP_KEYS = [
+// in a non-Matrix key's list.
+const MATRIX_KEYS = [
   "crossfeed_enabled",
   "crossfeed_frequency",
   "crossfeed_level",
@@ -108,16 +108,16 @@ async function sweepSchema() {
   return lit;
 }
 
-test("exactly the DSP controls light the DSP tab", async () => {
+test("exactly the Matrix controls light the Matrix tab", async () => {
   const lit = await sweepSchema();
   const observed = [...lit].filter(([, tabs]) => tabs.length === 1 && tabs[0] === "matrix").map(([key]) => key);
-  assert.deepEqual(observed.sort(), [...DSP_KEYS].sort());
+  assert.deepEqual(observed.sort(), [...MATRIX_KEYS].sort());
 });
 
-// The other direction: no key outside the DSP set may put "matrix" anywhere in
+// The other direction: no key outside the Matrix set may put "matrix" anywhere in
 // its tab list, whether alone or alongside another tab through coupling.
-test("no non-DSP control lights the DSP tab", async () => {
-  const dsp = new Set(DSP_KEYS);
+test("no non-Matrix control lights the Matrix tab", async () => {
+  const dsp = new Set(MATRIX_KEYS);
   const lit = await sweepSchema();
   const strays = [...lit].filter(([key, tabs]) => tabs.includes("matrix") && !dsp.has(key)).map(([key]) => key);
   assert.deepEqual(strays, []);
