@@ -25,7 +25,7 @@ from fake_control import DEFAULTS, CommandLog, serve
 from fastapi.testclient import TestClient
 from narrow import present
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes import livelane, liveoverrides

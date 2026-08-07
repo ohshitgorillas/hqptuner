@@ -17,7 +17,7 @@ import pytest
 from conftest import ManagerFactory, wait_for_api
 from fastapi.testclient import TestClient
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps

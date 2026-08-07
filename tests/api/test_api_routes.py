@@ -12,7 +12,7 @@ import pytest
 from conftest import _live_app, wait_for_api
 from fastapi.testclient import TestClient
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 

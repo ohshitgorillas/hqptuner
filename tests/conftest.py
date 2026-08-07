@@ -24,7 +24,7 @@ import pytest
 from fake_control import CommandLog, serve
 from fastapi.testclient import TestClient
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
