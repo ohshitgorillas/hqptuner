@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.3.2] — 2026-08-07
+
 ### Fixed
 
 - **Output rates on the LIVE page no longer get refused.** Every rate tier you picked could come back as "isn't in the engine's live rates list", leaving no way to move the engine off the rate it was already on. Rates now apply as picked.
