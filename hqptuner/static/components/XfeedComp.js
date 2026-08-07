@@ -143,7 +143,7 @@ function stageBlock(rows, { eq, preampDb }, pct, restFrom) {
 }
 
 // Public because leaving Bauer takes its rows with it, not just its enable flag:
-// the mode segment (lib/xfmode.js) and the DSP tab's Speakers switch both call
+// the mode segment (store/xfmode.js) and the DSP tab's Speakers switch both call
 // this, and a correction left behind would run against a crossfeed that is off.
 /**
  * @param {PipelineRow[]} rows

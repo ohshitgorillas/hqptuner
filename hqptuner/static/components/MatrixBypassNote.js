@@ -12,7 +12,7 @@
 // WHERE IT GOES, and where it deliberately does not. Everything inside <matrix>
 // takes it. The pipeline surfaces: the Pipelines card, the Headphone Auto EQ
 // card, the Crossfeed card — structural crossfeed is sixteen compiled pipeline
-// rows (lib/xfmode.js) and Bauer crossfeed is a post_process plugin, so a
+// rows (store/xfmode.js) and Bauer crossfeed is a post_process plugin, so a
 // bypassed engine runs neither — and the Matrix response card, which takes the
 // alternate sentence below and only when its plot has something on it: an empty
 // plot has no "below" that could be unapplied, so it stays silent. The

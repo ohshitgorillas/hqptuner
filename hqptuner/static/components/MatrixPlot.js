@@ -13,7 +13,7 @@ import { effectivePipelines, pipelineBaseline } from "../store/resolve.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { PlotFrame } from "./plots.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
-import { structuralBlock } from "../lib/xfmode.js";
+import { structuralBlock } from "../store/xfmode.js";
 import { structuralLensTraces } from "./StructuralXfeed.js";
 import { Card } from "./common.js";
 import { BypassNote } from "./MatrixBypassNote.js";
