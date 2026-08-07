@@ -19,7 +19,14 @@ import importlib.util
 import json
 import re
 import shlex
+from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
+from typing import Any
+
+#: A decoded JSONL object — a transcript row, a message, or a content block.
+JsonDict = dict[str, Any]
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 HOOK_PATH = ROOT / ".claude" / "hooks" / "change-budget.py"
@@ -29,7 +36,7 @@ TRANSCRIPT_DIR = Path.home() / ".claude" / "projects" / "-srv-hqptuner"
 PREVIEW = 140
 
 
-def load_hook():
+def load_hook() -> ModuleType:
     """Import the hook by path under a name that is not ``__main__``."""
     spec = importlib.util.spec_from_file_location("change_budget", HOOK_PATH)
     if spec is None or spec.loader is None:  # pragma: no cover - unreachable in practice
@@ -100,7 +107,7 @@ def bash_class(command: str) -> str:
     return next((c for c in CLASS_ORDER if c in found), "other")
 
 
-def _preview(name: str, tool_input: dict) -> str:
+def _preview(name: str, tool_input: JsonDict) -> str:
     if name == "Bash":
         text = tool_input.get("command", "")
     elif name in hook.EDIT_TOOLS:
@@ -112,7 +119,7 @@ def _preview(name: str, tool_input: dict) -> str:
     return " ".join(text.split())[:PREVIEW]
 
 
-def entry_for(block: dict, root, cwd: str) -> dict:
+def entry_for(block: JsonDict, root: str | None, cwd: str) -> JsonDict:
     """One burst entry: which leash the call pulled and what kind of call it was."""
     name = block.get("name") or ""
     tool_input = block.get("input") or {}
@@ -135,12 +142,12 @@ def entry_for(block: dict, root, cwd: str) -> dict:
 # ---- transcript reading -----------------------------------------------------
 
 
-def text_of(content) -> str:
+def text_of(content: Any) -> str:
     """Flatten a message content field (str, or a list of blocks) to text."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        parts = []
+        parts: list[str] = []
         for block in content:
             if isinstance(block, dict) and block.get("type") in ("text", "tool_result"):
                 inner = block.get("content") if block.get("type") == "tool_result" else block.get("text")
@@ -151,8 +158,8 @@ def text_of(content) -> str:
     return ""
 
 
-def read_rows(path: Path) -> list[dict]:
-    rows = []
+def read_rows(path: Path) -> list[JsonDict]:
+    rows: list[JsonDict] = []
     for raw in path.read_text(errors="replace").splitlines():
         line = raw.strip()
         if not line:
@@ -164,7 +171,7 @@ def read_rows(path: Path) -> list[dict]:
     return rows
 
 
-def tool_uses(row: dict):
+def tool_uses(row: JsonDict) -> Iterator[JsonDict]:
     """Every tool_use block in an assistant row."""
     message = row.get("message")
     if not isinstance(message, dict) or message.get("role") != "assistant":
@@ -174,7 +181,7 @@ def tool_uses(row: dict):
             yield block
 
 
-def result_sizes(rows: list[dict]) -> dict[str, int]:
+def result_sizes(rows: list[JsonDict]) -> dict[str, int]:
     """tool_use_id -> characters its result put back into the context window."""
     sizes: dict[str, int] = {}
     for row in rows:
@@ -195,7 +202,7 @@ def result_sizes(rows: list[dict]) -> dict[str, int]:
 clean_reply = hook.clean_reply
 
 
-def human_turns(rows: list[dict]) -> list[int]:
+def human_turns(rows: list[JsonDict]) -> list[int]:
     """Indices of every human row — the period boundaries these analysers use.
 
     Deliberately ``is_human_row``, not ``is_genuine_reply``: a period here is a
@@ -205,7 +212,7 @@ def human_turns(rows: list[dict]) -> list[int]:
     return [i for i, row in enumerate(rows) if hook.is_human_row(row)]
 
 
-def write_jsonl(path: Path, records: list[dict]) -> None:
+def write_jsonl(path: Path, records: list[JsonDict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in records))
 
@@ -213,21 +220,21 @@ def write_jsonl(path: Path, records: list[dict]) -> None:
 # ---- synthetic rows, shared by both analysers' self-tests -------------------
 
 
-def fake_assistant(uuid: str, tool_id: str, name: str, tool_input: dict) -> dict:
+def fake_assistant(uuid: str, tool_id: str, name: str, tool_input: JsonDict) -> JsonDict:
     content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]
     return {"uuid": uuid, "cwd": str(ROOT), "message": {"role": "assistant", "content": content}}
 
 
-def fake_human(text: str) -> dict:
+def fake_human(text: str) -> JsonDict:
     return {"uuid": f"human-{abs(hash(text))}", "cwd": str(ROOT), "message": {"role": "user", "content": text}}
 
 
-def fake_result(tool_id: str, size: int) -> dict:
+def fake_result(tool_id: str, size: int) -> JsonDict:
     block = {"type": "tool_result", "tool_use_id": tool_id, "content": "x" * size}
     return {"uuid": f"res-{tool_id}", "cwd": str(ROOT), "message": {"role": "user", "content": [block]}}
 
 
-def histogram(title: str, counter, total: int) -> None:
+def histogram(title: str, counter: Counter[str], total: int) -> None:
     print(f"\n{title}")
     if not counter:
         print("  (none)")

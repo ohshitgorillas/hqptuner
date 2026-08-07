@@ -68,7 +68,7 @@ def fill_until_rotated(log: AuditLog, rotation: Path, limit: int = 500) -> int:
     the roll, so a caller can show that numbering carries across it."""
     highest = 0
     for index in range(limit):
-        seqs = [record["seq"] for record in log.records()]
+        seqs = [int(record["seq"]) for record in log.records()]
         highest = max([highest, *seqs])
         log.preset_write(f"preset-{index}", "save", 4096, "abc123", overwrote=False)
         if rotation.exists():

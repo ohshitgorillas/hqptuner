@@ -69,7 +69,7 @@ def write_targets() -> set[str]:
     """Every form field the persistent write path can actually place in the XML."""
     return (
         set(presetconf.FIELD_MAP)
-        | set(presetconf.PLUGIN_MAP)
+        | set(matrixconf.PLUGIN_MAP)
         | {
             presetconf.NET_DEVICE,
             fixedvol.FIXED_ENABLED,

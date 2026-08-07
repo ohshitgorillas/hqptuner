@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from narrow import present
 
 from hqptuner.conf import xmledit
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -129,7 +130,7 @@ async def test_a_save_that_cannot_reach_the_daemon_reports_not_ok(dead_lane_mana
 def test_persist_backup_writes_the_archive_to_disk(tmp_path: Path) -> None:
     manager = ConnectionManager(Config(backup_dir=tmp_path / "backups", preset_dir=tmp_path / "presets"))
     path = manager.presetops.persist_backup(b"archive-bytes")
-    assert path.read_bytes() == b"archive-bytes"
+    assert present(path).read_bytes() == b"archive-bytes"
 
 
 def test_persist_backup_tolerates_an_unwritable_directory(tmp_path: Path) -> None:

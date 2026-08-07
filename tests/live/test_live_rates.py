@@ -17,7 +17,8 @@ mode-dependent (manual §4.6), so the PCM and SDM lists share no rate but index
 """
 
 import pytest
-from conftest import CommandLog, LiveManager
+from conftest import LiveManager
+from fake_control import CommandLog
 
 from hqptuner.lanes import livechain, livelane, liveoverrides
 

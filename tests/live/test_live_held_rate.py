@@ -27,7 +27,8 @@ the loaded chain (PCM offers 0/44100/352800/705600/384000, SDM offers
 from collections.abc import Callable
 
 import pytest
-from conftest import CommandLog, LiveManager
+from conftest import LiveManager
+from fake_control import CommandLog
 from fastapi.testclient import TestClient
 
 from hqptuner.lanes import livechain, livelane

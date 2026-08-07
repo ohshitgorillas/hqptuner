@@ -47,6 +47,7 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 import budget_read_profile as profiler
@@ -54,6 +55,7 @@ from budget_common import (
     LOG_DIR,
     ROOT,
     TRANSCRIPT_DIR,
+    JsonDict,
     bash_class,
     clean_reply,
     entry_for,
@@ -74,7 +76,7 @@ EDIT_SIG = "in-tree edits since the user last spoke"
 REPORTED = re.compile(r"(\d+)\s+(?:metered actions|in-tree edits) since the user last spoke")
 
 
-def trip_of(row: dict):
+def trip_of(row: JsonDict) -> tuple[str | None, str]:
     """``(leash, reason_text)`` when this row is a budget denial, else ``(None, "")``."""
     if row.get("toolDenialKind") != "permission-rule":
         return None, ""
@@ -92,12 +94,13 @@ def trip_of(row: dict):
     return None, ""
 
 
-def blocked_id(row: dict):
+def blocked_id(row: JsonDict) -> str | None:
     message = row.get("message")
     if isinstance(message, dict) and isinstance(message.get("content"), list):
         for block in message["content"]:
             if isinstance(block, dict) and block.get("type") == "tool_result":
-                return block.get("tool_use_id")
+                value = block.get("tool_use_id")
+                return str(value) if value else None
     return None
 
 
@@ -142,7 +145,7 @@ def label_reply(text: str) -> str:
 # ---- mining -----------------------------------------------------------------
 
 
-def build_record(rows: list[dict], index: int, session: str) -> dict:
+def build_record(rows: list[JsonDict], index: int, session: str) -> JsonDict:
     """One trip record, replaying the burst window the hook counted over."""
     row = rows[index]
     leash, reason = trip_of(row)
@@ -194,13 +197,13 @@ def build_record(rows: list[dict], index: int, session: str) -> dict:
     }
 
 
-def mine_rows(rows: list[dict], session: str) -> list[dict]:
+def mine_rows(rows: list[JsonDict], session: str) -> list[JsonDict]:
     return [build_record(rows, i, session) for i, row in enumerate(rows) if trip_of(row)[0]]
 
 
-def mine(directory: Path) -> tuple[list[dict], list[str]]:
+def mine(directory: Path) -> tuple[list[JsonDict], list[str]]:
     """Every trip across every transcript, deduped by blocked-call identity."""
-    seen: dict[str, dict] = {}
+    seen: dict[str, JsonDict] = {}
     warnings = []
     for path in sorted(directory.glob("*.jsonl")):
         for record in mine_rows(read_rows(path), path.stem):
@@ -219,7 +222,7 @@ def mine(directory: Path) -> tuple[list[dict], list[str]]:
 # ---- reporting --------------------------------------------------------------
 
 
-def summarise(records: list[dict], warnings: list[str]) -> None:
+def summarise(records: list[JsonDict], warnings: list[str]) -> None:
     print(f"trips: {len(records)}   (transcripts: {TRANSCRIPT_DIR})")
     leashes = Counter(r["leash"] for r in records)
     for leash in ("change", "edit"):
@@ -248,7 +251,7 @@ def summarise(records: list[dict], warnings: list[str]) -> None:
             print(f"  {line}")
 
 
-def _verdict(record: dict) -> str:
+def _verdict(record: JsonDict) -> str:
     """The catch/continue verdict for one trip, or "" when it has no denominator."""
     reply = record["user_reply"]
     if reply["label"] == "command":
@@ -258,8 +261,8 @@ def _verdict(record: dict) -> str:
     return reply.get("llm_label") or ""
 
 
-def _rate_rows(records: list[dict], keyfn) -> None:
-    groups: dict[str, Counter] = {}
+def _rate_rows(records: list[JsonDict], keyfn: Callable[[JsonDict], list[str]]) -> None:
+    groups: dict[str, Counter[str]] = {}
     for record in records:
         verdict = _verdict(record)
         if not verdict:
@@ -273,7 +276,7 @@ def _rate_rows(records: list[dict], keyfn) -> None:
         print(f"  {name:<20} {catch:>6} {cont:>6} {uncl:>6} {100 * catch / total:>6.1f}%")
 
 
-def _catch_rates(records: list[dict]) -> None:
+def _catch_rates(records: list[JsonDict]) -> None:
     excluded = sum(1 for r in records if r["user_reply"]["label"] == "command")
     print(f"\ncatch rate by leash   ({excluded} command-reply trips excluded from denominators)")
     _rate_rows(records, lambda r: [r["leash"]])
@@ -301,7 +304,7 @@ VERDICTS = {"CONTINUE", "CORRECTION", "UNCLEAR"}
 CLAUDE_CLI = shutil.which("claude") or "claude"
 
 
-def ask_claude(record: dict) -> str:
+def ask_claude(record: JsonDict) -> str:
     burst = "\n".join(f"{e['tool']}: {e['preview']}" for e in record["burst"][-8:])
     if record["blocked_call"]:
         burst += f"\n[BLOCKED] {record['blocked_call']['tool']}: {record['blocked_call']['preview']}"
@@ -320,7 +323,7 @@ def ask_claude(record: dict) -> str:
     return "UNCLEAR"
 
 
-def label_ambiguous(records: list[dict]) -> None:
+def label_ambiguous(records: list[JsonDict]) -> None:
     pending = [r for r in records if r["user_reply"]["label"] == "ambiguous" and not r["user_reply"].get("llm_label")]
     for number, record in enumerate(pending, start=1):
         record["user_reply"]["llm_label"] = ask_claude(record)
@@ -333,12 +336,12 @@ def label_ambiguous(records: list[dict]) -> None:
 # ---- self-test --------------------------------------------------------------
 
 
-def _assistant(uuid: str, tool_id: str, name: str, tool_input: dict) -> dict:
+def _assistant(uuid: str, tool_id: str, name: str, tool_input: JsonDict) -> JsonDict:
     content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]
     return {"uuid": uuid, "cwd": str(ROOT), "message": {"role": "assistant", "content": content}}
 
 
-def _denial(source: str, tool_id: str, text: str) -> dict:
+def _denial(source: str, tool_id: str, text: str) -> JsonDict:
     block = {"type": "tool_result", "is_error": True, "tool_use_id": tool_id, "content": text}
     return {
         "uuid": f"deny-{tool_id}",
@@ -350,11 +353,11 @@ def _denial(source: str, tool_id: str, text: str) -> dict:
     }
 
 
-def _human(text: str) -> dict:
+def _human(text: str) -> JsonDict:
     return {"uuid": f"human-{abs(hash(text))}", "cwd": str(ROOT), "message": {"role": "user", "content": text}}
 
 
-def _burst_rows(count: int, name: str, tool_input: dict) -> list[dict]:
+def _burst_rows(count: int, name: str, tool_input: JsonDict) -> list[JsonDict]:
     return [_assistant(f"a{i}", f"t{i}", name, tool_input) for i in range(count)]
 
 

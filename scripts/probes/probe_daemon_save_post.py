@@ -53,7 +53,7 @@ async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
 
 
 def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
-    return {f["name"]: f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
+    return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
 async def _settled_correction(http: HttpConfigClient, differs_from: dict[str, object] | None) -> dict[str, object]:

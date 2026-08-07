@@ -65,6 +65,7 @@ async def _report(client: ControlClient, label: str) -> dict[str, str]:
     """Everything that could carry the answer, after one write."""
     state = await client.get_state()
     status, meta = await client.get_status()
+    meta = meta or {}
     print(f"  {label}")
     print(f"    State.mode/rate/state = {state.get('mode')!r} {state.get('rate')!r} {state.get('state')!r}")
     print(f"    Status.active_mode    = {status.get('active_mode')!r}")

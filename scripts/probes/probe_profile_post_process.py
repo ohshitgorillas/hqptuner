@@ -141,7 +141,7 @@ def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
 
 
 def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
-    return {f["name"]: f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
+    return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
 async def main() -> int:

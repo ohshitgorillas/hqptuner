@@ -29,7 +29,7 @@ import os
 import sys
 from typing import Any
 
-from playwright.sync_api import Browser, Page, sync_playwright
+from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 
 MEASURE_JS = """
 ([sel, props]) => Array.from(document.querySelectorAll(sel)).map(el => {
@@ -62,7 +62,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return args
 
 
-def launch(pw: Any) -> Browser:
+def launch(pw: Playwright) -> Browser:
     binary = os.environ.get("HQPTUNER_CHROMIUM")
     if binary:
         return pw.chromium.launch(executable_path=binary)

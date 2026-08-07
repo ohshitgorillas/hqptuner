@@ -27,6 +27,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 SPEED_OF_SOUND = 343.0
 HEAD_RADIUS = 0.0875
@@ -244,13 +245,13 @@ def run_driver(node: str) -> dict[str, object]:
     return parsed
 
 
-def check_transfer_functions(responses: list[dict[str, object]]) -> tuple[float, float]:
+def check_transfer_functions(responses: list[dict[str, Any]]) -> tuple[float, float]:
     """Worst deviation of the compiled block from analytic G_M and G_S."""
     worst_mid = worst_side = 0.0
     for rec in responses:
         want_mid, want_side = analytic(float(rec["f"]), float(rec["lambda"]), float(rec["angle"]))
-        got_mid = complex(*rec["mid"])  # type: ignore[misc]
-        got_side = complex(*rec["side"])  # type: ignore[misc]
+        got_mid = complex(*rec["mid"])
+        got_side = complex(*rec["side"])
         worst_mid = max(worst_mid, abs(got_mid - want_mid))
         worst_side = max(worst_side, abs(got_side - want_side))
     return worst_mid, worst_side

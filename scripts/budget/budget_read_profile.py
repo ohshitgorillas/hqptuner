@@ -25,10 +25,13 @@ from __future__ import annotations
 import os
 import re
 from collections import Counter
+from collections.abc import Callable
+from pathlib import Path
 
 from budget_common import (
     LOG_DIR,
     ROOT,
+    JsonDict,
     entry_for,
     fake_assistant,
     fake_human,
@@ -79,7 +82,7 @@ def _bash_paths(command: str, cwd: str) -> list[str]:
     return found
 
 
-def read_paths(name: str, tool_input: dict, cwd: str) -> list[str]:
+def read_paths(name: str, tool_input: JsonDict, cwd: str) -> list[str]:
     """Every local path a free read targeted, resolved against the row's cwd."""
     if name in NO_PATH_TOOLS:
         return []
@@ -91,7 +94,7 @@ def read_paths(name: str, tool_input: dict, cwd: str) -> list[str]:
     return []
 
 
-def _blank(session: str, index: int, key: str) -> dict:
+def _blank(session: str, index: int, key: str) -> JsonDict:
     return {
         "key": key,
         "session": session,
@@ -113,10 +116,10 @@ def _blank(session: str, index: int, key: str) -> dict:
     }
 
 
-def _count_free(block: dict, rec: dict, sizes: dict, cwd: str, seen: set) -> None:
+def _count_free(block: JsonDict, rec: JsonDict, sizes: dict[str, int], cwd: str, seen: set[str]) -> None:
     """Fold one FREE-classified call into the period record."""
     name = block.get("name") or ""
-    size = sizes.get(block.get("id"), 0)
+    size = sizes.get(block.get("id") or "", 0)
     rec["free_read_calls"] += 1
     rec["free_read_bytes"] += size
     repeated = False
@@ -132,7 +135,7 @@ def _count_free(block: dict, rec: dict, sizes: dict, cwd: str, seen: set) -> Non
         rec["reread_bytes"] += size
 
 
-def _period(rows: list[dict], index: int, session: str, sizes: dict, seen: set) -> dict:
+def _period(rows: list[JsonDict], index: int, session: str, sizes: dict[str, int], seen: set[str]) -> JsonDict:
     opening = rows[0]
     rec = _blank(session, index, opening.get("uuid") or f"{session}:{index}")
     rec["timestamp"] = opening.get("timestamp") or ""
@@ -160,21 +163,21 @@ def _period(rows: list[dict], index: int, session: str, sizes: dict, seen: set) 
     return rec
 
 
-def profile_rows(rows: list[dict], session: str) -> list[dict]:
+def profile_rows(rows: list[JsonDict], session: str) -> list[JsonDict]:
     """One record per leash period in one transcript."""
     sizes = result_sizes(rows)
     turns = human_turns(rows)
     seen: set[str] = set()
-    records = []
+    records: list[JsonDict] = []
     for index, start in enumerate(turns):
         end = turns[index + 1] if index + 1 < len(turns) else len(rows)
         records.append(_period(rows[start:end], index, session, sizes, seen))
     return records
 
 
-def profile(directory) -> tuple[list[dict], int]:
+def profile(directory: Path) -> tuple[list[JsonDict], int]:
     """Every period across every transcript, deduped, plus the sidechain-row count."""
-    seen: dict[str, dict] = {}
+    seen: dict[str, JsonDict] = {}
     sidechain = 0
     for path in sorted(directory.glob("*.jsonl")):
         rows = read_rows(path)
@@ -204,7 +207,7 @@ def _bucket(value: int, table: list[tuple[int, str]], last: str) -> str:
     return next((label for edge, label in table if value <= edge), last)
 
 
-def _distribution(records: list[dict]) -> None:
+def _distribution(records: list[JsonDict]) -> None:
     values = sorted(r["free_read_bytes"] for r in records)
     total = sum(values)
     print(f"\nfree read bytes per period   (periods: {len(records)}, total: {total / 1e6:.1f} MB)")
@@ -221,13 +224,13 @@ def _distribution(records: list[dict]) -> None:
         print(f"  {name:<8} {percentile(working, fraction):>10,}   (active periods only)")
 
 
-def _rereads(records: list[dict]) -> None:
+def _rereads(records: list[JsonDict]) -> None:
     total = sum(r["free_read_bytes"] for r in records)
     repeated = sum(r["reread_bytes"] for r in records)
     share = f"{100 * repeated / total:.1f}%" if total else "-"
     calls = sum(r["reread_count"] for r in records)
     print(f"\nre-read: {repeated:,} bytes of {total:,} ({share}), {calls} repeat reads")
-    counter: Counter = Counter()
+    counter: Counter[str] = Counter()
     for record in records:
         for path, count in record["reread_paths"].items():
             counter[path] += count
@@ -238,8 +241,8 @@ def _rereads(records: list[dict]) -> None:
         print("    (none)")
 
 
-def _grounding(records: list[dict]) -> None:
-    grid: Counter = Counter()
+def _grounding(records: list[JsonDict]) -> None:
+    grid: Counter[tuple[str, str]] = Counter()
     for record in records:
         read = _bucket(record["free_read_bytes"], READ_BUCKETS, ">500K")
         edit = _bucket(record["edit_count"], EDIT_BUCKETS, ">15 edits")
@@ -252,7 +255,7 @@ def _grounding(records: list[dict]) -> None:
         print(f"  {read:<12}{row}")
 
 
-def summarise(records: list[dict], sidechain: int) -> None:
+def summarise(records: list[JsonDict], sidechain: int) -> None:
     _distribution(records)
     _rereads(records)
     delegations = sum(r["delegation_count"] for r in records)
@@ -269,7 +272,7 @@ def summarise(records: list[dict], sidechain: int) -> None:
 # ---- self-test --------------------------------------------------------------
 
 
-def _synthetic() -> list[dict]:
+def _synthetic() -> list[JsonDict]:
     """Preamble row, then three periods: read+grep, re-read+edit, empty."""
     target = str(ROOT / "docs" / "architecture.md")
     return [
@@ -287,7 +290,7 @@ def _synthetic() -> list[dict]:
     ]
 
 
-def self_checks(check) -> list[bool]:
+def self_checks(check: Callable[..., bool]) -> list[bool]:
     """Acceptance checks for period profiling; `check(label, condition=...) -> bool`."""
     rec = profile_rows(_synthetic(), "s")
     ok = [check("one record per human turn, preamble excluded", condition=len(rec) == 3)]

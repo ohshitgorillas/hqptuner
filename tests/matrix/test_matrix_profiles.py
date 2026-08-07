@@ -31,7 +31,8 @@ async def saved_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]
     """The profiles the running config carries, read back from the daemon: each
     one ``{"rows": [...], "post": {...}}``."""
     cfg = await manager.load_file_config()
-    return json.loads(cfg["matrix_profiles"])
+    profiles: dict[str, dict[str, Any]] = json.loads(cfg["matrix_profiles"])
+    return profiles
 
 
 async def saved_rows(manager: ConnectionManager, name: str) -> list[dict[str, str]]:

@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import pytest
+from narrow import present
 
 from hqptuner.conf import fixedvol, presetconf
 from hqptuner.conf.httpconf import parse_config_form
@@ -68,12 +69,12 @@ def test_profile_list_includes_the_default_base_configuration() -> None:
 def _raw_wire_value(name: str, ftype: str) -> object:
     """Independent extraction from the raw document (not via the parser)."""
     if ftype == "select":
-        block = re.search(rf'<select name="{name}".*?</select>', _HTML, re.S).group(0)
+        block = present(re.search(rf'<select name="{name}".*?</select>', _HTML, re.S)).group(0)
         selected = re.search(r'<option value="([^"]*)"[^>]*\bselected\b', block)
         if selected:
             return selected.group(1)
-        return re.search(r'<option value="([^"]*)"', block).group(1)
-    tag = re.search(rf'<input[^>]*name="{name}"[^>]*/?>', _HTML).group(0)
+        return present(re.search(r'<option value="([^"]*)"', block)).group(1)
+    tag = present(re.search(rf'<input[^>]*name="{name}"[^>]*/?>', _HTML)).group(0)
     if ftype == "checkbox":
         return " checked" in tag
     value = re.search(r'value="([^"]*)"', tag)

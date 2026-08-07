@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
+from narrow import present
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -162,7 +163,7 @@ async def test_a_mode_equal_to_the_running_mode_is_not_resent(running_manager: C
     # change (protocol.md §6), so a surviving pin proves no SetMode went out.
     await running_manager.applyops.apply({"rate": {"value": "1"}}, {})
     await running_manager.applyops.apply({}, {"mode": "pcm", "dither": "5"})
-    assert running_manager.state["rate"] == "1"
+    assert present(running_manager.state)["rate"] == "1"
 
 
 async def test_a_mode_batch_with_a_leftover_field_still_routes_the_mode_live(

@@ -47,7 +47,7 @@ def _catalog_fields() -> set[str]:
     """Every flat form field the persistent write path can target."""
     fields = (
         set(presetconf.FIELD_MAP)
-        | set(presetconf.PLUGIN_MAP)
+        | set(matrixconf.PLUGIN_MAP)
         | {presetconf.NET_DEVICE, fixedvol.FIXED_ENABLED, fixedvol.FIXED_LEVEL}
     )
     # The pipeline table reaches the wire as indexed source_N / process_N /

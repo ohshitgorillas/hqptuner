@@ -33,7 +33,7 @@ def _parent_of(xml: bytes, tag: str) -> str | None:
     return next((p.tag for p in root.iter() for c in p if c.tag == tag), None)
 
 
-@pytest.mark.parametrize("field", sorted(presetconf.FIELD_MAP) + sorted(presetconf.PLUGIN_MAP))
+@pytest.mark.parametrize("field", sorted(presetconf.FIELD_MAP) + sorted(matrixconf.PLUGIN_MAP))
 def test_a_setting_lands_on_a_config_that_never_carried_its_element(field: str) -> None:
     assert presetconf.read_config(presetconf.apply_edits(BARE, {field: VALUE}))[field] == VALUE
 

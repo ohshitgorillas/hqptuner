@@ -55,7 +55,8 @@ def staged_save(name: str, *rows: dict[str, str]) -> dict[str, str]:
 
 
 def profiles_of(xml: bytes) -> dict[str, dict[str, Any]]:
-    return json.loads(matrixconf.read_profiles(xml))
+    profiles: dict[str, dict[str, Any]] = json.loads(matrixconf.read_profiles(xml))
+    return profiles
 
 
 def post_of(xml: bytes, name: str) -> dict[str, str]:
@@ -194,7 +195,7 @@ def test_re_saving_a_chainless_profile_is_what_gives_it_a_chain() -> None:
 
 def test_post_settings_read_back_under_hqptuners_own_form_field_names() -> None:
     written = matrixconf.write_profile(cfg(), save_value("Night", ROW0))
-    assert set(post_of(written, "Night")) <= set(presetconf.PLUGIN_MAP)
+    assert set(post_of(written, "Night")) <= set(matrixconf.PLUGIN_MAP)
 
 
 def test_a_profiles_post_settings_can_be_staged_straight_back_as_config_edits() -> None:

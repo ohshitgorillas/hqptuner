@@ -81,7 +81,7 @@ def stylesheets() -> list[Path]:
 
 def blocks_with_source() -> list[tuple[Path, list[str], Block]]:
     """(path, file lines, block) for every rule block in every stylesheet."""
-    found = []
+    found: list[tuple[Path, list[str], Block]] = []
     for path in stylesheets():
         lines = path.read_text().splitlines()
         found.extend((path, lines, block) for block in rule_blocks(lines))

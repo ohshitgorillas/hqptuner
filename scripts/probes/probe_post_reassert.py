@@ -96,7 +96,7 @@ def _profile_rows(xml: bytes, name: str) -> list[bytes]:
 
 
 def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
-    return {f["name"]: f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
+    return {str(f["name"]): f.get("value") for f in fields if str(f.get("name", "")).startswith("post_correction")}
 
 
 async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> None:
@@ -172,7 +172,8 @@ async def main() -> int:  # noqa: C901 — probe: one linear script, read top to
                         break
                     await asyncio.sleep(1.0)
                 in_file = re.search(rb'<plugin[^>]*type="correction"/>', await _working(http, active))
-                print(f"correction in the config file after the POST: {in_file.group(0) if in_file else None}")
+                found = in_file.group(0) if in_file else None
+                print(f"correction in the config file after the POST: {found!r}")
                 print(f"correction after a POST turning it OFF: {off}")
                 print(f"CONTROL POST /matrix can change the running post-process: {off != start}")
             return rc

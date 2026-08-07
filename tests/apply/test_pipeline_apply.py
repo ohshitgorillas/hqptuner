@@ -20,7 +20,8 @@ def rows_json(*rows: dict[str, str]) -> str:
 
 async def applied_rows(http_manager: ConnectionManager) -> list[dict[str, str]]:
     cfg = await http_manager.load_file_config()
-    return json.loads(cfg["matrix_pipelines"])
+    rows: list[dict[str, str]] = json.loads(cfg["matrix_pipelines"])
+    return rows
 
 
 async def test_pipeline_gain_edit_reaches_the_running_config(http_manager: ConnectionManager) -> None:

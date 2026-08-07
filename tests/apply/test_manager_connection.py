@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 import pytest
 from fake_control import serve as fake_serve
+from narrow import present
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -127,9 +128,9 @@ async def test_a_mode_change_is_reenumerated_on_the_next_poll(outage_manager: Ou
     # an external actor flips the engine to SDM; the poll must swap the lists
     # wholesale — enum 38 is the SDM chain's poly-sinc-gauss-long, not PCM's 40
     manager, _ = outage_manager
-    await manager.control.set_command("SetMode", value="2")
+    await present(manager.control).set_command("SetMode", value="2")
     await _eventually(lambda: (manager.enums or {}).get("filters", [{}])[0].get("value") == "38")
-    assert manager.enums["filters"][0]["value"] == "38"
+    assert present(manager.enums)["filters"][0]["value"] == "38"
 
 
 # --- live volume lane ---------------------------------------------------------

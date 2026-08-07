@@ -1,8 +1,10 @@
 """Static-metadata join behavior (data/filters.json _join_rules)."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
+from narrow import present
 
 from hqptuner.metadata import StaticMetadata, merge_enumerations
 
@@ -15,7 +17,7 @@ def static() -> StaticMetadata:
 
 
 def test_exact_name_joins_its_own_entry(static: StaticMetadata) -> None:
-    entry = static.filter_entry("poly-sinc-short-lp")
+    entry = present(static.filter_entry("poly-sinc-short-lp"))
     assert "poly-sinc" in entry["description"]
 
 
@@ -28,13 +30,13 @@ def test_2s_suffix_resolves_to_an_entry(static: StaticMetadata) -> None:
 
 
 def test_2s_description_carries_the_two_stage_note(static: StaticMetadata) -> None:
-    entry = static.filter_entry("poly-sinc-long-lp-2s")
+    entry = present(static.filter_entry("poly-sinc-long-lp-2s"))
     assert "Two stage oversampling" in entry["description"]
 
 
 def test_2s_description_keeps_the_base_prose(static: StaticMetadata) -> None:
-    base = static.filter_entry("poly-sinc-long-lp")
-    entry = static.filter_entry("poly-sinc-long-lp-2s")
+    base = present(static.filter_entry("poly-sinc-long-lp"))
+    entry = present(static.filter_entry("poly-sinc-long-lp-2s"))
     assert entry["description"].startswith(base["description"])
 
 
@@ -51,11 +53,12 @@ FOCUS_TOKENS = {"transients", "timbre", "space"}
 RATIO_CLASSES = {"integer", "2x", "1:1", "any"}
 
 
-def _filters(static: StaticMetadata) -> dict[str, dict]:
-    return static.raw["filters"]["filters"]
+def _filters(static: StaticMetadata) -> dict[str, dict[str, Any]]:
+    entries: dict[str, dict[str, Any]] = static.raw["filters"]["filters"]
+    return entries
 
 
-def _ratio_values(entry: dict) -> set:
+def _ratio_values(entry: dict[str, Any]) -> set[Any]:
     if "ratio" in entry:
         return {entry["ratio"]}
     return {entry.get("ratio_pcm"), entry.get("ratio_sdm")}
@@ -98,7 +101,7 @@ def test_ratio_classes_are_from_the_known_set(static: StaticMetadata) -> None:
 # only contributes prose, and an unmatched engine entry still renders.
 
 
-def _filter_item(name: str, arg: str = "0") -> dict:
+def _filter_item(name: str, arg: str = "0") -> dict[str, str]:
     return {"index": "1", "name": name, "value": "40", "arg": arg}
 
 

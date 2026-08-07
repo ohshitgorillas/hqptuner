@@ -77,6 +77,7 @@ async def main() -> int:
         print(f"engine not playing (state={state.get('state')!r}) — this probe needs a running transport")
         return 1
     status, meta = await client.get_status()
+    meta = meta or {}
     print(f"mode {original_mode!r}, rate {original_rate!r}, active_rate {status.get('active_rate')!r}")
     print(f"source: samplerate {meta.get('samplerate')!r} bits {meta.get('bits')!r} sdm {meta.get('sdm')!r}")
 

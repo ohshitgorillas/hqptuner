@@ -16,13 +16,14 @@ are validated only if captured; a gap note is printed otherwise.
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 DATA = Path(__file__).parent
 errors = []
 warnings = []
 
 
-def load(name):
+def load(name: str) -> Any:
     with open(DATA / name) as f:
         return json.load(f)
 
@@ -65,11 +66,11 @@ fdb = filters["filters"]
 aliases = filters.get("aliases", {})
 
 
-def resolve_filter(name):
+def resolve_filter(name: str) -> str | None:
     if name in fdb:
         return name
     if name in aliases and aliases[name] in fdb:
-        return aliases[name]
+        return str(aliases[name])
     if name.endswith("-2s"):
         return resolve_filter(name[: -len("-2s")])
     return None

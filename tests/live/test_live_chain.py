@@ -20,9 +20,10 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from pathlib import Path
 
 import pytest
-from conftest import CommandLog, LiveManager, eventually, spawn_threaded_daemon, wait_for_api
-from fake_control import DEFAULTS, serve
+from conftest import LiveManager, eventually, spawn_threaded_daemon, wait_for_api
+from fake_control import DEFAULTS, CommandLog, serve
 from fastapi.testclient import TestClient
+from narrow import present
 
 from hqptuner.api import create_app
 from hqptuner.config import Config
@@ -214,8 +215,8 @@ async def test_the_engines_own_filter_outranks_a_held_one(live_manager: LiveMana
     manager, _, _ = await live_manager(poll_interval=0.02, mode="2")
     await livelane.apply_now(manager, {"filter": "25"})  # held: PCM chain is dormant
     await livelane.apply_now(manager, {"mode": "pcm"})  # 25 goes on the wire here
-    await manager.control.set_command("SetFilter", value="1")
-    await eventually(lambda: manager.state.get("filterNx") == "1")  # the poll has seen it
+    await present(manager.control).set_command("SetFilter", value="1")
+    await eventually(lambda: present(manager.state).get("filterNx") == "1")  # the poll has seen it
     assert liveoverrides.live_overrides(manager)["filter"] == "40"
 
 
@@ -308,7 +309,7 @@ async def test_a_source_change_serves_the_entered_chains_filters(live_manager: L
     manager, _, state = await live_manager(poll_interval=0.02, mode="0", _active_mode="PCM")
     state["_active_mode"] = "SDM (DSD)"
     await eventually(lambda: [i["value"] for i in (manager.enums or {}).get("filters", [])] == ["38", "23"])
-    assert [i["value"] for i in manager.enums["filters"]] == ["38", "23"]
+    assert [i["value"] for i in present(manager.enums)["filters"]] == ["38", "23"]
 
 
 async def test_a_source_change_serves_the_entered_chains_shapers(live_manager: LiveManager) -> None:
@@ -317,7 +318,7 @@ async def test_a_source_change_serves_the_entered_chains_shapers(live_manager: L
     manager, _, state = await live_manager(poll_interval=0.02, mode="0", _active_mode="PCM")
     state["_active_mode"] = "SDM (DSD)"
     await eventually(lambda: [i["value"] for i in (manager.enums or {}).get("shapers", [])] == ["0", "3"])
-    assert [i["value"] for i in manager.enums["shapers"]] == ["0", "3"]
+    assert [i["value"] for i in present(manager.enums)["shapers"]] == ["0", "3"]
 
 
 async def test_a_source_change_writes_the_edit_held_for_the_chain_it_loaded(live_manager: LiveManager) -> None:

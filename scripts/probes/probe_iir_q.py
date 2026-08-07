@@ -52,6 +52,12 @@ GRID_LO, GRID_HI = 20.0, 20000.0
 RATES = (96000.0, 99000.0)
 GRID_POINTS = 4096
 
+#: Min/max Q over the grid.
+QPair = tuple[float, float]
+#: One result row: label, chain, measured pair, cookbook Q per rate, classic EE Q
+#: per rate. The last three are None when the chain produced no log line.
+Row = tuple[str, str, QPair | None, list[QPair] | None, list[QPair] | None]
+
 CHAINS = {
     "A  peak above grid": "iir:type=peak;f=30000;q=1;g=12",
     "C  two overlapping": "iir:type=peak;f=1000;q=2;g=12,iir:type=peak;f=2000;q=2;g=12",
@@ -191,22 +197,22 @@ async def main() -> int:
         offset = _row_gain_db(fields)
         print(f"row-0 gain offset: {offset:+.4f} dB  (gain_0={fields.get('gain_0')} {fields.get('gainunit_0')})\n")
 
-        rows = []
+        rows: list[Row] = []
         for label, chain in CHAINS.items():
             got = await _measure(client, fields, chain)
             if got is None:
                 rows.append((label, chain, None, None, None))
                 continue
-            measured = (got[0] - offset, got[1] - offset)
-            cook = [_predict(chain, fs, as_ee_q=False) for fs in RATES]
-            ee = [_predict(chain, fs, as_ee_q=True) for fs in RATES]
-            rows.append((label, chain, measured, cook, ee))
+            spread = (got[0] - offset, got[1] - offset)
+            cook_q = [_predict(chain, fs, as_ee_q=False) for fs in RATES]
+            ee_q = [_predict(chain, fs, as_ee_q=True) for fs in RATES]
+            rows.append((label, chain, spread, cook_q, ee_q))
 
         print(f"{'chain':22} {'measured max':>13} {'cookbook Q':>20} {'classic EE Q':>20}")
         print("-" * 78)
         verdict_cook = verdict_ee = 0
         for label, _chain, measured, cook, ee in rows:
-            if measured is None:
+            if measured is None or cook is None or ee is None:
                 print(f"{label:22} {'NO LOG LINE':>13}")
                 continue
             cook_r = f"{min(c[1] for c in cook):.2f}..{max(c[1] for c in cook):.2f}"

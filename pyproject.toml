@@ -121,7 +121,10 @@ ban-relative-imports = "all"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["hqptuner"]
+files = ["hqptuner", "tests", "scripts"]
+# Mirrors the pytest `pythonpath` above: the support modules and the budget
+# analysers are imported by bare name, not by package path.
+mypy_path = ["tests", "tests/support", "scripts/budget"]
 
 [[tool.mypy.overrides]]
 module = "defusedxml.*"

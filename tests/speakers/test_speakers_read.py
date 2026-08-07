@@ -2,6 +2,7 @@
 form. Behavior only, one assertion per test (docs/testing.md)."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -13,7 +14,7 @@ _PARSED = parse_speakers_form(_HTML)
 _FORM = '<form method="post">{}</form>'
 
 
-def _speakers(*, enabled: str = "", level0: str = "0", dist0: str = "0") -> dict:
+def _speakers(*, enabled: str = "", level0: str = "0", dist0: str = "0") -> dict[str, Any]:
     """Parse a minimal one-channel speakers form with the given field values —
     the fixture is all-zero/disabled, so cases that need live values build here."""
     body = (

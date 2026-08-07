@@ -74,7 +74,8 @@ async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, An
     """The profiles the running config carries, read back from the daemon: each
     one its rows and its own post-process settings."""
     cfg = await manager.load_file_config()
-    return json.loads(cfg["matrix_profiles"])
+    profiles: dict[str, dict[str, Any]] = json.loads(cfg["matrix_profiles"])
+    return profiles
 
 
 # --- save without targets: the old shape, byte for byte ----------------------

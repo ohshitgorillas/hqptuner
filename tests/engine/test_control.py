@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
+from narrow import present
 
 from hqptuner.engine.control import CommandError, ControlClient
 
@@ -70,12 +71,12 @@ async def test_enumeration_reassembles_split_frames(client: ControlClient) -> No
 
 async def test_bare_ampersand_in_attribute_is_tolerated(client: ControlClient) -> None:
     _, meta = await client.get_status()
-    assert meta["album"] == "Bookends & More"
+    assert present(meta)["album"] == "Bookends & More"
 
 
 async def test_double_escaped_entities_are_fully_unescaped(client: ControlClient) -> None:
     _, meta = await client.get_status()
-    assert meta["artist"] == "Simon & Garfunkel"
+    assert present(meta)["artist"] == "Simon & Garfunkel"
 
 
 async def test_setter_error_result_raises(client: ControlClient) -> None:
