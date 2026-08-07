@@ -65,6 +65,7 @@ async def fresh_backup(mgr: ConnectionManager) -> bytes | None:
 
     A restarting daemon answers /backup with something that is not a zip yet —
     reading a config out of it would report garbage as realized state, so the
-    zip magic is checked before anything parses the bytes."""
+    zip magic is checked before anything parses the bytes.
+    """
     data = await mgr.require_http().backup()
     return data if data[:4] == ZIP_MAGIC else None

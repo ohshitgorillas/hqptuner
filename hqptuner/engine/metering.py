@@ -84,7 +84,8 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
 
 def _junk_filter_name(status: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:
     """``Status.filter_junk`` joined against the running enumeration — the
-    engine is the sole authority for index→name (architecture §2)."""
+    engine is the sole authority for index→name (architecture §2).
+    """
     idx = status.get("filter_junk")
     for item in (enums or {}).get("junk_filters", []):
         if item.get("index") == idx:
@@ -106,7 +107,8 @@ class SpectralAggregate:
     block-wise: each BLOCK_SECONDS of coverage folds into one per-bin-min
     array, the last WINDOW_BLOCKS of which form the spur rule's persistence
     window. Silent frames never touch the minimum (they carry no tone either),
-    and a block that saw only silence is dropped rather than pushed."""
+    and a block that saw only silence is dropped rather than pushed.
+    """
 
     def __init__(self, bins: int, bandwidth: float) -> None:
         self.bins = bins
@@ -143,7 +145,8 @@ class SpectralAggregate:
     def window_min_db(self) -> list[float] | None:
         """Per-bin minimum (dB) over the last full persistence window, or None
         until WINDOW_BLOCKS full blocks exist. The current partial block joins
-        the minimum too — it can only tighten it, never fake persistence."""
+        the minimum too — it can only tighten it, never fake persistence.
+        """
         if len(self._blocks) < WINDOW_BLOCKS:
             return None
         arrays: list[list[float]] = list(self._blocks)
@@ -186,7 +189,8 @@ class MeteringReader:
         starts). The latch clears on track change or stream loss, and goes
         quiet while the engaged junk filter — or, for spur verdicts, a main
         filter from a recommended family — treats it: engaging is the user
-        acting on the advice, disengaging brings the advice back."""
+        acting on the advice, disengaging brings the advice back.
+        """
         ctx, agg = self._context(), self._agg
         if ctx is None or agg is None or agg.frames == 0:
             return None
@@ -272,14 +276,16 @@ class MeteringReader:
 
 def _frame_silent(body: bytes, channels: int, bins: int) -> bool:
     """Whether every channel's RMS sits below the silence threshold. The RMS is
-    the third float of the per-channel level block (protocol.md §7)."""
+    the third float of the per-channel level block (protocol.md §7).
+    """
     stride = 16 + 8 * bins
     return all(struct.unpack_from("<f", body, ch * stride + 8)[0] < SILENT_RMS_DB for ch in range(channels))
 
 
 def _frame_power(body: bytes, channels: int, bins: int) -> list[float]:
     """Channel-summed squared magnitudes. The transform block is two consecutive
-    halves (reals then imaginaries, not interleaved) — protocol.md §7."""
+    halves (reals then imaginaries, not interleaved) — protocol.md §7.
+    """
     power = [0.0] * bins
     stride = 16 + 8 * bins
     for ch in range(channels):

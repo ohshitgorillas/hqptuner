@@ -31,7 +31,8 @@ def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
 
     Deliberately NOT gated on the auto-save flag: auto-save decides whether the
     store is UPDATED, never whether it is honoured. Empty when no preset is active
-    or the active one has no store file — nothing was saved, so nothing is owed."""
+    or the active one has no store file — nothing was saved, so nothing is owed.
+    """
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.exists(name):
         return {}
@@ -41,7 +42,8 @@ def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
 
 def _mirrored_preset(mgr: ConnectionManager) -> str | None:
     """The active preset's name when auto-save owes the daemon a mirror of it —
-    None when auto-save is off, nothing is active, or it has no store file yet."""
+    None when auto-save is off, nothing is active, or it has no store file yet.
+    """
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.autosave or not mgr.presetops.store.exists(name):
         return None
@@ -55,7 +57,8 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     config that restore lands; folded with the live overrides it is exactly what
     the next auto-save will store. Without it (an engine-lane restore) the store
     file itself is the freshest mirror. Empty when auto-save is off, no preset is
-    active, or the preset has no store file yet."""
+    active, or the preset has no store file yet.
+    """
     name = _mirrored_preset(mgr)
     if name is None:
         return {}

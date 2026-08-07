@@ -53,7 +53,8 @@ def merge_enumerations(
 ) -> dict[str, Any]:
     """Attach static prose to live enumeration items. Unmatched engine
     entries still render (static: null). Live facets (quality/focus/ratio in
-    the description, apodizing in arg bit 0) stay on the engine item."""
+    the description, apodizing in arg bit 0) stay on the engine item.
+    """
     merged: dict[str, Any] = dict(enums)
     merged["filters"] = [
         {

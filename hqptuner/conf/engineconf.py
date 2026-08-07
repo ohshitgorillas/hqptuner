@@ -54,7 +54,8 @@ def snapshot_member_name(preset: str) -> str:
 def snapshot_name(member: str) -> str | None:
     """The preset name an archive member holds, or None when it is not a preset
     snapshot at all. One spelling of the ``data/cfgs/<name>.xml`` convention, so
-    the walkers cannot disagree about what counts as a snapshot."""
+    the walkers cannot disagree about what counts as a snapshot.
+    """
     if not (member.startswith(_CFGS_PREFIX) and member.endswith(_CFGS_SUFFIX)):
         return None
     return member[len(_CFGS_PREFIX) : -len(_CFGS_SUFFIX)] or None
@@ -87,7 +88,8 @@ def rewrite_zip(zip_bytes: bytes, substitutions: dict[str, bytes]) -> bytes:
 
 def read_engine_attrs(xml: bytes) -> dict[str, str]:
     """The current values of the editable engine attributes present on the
-    ``<engine>`` tag. Absent attributes are omitted (daemon default applies)."""
+    ``<engine>`` tag. Absent attributes are omitted (daemon default applies).
+    """
     m = _ENGINE_TAG.search(xml)
     if not m:
         return {}
@@ -103,7 +105,8 @@ def read_engine_attrs(xml: bytes) -> dict[str, str]:
 def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
     """Return ``xml`` with each override applied to the ``<engine>`` tag —
     replacing the value in place when the attribute exists, inserting it when it
-    does not. Nothing else in the document changes."""
+    does not. Nothing else in the document changes.
+    """
     m = _ENGINE_TAG.search(xml)
     if not m:
         raise ValueError("no <engine> element in config XML")
@@ -115,13 +118,14 @@ def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
 
 
 def _replace_or_insert(tag: bytes, pat: re.Pattern[bytes], attribute: bytes) -> bytes:
-    """Set one ``attr="value"`` on the ``<engine>`` tag: replace in place when the
+    r"""Set one ``attr="value"`` on the ``<engine>`` tag: replace in place when the
     attribute is present, else insert it right after ``<engine`` (7 chars).
 
     The replacement is a function, never the bytes directly — ``re.sub`` reads
-    escapes (``\\1``, ``\\g<n>``, ``\\\\``) out of a template string. Engine values
+    escapes (``\1``, ``\g<n>``, ``\\``) out of a template string. Engine values
     are domain-validated today, but that guarantee belongs at the substitution
-    rather than upstream of it (see ``presetconf._set_attr``)."""
+    rather than upstream of it (see ``presetconf._set_attr``).
+    """
     if pat.search(tag):
         return pat.sub(lambda _: attribute, tag, count=1)
     return tag[:7] + b" " + attribute + tag[7:]
@@ -142,7 +146,8 @@ def running_config_name(names: list[str], active: str | None = None) -> str | No
     message blaming a daemon bug that a restart does not clear.
 
     Returns ``None`` only when nothing here identifies a member — an archive that
-    genuinely has no working config, which is the daemon's empty-backup bug."""
+    genuinely has no working config, which is the daemon's empty-backup bug.
+    """
     if "hqplayerd.xml" in names:
         return "hqplayerd.xml"
     roots = [n for n in names if "/" not in n and n.endswith(".xml")]
@@ -159,7 +164,8 @@ def archive_summary(zip_bytes: bytes) -> str:
     while an archive we simply cannot resolve a working member in is full of
     files. The member list tells them apart at a glance, and nothing else does.
     Never raises: this runs on the failure path, where the bytes may not be a zip
-    at all."""
+    at all.
+    """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
             names = z.namelist()
@@ -174,7 +180,8 @@ def archive_summary(zip_bytes: bytes) -> str:
 def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | None:
     """Which member ``base_config_xml`` reads — for a caller that has to write the
     working config back rather than only read it. None on unreadable bytes, on the
-    same terms as every other reader here."""
+    same terms as every other reader here.
+    """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
             return running_config_name(z.namelist(), active)
@@ -192,7 +199,8 @@ def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
     Bytes that are not a readable archive answer empty rather than raising. A
     restarting daemon serves an error page here, and every caller already treats
     empty as "unusable, fall back or refuse" — while an escaping ``BadZipFile``
-    reached the API as a 500 instead of the retry the outage path exists for."""
+    reached the API as a 500 instead of the retry the outage path exists for.
+    """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
             name = running_config_name(z.namelist(), active)
@@ -212,7 +220,8 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets
 
     Unreadable bytes answer "no members" for the same reason ``base_config_xml``
     answers empty: the lane above reports an unconfirmed apply, which is true,
-    instead of dying on a ``BadZipFile`` the outage path never sees."""
+    instead of dying on a ``BadZipFile`` the outage path never sees.
+    """
     try:
         names = zipfile.ZipFile(io.BytesIO(zip_bytes)).namelist()
     except (zipfile.BadZipFile, OSError):
@@ -227,7 +236,8 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets
 
 def edit_config_zip(zip_bytes: bytes, members: list[str], overrides: dict[str, str]) -> bytes:
     """A copy of ``zip_bytes`` with ``overrides`` applied to the ``<engine>`` tag
-    of each member in ``members``; all other entries copied byte-for-byte."""
+    of each member in ``members``; all other entries copied byte-for-byte.
+    """
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
         present = set(zin.namelist())
         edited = {name: set_engine_attrs(zin.read(name), overrides) for name in members if name in present}

@@ -53,7 +53,8 @@ def _restart_daemon() -> None:
     """Restart hqplayerd. A config restore does NOT restart it (probe run 1: the
     unit's uptime was untouched across a restore), and the saved-profile registry
     is built at process start only — so a profile written into the config is
-    invisible to ``MatrixListProfiles`` until the daemon comes back."""
+    invisible to ``MatrixListProfiles`` until the daemon comes back.
+    """
     subprocess.run(["/usr/bin/sudo", "systemctl", "restart", "hqplayerd"], check=True)
 
 
@@ -124,7 +125,8 @@ def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
     Nothing else in the snapshot moves.
 
     The rows-only variant is the control: if THAT profile registers and the
-    post-process one does not, the daemon's parser is rejecting the element."""
+    post-process one does not, the daemon's parser is rejecting the element.
+    """
     if _profile_element(xml, PROFILE) is not None:
         raise SystemExit(f"a {PROFILE!r} profile is already in the config — clean it out first")
     body = _matrix_body(xml)

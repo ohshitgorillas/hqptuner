@@ -110,7 +110,8 @@ def mode_form_value(items: EnumItems, index: str) -> str | None:
 
 def _resolve(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
     """The live list index this form field+value becomes, or None when it cannot
-    route live (wrong chain, missing enumeration, or an unknown value)."""
+    route live (wrong chain, missing enumeration, or an unknown value).
+    """
     spec = ROUTABLE[field]
     if spec.chain is not None and spec.chain != chain:
         return None
@@ -155,7 +156,8 @@ def _route_all(
     mgr: ConnectionManager, routable: dict[str, str], chain: str | None
 ) -> tuple[dict[str, dict[str, str]], set[str]]:
     """Resolve every routable field into setter args, dropping the ones that
-    cannot translate. Returns the live edits and the fields they consumed."""
+    cannot translate. Returns the live edits and the fields they consumed.
+    """
     live: dict[str, dict[str, str]] = {}
     routed: set[str] = set()
     for field, value in routable.items():
@@ -176,7 +178,8 @@ def _unroute_filter(live: dict[str, dict[str, str]], routed: set[str]) -> set[st
 
 def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
     """Fold routed setter args into the already-staged live edits, without
-    mutating either (``base`` is the pending store's own dict)."""
+    mutating either (``base`` is the pending store's own dict).
+    """
     merged = {setting: dict(params) for setting, params in base.items()}
     for setting, params in extra.items():
         merged[setting] = {**merged.get(setting, {}), **params}
@@ -188,7 +191,8 @@ def split_live(
 ) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
     """Fold every routable form field into ``live_edits``, returning it alongside
     the fields that still need the restore lane. An empty remainder means the
-    whole batch applies live and the daemon is never restarted."""
+    whole batch applies live and the daemon is never restarted.
+    """
     routable = {k: v for k, v in http_fields.items() if k in ROUTABLE}
     if not routable or _mode_blocks_batch(routable):
         return live_edits, dict(http_fields)
@@ -275,7 +279,8 @@ def _route_live(
     mgr: ConnectionManager, fields: dict[str, str], chain: str | None
 ) -> tuple[dict[str, dict[str, str]], dict[str, str], dict[str, str]]:
     """Every field as setter args, alongside the ones held for a chain that is not
-    loaded and the ones that would not resolve at all."""
+    loaded and the ones that would not resolve at all.
+    """
     edits: dict[str, dict[str, str]] = {}
     stored: dict[str, str] = {}
     reasons: dict[str, str] = {}

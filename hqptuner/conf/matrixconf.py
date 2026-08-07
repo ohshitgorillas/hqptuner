@@ -112,7 +112,8 @@ def _validate_row(row: Any) -> dict[str, str]:
 def _rows_from_list(raw: Any, field: str) -> list[dict[str, str]]:
     """A validated row set from an already-parsed list. Shared by the pipeline
     table and a saved profile — one row contract, so a profile can never hold a
-    row the live table would have refused."""
+    row the live table would have refused.
+    """
     if not isinstance(raw, list) or not 1 <= len(raw) <= _MAX_CHANNELS:
         raise GroundingError(f"{field}: must be a list of 1..128 rows")
     return [_validate_row(r) for r in raw]
@@ -128,7 +129,8 @@ def _validate_rows(value: str) -> list[dict[str, str]]:
 
 def _pipeline_tag(channel: int, row: dict[str, str]) -> bytes:
     """One ``<pipeline/>`` element, attributes in the daemon's alphabetical order
-    so a readback diff against the daemon's own serialization stays byte-clean."""
+    so a readback diff against the daemon's own serialization stays byte-clean.
+    """
     gain = f"L{row['gain']}" if row["gainunit"] == "Lin" else row["gain"]
     return (
         f'<pipeline channel="{channel}" gain="{gain}" mixdown="{row["mixdown"]}" '
@@ -138,7 +140,8 @@ def _pipeline_tag(channel: int, row: dict[str, str]) -> bytes:
 
 def _rows_of(body: bytes) -> list[dict[str, str]]:
     """The ``<pipeline>`` rows of one element body, in form-field terms. One
-    parser for the live table and for a saved profile."""
+    parser for the live table and for a saved profile.
+    """
     rows = []
     for pm in re.finditer(rb"<pipeline\b[^>]*/>", body):
         attrs = {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
@@ -161,7 +164,8 @@ def replace_pipelines(xml: bytes, value: str) -> bytes:
     """Replace the ``<matrix>`` element's ``<pipeline>`` children wholesale with
     the staged row set. Everything else in the matrix body (``<post_process>``)
     and every byte outside it are preserved; indentation is taken from the
-    existing rows so the daemon's own formatting survives."""
+    existing rows so the daemon's own formatting survives.
+    """
     return _replace_pipelines_here(xml, _validate_rows(value))
 
 
@@ -204,7 +208,8 @@ def materialize_profile(xml: bytes, name: str) -> bytes:
 def _replace_post_process(xml: bytes, post: bytes) -> bytes:
     """Put ``post`` in the live ``<matrix>``, replacing any chain already there.
     An empty ``post`` clears the chain, which is what a profile carrying none
-    means: nothing of the previous matrix's processing should survive it."""
+    means: nothing of the previous matrix's processing should survive it.
+    """
     xml = ensure_body(xml, "matrix")
     start, close = matrix_body_span(xml)
     body = xml[start:close]
@@ -220,7 +225,8 @@ def read_pipelines(xml: bytes) -> str | None:
     """The ``<matrix>`` element's pipeline rows as canonical JSON (sorted keys,
     compact separators), or None when the snapshot has no matrix body. Canonical
     on both sides of the verify diff — intended and realized configs run through
-    this same serialization, so equality means the daemon accepted the rows."""
+    this same serialization, so equality means the daemon accepted the rows.
+    """
     try:
         start, close = matrix_body_span(xml)
     except GroundingError:
@@ -234,7 +240,8 @@ def read_pipelines(xml: bytes) -> str | None:
 def _validate_name(name: Any) -> str:
     """A profile name fit for an XML attribute. Escaping alone is not enough:
     the name is also this element's identity, so an empty or control-character
-    name would produce a profile nothing can address again."""
+    name would produce a profile nothing can address again.
+    """
     if not isinstance(name, str):
         raise GroundingError("matrix profile: name must be a string")
     cleaned: str = name.strip()
@@ -251,7 +258,8 @@ def _profile_re(name: str) -> re.Pattern[bytes]:
     """The whole ``<matrix_profile>`` element for one name, self-closing or not,
     including the newline and indentation in front of it so a delete leaves no
     blank line behind. The closing quote is part of the pattern, so ``Auteur``
-    never matches ``Auteur Classic``."""
+    never matches ``Auteur Classic``.
+    """
     escaped = re.escape(attr_escape(name).encode())
     return re.compile(
         rb"\n?[ \t]*<matrix_profile\b[^>]*name=\"" + escaped + rb"\"(?:[^>]*/>|[^>]*>.*?</matrix_profile>)",
@@ -260,15 +268,16 @@ def _profile_re(name: str) -> re.Pattern[bytes]:
 
 
 def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
-    """(insert offset, the line lead of ``<matrix>``) for a new profile element:
+    r"""(insert offset, the line lead of ``<matrix>``) for a new profile element:
     immediately before ``<matrix>``, where the daemon keeps its own.
     ``<matrix_profile>`` cannot be matched here — ``_`` is a word character, so
-    ``\\b`` excludes it.
+    ``\b`` excludes it.
 
     The lead is the newline plus indentation the matrix element sits on, so a
     written profile adopts the snapshot's own formatting; it is empty for a
     snapshot written on one line, which is then extended inline rather than
-    refused."""
+    refused.
+    """
     m = next((c for c in re.finditer(rb"(?:\n([ \t]*))?<matrix\b", xml) if not in_comment(xml, c.end())), None)
     if m is None:
         raise GroundingError("the matrix element is absent from this snapshot")
@@ -282,7 +291,8 @@ def _live_post_process(xml: bytes) -> bytes:
 
     Verbatim rather than re-serialized: the plugin attributes HQPTuner does not
     map are still the user's settings, and a profile that dropped them would hand
-    back less than the matrix it was saved from."""
+    back less than the matrix it was saved from.
+    """
     try:
         start, close = matrix_body_span(xml)
     except GroundingError:
@@ -293,7 +303,8 @@ def _live_post_process(xml: bytes) -> bytes:
 
 def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: bytes) -> bytes:
     """A complete profile element, laid out like its ``<matrix>`` sibling: the
-    pipeline rows and the post-process chain that was live at save time."""
+    pipeline rows and the post-process chain that was live at save time.
+    """
     open_tag = f'<matrix_profile name="{attr_escape(name)}">'.encode()
     row_lead = lead + b"\t" if lead else b""
     body = b"".join(row_lead + _pipeline_tag(i, row) for i, row in enumerate(rows))
@@ -304,7 +315,8 @@ def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: byt
 
 def _validate_targets(raw: dict[str, Any], field: str) -> list[str]:
     """The payload's fan-out preset names — the stored presets the profile verb
-    also applies to, beyond the config being edited. Optional; [] when absent."""
+    also applies to, beyond the config being edited. Optional; [] when absent.
+    """
     presets = raw.get("presets", [])
     if not isinstance(presets, list) or any(not isinstance(p, str) for p in presets):
         raise GroundingError(f"{field}: presets must be a list of preset names")
@@ -324,7 +336,8 @@ def _parse_save(value: str) -> dict[str, Any]:
 def parse_delete(value: str) -> tuple[str, list[str]]:
     """(name, fan-out targets) of a staged delete. The value is either the plain
     profile name (the original shape) or JSON ``{"name": ..., "presets": [...]}``;
-    a value that does not parse as a JSON object is a plain name."""
+    a value that does not parse as a JSON object is a plain name.
+    """
     try:
         raw = json.loads(value)
     except ValueError:
@@ -355,7 +368,8 @@ def write_profile(xml: bytes, value: str) -> bytes:
     from the payload: what the user is looking at is the running chain, and the
     apply has already written its own post-process edits by the time a save is
     placed (``presetconf.apply_edits``) — including the active profile's chain,
-    which that apply installed as the live one before touching anything."""
+    which that apply installed as the live one before touching anything.
+    """
     raw = _parse_save(value)
     name = _validate_name(raw.get("name"))
     rows = _rows_from_list(raw.get("rows"), MATRIX_PROFILE_SAVE)
@@ -378,7 +392,8 @@ def delete_profile(xml: bytes, name: str) -> bytes:
     A name that is not in the snapshot is a no-op rather than a GroundingError:
     the edit's whole intent is "this profile is not in the config", which such a
     snapshot already satisfies — and a profile the daemon holds in memory only
-    (every profile saved through its own route, round 5) is exactly that case."""
+    (every profile saved through its own route, round 5) is exactly that case.
+    """
     match = _profile_re(_validate_name(name)).search(xml)
     return xml if match is None else xml[: match.start()] + xml[match.end() :]
 
@@ -388,7 +403,8 @@ def _post_of(body: bytes) -> dict[str, str]:
     for a profile carrying no chain, which is every profile saved before profiles
     stored one. Attributes outside ``PLUGIN_MAP`` are ignored here: they stay in
     the element (the write copies it verbatim) but HQPTuner has no field to hand
-    them back through."""
+    them back through.
+    """
     out: dict[str, str] = {}
     chain = re.search(rb"<post_process\b[^>]*>(.*?)</post_process>", body, re.DOTALL)
     if chain is None:
@@ -411,7 +427,8 @@ def read_profiles(xml: bytes) -> str:
 
     A profile is a whole matrix context, so ``post`` travels with ``rows``: it is
     the only plumbing carrying a stored chain to the browser, and a load has
-    nothing to install without it."""
+    nothing to install without it.
+    """
     out: dict[str, dict[str, Any]] = {}
     for m in re.finditer(rb"<matrix_profile\b([^>]*)>(.*?)</matrix_profile>", xml, re.DOTALL):
         name_m = re.search(rb'name="([^"]*)"', m.group(1))

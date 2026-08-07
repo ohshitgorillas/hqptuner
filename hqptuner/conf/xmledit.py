@@ -1,9 +1,9 @@
-"""Byte-faithful primitives for editing hqplayerd's config XML in place.
+r"""Byte-faithful primitives for editing hqplayerd's config XML in place.
 
 Two axes — element vs plugin, read vs write — are four operations built from
 two locators and two attribute primitives, not four hand-written regex pairs.
 The open-tag and
-attribute patterns are spelled ONCE here; retyping ``rb"<TAG\\b[^>]*?/?>"`` per
+attribute patterns are spelled ONCE here; retyping ``rb"<TAG\b[^>]*?/?>"`` per
 call site is how one copy quietly stops matching a self-closing tag while its
 siblings still do.
 
@@ -31,7 +31,8 @@ class GroundingError(ValueError):
     it and the locators are shared. Message text is user-facing (it reaches the
     pending bar) and must therefore carry no angle-bracketed token: a browser —
     or a chat client the user pastes into — eats ``<alsa>`` as markup and leaves
-    the reader the half of the sentence that says nothing."""
+    the reader the half of the sentence that says nothing.
+    """
 
 
 ROOT = "hqplayerd"
@@ -105,7 +106,8 @@ def live_tags(xml: bytes, tag_name: str) -> Iterator[re.Match[bytes]]:
     AHEAD of ``<matrix>``, so once one carries its own ``<post_process>`` the
     first live ``<plugin>`` in the document belongs to the profile, not to the
     matrix that is playing — every plugin read and every plugin write would land
-    in the stored copy."""
+    in the stored copy.
+    """
     spans = _stored_profile_spans(xml)
     return (
         m
@@ -121,7 +123,8 @@ def find_element(xml: bytes, tag_name: str) -> re.Match[bytes] | None:
 
 def find_plugin(xml: bytes, plugin_type: str) -> re.Match[bytes] | None:
     """The live ``<plugin type="plugin_type" ...>`` open tag inside
-    ``<post_process>`` (there are several plugins; match by type)."""
+    ``<post_process>`` (there are several plugins; match by type).
+    """
     needle = f'type="{plugin_type}"'.encode()
     return next((m for m in live_tags(xml, "plugin") if needle in m.group(0)), None)
 
@@ -135,7 +138,8 @@ def get_attr(tag: bytes, attr: str) -> str | None:
 def set_attr(tag: bytes, attr: str, value: str) -> bytes:
     """Set ``attr="value"`` on an element's open-tag bytes — replacing in place
     when present, inserting right after the tag name otherwise. Byte-faithful:
-    nothing else in the tag moves."""
+    nothing else in the tag moves.
+    """
     replacement = f'{attr}="{value}"'.encode()
     pat = attr_re(attr)
     if pat.search(tag):
@@ -158,7 +162,8 @@ def splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
 
 def line_lead(xml: bytes, at: int) -> bytes:
     """The indentation of the line byte offset ``at`` sits on — empty when that
-    line holds anything but whitespace before ``at`` (a single-line config)."""
+    line holds anything but whitespace before ``at`` (a single-line config).
+    """
     start = xml.rfind(b"\n", 0, at) + 1
     lead = xml[start:at]
     return lead if lead.strip() == b"" else b""
@@ -170,7 +175,8 @@ def _insert_child(xml: bytes, parent: str, child: bytes) -> bytes:
 
     Last, not first: appending never splits a run the daemon wrote, and for the
     elements that actually go missing — ``matrix``, ``post_process``, a
-    ``plugin`` — last IS where 6.0.4 puts them."""
+    ``plugin`` — last IS where 6.0.4 puts them.
+    """
     m = find_element(xml, parent)
     if m is None:  # unreachable: every caller runs ensure_body first
         raise GroundingError(f"the {parent} element is absent from this snapshot")
@@ -190,7 +196,8 @@ def ensure_element(xml: bytes, tag_name: str) -> bytes:
     one it is already applying its own documented default for, so authoring a
     "complete" element would silently overwrite the user's daemon-side settings
     with our idea of them. Only the attribute the user actually set gets written,
-    by the caller, immediately after."""
+    by the caller, immediately after.
+    """
     if find_element(xml, tag_name) is not None:
         return xml
     if tag_name == ROOT:
@@ -203,7 +210,8 @@ def ensure_element(xml: bytes, tag_name: str) -> bytes:
 
 def ensure_body(xml: bytes, tag_name: str) -> bytes:
     """As ``ensure_element``, and additionally expand a self-closing
-    ``<tag_name/>`` into an open/close pair so children can be placed in it."""
+    ``<tag_name/>`` into an open/close pair so children can be placed in it.
+    """
     xml = ensure_element(xml, tag_name)
     m = find_element(xml, tag_name)
     if m is None or not m.group(0).endswith(b"/>"):
@@ -213,7 +221,8 @@ def ensure_body(xml: bytes, tag_name: str) -> bytes:
 
 def ensure_plugin(xml: bytes, plugin_type: str) -> bytes:
     """Return ``xml`` guaranteed to hold ``<plugin type="plugin_type">``, creating
-    it — and ``<post_process>``, and ``<matrix>`` — when absent."""
+    it — and ``<post_process>``, and ``<matrix>`` — when absent.
+    """
     if find_plugin(xml, plugin_type) is not None:
         return xml
     xml = ensure_body(xml, "post_process")
@@ -222,7 +231,8 @@ def ensure_plugin(xml: bytes, plugin_type: str) -> bytes:
 
 def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
     """Apply one attribute edit to the single ``<tag_name ...>`` element, creating
-    the element at its schema position when the snapshot lacks it."""
+    the element at its schema position when the snapshot lacks it.
+    """
     xml = ensure_element(xml, tag_name)
     m = find_element(xml, tag_name)
     if m is None:  # unreachable: ensure_element either placed it or raised
@@ -232,7 +242,8 @@ def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
 
 def edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
     """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``,
-    creating the plugin (and its container) when the snapshot lacks it."""
+    creating the plugin (and its container) when the snapshot lacks it.
+    """
     xml = ensure_plugin(xml, plugin_type)
     m = find_plugin(xml, plugin_type)
     if m is None:  # unreachable: ensure_plugin either placed it or raised

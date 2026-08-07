@@ -42,7 +42,8 @@ def resolve_level(value: str) -> int:
     """The logging level ``value`` names, INFO when it names nothing.
 
     A misspelled level in the environment must not stop the daemon from
-    starting: the operator wanted different logging, not no application."""
+    starting: the operator wanted different logging, not no application.
+    """
     level = logging.getLevelNamesMapping().get(value.strip().upper())
     return level if isinstance(level, int) else logging.INFO
 
@@ -57,7 +58,8 @@ def _scrub(value: Any, path: str, digests: dict[str, str]) -> Any:
     Walks to any depth, because the interesting payloads arrive nested — a
     staged profile save rides inside the ``http`` mapping, not beside it.
     ``digests`` collects the full digest of everything truncated, keyed by the
-    dotted path to the field, so one record can carry several."""
+    dotted path to the field, so one record can carry several.
+    """
     if isinstance(value, dict):
         return {k: _scrub_member(k, v, path, digests) for k, v in value.items()}
     if isinstance(value, list):
@@ -71,7 +73,8 @@ def _cap(value: str, path: str, digests: dict[str, str]) -> str:
     """``value`` cut to the cap, measured in BYTES as the constant says — a
     100k-character CJK payload is 300 KB and has to count as oversized. Cutting
     the encoded form can land mid-codepoint, so the tail is dropped rather than
-    kept as replacement characters."""
+    kept as replacement characters.
+    """
     encoded = value.encode("utf-8")
     if len(encoded) <= MAX_VALUE_BYTES:
         return value
@@ -88,7 +91,8 @@ def _scrub_member(key: str, value: Any, path: str, digests: dict[str, str]) -> A
 def _row_count(rows: str) -> int:
     """The number of pipeline rows ``rows`` carries — 0 when it is not a row
     set at all. A payload that does not parse is exactly what a reader needs to
-    see recorded, so this reports rather than raises."""
+    see recorded, so this reports rather than raises.
+    """
     try:
         parsed = json.loads(rows)
     except ValueError:
@@ -113,7 +117,8 @@ class AuditLog:
     def records(self) -> list[dict[str, Any]]:
         """Every record in the CURRENT file, oldest first. A rotated-away file
         is deliberately not merged in: this reads what is live, and the rolled
-        copy sits beside it under the same name plus ``.1``."""
+        copy sits beside it under the same name plus ``.1``.
+        """
         if self._path is None or not self._path.is_file():
             return []
         lines = self._path.read_text(encoding="utf-8").splitlines()
@@ -126,7 +131,8 @@ class AuditLog:
 
     def _resume_seq(self) -> int:
         """The sequence number to continue from, so reopening a log does not
-        restart the counter and make two records look like the same event."""
+        restart the counter and make two records look like the same event.
+        """
         records = self.records()
         return int(records[-1].get("seq", 0)) if records else 0
 
@@ -176,7 +182,8 @@ class AuditLog:
         ok: bool,
     ) -> None:
         """The staged set as it stood at ENTRY — the apply clears the buffer, so
-        this is the only surviving copy of what was applied."""
+        this is the only surviving copy of what was applied.
+        """
         self._write("apply", {"http": http, "live": live, "switch_to": switch_to, "save": save, "ok": ok})
 
     def profile_write(self, name: str, rows: str, target: str, *, replaced: bool) -> None:

@@ -49,7 +49,8 @@ def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
 
 def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> str | None:
     """One field's current live value in config-form terms, or None when the
-    engine cannot answer for it."""
+    engine cannot answer for it.
+    """
     spec = ROUTABLE[field]
     index = state.get(spec.state)
     if index is None:
@@ -104,7 +105,8 @@ def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, 
 
 def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
     """Both chains' filter/shaper settings: the engine's own reading for the chain
-    it is running, LIVE's memory for the chain it is not."""
+    it is running, LIVE's memory for the chain it is not.
+    """
     overrides = {}
     for field, spec in ROUTABLE.items():
         if spec.chain is None or spec.chain == chain:

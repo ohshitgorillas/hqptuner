@@ -140,7 +140,8 @@ CONFIG_TARGET = "config"
 def _profile_names(xml: bytes) -> set[str]:
     """The profile names ``xml`` already carries. Membership is what answers the
     audit log's ``replaced``/``found``, and only the pre-edit bytes can answer
-    it."""
+    it.
+    """
     try:
         parsed = json.loads(read_profiles(xml))
     except ValueError:
@@ -154,7 +155,8 @@ def _save_payload(value: str) -> tuple[str, str]:
     Deliberately non-validating: the element writer rejects a bad payload with a
     message of its own, and an audit emit must never be the thing that fails a
     write. An unparseable value is logged whole — that is exactly what a reader
-    needs to see."""
+    needs to see.
+    """
     try:
         raw = json.loads(value)
     except ValueError:
@@ -172,7 +174,8 @@ def audit_profile_write(audit: AuditLog, xml: bytes, value: str, target: str) ->
     Lives here rather than in ``matrixconf``: the element writers are pure XML and
     stay that way, so each of the two places a profile actually lands — the
     running config and the fan-out into stored presets — emits at its own call
-    site with its own pre-edit bytes."""
+    site with its own pre-edit bytes.
+    """
     name, rows = _save_payload(value)
     audit.profile_write(name, rows, target, replaced=name in _profile_names(xml))
 
@@ -186,7 +189,8 @@ def _apply_one(xml: bytes, field: str, value: str) -> bytes:
     """Route one staged edit to its grounded XML location, naming the SETTING in
     any refusal. The locator can only say which element it could not find, and
     "the alsa element is absent" does not tell a user which of the four things
-    they just changed is the one that cannot be written."""
+    they just changed is the one that cannot be written.
+    """
     try:
         return _route(xml, field, value)
     except GroundingError as exc:
@@ -208,14 +212,16 @@ def _route(xml: bytes, field: str, value: str) -> bytes:
 def _pop_profile_edits(remaining: dict[str, str]) -> dict[str, str]:
     """Take the saved-profile verbs out of the edit set. Separate from applying
     them because they are applied LAST and the field loop refuses any key it does
-    not recognise — leaving them in place would raise "unknown config field"."""
+    not recognise — leaving them in place would raise "unknown config field".
+    """
     return {k: remaining.pop(k) for k in (MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE) if k in remaining}
 
 
 def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> bytes:
     """The saved-profile verbs, delete before save. Staging holds at most one of
     each, and the pair co-occurs only as a rename — drop the old name, write the
-    new one — where saving first would delete what was just written."""
+    new one — where saving first would delete what was just written.
+    """
     # Both audit flags are questions about the config as it stood, not about the
     # half-edited bytes a rename leaves between the delete and the save.
     before = xml
@@ -233,7 +239,8 @@ def _profile_to_materialize(edits: dict[str, str], profile: str | None) -> str |
     """The profile whose matrix this apply should install as the live one —
     ``None`` when nothing is active, and ``None`` too when this very apply
     deletes it, since a matrix about to be removed is not one to adopt. Both
-    staged delete shapes count (a plain name, or the fan-out JSON)."""
+    staged delete shapes count (a plain name, or the fan-out JSON).
+    """
     if not profile or MATRIX_PROFILE_DELETE not in edits:
         return profile
     return None if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == profile else profile
@@ -255,7 +262,8 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
     applied, so the config the daemon restarts onto is the matrix the user was
     listening to — the selected profile is runtime-only state that no restart
     survives, and this is the only form of it the config file can hold. The
-    staged edits then land on that matrix like any other."""
+    staged edits then land on that matrix like any other.
+    """
     remaining = dict(edits)
     adopt = _profile_to_materialize(edits, profile)
     if adopt:
@@ -292,7 +300,8 @@ def _read_plugin_attr(xml: bytes, plugin_type: str, attr: str) -> str | None:
 def read_config(xml: bytes) -> dict[str, str]:
     """The grounded config fields declared by a snapshot XML, in form-field terms
     — the authority the verify/correct step diffs realized state against. Absent
-    attributes are omitted. ``net_device`` is recombined as ``address/device``."""
+    attributes are omitted. ``net_device`` is recombined as ``address/device``.
+    """
     out: dict[str, str] = {}
     for field, (tag_name, attr) in FIELD_MAP.items():
         val = _read_attr(xml, tag_name, attr)
@@ -308,7 +317,8 @@ def read_config(xml: bytes) -> dict[str, str]:
 
 def _read_special(xml: bytes) -> dict[str, str]:
     """The fields that don't fit the one-tag-one-attr maps: the fused net_device,
-    the atomic pipeline set, and presence-means-enabled fixed volume."""
+    the atomic pipeline set, and presence-means-enabled fixed volume.
+    """
     out: dict[str, str] = {}
     address = _read_attr(xml, "network", "address")
     device = _read_attr(xml, "network", "device")

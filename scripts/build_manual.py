@@ -242,7 +242,7 @@ POINTERS = [
 
 
 def pointers(entries: list[Entry]) -> list[str]:
-    """ "Looking for X?" lines, derived from TOC titles so they cannot go stale."""
+    """Emit "Looking for X?" lines, derived from TOC titles so they cannot go stale."""
     out: list[str] = []
     for pattern, blurb in POINTERS:
         hit = next((e for e in entries if re.search(pattern, e.title.lower())), None)

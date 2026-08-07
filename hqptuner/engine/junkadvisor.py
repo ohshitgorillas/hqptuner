@@ -97,7 +97,8 @@ def classify(  # noqa: PLR0913
     engine's current junk-filter *name* and ``filter_name`` the active main
     filter's. The verdict is spectrum-only — the metering tap sees the source,
     so engaging a filter never changes what the detector sees — and the advice
-    stands until the engaged settings actually treat the signature."""
+    stands until the engaged settings actually treat the signature.
+    """
     if not _eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
         return None
     smoothed = _median_smooth(levels_db, SMOOTH_BINS)
@@ -128,7 +129,8 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
     """Whether the engaged junk filter already treats the detected signature.
     ``none`` (or nothing engaged) never does; a fixed corner treats when it is
     at or below the recommended corner; a rate-relative filter (2x/4x/8x) is a
-    deliberate manual choice and is never second-guessed."""
+    deliberate manual choice and is never second-guessed.
+    """
     if junk_filter in (None, "none"):
         return False
     engaged = _CORNER_KHZ.get(junk_filter)
@@ -140,7 +142,8 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
 def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
     """Whether the engine's current settings already treat the verdict's
     signature: the engaged junk filter (corner logic above), or — for verdicts
-    that offer filter families — an active main filter from one of them."""
+    that offer filter families — an active main filter from one of them.
+    """
     if treated(junk_filter, str(verdict["filter"])):
         return True
     families: list[str] = verdict.get("families") or []
@@ -201,7 +204,8 @@ def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] |
     9-bin median erases — searching a smoothed curve can never find one. The
     minimum spectrum's baseline and floor are its own, not the mean's: the
     minimum sits far below the mean wherever music is intermittent, which is
-    the very contrast this rule exploits."""
+    the very contrast this rule exploits.
+    """
     if min_levels is None or len(min_levels) < SPUR_BASELINE_BINS:
         return None
     bins = len(min_levels)

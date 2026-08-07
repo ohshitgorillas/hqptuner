@@ -121,7 +121,8 @@ class ConnectionManager:
 
     async def aclose(self) -> None:
         """Clean shutdown: stop the loop and close the control connection so no
-        socket is left dangling. The caller awaits the run() task separately."""
+        socket is left dangling. The caller awaits the run() task separately.
+        """
         self.stop()
         if self._client is not None:
             await self._client.close()
@@ -148,7 +149,8 @@ class ConnectionManager:
         """The poll loop's own wait. NOT a duplicate of the public ``sleep``: the
         test suite virtualizes ``sleep`` (docs/testing.md §7) so lane deadlines
         cost no wall clock, and deliberately leaves this one alone so a running
-        manager polls at its real interval instead of spinning."""
+        manager polls at its real interval instead of spinning.
+        """
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._stop.wait(), seconds)
 
@@ -238,7 +240,8 @@ class ConnectionManager:
         device the config form says is selected, so it belongs wherever that form
         is refreshed — the poll loop, connect, and the rescan route alike — rather
         than at the poll loop alone, which leaves every other path serving a stale
-        answer or none."""
+        answer or none.
+        """
         await httpforms.refresh(self)
         await self.refresh_device_caps()
 
@@ -257,19 +260,22 @@ class ConnectionManager:
 
     def monotonic(self) -> float:
         """The lanes' clock. A method, not ``time.monotonic`` inline, because it
-        is the seam the suite virtualizes alongside ``sleep`` (docs/testing.md)."""
+        is the seam the suite virtualizes alongside ``sleep`` (docs/testing.md).
+        """
         return time.monotonic()
 
     async def sleep(self, seconds: float) -> None:
         """The lanes' wait — virtualized in tests. See ``_sleep`` for why the poll
-        loop deliberately does not share it."""
+        loop deliberately does not share it.
+        """
         await self._sleep(seconds)
 
     async def await_http_ready(self) -> bool:
         """Wait until the HTTP config lane serves again. The daemon restarts on a
         preset load and on every restore, and its active label flips before the
         restart completes — so callers must not assume 'label switched' means
-        'ready to write'."""
+        'ready to write'.
+        """
 
         async def probe() -> bool:
             await self.require_http().get_config()
@@ -280,7 +286,8 @@ class ConnectionManager:
     async def read_engine(self) -> dict[str, str]:
         """Current hardware-accel engine attributes, parsed from a fresh backup's
         base config (the only lane that carries them — they are not on the form).
-        Fetched on demand, not per poll, since the backup archive is large."""
+        Fetched on demand, not per poll, since the backup archive is large.
+        """
         engine = engineconf.read_engine_attrs(
             engineconf.base_config_xml(await self.presetops.backup_or_cached(), self.active_config)
         )
@@ -292,7 +299,8 @@ class ConnectionManager:
         in form-field terms. Serves the fields the ``/config`` form renders lossily
         (``volume_fixed``: 0/1/2 in XML, a bare checkbox on the form). Fetched on
         connect and refreshed by the apply's verify step — never per poll, since
-        the archive is large."""
+        the archive is large.
+        """
         backup = await self.presetops.backup_or_cached()
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
@@ -330,7 +338,8 @@ class ConnectionManager:
         """Static tail of the daemon's log for the System-tab live view. Not a
         stream — a fresh GET /log per call over the 8088 web interface, so it
         works regardless of the daemon's `<log file>` setting and needs no host
-        mount. Reports `available` false (with a reason) when /log can't be read."""
+        mount. Reports `available` false (with a reason) when /log can't be read.
+        """
         path, enabled = logtail.log_file_field(self.config_form)
         base_url = f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}"
         try:
@@ -341,7 +350,8 @@ class ConnectionManager:
 
     async def restore_config(self, data: bytes, scope: str = "system") -> None:
         """Restore a user-supplied settings archive as-is (System-tab restore
-        action). The daemon self-restarts, interrupting playback if any."""
+        action). The daemon self-restarts, interrupting playback if any.
+        """
         await self.require_http().restore(data, scope=scope)
 
     @property
@@ -353,7 +363,8 @@ class ConnectionManager:
         """Trigger a daemon output-device re-scan, then refetch the /config and
         /matrix forms so the device dropdowns serve the new endpoint list (an NAA
         powered back on, a DAC replugged). No restart, no idle gate — a rescan is
-        read-only on the audio path."""
+        read-only on the audio path.
+        """
         await self.require_http().refresh_devices()
         await self.refresh_http_forms()
         return {"refreshed": True}

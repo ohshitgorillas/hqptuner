@@ -1,6 +1,7 @@
 """Matrix-tab REST surface (matrix-spec): the /matrix read model, profile
 operations, and convolution filter uploads. Split out of ``api`` by the
-file-length gate — a self-contained feature surface mounted alongside it."""
+file-length gate — a self-contained feature surface mounted alongside it.
+"""
 
 import json
 from pathlib import Path
@@ -26,7 +27,8 @@ _AUTOEQ_BLOB = Path(__file__).resolve().parent.parent / "static" / "vendor" / "a
 def autoeq_db() -> FileResponse:
     """Vendored AutoEq parametric-EQ library (built by scripts/build_autoeq_db.py,
     upstream MIT). Pre-gzipped on disk and served with Content-Encoding so the
-    browser's fetch decompresses transparently; lazy-loaded on first picker open."""
+    browser's fetch decompresses transparently; lazy-loaded on first picker open.
+    """
     if not _AUTOEQ_BLOB.exists():
         raise HTTPException(status_code=404, detail="AutoEq library not built (scripts/build_autoeq_db.py)")
     return FileResponse(
@@ -91,7 +93,8 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
     ``<matrix_profile>`` config edits and ride ``/api/config/stage`` +
     ``/api/config/apply`` like every other persistent setting, because the daemon
     does not persist profiles itself (round 5). The client stages the loaded
-    profile's rows alongside this call, so a load is live AND persists."""
+    profile's rows alongside this call, so a load is live AND persists.
+    """
     if body.action != "switch":
         raise HTTPException(status_code=404, detail=f"unknown matrix profile action: {body.action}")
     try:
@@ -104,7 +107,8 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
 def speakers(manager: HttpMgr) -> dict[str, Any]:
     """Speaker-processing read model (readme §1.9): enabled + per-channel level
     (dBFS) / distance (cm). Served from the last-loaded form snapshot, stale-flagged
-    when the daemon is unreachable — never a socket wait (fail-fast, see deps)."""
+    when the daemon is unreachable — never a socket wait (fail-fast, see deps).
+    """
     form = deps.ensure_form(manager.speakers_form, manager.speakers_error, "/speakers")
     return deps.snapshot(manager, form)
 
@@ -118,7 +122,8 @@ class SpeakersBody(BaseModel):
 async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]:
     """Apply speaker processing via the /speakers form lane (readme §1.9). Reloads
     the engine (~3 s), interrupting playback — never refused for it. The write is
-    checkbox-safe and range-validated in ``httpconf.apply_speakers``."""
+    checkbox-safe and range-validated in ``httpconf.apply_speakers``.
+    """
     try:
         report = await manager.applyops.apply_speakers(body.channels, enabled=body.enabled)
         autosaved = await presetlane.autosave(manager)
@@ -135,7 +140,8 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
 async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> dict[str, str]:
     """Park an uploaded convolution filter (wav/txt) for the next apply, which
     injects it into the restore archive; returns the daemon-side absolute path
-    the pipeline process string should reference (matrix-spec.md "Filter upload")."""
+    the pipeline process string should reference (matrix-spec.md "Filter upload").
+    """
     try:
         return manager.presetops.park_filter(file.filename or "", await file.read())
     except ValueError as exc:

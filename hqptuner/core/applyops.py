@@ -28,7 +28,8 @@ class ApplyOps:
         """Live playback-volume write — immediate, outside the staged-config
         apply flow. Raises CommandError when volume control is disabled (fixed
         volume / no-volume path; VolumeRange enabled=0). Returns the readback
-        level so the caller echoes the applied value."""
+        level so the caller echoes the applied value.
+        """
         client = self._mgr.control
         if client is None:
             raise ControlError("daemon not connected")
@@ -49,7 +50,8 @@ class ApplyOps:
         way HQPlayer sets the active label), then apply the staged tweaks on top of
         its snapshot. Then the live setters (readback-verified), then the persistent
         lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so
-        drift never survives — and self-corrects fixable divergence."""
+        drift never survives — and self-corrects fixable divergence.
+        """
         mgr = self._mgr
         switched: dict[str, Any] | None = None
         if switch_to is not None:
@@ -83,7 +85,8 @@ class ApplyOps:
     async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
         """Apply hardware-acceleration engine attributes — the config-file-only
         lane (`enginelane`). The restore restarts the daemon and interrupts
-        playback; nothing gates on that — the user decides when."""
+        playback; nothing gates on that — the user decides when.
+        """
         mgr = self._mgr
         engineconf.validate_overrides(overrides)
         if mgr.http_client is None:

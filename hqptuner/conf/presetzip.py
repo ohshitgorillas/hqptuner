@@ -21,7 +21,8 @@ def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | N
     The two labels are different questions and only look alike: ``active`` picks
     WHICH SNAPSHOT to read, ``running_label`` says what the daemon named the
     WORKING member. A caller that wants the running config passes ``active=None``
-    and the daemon's active-profile label as ``running_label``."""
+    and the daemon's active-profile label as ``running_label``.
+    """
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         names = z.namelist()
         member = engineconf.snapshot_member_name(active) if active else ""
@@ -79,7 +80,8 @@ def restore_zip_from_running(
 
     ``context.audit`` is carried straight through to ``apply_edits``, which is
     where the running config's profile writes are recorded; so is
-    ``context.matrix_profile``, which scopes the matrix-side edits."""
+    ``context.matrix_profile``, which scopes the matrix-side edits.
+    """
     ctx = context if context is not None else ApplyContext()
     active = ctx.active
     intended = apply_edits(snapshot_member(zip_bytes, None, active), edits, ctx.audit, ctx.matrix_profile)
@@ -110,7 +112,8 @@ def restore_zip_with_working(
     = ``mirror_xml`` (defaulting to ``working_xml``), so hqplayerd's own native
     profile list mirrors HQPTuner's preset store. Every other member is copied
     byte-for-byte. ``hqplayerd.xml`` is inserted when the source archive lacks it
-    (a named profile was active, so its working member was root-renamed)."""
+    (a named profile was active, so its working member was root-renamed).
+    """
     substitutions = {"hqplayerd.xml": working_xml}
     if mirror_name:
         substitutions[engineconf.snapshot_member_name(mirror_name)] = (
@@ -124,7 +127,8 @@ def restore_zip_with_working(
 def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
     """Every named preset snapshot in a ``/backup`` archive, keyed by preset name
     (the ``data/cfgs/<name>.xml`` members). Powers the one-time migration of
-    hqplayerd's presets into the HQPTuner-owned store."""
+    hqplayerd's presets into the HQPTuner-owned store.
+    """
     out: dict[str, bytes] = {}
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         for name in z.namelist():

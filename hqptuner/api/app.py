@@ -35,7 +35,8 @@ class NoCacheStaticFiles(StaticFiles):
     """Serve the SPA with revalidation forced. Browsers cache ES modules
     aggressively; on a local config tool that's not worth a stale build shadowing
     an edit, so every asset carries `Cache-Control: no-cache` — the browser must
-    revalidate (a cheap 304 via ETag/Last-Modified) instead of blindly reusing."""
+    revalidate (a cheap 304 via ETag/Last-Modified) instead of blindly reusing.
+    """
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = await super().get_response(path, scope)
@@ -137,7 +138,8 @@ def config(manager: HttpMgr) -> dict[str, Any]:
 async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """A preset's saved settings, read from its snapshot without loading it — the
     editor previews these when the user picks a preset, before any apply. The
-    empty name is "(no preset)" and previews the running config."""
+    empty name is "(no preset)" and previews the running config.
+    """
     try:
         return {"name": name, "config": await manager.read_preset(name)}
     except PresetError as exc:
@@ -149,7 +151,8 @@ async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
 @router.post("/config/refresh")
 async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
     """Re-scan output devices on the daemon and refetch the config forms, so a
-    device that was absent (a powered-off NAA endpoint) appears in the dropdown."""
+    device that was absent (a powered-off NAA endpoint) appears in the dropdown.
+    """
     try:
         return await manager.refresh_devices()
     except (ControlError, httpx.HTTPError) as exc:
@@ -178,7 +181,8 @@ def metadata(request: Request) -> dict[str, Any]:
 @router.get("/log")
 async def log_tail(manager: Mgr, lines: int = 50) -> dict[str, Any]:
     """Static tail of the daemon's log file (System-tab live view). Read-only,
-    no daemon socket — reads the file the running config points at."""
+    no daemon socket — reads the file the running config points at.
+    """
     n = max(1, min(lines, 500))
     return await manager.read_log_tail(n)
 
@@ -186,7 +190,8 @@ async def log_tail(manager: Mgr, lines: int = 50) -> dict[str, Any]:
 @router.get("/volume")
 def volume_get(manager: Mgr) -> dict[str, Any]:
     """Live volume + its live bounds/enabled (VolumeRange). Separate from the
-    staged-config surface — this is the runtime playback-volume lane."""
+    staged-config surface — this is the runtime playback-volume lane.
+    """
     vr = manager.volume_range or {}
     return {
         "volume": (manager.state or {}).get("volume"),
@@ -201,7 +206,8 @@ def volume_get(manager: Mgr) -> dict[str, Any]:
 async def volume_set(body: VolumeBody, manager: Mgr) -> dict[str, Any]:
     """Immediate live-volume write — never staged, never restarts. 503 when
     volume control is disabled (the slider grays on that state, so this is the
-    race backstop)."""
+    race backstop).
+    """
     try:
         return await manager.applyops.set_volume(body.level)
     except ControlError as exc:
@@ -214,13 +220,15 @@ async def volume_set(body: VolumeBody, manager: Mgr) -> dict[str, Any]:
 async def _save_after_apply(manager: ConnectionManager, name: str) -> dict[str, Any]:
     """Persist a clean, successful apply into the named preset (store + daemon
     mirror). Only called when the apply itself succeeded, so the running config
-    already carries the edits. ``save_preset`` reports its own failure."""
+    already carries the edits. ``save_preset`` reports its own failure.
+    """
     return await manager.presetops.save_preset(name)
 
 
 async def _persist_after_apply(manager: ConnectionManager, save: str | None, report: dict[str, Any]) -> None:
     """Fold a clean apply into a preset — the named target the request asked for,
-    or whatever auto-save is armed for when it asked for none."""
+    or whatever auto-save is armed for when it asked for none.
+    """
     if save is not None:
         report["saved"] = await _save_after_apply(manager, save)
         return
@@ -341,7 +349,8 @@ async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any
 @router.delete("/preset/{name}")
 async def delete_preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror (Delete button
-    on the preset picker)."""
+    on the preset picker).
+    """
     try:
         return await manager.presetops.delete_preset(name)
     except PresetError as exc:
@@ -357,7 +366,8 @@ async def _finish(task: asyncio.Task[None], grace: float) -> None:
     """Give a background task ``grace`` seconds to exit on its own stop flag,
     then cancel it. Shutdown must not wait on a daemon that has stopped
     answering: the poll loop's 8088 lane retries per request, so a wedged web
-    server otherwise costs a full multiple of the request timeout."""
+    server otherwise costs a full multiple of the request timeout.
+    """
     with contextlib.suppress(asyncio.CancelledError, TimeoutError):
         await asyncio.wait_for(task, grace)
 
@@ -366,7 +376,8 @@ def _audit_router(audit: AuditLog) -> APIRouter:
     """The event log's read route, built only when the log is on — an install
     without ``HQPTUNER_DEBUG_LOG`` has no such endpoint rather than an endpoint
     that answers empty. Nothing in the UI links here; it is an operator's
-    surface, and the file it reads is equally available to ``jq``."""
+    surface, and the file it reads is equally available to ``jq``.
+    """
     audit_api = APIRouter(prefix="/api")
 
     @audit_api.get("/audit")

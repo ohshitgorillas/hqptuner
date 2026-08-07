@@ -96,7 +96,8 @@ def _unescape_attrs(root: ET.Element) -> ET.Element:
 def _document_complete(body: str, tag: str) -> bool:
     """True once the root element is closed — self-closing (`<Tag .../>`) or its
     end tag arrived (`</Tag>`). Distinguishes a still-arriving frame (keep
-    reading) from a fully-received one that simply won't parse."""
+    reading) from a fully-received one that simply won't parse.
+    """
     if re.match(rf"<{re.escape(tag)}\b[^>]*/>\s*$", body, re.S):
         return True
     return re.search(rf"</{re.escape(tag)}>\s*$", body) is not None
@@ -109,7 +110,8 @@ def _recover_root(body: str) -> ET.Element | None:
     hang the receive loop until timeout on every poll while a track is loaded.
     The live fields we need (active_filter/active_shaper/active_rate) are ROOT
     attributes, so drop the children and parse the root open-tag alone. Returns
-    None when the frame is merely still-arriving (caller keeps reading)."""
+    None when the frame is merely still-arriving (caller keeps reading).
+    """
     m = re.match(r"<([A-Za-z][\w-]*)\b[^>]*", body, re.S)
     if m is None:
         return None
@@ -199,7 +201,8 @@ class ControlClient:
 
     async def get_active_config(self) -> str:
         """The active configuration/preset name (empty string = the unnamed
-        ``[default]`` base). Response carries it in the ``value`` attribute."""
+        ``[default]`` base). Response carries it in the ``value`` attribute.
+        """
         return (await self.request("<ConfigurationGet/>")).attrib.get("value", "")
 
     async def get_state(self) -> dict[str, str]:
@@ -208,7 +211,8 @@ class ControlClient:
     async def get_volume_range(self) -> dict[str, str]:
         """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
         The authority for live-volume slider bounds and whether volume control is
-        active at all (protocol.md §6, "Volume commands")."""
+        active at all (protocol.md §6, "Volume commands").
+        """
         return await self._attrs("<VolumeRange/>")
 
     async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
@@ -220,13 +224,15 @@ class ControlClient:
         """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty
         = the unnamed [Default]). Probe-verified on 6.0.4: unauthenticated, zero
         reload, playback uninterrupted; memory-only, reverts on daemon restart
-        (docs/matrix-spec.md probe findings)."""
+        (docs/matrix-spec.md probe findings).
+        """
         await self.set_command("MatrixSetProfile", value=name)
 
     async def get_matrix_profiles(self) -> list[str]:
         """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile`
         children). Verified live on 6.0.4 (docs/matrix-spec.md probe findings):
-        unauthenticated, live lane, no reload."""
+        unauthenticated, live lane, no reload.
+        """
         root = await self.request("<MatrixListProfiles/>")
         return [item.attrib.get("name", "") for item in root]
 
@@ -241,7 +247,8 @@ class ControlClient:
         """Setter with result check. result="OK" or absent (SetAdaptiveVolume
         quirk, protocol.md §6) passes; result="Error" raises with the reason.
         Note result="OK" is not proof of application — callers verify by State
-        readback (protocol.md §6 caveat)."""
+        readback (protocol.md §6 caveat).
+        """
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
         root = await self.request(f"<{element_name}{attr_str}/>")
         result = root.get("result")
@@ -259,7 +266,8 @@ class ControlClient:
 
     async def set_filter(self, nx: str, x1: str | None = None) -> None:
         """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value,
-        1x=value1x). Reference client omits value1x when the 1x arg is < 0."""
+        1x=value1x). Reference client omits value1x when the 1x arg is < 0.
+        """
         if x1 is None:
             await self.set_command("SetFilter", value=nx)
         else:
@@ -270,7 +278,8 @@ class ControlClient:
 
     async def verify_state(self, expected: dict[str, str]) -> None:
         """Re-read State and raise unless every expected attribute matches.
-        result="OK" is not proof of application (protocol.md §6) — this is."""
+        result="OK" is not proof of application (protocol.md §6) — this is.
+        """
         state = await self.get_state()
         mismatch = {k: (want, state.get(k)) for k, want in expected.items() if state.get(k) != want}
         if mismatch:

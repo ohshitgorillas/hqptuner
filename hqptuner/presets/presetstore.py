@@ -39,7 +39,8 @@ _SCHEMA = 1
 
 class PresetError(ValueError):
     """A preset operation that cannot proceed — an invalid name, or a preset that
-    does not exist."""
+    does not exist.
+    """
 
 
 def _validate(name: str) -> str:
@@ -48,7 +49,8 @@ def _validate(name: str) -> str:
 
 class PresetStore:
     """Preset snapshots under ``directory``. The directory is created lazily on the
-    first write, so an unconfigured install reads as simply empty."""
+    first write, so an unconfigured install reads as simply empty.
+    """
 
     def __init__(self, directory: Path, audit: AuditLog | None = None) -> None:
         self._dir = directory
@@ -63,7 +65,8 @@ class PresetStore:
         """``store.json`` as a dict, empty when absent or unreadable. Raises
         ``PresetError`` when the store is stamped newer than this HQPTuner
         understands — every path that touches the store goes through here, so a
-        too-new store refuses uniformly instead of half-working."""
+        too-new store refuses uniformly instead of half-working.
+        """
         path = self._dir / _STORE_FILE
         if not path.is_file():
             return {}
@@ -86,7 +89,8 @@ class PresetStore:
         no stamp yet. Guard first: a store we cannot read is not one we should be
         writing into. Stamping on write, not on construction, keeps an unconfigured
         install from materialising a directory it never uses — and adopts a store
-        that predates the stamp the moment anything writes to it."""
+        that predates the stamp the moment anything writes to it.
+        """
         self._meta()
         self._dir.mkdir(parents=True, exist_ok=True)
         path = self._dir / _STORE_FILE
@@ -96,7 +100,8 @@ class PresetStore:
     def names(self) -> list[str]:
         """Every stored preset name, sorted. Empty when the store has no directory
         yet. The filesystem stays the authority — ``store.json`` carries the layout
-        version and nothing else, and never adds or withholds a name."""
+        version and nothing else, and never adds or withholds a name.
+        """
         if not self._dir.is_dir():
             return []
         self._meta()
@@ -119,7 +124,8 @@ class PresetStore:
         ``trigger`` names WHO wrote — an explicit save, auto-save, a profile
         fan-out, the one-time migration. The records are otherwise identical, and
         "which of those wrote over my preset" is the first question an incident
-        asks."""
+        asks.
+        """
         self._ensure_dir()
         path = self._path(name)
         overwrote = path.is_file()  # asked before the write, which erases the answer
@@ -128,7 +134,8 @@ class PresetStore:
 
     def delete(self, name: str) -> None:
         """Remove a preset. Raises ``PresetError`` if absent; clears the active
-        pointer when the deleted preset was the active one."""
+        pointer when the deleted preset was the active one.
+        """
         path = self._path(name)
         if not path.is_file():
             raise PresetError(f"no such preset: {name!r}")
@@ -143,7 +150,8 @@ class PresetStore:
         """Whether every successful apply/live write is folded back into the
         active preset. Lives in ``store.json`` — a per-store fact, not a
         per-browser one. Adding this field is not a schema bump: an older
-        HQPTuner ignoring it merely doesn't auto-save."""
+        HQPTuner ignoring it merely doesn't auto-save.
+        """
         return bool(self._meta().get("autosave"))
 
     def set_autosave(self, *, enabled: bool) -> None:
@@ -158,7 +166,8 @@ class PresetStore:
     @property
     def active(self) -> str | None:
         """The active preset name, or ``None`` when nothing is loaded / the pointer
-        is unreadable."""
+        is unreadable.
+        """
         path = self._dir / _ACTIVE_FILE
         if not path.is_file():
             return None
@@ -183,7 +192,8 @@ class PresetStore:
         """One-time migration off hqplayerd's ``data/cfgs/*.xml``: copy in any
         snapshot whose name is not already a preset here. Idempotent — an existing
         preset always wins, and an un-representable daemon name is skipped rather
-        than raising. Returns the names imported, sorted."""
+        than raising. Returns the names imported, sorted.
+        """
         imported: list[str] = []
         for name, xml in snapshots.items():
             try:

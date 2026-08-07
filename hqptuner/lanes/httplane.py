@@ -59,7 +59,8 @@ def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
     its own (or one this build serializes differently than it parses) then wedges
     EVERY apply, forever, on a config the user cannot see is at fault. Applies are
     incremental against the running config (``restore_zip_from_running``), so the
-    edits are the contract; the rest of the file is not this apply's business."""
+    edits are the contract; the rest of the file is not this apply's business.
+    """
     keys = {k for k in merged if k in intended}
     return keys | {_PROVEN_BY[k] for k in merged if k in _PROVEN_BY}
 
@@ -76,7 +77,8 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
     auto-family fields), restore, and read the running config back. Converged →
     done. Diverged but correctable → retry. Diverged on a net_device the daemon
     no longer offers (endpoint gone) → unfixable: surface and stop, since no
-    restart conjures absent hardware."""
+    restart conjures absent hardware.
+    """
     if mgr.http_client is None:
         return {"submitted": False, "error": "no credentials for HTTP config lane"}
     # the restore restarts the daemon onto the config it carries, and a live edit
@@ -122,7 +124,8 @@ async def _one_pass(
 ) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
     """One restore+verify pass. Returns ``(final, diff, error)`` — a non-None
     ``final`` is a terminal answer for the caller; otherwise the pass is
-    retryable and ``diff``/``error`` describe why."""
+    retryable and ``diff``/``error`` describe why.
+    """
     # a preset switch (or a prior attempt) just restarted the daemon and the
     # active label flips before the restart finishes — wait for the HTTP lane
     # to actually serve before writing, rather than racing it
@@ -158,7 +161,8 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     """Build a restore archive (running config ⊕ edits) from a fresh backup, push
     it, and return the intended config it should produce. Raises GroundingError
     (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped
-    mid-write)."""
+    mid-write).
+    """
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
@@ -191,7 +195,8 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
     field this apply wrote (``keys``), or the alarm deadline passes. Returns the
     last realized config (read from the backup's base hqplayerd.xml) so the caller
     can diff it — the unconverged read is the diff, so it is kept even when the
-    poll gives up."""
+    poll gives up.
+    """
     realized: dict[str, str] = {}
 
     async def probe() -> dict[str, str] | None:
@@ -212,7 +217,8 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
 
 async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:
     """Endpoint values the daemon currently offers for net_device, or None when
-    the form can't be read (treated as 'no evidence', never as 'gone')."""
+    the form can't be read (treated as 'no evidence', never as 'gone').
+    """
     try:
         form = await mgr.require_http().get_config()
     except httpx.HTTPError:
@@ -224,7 +230,8 @@ async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:
 async def _unfixable_device(mgr: ConnectionManager, diff: dict[str, dict[str, str | None]]) -> dict[str, Any]:
     """A divergence is unfixable only when the intended net_device is no longer
     in the daemon's endpoint list — the target NAA endpoint is gone, and no
-    restart brings it back. Everything else is correctable by retry."""
+    restart brings it back. Everything else is correctable by retry.
+    """
     if presetconf.NET_DEVICE not in diff:
         return {}
     want = diff[presetconf.NET_DEVICE]["want"]

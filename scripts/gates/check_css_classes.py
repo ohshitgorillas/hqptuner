@@ -58,11 +58,11 @@ COMPARISON = re.compile(r"[=!]=\s*$")
 
 
 def decomment(src: str) -> str:
-    """Drop comment prose, which is full of words shaped like class names.
+    r"""Drop comment prose, which is full of words shaped like class names.
 
     Line NUMBERS have to survive this, because the ``class-exempt`` pragma is
     matched against the offending line and the one above it. ``LINE_COMMENT``
-    already preserves them (its ``[^\\n]*`` never eats the newline), but a block
+    already preserves them (its ``[^\n]*`` never eats the newline), but a block
     comment spans lines, so substituting it with ``""`` collapsed every one of
     them and shifted the rest of the file upward. A file carrying a 20-line
     JSDoc block then reported a hit 20 lines above where it really was, the

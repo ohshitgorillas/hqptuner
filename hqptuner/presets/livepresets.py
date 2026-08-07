@@ -47,14 +47,16 @@ _SCHEMA = 1
 
 class LivePresetError(ValueError):
     """A live-preset operation that cannot proceed — an invalid name, or a preset
-    that does not exist."""
+    that does not exist.
+    """
 
 
 class LivePresetSchemaError(LivePresetError):
     """The stored file is stamped newer than this HQPTuner understands. Separate
     from ``LivePresetError`` so a route can answer "this store is unreadable"
     rather than "no such preset", which would be a lie about a store that is
-    there and full."""
+    there and full.
+    """
 
 
 def _validate(name: str) -> str:
@@ -74,7 +76,8 @@ class LivePresetStore:
     def _read_file(self) -> dict[str, Any]:
         """The file as a dict, empty when absent or unreadable. Every path goes
         through here, so a too-new store refuses uniformly instead of
-        half-working."""
+        half-working.
+        """
         if not self._path.is_file():
             return {}
         try:
@@ -97,7 +100,8 @@ class LivePresetStore:
 
     def _write(self, presets: dict[str, Any]) -> None:
         """Rewrite the whole file, stamped. Guards the schema first: a store we
-        cannot read is not one we should be writing into."""
+        cannot read is not one we should be writing into.
+        """
         self._read_file()
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))

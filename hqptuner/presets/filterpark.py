@@ -23,7 +23,8 @@ class FilterPark:
     def park(self, name: str, data: bytes) -> dict[str, str]:
         """Store one upload. Returns the parked name and the daemon-side absolute
         path a process string should use. Rejects anything but .wav/.txt; path
-        components are stripped; a name collision gets a serial suffix."""
+        components are stripped; a name collision gets a serial suffix.
+        """
         safe = re.sub(r"[^\w.\- ]", "_", Path(name).name)
         if not safe or not safe.lower().endswith(FILTER_EXTS):
             raise ValueError("filter upload must be a .wav or .txt file")

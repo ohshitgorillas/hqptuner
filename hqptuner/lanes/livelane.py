@@ -59,7 +59,8 @@ class LiveMemory:
     def forget(self) -> None:
         """Drop everything — a LIVE setting lasts only until the daemon restarts,
         which is what a fresh handshake means. Holding on would report, and
-        re-assert, a setting nothing is playing any more."""
+        re-assert, a setting nothing is playing any more.
+        """
         self.rates.clear()
         self.chain.clear()
 
@@ -113,7 +114,8 @@ def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> di
     """Everything this batch held, flat, as the caller's `stored` answer — the
     chains' fields and the off-family rate alike. Held is held: the frontend
     re-reads the running config on any of it, which is where a held value shows
-    up (`liveoverrides.live_overrides`)."""
+    up (`liveoverrides.live_overrides`).
+    """
     held = {field: value for chain_held in stored.values() for field, value in chain_held.items()}
     return held if held_rate is None else {**held, "rate": held_rate}
 
@@ -278,7 +280,8 @@ async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[s
 def _mode_apart(http_fields: dict[str, str]) -> str | None:
     """The staged mode value when it cannot ride its batch: beside other routable
     fields, ``SetMode`` swaps the lists they resolve against
-    (``livemap._mode_blocks_batch``), so it has to go first on its own."""
+    (``livemap._mode_blocks_batch``), so it has to go first on its own.
+    """
     routable = [field for field in http_fields if field in livemap.ROUTABLE]
     return http_fields["mode"] if "mode" in routable and len(routable) > 1 else None
 

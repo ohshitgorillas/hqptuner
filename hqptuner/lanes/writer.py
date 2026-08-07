@@ -31,7 +31,8 @@ Handler = Callable[[ControlClient, dict[str, str]], Awaitable[None]]
 
 class LiveSetting(NamedTuple):
     """A setting the Control API sets with a single ``value`` attribute and
-    reports back under a single ``State`` attribute — set it, read State, done."""
+    reports back under a single ``State`` attribute — set it, read State, done.
+    """
 
     command: str  # Control API element name
     state: str  # State attribute carrying it back
@@ -84,7 +85,8 @@ async def apply_live(
     failing does not abort the rest — each reports its own outcome.
 
     ``audit`` arrives from the caller rather than a module-level handle so this
-    stays a pure function of its arguments; omitting it logs nothing."""
+    stays a pure function of its arguments; omitting it logs nothing.
+    """
     log = audit if audit is not None else AuditLog(None)
     report: list[dict[str, Any]] = []
     for setting in SETTINGS:

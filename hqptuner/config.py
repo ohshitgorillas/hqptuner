@@ -11,7 +11,8 @@ def _env(name: str, default: str) -> str:
 
 def _optional_path(name: str) -> Path | None:
     """A path var that is OFF when unset — an empty value is not a path to the
-    current directory, it is the absence of one."""
+    current directory, it is the absence of one.
+    """
     raw = _env(name, "").strip()
     return Path(raw) if raw else None
 

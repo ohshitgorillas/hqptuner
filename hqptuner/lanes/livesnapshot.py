@@ -38,7 +38,8 @@ def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | Non
     """The item at this list index as ``{value, name}``, or None when absent.
 
     ``RatesItem`` carries no ``name`` (protocol.md §6, ``<RatesItem index rate/>``),
-    so the value doubles as its own label there."""
+    so the value doubles as its own label there.
+    """
     for item in items:
         if str(item.get("index")) != str(index):
             continue

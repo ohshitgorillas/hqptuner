@@ -44,7 +44,8 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
     model, the daemon runs whether a preset is active or not — so the same word one
     browser tab apart meant two different things. Here it means "no preset
     bookmark", and "(no preset)" says that without promising a settings reset it
-    cannot deliver."""
+    cannot deliver.
+    """
     options: list[dict[str, str]] = [{"value": "", "label": "(no preset)"}]
     options += [{"value": n, "label": n} for n in mgr.presetops.store.names()]
     active = mgr.presetops.store.active or ""
@@ -54,7 +55,8 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
 async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     """A preset's saved settings in form-field terms for the editor preview — no
     daemon touch. A named preset reads from the store; the empty ("(no preset)")
-    selection reads the current running config."""
+    selection reads the current running config.
+    """
     if not name:
         return dict(mgr.file_config or await mgr.load_file_config())
     return presetconf.read_config(mgr.presetops.store.read(name))
@@ -63,7 +65,8 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
 async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Load a stored preset: restore its config as the ``[default]`` working config
     (the reliable primitive) and mark it active, mirroring it into the daemon's
-    ``data/cfgs`` so the native UI stays populated. Never ``profile/load``."""
+    ``data/cfgs`` so the native UI stays populated. Never ``profile/load``.
+    """
     xml = mgr.presetops.store.read(name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
     await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
@@ -82,7 +85,8 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Make ``name`` the active preset as the first step of an apply. A named
     preset loads (restore + mirror); the empty name is the picker's "(no preset)"
-    and only drops the bookmark. Never hqplayerd's ``profile/load``."""
+    and only drops the bookmark. Never hqplayerd's ``profile/load``.
+    """
     if not name:
         return await unload(mgr)
     # cache a healthy backup BEFORE the load — the load bug empties /backup, and
@@ -101,7 +105,8 @@ async def unload(mgr: ConnectionManager) -> dict[str, Any]:
     contents came from, not a second place they live. Nobody stored the
     before-the-preset version, so "unload" cannot mean "put the old settings
     back" — it means we stop claiming the current settings belong to a preset.
-    Shaped like ``load``'s return so the apply report reads the same either way."""
+    Shaped like ``load``'s return so the apply report reads the same either way.
+    """
     mgr.presetops.store.set_active(None)
     return {"name": "", "active": True}
 
@@ -115,7 +120,8 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     hqplayerd's own profile list. So the mirror runs AFTER the store commits and
     reports a warning rather than a failure — a save that reached disk must never
     come back as ``ok: False``, which is what sent a user looking for a preset
-    that was already there."""
+    that was already there.
+    """
     try:
         await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
         backup = await mgr.presetops.backup_or_cached(for_write=True)
@@ -144,7 +150,8 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
     next restore that happens anyway (``lanes/presetfields.autosave_mirror``).
     Returns None when
     auto-save is off or no preset is active; best-effort otherwise — a failed
-    auto-save reports itself and never fails the write it followed."""
+    auto-save reports itself and never fails the write it followed.
+    """
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.autosave:
         return None
@@ -170,7 +177,8 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     right after an apply's own restore, so the daemon is routinely still
     restarting and a single-shot POST reports a failure the next second would
     not have seen. Re-sending is safe — the archive is the same bytes either
-    way."""
+    way.
+    """
     archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
 
     async def push() -> bool:
@@ -186,7 +194,8 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
 
 async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """Delete a preset from the store and remove its daemon mirror via
-    ``profile/delete`` — restore is additive and cannot remove a member."""
+    ``profile/delete`` — restore is additive and cannot remove a member.
+    """
     mgr.presetops.store.delete(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):
         await mgr.require_http().post_profile("delete", profile=name)
@@ -197,7 +206,8 @@ async def migrate(mgr: ConnectionManager, active_hint: str | None) -> list[str]:
     """One-time import of hqplayerd's existing ``data/cfgs`` presets into the store
     so nothing is orphaned. Idempotent — existing store presets win. Seeds the
     active pointer from the daemon's reported active config when the store has
-    none. Returns the imported names."""
+    none. Returns the imported names.
+    """
     snapshots = presetzip.snapshot_members(await mgr.presetops.backup_or_cached())
     imported = mgr.presetops.store.import_missing(snapshots)
     if mgr.presetops.store.active is None and active_hint and mgr.presetops.store.exists(active_hint):

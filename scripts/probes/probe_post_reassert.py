@@ -102,7 +102,8 @@ def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
 async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> None:
     """Echo the daemon's own /matrix form back complete, with ``overlay`` applied.
     Checkbox contract enforced: ``1`` when on, OMITTED when off — a stray ``on``
-    or ``0`` is written verbatim and wedges engine init (matrix-spec.md:99)."""
+    or ``0`` is written verbatim and wedges engine init (matrix-spec.md:99).
+    """
     form = await client.get("/matrix")
     form.raise_for_status()
     fields, _ = serialize_matrix_form(form.text)

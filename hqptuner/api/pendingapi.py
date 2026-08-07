@@ -19,7 +19,8 @@ router = APIRouter(prefix="/api")
 
 class PendingStore:
     """Server-side staged-changes buffer. Survives browser reloads because it
-    lives on the backend, not the client."""
+    lives on the backend, not the client.
+    """
 
     def __init__(self) -> None:
         self.live: dict[str, dict[str, str]] = {}
@@ -34,7 +35,8 @@ class PendingStore:
         client sends the whole set of entries that read clean, not a diff, so a
         name it has already dropped must not be an error. A live bucket emptied
         of its arguments goes with them: an empty bucket is not "no change", it
-        is a setter the apply would still call."""
+        is a setter the apply would still call.
+        """
         for field in http:
             self.http.pop(field, None)
         for key, args in live.items():
@@ -69,7 +71,8 @@ def _apply_succeeded(report: dict[str, Any]) -> bool:
     readback verified (`ok`); the persistent lane only if the running config
     reflected the change after the restart (`applied`). A soft failure — a value
     never converged, or a preset's endpoint is gone — returns False here so the
-    caller keeps the pending buffer instead of silently dropping the edits."""
+    caller keeps the pending buffer instead of silently dropping the edits.
+    """
     if any(not entry.get("ok") for entry in report.get("live", [])):
         return False
     switched = report.get("switched")
@@ -116,6 +119,7 @@ def discard(request: Request, manager: Mgr) -> dict[str, Any]:
 @router.post("/autosave")
 def set_autosave(body: AutosaveBody, manager: Mgr) -> dict[str, Any]:
     """Toggle auto-save: every successful apply/live write is folded back into
-    the active preset's store file. Pure store flag — no daemon touch."""
+    the active preset's store file. Pure store flag — no daemon touch.
+    """
     manager.presetops.store.set_autosave(enabled=body.enabled)
     return {"autosave": manager.presetops.store.autosave}

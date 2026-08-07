@@ -58,7 +58,8 @@ def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
 
 async def _settled_correction(http: HttpConfigClient, differs_from: dict[str, object] | None) -> dict[str, object]:
     """Read the correction slice, polling past the reload and the
-    device-discovery transient (matrix-spec.md:101)."""
+    device-discovery transient (matrix-spec.md:101).
+    """
     seen: dict[str, object] = {}
     for _ in range(20):
         seen = _correction((await _rpc(http.get_matrix))["fields"])

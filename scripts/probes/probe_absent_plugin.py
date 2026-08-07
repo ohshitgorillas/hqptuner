@@ -82,7 +82,8 @@ async def _rpc[T](make: Callable[[], Awaitable[T]]) -> T:
     Every step here follows a restore, and a restore restarts the daemon — so a
     connect attempt landing in that window is expected, not a failure. An earlier
     run wrapped only ``get_config`` this way and died on a bare ``backup()``,
-    which took the revert down with it."""
+    which took the revert down with it.
+    """
     last: Exception | None = None
     for _ in range(SETTLE_TRIES):
         try:
@@ -103,7 +104,8 @@ async def _working(http: HttpConfigClient, active: str | None) -> bytes:
 
 async def _push(http: HttpConfigClient, backup: bytes, working: bytes, active: str | None) -> bytes:
     """Restore an archive carrying ``working`` as its working member, then read
-    the running config back — never trust the POST's own 200."""
+    the running config back — never trust the POST's own 200.
+    """
     with zipfile.ZipFile(io.BytesIO(backup)) as z:
         member = engineconf.running_config_name(z.namelist(), active)
     if member is None:
@@ -157,7 +159,8 @@ async def _q2_form(http: HttpConfigClient, raw: httpx.AsyncClient, active: str |
 async def _engine_alive() -> bool:
     """Does 4321 still answer? The matrix-spec wedge (a config the daemon cannot
     init on) shows up exactly here: the web lane keeps serving while the engine
-    is dead, so _settle alone would not notice."""
+    is dead, so _settle alone would not notice.
+    """
     client = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     try:
         await client.connect()
@@ -172,7 +175,8 @@ async def _engine_alive() -> bool:
 async def _q3_partial(http: HttpConfigClient, stripped: bytes, active: str | None) -> list[str]:
     """Write a MINIMAL plugin element — type and enabled only. The daemon keeps
     exactly what we give it (Q1), so if it does not fill the rest in, HQPTuner
-    must author every attribute itself or ship a half-configured plugin."""
+    must author every attribute itself or ship a half-configured plugin.
+    """
     stub = b'<plugin enabled="1" type="' + PLUGIN.encode() + b'"/>'
     after = await _push(
         http, await _backup(http), stripped.replace(b"<post_process>", b"<post_process>\n\t\t\t\t" + stub, 1), active
@@ -191,7 +195,8 @@ async def _q3_partial(http: HttpConfigClient, stripped: bytes, active: str | Non
 
 async def _q4_container(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
     """The container itself: can a config carry no <post_process> at all, and can
-    HQPTuner put one back? The reporter's file may have neither."""
+    HQPTuner put one back? The reporter's file may have neither.
+    """
     without, n = re.subn(rb"\n?[ \t]*<post_process>.*?</post_process>", b"", original, flags=re.DOTALL)
     if n != 1:
         return [f"Q4 skipped: matched {n} post_process containers"]
@@ -216,7 +221,8 @@ async def _q5_form_fields(http: HttpConfigClient, active: str | None) -> list[st
 
     This decides where an authored element's attributes come from. If the form
     carries them, HQPTuner writes the daemon's own numbers and invents nothing;
-    if it does not, the only source left is the readme's documented defaults."""
+    if it does not, the only source left is the readme's documented defaults.
+    """
     current = await _working(http, active)
     if _has_plugin(current, PLUGIN):
         current = await _push(http, await _backup(http), _strip_plugin(current, PLUGIN), active)
@@ -237,7 +243,8 @@ async def _q6_matrix_body(http: HttpConfigClient, original: bytes, active: str |
 
     If a user's config is like this there is nowhere to put ``<post_process>``,
     so the insertion fix would still fail for them. Two questions: does the
-    daemon accept a bodyless matrix, and can HQPTuner give it a body back?"""
+    daemon accept a bodyless matrix, and can HQPTuner give it a body back?
+    """
     m = re.search(rb"<matrix\b[^>]*>.*?</matrix>", original, flags=re.DOTALL)
     if m is None:
         return ["Q6 skipped: no matrix element with a body to collapse"]
@@ -267,7 +274,8 @@ async def _q7_element(http: HttpConfigClient, original: bytes, active: str | Non
 
     ``<defaults>`` is the representative case: it carries the startup volume, so
     it is exactly the Volume-tab class the report came from. Everything proved so
-    far is evidence about ``<plugin>`` and ``<post_process>`` only."""
+    far is evidence about ``<plugin>`` and ``<post_process>`` only.
+    """
     if re.search(rb"<defaults\b[^>]*/>", original) is None:
         return ["Q7 skipped: no defaults element in this config"]
     without = re.sub(rb"\n?[ \t]*<defaults\b[^>]*/>", b"", original, count=1)
@@ -334,7 +342,8 @@ async def _q8_config_form(http: HttpConfigClient, original: bytes, active: str |
 
     Q5 proved the /matrix form does for a plugin. If /config does too, an
     authored element takes every attribute from the daemon's own statement of
-    it and HQPTuner invents nothing anywhere."""
+    it and HQPTuner invents nothing anywhere.
+    """
     if re.search(rb"<defaults\b", original) is None:
         return ["Q8 skipped: no defaults element in this config"]
     without = re.sub(rb"\n?[ \t]*<defaults\b[^>]*/>", b"", original, count=1)

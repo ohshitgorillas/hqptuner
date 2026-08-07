@@ -119,7 +119,8 @@ _MATRIX_ROW_SKIP = ("plot", "filter")
 
 def _matrix_active(soup: BeautifulSoup) -> str:
     """The active matrix profile name, printed as ``<b>Active: </b>NAME`` on the
-    form (``[Default]`` = the unnamed default)."""
+    form (``[Default]`` = the unnamed default).
+    """
     for b in soup.find_all("b"):
         if b.get_text(strip=True).startswith("Active:"):
             text = b.next_sibling
@@ -131,7 +132,8 @@ def _matrix_active(soup: BeautifulSoup) -> str:
 def _matrix_profiles(soup: BeautifulSoup, profile_field: dict[str, Any] | None) -> dict[str, Any] | None:
     """The profile text input joined with its ``<datalist>`` options (the saved
     matrix profiles). The generic parser sees only a bare text input — the
-    options live in a datalist the input references by id."""
+    options live in a datalist the input references by id.
+    """
     if profile_field is None:
         return None
     datalist = soup.find("datalist")
@@ -151,7 +153,8 @@ def parse_matrix_form(html: str) -> dict[str, Any]:
     dict per pipeline; ``profiles`` is the profile input with its datalist
     options; ``active`` the printed active-profile name. Tolerates the daemon's
     malformed gainunit markup (``value="dB""`` — stray quote), which the HTML
-    parser reads as a normal value plus a junk attribute."""
+    parser reads as a normal value plus a junk attribute.
+    """
     base = parse_config_form(html)
     soup = BeautifulSoup(html, "html.parser")
     rows: dict[int, dict[str, Any]] = {}
@@ -186,7 +189,8 @@ def parse_speakers_form(html: str) -> dict[str, Any]:
     is a top-level config element (readme §1.9), absent from /config — this is its
     only read surface. Each channel is ``{index, label, level, distance}`` plus the
     input min/max/step constraints; ``label`` is the daemon's own channel name (the
-    ``<h2>`` above each pair: Left, Right, Center, LFE, Left rear, ...)."""
+    ``<h2>`` above each pair: Left, Right, Center, LFE, Left rear, ...).
+    """
     base = parse_config_form(html)
     enabled = False
     chans: dict[int, dict[str, Any]] = {}
@@ -209,7 +213,8 @@ def parse_speakers_form(html: str) -> dict[str, Any]:
 
 def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -> str:
     """Numeric + in-range or raise. Returns the caller's exact string so a 0.1
-    level step survives verbatim — garbage never reaches the daemon."""
+    level step survives verbatim — garbage never reaches the daemon.
+    """
     lo, hi = bounds
     try:
         n = float(value)
@@ -226,7 +231,8 @@ def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
     stray ``on`` verbatim into its XML and wedges engine init, matrix-spec probe
     findings), the selected option per select, text/number values as-is.
     Returns ``(fields, file_input_names)`` — the daemon silently ignores any
-    partial POST, so every write must carry the whole thing."""
+    partial POST, so every write must carry the whole thing.
+    """
     soup = BeautifulSoup(html, "html.parser")
     form = soup.find("form")
     fields: dict[str, str] = {}
@@ -254,7 +260,8 @@ def _selected_value(el: Tag) -> str:
 
 def _submitted_value(el: Tag) -> str | None:
     """What a browser submits for an input — None for buttons and unchecked
-    checkboxes; a checked checkbox submits its value attr (never 'on')."""
+    checkboxes; a checked checkbox submits its value attr (never 'on').
+    """
     itype = el.get("type", "text")
     if itype in ("submit", "button"):
         return None
@@ -281,7 +288,8 @@ class HttpConfigClient:
     async def _get(self, path: str) -> httpx.Response:
         """GET, raising on any non-2xx. Every read on this lane goes through here
         so no route can forget to check the status and parse an error page as if
-        it were a form."""
+        it were a form.
+        """
         resp = await self._client.get(path)
         resp.raise_for_status()
         return resp
@@ -289,7 +297,8 @@ class HttpConfigClient:
     async def _post(self, path: str, **kwargs: Any) -> None:
         """POST, raising on any non-2xx. No caller needs the body — the daemon
         answers a write with its own HTML page, and what actually landed is
-        established by readback, never by the response."""
+        established by readback, never by the response.
+        """
         resp = await self._client.post(path, **kwargs)
         resp.raise_for_status()
 
@@ -300,7 +309,8 @@ class HttpConfigClient:
         """GET /matrix — the pipeline/post-processing form (pipeline rows, matrix
         profiles, Bauer crossfeed, DAC correction, loudness). The daemon silently
         ignores a partial POST here too (docs/matrix-spec.md probe findings), so
-        writes overlay a fresh read (manager)."""
+        writes overlay a fresh read (manager).
+        """
         return parse_matrix_form((await self._get("/matrix")).text)
 
     # No profile CRUD on this lane. ``POST /matrix/{load,save,delete}`` cost a
@@ -312,7 +322,8 @@ class HttpConfigClient:
 
     async def get_speakers(self) -> dict[str, Any]:
         """GET /speakers — the multi-channel speaker-processing form (readme §1.9):
-        the enabled switch and per-channel level (dBFS) + distance (cm)."""
+        the enabled switch and per-channel level (dBFS) + distance (cm).
+        """
         return parse_speakers_form((await self._get("/speakers")).text)
 
     async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> None:
@@ -323,7 +334,8 @@ class HttpConfigClient:
         OMITTED when off — never a raw ``0``/``on``, which the daemon writes
         verbatim and wedges engine init (matrix-spec probe). Levels are validated
         to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
-        sent. The daemon reloads the engine (~3 s), interrupting playback."""
+        sent. The daemon reloads the engine (~3 s), interrupting playback.
+        """
         # generic complete-form serialize
         fields, _ = serialize_matrix_form((await self._get("/speakers")).text)
         fields.pop("enabled", None)  # checkbox rebuilt below, contract-safe
@@ -339,7 +351,8 @@ class HttpConfigClient:
 
     async def post_profile(self, action: str, **fields: str) -> None:
         """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`
-        also restarts the daemon."""
+        also restarts the daemon.
+        """
         if action not in _ACTIONS:
             raise ValueError(f"unknown profile action: {action}")
         await self._post(f"/config/profile/{action}", data=fields)
@@ -350,7 +363,8 @@ class HttpConfigClient:
         form with ``formaction="/config/refresh"``, i.e. a bare ``GET
         /config/refresh`` (no body). A POST is silently ignored. Picks up an
         endpoint (e.g. a NAA that was powered off) absent from the device list —
-        the caller re-reads the form afterwards to serve the new options."""
+        the caller re-reads the form afterwards to serve the new options.
+        """
         await self._get("/config/refresh")
 
     async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
@@ -362,7 +376,8 @@ class HttpConfigClient:
         on the ``[default]`` config (``hqplayerd.xml``); it does **not** restore a
         named active profile (docs/protocol.md §3.6). The connection manager's
         outage path handles the restart/resync. ``cfgfile`` is a ``/backup``
-        settings.zip (or config xml)."""
+        settings.zip (or config xml).
+        """
         await self._post(
             "/restore",
             data={"scope": scope},
@@ -372,7 +387,8 @@ class HttpConfigClient:
     async def backup(self) -> bytes:
         """Daemon's settings backup (a zip) — a safety copy taken before an
         apply. The plain /backup route is only the HTML page; the actual
-        settings archive is /backup/settings.zip (verified on 6.0.4)."""
+        settings archive is /backup/settings.zip (verified on 6.0.4).
+        """
         return (await self._get("/backup/settings.zip")).content
 
     async def aclose(self) -> None:

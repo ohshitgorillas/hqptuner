@@ -34,7 +34,8 @@ _VERIFY_INTERVAL = 0.5
 async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str, Any]:
     """Poll a fresh backup until every override is reflected in its base config's
     ``<engine>`` tag, or the window runs out. Returns the last-read attributes
-    either way, so a caller can report what actually landed."""
+    either way, so a caller can report what actually landed.
+    """
     got: dict[str, str] = {}
 
     async def probe() -> dict[str, str] | None:
@@ -57,7 +58,8 @@ def _with_stored_live_fields(mgr: ConnectionManager, backup: bytes, active: str 
 
     This restore restarts the daemon onto that member, and a live edit never wrote
     those settings to any file — so without this the engine-attribute apply costs
-    the user the mode, filters and shapers they saved (``presetfields``)."""
+    the user the mode, filters and shapers they saved (``presetfields``).
+    """
     stored = presetfields.stored_live_fields(mgr)
     working = engineconf.base_config_xml(backup, active or None)
     if not stored or not working:
@@ -80,7 +82,8 @@ async def apply(
 
     ``all_presets`` edits every snapshot in the archive; otherwise just the base
     config plus the active preset's snapshot. Raises ``httpx.HTTPError`` if the
-    restore itself fails; the caller decides how to report that."""
+    restore itself fails; the caller decides how to report that.
+    """
     # under auto-save the active preset's data/cfgs mirror catches up on any
     # restore that happens anyway — swap in the store's copy before editing, so
     # the overrides land on the auto-saved state rather than a stale mirror

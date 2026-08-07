@@ -32,7 +32,8 @@ def _unreadable(exc: LivePresetSchemaError) -> HTTPException:
 def live_presets(request: Request) -> dict[str, Any]:
     """Every saved live preset. Flat: a preset carries its own output mode, so
     applying one taken on the other chain switches the engine to it rather than
-    conflicting with what is loaded — there is nothing here to gate on."""
+    conflicting with what is loaded — there is nothing here to gate on.
+    """
     try:
         presets = _store(request).all()
     except LivePresetSchemaError as exc:
@@ -44,7 +45,8 @@ def live_presets(request: Request) -> dict[str, Any]:
 def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any]:
     """Snapshot what the engine is playing right now under this name, overwriting
     any preset already saved under it. 409 when the loaded chain is unknowable —
-    the record would claim a chain it never captured."""
+    the record would claim a chain it never captured.
+    """
     snapshot = livesnapshot.live_snapshot(manager)
     if snapshot is None:
         raise HTTPException(
@@ -73,7 +75,8 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
 
     The live lane's all-or-nothing 409 carries over unchanged: a stored ID the
     running enumerations no longer offer refuses the whole preset, naming the
-    field."""
+    field.
+    """
     try:
         record = _store(request).read(name)
     except LivePresetSchemaError as exc:

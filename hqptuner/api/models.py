@@ -12,7 +12,8 @@ class DropBody(BaseModel):
     client sends these for edits that have returned to their baseline: the value
     is no longer a change, so it must not ride along on the next apply and
     restart the daemon for nothing. `live` names arguments within a live key;
-    `http` names whole fields."""
+    `http` names whole fields.
+    """
 
     live: dict[str, list[str]] = {}
     http: list[str] = []

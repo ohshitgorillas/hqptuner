@@ -66,7 +66,8 @@ _SCOPE_CLOSE = b"</matrix></engine></hqplayerd>"
 def _profile_open(xml: bytes, name: str) -> re.Match[bytes]:
     """The named profile's open tag. Raises when the snapshot has no such profile
     — never a fallback to the live matrix: writing the Default context while the
-    caller believes it is editing a profile is the whole defect being fixed."""
+    caller believes it is editing a profile is the whole defect being fixed.
+    """
     escaped = re.escape(attr_escape(name).encode())
     pattern = re.compile(rb"<matrix_profile\b[^>]*name=\"" + escaped + rb"\"[^>]*?/?>")
     m = next((c for c in pattern.finditer(xml) if not in_comment(xml, c.start())), None)
@@ -79,7 +80,8 @@ def has_profile(xml: bytes, name: str) -> bool:
     """Whether this snapshot carries the named profile — the lane's guard before
     it scopes an apply. A profile the daemon holds in memory only (saved through
     its own route, never persisted) is live but absent from the file, and scoping
-    to it would refuse every apply the user makes while it is selected."""
+    to it would refuse every apply the user makes while it is selected.
+    """
     try:
         _profile_open(xml, name)
     except GroundingError:
@@ -103,7 +105,8 @@ def matrix_scope(xml: bytes, profile: str | None) -> bytes:
     The read side of ``scoped_edit``, and the reason a verify diff compares like
     with like — intended and realized both run through this, so a profile-scoped
     write is proven where it actually landed rather than against the matrix it
-    deliberately did not touch."""
+    deliberately did not touch.
+    """
     if not profile:
         return xml
     start, close = _profile_body_span(xml, profile)

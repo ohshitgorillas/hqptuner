@@ -17,7 +17,8 @@ _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blo
 
 def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool]:
     """The configured log file path + whether logging is enabled, from a parsed
-    GET /config form. Returns (None, False) when the form isn't loaded yet."""
+    GET /config form. Returns (None, False) when the form isn't loaded yet.
+    """
     if not config_form:
         return None, False
     path: str | None = None
@@ -32,7 +33,8 @@ def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool
 
 async def fetch_log(base_url: str, timeout: float = 10.0) -> str:
     """The daemon's full log text from GET /log on the 8088 web interface.
-    Unauthenticated — the log page is not credential-gated."""
+    Unauthenticated — the log page is not credential-gated.
+    """
     async with httpx.AsyncClient(base_url=base_url, timeout=timeout) as client:
         resp = await client.get("/log")
         resp.raise_for_status()

@@ -58,7 +58,8 @@ class PresetOps:
         touched: it sees a preset only when that preset is loaded. Returns
         {preset: "ok" | error text}, empty when nothing was targeted; one bad
         target never blocks another. Delete runs before save per preset, the
-        same rename ordering the config edit uses."""
+        same rename ordering the config edit uses.
+        """
         save_value = edits.get(matrixconf.MATRIX_PROFILE_SAVE)
         delete_value = edits.get(matrixconf.MATRIX_PROFILE_DELETE)
         save_to = matrixconf.save_targets(save_value) if save_value else []
@@ -84,7 +85,8 @@ class PresetOps:
 
     def preset_profiles(self) -> dict[str, list[str]]:
         """Each stored preset's saved matrix-profile names, sorted — the read
-        model behind the save/delete target pickers."""
+        model behind the save/delete target pickers.
+        """
         out: dict[str, list[str]] = {}
         for name in self.store.names():
             try:
@@ -99,7 +101,8 @@ class PresetOps:
     def persist_backup(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk so a crash mid-apply still
         leaves a recoverable copy (memory-only last_backup does not survive one).
-        Best-effort: a write failure must not block the apply itself."""
+        Best-effort: a write failure must not block the apply itself.
+        """
         path = self._cfg.backup_dir / "pre-apply-settings.zip"
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +122,8 @@ class PresetOps:
         ``for_write=True`` refuses that fallback. The cached archive carries a
         stale working config, and a restore built on it silently resurrects
         whatever the user changed since it was cached — writing old values back
-        over new ones. A read may be stale; a write may not."""
+        over new ones. A read may be stale; a write may not.
+        """
         backup = await self._mgr.require_http().backup()
         if engineconf.base_config_xml(backup, self._mgr.active_config):  # working config resolved → usable
             self.last_healthy_backup = backup
