@@ -106,7 +106,12 @@ function chainParts(block) {
   const delays = parts.filter((p) => p.delaySec !== null).map((p) => p.delaySec);
   if (corners.length !== 8 || delays.length !== 8) return null;
   if (corners.some((c) => c !== corners[0]) || delays.some((d) => d !== delays[0])) return null;
-  return { eqProcess, corner: corners[0], delay: delays[0] };
+  const corner = corners[0];
+  const delay = delays[0];
+  // both filtered to non-null above and counted at eight; restating it is what
+  // carries that through to the returned shape
+  if (corner === null || delay === null) return null;
+  return { eqProcess, corner, delay };
 }
 
 // One row against its position in the eight-row ear signature.

@@ -25,7 +25,7 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 function load() {
   try {
-    const v = localStorage.getItem(KEY);
+    const v = localStorage.getItem(KEY) || "";
     return ACCENTS.includes(v) ? v : DEFAULT;
   } catch {
     return DEFAULT;

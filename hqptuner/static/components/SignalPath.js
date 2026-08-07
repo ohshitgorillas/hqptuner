@@ -84,7 +84,7 @@ function configLabel(key) {
   // FieldEntry, not the ambient SchemaField: the catalog spells three fields
   // differently and does not overlap it (components/Field.js states which).
   const entry = /** @type {Record<string, import("./Field.js").FieldEntry>} */ (schema)[key];
-  const hit = optionsFor(entry.optionsFrom, formFieldName(entry)).find(
+  const hit = optionsFor(entry.optionsFrom || "", formFieldName(entry)).find(
     (/** @type {OptionItem} */ o) => String(o.value) === String(raw),
   );
   return hit ? hit.label : String(raw);

@@ -144,7 +144,7 @@ function fieldClasses(entry, key, label) {
  * @returns {FieldOptions}
  */
 function rawOptions(entry) {
-  if (entry.optionsFrom === "enum") return enumOptions(entry.enumKey);
+  if (entry.optionsFrom === "enum") return enumOptions(entry.enumKey || "");
   if (entry.optionsFrom) return optionsFor(entry.optionsFrom, formFieldName(entry));
   return entry.options;
 }
@@ -155,6 +155,9 @@ function rawOptions(entry) {
  */
 function fieldOptions(entry, key) {
   let options = rawOptions(entry);
+  // The non-list widgets have no options at all, and none of the transforms
+  // below has anything to do to them.
+  if (!options) return undefined;
   if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow, key);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
   // Last, because it is about the hardware rather than the settings: what the
@@ -174,7 +177,8 @@ function fieldOptions(entry, key) {
  */
 function narrowBadge(entry, key) {
   if (!entry.narrow) return null;
-  return narrowCount(rawOptions(entry), entry.narrow, key);
+  const raw = rawOptions(entry);
+  return raw ? narrowCount(raw, entry.narrow, key) : null;
 }
 
 // A grayed control names WHY, visibly — the reason renders as a caption

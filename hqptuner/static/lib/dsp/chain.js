@@ -9,7 +9,7 @@
 // jobs, and it has no business sitting next to the stateless per-point math.
 
 import { TAU, wrapDeg } from "./biquad.js";
-import { iirStageCoeffs, riaaResponse, stageResponse } from "./stages.js";
+import { iirStageCoeffs, riaaResponse, stageResponse, stageArgs, stageFile } from "./stages.js";
 import { convResponse, hasIr } from "./impulse.js";
 
 /**
@@ -78,19 +78,23 @@ function addBiquadGridDb(db, c, t) {
  */
 function addStageGridDb(s, db, { t, freqs }, fs) {
   if (s.kind === "iir") {
-    const c = iirStageCoeffs(s.args, fs);
+    const c = iirStageCoeffs(stageArgs(s), fs);
     if (c === null) return false;
     addBiquadGridDb(db, c, t);
     return true;
   }
   if (s.kind === "riaa") {
-    const subsonic = s.args.subsonic !== "0";
+    const subsonic = stageArgs(s).subsonic !== "0";
     for (let i = 0; i < db.length; i += 1) db[i] += riaaResponse(freqs[i], subsonic).db;
     return true;
   }
   if (s.kind === "conv") {
-    if (!hasIr(s.file)) return false;
-    for (let i = 0; i < db.length; i += 1) db[i] += convResponse(s.file, freqs[i]).db;
+    const file = stageFile(s);
+    if (!hasIr(file)) return false;
+    for (let i = 0; i < db.length; i += 1) {
+      const r = convResponse(file, freqs[i]);
+      if (r) db[i] += r.db;
+    }
     return true;
   }
   return s.kind === "delay";

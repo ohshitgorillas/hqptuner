@@ -103,7 +103,7 @@ export function resetNarrowing() {
  * @property {string} ratio
  * @property {boolean} upsampleOnly
  * @property {boolean} favOnly
- * @property {string} family which side of a mode-split ratio to test; null off-chain
+ * @property {string|null} family which side of a mode-split ratio to test; null off-chain
  * @property {boolean} apod
  * @property {boolean} half
  * @property {boolean} hideHires
@@ -119,7 +119,7 @@ export function resetNarrowing() {
 
 /**
  * @param {string} field
- * @returns {string}
+ * @returns {string|null}
  */
 function family(field) {
   if (!field) return null;
@@ -133,8 +133,8 @@ function family(field) {
 // single ratio. Every other filter has a single `ratio`.
 /**
  * @param {FilterFacet} f
- * @param {string} fam
- * @returns {string}
+ * @param {string|null} fam
+ * @returns {string|null}
  */
 function ratioOf(f, fam) {
   if (f.ratio != null) return f.ratio;

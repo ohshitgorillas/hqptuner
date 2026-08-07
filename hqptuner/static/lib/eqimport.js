@@ -91,8 +91,9 @@ export function parseEqText(text) {
     const fm = line.match(FILTER_RE);
     if (!fm) continue; // header / notes line — not a filter
     const parsed = parseFilterLine(line, fm);
-    if (parsed.skip) skipped.push(parsed.skip);
-    else stages.push(parsed.stage);
+    // exactly one of the two is set; branching on the stage is what narrows it
+    if (parsed.stage) stages.push(parsed.stage);
+    else if (parsed.skip) skipped.push(parsed.skip);
   }
   return { preamp, stages, skipped };
 }
@@ -131,14 +132,19 @@ const preampNote = (/** @type {string | null} */ preamp, /** @type {string} */ t
  * @returns {ImportPlan}
  */
 function blockPlan(rows, opts, cut) {
-  const fit = fitComp(opts.bauer.fc, opts.bauer.feed);
+  // planEqImport routes here only on a recognized block, and the card hands the
+  // bauer pair the block was compensated for along with it. Both are optional on
+  // ImportOpts because the other two paths take neither.
+  const block = /** @type {MsRecognition} */ (opts.block);
+  const bauer = /** @type {{ fc: number, feed: number }} */ (opts.bauer);
+  const fit = fitComp(bauer.fc, bauer.feed);
   return {
-    rows: applyEqToBlock(rows, opts.block, fit, { addition: cut.addition, preamp: cut.preamp, replace: opts.replace }),
+    rows: applyEqToBlock(rows, block, fit, { addition: cut.addition, preamp: cut.preamp, replace: opts.replace }),
     targets: [],
     note:
       `${cut.stages.length} filter(s) → crossfeed compensation block (pipelines 1–8)` +
       preampNote(cut.preamp, "") +
-      (opts.block.stale ? " · block was out of date and has been rebuilt at 100%" : "") +
+      (block.stale ? " · block was out of date and has been rebuilt at 100%" : "") +
       skipNote(cut.skipped),
   };
 }
@@ -148,7 +154,7 @@ function blockPlan(rows, opts, cut) {
 /**
  * @param {PipelineRow[]} rows
  * @param {number} target
- * @param {boolean} mirror
+ * @param {boolean} [mirror]
  * @returns {number | null}
  */
 function mirrorPair(rows, target, mirror) {
@@ -210,7 +216,9 @@ function rowPlan(rows, target, opts, cut) {
  * @returns {ImportPlan}
  */
 function structuralPlan(rows, opts, cut) {
-  const rec = opts.structural;
+  // planEqImport routes here only on a recognized structural block; `structural`
+  // is optional on ImportOpts because the other two paths never carry one.
+  const rec = /** @type {StructuralRecognition} */ (opts.structural);
   const ear = (/** @type {"left" | "right"} */ side) => {
     const base = opts.replace ? "" : rec.eqProcess[side];
     return base ? `${base},${cut.addition}` : cut.addition;

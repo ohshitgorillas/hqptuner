@@ -219,7 +219,7 @@ function OptionRow({ o, i, row }) {
                 // never reaches the row's own click — a star toggle must not
                 // commit the option or close the pop
                 if (e && e.stopPropagation) e.stopPropagation();
-                onFav(o);
+                onFav?.(o); // the star only renders with `fav`, and callers pass the pair
               }}
             >
               ${fav(o) ? "★" : "☆"}

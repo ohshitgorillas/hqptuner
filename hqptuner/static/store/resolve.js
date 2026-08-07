@@ -47,6 +47,14 @@ export const configByName = byName(config);
 // (endpoint "matrix" in the schema).
 export const matrixByName = byName(matrixConfig);
 
+// SchemaField's lane-specific keys are declared optional because a live-lane entry
+// carries stateField/liveKey and an http-lane one carries field — each lane's
+// entries always have their own, but the type has no discriminator to say so.
+// These read a key for a lane; the "" an absent key falls back to misses every
+// lookup exactly as the undefined key it stands in for already did.
+const fieldKey = (/** @type {SchemaField} */ e) => e.field || "";
+const stateKey = (/** @type {SchemaField} */ e) => e.stateField || "";
+
 // http-lane field source: /matrix for endpoint "matrix", /config otherwise.
 /**
  * @param {SchemaField} entry
@@ -65,7 +73,7 @@ export function httpFieldMap(entry) {
  * @returns {string}
  */
 export function formFieldName(entry) {
-  return entry.formField || entry.field;
+  return entry.formField || fieldKey(entry);
 }
 
 // Matrix tab read model: the pipeline rows as the backend parser grouped them.
@@ -148,7 +156,8 @@ export const activePreset = computed(() => (config.value && config.value.active)
  */
 function previewedValue(entry) {
   const preview = previewConfig.value;
-  return preview && entry.field in preview ? { value: preview[entry.field] } : null;
+  const key = fieldKey(entry);
+  return preview && key in preview ? { value: preview[key] } : null;
 }
 
 // The config XML is wider than the form for a few settings — volume_fixed is
@@ -166,7 +175,7 @@ function previewedValue(entry) {
  */
 function fileValue(entry) {
   if (!entry.fileTruth && !entry.appliesLive) return null;
-  const fv = fileConfig.value[entry.field];
+  const fv = fileConfig.value[fieldKey(entry)];
   return fv !== undefined ? { value: fv } : null;
 }
 
@@ -189,7 +198,7 @@ function formValue(entry) {
  * @returns {string | number | boolean | undefined}
  */
 function baseline(entry) {
-  if (entry.lane === "live") return (engineState.value || {})[entry.stateField];
+  if (entry.lane === "live") return (engineState.value || {})[stateKey(entry)];
   // Not a form field: with no file truth (read-only mode) formValue finds nothing
   // and it reads permanently dirty against undefined. pipelineBaseline already
   // picks file-truth-or-form-rows; re-canonicalized to keep the compare a string.
@@ -205,10 +214,10 @@ function baseline(entry) {
 function stagedValue(entry) {
   const st = staged.value;
   if (entry.lane === "live") {
-    const bucket = st.live[entry.liveKey];
+    const bucket = st.live[entry.liveKey || ""];
     return bucket ? bucket[entry.arg || "value"] : undefined;
   }
-  return st.http[entry.field];
+  return st.http[fieldKey(entry)];
 }
 
 // runningValue(key) — the ACTIVE engine/daemon value only: live state or the
@@ -222,9 +231,9 @@ function stagedValue(entry) {
 export function runningValue(key) {
   const e = schema[key];
   if (!e) return undefined;
-  if (e.lane === "live") return (engineState.value || {})[e.stateField];
+  if (e.lane === "live") return (engineState.value || {})[stateKey(e)];
   if (e.fileTruth || e.appliesLive) {
-    const fv = fileConfig.value[e.field];
+    const fv = fileConfig.value[fieldKey(e)];
     if (fv !== undefined) return fv;
   }
   const f = httpFieldMap(e)[formFieldName(e)];

@@ -37,7 +37,7 @@ export const liveModel = computed(() => {
       field: "mode",
       ...catalog("output_mode"),
       value: modeValue(),
-      options: grayModesByDevice(schema.output_mode.options),
+      options: grayModesByDevice(schema.output_mode.options || []),
     },
     pcmRate: rateColumn("pcm"),
     sdmRate: rateColumn("sdm"),

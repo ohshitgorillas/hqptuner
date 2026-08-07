@@ -10,7 +10,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { effectivePipelines, pipelineBaseline } from "../store/resolve.js";
-import { parseProcess } from "../lib/matrixspec.js";
+import { parseProcess, stageArgs } from "../lib/matrixspec.js";
 import { PlotFrame } from "./plots.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
@@ -115,13 +115,14 @@ function rowHandles(rows, plotted) {
   const sel = selectedStage.value;
   plotted.forEach((i, k) => {
     withDrag(rows, i).forEach((/** @type {Stage} */ s, /** @type {number} */ j) => {
-      if (s.kind !== "iir" || !GAIN_TYPES.has(s.args.type)) return;
-      const f = Number(s.args.f);
-      const g = Number(s.args.g);
+      const args = stageArgs(s);
+      if (s.kind !== "iir" || !GAIN_TYPES.has(args.type)) return;
+      const f = Number(args.f);
+      const g = Number(args.g);
       if (!Number.isFinite(f) || !Number.isFinite(g)) return;
       // drag-readout label: pipeline number + type, plus the width arg the drag
       // holds fixed (q/bw/s) so the readout states the band's full identity
-      const width = s.args.q ? ` Q${s.args.q}` : s.args.bw ? ` bw${s.args.bw}` : s.args.s ? ` S${s.args.s}` : "";
+      const width = args.q ? ` Q${args.q}` : args.bw ? ` bw${args.bw}` : args.s ? ` S${args.s}` : "";
       handles.push({
         f,
         db: g,
@@ -129,7 +130,7 @@ function rowHandles(rows, plotted) {
         // auto-scaled viewport — the visible axis must never cap a drag
         dbMin: BAND_ARGS.g.min,
         dbMax: BAND_ARGS.g.max,
-        label: `${i + 1} · ${s.args.type}${width}`,
+        label: `${i + 1} · ${args.type}${width}`,
         kind: HUES[k % HUES.length],
         active: !!(sel && sel.row === i && sel.stage === j),
         // grabbing the dot selects the band, so the strip and docked editor

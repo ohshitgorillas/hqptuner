@@ -67,7 +67,7 @@ function liveFailure(report) {
 // folded into the generic message: it is the one cause with an obvious remedy
 // (power the NAA back on), so it earns its own wording.
 /**
- * @param {PersistentResult} p
+ * @param {PersistentResult} [p] absent when the apply carried no persistent lane
  * @returns {Verdict | null}
  */
 function persistentFailure(p) {
@@ -90,7 +90,7 @@ const switchName = (/** @type {SwitchResult} */ sw) => (sw.name ? `"${sw.name}"`
 
 // What went right, before the save lane is appended.
 /**
- * @param {SwitchResult} sw
+ * @param {SwitchResult | undefined} sw absent when the apply switched no preset
  * @param {number} count
  * @returns {string}
  */
@@ -106,7 +106,7 @@ function successText(sw, count) {
 // reporting it as failed is what sent a user hunting for a preset already there.
 /**
  * @param {string} base
- * @param {SaveResult} saved
+ * @param {SaveResult} [saved] absent when the apply saved no preset
  * @returns {Verdict}
  */
 function savedSummary(base, saved) {

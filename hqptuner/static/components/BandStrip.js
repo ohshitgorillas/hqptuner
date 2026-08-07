@@ -6,7 +6,7 @@
 // coefficients) and non-iir stages keep the docked editor only.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { parseProcess, serializeProcess, IIR_TYPES } from "../lib/matrixspec.js";
+import { parseProcess, serializeProcess, stageArgs, IIR_TYPES } from "../lib/matrixspec.js";
 import { clamp } from "../lib/coerce.js";
 import { stagePipelines } from "../store/actions.js";
 import { Knob } from "./Knob.js";
@@ -120,9 +120,10 @@ function stripTarget(rows) {
   if (!sel || sel.row >= rows.length) return null;
   const st = withDrag(rows, sel.row)[sel.stage];
   if (!st || st.kind !== "iir") return null;
-  const schema = IIR_TYPES[st.args.type];
+  const args = stageArgs(st);
+  const schema = IIR_TYPES[args.type];
   if (!schema) return null;
-  const shown = [...schema.args, ...(schema.oneOf || [])].filter((a) => BAND_ARGS[a] && st.args[a] !== undefined);
+  const shown = [...schema.args, ...(schema.oneOf || [])].filter((a) => BAND_ARGS[a] && args[a] !== undefined);
   return shown.length ? { sel, st, shown } : null;
 }
 
@@ -165,7 +166,7 @@ function slotArgs(t) {
 function BandKnob({ rows, t, a }) {
   const spec = BAND_ARGS[a];
   const live = !!(t && t.shown.includes(a));
-  const v = live ? Number(t.st.args[a]) : IDLE_VALS[a];
+  const v = live ? Number(stageArgs(t.st)[a]) : IDLE_VALS[a];
   const patch = (/** @type {number} */ nv) => {
     const n = Number(nv);
     return Number.isFinite(n) ? { [a]: String(spec.round(clamp(n, spec.min, spec.max))) } : null;
@@ -213,7 +214,7 @@ function BandKnob({ rows, t, a }) {
 export function BandStrip({ rows }) {
   const t = stripTarget(rows);
   const head = t
-    ? html`<div class="t-label mono">${stripName(rows, t.sel)} · ${t.st.args.type}</div>`
+    ? html`<div class="t-label mono">${stripName(rows, t.sel)} · ${stageArgs(t.st).type}</div>`
     : html`<div class="t-caption">No band selected — click a stage chip or a plot dot to edit it here.</div>`;
   return html`
     <div class="band-strip">

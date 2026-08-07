@@ -57,7 +57,7 @@ const choicesList = (q) => html`
   <span class="ask ask-choices">
     <span class="multi-pop ask-pop">
       <span class="ask-msg">${q.message}</span>
-      ${q.options.map(
+      ${(q.options || []).map(
         (o) => html`
           <label class=${o.disabled ? "ask-choice-pinned" : ""}>
             <input

@@ -143,7 +143,8 @@ function Gate({ rows, active }) {
       edit("crossfeed_enabled", v);
     } else if (v === "1") {
       installStructural(rows);
-    } else {
+    } else if (rec) {
+      // BYPASS only reads as a change when a block is installed — `on` is !!rec
       removeStructural(rows, rec);
       issueNote.value = "";
     }

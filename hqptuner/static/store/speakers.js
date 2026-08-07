@@ -8,6 +8,7 @@
 import { signal } from "@preact/signals";
 
 import { api } from "../lib/api.js";
+import { errText } from "../lib/errtext.js";
 
 export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
 export const speakersStale = signal(false);
@@ -21,14 +22,9 @@ export const speakersBusy = signal(false);
  *   DELETED rather than set empty, so "absent" means "leave the daemon's value".
  */
 
-// Anything can be thrown, so the parameter is `unknown` and the `.message` read
-// goes through one narrowing binding. The condition is unchanged: a falsy `e`
-// still short-circuits to String(e), and a non-Error object carrying a message
-// still yields that message — `instanceof Error` would have narrowed that away.
 /** @param {unknown} e */
 function fail(e) {
-  const err = /** @type {{ message?: unknown }} */ (e);
-  speakersError.value = String(e && err.message ? err.message : e);
+  speakersError.value = errText(e);
 }
 
 export async function loadSpeakers() {

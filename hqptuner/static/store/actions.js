@@ -4,6 +4,7 @@
 
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
+import { errText } from "../lib/errtext.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
@@ -141,11 +142,14 @@ export async function edit(key, value) {
   lastApply.value = null;
   /** @type {StageBody} */
   const body = { live: {}, http: {} };
+  // liveKey/field are optional on SchemaField for want of a lane discriminator
+  // (store/resolve.js); each lane's own entries always carry theirs.
   if (e.lane === "live") {
-    const prior = staged.value.live[e.liveKey] || {};
-    body.live[e.liveKey] = { ...prior, [e.arg || "value"]: String(value) };
+    const liveKey = e.liveKey || "";
+    const prior = staged.value.live[liveKey] || {};
+    body.live[liveKey] = { ...prior, [e.arg || "value"]: String(value) };
   } else {
-    body.http[e.field] = String(value);
+    body.http[e.field || ""] = String(value);
   }
   applyBauerCoupling(key, value, body.http);
   applyFixedVolumeCoupling(key, value, body.http);
@@ -227,7 +231,7 @@ async function applyLane(run, what) {
   try {
     return await run();
   } catch (e) {
-    lastApply.value = { ok: false, text: `${what} failed: ${e.message}` };
+    lastApply.value = { ok: false, text: `${what} failed: ${errText(e)}` };
     throw e;
   } finally {
     applying.value = false;

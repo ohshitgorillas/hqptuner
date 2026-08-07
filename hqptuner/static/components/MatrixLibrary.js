@@ -9,6 +9,7 @@
 import { signal } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { html } from "../lib/dom.js";
+import { errText } from "../lib/errtext.js";
 import { parseEqText } from "../lib/eqimport.js";
 import { previewEq } from "./MatrixPlot.js";
 
@@ -38,7 +39,7 @@ async function loadDb() {
     db.value = await api.autoeq();
     dbState.value = "";
   } catch (e) {
-    dbState.value = `library load failed: ${e.message}`;
+    dbState.value = `library load failed: ${errText(e)}`;
   }
 }
 

@@ -69,7 +69,7 @@ export function noteFor(key) {
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
 // selected option's label.
 /**
- * @param {{ value: string | number | undefined, label: string }[]} options
+ * @param {{ value: string | number | undefined, label: string }[] | undefined} options
  * @param {string | number | boolean | undefined} value
  * @returns {string}
  */
@@ -104,7 +104,9 @@ function joinFilter(name, fdb, aliases) {
 // quality source materials.", NS1's ultrasonic-noise warning. Those sentences sat
 // unread in the data until this joined them, so the UI stayed silent where the
 // manual warns. Empty parts drop out rather than leaving a stray separator.
-const joinProse = (/** @type {string[]} */ ...parts) => parts.filter(Boolean).join(" ");
+// Parts may be absent — an overlay entry carries `notes` only sometimes — which
+// is exactly what the filter drops.
+const joinProse = (/** @type {(string | undefined)[]} */ ...parts) => parts.filter(Boolean).join(" ");
 
 // A two-stage filter reads as its base prose plus the shared two-stage note, which
 // describes the variant rather than the filter and so comes last.
@@ -143,7 +145,7 @@ function shaperDescription(kind, name, md) {
 /**
  * @param {SchemaField} entry
  * @param {string | number | boolean | undefined} value
- * @param {{ value: string | number | undefined, label: string }[]} options
+ * @param {{ value: string | number | undefined, label: string }[] | undefined} options absent on the non-list widgets
  * @param {ControlProse} meta
  * @returns {string}
  */

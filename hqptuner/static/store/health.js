@@ -116,7 +116,8 @@ const usableSpeed = (/** @type {number} */ sp) => sp !== null && sp > 0;
  */
 function nextStreak(st, s) {
   const playing = Number(st.state) === PLAYING;
-  const sp = num(st.process_speed);
+  // an unreadable speed is 0, which usableSpeed rejects exactly as the null did
+  const sp = num(st.process_speed) ?? 0;
   const speedOk = playing && usableSpeed(sp);
   return {
     warn: step(s.warn, speedOk && sp < SPEED_WARN),
@@ -188,7 +189,7 @@ export const engineAlerts = computed(() => {
   const s = streak.value;
   const counters = trackCounters.value;
   return [
-    speedAlert(s, num(st.process_speed)),
+    speedAlert(s, num(st.process_speed) ?? 0),
     clipAlert(counters.clips),
     apodAlert(counters.apod, st.active_filter),
   ].filter(Boolean);

@@ -79,8 +79,9 @@ export function rowToRewText(row) {
   const skipped = [];
   stages.forEach((s, i) => {
     const r = stageBody(s, i + 1);
-    if (r.skip) skipped.push(r.skip);
-    else bodies.push(r.body);
+    // exactly one of the two is set; branching on the body is what narrows it
+    if (r.body) bodies.push(r.body);
+    else if (r.skip) skipped.push(r.skip);
   });
   const pre = preampLine(row || {});
   if (pre.skip) skipped.push(pre.skip);

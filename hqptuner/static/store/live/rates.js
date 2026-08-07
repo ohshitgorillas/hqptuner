@@ -106,6 +106,18 @@ export function wireRate(tier) {
 // that and no more.
 const UNOFFERED = "unavailable";
 
+// One column's list before device graying: the running family's is judged against
+// GetRates, the dormant one is offered whole. Both arrive as MenuOption[] — the
+// schema's bare table picks up no gray mark, which the type already allows.
+/**
+ * @param {string} key
+ * @param {boolean} enabled
+ * @returns {MenuOption[]}
+ */
+function columnOptions(key, enabled) {
+  return enabled ? rateOptions(key) : schema[key].options || [];
+}
+
 /**
  * @param {string} key
  * @returns {MenuOption[]}
@@ -118,8 +130,10 @@ function rateOptions(key) {
   // reports exactly that — verified live on 6.0.4 against an idle network backend.
   // Graying every tier against a list like that is what made the whole menu
   // unselectable, so a list with nothing in it to judge by judges nothing.
-  if (offered.size <= 1) return schema[key].options;
-  return schema[key].options.map((o) =>
+  // `options` is optional on SchemaField; every rate entry in the catalog has one.
+  const options = schema[key].options || [];
+  if (offered.size <= 1) return options;
+  return options.map((o) =>
     offeredMember(String(o.value), offered) ? o : { ...o, disabled: true, reason: UNOFFERED },
   );
 }
@@ -218,6 +232,6 @@ export function rateColumn(family) {
     // Device capability grays BOTH columns, running and dormant alike: what the
     // hardware can carry does not depend on which chain is loaded, so the column
     // GetRates has nothing to say about still knows its own device's ceiling.
-    options: grayRatesByDevice(enabled ? rateOptions(key) : schema[key].options, family),
+    options: grayRatesByDevice(columnOptions(key, enabled), family),
   };
 }

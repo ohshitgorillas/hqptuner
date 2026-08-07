@@ -123,7 +123,8 @@ function doImport(rows, targetIndex, { replace = false, mirror }) {
 // at an arbitrary pipeline. Input value resets so the same file re-fires.
 /** @param {{ target: HTMLInputElement }} e */
 function loadEqFile(e) {
-  const file = e.target.files[0];
+  // `files` is null on an input that is not type=file; this one always is
+  const file = (e.target.files || [])[0];
   if (!file) return;
   file.text().then((t) => {
     importText.value = t;

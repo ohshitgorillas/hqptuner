@@ -43,7 +43,7 @@ import { enums, metadata } from "./signals.js";
  *   One filter's narrowing record — the union of what the live description
  *   carries and what the static overlay fills in.
  * @property {string[]} genre
- * @property {number} quality null when the description carries no "n/5"
+ * @property {number|null} quality null when the description carries no "n/5"
  * @property {string[]} focus
  * @property {string} phase "" when the name carries no phase token
  * @property {string} length short | medium | long | xlong
@@ -52,14 +52,14 @@ import { enums, metadata } from "./signals.js";
  * @property {boolean} apodizing
  * @property {boolean} apodizingHalf
  * @property {boolean} upsampleOnly
- * @property {string} ratio null for the mode-split filters, which use the pair below
- * @property {string} ratioPcm
- * @property {string} ratioSdm
+ * @property {string|null} ratio null for the mode-split filters, which use the pair below
+ * @property {string|null} ratioPcm
+ * @property {string|null} ratioSdm
  */
 
 /**
- * @param {string} desc
- * @returns {number}
+ * @param {string} [desc]
+ * @returns {number|null}
  */
 function quality(desc) {
   const m = /\b(\d+)\s*\/\s*5/.exec(desc || "");
@@ -79,7 +79,7 @@ const TAIL_RE = new RegExp(`${ARROW}\\s*(.+?)\\s*$`);
 
 // "4/5 space, transients ⥮ Any" -> ["space", "transients"]; "1/5 ⥣ Int" -> []
 /**
- * @param {string} desc
+ * @param {string} [desc]
  * @returns {string[]}
  */
 function focus(desc) {
@@ -103,8 +103,8 @@ function focus(desc) {
 // only falls back on null, that truthy junk beat the correct static value.
 // Match the SHORT form; both spellings then land on the overlay's token.
 /**
- * @param {string} s
- * @returns {string}
+ * @param {string} [s]
+ * @returns {string|null}
  */
 function normRatio(s) {
   const raw = (s || "")
@@ -123,8 +123,8 @@ function normRatio(s) {
   return t;
 }
 /**
- * @param {string} desc
- * @returns {string}
+ * @param {string|null} [desc]
+ * @returns {string|null}
  */
 function ratioLive(desc) {
   const m = TAIL_RE.exec(desc || "");
@@ -136,9 +136,9 @@ function ratioLive(desc) {
 // at check time (narrowing.js). Every other filter has a single ratio: the live
 // wire value (active-mode authority) if present, else the static class.
 /**
- * @param {string} liveDesc
- * @param {StaticFilterEntry} s
- * @returns {{ ratio: string, ratioPcm: string, ratioSdm: string }}
+ * @param {string|null} [liveDesc]
+ * @param {StaticFilterEntry} [s]
+ * @returns {{ ratio: string|null, ratioPcm: string|null, ratioSdm: string|null }}
  */
 function ratioFacet(liveDesc, s) {
   if (s && (s.ratio_pcm != null || s.ratio_sdm != null)) {
@@ -230,7 +230,7 @@ function length(name) {
 // Y / ½ / N from the manual → the same shape the live arg bits produce: full sets
 // apodizing, half sets apodizingHalf, none sets neither.
 /**
- * @param {string} a
+ * @param {string} [a]
  * @returns {{ apodizing: boolean, apodizingHalf: boolean }}
  */
 function apodFromStatic(a) {
@@ -240,16 +240,16 @@ function apodFromStatic(a) {
 // Upsample-only ("up" in the manual's ratio column, e.g. "Integer up") — the
 // live wire ratio may carry it; else the static overlay's banked bit.
 /**
- * @param {string} desc
+ * @param {string} [desc]
  * @returns {boolean}
  */
 function upsampleLive(desc) {
   const m = TAIL_RE.exec(desc || "");
-  return m ? /\bup\b/i.test(m[1]) : false;
+  return m ? /\bup\b/i.test(m[1] || "") : false;
 }
 /**
- * @param {string} desc
- * @param {StaticFilterEntry} s
+ * @param {string} [desc]
+ * @param {StaticFilterEntry} [s]
  * @returns {boolean}
  */
 function upsampleFlag(desc, s) {
@@ -260,7 +260,7 @@ function upsampleFlag(desc, s) {
 // from arg bits, genre from the backend-merged static overlay.
 /**
  * @param {EnumItem} it
- * @param {StaticFilterEntry} s
+ * @param {StaticFilterEntry} [s]
  * @returns {FilterFacet}
  */
 function liveFacet(it, s) {

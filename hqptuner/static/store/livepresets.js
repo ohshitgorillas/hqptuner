@@ -13,6 +13,7 @@
 // the poll: it is read when LIVE opens and re-read after each save or delete.
 import { signal, effect } from "@preact/signals";
 import { api } from "../lib/api.js";
+import { errText } from "../lib/errtext.js";
 import { reportError } from "./live/state.js";
 import { remirrorLive } from "./live/write.js";
 import { liveMode } from "./prefs.js";
@@ -40,7 +41,7 @@ async function refreshLivePresets() {
     livePresets.value = body.presets || [];
   } catch (e) {
     livePresets.value = [];
-    livePresetError.value = e.message;
+    livePresetError.value = errText(e);
   }
 }
 
@@ -78,7 +79,7 @@ async function run(name, call, after) {
     const result = await call();
     if (after) await after(result);
   } catch (e) {
-    livePresetError.value = e.message;
+    livePresetError.value = errText(e);
   } finally {
     livePresetsBusy.value = "";
   }

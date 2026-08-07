@@ -14,6 +14,7 @@
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
 import { api } from "../lib/api.js";
+import { errText } from "../lib/errtext.js";
 import { config } from "../store/signals.js";
 import { effectivePipelines } from "../store/resolve.js";
 import { stagePipelines } from "../store/actions.js";
@@ -108,7 +109,7 @@ async function act(action, run) {
   try {
     await run();
   } catch (e) {
-    profileNote.value = `${action} failed: ${e.message}`;
+    profileNote.value = `${action} failed: ${errText(e)}`;
   } finally {
     profileBusy.value = "";
   }

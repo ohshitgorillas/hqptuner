@@ -176,7 +176,7 @@ export function xfeedLensTraces(rows, bounds) {
   if (!bs.enabled) return [];
   const pair = rec ? null : pairInfo(rows);
   const eqProcess = rec ? rec.eqProcess : pair && !pair.issue ? pair.eq : null;
-  if (eqProcess === null) return [];
+  if (!eqProcess) return [];
   const pct = currentPct(rec);
   const eq = parseProcess(eqProcess);
   const comp = parseProcess(compProcess(fitComp(bs.fc, bs.feed), pct / 100));
@@ -254,12 +254,18 @@ export function XfeedBadge() {
  */
 function xfcActions(rows, rec, pair, { pct, issue }) {
   if (!rec) {
+    // the two are complementary — an uninstalled block is exactly when the caller
+    // has a stereo pair to read — but nothing in the signature pairs them up
+    const p = /** @type {PairInfo} */ (pair);
+    // an eligible pair carries both — the button is disabled while `issue` is set
+    const eq = p.eq || "";
+    const preampDb = p.gain || 0;
     return html`<button
       type="button"
       class="mtx-tool mtx-primary"
       disabled=${!!issue}
       title=${issue || "Build the correction from pipelines 1+2 (they become 8 mid/side pipelines — see the Pipelines card)"}
-      onClick=${() => stageBlock(rows, { eq: pair.eq, preampDb: pair.gain }, pct, 2)}
+      onClick=${() => stageBlock(rows, { eq, preampDb }, pct, 2)}
     >
       Turn on
     </button>`;
@@ -308,7 +314,7 @@ export function XfeedStrip() {
   const rows = effectivePipelines.value;
   const { bs, rec } = xfeedBlock(rows);
   const pair = rec ? null : pairInfo(rows);
-  const issue = rec ? "" : pair.issue || "";
+  const issue = pair ? pair.issue || "" : "";
   const pct = currentPct(rec);
   const tilt = centerTiltDb(bs.fc, bs.feed);
   if (!bs.enabled && !rec) {

@@ -22,6 +22,22 @@
  *   exporter all read and write the same five fields.
  */
 
+// MatrixStage is a union in disguise: `args` belongs to the plugin stages and
+// `file` to the convolution stage, so each is absent on the other's kind and the
+// type cannot say which without a discriminator every consumer would have to
+// narrow on. These read one side; the empty value a wrong-kind stage yields is
+// what the absent key already meant — no args is no args, no file is no file.
+/**
+ * @param {MatrixStage} stage
+ * @returns {StageArgs}
+ */
+export const stageArgs = (stage) => stage.args || {};
+/**
+ * @param {MatrixStage} stage
+ * @returns {string}
+ */
+const stageFile = (stage) => stage.file || "";
+
 const PLUGINS = new Set(["iir", "delay", "riaa"]);
 
 /**
@@ -56,8 +72,8 @@ export function parseProcess(str) {
  * @returns {string}
  */
 function buildRaw(stage) {
-  if (stage.kind === "conv") return stage.file;
-  const args = Object.entries(stage.args)
+  if (stage.kind === "conv") return stageFile(stage);
+  const args = Object.entries(stageArgs(stage))
     .map(([k, v]) => (v === "" ? k : `${k}=${v}`))
     .join(";");
   return `${stage.kind}:${args}`;
@@ -120,7 +136,7 @@ const NUM = /^-?\d+(\.\d+)?([eE]-?\d+)?$/;
  * @returns {string[]}
  */
 function convIssues(stage) {
-  return stage.file.trim() ? [] : ["convolution stage has no file"];
+  return stageFile(stage).trim() ? [] : ["convolution stage has no file"];
 }
 
 /**
@@ -205,7 +221,7 @@ const KIND_ISSUES = { riaa: riaaIssues, delay: delayIssues, iir: iirIssues };
  */
 export function validateStage(stage) {
   if (stage.kind === "conv") return convIssues(stage);
-  return (KIND_ISSUES[stage.kind] || iirIssues)(stage.args);
+  return (KIND_ISSUES[stage.kind] || iirIssues)(stageArgs(stage));
 }
 
 // Fresh stage of a kind, with sensible defaults (add-stage lands editable).
@@ -291,7 +307,7 @@ const KIND_LABEL = { iir: iirLabel, delay: delayLabel };
  * @returns {string}
  */
 export function stageLabel(stage) {
-  if (stage.kind === "conv") return convLabel(stage.file);
+  if (stage.kind === "conv") return convLabel(stageFile(stage));
   const label = KIND_LABEL[stage.kind];
-  return label ? label(stage.args) : stage.kind; // riaa
+  return label ? label(stageArgs(stage)) : stage.kind; // riaa
 }

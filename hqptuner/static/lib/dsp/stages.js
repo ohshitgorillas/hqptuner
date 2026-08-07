@@ -36,6 +36,22 @@ import { convResponse } from "./impulse.js";
  *   matrixplot-traces.js, XfeedComp.js and StructuralXfeed.js.
  */
 
+// The two sides of that optionality, read one way. `args` belongs to the plugin
+// stages and `file` to conv, so each is absent on the other's kind; the empty
+// value returned for a wrong-kind stage is what the absent key already meant.
+// Local rather than imported from lib/matrixspec.js: `Stage` above is structural
+// on purpose, and dsp depends on no other module for it.
+/**
+ * @param {Stage} stage
+ * @returns {StageArgs}
+ */
+export const stageArgs = (stage) => stage.args || {};
+/**
+ * @param {Stage} stage
+ * @returns {string}
+ */
+export const stageFile = (stage) => stage.file || "";
+
 // Second-order types, dispatched by name. Shelves carry the gain into their
 // own alpha (A); the plain pass/reject types take A = 1 — they have no gain.
 /** @type {Record<string, (c: IirCtx) => Biquad>} */
@@ -129,13 +145,13 @@ export function riaaResponse(f, subsonic) {
  */
 export function stageResponse(stage, f, fs) {
   if (stage.kind === "iir") {
-    const c = iirStageCoeffs(stage.args, fs);
+    const c = iirStageCoeffs(stageArgs(stage), fs);
     return c && { db: biquadMagDb(c, f, fs), deg: biquadPhaseDeg(c, f, fs) };
   }
   if (stage.kind === "delay") {
-    return { db: 0, deg: wrapDeg(-360 * f * delaySeconds(stage.args, fs)) };
+    return { db: 0, deg: wrapDeg(-360 * f * delaySeconds(stageArgs(stage), fs)) };
   }
-  if (stage.kind === "riaa") return riaaResponse(f, stage.args.subsonic !== "0");
-  if (stage.kind === "conv") return convResponse(stage.file, f);
+  if (stage.kind === "riaa") return riaaResponse(f, stageArgs(stage).subsonic !== "0");
+  if (stage.kind === "conv") return convResponse(stageFile(stage), f);
   return null;
 }

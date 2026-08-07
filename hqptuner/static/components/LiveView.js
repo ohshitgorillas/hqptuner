@@ -17,6 +17,7 @@
 // it was refused".
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../lib/dom.js";
+import { errText } from "../lib/errtext.js";
 import { api } from "../lib/api.js";
 import { liveModel } from "../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../store/live/state.js";
@@ -292,7 +293,7 @@ async function switchProfile(name) {
     await api.matrixProfile("switch", name);
     await refreshConfig();
   } catch (e) {
-    profileError.value = e.message;
+    profileError.value = errText(e);
   } finally {
     profileBusy.value = false;
   }

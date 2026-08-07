@@ -81,7 +81,10 @@ const fmtDeltaF = (/** @type {number} */ df) => `${df >= 0 ? "+" : ""}${Math.rou
  *   caption?: string, y2Min?: number, y2Max?: number, handles?: FrameHandle[], autoColor?: boolean
  * }} props
  */
-export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min, y2Max, handles, autoColor }) {
+// y2Min/y2Max default only for the frames that carry no second axis at all —
+// yOf2 is reached solely from a trace flagged `y2`, which only the callers that
+// pass the pair produce.
+export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min = 0, y2Max = 1, handles, autoColor }) {
   const plotH = height - PADT - PADB;
   const yOf = (/** @type {number} */ db) => PADT + (1 - (clamp(db, yMin, yMax) - yMin) / (yMax - yMin)) * plotH;
   const yOf2 = (/** @type {number} */ v) => PADT + (1 - (clamp(v, y2Min, y2Max) - y2Min) / (y2Max - y2Min)) * plotH;
@@ -242,6 +245,7 @@ function dragStarter({ yMin, yMax, height, plotH }) {
   return (h) => (e) => {
     if (h.onSelect) h.onSelect(); // grabbing a dot selects its band (docks strip + editor)
     const svg = e.target.ownerSVGElement;
+    if (!svg) return; // the handle is an SVG child; nothing to measure against otherwise
     const rect = svg.getBoundingClientRect();
     const x0 = e.clientX;
     const y0 = e.clientY;

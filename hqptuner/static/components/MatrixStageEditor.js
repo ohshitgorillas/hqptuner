@@ -6,8 +6,9 @@
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
 import { api } from "../lib/api.js";
+import { errText } from "../lib/errtext.js";
 import { registerIr } from "../lib/dsp/impulse.js";
-import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
+import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage, stageArgs } from "../lib/matrixspec.js";
 import { selectedStage } from "./BandStrip.js";
 import { hz } from "../lib/units.js";
 
@@ -78,7 +79,8 @@ const uploadNote = signal("");
 /** @param {{ stage: MatrixStage, commit: Commit }} props */
 function ConvEditor({ stage, commit }) {
   const onFile = async (/** @type {{ target: HTMLInputElement }} */ e) => {
-    const file = e.target.files[0];
+    // `files` is null on an input that is not type=file; this one always is
+    const file = (e.target.files || [])[0];
     if (!file) return;
     uploadNote.value = "uploading…";
     try {
@@ -89,7 +91,7 @@ function ConvEditor({ stage, commit }) {
         sr && sr !== 352800 ? `uploaded · ${hz(sr, 1)} — 352.8 kHz is recommended for full-band use` : "uploaded";
       commit({ file: r.path });
     } catch (err) {
-      uploadNote.value = `upload failed: ${err.message}`;
+      uploadNote.value = `upload failed: ${errText(err)}`;
     }
   };
   return html`
@@ -112,7 +114,7 @@ function ConvEditor({ stage, commit }) {
 
 /** @param {{ stage: MatrixStage, commit: Commit }} props */
 function IirEditor({ stage, commit }) {
-  const type = stage.args.type || "";
+  const type = stageArgs(stage).type || "";
   const schema = /** @type {Record<string, IirSchema>} */ (IIR_TYPES)[type] || { args: [], oneOf: [] };
   const argNames = [...schema.args, ...(schema.oneOf || [])];
   return html`
@@ -131,7 +133,7 @@ function IirEditor({ stage, commit }) {
         (a) =>
           html`<${ArgInput}
             label=${a}
-            value=${stage.args[a]}
+            value=${stageArgs(stage)[a]}
             onInput=${(/** @type {string} */ v) => commit({ [a]: v })}
           />`,
       )}
@@ -147,7 +149,7 @@ function DelayEditor({ stage, commit }) {
         (a) =>
           html`<${ArgInput}
             label=${a}
-            value=${stage.args[a]}
+            value=${stageArgs(stage)[a]}
             onInput=${(/** @type {string} */ v) => commit({ [a]: v })}
           />`,
       )}
@@ -162,7 +164,7 @@ function RiaaEditor({ stage, commit }) {
       <label class="mtx-arg">
         <span>subsonic</span>
         <select
-          value=${stage.args.subsonic ?? "1"}
+          value=${stageArgs(stage).subsonic ?? "1"}
           onWheel=${wheelGuard}
           onChange=${(/** @type {{ target: HTMLSelectElement }} */ e) => commit({ subsonic: e.target.value })}
         >

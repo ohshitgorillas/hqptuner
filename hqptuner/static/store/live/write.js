@@ -18,6 +18,7 @@
 // a live change costs mid-stream is the user's to spend, and the captions say so.
 
 import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
 import { engineState, enums } from "../signals.js";
 import { refreshConfig } from "../sync.js";
 import { liveBusy, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./state.js";
@@ -82,7 +83,7 @@ export async function writeLive(field, value) {
     // assume, best effort — if the daemon is gone the read fails too, and the
     // mirrors are then as current as anything can make them.
     await remirrorLive([field]).catch(() => {});
-    setError(field, e.message);
+    setError(field, errText(e));
   } finally {
     liveBusy.value = "";
   }

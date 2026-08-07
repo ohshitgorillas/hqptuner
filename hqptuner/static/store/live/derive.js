@@ -45,7 +45,7 @@ export const idOptions = (/** @type {string} */ key) => items(key).map((o) => ({
  */
 export function idValue(key, attr) {
   const item = atIndex(items(key), stateOf(attr));
-  return item ? item.value : "";
+  return (item && item.value) || "";
 }
 
 // Every control here names its catalog key, and its words are then the tab
@@ -89,5 +89,5 @@ export function modeValue() {
 // belongs to no tier and reads as "" (the engine has no pin of its own).
 export function rateValue() {
   const item = atIndex(items("rates"), stateOf("rate"));
-  return TIER[item ? item.rate : ""] || "";
+  return TIER[(item && item.rate) || ""] || "";
 }

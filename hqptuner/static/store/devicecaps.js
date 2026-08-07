@@ -51,7 +51,10 @@ const backend = () => String(effective("backend") || "");
 
 // Both members of a tier — the menu's own 48k value and its 44.1k twin. A device
 // announcing either can play that tier, so both are asked about.
-const members = (/** @type {string | number | undefined} */ tier) => [String(tier), TWIN_44K[tier]].filter(Boolean);
+const members = (/** @type {string | number | undefined} */ tier) => {
+  const t = String(tier);
+  return [t, TWIN_44K[t]].filter(Boolean);
+};
 
 // The capability, but only when it is about the device the user is looking at.
 // The backend compares its announcement against the APPLIED device; the staged
@@ -154,7 +157,7 @@ const corrected = new Map();
 
 /**
  * @param {string} key
- * @param {string | number | undefined} value
+ * @param {string | number} value
  * @returns {void}
  */
 function correct(key, value) {
@@ -168,11 +171,13 @@ function correct(key, value) {
 /**
  * @param {DeviceCaps} caps
  * @param {string} family
- * @returns {string | number | undefined}
+ * @returns {string | number}
  */
 function highestReachable(caps, family) {
-  const reachable = schema[RATE_KEY[family]].options.filter((o) => REACHES[family](caps, o.value));
-  return reachable.length ? reachable[reachable.length - 1].value : "";
+  const options = schema[RATE_KEY[family]].options || [];
+  const reachable = options.filter((o) => REACHES[family](caps, o.value));
+  const highest = reachable[reachable.length - 1];
+  return highest ? highest.value : "";
 }
 
 /**

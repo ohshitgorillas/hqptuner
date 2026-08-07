@@ -206,7 +206,10 @@ const fillStyle = (pct, anchor) => {
  * @returns {{ drag: ValueSink, commit: ValueSink, split: boolean }}
  */
 function events({ onChange, onDrag, onCommit }) {
-  return { drag: onDrag || onChange, commit: onCommit || onChange, split: !!(onDrag || onCommit) };
+  // a control wired to none of the three has nowhere to send a value; the no-op
+  // keeps that a dead knob rather than a throw on first drag
+  const noop = () => {};
+  return { drag: onDrag || onChange || noop, commit: onCommit || onChange || noop, split: !!(onDrag || onCommit) };
 }
 
 // The number half: the figure, an optional unit sharing its chrome, and an
