@@ -15,7 +15,7 @@ const GAIN_UNITS = new Set(["dB", "Lin"]);
 const hasControlChar = (text) => [...text].some((c) => c.codePointAt(0) < 0x20);
 
 /** One row in the canonical shape: five keys, alphabetical, all strings. */
-export const canonRow = (r) => ({
+const canonRow = (r) => ({
   gain: String(r.gain ?? "0"),
   gainunit: r.gainunit || "dB",
   mixdown: String(r.mixdown ?? "0"),
@@ -100,7 +100,7 @@ export async function resolveEq(spec) {
  * run of parametric-EQ stages, so a crossfeed lead-in (`lp1`, `delay`, a
  * convolution) survives; `append` keeps everything and adds the bands after it.
  */
-export function processWith(process, stages, mode) {
+function processWith(process, stages, mode) {
   const existing = parseProcess(process || "");
   const kept = mode === "append" ? existing : existing.slice(0, existing.length - eqTail(existing).length);
   return serializeProcess([...kept, ...stages]);
