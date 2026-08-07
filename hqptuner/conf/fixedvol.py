@@ -19,7 +19,7 @@ _COMMENTED_FIXED_RE = re.compile(rb"\n?[ \t]*<!--\s*<fixed\b[^>]*/>\s*-->")
 
 
 def find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
-    """The live ``<fixed .../>`` element, or None.
+    """Find the live ``<fixed .../>`` element, or None.
 
     The daemon parks the remembered level in a commented one when the feature is off.
     """
@@ -31,7 +31,7 @@ def fixed_level_of(tag: bytes) -> str | None:
 
 
 def any_fixed_level(xml: bytes) -> str | None:
-    """The level off the first ``<fixed>`` tag anywhere.
+    """Read the level off the first ``<fixed>`` tag anywhere.
 
     That is the active element, or the commented-out one a disabled level is parked in. None when this config has
     never carried a fixed volume at all, which is different from carrying 0 dBFS.
@@ -96,7 +96,7 @@ def _insert_root_child(xml: bytes, tag: bytes) -> bytes:
 
 
 def _insert_fixed(xml: bytes, level: str) -> bytes:
-    """The live ``<fixed volume="level"/>`` — its presence is what "enabled" means."""
+    """Insert the live ``<fixed volume="level"/>`` — its presence is what "enabled" means."""
     return _insert_root_child(xml, f'<fixed volume="{level}"/>'.encode())
 
 

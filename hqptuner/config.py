@@ -10,7 +10,7 @@ def _env(name: str, default: str) -> str:
 
 
 def _optional_path(name: str) -> Path | None:
-    """A path var that is OFF when unset.
+    """Read a path var that is OFF when unset.
 
     An empty value is not a path to the current directory, it is the absence of one.
     """

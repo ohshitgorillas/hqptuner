@@ -66,7 +66,7 @@ class TrackContext:
 
 
 def context_from(manager: "ConnectionManager") -> TrackContext | None:
-    """The reader's view of the manager's last poll — None while unreachable."""
+    """Return the reader's view of the manager's last poll — None while unreachable."""
     status = manager.status
     if not manager.reachable or status is None:
         return None
@@ -181,7 +181,7 @@ class MeteringReader:
         self._stop.set()
 
     def recommendation(self) -> dict[str, Any] | None:
-        """The advisor's verdict for the current track, or None.
+        """Return the advisor's verdict for the current track, or None.
 
         Computed on demand — the status route calls this once per poll. A verdict latches for the rest of the track:
         the signature is a property of the source, and loud music masking it from the detector later in the track does

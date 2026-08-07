@@ -102,7 +102,7 @@ def segments(command: str) -> list[list[str]]:
 
 
 def bash_class(command: str) -> str:
-    """The severity-ranked class of a shell command, over all its segments."""
+    """Return the severity-ranked class of a shell command, over all its segments."""
     found = {_segment_class(hook._cmd_name(t[0]), t[1:]) for t in segments(command)}
     return next((c for c in CLASS_ORDER if c in found), "other")
 
@@ -203,7 +203,7 @@ clean_reply = hook.clean_reply
 
 
 def human_turns(rows: list[JsonDict]) -> list[int]:
-    """Indices of every human row — the period boundaries these analysers use.
+    """Return indices of every human row — the period boundaries these analysers use.
 
     Deliberately ``is_human_row``, not ``is_genuine_reply``: a period here is a
     unit of observation, and the wider boundary is what the historical numbers

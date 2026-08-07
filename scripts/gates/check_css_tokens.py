@@ -108,12 +108,12 @@ def shape_complaint(prop: str, value: str) -> str:
 
 
 def is_spacing(prop: str) -> bool:
-    """True for the properties that carry the page's rhythm."""
+    """Report whether this property is one that carries the page's rhythm."""
     return prop == "gap" or prop.endswith("-gap") or prop.startswith(("margin", "padding"))
 
 
 def components(value: str) -> list[str]:
-    """A shorthand's values, split on whitespace but never inside parentheses.
+    """Return a shorthand's values, split on whitespace but never inside parentheses.
 
     `calc(-1 * var(--sp-1)) 0 var(--sp-1)` is three components, not five: a
     naive split would tear the calc() apart and read its interior as siblings.
@@ -132,7 +132,7 @@ def components(value: str) -> list[str]:
 
 
 def vertical_parts(prop: str, value: str) -> list[str]:
-    """The components of one declaration that set space above or below.
+    """Return the components of one declaration that set space above or below.
 
     Empty for anything horizontal, which is how `margin: 0 var(--gutter)` — the
     chrome rows' own inset — stays clear of a rule about sibling rhythm.

@@ -116,7 +116,7 @@ class PresetStore:
         return self._path(name).is_file()
 
     def read(self, name: str) -> bytes:
-        """The preset's full config XML. Raises ``PresetError`` if absent."""
+        """Return the preset's full config XML. Raises ``PresetError`` if absent."""
         self._meta()
         path = self._path(name)
         if not path.is_file():

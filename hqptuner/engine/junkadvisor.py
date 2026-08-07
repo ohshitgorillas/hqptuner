@@ -89,7 +89,7 @@ def classify(  # noqa: PLR0913
     min_levels_db: list[float] | None = None,
     filter_name: str | None = None,
 ) -> dict[str, Any] | None:
-    """The recommendation for this aggregate, or None when there is nothing to say.
+    """Return the recommendation for this aggregate, or None when there is nothing to say.
 
     ``levels_db`` is the mean power spectrum (dB, one value per bin up to ``bandwidth`` = the source Nyquist);
     ``min_levels_db`` is the windowed per-bin minimum spectrum the spur rule reads, or None while the window has not yet
@@ -198,7 +198,7 @@ def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerat
 
 
 def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] | None:
-    """The spur verdict for the windowed minimum spectrum, or None when no persistent tone stands out.
+    """Return the spur verdict for the windowed minimum spectrum, or None when no persistent tone stands out.
 
     Spurs are hunted in the RAW per-bin values of the windowed minimum spectrum against that spectrum's own wide median
     baseline: a persistent tone is only a few bins wide, which is exactly what the working curve's 9-bin median erases —

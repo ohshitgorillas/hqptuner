@@ -39,7 +39,7 @@ _REDACTED = "***"
 
 
 def resolve_level(value: str) -> int:
-    """The logging level ``value`` names, INFO when it names nothing.
+    """Return the logging level ``value`` names, INFO when it names nothing.
 
     A misspelled level in the environment must not stop the daemon from
     starting: the operator wanted different logging, not no application.
@@ -89,7 +89,7 @@ def _scrub_member(key: str, value: Any, path: str, digests: dict[str, str]) -> A
 
 
 def _row_count(rows: str) -> int:
-    """The number of pipeline rows ``rows`` carries — 0 when it is not a row set at all.
+    """Count the pipeline rows ``rows`` carries — 0 when it is not a row set at all.
 
     A payload that does not parse is exactly what a reader needs to see recorded, so this reports rather than
     raises.
@@ -128,11 +128,11 @@ class AuditLog:
         return out
 
     def tail(self, n: int) -> list[dict[str, Any]]:
-        """The ``n`` most recent records, newest last."""
+        """Return the ``n`` most recent records, newest last."""
         return self.records()[-n:] if n > 0 else []
 
     def _resume_seq(self) -> int:
-        """The sequence number to continue from.
+        """Return the sequence number to continue from.
 
         Reopening a log therefore does not restart the counter and make two records look like the same event.
         """

@@ -64,7 +64,7 @@ _SCOPE_CLOSE = b"</matrix></engine></hqplayerd>"
 
 
 def _profile_open(xml: bytes, name: str) -> re.Match[bytes]:
-    """The named profile's open tag.
+    """Find the named profile's open tag.
 
     Raises when the snapshot has no such profile — never a fallback to the live matrix: writing the Default context
     while the caller believes it is editing a profile is the whole defect being fixed.
@@ -100,7 +100,7 @@ def _profile_body_span(xml: bytes, name: str) -> tuple[int, int]:
 
 
 def matrix_scope(xml: bytes, profile: str | None) -> bytes:
-    """The bytes a matrix-scoped reader should read.
+    """Return the bytes a matrix-scoped reader should read.
 
     That is the named profile's body in its synthetic wrapper, or ``xml`` whole when no profile is active.
 

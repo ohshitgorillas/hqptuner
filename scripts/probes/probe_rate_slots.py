@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: how do hqplayerd's two per-family rate slots interact?
+"""Probe how hqplayerd's two per-family rate slots interact.
 
 The daemon carries two rate settings per output family, and its own ``/config``
 form labels them apart:
@@ -72,7 +72,7 @@ FAMILY_48K = {
 
 
 def _describe(hz: str) -> str:
-    """A rate in Hz as ``DSD512 (44.1k family)``, or bare Hz when unrecognised."""
+    """Return a rate in Hz as ``DSD512 (44.1k family)``, or bare Hz when unrecognised."""
     if hz in FAMILY_44K:
         return f"{FAMILY_44K[hz]} (44.1k family)"
     if hz in FAMILY_48K:
@@ -81,7 +81,7 @@ def _describe(hz: str) -> str:
 
 
 def _index_for(rates: list[dict[str, str]], hz: str) -> str | None:
-    """The ``RatesItem`` index carrying this rate in Hz (``SetRate`` takes the index)."""
+    """Return the ``RatesItem`` index carrying this rate in Hz (``SetRate`` takes the index)."""
     return next((item["index"] for item in rates if item.get("rate") == hz), None)
 
 

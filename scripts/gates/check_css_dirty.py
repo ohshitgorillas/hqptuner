@@ -89,12 +89,12 @@ def blocks_with_source() -> list[tuple[Path, list[str], Block]]:
 
 
 def inset_accent(decl: str) -> bool:
-    """True when this declaration is an inset box-shadow painted in the accent."""
+    """Report whether this declaration is an inset box-shadow painted in the accent."""
     return bool(BOX_SHADOW.match(decl)) and "inset" in decl and "--accent" in decl
 
 
 def exempted(lines: list[str], first: int, last: int) -> bool:
-    """True when the block, or the line above it, carries a pragma with a reason."""
+    """Report whether the block, or the line above it, carries a pragma with a reason."""
     return any(EXEMPT.search(line) for line in lines[max(first - 2, 0) : last])
 
 
@@ -152,7 +152,7 @@ def check_ring_rules(kinds: set[str], blocks: list[tuple[Path, list[str], Block]
 
 
 def ring_scoped(selector: str) -> bool:
-    """True when every dirty part of this selector names a borderless widget."""
+    """Report whether every dirty part of this selector names a borderless widget."""
     parts = [part for part in selector.split(",") if ".dirty" in part]
     return bool(parts) and all(any(f".field-{kind}." in part for kind in RING_WIDGETS) for part in parts)
 

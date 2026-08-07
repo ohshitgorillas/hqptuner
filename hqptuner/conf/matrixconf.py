@@ -111,7 +111,7 @@ def _validate_row(row: Any) -> dict[str, str]:
 
 
 def _rows_from_list(raw: Any, field: str) -> list[dict[str, str]]:
-    """A validated row set from an already-parsed list.
+    """Build a validated row set from an already-parsed list.
 
     Shared by the pipeline table and a saved profile — one row contract, so a
     profile can never hold a row the live table would have refused.
@@ -143,7 +143,7 @@ def _pipeline_tag(channel: int, row: dict[str, str]) -> bytes:
 
 
 def _rows_of(body: bytes) -> list[dict[str, str]]:
-    """The ``<pipeline>`` rows of one element body, in form-field terms.
+    """Read the ``<pipeline>`` rows of one element body, in form-field terms.
 
     One parser for the live table and for a saved profile.
     """
@@ -230,7 +230,7 @@ def _replace_post_process(xml: bytes, post: bytes) -> bytes:
 
 
 def read_pipelines(xml: bytes) -> str | None:
-    """The ``<matrix>`` element's pipeline rows as canonical JSON, or None when there is no matrix body.
+    """Read the ``<matrix>`` element's pipeline rows as canonical JSON, or None when there is no matrix body.
 
     Canonical means sorted keys and compact separators, on both sides of the
     verify diff — intended and realized configs run through this same
@@ -247,7 +247,7 @@ def read_pipelines(xml: bytes) -> str | None:
 
 
 def _validate_name(name: Any) -> str:
-    """A profile name fit for an XML attribute.
+    """Return a profile name fit for an XML attribute.
 
     Escaping alone is not enough: the name is also this element's identity, so an
     empty or control-character name would produce a profile nothing can address
@@ -266,7 +266,7 @@ def _validate_name(name: Any) -> str:
 
 
 def _profile_re(name: str) -> re.Pattern[bytes]:
-    """The whole ``<matrix_profile>`` element for one name, self-closing or not.
+    """Match the whole ``<matrix_profile>`` element for one name, self-closing or not.
 
     The match includes the newline and indentation in front of the element so a
     delete leaves no blank line behind. The closing quote is part of the pattern,
@@ -299,7 +299,7 @@ def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
 
 
 def _live_post_process(xml: bytes) -> bytes:
-    """The live ``<matrix>``'s ``<post_process>`` element, verbatim.
+    """Read the live ``<matrix>``'s ``<post_process>`` element, verbatim.
 
     b"" when the snapshot has no matrix body or the matrix carries no chain.
 
@@ -316,7 +316,7 @@ def _live_post_process(xml: bytes) -> bytes:
 
 
 def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: bytes) -> bytes:
-    """A complete profile element, laid out like its ``<matrix>`` sibling.
+    """Build a complete profile element, laid out like its ``<matrix>`` sibling.
 
     It carries the pipeline rows and the post-process chain that was live at save
     time.
@@ -330,7 +330,7 @@ def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: byt
 
 
 def _validate_targets(raw: dict[str, Any], field: str) -> list[str]:
-    """The payload's fan-out preset names.
+    """Return the payload's fan-out preset names.
 
     These are the stored presets the profile verb also applies to, beyond the
     config being edited. Optional; [] when absent.
@@ -368,7 +368,7 @@ def parse_delete(value: str) -> tuple[str, list[str]]:
 
 
 def save_targets(value: str) -> list[str]:
-    """The fan-out preset names of a staged save payload."""
+    """Return the fan-out preset names of a staged save payload."""
     return _validate_targets(_parse_save(value), MATRIX_PROFILE_SAVE)
 
 

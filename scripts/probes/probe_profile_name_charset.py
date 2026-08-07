@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Which characters survive a round trip through an hqplayerd profile name?
+"""Probe which characters survive a round trip through an hqplayerd profile name.
 
 Idle-gate, record, act, restore, verify-restore-by-readback (the shape of
 capture_pcm_enums.py). For each candidate name the only write is
@@ -95,7 +95,7 @@ def _describe(name: str, got: str) -> str:
 
 
 async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: set[str]) -> tuple[str, str, str]:
-    """Returns (round-trip verdict, zip encoding note, deleted verdict)."""
+    """Return (round-trip verdict, zip encoding note, deleted verdict)."""
     print(f"\n{'=' * 72}\nNAME {name!r}\n  utf-8 bytes ({len(name.encode())}): {name.encode()!r}")
     verdict = zipnote = "n/a"
     saved = False

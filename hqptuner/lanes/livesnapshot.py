@@ -35,7 +35,7 @@ _SNAPSHOT_FIELDS = (*ROUTABLE, *_LIVE_ONLY)
 
 
 def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
-    """The item at this list index as ``{value, name}``, or None when absent.
+    """Return the item at this list index as ``{value, name}``, or None when absent.
 
     ``RatesItem`` carries no ``name`` (protocol.md §6, ``<RatesItem index rate/>``),
     so the value doubles as its own label there.
@@ -49,12 +49,12 @@ def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | Non
 
 
 def _spec(field: str) -> LiveField:
-    """A snapshot field's routing spec, from whichever of the two tables carries it."""
+    """Return a snapshot field's routing spec, from whichever of the two tables carries it."""
     return ROUTABLE.get(field) or _LIVE_ONLY[field]
 
 
 def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:
-    """The running output mode as ``{value, name}``.
+    """Return the running output mode as ``{value, name}``.
 
     Mode is the one field whose stored value is not an enum ID: the live lane
     takes the config-form strings auto/pcm/sdm and matches them to the running
@@ -83,7 +83,7 @@ def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> di
 
 
 def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
-    """The DIRECT flags: 0/1 with no enumeration behind them, so each is its own label."""
+    """Return the DIRECT flags: 0/1 with no enumeration behind them, so each is its own label."""
     state = mgr.state or {}
     snapshot = {}
     for field, attr in DIRECT.items():

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: what does the daemon say a matrix profile CONTAINS?
+"""Probe what the daemon says a matrix profile CONTAINS.
 
 Jussi: "When you click Apply there, it saves to the unnamed default profile that
 is also the startup default." So ``<matrix>`` is the default profile, and its

@@ -117,7 +117,7 @@ def doc_set() -> dict[str, list[str]]:
 
 
 def ordinal_re(stems: list[str]) -> re.Pattern[str]:
-    """A positional citation: a repo doc name with a round/step near it.
+    """Match a positional citation: a repo doc name with a round/step near it.
 
     The gap between the two tolerates the punctuation a citation picks up in
     prose (a closing backtick or quote) and up to two intervening words
@@ -138,7 +138,7 @@ def relabel(path: Path) -> str:
 
 
 def exempt(lines: list[str], index: int) -> bool:
-    """True when this line, or the one above it, carries the pragma."""
+    """Report whether this line, or the one above it, carries the pragma."""
     window = lines[max(0, index - 1) : index + 1]
     return any(PRAGMA in line for line in window)
 

@@ -134,7 +134,7 @@ def _remember_chain(mgr: ConnectionManager, chain: str, fields: dict[str, str]) 
 
 
 def _applied_chain_fields(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str, str]:
-    """The chain-scoped fields in this batch whose setter verified by readback."""
+    """Return the chain-scoped fields in this batch whose setter verified by readback."""
     return {
         field: value
         for field, value in fields.items()
@@ -281,7 +281,7 @@ async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[s
 
 
 def _mode_apart(http_fields: dict[str, str]) -> str | None:
-    """The staged mode value when it cannot ride its batch.
+    """Return the staged mode value when it cannot ride its batch.
 
     Beside other routable fields, ``SetMode`` swaps the lists they resolve against
     (``livemap._mode_blocks_batch``), so it has to go first on its own.

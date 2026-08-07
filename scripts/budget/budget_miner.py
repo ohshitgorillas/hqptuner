@@ -252,7 +252,7 @@ def summarise(records: list[JsonDict], warnings: list[str]) -> None:
 
 
 def _verdict(record: JsonDict) -> str:
-    """The catch/continue verdict for one trip, or "" when it has no denominator."""
+    """Return the catch/continue verdict for one trip, or "" when it has no denominator."""
     reply = record["user_reply"]
     if reply["label"] == "command":
         return ""

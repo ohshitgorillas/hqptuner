@@ -54,7 +54,7 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
 
 
 async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
-    """A preset's saved settings in form-field terms for the editor preview — no daemon touch.
+    """Read a preset's saved settings in form-field terms for the editor preview — no daemon touch.
 
     A named preset reads from the store; the empty ("(no preset)") selection reads the current running config.
     """

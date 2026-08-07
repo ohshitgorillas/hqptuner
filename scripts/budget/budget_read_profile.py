@@ -291,7 +291,7 @@ def _synthetic() -> list[JsonDict]:
 
 
 def self_checks(check: Callable[..., bool]) -> list[bool]:
-    """Acceptance checks for period profiling; `check(label, condition=...) -> bool`."""
+    """Return acceptance checks for period profiling; `check(label, condition=...) -> bool`."""
     rec = profile_rows(_synthetic(), "s")
     ok = [check("one record per human turn, preamble excluded", condition=len(rec) == 3)]
     ok.append(check("free read bytes summed per period", condition=rec[0]["free_read_bytes"] == 1500))

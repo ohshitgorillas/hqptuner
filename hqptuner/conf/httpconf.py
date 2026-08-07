@@ -118,7 +118,7 @@ _MATRIX_ROW_SKIP = ("plot", "filter")
 
 
 def _matrix_active(soup: BeautifulSoup) -> str:
-    """The active matrix profile name, printed as ``<b>Active: </b>NAME`` on the form.
+    """Read the active matrix profile name, printed as ``<b>Active: </b>NAME`` on the form.
 
     ``[Default]`` = the unnamed default.
     """
@@ -131,7 +131,7 @@ def _matrix_active(soup: BeautifulSoup) -> str:
 
 
 def _matrix_profiles(soup: BeautifulSoup, profile_field: dict[str, Any] | None) -> dict[str, Any] | None:
-    """The profile text input joined with its ``<datalist>`` options, the saved matrix profiles.
+    """Join the profile text input with its ``<datalist>`` options, the saved matrix profiles.
 
     The generic parser sees only a bare text input — the options live in a
     datalist the input references by id.
@@ -147,7 +147,7 @@ def _matrix_profiles(soup: BeautifulSoup, profile_field: dict[str, Any] | None) 
 
 
 def parse_matrix_form(html: str) -> dict[str, Any]:
-    """The /matrix form parsed into ``{fields, rows, profiles, active}``.
+    """Parse the /matrix form into ``{fields, rows, profiles, active}``.
 
     ``fields`` are the flat controls (enabled/engine/expand_hf/iir2fir + the
     post-process plugin table); ``rows`` groups the indexed pipeline-table fields
@@ -187,7 +187,7 @@ _SPK_DISTANCE = (0.0, 5000.0)
 
 
 def parse_speakers_form(html: str) -> dict[str, Any]:
-    """The /speakers form parsed into ``{enabled, channels}``.
+    """Parse the /speakers form into ``{enabled, channels}``.
 
     Speaker processing is a top-level config element (readme §1.9), absent from
     /config — this is its only read surface. Each channel is ``{index, label, level, distance}`` plus the
@@ -265,7 +265,7 @@ def _selected_value(el: Tag) -> str:
 
 
 def _submitted_value(el: Tag) -> str | None:
-    """What a browser submits for an input.
+    """Return what a browser submits for an input.
 
     None for buttons and unchecked checkboxes; a checked checkbox submits its
     value attr (never 'on').

@@ -149,7 +149,7 @@ class PresetOps:
         return backup  # no cache yet — let the caller fail with a clear message
 
     async def backup(self) -> bytes:
-        """The daemon's current settings archive (a zip) for download."""
+        """Return the daemon's current settings archive (a zip) for download."""
         return await self._mgr.require_http().backup()
 
     # --- preset lane (presetlane) — thin delegators over the store + restore ---

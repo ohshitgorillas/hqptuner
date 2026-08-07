@@ -61,7 +61,7 @@ async def poll_until[T](
 
 
 async def fresh_backup(mgr: ConnectionManager) -> bytes | None:
-    """A ``/backup`` archive, or ``None`` while the daemon is mid-restart.
+    """Return a ``/backup`` archive, or ``None`` while the daemon is mid-restart.
 
     A restarting daemon answers /backup with something that is not a zip yet —
     reading a config out of it would report garbage as realized state, so the

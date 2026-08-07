@@ -30,7 +30,7 @@ def gate_scripts() -> list[str]:
 
 
 def unwired(makefile: str, names: list[str]) -> list[str]:
-    """The gates whose filename appears in no Makefile recipe.
+    """Return the gates whose filename appears in no Makefile recipe.
 
     Comment lines do not count: a gate commented out is a gate that stopped
     running, which is the case this exists to catch.

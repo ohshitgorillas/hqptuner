@@ -138,7 +138,7 @@ CONFIG_TARGET = "config"
 
 
 def _profile_names(xml: bytes) -> set[str]:
-    """The profile names ``xml`` already carries.
+    """Read the profile names ``xml`` already carries.
 
     Membership is what answers the audit log's ``replaced``/``found``, and only the pre-edit bytes can answer it.
     """
@@ -238,7 +238,7 @@ def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> 
 
 
 def _profile_to_materialize(edits: dict[str, str], profile: str | None) -> str | None:
-    """The profile whose matrix this apply should install as the live one.
+    """Return the profile whose matrix this apply should install as the live one.
 
     ``None`` when nothing is active, and ``None`` too when this very apply deletes it, since a matrix about to be
     removed is not one to adopt. Both staged delete shapes count (a plain name, or the fan-out JSON).
@@ -300,7 +300,7 @@ def _read_plugin_attr(xml: bytes, plugin_type: str, attr: str) -> str | None:
 
 
 def read_config(xml: bytes) -> dict[str, str]:
-    """The grounded config fields declared by a snapshot XML, in form-field terms.
+    """Read the grounded config fields declared by a snapshot XML, in form-field terms.
 
     This is the authority the verify/correct step diffs realized state against. Absent attributes are omitted.
     ``net_device`` is recombined as ``address/device``.
@@ -319,7 +319,7 @@ def read_config(xml: bytes) -> dict[str, str]:
 
 
 def _read_special(xml: bytes) -> dict[str, str]:
-    """The fields that don't fit the one-tag-one-attr maps.
+    """Read the fields that don't fit the one-tag-one-attr maps.
 
     Those are the fused net_device, the atomic pipeline set, and presence-means-enabled fixed volume.
     """

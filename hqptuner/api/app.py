@@ -137,7 +137,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
 # presetstore's own validation, which is where that check belongs.
 @router.get("/preset/{name:path}")
 async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
-    """A preset's saved settings, read from its snapshot without loading it.
+    """Read a preset's saved settings from its snapshot without loading it.
 
     The editor previews these when the user picks a preset, before any apply. The empty name is "(no preset)" and
     previews the running config.
@@ -183,7 +183,7 @@ def metadata(request: Request) -> dict[str, Any]:
 
 @router.get("/log")
 async def log_tail(manager: Mgr, lines: int = 50) -> dict[str, Any]:
-    """Static tail of the daemon's log file (System-tab live view).
+    """Return a static tail of the daemon's log file (System-tab live view).
 
     Read-only, no daemon socket — reads the file the running config points at.
     """
@@ -382,7 +382,7 @@ async def _finish(task: asyncio.Task[None], grace: float) -> None:
 
 
 def _audit_router(audit: AuditLog) -> APIRouter:
-    """The event log's read route, built only when the log is on.
+    """Build the event log's read route, which exists only when the log is on.
 
     An install without ``HQPTUNER_DEBUG_LOG`` has no such endpoint rather than an endpoint that answers empty. Nothing
     in the UI links here; it is an operator's surface, and the file it reads is equally available to ``jq``.

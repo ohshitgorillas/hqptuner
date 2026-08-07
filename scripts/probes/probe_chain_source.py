@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: do `SetFilter` and `SetShaping` take while the mode is `[source]`?
+"""Probe whether `SetFilter` and `SetShaping` take while the mode is `[source]`.
 
 `SetRate` does not — it returns `result="OK"` and leaves `State.rate` at `"0"`
 until an explicit mode is configured (measured 2026-07-29,

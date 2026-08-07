@@ -72,7 +72,7 @@ DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
 
 
 def _index_for_enum_id(items: EnumItems, enum_id: str) -> str | None:
-    """The list index of the item carrying this enum ID (the ID↔index join)."""
+    """Return the list index of the item carrying this enum ID (the ID↔index join)."""
     for item in items:
         if str(item.get("value")) == str(enum_id):
             index = item.get("index")
@@ -81,7 +81,7 @@ def _index_for_enum_id(items: EnumItems, enum_id: str) -> str | None:
 
 
 def _index_for_mode(items: EnumItems, form_value: str) -> str | None:
-    """The ModesItem index for a config-form mode value (auto|pcm|sdm)."""
+    """Return the ModesItem index for a config-form mode value (auto|pcm|sdm)."""
     want = MODE_NAMES.get(str(form_value))
     if want is None:
         return None
@@ -93,7 +93,7 @@ def _index_for_mode(items: EnumItems, form_value: str) -> str | None:
 
 
 def mode_form_value(items: EnumItems, index: str) -> str | None:
-    """The config-form mode value (auto|pcm|sdm) a ModesItem index denotes.
+    """Return the config-form mode value (auto|pcm|sdm) a ModesItem index denotes.
 
     The inverse of ``_index_for_mode``, and public because two other lanes need
     it: ``liveoverrides`` to report the running mode and ``livesnapshot`` to store
@@ -109,7 +109,7 @@ def mode_form_value(items: EnumItems, index: str) -> str | None:
 
 
 def _resolve(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
-    """The live list index this form field+value becomes, or None when it cannot route live.
+    """Return the live list index this form field+value becomes, or None when it cannot route live.
 
     It cannot route live on a wrong chain, a missing enumeration, or an unknown value.
     """
@@ -260,7 +260,7 @@ def _known_index(items: EnumItems, index: str) -> str | None:
 
 
 def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
-    """The list index this LIVE field+value becomes, or None when it cannot."""
+    """Return the list index this LIVE field+value becomes, or None when it cannot."""
     if field in ROUTABLE:
         return _resolve(mgr, field, value, chain)
     items = (mgr.enums or {}).get(_LIVE_ONLY[field].enum) or []
@@ -315,7 +315,7 @@ def _route_live(
 def resolve_live(
     mgr: ConnectionManager, fields: dict[str, str]
 ) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
-    """A LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or ``LiveRouteError``.
+    """Return a LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or ``LiveRouteError``.
 
     All-or-nothing: the whole batch resolves before a single setter runs, because
     the LIVE page has no Apply button to retry from and a half-applied batch would
@@ -354,7 +354,7 @@ def _by_chain(stored: dict[str, str]) -> dict[str, dict[str, str]]:
 
 
 def resolve_chain(mgr: ConnectionManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
-    """A chain's remembered settings as ``writer.apply_live`` edits, alongside the fields its lists do not carry.
+    """Return a chain's remembered settings as ``writer.apply_live`` edits, alongside fields its lists do not carry.
 
     Those dropped fields are dropped rather than approximated, the same rule ``_reassert_rate``
     applies to a tier the entered mode does not offer: the nearest filter the

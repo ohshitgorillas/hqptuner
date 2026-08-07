@@ -77,7 +77,7 @@ class LivePresetStore:
         self._path = path
 
     def _read_file(self) -> dict[str, Any]:
-        """The file as a dict, empty when absent or unreadable.
+        """Return the file as a dict, empty when absent or unreadable.
 
         Every path goes through here, so a too-new store refuses uniformly instead of half-working.
         """

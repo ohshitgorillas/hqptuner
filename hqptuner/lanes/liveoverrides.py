@@ -39,7 +39,7 @@ LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *_RATE_LIMIT_FIELD.values()})
 
 
 def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
-    """The enum ID of the item at this list index (the index→ID join)."""
+    """Return the enum ID of the item at this list index (the index→ID join)."""
     for item in items:
         if str(item.get("index")) == str(index):
             value = item.get("value")
@@ -58,7 +58,7 @@ def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> 
 
 
 def _tier_rate(hz: str) -> str:
-    """A rate as the 48k-base member of its tier — what the rate menus carry.
+    """Return a rate as the 48k-base member of its tier — what the rate menus carry.
 
     Every tier is n x 44100 or n x 48000 for the same n, so the 44.1k member
     converts exactly and anything else is already the 48k one.
@@ -68,7 +68,7 @@ def _tier_rate(hz: str) -> str:
 
 
 def _pinned_rate(mgr: ConnectionManager, state: dict[str, str]) -> str | None:
-    """The rate in Hz the engine is pinned to right now, or None when it has none.
+    """Return the rate in Hz the engine is pinned to right now, or None when it has none.
 
     None when the engine has no pin of its own (``rate="0"``): the configured
     limit is then already what it is following, so there is nothing to override.
@@ -119,7 +119,7 @@ def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str,
 
 
 def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
-    """The engine's current live settings as config-form fields.
+    """Return the engine's current live settings as config-form fields.
 
     So a save captures what is actually playing rather than a stale file.
 

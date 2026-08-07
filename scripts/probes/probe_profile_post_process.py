@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: does a ``<matrix_profile>`` carry its own ``<post_process>``?
+"""Probe whether a ``<matrix_profile>`` carries its own ``<post_process>``.
 
 ``MatrixSetProfile`` was believed to leave post-processing alone. It does not:
 with a profile loaded, the running engine reports the correction plugin off

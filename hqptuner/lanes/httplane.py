@@ -49,7 +49,7 @@ FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
 
 
 def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
-    """The fields this apply is entitled to hold itself to.
+    """Return the fields this apply is entitled to hold itself to.
 
     The ones it actually wrote, plus the readback key a write-only verb is proven by.
 
@@ -108,7 +108,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
 
 
 def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
-    """The matrix profile this apply should install as the live matrix.
+    """Return the matrix profile this apply should install as the live matrix.
 
     Empty for the default matrix, and empty too when this batch deletes the
     profile that is active — a matrix about to be removed is not one to adopt.
@@ -232,7 +232,7 @@ async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:
 
 
 async def _unfixable_device(mgr: ConnectionManager, diff: dict[str, dict[str, str | None]]) -> dict[str, Any]:
-    """A divergence is unfixable only when the intended net_device is no longer in the daemon's endpoint list.
+    """Report a divergence as unfixable only when the intended net_device is no longer in the daemon's endpoint list.
 
     The target NAA endpoint is gone, and no restart brings it back. Everything else is correctable by retry.
     """

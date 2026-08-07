@@ -36,7 +36,7 @@ def _form_values(config_form: dict[str, Any] | None) -> dict[Any, Any]:
 
 
 def parse_caps(text: str) -> dict[str, Any] | None:
-    """The most recent device announcement in ``text``, or None if it has none.
+    """Return the most recent device announcement in ``text``, or None if it has none.
 
     The block is re-emitted on every connect and only for the device actually
     opened, so the last one in the log is the current one — earlier blocks are
@@ -65,7 +65,7 @@ def _caps(device: str | None, formats: list[tuple[str, str]]) -> dict[str, Any] 
 
 
 def selected_device(config_form: dict[str, Any] | None) -> str | None:
-    """The device the menus should narrow to, from a parsed ``GET /config`` form.
+    """Return the device the menus should narrow to, from a parsed ``GET /config`` form.
 
     Network and ALSA backends each drive one device and narrow to it. Combo
     drives both at once, and the log announces one — which device's limits bind

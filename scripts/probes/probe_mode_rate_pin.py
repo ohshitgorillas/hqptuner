@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: does ``SetMode`` clear the rate pin ``SetRate`` wrote?
+"""Probe whether ``SetMode`` clears the rate pin ``SetRate`` wrote.
 
 The daemon carries the request slot per family (``pcm@samplerate`` /
 ``sdm@bitrate``, measured in ``probe_rate_slots.py``), but ``State`` reports only
@@ -56,7 +56,7 @@ def _family_of(modes: list[dict[str, str]], index: str) -> str | None:
 
 
 def _pinnable(rates: list[dict[str, str]]) -> dict[str, str] | None:
-    """The lowest non-auto entry of the current mode's rate list."""
+    """Return the lowest non-auto entry of the current mode's rate list."""
     return next((r for r in rates if r.get("rate") not in (None, "0")), None)
 
 

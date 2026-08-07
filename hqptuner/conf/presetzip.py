@@ -13,7 +13,7 @@ from hqptuner.conf.xmledit import GroundingError
 
 
 def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | None = None) -> bytes:
-    """The active preset's snapshot XML from a ``/backup`` archive.
+    """Read the active preset's snapshot XML from a ``/backup`` archive.
 
     ``[default]`` (empty/absent name) has no ``cfgs`` snapshot — its definition *is* the working config, so fall back
     to the running-config member (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is active).

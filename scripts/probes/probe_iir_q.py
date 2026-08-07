@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: is hqplayerd's ``iir`` peaking ``q`` the RBJ cookbook Q or the classic EE Q?
+"""Probe whether hqplayerd's ``iir`` peaking ``q`` is the RBJ cookbook Q or the classic EE Q.
 
 ``docs/matrix-spec.md`` established that ``q`` occupies the Q slot rather than the
 bandwidth or shelf-slope slot (0.019 dB RMS against ``lib/dsp/biquad.js`` vs 2.66 / 0.18).
@@ -119,7 +119,7 @@ def _predict(chain: str, fs: float, *, as_ee_q: bool) -> tuple[float, float]:
 
 
 def _row_gain_db(fields: dict[str, str]) -> float:
-    """Reported quantity is 'row gain (dB) + chain magnitude' (matrix-spec)."""
+    """Return the reported quantity, 'row gain (dB) + chain magnitude' (matrix-spec)."""
     raw = float(fields.get("gain_0") or 0.0)
     unit = (fields.get("gainunit_0") or "").strip().lower()
     if unit.startswith("db"):
@@ -130,7 +130,7 @@ def _row_gain_db(fields: dict[str, str]) -> float:
 
 
 def _plot_fields(fields: dict[str, str], chain: str) -> dict[str, str]:
-    """The complete form with row 0 carrying the test chain and plotted alone."""
+    """Return the complete form with row 0 carrying the test chain and plotted alone."""
     out = {k: v for k, v in fields.items() if not k.startswith("plot_")}
     out["process_0"] = chain
     out["plot_0"] = "1"
@@ -140,7 +140,7 @@ def _plot_fields(fields: dict[str, str], chain: str) -> dict[str, str]:
 
 
 async def _tail_log() -> str:
-    """The plot result goes to the systemd journal only.
+    """Return the plot result, which goes to the systemd journal only.
 
     The daemon's own ``/log`` page does NOT carry it — that page is the engine
     log, and a plot never reaches it. Measured here 2026-07-28: four plot POSTs

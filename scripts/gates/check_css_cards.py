@@ -87,17 +87,17 @@ def rule_blocks(lines: list[str]) -> list[Block]:
 
 
 def is_frame(decls: list[str]) -> bool:
-    """True when these declarations paint the card frame."""
+    """Report whether these declarations paint the card frame."""
     return any(FILL.match(d) for d in decls) and any(RADIUS.match(d) for d in decls)
 
 
 def owns_frame(selector: str, path: Path) -> bool:
-    """True when the block IS the card: the card's own class, in its own file."""
+    """Report whether the block IS the card: the card's own class, in its own file."""
     return path.name == DEFINITION_SITE and bool(CARD_CLASS.search(selector))
 
 
 def exempted(lines: list[str], first: int, last: int) -> bool:
-    """True when the block, or the line above it, carries a pragma with a reason."""
+    """Report whether the block, or the line above it, carries a pragma with a reason."""
     return any(EXEMPT.search(line) for line in lines[max(first - 2, 0) : last])
 
 

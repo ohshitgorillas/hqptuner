@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: can a wiped post-process be re-asserted after a live profile switch, and what does the re-assert cost?
+"""Probe whether a wiped post-process can be re-asserted after a live profile switch, and what the re-assert costs.
 
 ``MatrixSetProfile`` installs the profile's whole matrix context, and every
 profile HQPTuner writes is ``<pipeline>`` rows only — so a switch clears the

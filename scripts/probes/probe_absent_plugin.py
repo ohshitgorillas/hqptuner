@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: can a post-process plugin element be brought back once it is absent?
+"""Probe whether a post-process plugin element can be brought back once it is absent.
 
 A user's 6.0.4 config had no ``<plugin type="loudness">`` at all, so every
 loudness edit was refused ("the loudness plugin is absent from this snapshot").
@@ -158,7 +158,7 @@ async def _q2_form(http: HttpConfigClient, raw: httpx.AsyncClient, active: str |
 
 
 async def _engine_alive() -> bool:
-    """Does 4321 still answer?
+    """Return whether 4321 still answers.
 
     The matrix-spec wedge (a config the daemon cannot init on) shows up exactly
     here: the web lane keeps serving while the engine is dead, so _settle alone
@@ -199,7 +199,7 @@ async def _q3_partial(http: HttpConfigClient, stripped: bytes, active: str | Non
 
 
 async def _q4_container(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """The container itself: can a config carry no <post_process> at all, and can HQPTuner put one back?
+    """Test the container itself — whether a config can carry no <post_process> at all, and HQPTuner put one back.
 
     The reporter's file may have neither.
     """
@@ -222,7 +222,7 @@ async def _q4_container(http: HttpConfigClient, original: bytes, active: str | N
 
 
 async def _q5_form_fields(http: HttpConfigClient, active: str | None) -> list[str]:
-    """With the element gone, does the daemon's own /matrix form render the plugin's fields — and with what values?
+    """Check whether the daemon's /matrix form still renders the plugin's fields once gone, and with what values.
 
     This decides where an authored element's attributes come from. If the form
     carries them, HQPTuner writes the daemon's own numbers and invents nothing;
@@ -244,7 +244,7 @@ async def _q5_form_fields(http: HttpConfigClient, active: str | None) -> list[st
 
 
 async def _q6_matrix_body(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """A ``<matrix/>`` with no body — the shape ``matrixconf`` already refuses.
+    """Probe a ``<matrix/>`` with no body — the shape ``matrixconf`` already refuses.
 
     If a user's config is like this there is nowhere to put ``<post_process>``,
     so the insertion fix would still fail for them. Two questions: does the
@@ -275,7 +275,7 @@ async def _q6_matrix_body(http: HttpConfigClient, original: bytes, active: str |
 
 
 async def _q7_element(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """The same three questions for a plain ELEMENT rather than a plugin.
+    """Ask the same three questions for a plain ELEMENT rather than a plugin.
 
     ``<defaults>`` is the representative case: it carries the startup volume, so
     it is exactly the Volume-tab class the report came from. Everything proved so
@@ -342,7 +342,7 @@ async def _probe(  # noqa: PLR0913
 
 
 async def _q8_config_form(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """Q5's analogue for a plain element: with ``<defaults>`` gone, does the daemon's /config form carry its values?
+    """Run Q5's analogue for a plain element: whether the /config form carries values with ``<defaults>`` gone.
 
     Q5 proved the /matrix form does for a plugin. If /config does too, an
     authored element takes every attribute from the daemon's own statement of
@@ -362,7 +362,7 @@ async def _q8_config_form(http: HttpConfigClient, original: bytes, active: str |
 
 
 async def _later_steps(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """The steps that need no stripped-plugin state of their own."""
+    """Run the steps that need no stripped-plugin state of their own."""
     out: list[str] = []
     if "q4" in STEPS:
         out += await _q4_container(http, original, active)

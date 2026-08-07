@@ -141,7 +141,7 @@ def literal_tokens(text: str, depth: int = 2) -> set[str]:
 
 
 def split_value(value: str) -> tuple[str, list[str]]:
-    """A class value as (text with each ``${...}`` holed out, the runs removed)."""
+    """Return a class value as (text with each ``${...}`` holed out, the runs removed)."""
     runs: list[str] = []
     bare, i = "", 0
     while i < len(value):

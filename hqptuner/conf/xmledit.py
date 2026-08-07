@@ -64,17 +64,17 @@ PARENT: dict[str, str] = {
 
 
 def open_tag_re(tag_name: str) -> re.Pattern[bytes]:
-    """Matches an element's open tag, self-closing or not."""
+    """Match an element's open tag, self-closing or not."""
     return re.compile(rb"<" + re.escape(tag_name.encode()) + rb"\b[^>]*?/?>")
 
 
 def attr_re(attr: str) -> re.Pattern[bytes]:
-    """Matches ``attr="value"`` within an open tag, capturing the value."""
+    """Match ``attr="value"`` within an open tag, capturing the value."""
     return re.compile(rb"\b" + re.escape(attr.encode()) + rb'="([^"]*)"')
 
 
 def in_comment(xml: bytes, pos: int) -> bool:
-    """True when byte offset ``pos`` sits inside an XML ``<!-- -->`` comment."""
+    """Report whether byte offset ``pos`` sits inside an XML ``<!-- -->`` comment."""
     return xml.rfind(b"<!--", 0, pos) > xml.rfind(b"-->", 0, pos)
 
 
@@ -119,12 +119,12 @@ def live_tags(xml: bytes, tag_name: str) -> Iterator[re.Match[bytes]]:
 
 
 def find_element(xml: bytes, tag_name: str) -> re.Match[bytes] | None:
-    """The single live ``<tag_name ...>`` open tag."""
+    """Find the single live ``<tag_name ...>`` open tag."""
     return next(live_tags(xml, tag_name), None)
 
 
 def find_plugin(xml: bytes, plugin_type: str) -> re.Match[bytes] | None:
-    """The live ``<plugin type="plugin_type" ...>`` open tag inside ``<post_process>``.
+    """Find the live ``<plugin type="plugin_type" ...>`` open tag inside ``<post_process>``.
 
     There are several plugins; match by type.
     """
@@ -165,7 +165,7 @@ def splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
 
 
 def line_lead(xml: bytes, at: int) -> bytes:
-    """The indentation of the line byte offset ``at`` sits on.
+    """Return the indentation of the line byte offset ``at`` sits on.
 
     Empty when that line holds anything but whitespace before ``at`` (a
     single-line config).

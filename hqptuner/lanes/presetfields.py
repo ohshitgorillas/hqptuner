@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 
 def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
-    """The active preset's stored values for the settings a live edit never writes to the config file.
+    """Return the active preset's stored values for the settings a live edit never writes to the config file.
 
     Those settings are output mode, both chains' filters and shapers, adaptive
     volume, the per-family rate limits (``liveoverrides.LIVE_DOMAIN``).
@@ -42,7 +42,7 @@ def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
 
 
 def _mirrored_preset(mgr: ConnectionManager) -> str | None:
-    """The active preset's name when auto-save owes the daemon a mirror of it.
+    """Return the active preset's name when auto-save owes the daemon a mirror of it.
 
     None when auto-save is off, nothing is active, or it has no store file yet.
     """
@@ -53,7 +53,9 @@ def _mirrored_preset(mgr: ConnectionManager) -> str | None:
 
 
 def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -> dict[str, bytes]:
-    """The ``data/cfgs`` member a restore should carry so the daemon's native profile list catches up with auto-save.
+    """Return the ``data/cfgs`` member a restore should carry.
+
+    Carrying it is how the daemon's native profile list catches up with auto-save.
 
     Auto-save itself never restores, so the mirror rides restores that happen
     anyway. ``intended_xml`` is the working config that restore lands; folded with

@@ -75,7 +75,7 @@ SETTINGS: dict[str, LiveSetting | Handler] = {
 
 
 def known_live_settings() -> tuple[str, ...]:
-    """The live-lane setting keys the write path understands, in apply order."""
+    """Return the live-lane setting keys the write path understands, in apply order."""
     return tuple(SETTINGS)
 
 

@@ -48,12 +48,12 @@ _MEMBERS_SHOWN = 12  # archive members named in a failure log line before the re
 
 
 def snapshot_member_name(preset: str) -> str:
-    """The archive member holding preset ``preset``'s snapshot."""
+    """Name the archive member holding preset ``preset``'s snapshot."""
     return f"{_CFGS_PREFIX}{preset}{_CFGS_SUFFIX}"
 
 
 def snapshot_name(member: str) -> str | None:
-    """The preset name an archive member holds, or None when it is not a preset snapshot at all.
+    """Return the preset name an archive member holds, or None when it is not a preset snapshot at all.
 
     One spelling of the ``data/cfgs/<name>.xml`` convention, so the walkers
     cannot disagree about what counts as a snapshot.
@@ -64,7 +64,7 @@ def snapshot_name(member: str) -> str | None:
 
 
 def rewrite_zip(zip_bytes: bytes, substitutions: dict[str, bytes]) -> bytes:
-    """A copy of ``zip_bytes`` with each named member replaced by the given bytes.
+    """Return a copy of ``zip_bytes`` with each named member replaced by the given bytes.
 
     Every other member is copied byte-for-byte, keeping its original ``ZipInfo``
     so nothing about the untouched archive shifts. A substitution naming a member
@@ -89,7 +89,7 @@ def rewrite_zip(zip_bytes: bytes, substitutions: dict[str, bytes]) -> bytes:
 
 
 def read_engine_attrs(xml: bytes) -> dict[str, str]:
-    """The current values of the editable engine attributes present on the ``<engine>`` tag.
+    """Read the current values of the editable engine attributes present on the ``<engine>`` tag.
 
     Absent attributes are omitted (daemon default applies).
     """
@@ -138,7 +138,7 @@ def _replace_or_insert(tag: bytes, pat: re.Pattern[bytes], attribute: bytes) -> 
 
 
 def running_config_name(names: list[str], active: str | None = None) -> str | None:
-    """The archive member that holds the live working config.
+    """Name the archive member that holds the live working config.
 
     Normally ``hqplayerd.xml``. But when a named profile is the active one, the daemon
     writes the live config to a root-level ``<Profile>.xml`` and omits
@@ -165,7 +165,7 @@ def running_config_name(names: list[str], active: str | None = None) -> str | No
 
 
 def archive_summary(zip_bytes: bytes) -> str:
-    """What a ``/backup`` archive actually contains, for the log line when we refuse it.
+    """Summarize what a ``/backup`` archive actually contains, for the log line when we refuse it.
 
     Two very different faults present identically as "no working
     config" — the daemon's post-profile-load bug serves a bare ``data/`` entry,
@@ -199,7 +199,7 @@ def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | No
 
 
 def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
-    """The working-config member of a ``/backup`` archive — the config the running engine reflects.
+    """Read the working-config member of a ``/backup`` archive — the config the running engine reflects.
 
     That member is ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named
     preset is active. Empty if neither is present. Pass the daemon's
@@ -245,7 +245,7 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets
 
 
 def edit_config_zip(zip_bytes: bytes, members: list[str], overrides: dict[str, str]) -> bytes:
-    """A copy of ``zip_bytes`` with ``overrides`` applied to each member in ``members``.
+    """Return a copy of ``zip_bytes`` with ``overrides`` applied to each member in ``members``.
 
     The overrides land on each member's ``<engine>`` tag; all other entries are
     copied byte-for-byte.

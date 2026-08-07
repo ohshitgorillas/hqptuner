@@ -23,12 +23,12 @@ def rate_family(hz: str) -> str:
 
 
 def rate_index_for(mgr: ConnectionManager, hz: str) -> str | None:
-    """The ``RatesItem`` index carrying this rate in Hz, in the engine's current list."""
+    """Return the ``RatesItem`` index carrying this rate in Hz, in the engine's current list."""
     return index_for_rate((mgr.enums or {}).get("rates") or [], hz)
 
 
 def pin_family(mgr: ConnectionManager) -> str | None:
-    """The output family the engine will accept a rate pin for, or None for none.
+    """Return the output family the engine will accept a rate pin for, or None for none.
 
     The CONFIGURED mode answers this, never the running chain, and the two come
     apart in exactly the case that matters: in ``[source]`` the engine has a chain
@@ -62,7 +62,7 @@ def unpinnable_rate(mgr: ConnectionManager, hz: str) -> bool:
 
 
 def split_unpinnable_rate(mgr: ConnectionManager, fields: dict[str, str]) -> tuple[dict[str, str], str | None]:
-    """The batch minus a rate the engine will not pin, and that rate.
+    """Return the batch minus a rate the engine will not pin, and that rate.
 
     Split before `resolve_live` rather than routed inside it: the held rate does
     not belong to `stored`. That is the per-chain memory of filters and shapers,
@@ -77,7 +77,7 @@ def split_unpinnable_rate(mgr: ConnectionManager, fields: dict[str, str]) -> tup
 
 
 def index_for_rate(items: EnumItems, hz: str) -> str | None:
-    """The ``RatesItem`` index carrying this rate in Hz (``"0"`` = auto)."""
+    """Return the ``RatesItem`` index carrying this rate in Hz (``"0"`` = auto)."""
     for item in items:
         if str(item.get("rate")) == str(hz):
             index = item.get("index")
@@ -86,7 +86,7 @@ def index_for_rate(items: EnumItems, hz: str) -> str | None:
 
 
 def _chain_name(name: str) -> str | None:
-    """The chain a mode name denotes, or None for ``[source]``/anything unknown."""
+    """Return the chain a mode name denotes, or None for ``[source]``/anything unknown."""
     upper = (name or "").upper()
     if upper.startswith("PCM"):
         return PCM
@@ -94,7 +94,7 @@ def _chain_name(name: str) -> str | None:
 
 
 def _chain_from_state(mgr: ConnectionManager) -> str | None:
-    """The CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto."""
+    """Return the CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto."""
     index = (mgr.state or {}).get("mode")
     if index is None:
         return None
@@ -105,7 +105,7 @@ def _chain_from_state(mgr: ConnectionManager) -> str | None:
 
 
 def _chain_from_status(mgr: ConnectionManager) -> str | None:
-    """The chain the engine is running RIGHT NOW, from what Status reports.
+    """Return the chain the engine is running RIGHT NOW, from what Status reports.
 
     ``Status.active_mode`` looks like the whole answer and is not: it echoes the
     CONFIGURED mode, so in ``[source]`` — the one case this is reached in on a

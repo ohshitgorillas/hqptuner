@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: does the daemon's OWN saved profile carry the post-process chain?
+"""Probe whether the daemon's OWN saved profile carries the post-process chain.
 
 Jussi: ``<matrix>`` is the unnamed default profile, and /matrix "Apply" writes
 it. That makes post-processing per-profile in HQPlayer's model — so a profile

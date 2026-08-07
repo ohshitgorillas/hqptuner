@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: in `[source]` mode, does `SetRate` move the OUTPUT even though `State.rate` keeps reading `"0"`?
+"""Probe whether, in `[source]` mode, `SetRate` moves the OUTPUT even though `State.rate` keeps reading `"0"`.
 
 `scripts/probes/probe_rate_playing.py` concluded `[source]` refuses every pin. That
 conclusion is not sound and this probe exists to replace it. Two flaws:
@@ -43,12 +43,12 @@ TARGETS = ("352800", "176400")
 
 
 def _index_of(items: list[dict[str, str]], hz: str) -> str | None:
-    """The `RatesItem` index carrying this rate in Hz, or None if absent."""
+    """Return the `RatesItem` index carrying this rate in Hz, or None if absent."""
     return next((str(item["index"]) for item in items if str(item.get("rate")) == hz), None)
 
 
 def _mode_index(items: list[dict[str, str]], name: str) -> str | None:
-    """The index of the mode whose display name starts with this."""
+    """Return the index of the mode whose display name starts with this."""
     return next((str(i["index"]) for i in items if str(i.get("name", "")).upper().startswith(name)), None)
 
 

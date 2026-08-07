@@ -44,7 +44,7 @@ class CommandError(ControlError):
 
 
 def _element_name(element: str) -> str:
-    """The command name out of a request document, for error messages."""
+    """Extract the command name out of a request document, for error messages."""
     match = re.match(r"<([A-Za-z][\w-]*)", element)
     return match.group(1) if match is not None else "request"
 
@@ -94,7 +94,7 @@ def _unescape_attrs(root: ET.Element) -> ET.Element:
 
 
 def _document_complete(body: str, tag: str) -> bool:
-    """True once the root element is closed.
+    """Return True once the root element is closed.
 
     Closed means self-closing (`<Tag .../>`) or its end tag arrived (`</Tag>`). Distinguishes a still-arriving frame
     (keep reading) from a fully-received one that simply won't parse.
@@ -190,7 +190,7 @@ class ControlClient:
     # --- typed helpers -------------------------------------------------
 
     async def _attrs(self, element: str) -> dict[str, str]:
-        """A query whose whole answer is the response root's attributes."""
+        """Run a query whose whole answer is the response root's attributes."""
         return dict((await self.request(element)).attrib)
 
     async def get_info(self) -> dict[str, str]:
@@ -200,7 +200,7 @@ class ControlClient:
         return await self._attrs("<GetLicense/>")
 
     async def get_active_config(self) -> str:
-        """The active configuration/preset name.
+        """Return the active configuration/preset name.
 
         An empty string is the unnamed ``[default]`` base. Response carries the name in the ``value`` attribute.
         """

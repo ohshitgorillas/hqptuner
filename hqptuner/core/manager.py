@@ -147,7 +147,7 @@ class ConnectionManager:
             await self._sleep(self._cfg.poll_interval)
 
     async def _sleep(self, seconds: float) -> None:
-        """The poll loop's own wait.
+        """Perform the poll loop's own wait.
 
         NOT a duplicate of the public ``sleep``: the test suite virtualizes ``sleep``
         (docs/testing.md §7) so lane deadlines cost no wall clock, and deliberately leaves this one
@@ -261,7 +261,7 @@ class ConnectionManager:
         return self._cfg.alarm_threshold
 
     def monotonic(self) -> float:
-        """The lanes' clock.
+        """Read the lanes' clock.
 
         A method, not ``time.monotonic`` inline, because it is the seam the suite virtualizes
         alongside ``sleep`` (docs/testing.md).
@@ -269,7 +269,7 @@ class ConnectionManager:
         return time.monotonic()
 
     async def sleep(self, seconds: float) -> None:
-        """The lanes' wait — virtualized in tests.
+        """Perform the lanes' wait — virtualized in tests.
 
         See ``_sleep`` for why the poll loop deliberately does not share it.
         """
@@ -289,7 +289,7 @@ class ConnectionManager:
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
 
     async def read_engine(self) -> dict[str, str]:
-        """Current hardware-accel engine attributes, parsed from a fresh backup's base config.
+        """Return current hardware-accel engine attributes, parsed from a fresh backup's base config.
 
         That backup is the only lane that carries them — they are not on the form. Fetched on
         demand, not per poll, since the backup archive is large.
@@ -301,7 +301,7 @@ class ConnectionManager:
         return engine
 
     async def load_file_config(self) -> dict[str, str]:
-        """Running config read from the backup archive's working ``hqplayerd.xml``, in form-field terms.
+        """Read running config from the backup archive's working ``hqplayerd.xml``, in form-field terms.
 
         Serves the fields the ``/config`` form renders lossily (``volume_fixed``: 0/1/2 in XML, a
         bare checkbox on the form). Fetched on connect and refreshed by the apply's verify step —
@@ -341,7 +341,7 @@ class ConnectionManager:
         self.device_caps = devicecaps.caps_for(text, selected)
 
     async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
-        """Static tail of the daemon's log for the System-tab live view.
+        """Return a static tail of the daemon's log for the System-tab live view.
 
         Not a stream — a fresh GET /log per call over the 8088 web interface, so it works regardless
         of the daemon's `<log file>` setting and needs no host mount. Reports `available` false (with

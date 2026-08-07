@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: does `SetRate` accept a rate in Hz, and what does `State` report back?
+"""Probe whether `SetRate` accepts a rate in Hz, and what `State` reports back.
 
 `SetRate` is documented as taking a `RatesItem` **index** (protocol.md §6), and
 that index is mode-dependent: running PCM, the list holds PCM rates only, so a
@@ -45,7 +45,7 @@ OUT_OF_FAMILY_HZ = "12288000"
 
 
 def _rates(items: list[dict[str, str]]) -> str:
-    """The enumeration as `index:rate` pairs, short enough to read in one line."""
+    """Return the enumeration as `index:rate` pairs, short enough to read in one line."""
     return " ".join(f"{item.get('index')}:{item.get('rate')}" for item in items) or "(empty)"
 
 

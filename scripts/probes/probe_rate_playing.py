@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: what eats a live `SetRate` — playback, or `[source]` mode?
+"""Probe what eats a live `SetRate` — playback, or `[source]` mode.
 
 Every earlier rate measurement (protocol.md:236, :237) was taken with the engine
 **stopped** and in an explicit PCM/SDM mode. protocol.md:213 says so outright:
@@ -47,17 +47,17 @@ PCM_MODE_NAME = "PCM"
 
 
 def _rates(items: list[dict[str, str]]) -> str:
-    """The enumeration as `index:rate` pairs, short enough to read in one line."""
+    """Return the enumeration as `index:rate` pairs, short enough to read in one line."""
     return " ".join(f"{item.get('index')}:{item.get('rate')}" for item in items) or "(empty)"
 
 
 def _index_of(items: list[dict[str, str]], hz: str) -> str | None:
-    """The `RatesItem` index carrying this rate in Hz, or None if absent."""
+    """Return the `RatesItem` index carrying this rate in Hz, or None if absent."""
     return next((str(item["index"]) for item in items if str(item.get("rate")) == hz), None)
 
 
 def _mode_index(items: list[dict[str, str]], name: str) -> str | None:
-    """The index of the mode whose display name starts with this."""
+    """Return the index of the mode whose display name starts with this."""
     return next((str(i["index"]) for i in items if str(i.get("name", "")).upper().startswith(name)), None)
 
 

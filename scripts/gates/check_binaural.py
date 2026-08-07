@@ -216,7 +216,7 @@ def head_shadow(freq: float, theta: float) -> complex:
 
 
 def analytic(freq: float, lam: float, angle: float) -> tuple[complex, complex]:
-    """The centre and side transfer functions the compiled rows must realize."""
+    """Return the centre and side transfer functions the compiled rows must realize."""
     near, far = 90 - angle, 90 + angle
     itd = ray_delay(far) - ray_delay(near)
     h_near = head_shadow(freq, near)
