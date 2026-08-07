@@ -108,6 +108,8 @@ function pcmReachable(caps, tier) {
 // Gray the rate tiers the selected device cannot carry. `family` is 'pcm' or
 // 'sdm' — the menu being narrowed, not the running chain.
 /**
+ * Disable the rate tiers the selected output device did not announce, natively or
+ * through a DoP carrier. Narrows nothing when the announcement cannot speak for it.
  * @template {DeviceOption} T
  * @param {T[]} options
  * @param {string} family
@@ -213,6 +215,8 @@ effect(() => {
 // left alone: in auto the engine picks the family per track and will settle on
 // PCM by itself, so there is nothing unreachable to warn about.
 /**
+ * Disable the SDM option when the selected device can reach no DSD rate, with the
+ * reason on it. Auto and PCM are left alone.
  * @template {DeviceOption} T
  * @param {T[]} options
  * @returns {(T | (T & { disabled: boolean, reason: string }))[]}

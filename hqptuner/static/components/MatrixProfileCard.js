@@ -49,6 +49,9 @@ const profileNote = signal("");
 // never read — saved in this session, not yet applied — and staging is the only
 // lane it has, which means staging its chain as well as its rows.
 /**
+ * Switches the running engine to saved matrix profile `name` and refreshes config;
+ * a profile the daemon has never read is staged instead.
+ *
  * @public — the Load button's action, and the seam the profile suite drives.
  * @param {string} name the saved profile's name; "" is the default profile
  * @returns {Promise<void>}
@@ -211,6 +214,10 @@ function SavedProfilesField({ saved, sel, busy }) {
   `;
 }
 
+/**
+ * Renders the Profile card: the active matrix profile, the saved-profile picker
+ * with its load/delete actions, and the save-as row.
+ */
 export function ProfileCard() {
   const saved = savedProfiles.value;
   const active = matrixActiveProfile.value;

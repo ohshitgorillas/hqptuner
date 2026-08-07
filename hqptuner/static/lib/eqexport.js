@@ -97,7 +97,6 @@ export function rowToRewText(row) {
   return { text: lines.length ? `${lines.join("\n")}\n` : "", count: bodies.length, skipped };
 }
 
-// Master export: the whole pipeline set as one REW / Equalizer APO file.
 // Identical EQ across channels (the stereo headphone case) collapses to a single
 // clean, directly-importable filter block; channels carrying DIFFERENT EQ are
 // each written under a "# Pipeline N (In i -> Out j)" comment header (which REW
@@ -105,6 +104,8 @@ export function rowToRewText(row) {
 // silently merged. Rows with no exportable EQ contribute nothing. Returns
 // { text, count, skipped } where `count` is the number of pipelines exported.
 /**
+ * Master export: the whole pipeline set as one REW / Equalizer APO file, with
+ * `count` the number of pipelines exported.
  * @param {PipelineRow[]} rows
  * @returns {{ text: string, count: number, skipped: string[] }}
  */

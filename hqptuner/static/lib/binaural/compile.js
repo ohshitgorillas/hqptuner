@@ -46,9 +46,9 @@ function chain(lowpass, delaySec, cornerHz, eqProcess) {
   return stages.join(",");
 }
 
-// The eight coefficients feeding one output ear, in row order: for each source
-// (same-side then opposite), the four {flat, lp1} × {dry, delayed} terms.
 /**
+ * The eight coefficients feeding one output ear, in row order: for each source
+ * (same-side then opposite), the four {flat, lp1} × {dry, delayed} terms.
  * @param {number} lambda
  * @param {number} alphaNear
  * @param {number} alphaFar
@@ -70,10 +70,6 @@ export function earCoefficients(lambda, alphaNear, alphaFar) {
   ];
 }
 
-// Compile the block for a stereo pair. `srcA`/`srcB` are wire channel indexes.
-// Always emits 16 rows — four fall to zero at λ=1, and a fixed count keeps
-// structural recognition simple.
-//
 // eqProcess and preampDb are PER EAR. A measured headphone correction is often
 // asymmetric — the two drivers are not identical and the two ears are not either
 // — and refusing those profiles would exclude exactly the listeners most likely
@@ -97,6 +93,9 @@ const perEar = (v, dflt) => {
 };
 
 /**
+ * Compile the block for a stereo pair, `srcA`/`srcB` being wire channel indexes.
+ * Always emits 16 rows — four fall to zero at λ=1, and a fixed count keeps
+ * structural recognition simple.
  * @param {{ lambda?: number, angle?: number, headRadius?: number, srcA?: string|number, srcB?: string|number,
  *   preampDb?: number|{left: number, right: number},
  *   eqProcess?: string|{left: string, right: string} }} [params]

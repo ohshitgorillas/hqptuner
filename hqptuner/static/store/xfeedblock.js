@@ -24,6 +24,8 @@ import { truthy } from "../lib/coerce.js";
  */
 
 /**
+ * The Bauer crossfeed the running config is set to — enable flag plus the (corner, feed)
+ * pair the preset names or the two knobs hold.
  * @returns {BauerSettings}
  */
 export function bauerSettings() {
@@ -36,8 +38,9 @@ export function bauerSettings() {
   };
 }
 
-// The recognized block at rows 0..7 for the CURRENT bauer settings, or null.
 /**
+ * The current Bauer settings, and the compensation block recognized at rows 0..7 against
+ * them — `rec` is null when there is no such block.
  * @param {PipelineRow[]} rows
  * @returns {{ bs: BauerSettings, rec: MsRecognition | null }}
  */
@@ -50,6 +53,8 @@ export function xfeedBlock(rows) {
 // the mode segment (store/xfmode.js) and the DSP tab's Speakers switch both call
 // this, and a correction left behind would run against a crossfeed that is off.
 /**
+ * Stage the pipelines with the eight compensation rows replaced by a plain two-channel
+ * pair carrying the block's EQ process and preamp gain.
  * @param {PipelineRow[]} rows
  * @param {MsRecognition} rec
  * @returns {void}

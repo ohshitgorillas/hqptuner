@@ -78,6 +78,7 @@ const DEFAULT_URL = "http://127.0.0.1:8090/api/matrix";
 // into two groups that differ only by that lead-in.
 const EQ_TYPES = new Set(["peak", "lshelf", "hshelf"]);
 
+/** True for a parametric-EQ band: an `iir` stage whose type is peak, lshelf or hshelf. */
 export const isEq = (/** @type {MatrixStage} */ stage) => stage.kind === "iir" && EQ_TYPES.has(stageArgs(stage).type);
 
 /**

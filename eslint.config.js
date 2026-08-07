@@ -6,6 +6,7 @@
 // htm / signals bundles are upstream and excluded everywhere.
 import js from "@eslint/js";
 import globals from "globals";
+import jsdoc from "eslint-plugin-jsdoc";
 import sonarjs from "eslint-plugin-sonarjs";
 import oneAssertionPerTest from "./eslint-rules/one-assertion-per-test.js";
 import noHandRolledCard from "./eslint-rules/no-hand-rolled-card.js";
@@ -48,6 +49,60 @@ const RULES = {
 };
 
 const PLUGINS = { sonarjs };
+
+// Docstring presence, the frontend peer of the ruff `D` gate in pyproject.toml
+// ([tool.ruff.lint] select includes "D"). Every exported function and class
+// carries a block saying what it does, and the block has to say something --
+// an empty /** */ fails require-description just as an empty Python docstring
+// fails ruff.
+//
+// Type-carrying rules stay off on purpose. tsc --checkJs already reads the
+// @param/@returns types it finds and checks the call sites against them, so a
+// second gate demanding prose copies of the same types would only give the two
+// a way to disagree.
+//
+// tests/js is exempt, matching the Python side's `tests/**` ignore: the
+// one-assertion rule and docs/testing.md already require a test's name to state
+// its behaviour in plain words, and a block above it restates the name.
+//
+// require-jsdoc takes `publicOnly`, which scopes it to the exported surface.
+// require-description has no such option and defaults to every function that
+// carries a block, exported or not, which would put the two rules on different
+// surfaces: an internal helper with a bare `@param` block would fail the second
+// gate while the first never asked it for a block at all. The `contexts` list
+// spells out the export shapes so both rules police exactly the same symbols.
+const JSDOC_RULES = {
+  "jsdoc/require-jsdoc": [
+    "error",
+    {
+      publicOnly: true,
+      require: {
+        FunctionDeclaration: true,
+        ClassDeclaration: true,
+        MethodDefinition: true,
+        ArrowFunctionExpression: true,
+        FunctionExpression: true,
+      },
+    },
+  ],
+  "jsdoc/require-description": [
+    "error",
+    {
+      contexts: [
+        "ExportNamedDeclaration > FunctionDeclaration",
+        "ExportDefaultDeclaration > FunctionDeclaration",
+        "ExportNamedDeclaration > ClassDeclaration",
+        "ExportDefaultDeclaration > ClassDeclaration",
+        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+        "ExportDefaultDeclaration > ArrowFunctionExpression",
+        "ExportDefaultDeclaration > FunctionExpression",
+        "ExportNamedDeclaration > ClassDeclaration MethodDefinition",
+        "ExportDefaultDeclaration > ClassDeclaration MethodDefinition",
+      ],
+    },
+  ],
+};
 
 // Import layering, the frontend peer of the Python contract in pyproject.toml
 // under [tool.importlinter]. Highest first:
@@ -139,6 +194,13 @@ export default [
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
     plugins: PLUGINS,
     rules: RULES,
+  },
+  {
+    // Production JS: the served frontend, the two node CLIs and the local
+    // eslint rules. tests/js is deliberately absent.
+    files: ["hqptuner/static/**/*.js", "scripts/eqlab/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
+    plugins: { jsdoc },
+    rules: JSDOC_RULES,
   },
   // --- the layering contract ---------------------------------------------
   {

@@ -58,10 +58,12 @@ function open(owner, kind, message, cancelled) {
 }
 
 // Ask for a name. Resolves the trimmed name, or null if the user backs out.
+/** Open a name question, resolving the trimmed name or null if the user backs out. */
 export const askName = (/** @type {string} */ owner, /** @type {string} */ message) =>
   open(owner, "name", message, null);
 
 // Ask for a yes/no. Resolves true only on an explicit confirm.
+/** Open a yes/no question, resolving true only on an explicit confirm. */
 export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ message) =>
   open(owner, "confirm", message, false);
 
@@ -69,6 +71,9 @@ export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ me
 // the checked values in option order, or null if the user backs out. A disabled
 // option's checked state is pinned — rendered for honesty, immune to clicks.
 /**
+ * Open a multiple-choice question, resolving the checked values in option order
+ * or null if the user backs out.
+ *
  * @param {string} owner
  * @param {string} message
  * @param {ChoiceOption[]} options
@@ -82,6 +87,8 @@ export function askChoices(owner, message, options) {
 
 // Flip one choice by value. Disabled options stay as offered.
 /**
+ * Flip one choice's checked state by value, leaving disabled options as offered.
+ *
  * @param {string} value
  * @returns {void}
  */
@@ -102,6 +109,9 @@ export function toggleChoice(value) {
 // Save click without a word is indistinguishable from one that saved and did
 // nothing. A confirm has nothing to type — reaching here at all means yes.
 /**
+ * Resolve the open question with the user's answer, or flag a blank name as
+ * refused and leave the question standing.
+ *
  * @param {string | null | undefined} [value] the typed name; unused by the other kinds
  * @returns {void}
  */
@@ -125,12 +135,14 @@ export function answer(value) {
 
 // Withdraw a standing refusal — the user is typing, so the complaint about an
 // empty field has stopped being true.
+/** Clear a standing blank-name refusal, called as the user types. */
 export function clearRefusal() {
   const q = question.value;
   if (q && q.refused) question.value = { ...q, refused: false };
 }
 
 // Withdraw the question, resolving whatever "no answer" means for its kind.
+/** Withdraw the open question, resolving whatever "no answer" means for its kind. */
 export function cancel() {
   const q = question.value;
   if (q) close(q.cancelled);

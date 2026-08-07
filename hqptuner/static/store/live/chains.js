@@ -63,6 +63,9 @@ function chainBadge(c, base) {
 // the two sides of the card are the same kind of number and an edit made here
 // means the same thing when the chain loads and it is finally sent.
 /**
+ * One chain card's three controls — each with its current value, option list and narrow
+ * badge, read from the enumerations when that chain is loaded and from the running
+ * configuration when it is not.
  * @param {string} chain "pcm" | "sdm" — the card being built
  * @param {string | null} loaded the chain the engine has loaded, if any
  */

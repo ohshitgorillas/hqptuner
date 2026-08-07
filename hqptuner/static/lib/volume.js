@@ -14,10 +14,10 @@
 export const AXIS_MIN = -120;
 export const AXIS_MAX = 12;
 
-// Read a form value as a number, keeping the caller's default for anything the
-// daemon may legitimately send as "no answer" — an empty box, a missing field,
-// or a non-numeric placeholder — so a blank never becomes NaN.
 /**
+ * Read a form value as a number, keeping the caller's default for anything the
+ * daemon may legitimately send as "no answer" — an empty box, a missing field,
+ * or a non-numeric placeholder — so a blank never becomes NaN.
  * @param {string | number | boolean | null | undefined} v
  * @param {number} dflt
  * @returns {number}
@@ -26,11 +26,11 @@ export function num(v, dflt) {
   return v === "" || v == null || Number.isNaN(Number(v)) ? dflt : Number(v);
 }
 
-// Clamp one handle against the axis, its own documented bound, and its
-// neighbours. `cur` is the other two handles' present values. Ordering is
-// enforced here rather than by refusing the input, so a handle dragged past its
-// neighbour stops against it instead of jumping.
 /**
+ * Clamp one handle against the axis, its own documented bound, and its
+ * neighbours, rounded to whole dB. Ordering is enforced here rather than by
+ * refusing the input, so a handle dragged past its neighbour stops against it
+ * instead of jumping.
  * @param {string} which one of "min", "max", "startup"
  * @param {string | number} v the dragged/typed value
  * @param {{ min: number, startup: number, max: number }} cur the other handles' present values
@@ -50,10 +50,11 @@ export function clampVolume(which, v, { min, startup, max }) {
 const LOUD_MIN = -120;
 const LOUD_MAX = 0;
 
-// Clamp one loudness bound against those bounds and against its partner. The
-// pair shares the axis with Min / Startup / Max but not their ordering rule —
-// the only crossing forbidden here is the lower bound passing the upper.
 /**
+ * Clamp one loudness bound to -120..0 dBFS and against its partner, rounded to
+ * whole dB. The pair shares the axis with Min / Startup / Max but not their
+ * ordering rule — the only crossing forbidden here is the lower bound passing
+ * the upper.
  * @param {string} which one of "low", "high"
  * @param {string | number} v the dragged/typed value
  * @param {{ low: number, high: number }} cur the pair's present values

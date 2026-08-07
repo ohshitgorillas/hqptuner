@@ -347,6 +347,10 @@ function DspSwitcher() {
   `;
 }
 
+/**
+ * Renders the Matrix tab: the speakers/headphones view switcher over the global,
+ * profile and pipelines cards, the mode-specific cards, and the response plot.
+ */
 export function MatrixTab() {
   const speakerMode = matrixMode.value === "speakers";
   return html`<${Section}>

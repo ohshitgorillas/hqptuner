@@ -18,8 +18,8 @@ import { GENRES, FOCUS, RATIOS } from "./facet-data.js";
  * @typedef {{ value: (string | number)[] }} MultiSignal
  */
 
-// toggle a value in a multi-select signal (add if absent, remove if present)
 /**
+ * Toggles a value in a multi-select signal: adds it if absent, removes it if present.
  * @param {MultiSignal} sig
  * @param {string | number} v
  * @returns {void}
@@ -29,6 +29,7 @@ export function toggleIn(sig, v) {
   sig.value = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
 }
 
+/** Summary label for the focus dropdown's button: "Any focus", the one picked focus, or "N focuses". */
 export function focusLabel() {
   const sel = nFocus.value;
   if (!sel.length) return "Any focus";
@@ -36,6 +37,7 @@ export function focusLabel() {
   return `${sel.length} focuses`;
 }
 
+/** Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres". */
 export function genreLabel() {
   const sel = nGenre.value;
   if (!sel.length) return "Any genre";
@@ -43,8 +45,11 @@ export function genreLabel() {
   return `${sel.length} genres`;
 }
 
-// The ratio button also reports the upsample-only extra: "Integer", "Upsample
-// only", or "Integer + upsample-only" when both are set.
+/**
+ * Summary label for the ratio dropdown's button, which also reports the
+ * upsample-only extra: "Any ratio", "Integer", "upsample-only", or the picked
+ * ratio and "upsample-only" joined with " + ".
+ */
 export function ratioLabel() {
   const sel = nRatio.value;
   const parts = [];
@@ -54,6 +59,7 @@ export function ratioLabel() {
   return parts.join(" + ");
 }
 
+/** Looks a value up in a facet's option table and returns its label, or `fallback` if no row matches. */
 export const oneLabel = (
   /** @type {import("./facet-data.js").FacetItems} */ items,
   /** @type {string | number} */ v,
@@ -65,6 +71,8 @@ export const oneLabel = (
 // shows is the count the click actually lands on — an already-picked row
 // previews its own removal, not the state it is already in.
 /**
+ * Returns the array a toggle of `v` would produce — picked values drop out,
+ * unpicked ones join.
  * @template T
  * @param {T[]} arr
  * @param {T} v
@@ -79,6 +87,9 @@ export const toggleVal = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== 
 // dropdown's own field key so the preview honours that chain's apod / hi-res
 // toggles too.
 /**
+ * Counts how many filters the active chain's 1x and Nx lists would hold under
+ * `overrides` — SDM's oversampling lists when the output mode is SDM, PCM's
+ * filter lists otherwise.
  * @param {NarrowOverrides} overrides
  * @returns {{ one: number, nx: number }}
  */

@@ -89,6 +89,8 @@ async function run(name, call, after) {
 // answered with the same per-setting report a hand-made write gets — so a 200
 // that carries a setting which did not verify is an error here too.
 /**
+ * Apply a saved preset's batch to the running engine, then re-mirror the fields it
+ * carried and surface any setting that did not verify.
  * @param {string} name
  * @returns {Promise<void>}
  */
@@ -106,6 +108,7 @@ export async function applyLivePreset(name) {
 
 // The backend snapshots the engine itself, so a save sends nothing but a name.
 /**
+ * Save the engine's current live settings under a name, then re-read the list.
  * @param {string} name
  * @returns {Promise<void>}
  */
@@ -114,6 +117,7 @@ export async function saveLivePreset(name) {
 }
 
 /**
+ * Delete a saved live preset, then re-read the list.
  * @param {string} name
  * @returns {Promise<void>}
  */

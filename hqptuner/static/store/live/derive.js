@@ -25,8 +25,12 @@ import { schema, TIER } from "../schema.js";
  * @property {string} [reason]
  */
 
-/** @returns {EnumItem[]} */
+/**
+ * One enumeration's items as the engine currently reports them, empty until it has.
+ * @returns {EnumItem[]}
+ */
 export const items = (/** @type {string} */ key) => (enums.value && enums.value[key]) || [];
+/** One attribute of the engine's reported State, undefined until it has reported. */
 export const stateOf = (/** @type {string} */ attr) => (engineState.value || {})[attr];
 
 // State reports a LIST INDEX; the config-form domain these controls speak is the
@@ -35,10 +39,15 @@ export const stateOf = (/** @type {string} */ attr) => (engineState.value || {})
 const atIndex = (/** @type {EnumItem[]} */ list, /** @type {string | number | undefined} */ index) =>
   list.find((o) => String(o.index) === String(index));
 
-/** @returns {MenuOption[]} */
+/**
+ * One enumeration as menu options: valued by enum ID, labelled by the engine's name.
+ * @returns {MenuOption[]}
+ */
 export const idOptions = (/** @type {string} */ key) => items(key).map((o) => ({ value: o.value, label: o.name }));
 
 /**
+ * The enum ID behind the list index State reports for one attribute, "" when the
+ * enumeration has no item at that index.
  * @param {string} key
  * @param {string} attr
  * @returns {string}
@@ -54,6 +63,7 @@ export function idValue(key, attr) {
 // (store/prose.js). Nothing on this page writes prose of its own — a live
 // control and its persistent twin are the same knob and must say the same
 // thing.
+/** A catalog key paired with its schema entry — the words a live control shares with its tab twin. */
 export const catalog = (/** @type {string} */ key) => ({ key, entry: schema[key] });
 
 // The two chains' form fields, in signal order. Mirrors livemap.ROUTABLE, which
@@ -76,6 +86,7 @@ export const CHAINS = {
 // modes enumeration is device-dependent — it drops SDM on a device that cannot
 // do DSD — so the form value is matched from the item's NAME, exactly as
 // livemap._mode_form_value does on the other side.
+/** The mode form value the engine's reported mode name matches, "" when it matches none. */
 export function modeValue() {
   const name = modeName.value.toUpperCase();
   if (name.startsWith("[SOURCE]")) return "auto";
@@ -87,6 +98,7 @@ export function modeValue() {
 // (protocol.md §6) — so the rate in Hz is what the lane takes back. The menus
 // speak tiers, so State's rate comes back as the tier it belongs to; rate "0"
 // belongs to no tier and reads as "" (the engine has no pin of its own).
+/** The menu tier the engine's reported rate belongs to, "" when it belongs to none. */
 export function rateValue() {
   const item = atIndex(items("rates"), stateOf("rate"));
   return TIER[(item && item.rate) || ""] || "";

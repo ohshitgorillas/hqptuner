@@ -37,6 +37,9 @@ import { truthy } from "../lib/coerce.js";
 // settings": the Matrix response card is showing a CURVE rather than controls,
 // so it says what is not being applied instead of what has no effect.
 /**
+ * Renders the "matrix engine is bypassed" note on a card, or nothing when the
+ * effective `matrix_enabled` is truthy.
+ *
  * @param {{ text?: string }} props an override for the default sentence
  */
 export function BypassNote({ text }) {

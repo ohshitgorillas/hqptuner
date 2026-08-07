@@ -19,6 +19,7 @@ const TABS = [
   ["system", "System", System],
 ];
 
+/** Tab bar: one button per registered tab, flagging the active tab and any tab holding staged edits. */
 export function TabBar() {
   return html`
     <nav class="tab-nav">
@@ -31,6 +32,7 @@ export function TabBar() {
   `;
 }
 
+/** Body of the active tab, falling back to the first registered tab when the active id matches none. */
 export function TabBody() {
   const Body = (TABS.find((t) => t[0] === active.value) || TABS[0])[2];
   return html`<${Body} />`;

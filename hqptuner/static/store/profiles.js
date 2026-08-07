@@ -73,6 +73,7 @@ export const savedProfiles = computed(() => {
 
 // Whether a live switch can reach this profile. A profile saved in this session
 // and not applied yet cannot be: the daemon only knows what it read at startup.
+/** Whether a live MatrixSetProfile switch can reach this profile name. */
 export const isLiveProfile = (/** @type {string} */ name) => daemonProfiles.value.includes(name);
 
 // A profile the config carries: {rows, post}. Null for a name only the daemon
@@ -83,6 +84,9 @@ const fileProfile = (/** @type {string} */ name) => fileProfiles.value[name] || 
 // profile in question, else what the config carries. Null when only the daemon
 // knows the name — there are no rows to stage, so such a load is live-only.
 /**
+ * The pipeline rows a load of this profile would stage, or null when only the
+ * daemon knows the name.
+ *
  * @param {string} name
  * @returns {import("./resolve.js").PipelineRow[] | null}
  */
@@ -99,6 +103,9 @@ export function profileRows(name) {
 // live, so a load of it has nothing to install. Null for a name only the daemon
 // knows, matching profileRows.
 /**
+ * The post-process chain a load of this profile would stage, keyed by wire field
+ * name, or null when only the daemon knows the name.
+ *
  * @param {string} name
  * @returns {Record<string, string> | null}
  */
@@ -112,11 +119,13 @@ export function profilePost(name) {
 // Rows arrive canonical from effectivePipelines, so they go out as they came.
 // `presets` names the stored presets the verb also fans out to at apply; the
 // no-target payloads keep the original shapes on the wire.
+/** Stage a profile save carrying the given rows, and the stored presets it fans out to. */
 export const stageProfileSave = (
   /** @type {string} */ name,
   /** @type {import("./resolve.js").PipelineRow[]} */ rows,
   /** @type {string[]} */ presets = [],
 ) => edit(SAVE, JSON.stringify(presets.length ? { name, rows, presets } : { name, rows }));
+/** Stage a profile delete, and the stored presets it fans out to. */
 export const stageProfileDelete = (/** @type {string} */ name, /** @type {string[]} */ presets = []) =>
   edit(DELETE, presets.length ? JSON.stringify({ name, presets }) : name);
 

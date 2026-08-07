@@ -19,6 +19,10 @@ import { round } from "./curve.js";
 const ln = Math.log;
 
 /**
+ * Measured points resampled onto a frequency grid: dB interpolated linearly
+ * against log f between neighbours, and held flat at the end points' dB
+ * outside the measured span.
+ *
  * @param {number[]} freqs
  * @param {Point[]} points
  * @returns {number[]}
@@ -99,6 +103,7 @@ const MAD_SCALE = 1.4826;
 
 // NaN fails every comparison, so `x <= 0` lets a NaN through where the older
 // `!(x > 0)` spelling caught it. This keeps that guard in one place.
+/** True for anything that is not a strictly positive number, NaN included. */
 export const notPositive = (/** @type {number} */ x) => Number.isNaN(x) || x <= 0;
 
 /**
@@ -150,6 +155,9 @@ export function despikePoints(points, spec) {
 const REJECT_PREVIEW = 8;
 
 /**
+ * The despiking clause of a target's detail line: how many points were
+ * rejected out of how many, and the first few of their frequencies in Hz.
+ *
  * @param {number[]} rejected
  * @param {number} total
  * @returns {string}
@@ -162,6 +170,10 @@ export function rejectDetail(rejected, total) {
 }
 
 /**
+ * The [hz, db] pairs a target spec names, from an inline `points` list or a
+ * measurement file at `path` — never both — with the detail line naming the
+ * source and the count of unparsed lines.
+ *
  * @param {TargetSpec} spec
  * @returns {Promise<{ points: Point[], detail: string, skipped: number }>}
  */

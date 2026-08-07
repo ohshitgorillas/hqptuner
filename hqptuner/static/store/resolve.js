@@ -57,6 +57,9 @@ const stateKey = (/** @type {SchemaField} */ e) => e.stateField || "";
 
 // http-lane field source: /matrix for endpoint "matrix", /config otherwise.
 /**
+ * The form-field map an entry reads from: /matrix for endpoint "matrix",
+ * /config otherwise.
+ *
  * @param {SchemaField} entry
  * @returns {Record<string, FormField>}
  */
@@ -69,6 +72,9 @@ export function httpFieldMap(entry) {
 // names (matrix_engine — the write lane's namespace) while the daemon's form
 // field is bare (engine): entry.formField carries the read-side name.
 /**
+ * The daemon form-field name an entry reads its baseline under, which differs
+ * from its staged key where the schema declares `formField`.
+ *
  * @param {SchemaField} entry
  * @returns {string}
  */
@@ -91,6 +97,7 @@ const canonRow = (/** @type {PipelineRow} */ r) => ({
   process: r.process || "",
   source: String(r.source ?? "0"),
 });
+/** Serialize pipeline rows to the backend's canonical JSON, so compares reduce to string equality. */
 export const canonPipelines = (/** @type {PipelineRow[]} */ rows) => JSON.stringify(rows.map(canonRow));
 
 // Whether a matrix profile is switched live right now. The switch is memory-only
@@ -225,6 +232,9 @@ function stagedValue(entry) {
 // that must reflect what is actually processing right now (signal path, the
 // live-volume banner), never the editor's pending picture.
 /**
+ * The value the engine or daemon is actually running for a key, ignoring staged
+ * edits and preset preview alike.
+ *
  * @param {string} key
  * @returns {string | number | boolean | undefined}
  */
@@ -242,6 +252,9 @@ export function runningValue(key) {
 
 // effective(key) — what a control renders: staged edit if present, else baseline.
 /**
+ * The value a control renders: an active knob drag, else the staged edit, else
+ * the baseline.
+ *
  * @param {string} key
  * @returns {string | number | boolean | undefined}
  */
@@ -260,6 +273,9 @@ export function effective(key) {
 // checkbox plus every `bool` entry — the enable gates render as two-button
 // segments but their value is a truth, not a token (see Field.js controlValue).
 /**
+ * Whether a key's staged value differs from its baseline, compared in the
+ * control's own domain.
+ *
  * @param {string} key
  * @returns {boolean}
  */
@@ -283,6 +299,7 @@ export function isDirty(key) {
 // An entry no schema key claims is never reported. The store cannot judge what
 // it cannot ground, and silently dropping a field some other surface staged is
 // worse than carrying it.
+/** Staged entries that no longer read as a change, named as the stage endpoint's `drop` member names them. */
 export function cleanStagedKeys() {
   const st = staged.value;
   const keys = Object.keys(schema);

@@ -57,6 +57,7 @@ export const favoriteFilters = signal(load());
 export const nFavOnly = signal(false);
 
 /**
+ * Whether a filter name is starred.
  * @param {string} name
  * @returns {boolean}
  */
@@ -65,6 +66,8 @@ export function isFavorite(name) {
 }
 
 /**
+ * Star or unstar a filter name and persist the set, turning the favorites-only switch
+ * off when the last star goes.
  * @param {string} name
  * @returns {void}
  */

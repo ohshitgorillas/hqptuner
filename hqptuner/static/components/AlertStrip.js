@@ -11,6 +11,7 @@ import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
 import { junkAdvice } from "../store/junkadvice.js";
 
+/** Warning row of engine-health alerts plus the junk-filter advice chip; renders nothing when both are empty. */
 export function AlertStrip() {
   const alerts = engineAlerts.value;
   const advice = junkAdvice.value;

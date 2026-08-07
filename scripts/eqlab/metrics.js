@@ -35,10 +35,14 @@ import { noteRange } from "./notes.js";
  * }} MetricSpec
  */
 
-// Closed-form bounds — the grid is uniform in log f, so the first and last
-// in-range indices need no scan. The one-step nudges settle float edge cases
-// so boundary membership matches the exact `f >= a && f <= b` test.
 /**
+ * First and last grid index whose frequency falls inside a [lo, hi] Hz range,
+ * inclusive; throws when the range spans no grid point.
+ *
+ * Closed-form bounds — the grid is uniform in log f, so the first and last
+ * in-range indices need no scan. The one-step nudges settle float edge cases
+ * so boundary membership matches the exact `f >= a && f <= b` test.
+ *
  * @param {CurveLike} curve
  * @param {[number, number]} range
  * @returns {{ lo: number, hi: number }}

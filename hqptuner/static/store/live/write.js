@@ -31,6 +31,8 @@ import { wireRate } from "./rates.js";
 // must re-mirror by exactly the rules a hand-made write already follows —
 // deciding that twice is how the two paths drift.
 /**
+ * Re-read what a live write moved — engine state always, the enumerations when the
+ * batch re-enumerated, the running config when it touched a rate limit or was held.
  * @param {string[]} fields the batch's own fields, whatever wrote them
  * @param {LiveReport} [report]
  * @returns {Promise<void>}
@@ -60,6 +62,8 @@ export async function remirrorLive(fields, report) {
 // Write one live control. Returns nothing on purpose: the outcome lives on the
 // signals above, so no control has to hold a second copy of it.
 /**
+ * Write one live control and re-mirror behind it, leaving the outcome on the lane's
+ * busy and error signals.
  * @param {string} field
  * @param {string | number | boolean} value
  * @returns {Promise<void>}

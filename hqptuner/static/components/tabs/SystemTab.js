@@ -182,6 +182,7 @@ const LoggingCard = () =>
     <${LogTail} />
   <//>`;
 
+/** System tab: about and HQPTuner preference cards, engine health, hardware, and the logging card with the log tail. */
 export const System = () =>
   html`<${Section}>
     <div class="card-grid">

@@ -28,6 +28,8 @@ import { StageEditor, setSelected } from "./MatrixStageEditor.js";
 // round-trip — the serialized REW text is built client-side. Shared with the
 // Matrix tab's master export.
 /**
+ * Hands `text` to the browser as a .txt download under `filename`.
+ *
  * @param {string} filename
  * @param {string} text
  * @returns {void}
@@ -265,6 +267,9 @@ function RowTools({ row, index, raw, canRemove, loaded, update, remove, toggleRa
 }
 
 /**
+ * Renders one pipeline row — In → stage chain → gain → Out — with its tool cluster
+ * and, when a chip is selected, the docked stage editor beneath it.
+ *
  * @param {{ row: PipelineRow, index: number, dirty: boolean, summing: boolean, canRemove: boolean,
  *           eqLoaded: boolean, update: RowWriter, remove: () => void, importHere: () => void }} props
  */

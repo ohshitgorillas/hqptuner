@@ -35,6 +35,9 @@ const FS = 48000;
 export const HUES = ["r0", "r1", "r2", "r3"];
 
 /**
+ * Magnitude and phase curves for the plotted pipeline rows, one pair per distinct
+ * processing chain, widening `bounds` to fit.
+ *
  * @param {PipelineRow[]} rows
  * @param {number[]} plotted
  * @param {Bounds} bounds
@@ -90,11 +93,13 @@ export function rowTraces(rows, plotted, bounds) {
 // A recognized crossfeed block is data, but its 8 internal pipelines aren't worth
 // plotting individually. Draw the single headphone-EQ curve the block was built
 // from (msRecognize recovers it) as the block-only overview.
-// The headphone EQ a crossfeed block carries, drawn in place of the block's own
-// near-identical internal rows. Both block types hide their rows from the plot,
-// so without this the EQ — the curve the user actually tuned — disappears and a
-// ~2 dB crossfeed response is left dominating the chart.
+// Both block types hide their rows from the plot, so without this the EQ — the
+// curve the user actually tuned — disappears and a ~2 dB crossfeed response is
+// left dominating the chart.
 /**
+ * The headphone EQ a crossfeed block carries, as magnitude and phase curves drawn
+ * in place of the block's own near-identical internal rows.
+ *
  * @param {PipelineRow[]} rows
  * @param {Bounds} bounds
  * @returns {PlotTrace[] | null}
@@ -168,6 +173,9 @@ function structuralEqTraces(rec, bounds) {
 // or an in-flight drag). A block baseline (crossfeed applied) ghosts its
 // recovered EQ curve instead of the block's internal rows.
 /**
+ * True when the working rows no longer match the applied baseline, or a band drag
+ * is in flight — the condition for drawing the applied ghosts.
+ *
  * @param {PipelineRow[]} rows
  * @param {PipelineRow[]} base
  * @param {number[]} plotted
@@ -180,6 +188,9 @@ export function editedAway(rows, base, plotted) {
 }
 
 /**
+ * Ghost magnitude curves for the applied baseline rows; a crossfeed baseline ghosts
+ * its recovered EQ curve instead of the block's internal rows.
+ *
  * @param {PipelineRow[]} base
  * @param {number[]} plotted
  * @param {Bounds} bounds
@@ -219,6 +230,9 @@ export function appliedTraces(base, plotted, bounds) {
 }
 
 /**
+ * A single accent magnitude curve for the library picker's candidate chain, so it
+ * reads as an A/B against the working traces.
+ *
  * @param {{ label: string, stages: Stage[] }} preview
  * @param {Bounds} bounds
  * @returns {PlotTrace}

@@ -7,6 +7,7 @@ import { html } from "../lib/dom.js";
 import { reachable, alarm } from "../store/signals.js";
 import { applying } from "../store/actions.js";
 
+/** Connection pill reading Connected, Attention, Applying… or Unreachable off the reachability, alarm and apply signals. */
 export function StatusPill() {
   const state = applying.value || alarm.value ? "amber" : !reachable.value ? "red" : "green";
   const text = applying.value ? "Applying…" : { green: "Connected", amber: "Attention", red: "Unreachable" }[state];

@@ -70,6 +70,8 @@ export const showDescriptions = signal(loadBool(K_DESC, true));
 export const keepOptionDescriptions = signal(loadBool(K_KEEP, true));
 
 /**
+ * Set the master inline-manual-text pref and persist it.
+ *
  * @param {boolean} on
  * @returns {void}
  */
@@ -79,6 +81,9 @@ export function setShowDescriptions(on) {
 }
 
 /**
+ * Set whether per-selection option descriptions survive a hidden master, and
+ * persist it.
+ *
  * @param {boolean} on
  * @returns {void}
  */
@@ -94,6 +99,8 @@ export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
 export const fastVolumeUpdates = signal(loadBool(K_FAST_VOL, false));
 
 /**
+ * Set the System page's faster-poll opt-in and persist it.
+ *
  * @param {boolean} on
  * @returns {void}
  */
@@ -120,6 +127,8 @@ export function setFastVolumeUpdates(on) {
 export const liveMode = signal(loadBool(K_LIVE, false));
 
 /**
+ * Set the LIVE switch and persist it, so a reload lands back on the same page.
+ *
  * @param {boolean} on
  * @returns {void}
  */

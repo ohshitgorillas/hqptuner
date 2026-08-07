@@ -76,7 +76,11 @@ const edits = signal({});
 const enabledEdit = signal(null); // null = follow the daemon's current switch
 const note = signal("");
 
-/** @param {string} id */
+/**
+ * Selects the channel set the card lists, remembering the pick in localStorage.
+ *
+ * @param {string} id
+ */
 export function chooseSet(id) {
   speakerSet.value = id;
   try {
@@ -266,6 +270,10 @@ function Body({ data }) {
   `;
 }
 
+/**
+ * Renders the Speakers card: per-channel level and distance trims beside the plan
+ * diagram, fetching the daemon's speaker processing on first render.
+ */
 export function SpeakersCard() {
   const data = speakers.value;
   useEffect(() => {

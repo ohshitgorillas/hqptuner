@@ -78,12 +78,14 @@ const isoLevel = (/** @type {string | number | boolean | undefined} */ v) => {
   return s === "0" || s === "" || s === "false" ? "0" : "1";
 };
 const isoOn = (/** @type {GrayCtx} */ ctx) => isoLevel(ctx.effective("optimal_iso")) !== "0";
-// Whether the volume control is pinned (manual §4.2, §4.5): fixed volume, Auto
-// headroom (either encoding — file "0"/"1"/"2" or the /config form's lossy
-// bool, both normalized by isoLevel), or a volume range collapsed to 0/0.
-// Takes a getter (key => value) so one predicate serves any view of the config —
-// the signal path passes runningValue to gate the volume-adaptive loudness chip
-// on what the engine is actually applying.
+/**
+ * Whether the volume control is pinned (manual §4.2, §4.5): fixed volume, Auto
+ * headroom (either encoding — file "0"/"1"/"2" or the /config form's lossy
+ * bool, both normalized by isoLevel), or a volume range collapsed to 0/0.
+ * Takes a getter (key => value) so one predicate serves any view of the config —
+ * the signal path passes runningValue to gate the volume-adaptive loudness chip
+ * on what the engine is actually applying.
+ */
 export const volumePinned = (/** @type {(key: string) => string | number | boolean | undefined} */ get) =>
   truthy(get("fixed_volume_enabled")) ||
   isoLevel(get("optimal_iso")) !== "0" ||

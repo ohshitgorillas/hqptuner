@@ -115,7 +115,10 @@ const Counter = ({ label, delta, total, alert }) => html`
 // it off: that page already polls at 500 ms unconditionally (store/ui.js), so an
 // unticked box promising faster updates would be describing something the page
 // is already doing. The System tab's copy is untouched.
-/** @param {{ showQuick?: boolean }} props */
+/**
+ * Engine-health cluster: VU gauge, input/output buffer meters and clip / apodizing counters, dimmed when not playing.
+ * @param {{ showQuick?: boolean }} props
+ */
 export function EngineHealth({ showQuick = true }) {
   const st = (engineStatus.value || {}).status || {};
   const playing = Number(st.state) === 2;

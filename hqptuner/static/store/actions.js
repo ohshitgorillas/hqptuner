@@ -37,6 +37,8 @@ const stageBody = (/** @type {StageBody} */ body) => ({ ...body, drop: cleanStag
 // baseline still stages — isDirty's string compare then reads clean, same as any
 // field, and `drop` is what stops that clean entry sitting in the buffer.
 /**
+ * Stage the whole pipeline set as one canonical-JSON http-lane field.
+ *
  * @param {import("./resolve.js").PipelineRow[]} rows
  * @param {Record<string, string>} [extra] further http-lane fields, same POST
  * @returns {Promise<void>}
@@ -66,6 +68,8 @@ async function stageHttp(fields) {
 // Live knob-drag override (see liveOverride): setLive updates instantly with no
 // server hit; the commit path (edit) stages the value then clears the override.
 /**
+ * Record a knob's in-drag value as a local override, with no server hit.
+ *
  * @param {string} key
  * @param {string | number | boolean} value
  * @returns {void}
@@ -128,6 +132,8 @@ function applyFixedVolumeCoupling(key, value, http) {
 }
 
 /**
+ * Stage one schema-key edit into its lane, with the coupled fields it drags along.
+ *
  * @param {string} key
  * @param {string | number | boolean} value
  * @returns {Promise<void>}
@@ -163,6 +169,7 @@ export async function edit(key, value) {
   staged.value = await api.stage(stageBody(body));
 }
 
+/** Throw away every staged edit and the previewed preset with them. */
 export async function discardAll() {
   clearPreview();
   staged.value = await api.discard();
@@ -178,6 +185,8 @@ export async function discardAll() {
 // Treat it as clearing the preview instead. Any staged field edits stand on
 // their own and still read as dirty over the active baseline.
 /**
+ * Load a preset's saved settings in as the editor's baseline, pending Apply.
+ *
  * @param {string} name
  * @returns {Promise<void>}
  */
@@ -193,7 +202,11 @@ export async function previewPreset(name) {
 
 // Kept exported with no current caller: it is the symmetric half of the exported
 // previewPreset, and a preview API that can start but not clear is a trap.
-/** @public */
+/**
+ * Drop the previewed preset, leaving the editor back on the active baseline.
+ *
+ * @public
+ */
 export function clearPreview() {
   pendingPreset.value = null;
   previewConfig.value = null;
@@ -202,6 +215,8 @@ export function clearPreview() {
 // Delete a stored preset (store + daemon mirror), then refresh so the picker
 // drops it. Clears the preview if the deleted preset was the one being previewed.
 /**
+ * Delete a stored preset and refresh the config so the picker drops it.
+ *
  * @param {string} name
  * @returns {Promise<void>}
  */
@@ -242,6 +257,9 @@ async function applyLane(run, what) {
 // return we re-mirror it: a failed/held edit stays staged and — once the poll
 // loop marks the daemon reachable again — the Apply button re-enables itself.
 /**
+ * Apply the staged set, committing any previewed preset switch with it, and
+ * record the outcome in `lastApply`.
+ *
  * @param {{ name: string }} [save] preset to save into as part of the apply. An
  *   OBJECT, not a bare name: it goes out as the request body's `save`, and the
  *   backend reads `body.save.name` (api/app.py:239, models.py SaveTarget).
@@ -273,6 +291,8 @@ export async function applyAll(save) {
 // nothing staged (the "I like this, keep it" path). Reuses the applying signal:
 // the save lane POSTs /restore, so the daemon briefly restarts just like an apply.
 /**
+ * Persist the running config to a named preset without applying anything staged.
+ *
  * @param {string} name
  * @returns {Promise<import("./apply-summary.js").SaveResult>}
  */
@@ -290,6 +310,8 @@ export async function savePresetOnly(name) {
 // Auto-save: with this preset-store flag on, the backend folds every successful apply/live write into the active preset.
 export const autosave = computed(() => !!(config.value && config.value.autosave));
 /**
+ * Turn the preset store's auto-save flag on or off, then re-mirror the config.
+ *
  * @param {boolean} enabled
  * @returns {Promise<void>}
  */
@@ -301,6 +323,9 @@ export async function setAutosave(enabled) {
 // Immediate live-volume write. Echoes the readback level into `volume` so the
 // slider reflects the applied value without waiting for the next poll.
 /**
+ * Write the volume level to the daemon immediately and echo the readback into
+ * the `volume` signal.
+ *
  * @param {string | number} level dB
  * @returns {Promise<{ volume?: string }>}
  */

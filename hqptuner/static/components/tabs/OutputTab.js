@@ -78,6 +78,7 @@ const NetCard = () => html`<${Card} title="Network Backend" collapse=${collapseF
 <//>`;
 
 // Mode / Backend / Rate lead the tab as the three master switches.
+/** Output tab: backend, mode and rate switches, general output fields, the ALSA and network cards, and DAC correction. */
 export const Output = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
   return html`<${Section}>

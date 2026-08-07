@@ -130,6 +130,8 @@ function farPath([sx, sy], earDeg, hr) {
 }
 
 /**
+ * Renders the top-down SVG diagram: the two speakers on their arc, the head, and the direct and far-ear paths.
+ *
  * @param {{ angle: number, headRadius: number }} props speaker angle in degrees,
  *   head radius in metres
  */

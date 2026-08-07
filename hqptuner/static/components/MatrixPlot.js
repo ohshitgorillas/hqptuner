@@ -80,9 +80,10 @@ function shownRows(rows) {
   return base;
 }
 
-// True when row `index` is currently drawn (drives the ◉/○ toggle indicator so
-// it reflects the plot, including auto-defaulted rows).
 /**
+ * True when row `index` is currently drawn — including auto-defaulted rows, so the
+ * ◉/○ toggle indicator reflects the plot.
+ *
  * @param {number} index
  * @returns {boolean}
  */
@@ -90,10 +91,14 @@ export function isPlotted(index) {
   return shownRows(effectivePipelines.value).has(index);
 }
 
-// Toggle materializes the current plotted base (explicit set, or the auto-default
-// on first click) then flips this row — so "what you see is what's toggled". The
-// live stage selection is deliberately not baked in here.
-/** @param {number} index */
+// The live stage selection is deliberately not baked in here.
+/**
+ * Flips row `index` on the plot, materializing the current plotted base (explicit
+ * set, or the auto-default on first click) first — so "what you see is what's
+ * toggled".
+ *
+ * @param {number} index
+ */
 export function togglePlotted(index) {
   const rows = effectivePipelines.value;
   const explicit = plottedRows.value;
@@ -154,6 +159,11 @@ function rowHandles(rows, plotted) {
 // The lens toggle that gates the traces below lives on the CROSSFEED card
 // (components/Crossfeed.js), next to the crossfeed it describes — not here. This
 // card only draws what the toggle asks for.
+/**
+ * The RESPONSE card: overlaid magnitude and phase curves for the plotted pipelines,
+ * with the applied-baseline ghosts, crossfeed lenses and picker preview, plus the
+ * band strip and drag handles that edit them.
+ */
 export function MatrixPlot() {
   const rows = effectivePipelines.value;
   const plotted = [...shownRows(rows)].filter((i) => i < rows.length).sort((a, b) => a - b);

@@ -18,6 +18,8 @@ import { hz } from "../lib/units.js";
 // disabled> — the Dropdown appends the reason to the option label (title attrs
 // on <option> don't hover reliably cross-browser).
 /**
+ * Disable the shaper options whose minimum rate is above the selected output rate,
+ * with that floor as the reason.
  * @template {{ label: string }} T
  * @param {T[]} options
  * @param {string} kind "pcm" | "sdm"
@@ -46,6 +48,7 @@ export function grayShapersByRate(options, kind) {
 // Set* writes the LIST INDEX rather than the enum id (docs/protocol.md §4) — so
 // `index` is the value, never a shipped constant.
 /**
+ * A named live enumeration as menu options, each valued by its list index.
  * @param {string} name
  * @returns {OptionItem[]}
  */
@@ -55,9 +58,10 @@ export function enumOptions(name) {
   return list.map((o) => ({ value: o.index, label: o.name, disabled: false, reason: "" }));
 }
 
-// optionsFor(kind, field) -> [{value, label, disabled, reason}]
 // kind: 'config' (a /config form field) | 'matrix' (a /matrix form field).
 /**
+ * One daemon form field's own options, as menu options — empty when the form has no
+ * such field.
  * @param {string} kind
  * @param {string} field
  * @returns {OptionItem[]}

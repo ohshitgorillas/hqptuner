@@ -30,6 +30,11 @@ import {
   apodTip,
 } from "./narrowbar/Stages.js";
 
+/**
+ * Renders the narrowing card above the filter cards: the facet dropdown row and
+ * the two stage switch groups, plus the page-wide pointerdown listener that
+ * retracts an open facet popover.
+ */
 export function NarrowBar() {
   useEffect(() => {
     const onDown = (/** @type {Event} */ e) => closeExcept(/** @type {Element | null} */ (e.target));

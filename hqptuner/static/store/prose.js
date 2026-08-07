@@ -46,6 +46,9 @@ import { notesVisible } from "./prefs.js";
  */
 
 /**
+ * One control's label and tooltip from settings.json, falling back to the key
+ * itself and no tooltip.
+ *
  * @param {SchemaField} entry
  * @param {string} key
  * @returns {ControlProse}
@@ -61,6 +64,9 @@ export function describe(entry, key) {
 // rather than null so a call site can pass it
 // straight to Card (an empty subtitle renders nothing).
 /**
+ * A card gate's tooltip for use as the card subtitle, empty when the manual text
+ * pref is off.
+ *
  * @param {string} key
  * @returns {string}
  */
@@ -147,6 +153,9 @@ function shaperDescription(kind, name, md) {
 //     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
 //     conversion — enums whose meaning is per-value, not per-control).
 /**
+ * The inline manual prose for a control's current selection, empty when the
+ * control carries no `desc` source or nothing joins.
+ *
  * @param {SchemaField} entry
  * @param {string | number | boolean | undefined} value
  * @param {{ value: string | number | undefined, label: string }[] | undefined} options absent on the non-list widgets
@@ -166,6 +175,9 @@ export function selectionDescription(entry, value, options, meta) {
 // Same joins, addressed by one option instead of the current selection — the
 // per-option hover tip in the combobox reads each row's prose through this.
 /**
+ * The same manual prose addressed by one option rather than the current
+ * selection, for the combobox's per-row hover tip.
+ *
  * @param {SchemaField} entry
  * @param {{ value: string | number | undefined, label: string }} option
  * @param {ControlProse} meta

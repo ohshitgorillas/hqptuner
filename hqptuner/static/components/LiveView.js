@@ -434,6 +434,7 @@ function LiveModeCard() {
   `;
 }
 
+/** LIVE page: mode card, hero row, engine-health card, chain cards, playback card and matrix-profile card. */
 export function LiveView() {
   return html`
     <${Section}>

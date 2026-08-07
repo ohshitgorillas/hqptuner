@@ -12,6 +12,7 @@ import { effective } from "./resolve.js";
 // tooltip when disabled). Every field is applyable now; graying is purely the
 // schema's own mode/state rules (grayWhen).
 /**
+ * The schema's own reason for disabling a control, "" when it is enabled.
  * @param {string} key
  * @returns {string}
  */
@@ -29,6 +30,8 @@ export function grayReason(key) {
 // want staged correctly before switching modes, so the control stays editable
 // and only says where it applies (schema `adviseWhen`).
 /**
+ * The schema's note saying which state a control's setting belongs to, "" when it is
+ * live in the current one. Never disables.
  * @param {string} key
  * @returns {string}
  */

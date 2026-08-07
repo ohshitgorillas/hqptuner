@@ -19,6 +19,7 @@ const LN2_2 = Math.LN2 / 2;
 
 export const DEG = 180 / Math.PI;
 
+/** Wrap an angle in degrees into the half-open range [-180, 180). */
 export const wrapDeg = (/** @type {number} */ x) => (((x % 360) + 540) % 360) - 180;
 
 /**
@@ -33,8 +34,8 @@ export const wrapDeg = (/** @type {number} */ x) => (((x % 360) + 540) % 360) - 
  *   Everything a second-order builder derives once from a stage's args.
  */
 
-// Magnitude in dB of a normalized biquad (a0 = 1) at frequency f.
 /**
+ * Magnitude in dB of a normalized biquad (a0 = 1) at frequency f.
  * @param {Biquad} c
  * @param {number} f
  * @param {number} fs
@@ -54,9 +55,9 @@ export function biquadMagDb(c, f, fs) {
   return 10 * Math.log10(mag2);
 }
 
-// Phase in degrees of a normalized biquad at f (same transfer function as
-// biquadMagDb, atan2 instead of magnitude; wrapped to ±180 by construction).
 /**
+ * Phase in degrees of a normalized biquad at f (same transfer function as
+ * biquadMagDb, atan2 instead of magnitude; wrapped to ±180 by construction).
  * @param {Biquad} c
  * @param {number} f
  * @param {number} fs
@@ -75,10 +76,10 @@ export function biquadPhaseDeg(c, f, fs) {
   return (Math.atan2(numIm, numRe) - Math.atan2(denIm, denRe)) * DEG;
 }
 
-// RBJ alpha from whichever shape parameter the iir spec carries: q, bandwidth
-// (octaves), or shelf slope S (shelves only; A is the shelf amplitude). The
-// manual allows s on lp/hp too — approximated at Butterworth there (flagged).
 /**
+ * RBJ alpha from whichever shape parameter the iir spec carries: q, bandwidth
+ * (octaves), or shelf slope S (shelves only; A is the shelf amplitude). The
+ * manual allows s on lp/hp too — approximated at Butterworth there (flagged).
  * @param {number} w0
  * @param {StageArgs} args
  * @param {number} [A]
@@ -93,6 +94,9 @@ export function rbjAlpha(w0, args, A = 1) {
 }
 
 /**
+ * First-order lp1/hp1 as a biquad with b2 = a2 = 0: bilinear transform of the
+ * one-pole prototype, corner f0 prewarped through K = tan(pi f0 / fs), unity in
+ * the passband.
  * @param {string} type
  * @param {number} f0
  * @param {number} fs
@@ -105,8 +109,8 @@ export function firstOrder(type, f0, fs) {
   return { b0: 1 / a0, b1: -1 / a0, b2: 0, a1: (K - 1) / a0, a2: 0 }; // hp1
 }
 
-// RBJ shelf coefficients from an explicit alpha (q- or slope-shaped alike).
 /**
+ * RBJ shelf coefficients from an explicit alpha (q- or slope-shaped alike).
  * @param {string} type
  * @param {number} alpha
  * @param {{ f0: number, g: number, fs: number }} at
@@ -136,8 +140,8 @@ export function shelfFromAlpha(type, alpha, { f0, g, fs }) {
   };
 }
 
-// RBJ lp/hp/bp(0 dB peak)/notch/ap from an explicit alpha.
 /**
+ * RBJ lp/hp/bp(0 dB peak)/notch/ap from an explicit alpha.
  * @param {string} type
  * @param {number} w0
  * @param {number} alpha
@@ -155,8 +159,8 @@ export function plainBiquad(type, w0, alpha) {
   return { b0: (1 - alpha) / a0, b1: (-2 * cw) / a0, b2: (1 + alpha) / a0, a1, a2 }; // ap
 }
 
-// User-supplied raw coefficients, normalized by a0 (absent a0 = 1, never 0).
 /**
+ * User-supplied raw coefficients, normalized by a0 (absent a0 = 1, never 0).
  * @param {StageArgs} args
  * @returns {Biquad}
  */
@@ -172,6 +176,8 @@ export function rawBiquad(args) {
 }
 
 /**
+ * RBJ peaking-EQ coefficients at centre w0 from an explicit alpha, boosting or
+ * cutting by the shelf amplitude A (= 10^(g/40), so ±g dB at the centre).
  * @param {number} w0
  * @param {number} alpha
  * @param {number} A
@@ -188,8 +194,8 @@ export function peakBiquad(w0, alpha, A) {
   };
 }
 
-// Everything a second-order builder needs, derived once from the stage args.
 /**
+ * Everything a second-order builder needs, derived once from the stage args.
  * @param {StageArgs} args
  * @param {number} f0
  * @param {number} fs

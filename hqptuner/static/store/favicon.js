@@ -20,6 +20,7 @@ function pick(mode) {
   return mode === "speakers" ? "🔊" : "🎧";
 }
 
+/** Keep the tab icon following the Matrix tab's mode for the life of the page. */
 export function initFavicon() {
   effect(() => {
     const link = document.getElementById("favicon");

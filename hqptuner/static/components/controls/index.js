@@ -36,6 +36,8 @@ const s = (v) => (v == null ? "" : String(v));
 // re-enumerate and drop the engine's rate pin (store/live/write.js) for a selection the
 // user did not alter.
 /**
+ * Renders an option list as a row of buttons, the one matching `value` marked
+ * active.
  * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, onChange: ValueSink }} props
  */
 export function Segment({ value, options, disabled, onChange }) {
@@ -59,6 +61,8 @@ export function Segment({ value, options, disabled, onChange }) {
 }
 
 /**
+ * Renders an option list as a native `<select>`, a disabled option carrying its
+ * reason appended to the label.
  * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, onChange: ValueSink }} props
  */
 export function Dropdown({ value, options, disabled, onChange }) {
@@ -102,6 +106,8 @@ function useSyncWhenIdle(value) {
  */
 
 /**
+ * Renders a bounded `<input type="number">` that reports on commit and resyncs
+ * from the store only while unfocused.
  * @param {BoundedProps} props
  */
 export function NumberBox({ value, min, max, step, disabled, onChange }) {
@@ -121,6 +127,8 @@ export function NumberBox({ value, min, max, step, disabled, onChange }) {
 }
 
 /**
+ * Renders a free-text `<input>` that reports on commit and resyncs from the
+ * store only while unfocused.
  * @param {{ value: CtrlValue, disabled?: boolean, onChange: ValueSink }} props
  */
 export function TextBox({ value, disabled, onChange }) {
@@ -134,6 +142,8 @@ export function TextBox({ value, disabled, onChange }) {
 }
 
 /**
+ * Renders a checkbox over a truthy value, reporting the daemon's "1" / "0"
+ * tokens rather than a boolean.
  * @param {{ value: CtrlValue, disabled?: boolean, onChange: ValueSink }} props
  */
 export function Checkbox({ value, disabled, onChange }) {
@@ -148,6 +158,8 @@ export function Checkbox({ value, disabled, onChange }) {
 }
 
 /**
+ * Renders a bounded range track with its current value shown beside it,
+ * reporting only edits the user made.
  * @param {BoundedProps} props
  */
 export function Slider({ value, min, max, step, disabled, onChange }) {
@@ -254,6 +266,9 @@ function ReadBox({ shown, min, max, step, unit, sub, disabled, onCommit }) {
 // linear track's rounded value matches its own step, so its `change` fires and
 // a second commit with the identical value is harmless where both arrive).
 /**
+ * Renders a range track and a number box bound to one value, with optional tick
+ * marks; `scale="log"` puts the track in log space while the reported value
+ * stays in real units.
  * @param {{ value: CtrlValue, min: string | number, max: string | number, step?: string | number,
  *   boxStep?: string | number, ticks?: number[], unit?: string, sub?: string,
  *   format?: (n: number) => string, disabled?: boolean, anchor?: string, scale?: string,
@@ -315,6 +330,8 @@ export function SliderNumber(props) {
 }
 
 /**
+ * Renders an option list as a group of labelled radio buttons, the one matching
+ * `value` checked.
  * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, onChange: ValueSink }} props
  */
 export function RadioGroup({ value, options, disabled, onChange }) {

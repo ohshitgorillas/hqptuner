@@ -76,7 +76,11 @@ function persist() {
   }
 }
 
-/** @param {StructuralParams} params */
+/**
+ * Merge control values into the remembered set and persist them to localStorage.
+ *
+ * @param {StructuralParams} params
+ */
 export function remember(params) {
   remembered.value = { ...remembered.value, ...params };
   persist();
@@ -85,6 +89,8 @@ export function remember(params) {
 // The installed block, or null. Rows 0..15 only: the block owns the head of the
 // list the same way the compensation block owns rows 0..7.
 /**
+ * Recognize the structural crossfeed block at rows 0..15, or null if there is none.
+ *
  * @param {PipelineRow[]} rows
  * @returns {StructuralRecognition | null}
  */
@@ -99,7 +105,12 @@ export const liveParams = signal(null);
 
 // Live controls, in precedence order: whatever is being dragged right now, then
 // the installed block's, then what we remember.
-/** @param {PipelineRow[]} rows */
+/**
+ * The control values to render: the live drag, else the installed block's, else
+ * what is remembered.
+ *
+ * @param {PipelineRow[]} rows
+ */
 export function structuralParams(rows) {
   return liveParams.value ?? structuralBlock(rows) ?? remembered.value;
 }
@@ -115,6 +126,7 @@ function installedMode(rows) {
 // What stands between the current config and an installed block. Reported, never
 // applied behind the user's back — the caller stages these so they appear in the
 // pending bar like any other edit.
+/** Report the config settings that stand between the current config and an installed block. */
 export function conflicts() {
   return blockConflicts(effective);
 }
@@ -128,6 +140,9 @@ export function conflicts() {
 // were found, EQ included, so a call that reports it did nothing has done
 // nothing.
 /**
+ * Stage the structural block compiled from `params` over rows 0..15, along with
+ * the row count and the conflict fixes it needs, or refuse and stage nothing.
+ *
  * @param {PipelineRow[]} rows
  * @param {StructuralParams} params
  * @returns {string | null} the refusal note, or null once the block is in
@@ -163,6 +178,7 @@ export function stageStructural(rows, params) {
 // that field is the Matrix tab's own count dropdown, so reading it (or a DSP-mode
 // restore) lights this gate with no crossfeed change staged, while install and
 // removal only register because 2 <-> 16 happens to move the count.
+/** Whether the block's staged presence differs from the applied one — the Structural gate's dirty state. */
 export function pipelinesDirty() {
   return !!structuralBlock(effectivePipelines.value) !== !!structuralBlock(pipelineBaseline.value);
 }
@@ -191,6 +207,9 @@ export const xfMode = signal(loadSelected());
 
 // The mode on screen: the user's choice, or what the rows say when there is none.
 /**
+ * The crossfeed mode on screen: the user's stored choice, or what the rows say
+ * when there is none.
+ *
  * @param {PipelineRow[]} rows
  * @returns {string}
  */
@@ -201,7 +220,12 @@ export function activeMode(rows) {
 // Everything Bauer puts in the signal path: the daemon's post-process flag AND
 // the compensation block that corrects for it. The block is matrix rows, so
 // leaving it behind means a correction still running against no crossfeed.
-/** @param {PipelineRow[]} rows */
+/**
+ * Stage Bauer crossfeed off: remove its compensation block from the rows and
+ * clear the daemon's post-process flag.
+ *
+ * @param {PipelineRow[]} rows
+ */
 export function disableBauer(rows) {
   const { rec } = xfeedBlock(rows);
   if (rec) removeCompBlock(rows, rec);
@@ -217,6 +241,9 @@ export function disableBauer(rows) {
 // Both directions stage like any other edit: the pending bar counts them and
 // Discard puts them back.
 /**
+ * Switch the view to a crossfeed mode, staging the mode being left off and
+ * enabling nothing.
+ *
  * @param {string} next the mode the user selected
  * @param {PipelineRow[]} rows
  */
@@ -249,6 +276,9 @@ export function setXfMode(next, rows) {
 // the only path now, so rounding it coarser than the block demonstrably carries
 // would silently edit the user's number.
 /**
+ * Stage the block's removal, collapsing rows 0..15 back to the stereo pair that
+ * carries its EQ, gain and channels.
+ *
  * @param {PipelineRow[]} rows
  * @param {StructuralRecognition} rec
  */

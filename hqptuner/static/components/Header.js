@@ -122,6 +122,7 @@ function presetPicker() {
   `;
 }
 
+/** Chrome header: brand mark, daemon identity, LIVE switch, preset picker, Ask button and connection pill. */
 export function Header() {
   return html`
     <header class="chrome-header">

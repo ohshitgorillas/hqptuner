@@ -130,6 +130,9 @@ import { expandValue } from "./space.js";
  */
 
 /**
+ * One value, a list of them, or nothing, as a list — the shape every change
+ * group is written in.
+ *
  * @template T
  * @param {T | T[] | undefined} x
  * @returns {T[]}
@@ -185,11 +188,12 @@ function coordsOfSpec(group, spec, i, j) {
   return out;
 }
 
-// Every free coordinate of a space: (group, spec index[, band index],
-// parameter) plus its box. Parameters given a single literal stay fixed;
-// non-numeric lists (e.g. a type sweep) are grid-only. A replace spec's free
-// coordinates live on its `with` bands; `remove` is literal by definition.
 /**
+ * Every free coordinate of a space: (group, spec index[, band index],
+ * parameter) plus its box. Parameters given a single literal stay fixed;
+ * non-numeric lists (e.g. a type sweep) are grid-only. A replace spec's free
+ * coordinates live on its `with` bands; `remove` is literal by definition.
+ *
  * @param {Space} space
  * @returns {Coord[]}
  */
@@ -324,9 +328,11 @@ export function refineEntry(entry, coords, env, opts) {
  * @typedef {{ max_evals?: number, tol?: number, survivors?: number }} RefineSpec
  */
 
+/** The job's refine block, an empty spec where it is `true`, undefined where no refinement was asked for. */
 export const refineSpecOf = (/** @type {Record<string, any>} */ job) =>
   /** @type {RefineSpec | undefined} */ (job.refine === true ? {} : job.refine);
 
+/** Descent settings from a refine spec: evaluation budget and convergence tolerance, defaulted. */
 export const refineOptsOf = (/** @type {RefineSpec} */ spec) => ({
   maxEvals: spec.max_evals ?? 600,
   tol: spec.tol ?? 1e-5,
@@ -350,10 +356,11 @@ export function refineTop(survived, rspec, space, env) {
   survived.sort((a, b) => a.signed[0] - b.signed[0]);
 }
 
-// Pareto mode: refine each returned front member under no-worsening caps on
-// the other objectives, then prune — a refined member can come to dominate
-// another.
 /**
+ * Pareto mode: refine each returned front member under no-worsening caps on
+ * the other objectives, then prune — a refined member can come to dominate
+ * another.
+ *
  * @param {Entry[]} entries
  * @param {RefineSpec} rspec
  * @param {Space} space
@@ -368,6 +375,9 @@ export function refineFront(entries, rspec, space, env) {
 }
 
 /**
+ * Throws unless the seed carries a number at every free coordinate of the
+ * space — a warm start has to mirror the space's change specs to be encodable.
+ *
  * @param {ChangeSet} seed
  * @param {Coord[]} coords
  * @returns {void}

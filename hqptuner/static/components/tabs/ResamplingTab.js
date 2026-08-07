@@ -65,6 +65,7 @@ const fftOpen = computed(() =>
 );
 const fftOverride = signal(null);
 
+/** Resampling tab: the PCM and SDM chain cards, each noting when the output mode makes it inert, plus filter length. */
 export const Resampling = () =>
   html`<${Section}>
     <${NarrowBar} />

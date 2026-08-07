@@ -14,6 +14,8 @@ const CountHead = () => html`<div class="multi-head t-label">1x / Nx</div>`;
 // both stages reads `dead` — a dead-end pick, dimmed so it is visible before
 // clicking.
 /**
+ * Renders one popover row's "1x/Nx" count chip, marked `dead` when the pick
+ * would empty both stages.
  * @param {{ overrides: import("./labels.js").NarrowOverrides }} props
  */
 export function CountChip({ overrides }) {
@@ -29,6 +31,8 @@ export function CountChip({ overrides }) {
 // intersect to nothing. `extra` matches MultiSelect's — the ratio popover hangs
 // its orthogonal upsample-only checkbox there.
 /**
+ * Renders a facet button and a popover of radio rows; picking a value calls
+ * `onPick` and closes the popover.
  * @param {{ open: import("./popover.js").OpenSignal, name: string, label: string, value: string | number,
  *           items: import("./facet-data.js").FacetItems,
  *           onPick: (v: string | number) => void, active: boolean,
@@ -73,6 +77,8 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
 // `extra` is an optional element appended below the item rows, divided off — the
 // ratio popover uses it for the orthogonal upsample-only checkbox.
 /**
+ * Renders a facet button and a popover of checkbox rows, each toggling its
+ * value in `sig`'s array; the popover stays open across picks.
  * @param {{ open: import("./popover.js").OpenSignal, name: string, label: string,
  *           items: import("./facet-data.js").FacetItems, sig: import("./labels.js").MultiSignal,
  *           extra?: unknown, active: boolean,

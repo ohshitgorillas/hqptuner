@@ -31,15 +31,16 @@ import { html } from "../lib/dom.js";
  */
 
 /**
+ * The tab-body wrapper: a `<section class="tab-body">` around a tab's cards.
  * @param {{ children?: Renderable }} props
  */
 export function Section({ children }) {
   return html`<section class="tab-body">${children}</section>`;
 }
 
-// The collapse handle for a card driven by app state: `auto` opens it from the
-// engine's own shape, a non-null `override` means the user has spoken and wins.
 /**
+ * Builds a card's collapse handle from app state: `auto` opens it from the
+ * engine's own shape, a non-null `override` means the user has spoken and wins.
  * @param {{ value: boolean }} auto
  * @param {{ value: boolean | null }} override
  * @returns {CollapseHandle}
@@ -87,6 +88,8 @@ function cardHead({ title, collapse, open, headCls }) {
 // as a caption on whatever happens to sit under its left edge rather than as
 // the name of the row beneath it.
 /**
+ * The card frame: a titled `<section class="card">` around its body content,
+ * collapsible when `collapse` is passed.
  * @param {{ title: Renderable, subtitle?: Renderable, collapse?: CollapseHandle, center?: boolean,
  *   cardClass?: string, bodyClass?: string, headClass?: string, hint?: string,
  *   children?: Renderable }} props

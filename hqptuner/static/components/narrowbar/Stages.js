@@ -36,6 +36,7 @@ export const HIRES_NX_SEGS = [
 // The manual's apodizing explainer (data/settings.json dsp.apodizing tooltip) —
 // stays a VISIBLE caption under the switch row (user decision), as it was under
 // the 1x dropdowns.
+/** The apodizing caption text, read from the loaded metadata's dsp.apodizing tooltip; empty string when absent. */
 export function apodTip() {
   const s = (metadata.value && metadata.value.settings) || {};
   const e = s.dsp && s.dsp.apodizing;
@@ -51,6 +52,8 @@ export const HIRES_TIP =
 // ACTIVE-chain list (PCM unless the output mode is SDM) each pick would leave
 // under the other live facets.
 /**
+ * Renders one stage's switch row: the 1x/Nx micro-label, the segmented control
+ * bound to `sig`, and the per-segment preview counts trailing it.
  * @param {{ stage: string, sig: StageSignal, options: StageSegment[] }} props
  */
 export function StageSeg({ stage, sig, options }) {
@@ -72,6 +75,8 @@ export function StageSeg({ stage, sig, options }) {
 // One function group: title beside its two stage rows, description under the
 // rows in the same column.
 /**
+ * Renders one function group: its title beside the stage rows passed as
+ * children, with `desc` as a caption under them in the same column.
  * @param {{ title: string, desc?: string, cls?: string, children?: unknown }} props
  */
 export function SwitchGroup({ title, desc, cls, children }) {
