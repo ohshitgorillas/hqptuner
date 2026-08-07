@@ -55,6 +55,7 @@ class PresetStore:
     """
 
     def __init__(self, directory: Path, audit: AuditLog | None = None) -> None:
+        """Bind the store to ``directory`` and to an audit log, substituting a no-op log when none is given."""
         self._dir = directory
         # A store built without one still works; it just records nothing, which
         # is what every offline test that does not care about the log wants.
@@ -113,6 +114,7 @@ class PresetStore:
         return sorted(p.stem for p in self._dir.glob("*.xml"))
 
     def exists(self, name: str) -> bool:
+        """Report whether ``name`` is a stored preset. Raises ``PresetError`` if the name itself is invalid."""
         return self._path(name).is_file()
 
     def read(self, name: str) -> bytes:
@@ -162,6 +164,7 @@ class PresetStore:
         return bool(self._meta().get("autosave"))
 
     def set_autosave(self, *, enabled: bool) -> None:
+        """Record the autosave flag in ``store.json``, preserving the rest of the file, and audit the change."""
         meta = self._meta()
         previous = bool(meta.get("autosave"))
         self._ensure_dir()
@@ -189,6 +192,10 @@ class PresetStore:
         return None
 
     def set_active(self, name: str | None) -> None:
+        """Point ``active.json`` at ``name``, or clear it with ``None``, and audit the change.
+
+        The name is validated but not required to exist.
+        """
         if name is not None:
             _validate(name)
         previous = self.active  # the write below is what makes it unreadable

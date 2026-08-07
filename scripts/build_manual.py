@@ -93,14 +93,17 @@ class Entry:
 
     @property
     def heading(self) -> str:
+        """Return the row as it is written in the manual's body: number, space, title."""
         return f"{self.number} {self.title}"
 
     @property
     def top(self) -> int:
+        """Return the top-level section number — the part before the first dot."""
         return int(self.number.split(".")[0])
 
     @property
     def sub(self) -> int:
+        """Return the subsection number, or 0 for a bare top-level section."""
         parts = [p for p in self.number.split(".") if p]
         return int(parts[1]) if len(parts) > 1 else 0
 
@@ -121,6 +124,7 @@ def norm(text: str) -> str:
 
 
 def slug(title: str) -> str:
+    """Return a filename-safe hyphenated slug for a section title, falling back to "section"."""
     ascii_ish = re.sub(r"[^a-z0-9]+", "-", title.lower())
     return ascii_ish.strip("-") or "section"
 
@@ -252,6 +256,7 @@ def pointers(entries: list[Entry]) -> list[str]:
 
 
 def write_index(units: list[Unit], entries: list[Entry]) -> None:
+    """Write INDEX.md — provenance, how-to, pointers, and a row per emitted section file."""
     rows = [
         "| Section | Title | Page | File |",
         "| --- | --- | --- | --- |",
@@ -315,6 +320,7 @@ def write_readme_index(readme: Path) -> int:
 
 
 def main() -> None:
+    """Split the manual PDF into per-section text files and write both indexes, or exit on a lossy split."""
     raw = extract(PDF)
     entries, body_start = parse_toc(raw)
     body = clean(raw[body_start:])

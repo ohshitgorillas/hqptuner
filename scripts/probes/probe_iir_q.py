@@ -183,6 +183,7 @@ async def _measure(client: httpx.AsyncClient, fields: dict[str, str], chain: str
 
 
 async def main() -> int:
+    """Establish whether the iir plugin's q is the RBJ cookbook Q or the classic EE Q, by plotting skirt chains."""
     user = os.environ.get("HQPTUNER_HQP_USERNAME")
     password = os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:

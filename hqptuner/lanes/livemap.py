@@ -223,6 +223,7 @@ class LiveRouteError(Exception):
     """
 
     def __init__(self, reasons: dict[str, str]) -> None:
+        """Build the message by joining the per-field reasons in field order, and keep the mapping on ``reasons``."""
         super().__init__("; ".join(f"{field}: {why}" for field, why in sorted(reasons.items())))
         self.reasons = reasons
 

@@ -40,6 +40,7 @@ VENDOR = Path(__file__).resolve().parent.parent / "hqptuner" / "static" / "vendo
 
 
 def sparse_clone(ref: str, dest: Path) -> None:
+    """Clone AutoEq at a ref into dest, checking out only the ParametricEQ.txt files and the LICENSE."""
     cmd = [GIT, "clone", "--filter=blob:none", "--no-checkout", "--depth", "1"]
     if ref != "master":
         cmd += ["--branch", ref]
@@ -50,6 +51,7 @@ def sparse_clone(ref: str, dest: Path) -> None:
 
 
 def compile_profiles(src: Path) -> list[dict[str, str]]:
+    """Return one sorted record per ParametricEQ.txt in a checkout: model, source, form, and verbatim text."""
     profiles = []
     for f in (src / "results").rglob(f"*{SUFFIX}"):
         rel = f.relative_to(src / "results")
@@ -67,6 +69,7 @@ def compile_profiles(src: Path) -> list[dict[str, str]]:
 
 
 def main() -> int:
+    """Clone or reuse an AutoEq checkout, compile the profiles, and write the gzipped blob and license."""
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ref", default="master", help="upstream tag/branch to pin (default master)")
     ap.add_argument("--src", type=Path, help="reuse an existing AutoEq checkout instead of cloning")

@@ -68,6 +68,7 @@ async def _settled_correction(http: HttpConfigClient, differs_from: dict[str, ob
 
 
 async def main() -> int:
+    """Establish whether a profile saved through the daemon's own POST /matrix/save carries its post-process chain."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")

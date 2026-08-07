@@ -36,7 +36,7 @@ ENUM_COMMANDS = {
 
 
 class ControlError(Exception):
-    pass
+    """Base for every Control API failure: not connected, timed out, socket died, response would not parse."""
 
 
 class CommandError(ControlError):
@@ -124,7 +124,10 @@ def _recover_root(body: str) -> ET.Element | None:
 
 
 class ControlClient:
+    """One Control API connection, with a lock serializing request/response round trips over it."""
+
     def __init__(self, host: str = "127.0.0.1", port: int = 4321, timeout: float = 5.0):
+        """Record where to dial and how long to wait; no socket is opened until ``connect``."""
         self._host = host
         self._port = port
         self._timeout = timeout
@@ -133,6 +136,7 @@ class ControlClient:
         self._lock = asyncio.Lock()
 
     async def connect(self) -> None:
+        """Open the TCP connection and turn on SO_KEEPALIVE so a silently dead daemon surfaces as a socket error."""
         with _as_control_error("connect", self._timeout):
             reader, writer = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), self._timeout)
         self._reader, self._writer = reader, writer
@@ -141,6 +145,7 @@ class ControlClient:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
     async def close(self) -> None:
+        """Close the connection and forget the streams, ignoring a transport that has already failed."""
         if self._writer is not None:
             try:
                 self._writer.close()
@@ -194,9 +199,11 @@ class ControlClient:
         return dict((await self.request(element)).attrib)
 
     async def get_info(self) -> dict[str, str]:
+        """Run `<GetInfo/>` for {name, product, version, platform, engine} — also the reachability handshake."""
         return await self._attrs("<GetInfo/>")
 
     async def get_license(self) -> dict[str, str]:
+        """Run `<GetLicense/>` for the static licence attributes: `valid` (0/1), `name` (licensee), `fingerprint`."""
         return await self._attrs("<GetLicense/>")
 
     async def get_active_config(self) -> str:
@@ -207,6 +214,11 @@ class ControlClient:
         return (await self.request("<ConfigurationGet/>")).attrib.get("value", "")
 
     async def get_state(self) -> dict[str, str]:
+        """Run `<State/>` for the settings snapshot — the primary readback, settings as list indices (protocol.md §6).
+
+        Numeric attributes are list indices into the corresponding enumeration, not enum IDs; `volume` is dB and
+        `matrix_profile` a name.
+        """
         return await self._attrs("<State/>")
 
     async def get_volume_range(self) -> dict[str, str]:
@@ -218,6 +230,11 @@ class ControlClient:
         return await self._attrs("<VolumeRange/>")
 
     async def get_status(self) -> tuple[dict[str, str], dict[str, str] | None]:
+        """Run one-shot `<Status subscribe="0"/>`, returning the root attributes and the `metadata` child's, if present.
+
+        Status reports the *active* filter/shaper/mode as display strings where State reports configured list indices
+        (protocol.md §6); `metadata` is present only while a track is loaded.
+        """
         root = await self.request('<Status subscribe="0"/>')
         meta = root.find("metadata")
         return dict(root.attrib), (dict(meta.attrib) if meta is not None else None)
@@ -239,10 +256,15 @@ class ControlClient:
         return [item.attrib.get("name", "") for item in root]
 
     async def get_enumeration(self, command: str) -> list[dict[str, str]]:
+        """Run one `Get*` enumeration command and return each child item's attributes, in the engine's own order.
+
+        Filter, shaper and rate lists are mode-dependent — re-enumerate after a mode change, since indices shift.
+        """
         root = await self.request(f"<{command}/>")
         return [dict(item.attrib) for item in root]
 
     async def get_all_enumerations(self) -> dict[str, list[dict[str, str]]]:
+        """Run every command in `ENUM_COMMANDS` in turn, keyed by its short name (modes, filters, shapers, ...)."""
         return {key: await self.get_enumeration(cmd) for key, cmd in ENUM_COMMANDS.items()}
 
     async def set_command(self, element_name: str, **attrs: str) -> ET.Element:
@@ -277,6 +299,7 @@ class ControlClient:
             await self.set_command("SetFilter", value=nx, value1x=x1)
 
     async def set_volume(self, db: str) -> None:
+        """Set absolute volume in dB via `<Volume value="..."/>`; errors when `VolumeRange` reports `enabled="0"`."""
         await self.set_command("Volume", value=db)
 
     async def verify_state(self, expected: dict[str, str]) -> None:

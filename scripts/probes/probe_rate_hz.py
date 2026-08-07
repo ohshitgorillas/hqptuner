@@ -66,6 +66,7 @@ async def _observe(client: ControlClient, label: str, hz: str) -> None:
 
 
 async def main() -> int:
+    """Establish whether SetRate accepts a rate in Hz, in and out of the running family, and what State reports back."""
     client = ControlClient()
     await client.connect()
     state = await client.get_state()

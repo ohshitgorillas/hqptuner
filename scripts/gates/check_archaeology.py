@@ -114,6 +114,7 @@ def block_comment_lines(path: Path, *, line_comments: bool) -> list[tuple[int, s
 
 
 def comment_lines(path: Path) -> list[tuple[int, str]]:
+    """Return (line, text) for every comment in the file, read the way its suffix demands."""
     if path.suffix == ".py":
         return python_comment_lines(path)
     if path.suffix in (".js", ".mjs"):
@@ -124,6 +125,7 @@ def comment_lines(path: Path) -> list[tuple[int, str]]:
 
 
 def check_file(path: Path) -> list[str]:
+    """Return one complaint per archaeology phrase or reasonless pragma in the file's comments."""
     complaints = []
     for lineno, text in comment_lines(path):
         if BARE_PRAGMA.search(text):
@@ -138,6 +140,7 @@ def check_file(path: Path) -> list[str]:
 
 
 def main() -> int:
+    """Refuse a comment narrating the code's history instead of a constraint that holds now."""
     complaints: list[str] = []
     self_path = Path(__file__).resolve()
     for name in sys.argv[1:]:

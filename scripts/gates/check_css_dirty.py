@@ -175,6 +175,7 @@ def check_ring_scope(blocks: list[tuple[Path, list[str], Block]]) -> list[str]:
 
 
 def main() -> int:
+    """Refuse a widget with no staged-edit marking, a missing rule for one, or an unscoped inset ring."""
     kinds = widget_kinds()
     blocks = blocks_with_source()
     problems = (

@@ -48,6 +48,7 @@ def _count_assertions(body: list[ast.stmt], *, in_loop: bool = False) -> tuple[i
 
 
 def check_file(path: Path) -> list[str]:
+    """Return one problem per `test_` function without exactly one assertion outside a loop."""
     problems = []
     tree = ast.parse(path.read_text(), filename=str(path))
     for node in ast.walk(tree):
@@ -61,6 +62,7 @@ def check_file(path: Path) -> list[str]:
 
 
 def main() -> int:
+    """Refuse a test function holding zero or several assertions, or one inside a loop."""
     problems = [p for name in sys.argv[1:] for p in check_file(Path(name))]
     for problem in problems:
         print(problem)

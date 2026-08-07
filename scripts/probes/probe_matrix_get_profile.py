@@ -25,6 +25,7 @@ PORT = int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321"))
 
 
 async def main() -> int:
+    """Print the MatrixGetProfile reply for the default profile and every named profile the daemon lists."""
     control = ControlClient(HOST, PORT)
     await control.connect()
     try:

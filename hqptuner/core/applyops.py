@@ -21,7 +21,10 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 
 class ApplyOps:
+    """Dispatch the manager's five write operations to their lanes."""
+
     def __init__(self, mgr: "ConnectionManager") -> None:
+        """Bind the operations to the manager whose clients, caches and lanes they write through."""
         self._mgr = mgr
 
     async def set_volume(self, db: str) -> dict[str, Any]:
@@ -109,9 +112,17 @@ class ApplyOps:
     # <matrix_profile> edits on the persistent lane (conf/matrixconf.py, round 5).
 
     async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
+        """Switch the engine's active matrix profile live and return the name read back from State.
+
+        The empty name selects ``[Default]``. No staging, no restore — the 4321 setter takes effect at once.
+        """
         return await matrixlane.switch_profile(self._mgr, name)
 
     # --- speaker processing (readme §1.9, speakerlane) ---------------------
 
     async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> dict[str, Any]:
+        """Write the per-channel speaker levels and distances and the processing flag, then verify the readback.
+
+        The form POST reloads the engine and interrupts playback; nothing gates on that — the user decides when.
+        """
         return await speakerlane.apply(self._mgr, channels, enabled=enabled)

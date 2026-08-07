@@ -74,6 +74,7 @@ async def _observe(client: ControlClient, label: str, command: str, enum: str, a
 
 
 async def main() -> int:
+    """Establish whether SetFilter and SetShaping take while the mode is [source], restoring each setting after."""
     client = ControlClient()
     await client.connect()
     state = await client.get_state()

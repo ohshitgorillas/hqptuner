@@ -274,6 +274,7 @@ def check_dc_sum(dc_cases: list[dict[str, object]]) -> float:
 
 
 def main() -> int:
+    """Refuse compiled rows that miss the reference model, fail to round-trip, or survive tampering."""
     verbose = "--verbose" in sys.argv
     node = shutil.which("node")
     if node is None:

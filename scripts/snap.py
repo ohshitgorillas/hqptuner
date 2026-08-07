@@ -42,6 +42,7 @@ MEASURE_JS = """
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    """Parse the CLI arguments, erroring out when no screenshot, measure, or eval work was requested."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("url")
     ap.add_argument("out", nargs="?", help="screenshot path (.png); omit for measure/eval-only runs")
@@ -63,6 +64,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def launch(pw: Playwright) -> Browser:
+    """Launch chromium, preferring the binary named by ``HQPTUNER_CHROMIUM`` over playwright's default."""
     binary = os.environ.get("HQPTUNER_CHROMIUM")
     if binary:
         return pw.chromium.launch(executable_path=binary)
@@ -70,6 +72,7 @@ def launch(pw: Playwright) -> Browser:
 
 
 def run(page: Page, args: argparse.Namespace) -> None:
+    """Load the page, then run the requested eval, measurements, and screenshot, printing results as JSON."""
     page.goto(args.url, wait_until="networkidle")
     if args.wait:
         page.wait_for_selector(args.wait)
@@ -87,6 +90,7 @@ def run(page: Page, args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str]) -> int:
+    """Parse arguments and drive one browser page through the requested run, closing the browser after."""
     args = parse_args(argv)
     with sync_playwright() as pw:
         browser = launch(pw)

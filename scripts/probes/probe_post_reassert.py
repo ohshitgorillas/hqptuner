@@ -125,6 +125,7 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
 
 
 async def main() -> int:  # noqa: C901 — probe: one linear script, read top to bottom
+    """Establish whether a POST /matrix re-asserts post-process wiped by a profile switch, and whether it persists."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")

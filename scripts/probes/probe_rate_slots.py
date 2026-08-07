@@ -101,6 +101,7 @@ async def _measure(client: ControlClient, rates: list[dict[str, str]], hz: str) 
 
 
 async def main() -> int:
+    """Establish how the request and limit rate slots interact, by reading the output rate for each request."""
     client = ControlClient()
     await client.connect()
     try:

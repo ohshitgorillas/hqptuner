@@ -26,12 +26,14 @@ _ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), 
 
 
 def attr_escape(value: str) -> str:
+    """Escape ``value`` for a double-quoted XML attribute, ampersand first so the later entities survive."""
     for ch, ent in _ATTR_ESCAPES:
         value = value.replace(ch, ent)
     return value
 
 
 def attr_unescape(value: str) -> str:
+    """Turn XML attribute entities back into their characters — ``attr_escape`` inverted, ampersand last."""
     for ch, ent in reversed(_ATTR_ESCAPES):
         value = value.replace(ent, ch)
     return value

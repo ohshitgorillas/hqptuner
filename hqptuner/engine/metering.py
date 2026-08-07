@@ -112,6 +112,7 @@ class SpectralAggregate:
     """
 
     def __init__(self, bins: int, bandwidth: float) -> None:
+        """Start an empty aggregate fixed to one frame geometry: zeroed power sums, no blocks, no coverage yet."""
         self.bins = bins
         self.bandwidth = bandwidth
         self.frames = 0
@@ -122,6 +123,11 @@ class SpectralAggregate:
         self._block_seconds = 0.0
 
     def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
+        """Fold one frame's per-bin power into the running sums and, unless silent, into the current block's minimum.
+
+        Once the block has BLOCK_SECONDS of coverage it is pushed to the window and a fresh one starts; a block that
+        saw only silent frames is dropped instead of pushed.
+        """
         for i, p in enumerate(mags_sq):
             self._power[i] += p
         self.frames += 1
@@ -141,6 +147,7 @@ class SpectralAggregate:
             self._block_seconds = 0.0
 
     def levels_db(self) -> list[float]:
+        """Convert the mean power spectrum over every ingested frame to dB, empty bins floored at -200."""
         return [10 * math.log10(p / self.frames) if p > 0 else -200.0 for p in self._power]
 
     def window_min_db(self) -> list[float] | None:
@@ -168,6 +175,10 @@ class MeteringReader:
         *,
         sleep: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
+        """Record where the metering port is and how to read track context; nothing connects until ``run``.
+
+        ``sleep`` is the test seam standing in for the reconnect backoff's wall clock.
+        """
         self._host = host
         self._port = port
         self._context = context
@@ -178,6 +189,7 @@ class MeteringReader:
         self._verdict: dict[str, Any] | None = None
 
     def stop(self) -> None:
+        """Ask the reader to shut down: the stream loop and the backoff wait both end at the next check."""
         self._stop.set()
 
     def recommendation(self) -> dict[str, Any] | None:
@@ -213,6 +225,11 @@ class MeteringReader:
         return self._verdict
 
     async def run(self) -> None:
+        """Stream frames until stopped, reconnecting after a fixed backoff whenever the connection fails or drops.
+
+        A broken stream is not an error: it is logged at debug and the aggregate and verdict are discarded, so a
+        verdict is only ever computed over one unbroken run of one track's frames.
+        """
         while not self._stop.is_set():
             try:
                 await self._stream()

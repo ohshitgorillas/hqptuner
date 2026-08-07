@@ -70,6 +70,7 @@ async def _request(client: ControlClient, hz: str, rates: list[dict[str, str]]) 
 
 
 async def main() -> int:
+    """Establish whether SetRate in [source] mode moves the output rate even while State.rate keeps reading auto."""
     client = ControlClient()
     await client.connect()
     state = await client.get_state()

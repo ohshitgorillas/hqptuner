@@ -124,6 +124,7 @@ def problems() -> list[str]:
 
 
 def main() -> int:
+    """Refuse a custom property no var() reads and a keyframe no animation names."""
     found = problems()
     for problem in found:
         print(problem)

@@ -182,6 +182,7 @@ def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    """Refuse a quoted doc citation resolving to no heading, and any positional round/step citation."""
     docs = doc_set()
     if not docs:
         print("check_doc_refs: no docs found", file=sys.stderr)

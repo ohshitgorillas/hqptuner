@@ -75,6 +75,7 @@ async def _report(client: ControlClient, label: str) -> dict[str, str]:
 
 
 async def main() -> int:
+    """Establish whether a live SetRate is eaten by playback or by [source] mode, by pinning in each and restoring."""
     client = ControlClient()
     await client.connect()
     state = await client.get_state()

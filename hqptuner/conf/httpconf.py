@@ -80,6 +80,13 @@ def _parse_select(el: Tag, section: str | None, label: str | None) -> dict[str, 
 
 
 def parse_config_form(html: str) -> dict[str, Any]:
+    """Parse a settings form page into ``{fields, profiles}``.
+
+    ``fields`` is every value-bearing input and select across the page's POST forms, each with its current value,
+    its number constraints and the ``<h2>``/``<h3>`` section+label it sits under; submit, button and hidden inputs
+    are dropped. ``profiles`` is the preset ``profile`` select lifted out of that list (the /config/profile/* CRUD
+    form), or None on a page that carries no such select.
+    """
     soup = BeautifulSoup(html, "html.parser")
     fields: list[dict[str, Any]] = []
     profiles: dict[str, Any] | None = None
@@ -286,7 +293,14 @@ _ACTIONS = ("load", "save", "delete")
 
 
 class HttpConfigClient:
+    """Async client for hqplayerd's HTTP configuration interface — the /config, /matrix, /speakers and /backup forms.
+
+    Every route here is a read or a whole-form write against that port; nothing on this lane touches the 4321
+    control protocol.
+    """
+
     def __init__(self, host: str, port: int, username: str, password: str, timeout: float = 10.0):
+        """Open the Digest-authenticated connection pool against ``host:port``, with ``timeout`` on every request."""
         self._client = httpx.AsyncClient(
             base_url=f"http://{host}:{port}",
             auth=httpx.DigestAuth(username, password),
@@ -314,6 +328,7 @@ class HttpConfigClient:
         resp.raise_for_status()
 
     async def get_config(self) -> dict[str, Any]:
+        """GET /config — the persistent-settings form, parsed into fields plus the preset select."""
         return parse_config_form((await self._get("/config")).text)
 
     async def get_matrix(self) -> dict[str, Any]:
@@ -412,4 +427,5 @@ class HttpConfigClient:
         return (await self._get("/backup/settings.zip")).content
 
     async def aclose(self) -> None:
+        """Close the underlying HTTP client and its connection pool."""
         await self._client.aclose()

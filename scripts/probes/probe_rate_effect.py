@@ -66,6 +66,7 @@ async def _pin(client: ControlClient, hz: str, rates: list[dict[str, str]]) -> N
 
 
 async def main() -> int:
+    """Establish whether a rate pin in explicit PCM moves the output mid-stream or only the State.rate slot."""
     client = ControlClient()
     await client.connect()
     state = await client.get_state()

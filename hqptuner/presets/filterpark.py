@@ -16,7 +16,10 @@ FILTER_EXTS = (".wav", ".txt")
 
 
 class FilterPark:
+    """Uploaded convolution filters held under ``directory`` until an apply ships them to the daemon."""
+
     def __init__(self, directory: Path, hqp_home: str) -> None:
+        """Bind the park to ``directory`` on disk and to the daemon home dir the parked paths are reported against."""
         self._dir = directory
         self._home = hqp_home
 
@@ -39,6 +42,7 @@ class FilterPark:
         return {"name": target.name, "path": f"{self._home}/{target.name}"}
 
     def files(self) -> dict[str, bytes]:
+        """Return every parked upload's bytes keyed by filename, sorted; empty when nothing is parked."""
         if not self._dir.is_dir():
             return {}
         return {p.name: p.read_bytes() for p in sorted(self._dir.iterdir()) if p.is_file()}
@@ -48,6 +52,7 @@ class FilterPark:
         return {f"data/{name}": data for name, data in self.files().items()}
 
     def clear(self) -> None:
+        """Delete every parked upload, leaving the directory itself in place."""
         if self._dir.is_dir():
             for p in self._dir.iterdir():
                 if p.is_file():

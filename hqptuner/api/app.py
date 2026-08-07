@@ -40,6 +40,7 @@ class NoCacheStaticFiles(StaticFiles):
     """
 
     async def get_response(self, path: str, scope: Scope) -> Response:
+        """Serve the asset as StaticFiles would, then stamp ``Cache-Control: no-cache`` on the way out."""
         response = await super().get_response(path, scope)
         response.headers["Cache-Control"] = "no-cache"
         return response
@@ -52,6 +53,10 @@ router = APIRouter(prefix="/api")
 
 @router.get("/health")
 def health(manager: Mgr) -> dict[str, Any]:
+    """Return daemon reachability, the current connection's age, alarm/info/license, and HQPTuner's own version.
+
+    Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
+    """
     return {
         "reachable": manager.reachable,
         "unreachable_since": manager.unreachable_since,
@@ -71,6 +76,10 @@ def health(manager: Mgr) -> dict[str, Any]:
 
 @router.get("/state")
 def state(manager: Mgr) -> dict[str, Any]:
+    """Return the daemon's last State frame with the engine's active filter/shaper chain folded in.
+
+    Stale-flagged from the last-loaded copy while the daemon is unreachable; 503 until the first frame has landed.
+    """
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
     # engine currently has loaded (livechain.active_chain — the configured mode when
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
@@ -83,6 +92,10 @@ def state(manager: Mgr) -> dict[str, Any]:
 
 @router.get("/status")
 def status(manager: Mgr) -> dict[str, Any]:
+    """Return the daemon's Status frame with its track metadata and the junk-filter advisor's recommendation.
+
+    503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.
+    """
     if manager.status is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
     junk = manager.metering.recommendation() if manager.metering is not None else None
@@ -91,6 +104,10 @@ def status(manager: Mgr) -> dict[str, Any]:
 
 @router.get("/enumerations")
 def enumerations(request: Request, manager: Mgr) -> dict[str, Any]:
+    """Return the engine's enumerations merged with the static ``data/*.json`` overlay, plus the current output mode.
+
+    The running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.
+    """
     if manager.enums is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
     mode_name = manager.current_mode_name()
@@ -101,6 +118,10 @@ def enumerations(request: Request, manager: Mgr) -> dict[str, Any]:
 
 @router.get("/config")
 def config(manager: HttpMgr) -> dict[str, Any]:
+    """Return the /config form joined with HQPTuner's preset list, the running config, and the output device's caps.
+
+    Needs credentials — without them the 8088 lane does not exist and the route 503s.
+    """
     form = deps.ensure_form(manager.config_form, manager.config_error, "/config")
     # `profiles` and `active` come from HQPTuner's own preset store — the source of
     # truth — not the daemon's (unreliable) profile subsystem, which under our
@@ -164,6 +185,7 @@ async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
 
 @router.get("/backup")
 async def backup(manager: HttpMgr) -> Response:
+    """Return the daemon's own settings archive as a zip download (the System tab's Download backup link)."""
     try:
         data = await manager.presetops.backup()
     except ControlError as exc:
@@ -177,6 +199,10 @@ async def backup(manager: HttpMgr) -> Response:
 
 @router.get("/metadata")
 def metadata(request: Request) -> dict[str, Any]:
+    """Return the whole static ``data/*.json`` overlay — filters, shapers, and settings prose — unjoined.
+
+    Loaded once at startup and never daemon-dependent, so this answers the same whether or not hqplayerd is up.
+    """
     static: StaticMetadata = request.app.state.static
     return static.raw
 
@@ -246,6 +272,11 @@ async def _persist_after_apply(manager: ConnectionManager, save: str | None, rep
 
 @router.post("/config/apply")
 async def apply(request: Request, manager: Mgr, body: ApplyBody | None = None) -> dict[str, Any]:
+    """Write everything staged to the daemon, then persist and clear the buffer only if all of it took.
+
+    400 when nothing is staged and no preset switch was asked for. A soft failure returns the report with the buffer
+    intact so the user can retry; the persistent lane restarts the daemon and interrupts playback, never gated on.
+    """
     store = _pending(request)
     switch_to = body.switch_to if body else None
     if not store.live and not store.http and switch_to is None:
@@ -300,6 +331,10 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
 
 @router.get("/engine")
 async def engine_get(manager: HttpMgr) -> dict[str, Any]:
+    """Return the hardware-acceleration attributes, read out of a fresh backup, and the active preset snapshot's name.
+
+    They are not on any form, so this costs a backup fetch — read on demand, never per poll.
+    """
     try:
         return {"engine": await manager.read_engine(), "active_config": manager.active_config}
     except (ControlError, httpx.HTTPError) as exc:
@@ -308,6 +343,11 @@ async def engine_get(manager: HttpMgr) -> dict[str, Any]:
 
 @router.post("/engine")
 async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
+    """Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.
+
+    400 with no overrides, 422 when one is not a valid engine attribute. The restore restarts the daemon and
+    interrupts playback — the user's call, never refused for it.
+    """
     if not body.overrides:
         raise HTTPException(status_code=400, detail="no engine overrides given")
     try:
@@ -324,6 +364,10 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
 
 @router.post("/restore")
 async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr) -> dict[str, Any]:
+    """Push a user-uploaded settings archive to the daemon as-is, recording its name, size, and SHA-256 first.
+
+    The daemon self-restarts on it, interrupting playback. Nothing here inspects or rewrites the archive.
+    """
     data = await cfgfile.read()
     manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
     try:
@@ -335,6 +379,10 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr) -> d
 
 @router.post("/profile/{action}")
 async def profile(action: str, body: ProfileBody, manager: Mgr) -> dict[str, Any]:
+    """Load, save, or delete a named preset, dispatching on the path segment.
+
+    404 on an action outside those three or a name the store does not hold, 422 on an empty name.
+    """
     methods = {
         "load": manager.presetops.load_preset,
         "save": manager.presetops.save_preset,
@@ -391,12 +439,17 @@ def _audit_router(audit: AuditLog) -> APIRouter:
 
     @audit_api.get("/audit")
     def records(limit: int = 200) -> dict[str, Any]:
+        """Return the last ``limit`` audit records, newest last, read straight off the log file."""
         return {"records": audit.tail(limit)}
 
     return audit_api
 
 
 def create_app(cfg: Config | None = None) -> FastAPI:
+    """Build the FastAPI app: shared state, the poll and metering background tasks, every router, and the SPA mount.
+
+    Missing hqplayerd credentials are not fatal — the 8088 client is simply absent and the routes needing it 503.
+    """
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
     http_client = None

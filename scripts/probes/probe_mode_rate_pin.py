@@ -79,6 +79,7 @@ async def _set_rate(client: ControlClient, index: str) -> None:
 
 
 async def main() -> int:
+    """Establish whether SetMode clears or remembers the other family's rate pin, restoring both slots and the mode."""
     client = ControlClient()
     await client.connect()
     steps: list[tuple[str, str]] = []

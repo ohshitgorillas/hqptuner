@@ -56,6 +56,7 @@ def _names(xml: bytes) -> list[str]:
 
 
 async def main() -> int:
+    """Delete the named probe-authored matrix profiles from the running config and confirm their removal by readback."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")

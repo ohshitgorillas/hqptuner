@@ -217,6 +217,7 @@ def check_file(path: Path) -> list[str]:
 
 
 def main() -> int:
+    """Refuse a CSS value off the token ladder, a rhythm token off gap, or a vertical margin spending space."""
     problems: list[str] = []
     for name in sys.argv[1:]:
         path = Path(name)

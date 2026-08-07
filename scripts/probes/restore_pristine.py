@@ -39,6 +39,7 @@ async def _settle(http: HttpConfigClient) -> None:
 
 
 async def main() -> int:
+    """Restore the pristine archive over the daemon's settings and report whether the readback matches it exactly."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")

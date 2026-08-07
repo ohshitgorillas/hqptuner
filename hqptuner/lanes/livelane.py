@@ -53,6 +53,7 @@ class LiveMemory:
     """
 
     def __init__(self) -> None:
+        """Start out remembering nothing — no rate pinned in any family, no setting held for any chain."""
         self.rates: dict[str, str] = {}
         self.chain: dict[str, dict[str, str]] = {}
 

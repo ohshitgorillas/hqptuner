@@ -117,6 +117,7 @@ def check_file(path: Path) -> list[str]:
 
 
 def main() -> int:
+    """Refuse a rule that repaints the card frame — card fill plus card radius — under another name."""
     problems: list[str] = []
     for name in sys.argv[1:]:
         problems.extend(check_file(Path(name)))

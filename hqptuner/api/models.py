@@ -20,16 +20,26 @@ class DropBody(BaseModel):
 
 
 class StageBody(BaseModel):
+    """Carry one staging request's additions and removals for ``POST /api/config/stage``.
+
+    ``live`` and ``http`` merge into the buffer; ``drop`` is applied afterwards, so one request can both re-stage a
+    field and report another clean.
+    """
+
     live: dict[str, dict[str, str]] = {}
     http: dict[str, str] = {}
     drop: DropBody = DropBody()
 
 
 class SaveTarget(BaseModel):
+    """Name the preset a successful apply persists into — nested under ``ApplyBody.save``."""
+
     name: str
 
 
 class ApplyBody(BaseModel):
+    """Carry the optional preset instructions for ``POST /api/config/apply`` — both fields absent applies the buffer."""
+
     # optional: after a successful apply, persist the (now clean) working config
     # into this preset snapshot — the active one (Apply & Save) or a new name
     # (Save as New). Absent = ephemeral apply (working config only).
@@ -40,21 +50,34 @@ class ApplyBody(BaseModel):
 
 
 class LiveBody(BaseModel):
+    """Carry the live config-form field/value pairs ``POST /api/config/live`` writes immediately."""
+
     fields: dict[str, str] = {}
 
 
 class ProfileBody(BaseModel):
+    """Carry the preset name ``POST /api/profile/{action}`` loads, saves, or deletes."""
+
     name: str = ""
 
 
 class VolumeBody(BaseModel):
+    """Carry the playback-volume level ``POST /api/volume`` writes to the live lane."""
+
     level: str
 
 
 class EngineBody(BaseModel):
+    """Carry the hardware-accel attribute overrides for ``POST /api/engine``.
+
+    ``all_presets`` writes them into every snapshot in the backup archive instead of only the active preset's.
+    """
+
     overrides: dict[str, str] = {}
     all_presets: bool = False
 
 
 class AutosaveBody(BaseModel):
+    """Carry the on/off flag ``POST /api/autosave`` sets on the preset store."""
+
     enabled: bool

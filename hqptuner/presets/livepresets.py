@@ -74,6 +74,7 @@ class LivePresetStore:
     """
 
     def __init__(self, path: Path) -> None:
+        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
         self._path = path
 
     def _read_file(self) -> dict[str, Any]:

@@ -14,10 +14,12 @@ MAX_LINES_TESTS = 800
 
 
 def limit_for(name: str) -> int:
+    """Return the line limit for a path — 800 under tests/, 500 everywhere else."""
     return MAX_LINES_TESTS if Path(name).parts[0] == "tests" else MAX_LINES
 
 
 def main() -> int:
+    """Refuse any named file longer than the limit for its location."""
     failed = False
     for name in sys.argv[1:]:
         lines = len(Path(name).read_text().splitlines())

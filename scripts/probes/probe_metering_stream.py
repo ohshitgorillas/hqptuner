@@ -38,6 +38,7 @@ BANDS_HZ = (100, 500, 1000, 2000, 5000, 10000, 15000, 18000, 20000, 21000, 22050
 
 
 def capture() -> bytes:
+    """Return every byte the metering port sends during a fixed capture window on a bare connection."""
     buf = bytearray()
     with socket.create_connection((HOST, PORT), timeout=5) as sock:
         sock.settimeout(1.0)
@@ -54,6 +55,7 @@ def capture() -> bytes:
 
 
 def capture_main(argv: list[str]) -> None:
+    """Capture the stream to a file, then print the header fields, frame size and observed frame rate."""
     # tempfile.gettempdir() rather than a hardcoded /tmp: the literal trips
     # ruff's S108 and is wrong on any host that puts its scratch elsewhere.
     out = Path(argv[0]) if argv else Path(tempfile.gettempdir()) / "metering-capture.bin"
@@ -75,10 +77,12 @@ def capture_main(argv: list[str]) -> None:
 
 
 def db(power: float) -> float:
+    """Return a power value in decibels, floored at -200 for zero and negative input."""
     return 10 * math.log10(power) if power > 0 else -200.0
 
 
 def band_profile(mags_sq: list[float], bandwidth: float) -> str:
+    """Return a one-line summary of the mean power in dB of each BANDS_HZ band of the given bin magnitudes."""
     out = []
     lo = 0.0
     for hi in BANDS_HZ:
@@ -92,6 +96,7 @@ def band_profile(mags_sq: list[float], bandwidth: float) -> str:
 
 
 def analyze_main(argv: list[str]) -> None:
+    """Read a capture file and print band energies under both the interleaved-complex and split-halves readings."""
     buf = Path(argv[0]).read_bytes()
     version, channels, bins, _, bandwidth, _, _, _ = HEADER.unpack_from(buf, 0)
     frame = 32 + channels * (16 + 8 * bins)
@@ -118,6 +123,7 @@ def analyze_main(argv: list[str]) -> None:
 
 
 def main() -> None:
+    """Dispatch to the analyze subcommand, otherwise capture."""
     if sys.argv[1:2] == ["analyze"]:
         analyze_main(sys.argv[2:])
     else:

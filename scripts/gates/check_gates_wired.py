@@ -40,6 +40,7 @@ def unwired(makefile: str, names: list[str]) -> list[str]:
 
 
 def main() -> int:
+    """Refuse a gate script in scripts/gates/ that no live Makefile recipe invokes."""
     names = gate_scripts()
     problems = unwired(MAKEFILE.read_text(), names)
     for name in problems:

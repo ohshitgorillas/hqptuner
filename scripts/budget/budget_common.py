@@ -159,6 +159,7 @@ def text_of(content: Any) -> str:
 
 
 def read_rows(path: Path) -> list[JsonDict]:
+    """Return every decodable JSON object in a JSONL transcript, skipping blank and malformed lines."""
     rows: list[JsonDict] = []
     for raw in path.read_text(errors="replace").splitlines():
         line = raw.strip()
@@ -213,6 +214,7 @@ def human_turns(rows: list[JsonDict]) -> list[int]:
 
 
 def write_jsonl(path: Path, records: list[JsonDict]) -> None:
+    """Write records to path as key-sorted JSONL, creating the parent directory if needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in records))
 
@@ -221,20 +223,24 @@ def write_jsonl(path: Path, records: list[JsonDict]) -> None:
 
 
 def fake_assistant(uuid: str, tool_id: str, name: str, tool_input: JsonDict) -> JsonDict:
+    """Build a synthetic assistant row carrying a single tool_use block."""
     content = [{"type": "tool_use", "id": tool_id, "name": name, "input": tool_input}]
     return {"uuid": uuid, "cwd": str(ROOT), "message": {"role": "assistant", "content": content}}
 
 
 def fake_human(text: str) -> JsonDict:
+    """Build a synthetic human row whose message content is the given text."""
     return {"uuid": f"human-{abs(hash(text))}", "cwd": str(ROOT), "message": {"role": "user", "content": text}}
 
 
 def fake_result(tool_id: str, size: int) -> JsonDict:
+    """Build a synthetic tool_result row for a tool_use id, padded to size characters."""
     block = {"type": "tool_result", "tool_use_id": tool_id, "content": "x" * size}
     return {"uuid": f"res-{tool_id}", "cwd": str(ROOT), "message": {"role": "user", "content": [block]}}
 
 
 def histogram(title: str, counter: Counter[str], total: int) -> None:
+    """Print a titled count table, most common first, with each count as a share of total."""
     print(f"\n{title}")
     if not counter:
         print("  (none)")

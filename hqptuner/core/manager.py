@@ -51,7 +51,10 @@ _CAPS_RETRY = 30.0
 
 
 class ConnectionManager:
+    """Hold the daemon connection and the last loaded snapshot every API read and write lane serves from."""
+
     def __init__(self, cfg: Config, http_client: HttpConfigClient | None = None) -> None:
+        """Build the audit log, preset and apply collaborators, and start unreachable with every snapshot empty."""
         self._cfg = cfg
         self._http = http_client
         self._client: ControlClient | None = None
@@ -114,9 +117,11 @@ class ConnectionManager:
 
     @property
     def alarm(self) -> bool:
+        """Report whether the daemon has been unreachable for longer than the alarm threshold."""
         return not self.reachable and self.monotonic() - self._unreachable_mono > self._cfg.alarm_threshold
 
     def stop(self) -> None:
+        """Signal the poll loop to leave its next wait and finish; does not close the socket (see ``aclose``)."""
         self._stop.set()
 
     async def aclose(self) -> None:
@@ -130,6 +135,10 @@ class ConnectionManager:
             self._client = None
 
     async def run(self) -> None:
+        """Run the connect-load-poll loop until stopped, dropping the connection and retrying on any failure.
+
+        Retries fast inside the expected restart window and backs off to ``RECONNECT_SLOW`` once in alarm.
+        """
         while not self._stop.is_set():
             if self._client is None:
                 try:
@@ -248,16 +257,22 @@ class ConnectionManager:
         await self.refresh_device_caps()
 
     async def read_preset(self, name: str) -> dict[str, str]:
+        """Return a stored preset's saved settings in form-field terms without loading it.
+
+        The empty name means "(no preset)" and returns the running config instead.
+        """
         return await presetlane.read(self, name)
 
     # --- accessors for the extracted write lanes --------------------------
 
     @property
     def http_client(self) -> HttpConfigClient | None:
+        """Return the 8088 config client, or None when no management credentials were configured."""
         return self._http
 
     @property
     def alarm_threshold(self) -> float:
+        """Return the configured unreachable-to-alarm seconds, which the lanes reuse as their default deadline."""
         return self._cfg.alarm_threshold
 
     def monotonic(self) -> float:
@@ -378,11 +393,16 @@ class ConnectionManager:
         return {"refreshed": True}
 
     def require_http(self) -> HttpConfigClient:
+        """Return the 8088 config client, raising ControlError when no credentials were configured.
+
+        The accessor every write lane that cannot proceed without the HTTP lane uses instead of ``http_client``.
+        """
         if self._http is None:
             raise ControlError("no credentials for HTTP config lane")
         return self._http
 
     def current_mode_name(self) -> str:
+        """Return the name the engine's mode enumeration gives State's mode index, or "" if either is missing."""
         if not self.state or not self.enums:
             return ""
         idx = self.state.get("mode", "")

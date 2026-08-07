@@ -11,13 +11,23 @@ from typing import Any
 
 
 class StaticMetadata:
+    """The hand-written prose about filters, shapers and settings that the engine does not report."""
+
     def __init__(self, data_dir: Path):
+        """Load ``filters.json``, ``shapers.json`` and ``settings.json`` from ``data_dir`` and hold them in memory.
+
+        Read once at startup: the files ship with the application and never change under a running process.
+        """
         self._filters_db: dict[str, Any] = json.loads((data_dir / "filters.json").read_text())
         self._shapers_db: dict[str, Any] = json.loads((data_dir / "shapers.json").read_text())
         self._settings_db: dict[str, Any] = json.loads((data_dir / "settings.json").read_text())
 
     @property
     def raw(self) -> dict[str, Any]:
+        """Return the three databases exactly as loaded, under ``filters``/``shapers``/``settings``.
+
+        This is what ``/api/metadata`` serves, so the frontend can look up an entry the merge did not attach.
+        """
         return {
             "filters": self._filters_db,
             "shapers": self._shapers_db,
@@ -25,6 +35,11 @@ class StaticMetadata:
         }
 
     def filter_entry(self, name: str) -> dict[str, Any] | None:
+        """Return the static entry for a filter the engine named, or None when nothing in the database matches.
+
+        Tries the name exactly, then as an alias, then with a ``-2s`` suffix stripped; a name that only resolved
+        after stripping gets the shared two-stage note appended to its description.
+        """
         db: dict[str, dict[str, Any]] = self._filters_db["filters"]
         aliases: dict[str, str] = self._filters_db.get("aliases", {})
         two_stage = False
@@ -43,6 +58,11 @@ class StaticMetadata:
             return None
 
     def shaper_entry(self, name: str, mode_name: str) -> dict[str, Any] | None:
+        """Return the static entry for a shaper, or None when the named mode's database does not carry it.
+
+        ``mode_name`` picks the database: a PCM output mode reads the dithers, anything else the SDM modulators.
+        The two are never searched together — the same name can mean different things across them.
+        """
         key = "pcm_dithers" if "PCM" in (mode_name or "") else "sdm_modulators"
         db: dict[str, dict[str, Any]] = self._shapers_db[key]
         return db.get(name)

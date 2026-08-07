@@ -95,6 +95,7 @@ def trip_of(row: JsonDict) -> tuple[str | None, str]:
 
 
 def blocked_id(row: JsonDict) -> str | None:
+    """Return the tool_use id named by a denial row's first tool_result block, or None."""
     message = row.get("message")
     if isinstance(message, dict) and isinstance(message.get("content"), list):
         for block in message["content"]:
@@ -198,6 +199,7 @@ def build_record(rows: list[JsonDict], index: int, session: str) -> JsonDict:
 
 
 def mine_rows(rows: list[JsonDict], session: str) -> list[JsonDict]:
+    """Return one trip record for every budget denial in a single session's rows."""
     return [build_record(rows, i, session) for i, row in enumerate(rows) if trip_of(row)[0]]
 
 
@@ -223,6 +225,7 @@ def mine(directory: Path) -> tuple[list[JsonDict], list[str]]:
 
 
 def summarise(records: list[JsonDict], warnings: list[str]) -> None:
+    """Print the trip tables — counts per leash, reply labels, catch rates, class histograms, mismatches."""
     print(f"trips: {len(records)}   (transcripts: {TRANSCRIPT_DIR})")
     leashes = Counter(r["leash"] for r in records)
     for leash in ("change", "edit"):
@@ -305,6 +308,7 @@ CLAUDE_CLI = shutil.which("claude") or "claude"
 
 
 def ask_claude(record: JsonDict) -> str:
+    """Ask the `claude` CLI to verdict one trip's reply, retrying once and falling back to UNCLEAR."""
     burst = "\n".join(f"{e['tool']}: {e['preview']}" for e in record["burst"][-8:])
     if record["blocked_call"]:
         burst += f"\n[BLOCKED] {record['blocked_call']['tool']}: {record['blocked_call']['preview']}"
@@ -324,6 +328,7 @@ def ask_claude(record: JsonDict) -> str:
 
 
 def label_ambiguous(records: list[JsonDict]) -> None:
+    """Attach an llm_label to every unlabelled ambiguous trip, and CONTINUE to the plainly affirmative ones."""
     pending = [r for r in records if r["user_reply"]["label"] == "ambiguous" and not r["user_reply"].get("llm_label")]
     for number, record in enumerate(pending, start=1):
         record["user_reply"]["llm_label"] = ask_claude(record)
@@ -414,6 +419,7 @@ def _trip_checks() -> list[bool]:
 
 
 def self_test() -> int:
+    """Run the synthetic acceptance checks for miner and profiler, and return a process exit code."""
     ok = [_check("hook imported outside __main__", condition=hook.__name__ != "__main__")]
     ok += _trip_checks()
     ok += profiler.self_checks(_check)
@@ -427,6 +433,7 @@ def self_test() -> int:
 
 
 def main(argv: list[str]) -> int:
+    """Parse arguments, then self-test or mine the transcripts and write and print both reports."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--self-test", action="store_true", help="run synthetic acceptance checks and exit")
     parser.add_argument("--label-ambiguous", action="store_true", help="label ambiguous replies via `claude -p`")

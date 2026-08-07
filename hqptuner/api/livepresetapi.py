@@ -99,6 +99,10 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
 
 @router.delete("/livepresets/{name}")
 def delete_live_preset(name: str, request: Request) -> dict[str, Any]:
+    """Remove a saved live preset from the store, leaving the running engine untouched.
+
+    404 when no preset is saved under the name.
+    """
     try:
         _store(request).delete(name)
     except LivePresetSchemaError as exc:

@@ -95,6 +95,7 @@ LABELS = {
 
 
 def main() -> int:
+    """Refuse a crossfeed block that loses its compensation across an EQ import or library load."""
     node = shutil.which("node")
     if node is None:
         print("check_xfeed: node not on PATH — skipping (not a failure)")

@@ -41,6 +41,10 @@ def autoeq_db() -> FileResponse:
 
 @router.get("/matrix")
 def matrix(manager: HttpMgr) -> dict[str, Any]:
+    """Return the Matrix tab's read model: the /matrix form plus the live, file-saved, and per-preset profile lists.
+
+    Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait.
+    """
     form = deps.ensure_form(manager.matrix_form, manager.matrix_error, "/matrix")
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
     # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
@@ -79,6 +83,8 @@ def _switch_refusal(text: str) -> str:
 
 
 class MatrixProfileBody(BaseModel):
+    """Carry the verb and profile name for ``POST /api/matrix/profile``, the live matrix-profile switch."""
+
     action: str  # switch — the only verb this route has (4321, live)
     name: str = ""  # empty = the unnamed [Default]
 
@@ -116,6 +122,8 @@ def speakers(manager: HttpMgr) -> dict[str, Any]:
 
 
 class SpeakersBody(BaseModel):
+    """Carry the speaker-processing switch and per-channel level/distance values for ``POST /api/speakers``."""
+
     enabled: bool = False
     channels: dict[str, dict[str, str]] = {}  # channel index -> {level, distance}
 

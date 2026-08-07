@@ -376,6 +376,7 @@ async def _later_steps(http: HttpConfigClient, original: bytes, active: str | No
 
 
 async def main() -> int:
+    """Establish whether an absent post-process plugin element can be brought back, reverting the config afterwards."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
         raise SystemExit("set HQPTUNER_HQP_USERNAME / HQPTUNER_HQP_PASSWORD (see hqpcreds)")

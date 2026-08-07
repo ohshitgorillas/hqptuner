@@ -105,12 +105,21 @@ class AuditLog:
     """An append-only JSONL event log. ``path`` of None disables it entirely."""
 
     def __init__(self, path: Path | None, *, max_bytes: int = DEFAULT_MAX_BYTES) -> None:
+        """Fix where records land and the size at which the file rolls, and pick up the sequence counter.
+
+        The counter resumes from the last record already on disk, so reopening an existing log continues its
+        numbering instead of restarting it. Nothing is created here: a log that is never written stays absent.
+        """
         self._path = path
         self._max_bytes = max_bytes
         self._seq = self._resume_seq()
 
     @property
     def enabled(self) -> bool:
+        """Whether a path was configured, and so whether anything is recorded or readable at all.
+
+        The API mounts its read-only log routes only when this is true — with no file there is nothing to serve.
+        """
         return self._path is not None
 
     # --- reading -----------------------------------------------------------
@@ -170,9 +179,19 @@ class AuditLog:
     # --- the vocabulary ----------------------------------------------------
 
     def stage(self, http: dict[str, str], live: dict[str, dict[str, str]], dropped: dict[str, Any]) -> None:
+        """Record one edit staged into the pending buffer, as THIS request carried it.
+
+        The buffer is a running sum of many requests, so only a per-request record can answer which request put a
+        given field into the set that was later applied.
+        """
         self._write("stage", {"http": http, "live": live, "dropped": dropped})
 
     def discard(self, http: dict[str, str], live: dict[str, dict[str, str]]) -> None:
+        """Record a discard of the pending buffer, carrying the edits it destroyed.
+
+        Destroying them is the whole effect of the request, so this record is the only surviving copy of what the
+        user threw away.
+        """
         self._write("discard", {"http": http, "live": live})
 
     def apply(
@@ -191,6 +210,12 @@ class AuditLog:
         self._write("apply", {"http": http, "live": live, "switch_to": switch_to, "save": save, "ok": ok})
 
     def profile_write(self, name: str, rows: str, target: str, *, replaced: bool) -> None:
+        """Record a ``<matrix_profile>`` save into ``target``, keeping the row payload itself.
+
+        Rows are stored whole alongside their count and digest, so a profile that landed on the wrong name is
+        recovered from the log rather than merely described by it. ``replaced`` is read before the edit, because
+        the write is what erases the answer.
+        """
         self._write(
             "profile.write",
             {
@@ -204,28 +229,69 @@ class AuditLog:
         )
 
     def profile_delete(self, name: str, target: str, *, found: bool) -> None:
+        """Record a ``<matrix_profile>`` delete from ``target``, and whether that name was there to delete.
+
+        A delete of a name the XML never held is silent otherwise, and is exactly the shape of a mis-typed or
+        mis-routed name worth catching.
+        """
         self._write("profile.delete", {"name": name, "found": found, "target": target})
 
     def preset_write(self, name: str, trigger: str, size: int, digest: str, *, overwrote: bool) -> None:
+        """Record a preset snapshot being written, naming the ``trigger`` that wrote it.
+
+        Several paths write presets — an explicit save, auto-save, a profile fan-out, the migration — and they
+        produce otherwise identical records, so the trigger is what answers "which of those overwrote mine". The
+        snapshot itself is too large to keep, hence ``size`` and ``digest`` rather than the XML.
+        """
         self._write(
             "preset.write",
             {"name": name, "trigger": trigger, "size": size, "digest": digest, "overwrote": overwrote},
         )
 
     def preset_delete(self, name: str, *, was_active: bool) -> None:
+        """Record a preset being deleted, and whether it was the active one.
+
+        Deleting the active preset also clears the pointer, so this is the record that explains the ``active.set``
+        that follows it.
+        """
         self._write("preset.delete", {"name": name, "was_active": was_active})
 
     def preset_load(self, name: str, previous_active: str | None) -> None:
+        """Record a preset being loaded into the daemon, naming what was active before it.
+
+        A load restores a whole config over the running one; the displaced name is what a rollback needs and the
+        pointer no longer holds it.
+        """
         self._write("preset.load", {"name": name, "previous_active": previous_active})
 
     def active_set(self, name: str | None, previous: str | None) -> None:
+        """Record the active-preset pointer moving, keeping the name it moved off.
+
+        The pointer is a single overwritten file with no history of its own, and ``None`` here means it was
+        cleared rather than pointed somewhere new.
+        """
         self._write("active.set", {"name": name, "previous": previous})
 
     def autosave_set(self, *, enabled: bool, previous: bool) -> None:
+        """Record the auto-save setting being changed, keeping what it was.
+
+        While it is on, every successful apply silently overwrites the active preset, so when that overwriting
+        started is the fact that explains a run of unexplained ``preset.write`` records.
+        """
         self._write("autosave.set", {"enabled": enabled, "previous": previous})
 
     def restore_upload(self, filename: str, size: int, digest: str) -> None:
+        """Record a config archive arriving for restore, before any of it reaches the daemon.
+
+        The upload replaces the daemon's whole configuration and the bytes are not kept anywhere, so identifying
+        them by name, size and digest is all that survives to tell one restore from another.
+        """
         self._write("restore.upload", {"filename": filename, "size": size, "digest": digest})
 
     def live_write(self, field: str, value: str, readback: str | None, *, ok: bool) -> None:
+        """Record one live-lane setting write against the running engine, and what came back.
+
+        A live write leaves no file behind — it changes only the daemon's running state — so this is the only
+        trace it ever had. ``ok`` false means the setter raised, and ``readback`` is then absent rather than wrong.
+        """
         self._write("live.write", {"field": field, "value": value, "readback": readback, "ok": ok})

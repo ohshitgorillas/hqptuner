@@ -24,6 +24,7 @@ warnings = []
 
 
 def load(name: str) -> Any:
+    """Return the parsed contents of a JSON data file sitting beside this script."""
     with open(DATA / name) as f:
         return json.load(f)
 
@@ -67,6 +68,7 @@ aliases = filters.get("aliases", {})
 
 
 def resolve_filter(name: str) -> str | None:
+    """Return the filters.json key an engine filter name joins to, or None if it does not resolve."""
     if name in fdb:
         return name
     if name in aliases and aliases[name] in fdb:

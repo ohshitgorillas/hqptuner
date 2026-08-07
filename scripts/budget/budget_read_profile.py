@@ -198,6 +198,7 @@ EDIT_BUCKETS = [(0, "0 edits"), (5, "1-5 edits"), (15, "6-15 edits")]
 
 
 def percentile(values: list[int], fraction: float) -> int:
+    """Return the value at the given fraction of an already-sorted list, or 0 when it is empty."""
     if not values:
         return 0
     return values[min(len(values) - 1, round(fraction * (len(values) - 1)))]
@@ -256,6 +257,7 @@ def _grounding(records: list[JsonDict]) -> None:
 
 
 def summarise(records: list[JsonDict], sidechain: int) -> None:
+    """Print the read-behaviour report — read-byte distribution, re-reads, delegation, web, grounding grid."""
     _distribution(records)
     _rereads(records)
     delegations = sum(r["delegation_count"] for r in records)

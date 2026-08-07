@@ -24,10 +24,15 @@ class PendingStore:
     """
 
     def __init__(self) -> None:
+        """Start with both buckets empty — nothing staged."""
         self.live: dict[str, dict[str, str]] = {}
         self.http: dict[str, str] = {}
 
     def stage(self, live: dict[str, dict[str, str]], http: dict[str, str]) -> None:
+        """Merge entries into the buffer, a later value for the same key replacing the earlier one.
+
+        The merge is shallow on the live side: a live key's whole argument bucket is replaced, not merged per argument.
+        """
         self.live.update(live)
         self.http.update(http)
 
@@ -50,10 +55,12 @@ class PendingStore:
                 del self.live[key]
 
     def clear(self) -> None:
+        """Throw the whole buffer away — what a clean apply and an explicit discard both end with."""
         self.live = {}
         self.http = {}
 
     def snapshot(self) -> dict[str, Any]:
+        """Return both buckets as the wire shape every staging route answers with."""
         return {"live": self.live, "http": self.http}
 
 
@@ -85,6 +92,11 @@ def _apply_succeeded(report: dict[str, Any]) -> bool:
 
 @router.post("/config/stage")
 def stage(body: StageBody, request: Request) -> dict[str, Any]:
+    """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
+
+    422 when a live key is not a known live setting — the daemon would have no setter to call for it. Nothing is
+    written to the daemon here; apply is a separate call.
+    """
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live settings: {sorted(unknown)}")
@@ -101,11 +113,16 @@ def stage(body: StageBody, request: Request) -> dict[str, Any]:
 
 @router.get("/config/pending")
 def pending(request: Request) -> dict[str, Any]:
+    """Return the staged buffer as it stands, so a reloaded browser recovers what it had staged."""
     return _pending(request).snapshot()
 
 
 @router.delete("/config/pending")
 def discard(request: Request, manager: Mgr) -> dict[str, Any]:
+    """Throw away everything staged, recording it first, and release the filter uploads parked for it.
+
+    Touches the daemon not at all — the discarded edits were never written to it.
+    """
     store = _pending(request)
     # snapshot before the clear: the discard's whole effect is to destroy this,
     # so the record is the only surviving copy of what was thrown away

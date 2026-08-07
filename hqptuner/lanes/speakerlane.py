@@ -22,6 +22,11 @@ _POLL = 1.0  # cadence for polling /speakers back after the reload
 
 
 async def apply(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, enabled: bool) -> dict[str, Any]:
+    """POST the speaker-processing form, then confirm it landed past the engine reload the POST triggers.
+
+    Returns the confirmation flag alongside the re-read form, which is also refreshed onto the manager's cache; a
+    read that fails after a confirmed write leaves the previous cache standing rather than failing the apply.
+    """
     http = mgr.require_http()
     await http.apply_speakers(channels, enabled=enabled)
     applied = await _verify(mgr, channels, enabled=enabled)

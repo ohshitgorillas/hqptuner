@@ -25,7 +25,10 @@ log = logging.getLogger(__name__)
 
 
 class PresetOps:
+    """The manager's preset store, filter park, and settings-archive persistence as one collaborator."""
+
     def __init__(self, cfg: "Config", mgr: "ConnectionManager") -> None:
+        """Open the store and filter park from ``cfg``'s directories, with no migration run and no cached backup."""
         self._cfg = cfg
         self._mgr = mgr
         # HQPTuner-owned preset store (presetstore) — the source of truth for
@@ -39,12 +42,15 @@ class PresetOps:
     # --- convolution uploads (filterpark, matrix-spec.md "Filter upload") --
 
     def park_filter(self, name: str, data: bytes) -> dict[str, str]:
+        """Park one uploaded filter, returning its stored name and the daemon-side path a process string should use."""
         return self._filters.park(name, data)
 
     def parked_filter_members(self) -> dict[str, bytes]:
+        """Return the parked uploads as ``data/<name>`` members to fold into a restore archive."""
         return self._filters.members()
 
     def clear_parked_filters(self) -> None:
+        """Discard every parked upload, called once an apply has shipped them to the daemon."""
         self._filters.clear()
 
     # --- matrix-profile fan-out (matrix-spec.md "Profiles") ----------------
@@ -155,18 +161,23 @@ class PresetOps:
     # --- preset lane (presetlane) — thin delegators over the store + restore ---
 
     def presets(self) -> dict[str, Any]:
+        """Return the stored preset options plus the active name, shaped for the frontend's preset field."""
         return presetlane.listing(self._mgr)
 
     async def load_preset(self, name: str) -> dict[str, Any]:
+        """Restore the stored preset ``name`` onto the daemon's working config and mark it active."""
         return await presetlane.load(self._mgr, name)
 
     async def save_preset(self, name: str) -> dict[str, Any]:
+        """Snapshot the daemon's running config into the store as preset ``name`` and mirror it to ``data/cfgs``."""
         return await presetlane.save(self._mgr, name)
 
     async def delete_preset(self, name: str) -> dict[str, Any]:
+        """Remove preset ``name`` from the store and drop its mirror on the daemon."""
         return await presetlane.delete(self._mgr, name)
 
     async def migrate_once(self, active_hint: str | None = None) -> None:
+        """Import the daemon's own ``data/cfgs`` presets into the store, at most once per process and only over HTTP."""
         if self._migrated or self._mgr.http_client is None:
             return
         self._migrated = True

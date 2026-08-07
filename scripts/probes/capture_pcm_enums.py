@@ -39,6 +39,7 @@ async def _restore(client: ControlClient, orig: dict[str, str]) -> None:
 
 
 async def main() -> int:
+    """Capture the PCM filter, shaper and rate lists into engine-enums.json, restoring the engine afterwards."""
     client = ControlClient()
     await client.connect()
     state = await client.get_state()

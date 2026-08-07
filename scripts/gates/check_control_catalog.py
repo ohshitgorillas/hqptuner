@@ -142,6 +142,7 @@ def report(title: str, lines: list[str]) -> None:
 
 
 def main() -> int:
+    """Refuse a control missing its tab group, its prose in settings.json, or its XML write target."""
     schema = load_schema()
     settings: Settings = json.loads(SETTINGS_JSON.read_text())
     targets = write_targets()

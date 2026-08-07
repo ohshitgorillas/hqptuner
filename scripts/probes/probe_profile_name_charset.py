@@ -161,6 +161,7 @@ async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: s
 
 
 async def main() -> int:
+    """Establish which characters survive a round trip through a profile name, deleting each test profile after."""
     cfg = Config()
     control = ControlClient(host=cfg.hqp_host, port=cfg.hqp_control_port)
     await control.connect()
