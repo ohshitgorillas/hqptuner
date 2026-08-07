@@ -22,7 +22,7 @@ import { signal } from "@preact/signals";
 
 import { effective, effectivePipelines, canonPipelines } from "./resolve.js";
 import { stagePipelines, edit } from "./actions.js";
-import { structuralBlock, removeStructural, disableBauer } from "../lib/xfmode.js";
+import { structuralBlock, removeStructural, disableBauer } from "./xfmode.js";
 import { truthy } from "../lib/coerce.js";
 
 // DELIBERATELY still says dspMode, and must stay that way. This module, its

@@ -33,7 +33,7 @@ import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
-import { structuralBlock } from "../../../hqptuner/static/lib/xfmode.js";
+import { structuralBlock } from "../../../hqptuner/static/store/xfmode.js";
 import { ok, bad, stagingWire } from "../support/wire.js";
 
 const DEF = BAUER_PRESETS.default;

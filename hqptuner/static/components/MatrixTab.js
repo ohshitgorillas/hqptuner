@@ -14,7 +14,8 @@ import { pipelinesToRewText } from "../lib/eqexport.js";
 import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
-import { XfeedBadge, xfeedBlock } from "./XfeedComp.js";
+import { XfeedBadge } from "./XfeedComp.js";
+import { xfeedBlock } from "../store/xfeedblock.js";
 import { CrossfeedCard } from "./Crossfeed.js";
 import { StructuralBadge } from "./StructuralXfeed.js";
 import { ProfileCard } from "./MatrixProfileCard.js";
@@ -23,8 +24,8 @@ import { setSelected } from "./MatrixStageEditor.js";
 import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
 import { matrixMode, setMatrixMode } from "../store/matrixmode.js";
-import { structuralBlock } from "../lib/xfmode.js";
-import { Section, Card } from "./tabs/common.js";
+import { structuralBlock } from "../store/xfmode.js";
+import { Section, Card } from "./common.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 
 /**

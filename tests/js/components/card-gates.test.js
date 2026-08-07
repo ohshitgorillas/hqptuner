@@ -31,7 +31,7 @@ import { render } from "preact-render-to-string";
 import { signal } from "@preact/signals";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Card, collapseFrom } from "../../../hqptuner/static/components/tabs/common.js";
+import { Card, collapseFrom } from "../../../hqptuner/static/components/common.js";
 import { noteFor } from "../../../hqptuner/static/store/prose.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
 import { isDirty, stagedCount } from "../../../hqptuner/static/store/resolve.js";

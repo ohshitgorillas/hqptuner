@@ -2,6 +2,11 @@
 // that swaps between them, and the client-side memory that makes the swap
 // lossless.
 //
+// Filed under store/ rather than lib/: this module owns two signals, reads the
+// resolved config through store/resolve.js, and stages edits through
+// store/actions.js. A lib module does none of those things, and filing it there
+// put three upward edges in the import graph.
+//
 // What is INSTALLED is derived: a recognized 16-row structural block at rows
 // 0..15 is Structural, anything else is Bauer. There is no config field for it
 // because the structural controls have no daemon representation at all — they
@@ -25,21 +30,18 @@
 
 import { signal } from "@preact/signals";
 
-import { compileRows } from "./binaural/compile.js";
-import { SPEAKER_ANGLE, HEAD_RADIUS } from "./binaural/geometry.js";
-import { recognizeRows } from "./binaural/recognize.js";
-import { blockConflicts, pairInfo, REFUSAL } from "./binaural-setup.js";
-import { effective, effectivePipelines, pipelineBaseline } from "../store/resolve.js";
-import { stagePipelines, edit } from "../store/actions.js";
-// Upward, deliberately: the compensation block is recognized against the LIVE
-// bauer settings, and that reading lives with the strip that renders it. Nothing
-// in components/ imports this module's mode signal back, so the graph stays a DAG.
-import { xfeedBlock, removeBlock as removeCompBlock } from "../components/XfeedComp.js";
-import { truthy } from "./coerce.js";
+import { compileRows } from "../lib/binaural/compile.js";
+import { SPEAKER_ANGLE, HEAD_RADIUS } from "../lib/binaural/geometry.js";
+import { recognizeRows } from "../lib/binaural/recognize.js";
+import { blockConflicts, pairInfo, REFUSAL } from "../lib/binaural-setup.js";
+import { effective, effectivePipelines, pipelineBaseline } from "./resolve.js";
+import { stagePipelines, edit } from "./actions.js";
+import { xfeedBlock, removeBlock as removeCompBlock } from "./xfeedblock.js";
+import { truthy } from "../lib/coerce.js";
 
 /**
- * @typedef {import("./matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("./binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
  * @typedef {{ lambda?: number, angle?: number, headRadius?: number }} StructuralParams
  *   The three controls the block compiles from, each optional so a partial
  *   remember() or an in-flight drag can carry only what moved.

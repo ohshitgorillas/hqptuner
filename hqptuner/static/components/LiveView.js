@@ -42,7 +42,7 @@ import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { PlaybackVolumeBody } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
-import { Section, Card, collapseFrom } from "./tabs/common.js";
+import { Section, Card, collapseFrom } from "./common.js";
 
 /**
  * @typedef {import("./Field.js").FieldEntry} FieldEntry

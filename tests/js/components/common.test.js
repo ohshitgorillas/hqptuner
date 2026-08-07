@@ -1,4 +1,4 @@
-// Behavioral suite for components/tabs/common.js — the shared tab-layout
+// Behavioral suite for components/common.js — the shared tab-layout
 // primitives every tab body is built from: Section (the tab wrapper) and Card,
 // the one card component. A card handed a `collapse` handle grows a toggle head
 // and a body that comes and goes; handed none, it is a plain titled group.
@@ -23,7 +23,7 @@ import { render } from "preact-render-to-string";
 import { signal } from "@preact/signals";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Section, Card, collapseFrom } from "../../../hqptuner/static/components/tabs/common.js";
+import { Section, Card, collapseFrom } from "../../../hqptuner/static/components/common.js";
 
 const KID = html`<p>kid</p>`;
 

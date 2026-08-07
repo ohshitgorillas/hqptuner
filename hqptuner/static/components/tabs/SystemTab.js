@@ -16,7 +16,7 @@ import {
   setShowDescriptions,
   setKeepOptionDescriptions,
 } from "../../store/prefs.js";
-import { Section, Card, collapseFrom } from "./common.js";
+import { Section, Card, collapseFrom } from "../common.js";
 
 const info = computed(() => (health.value && health.value.info) || {});
 const license = computed(() => (health.value && health.value.license) || {});

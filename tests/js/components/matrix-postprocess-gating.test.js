@@ -24,7 +24,7 @@
 // signals carrying the daemon's own /config and /matrix forms (`enabled` is the
 // daemon field behind the `matrix_enabled` schema key; the post-process fields
 // are `post_bauer_*`, `post_correction_*`, `post_loudness_*`), by the exported
-// crossfeed view signal (`xfMode`, lib/xfmode.js), and by `edit()` over the
+// crossfeed view signal (`xfMode`, store/xfmode.js), and by `edit()` over the
 // staging wire fake on the real REST paths (tests/js/support/wire.js). Nothing is
 // stubbed and no module private is touched.
 //
@@ -73,7 +73,7 @@ import {
 import { speakers } from "../../../hqptuner/static/store/speakers.js";
 import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
-import { xfMode, liveParams, remember } from "../../../hqptuner/static/lib/xfmode.js";
+import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfmode.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";

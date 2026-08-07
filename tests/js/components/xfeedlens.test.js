@@ -62,7 +62,7 @@ import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js"
 import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { xfMode } from "../../../hqptuner/static/lib/xfmode.js";
+import { xfMode } from "../../../hqptuner/static/store/xfmode.js";
 import { BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";

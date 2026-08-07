@@ -21,7 +21,7 @@ import { effective, isDirty } from "../store/resolve.js";
 import { edit } from "../store/actions.js";
 import { grayReason } from "../store/graying.js";
 import { NumberBox } from "./controls/index.js";
-import { Card } from "./tabs/common.js";
+import { Card } from "./common.js";
 
 /**
  * @typedef {{ which: string, db: number }} ActiveHandle

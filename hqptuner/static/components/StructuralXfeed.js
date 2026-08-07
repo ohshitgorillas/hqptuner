@@ -18,7 +18,7 @@ import { midSideResponse, magDb } from "../lib/binaural/response.js";
 import { lensShown } from "./XfeedComp.js";
 
 const FS = 48000;
-import { structuralBlock, structuralParams } from "../lib/xfmode.js";
+import { structuralBlock, structuralParams } from "../store/xfmode.js";
 
 // What centered sound and the sides actually get, EQ included.
 //

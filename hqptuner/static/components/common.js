@@ -1,7 +1,12 @@
-// Shared tab-layout primitives: Section (tab body wrapper), Card (the one card
+// Shared layout primitives: Section (tab body wrapper), Card (the one card
 // component — collapsible or not), collapseFrom (the auto/override signal pair
 // as a collapse handle), and the checkbox-truth normalizer used across tab
 // bodies.
+//
+// Filed at components/ rather than components/tabs/ because the tabs are not
+// its only callers: eight modules outside tabs/ render cards, and reaching up
+// into tabs/ for the frame was the single largest violation of the layering
+// contract in eslint.config.js.
 //
 // Card markup lives HERE and nowhere else. Hand-rolled at every call site, a
 // surface fix has to be applied at each one and cards.css's .span mask ends up
@@ -13,7 +18,7 @@
 // component — it is a card whose head is a button, and keeping the two apart is
 // what let their surfaces drift until an open collapsible read as a darker card
 // than the card beside it.
-import { html } from "../../lib/dom.js";
+import { html } from "../lib/dom.js";
 
 /**
  * @typedef {{ open: boolean, onToggle: () => void }} CollapseHandle

@@ -74,7 +74,7 @@ import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { xfMode, liveParams, remember } from "../../../hqptuner/static/lib/xfmode.js";
+import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfmode.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { cancel } from "../../../hqptuner/static/store/ask.js";

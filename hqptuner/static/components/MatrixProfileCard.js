@@ -32,7 +32,7 @@ import {
 import { askChoices } from "../store/ask.js";
 import { notesVisible } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
-import { Card } from "./tabs/common.js";
+import { Card } from "./common.js";
 
 const OWNER = "matrix-profile";
 

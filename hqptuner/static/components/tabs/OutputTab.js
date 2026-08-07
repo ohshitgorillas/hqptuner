@@ -8,7 +8,7 @@ import { BypassNote } from "../MatrixBypassNote.js";
 import { noteFor } from "../../store/prose.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { Section, Card, collapseFrom } from "./common.js";
+import { Section, Card, collapseFrom } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
