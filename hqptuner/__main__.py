@@ -9,7 +9,7 @@ import logging
 
 import uvicorn
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.audit import resolve_level
 from hqptuner.config import Config
 
