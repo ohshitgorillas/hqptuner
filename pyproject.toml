@@ -25,6 +25,13 @@ dev = [
     "vulture",
     "types-beautifulsoup4",
     "mutmut",
+    # the layering contract in [tool.importlinter] below is only enforced if the
+    # gate that reads it is installed
+    "import-linter",
+    # scripts/snap.py drives it for frontend screenshots and geometry
+    # measurement, and mypy covers scripts/ — an undeclared playwright reds the
+    # gate on any freshly built venv.
+    "playwright",
 ]
 
 [tool.pytest.ini_options]
