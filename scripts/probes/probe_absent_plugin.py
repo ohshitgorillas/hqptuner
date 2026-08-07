@@ -313,6 +313,7 @@ async def _q7_element(http: HttpConfigClient, original: bytes, active: str | Non
 async def _probe(  # noqa: PLR0913
     http: HttpConfigClient,
     raw: httpx.AsyncClient,
+    *,
     pristine: bytes,
     original: bytes,
     authored: bytes,
@@ -407,7 +408,7 @@ async def main() -> int:
     authored = _plugin_tag(original, PLUGIN)
     print(f"active config: {active!r}\noriginal tag: {authored.decode()}\n")
     try:
-        findings += await _probe(http, raw, pristine, original, authored, active)
+        findings += await _probe(http, raw, pristine=pristine, original=original, authored=authored, active=active)
     finally:
         # --- revert, and prove it by readback -------------------------------
         try:
