@@ -95,12 +95,11 @@ select = [
     "FBT",              # boolean-trap arguments
     "TID",              # absolute imports only
     "RUF",
-    # Docstrings (pydocstyle), enabled one group at a time so each commit lands
-    # green. The end state is the bare "D" selector; until then this list names
-    # the groups already cleared across hqptuner/ and scripts/. tests/ is exempt
-    # by decision: docs/testing.md rule 6 already requires a test name to state
-    # its behaviour in plain words, so a docstring there restates the name.
-    "D1", "D205", "D209", "D210", "D400", "D401", "D301",
+    # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
+    # tests/ is exempt by decision: docs/testing.md rule 6 already requires a
+    # test name to state its behaviour in plain words, so a docstring there
+    # restates the name.
+    "D",
 ]
 
 [tool.ruff.lint.pydocstyle]
