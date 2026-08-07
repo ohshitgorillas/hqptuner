@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Output rates on the LIVE page no longer get refused.** Every rate tier you picked could come back as "isn't in the engine's live rates list", leaving no way to move the engine off the rate it was already on. Rates now apply as picked.
+
 - **Loudness, crossfeed, DAC correction and pipeline rows now save to matrix profiles properly**. A previous bug made it impossible to enable, e.g., Loudness while also having a DAC correction profile loaded. Loading the matrix profile would wipe out the setting, while applying the setting would wipe out the matrix profile. These settings are now properly stored within matrix profiles and can be saved.
 
 ### Changed

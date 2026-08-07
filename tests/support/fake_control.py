@@ -77,6 +77,21 @@ DEFAULTS = {
     # 2026-07-27): configured mode 2 reports active_mode="SDM (DSD)",
     # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
+    # The rates enumeration each family answers with, space separated in Hz and
+    # in list order, index 0 first (protocol.md §6: `<RatesItem index rate/>`,
+    # index 0 is rate="0" = auto). `_rates` is the PCM family's, `_sdm_rates` the
+    # SDM one; empty means that family's built-in list below, so the enumeration
+    # stays mode-dependent whichever knob a test sets.
+    #
+    # What is established about the real list: `GetRates` is answered per mode AND
+    # per transport state, and a snapshot taken right after a reconnect with the
+    # transport idle held the auto entry alone. Whether asking again fills such a
+    # list in is NOT established — `scripts/probes/probe_rates_on_demand.py`
+    # against 6.0.4 could not reproduce the short answer at all (two fresh
+    # connections, three `GetRates` each, all six the full 11-item ladder). So the
+    # knob says only what a daemon answered, never why.
+    "_rates": "",
+    "_sdm_rates": "",
     # What Status.active_filter reports — the ACTIVE main filter as a display
     # string (protocol.md: Status reports display strings, State numeric
     # indices). Empty means the frame carries no active_filter attribute at all.
@@ -95,6 +110,12 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
     elif name == "SetShaping":
         state["shaper"] = value
     elif name == "SetRate":
+        # Stores whatever arrived. The real daemon accepts and silently IGNORES a
+        # value that is not a current `RatesItem` index (protocol.md §6, verified
+        # 2026-07-29), which this does not model: `tests/apply/test_apply.py` pins
+        # rate index "5", a legitimate index of the real 11-item ladder that the
+        # abbreviated lists below do not reach, so enforcing it here would red two
+        # tests over the fake's list length rather than over any behaviour.
         state["rate"] = value
     elif name == "SetJunkFilter":
         state["filter_junk"] = value
@@ -132,6 +153,19 @@ def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
 
 def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
     return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
+
+
+def _rates(state: dict[str, str], *, sdm: bool) -> tuple[tuple[str, str], ...]:
+    """The rates this daemon answers `GetRates` with for the loaded family.
+
+    The knobs name the list outright, per family, so a test can serve an
+    enumeration that differs from the built-in one — and can move it between one
+    `GetRates` and the next, which is what tells a lane that re-asks apart from
+    one that answers out of a list it took earlier."""
+    named = state.get("_sdm_rates", "") if sdm else state.get("_rates", "")
+    if named:
+        return tuple((str(i), hz) for i, hz in enumerate(named.split()))
+    return _SDM_RATES if sdm else _PCM_RATES
 
 
 def _modes(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
@@ -196,7 +230,7 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
     if name == "GetShapers":
         return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
     if name == "GetRates":
-        return f"<GetRates>{_rate_items(_SDM_RATES if sdm else _PCM_RATES)}</GetRates>"
+        return f"<GetRates>{_rate_items(_rates(state, sdm=sdm))}</GetRates>"
     if name == "GetJunkFilters":
         return f"<GetJunkFilters>{_items('JunkFiltersItem', _JUNK_FILTERS)}</GetJunkFilters>"
     return None
