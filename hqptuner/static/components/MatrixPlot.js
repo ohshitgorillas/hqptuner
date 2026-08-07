@@ -15,7 +15,7 @@ import { PlotFrame } from "./plots.js";
 import { xfeedLensTraces, xfeedBlock } from "./XfeedComp.js";
 import { structuralBlock } from "../lib/xfmode.js";
 import { structuralLensTraces } from "./StructuralXfeed.js";
-import { Card } from "./tabs/common.js";
+import { Card } from "./common.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 import { BandStrip, selectedStage, dragEq, withDrag, keyAt, commitStage, BAND_ARGS, r1 } from "./BandStrip.js";
 import { rowTraces, eqOverviewTrace, editedAway, appliedTraces, previewTrace, HUES } from "./matrixplot-traces.js";

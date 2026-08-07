@@ -11,7 +11,7 @@ import { loudnessSide } from "../../store/ui.js";
 import { grayReason } from "../../store/graying.js";
 import { LoudnessPlot } from "../plots.js";
 import { noteFor } from "../../store/prose.js";
-import { Section, Card } from "./common.js";
+import { Section, Card } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
 
 const SIDES = [

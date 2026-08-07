@@ -16,7 +16,7 @@
 // switch rows).
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
-import { Card } from "./tabs/common.js";
+import { Card } from "./common.js";
 import { narrowingActive, resetNarrowing, nApod1x, nApodNx, nHires1x, nHiresNx } from "../store/narrowing.js";
 import { closeExcept } from "./narrowbar/popover.js";
 import { NarrowFacets } from "./narrowbar/Facets.js";

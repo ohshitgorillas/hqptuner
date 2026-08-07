@@ -81,7 +81,7 @@ export default [
   },
   {
     // The module that OWNS the card frame is the one place allowed to write it.
-    files: ["hqptuner/static/components/tabs/common.js"],
+    files: ["hqptuner/static/components/common.js"],
     rules: { "hqptuner/no-hand-rolled-card": "off" },
   },
   {

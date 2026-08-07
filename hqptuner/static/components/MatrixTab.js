@@ -24,7 +24,7 @@ import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
 import { matrixMode, setMatrixMode } from "../store/matrixmode.js";
 import { structuralBlock } from "../lib/xfmode.js";
-import { Section, Card } from "./tabs/common.js";
+import { Section, Card } from "./common.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 
 /**

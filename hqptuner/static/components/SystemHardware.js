@@ -12,7 +12,7 @@ import { api } from "../lib/api.js";
 import { metadata } from "../store/signals.js";
 import { notesVisible } from "../store/prefs.js";
 import { RadioGroup, Checkbox, Slider, NumberBox } from "./controls/index.js";
-import { Card } from "./tabs/common.js";
+import { Card } from "./common.js";
 import { ChainPack } from "./ChainPack.js";
 
 /**

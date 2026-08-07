@@ -263,7 +263,7 @@ test("test_the_dormant_pcm_control_is_not_disabled", async () => {
 const page = () => render(html`<${LiveView} />`);
 
 // A card head is `class="card-head">Title</div>`, or the collapsible form with
-// the disclosure triangle ahead of the title (components/tabs/common.js).
+// the disclosure triangle ahead of the title (components/common.js).
 const head = (title) => new RegExp(`class="card-head">(<span class="tri">.</span> )?${title}</(div|button)>`);
 
 const MARK = '<section class="card ';

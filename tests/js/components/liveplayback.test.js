@@ -144,7 +144,7 @@ const page = () => render(html`<${LiveView} />`);
 const volumeCard = () => render(html`<${PlaybackVolume} />`);
 
 // The title a card head announces: its own text, less the disclosure triangle a
-// collapsible head carries ahead of it (components/tabs/common.js).
+// collapsible head carries ahead of it (components/common.js).
 const heads = (out) => elements(out).filter((el) => classes(el).includes("card-head"));
 const title = (el) => text(el).replace(/^[^\p{L}\p{N}]+/u, "");
 

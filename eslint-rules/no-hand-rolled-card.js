@@ -1,4 +1,4 @@
-// Gate: card markup is written once, in components/tabs/common.js.
+// Gate: card markup is written once, in components/common.js.
 //
 // Hand-rolled card markup carries two costs. A surface or structure fix has to
 // be found and applied at every call site — the 0.9.1 shading bug was exactly
@@ -23,11 +23,11 @@ const CARD_CLASS = /class="card(-head|-body)?["\s]/;
 export default {
   meta: {
     type: "problem",
-    docs: { description: "card markup belongs to components/tabs/common.js (docs/design-system.md)" },
+    docs: { description: "card markup belongs to components/common.js (docs/design-system.md)" },
     schema: [],
     messages: {
       handRolled:
-        "hand-rolled card markup — import Card from tabs/common.js. A second copy of the card frame is how its surface drifts.",
+        "hand-rolled card markup — import Card from components/common.js. A second copy of the card frame is how its surface drifts.",
     },
   },
   create(context) {

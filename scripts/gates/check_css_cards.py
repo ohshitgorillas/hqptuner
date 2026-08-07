@@ -35,7 +35,7 @@ from pathlib import Path
 
 PRAGMA = "card-frame-exempt:"
 #: the component that owns the frame — every complaint points a reader here
-OWNER = "hqptuner/static/components/tabs/common.js"
+OWNER = "hqptuner/static/components/common.js"
 #: the one stylesheet allowed to declare the frame
 DEFINITION_SITE = "cards.css"
 

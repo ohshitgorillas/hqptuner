@@ -19,7 +19,7 @@ import { setVolume } from "../store/actions.js";
 import { fastVolumeUpdates, setFastVolumeUpdates } from "../store/prefs.js";
 import { Knob } from "./Knob.js";
 import { Checkbox } from "./controls/index.js";
-import { Card } from "./tabs/common.js";
+import { Card } from "./common.js";
 import { truthy } from "../lib/coerce.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
