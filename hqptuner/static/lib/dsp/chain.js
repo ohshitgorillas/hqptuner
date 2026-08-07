@@ -100,10 +100,10 @@ function addStageGridDb(s, db, { t, freqs }, fs) {
   return s.kind === "delay";
 }
 
-// Whole-chain magnitude in dB at every grid point. Mirrors chainResponse's
-// convention: an unplottable stage (bad args, conv file not registered,
-// unknown kind) contributes nothing and sets `partial`.
 /**
+ * Whole-chain magnitude in dB at every grid point. Mirrors chainResponse's
+ * convention: an unplottable stage (bad args, conv file not registered,
+ * unknown kind) contributes nothing and sets `partial`.
  * @param {Stage[]} stages
  * @param {number[]} freqs
  * @param {number} fs
@@ -119,8 +119,8 @@ export function chainMagDbGrid(stages, freqs, fs) {
   return { db, partial };
 }
 
-// Whole-chain response: per-stage sum; `partial` when any stage is unplottable.
 /**
+ * Whole-chain response: per-stage sum; `partial` when any stage is unplottable.
  * @param {Stage[]} stages
  * @param {number} f
  * @param {number} fs

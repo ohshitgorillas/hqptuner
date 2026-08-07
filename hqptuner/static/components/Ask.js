@@ -90,6 +90,8 @@ const confirmLine = (q) => html`
 `;
 
 /**
+ * Renders the pending question inline when it belongs to this owner — a choices popup, a name field, or a confirm line.
+ *
  * @param {{ owner: string }} props
  */
 export function Ask({ owner }) {

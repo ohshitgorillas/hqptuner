@@ -48,6 +48,8 @@ export function noteToMidi(name) {
 }
 
 /**
+ * MIDI number -> note name, sharps only, with octave (60 -> "C4").
+ *
  * @param {number} midi
  * @returns {string}
  */
@@ -56,6 +58,8 @@ export function midiToName(midi) {
 }
 
 /**
+ * MIDI number -> equal-temperament frequency in Hz, A4 (69) at 440.
+ *
  * @param {number} midi
  * @returns {number}
  */

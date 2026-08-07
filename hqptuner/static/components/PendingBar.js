@@ -189,6 +189,7 @@ function saveTitle(target, pend) {
   return pend ? `Apply and save to "${target}"` : `Save the current settings to "${target}"`;
 }
 
+/** Footer bar carrying the staged-edit count and status line with the Discard, Apply, Save and Save as New buttons. */
 export function PendingBar() {
   const n = stagedCount.value;
   const busy = applying.value;

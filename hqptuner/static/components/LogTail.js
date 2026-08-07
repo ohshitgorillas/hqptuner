@@ -48,6 +48,7 @@ function stop() {
   }
 }
 
+/** Checkbox-gated pane holding the last 50 hqplayerd log lines, polling while shown and scrolled to the newest line. */
 export function LogTail() {
   const pre = useRef(null);
   const on = shown.value === null ? truthy(effective("log_enabled")) : shown.value;

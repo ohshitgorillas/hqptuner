@@ -124,6 +124,8 @@ const loOf = (/** @type {unknown} */ min, /** @type {boolean} */ log) =>
 // (equal travel per octave — what a 20 Hz–20 kHz or 0.1–16 Q axis needs) while
 // value, box, aria, and both callbacks stay in real units.
 /**
+ * Renders a numeric control as a draggable dial, a slider track under it
+ * (suppressed by `slider={false}`) and a number readout, all bound to one value.
  * @param {{ value?: unknown, min?: unknown, max?: unknown, step?: unknown, def?: unknown, size?: string,
  *           slider?: boolean, disabled?: boolean, unit?: string, label?: string, scale?: string,
  *           onLive?: ValueSink | null, onCommit?: ValueSink | null }} props

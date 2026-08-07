@@ -10,8 +10,11 @@ import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
 import { nGenre, nQuality, nFocus, nPhase, nLength, nRatio, nUpsampleOnly } from "../../store/narrowing.js";
 import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
 
-// The facet row: six dropdowns and the favorites toggle. Each dropdown's `count`
-// maps a candidate option to the narrowing override the chip counts against.
+/**
+ * Renders the facet row: the genre, quality, focus, phase, length and ratio
+ * dropdowns plus the favorites toggle. Each dropdown's `count` maps a candidate
+ * option to the narrowing override its chip counts against.
+ */
 export function NarrowFacets() {
   return html`
     <div class="narrow-facets">

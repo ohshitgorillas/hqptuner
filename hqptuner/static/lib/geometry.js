@@ -9,6 +9,8 @@
 // centre constants, and binding them once keeps all eight call sites reading as
 // polar(angle, radius) instead of carrying the centre through every call.
 /**
+ * Bind a centre and get back a polar(deg, r) that returns [x, y] in that
+ * convention.
  * @param {number} cx
  * @param {number} cy
  * @returns {(deg: number, r: number) => number[]}

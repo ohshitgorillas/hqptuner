@@ -76,6 +76,9 @@ const fmtDeltaF = (/** @type {number} */ df) => `${df >= 0 ? "+" : ""}${Math.rou
 // Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
 // traces flagged `y2: true` (phase) map through it instead of the dB scale.
 /**
+ * Renders the shared SVG plot frame — log frequency axis, dB grid, one path per
+ * trace, an optional caption and the draggable handles laid over them.
+ *
  * @param {{
  *   traces: FrameTrace[], yMin: number, yMax: number, dbStep: number, height: number,
  *   caption?: string, y2Min?: number, y2Max?: number, handles?: FrameHandle[], autoColor?: boolean
@@ -289,6 +292,10 @@ function dragStarter({ yMin, yMax, height, plotH }) {
   };
 }
 
+/**
+ * Renders the crossfeed card's plot: the flat direct path against the cross-fed
+ * path's magnitude at the effective crossfeed frequency and level.
+ */
 export function CrossfeedPlot() {
   const fc = num(effective("crossfeed_frequency"), 700);
   const level = num(effective("crossfeed_level"), 4.5);
@@ -315,6 +322,10 @@ export function CrossfeedPlot() {
 // 48 kHz reference is used (validated offline against exact RBJ coefficients).
 const LOUDNESS_FS = 48000;
 
+/**
+ * Renders the loudness plot: the maximum shelving curve against the amount
+ * actually applied at the shown volume, with a drag handle on each shelf.
+ */
 export function LoudnessPlot() {
   const p = {
     lowType: /** @type {string} */ (effective("loudness_low_type")),

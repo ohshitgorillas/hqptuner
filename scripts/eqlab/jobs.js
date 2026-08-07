@@ -106,6 +106,9 @@ const roundNotes = (rows) =>
   }));
 
 /**
+ * The chain as it stands, no edit applied: the metric panel, the summed
+ * response's peaks and dips in Hz/dB, and the note table.
+ *
  * @param {unknown} _job
  * @param {JobCtx} ctx
  * @returns {PanelOut & { extrema: { kind: string, hz: number, db: number }[], notes: RoundedNote[] | null }}
@@ -248,6 +251,10 @@ export async function diffJob(job, ctx) {
 }
 
 /**
+ * One change set applied to the chain and measured against it: panels either
+ * side, per-metric deltas, the band edits it took, their fit against the
+ * target, guidance and headroom flags, and per-note dB deltas.
+ *
  * @param {Parameters<typeof applyChanges>[1] & { changes?: Parameters<typeof applyChanges>[1] }} job
  * @param {JobCtx} ctx
  * @returns {{

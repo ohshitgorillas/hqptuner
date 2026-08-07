@@ -87,6 +87,7 @@ function select(p) {
   previewEq.value = { label: `${p.model} (${p.source})`, stages: parseEqText(p.text).stages };
 }
 
+/** Drops the picked library profile and the response-plot preview it drives. */
 export function clearLibrarySelection() {
   libSel.value = null;
   previewEq.value = null;
@@ -129,6 +130,9 @@ function Selection({ applyText }) {
 }
 
 /**
+ * Renders the headphone-EQ library panel: a search box over the profile database,
+ * the ranked hit list, and the selection strip that loads the picked profile.
+ *
  * @param {{ applyText: (text: string) => void }} props the panel's paste-apply seam
  */
 export function LibraryPicker({ applyText }) {

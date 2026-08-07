@@ -117,6 +117,8 @@ function savedSummary(base, saved) {
 }
 
 /**
+ * The one-line verdict for an apply: the first failure the report carries, or what the
+ * apply did plus how its preset save went.
  * @param {ApplyReport} report
  * @param {number} count staged edits, captured before the apply cleared them
  * @returns {Verdict}

@@ -30,6 +30,8 @@ const POPOVERS = {
 };
 
 /**
+ * Closes every facet popover except the one whose `.multi` wrapper contains
+ * `target`.
  * @param {Element | null} target
  * @returns {void}
  */

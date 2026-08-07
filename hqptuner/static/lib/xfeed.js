@@ -79,8 +79,8 @@ function msResponse(fc, feed, f) {
 /** @param {[number, number]} c a complex response as [real, imaginary] */
 const magDb = ([re, im]) => 10 * Math.log10(re * re + im * im);
 
-// Per-ear magnitude (dB) of a centered source through the crossfeed.
 /**
+ * Per-ear magnitude (dB) of a centered source through the crossfeed.
  * @param {number} fc
  * @param {number} feed
  * @param {number} f
@@ -90,8 +90,8 @@ export function centerMagDb(fc, feed, f) {
   return magDb(msResponse(fc, feed, f).m);
 }
 
-// Magnitude (dB) of the side (L-R) component through the crossfeed.
 /**
+ * Magnitude (dB) of the side (L-R) component through the crossfeed.
  * @param {number} fc
  * @param {number} feed
  * @param {number} f
@@ -101,8 +101,8 @@ export function sideMagDb(fc, feed, f) {
   return magDb(msResponse(fc, feed, f).s);
 }
 
-// The center tilt the compensation removes: HF loss relative to LF (positive dB).
 /**
+ * The center tilt the compensation removes: HF loss relative to LF (positive dB).
  * @param {number} fc
  * @param {number} feed
  * @returns {number}
@@ -187,11 +187,12 @@ function descend(seed, seedSteps, err) {
   return { p, best };
 }
 
-// Coordinate-descent fit of two cascaded high-shelves to the exact inverse,
-// from the reference-validated analytic seed. One fit per (fc, feed); cached.
 /** @type {Map<string, CompFit>} */
 const fitCache = new Map();
 /**
+ * Coordinate-descent fit of two cascaded high-shelves to the exact inverse of the
+ * centre response, from the reference-validated analytic seed. One fit per
+ * (fc, feed); cached.
  * @param {number} fc
  * @param {number} feed
  * @returns {CompFit}
@@ -225,9 +226,9 @@ export function fitComp(fc, feed) {
   return fit;
 }
 
-// The comp chain as process-spec text at slider fraction s (1 = 100%), in
-// matrixspec buildRaw arg order — round-trips byte-exact through parseProcess.
 /**
+ * The comp chain as process-spec text at slider fraction s (1 = 100%), in
+ * matrixspec buildRaw arg order — round-trips byte-exact through parseProcess.
  * @param {CompFit} fit
  * @param {number} s slider fraction, 1 = 100%
  * @returns {string}
@@ -240,10 +241,8 @@ export function compProcess(fit, s) {
 
 // --- M/S pipeline block (spec wire shape) ------------------------------------
 
-// Compile the compensated block for a stereo pair: 8 canonical rows.
-// eqProcess: the shared per-channel EQ chain; preampDb: row gain the EQ pair
-// carried (folded into the Lin gains); pair.a/pair.b: wire channel indexes.
 /**
+ * Compile the compensated block for a stereo pair: 8 canonical rows.
  * @param {string} eqProcess the shared per-channel EQ chain
  * @param {number} preampDb row gain the EQ pair carried, folded into the Lin gains
  * @param {{ fit: CompFit, s: number }} comp
@@ -279,11 +278,12 @@ export function msCompile(eqProcess, preampDb, { fit, s }, { a: srcA, b: srcB })
   ];
 }
 
-// The plain stereo EQ pair a compensation block was built from, with the rest of
-// the row list intact. Switching to the structural crossfeed has to come through
-// here first: the block's rows are Lin, and the structural compiler builds from a
-// dB pair, so without this the mode toggle just refuses.
+// Switching to the structural crossfeed has to come through here first: the
+// block's rows are Lin, and the structural compiler builds from a dB pair, so
+// without this the mode toggle just refuses.
 /**
+ * The plain stereo EQ pair a compensation block was built from, with the rest of
+ * the row list intact.
  * @param {PipelineRow[]} rows the whole row list
  * @param {MsRecognition} rec
  * @returns {PipelineRow[]}
@@ -297,8 +297,6 @@ export function uncompensatedRows(rows, rec) {
   ];
 }
 
-// Route an EQ import INTO a recognized block instead of onto its individual rows.
-//
 // The block holds its EQ once, shared by all eight rows, and its gains are Lin
 // with the preamp folded in. Appending to a single row the way a plain pipeline
 // import does breaks both invariants at once: recognition dies on the first
@@ -312,6 +310,8 @@ export function uncompensatedRows(rows, rec) {
 // stacked profiles are never what anyone wants. The crossfeed's own stages are
 // untouched either way: they are not part of eqProcess, msCompile re-adds them.
 /**
+ * Route an EQ import INTO a recognized block instead of onto its individual rows:
+ * recompile all eight rows around the new shared EQ chain.
  * @param {PipelineRow[]} rows
  * @param {MsRecognition} rec
  * @param {CompFit} fit
@@ -325,11 +325,6 @@ export function applyEqToBlock(rows, rec, fit, { addition, preamp, replace = fal
   return [...msCompile(eqProcess, preampDb, { fit, s: rec.sFraction }, { a: 0, b: 1 }), ...rows.slice(8)];
 }
 
-// Recognize a compiled block at rows[at..at+7]. Purely structural — returns
-// {eqProcess, preampDb, sFraction, stale} or null. `stale` is true when the
-// comp stages' f/q don't match a fresh fit for the CURRENT bauer settings
-// (bauer changed since the block was generated) — sFraction is then relative
-// to the stored gains' own 100% and only indicative.
 // Same contract as binaural.js's usableRow, deliberately duplicated: that module
 // has no imports at all and this one imports only matrixspec, and a shared
 // one-line predicate is not worth coupling them. Rows reaching a recognizer are
@@ -423,6 +418,10 @@ function compShelves(compFull, eqProcess) {
 }
 
 /**
+ * Recognize a compiled block at rows[at..at+7]. Purely structural — returns
+ * {eqProcess, preampDb, sFraction, stale} or null. `stale` is true when the comp
+ * stages' f/q don't match a fresh fit for the CURRENT bauer settings, and
+ * sFraction is then relative to the stored gains' own 100% and only indicative.
  * @param {PipelineRow[]} rows
  * @param {number} at first row of the candidate block
  * @param {number} fc current bauer cross-over frequency

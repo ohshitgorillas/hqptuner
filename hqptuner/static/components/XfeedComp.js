@@ -77,6 +77,7 @@ const pendingPct = signal(null); // % chosen before any block exists — what Tu
 // question about the crossfeed, and the response plot's job is the EQ the user
 // is editing. Drawing three extra curves over it unasked buried that.
 export const lensOn = signal(false);
+/** Whether the "what you hear" lens toggle is currently on. */
 export function lensShown() {
   return lensOn.value;
 }
@@ -114,6 +115,8 @@ function stageBlock(rows, { eq, preampDb }, pct, restFrom) {
 // the uncompensated center as a ghost, and the side path (deliberately
 // untouched). Magnitude only.
 /**
+ * Builds the lens traces, widening `bounds` to fit them; empty when the lens is off or no EQ is readable.
+ *
  * @param {PipelineRow[]} rows
  * @param {Bounds} bounds
  * @returns {PlotTrace[]}
@@ -162,6 +165,8 @@ export function xfeedLensTraces(rows, bounds) {
 // file can read an EQ out of. The RESPONSE card asks before offering the toggle,
 // so the button appears only where pressing it would change the plot.
 /**
+ * Whether the Bauer lens has anything to draw over these rows.
+ *
  * @param {PipelineRow[]} rows
  * @returns {boolean}
  */
@@ -172,6 +177,7 @@ export function xfeedLensAvailable(rows) {
 }
 
 // Badge on the Pipelines card when rows 0..7 are a recognized block.
+/** Renders the Pipelines-card badge naming the recognized crossfeed block, its percentage and staleness. */
 export function XfeedBadge() {
   const rows = effectivePipelines.value;
   const { bs, rec } = xfeedBlock(rows);
@@ -258,6 +264,7 @@ function xfcNote(bs, tilt) {
 }
 
 // Control strip on the RESPONSE card.
+/** Renders the compensation control strip — amount slider, center-tilt readout, on/off/rebuild actions and guidance. */
 export function XfeedStrip() {
   const rows = effectivePipelines.value;
   const { bs, rec } = xfeedBlock(rows);
@@ -318,6 +325,7 @@ export function XfeedStrip() {
 // correction at the current slider (mirror boost), and their net result (flat
 // at 100%, visible residual elsewhere). Small ±3 dB scale so a ~2 dB story
 // reads large.
+/** Renders the card's small ±3 dB plot of the crossfeed center dip, the correction and their sum. */
 export function CompMiniPlot() {
   const rows = effectivePipelines.value;
   const { bs, rec } = xfeedBlock(rows);

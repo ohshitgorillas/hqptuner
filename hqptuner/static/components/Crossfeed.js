@@ -430,6 +430,7 @@ function BauerMode() {
 
 // --- card --------------------------------------------------------------------
 
+/** Renders the Crossfeed card — the enable gate, the Bauer/Structural mode segment and the selected mode's controls. */
 export function CrossfeedCard() {
   const rows = effectivePipelines.value;
   const active = activeMode(rows);

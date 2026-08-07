@@ -70,6 +70,7 @@ function LoudnessCard() {
   `;
 }
 
+/** Volume tab: playback and fixed-volume cards, the volume range bar, automatic gain fields and the loudness card. */
 export const Volume = () =>
   html`<${Section}>
     <div class="card-grid">

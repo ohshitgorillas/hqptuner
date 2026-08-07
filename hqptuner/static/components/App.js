@@ -17,6 +17,7 @@ import { PendingBar } from "./PendingBar.js";
 import { reachable } from "../store/signals.js";
 import { liveMode } from "../store/prefs.js";
 
+/** Root layout: header, signal path and alert strip over either the tab bar and body or the LIVE page, with the pending bar below. */
 export function App() {
   const live = liveMode.value;
   return html`

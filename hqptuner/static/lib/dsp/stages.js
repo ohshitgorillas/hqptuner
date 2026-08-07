@@ -42,11 +42,13 @@ import { convResponse } from "./impulse.js";
 // Local rather than imported from lib/matrixspec.js: `Stage` above is structural
 // on purpose, and dsp depends on no other module for it.
 /**
+ * A stage's plugin arguments, empty for a kind that carries none.
  * @param {Stage} stage
  * @returns {StageArgs}
  */
 export const stageArgs = (stage) => stage.args || {};
 /**
+ * A conv stage's daemon-side file path, empty string for any other kind.
  * @param {Stage} stage
  * @returns {string}
  */
@@ -68,8 +70,8 @@ const SECOND_ORDER = {
 
 const FIRST_ORDER = new Set(["lp1", "hp1"]);
 
-// One iir-plugin stage -> normalized biquad coefficients (null = unplottable).
 /**
+ * One iir-plugin stage -> normalized biquad coefficients (null = unplottable).
  * @param {StageArgs} args
  * @param {number} fs
  * @returns {Biquad | null}
@@ -118,6 +120,8 @@ function riaaRaw(f) {
 const RIAA_REF_DB = riaaRaw(1000).db;
 
 /**
+ * The RIAA de-emphasis curve at f, referenced to 0 dB at 1 kHz, with the
+ * subsonic pole folded in when asked for.
  * @param {number} f
  * @param {boolean} subsonic
  * @returns {Response}
@@ -135,9 +139,9 @@ export function riaaResponse(f, subsonic) {
   return { db, deg: wrapDeg(deg) };
 }
 
-// One stage's response at f. null = unplottable (bad args, or a conv file not
-// uploaded this session — the plot marks the row partial).
 /**
+ * One stage's response at f. null = unplottable (bad args, or a conv file not
+ * uploaded this session — the plot marks the row partial).
  * @param {Stage} stage
  * @param {number} f
  * @param {number} fs

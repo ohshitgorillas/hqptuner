@@ -231,6 +231,9 @@ function OptionRow({ o, i, row }) {
 }
 
 /**
+ * Renders a dropdown as a button and an owned listbox popover, so each option
+ * row can show its own tip from `tips` and, where `fav` is passed, a favorite
+ * star. Reports a value on commit only.
  * @param {{ value: string | number | undefined, options: RenderOption[] | undefined,
  *   tips?: (o: RenderOption) => string, fav?: (o: RenderOption) => boolean,
  *   onFav?: (o: RenderOption) => void, disabled?: boolean,

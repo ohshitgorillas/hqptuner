@@ -69,8 +69,9 @@ function parseFilterLine(line, m) {
   return { stage: editedStage({ kind: "iir", args: {}, raw: undefined }, args) };
 }
 
-// parseEqText(text) -> { preamp: "-6.1" | null, stages: [iir stages], skipped: [reasons] }
 /**
+ * Read an AutoEq / REW filter list into the preamp line, the iir stages its
+ * filters compile to, and a reason for every line that could not be used.
  * @param {string} text the raw AutoEq / REW text
  * @returns {{ preamp: string | null, stages: MatrixStage[], skipped: string[] }}
  */
@@ -243,6 +244,9 @@ function structuralPlan(rows, opts, cut) {
 }
 
 /**
+ * The row set an import would produce, without applying it: parse the text, then
+ * route the filters onto a recognized structural block, a recognized M/S block, or
+ * the aimed-at row, whichever the target index falls in.
  * @param {PipelineRow[]} rows the current pipeline set
  * @param {number} targetIndex the row the import is aimed at
  * @param {ImportOpts} opts

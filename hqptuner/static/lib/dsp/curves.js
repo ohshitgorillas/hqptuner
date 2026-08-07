@@ -36,9 +36,9 @@ function bandCoeffs({ type, f0, g, shape }, fs) {
   return shelfFromAlpha(shelf, rbjAlpha(w0, { s: shape }, A), { f0, g, fs });
 }
 
-// Combined bass + treble magnitude in dB at f, each band's gain scaled by
-// `scale` (0..1) — the volume-adaptive shelving fraction.
 /**
+ * Combined bass + treble magnitude in dB at f, each band's gain scaled by
+ * `scale` (0..1) — the volume-adaptive shelving fraction.
  * @param {{ lowType: string, lowFreq: number, lowLevel: number, lowSteep: number,
  *           highType: string, highFreq: number, highLevel: number, highSteep: number }} p
  * @param {number} f
@@ -52,10 +52,10 @@ export function loudnessMagDb(p, f, fs, scale) {
   return biquadMagDb(bass, f, fs) + biquadMagDb(treble, f, fs);
 }
 
-// Volume -> shelving fraction: full (1) at/below the lower bound, none (0) at/
-// above the upper bound, linearly interpolated between. This is the loudness
-// compensation curve — more shelving the quieter you listen.
 /**
+ * Volume -> shelving fraction: full (1) at/below the lower bound, none (0) at/
+ * above the upper bound, linearly interpolated between. This is the loudness
+ * compensation curve — more shelving the quieter you listen.
  * @param {number} volume
  * @param {number} rangeLow
  * @param {number} rangeHigh
@@ -66,10 +66,10 @@ export function shelfScale(volume, rangeLow, rangeHigh) {
   return Math.max(0, Math.min(1, (rangeHigh - volume) / (rangeHigh - rangeLow)));
 }
 
-// First-order Bauer-crossfeed feed-path model: the cross-fed (opposite-channel)
-// signal sits `levelDb` below the direct path at DC and rolls off first-order
-// above the cross-over frequency `fc`. The direct path is flat 0 dB.
 /**
+ * First-order Bauer-crossfeed feed-path model: the cross-fed (opposite-channel)
+ * signal sits `levelDb` below the direct path at DC and rolls off first-order
+ * above the cross-over frequency `fc`. The direct path is flat 0 dB.
  * @param {number} f
  * @param {number} fc
  * @param {number} levelDb
@@ -98,4 +98,5 @@ function logFreqs(f0, f1, n) {
 // each of the nine call sites `bandFreqs` replaced.
 export const F0 = 20;
 export const F1 = 20000;
+/** `n` logarithmically-spaced frequency points spanning F0..F1, for a plot trace. */
 export const bandFreqs = (/** @type {number} */ n) => logFreqs(F0, F1, n);

@@ -112,6 +112,8 @@ function restore() {
 }
 
 /**
+ * Switch the Matrix tab's view and persist it, suppressing crossfeed on the way to
+ * speakers and putting back exactly what was suppressed on the way to headphones.
  * @param {string} next "speakers" | "headphones"
  * @returns {void}
  */

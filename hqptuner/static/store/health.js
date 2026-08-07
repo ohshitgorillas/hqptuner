@@ -72,6 +72,7 @@ const num = (/** @type {string | number | undefined} */ v) => {
 /** @type {(() => void) | null} */
 let dispose = null;
 
+/** Register the streak/baseline effect once, and hand back its disposer. */
 export function initHealth() {
   if (dispose) return dispose;
   dispose = effect(() => {

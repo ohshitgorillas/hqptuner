@@ -8,6 +8,8 @@ import { toChildArray } from "preact";
 import { html } from "../lib/dom.js";
 
 /**
+ * Renders its children as a two-track pack — the first two in the left column, the rest in the right.
+ *
  * @param {{ children?: unknown }} props the chain's controls, in sequence
  */
 export function ChainPack({ children }) {

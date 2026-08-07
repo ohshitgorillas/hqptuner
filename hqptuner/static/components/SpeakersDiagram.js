@@ -83,6 +83,9 @@ const labelPos = (/** @type {number} */ index, /** @type {number} */ x) =>
 // How far a speaker's drawing reaches around its own centre — the rotated box,
 // plus wherever its labels land. Feeds the measured viewBox.
 /**
+ * The bounding box one speaker glyph plus its label text occupies at `(x, y)`, so
+ * the diagram's viewBox can be fitted to what is drawn.
+ *
  * @param {number} index
  * @param {number} x
  * @param {number} y
@@ -95,7 +98,13 @@ function extent(index, x, y) {
   return { minX: x - Math.max(box, left), maxX: x + box + 2, minY: y - box, maxY: y + down };
 }
 
-/** @param {{ channels: SpeakerChannel[] | null, active: Set<number> }} props */
+/**
+ * Renders the overhead plan view of the speaker set: each channel with a distance
+ * placed at its layout angle around the listener, labelled with its channel name
+ * and level trim.
+ *
+ * @param {{ channels: SpeakerChannel[] | null, active: Set<number> }} props
+ */
 export function SpeakersDiagram({ channels, active }) {
   const rows = channels || [];
   // A speaker with no distance set has no position: it is not placed in the room

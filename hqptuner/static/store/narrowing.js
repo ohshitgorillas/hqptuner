@@ -68,6 +68,7 @@ export const narrowingActive = computed(
     ),
 );
 
+/** Clear every narrow-bar facet, putting the per-stage switches back to their defaults rather than blank. */
 export function resetNarrowing() {
   nGenre.value = [];
   nQuality.value = 0;
@@ -240,6 +241,9 @@ function anyEngaged(s) {
 }
 
 /**
+ * Filter a filter-field option list down to the ones the active facets keep,
+ * `current` always among them.
+ *
  * @template {NarrowOption} T
  * @param {T[]} options
  * @param {string | number | boolean | undefined} current never hidden, whatever the facets say
@@ -274,6 +278,9 @@ function countPass(options, sel) {
 
 // Live badge for one filter dropdown: { n, total } against the ACTIVE facets.
 /**
+ * How many of a dropdown's options the active facets match, against the total —
+ * the live badge's numbers.
+ *
  * @param {NarrowOption[]} options
  * @param {string} stage
  * @param {string} field
@@ -286,6 +293,9 @@ export function narrowCount(options, stage, field) {
 // Per-option popover preview: how many options survive if `overrides` were
 // merged onto the current selection (e.g. { genre: [...current, "rock"] }).
 /**
+ * How many options would survive if `overrides` were merged onto the current
+ * selection — the per-option popover preview.
+ *
  * @param {NarrowOption[]} options
  * @param {string} stage
  * @param {string} field

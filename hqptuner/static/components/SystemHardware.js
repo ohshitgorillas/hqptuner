@@ -170,6 +170,7 @@ function BlocksPerCycleField() {
   `;
 }
 
+/** Renders the Hardware acceleration card — CUDA offload and devices, multicore DSP, E-cores, blocks per cycle, apply. */
 export function HardwareCard() {
   useEffect(() => {
     if (!loaded.value) load().catch((e) => (status.value = `Load failed: ${e}`));
@@ -237,6 +238,7 @@ async function onRestore(e) {
 
 // Backup & restore folded into the About card as a maintenance row (its own
 // card was two buttons in a half-track of empty surface).
+/** Renders the About card's maintenance row — download a config backup, upload one to restore, and the restore status. */
 export function BackupRestoreRow() {
   return html`
     <div class="about-maint">

@@ -101,6 +101,7 @@ function throttleSend(v) {
 // gives a named readout (PROCESS SPEED under the Engine health gauge). On the
 // Volume tab the card head says it already, so only a body sharing a card with
 // other controls asks for it.
+/** Renders the volume dial, the faster-updates opt-in and, when the engine holds the control, the grayed-out reason. */
 export function PlaybackVolumeBody({ showQuick = true, showName = false }) {
   const { enabled, min, max } = knobRange();
   const engine = volume.value != null ? Number(volume.value) : min;
@@ -158,6 +159,7 @@ export function PlaybackVolumeBody({ showQuick = true, showName = false }) {
 
 // The Volume tab's card: the same body in a frame of its own. LIVE renders the
 // body directly instead, as one column of its Playback card.
+/** Renders the Volume tab's Playback volume card — the same body in a card frame of its own. */
 export function PlaybackVolume({ showQuick = true }) {
   return html`
     <${Card} title="Playback volume" cardClass="playback">

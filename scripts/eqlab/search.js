@@ -361,6 +361,12 @@ function paretoResult(survived, keep, env, { rspec, job, common }) {
 }
 
 /**
+ * Grid sweep over a declared change space: every combination is applied,
+ * measured and scored, candidates missing a constraint are rejected, and the
+ * survivors are ranked and optionally refined. Pareto objectives return the
+ * front; a scalar objective returns the top N with the winner's margin over
+ * the runner-up and the per-parameter sensitivity of the score.
+ *
  * @param {Record<string, any>} job
  * @param {JobCtx} ctx
  * @returns {Record<string, unknown>}

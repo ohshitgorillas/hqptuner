@@ -219,6 +219,9 @@ function gainsMatch(ears, lambda, p, preampDb) {
 }
 
 /**
+ * Recover the controls a compiled block at rows[at..at+15] was built from —
+ * lambda, speaker angle, head radius, per-ear preamp and EQ chain — or null if the
+ * sixteen rows are not one of ours.
  * @param {PipelineRow[]} rows
  * @param {number} [at] first row of the candidate block
  * @returns {StructuralRecognition | null}

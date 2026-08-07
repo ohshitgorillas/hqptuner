@@ -64,9 +64,9 @@ function earResponse(f, coeffs, p, sourceGain) {
   return [re, im];
 }
 
-// Center and side transfer functions of the compiled block at frequency f.
-// Center drives both sources in phase; side drives them in antiphase.
 /**
+ * Center and side transfer functions of the compiled block at frequency f.
+ * Center drives both sources in phase; side drives them in antiphase.
  * @param {number} f
  * @param {{ lambda?: number, angle?: number, headRadius?: number }} [controls]
  * @returns {{ mid: [number, number], side: [number, number] }}
@@ -80,5 +80,8 @@ export function midSideResponse(f, { lambda = 1, angle = SPEAKER_ANGLE, headRadi
   };
 }
 
-/** @param {[number, number]} c a complex response as [real, imaginary] */
+/**
+ * Magnitude of a complex response in dB.
+ * @param {[number, number]} c a complex response as [real, imaginary]
+ */
 export const magDb = ([re, im]) => 10 * Math.log10(re * re + im * im);

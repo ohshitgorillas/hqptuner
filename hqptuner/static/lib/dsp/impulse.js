@@ -121,9 +121,9 @@ function wavSamples(buf) {
   return { rate, samples: out };
 }
 
-// Register a just-uploaded IR so conv stages referencing `path` can plot.
-// Truncates/zero-pads to <=65536 points; response sampled onto the log grid.
 /**
+ * Register a just-uploaded IR so conv stages referencing `path` can plot.
+ * Truncates/zero-pads to <=65536 points; response sampled onto the log grid.
  * @param {string} path
  * @param {ArrayBuffer} arrayBuffer
  * @returns {void}
@@ -151,9 +151,9 @@ export function registerIr(path, arrayBuffer) {
   irCache.set(path, { freqs: IR_GRID, dbs, degs });
 }
 
-// Is `file` registered and previewable? The grid path checks this before summing
-// a conv stage; the cache itself stays private to this module.
 /**
+ * Is `file` registered and previewable? The grid path checks this before
+ * summing a conv stage; the cache itself stays private to this module.
  * @param {string} file
  * @returns {boolean}
  */
@@ -162,6 +162,8 @@ export function hasIr(file) {
 }
 
 /**
+ * A registered IR's magnitude and phase at f, read off the nearest log-grid
+ * point. null when `file` has no previewable entry.
  * @param {string} file
  * @param {number} f
  * @returns {Response | null}

@@ -58,15 +58,18 @@ const WIDGETS = {
 // so the LIVE page's hand-rolled binder makes the identical pick — this
 // decision exists here and nowhere else.
 const tipped = (/** @type {FieldEntry} */ entry) => entry.desc && entry.widget === "dropdown";
+/** Picks the widget component a schema entry renders through: Combobox for a desc-carrying dropdown, else the entry's `widget` kind. */
 export const widgetFor = (/** @type {FieldEntry} */ entry) =>
   tipped(entry) ? Combobox : WIDGETS[/** @type {keyof typeof WIDGETS} */ (entry.widget)];
-// The combobox's per-row tip resolver; undefined for every native widget.
+/** Builds the combobox's per-row tip resolver for a desc-carrying dropdown; undefined for every native widget. */
 export const tipsFor = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ meta) =>
   tipped(entry) ? (/** @type {OptionItem} */ o) => optionDescription(entry, o, meta) : undefined;
-// Favorite-star wiring for the four filter dropdowns (`narrow`-carrying
-// entries), keyed by option label = filter name (store/favorites.js); undefined
-// everywhere else, so dither/modulator comboboxes render starless. Shared with
-// the LIVE page's binder, same as widgetFor/tipsFor.
+/**
+ * Builds the favorite-star wiring for the filter dropdowns (`narrow`-carrying
+ * entries), keyed by option label = filter name (store/favorites.js); undefined
+ * everywhere else, so dither/modulator comboboxes render starless. Shared with
+ * the LIVE page's binder, same as widgetFor/tipsFor.
+ */
 export const favFor = (/** @type {FieldEntry} */ entry) =>
   entry.narrow
     ? {
@@ -267,6 +270,9 @@ function ControlCaptions({ entry, reason, advice }) {
 }
 
 /**
+ * Renders one settings row for schema key `k`: its label, the widget the schema
+ * asks for wired to the store, and the prose and captions under it. Renders
+ * nothing for a key the schema does not carry.
  * @param {{ k: string }} props
  */
 export function Field({ k }) {

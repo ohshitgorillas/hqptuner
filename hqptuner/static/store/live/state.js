@@ -57,6 +57,7 @@ effect(() => {
 });
 
 /**
+ * Set or clear one control's error, leaving every other control's alone.
  * @param {string} field
  * @param {string} message "" clears
  * @returns {void}
@@ -72,6 +73,8 @@ export function setError(field, message) {
 // readback and reports per setting, so an entry that did not verify is this
 // control's error just as much as a thrown 409 is.
 /**
+ * The message for the first setting in a report that did not verify, "" when every one
+ * of them did.
  * @param {LiveReport} report
  * @returns {string}
  */

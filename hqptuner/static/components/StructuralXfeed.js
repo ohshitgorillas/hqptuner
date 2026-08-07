@@ -32,6 +32,9 @@ import { structuralBlock, structuralParams } from "../store/xfmode.js";
  */
 
 /**
+ * Builds the mid/side lens traces for a structural block, one pair per distinct ear chain; empty when the lens is off
+ * or no block is installed.
+ *
  * @param {PipelineRow[]} rows the effective matrix pipelines
  * @param {{ min: number, max: number }} bounds the chart's dB extent, widened in place
  * @returns {PlotTrace[]}
@@ -82,6 +85,7 @@ export function structuralLensTraces(rows, bounds) {
 // Badge on the Pipelines card, same convention as the compensation block: the
 // rows stay literal and hand-editable, and an edit that breaks the pattern drops
 // the badge rather than being blocked or rewritten.
+/** Renders the Pipelines-card badge naming the recognized structural block's angle, head radius and center character. */
 export function StructuralBadge() {
   const rows = effectivePipelines.value;
   const rec = structuralBlock(rows);

@@ -67,10 +67,10 @@ function shadowCornerHz(a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
   return c / (a * Math.PI);
 }
 
-// Everything the row compiler needs, derived from the two physical controls.
-// `itd` is the far ear's ray delay relative to the near ear's, so the near path
-// carries no delay stage and the far path carries all of it.
 /**
+ * Everything the row compiler needs, derived from the two physical controls.
+ * `itd` is the far ear's ray delay relative to the near ear's, so the near path
+ * carries no delay stage and the far path carries all of it.
  * @param {number} [angle] speaker angle in degrees off center
  * @param {number} [a] head radius in metres
  * @param {number} [c] speed of sound in m/s

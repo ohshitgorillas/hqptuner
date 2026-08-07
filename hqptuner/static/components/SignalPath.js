@@ -249,6 +249,7 @@ function chainStages(st, md, playing) {
   return stages;
 }
 
+/** Chip row tracing the engine's active chain from the status payload, linked stage by stage and styled live or idle. */
 export function SignalPath() {
   // /api/status payload is { status: {active_*...}, metadata: {track tags} } —
   // the active chain lives on the Status root (status.*), the track info on the

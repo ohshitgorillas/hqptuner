@@ -80,6 +80,7 @@ function setInline(hex) {
 // drops any custom-hex override, so the swap is instant and every accent site
 // follows from the one variable.
 /**
+ * Persist and apply a preset accent swatch, dropping any custom-hex override.
  * @param {string} name
  * @returns {void}
  */
@@ -100,6 +101,7 @@ export function applyAccent(name) {
 // Persist + apply a custom hex, overriding the preset via inline --accent.
 // Invalid input is ignored (the box simply doesn't take).
 /**
+ * Persist and apply a custom accent hex, with or without its leading `#`.
  * @param {string} hex
  * @returns {void}
  */
@@ -115,7 +117,7 @@ export function applyAccentHex(hex) {
   }
 }
 
-// Stamp the root attribute (and any custom hex) at boot — no first-paint flash.
+/** Stamp the root attribute (and any custom hex) at boot — no first-paint flash. */
 export function initAccent() {
   document.documentElement.dataset.accent = accent.value;
   if (accentHex.value) setInline(accentHex.value);

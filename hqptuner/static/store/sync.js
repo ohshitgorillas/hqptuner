@@ -43,6 +43,9 @@ async function safe(fn) {
 // the payload under `.data`; `unwrap` names the ones that answer raw.
 const raw = (/** @type {Payload} */ r) => r;
 /**
+ * Copy one polled endpoint's payload into its signal, leaving the last good
+ * value in place when the call fails.
+ *
  * @param {() => Promise<Payload>} fn
  * @param {{ value: unknown }} sig
  * @param {(r: Payload) => unknown} [unwrap]
@@ -67,11 +70,13 @@ async function refreshFast() {
 
 // Trigger a daemon output-device rescan, then re-pull the config forms so the
 // device dropdowns show a newly-present endpoint (an NAA powered back on).
+/** Trigger a daemon output-device rescan, then re-pull the config forms. */
 export async function refreshDevices() {
   await api.refreshDevices();
   await refreshConfig();
 }
 
+/** Re-pull the slow snapshots — enumerations, config, matrix and the pending buffer. */
 export async function refreshConfig() {
   await mirror(api.enumerations, enums);
   await mirror(api.config, config);
@@ -79,6 +84,7 @@ export async function refreshConfig() {
   await mirror(api.pending, staged, raw);
 }
 
+/** Take the first snapshot of every endpoint and start the fast and config poll timers. */
 export function startPolling(interval = 2000) {
   safe(api.metadata).then((m) => {
     if (m) metadata.value = m;

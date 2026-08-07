@@ -56,9 +56,9 @@ const BLOCK_CONFLICTS = [
   },
 ];
 
-// Conflicts standing between the current config and this block, as
-// [{ key, current, required, reason }]. Empty means the block is safe to install.
 /**
+ * Conflicts standing between the current config and this block, as
+ * [{ key, current, required, reason }]. Empty means the block is safe to install.
  * @param {(key: string) => ConfigValue} effective
  * @returns {{ key: string, current: ConfigValue, required: string, reason: string }[]}
  */
@@ -73,8 +73,6 @@ export function blockConflicts(effective) {
 
 // --- what the block compiles from -------------------------------------------
 
-// What the block carries in from the rows it takes over, or a refusal.
-//
 // The install is all-or-nothing, and this is the half that decides. A starting
 // point the block cannot carry is REFUSED, not carried in partially: the
 // alternative — installing an EQ-less block over rows that had EQ on them —
@@ -115,6 +113,8 @@ function gainDb(row) {
 }
 
 /**
+ * What the block carries in from the plain stereo pair it takes over — each ear's
+ * EQ chain and preamp in dB — or a refusal when the rows are not such a pair.
  * @param {PipelineRow[]} rows
  * @returns {PairInfo}
  */
@@ -156,10 +156,10 @@ export const PRESETS = [
   { id: "neutral", label: "Neutral center", angle: 30, lambda: 0.0 },
 ];
 
-// Which preset the current controls correspond to, or "custom". Derived, never
-// stored — the same convention the Bauer preset dropdown follows, so any manual
-// touch of angle or center falls to Custom on its own.
+// Derived, never stored — the same convention the Bauer preset dropdown follows,
+// so any manual touch of angle or center falls to Custom on its own.
 /**
+ * Which preset the current controls correspond to, or "custom".
  * @param {{ angle: number, lambda: number }} controls
  * @returns {string} the matching preset id, or "custom"
  */

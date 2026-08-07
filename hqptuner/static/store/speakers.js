@@ -27,6 +27,7 @@ function fail(e) {
   speakersError.value = errText(e);
 }
 
+/** Read the daemon's /speakers form into the store, recording staleness or failure. */
 export async function loadSpeakers() {
   try {
     const r = await api.speakers();
@@ -42,6 +43,8 @@ export async function loadSpeakers() {
 // re-reads the complete form and overlays these, so untouched channels keep
 // whatever the daemon currently holds.
 /**
+ * Write the speaker-processing switch and the per-channel edits to the daemon, and
+ * take the readback it answers with.
  * @param {boolean} enabled
  * @param {Record<string, ChannelEdit>} channels keyed by channel index as a string
  * @returns {Promise<boolean>} whether the daemon confirmed the new values

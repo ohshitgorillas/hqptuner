@@ -323,6 +323,7 @@ function VolumeBoxes({ cur, reason, set }) {
   `;
 }
 
+/** Renders the Range card — a dB track with draggable min/startup/max handles over the loudness bounds and needle. */
 export function VolumeRangeBar() {
   const max = num(effective("volume_max"), 0);
   const min = num(effective("volume_min"), -60);

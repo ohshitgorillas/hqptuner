@@ -28,11 +28,13 @@
 // narrow on. These read one side; the empty value a wrong-kind stage yields is
 // what the absent key already meant — no args is no args, no file is no file.
 /**
+ * A plugin stage's arguments, empty on a convolution stage.
  * @param {MatrixStage} stage
  * @returns {StageArgs}
  */
 export const stageArgs = (stage) => stage.args || {};
 /**
+ * A convolution stage's impulse filename, empty on a plugin stage.
  * @param {MatrixStage} stage
  * @returns {string}
  */
@@ -41,6 +43,8 @@ const stageFile = (stage) => stage.file || "";
 const PLUGINS = new Set(["iir", "delay", "riaa"]);
 
 /**
+ * Split a chain into its stages, classifying each as a plugin spec or a
+ * convolution filename and keeping its original text in `raw`.
  * @param {string} str the chain text
  * @returns {MatrixStage[]}
  */
@@ -80,6 +84,8 @@ function buildRaw(stage) {
 }
 
 /**
+ * Join stages back into chain text, each stage emitting its untouched `raw` or,
+ * if it was edited, a freshly built spec.
  * @param {MatrixStage[]} stages
  * @returns {string}
  */
@@ -87,18 +93,21 @@ export function serializeProcess(stages) {
   return stages.map((s) => (s.raw !== undefined ? s.raw : buildRaw(s))).join(",");
 }
 
-// A number as stage-argument text, rounded to `dp` places and carrying no
-// trailing zeros — the shape buildRaw emits, so a synthesised chain round-trips
-// byte-identically through parseProcess. Not called `fmt`: Knob has a local of
-// that name meaning something else entirely (a value at a step's precision).
+// Not called `fmt`: Knob has a local of that name meaning something else
+// entirely (a value at a step's precision).
+/**
+ * A number as stage-argument text, rounded to `dp` places and carrying no
+ * trailing zeros — the shape buildRaw emits, so a synthesised chain round-trips
+ * byte-identically through parseProcess.
+ */
 export const fmtArg = (/** @type {number} */ x, /** @type {number} */ dp) =>
   String(Math.round(x * 10 ** dp) / 10 ** dp);
 
-// Everything in a chain that ISN'T parametric EQ, order preserved. Loading a
-// headphone profile replaces the previous profile rather than stacking on it,
-// but "the previous profile" means the iir stages — a delay, a RIAA curve or a
-// convolution someone put in the same chain is not EQ and is not ours to drop.
+// Loading a headphone profile replaces the previous profile rather than stacking
+// on it, but "the previous profile" means the iir stages — a delay, a RIAA curve
+// or a convolution someone put in the same chain is not EQ and is not ours to drop.
 /**
+ * Everything in a chain that ISN'T parametric EQ, order preserved.
  * @param {string} process the chain text
  * @returns {string}
  */
@@ -213,9 +222,10 @@ function iirIssues(args) {
 /** @type {Record<string, (args: StageArgs) => string[]>} */
 const KIND_ISSUES = { riaa: riaaIssues, delay: delayIssues, iir: iirIssues };
 
-// Issues for one stage, as plain strings. A stage with issues still renders and
-// still serializes — validation informs, it never drops or rewrites user input.
+// A stage with issues still renders and still serializes — validation informs,
+// it never drops or rewrites user input.
 /**
+ * Issues for one stage, as plain strings.
  * @param {MatrixStage} stage
  * @returns {string[]}
  */
@@ -224,8 +234,8 @@ export function validateStage(stage) {
   return (KIND_ISSUES[stage.kind] || iirIssues)(stageArgs(stage));
 }
 
-// Fresh stage of a kind, with sensible defaults (add-stage lands editable).
 /**
+ * Fresh stage of a kind, with sensible defaults (add-stage lands editable).
  * @param {string} kind
  * @returns {MatrixStage}
  */
@@ -236,9 +246,9 @@ export function newStage(kind) {
   return { kind: "iir", args: { type: "peak", f: "1000", q: "1", g: "0" }, raw: undefined };
 }
 
-// A stage rebuilt after an edit: raw regenerates from params in schema order
-// (type, f, q/bw/s, g / coefficients), case-sensitively.
 /**
+ * A stage rebuilt after an edit: raw regenerates from params in schema order
+ * (type, f, q/bw/s, g / coefficients), case-sensitively.
  * @param {MatrixStage} stage
  * @param {Record<string, string>} patch changed arguments (or `file` on a conv stage)
  * @returns {MatrixStage}
@@ -301,8 +311,8 @@ function delayLabel(args) {
 /** @type {Record<string, (args: StageArgs) => string>} */
 const KIND_LABEL = { iir: iirLabel, delay: delayLabel };
 
-// Chip label: the shortest string that identifies the stage at a glance.
 /**
+ * Chip label: the shortest string that identifies the stage at a glance.
  * @param {MatrixStage} stage
  * @returns {string}
  */

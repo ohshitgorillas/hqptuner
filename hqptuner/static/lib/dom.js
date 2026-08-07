@@ -27,7 +27,10 @@ export const html = htm.bind(h);
  *   nullable `EventTarget` to the element the handler actually reads.
  */
 
-/** @param {WheelEvent} e */
+/**
+ * Take the wheel off a control and scroll the page by the same delta instead.
+ * @param {WheelEvent} e
+ */
 export function wheelGuard(e) {
   e.preventDefault();
   window.scrollBy(0, e.deltaY);
@@ -100,11 +103,11 @@ if (typeof document !== "undefined") {
   );
 }
 
-// Wrap a slider's input/change handler: with provenance the edit passes to
-// `fn`; without it nothing is called and the control snaps back to `canonical`
-// — the value the component is already rendering, so refusal needs no stored
-// snapshot. Attach to every range input alongside wheelGuard.
 /**
+ * Wrap a slider's input/change handler: with provenance the edit passes to
+ * `fn`; without it nothing is called and the control snaps back to `canonical`
+ * — the value the component is already rendering, so refusal needs no stored
+ * snapshot. Attach to every range input alongside wheelGuard.
  * @param {string | number} canonical the value the component is already rendering
  * @param {(e: ControlEvent) => void} fn the handler an edit with provenance reaches
  * @returns {(e: ControlEvent) => void}

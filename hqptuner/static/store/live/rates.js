@@ -90,6 +90,8 @@ function offeredMember(tier, offered) {
 // falling back to the source's own when it holds neither — there is nothing
 // better to send, and the lane holds an unpinnable rate rather than dropping it.
 /**
+ * The rate a menu tier goes on the wire as: the tier member the engine is offering,
+ * falling back to the source's own when it offers neither.
  * @param {string} tier
  * @returns {string}
  */
@@ -189,6 +191,8 @@ const AUTO_RATE_REASON =
 // overlay, so the dormant column here and the Output tab's column are one number
 // from one source rather than two guesses that drift apart.
 /**
+ * One family's rate column — its current tier, its option list, and whether the control
+ * is editable at all.
  * @param {string} family "pcm" | "sdm" — the column, not the running chain
  */
 export function rateColumn(family) {

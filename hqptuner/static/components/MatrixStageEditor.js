@@ -33,7 +33,12 @@ const selected = selectedStage;
 // old stage stays in the string) until the first file path commits it.
 const convDraft = signal(null); // {row, stage} awaiting a file
 
-/** @param {StageRef | null} v */
+/**
+ * Docks the editor on stage `v` (or closes it on null), discarding any pending
+ * convolution draft.
+ *
+ * @param {StageRef | null} v
+ */
 export function setSelected(v) {
   selected.value = v;
   convDraft.value = null;
@@ -186,6 +191,9 @@ const KINDS = [
 ];
 
 /**
+ * Renders the docked editor for one stage of a pipeline chain: a kind picker plus
+ * the per-kind argument fields, committing each edit back through `replaceStages`.
+ *
  * @param {{ stages: MatrixStage[], stageIndex: number, replaceStages: (stages: MatrixStage[]) => void }} props
  */
 export function StageEditor({ stages, stageIndex, replaceStages }) {
