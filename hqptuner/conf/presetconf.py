@@ -47,6 +47,7 @@ from hqptuner.conf.matrixconf import (
     MATRIX_PROFILES,
     PLUGIN_MAP,
     delete_profile,
+    materialize_profile,
     parse_delete,
     read_pipelines,
     read_profiles,
@@ -228,7 +229,17 @@ def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> 
     return xml
 
 
-def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None) -> bytes:
+def _profile_to_materialize(edits: dict[str, str], profile: str | None) -> str | None:
+    """The profile whose matrix this apply should install as the live one —
+    ``None`` when nothing is active, and ``None`` too when this very apply
+    deletes it, since a matrix about to be removed is not one to adopt. Both
+    staged delete shapes count (a plain name, or the fan-out JSON)."""
+    if not profile or MATRIX_PROFILE_DELETE not in edits:
+        return profile
+    return None if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == profile else profile
+
+
+def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None, profile: str | None = None) -> bytes:
     """Return ``xml`` with each staged form-field edit applied surgically.
 
     Every form field has a grounded location; when the snapshot lacks the target
@@ -237,8 +248,18 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
 
     ``audit`` arrives from the caller rather than a module-level handle so this
     module stays independent of manager state; omitted, the profile verbs record
-    nothing."""
+    nothing.
+
+    ``profile`` names the matrix profile the running engine is on. Its rows and
+    its post-process chain are installed as the LIVE matrix before any edit is
+    applied, so the config the daemon restarts onto is the matrix the user was
+    listening to — the selected profile is runtime-only state that no restart
+    survives, and this is the only form of it the config file can hold. The
+    staged edits then land on that matrix like any other."""
     remaining = dict(edits)
+    adopt = _profile_to_materialize(edits, profile)
+    if adopt:
+        xml = materialize_profile(xml, adopt)
     profile_verbs = _pop_profile_edits(remaining)
     fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
     if fixed_edits:

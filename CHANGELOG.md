@@ -4,6 +4,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Loudness, crossfeed, DAC correction and pipeline rows now save to matrix profiles properly**. A previous bug made it impossible to enable, e.g., Loudness while also having a DAC correction profile loaded. Loading the matrix profile would wipe out the setting, while applying the setting would wipe out the matrix profile. These settings are now properly stored within matrix profiles and can be saved.
+
+### Changed
+
+- **Matrix profiles now stick after a restart**. If you have a matrix profile loaded and restart the engine, HQPTuner now restores that matrix profile automatically as the default for that preset.
+
 ## [1.3.1] — 2026-08-06
 
 ### Fixed
