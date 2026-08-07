@@ -34,6 +34,12 @@ DEFAULTS = {
     "adaptive": "0",
     "volume": "-10.0",
     "matrix_profile": "",
+    # The profile names `MatrixListProfiles` answers with, newline separated (a
+    # profile name may contain spaces, so the space-separated convention the
+    # `_deaf`/`_stall` knobs use cannot carry them). Which names a daemon knows is
+    # per-machine and changes across a restart — a profile whose <matrix_profile>
+    # element left the config is one the restarted daemon no longer lists.
+    "_profile_names": "Default\nMch-to-Stereo mixdown",
     # underscore keys are internal to the fake (VolumeRange source), not emitted in State
     "_vol_min": "-60",
     "_vol_max": "0",
@@ -208,7 +214,8 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     if name == "ConfigurationGet":
         return f'<ConfigurationGet result="OK" value="{state.get("_active_config", "")}"/>'
     if name == "MatrixListProfiles":
-        items = "".join(f'<MatrixProfile name="{n}"/>' for n in ("Default", "Mch-to-Stereo mixdown"))
+        names = [n for n in state.get("_profile_names", "").split("\n") if n]
+        items = "".join(f'<MatrixProfile name="{n}"/>' for n in names)
         return f'<MatrixListProfiles result="OK">{items}</MatrixListProfiles>'
     if name == "MatrixGetProfile":
         return f'<MatrixGetProfile result="OK" value="{state.get("_matrix_profile", "")}"/>'

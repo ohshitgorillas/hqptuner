@@ -33,6 +33,12 @@ import json
 import re
 from typing import Any
 
+from hqptuner.conf.matrixscope import (
+    attr_escape,
+    attr_unescape,
+    matrix_body_span,
+    matrix_scope,
+)
 from hqptuner.conf.xmledit import GroundingError, ensure_body, ensure_element, in_comment
 
 MATRIX_PIPELINES = "matrix_pipelines"
@@ -81,38 +87,6 @@ _MAX_CHANNELS = 128
 _NAME_MAX = 128
 _FIRST_PRINTABLE = 0x20  # anything below is a control character the config XML cannot carry
 
-# minimal XML attribute escaping for the process string (order matters on unescape)
-# ``&apos;`` is in the table because the DAEMON writes it: an apostrophe in a
-# process string or a profile name comes back as the entity, and a table that
-# cannot unescape it reads the literal "&apos;" as the value — which then never
-# matches what was written, so the apply can never converge.
-_ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), ("'", "&apos;"))
-
-
-def _attr_escape(value: str) -> str:
-    for ch, ent in _ATTR_ESCAPES:
-        value = value.replace(ch, ent)
-    return value
-
-
-def _attr_unescape(value: str) -> str:
-    for ch, ent in reversed(_ATTR_ESCAPES):
-        value = value.replace(ent, ch)
-    return value
-
-
-def _matrix_body_span(xml: bytes) -> tuple[int, int]:
-    """(start, end) byte offsets of the ``<matrix>`` element's body."""
-    # a commented element is not the live one — same rule the shared locators
-    # follow (xmledit.live_tags); hqplayerd parks superseded blocks in comments
-    m = next((c for c in re.finditer(rb"<matrix\b[^>]*>", xml) if not in_comment(xml, c.start())), None)
-    if m is None or m.group(0).endswith(b"/>"):
-        raise GroundingError("the matrix element has no body in this snapshot")
-    close = xml.find(b"</matrix>", m.end())
-    if close == -1:
-        raise GroundingError("the matrix element has no body in this snapshot")
-    return m.end(), close
-
 
 def _validate_row(row: Any) -> dict[str, str]:
     if not isinstance(row, dict):
@@ -158,7 +132,7 @@ def _pipeline_tag(channel: int, row: dict[str, str]) -> bytes:
     gain = f"L{row['gain']}" if row["gainunit"] == "Lin" else row["gain"]
     return (
         f'<pipeline channel="{channel}" gain="{gain}" mixdown="{row["mixdown"]}" '
-        f'process="{_attr_escape(row["process"])}" source="{row["source"]}"/>'
+        f'process="{attr_escape(row["process"])}" source="{row["source"]}"/>'
     ).encode()
 
 
@@ -177,7 +151,7 @@ def _rows_of(body: bytes) -> list[dict[str, str]]:
                 "gain": gain,
                 "gainunit": unit,
                 "mixdown": attrs.get("mixdown", "0"),
-                "process": _attr_unescape(attrs.get("process", "")),
+                "process": attr_unescape(attrs.get("process", "")),
             }
         )
     return rows
@@ -188,11 +162,15 @@ def replace_pipelines(xml: bytes, value: str) -> bytes:
     the staged row set. Everything else in the matrix body (``<post_process>``)
     and every byte outside it are preserved; indentation is taken from the
     existing rows so the daemon's own formatting survives."""
-    rows = _validate_rows(value)
+    return _replace_pipelines_here(xml, _validate_rows(value))
+
+
+def _replace_pipelines_here(xml: bytes, rows: list[dict[str, str]]) -> bytes:
+    """``replace_pipelines`` past validation, against the live matrix."""
     # a config whose matrix was never configured carries no <matrix> body at all;
     # the rows the user just built are what puts one there
     xml = ensure_body(xml, "matrix")
-    start, close = _matrix_body_span(xml)
+    start, close = matrix_body_span(xml)
     body = xml[start:close]
     indent_m = re.search(rb"\n([ \t]*)<pipeline\b", body)
     indent = indent_m.group(1) if indent_m else b"\t\t\t"
@@ -201,13 +179,50 @@ def replace_pipelines(xml: bytes, value: str) -> bytes:
     return xml[:start] + block + stripped + xml[close:]
 
 
+def materialize_profile(xml: bytes, name: str) -> bytes:
+    """Copy the named saved profile's rows and post-process chain INTO the live
+    ``<matrix>``, so the config runs that profile's matrix with no switch.
+
+    hqplayerd records the selected profile nowhere (readme §1.12 gives
+    ``<matrix_profile>`` the one attribute ``name``), so a daemon restart always
+    comes up on ``<matrix>``. Re-selecting the profile afterwards is not a
+    substitute: the live switch is a playback-time operation, and a restart is
+    exactly when nothing is playing. Making ``<matrix>`` *be* the profile's
+    content is the only form of "keep what I was listening to" the config file
+    can express.
+
+    The stored profile element is left alone — it is a saved snapshot, and Save
+    is what updates it.
+    """
+    scope = matrix_scope(xml, name)
+    rows = _rows_of(scope)
+    if rows:
+        xml = _replace_pipelines_here(xml, rows)
+    return _replace_post_process(xml, _live_post_process(scope))
+
+
+def _replace_post_process(xml: bytes, post: bytes) -> bytes:
+    """Put ``post`` in the live ``<matrix>``, replacing any chain already there.
+    An empty ``post`` clears the chain, which is what a profile carrying none
+    means: nothing of the previous matrix's processing should survive it."""
+    xml = ensure_body(xml, "matrix")
+    start, close = matrix_body_span(xml)
+    body = xml[start:close]
+    stripped = re.sub(rb"\n?[ \t]*<post_process\b[^>]*>.*?</post_process>", b"", body, flags=re.DOTALL)
+    if not post:
+        return xml[:start] + stripped + xml[close:]
+    indent_m = re.search(rb"\n([ \t]*)<pipeline\b", stripped)
+    indent = b"\n" + indent_m.group(1) if indent_m else b"\n\t\t\t"
+    return xml[:start] + stripped + indent + post + xml[close:]
+
+
 def read_pipelines(xml: bytes) -> str | None:
     """The ``<matrix>`` element's pipeline rows as canonical JSON (sorted keys,
     compact separators), or None when the snapshot has no matrix body. Canonical
     on both sides of the verify diff — intended and realized configs run through
     this same serialization, so equality means the daemon accepted the rows."""
     try:
-        start, close = _matrix_body_span(xml)
+        start, close = matrix_body_span(xml)
     except GroundingError:
         return None
     return json.dumps(_rows_of(xml[start:close]), sort_keys=True, separators=(",", ":"))
@@ -237,7 +252,7 @@ def _profile_re(name: str) -> re.Pattern[bytes]:
     including the newline and indentation in front of it so a delete leaves no
     blank line behind. The closing quote is part of the pattern, so ``Auteur``
     never matches ``Auteur Classic``."""
-    escaped = re.escape(_attr_escape(name).encode())
+    escaped = re.escape(attr_escape(name).encode())
     return re.compile(
         rb"\n?[ \t]*<matrix_profile\b[^>]*name=\"" + escaped + rb"\"(?:[^>]*/>|[^>]*>.*?</matrix_profile>)",
         re.DOTALL,
@@ -269,7 +284,7 @@ def _live_post_process(xml: bytes) -> bytes:
     map are still the user's settings, and a profile that dropped them would hand
     back less than the matrix it was saved from."""
     try:
-        start, close = _matrix_body_span(xml)
+        start, close = matrix_body_span(xml)
     except GroundingError:
         return b""
     m = re.search(rb"<post_process\b[^>]*>.*?</post_process>", xml[start:close], re.DOTALL)
@@ -279,7 +294,7 @@ def _live_post_process(xml: bytes) -> bytes:
 def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: bytes) -> bytes:
     """A complete profile element, laid out like its ``<matrix>`` sibling: the
     pipeline rows and the post-process chain that was live at save time."""
-    open_tag = f'<matrix_profile name="{_attr_escape(name)}">'.encode()
+    open_tag = f'<matrix_profile name="{attr_escape(name)}">'.encode()
     row_lead = lead + b"\t" if lead else b""
     body = b"".join(row_lead + _pipeline_tag(i, row) for i, row in enumerate(rows))
     if post:
@@ -339,7 +354,8 @@ def write_profile(xml: bytes, value: str) -> bytes:
     The post-process chain comes from the config's own live ``<matrix>``, never
     from the payload: what the user is looking at is the running chain, and the
     apply has already written its own post-process edits by the time a save is
-    placed (``presetconf.apply_edits``)."""
+    placed (``presetconf.apply_edits``) — including the active profile's chain,
+    which that apply installed as the live one before touching anything."""
     raw = _parse_save(value)
     name = _validate_name(raw.get("name"))
     rows = _rows_from_list(raw.get("rows"), MATRIX_PROFILE_SAVE)
@@ -383,7 +399,7 @@ def _post_of(body: bytes) -> dict[str, str]:
         for attr, value in attrs.items():
             field = _PLUGIN_FIELDS.get((ptype, attr))
             if field is not None:
-                out[field] = _attr_unescape(value)
+                out[field] = attr_unescape(value)
     return out
 
 
@@ -400,6 +416,6 @@ def read_profiles(xml: bytes) -> str:
     for m in re.finditer(rb"<matrix_profile\b([^>]*)>(.*?)</matrix_profile>", xml, re.DOTALL):
         name_m = re.search(rb'name="([^"]*)"', m.group(1))
         if name_m is not None:
-            name = _attr_unescape(name_m.group(1).decode())
+            name = attr_unescape(name_m.group(1).decode())
             out[name] = {"rows": _rows_of(m.group(2)), "post": _post_of(m.group(2))}
     return json.dumps(out, sort_keys=True, separators=(",", ":"))

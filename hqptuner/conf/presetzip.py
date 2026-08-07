@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+from dataclasses import dataclass
 
 from hqptuner.audit import AuditLog
 from hqptuner.conf import engineconf
@@ -35,12 +36,30 @@ def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | N
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ApplyContext:
+    """What an apply is being made *for*, as opposed to what it changes.
+
+    One object rather than four trailing parameters: these travel together, every
+    one of them is optional, and a positional call site with four defaults at the
+    end is where an argument quietly lands in the wrong slot.
+
+    ``active`` names the preset whose definition is live; ``matrix_profile`` the
+    matrix profile the engine is running, which scopes the matrix-side edits;
+    ``audit`` records the profile writes; ``extra_members`` are the parked filter
+    uploads that ride the same restore.
+    """
+
+    active: str | None = None
+    matrix_profile: str | None = None
+    audit: AuditLog | None = None
+    extra_members: dict[str, bytes] | None = None
+
+
 def restore_zip_from_running(
     zip_bytes: bytes,
     edits: dict[str, str],
-    extra_members: dict[str, bytes] | None = None,
-    active: str | None = None,
-    audit: AuditLog | None = None,
+    context: ApplyContext | None = None,
 ) -> tuple[bytes, bytes]:
     """Build a ``POST /restore`` archive whose **working** config member
     (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is
@@ -58,9 +77,12 @@ def restore_zip_from_running(
     running; discarding drift is not worth discarding the user's own previous
     edits.
 
-    ``audit`` is carried straight through to ``apply_edits``, which is where the
-    running config's profile writes are recorded."""
-    intended = apply_edits(snapshot_member(zip_bytes, None, active), edits, audit)
+    ``context.audit`` is carried straight through to ``apply_edits``, which is
+    where the running config's profile writes are recorded; so is
+    ``context.matrix_profile``, which scopes the matrix-side edits."""
+    ctx = context if context is not None else ApplyContext()
+    active = ctx.active
+    intended = apply_edits(snapshot_member(zip_bytes, None, active), edits, ctx.audit, ctx.matrix_profile)
     # The live config is hqplayerd.xml, or the root <Profile>.xml when a named
     # preset is active — rewrite THAT member and leave the cfgs snapshots (the
     # preset's saved definition) untouched, so edits stay ephemeral until Save.
@@ -68,7 +90,7 @@ def restore_zip_from_running(
     # either way the restore writes them to the daemon's disk.
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
         running = engineconf.running_config_name(zin.namelist(), active)
-    substitutions = dict(extra_members or {})
+    substitutions = dict(ctx.extra_members or {})
     if running is not None:
         substitutions[running] = intended
     return engineconf.rewrite_zip(zip_bytes, substitutions), intended

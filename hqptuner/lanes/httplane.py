@@ -21,7 +21,13 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
-from hqptuner.conf.matrixconf import MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE, MATRIX_PROFILES
+from hqptuner.conf.matrixconf import (
+    MATRIX_PROFILE_DELETE,
+    MATRIX_PROFILE_SAVE,
+    MATRIX_PROFILES,
+    parse_delete,
+)
+from hqptuner.conf.matrixscope import has_profile
 from hqptuner.lanes import presetfields, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -77,10 +83,13 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
     # never reached that file — so the active preset's stored values for those
     # settings ride along, under the staged edits, which win (presetfields)
     merged = {**presetfields.stored_live_fields(mgr), **edits, **FORCED_CONFIG}
+    # the profile the listener is on: the restart comes up on <matrix>, so that
+    # profile's matrix is what <matrix> has to become
+    active_profile = _active_profile(mgr, edits)
     diff: dict[str, dict[str, str | None]] = {}
     last_error: str | None = None
     for attempt in range(_PERSIST_RETRIES + 1):
-        final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt)
+        final, pass_diff, pass_error = await _one_pass(mgr, merged, attempt, active_profile)
         if final is not None:
             return final
         # a transient write failure must not erase the divergence an earlier pass
@@ -95,8 +104,21 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
     return {"submitted": True, "applied": False, "reason": "unconverged", "diff": diff}
 
 
+def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
+    """The matrix profile this apply should install as the live matrix.
+
+    Empty for the default matrix, and empty too when this batch deletes the
+    profile that is active — a matrix about to be removed is not one to adopt.
+    Both staged delete shapes count (a plain name, or the fan-out JSON).
+    """
+    name = (mgr.state or {}).get("matrix_profile", "")
+    if not name or MATRIX_PROFILE_DELETE not in edits:
+        return name
+    return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
+
+
 async def _one_pass(
-    mgr: ConnectionManager, merged: dict[str, str], attempt: int
+    mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = ""
 ) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
     """One restore+verify pass. Returns ``(final, diff, error)`` — a non-None
     ``final`` is a terminal answer for the caller; otherwise the pass is
@@ -106,7 +128,7 @@ async def _one_pass(
     # to actually serve before writing, rather than racing it
     await mgr.await_http_ready()
     try:
-        intended = await _restore_once(mgr, merged)
+        intended = await _restore_once(mgr, merged, active_profile)
     except xmledit.GroundingError as exc:
         return {"submitted": False, "error": str(exc)}, {}, None
     except httpx.HTTPError as exc:
@@ -115,7 +137,13 @@ async def _one_pass(
     keys = verified_keys(merged, intended)
     diff = config_diff(intended, await verify(mgr, intended, keys), keys)
     if not diff:
-        return {"submitted": True, "applied": True, "attempts": attempt + 1, "active": mgr.active_config}, {}, None
+        final: dict[str, Any] = {
+            "submitted": True,
+            "applied": True,
+            "attempts": attempt + 1,
+            "active": mgr.active_config,
+        }
+        return final, {}, None
     # the diff is the whole diagnosis of an unconverged apply, and the UI has room
     # for field names but not for want/got pairs — so it goes to the log too
     log.warning("apply pass %d did not converge: %s", attempt + 1, diff)
@@ -126,17 +154,28 @@ async def _one_pass(
     return None, diff, None
 
 
-async def _restore_once(mgr: ConnectionManager, merged: dict[str, str]) -> dict[str, str]:
+async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "") -> dict[str, str]:
     """Build a restore archive (running config ⊕ edits) from a fresh backup, push
     it, and return the intended config it should produce. Raises GroundingError
     (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped
     mid-write)."""
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)  # survives a crash mid-apply
+    # a profile the daemon holds in memory only is live but absent from the file:
+    # there is no stored matrix to adopt, so the live one is left as it is
+    running = presetzip.snapshot_member(backup, None, mgr.active_config)
+    adopt = active_profile if active_profile and has_profile(running, active_profile) else None
     # parked filter uploads ride the same restore (data/<name> members land in
     # the daemon's home dir, where staged process paths resolve)
     restore_zip, intended_xml = presetzip.restore_zip_from_running(
-        backup, merged, mgr.presetops.parked_filter_members(), mgr.active_config, mgr.audit
+        backup,
+        merged,
+        presetzip.ApplyContext(
+            active=mgr.active_config,
+            matrix_profile=adopt,
+            audit=mgr.audit,
+            extra_members=mgr.presetops.parked_filter_members(),
+        ),
     )
     # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
     # restore that is happening anyway — this one qualifies
