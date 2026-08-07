@@ -5,37 +5,27 @@
 // compensated stereo pair is LITERAL wire rows (spec fork decision): 8 badged
 // pipelines the user can inspect and hand-edit — an edit that breaks the
 // structural pattern simply drops the badge/slider, never blocks or rewrites.
-// Bauer preset internals are not surfaced by the daemon (probe finding), so
-// preset → (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
+//
+// Recognizing the block and taking it back out is STATE, not rendering, and
+// lives in store/xfeedblock.js — see the note there.
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { effective, effectivePipelines } from "../store/resolve.js";
+import { effectivePipelines } from "../store/resolve.js";
 import { stagePipelines, edit } from "../store/actions.js";
 import { notesVisible } from "../store/prefs.js";
+import { bauerSettings, xfeedBlock, removeBlock } from "../store/xfeedblock.js";
 import { parseProcess } from "../lib/matrixspec.js";
 import { chainResponse } from "../lib/dsp/chain.js";
 import { bandFreqs } from "../lib/dsp/curves.js";
 import { PlotFrame } from "./plots.js";
 import { SliderNumber } from "./controls/index.js";
-import {
-  BAUER_PRESETS,
-  centerMagDb,
-  sideMagDb,
-  centerTiltDb,
-  fitComp,
-  compProcess,
-  msCompile,
-  msRecognize,
-} from "../lib/xfeed.js";
-import { truthy } from "../lib/coerce.js";
+import { centerMagDb, sideMagDb, centerTiltDb, fitComp, compProcess, msCompile } from "../lib/xfeed.js";
 import { db, hz } from "../lib/units.js";
 
 /**
  * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {import("../lib/xfeed.js").MsRecognition} MsRecognition
- * @typedef {{ enabled: boolean, fc: number, feed: number }} BauerSettings
- *   The running Bauer crossfeed the correction is fitted against: its on/off
- *   flag and the (corner, feed) pair the preset or the two knobs resolve to.
+ * @typedef {import("../store/xfeedblock.js").BauerSettings} BauerSettings
  * @typedef {{ issue?: string, eq?: string, gain?: number }} PairInfo
  *   Rows 1+2 read as a symmetric stereo EQ pair — either the reason they are
  *   not one, or the chain and preamp a block can be built from.
@@ -44,29 +34,6 @@ import { db, hz } from "../lib/units.js";
  */
 
 const FS = 48000;
-
-/**
- * @returns {BauerSettings}
- */
-function bauerSettings() {
-  const preset = String(effective("crossfeed_preset") ?? "default");
-  const p = /** @type {Record<string, { fc: number, feed: number }>} */ (BAUER_PRESETS)[preset];
-  return {
-    enabled: truthy(effective("crossfeed_enabled")),
-    fc: p ? p.fc : Number(effective("crossfeed_frequency")) || 700,
-    feed: p ? p.feed : Number(effective("crossfeed_level")) || 4.5,
-  };
-}
-
-// The recognized block at rows 0..7 for the CURRENT bauer settings, or null.
-/**
- * @param {PipelineRow[]} rows
- * @returns {{ bs: BauerSettings, rec: MsRecognition | null }}
- */
-export function xfeedBlock(rows) {
-  const bs = bauerSettings();
-  return { bs, rec: rows.length >= 8 ? msRecognize(rows, 0, bs.fc, bs.feed) : null };
-}
 
 // A symmetric stereo EQ pair at rows 0+1 (how AutoEq imports land) — the only
 // shape v1 compiles from. Row order is the daemon's business, not a contract
@@ -140,25 +107,6 @@ function stageBlock(rows, { eq, preampDb }, pct, restFrom) {
   ];
   stagePipelines(next);
   edit("pipelines", String(next.length));
-}
-
-// Public because leaving Bauer takes its rows with it, not just its enable flag:
-// the mode segment (store/xfmode.js) and the DSP tab's Speakers switch both call
-// this, and a correction left behind would run against a crossfeed that is off.
-/**
- * @param {PipelineRow[]} rows
- * @param {MsRecognition} rec
- * @returns {void}
- */
-export function removeBlock(rows, rec) {
-  const g = String(Math.round(rec.preampDb * 100) / 100);
-  const pair = [
-    { gain: g, gainunit: "dB", mixdown: "0", process: rec.eqProcess, source: "0" },
-    { gain: g, gainunit: "dB", mixdown: "1", process: rec.eqProcess, source: "1" },
-  ];
-  const next = [...pair, ...rows.slice(8)];
-  stagePipelines(next);
-  edit("pipelines", String(Math.max(2, next.length)));
 }
 
 // Lens traces for the RESPONSE plot (spec step 4): what the listener's ear

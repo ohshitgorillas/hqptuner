@@ -6,7 +6,7 @@
 import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
 import { chainResponse } from "../lib/dsp/chain.js";
 import { bandFreqs } from "../lib/dsp/curves.js";
-import { xfeedBlock } from "./XfeedComp.js";
+import { xfeedBlock } from "../store/xfeedblock.js";
 import { structuralBlock } from "../store/xfmode.js";
 import { withDrag, dragEq } from "./BandStrip.js";
 

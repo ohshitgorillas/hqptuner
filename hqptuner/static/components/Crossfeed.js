@@ -41,7 +41,8 @@ import {
 } from "../store/xfmode.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
-import { XfeedStrip, CompMiniPlot, xfeedBlock, lensOn, lensShown, xfeedLensAvailable } from "./XfeedComp.js";
+import { XfeedStrip, CompMiniPlot, lensOn, lensShown, xfeedLensAvailable } from "./XfeedComp.js";
+import { xfeedBlock } from "../store/xfeedblock.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";

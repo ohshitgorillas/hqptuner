@@ -36,11 +36,7 @@ import { recognizeRows } from "../lib/binaural/recognize.js";
 import { blockConflicts, pairInfo, REFUSAL } from "../lib/binaural-setup.js";
 import { effective, effectivePipelines, pipelineBaseline } from "./resolve.js";
 import { stagePipelines, edit } from "./actions.js";
-// Upward, and the last such edge in the frontend graph: the compensation block
-// is recognized against the LIVE bauer settings, and that reading currently
-// lives with the strip that renders it. The next change splits the recognition
-// out of the component so this import points downward like the rest.
-import { xfeedBlock, removeBlock as removeCompBlock } from "../components/XfeedComp.js";
+import { xfeedBlock, removeBlock as removeCompBlock } from "./xfeedblock.js";
 import { truthy } from "../lib/coerce.js";
 
 /**
