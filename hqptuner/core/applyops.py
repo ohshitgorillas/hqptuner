@@ -25,10 +25,10 @@ class ApplyOps:
         self._mgr = mgr
 
     async def set_volume(self, db: str) -> dict[str, Any]:
-        """Live playback-volume write — immediate, outside the staged-config
-        apply flow. Raises CommandError when volume control is disabled (fixed
-        volume / no-volume path; VolumeRange enabled=0). Returns the readback
-        level so the caller echoes the applied value.
+        """Write the playback volume live, immediately, outside the staged-config apply flow.
+
+        Raises CommandError when volume control is disabled (fixed volume / no-volume path;
+        VolumeRange enabled=0). Returns the readback level so the caller echoes the applied value.
         """
         client = self._mgr.control
         if client is None:
@@ -45,12 +45,13 @@ class ApplyOps:
         http_fields: dict[str, str],
         switch_to: str | None = None,
     ) -> dict[str, Any]:
-        """Apply staged changes. When ``switch_to`` is set the user previewed a
-        different preset — load it first so it becomes the active preset (the only
-        way HQPlayer sets the active label), then apply the staged tweaks on top of
-        its snapshot. Then the live setters (readback-verified), then the persistent
-        lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so
-        drift never survives — and self-corrects fixable divergence.
+        """Apply staged changes.
+
+        When ``switch_to`` is set the user previewed a different preset — load it first so it
+        becomes the active preset (the only way HQPlayer sets the active label), then apply the
+        staged tweaks on top of its snapshot. Then the live setters (readback-verified), then the
+        persistent lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so drift
+        never survives — and self-corrects fixable divergence.
         """
         mgr = self._mgr
         switched: dict[str, Any] | None = None
@@ -83,9 +84,10 @@ class ApplyOps:
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
-        """Apply hardware-acceleration engine attributes — the config-file-only
-        lane (`enginelane`). The restore restarts the daemon and interrupts
-        playback; nothing gates on that — the user decides when.
+        """Apply hardware-acceleration engine attributes via the config-file-only lane (`enginelane`).
+
+        The restore restarts the daemon and interrupts playback; nothing gates on that — the user
+        decides when.
         """
         mgr = self._mgr
         engineconf.validate_overrides(overrides)

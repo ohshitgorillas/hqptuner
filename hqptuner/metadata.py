@@ -51,9 +51,10 @@ class StaticMetadata:
 def merge_enumerations(
     enums: dict[str, list[dict[str, str]]], static: StaticMetadata, mode_name: str
 ) -> dict[str, Any]:
-    """Attach static prose to live enumeration items. Unmatched engine
-    entries still render (static: null). Live facets (quality/focus/ratio in
-    the description, apodizing in arg bit 0) stay on the engine item.
+    """Attach static prose to live enumeration items.
+
+    Unmatched engine entries still render (static: null). Live facets (quality/focus/ratio in the description,
+    apodizing in arg bit 0) stay on the engine item.
     """
     merged: dict[str, Any] = dict(enums)
     merged["filters"] = [

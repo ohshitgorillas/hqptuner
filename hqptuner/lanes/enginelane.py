@@ -32,9 +32,9 @@ _VERIFY_INTERVAL = 0.5
 
 
 async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str, Any]:
-    """Poll a fresh backup until every override is reflected in its base config's
-    ``<engine>`` tag, or the window runs out. Returns the last-read attributes
-    either way, so a caller can report what actually landed.
+    """Poll a fresh backup until every override is reflected in its base config's ``<engine>`` tag, or the window ends.
+
+    Returns the last-read attributes either way, so a caller can report what actually landed.
     """
     got: dict[str, str] = {}
 
@@ -53,8 +53,7 @@ async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str,
 
 
 def _with_stored_live_fields(mgr: ConnectionManager, backup: bytes, active: str | None) -> bytes:
-    """``backup`` with the active preset's stored live-domain settings written into
-    its working config member.
+    """``backup`` with the active preset's stored live-domain settings written into its working config member.
 
     This restore restarts the daemon onto that member, and a live edit never wrote
     those settings to any file — so without this the engine-attribute apply costs

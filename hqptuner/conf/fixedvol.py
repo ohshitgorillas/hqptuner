@@ -19,8 +19,9 @@ _COMMENTED_FIXED_RE = re.compile(rb"\n?[ \t]*<!--\s*<fixed\b[^>]*/>\s*-->")
 
 
 def find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
-    """The live ``<fixed .../>`` element, or None — the daemon parks the
-    remembered level in a commented one when the feature is off.
+    """The live ``<fixed .../>`` element, or None.
+
+    The daemon parks the remembered level in a commented one when the feature is off.
     """
     return find_element(xml, "fixed")
 
@@ -30,8 +31,9 @@ def fixed_level_of(tag: bytes) -> str | None:
 
 
 def any_fixed_level(xml: bytes) -> str | None:
-    """The level off the first ``<fixed>`` tag anywhere — the active element, or
-    the commented-out one a disabled level is parked in. None when this config has
+    """The level off the first ``<fixed>`` tag anywhere.
+
+    That is the active element, or the commented-out one a disabled level is parked in. None when this config has
     never carried a fixed volume at all, which is different from carrying 0 dBFS.
     """
     for m in open_tag_re("fixed").finditer(xml):
@@ -42,15 +44,17 @@ def any_fixed_level(xml: bytes) -> str | None:
 
 
 def _remembered_level(xml: bytes) -> str:
-    """Last-known fixed-volume level — the active element, else a commented one
-    (the daemon's memory when off), else 0 dBFS.
+    """Last-known fixed-volume level.
+
+    Read from the active element, else a commented one (the daemon's memory when off), else 0 dBFS.
     """
     return any_fixed_level(xml) or "0"
 
 
 def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[bytes] | None) -> tuple[bool, str]:
-    """Desired (enabled, level) for ``<fixed>``: an unstaged half falls back to the
-    snapshot's current state, so editing one field never clobbers the other.
+    """Desired (enabled, level) for ``<fixed>``.
+
+    An unstaged half falls back to the snapshot's current state, so editing one field never clobbers the other.
     """
     if FIXED_ENABLED in fixed_edits:
         enabled = fixed_edits[FIXED_ENABLED].strip().lower() in _TRUTHY
@@ -67,8 +71,9 @@ def _fixed_target(xml: bytes, fixed_edits: dict[str, str], active: re.Match[byte
 
 
 def _strip_active_fixed(xml: bytes, active: re.Match[bytes]) -> bytes:
-    """Remove the active ``<fixed/>`` element plus its own indentation, so toggling
-    the feature doesn't accrete blank lines.
+    """Remove the active ``<fixed/>`` element plus its own indentation.
+
+    Taking the indentation too is what stops toggling the feature accreting blank lines.
     """
     start = active.start()
     while start > 0 and xml[start - 1 : start] in (b" ", b"\t"):
@@ -79,8 +84,9 @@ def _strip_active_fixed(xml: bytes, active: re.Match[bytes]) -> bytes:
 
 
 def _insert_root_child(xml: bytes, tag: bytes) -> bytes:
-    """Insert ``tag`` as the first child of ``<hqplayerd>``, where the daemon
-    itself writes the fixed-volume line.
+    """Insert ``tag`` as the first child of ``<hqplayerd>``.
+
+    That is where the daemon itself writes the fixed-volume line.
     """
     open_tag = re.search(rb"<hqplayerd\b[^>]*>", xml)
     if open_tag is None:
@@ -108,9 +114,10 @@ def _remember_fixed(xml: bytes, level: str) -> bytes:
 
 
 def reconcile_fixed(xml: bytes, fixed_edits: dict[str, str]) -> bytes:
-    """Fold the ``fixed_volume_enabled`` / ``fixed_volume`` pair onto the top-level
-    ``<fixed>`` element: enabled ⇒ ``<fixed volume="level"/>`` live, disabled ⇒ the
-    same line commented out so the level survives. Every other byte is preserved.
+    """Fold the ``fixed_volume_enabled`` / ``fixed_volume`` pair onto the top-level ``<fixed>`` element.
+
+    Enabled ⇒ ``<fixed volume="level"/>`` live, disabled ⇒ the same line commented out so the level survives. Every
+    other byte is preserved.
     """
     active = find_active_fixed(xml)
     enabled, level = _fixed_target(xml, fixed_edits, active)  # reads the old memory, so run it first

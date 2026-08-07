@@ -35,9 +35,10 @@ RECONNECT_FAST = 1.0
 
 
 def listing(mgr: ConnectionManager) -> dict[str, Any]:
-    """Preset list + active name for the API, shaped like the daemon profile field
-    the frontend already renders: an empty "(no preset)" option, then every stored
-    preset. ``active`` is the store's truth (the daemon is always ``[default]``).
+    """Preset list + active name for the API.
+
+    Shaped like the daemon profile field the frontend already renders: an empty "(no preset)" option, then every
+    stored preset. ``active`` is the store's truth (the daemon is always ``[default]``).
 
     The empty option is deliberately NOT labelled ``[default]``. hqplayerd's own UI
     uses that word for its unnamed base config — which, under our restore-only
@@ -53,9 +54,9 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
 
 
 async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
-    """A preset's saved settings in form-field terms for the editor preview — no
-    daemon touch. A named preset reads from the store; the empty ("(no preset)")
-    selection reads the current running config.
+    """A preset's saved settings in form-field terms for the editor preview — no daemon touch.
+
+    A named preset reads from the store; the empty ("(no preset)") selection reads the current running config.
     """
     if not name:
         return dict(mgr.file_config or await mgr.load_file_config())
@@ -63,9 +64,10 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
 
 
 async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
-    """Load a stored preset: restore its config as the ``[default]`` working config
-    (the reliable primitive) and mark it active, mirroring it into the daemon's
-    ``data/cfgs`` so the native UI stays populated. Never ``profile/load``.
+    """Load a stored preset.
+
+    Restores its config as the ``[default]`` working config (the reliable primitive) and marks it active, mirroring
+    it into the daemon's ``data/cfgs`` so the native UI stays populated. Never ``profile/load``.
     """
     xml = mgr.presetops.store.read(name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
@@ -83,9 +85,10 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 
 
 async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
-    """Make ``name`` the active preset as the first step of an apply. A named
-    preset loads (restore + mirror); the empty name is the picker's "(no preset)"
-    and only drops the bookmark. Never hqplayerd's ``profile/load``.
+    """Make ``name`` the active preset as the first step of an apply.
+
+    A named preset loads (restore + mirror); the empty name is the picker's "(no preset)" and only drops the
+    bookmark. Never hqplayerd's ``profile/load``.
     """
     if not name:
         return await unload(mgr)
@@ -97,8 +100,9 @@ async def switch(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 
 
 async def unload(mgr: ConnectionManager) -> dict[str, Any]:
-    """Select "(no preset)": drop HQPTuner's active-preset bookmark and leave the
-    running config exactly as it is.
+    """Select "(no preset)".
+
+    Drops HQPTuner's active-preset bookmark and leaves the running config exactly as it is.
 
     There is nothing to load and nothing to restart. HQPlayer runs one settings
     file either way; an active preset is a note we keep about where that file's
@@ -112,9 +116,10 @@ async def unload(mgr: ConnectionManager) -> dict[str, Any]:
 
 
 async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
-    """Persist the current running config as preset ``name`` — store our copy and
-    mirror it into the daemon's ``data/cfgs``. Called after a successful apply, so
-    the running config already carries the user's edits.
+    """Persist the current running config as preset ``name``.
+
+    Stores our copy and mirrors it into the daemon's ``data/cfgs``. Called after a successful apply, so the running
+    config already carries the user's edits.
 
     The store write is the save; the daemon mirror is a convenience for
     hqplayerd's own profile list. So the mirror runs AFTER the store commits and
@@ -144,8 +149,9 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 
 
 async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
-    """Fold the current audible state back into the active preset's store file —
-    the auto-save checkbox's whole write path. Store only, never the daemon
+    """Fold the current audible state back into the active preset's store file.
+
+    This is the auto-save checkbox's whole write path. Store only, never the daemon
     mirror: the mirror costs a restore restart, so it catches up by riding the
     next restore that happens anyway (``lanes/presetfields.autosave_mirror``).
     Returns None when
@@ -169,9 +175,9 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
 
 
 async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> str | None:
-    """Plant ``data/cfgs/<name>.xml`` on the daemon so hqplayerd's native profile
-    list mirrors our store. Returns None when it landed, else a user-facing
-    warning.
+    """Plant ``data/cfgs/<name>.xml`` on the daemon so hqplayerd's native profile list mirrors our store.
+
+    Returns None when it landed, else a user-facing warning.
 
     Retries through the shared settle loop instead of firing once: this runs
     right after an apply's own restore, so the daemon is routinely still
@@ -193,8 +199,9 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
 
 
 async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
-    """Delete a preset from the store and remove its daemon mirror via
-    ``profile/delete`` — restore is additive and cannot remove a member.
+    """Delete a preset from the store and remove its daemon mirror via ``profile/delete``.
+
+    Restore is additive and cannot remove a member.
     """
     mgr.presetops.store.delete(name)
     with contextlib.suppress(httpx.HTTPError, ControlError):
@@ -203,10 +210,10 @@ async def delete(mgr: ConnectionManager, name: str) -> dict[str, Any]:
 
 
 async def migrate(mgr: ConnectionManager, active_hint: str | None) -> list[str]:
-    """One-time import of hqplayerd's existing ``data/cfgs`` presets into the store
-    so nothing is orphaned. Idempotent — existing store presets win. Seeds the
-    active pointer from the daemon's reported active config when the store has
-    none. Returns the imported names.
+    """One-time import of hqplayerd's existing ``data/cfgs`` presets into the store so nothing is orphaned.
+
+    Idempotent — existing store presets win. Seeds the active pointer from the daemon's reported active config when
+    the store has none. Returns the imported names.
     """
     snapshots = presetzip.snapshot_members(await mgr.presetops.backup_or_cached())
     imported = mgr.presetops.store.import_missing(snapshots)

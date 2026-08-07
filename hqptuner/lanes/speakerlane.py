@@ -1,5 +1,4 @@
-"""Speaker-processing apply (readme §1.9, /speakers form lane) — the logic behind
-``manager.apply_speakers``.
+"""Speaker-processing apply (readme §1.9, /speakers form lane) — the logic behind ``manager.apply_speakers``.
 
 The overlay + checkbox-safe write + range validation live in
 ``httpconf.apply_speakers``; here we ride out the ~3 s engine reload the form POST
@@ -32,10 +31,11 @@ async def apply(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, 
 
 
 async def _verify(mgr: ConnectionManager, channels: dict[str, dict[str, str]], *, enabled: bool) -> bool:
-    """Poll /speakers until it reflects the applied state (enabled flag + each
-    written level/distance), riding past the post-reload window where the lane
-    502s or serves the pre-restart form. Gives up at the alarm deadline and reports
-    honestly rather than claiming a success it did not confirm.
+    """Poll /speakers until it reflects the applied state — the enabled flag plus each written level/distance.
+
+    Rides past the post-reload window where the lane 502s or serves the pre-restart
+    form. Gives up at the alarm deadline and reports honestly rather than claiming a
+    success it did not confirm.
     """
 
     async def probe() -> bool:

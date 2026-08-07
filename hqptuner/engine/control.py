@@ -94,9 +94,10 @@ def _unescape_attrs(root: ET.Element) -> ET.Element:
 
 
 def _document_complete(body: str, tag: str) -> bool:
-    """True once the root element is closed — self-closing (`<Tag .../>`) or its
-    end tag arrived (`</Tag>`). Distinguishes a still-arriving frame (keep
-    reading) from a fully-received one that simply won't parse.
+    """True once the root element is closed.
+
+    Closed means self-closing (`<Tag .../>`) or its end tag arrived (`</Tag>`). Distinguishes a still-arriving frame
+    (keep reading) from a fully-received one that simply won't parse.
     """
     if re.match(rf"<{re.escape(tag)}\b[^>]*/>\s*$", body, re.S):
         return True
@@ -104,13 +105,12 @@ def _document_complete(body: str, tag: str) -> bool:
 
 
 def _recover_root(body: str) -> ET.Element | None:
-    """Salvage a COMPLETE frame whose children won't parse. The daemon emits
-    track `<metadata>` with unescaped `<`/`"` in artist/song tags that the
-    bare-`&` repair can't fix (hqpexporter-observed) — which would otherwise
-    hang the receive loop until timeout on every poll while a track is loaded.
-    The live fields we need (active_filter/active_shaper/active_rate) are ROOT
-    attributes, so drop the children and parse the root open-tag alone. Returns
-    None when the frame is merely still-arriving (caller keeps reading).
+    """Salvage a COMPLETE frame whose children won't parse.
+
+    The daemon emits track `<metadata>` with unescaped `<`/`"` in artist/song tags that the bare-`&` repair can't fix
+    (hqpexporter-observed) — which would otherwise hang the receive loop until timeout on every poll while a track is
+    loaded. The live fields we need (active_filter/active_shaper/active_rate) are ROOT attributes, so drop the children
+    and parse the root open-tag alone. Returns None when the frame is merely still-arriving (caller keeps reading).
     """
     m = re.match(r"<([A-Za-z][\w-]*)\b[^>]*", body, re.S)
     if m is None:
@@ -200,8 +200,9 @@ class ControlClient:
         return await self._attrs("<GetLicense/>")
 
     async def get_active_config(self) -> str:
-        """The active configuration/preset name (empty string = the unnamed
-        ``[default]`` base). Response carries it in the ``value`` attribute.
+        """The active configuration/preset name.
+
+        An empty string is the unnamed ``[default]`` base. Response carries the name in the ``value`` attribute.
         """
         return (await self.request("<ConfigurationGet/>")).attrib.get("value", "")
 
@@ -210,8 +211,9 @@ class ControlClient:
 
     async def get_volume_range(self) -> dict[str, str]:
         """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
-        The authority for live-volume slider bounds and whether volume control is
-        active at all (protocol.md §6, "Volume commands").
+
+        The authority for live-volume slider bounds and whether volume control is active at all (protocol.md §6,
+        "Volume commands").
         """
         return await self._attrs("<VolumeRange/>")
 
@@ -221,17 +223,17 @@ class ControlClient:
         return dict(root.attrib), (dict(meta.attrib) if meta is not None else None)
 
     async def set_matrix_profile(self, name: str) -> None:
-        """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty
-        = the unnamed [Default]). Probe-verified on 6.0.4: unauthenticated, zero
-        reload, playback uninterrupted; memory-only, reverts on daemon restart
-        (docs/matrix-spec.md probe findings).
+        """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty = the unnamed [Default]).
+
+        Probe-verified on 6.0.4: unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
+        restart (docs/matrix-spec.md probe findings).
         """
         await self.set_command("MatrixSetProfile", value=name)
 
     async def get_matrix_profiles(self) -> list[str]:
-        """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile`
-        children). Verified live on 6.0.4 (docs/matrix-spec.md probe findings):
-        unauthenticated, live lane, no reload.
+        """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile` children).
+
+        Verified live on 6.0.4 (docs/matrix-spec.md probe findings): unauthenticated, live lane, no reload.
         """
         root = await self.request("<MatrixListProfiles/>")
         return [item.attrib.get("name", "") for item in root]
@@ -244,10 +246,10 @@ class ControlClient:
         return {key: await self.get_enumeration(cmd) for key, cmd in ENUM_COMMANDS.items()}
 
     async def set_command(self, element_name: str, **attrs: str) -> ET.Element:
-        """Setter with result check. result="OK" or absent (SetAdaptiveVolume
-        quirk, protocol.md §6) passes; result="Error" raises with the reason.
-        Note result="OK" is not proof of application — callers verify by State
-        readback (protocol.md §6 caveat).
+        """Setter with result check.
+
+        result="OK" or absent (SetAdaptiveVolume quirk, protocol.md §6) passes; result="Error" raises with the reason.
+        Note result="OK" is not proof of application — callers verify by State readback (protocol.md §6 caveat).
         """
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
         root = await self.request(f"<{element_name}{attr_str}/>")
@@ -265,8 +267,9 @@ class ControlClient:
     # to be spelled, and spelling it twice is how it drifts.
 
     async def set_filter(self, nx: str, x1: str | None = None) -> None:
-        """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value,
-        1x=value1x). Reference client omits value1x when the 1x arg is < 0.
+        """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value, 1x=value1x).
+
+        Reference client omits value1x when the 1x arg is < 0.
         """
         if x1 is None:
             await self.set_command("SetFilter", value=nx)
@@ -278,6 +281,7 @@ class ControlClient:
 
     async def verify_state(self, expected: dict[str, str]) -> None:
         """Re-read State and raise unless every expected attribute matches.
+
         result="OK" is not proof of application (protocol.md §6) — this is.
         """
         state = await self.get_state()

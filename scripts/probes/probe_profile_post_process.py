@@ -50,10 +50,12 @@ SETTLE_WAIT = 1.0
 
 
 def _restart_daemon() -> None:
-    """Restart hqplayerd. A config restore does NOT restart it (probe run 1: the
-    unit's uptime was untouched across a restore), and the saved-profile registry
-    is built at process start only — so a profile written into the config is
-    invisible to ``MatrixListProfiles`` until the daemon comes back.
+    """Restart hqplayerd.
+
+    A config restore does NOT restart it (probe run 1: the unit's uptime was
+    untouched across a restore), and the saved-profile registry is built at
+    process start only — so a profile written into the config is invisible to
+    ``MatrixListProfiles`` until the daemon comes back.
     """
     subprocess.run(["/usr/bin/sudo", "systemctl", "restart", "hqplayerd"], check=True)
 
@@ -120,9 +122,11 @@ def _profile_element(xml: bytes, name: str) -> bytes | None:
 
 
 def _with_probe_profile(xml: bytes, *, carry_post: bool = True) -> bytes:
-    """Insert one probe profile: the live pipeline rows, plus (unless
-    ``carry_post`` is off) a verbatim copy of the live post-process block.
-    Nothing else in the snapshot moves.
+    """Insert one probe profile into the config snapshot.
+
+    The profile carries the live pipeline rows, plus (unless ``carry_post`` is
+    off) a verbatim copy of the live post-process block. Nothing else in the
+    snapshot moves.
 
     The rows-only variant is the control: if THAT profile registers and the
     post-process one does not, the daemon's parser is rejecting the element.

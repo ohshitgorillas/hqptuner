@@ -120,8 +120,9 @@ class ConnectionManager:
         self._stop.set()
 
     async def aclose(self) -> None:
-        """Clean shutdown: stop the loop and close the control connection so no
-        socket is left dangling. The caller awaits the run() task separately.
+        """Shut down cleanly: stop the loop and close the control connection so no socket dangles.
+
+        The caller awaits the run() task separately.
         """
         self.stop()
         if self._client is not None:
@@ -146,10 +147,11 @@ class ConnectionManager:
             await self._sleep(self._cfg.poll_interval)
 
     async def _sleep(self, seconds: float) -> None:
-        """The poll loop's own wait. NOT a duplicate of the public ``sleep``: the
-        test suite virtualizes ``sleep`` (docs/testing.md §7) so lane deadlines
-        cost no wall clock, and deliberately leaves this one alone so a running
-        manager polls at its real interval instead of spinning.
+        """The poll loop's own wait.
+
+        NOT a duplicate of the public ``sleep``: the test suite virtualizes ``sleep``
+        (docs/testing.md §7) so lane deadlines cost no wall clock, and deliberately leaves this one
+        alone so a running manager polls at its real interval instead of spinning.
         """
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._stop.wait(), seconds)
@@ -235,12 +237,12 @@ class ConnectionManager:
         self.loaded_at = time.time()
 
     async def refresh_http_forms(self) -> None:
-        """The three polled 8088 form snapshots (lanes/httpforms), and the device
-        capability that hangs off them. The capability is read for whichever
-        device the config form says is selected, so it belongs wherever that form
-        is refreshed — the poll loop, connect, and the rescan route alike — rather
-        than at the poll loop alone, which leaves every other path serving a stale
-        answer or none.
+        """Refresh the three polled 8088 form snapshots (lanes/httpforms) and the device capability.
+
+        The capability hangs off those forms: it is read for whichever device the config form says
+        is selected, so it belongs wherever that form is refreshed — the poll loop, connect, and the
+        rescan route alike — rather than at the poll loop alone, which leaves every other path
+        serving a stale answer or none.
         """
         await httpforms.refresh(self)
         await self.refresh_device_caps()
@@ -259,22 +261,25 @@ class ConnectionManager:
         return self._cfg.alarm_threshold
 
     def monotonic(self) -> float:
-        """The lanes' clock. A method, not ``time.monotonic`` inline, because it
-        is the seam the suite virtualizes alongside ``sleep`` (docs/testing.md).
+        """The lanes' clock.
+
+        A method, not ``time.monotonic`` inline, because it is the seam the suite virtualizes
+        alongside ``sleep`` (docs/testing.md).
         """
         return time.monotonic()
 
     async def sleep(self, seconds: float) -> None:
-        """The lanes' wait — virtualized in tests. See ``_sleep`` for why the poll
-        loop deliberately does not share it.
+        """The lanes' wait — virtualized in tests.
+
+        See ``_sleep`` for why the poll loop deliberately does not share it.
         """
         await self._sleep(seconds)
 
     async def await_http_ready(self) -> bool:
-        """Wait until the HTTP config lane serves again. The daemon restarts on a
-        preset load and on every restore, and its active label flips before the
-        restart completes — so callers must not assume 'label switched' means
-        'ready to write'.
+        """Wait until the HTTP config lane serves again.
+
+        The daemon restarts on a preset load and on every restore, and its active label flips before
+        the restart completes — so callers must not assume 'label switched' means 'ready to write'.
         """
 
         async def probe() -> bool:
@@ -284,9 +289,10 @@ class ConnectionManager:
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
 
     async def read_engine(self) -> dict[str, str]:
-        """Current hardware-accel engine attributes, parsed from a fresh backup's
-        base config (the only lane that carries them — they are not on the form).
-        Fetched on demand, not per poll, since the backup archive is large.
+        """Current hardware-accel engine attributes, parsed from a fresh backup's base config.
+
+        That backup is the only lane that carries them — they are not on the form. Fetched on
+        demand, not per poll, since the backup archive is large.
         """
         engine = engineconf.read_engine_attrs(
             engineconf.base_config_xml(await self.presetops.backup_or_cached(), self.active_config)
@@ -295,11 +301,11 @@ class ConnectionManager:
         return engine
 
     async def load_file_config(self) -> dict[str, str]:
-        """Running config read from the backup archive's working ``hqplayerd.xml``,
-        in form-field terms. Serves the fields the ``/config`` form renders lossily
-        (``volume_fixed``: 0/1/2 in XML, a bare checkbox on the form). Fetched on
-        connect and refreshed by the apply's verify step — never per poll, since
-        the archive is large.
+        """Running config read from the backup archive's working ``hqplayerd.xml``, in form-field terms.
+
+        Serves the fields the ``/config`` form renders lossily (``volume_fixed``: 0/1/2 in XML, a
+        bare checkbox on the form). Fetched on connect and refreshed by the apply's verify step —
+        never per poll, since the archive is large.
         """
         backup = await self.presetops.backup_or_cached()
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
@@ -335,10 +341,11 @@ class ConnectionManager:
         self.device_caps = devicecaps.caps_for(text, selected)
 
     async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
-        """Static tail of the daemon's log for the System-tab live view. Not a
-        stream — a fresh GET /log per call over the 8088 web interface, so it
-        works regardless of the daemon's `<log file>` setting and needs no host
-        mount. Reports `available` false (with a reason) when /log can't be read.
+        """Static tail of the daemon's log for the System-tab live view.
+
+        Not a stream — a fresh GET /log per call over the 8088 web interface, so it works regardless
+        of the daemon's `<log file>` setting and needs no host mount. Reports `available` false (with
+        a reason) when /log can't be read.
         """
         path, enabled = logtail.log_file_field(self.config_form)
         base_url = f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}"
@@ -349,8 +356,9 @@ class ConnectionManager:
         return {"path": path, "enabled": enabled, "available": True, "lines": logtail.tail_text(text, lines)}
 
     async def restore_config(self, data: bytes, scope: str = "system") -> None:
-        """Restore a user-supplied settings archive as-is (System-tab restore
-        action). The daemon self-restarts, interrupting playback if any.
+        """Restore a user-supplied settings archive as-is (the System-tab restore action).
+
+        The daemon self-restarts, interrupting playback if any.
         """
         await self.require_http().restore(data, scope=scope)
 
@@ -360,10 +368,10 @@ class ConnectionManager:
         return self._client
 
     async def refresh_devices(self) -> dict[str, Any]:
-        """Trigger a daemon output-device re-scan, then refetch the /config and
-        /matrix forms so the device dropdowns serve the new endpoint list (an NAA
-        powered back on, a DAC replugged). No restart, no idle gate — a rescan is
-        read-only on the audio path.
+        """Trigger a daemon output-device re-scan, then refetch the /config and /matrix forms.
+
+        The refetch makes the device dropdowns serve the new endpoint list (an NAA powered back on,
+        a DAC replugged). No restart, no idle gate — a rescan is read-only on the audio path.
         """
         await self.require_http().refresh_devices()
         await self.refresh_http_forms()

@@ -70,10 +70,10 @@ def _scrub(value: Any, path: str, digests: dict[str, str]) -> Any:
 
 
 def _cap(value: str, path: str, digests: dict[str, str]) -> str:
-    """``value`` cut to the cap, measured in BYTES as the constant says — a
-    100k-character CJK payload is 300 KB and has to count as oversized. Cutting
-    the encoded form can land mid-codepoint, so the tail is dropped rather than
-    kept as replacement characters.
+    """``value`` cut to the cap, measured in BYTES as the constant says.
+
+    A 100k-character CJK payload is 300 KB and has to count as oversized. Cutting the encoded form can land
+    mid-codepoint, so the tail is dropped rather than kept as replacement characters.
     """
     encoded = value.encode("utf-8")
     if len(encoded) <= MAX_VALUE_BYTES:
@@ -89,9 +89,10 @@ def _scrub_member(key: str, value: Any, path: str, digests: dict[str, str]) -> A
 
 
 def _row_count(rows: str) -> int:
-    """The number of pipeline rows ``rows`` carries — 0 when it is not a row
-    set at all. A payload that does not parse is exactly what a reader needs to
-    see recorded, so this reports rather than raises.
+    """The number of pipeline rows ``rows`` carries — 0 when it is not a row set at all.
+
+    A payload that does not parse is exactly what a reader needs to see recorded, so this reports rather than
+    raises.
     """
     try:
         parsed = json.loads(rows)
@@ -115,9 +116,10 @@ class AuditLog:
     # --- reading -----------------------------------------------------------
 
     def records(self) -> list[dict[str, Any]]:
-        """Every record in the CURRENT file, oldest first. A rotated-away file
-        is deliberately not merged in: this reads what is live, and the rolled
-        copy sits beside it under the same name plus ``.1``.
+        """Every record in the CURRENT file, oldest first.
+
+        A rotated-away file is deliberately not merged in: this reads what is live, and the rolled copy sits
+        beside it under the same name plus ``.1``.
         """
         if self._path is None or not self._path.is_file():
             return []
@@ -130,8 +132,9 @@ class AuditLog:
         return self.records()[-n:] if n > 0 else []
 
     def _resume_seq(self) -> int:
-        """The sequence number to continue from, so reopening a log does not
-        restart the counter and make two records look like the same event.
+        """The sequence number to continue from.
+
+        Reopening a log therefore does not restart the counter and make two records look like the same event.
         """
         records = self.records()
         return int(records[-1].get("seq", 0)) if records else 0
@@ -181,8 +184,9 @@ class AuditLog:
         *,
         ok: bool,
     ) -> None:
-        """The staged set as it stood at ENTRY — the apply clears the buffer, so
-        this is the only surviving copy of what was applied.
+        """Record an apply: the staged set as it stood at ENTRY.
+
+        The apply clears the buffer, so this is the only surviving copy of what was applied.
         """
         self._write("apply", {"http": http, "live": live, "switch_to": switch_to, "save": save, "ok": ok})
 

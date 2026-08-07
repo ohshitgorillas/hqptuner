@@ -16,8 +16,9 @@ if TYPE_CHECKING:
 
 
 async def refresh(mgr: ConnectionManager) -> None:
-    """Best-effort refresh of the /config, /matrix and /speakers snapshots. A
-    failure on the 8088 lane must never fail the 4321 poll — the last-good form is
+    """Best-effort refresh of the /config, /matrix and /speakers snapshots.
+
+    A failure on the 8088 lane must never fail the 4321 poll — the last-good form is
     kept and only that form's error is recorded.
 
     One table instead of three identical try/except blocks: a fourth polled form

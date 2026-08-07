@@ -19,8 +19,9 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 
 def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
-    """The active preset's stored values for the settings a live edit never writes
-    to the config file — output mode, both chains' filters and shapers, adaptive
+    """The active preset's stored values for the settings a live edit never writes to the config file.
+
+    Those settings are output mode, both chains' filters and shapers, adaptive
     volume, the per-family rate limits (``liveoverrides.LIVE_DOMAIN``).
 
     hqplayerd boots from its config file and a live edit reaches only the running
@@ -41,7 +42,8 @@ def stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
 
 
 def _mirrored_preset(mgr: ConnectionManager) -> str | None:
-    """The active preset's name when auto-save owes the daemon a mirror of it —
+    """The active preset's name when auto-save owes the daemon a mirror of it.
+
     None when auto-save is off, nothing is active, or it has no store file yet.
     """
     name = mgr.presetops.store.active
@@ -51,13 +53,13 @@ def _mirrored_preset(mgr: ConnectionManager) -> str | None:
 
 
 def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -> dict[str, bytes]:
-    """The ``data/cfgs`` member a restore should carry so the daemon's native
-    profile list catches up with auto-save — auto-save itself never restores, so
-    the mirror rides restores that happen anyway. ``intended_xml`` is the working
-    config that restore lands; folded with the live overrides it is exactly what
-    the next auto-save will store. Without it (an engine-lane restore) the store
-    file itself is the freshest mirror. Empty when auto-save is off, no preset is
-    active, or the preset has no store file yet.
+    """The ``data/cfgs`` member a restore should carry so the daemon's native profile list catches up with auto-save.
+
+    Auto-save itself never restores, so the mirror rides restores that happen
+    anyway. ``intended_xml`` is the working config that restore lands; folded with
+    the live overrides it is exactly what the next auto-save will store. Without it
+    (an engine-lane restore) the store file itself is the freshest mirror. Empty
+    when auto-save is off, no preset is active, or the preset has no store file yet.
     """
     name = _mirrored_preset(mgr)
     if name is None:

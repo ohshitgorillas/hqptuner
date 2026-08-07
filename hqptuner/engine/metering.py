@@ -83,8 +83,9 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
 
 
 def _junk_filter_name(status: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:
-    """``Status.filter_junk`` joined against the running enumeration — the
-    engine is the sole authority for index→name (architecture §2).
+    """``Status.filter_junk`` joined against the running enumeration.
+
+    The engine is the sole authority for index→name (architecture §2).
     """
     idx = status.get("filter_junk")
     for item in (enums or {}).get("junk_filters", []):
@@ -143,9 +144,9 @@ class SpectralAggregate:
         return [10 * math.log10(p / self.frames) if p > 0 else -200.0 for p in self._power]
 
     def window_min_db(self) -> list[float] | None:
-        """Per-bin minimum (dB) over the last full persistence window, or None
-        until WINDOW_BLOCKS full blocks exist. The current partial block joins
-        the minimum too — it can only tighten it, never fake persistence.
+        """Per-bin minimum (dB) over the last full persistence window, or None until WINDOW_BLOCKS full blocks exist.
+
+        The current partial block joins the minimum too — it can only tighten it, never fake persistence.
         """
         if len(self._blocks) < WINDOW_BLOCKS:
             return None
@@ -180,16 +181,14 @@ class MeteringReader:
         self._stop.set()
 
     def recommendation(self) -> dict[str, Any] | None:
-        """The advisor's verdict for the current track, or None. Computed on
-        demand — the status route calls this once per poll. A verdict latches
-        for the rest of the track: the signature is a property of the source,
-        and loud music masking it from the detector later in the track does not
-        make it go away (the Ænima case — a persistent tone plainly visible on
-        the spectrogram, drowned out of the mean spectrum once the music
-        starts). The latch clears on track change or stream loss, and goes
-        quiet while the engaged junk filter — or, for spur verdicts, a main
-        filter from a recommended family — treats it: engaging is the user
-        acting on the advice, disengaging brings the advice back.
+        """The advisor's verdict for the current track, or None.
+
+        Computed on demand — the status route calls this once per poll. A verdict latches for the rest of the track:
+        the signature is a property of the source, and loud music masking it from the detector later in the track does
+        not make it go away (the Ænima case — a persistent tone plainly visible on the spectrogram, drowned out of the
+        mean spectrum once the music starts). The latch clears on track change or stream loss, and goes quiet while the
+        engaged junk filter — or, for spur verdicts, a main filter from a recommended family — treats it: engaging is
+        the user acting on the advice, disengaging brings the advice back.
         """
         ctx, agg = self._context(), self._agg
         if ctx is None or agg is None or agg.frames == 0:
@@ -275,16 +274,18 @@ class MeteringReader:
 
 
 def _frame_silent(body: bytes, channels: int, bins: int) -> bool:
-    """Whether every channel's RMS sits below the silence threshold. The RMS is
-    the third float of the per-channel level block (protocol.md §7).
+    """Whether every channel's RMS sits below the silence threshold.
+
+    The RMS is the third float of the per-channel level block (protocol.md §7).
     """
     stride = 16 + 8 * bins
     return all(struct.unpack_from("<f", body, ch * stride + 8)[0] < SILENT_RMS_DB for ch in range(channels))
 
 
 def _frame_power(body: bytes, channels: int, bins: int) -> list[float]:
-    """Channel-summed squared magnitudes. The transform block is two consecutive
-    halves (reals then imaginaries, not interleaved) — protocol.md §7.
+    """Channel-summed squared magnitudes.
+
+    The transform block is two consecutive halves (reals then imaginaries, not interleaved) — protocol.md §7.
     """
     power = [0.0] * bins
     stride = 16 + 8 * bins

@@ -18,8 +18,9 @@ router = APIRouter(prefix="/api")
 
 
 class PendingStore:
-    """Server-side staged-changes buffer. Survives browser reloads because it
-    lives on the backend, not the client.
+    """Server-side staged-changes buffer.
+
+    Survives browser reloads because it lives on the backend, not the client.
     """
 
     def __init__(self) -> None:
@@ -31,11 +32,11 @@ class PendingStore:
         self.http.update(http)
 
     def drop(self, live: dict[str, list[str]], http: list[str]) -> None:
-        """Remove named entries. Names that are not staged are ignored — the
-        client sends the whole set of entries that read clean, not a diff, so a
-        name it has already dropped must not be an error. A live bucket emptied
-        of its arguments goes with them: an empty bucket is not "no change", it
-        is a setter the apply would still call.
+        """Remove named entries.
+
+        Names that are not staged are ignored — the client sends the whole set of entries that read clean, not a diff,
+        so a name it has already dropped must not be an error. A live bucket emptied of its arguments goes with them:
+        an empty bucket is not "no change", it is a setter the apply would still call.
         """
         for field in http:
             self.http.pop(field, None)
@@ -67,11 +68,11 @@ def _audit(request: Request) -> AuditLog:
 
 
 def _apply_succeeded(report: dict[str, Any]) -> bool:
-    """Whether every staged change actually took. A live edit counts only if its
-    readback verified (`ok`); the persistent lane only if the running config
-    reflected the change after the restart (`applied`). A soft failure — a value
-    never converged, or a preset's endpoint is gone — returns False here so the
-    caller keeps the pending buffer instead of silently dropping the edits.
+    """Whether every staged change actually took.
+
+    A live edit counts only if its readback verified (`ok`); the persistent lane only if the running config reflected
+    the change after the restart (`applied`). A soft failure — a value never converged, or a preset's endpoint is gone
+    — returns False here so the caller keeps the pending buffer instead of silently dropping the edits.
     """
     if any(not entry.get("ok") for entry in report.get("live", [])):
         return False
@@ -118,8 +119,9 @@ def discard(request: Request, manager: Mgr) -> dict[str, Any]:
 
 @router.post("/autosave")
 def set_autosave(body: AutosaveBody, manager: Mgr) -> dict[str, Any]:
-    """Toggle auto-save: every successful apply/live write is folded back into
-    the active preset's store file. Pure store flag — no daemon touch.
+    """Toggle auto-save: every successful apply/live write is folded back into the active preset's store file.
+
+    Pure store flag — no daemon touch.
     """
     manager.presetops.store.set_autosave(enabled=body.enabled)
     return {"autosave": manager.presetops.store.autosave}

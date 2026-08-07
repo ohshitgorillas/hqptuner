@@ -1,6 +1,6 @@
-"""Matrix-tab REST surface (matrix-spec): the /matrix read model, profile
-operations, and convolution filter uploads. Split out of ``api`` by the
-file-length gate — a self-contained feature surface mounted alongside it.
+"""Matrix-tab REST surface (matrix-spec): the /matrix read model, profile operations, and convolution filter uploads.
+
+Split out of ``api`` by the file-length gate — a self-contained feature surface mounted alongside it.
 """
 
 import json
@@ -25,9 +25,10 @@ _AUTOEQ_BLOB = Path(__file__).resolve().parent.parent / "static" / "vendor" / "a
 
 @router.get("/autoeq")
 def autoeq_db() -> FileResponse:
-    """Vendored AutoEq parametric-EQ library (built by scripts/build_autoeq_db.py,
-    upstream MIT). Pre-gzipped on disk and served with Content-Encoding so the
-    browser's fetch decompresses transparently; lazy-loaded on first picker open.
+    """Vendored AutoEq parametric-EQ library (built by scripts/build_autoeq_db.py, upstream MIT).
+
+    Pre-gzipped on disk and served with Content-Encoding so the browser's fetch decompresses transparently;
+    lazy-loaded on first picker open.
     """
     if not _AUTOEQ_BLOB.exists():
         raise HTTPException(status_code=404, detail="AutoEq library not built (scripts/build_autoeq_db.py)")
@@ -84,10 +85,10 @@ class MatrixProfileBody(BaseModel):
 
 @router.post("/matrix/profile")
 async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any]:
-    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles",
-    amended round 5): 4321 ``MatrixSetProfile``, live, no engine reload, playback
-    undisturbed, post-process untouched. Needs no credentials — the Control API
-    lane is unauthenticated.
+    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles", amended round 5).
+
+    4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no
+    credentials — the Control API lane is unauthenticated.
 
     Saving and deleting a profile are NOT here: they are staged
     ``<matrix_profile>`` config edits and ride ``/api/config/stage`` +
@@ -105,9 +106,10 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
 
 @router.get("/speakers")
 def speakers(manager: HttpMgr) -> dict[str, Any]:
-    """Speaker-processing read model (readme §1.9): enabled + per-channel level
-    (dBFS) / distance (cm). Served from the last-loaded form snapshot, stale-flagged
-    when the daemon is unreachable — never a socket wait (fail-fast, see deps).
+    """Speaker-processing read model (readme §1.9): enabled + per-channel level (dBFS) / distance (cm).
+
+    Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait
+    (fail-fast, see deps).
     """
     form = deps.ensure_form(manager.speakers_form, manager.speakers_error, "/speakers")
     return deps.snapshot(manager, form)
@@ -120,9 +122,10 @@ class SpeakersBody(BaseModel):
 
 @router.post("/speakers")
 async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]:
-    """Apply speaker processing via the /speakers form lane (readme §1.9). Reloads
-    the engine (~3 s), interrupting playback — never refused for it. The write is
-    checkbox-safe and range-validated in ``httpconf.apply_speakers``.
+    """Apply speaker processing via the /speakers form lane (readme §1.9).
+
+    Reloads the engine (~3 s), interrupting playback — never refused for it. The write is checkbox-safe and
+    range-validated in ``httpconf.apply_speakers``.
     """
     try:
         report = await manager.applyops.apply_speakers(body.channels, enabled=body.enabled)
@@ -138,9 +141,10 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
 
 @router.post("/matrix/filter")
 async def matrix_filter(file: Annotated[UploadFile, File()], manager: Mgr) -> dict[str, str]:
-    """Park an uploaded convolution filter (wav/txt) for the next apply, which
-    injects it into the restore archive; returns the daemon-side absolute path
-    the pipeline process string should reference (matrix-spec.md "Filter upload").
+    """Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.
+
+    Returns the daemon-side absolute path the pipeline process string should reference (matrix-spec.md
+    "Filter upload").
     """
     try:
         return manager.presetops.park_filter(file.filename or "", await file.read())

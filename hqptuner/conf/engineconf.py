@@ -1,5 +1,6 @@
-"""Engine-attribute editing for the ``<engine>`` element of hqplayerd config XML,
-plus the archive-level helpers every config lane shares.
+"""Engine-attribute editing for the ``<engine>`` element of hqplayerd config XML.
+
+Also holds the archive-level helpers every config lane shares.
 
 The hardware-acceleration settings (``cuda``, ``multicore``, ``ecores``,
 ``nblocks``) are not on the ``/config`` form and have no Control API setter — the
@@ -52,9 +53,10 @@ def snapshot_member_name(preset: str) -> str:
 
 
 def snapshot_name(member: str) -> str | None:
-    """The preset name an archive member holds, or None when it is not a preset
-    snapshot at all. One spelling of the ``data/cfgs/<name>.xml`` convention, so
-    the walkers cannot disagree about what counts as a snapshot.
+    """The preset name an archive member holds, or None when it is not a preset snapshot at all.
+
+    One spelling of the ``data/cfgs/<name>.xml`` convention, so the walkers
+    cannot disagree about what counts as a snapshot.
     """
     if not (member.startswith(_CFGS_PREFIX) and member.endswith(_CFGS_SUFFIX)):
         return None
@@ -87,8 +89,9 @@ def rewrite_zip(zip_bytes: bytes, substitutions: dict[str, bytes]) -> bytes:
 
 
 def read_engine_attrs(xml: bytes) -> dict[str, str]:
-    """The current values of the editable engine attributes present on the
-    ``<engine>`` tag. Absent attributes are omitted (daemon default applies).
+    """The current values of the editable engine attributes present on the ``<engine>`` tag.
+
+    Absent attributes are omitted (daemon default applies).
     """
     m = _ENGINE_TAG.search(xml)
     if not m:
@@ -103,8 +106,9 @@ def read_engine_attrs(xml: bytes) -> dict[str, str]:
 
 
 def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
-    """Return ``xml`` with each override applied to the ``<engine>`` tag —
-    replacing the value in place when the attribute exists, inserting it when it
+    """Return ``xml`` with each override applied to the ``<engine>`` tag.
+
+    The value is replaced in place when the attribute exists, inserted when it
     does not. Nothing else in the document changes.
     """
     m = _ENGINE_TAG.search(xml)
@@ -118,8 +122,10 @@ def set_engine_attrs(xml: bytes, overrides: dict[str, str]) -> bytes:
 
 
 def _replace_or_insert(tag: bytes, pat: re.Pattern[bytes], attribute: bytes) -> bytes:
-    r"""Set one ``attr="value"`` on the ``<engine>`` tag: replace in place when the
-    attribute is present, else insert it right after ``<engine`` (7 chars).
+    r"""Set one ``attr="value"`` on the ``<engine>`` tag.
+
+    Replace in place when the attribute is present, else insert it right after
+    ``<engine`` (7 chars).
 
     The replacement is a function, never the bytes directly — ``re.sub`` reads
     escapes (``\1``, ``\g<n>``, ``\\``) out of a template string. Engine values
@@ -132,8 +138,9 @@ def _replace_or_insert(tag: bytes, pat: re.Pattern[bytes], attribute: bytes) -> 
 
 
 def running_config_name(names: list[str], active: str | None = None) -> str | None:
-    """The archive member that holds the live working config. Normally
-    ``hqplayerd.xml``. But when a named profile is the active one, the daemon
+    """The archive member that holds the live working config.
+
+    Normally ``hqplayerd.xml``. But when a named profile is the active one, the daemon
     writes the live config to a root-level ``<Profile>.xml`` and omits
     ``hqplayerd.xml`` entirely (observed on 6.0.4: a preset-active ``/backup`` has
     ``Speakers.xml`` at the root, no ``hqplayerd.xml``, protocol.md §3.6).
@@ -158,8 +165,9 @@ def running_config_name(names: list[str], active: str | None = None) -> str | No
 
 
 def archive_summary(zip_bytes: bytes) -> str:
-    """What a ``/backup`` archive actually contains, for the log line when we
-    refuse it. Two very different faults present identically as "no working
+    """What a ``/backup`` archive actually contains, for the log line when we refuse it.
+
+    Two very different faults present identically as "no working
     config" — the daemon's post-profile-load bug serves a bare ``data/`` entry,
     while an archive we simply cannot resolve a working member in is full of
     files. The member list tells them apart at a glance, and nothing else does.
@@ -178,9 +186,10 @@ def archive_summary(zip_bytes: bytes) -> str:
 
 
 def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | None:
-    """Which member ``base_config_xml`` reads — for a caller that has to write the
-    working config back rather than only read it. None on unreadable bytes, on the
-    same terms as every other reader here.
+    """Which member ``base_config_xml`` reads.
+
+    For a caller that has to write the working config back rather than only read
+    it. None on unreadable bytes, on the same terms as every other reader here.
     """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
@@ -190,9 +199,10 @@ def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | No
 
 
 def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
-    """The working-config member of a ``/backup`` archive (the config the running
-    engine reflects): ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a
-    named preset is active. Empty if neither is present. Pass the daemon's
+    """The working-config member of a ``/backup`` archive — the config the running engine reflects.
+
+    That member is ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named
+    preset is active. Empty if neither is present. Pass the daemon's
     active-profile label wherever it is known — it is what resolves an archive
     carrying several root-level XMLs.
 
@@ -235,8 +245,10 @@ def config_members(zip_bytes: bytes, active_snapshot: str | None, *, all_presets
 
 
 def edit_config_zip(zip_bytes: bytes, members: list[str], overrides: dict[str, str]) -> bytes:
-    """A copy of ``zip_bytes`` with ``overrides`` applied to the ``<engine>`` tag
-    of each member in ``members``; all other entries copied byte-for-byte.
+    """A copy of ``zip_bytes`` with ``overrides`` applied to each member in ``members``.
+
+    The overrides land on each member's ``<engine>`` tag; all other entries are
+    copied byte-for-byte.
     """
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
         present = set(zin.namelist())

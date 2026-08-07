@@ -48,9 +48,7 @@ def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
 
 
 def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> str | None:
-    """One field's current live value in config-form terms, or None when the
-    engine cannot answer for it.
-    """
+    """One field's current live value in config-form terms, or None when the engine cannot answer for it."""
     spec = ROUTABLE[field]
     index = state.get(spec.state)
     if index is None:
@@ -104,8 +102,9 @@ def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, 
 
 
 def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
-    """Both chains' filter/shaper settings: the engine's own reading for the chain
-    it is running, LIVE's memory for the chain it is not.
+    """Both chains' filter/shaper settings.
+
+    The engine's own reading for the chain it is running, LIVE's memory for the chain it is not.
     """
     overrides = {}
     for field, spec in ROUTABLE.items():
@@ -120,8 +119,9 @@ def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str,
 
 
 def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
-    """The engine's current live settings as config-form fields, so a save
-    captures what is actually playing rather than a stale file.
+    """The engine's current live settings as config-form fields.
+
+    So a save captures what is actually playing rather than a stale file.
 
     The engine answers for the ACTIVE chain only — State reports one
     filter/shaper pair — so the dormant chain is reported from ``mgr.live.chain``

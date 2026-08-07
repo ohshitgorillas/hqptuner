@@ -64,9 +64,10 @@ _SCOPE_CLOSE = b"</matrix></engine></hqplayerd>"
 
 
 def _profile_open(xml: bytes, name: str) -> re.Match[bytes]:
-    """The named profile's open tag. Raises when the snapshot has no such profile
-    — never a fallback to the live matrix: writing the Default context while the
-    caller believes it is editing a profile is the whole defect being fixed.
+    """The named profile's open tag.
+
+    Raises when the snapshot has no such profile — never a fallback to the live matrix: writing the Default context
+    while the caller believes it is editing a profile is the whole defect being fixed.
     """
     escaped = re.escape(attr_escape(name).encode())
     pattern = re.compile(rb"<matrix_profile\b[^>]*name=\"" + escaped + rb"\"[^>]*?/?>")
@@ -77,10 +78,10 @@ def _profile_open(xml: bytes, name: str) -> re.Match[bytes]:
 
 
 def has_profile(xml: bytes, name: str) -> bool:
-    """Whether this snapshot carries the named profile — the lane's guard before
-    it scopes an apply. A profile the daemon holds in memory only (saved through
-    its own route, never persisted) is live but absent from the file, and scoping
-    to it would refuse every apply the user makes while it is selected.
+    """Whether this snapshot carries the named profile — the lane's guard before it scopes an apply.
+
+    A profile the daemon holds in memory only (saved through its own route, never persisted) is live but absent from
+    the file, and scoping to it would refuse every apply the user makes while it is selected.
     """
     try:
         _profile_open(xml, name)
@@ -99,8 +100,9 @@ def _profile_body_span(xml: bytes, name: str) -> tuple[int, int]:
 
 
 def matrix_scope(xml: bytes, profile: str | None) -> bytes:
-    """The bytes a matrix-scoped reader should read: the named profile's body in
-    its synthetic wrapper, or ``xml`` whole when no profile is active.
+    """The bytes a matrix-scoped reader should read.
+
+    That is the named profile's body in its synthetic wrapper, or ``xml`` whole when no profile is active.
 
     The read side of ``scoped_edit``, and the reason a verify diff compares like
     with like — intended and realized both run through this, so a profile-scoped

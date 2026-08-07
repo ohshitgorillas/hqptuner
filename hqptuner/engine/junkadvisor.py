@@ -89,15 +89,14 @@ def classify(  # noqa: PLR0913
     min_levels_db: list[float] | None = None,
     filter_name: str | None = None,
 ) -> dict[str, Any] | None:
-    """The recommendation for this aggregate, or None when there is nothing to
-    say. ``levels_db`` is the mean power spectrum (dB, one value per bin up to
-    ``bandwidth`` = the source Nyquist); ``min_levels_db`` is the windowed
-    per-bin minimum spectrum the spur rule reads, or None while the window has
-    not yet been earned (no spur verdicts until it has); ``junk_filter`` is the
-    engine's current junk-filter *name* and ``filter_name`` the active main
-    filter's. The verdict is spectrum-only — the metering tap sees the source,
-    so engaging a filter never changes what the detector sees — and the advice
-    stands until the engaged settings actually treat the signature.
+    """The recommendation for this aggregate, or None when there is nothing to say.
+
+    ``levels_db`` is the mean power spectrum (dB, one value per bin up to ``bandwidth`` = the source Nyquist);
+    ``min_levels_db`` is the windowed per-bin minimum spectrum the spur rule reads, or None while the window has not yet
+    been earned (no spur verdicts until it has); ``junk_filter`` is the engine's current junk-filter *name* and
+    ``filter_name`` the active main filter's. The verdict is spectrum-only — the metering tap sees the source, so
+    engaging a filter never changes what the detector sees — and the advice stands until the engaged settings actually
+    treat the signature.
     """
     if not _eligible(seconds, samplerate, bandwidth, len(levels_db), sdm=sdm):
         return None
@@ -127,9 +126,9 @@ _CORNER_KHZ = {"20k": 20, "30k": 30, "40k": 40, "50k": 50}
 
 def treated(junk_filter: str | None, recommended: str) -> bool:
     """Whether the engaged junk filter already treats the detected signature.
-    ``none`` (or nothing engaged) never does; a fixed corner treats when it is
-    at or below the recommended corner; a rate-relative filter (2x/4x/8x) is a
-    deliberate manual choice and is never second-guessed.
+
+    ``none`` (or nothing engaged) never does; a fixed corner treats when it is at or below the recommended corner; a
+    rate-relative filter (2x/4x/8x) is a deliberate manual choice and is never second-guessed.
     """
     if junk_filter in (None, "none"):
         return False
@@ -140,9 +139,10 @@ def treated(junk_filter: str | None, recommended: str) -> bool:
 
 
 def treats(verdict: dict[str, Any], junk_filter: str | None, filter_name: str | None) -> bool:
-    """Whether the engine's current settings already treat the verdict's
-    signature: the engaged junk filter (corner logic above), or — for verdicts
-    that offer filter families — an active main filter from one of them.
+    """Whether the engine's current settings already treat the verdict's signature.
+
+    Treatment is either the engaged junk filter (corner logic above), or — for verdicts that offer filter families — an
+    active main filter from one of them.
     """
     if treated(junk_filter, str(verdict["filter"])):
         return True
@@ -198,13 +198,13 @@ def _brick_wall(smoothed: list[float], bandwidth: float, floor: float, samplerat
 
 
 def _spurs(min_levels: list[float] | None, bandwidth: float) -> dict[str, Any] | None:
-    """Spurs are hunted in the RAW per-bin values of the windowed minimum
-    spectrum against that spectrum's own wide median baseline: a persistent
-    tone is only a few bins wide, which is exactly what the working curve's
-    9-bin median erases — searching a smoothed curve can never find one. The
-    minimum spectrum's baseline and floor are its own, not the mean's: the
-    minimum sits far below the mean wherever music is intermittent, which is
-    the very contrast this rule exploits.
+    """The spur verdict for the windowed minimum spectrum, or None when no persistent tone stands out.
+
+    Spurs are hunted in the RAW per-bin values of the windowed minimum spectrum against that spectrum's own wide median
+    baseline: a persistent tone is only a few bins wide, which is exactly what the working curve's 9-bin median erases —
+    searching a smoothed curve can never find one. The minimum spectrum's baseline and floor are its own, not the
+    mean's: the minimum sits far below the mean wherever music is intermittent, which is the very contrast this rule
+    exploits.
     """
     if min_levels is None or len(min_levels) < SPUR_BASELINE_BINS:
         return None

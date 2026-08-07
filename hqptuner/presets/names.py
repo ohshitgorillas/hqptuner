@@ -30,8 +30,9 @@ _SUFFIX = ".xml"
 
 
 def _escapes_the_store(name: str) -> bool:
-    """Whether ``name`` could address anything but a file directly inside the
-    store directory — a path hop, a separator, or a dotfile.
+    """Whether ``name`` could address anything but a file directly inside the store directory.
+
+    That is: a path hop, a separator, or a dotfile.
     """
     return name.startswith(".") or "/" in name or "\\" in name or ".." in name
 
@@ -53,8 +54,9 @@ def _too_long(name: str) -> bool:
 
 
 def _is_valid(name: str) -> bool:
-    """Whether ``name`` is safe as a preset name — see the module docstring for
-    why this is a denylist rather than an allowlist.
+    """Whether ``name`` is safe as a preset name.
+
+    See the module docstring for why this is a denylist rather than an allowlist.
     """
     if not name or name != name.strip():
         return False

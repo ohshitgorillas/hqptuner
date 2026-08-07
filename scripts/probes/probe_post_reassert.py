@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: can a wiped post-process be re-asserted after a live profile switch,
-and what does the re-assert cost?
+"""Probe: can a wiped post-process be re-asserted after a live profile switch, and what does the re-assert cost?
 
 ``MatrixSetProfile`` installs the profile's whole matrix context, and every
 profile HQPTuner writes is ``<pipeline>`` rows only — so a switch clears the
@@ -101,6 +100,7 @@ def _correction(fields: list[dict[str, object]]) -> dict[str, object]:
 
 async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> None:
     """Echo the daemon's own /matrix form back complete, with ``overlay`` applied.
+
     Checkbox contract enforced: ``1`` when on, OMITTED when off — a stray ``on``
     or ``0`` is written verbatim and wedges engine init (matrix-spec.md:99).
     """

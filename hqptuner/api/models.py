@@ -8,10 +8,10 @@ from pydantic import BaseModel
 
 
 class DropBody(BaseModel):
-    """Entries to REMOVE from the staged buffer, named rather than valued. The
-    client sends these for edits that have returned to their baseline: the value
-    is no longer a change, so it must not ride along on the next apply and
-    restart the daemon for nothing. `live` names arguments within a live key;
+    """Entries to REMOVE from the staged buffer, named rather than valued.
+
+    The client sends these for edits that have returned to their baseline: the value is no longer a change, so it must
+    not ride along on the next apply and restart the daemon for nothing. `live` names arguments within a live key;
     `http` names whole fields.
     """
 

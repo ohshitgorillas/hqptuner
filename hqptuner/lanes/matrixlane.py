@@ -1,5 +1,4 @@
-"""Matrix profile operations (matrix-spec.md "Profiles") — the lane
-logic behind ``manager.matrix_switch_profile``.
+"""Matrix profile operations (matrix-spec.md "Profiles") — the lane logic behind ``manager.matrix_switch_profile``.
 
 One lane, and it is the live one: 4321 ``MatrixSetProfile`` switches the running
 matrix with zero engine reload and playback undisturbed. A profile is a whole

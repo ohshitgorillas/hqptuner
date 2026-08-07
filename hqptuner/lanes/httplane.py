@@ -1,5 +1,4 @@
-"""Persistent config write lane (HTTP 8088) — a self-contained lane with its
-own retry/verify loop.
+"""Persistent config write lane (HTTP 8088) — a self-contained lane with its own retry/verify loop.
 
 The lane writes by **restore**, not by form POST: build an archive whose working
 ``hqplayerd.xml`` is the running config with the staged edits applied, push it to
@@ -50,8 +49,9 @@ FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
 
 
 def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
-    """The fields this apply is entitled to hold itself to: the ones it actually
-    wrote, plus the readback key a write-only verb is proven by.
+    """The fields this apply is entitled to hold itself to.
+
+    The ones it actually wrote, plus the readback key a write-only verb is proven by.
 
     NOT the whole grounded surface. ``intended`` is the entire running config with
     the edits folded in, so diffing all of it demands that every untouched setting
@@ -71,8 +71,9 @@ def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[st
 
 
 async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]:
-    """Apply ``edits`` to the running config via POST /restore, then verify and
-    self-correct. Each pass: fetch a fresh /backup, build a restore archive whose
+    """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
+
+    Each pass: fetch a fresh /backup, build a restore archive whose
     working config is the running config with edits applied (plus the forced
     auto-family fields), restore, and read the running config back. Converged →
     done. Diverged but correctable → retry. Diverged on a net_device the daemon
@@ -122,8 +123,9 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
 async def _one_pass(
     mgr: ConnectionManager, merged: dict[str, str], attempt: int, active_profile: str = ""
 ) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
-    """One restore+verify pass. Returns ``(final, diff, error)`` — a non-None
-    ``final`` is a terminal answer for the caller; otherwise the pass is
+    """One restore+verify pass.
+
+    Returns ``(final, diff, error)`` — a non-None ``final`` is a terminal answer for the caller; otherwise the pass is
     retryable and ``diff``/``error`` describe why.
     """
     # a preset switch (or a prior attempt) just restarted the daemon and the
@@ -158,10 +160,11 @@ async def _one_pass(
 
 
 async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "") -> dict[str, str]:
-    """Build a restore archive (running config ⊕ edits) from a fresh backup, push
-    it, and return the intended config it should produce. Raises GroundingError
-    (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped
-    mid-write).
+    """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
+
+    The archive's working config is the running config ⊕ edits.
+
+    Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)  # survives a crash mid-apply
@@ -191,11 +194,11 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
 
 
 async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
-    """Poll a fresh /backup until the running config reflects every intended
-    field this apply wrote (``keys``), or the alarm deadline passes. Returns the
-    last realized config (read from the backup's base hqplayerd.xml) so the caller
-    can diff it — the unconverged read is the diff, so it is kept even when the
-    poll gives up.
+    """Poll a fresh /backup until the running config reflects this apply's intended fields, or the deadline passes.
+
+    The fields polled for are the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Returns the
+    last realized config (read from the backup's base hqplayerd.xml) so the caller can diff it — the unconverged read is
+    the diff, so it is kept even when the poll gives up.
     """
     realized: dict[str, str] = {}
 
@@ -216,8 +219,9 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
 
 
 async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:
-    """Endpoint values the daemon currently offers for net_device, or None when
-    the form can't be read (treated as 'no evidence', never as 'gone').
+    """Endpoint values the daemon currently offers for net_device, or None when the form can't be read.
+
+    An unreadable form is treated as 'no evidence', never as 'gone'.
     """
     try:
         form = await mgr.require_http().get_config()
@@ -228,9 +232,9 @@ async def _net_device_options(mgr: ConnectionManager) -> set[str | None] | None:
 
 
 async def _unfixable_device(mgr: ConnectionManager, diff: dict[str, dict[str, str | None]]) -> dict[str, Any]:
-    """A divergence is unfixable only when the intended net_device is no longer
-    in the daemon's endpoint list — the target NAA endpoint is gone, and no
-    restart brings it back. Everything else is correctable by retry.
+    """A divergence is unfixable only when the intended net_device is no longer in the daemon's endpoint list.
+
+    The target NAA endpoint is gone, and no restart brings it back. Everything else is correctable by retry.
     """
     if presetconf.NET_DEVICE not in diff:
         return {}

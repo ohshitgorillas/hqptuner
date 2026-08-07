@@ -38,8 +38,10 @@ NAMES = [
 
 
 async def _raw_control(cfg: Config, doc: bytes) -> bytes:
-    """One-shot raw Control API exchange on a fresh connection, so a document the
-    daemon mangles cannot desync a long-lived reader.
+    """One-shot raw Control API exchange on a fresh connection.
+
+    The fresh connection is what keeps a document the daemon mangles from
+    desyncing a long-lived reader.
     """
     reader, writer = await asyncio.open_connection(cfg.hqp_host, cfg.hqp_control_port)
     writer.write(doc)

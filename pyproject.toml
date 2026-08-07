@@ -100,7 +100,7 @@ select = [
     # the groups already cleared across hqptuner/ and scripts/. tests/ is exempt
     # by decision: docs/testing.md rule 6 already requires a test name to state
     # its behaviour in plain words, so a docstring there restates the name.
-    "D209", "D210", "D301",
+    "D205", "D209", "D210", "D301",
 ]
 
 [tool.ruff.lint.pydocstyle]

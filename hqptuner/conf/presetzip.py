@@ -13,10 +13,10 @@ from hqptuner.conf.xmledit import GroundingError
 
 
 def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | None = None) -> bytes:
-    """The active preset's snapshot XML from a ``/backup`` archive. ``[default]``
-    (empty/absent name) has no ``cfgs`` snapshot — its definition *is* the working
-    config, so fall back to the running-config member (``hqplayerd.xml``, or the
-    root ``<Profile>.xml`` when a named preset is active).
+    """The active preset's snapshot XML from a ``/backup`` archive.
+
+    ``[default]`` (empty/absent name) has no ``cfgs`` snapshot — its definition *is* the working config, so fall back
+    to the running-config member (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is active).
 
     The two labels are different questions and only look alike: ``active`` picks
     WHICH SNAPSHOT to read, ``running_label`` says what the daemon named the
@@ -62,13 +62,12 @@ def restore_zip_from_running(
     edits: dict[str, str],
     context: ApplyContext | None = None,
 ) -> tuple[bytes, bytes]:
-    """Build a ``POST /restore`` archive whose **working** config member
-    (``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is
-    active) is the CURRENT working config with ``edits`` applied — every other member,
-    including the ``cfgs`` snapshots, copied byte-for-byte. So the running config
-    becomes ``{running config} ⊕ {edits}``, and the named preset's saved
-    definition is left untouched (edits are ephemeral until the user Saves).
-    Returns ``(restore_zip, intended_working_xml)``.
+    """Build a ``POST /restore`` archive whose working config member is the current working config plus ``edits``.
+
+    The working member is ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is active — every
+    other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the running config becomes
+    ``{running config} ⊕ {edits}``, and the named preset's saved definition is left untouched (edits are ephemeral
+    until the user Saves). Returns ``(restore_zip, intended_working_xml)``.
 
     Never rebuild from the active preset's SNAPSHOT to shed daemon-side drift:
     that resets every field the user did not stage in this particular apply back
@@ -104,9 +103,10 @@ def restore_zip_with_working(
     mirror_name: str | None = None,
     mirror_xml: bytes | None = None,
 ) -> bytes:
-    """Build a ``POST /restore`` archive whose ``[default]`` working config
-    (``hqplayerd.xml``) is ``working_xml`` — the config the daemon actually runs,
-    since a restore always lands the daemon on ``[default]`` (docs/protocol.md).
+    """Build a ``POST /restore`` archive whose ``[default]`` working config (``hqplayerd.xml``) is ``working_xml``.
+
+    That is the config the daemon actually runs, since a restore always lands the daemon on ``[default]``
+    (docs/protocol.md).
 
     When ``mirror_name`` is given, also (over)write ``data/cfgs/<mirror_name>.xml``
     = ``mirror_xml`` (defaulting to ``working_xml``), so hqplayerd's own native
@@ -125,9 +125,10 @@ def restore_zip_with_working(
 
 
 def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
-    """Every named preset snapshot in a ``/backup`` archive, keyed by preset name
-    (the ``data/cfgs/<name>.xml`` members). Powers the one-time migration of
-    hqplayerd's presets into the HQPTuner-owned store.
+    """Every named preset snapshot in a ``/backup`` archive, keyed by preset name.
+
+    Those are the ``data/cfgs/<name>.xml`` members. Powers the one-time migration of hqplayerd's presets into the
+    HQPTuner-owned store.
     """
     out: dict[str, bytes] = {}
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:

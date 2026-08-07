@@ -109,8 +109,9 @@ def mode_form_value(items: EnumItems, index: str) -> str | None:
 
 
 def _resolve(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
-    """The live list index this form field+value becomes, or None when it cannot
-    route live (wrong chain, missing enumeration, or an unknown value).
+    """The live list index this form field+value becomes, or None when it cannot route live.
+
+    It cannot route live on a wrong chain, a missing enumeration, or an unknown value.
     """
     spec = ROUTABLE[field]
     if spec.chain is not None and spec.chain != chain:
@@ -155,8 +156,9 @@ def _mode_blocks_batch(routable: dict[str, str]) -> bool:
 def _route_all(
     mgr: ConnectionManager, routable: dict[str, str], chain: str | None
 ) -> tuple[dict[str, dict[str, str]], set[str]]:
-    """Resolve every routable field into setter args, dropping the ones that
-    cannot translate. Returns the live edits and the fields they consumed.
+    """Resolve every routable field into setter args, dropping the ones that cannot translate.
+
+    Returns the live edits and the fields they consumed.
     """
     live: dict[str, dict[str, str]] = {}
     routed: set[str] = set()
@@ -177,8 +179,9 @@ def _unroute_filter(live: dict[str, dict[str, str]], routed: set[str]) -> set[st
 
 
 def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
-    """Fold routed setter args into the already-staged live edits, without
-    mutating either (``base`` is the pending store's own dict).
+    """Fold routed setter args into the already-staged live edits, without mutating either.
+
+    ``base`` is the pending store's own dict.
     """
     merged = {setting: dict(params) for setting, params in base.items()}
     for setting, params in extra.items():
@@ -189,8 +192,9 @@ def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) ->
 def split_live(
     mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
-    """Fold every routable form field into ``live_edits``, returning it alongside
-    the fields that still need the restore lane. An empty remainder means the
+    """Fold every routable form field into ``live_edits``, returning it alongside the restore lane's remainder.
+
+    The remainder is the fields that still need the restore lane. An empty remainder means the
     whole batch applies live and the daemon is never restarted.
     """
     routable = {k: v for k, v in http_fields.items() if k in ROUTABLE}
@@ -278,8 +282,9 @@ def _off_chain(field: str, chain: str | None) -> bool:
 def _route_live(
     mgr: ConnectionManager, fields: dict[str, str], chain: str | None
 ) -> tuple[dict[str, dict[str, str]], dict[str, str], dict[str, str]]:
-    """Every field as setter args, alongside the ones held for a chain that is not
-    loaded and the ones that would not resolve at all.
+    """Every field as setter args, alongside the held ones and the unresolvable ones.
+
+    Held means for a chain that is not loaded; unresolvable means it would not resolve at all.
     """
     edits: dict[str, dict[str, str]] = {}
     stored: dict[str, str] = {}
@@ -310,8 +315,7 @@ def _route_live(
 def resolve_live(
     mgr: ConnectionManager, fields: dict[str, str]
 ) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
-    """A LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or
-    ``LiveRouteError``.
+    """A LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or ``LiveRouteError``.
 
     All-or-nothing: the whole batch resolves before a single setter runs, because
     the LIVE page has no Apply button to retry from and a half-applied batch would
@@ -350,10 +354,9 @@ def _by_chain(stored: dict[str, str]) -> dict[str, dict[str, str]]:
 
 
 def resolve_chain(mgr: ConnectionManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
-    """A chain's remembered settings as ``writer.apply_live`` edits, alongside the
-    fields the entered chain's own lists turned out not to carry.
+    """A chain's remembered settings as ``writer.apply_live`` edits, alongside the fields its lists do not carry.
 
-    Those are dropped rather than approximated, the same rule ``_reassert_rate``
+    Those dropped fields are dropped rather than approximated, the same rule ``_reassert_rate``
     applies to a tier the entered mode does not offer: the nearest filter the
     engine does have is a filter the user never picked. Resolved against
     ``mgr.enums`` as it stands, so the caller must re-enumerate after the mode

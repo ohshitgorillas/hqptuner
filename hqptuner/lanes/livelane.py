@@ -57,8 +57,9 @@ class LiveMemory:
         self.chain: dict[str, dict[str, str]] = {}
 
     def forget(self) -> None:
-        """Drop everything — a LIVE setting lasts only until the daemon restarts,
-        which is what a fresh handshake means. Holding on would report, and
+        """Drop everything — a LIVE setting lasts only until the daemon restarts.
+
+        A fresh handshake is what a restart looks like from here. Holding on would report, and
         re-assert, a setting nothing is playing any more.
         """
         self.rates.clear()
@@ -111,8 +112,9 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
 
 
 def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> dict[str, str]:
-    """Everything this batch held, flat, as the caller's `stored` answer — the
-    chains' fields and the off-family rate alike. Held is held: the frontend
+    """Everything this batch held, flat, as the caller's `stored` answer.
+
+    The chains' fields and the off-family rate alike. Held is held: the frontend
     re-reads the running config on any of it, which is where a held value shows
     up (`liveoverrides.live_overrides`).
     """
@@ -167,8 +169,9 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
 async def chain_entered(
     mgr: ConnectionManager, client: ControlClient, before: str | None, *, reenumerated: bool
 ) -> None:
-    """Handle the engine having loaded a different filter/shaper chain: refresh the
-    lists it enumerates, then put back what LIVE set on the chain it entered.
+    """Handle the engine having loaded a different filter/shaper chain.
+
+    Refresh the lists it enumerates, then put back what LIVE set on the chain it entered.
 
     The chain can change with the configured mode standing still. In `[source]`
     mode the engine follows the source (readme §1.7), so a DSD track after a PCM
@@ -278,8 +281,9 @@ async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[s
 
 
 def _mode_apart(http_fields: dict[str, str]) -> str | None:
-    """The staged mode value when it cannot ride its batch: beside other routable
-    fields, ``SetMode`` swaps the lists they resolve against
+    """The staged mode value when it cannot ride its batch.
+
+    Beside other routable fields, ``SetMode`` swaps the lists they resolve against
     (``livemap._mode_blocks_batch``), so it has to go first on its own.
     """
     routable = [field for field in http_fields if field in livemap.ROUTABLE]
@@ -289,8 +293,9 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
 async def mode_then_split(
     mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, str]], dict[str, str]]:
-    """Route the tabs view's staged batch, mode first — ``apply_preset``'s
-    two-batch workaround, ported to the apply lane.
+    """Route the tabs view's staged batch, mode first.
+
+    ``apply_preset``'s two-batch workaround, ported to the apply lane.
 
     Without a re-enumeration between ``SetMode`` and the rest, a staged mode
     beside other routable fields sends the whole batch to the restore lane

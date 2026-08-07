@@ -26,9 +26,10 @@ def manager_of(request: Request) -> ConnectionManager:
 
 
 def require_credentials(request: Request) -> None:
-    """503 unless hqplayerd management credentials were configured — without them
-    the 8088 lane does not exist, so every route that reads or writes persistent
-    config is unavailable rather than broken.
+    """503 unless hqplayerd management credentials were configured.
+
+    Without them the 8088 lane does not exist, so every route that reads or writes persistent config is unavailable
+    rather than broken.
     """
     if request.app.state.http_client is None:
         raise HTTPException(status_code=503, detail="no hqplayerd credentials configured")
@@ -44,8 +45,9 @@ HttpMgr = Annotated[ConnectionManager, Depends(_http_manager)]
 
 
 def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
-    """Serve last-loaded state, flagged stale when the daemon is unreachable —
-    never a socket wait (connection-manager fail-fast rule).
+    """Serve last-loaded state, flagged stale when the daemon is unreachable.
+
+    Never a socket wait (connection-manager fail-fast rule).
     """
     if data is None:
         raise HTTPException(status_code=503, detail="not yet loaded from daemon")
@@ -53,10 +55,10 @@ def snapshot(manager: ConnectionManager, data: Any) -> dict[str, Any]:
 
 
 def ensure_form(form: dict[str, Any] | None, error: str | None, label: str) -> dict[str, Any]:
-    """A polled 8088 form, or the honest reason it is missing: 502 when the fetch
-    itself failed (the daemon answered badly), 503 when nothing has been loaded
-    yet (the first poll has not landed). Returns the form so callers can build a
-    response off it without re-checking for None.
+    """A polled 8088 form, or the honest reason it is missing.
+
+    502 when the fetch itself failed (the daemon answered badly), 503 when nothing has been loaded yet (the first poll
+    has not landed). Returns the form so callers can build a response off it without re-checking for None.
     """
     if form is not None:
         return form

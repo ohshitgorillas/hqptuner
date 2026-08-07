@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Probe: in `[source]` mode, does `SetRate` move the OUTPUT even though
-`State.rate` keeps reading `"0"`?
+"""Probe: in `[source]` mode, does `SetRate` move the OUTPUT even though `State.rate` keeps reading `"0"`?
 
 `scripts/probes/probe_rate_playing.py` concluded `[source]` refuses every pin. That
 conclusion is not sound and this probe exists to replace it. Two flaws:

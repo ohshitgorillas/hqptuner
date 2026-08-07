@@ -103,8 +103,9 @@ async def _working(http: HttpConfigClient, active: str | None) -> bytes:
 
 
 async def _push(http: HttpConfigClient, backup: bytes, working: bytes, active: str | None) -> bytes:
-    """Restore an archive carrying ``working`` as its working member, then read
-    the running config back — never trust the POST's own 200.
+    """Restore an archive carrying ``working`` as its working member, then read the running config back.
+
+    Never trust the POST's own 200.
     """
     with zipfile.ZipFile(io.BytesIO(backup)) as z:
         member = engineconf.running_config_name(z.namelist(), active)
@@ -157,9 +158,11 @@ async def _q2_form(http: HttpConfigClient, raw: httpx.AsyncClient, active: str |
 
 
 async def _engine_alive() -> bool:
-    """Does 4321 still answer? The matrix-spec wedge (a config the daemon cannot
-    init on) shows up exactly here: the web lane keeps serving while the engine
-    is dead, so _settle alone would not notice.
+    """Does 4321 still answer?
+
+    The matrix-spec wedge (a config the daemon cannot init on) shows up exactly
+    here: the web lane keeps serving while the engine is dead, so _settle alone
+    would not notice.
     """
     client = ControlClient(HOST, int(os.environ.get("HQPTUNER_HQP_CONTROL_PORT", "4321")))
     try:
@@ -173,9 +176,11 @@ async def _engine_alive() -> bool:
 
 
 async def _q3_partial(http: HttpConfigClient, stripped: bytes, active: str | None) -> list[str]:
-    """Write a MINIMAL plugin element — type and enabled only. The daemon keeps
-    exactly what we give it (Q1), so if it does not fill the rest in, HQPTuner
-    must author every attribute itself or ship a half-configured plugin.
+    """Write a MINIMAL plugin element — type and enabled only.
+
+    The daemon keeps exactly what we give it (Q1), so if it does not fill the
+    rest in, HQPTuner must author every attribute itself or ship a
+    half-configured plugin.
     """
     stub = b'<plugin enabled="1" type="' + PLUGIN.encode() + b'"/>'
     after = await _push(
@@ -194,8 +199,9 @@ async def _q3_partial(http: HttpConfigClient, stripped: bytes, active: str | Non
 
 
 async def _q4_container(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """The container itself: can a config carry no <post_process> at all, and can
-    HQPTuner put one back? The reporter's file may have neither.
+    """The container itself: can a config carry no <post_process> at all, and can HQPTuner put one back?
+
+    The reporter's file may have neither.
     """
     without, n = re.subn(rb"\n?[ \t]*<post_process>.*?</post_process>", b"", original, flags=re.DOTALL)
     if n != 1:
@@ -216,8 +222,7 @@ async def _q4_container(http: HttpConfigClient, original: bytes, active: str | N
 
 
 async def _q5_form_fields(http: HttpConfigClient, active: str | None) -> list[str]:
-    """With the element gone, does the daemon's own /matrix form still render the
-    plugin's fields — and with what values?
+    """With the element gone, does the daemon's own /matrix form render the plugin's fields — and with what values?
 
     This decides where an authored element's attributes come from. If the form
     carries them, HQPTuner writes the daemon's own numbers and invents nothing;
@@ -337,8 +342,7 @@ async def _probe(  # noqa: PLR0913
 
 
 async def _q8_config_form(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """Q5's analogue for a plain element: with ``<defaults>`` gone, does the
-    daemon's /config form still carry its values?
+    """Q5's analogue for a plain element: with ``<defaults>`` gone, does the daemon's /config form carry its values?
 
     Q5 proved the /matrix form does for a plugin. If /config does too, an
     authored element takes every attribute from the daemon's own statement of

@@ -93,8 +93,10 @@ def _stored_profile_spans(xml: bytes) -> list[tuple[int, int]]:
 
 
 def live_tags(xml: bytes, tag_name: str) -> Iterator[re.Match[bytes]]:
-    """Every ``<tag_name ...>`` open tag that is NOT inside an XML comment and
-    NOT inside a stored ``<matrix_profile>``.
+    """Every live ``<tag_name ...>`` open tag in the document.
+
+    Live means NOT inside an XML comment and NOT inside a stored
+    ``<matrix_profile>``.
 
     hqplayerd parks superseded elements in comments and leaves them ABOVE the
     live one (a real config carries a commented ``<alsa .../>`` from a previous
@@ -122,8 +124,9 @@ def find_element(xml: bytes, tag_name: str) -> re.Match[bytes] | None:
 
 
 def find_plugin(xml: bytes, plugin_type: str) -> re.Match[bytes] | None:
-    """The live ``<plugin type="plugin_type" ...>`` open tag inside
-    ``<post_process>`` (there are several plugins; match by type).
+    """The live ``<plugin type="plugin_type" ...>`` open tag inside ``<post_process>``.
+
+    There are several plugins; match by type.
     """
     needle = f'type="{plugin_type}"'.encode()
     return next((m for m in live_tags(xml, "plugin") if needle in m.group(0)), None)
@@ -136,9 +139,10 @@ def get_attr(tag: bytes, attr: str) -> str | None:
 
 
 def set_attr(tag: bytes, attr: str, value: str) -> bytes:
-    """Set ``attr="value"`` on an element's open-tag bytes — replacing in place
-    when present, inserting right after the tag name otherwise. Byte-faithful:
-    nothing else in the tag moves.
+    """Set ``attr="value"`` on an element's open-tag bytes.
+
+    Replaces in place when present, inserting right after the tag name otherwise.
+    Byte-faithful: nothing else in the tag moves.
     """
     replacement = f'{attr}="{value}"'.encode()
     pat = attr_re(attr)
@@ -161,8 +165,10 @@ def splice(xml: bytes, at: re.Match[bytes], tag: bytes) -> bytes:
 
 
 def line_lead(xml: bytes, at: int) -> bytes:
-    """The indentation of the line byte offset ``at`` sits on — empty when that
-    line holds anything but whitespace before ``at`` (a single-line config).
+    """The indentation of the line byte offset ``at`` sits on.
+
+    Empty when that line holds anything but whitespace before ``at`` (a
+    single-line config).
     """
     start = xml.rfind(b"\n", 0, at) + 1
     lead = xml[start:at]
@@ -170,8 +176,9 @@ def line_lead(xml: bytes, at: int) -> bytes:
 
 
 def _insert_child(xml: bytes, parent: str, child: bytes) -> bytes:
-    """Append ``child`` as the last child of ``parent`` (which must have a body),
-    indented one level in from the parent's own line.
+    """Append ``child`` as the last child of ``parent``, which must have a body.
+
+    The child is indented one level in from the parent's own line.
 
     Last, not first: appending never splits a run the daemon wrote, and for the
     elements that actually go missing — ``matrix``, ``post_process``, a
@@ -189,8 +196,9 @@ def _insert_child(xml: bytes, parent: str, child: bytes) -> bytes:
 
 
 def ensure_element(xml: bytes, tag_name: str) -> bytes:
-    """Return ``xml`` guaranteed to hold a live ``<tag_name>``, creating it — and
-    any missing ancestor — at its schema position.
+    """Return ``xml`` guaranteed to hold a live ``<tag_name>``.
+
+    The element — and any missing ancestor — is created at its schema position.
 
     The created element carries NO attributes. Every attribute hqplayerd omits is
     one it is already applying its own documented default for, so authoring a
@@ -209,8 +217,10 @@ def ensure_element(xml: bytes, tag_name: str) -> bytes:
 
 
 def ensure_body(xml: bytes, tag_name: str) -> bytes:
-    """As ``ensure_element``, and additionally expand a self-closing
-    ``<tag_name/>`` into an open/close pair so children can be placed in it.
+    """As ``ensure_element``, and additionally give ``<tag_name>`` a body.
+
+    A self-closing ``<tag_name/>`` is expanded into an open/close pair so
+    children can be placed in it.
     """
     xml = ensure_element(xml, tag_name)
     m = find_element(xml, tag_name)
@@ -220,8 +230,9 @@ def ensure_body(xml: bytes, tag_name: str) -> bytes:
 
 
 def ensure_plugin(xml: bytes, plugin_type: str) -> bytes:
-    """Return ``xml`` guaranteed to hold ``<plugin type="plugin_type">``, creating
-    it — and ``<post_process>``, and ``<matrix>`` — when absent.
+    """Return ``xml`` guaranteed to hold ``<plugin type="plugin_type">``.
+
+    The plugin — and ``<post_process>``, and ``<matrix>`` — is created when absent.
     """
     if find_plugin(xml, plugin_type) is not None:
         return xml
@@ -230,8 +241,9 @@ def ensure_plugin(xml: bytes, plugin_type: str) -> bytes:
 
 
 def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the single ``<tag_name ...>`` element, creating
-    the element at its schema position when the snapshot lacks it.
+    """Apply one attribute edit to the single ``<tag_name ...>`` element.
+
+    The element is created at its schema position when the snapshot lacks it.
     """
     xml = ensure_element(xml, tag_name)
     m = find_element(xml, tag_name)
@@ -241,8 +253,9 @@ def edit_element(xml: bytes, tag_name: str, attr: str, value: str) -> bytes:
 
 
 def edit_plugin(xml: bytes, plugin_type: str, attr: str, value: str) -> bytes:
-    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``,
-    creating the plugin (and its container) when the snapshot lacks it.
+    """Apply one attribute edit to the ``<plugin type="plugin_type" ...>``.
+
+    The plugin (and its container) is created when the snapshot lacks it.
     """
     xml = ensure_plugin(xml, plugin_type)
     m = find_plugin(xml, plugin_type)

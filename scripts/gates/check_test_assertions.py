@@ -23,8 +23,9 @@ def _is_raises(node: ast.With | ast.AsyncWith) -> bool:
 
 
 def _count_assertions(body: list[ast.stmt], *, in_loop: bool = False) -> tuple[int, bool]:
-    """Return (assertion count, any-inside-loop) without descending into
-    nested function definitions.
+    """Return (assertion count, any-inside-loop) for a statement body.
+
+    Does not descend into nested function definitions.
     """
     count, looped = 0, False
     for node in body:

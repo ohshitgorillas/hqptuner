@@ -1,5 +1,6 @@
-"""Matrix pipeline-table and saved-profile editing for a config-snapshot XML
-(matrix-spec §8 step 3; profile persistence, round 5).
+"""Matrix pipeline-table and saved-profile editing for a config-snapshot XML.
+
+Covers matrix-spec §8 step 3 and profile persistence, round 5.
 
 Sibling of ``engineconf``/``presetconf``: the ``<pipeline>`` children of
 ``<matrix>`` are the one multi-instance element HQPTuner writes, and rows are
@@ -110,9 +111,10 @@ def _validate_row(row: Any) -> dict[str, str]:
 
 
 def _rows_from_list(raw: Any, field: str) -> list[dict[str, str]]:
-    """A validated row set from an already-parsed list. Shared by the pipeline
-    table and a saved profile — one row contract, so a profile can never hold a
-    row the live table would have refused.
+    """A validated row set from an already-parsed list.
+
+    Shared by the pipeline table and a saved profile — one row contract, so a
+    profile can never hold a row the live table would have refused.
     """
     if not isinstance(raw, list) or not 1 <= len(raw) <= _MAX_CHANNELS:
         raise GroundingError(f"{field}: must be a list of 1..128 rows")
@@ -128,8 +130,10 @@ def _validate_rows(value: str) -> list[dict[str, str]]:
 
 
 def _pipeline_tag(channel: int, row: dict[str, str]) -> bytes:
-    """One ``<pipeline/>`` element, attributes in the daemon's alphabetical order
-    so a readback diff against the daemon's own serialization stays byte-clean.
+    """One ``<pipeline/>`` element, attributes in the daemon's alphabetical order.
+
+    That ordering keeps a readback diff against the daemon's own serialization
+    byte-clean.
     """
     gain = f"L{row['gain']}" if row["gainunit"] == "Lin" else row["gain"]
     return (
@@ -139,8 +143,9 @@ def _pipeline_tag(channel: int, row: dict[str, str]) -> bytes:
 
 
 def _rows_of(body: bytes) -> list[dict[str, str]]:
-    """The ``<pipeline>`` rows of one element body, in form-field terms. One
-    parser for the live table and for a saved profile.
+    """The ``<pipeline>`` rows of one element body, in form-field terms.
+
+    One parser for the live table and for a saved profile.
     """
     rows = []
     for pm in re.finditer(rb"<pipeline\b[^>]*/>", body):
@@ -161,10 +166,11 @@ def _rows_of(body: bytes) -> list[dict[str, str]]:
 
 
 def replace_pipelines(xml: bytes, value: str) -> bytes:
-    """Replace the ``<matrix>`` element's ``<pipeline>`` children wholesale with
-    the staged row set. Everything else in the matrix body (``<post_process>``)
-    and every byte outside it are preserved; indentation is taken from the
-    existing rows so the daemon's own formatting survives.
+    """Replace the ``<matrix>`` element's ``<pipeline>`` children wholesale with the staged row set.
+
+    Everything else in the matrix body (``<post_process>``) and every byte
+    outside it are preserved; indentation is taken from the existing rows so the
+    daemon's own formatting survives.
     """
     return _replace_pipelines_here(xml, _validate_rows(value))
 
@@ -184,8 +190,9 @@ def _replace_pipelines_here(xml: bytes, rows: list[dict[str, str]]) -> bytes:
 
 
 def materialize_profile(xml: bytes, name: str) -> bytes:
-    """Copy the named saved profile's rows and post-process chain INTO the live
-    ``<matrix>``, so the config runs that profile's matrix with no switch.
+    """Copy the named saved profile's rows and post-process chain INTO the live ``<matrix>``.
+
+    The config then runs that profile's matrix with no switch.
 
     hqplayerd records the selected profile nowhere (readme §1.12 gives
     ``<matrix_profile>`` the one attribute ``name``), so a daemon restart always
@@ -207,6 +214,7 @@ def materialize_profile(xml: bytes, name: str) -> bytes:
 
 def _replace_post_process(xml: bytes, post: bytes) -> bytes:
     """Put ``post`` in the live ``<matrix>``, replacing any chain already there.
+
     An empty ``post`` clears the chain, which is what a profile carrying none
     means: nothing of the previous matrix's processing should survive it.
     """
@@ -222,10 +230,11 @@ def _replace_post_process(xml: bytes, post: bytes) -> bytes:
 
 
 def read_pipelines(xml: bytes) -> str | None:
-    """The ``<matrix>`` element's pipeline rows as canonical JSON (sorted keys,
-    compact separators), or None when the snapshot has no matrix body. Canonical
-    on both sides of the verify diff — intended and realized configs run through
-    this same serialization, so equality means the daemon accepted the rows.
+    """The ``<matrix>`` element's pipeline rows as canonical JSON, or None when there is no matrix body.
+
+    Canonical means sorted keys and compact separators, on both sides of the
+    verify diff — intended and realized configs run through this same
+    serialization, so equality means the daemon accepted the rows.
     """
     try:
         start, close = matrix_body_span(xml)
@@ -238,9 +247,11 @@ def read_pipelines(xml: bytes) -> str | None:
 
 
 def _validate_name(name: Any) -> str:
-    """A profile name fit for an XML attribute. Escaping alone is not enough:
-    the name is also this element's identity, so an empty or control-character
-    name would produce a profile nothing can address again.
+    """A profile name fit for an XML attribute.
+
+    Escaping alone is not enough: the name is also this element's identity, so an
+    empty or control-character name would produce a profile nothing can address
+    again.
     """
     if not isinstance(name, str):
         raise GroundingError("matrix profile: name must be a string")
@@ -255,10 +266,11 @@ def _validate_name(name: Any) -> str:
 
 
 def _profile_re(name: str) -> re.Pattern[bytes]:
-    """The whole ``<matrix_profile>`` element for one name, self-closing or not,
-    including the newline and indentation in front of it so a delete leaves no
-    blank line behind. The closing quote is part of the pattern, so ``Auteur``
-    never matches ``Auteur Classic``.
+    """The whole ``<matrix_profile>`` element for one name, self-closing or not.
+
+    The match includes the newline and indentation in front of the element so a
+    delete leaves no blank line behind. The closing quote is part of the pattern,
+    so ``Auteur`` never matches ``Auteur Classic``.
     """
     escaped = re.escape(attr_escape(name).encode())
     return re.compile(
@@ -268,10 +280,11 @@ def _profile_re(name: str) -> re.Pattern[bytes]:
 
 
 def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
-    r"""(insert offset, the line lead of ``<matrix>``) for a new profile element:
-    immediately before ``<matrix>``, where the daemon keeps its own.
-    ``<matrix_profile>`` cannot be matched here — ``_`` is a word character, so
-    ``\b`` excludes it.
+    r"""(insert offset, the line lead of ``<matrix>``) for a new profile element.
+
+    The offset is immediately before ``<matrix>``, where the daemon keeps its
+    own. ``<matrix_profile>`` cannot be matched here — ``_`` is a word character,
+    so ``\b`` excludes it.
 
     The lead is the newline plus indentation the matrix element sits on, so a
     written profile adopts the snapshot's own formatting; it is empty for a
@@ -286,8 +299,9 @@ def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
 
 
 def _live_post_process(xml: bytes) -> bytes:
-    """The live ``<matrix>``'s ``<post_process>`` element, verbatim — b"" when the
-    snapshot has no matrix body or the matrix carries no chain.
+    """The live ``<matrix>``'s ``<post_process>`` element, verbatim.
+
+    b"" when the snapshot has no matrix body or the matrix carries no chain.
 
     Verbatim rather than re-serialized: the plugin attributes HQPTuner does not
     map are still the user's settings, and a profile that dropped them would hand
@@ -302,8 +316,10 @@ def _live_post_process(xml: bytes) -> bytes:
 
 
 def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: bytes) -> bytes:
-    """A complete profile element, laid out like its ``<matrix>`` sibling: the
-    pipeline rows and the post-process chain that was live at save time.
+    """A complete profile element, laid out like its ``<matrix>`` sibling.
+
+    It carries the pipeline rows and the post-process chain that was live at save
+    time.
     """
     open_tag = f'<matrix_profile name="{attr_escape(name)}">'.encode()
     row_lead = lead + b"\t" if lead else b""
@@ -314,8 +330,10 @@ def _profile_block(name: str, rows: list[dict[str, str]], lead: bytes, post: byt
 
 
 def _validate_targets(raw: dict[str, Any], field: str) -> list[str]:
-    """The payload's fan-out preset names — the stored presets the profile verb
-    also applies to, beyond the config being edited. Optional; [] when absent.
+    """The payload's fan-out preset names.
+
+    These are the stored presets the profile verb also applies to, beyond the
+    config being edited. Optional; [] when absent.
     """
     presets = raw.get("presets", [])
     if not isinstance(presets, list) or any(not isinstance(p, str) for p in presets):
@@ -334,9 +352,11 @@ def _parse_save(value: str) -> dict[str, Any]:
 
 
 def parse_delete(value: str) -> tuple[str, list[str]]:
-    """(name, fan-out targets) of a staged delete. The value is either the plain
-    profile name (the original shape) or JSON ``{"name": ..., "presets": [...]}``;
-    a value that does not parse as a JSON object is a plain name.
+    """(name, fan-out targets) of a staged delete.
+
+    The value is either the plain profile name (the original shape) or JSON
+    ``{"name": ..., "presets": [...]}``; a value that does not parse as a JSON
+    object is a plain name.
     """
     try:
         raw = json.loads(value)
@@ -399,11 +419,12 @@ def delete_profile(xml: bytes, name: str) -> bytes:
 
 
 def _post_of(body: bytes) -> dict[str, str]:
-    """One stored profile's ``<post_process>`` chain in form-field terms — ``{}``
-    for a profile carrying no chain, which is every profile saved before profiles
-    stored one. Attributes outside ``PLUGIN_MAP`` are ignored here: they stay in
-    the element (the write copies it verbatim) but HQPTuner has no field to hand
-    them back through.
+    """One stored profile's ``<post_process>`` chain in form-field terms.
+
+    ``{}`` for a profile carrying no chain, which is every profile saved before
+    profiles stored one. Attributes outside ``PLUGIN_MAP`` are ignored here: they
+    stay in the element (the write copies it verbatim) but HQPTuner has no field
+    to hand them back through.
     """
     out: dict[str, str] = {}
     chain = re.search(rb"<post_process\b[^>]*>(.*?)</post_process>", body, re.DOTALL)
@@ -420,10 +441,11 @@ def _post_of(body: bytes) -> dict[str, str]:
 
 
 def read_profiles(xml: bytes) -> str:
-    """Every saved profile in the snapshot as canonical JSON — ``{name: {"rows":
-    [...], "post": {field: value}}}``, sorted keys, compact separators. File truth
-    for the picker, and the readback the apply's verify diff proves a save or a
-    delete against.
+    """Every saved profile in the snapshot as canonical JSON.
+
+    The shape is ``{name: {"rows": [...], "post": {field: value}}}``, sorted
+    keys, compact separators. File truth for the picker, and the readback the
+    apply's verify diff proves a save or a delete against.
 
     A profile is a whole matrix context, so ``post`` travels with ``rows``: it is
     the only plumbing carrying a stored chain to the browser, and a load has

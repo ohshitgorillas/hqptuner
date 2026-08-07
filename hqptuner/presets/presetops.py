@@ -84,8 +84,9 @@ class PresetOps:
         return results
 
     def preset_profiles(self) -> dict[str, list[str]]:
-        """Each stored preset's saved matrix-profile names, sorted — the read
-        model behind the save/delete target pickers.
+        """Each stored preset's saved matrix-profile names, sorted.
+
+        This is the read model behind the save/delete target pickers.
         """
         out: dict[str, list[str]] = {}
         for name in self.store.names():
@@ -99,8 +100,9 @@ class PresetOps:
     # --- backup persistence ------------------------------------------------
 
     def persist_backup(self, data: bytes) -> Path | None:
-        """Write the pre-apply settings backup to disk so a crash mid-apply still
-        leaves a recoverable copy (memory-only last_backup does not survive one).
+        """Write the pre-apply settings backup to disk.
+
+        A crash mid-apply then still leaves a recoverable copy (memory-only last_backup does not survive one).
         Best-effort: a write failure must not block the apply itself.
         """
         path = self._cfg.backup_dir / "pre-apply-settings.zip"
@@ -113,8 +115,9 @@ class PresetOps:
         return path
 
     async def backup_or_cached(self, *, for_write: bool = False) -> bytes:
-        """Fetch ``/backup``, caching it whenever it's a usable archive. WORKAROUND
-        (docs/protocol.md): hqplayerd 6.0.4 serves an EMPTY ``settings.zip`` after a
+        """Fetch ``/backup``, caching it whenever it's a usable archive.
+
+        WORKAROUND (docs/protocol.md): hqplayerd 6.0.4 serves an EMPTY ``settings.zip`` after a
         named ``profile/load`` (and after ``profile/save`` — observed live) until
         the service is restarted. When that happens, fall back to the last healthy
         archive we saw.

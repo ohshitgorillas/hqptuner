@@ -118,8 +118,9 @@ _MATRIX_ROW_SKIP = ("plot", "filter")
 
 
 def _matrix_active(soup: BeautifulSoup) -> str:
-    """The active matrix profile name, printed as ``<b>Active: </b>NAME`` on the
-    form (``[Default]`` = the unnamed default).
+    """The active matrix profile name, printed as ``<b>Active: </b>NAME`` on the form.
+
+    ``[Default]`` = the unnamed default.
     """
     for b in soup.find_all("b"):
         if b.get_text(strip=True).startswith("Active:"):
@@ -130,9 +131,10 @@ def _matrix_active(soup: BeautifulSoup) -> str:
 
 
 def _matrix_profiles(soup: BeautifulSoup, profile_field: dict[str, Any] | None) -> dict[str, Any] | None:
-    """The profile text input joined with its ``<datalist>`` options (the saved
-    matrix profiles). The generic parser sees only a bare text input — the
-    options live in a datalist the input references by id.
+    """The profile text input joined with its ``<datalist>`` options, the saved matrix profiles.
+
+    The generic parser sees only a bare text input — the options live in a
+    datalist the input references by id.
     """
     if profile_field is None:
         return None
@@ -185,9 +187,10 @@ _SPK_DISTANCE = (0.0, 5000.0)
 
 
 def parse_speakers_form(html: str) -> dict[str, Any]:
-    """The /speakers form parsed into ``{enabled, channels}``. Speaker processing
-    is a top-level config element (readme §1.9), absent from /config — this is its
-    only read surface. Each channel is ``{index, label, level, distance}`` plus the
+    """The /speakers form parsed into ``{enabled, channels}``.
+
+    Speaker processing is a top-level config element (readme §1.9), absent from
+    /config — this is its only read surface. Each channel is ``{index, label, level, distance}`` plus the
     input min/max/step constraints; ``label`` is the daemon's own channel name (the
     ``<h2>`` above each pair: Left, Right, Center, LFE, Left rear, ...).
     """
@@ -212,8 +215,10 @@ def parse_speakers_form(html: str) -> dict[str, Any]:
 
 
 def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -> str:
-    """Numeric + in-range or raise. Returns the caller's exact string so a 0.1
-    level step survives verbatim — garbage never reaches the daemon.
+    """Numeric + in-range or raise.
+
+    Returns the caller's exact string so a 0.1 level step survives verbatim —
+    garbage never reaches the daemon.
     """
     lo, hi = bounds
     try:
@@ -226,12 +231,13 @@ def _validate_speaker_num(value: str, bounds: tuple[float, float], field: str) -
 
 
 def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
-    """Complete, browser-faithful serialization of the /matrix form: checked
-    checkboxes only (submitting their ``value`` attr — the daemon persists a
-    stray ``on`` verbatim into its XML and wedges engine init, matrix-spec probe
-    findings), the selected option per select, text/number values as-is.
-    Returns ``(fields, file_input_names)`` — the daemon silently ignores any
-    partial POST, so every write must carry the whole thing.
+    """Complete, browser-faithful serialization of the /matrix form.
+
+    Checked checkboxes only (submitting their ``value`` attr — the daemon
+    persists a stray ``on`` verbatim into its XML and wedges engine init,
+    matrix-spec probe findings), the selected option per select, text/number
+    values as-is. Returns ``(fields, file_input_names)`` — the daemon silently
+    ignores any partial POST, so every write must carry the whole thing.
     """
     soup = BeautifulSoup(html, "html.parser")
     form = soup.find("form")
@@ -259,8 +265,10 @@ def _selected_value(el: Tag) -> str:
 
 
 def _submitted_value(el: Tag) -> str | None:
-    """What a browser submits for an input — None for buttons and unchecked
-    checkboxes; a checked checkbox submits its value attr (never 'on').
+    """What a browser submits for an input.
+
+    None for buttons and unchecked checkboxes; a checked checkbox submits its
+    value attr (never 'on').
     """
     itype = el.get("type", "text")
     if itype in ("submit", "button"):
@@ -286,18 +294,21 @@ class HttpConfigClient:
         )
 
     async def _get(self, path: str) -> httpx.Response:
-        """GET, raising on any non-2xx. Every read on this lane goes through here
-        so no route can forget to check the status and parse an error page as if
-        it were a form.
+        """GET, raising on any non-2xx.
+
+        Every read on this lane goes through here so no route can forget to check
+        the status and parse an error page as if it were a form.
         """
         resp = await self._client.get(path)
         resp.raise_for_status()
         return resp
 
     async def _post(self, path: str, **kwargs: Any) -> None:
-        """POST, raising on any non-2xx. No caller needs the body — the daemon
-        answers a write with its own HTML page, and what actually landed is
-        established by readback, never by the response.
+        """POST, raising on any non-2xx.
+
+        No caller needs the body — the daemon answers a write with its own HTML
+        page, and what actually landed is established by readback, never by the
+        response.
         """
         resp = await self._client.post(path, **kwargs)
         resp.raise_for_status()
@@ -306,10 +317,12 @@ class HttpConfigClient:
         return parse_config_form((await self._get("/config")).text)
 
     async def get_matrix(self) -> dict[str, Any]:
-        """GET /matrix — the pipeline/post-processing form (pipeline rows, matrix
-        profiles, Bauer crossfeed, DAC correction, loudness). The daemon silently
-        ignores a partial POST here too (docs/matrix-spec.md probe findings), so
-        writes overlay a fresh read (manager).
+        """GET /matrix — the pipeline/post-processing form.
+
+        Carries pipeline rows, matrix profiles, Bauer crossfeed, DAC correction
+        and loudness. The daemon silently ignores a partial POST here too
+        (docs/matrix-spec.md probe findings), so writes overlay a fresh read
+        (manager).
         """
         return parse_matrix_form((await self._get("/matrix")).text)
 
@@ -321,16 +334,18 @@ class HttpConfigClient:
     # ``MatrixSetProfile``. Nothing here writes /matrix any more.
 
     async def get_speakers(self) -> dict[str, Any]:
-        """GET /speakers — the multi-channel speaker-processing form (readme §1.9):
-        the enabled switch and per-channel level (dBFS) + distance (cm).
+        """GET /speakers — the multi-channel speaker-processing form (readme §1.9).
+
+        Carries the enabled switch and per-channel level (dBFS) + distance (cm).
         """
         return parse_speakers_form((await self._get("/speakers")).text)
 
     async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> None:
-        """Apply speaker processing via the /speakers Apply form. Overlays the
-        desired enabled + per-channel level/distance onto a fresh COMPLETE GET (a
-        partial POST is silently ignored, same contract as /config and /matrix)
-        and enforces the checkbox contract: ``enabled=1`` when on, the field
+        """Apply speaker processing via the /speakers Apply form.
+
+        Overlays the desired enabled + per-channel level/distance onto a fresh
+        COMPLETE GET (a partial POST is silently ignored, same contract as
+        /config and /matrix) and enforces the checkbox contract: ``enabled=1`` when on, the field
         OMITTED when off — never a raw ``0``/``on``, which the daemon writes
         verbatim and wedges engine init (matrix-spec probe). Levels are validated
         to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
@@ -350,15 +365,18 @@ class HttpConfigClient:
         await self._post("/speakers", data=fields)
 
     async def post_profile(self, action: str, **fields: str) -> None:
-        """Preset CRUD: action in load/save/delete (protocol.md §3.6). `load`
-        also restarts the daemon.
+        """Preset CRUD: action in load/save/delete (protocol.md §3.6).
+
+        `load` also restarts the daemon.
         """
         if action not in _ACTIONS:
             raise ValueError(f"unknown profile action: {action}")
         await self._post(f"/config/profile/{action}", data=fields)
 
     async def refresh_devices(self) -> None:
-        """Ask the daemon to re-scan its output devices. Verified against the live
+        """Ask the daemon to re-scan its output devices.
+
+        Verified against the live
         6.0.4 web UI: the "Refresh devices" button is a submit in a ``method=get``
         form with ``formaction="/config/refresh"``, i.e. a bare ``GET
         /config/refresh`` (no body). A POST is silently ignored. Picks up an
@@ -369,6 +387,7 @@ class HttpConfigClient:
 
     async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
         """Restore a full settings archive via multipart ``POST /restore``.
+
         ``scope="system"`` targets the running config (``/etc/hqplayer``);
         ``"user"`` targets ``~/.hqplayer``. Grounded on 6.0.4: ``scope=system``
         writes every archive member to disk (**additively** — a member omitted
@@ -385,9 +404,10 @@ class HttpConfigClient:
         )
 
     async def backup(self) -> bytes:
-        """Daemon's settings backup (a zip) — a safety copy taken before an
-        apply. The plain /backup route is only the HTML page; the actual
-        settings archive is /backup/settings.zip (verified on 6.0.4).
+        """Daemon's settings backup (a zip) — a safety copy taken before an apply.
+
+        The plain /backup route is only the HTML page; the actual settings
+        archive is /backup/settings.zip (verified on 6.0.4).
         """
         return (await self._get("/backup/settings.zip")).content
 
