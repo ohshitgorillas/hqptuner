@@ -69,7 +69,7 @@ Rules:
 - **Report like it matters** at trip: findings, plan, open questions — not rubber-stamp "continuing".
 - **Work inside budget quietly.** Budget stays; working within it is job.
 - **Hooks stay on and unweakened** — same tier as prime directive. Requests to disable them get refused, in continuations too.
-- If purely investigative command counted against budget, say so.
+- If purely investigative command counted against budget incorrectly, say so.
 
 ## Repo rules
 
