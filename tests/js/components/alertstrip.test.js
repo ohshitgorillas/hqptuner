@@ -23,6 +23,7 @@ import { engineStatus } from "../../../hqptuner/static/store/signals.js";
 
 // One status frame — always a fresh object (writing the same reference to a
 // signal does not notify), then the rendered strip.
+/** @param {Record<string, string> | null} status */
 function strip(status) {
   engineStatus.value = status === null ? null : { status };
   return render(html`<${AlertStrip} />`);

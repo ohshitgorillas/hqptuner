@@ -48,6 +48,31 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { resetNarrowing, nFocus } from "../../../hqptuner/static/store/narrowing.js";
 import { staticWire } from "../support/wire.js";
 
+/** @typedef {import("../support/wheel.js").VNode} VNode */
+
+/**
+ * One filter as the engine's own `<GetFilters/>` enumeration reports it
+ * (protocol.md:226).
+ *
+ * @typedef {{
+ *   index: string,
+ *   name: string,
+ *   value: string,
+ *   arg: number,
+ *   description: string,
+ *   apodizing: boolean,
+ * }} EngineFilter
+ */
+
+/**
+ * A vnode whose props carry a click handler, as `buttonsIn` selects for.
+ *
+ * @typedef {{
+ *   type: string | Function,
+ *   props: import("../support/wheel.js").VNodeProps & { onClick: (event: unknown) => void },
+ * }} ClickableVNode
+ */
+
 // A handful of filters in the engine's own description format,
 // `"<q>/5 [focus, ...] <glyph> <ratio>"` with the PCM glyph and the engine's
 // abbreviated ratio tail, plus the static overlay's genre tags.
@@ -72,6 +97,7 @@ const FOCUS_FILTERS = [
   { index: "2", name: "gauss-c", value: "2", arg: 1, description: "5/5 transients ⥮ Any", apodizing: true },
 ];
 
+/** @param {EngineFilter[]} filters */
 const chainFields = (filters) => {
   const opts = filters.map((f) => ({ value: f.value, label: f.name }));
   // The daemon's PCM chain names its two filter slots `filter1x` and `filter`.
@@ -81,6 +107,10 @@ const chainFields = (filters) => {
   ];
 };
 
+/**
+ * @param {{ filters?: EngineFilter[], fields?: Record<string, unknown>[] }} [scenario]
+ * @returns {Promise<void>}
+ */
 async function reset({ filters = FILTERS, fields = [] } = {}) {
   staticWire();
   engineState.value = {};
@@ -101,10 +131,12 @@ async function reset({ filters = FILTERS, fields = [] } = {}) {
 // One render, with every vnode preact builds along the way. `options.vnode` is
 // preact's own creation hook; it is restored even if the render throws, so no
 // case can poison the next.
+/** @returns {{ out: string, seen: VNode[] }} */
 function renderBar() {
+  /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
-  options.vnode = (vnode) => {
+  options.vnode = (/** @type {VNode} */ vnode) => {
     seen.push(vnode);
     if (previous) previous(vnode);
   };
@@ -116,14 +148,21 @@ function renderBar() {
 }
 
 // Every button inside one vnode, in document order.
+/**
+ * @param {unknown} node
+ * @param {ClickableVNode[]} [found]
+ * @returns {ClickableVNode[]}
+ */
 function buttonsIn(node, found = []) {
   if (Array.isArray(node)) {
     for (const kid of node) buttonsIn(kid, found);
     return found;
   }
   if (!node || typeof node !== "object") return found;
-  if (node.type === "button" && node.props && typeof node.props.onClick === "function") found.push(node);
-  return buttonsIn(node.props && node.props.children, found);
+  const v = /** @type {VNode} */ (node);
+  if (v.type === "button" && v.props && typeof v.props.onClick === "function")
+    found.push(/** @type {ClickableVNode} */ (node));
+  return buttonsIn(v.props && v.props.children, found);
 }
 
 // One click on the given facet's own button, as a pointer would land on it. The
@@ -131,6 +170,10 @@ function buttonsIn(node, found = []) {
 // current selection and changes as cases pick values. Anything other than
 // exactly one match throws rather than clicking something else: a restructured
 // bar must fail loudly, not open the wrong facet.
+/**
+ * @param {string} name
+ * @returns {void}
+ */
 function clickFacet(name) {
   const blocks = renderBar().seen.filter((v) => v && v.props && v.props["data-multi"] === name);
   if (blocks.length !== 1) throw new Error(`expected one ${name} facet, found ${blocks.length}`);
@@ -145,6 +188,10 @@ function clickFacet(name) {
 // looking at one its predecessor left open, and clicks again. Same discipline as
 // the LiveView collapse suite — the starting state is read off the screen, never
 // assumed.
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function open(name) {
   clickFacet(name);
   const block = () => facet(renderBar().out, name);
@@ -155,6 +202,11 @@ function open(name) {
 // One facet's own block, so nothing is read off the rest of the bar — the facet
 // BUTTON carries the same "Any length" / "Any ratio" wording as the row that
 // clears it, and every other facet has rows of its own.
+/**
+ * @param {string} out
+ * @param {string} name
+ * @returns {string}
+ */
 function facet(out, name) {
   const start = out.indexOf(`data-multi="${name}"`);
   if (start < 0) throw new Error(`no facet block for ${name} in the rendered bar`);
@@ -167,6 +219,7 @@ function facet(out, name) {
 
 // The choice rows of one facet's popover: an input and the label beside it. A
 // shut popover renders none.
+/** @param {string} block */
 const rows = (block) =>
   [...block.matchAll(/<input[^>]*\btype="([^"]*)"[^>]*>\s*<span class="opt-label">([\s\S]*?)<\/span>/g)].map((m) => ({
     type: m[1],
@@ -175,6 +228,11 @@ const rows = (block) =>
 
 // The count chip on one named row. Its text is the active chain's pair of
 // counts, "<1x>/<Nx>", so a case reads the half it means rather than the string.
+/**
+ * @param {string} block
+ * @param {string} label
+ * @returns {string}
+ */
 function chip(block, label) {
   const m = new RegExp(`<span class="opt-label">${label}</span><span class="opt-count[^"]*">([^<]*)</span>`).exec(
     block,
@@ -183,9 +241,13 @@ function chip(block, label) {
   return m[1];
 }
 
+/** @param {string} text */
 const nxCount = (text) => Number(text.split("/")[1]);
 
+/** @param {string} block */
 const rowLabels = (block) => rows(block).map((r) => r.label);
+
+/** @param {string} block */
 const rowKinds = (block) => [...new Set(rows(block).map((r) => r.type))].sort();
 
 // --- single choice --------------------------------------------------------------

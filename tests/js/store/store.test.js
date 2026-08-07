@@ -37,10 +37,40 @@ import {
 } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../support/wire.js";
 
+/**
+ * One /config or /matrix form field, as `field()` below builds it. `value` is a
+ * union because the form answers a checkbox with a real bool and everything
+ * else with a string.
+ *
+ * @typedef {{ name: string, value: string | boolean }} FormField
+ */
+
+/**
+ * One matrix pipeline row: exactly five keys, every value a string.
+ *
+ * @typedef {{
+ *   gain: string,
+ *   gainunit: string,
+ *   mixdown: string,
+ *   process: string,
+ *   source: string,
+ * }} PipelineRow
+ */
+
+/**
+ * The globals a fake wire installs a `fetch` on, viewed as an optional member:
+ * the DOM lib declares it returning a real `Response`, which these fakes do not
+ * build.
+ *
+ * @type {{ fetch?: unknown }}
+ */
+const env = globalThis;
+
 // Fake wire. `apply` is the body /api/config/apply answers with; every other
 // path gets a minimal valid response so the surrounding flow completes.
+/** @param {{ apply?: unknown, staged?: { live: unknown, http: unknown } }} [seams] */
 function route({ apply = {}, staged = { live: {}, http: {} } } = {}) {
-  globalThis.fetch = async (path) => {
+  env.fetch = async (/** @type {string} */ path) => {
     if (path === "/api/config/apply") return ok(apply);
     if (path === "/api/config/stage") return ok(staged);
     if (path === "/api/config/pending") return ok(staged);
@@ -53,6 +83,14 @@ function route({ apply = {}, staged = { live: {}, http: {} } } = {}) {
 
 // A clean three-tree baseline. Every source signal is reassigned, not just the
 // ones a case cares about — module-level signals outlive a test.
+/**
+ * @param {{
+ *   fields?: FormField[],
+ *   file?: Record<string, string>,
+ *   matrix?: FormField[],
+ *   engine?: Record<string, string>,
+ * }} [trees]
+ */
 async function trees({ fields = [], file = {}, matrix = [], engine = {} } = {}) {
   engineState.value = engine;
   config.value = { fields, file, active: "" };
@@ -61,6 +99,11 @@ async function trees({ fields = [], file = {}, matrix = [], engine = {} } = {}) 
   await discardAll();
 }
 
+/**
+ * @param {string} name
+ * @param {string | boolean} value
+ * @returns {FormField}
+ */
 const field = (name, value) => ({ name, value });
 
 // --- baseline: the live lane ------------------------------------------------
@@ -389,7 +432,7 @@ test("test_a_warned_save_is_still_ok", async () => {
 
 test("test_a_rejected_apply_request_is_reported_rather_than_swallowed", async () => {
   await trees();
-  globalThis.fetch = async (path) => {
+  env.fetch = async (/** @type {string} */ path) => {
     if (path === "/api/config/apply") return { ok: false, status: 503, json: async () => ({}) };
     return ok({});
   };
@@ -408,12 +451,13 @@ test("test_a_rejected_apply_request_is_reported_rather_than_swallowed", async ()
 // same full reset of every source signal, plus the rows, plus the real staging
 // wire so `stagePipelines` rides the REST path rather than a fixed buffer.
 
+/** @param {{ file?: Record<string, string>, rows?: PipelineRow[] }} [trees] */
 async function pipeTrees({ file = {}, rows = undefined } = {}) {
   engineState.value = {};
   config.value = { fields: [], file, active: "" };
   matrixConfig.value = { fields: [], rows, active: "[Default]" };
   stagingWire({
-    routes: (path) => {
+    routes: (/** @type {string} */ path) => {
       if (path === "/api/config") return ok({ data: config.value });
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
@@ -425,6 +469,10 @@ async function pipeTrees({ file = {}, rows = undefined } = {}) {
 
 // A pipeline row carries exactly five keys; `gainunit` defaults to dB, the rest
 // to the wire's own defaults.
+/**
+ * @param {Partial<PipelineRow>} [patch]
+ * @returns {PipelineRow}
+ */
 const ROW = (patch) => ({ gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0", ...patch });
 // The backend's own serialization of `[ROW({gain: "-6"})]`, written out by hand:
 // alphabetical keys, compact, every value a string.

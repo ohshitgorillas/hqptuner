@@ -13,14 +13,24 @@
 // whatever element it targets. The events are plain objects carrying the surface
 // those listeners read, and nothing of HQPTuner's is stubbed.
 
+/** @type {Map<string, Function[]>} */
 const registered = new Map();
 
-globalThis.document = {
-  addEventListener(type, fn) {
+/**
+ * The global this module installs a document on, viewed as an optional member:
+ * under `node --test` there is none, and the DOM lib declares it as always
+ * present and fully shaped.
+ *
+ * @type {{ document?: unknown }}
+ */
+const env = globalThis;
+
+env.document = {
+  addEventListener(/** @type {string} */ type, /** @type {unknown} */ fn) {
     if (typeof fn !== "function") return;
     registered.set(type, [...(registered.get(type) || []), fn]);
   },
-  removeEventListener(type, fn) {
+  removeEventListener(/** @type {string} */ type, /** @type {unknown} */ fn) {
     registered.set(
       type,
       (registered.get(type) || []).filter((l) => l !== fn),
@@ -29,6 +39,12 @@ globalThis.document = {
   body: { addEventListener() {}, removeEventListener() {} },
 };
 
+/**
+ * @param {string} type
+ * @param {unknown} target
+ * @param {Record<string, unknown>} [extra]
+ * @returns {void}
+ */
 export function documentSees(type, target, extra = {}) {
   const event = { type, target, ...extra };
   for (const fn of registered.get(type) || []) fn(event);

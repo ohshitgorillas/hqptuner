@@ -19,6 +19,10 @@ import { FS, band } from "../support/eqlab-helpers.js";
 // minimal panel the main search suite uses.
 const CTX = { stages: [band(1000, 0, 1)], fs: FS, metrics: { spot: { kind: "at", f: 1000 } } };
 const SPACE = { amend: { select: 1000, g: [1, 3, 1], q: 1 } };
+/**
+ * @param {Record<string, unknown>} [over]
+ * @returns {Record<string, unknown>}
+ */
 const jobOf = (over) => ({ space: SPACE, constraints: [], objective: "maximize spot", top: 5, ...over });
 
 // --- missing / wrong-type space ---------------------------------------------

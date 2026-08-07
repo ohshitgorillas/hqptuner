@@ -68,7 +68,14 @@ function preampLine(row) {
 // filters emitted (0 => nothing to export) and `skipped` lists every stage or
 // gain that could not be represented, with its reason.
 /**
- * @param {PipelineRow} row
+ * `Partial` because this reads three of the five row keys and never `source` or
+ * `mixdown` — the body takes `process` and hands the row to `preampLine`, which
+ * is itself declared `Partial<PipelineRow>` and reads `gain`/`gainunit` only.
+ * The `row &&` guard below says the same thing. eqlab exports a chain rather
+ * than a matrix row and has no honest `source`/`mixdown` to supply; requiring
+ * them would have it invent two values that never reach the output.
+ *
+ * @param {Partial<PipelineRow>} row
  * @returns {{ text: string, count: number, skipped: string[] }}
  */
 export function rowToRewText(row) {

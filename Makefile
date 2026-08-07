@@ -23,6 +23,12 @@ lint:
 # also covers CSS: the stylesheet is split by concern under static/css/ and the
 # `<link>` order in index.html is the cascade order.
 #
+# There are two tsc invocations because the trees run in different places.
+# jsconfig.json covers the browser tree: DOM libs, no node types. tsconfig.node.json
+# covers the CLI tools under scripts/, which need @types/node and would otherwise
+# resolve `process`, `Buffer` and `node:*` imports to nothing. Same compiler
+# options otherwise, strict included — neither tree gets a weaker standard.
+#
 # store/schema.js is exempt from the length gate: it is a one-entry-per-line
 # control table rather than logic, and prettier at printWidth 120 is what pushed
 # it past 500. vendor/ is upstream and exempt from every gate.
@@ -34,8 +40,9 @@ lint:
 # exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/*/*.js" eslint.config.js jsconfig.json knip.json .jscpd.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/*/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
+	npx tsc -p tsconfig.node.json
 	npx knip
 	npx jscpd
 	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.js' | grep -v 'static/vendor/' | grep -v 'store/schema.js') $$(git ls-files '*.css')

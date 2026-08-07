@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 import { volume, volumeDrag, volumeShown } from "../../../hqptuner/static/store/signals.js";
 
 // Both sources, always, in the order a poll and a drag would set them.
+/** @param {{ level?: string | null, drag?: number | null }} [seams] */
 function reset({ level = null, drag = null } = {}) {
   volume.value = level;
   volumeDrag.value = drag;

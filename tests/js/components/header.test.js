@@ -38,6 +38,7 @@ import { health, engineState, config, pendingPreset } from "../../../hqptuner/st
 
 // The contract is the text a user reads — `Delete preset "Night"` — not its
 // HTML encoding.
+/** @param {string} out */
 const decode = (out) => out.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
 // As the backend serves it (lanes/presetlane.py): the empty option carries the
@@ -53,6 +54,20 @@ const PROFILES = {
 
 // Full reset every time. `"key" in o` rather than a default so a case can pass
 // an explicitly absent snapshot (health: null) and still hit the fallbacks.
+/**
+ * @typedef {{ value: string, options: { value: string, label: string }[] }} ProfilesField
+ *
+ * @typedef {{
+ *   health?: { reachable: boolean, info?: Record<string, string> } | null,
+ *   engine?: Record<string, string>,
+ *   config?: { fields: unknown[], active: string, profiles: ProfilesField | null } | null,
+ *   active?: string,
+ *   profiles?: ProfilesField,
+ *   pending?: string | null,
+ * }} HeadFixture
+ */
+
+/** @param {HeadFixture} [o] */
 function head(o = {}) {
   cancel();
   health.value = "health" in o ? o.health : { reachable: true, info: {} };
@@ -71,18 +86,22 @@ const again = () => decode(render(html`<${Header} />`));
 const NAME = 0;
 const VERSION = 1;
 
+/** @param {string} out */
 const daemon = (out) => out.split('<div class="daemon">')[1].split("</div>")[0];
+/** @param {string} out */
 const idents = (out) => [...daemon(out).matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
 
 // An empty value renders as the bare attribute `<option value>`, and `selected`
 // is emitted ahead of it, so the attributes are parsed rather than positional.
+/** @param {string} out */
 const options = (out) =>
   [...out.matchAll(/<option([^>]*)>([^<]*)<\/option>/g)].map((m) => {
     const named = / value="([^"]*)"/.exec(m[1]);
     return { value: named ? named[1] : "", selected: m[1].includes("selected"), label: m[2] };
   });
 
-const selected = (out) => (options(out).find((o) => o.selected) || {}).value;
+/** @param {string} out */
+const selected = (out) => (options(out).find((o) => o.selected) || { value: undefined }).value;
 
 // --- daemon identity --------------------------------------------------------
 

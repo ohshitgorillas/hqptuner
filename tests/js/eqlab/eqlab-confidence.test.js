@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 
 import { applyChanges } from "../../../scripts/eqlab/chain.js";
 import { guidanceFlags, headroomFlags } from "../../../scripts/eqlab/guidance.js";
-import { preampDb, preampDbFull } from "../../../scripts/eqlab/metrics.js";
+import { preampDb, preampDbFull } from "../../../scripts/eqlab/curve.js";
 import { probe, evaluateJob } from "../../../scripts/eqlab/jobs.js";
 import { searchJob } from "../../../scripts/eqlab/search.js";
 import { FS, near, below, band, curve, argNum } from "../support/eqlab-helpers.js";
@@ -24,10 +24,29 @@ const FIT_HIGH = "fitting above 8 kHz";
 const RESEAT = "inside measurement reseat variance";
 const QUALIFIED = "above rig's qualified range";
 
+/** @typedef {import("../../../scripts/eqlab/guidance.js").Flag} Flag */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {{ top: (SurvivorOut & { score: number })[] }} SearchResult */
+
+/**
+ * @param {Flag[]} flags
+ * @param {string} rule
+ * @returns {Flag[]}
+ */
 const ruleOf = (flags, rule) => flags.filter((f) => f.rule === rule);
+
+/**
+ * @param {ReturnType<typeof applyChanges>} result
+ * @returns {Flag[]}
+ */
 const flagsOf = (result) => guidanceFlags(result.edits, result.stages);
 
-// [ok, message] for one assert.ok: the value is already rounded to 2 dp.
+/**
+ * [ok, message] for one assert.ok: the value is already rounded to 2 dp.
+ *
+ * @param {number} x
+ * @returns {[boolean, string]}
+ */
 const twoDp = (x) => [Math.abs(x * 100 - Math.round(x * 100)) < 1e-9, `expected a 2 dp value, got ${x}`];
 
 // --- chain panels: preamp_db_full beside preamp_db ---------------------------
@@ -107,14 +126,16 @@ test("test_an_evaluate_over_an_in_band_chain_carries_no_headroom_flag", () => {
   assert.equal(ruleOf(PEAK_EV.flags, HEADROOM).length, 0);
 });
 
-const SHELF_SEARCH = searchJob(
-  {
-    space: { append: { type: "lshelf", f: 25, q: 0.71, g: 6 } },
-    constraints: [],
-    objective: "maximize spot",
-    top: 5,
-  },
-  { stages: [band(1000, 0, 1)], fs: FS, metrics: { spot: { kind: "at", f: 1000 } } },
+const SHELF_SEARCH = /** @type {SearchResult} */ (
+  searchJob(
+    {
+      space: { append: { type: "lshelf", f: 25, q: 0.71, g: 6 } },
+      constraints: [],
+      objective: "maximize spot",
+      top: 5,
+    },
+    { stages: [band(1000, 0, 1)], fs: FS, metrics: { spot: { kind: "at", f: 1000 } } },
+  )
 );
 
 test("test_a_search_survivor_over_a_sub_20_shelf_carries_the_headroom_flag", () => {
@@ -132,6 +153,10 @@ test("test_a_search_survivor_carries_the_deeper_full_preamp_beside_the_bounded_o
 // greater than the floor fires. Q=3 floor ≈ 2.22 dB, Q=10 floor = 3 dB.
 
 const BASE_1K = [band(1000, 0, 1)];
+/**
+ * @param {import("../../../scripts/eqlab/chain.js").Band} bandSpec
+ * @returns {ReturnType<typeof applyChanges>}
+ */
 const appended = (bandSpec) => applyChanges(BASE_1K, { append: [bandSpec] });
 
 test("test_appending_a_high_q_band_with_a_large_gain_raises_the_high_q_rule", () => {
@@ -201,6 +226,10 @@ test("test_a_replace_with_band_counts_its_own_gain_as_the_step", () => {
 
 // --- fitting above 8 kHz -----------------------------------------------------
 
+/**
+ * @param {[number, number] | null} fitRange
+ * @returns {ReturnType<typeof applyChanges>}
+ */
 const removal = (fitRange) =>
   applyChanges(BASE_1K, { replace: [{ remove: [1000], with: [], ...(fitRange && { fit_range: fitRange }) }] });
 
@@ -301,9 +330,16 @@ test("test_a_band_at_exactly_8_khz_raises_no_qualified_range_note", () => {
 // 1 kHz); the best score must still win exactly as before.
 
 const CONF_CTX = { stages: [band(1000, 0, 1)], fs: FS, metrics: { spot: { kind: "at", f: 1000 } } };
-const CONF_SEARCH = searchJob(
-  { space: { amend: { select: 1000, g: [0.5, 1.5, 0.5], q: 1 } }, constraints: [], objective: "maximize spot", top: 5 },
-  CONF_CTX,
+const CONF_SEARCH = /** @type {SearchResult} */ (
+  searchJob(
+    {
+      space: { amend: { select: 1000, g: [0.5, 1.5, 0.5], q: 1 } },
+      constraints: [],
+      objective: "maximize spot",
+      top: 5,
+    },
+    CONF_CTX,
+  )
 );
 
 test("test_a_candidate_carrying_confidence_notes_still_wins_on_score", () => {

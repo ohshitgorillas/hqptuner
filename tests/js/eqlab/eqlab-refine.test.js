@@ -19,17 +19,40 @@ import { searchJob, refineJob } from "../../../scripts/eqlab/search.js";
 import { applyChanges } from "../../../scripts/eqlab/chain.js";
 import { FS, near, below, band, argNum } from "../support/eqlab-helpers.js";
 
+/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").Objective} Objective */
+
+/**
+ * A survivor from a refined run, where the four optional keys a refinement
+ * pass writes are all present.
+ *
+ * @typedef {SurvivorOut & Required<Pick<SurvivorOut, "refined" | "score" | "scores" | "violations">>} RefinedOut
+ */
+
+/** @typedef {{ top: RefinedOut[] }} RefinedSearch */
+/** @typedef {{ top: SurvivorOut[] }} PlainSearch */
+
 // --- pure optimizers ---------------------------------------------------------
 
 // Smooth, convex, minimum at (0.3, 0.7) inside the unit box.
+/**
+ * @param {number[]} x
+ * @returns {number}
+ */
 const BOWL = (x) => (x[0] - 0.3) ** 2 + (x[1] - 0.7) ** 2;
 const OPTIMUM = [0.3, 0.7];
+/** @type {[string, typeof refinePoint][]} */
 const OPTIMIZERS = [
   ["coordinate_descent", coordinateDescent],
   ["nelder_mead", nelderMead],
   ["refine_point", refinePoint],
 ];
 
+/**
+ * @param {number[]} x
+ * @returns {number}
+ */
 const coordErr = (x) => Math.max(...x.map((v, i) => Math.abs(v - OPTIMUM[i])));
 
 test("test_coordinate_descent_finds_the_minimum_of_a_convex_bowl", () => {
@@ -58,9 +81,10 @@ for (const [name, opt] of OPTIMIZERS) {
   });
 
   test(`test_${name}_never_evaluates_outside_the_unit_box`, () => {
+    /** @type {number[][]} */
     const seen = [];
     opt(
-      (x) => {
+      (/** @type {number[]} */ x) => {
         seen.push([...x]);
         return BOWL(x);
       },
@@ -75,7 +99,7 @@ for (const [name, opt] of OPTIMIZERS) {
   test(`test_${name}_reports_evals_equal_to_actual_callback_invocations`, () => {
     let calls = 0;
     const result = opt(
-      (x) => {
+      (/** @type {number[]} */ x) => {
         calls += 1;
         return BOWL(x);
       },
@@ -88,7 +112,7 @@ for (const [name, opt] of OPTIMIZERS) {
 test("test_coordinate_descent_stays_within_its_eval_budget", () => {
   let calls = 0;
   coordinateDescent(
-    (x) => {
+    (/** @type {number[]} */ x) => {
       calls += 1;
       return BOWL(x);
     },
@@ -105,21 +129,33 @@ const METRICS = { spot: { kind: "at", f: 1000 }, sq: { kind: "expr", expr: "spot
 const CTX = { stages: BASE, fs: FS, metrics: METRICS };
 const GRID = [-1, -0.6, -0.2, 0.2, 0.6, 1];
 const SPACE = { amend: [{ select: 1000, g: [-1, 1, 0.4], q: 1 }] };
+/**
+ * @param {Record<string, unknown>} [over]
+ * @returns {Record<string, unknown>}
+ */
 const jobOf = (over) => ({ space: SPACE, constraints: [], objective: "minimize sq", top: 5, refine: true, ...over });
 
+/**
+ * @param {ChangeSet} changes
+ * @returns {number}
+ */
 const gOf = (changes) => argNum(applyChanges(BASE, changes).stages[0], "g");
 
-const RES = searchJob(jobOf(), CTX);
+const RES = /** @type {RefinedSearch} */ (searchJob(jobOf(), CTX));
 const WINNER = RES.top[0];
-const NOIMP = searchJob(jobOf({ objective: "minimize spot" }), CTX);
+const NOIMP = /** @type {RefinedSearch} */ (searchJob(jobOf({ objective: "minimize spot" }), CTX));
 // No refine key at all — the unrefined reference run.
-const PLAIN = searchJob({ space: SPACE, constraints: [], objective: "minimize spot", top: 5 }, CTX);
-const CONNED = searchJob(
-  jobOf({
-    constraints: [{ metric: "spot", min: 0.1 }],
-    refine: { survivors: 3, max_evals: 600, tol: 1e-6 },
-  }),
-  CTX,
+const PLAIN = /** @type {PlainSearch} */ (
+  searchJob({ space: SPACE, constraints: [], objective: "minimize spot", top: 5 }, CTX)
+);
+const CONNED = /** @type {RefinedSearch} */ (
+  searchJob(
+    jobOf({
+      constraints: [{ metric: "spot", min: 0.1 }],
+      refine: { survivors: 3, max_evals: 600, tol: 1e-6 },
+    }),
+    CTX,
+  )
 );
 
 test("test_refinement_beats_a_grid_that_straddles_the_continuous_optimum", () => {
@@ -172,15 +208,17 @@ test("test_a_refined_winner_still_satisfies_its_constraints", () => {
 // (runner-up), peak(g=-0.1) sq=0.98, hshelf(g=-2.4) sq=1.93. The peak family
 // bottoms out at its g bound (sq=0.50), while the hshelf family nulls 4 kHz
 // near g=-1 (sq≈0.000) — after refinement the hshelf runner-up must lead.
-const RANK = searchJob(
-  {
-    space: { append: [{ type: ["peak", "hshelf"], f: 1000, q: 0.7, g: [-2.4, -0.1] }] },
-    constraints: [],
-    objective: "minimize sq4k",
-    top: 4,
-    refine: { survivors: 2 },
-  },
-  { stages: [band(4000, 1, 1)], fs: FS, metrics: { sq4k: { kind: "expr", expr: "at(4000) * at(4000)" } } },
+const RANK = /** @type {RefinedSearch} */ (
+  searchJob(
+    {
+      space: { append: [{ type: ["peak", "hshelf"], f: 1000, q: 0.7, g: [-2.4, -0.1] }] },
+      constraints: [],
+      objective: "minimize sq4k",
+      top: 4,
+      refine: { survivors: 2 },
+    },
+    { stages: [band(4000, 1, 1)], fs: FS, metrics: { sq4k: { kind: "expr", expr: "at(4000) * at(4000)" } } },
+  )
 );
 
 test("test_a_refined_runner_up_that_beats_the_grid_winner_moves_to_the_top", () => {
@@ -218,15 +256,17 @@ const PCTX = {
   fs: FS,
   metrics: { a: { kind: "at", f: 150 }, b: { kind: "expr", expr: "0 - at(4000)" } },
 };
-const PRES = searchJob(
-  {
-    space: { append: [{ type: "peak", f: [150, 4000], q: 1, g: [-2, 2, 2] }] },
-    constraints: [],
-    pareto: ["minimize a", "minimize b"],
-    top: 6,
-    refine: true,
-  },
-  PCTX,
+const PRES = /** @type {{ front: RefinedOut[], pareto: { objectives: Objective[] } }} */ (
+  searchJob(
+    {
+      space: { append: [{ type: "peak", f: [150, 4000], q: 1, g: [-2, 2, 2] }] },
+      constraints: [],
+      pareto: ["minimize a", "minimize b"],
+      top: 6,
+      refine: true,
+    },
+    PCTX,
+  )
 );
 
 test("test_every_refined_front_entry_carries_a_refined_block", () => {
@@ -244,6 +284,11 @@ test("test_pareto_refinement_never_worsens_the_first_objective", () => {
 });
 
 test("test_refined_front_entries_remain_mutually_non_dominated", () => {
+  /**
+   * @param {RefinedOut} p
+   * @param {RefinedOut} q
+   * @returns {boolean}
+   */
   const dominates = (p, q) =>
     PRES.pareto.objectives.every((o) => p.scores[o.expr.trim()] <= q.scores[o.expr.trim()]) &&
     PRES.pareto.objectives.some((o) => p.scores[o.expr.trim()] < q.scores[o.expr.trim()]);
@@ -261,7 +306,7 @@ const RJOB = {
   constraints: [],
   objective: "minimize sq",
 };
-const RJ = refineJob(RJOB, CTX);
+const RJ = /** @type {{ seed: RefinedOut, best: RefinedOut }} */ (refineJob(RJOB, CTX));
 
 test("test_refine_job_echoes_the_seeds_score", () => {
   assert.ok(...near(RJ.seed.score, 0.36, 0.02));
@@ -306,7 +351,9 @@ test("test_refine_job_names_a_searchable_parameter_the_seed_is_missing", () => {
   assert.throws(() => refineJob(bare, CTX), /(^|[^a-z])g([^a-z]|$)/i);
 });
 
-const HOPELESS = refineJob({ ...RJOB, constraints: [{ metric: "spot", min: 5 }] }, CTX);
+const HOPELESS = /** @type {{ best: RefinedOut }} */ (
+  refineJob({ ...RJOB, constraints: [{ metric: "spot", min: 5 }] }, CTX)
+);
 
 test("test_unsatisfiable_constraints_yield_violations_naming_the_metric", () => {
   assert.equal(HOPELESS.best.violations[0].metric, "spot");

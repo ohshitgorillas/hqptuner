@@ -13,13 +13,38 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { resolveTarget } from "../../../scripts/eqlab/target.js";
-import { valueAt } from "../../../scripts/eqlab/metrics.js";
+import { valueAt } from "../../../scripts/eqlab/curve.js";
 import { FS, near, above, below, band, curve } from "../support/eqlab-helpers.js";
 
+/** @typedef {import("../../../scripts/eqlab/target.js").TargetSpec} TargetSpec */
+/** @typedef {import("../../../scripts/eqlab/target-points.js").Point} Point */
+/** @typedef {Awaited<ReturnType<typeof resolveTarget>>} Resolved */
+
+/**
+ * `resolveTarget` answers null only for a null spec, which no case here passes.
+ *
+ * @param {Resolved} t
+ * @returns {NonNullable<Resolved>}
+ */
+const nonNull = (t) => {
+  if (t === null) throw new Error("resolveTarget answered null for a non-null spec");
+  return t;
+};
+
 const FLAT = curve([]);
+
+/**
+ * @param {Float64Array} xs
+ * @returns {number}
+ */
 const mean = (xs) => xs.reduce((acc, v) => acc + v, 0) / xs.length;
 
 let fixtureSeq = 0;
+
+/**
+ * @param {string} text
+ * @returns {string}
+ */
 const fixture = (text) => {
   fixtureSeq += 1;
   const path = join(tmpdir(), `eqlab-target-compose-${process.pid}-${fixtureSeq}.txt`);
@@ -29,6 +54,7 @@ const fixture = (text) => {
 
 // --- A. points from a file ---------------------------------------------------
 
+/** @type {Point[]} */
 const FILE_PAIRS = [
   [100, 0],
   [1000, 6],
@@ -40,8 +66,8 @@ const twoColumn = () => FILE_PAIRS.map(([f, d]) => `${f} ${d}`).join("\n") + "\n
 // interpolated stretch between two file points, not a node value.
 test("test_fr_text_file_points_resolve_like_the_same_inline_points", async () => {
   const path = fixture(twoColumn());
-  const fromFile = await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS);
-  const inline = await resolveTarget({ from: "points", points: FILE_PAIRS, align: "none" }, FLAT, FS);
+  const fromFile = nonNull(await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS));
+  const inline = nonNull(await resolveTarget({ from: "points", points: FILE_PAIRS, align: "none" }, FLAT, FS));
   assert.ok(...near(valueAt(fromFile.curve, 316.23), valueAt(inline.curve, 316.23), 0.02));
 });
 
@@ -50,8 +76,8 @@ test("test_fr_text_file_points_resolve_like_the_same_inline_points", async () =>
 // file would answer with the 6 dB clamp instead.
 test("test_fr_text_file_points_resolve_like_inline_points_above_1_khz", async () => {
   const path = fixture(twoColumn());
-  const fromFile = await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS);
-  const inline = await resolveTarget({ from: "points", points: FILE_PAIRS, align: "none" }, FLAT, FS);
+  const fromFile = nonNull(await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS));
+  const inline = nonNull(await resolveTarget({ from: "points", points: FILE_PAIRS, align: "none" }, FLAT, FS));
   assert.ok(...near(valueAt(fromFile.curve, 3162.28), valueAt(inline.curve, 3162.28), 0.02));
 });
 
@@ -61,8 +87,12 @@ const threeColumn = () => FILE_PAIRS.map(([f, d], i) => `${f} ${d} ${-30 * (i + 
 test("test_fr_text_file_ignores_columns_beyond_the_first_two", async () => {
   const three = fixture(threeColumn());
   const two = fixture(twoColumn());
-  const wide = await resolveTarget({ from: "points", path: three, format: "fr_text", align: "none" }, FLAT, FS);
-  const narrow = await resolveTarget({ from: "points", path: two, format: "fr_text", align: "none" }, FLAT, FS);
+  const wide = nonNull(
+    await resolveTarget({ from: "points", path: three, format: "fr_text", align: "none" }, FLAT, FS),
+  );
+  const narrow = nonNull(
+    await resolveTarget({ from: "points", path: two, format: "fr_text", align: "none" }, FLAT, FS),
+  );
   assert.ok(...near(valueAt(wide.curve, 316.23), valueAt(narrow.curve, 316.23), 0.02));
 });
 
@@ -71,8 +101,12 @@ test("test_fr_text_file_ignores_columns_beyond_the_first_two", async () => {
 test("test_fr_text_file_with_a_third_column_matches_the_two_column_file_above_1_khz", async () => {
   const three = fixture(threeColumn());
   const two = fixture(twoColumn());
-  const wide = await resolveTarget({ from: "points", path: three, format: "fr_text", align: "none" }, FLAT, FS);
-  const narrow = await resolveTarget({ from: "points", path: two, format: "fr_text", align: "none" }, FLAT, FS);
+  const wide = nonNull(
+    await resolveTarget({ from: "points", path: three, format: "fr_text", align: "none" }, FLAT, FS),
+  );
+  const narrow = nonNull(
+    await resolveTarget({ from: "points", path: two, format: "fr_text", align: "none" }, FLAT, FS),
+  );
   assert.ok(...near(valueAt(wide.curve, 3162.28), valueAt(narrow.curve, 3162.28), 0.02));
 });
 
@@ -81,28 +115,28 @@ test("test_fr_text_file_with_a_third_column_matches_the_two_column_file_above_1_
 // blank line, which is ignored entirely. Counting the blank would report 3.
 test("test_fr_text_file_reports_the_count_of_non_numeric_lines_skipped", async () => {
   const path = fixture(`Freq dB\n\n* comment\n100 0\n1000 6\n10000 3\n`);
-  const t = await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS);
+  const t = nonNull(await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS));
   assert.match(t.meta.detail, /2 non-numeric line/);
 });
 
 // 3 — skipping is not failing: the surviving numeric lines still resolve.
 test("test_fr_text_file_with_header_and_comment_lines_still_parses_its_points", async () => {
   const path = fixture(`Freq dB\n\n* comment\n100 0\n1000 6\n10000 3\n`);
-  const t = await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS);
+  const t = nonNull(await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 316.23), 3, 0.05));
 });
 
 // 4
 test("test_points_file_detail_names_the_file_path", async () => {
   const path = fixture(twoColumn());
-  const t = await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS);
+  const t = nonNull(await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS));
   assert.ok(t.meta.detail.includes(path), `expected detail to name ${path}, got ${t.meta.detail}`);
 });
 
 // 4
 test("test_points_file_detail_reports_the_number_of_points_parsed", async () => {
   const path = fixture(`100 0\n200 1\n400 2\n800 3\n1600 4\n`);
-  const t = await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS);
+  const t = nonNull(await resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS));
   assert.match(t.meta.detail, /\b5 points\b/);
 });
 
@@ -111,7 +145,7 @@ test("test_points_file_with_fewer_than_two_points_is_rejected_naming_the_path", 
   const path = fixture(`100 0\n`);
   await assert.rejects(
     () => resolveTarget({ from: "points", path, format: "fr_text", align: "none" }, FLAT, FS),
-    (e) => e.message.includes(path),
+    (e) => /** @type {Error} */ (e).message.includes(path),
   );
 });
 
@@ -135,7 +169,7 @@ test("test_points_spec_carrying_both_a_path_and_inline_points_is_rejected", asyn
   const path = fixture(twoColumn());
   await assert.rejects(
     () => resolveTarget({ from: "points", path, format: "fr_text", points: FILE_PAIRS, align: "none" }, FLAT, FS),
-    (e) => /path/.test(e.message) && /points/.test(e.message),
+    (e) => /path/.test(/** @type {Error} */ (e).message) && /points/.test(/** @type {Error} */ (e).message),
   );
 });
 
@@ -143,23 +177,34 @@ test("test_points_spec_carrying_both_a_path_and_inline_points_is_rejected", asyn
 
 // Fifteen round third-octave-ish frequencies; index 10 is 1000 Hz.
 const FREQS = [100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500];
+/**
+ * @param {number[]} dbs
+ * @returns {Point[]}
+ */
 const pts = (dbs) => FREQS.map((f, i) => [f, dbs[i]]);
 const FLAT_DBS = FREQS.map(() => 0);
 const SLOPED_DBS = FREQS.map((_, i) => i * 0.5);
 
+/**
+ * @param {number[]} dbs
+ * @param {number} index
+ * @param {number} delta
+ * @returns {number[]}
+ */
 const withSpike = (dbs, index, delta) => dbs.map((d, i) => (i === index ? d + delta : d));
 
 // 8 — despike applies to an inline points list, not only to a file source. On
 // the sloped fixture the post-drop reading is 5 dB, which neither the -20 dB
 // dropout nor an ignored points list could produce.
 test("test_despike_drops_a_spike_in_an_inline_points_list", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "points",
     points: pts(withSpike(SLOPED_DBS, 10, -20)),
     despike: {},
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 1000), 5, 0.2));
 });
 
@@ -167,13 +212,14 @@ test("test_despike_drops_a_spike_in_an_inline_points_list", async () => {
 // interpolated from its neighbours (4.5 dB at 800 Hz, 5.5 dB at 1250 Hz;
 // 1000 Hz is their log midpoint), not the +20 dB spike and not zero.
 test("test_despike_leaves_a_dropped_spike_following_its_neighbours", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "points",
     points: pts(withSpike(SLOPED_DBS, 10, 20)),
     despike: {},
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 1000), 5, 0.2));
 });
 
@@ -183,16 +229,18 @@ test("test_despike_leaves_a_dropped_spike_following_its_neighbours", async () =>
 // survive, which is exactly what this case is here to catch.
 test("test_despike_drops_a_three_point_cluster_at_the_default_window", async () => {
   const clustered = FLAT_DBS.map((d, i) => (i >= 8 && i <= 10 ? -20 : d));
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(clustered), despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 800), 0, 0.05));
 });
 
 // 10 — the whole stretch, not just its middle, follows the surrounding points.
 test("test_despike_clears_the_whole_cluster_stretch", async () => {
   const clustered = FLAT_DBS.map((d, i) => (i >= 8 && i <= 10 ? -20 : d));
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(clustered), despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 630), 0, 0.05));
 });
 
@@ -200,8 +248,9 @@ test("test_despike_clears_the_whole_cluster_stretch", async () => {
 // index 9 (800 Hz) carries +8 dB and must survive untouched.
 test("test_despike_preserves_a_steep_but_clean_monotone_run", async () => {
   const steep = FREQS.map((_, i) => (i - 7) * 4);
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(steep), despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 800), 8, 0.1));
 });
 
@@ -214,8 +263,9 @@ test("test_despike_preserves_a_steep_but_clean_monotone_run", async () => {
 const NOISY_DBS = [5, -10, 10, -5, -10, -5, 0, 8, 0, 5, 10, -5, 10, -10, 5];
 
 test("test_a_point_past_the_threshold_but_inside_three_sigma_survives", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(NOISY_DBS), despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...above(valueAt(t.curve, 500), 5));
 });
 
@@ -224,8 +274,9 @@ test("test_a_point_past_the_threshold_but_inside_three_sigma_survives", async ()
 // at all beats it; the 2 dB bump at 500 Hz survives only because it is inside
 // the default 3 dB threshold. Dropped, 500 Hz would read 0 dB.
 test("test_a_point_past_three_sigma_but_inside_the_threshold_survives", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(withSpike(FLAT_DBS, 7, 2)), despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...above(valueAt(t.curve, 500), 1));
 });
 
@@ -233,16 +284,18 @@ test("test_a_point_past_three_sigma_but_inside_the_threshold_survives", async ()
 // 8 dB bump goes at threshold_db 3 and stays at threshold_db 12.
 test("test_an_explicit_threshold_db_rejects_a_point_deviating_more_than_it", async () => {
   const points = pts(withSpike(FLAT_DBS, 7, 8));
+  /** @type {TargetSpec} */
   const spec = { from: "points", points, despike: { threshold_db: 3 }, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...below(valueAt(t.curve, 500), 1));
 });
 
 // 15/16
 test("test_an_explicit_threshold_db_keeps_a_point_deviating_less_than_it", async () => {
   const points = pts(withSpike(FLAT_DBS, 7, 8));
+  /** @type {TargetSpec} */
   const spec = { from: "points", points, despike: { threshold_db: 12 }, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...above(valueAt(t.curve, 500), 6));
 });
 
@@ -251,8 +304,9 @@ test("test_an_explicit_threshold_db_keeps_a_point_deviating_less_than_it", async
 // median is -20 dB and the middle bad point no longer looks like an outlier.
 test("test_a_five_wide_window_keeps_the_middle_of_a_three_point_cluster", async () => {
   const clustered = FLAT_DBS.map((d, i) => (i >= 8 && i <= 10 ? -20 : d));
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(clustered), despike: { window: 5 }, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...below(valueAt(t.curve, 800), -10));
 });
 
@@ -264,52 +318,57 @@ test("test_despike_drops_a_spike_read_from_an_fr_text_file", async () => {
       .map(([f, d]) => `${f} ${d}`)
       .join("\n") + "\n",
   );
+  /** @type {TargetSpec} */
   const spec = { from: "points", path, format: "fr_text", despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 1000), 5, 0.2));
 });
 
 // 12
 test("test_despike_detail_reports_how_many_points_were_rejected", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "points",
     points: pts(withSpike(SLOPED_DBS, 10, 20)),
     despike: {},
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.match(t.meta.detail, /\b1\b[^.]*despik|despik[^.]*\b1\b/i);
 });
 
 // 12
 test("test_despike_detail_names_the_frequency_of_the_rejected_point", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "points",
     points: pts(withSpike(SLOPED_DBS, 10, 20)),
     despike: {},
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.match(t.meta.detail, /1000/);
 });
 
 // 12 — and only the rejected one: 1600 Hz is clean, so a detail that simply
 // listed every input frequency fails here.
 test("test_despike_detail_omits_frequencies_it_did_not_reject", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "points",
     points: pts(withSpike(SLOPED_DBS, 10, 20)),
     despike: {},
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(!t.meta.detail.includes("1600"), `expected 1600 to be absent, got ${t.meta.detail}`);
 });
 
 // 13
 test("test_despike_detail_reports_zero_rejected_on_clean_data", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(SLOPED_DBS), despike: {}, align: "none" };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.match(t.meta.detail, /\b0\b[^.]*despik|despik[^.]*\b0\b/i);
 });
 
@@ -317,37 +376,45 @@ test("test_despike_detail_reports_zero_rejected_on_clean_data", async () => {
 // 30: ten rejects, so the detail lists eight frequencies and says how many are
 // left over. The frequencies are four distinct digits apiece and none is a
 // substring of another, so they can be counted in the detail text.
+/**
+ * @param {number} i
+ * @returns {boolean}
+ */
 const MANY_BAD = (i) => i >= 3 && i <= 30 && i % 3 === 0;
+/** @type {Point[]} */
 const MANY = Array.from({ length: 40 }, (_, i) => [1000 + 137 * i, MANY_BAD(i) ? -20 : 0]);
 const MANY_REJECTED = MANY.filter((_, i) => MANY_BAD(i)).map(([f]) => String(f));
 
 test("test_despike_detail_summarises_the_overflow_beyond_eight_frequencies", async () => {
-  const t = await resolveTarget({ from: "points", points: MANY, despike: {}, align: "none" }, FLAT, FS);
+  const t = nonNull(await resolveTarget({ from: "points", points: MANY, despike: {}, align: "none" }, FLAT, FS));
   assert.match(t.meta.detail, /\+2 more/);
 });
 
 // 14 — eight listed, not all ten: a detail that named every rejected point and
 // still claimed "+2 more" would pass the previous test and fail this one.
 test("test_despike_detail_lists_only_the_first_eight_rejected_frequencies", async () => {
-  const t = await resolveTarget({ from: "points", points: MANY, despike: {}, align: "none" }, FLAT, FS);
+  const t = nonNull(await resolveTarget({ from: "points", points: MANY, despike: {}, align: "none" }, FLAT, FS));
   const listed = MANY_REJECTED.filter((f) => t.meta.detail.includes(f));
   assert.equal(listed.length, 8);
 });
 
 // 15
 test("test_despike_with_an_even_window_is_rejected_naming_window", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(FLAT_DBS), despike: { window: 4 }, align: "none" };
   await assert.rejects(() => resolveTarget(spec, FLAT, FS), /window/i);
 });
 
 // 15
 test("test_despike_with_a_window_below_three_is_rejected_naming_window", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(FLAT_DBS), despike: { window: 1 }, align: "none" };
   await assert.rejects(() => resolveTarget(spec, FLAT, FS), /window/i);
 });
 
 // 16
 test("test_despike_with_a_non_positive_threshold_is_rejected_naming_threshold_db", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "points", points: pts(FLAT_DBS), despike: { threshold_db: 0 }, align: "none" };
   await assert.rejects(() => resolveTarget(spec, FLAT, FS), /threshold_db/i);
 });
@@ -361,58 +428,63 @@ const LOUD_BASE = curve([band(1000, 20, 0.7, "hshelf")]);
 
 // 17
 test("test_difference_of_two_flat_operands_is_their_arithmetic_difference", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "difference",
     a: { from: "flat", db: 6 },
     b: { from: "flat", db: 2 },
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 500), 4, 0.02));
 });
 
 // 18 — operands default to align "none", so their own levels survive the
 // subtraction; mean-aligning both to LOUD_BASE would give 0 dB here.
 test("test_difference_operands_default_to_no_alignment", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "difference",
     a: { from: "flat", db: 6 },
     b: { from: "flat", db: 2 },
     align: "none",
   };
-  const t = await resolveTarget(spec, LOUD_BASE, FS);
+  const t = nonNull(await resolveTarget(spec, LOUD_BASE, FS));
   assert.ok(...near(valueAt(t.curve, 500), 4, 0.02));
 });
 
 // 19 — `a` is a flat 0 dB curve explicitly mean-aligned to the base, so it
 // sits at the base's mean; `b` stays at 0 dB and the difference reads it back.
 test("test_an_explicit_align_inside_an_operand_is_honoured", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "difference",
     a: { from: "flat", db: 0, align: "mean" },
     b: { from: "flat", db: 0, align: "none" },
     align: "none",
   };
-  const t = await resolveTarget(spec, LOUD_BASE, FS);
+  const t = nonNull(await resolveTarget(spec, LOUD_BASE, FS));
   assert.ok(...near(valueAt(t.curve, 500), mean(LOUD_BASE.db), 0.05));
 });
 
 // 20 — `b` tilts +6 dB/octave about 1 kHz, so one octave up it reads 6 dB and
 // the difference is -6 dB there rather than the 0 dB it reads at the pivot.
 test("test_an_operands_own_transforms_apply_before_the_subtraction", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "difference",
     a: { from: "flat", db: 0 },
     b: { from: "flat", db: 0, tilt: { db_per_octave: 6, pivot: 1000 } },
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 2000), -6, 0.1));
 });
 
 // 21 — constant difference of 4 dB, enclosing tilt of +6 dB/octave about
 // 1 kHz: one octave up reads 10 dB.
 test("test_the_enclosing_specs_transforms_apply_on_top_of_the_difference", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "difference",
     a: { from: "flat", db: 6 },
@@ -420,12 +492,13 @@ test("test_the_enclosing_specs_transforms_apply_on_top_of_the_difference", async
     tilt: { db_per_octave: 6, pivot: 1000 },
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 2000), 10, 0.1));
 });
 
 // 22 — (10 - 3) - 2 = 5.
 test("test_a_difference_operand_may_itself_be_a_difference", async () => {
+  /** @type {TargetSpec} */
   const spec = {
     from: "difference",
     a: {
@@ -436,7 +509,7 @@ test("test_a_difference_operand_may_itself_be_a_difference", async () => {
     b: { from: "flat", db: 2 },
     align: "none",
   };
-  const t = await resolveTarget(spec, FLAT, FS);
+  const t = nonNull(await resolveTarget(spec, FLAT, FS));
   assert.ok(...near(valueAt(t.curve, 500), 5, 0.02));
 });
 
@@ -445,16 +518,19 @@ test("test_a_difference_operand_may_itself_be_a_difference", async () => {
 // English article, and a message merely listing both keys would satisfy both
 // tests, so the assertion is on the missing key in that role.
 test("test_a_difference_missing_its_a_operand_is_rejected_naming_a", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "difference", b: { from: "flat", db: 2 }, align: "none" };
   await assert.rejects(() => resolveTarget(spec, FLAT, FS), /missing ["'`]a["'`]/);
 });
 
 // 23
 test("test_a_difference_missing_its_b_operand_is_rejected_naming_b", async () => {
+  /** @type {TargetSpec} */
   const spec = { from: "difference", a: { from: "flat", db: 6 }, align: "none" };
   await assert.rejects(() => resolveTarget(spec, FLAT, FS), /missing ["'`]b["'`]/);
 });
 
+/** @type {TargetSpec} */
 const MIXED_DIFFERENCE = {
   from: "difference",
   a: { from: "flat", db: 6 },
@@ -464,13 +540,13 @@ const MIXED_DIFFERENCE = {
 
 // 24
 test("test_difference_detail_describes_its_a_operand", async () => {
-  const t = await resolveTarget(MIXED_DIFFERENCE, FLAT, FS);
+  const t = nonNull(await resolveTarget(MIXED_DIFFERENCE, FLAT, FS));
   assert.match(t.meta.detail, /flat/);
 });
 
 // 24
 test("test_difference_detail_describes_its_b_operand", async () => {
-  const t = await resolveTarget(MIXED_DIFFERENCE, FLAT, FS);
+  const t = nonNull(await resolveTarget(MIXED_DIFFERENCE, FLAT, FS));
   assert.match(t.meta.detail, /points/);
 });
 

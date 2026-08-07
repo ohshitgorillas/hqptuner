@@ -31,6 +31,7 @@ import {
 
 // Full reset on every call: module signals outlive a test, and every child of
 // App reads the store, so each case states the whole world it renders in.
+/** @param {boolean} reachable */
 function app(reachable) {
   health.value = { reachable, info: {} };
   engineState.value = {};

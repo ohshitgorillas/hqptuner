@@ -10,17 +10,70 @@
 
 import { parseProcess, serializeProcess } from "../../hqptuner/static/lib/matrixspec.js";
 import { isEq } from "../eqlab/chain.js";
-import { curveOf, preampDb, round } from "../eqlab/metrics.js";
+import { curveOf, preampDb, round } from "../eqlab/curve.js";
 import { postStage, verifyPending } from "./post.js";
 import { canonPipelines, editRow, lintRow, readBaseline, resolveEq, selectRows } from "./rows.js";
+
+/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
+/** @typedef {import("./post.js").StagePayload} StagePayload */
+/** @typedef {import("./post.js").FetchImpl} FetchImpl */
+
+/**
+ * One job as it arrives on stdin. Everything but `eq` has a default applied
+ * below, so `eq` is the only required key; `live` and `http` are passed through
+ * to the buffer untouched, which is why their values stay `unknown`.
+ *
+ * @typedef {{
+ *   eq: Parameters<typeof resolveEq>[0],
+ *   url?: string,
+ *   fs?: number,
+ *   rows?: "all" | number[] | null,
+ *   preamp_db?: number | "auto" | null,
+ *   mode?: string,
+ *   force_gainunit?: boolean,
+ *   live?: Record<string, unknown>,
+ *   http?: Record<string, unknown>,
+ *   dry_run?: boolean,
+ * }} Job
+ */
+
+/**
+ * What one row looked like before and after the edit, as the report prints it.
+ *
+ * @typedef {{ band_count: number, process: string, gain: string, gainunit: string }} RowFacts
+ */
+
+/**
+ * The job's answer: what was staged, per row, and whether it reached the buffer.
+ *
+ * `posted` and `verified` are written after the POST rather than at construction
+ * — a dry run returns with both still false — so they are plain booleans here
+ * and not the `false` literal their initialiser would otherwise infer.
+ *
+ * @typedef {{
+ *   baseline_source: "config" | "matrix",
+ *   eq: { band_count: number, process: string },
+ *   preamp_db: number | null,
+ *   rows: { index: number, selected: boolean, before: RowFacts, after: RowFacts }[],
+ *   staged: StagePayload,
+ *   posted: boolean,
+ *   verified: boolean,
+ *   dry_run: boolean,
+ * }} Report
+ */
 
 const DEFAULT_URL = "http://127.0.0.1:8090";
 const DEFAULT_FS = 44100;
 
 // Parametric-EQ stages only. A crossfeed `lp1` is an `iir:` stage too, and
 // counting it as a band makes a decomposed row look like it lost EQ it never had.
-const bandCount = (process) => parseProcess(process || "").filter(isEq).length;
+const bandCount = (/** @type {string | null | undefined} */ process) => parseProcess(process || "").filter(isEq).length;
 
+/**
+ * @param {PipelineRow} row
+ * @returns {RowFacts}
+ */
 const rowFacts = (row) => ({
   band_count: bandCount(row.process),
   process: row.process,
@@ -32,6 +85,11 @@ const rowFacts = (row) => ({
  * The preamp to write, in dB. `"auto"` is the negative of the summed response's
  * maximum — the same guardrail eqlab reports — computed from the EQ being
  * staged, so a lift that peaks at +4 dB stages a −4 dB channel gain.
+ *
+ * @param {number | "auto" | null | undefined} spec
+ * @param {MatrixStage[]} stages
+ * @param {number} fs
+ * @returns {number | null}
  */
 function preampOf(spec, stages, fs) {
   if (spec === undefined || spec === null) return null;
@@ -46,6 +104,10 @@ function preampOf(spec, stages, fs) {
  * Run one job. Returns the answer; every failure — a bad baseline row, a linear
  * gain row, a lost race on the buffer — rejects, and rejects before the POST
  * wherever the fault is knowable from the payload alone.
+ *
+ * @param {Job} job
+ * @param {{ fetch?: FetchImpl }} [deps]
+ * @returns {Promise<Report>}
  */
 export async function runJob(job, deps = {}) {
   const fetchImpl = deps.fetch || globalThis.fetch;
@@ -65,6 +127,7 @@ export async function runJob(job, deps = {}) {
     live: job.live || {},
     http: { ...(job.http || {}), matrix_pipelines: canonPipelines(staged) },
   };
+  /** @type {Report} */
   const report = {
     baseline_source,
     eq: { band_count: stages.length, process: serializeProcess(stages) },
@@ -90,7 +153,12 @@ export async function runJob(job, deps = {}) {
 
 // --- CLI --------------------------------------------------------------------
 
-/** The human-facing summary: what each row gained, and what to do next. */
+/**
+ * The human-facing summary: what each row gained, and what to do next.
+ *
+ * @param {Report} report
+ * @returns {string}
+ */
 function table(report) {
   const lines = [`baseline: ${report.baseline_source}`, `eq: ${report.eq.band_count} bands  ${report.eq.process}`];
   for (const row of report.rows) {

@@ -29,9 +29,23 @@ import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js"
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { stagingWire, ok } from "../support/wire.js";
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
+/**
+ * A stored profile as `matrixConfig.file_profiles` carries one.
+ *
+ * @typedef {{ rows: PipelineRow[], post: Record<string, unknown> }} SavedProfile
+ */
+
+/** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
 // A stored profile as the config carries it: rows plus its own post-process chain.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {Record<string, unknown>} [post]
+ * @returns {SavedProfile}
+ */
 const PROF = (rows, post = {}) => ({ rows, post });
 
 // The staging server plus the one endpoint this suite adds: the profile route,
@@ -40,7 +54,7 @@ function wire() {
   return stagingWire({
     routes: (path, opts, w) => {
       if (path !== "/api/matrix/profile") return undefined;
-      const body = JSON.parse(opts.body);
+      const body = JSON.parse(String(opts.body));
       w.posts.push(body);
       return ok({ ok: true, name: body.name });
     },
@@ -50,6 +64,11 @@ function wire() {
 // Full reset every time — every one of these signals outlives a test.
 // `profiles` are the names the daemon read at startup; `saved` is what the
 // config carries, name -> {rows, post}.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {{ active?: string, profiles?: string[], saved?: Record<string, SavedProfile> }} [opts]
+ * @returns {Promise<import("../support/wire.js").StagingWire>}
+ */
 async function reset(rows, { active = "[Default]", profiles = [], saved = {} } = {}) {
   const w = wire();
   matrixConfig.value = {

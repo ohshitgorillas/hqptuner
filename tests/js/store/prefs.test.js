@@ -15,25 +15,16 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
+import { useStorage, dropStorage } from "../support/storage.js";
+
+/** @type {string[]} */
 const warns = [];
 const realWarn = console.warn;
 console.warn = (msg) => warns.push(String(msg));
 const prefs = await import("../../../hqptuner/static/store/prefs.js");
 console.warn = realWarn;
 
-function fakeStorage() {
-  const map = new Map();
-  return {
-    map,
-    getItem: (k) => (map.has(k) ? map.get(k) : null),
-    setItem: (k, v) => map.set(k, v),
-    removeItem: (k) => map.delete(k),
-  };
-}
-
-afterEach(() => {
-  delete globalThis.localStorage;
-});
+afterEach(dropStorage);
 
 // --- the storage-disabled warn contract -----------------------------------------
 
@@ -71,18 +62,21 @@ test("test_the_quick_setter_keeps_its_value_when_storage_is_disabled", () => {
 });
 
 test("test_the_quick_setter_persists_when_storage_works", () => {
-  globalThis.localStorage = fakeStorage();
+  useStorage();
   prefs.setQuickSystemUpdates(true);
   assert.equal(globalThis.localStorage.getItem("hqptuner.quickSystemUpdates"), "1");
 });
 
 test("test_the_fast_volume_setter_persists_off_as_zero", () => {
-  globalThis.localStorage = fakeStorage();
+  useStorage();
   prefs.setFastVolumeUpdates(false);
   assert.equal(globalThis.localStorage.getItem("hqptuner.fastVolumeUpdates"), "0");
 });
 
 test("test_the_setters_coerce_truthiness_into_a_boolean", () => {
+  // The setter's own parameter is typed `boolean`, and every real caller is a
+  // checkbox event — but the daemon's own boolean fields arrive as truthy
+  // strings elsewhere in this store, so the setter coerces defensively too.
   prefs.setFastVolumeUpdates("yes");
   assert.equal(prefs.fastVolumeUpdates.value, true);
 });

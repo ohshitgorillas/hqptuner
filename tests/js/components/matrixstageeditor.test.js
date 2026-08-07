@@ -30,6 +30,11 @@ import { parseProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 
 // Render the editor docked on one stage of a process chain. Selection state is
 // cleared first: `selected`/`convDraft` are module-level and outlive a test.
+/**
+ * @param {string} process the chain text
+ * @param {number} [stageIndex]
+ * @returns {string}
+ */
 function editor(process, stageIndex = 0) {
   setSelected(null);
   const stages = parseProcess(process);
@@ -40,6 +45,7 @@ const PEAK = "iir:type=peak;f=1000;q=1;g=0";
 
 // Count the single-width argument inputs. The exact class match matters:
 // conv's file field is "mtx-arg mtx-arg-wide" and must not count here.
+/** @param {string} out */
 const argCount = (out) => (out.match(/class="mtx-arg"/g) || []).length;
 
 // --- the docked panel itself --------------------------------------------------

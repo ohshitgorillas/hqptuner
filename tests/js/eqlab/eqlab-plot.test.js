@@ -27,6 +27,10 @@ const FLAT = { from: "flat", align: "none" };
 // Runs one plot job through the real subprocess surface. `jobSpec` fills the
 // job object (kind fixed to "plot"); `top` overrides top-level keys — pass
 // `{ target: undefined }` to drop the target (JSON.stringify omits undefined).
+/**
+ * @param {Record<string, unknown>} jobSpec
+ * @param {Record<string, unknown>} [top]
+ */
 function runPlot(jobSpec, top = {}) {
   const job = { fs: 44100, chain: CHAIN, target: FLAT, ...top, job: { kind: "plot", ...jobSpec } };
   const res = spawnSync("node", [eqlabPath], { input: JSON.stringify(job), encoding: "utf8" });
@@ -39,13 +43,44 @@ function runPlot(jobSpec, top = {}) {
   return { status: res.status, out, stderr: res.stderr, rawOut: res.stdout };
 }
 
+/**
+ * @param {string} p
+ * @returns {string}
+ */
 const svgAt = (p) => fs.readFileSync(p, "utf8");
+
+/**
+ * @param {string} s
+ * @returns {string}
+ */
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * @param {string} name
+ * @returns {RegExp}
+ */
 const seriesElementRe = (name) => new RegExp(`<(?:polyline|path)\\b[^>]*data-series="${escapeRe(name)}"`);
+
+/**
+ * @param {string} name
+ * @returns {RegExp}
+ */
 const legendTextRe = (name) => new RegExp(`<text\\b[^>]*>${escapeRe(name)}</text>`);
+
+/**
+ * @param {string} text
+ * @param {RegExp} re
+ * @returns {number}
+ */
 const countOf = (text, re) => (text.match(re) || []).length;
 
-// [ok, message] for spreading into ONE assert.ok — house idiom.
+/**
+ * [ok, message] for spreading into ONE assert.ok — house idiom.
+ *
+ * @param {unknown} text
+ * @param {string[]} parts
+ * @returns {[boolean, string]}
+ */
 const containsAll = (text, parts) => {
   const missing = parts.filter((s) => !String(text).includes(s));
   return [missing.length === 0, `expected all of ${JSON.stringify(parts)} in: ${text}`];

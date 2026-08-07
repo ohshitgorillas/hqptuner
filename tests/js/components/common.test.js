@@ -30,6 +30,10 @@ const KID = html`<p>kid</p>`;
 // A collapsible rendered with the two signals its caller owns: `auto` is app
 // state (which backend is selected, which output mode is running), `override` is
 // the user's own toggle — null meaning "follow app state".
+/**
+ * @param {boolean} auto
+ * @param {boolean | null} [override]
+ */
 const disclosure = (auto, override = null) =>
   render(html`<${Card} title="ALSA Backend" collapse=${collapseFrom(signal(auto), signal(override))}>${KID}<//>`);
 

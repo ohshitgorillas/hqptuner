@@ -19,6 +19,11 @@ import assert from "node:assert/strict";
 import { reset, field, controlRow, attrOf } from "../support/field-harness.js";
 
 // Opening tag of the first element in `out` whose attributes match `needle`.
+/**
+ * @param {string | null} out
+ * @param {string} needle
+ * @returns {string | null}
+ */
 const openTag = (out, needle) => {
   const m = new RegExp(`<[a-zA-Z][^>]*${needle}[^>]*>`).exec(out || "");
   return m ? m[0] : null;
@@ -31,11 +36,16 @@ const openTag = (out, needle) => {
 // makes the engine re-split the attribute run at every offset, so the opening
 // tag is matched first and its class attribute tested separately. Same reason
 // the favourite-star button is matched whole and then checked for dd-fav.
+/** @param {string} tag */
 const classOf = (tag) => (/\bclass="([^"]*)"/.exec(tag) || [])[1] || "";
 
+/** @param {string} s */
 const withoutFavButton = (s) =>
-  s.replace(/<button\b[^<>]*>[\s\S]*?<\/button>/g, (b) => (/\bdd-fav\b/.test(b.slice(0, b.indexOf(">"))) ? "" : b));
+  s.replace(/<button\b[^<>]*>[\s\S]*?<\/button>/g, (/** @type {string} */ b) =>
+    /\bdd-fav\b/.test(b.slice(0, b.indexOf(">"))) ? "" : b,
+  );
 
+/** @param {string} out */
 function optRows(out) {
   const src = out || "";
   const openers = /<(\w+)\b([^<>]*)>/g;
@@ -93,12 +103,12 @@ test("test_a_desc_dropdowns_control_row_contains_no_native_select", async () => 
 
 test("test_a_closed_combobox_reports_aria_expanded_false", async () => {
   await reset({ fields: FILTER_FIELDS });
-  assert.equal(attrOf(openTag(field("pcm_filter_1x"), 'role="combobox"'), "aria-expanded"), "false");
+  assert.equal(attrOf(openTag(field("pcm_filter_1x"), 'role="combobox"') || "", "aria-expanded"), "false");
 });
 
 test("test_the_option_list_is_a_listbox", async () => {
   await reset({ fields: FILTER_FIELDS });
-  assert.equal(attrOf(openTag(field("pcm_filter_1x"), 'class="[^"]*\\bdd-pop\\b[^"]*"'), "role"), "listbox");
+  assert.equal(attrOf(openTag(field("pcm_filter_1x"), 'class="[^"]*\\bdd-pop\\b[^"]*"') || "", "role"), "listbox");
 });
 
 test("test_the_option_list_is_hidden_while_closed", async () => {
@@ -121,7 +131,7 @@ test("test_every_option_appears_as_a_row_labelled_by_its_option_label", async ()
 test("test_a_grayed_options_row_is_aria_disabled", async () => {
   await reset({ fields: GRAYED_DITHER_FIELDS });
   assert.equal(
-    attrOf(optRows(field("pcm_dither")).find((r) => r.text.startsWith("NS9"))?.tag, "aria-disabled"),
+    attrOf(optRows(field("pcm_dither")).find((r) => r.text.startsWith("NS9"))?.tag || "", "aria-disabled"),
     "true",
   );
 });

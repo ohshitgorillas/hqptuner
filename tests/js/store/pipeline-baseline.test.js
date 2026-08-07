@@ -45,8 +45,25 @@ const DAEMON_ROWS_AS_STAGED = [
   { gain: "0", gainunit: "dB", mixdown: "1", process: "", source: "1" },
 ];
 
+/**
+ * One pipeline row in the daemon's own shape — `gain` a number, `index` the
+ * row's position, neither of which the file shape carries.
+ *
+ * @typedef {{
+ *   index: number,
+ *   source: string,
+ *   gain: number,
+ *   gainunit: string,
+ *   mixdown: string,
+ *   process: string,
+ * }} DaemonRow
+ */
+
 // Full reset of every source signal this read model touches — module-level
 // signals outlive a test, and `staged` is private, so it clears via discardAll.
+/**
+ * @param {{ rows?: DaemonRow[], liveActive?: string, file?: Record<string, string> }} [trees]
+ */
 async function trees({ rows = [], liveActive = "", file = {} } = {}) {
   engineState.value = {};
   config.value = { fields: [], file, active: "" };
@@ -97,7 +114,7 @@ test("test_a_live_active_profile_with_no_daemon_rows_falls_back_to_the_config_fi
 test("test_daemon_grounded_baseline_rows_carry_no_index_key", async () => {
   await trees({ rows: DAEMON_ROWS, liveActive: "ZMF Ori 3.0", file: { matrix_pipelines: FILE_ROWS } });
   assert.deepEqual(
-    effectivePipelines.value.filter((row) => "index" in row),
+    effectivePipelines.value.filter((/** @type {DaemonRow | Record<string, string>} */ row) => "index" in row),
     [],
   );
 });

@@ -71,6 +71,20 @@ import {
   untouchedAmong,
 } from "../support/devicecaps-harness.js";
 
+// `reason` is optional on a MenuOption in general — untouched entries carry
+// none — but a case reading it here is always past an assertion that the
+// option WAS grayed, so it is always present by the time this runs.
+/**
+ * @param {import("../support/devicecaps-harness.js").MenuOption[]} options
+ * @param {string} value
+ * @returns {string}
+ */
+function reasonOf(options, value) {
+  const reason = optionFor(options, value).reason;
+  if (reason === undefined) throw new Error(`no reason on ${value}`);
+  return reason;
+}
+
 // --- the menus' own shape -----------------------------------------------------
 
 test("test_the_pcm_tier_menu_carries_its_values_as_strings", () => {
@@ -230,7 +244,7 @@ test("test_the_sdm_mode_is_grayed_when_the_device_has_no_dsd_path", async () => 
 test("test_the_reason_on_a_grayed_sdm_mode_says_the_device_has_no_dsd_path", async () => {
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
   const out = grayModesByDevice(MODE_OPTIONS);
-  assert.match(optionFor(out, "sdm").reason, /dsd/i);
+  assert.match(reasonOf(out, "sdm"), /dsd/i);
 });
 
 test("test_the_reason_on_a_grayed_sdm_mode_points_at_dop", async () => {
@@ -238,7 +252,7 @@ test("test_the_reason_on_a_grayed_sdm_mode_points_at_dop", async () => {
   // user with a dead button and no next move.
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
   const out = grayModesByDevice(MODE_OPTIONS);
-  assert.match(optionFor(out, "sdm").reason, /dop/i);
+  assert.match(reasonOf(out, "sdm"), /dop/i);
 });
 
 test("test_the_pcm_mode_is_not_grayed_when_the_device_has_no_dsd_path", async () => {

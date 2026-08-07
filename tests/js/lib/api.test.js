@@ -12,21 +12,56 @@ import assert from "node:assert/strict";
 import { api } from "../../../hqptuner/static/lib/api.js";
 import { ok, bad } from "../support/wire.js";
 
+/**
+ * @typedef {import("../support/wire.js").FakeResponse} FakeResponse
+ * @typedef {{ path: string | null, opts: RequestInit | null }} Seen
+ */
+
+// The DOM lib declares fetch answering with a real Response, which the wire
+// fakes do not build, so the global is reached through its own view here.
+/** @type {{ fetch?: unknown }} */
+const env = globalThis;
+
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = REAL_FETCH;
 });
 
 // Capture what fetch was handed, answering with a canned response.
+/**
+ * @param {FakeResponse} [answer]
+ * @returns {Seen}
+ */
 function wire(answer = ok({})) {
+  /** @type {Seen} */
   const seen = { path: null, opts: null };
-  globalThis.fetch = async (path, opts = {}) => {
+  /**
+   * @param {string} path
+   * @param {RequestInit} [opts]
+   * @returns {Promise<FakeResponse>}
+   */
+  const fake = async (path, opts = {}) => {
     seen.path = path;
     seen.opts = opts;
     return answer;
   };
+  env.fetch = fake;
   return seen;
 }
+
+// Every case here drives exactly one call, so the request is always there.
+/**
+ * @param {Seen} seen
+ * @returns {RequestInit}
+ */
+const sent = (seen) => /** @type {RequestInit} */ (seen.opts);
+
+/**
+ * @param {Seen} seen
+ * @param {string} field
+ * @returns {File}
+ */
+const uploaded = (seen, field) => /** @type {File} */ (/** @type {FormData} */ (sent(seen).body).get(field));
 
 const FILE = () => new File(["1000 -3.0"], "eq.txt", { type: "text/plain" });
 
@@ -35,26 +70,26 @@ const FILE = () => new File(["1000 -3.0"], "eq.txt", { type: "text/plain" });
 test("test_an_upload_posts_multipart_form_data_not_json", async () => {
   const seen = wire();
   await api.uploadFilter(FILE());
-  assert.equal(seen.opts.body instanceof FormData, true);
+  assert.equal(sent(seen).body instanceof FormData, true);
 });
 
 test("test_an_upload_carries_the_file_under_the_declared_field", async () => {
   const seen = wire();
   await api.uploadFilter(FILE());
-  assert.equal(seen.opts.body.get("file").name, "eq.txt");
+  assert.equal(uploaded(seen, "file").name, "eq.txt");
 });
 
 test("test_an_upload_sets_no_content_type_of_its_own", async () => {
   // the multipart boundary belongs to fetch; a hand-set header would break it
   const seen = wire();
   await api.uploadFilter(FILE());
-  assert.equal(seen.opts.headers, undefined);
+  assert.equal(sent(seen).headers, undefined);
 });
 
 test("test_a_config_restore_uploads_under_the_cfgfile_field", async () => {
   const seen = wire();
   await api.restore(FILE());
-  assert.equal(seen.opts.body.get("cfgfile").name, "eq.txt");
+  assert.equal(uploaded(seen, "cfgfile").name, "eq.txt");
 });
 
 test("test_an_upload_returns_the_parsed_response", async () => {

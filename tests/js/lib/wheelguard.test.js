@@ -15,13 +15,51 @@ import assert from "node:assert/strict";
 
 import { wheelGuard } from "../../../hqptuner/static/lib/dom.js";
 
+/**
+ * The globals the guard reads, viewed as optional members: under `node --test`
+ * there are none, and the DOM lib declares both as always present and fully
+ * shaped. This view is what lets a case install a stand-in and take it away.
+ *
+ * @type {{ document?: unknown, window?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * The control the wheel arrives over, recording whether anything blurred it.
+ *
+ * @typedef {{ blurred: boolean, blur(): void }} Control
+ */
+
+/**
+ * A wheel event as the guard reads one: the members it touches, plus the
+ * cancellation flag a case reads back.
+ *
+ * @typedef {{ currentTarget: Control, deltaY: number, deltaMode: number,
+ *   defaultPrevented: boolean, preventDefault(): void }} WheelSeam
+ */
+
+/**
+ * The seam as the guard's declared parameter. A WheelEvent carries far more
+ * than the guard reads, so the stand-in is handed over as the declared type.
+ *
+ * @param {WheelSeam} e
+ * @returns {WheelEvent}
+ */
+const asWheelEvent = (e) => /** @type {WheelEvent} */ (/** @type {unknown} */ (e));
+
+/**
+ * @param {{ focused: boolean, deltaY?: number, deltaMode?: number }} spec
+ * @returns {{ target: Control, event: WheelEvent, scrolls: number[][] }}
+ */
 function setup({ focused, deltaY = 120, deltaMode = 0 }) {
+  /** @type {Control} */
   const target = {
     blurred: false,
     blur() {
       this.blurred = true;
     },
   };
+  /** @type {WheelSeam} */
   const event = {
     currentTarget: target,
     deltaY,
@@ -31,15 +69,16 @@ function setup({ focused, deltaY = 120, deltaMode = 0 }) {
       this.defaultPrevented = true;
     },
   };
+  /** @type {number[][]} */
   const scrolls = [];
-  globalThis.document = { activeElement: focused ? target : null };
-  globalThis.window = { scrollBy: (x, y) => scrolls.push([x, y]) };
-  return { target, event, scrolls };
+  env.document = { activeElement: focused ? target : null };
+  env.window = { scrollBy: (/** @type {number} */ x, /** @type {number} */ y) => scrolls.push([x, y]) };
+  return { target, event: asWheelEvent(event), scrolls };
 }
 
 afterEach(() => {
-  delete globalThis.document;
-  delete globalThis.window;
+  delete env.document;
+  delete env.window;
 });
 
 // --- the wheel never edits the control ----------------------------------------

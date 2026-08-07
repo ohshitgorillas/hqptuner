@@ -65,7 +65,11 @@ function knobRange() {
 // a trailing send so the released value always lands.
 /** @type {string | null} the newest value not yet sent */
 let pending = null;
-/** @type {number | null} the open trailing-send timer, or null when idle */
+// `ReturnType` rather than `number`: this file is checked under both configs,
+// and the browser's `setTimeout` answers a number where node's answers a
+// `Timeout`. The handle is only ever passed back to `clearTimeout`, so which
+// one it is never matters here.
+/** @type {ReturnType<typeof setTimeout> | null} the open trailing-send timer, or null when idle */
 let timer = null;
 function flush() {
   if (pending == null) {

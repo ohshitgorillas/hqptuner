@@ -30,6 +30,8 @@ import { resetNarrowing, nFavOnly } from "../../../hqptuner/static/store/narrowi
 import { favoriteFilters, toggleFavorite } from "../../../hqptuner/static/store/favorites.js";
 import { staticWire } from "../support/wire.js";
 
+/** @typedef {import("../support/wheel.js").VNode} VNode */
+
 const FILTERS = [
   { index: "0", name: "gauss-short", value: "0", arg: 0, description: "4/5 transients ⥮ Int", apodizing: false },
   { index: "1", name: "gauss-plain", value: "1", arg: 1, description: "5/5 timbre, space ⥮ Any", apodizing: true },
@@ -55,10 +57,12 @@ async function reset() {
 
 // One render, with every vnode preact builds along the way; the hook is
 // restored even if the render throws, so no case can poison the next.
+/** @returns {{ out: string, seen: VNode[] }} */
 function renderBar() {
+  /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
-  options.vnode = (vnode) => {
+  options.vnode = (/** @type {VNode} */ vnode) => {
     seen.push(vnode);
     if (previous) previous(vnode);
   };
@@ -70,15 +74,23 @@ function renderBar() {
 }
 
 // Concatenated text of a vnode subtree.
+/**
+ * @param {unknown} node
+ * @returns {string}
+ */
 function textOf(node) {
   if (node === null || node === undefined || node === false) return "";
   if (Array.isArray(node)) return node.map(textOf).join("");
   if (typeof node === "string" || typeof node === "number") return String(node);
-  if (typeof node === "object" && node.props) return textOf(node.props.children);
+  if (typeof node === "object") {
+    const { props } = /** @type {VNode} */ (node);
+    if (props) return textOf(props.children);
+  }
   return "";
 }
 
 // The bar's favorites toggle: the one button marked as the favorites control.
+/** @returns {VNode} */
 function favButton() {
   const buttons = renderBar().seen.filter((v) => v && v.type === "button" && v.props);
   const marked = buttons.filter((b) => {
@@ -91,7 +103,11 @@ function favButton() {
   return marked[0];
 }
 
-const click = (vnode) => vnode.props.onClick({ preventDefault() {}, stopPropagation() {} });
+/** @param {VNode} vnode */
+const click = (vnode) => {
+  const onClick = /** @type {(event: unknown) => void} */ (vnode.props.onClick);
+  onClick({ preventDefault() {}, stopPropagation() {} });
+};
 
 // --- disabled while there is nothing to narrow to -------------------------------
 

@@ -103,7 +103,11 @@ export function setQuickSystemUpdates(on) {
 }
 
 /**
- * @param {boolean} on
+ * Takes a string as well as a boolean. Every UI caller hands it a checkbox's
+ * boolean, but the daemon's boolean fields arrive as truthy strings elsewhere
+ * in this store, so the coercion is part of what this setter promises.
+ *
+ * @param {boolean | string} on
  * @returns {void}
  */
 export function setFastVolumeUpdates(on) {

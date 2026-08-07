@@ -46,12 +46,23 @@ import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { staticWire, stagingWire } from "../support/wire.js";
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {Parameters<typeof compileRows>[0]} StructuralControls
+ */
+
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ * @returns {PipelineRow}
+ */
 const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process: EQ, source });
 const pair = () => [row("0", "0"), row("1", "1")];
 
 // An installed structural block at the given controls.
+/** @param {StructuralControls} [over] */
 const structural = (over = {}) =>
   compileRows({
     lambda: 1,
@@ -64,7 +75,20 @@ const structural = (over = {}) =>
     ...over,
   });
 
+// The structural block a compiled set of rows carries, for the tests that hand
+// the recognition back to removeStructural.
+/** @param {PipelineRow[]} rows */
+const recognized = (rows) => {
+  const rec = structuralBlock(rows);
+  if (rec === null) throw new Error("the compiled rows carry no structural block");
+  return rec;
+};
+
 // Full reset every time — every one of these signals outlives a test.
+/**
+ * @param {{ rows?: PipelineRow[], mode?: "bauer" | "structural" | null, enabled?: boolean,
+ *   iir2fir?: string, notes?: boolean }} [opts]
+ */
 async function reset({ rows = pair(), mode = null, enabled = false, iir2fir = "0", notes = false } = {}) {
   staticWire();
   matrixConfig.value = {
@@ -91,13 +115,26 @@ const card = () =>
     .replace(/&amp;/g, "&")
     .replace(/&#39;/g, "'");
 
+/** @param {string} out */
 const buttons = (out) =>
   out
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+
+/**
+ * @param {string} out
+ * @param {string} text
+ */
 const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
-const attrs = (b) => b.slice(0, b.indexOf(">"));
+
+// The attribute run of a button, which the callers reach only for a button they
+// have already established is present.
+/** @param {string | undefined} b */
+const attrs = (b) => {
+  if (b === undefined) throw new Error("no such button in the rendered card");
+  return b.slice(0, b.indexOf(">"));
+};
 
 // --- the card shell -----------------------------------------------------------
 
@@ -269,10 +306,12 @@ const CAPTION =
   "Structural crossfeed is HQPTuner's own and uses the Matrix pipelines.";
 
 // Class list of the gate wrapper element.
+/** @param {string} out */
 const gateClass = (out) => (out.match(/class="([^"]*\bxfs-gate\b[^"]*)"/) || ["", ""])[1].split(" ");
 
 // The text a user reads: browsers collapse runs of whitespace, so the caption
 // comparison does too rather than pinning the source string's line breaks.
+/** @param {string} out */
 const collapsed = (out) => out.replace(/\s+/g, " ");
 
 test("test_the_card_head_carries_no_view_segment", async () => {
@@ -367,7 +406,7 @@ test("test_a_staged_install_of_the_block_marks_the_structural_gate_dirty", async
 test("test_a_staged_removal_of_the_block_marks_the_structural_gate_dirty", async () => {
   await reset({ rows: structural(), mode: "structural" });
   stagingWire();
-  await removeStructural(structural(), structuralBlock(structural()));
+  await removeStructural(structural(), recognized(structural()));
   assert.ok(gateClass(card()).includes("dirty"));
 });
 

@@ -32,6 +32,26 @@ import {
   isDisabled,
 } from "../support/field-harness.js";
 
+// The option a label names, and the control row of a rendered field. A field
+// missing either is a broken fixture rather than a case with nothing to say, so
+// both raise here instead of reaching an assertion as an absence.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
+const option = (out, label) => {
+  const found = optionByLabel(out, label);
+  if (found === undefined) throw new Error(`no option labelled "${label}" in the rendered field`);
+  return found;
+};
+
+/** @param {string} out */
+const row = (out) => {
+  const found = controlRow(out);
+  if (found === null) throw new Error("the rendered field encloses no control row");
+  return found;
+};
+
 // ============================================================================
 // binding basics
 // ============================================================================
@@ -240,7 +260,7 @@ test("test_a_shaper_below_the_rate_floor_is_offered_disabled", async () => {
       },
     ],
   });
-  assert.ok(/\bdisabled\b/.test(optionByLabel(field("pcm_dither"), "NS9").a));
+  assert.ok(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a));
 });
 
 test("test_a_rate_grayed_shaper_names_the_rate_it_needs", async () => {
@@ -257,7 +277,7 @@ test("test_a_rate_grayed_shaper_names_the_rate_it_needs", async () => {
       },
     ],
   });
-  assert.equal(optionByLabel(field("pcm_dither"), "NS9").label, "NS9 — needs ≥ 352.8 kHz");
+  assert.equal(option(field("pcm_dither"), "NS9").label, "NS9 — needs ≥ 352.8 kHz");
 });
 
 test("test_a_shaper_the_rate_can_reach_stays_selectable", async () => {
@@ -274,7 +294,7 @@ test("test_a_shaper_the_rate_can_reach_stays_selectable", async () => {
       },
     ],
   });
-  assert.equal(/\bdisabled\b/.test(optionByLabel(field("pcm_dither"), "NS9").a), false);
+  assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a), false);
 });
 
 // ============================================================================
@@ -333,7 +353,7 @@ test("test_a_quiet_gray_field_is_still_disabled", async () => {
 test("test_inline_gray_adaptive_volume_names_the_direct_sdm_bypass_inside_the_control_row", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
   assert.equal(
-    grayReason(controlRow(field("adaptive_volume"))),
+    grayReason(row(field("adaptive_volume"))),
     "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
   );
 });
@@ -341,7 +361,7 @@ test("test_inline_gray_adaptive_volume_names_the_direct_sdm_bypass_inside_the_co
 test("test_inline_gray_loudness_explains_why_adaptive_loudness_cannot_adapt", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
   assert.equal(
-    grayReason(controlRow(field("loudness_enabled"))),
+    grayReason(row(field("loudness_enabled"))),
     "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value." +
       " Volume-adaptive loudness cannot adapt — use a Matrix EQ" +
       " for a volume-agnostic equivalent.",

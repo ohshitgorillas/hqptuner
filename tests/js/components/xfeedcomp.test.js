@@ -28,6 +28,8 @@ import { setShowDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { msCompile, fitComp, BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { staticWire, stagingWire } from "../support/wire.js";
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
 const DEF = BAUER_PRESETS.default;
 const JM = BAUER_PRESETS.jmeier;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
@@ -40,6 +42,12 @@ function wire() {
 }
 
 // A plain stereo EQ row, the shape an AutoEq import leaves behind.
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ * @param {{ process?: string, gain?: string, gainunit?: string }} [over]
+ * @returns {PipelineRow}
+ */
 const row = (source, mixdown, { process = EQ, gain = "-3", gainunit = "dB" } = {}) => ({
   gain,
   gainunit,
@@ -54,6 +62,10 @@ const pair = () => [row("0", "0"), row("1", "1")];
 const block = (p = DEF, s = 1) => msCompile(EQ, 0, { fit: fitComp(p.fc, p.feed), s }, { a: 0, b: 1 });
 
 // Full reset every time.
+/**
+ * @param {{ rows?: PipelineRow[], enabled?: boolean, preset?: string, notes?: boolean }} [over]
+ * @returns {Promise<void>}
+ */
 async function reset({ rows = [], enabled = true, preset = "default", notes = false } = {}) {
   wire();
   matrixConfig.value = {
@@ -80,6 +92,10 @@ const strip = () =>
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, "&");
 
+/**
+ * @param {string} out
+ * @returns {string[]}
+ */
 const buttons = (out) =>
   out
     .split("<button")
@@ -87,10 +103,36 @@ const buttons = (out) =>
     .map((s) => s.split("</button>")[0]);
 
 // The button whose visible label is exactly `text`, or undefined.
+/**
+ * @param {string} out
+ * @param {string} text
+ * @returns {string | undefined}
+ */
 const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
-const attrs = (b) => b.slice(0, b.indexOf(">"));
+
+// The attribute text of a button a case has gone on to read. A case reading
+// attributes off a button the render never produced is already failing, and the
+// missing button is what it should fail on — so the lookup is taken at its word
+// here rather than answering for a button that is not there.
+/**
+ * @param {string | undefined} b
+ * @returns {string}
+ */
+const attrs = (b) => {
+  const found = /** @type {string} */ (b);
+  return found.slice(0, found.indexOf(">"));
+};
+
+/**
+ * @param {string | undefined} b
+ * @returns {string}
+ */
 const titleOf = (b) => (/ title="([^"]*)"/.exec(attrs(b)) || [])[1] || "";
 
+/**
+ * @param {string} out
+ * @returns {number}
+ */
 const sliderPct = (out) => Number((/class="rng"[^>]*value="(\d+)"/.exec(out) || [])[1]);
 
 // --- crossfeed off ----------------------------------------------------------

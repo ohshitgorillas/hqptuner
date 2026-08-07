@@ -9,9 +9,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { valueAt } from "../../../scripts/eqlab/metrics.js";
+import { valueAt } from "../../../scripts/eqlab/curve.js";
 import { noteToMidi, midiToName, midiToHz, noteRange, noteTable, noteDeltas } from "../../../scripts/eqlab/notes.js";
 import { near, band, curve } from "../support/eqlab-helpers.js";
+
+/**
+ * The note tables are null only when no spec asks for one; every case reading a
+ * table passes a spec.
+ *
+ * @template T
+ * @param {T | null} x
+ * @returns {T}
+ */
+const nonNull = (x) => {
+  if (x === null) throw new Error("expected a note table, got null");
+  return x;
+};
 
 const FLAT = curve([]);
 const PEAK_5 = curve([band(1000, 5, 3)]);
@@ -68,7 +81,7 @@ test("test_a_note_range_given_backwards_still_reads_low_to_high", () => {
   assert.equal(noteRange("A4", "G4")[0].name, "G4");
 });
 
-const TABLE = noteTable(PEAK_5, { from: "A4", to: "A4", harmonics: [1, 2, 3] });
+const TABLE = nonNull(noteTable(PEAK_5, { from: "A4", to: "A4", harmonics: [1, 2, 3] }));
 
 test("test_a_note_table_has_one_row_per_note", () => {
   assert.equal(TABLE.length, 1);
@@ -83,7 +96,7 @@ test("test_a_harmonic_sits_at_its_multiple_of_the_fundamental", () => {
 });
 
 test("test_a_harmonic_above_twenty_kilohertz_is_kept_with_a_null_level", () => {
-  const table = noteTable(PEAK_5, { from: "A4", to: "A4", harmonics: [1, 48] });
+  const table = nonNull(noteTable(PEAK_5, { from: "A4", to: "A4", harmonics: [1, 48] }));
   assert.equal(table[0].harmonics[1].db, null);
 });
 
@@ -95,21 +108,21 @@ test("test_a_note_table_without_a_spec_is_null", () => {
 const A_BOOST = curve([band(440, 6, 3)]);
 
 test("test_a_harmonic_inside_the_band_carries_the_curve_level_at_its_frequency", () => {
-  const row = noteTable(A_BOOST, { from: "A4", to: "A4", harmonics: [1] })[0];
-  assert.ok(...near(row.harmonics[0].db, valueAt(A_BOOST, 440), 0.01));
+  const row = nonNull(noteTable(A_BOOST, { from: "A4", to: "A4", harmonics: [1] }))[0];
+  assert.ok(...near(/** @type {number} */ (row.harmonics[0].db), valueAt(A_BOOST, 440), 0.01));
 });
 
 test("test_a_note_delta_is_the_after_level_minus_the_before_level", () => {
-  const deltas = noteDeltas(FLAT, A_BOOST, { from: "A4", to: "A4", harmonics: [1] });
-  assert.ok(...near(deltas[0].harmonics[0].delta, 6, 0.1));
+  const deltas = nonNull(noteDeltas(FLAT, A_BOOST, { from: "A4", to: "A4", harmonics: [1] }));
+  assert.ok(...near(/** @type {number} */ (deltas[0].harmonics[0].delta), 6, 0.1));
 });
 
 test("test_a_note_delta_carries_the_before_level_it_was_measured_from", () => {
-  const deltas = noteDeltas(FLAT, A_BOOST, { from: "A4", to: "A4", harmonics: [1] });
-  assert.ok(...near(deltas[0].harmonics[0].before, 0, 1e-9));
+  const deltas = nonNull(noteDeltas(FLAT, A_BOOST, { from: "A4", to: "A4", harmonics: [1] }));
+  assert.ok(...near(/** @type {number} */ (deltas[0].harmonics[0].before), 0, 1e-9));
 });
 
 test("test_a_note_delta_carries_the_after_level_it_was_measured_to", () => {
-  const deltas = noteDeltas(FLAT, A_BOOST, { from: "A4", to: "A4", harmonics: [1] });
-  assert.ok(...near(deltas[0].harmonics[0].after, valueAt(A_BOOST, 440), 0.01));
+  const deltas = nonNull(noteDeltas(FLAT, A_BOOST, { from: "A4", to: "A4", harmonics: [1] }));
+  assert.ok(...near(/** @type {number} */ (deltas[0].harmonics[0].after), valueAt(A_BOOST, 440), 0.01));
 });

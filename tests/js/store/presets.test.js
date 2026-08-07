@@ -28,19 +28,50 @@ import {
 } from "../../../hqptuner/static/store/actions.js";
 import { ok, bad } from "../support/wire.js";
 
-const REAL_FETCH = globalThis.fetch;
+/**
+ * @typedef {import("../support/wire.js").FakeResponse} FakeResponse
+ */
+
+/**
+ * One /config form field, as `field()` below builds it.
+ *
+ * @typedef {{ name: string, value: string }} FormField
+ */
+
+// The globals a fake wire installs a `fetch` on, viewed as an optional member:
+// the DOM lib declares it returning a real `Response`, which these fakes do
+// not build.
+/** @type {{ fetch?: unknown }} */
+const env = globalThis;
+
+const REAL_FETCH = env.fetch;
 afterEach(() => {
-  globalThis.fetch = REAL_FETCH;
+  env.fetch = REAL_FETCH;
 });
 
 // Every request the fake wire answered, for the silence assertions.
+/** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
 const CALLS = [];
+
+// The one call matching a path — thrown rather than left undefined, since
+// every caller here is asserting on a wire trip the case expects to have
+// happened.
+/**
+ * @param {string} path
+ * @returns {{ path: string, method: string, body: Record<string, unknown> | null }}
+ */
+function callFor(path) {
+  const call = CALLS.find((c) => c.path === path);
+  if (!call) throw new Error(`no call recorded for ${path}`);
+  return call;
+}
 
 // Routes are keyed "METHOD /path"; anything unrouted gets a minimal valid
 // answer so the surrounding flow (refreshConfig after a delete/save) completes.
+/** @param {Record<string, FakeResponse>} [routes] */
 function wire(routes = {}) {
   CALLS.length = 0;
-  globalThis.fetch = async (path, opts = {}) => {
+  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     const method = opts.method || "GET";
     CALLS.push({ path, method, body: opts.body ? JSON.parse(opts.body) : null });
     const hit = routes[`${method} ${path}`];
@@ -53,8 +84,16 @@ function wire(routes = {}) {
   };
 }
 
+/**
+ * @param {string} name
+ * @param {string} value
+ * @returns {FormField}
+ */
 const field = (name, value) => ({ name, value });
 
+/**
+ * @param {{ fields?: FormField[], active?: string, routes?: Record<string, FakeResponse> }} [seams]
+ */
 async function reset({ fields = [], active = "", routes = {} } = {}) {
   engineState.value = {};
   config.value = { fields, file: {}, active };
@@ -65,6 +104,9 @@ async function reset({ fields = [], active = "", routes = {} } = {}) {
 }
 
 // The picker's usual case: previewing a preset that is NOT the active one.
+/**
+ * @param {{ fields?: FormField[], active?: string }} [seams]
+ */
 async function previewNight({ fields = [field("volume_max", "-3")], active = "" } = {}) {
   await reset({
     fields,
@@ -137,13 +179,13 @@ async function previewNoPreset() {
 test("test_applying_a_previewed_no_preset_option_sends_the_empty_switch_target", async () => {
   await previewNoPreset();
   await applyAll();
-  assert.equal(CALLS.find((c) => c.path === "/api/config/apply").body.switch_to, "");
+  assert.equal(callFor("/api/config/apply").body?.switch_to, "");
 });
 
 test("test_applying_with_nothing_previewed_sends_no_switch_target", async () => {
   await reset({ active: "Night" });
   await applyAll();
-  assert.equal(CALLS.find((c) => c.path === "/api/config/apply").body.switch_to, undefined);
+  assert.equal(callFor("/api/config/apply").body?.switch_to, undefined);
 });
 
 // --- clearPreview ---------------------------------------------------------------
@@ -198,7 +240,7 @@ test("test_deleting_a_blank_name_is_a_no_op", async () => {
 test("test_a_standalone_save_posts_the_preset_name", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
   await savePresetOnly("P");
-  assert.equal(CALLS.find((c) => c.path === "/api/profile/save").body.name, "P");
+  assert.equal(callFor("/api/profile/save").body?.name, "P");
 });
 
 test("test_a_successful_standalone_save_reports_the_saved_name", async () => {

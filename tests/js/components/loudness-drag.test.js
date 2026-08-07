@@ -75,6 +75,7 @@ const MTX = [
 const POLLED = "-20";
 const DRAGGED = -50;
 
+/** @param {{ level?: string, drag?: number | null }} [fixture] */
 async function reset({ level = POLLED, drag = null } = {}) {
   stagingWire();
   engineState.value = {};

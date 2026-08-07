@@ -14,8 +14,24 @@ import { applyChanges } from "../../../scripts/eqlab/chain.js";
 import { guidanceFlags } from "../../../scripts/eqlab/guidance.js";
 import { band, argNum } from "../support/eqlab-helpers.js";
 
+/** @typedef {import("../../../scripts/eqlab/guidance.js").Flag} Flag */
+
+/**
+ * @param {Flag[]} flags
+ * @returns {Flag[]}
+ */
 const policyFlags = (flags) => flags.filter((f) => f.severity === "policy");
+
+/**
+ * @param {Flag[]} flags
+ * @returns {Flag[]}
+ */
 const guidanceOnly = (flags) => flags.filter((f) => f.severity === "guidance");
+
+/**
+ * @param {ReturnType<typeof applyChanges>} result
+ * @returns {Flag[]}
+ */
 const flagsFor = (result) => guidanceFlags(result.edits, result.stages);
 
 // The policy limit is ±6.0 dB of CHANGE per turn; there is no absolute gain

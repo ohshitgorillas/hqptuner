@@ -32,14 +32,59 @@ const JM_FIT = fitComp(JM.fc, JM.feed);
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../hqptuner/static/lib/xfeed.js").MsRecognition} MsRecognition
+ */
+
 // [ok, message] for spreading into ONE assert.ok — see matrixspec.test.js.
+/**
+ * @param {number} actual
+ * @param {number} expected
+ * @param {number} tol
+ * @returns {[boolean, string]}
+ */
 const near = (actual, expected, tol) => [
   Math.abs(actual - expected) <= tol,
   `expected ${expected} ± ${tol}, got ${actual}`,
 ];
 
+/**
+ * @param {string} [eq]
+ * @param {number} [preamp]
+ * @param {number} [s]
+ * @returns {PipelineRow[]}
+ */
 const block = (eq = "", preamp = 0, s = 1) => msCompile(eq, preamp, { fit: FIT, s }, { a: 0, b: 1 });
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {MsRecognition | null}
+ */
 const rec = (rows) => msRecognize(rows, 0, fc, feed);
+
+// The blocks these cases compile are recognizable by construction; a block that
+// declines is asserted on as null through `rec` instead.
+/**
+ * @param {MsRecognition | null} recognition
+ * @returns {MsRecognition}
+ */
+const found = (recognition) => /** @type {MsRecognition} */ (recognition);
+
+// Rows a hand edit can leave behind: the malformed-row cases feed the
+// recognizer shapes its declared input does not admit, which is the point.
+/**
+ * @param {unknown} rows
+ * @returns {PipelineRow[]}
+ */
+const asRows = (rows) => /** @type {PipelineRow[]} */ (rows);
+
+// The offset a caller leaves out altogether — the parameter is declared as a
+// number, and its absence is exactly what one case hands over.
+/**
+ * @param {unknown} at
+ * @returns {number}
+ */
+const asOffset = (at) => /** @type {number} */ (at);
 
 // --- shape ------------------------------------------------------------------
 
@@ -58,7 +103,7 @@ test("test_every_compiled_row_carries_a_linear_gain", () => {
 // --- round trip -------------------------------------------------------------
 
 test("test_an_eq_chain_round_trips_byte_identical", () => {
-  assert.equal(rec(block(EQ)).eqProcess, EQ);
+  assert.equal(found(rec(block(EQ))).eqProcess, EQ);
 });
 
 test("test_a_block_with_no_eq_is_recognized", () => {
@@ -66,18 +111,18 @@ test("test_a_block_with_no_eq_is_recognized", () => {
 });
 
 test("test_a_block_with_no_eq_reports_an_empty_chain", () => {
-  assert.equal(rec(block("")).eqProcess, "");
+  assert.equal(found(rec(block(""))).eqProcess, "");
 });
 
 for (const preamp of [0, -2.5, -12, -40]) {
   test(`test_preamp_round_trips: ${preamp} dB`, () => {
     // error scales as 10^(-p/20) off the 6-dp linear gain; 1e-4 covers >= -40 dB
-    assert.ok(...near(rec(block(EQ, preamp)).preampDb, preamp, 1e-4));
+    assert.ok(...near(found(rec(block(EQ, preamp))).preampDb, preamp, 1e-4));
   });
 }
 
 test("test_a_deep_preamp_degrades_but_still_recovers", () => {
-  assert.ok(...near(rec(block(EQ, -80)).preampDb, -80, 0.2));
+  assert.ok(...near(found(rec(block(EQ, -80))).preampDb, -80, 0.2));
 });
 
 test("test_a_preamp_below_the_gain_resolution_is_not_recognized", () => {
@@ -85,7 +130,7 @@ test("test_a_preamp_below_the_gain_resolution_is_not_recognized", () => {
 });
 
 test("test_a_faithful_round_trip_is_not_stale", () => {
-  assert.equal(rec(block(EQ, -2.5, 1)).stale, false);
+  assert.equal(found(rec(block(EQ, -2.5, 1))).stale, false);
 });
 
 // --- strength (sFraction) ---------------------------------------------------
@@ -94,17 +139,21 @@ test("test_a_faithful_round_trip_is_not_stale", () => {
 
 for (const s of [0.25, 0.5, 0.75, 1, 1.25, 1.5]) {
   test(`test_strength_round_trips_within_one_percent_step: ${s}`, () => {
-    assert.ok(...near(rec(block(EQ, 0, s)).sFraction, s, 0.01));
+    assert.ok(...near(found(rec(block(EQ, 0, s))).sFraction, s, 0.01));
   });
 }
 
 test("test_full_strength_round_trips_exactly", () => {
-  assert.equal(rec(block(EQ, 0, 1)).sFraction, 1);
+  assert.equal(found(rec(block(EQ, 0, 1))).sFraction, 1);
 });
 
 test("test_strength_recovery_stays_within_one_step_across_the_whole_range", () => {
   // jmeier is the worst preset for this — 68/150 values land off-grid
-  const jm = (s) => msRecognize(msCompile("", 0, { fit: JM_FIT, s }, { a: 0, b: 1 }), 0, JM.fc, JM.feed);
+  /**
+   * @param {number} s
+   * @returns {MsRecognition}
+   */
+  const jm = (s) => found(msRecognize(msCompile("", 0, { fit: JM_FIT, s }, { a: 0, b: 1 }), 0, JM.fc, JM.feed));
   const worst = Array.from({ length: 150 }, (_, i) => (i + 1) / 100)
     .map((s) => Math.abs(jm(s).sFraction - s))
     .reduce((a, b) => Math.max(a, b), 0);
@@ -114,19 +163,19 @@ test("test_strength_recovery_stays_within_one_step_across_the_whole_range", () =
 // --- recognizing against the wrong crossfeed settings ------------------------
 
 test("test_a_block_built_for_other_settings_is_marked_stale", () => {
-  assert.equal(msRecognize(block(EQ, -2.5), 0, JM.fc, JM.feed).stale, true);
+  assert.equal(found(msRecognize(block(EQ, -2.5), 0, JM.fc, JM.feed)).stale, true);
 });
 
 test("test_a_stale_block_still_returns_its_eq_chain", () => {
-  assert.equal(msRecognize(block(EQ, -2.5), 0, JM.fc, JM.feed).eqProcess, EQ);
+  assert.equal(found(msRecognize(block(EQ, -2.5), 0, JM.fc, JM.feed)).eqProcess, EQ);
 });
 
 test("test_a_stale_block_pins_its_strength_to_full", () => {
-  assert.equal(msRecognize(block(EQ, 0, 0.5), 0, JM.fc, JM.feed).sFraction, 1);
+  assert.equal(found(msRecognize(block(EQ, 0, 0.5), 0, JM.fc, JM.feed)).sFraction, 1);
 });
 
 test("test_unusable_crossfeed_settings_mark_the_block_stale", () => {
-  assert.equal(msRecognize(block(EQ), 0, NaN, NaN).stale, true);
+  assert.equal(found(msRecognize(block(EQ), 0, NaN, NaN)).stale, true);
 });
 
 // --- structural rejection ---------------------------------------------------
@@ -144,12 +193,12 @@ test("test_a_negative_offset_is_not_recognized", () => {
 });
 
 test("test_a_missing_offset_is_not_recognized", () => {
-  assert.equal(msRecognize(block(), undefined, fc, feed), null);
+  assert.equal(msRecognize(block(), asOffset(undefined), fc, feed), null);
 });
 
 test("test_a_block_at_a_later_offset_is_recognized", () => {
   const padded = [...block(""), ...block(EQ)];
-  assert.equal(msRecognize(padded, 8, fc, feed).eqProcess, EQ);
+  assert.equal(found(msRecognize(padded, 8, fc, feed)).eqProcess, EQ);
 });
 
 test("test_a_block_feeding_both_halves_from_one_source_is_not_recognized", () => {
@@ -212,21 +261,21 @@ test("test_a_compensation_suffix_that_is_not_two_shelves_is_not_recognized", () 
 // drops the badge; throwing takes down the render path the recognizer runs in.
 
 test("test_a_row_with_a_non_string_process_is_not_recognized", () => {
-  assert.equal(rec(block(EQ).map((r, i) => (i === 2 ? { ...r, process: 42 } : r))), null);
+  assert.equal(rec(asRows(block(EQ).map((r, i) => (i === 2 ? { ...r, process: 42 } : r)))), null);
 });
 
 test("test_a_null_row_is_not_recognized", () => {
-  assert.equal(rec(block(EQ).map((r, i) => (i === 4 ? null : r))), null);
+  assert.equal(rec(asRows(block(EQ).map((r, i) => (i === 4 ? null : r)))), null);
 });
 
 test("test_compensation_rows_missing_their_chain_are_not_recognized", () => {
   // the chain read that used to throw: eqProcess truthy, compFull undefined
   const rows = block(EQ).map((r, i) => ([0, 1, 4, 5].includes(i) ? { ...r, process: undefined } : r));
-  assert.equal(rec(rows), null);
+  assert.equal(rec(asRows(rows)), null);
 });
 
 test("test_a_block_with_no_chains_at_all_is_not_recognized", () => {
-  assert.equal(rec(block(EQ).map((r) => ({ ...r, process: undefined }))), null);
+  assert.equal(rec(asRows(block(EQ).map((r) => ({ ...r, process: undefined })))), null);
 });
 
 // --- the fit itself ---------------------------------------------------------

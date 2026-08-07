@@ -28,9 +28,13 @@ import { notesVisible } from "./prefs.js";
  * @property {Record<string, string>} [options] per-VALUE prose (`desc: "config"`)
  *
  * @typedef {object} OverlayEntry
- *   One filters.json / shapers.json row, as far as this module reads it.
+ *   One filters.json / shapers.json row. This module reads the prose; the rate
+ *   floor belongs to the same row and `store/options.js` reads it, so the shape
+ *   names it rather than describing a record narrower than the one served.
  * @property {string} [description]
  * @property {string} [notes]
+ * @property {number | null} [min_rate_hz]
+ * @property {string} [min_rate_label]
  *
  * @typedef {object} Metadata
  *   The static overlay bundle /api/metadata serves.

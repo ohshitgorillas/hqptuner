@@ -16,8 +16,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
-import { discardAll } from "../../../hqptuner/static/store/actions.js";
+import { matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { effective } from "../../../hqptuner/static/store/resolve.js";
 import {
   savedProfiles,
@@ -25,45 +24,31 @@ import {
   stageProfileSave,
   stageProfileDelete,
 } from "../../../hqptuner/static/store/profiles.js";
-import { stagingWire } from "../support/wire.js";
+import { ROW, PROF, reset } from "../support/profile-fixtures.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = REAL_FETCH;
 });
 
-// A canonical pipeline row, the shape rows travel in everywhere.
-const ROW = (gain) => ({ gain, gainunit: "dB", mixdown: "0", process: "", source: "0" });
-
-// A stored profile as the config carries it: rows plus its own post-process chain.
-const PROF = (rows, post = {}) => ({ rows, post });
-
-async function reset(m = {}) {
-  stagingWire();
-  engineState.value = {};
-  config.value = { fields: [], file: {}, active: "" };
-  matrixConfig.value = { fields: [], rows: [], ...m };
-  await discardAll();
-}
-
 // --- stageProfileSave: the staged JSON payload -----------------------------------
 
 test("test_a_save_without_presets_stages_only_name_and_rows", async () => {
   await reset();
   await stageProfileSave("P", [ROW("-1")]);
-  assert.deepEqual(JSON.parse(effective("matrix_profile_save")), { name: "P", rows: [ROW("-1")] });
+  assert.deepEqual(JSON.parse(String(effective("matrix_profile_save"))), { name: "P", rows: [ROW("-1")] });
 });
 
 test("test_a_save_with_an_empty_presets_list_stages_the_no_presets_shape", async () => {
   await reset();
   await stageProfileSave("P", [ROW("-1")], []);
-  assert.deepEqual(JSON.parse(effective("matrix_profile_save")), { name: "P", rows: [ROW("-1")] });
+  assert.deepEqual(JSON.parse(String(effective("matrix_profile_save"))), { name: "P", rows: [ROW("-1")] });
 });
 
 test("test_a_save_with_presets_carries_them_alongside_name_and_rows", async () => {
   await reset();
   await stageProfileSave("P", [ROW("-1")], ["Office", "Headphones"]);
-  assert.deepEqual(JSON.parse(effective("matrix_profile_save")), {
+  assert.deepEqual(JSON.parse(String(effective("matrix_profile_save"))), {
     name: "P",
     rows: [ROW("-1")],
     presets: ["Office", "Headphones"],
@@ -81,7 +66,7 @@ test("test_a_delete_without_presets_stages_the_plain_name_string", async () => {
 test("test_a_delete_with_presets_stages_a_json_object_naming_them", async () => {
   await reset();
   await stageProfileDelete("X", ["Office"]);
-  assert.deepEqual(JSON.parse(effective("matrix_profile_delete")), {
+  assert.deepEqual(JSON.parse(String(effective("matrix_profile_delete"))), {
     name: "X",
     presets: ["Office"],
   });

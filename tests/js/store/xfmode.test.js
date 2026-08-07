@@ -36,6 +36,19 @@ import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaura
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { ok, stagingWire } from "../support/wire.js";
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../hqptuner/static/lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ */
+
+/**
+ * One /config or /matrix form field, as the reset() helpers below build it.
+ * `value` is a union because the form answers a checkbox with a real bool and
+ * everything else with a string.
+ *
+ * @typedef {{ name: string, value: string | boolean }} FormField
+ */
+
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 
@@ -43,8 +56,26 @@ function wire() {
   stagingWire({ fallback: (w) => ok(w.staged) });
 }
 
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ * @returns {PipelineRow}
+ */
 const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process: EQ, source });
 const pair = () => [row("0", "0"), row("1", "1")];
+
+// The block a test knows is installed, typed without the `| null` case:
+// every call site here follows a compile of a real block, so what
+// `structuralBlock` hands back always recognizes.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {StructuralRecognition}
+ */
+function installedBlock(rows) {
+  const rec = structuralBlock(rows);
+  if (!rec) throw new Error("expected a recognized block");
+  return rec;
+}
 
 // The two installed shapes: sixteen structural rows, or eight compensation rows.
 const structural = (eqProcess = EQ, srcA = 0, srcB = 1) =>
@@ -52,6 +83,14 @@ const structural = (eqProcess = EQ, srcA = 0, srcB = 1) =>
 const compensation = () => msCompile(EQ, -3, { fit: fitComp(DEF.fc, DEF.feed), s: 1 }, { a: 0, b: 1 });
 
 // Full reset every time — the mode signal and the staging buffer both outlive a test.
+/**
+ * @param {{
+ *   rows?: PipelineRow[],
+ *   enabled?: string,
+ *   selected?: "structural" | "bauer" | null,
+ *   fields?: FormField[],
+ * }} [trees]
+ */
 async function reset({ rows = pair(), enabled = "0", selected = null, fields = [] } = {}) {
   wire();
   matrixConfig.value = {
@@ -107,7 +146,7 @@ test("test_selecting_structural_installs_no_block", async () => {
 
 test("test_turning_structural_off_keeps_the_structural_view", async () => {
   await reset({ rows: structural(), selected: "structural" });
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(activeMode(live()), "structural");
 });
 
@@ -124,13 +163,13 @@ test("test_eq_loaded_while_the_block_is_installed_comes_back_when_it_is_turned_o
   stageStructural(live(), { lambda: 1, angle: 30, headRadius: HEAD_RADIUS });
   // The supported way to load a profile onto an installed block: recompile it.
   stagePipelines(structural(LOADED));
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(live()[0].process, LOADED);
 });
 
 test("test_a_block_built_on_in_3_returns_its_pair_on_in_3", async () => {
   await reset({ rows: structural(EQ, 2, 3), selected: "structural" });
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(live()[0].source, "2");
 });
 
@@ -155,7 +194,13 @@ const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 // matches an installed block and nothing else does. The extra rows stay off the
 // two mixdowns the block owns — rows contending for those are a starting point
 // the install refuses outright, which is a different question than this one.
-const spare = (i) => ({ gain: "-3", gainunit: "dB", mixdown: String(i + 2), process: EQ, source: String(i + 2) });
+const spare = (/** @type {number} */ i) => ({
+  gain: "-3",
+  gainunit: "dB",
+  mixdown: String(i + 2),
+  process: EQ,
+  source: String(i + 2),
+});
 const sixteenPlain = () => [...pair(), ...Array.from({ length: 14 }, (_, i) => spare(i))];
 
 test("test_nothing_staged_over_a_plain_pair_is_not_pending", async () => {
@@ -176,7 +221,7 @@ test("test_staging_a_block_where_there_was_none_is_pending", async () => {
 
 test("test_staging_the_removal_of_an_installed_block_is_pending", async () => {
   await reset({ rows: structural(), selected: "structural" });
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(pipelinesDirty(), true);
 });
 
@@ -241,7 +286,7 @@ test("test_discarding_the_staged_block_is_not_pending", async () => {
 test("test_reengaging_after_a_removal_uses_the_angle_on_screen", async () => {
   await reset({ rows: pair(), selected: "structural" });
   stageStructural(live(), { ...DEFAULTS, angle: 30 });
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   stageStructural(live(), { ...DEFAULTS, angle: 45 });
   const back = structuralBlock(live());
   assert.ok(back && Math.abs(back.angle - 45) < 1e-3, `block came back as ${JSON.stringify(back)}`);

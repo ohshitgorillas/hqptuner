@@ -17,6 +17,17 @@ const VOID = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input"
 // raises rather than being dropped: a silently shorter list makes the questions
 // below ("what is the OUTERMOST element carrying this?", "what is the SMALLEST
 // element enclosing that?") quietly answer about the wrong element.
+/**
+ * One element of a scanned fragment: its tag name, its attribute run, where it
+ * starts in the fragment, and its own outer HTML.
+ *
+ * @typedef {{ name: string, attrs: string, start: number, html: string }} MarkupElement
+ */
+
+/**
+ * @param {string} out
+ * @returns {MarkupElement[]}
+ */
 export function elements(out) {
   // The attribute run is greedy, not lazy, and the name is followed by a
   // lookahead: both alternatives inside the run start with a different
@@ -24,7 +35,9 @@ export function elements(out) {
   // engine never re-splits it. A lazy run plus a trailing (\/?) gave it two.
   // The self-closing slash lands at the end of the run and is peeled off below.
   const tag = /<(\/?)([a-zA-Z][\w-]*)(?=[\s/>])((?:[^>"]|"[^"]*")*)>/g;
+  /** @type {{ name: string, attrs: string, start: number }[]} */
   const stack = [];
+  /** @type {MarkupElement[]} */
   const all = [];
   let m;
   while ((m = tag.exec(out)) !== null) {
@@ -46,24 +59,48 @@ export function elements(out) {
   return all;
 }
 
+/**
+ * @param {MarkupElement} el
+ * @returns {string[]}
+ */
 export const classes = (el) => ((/class="([^"]*)"/.exec(el.attrs) || [])[1] || "").split(/\s+/);
 
-// What a reader sees inside an element: markup stripped, whitespace collapsed.
+/**
+ * What a reader sees inside an element: markup stripped, whitespace collapsed.
+ *
+ * @param {MarkupElement} el
+ * @returns {string}
+ */
 export const text = (el) =>
   el.html
     .replace(/<[^<>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
-// Whether an attribute is present on an element, with or without a value —
-// `checked` and `checked=""` both count, `data-checked` does not.
+/**
+ * Whether an attribute is present on an element, with or without a value —
+ * `checked` and `checked=""` both count, `data-checked` does not.
+ *
+ * @param {MarkupElement} el
+ * @param {string} name
+ * @returns {boolean}
+ */
 export const hasAttr = (el, name) => new RegExp(`(^|\\s)${name}(\\s|=|$)`).test(el.attrs);
 
+/**
+ * @param {MarkupElement} a
+ * @param {MarkupElement} b
+ */
 const same = (a, b) => a.start === b.start && a.html.length === b.html.length;
 
 // The smallest element of the fragment that encloses `el` and is not `el`
 // itself: the row, region or card a control is wrapped in, named by what it
 // contains rather than by the class the component happens to give it.
+/**
+ * @param {string} fragment
+ * @param {MarkupElement} el
+ * @returns {MarkupElement}
+ */
 export function enclosing(fragment, el) {
   const end = el.start + el.html.length;
   const around = elements(fragment).filter(
@@ -73,19 +110,40 @@ export function enclosing(fragment, el) {
   return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
 
+/**
+ * @param {string} fragment
+ * @param {string} name
+ * @returns {MarkupElement[]}
+ */
 const labels = (fragment, name) => elements(fragment).filter((el) => el.name === "label" && text(el).startsWith(name));
 
-// The `<label>` a control is announced by. Matched on the text a reader sees,
-// so a `for=`, a class or a trailing hint span on the label changes nothing.
+/**
+ * The `<label>` a control is announced by. Matched on the text a reader sees,
+ * so a `for=`, a class or a trailing hint span on the label changes nothing.
+ *
+ * @param {string} fragment
+ * @param {string} name
+ * @returns {MarkupElement}
+ */
 export function labelled(fragment, name) {
   const [hit] = labels(fragment, name);
   if (!hit) throw new Error(`no control labelled "${name}" in the fragment`);
   return hit;
 }
 
+/**
+ * @param {string} fragment
+ * @param {string} name
+ * @returns {boolean}
+ */
 export const hasLabel = (fragment, name) => labels(fragment, name).length > 0;
 
-// The outermost element inside a fragment carrying the disabled marker.
+/**
+ * The outermost element inside a fragment carrying the disabled marker.
+ *
+ * @param {string} fragment
+ * @returns {string}
+ */
 export function disabledRegion(fragment) {
   const marked = elements(fragment).filter((el) => classes(el).includes("off"));
   if (marked.length === 0) throw new Error("nothing in the fragment carries the disabled state");

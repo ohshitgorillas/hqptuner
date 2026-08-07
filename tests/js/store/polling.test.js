@@ -41,25 +41,53 @@ import { ok, bad } from "../support/wire.js";
 
 // --- the timer seam, faked for the file's life (see header) -------------------
 
+/** @type {{ id: number, ms: number }[]} */
 const intervals = []; // every setInterval registration, in order: {id, ms}
+/** @type {number[]} */
 const cleared = []; // every clearInterval'd id
 let nextId = 1;
-globalThis.setInterval = (_fn, ms) => {
+/**
+ * The globals these fakes install over: setInterval/clearInterval as the
+ * store calls them, and fetch, all viewed as optional members since the DOM
+ * lib's own signatures don't match these fakes' simplified ones.
+ *
+ * @type {{ setInterval?: unknown, clearInterval?: unknown, fetch?: unknown }}
+ */
+const env = globalThis;
+env.setInterval = (/** @type {unknown} */ _fn, /** @type {number} */ ms) => {
   const id = nextId++;
   intervals.push({ id, ms });
   return id;
 };
-globalThis.clearInterval = (id) => {
+env.clearInterval = (/** @type {number} */ id) => {
   cleared.push(id);
 };
 
+// `Array.prototype.at` types its result as possibly undefined for any array;
+// the cases below know the registration list is never empty by the time they
+// run, and read this rather than the array method to say so once instead of
+// at every call site.
+/**
+ * @template T
+ * @param {T[]} arr
+ * @returns {T}
+ */
+function last(arr) {
+  const v = arr.at(-1);
+  if (v === undefined) throw new Error("last() called on an empty array");
+  return v;
+}
+
 // --- the wire ------------------------------------------------------------------
 
-const REAL_FETCH = globalThis.fetch;
+const REAL_FETCH = env.fetch;
 afterEach(() => {
-  globalThis.fetch = REAL_FETCH;
+  env.fetch = REAL_FETCH;
 });
 
+/** @typedef {ReturnType<typeof ok>} FakeResponse */
+
+/** @type {Record<string, FakeResponse>} */
 const DEFAULTS = {
   "GET /api/health": ok({ reachable: true, alarm: false, unreachable_since: null, info: {} }),
   "GET /api/state": ok({ stale: false, data: { adaptive: "0" } }),
@@ -72,8 +100,9 @@ const DEFAULTS = {
   "GET /api/config/pending": ok({ live: {}, http: {} }),
 };
 
+/** @param {Record<string, FakeResponse>} [routes] */
 function wire(routes = {}) {
-  globalThis.fetch = async (path, opts = {}) => {
+  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string }} */ opts = {}) => {
     const key = `${opts.method || "GET"} ${path}`;
     return routes[key] || DEFAULTS[key] || ok({});
   };
@@ -128,7 +157,7 @@ test("test_the_volume_endpoint_feeds_the_range_signal_from_the_same_answer", () 
 test("test_quick_updates_on_the_shown_page_drop_the_cadence_to_half_a_second", () => {
   activeTab.value = "system";
   quickSystemUpdates.value = true;
-  assert.equal(intervals.at(-1).ms, 500);
+  assert.equal(last(intervals).ms, 500);
 });
 
 test("test_the_reschedule_clears_the_previous_fast_timer", () => {
@@ -137,17 +166,17 @@ test("test_the_reschedule_clears_the_previous_fast_timer", () => {
 
 test("test_a_quick_opt_in_for_a_page_not_shown_keeps_the_default_cadence", () => {
   activeTab.value = "volume"; // system's opt-in is still on, but system is not shown
-  assert.equal(intervals.at(-1).ms, 2000);
+  assert.equal(last(intervals).ms, 2000);
 });
 
 test("test_the_volume_page_has_its_own_fast_opt_in", () => {
   fastVolumeUpdates.value = true; // volume page is the one shown
-  assert.equal(intervals.at(-1).ms, 500);
+  assert.equal(last(intervals).ms, 500);
 });
 
 test("test_leaving_the_quick_page_restores_the_default_cadence", () => {
   activeTab.value = "output";
-  assert.equal(intervals.at(-1).ms, 2000);
+  assert.equal(last(intervals).ms, 2000);
 });
 
 // LIVE has no opt-in and needs none. It is a mode rather than a tab, so
@@ -158,17 +187,17 @@ test("test_leaving_the_quick_page_restores_the_default_cadence", () => {
 
 test("test_live_mode_polls_at_half_a_second", () => {
   liveMode.value = true;
-  assert.equal(intervals.at(-1).ms, 500);
+  assert.equal(last(intervals).ms, 500);
 });
 
 test("test_leaving_live_returns_the_page_underneath_to_its_own_cadence", () => {
   liveMode.value = false;
-  assert.equal(intervals.at(-1).ms, 2000);
+  assert.equal(last(intervals).ms, 2000);
 });
 
 test("test_a_tab_opt_in_still_holds_after_live_is_switched_off", () => {
   activeTab.value = "system"; // system's opt-in went on further up and stayed on
-  assert.equal(intervals.at(-1).ms, 500);
+  assert.equal(last(intervals).ms, 500);
 });
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------
@@ -218,12 +247,13 @@ test("test_a_readback_without_a_level_keeps_the_current_slider_value", async () 
 // --- refreshDevices: rescan, then repull the forms ---------------------------------
 
 test("test_refresh_devices_triggers_a_daemon_rescan", async () => {
+  /** @type {string[]} */
   const posts = [];
   wire();
-  const inner = globalThis.fetch;
-  globalThis.fetch = async (path, opts = {}) => {
+  const inner = env.fetch;
+  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string }} */ opts = {}) => {
     if (opts.method === "POST") posts.push(path);
-    return inner(path, opts);
+    return typeof inner === "function" ? inner(path, opts) : ok({});
   };
   await refreshDevices();
   assert.deepEqual(posts, ["/api/config/refresh"]);

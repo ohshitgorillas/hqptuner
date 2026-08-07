@@ -37,6 +37,14 @@ import { stagingWire } from "../support/wire.js";
 
 // A volume control that is live, so loudness is not gated by a bypassed volume.
 const FREE = { volume_min: "-60", volume_max: "0", defaults_volume: "-20", fixed_volume_enabled: false };
+/**
+ * One entry of the daemon's /matrix form: name and value always, plus the
+ * bounds a numeric field carries.
+ *
+ * @typedef {{ name: string, value: string | boolean, min?: string, max?: string }} MatrixField
+ */
+
+/** @param {Record<string, string | boolean>} spec */
 const formFields = (spec) => Object.entries(spec).map(([name, value]) => ({ name, value }));
 
 // The daemon's /matrix form, loudness on, with DISTINCT values on every
@@ -61,6 +69,7 @@ const MTX_BARE = MTX.map((f) =>
   f.name === "post_loudness_lowfreq" || f.name === "post_loudness_highfreq" ? { name: f.name, value: f.value } : f,
 );
 
+/** @param {MatrixField[]} [fields] */
 async function reset(fields = MTX) {
   stagingWire();
   engineState.value = {};
@@ -88,20 +97,33 @@ const card = () => {
 
 // Segment buttons, addressed by label text; a dirty option carries the dot
 // span inside its button, so the match is on containment, not equality.
+/** @param {string} out */
 const buttons = (out) =>
   out
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+/**
+ * @param {string} out
+ * @param {string} text
+ */
 const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).includes(text)) || "";
+/** @param {string} b */
 const attrsOf = (b) => b.slice(0, b.indexOf(">"));
+/** @param {string} b */
 const bodyOf = (b) => b.slice(b.indexOf(">") + 1);
 
 // Knob chunks: each rendered knob is one svg dial (role="slider" carrying the
 // ARIA values) followed by its own range input, so splitting on the role
 // pairs every dial's attributes with its slider.
+/** @param {string} frag */
 const knobs = (frag) => frag.split('role="slider"').slice(1);
+/**
+ * @param {string} frag
+ * @param {string} now
+ */
 const knobAt = (frag, now) => knobs(frag).find((k) => k.includes(`aria-valuenow="${now}"`)) || "";
+/** @param {string} chunk */
 const sliderStep = (chunk) => {
   const input = (/<input[^>]*knob-slider[^>]*>/.exec(chunk) || [""])[0];
   return (/\sstep="([^"]*)"/.exec(input) || [])[1];

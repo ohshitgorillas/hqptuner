@@ -17,28 +17,50 @@ import { accent, accentHex, applyAccent, applyAccentHex, initAccent } from "../.
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
 
+/**
+ * The storage seam theme.js touches: a `Storage`-shaped object without the
+ * internal `map` a fake keeps for its own bookkeeping — callers only ever use
+ * the three methods.
+ *
+ * @typedef {{
+ *   getItem: (key: string) => string | null | undefined,
+ *   setItem: (key: string, value: string) => void,
+ *   removeItem: (key: string) => void,
+ * }} FakeStorage
+ */
+
+/**
+ * The globals theme.js touches, viewed as optional members: the DOM lib
+ * declares full Document/Storage shapes these fakes do not build.
+ *
+ * @type {{ document?: unknown, localStorage?: unknown }}
+ */
+const env = globalThis;
+
 // A root element the way theme.js touches it: dataset + inline style variables.
 function fakeDocument() {
   const vars = new Map();
   return {
     documentElement: {
+      /** @type {Record<string, string>} */
       dataset: {},
       style: {
         vars,
-        setProperty: (k, v) => vars.set(k, v),
-        removeProperty: (k) => vars.delete(k),
+        setProperty: (/** @type {string} */ k, /** @type {string} */ v) => vars.set(k, v),
+        removeProperty: (/** @type {string} */ k) => vars.delete(k),
       },
     },
   };
 }
 
+/** @param {Record<string, string>} [seed] */
 function fakeStorage(seed = {}) {
   const map = new Map(Object.entries(seed));
   return {
     map,
-    getItem: (k) => (map.has(k) ? map.get(k) : null),
-    setItem: (k, v) => map.set(k, v),
-    removeItem: (k) => map.delete(k),
+    getItem: (/** @type {string} */ k) => (map.has(k) ? map.get(k) : null),
+    setItem: (/** @type {string} */ k, /** @type {string} */ v) => map.set(k, v),
+    removeItem: (/** @type {string} */ k) => map.delete(k),
   };
 }
 
@@ -55,17 +77,19 @@ const brokenStorage = {
   },
 };
 
+/** @param {FakeStorage} [storage] */
 function setup(storage = fakeStorage()) {
-  globalThis.document = fakeDocument();
-  globalThis.localStorage = storage;
+  const doc = fakeDocument();
+  env.document = doc;
+  env.localStorage = storage;
   accent.value = "blue";
   accentHex.value = "";
-  return { root: globalThis.document.documentElement, storage };
+  return { root: doc.documentElement, storage };
 }
 
 afterEach(() => {
-  delete globalThis.document;
-  delete globalThis.localStorage;
+  delete env.document;
+  delete env.localStorage;
 });
 
 // --- preset swatches ----------------------------------------------------------

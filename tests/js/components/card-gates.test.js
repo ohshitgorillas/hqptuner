@@ -38,11 +38,14 @@ import { isDirty, stagedCount } from "../../../hqptuner/static/store/resolve.js"
 import { reset, field, titleOf, grayReason, activeSegment } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
 
+/** @typedef {import("../support/field-harness.js").ConfigField} ConfigField */
+
 // --- the gates ----------------------------------------------------------------
 // Baselines come from the daemon's own forms: the four signal-path gates from
 // /matrix, the other two from /config (docs/protocol.md,
 // docs/settings-classification.md).
 
+/** @type {Record<string, string>} */
 const MATRIX_FIELD = {
   crossfeed_enabled: "post_bauer_enabled",
   dac_correction_enabled: "post_correction_enabled",
@@ -54,6 +57,7 @@ const SIGNAL_PATH = Object.keys(MATRIX_FIELD);
 const SWITCHES = ["fixed_volume_enabled", "log_enabled"];
 const GATES = [...SIGNAL_PATH, ...SWITCHES];
 
+/** @type {Record<string, string[]>} */
 const CHOICES = {
   crossfeed_enabled: ["ENGAGE", "BYPASS"],
   dac_correction_enabled: ["ENGAGE", "BYPASS"],
@@ -71,11 +75,17 @@ const CHOICES = {
 // metadata key. `dac_correction_enabled` reads `dac_correction`; the other five
 // gates read their own key. Metadata here is filed under the key each gate
 // actually reads.
+/** @type {Record<string, string>} */
 const META_KEY = { dac_correction_enabled: "dac_correction" };
+/** @param {string} k */
 const metaKey = (k) => META_KEY[k] || k;
 
 const PROSE = Object.fromEntries(GATES.map((k) => [k, `${k} manual prose.`]));
 const group = () => Object.fromEntries(GATES.map((k) => [metaKey(k), { label: k, tooltip: PROSE[k] }]));
+
+// The rest of the harness payload rides along: a real /api/metadata answer
+// carries the output group and the filters/shapers overlays alongside whatever
+// prose a case supplies, and none of them names a gate key.
 const META = { settings: { dsp: group(), volume: group(), system: group() } };
 
 // A volume control that is live, so loudness is not gated by a bypassed one
@@ -86,6 +96,11 @@ const FREE_VOLUME = { name: "fixed_volume_enabled", value: false };
 // a case REPLACES the baseline entry of that name rather than following it: a
 // list carrying the same name twice is not a form the daemon ever sends, and a
 // test built on one would only be asserting how a duplicate gets resolved.
+/**
+ * @param {ConfigField[]} baseline
+ * @param {ConfigField[]} overrides
+ * @returns {ConfigField[]}
+ */
 function formFields(baseline, overrides) {
   const fields = [...baseline];
   for (const f of overrides) {
@@ -96,6 +111,11 @@ function formFields(baseline, overrides) {
   return fields;
 }
 
+/**
+ * @param {string} key
+ * @param {{ on?: boolean | string, desc?: boolean, config?: ConfigField[] }} [opts]
+ * @returns {Promise<string>}
+ */
 async function gate(key, { on = true, desc = true, config = [] } = {}) {
   const own = { name: MATRIX_FIELD[key] || key, value: on };
   const signalPath = key in MATRIX_FIELD;
@@ -112,6 +132,7 @@ async function gate(key, { on = true, desc = true, config = [] } = {}) {
   return field(key);
 }
 
+/** @param {string} out */
 const segLabels = (out) => [...out.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
 
 // ============================================================================
@@ -337,11 +358,14 @@ test("test_a_gate_with_a_live_volume_control_carries_no_gray_caption", async () 
 // ============================================================================
 
 const KID = html`<p>kid</p>`;
+/** @param {{ subtitle?: string }} props */
 const card = (props) => render(html`<${Card} title="Crossfeed" ...${props}>${KID}<//>`);
+/** @param {string} out */
 const headOf = (out) => {
   const body = out.indexOf('<div class="card-body"');
   return body < 0 ? out : out.slice(0, body);
 };
+/** @param {string} out */
 const bodyOf = (out) => out.slice(out.indexOf('<div class="card-body"'));
 
 const SUB = "Blends the channels the way a room would.";
@@ -365,6 +389,7 @@ test("test_an_empty_subtitle_renders_no_subtitle_element", async () => {
   assert.equal(card({ subtitle: "" }).includes("card-sub"), false);
 });
 
+/** @param {boolean} open */
 const disclosure = (open) =>
   render(
     html`<${Card} title="Crossfeed" subtitle=${SUB} collapse=${collapseFrom(signal(open), signal(null))}>${KID}<//>`,

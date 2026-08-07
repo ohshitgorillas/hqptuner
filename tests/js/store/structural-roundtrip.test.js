@@ -31,13 +31,60 @@ import { config, matrixConfig, engineState } from "../../../hqptuner/static/stor
 import { edit, stagePipelines, discardAll, previewPreset } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire, quiesce } from "../support/wire.js";
 
+/**
+ * One /config form field, as `field()` below builds it. `value` is a union
+ * because the form answers a checkbox with a real bool and everything else
+ * with a string.
+ *
+ * @typedef {{ name: string, value: string | boolean }} FormField
+ */
+
+/**
+ * One matrix pipeline row: exactly five keys, every value a string.
+ *
+ * @typedef {{
+ *   gain: string,
+ *   gainunit: string,
+ *   mixdown: string,
+ *   process: string,
+ *   source: string,
+ * }} PipelineRow
+ */
+
+/**
+ * The staging server `stagingWire` hands back, read through its return type
+ * rather than a re-declared shape — the fake in ../support/wire.js is frozen
+ * and owns this contract.
+ *
+ * @typedef {ReturnType<typeof stagingWire>} StagingWire
+ */
+
+/**
+ * @param {string} name
+ * @param {string | boolean} value
+ * @returns {FormField}
+ */
 const field = (name, value) => ({ name, value });
 
 // A pipeline row carries exactly five keys; `gainunit` defaults to dB.
+/**
+ * @param {Partial<PipelineRow>} [patch]
+ * @returns {PipelineRow}
+ */
 const ROW = (patch) => ({ gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0", ...patch });
 
 // Full reset of every source signal these read models touch — module-level
 // signals outlive a test file — plus the staging server and an empty buffer.
+/**
+ * @param {{
+ *   fields?: FormField[],
+ *   file?: Record<string, string>,
+ *   rows?: PipelineRow[],
+ *   engine?: Record<string, string>,
+ *   routes?: (path: string, opts: { method?: string, body?: string }, w: StagingWire) => ReturnType<typeof ok> | undefined,
+ * }} [trees]
+ * @returns {Promise<StagingWire>}
+ */
 async function trees({ fields = [], file = {}, rows = [], engine = {}, routes } = {}) {
   engineState.value = engine;
   config.value = { fields, file, active: "" };
@@ -54,6 +101,11 @@ async function trees({ fields = [], file = {}, rows = [], engine = {}, routes } 
   return W;
 }
 
+/**
+ * @param {StagingWire} W
+ * @param {string} name
+ * @returns {boolean}
+ */
 const staged = (W, name) => Object.hasOwn(W.staged.http, name);
 
 // --- an edit that returns to its baseline ------------------------------------
@@ -118,7 +170,8 @@ test("test_a_staged_field_the_schema_does_not_know_is_never_dropped", async () =
 test("test_under_a_preview_an_edit_matching_the_running_config_is_not_dropped", async () => {
   const W = await trees({
     fields: [field("volume_max", "-3")],
-    routes: (path) => (path === "/api/preset/Night" ? ok({ name: "Night", config: { volume_max: "-9" } }) : undefined),
+    routes: (/** @type {string} */ path) =>
+      path === "/api/preset/Night" ? ok({ name: "Night", config: { volume_max: "-9" } }) : undefined,
   });
   await previewPreset("Night");
   await edit("volume_max", "-3");
@@ -147,6 +200,7 @@ test("test_a_checkbox_toggled_off_and_back_on_leaves_nothing_in_the_server_buffe
 // The live key is read back off the FIRST request rather than written in here:
 // the schema owns that name, and a test that hardcodes it would be asserting on
 // the schema instead of on the round trip.
+/** @param {{ live?: Record<string, unknown> }} request */
 const liveKeyOf = (request) => Object.keys(request.live || {})[0];
 
 test("test_a_live_setting_returned_to_its_baseline_leaves_nothing_in_the_server_buffer", async () => {

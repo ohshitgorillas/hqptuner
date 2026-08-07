@@ -59,6 +59,10 @@ const FAR = { above_the_press: 110, below_the_press: 290 };
 
 // A knob with room to move a long way in both directions from where it starts,
 // and the two callbacks a parent hands it.
+/**
+ * @param {number[]} live
+ * @param {number[]} commits
+ */
 function knob(live, commits) {
   return html`<${Knob}
     min=${-90}
@@ -66,15 +70,17 @@ function knob(live, commits) {
     step=${1}
     value=${-45}
     unit="dB"
-    onLive=${(v) => live.push(v)}
-    onCommit=${(v) => commits.push(v)}
+    onLive=${(/** @type {number} */ v) => live.push(v)}
+    onCommit=${(/** @type {number} */ v) => commits.push(v)}
   />`;
 }
 
 // A drag already under way: pressed on the dial, then moved twice with the
 // primary button still held, to two different values.
 function draggingKnob() {
+  /** @type {number[]} */
   const live = [];
+  /** @type {number[]} */
   const commits = [];
   const drag = knobDrag(knob(live, commits));
   drag.down(START_Y);
@@ -92,7 +98,9 @@ function draggingKnob() {
 // value at. Without it, "reported nothing live" says nothing: a pointer that has
 // not travelled far enough to change the value is silent on a running drag too.
 // Witnessed on a knob of its own, so the case under test starts clean.
+/** @param {number} clientY */
 function witnessTravel(clientY) {
+  /** @type {number[]} */
   const live = [];
   const drag = knobDrag(knob(live, []));
   drag.down(START_Y);
@@ -107,6 +115,7 @@ function witnessTravel(clientY) {
 // --- the button is still held: an ordinary drag ------------------------------
 
 test("test_a_move_with_the_button_held_reports_the_value_live", () => {
+  /** @type {number[]} */
   const live = [];
   const drag = knobDrag(knob(live, []));
   drag.down(START_Y);
@@ -115,6 +124,7 @@ test("test_a_move_with_the_button_held_reports_the_value_live", () => {
 });
 
 test("test_a_move_with_the_button_held_commits_nothing", () => {
+  /** @type {number[]} */
   const commits = [];
   const drag = knobDrag(knob([], commits));
   drag.down(START_Y);

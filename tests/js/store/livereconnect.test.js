@@ -47,6 +47,7 @@ const poll = (o = {}) => ({
 // resettable through the public surface, so each case moves `connected_at`
 // forward from wherever the previous one left it rather than pretending to
 // rewind. Each case states the connection numbers it uses.
+/** @param {Record<string, string>} errors */
 function seed(errors) {
   liveErrors.value = { ...errors };
   liveBusy.value = "";

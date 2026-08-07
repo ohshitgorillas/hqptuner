@@ -35,6 +35,8 @@ import { fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { ok, stagingWire } from "../support/wire.js";
 import { classes, disabledRegion, elements, hasAttr, labelled } from "../support/markup.js";
 
+/** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
+
 // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST
 // paths, so `edit()` stages exactly as it does against the backend.
 function wire() {
@@ -43,6 +45,19 @@ function wire() {
 
 // `running` is the daemon's own /config form, keyed by FORM FIELD name — the
 // authority disabledReason() reads (Auto headroom's field is volume_fixed).
+/**
+ * `range` carries the VolumeRange report as the engine spells it: the flag
+ * arrives as a string, a number or a bool, and min/max are absent on the cases
+ * that pin the defaults. `null` is the engine reporting no range at all.
+ *
+ * @param {{
+ *   range?: Record<string, string | number | boolean> | null,
+ *   level?: string | null,
+ *   running?: Record<string, string>,
+ *   fast?: boolean,
+ * }} [scenario]
+ * @returns {Promise<void>}
+ */
 async function reset({ range = null, level = null, running = {}, fast = false } = {}) {
   wire();
   volume.value = level;
@@ -58,12 +73,21 @@ const card = () => render(html`<${PlaybackVolume} />`);
 const quietCard = () => render(html`<${PlaybackVolume} showQuick=${false} />`);
 
 // One attribute off the dial, which is the only element carrying ARIA values.
+/**
+ * @param {string} out
+ * @param {string} name
+ */
 const aria = (out, name) => (new RegExp(`${name}="([^"]*)"`).exec(out) || [])[1];
 
 // The dial itself: the one element carrying the `knob` class token, as opposed
 // to the `knob-*` parts it is built from.
+/** @param {MarkupElement} el */
 const isKnob = (el) => classes(el).includes("knob");
 
+/**
+ * @param {string} out
+ * @returns {MarkupElement}
+ */
 function knob(out) {
   const hit = elements(out).find(isKnob);
   if (!hit) throw new Error("no dial in the fragment");
@@ -71,6 +95,11 @@ function knob(out) {
 }
 
 // The tickbox a label announces: the input the label itself encloses.
+/**
+ * @param {string} out
+ * @param {string} label
+ * @returns {MarkupElement}
+ */
 function tickbox(out, label) {
   const hit = elements(labelled(out, label).html).find((el) => el.name === "input");
   if (!hit) throw new Error(`the control labelled "${label}" encloses no input`);

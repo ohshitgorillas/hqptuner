@@ -36,9 +36,28 @@ function wire() {
   stagingWire();
 }
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
+/**
+ * A stored profile as `matrixConfig.file_profiles` carries one.
+ *
+ * @typedef {{ rows: PipelineRow[], post: Record<string, unknown> }} SavedProfile
+ */
+
+/** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
 // Full reset every time — every one of these signals outlives a test.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {{
+ *   active?: string,
+ *   profiles?: string[],
+ *   saved?: Record<string, SavedProfile>,
+ *   notes?: boolean,
+ * }} [opts]
+ * @returns {Promise<void>}
+ */
 async function reset(rows, { active = "[Default]", profiles = [], saved = {}, notes = true } = {}) {
   wire();
   showDescriptions.value = notes;
@@ -68,6 +87,7 @@ const tab = () =>
     .replace(/&#39;/g, "'");
 
 // The pipeline rows as raw HTML fragments, in render order.
+/** @param {string} out */
 const rowsOf = (out) => out.split('<div class="mtx-row ').slice(1);
 // The tool buttons of one pipeline row, in render order.
 const IMPORT = 0;
@@ -76,20 +96,29 @@ const RAW = 2;
 const PLOT = 3;
 const CLEAR = 4;
 const REMOVE = 5;
+/** @param {string} rowHtml */
 const toolsOf = (rowHtml) =>
   rowHtml
     .slice(rowHtml.indexOf("mtx-row-tools"))
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+/**
+ * @param {string} out
+ * @param {number} rowIndex
+ * @param {number} i
+ */
 const tool = (out, rowIndex, i) => toolsOf(rowsOf(out)[rowIndex])[i];
+/** @param {string} btn */
 const isDisabled = (btn) => btn.slice(0, btn.indexOf(">")).includes("disabled");
 // The profile card's buttons, in render order. Switch and Load collapsed into one
 // live Load in round 5 — a load is the live lane AND stages so it persists.
 const LOAD = 0;
 const DELETE = 1;
 const SAVE = 2;
+/** @param {string} out */
 const profileCard = (out) => out.slice(out.indexOf("mtx-profile"), out.indexOf("Pipelines <span"));
+/** @param {string} out */
 const profileButtons = (out) =>
   profileCard(out)
     .split("<button")
@@ -329,6 +358,7 @@ test("test_the_pipelines_caption_hides_with_feature_descriptions_off", async () 
 // protocol, per docs/testing.md.
 
 const PEAK = "iir:type=peak;f=100;q=1;g=-3";
+/** @param {string} out */
 const strip = (out) => (out.includes('class="band-strip"') ? out.slice(out.indexOf('class="band-strip"')) : "");
 
 // --- applied reference trace --------------------------------------------------

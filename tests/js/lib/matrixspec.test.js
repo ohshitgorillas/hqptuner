@@ -27,15 +27,31 @@ import {
   newStage,
   editedStage,
   stageLabel,
+  stageArgs,
 } from "../../../hqptuner/static/lib/matrixspec.js";
+
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
 
 // Build a stage the way a caller does — through the parser — rather than
 // hand-constructing the object, so these never pin the internal shape.
+/**
+ * @param {string} s
+ * @returns {MatrixStage}
+ */
 const stage = (s) => parseProcess(s)[0];
+/**
+ * @param {string} s
+ * @returns {string[]}
+ */
 const issues = (s) => validateStage(stage(s));
 // Returns [ok, message] for spreading into ONE assert.ok at the call site. A
 // helper that performs the assertion itself hides it from the reader and from
 // the one-assertion gate, so the assert stays where it fires.
+/**
+ * @param {string[]} list
+ * @param {string} token
+ * @returns {[boolean, string]}
+ */
 const mentions = (list, token) => [
   list.some((i) => i.includes(token)),
   `expected an issue mentioning "${token}", got ${JSON.stringify(list)}`,
@@ -101,11 +117,11 @@ test("test_plugin_classification_is_case_sensitive", () => {
 // --- argument parsing -------------------------------------------------------
 
 test("test_argument_without_a_value_parses_to_empty_string", () => {
-  assert.equal(stage("riaa:subsonic").args.subsonic, "");
+  assert.equal(stageArgs(stage("riaa:subsonic")).subsonic, "");
 });
 
 test("test_argument_value_containing_an_equals_sign_keeps_the_remainder", () => {
-  assert.equal(stage("iir:type=peak;note=a=b").args.note, "a=b");
+  assert.equal(stageArgs(stage("iir:type=peak;note=a=b")).note, "a=b");
 });
 
 // --- validateStage: convolution ---------------------------------------------

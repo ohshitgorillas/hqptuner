@@ -23,6 +23,7 @@ import { reset, META } from "../support/field-harness.js";
 const FILTER_META = META.settings.dsp.filter_1x;
 const SHAPER_META = META.settings.dsp.shaper;
 
+/** @param {string} label */
 const one = (label) => [{ value: "0", label }];
 
 // ============================================================================

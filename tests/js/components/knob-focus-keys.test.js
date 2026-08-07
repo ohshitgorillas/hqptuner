@@ -64,6 +64,10 @@ const STEP = 5;
 const START = 0;
 const DEFAULT = -20;
 
+/**
+ * @param {number[]} live
+ * @param {number[]} commits
+ */
 function knob(live, commits) {
   return html`<${Knob}
     min=${MIN}
@@ -72,8 +76,8 @@ function knob(live, commits) {
     value=${START}
     def=${DEFAULT}
     unit="dB"
-    onLive=${(v) => live.push(v)}
-    onCommit=${(v) => commits.push(v)}
+    onLive=${(/** @type {number} */ v) => live.push(v)}
+    onCommit=${(/** @type {number} */ v) => commits.push(v)}
   />`;
 }
 
@@ -96,6 +100,7 @@ const ARROWS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 
 for (const [key, landing] of Object.entries(LANDINGS)) {
   test(`test_a_focused_dial_commits_${landing}_on_${key}`, () => {
+    /** @type {number[]} */
     const commits = [];
     const keys = knobKeys(knob([], commits));
     keys.focus();
@@ -107,13 +112,17 @@ for (const [key, landing] of Object.entries(LANDINGS)) {
 // Shift-fine applies to the arrows as a class, Left/Right included — those are
 // the pair Safari synthesises from a scroll gesture, so they are the pair most
 // likely to arrive with a modifier held.
-for (const [key, sign] of [
+/** @type {[string, number][]} */
+const SHIFT_ARROWS = [
   ["ArrowUp", 1],
   ["ArrowDown", -1],
   ["ArrowRight", 1],
   ["ArrowLeft", -1],
-]) {
+];
+
+for (const [key, sign] of SHIFT_ARROWS) {
   test(`test_a_focused_dial_takes_a_fifth_of_a_step_on_shift_${key}`, () => {
+    /** @type {number[]} */
     const commits = [];
     const keys = knobKeys(knob([], commits));
     keys.focus();
@@ -126,6 +135,7 @@ for (const [key, sign] of [
 
 for (const key of ARROWS) {
   test(`test_an_unfocused_dial_commits_nothing_on_${key}`, () => {
+    /** @type {number[]} */
     const commits = [];
     const keys = knobKeys(knob([], commits));
     keys.key(key);
@@ -137,6 +147,7 @@ for (const key of ARROWS) {
 
 for (const key of ARROWS) {
   test(`test_a_blurred_dial_commits_nothing_on_${key}`, () => {
+    /** @type {number[]} */
     const commits = [];
     const keys = knobKeys(knob([], commits));
     keys.focus();
@@ -150,6 +161,7 @@ for (const key of ARROWS) {
 // None of these delivers a focus event to the dial at any point.
 
 test("test_a_pointer_drag_commits_with_the_dial_never_focused", () => {
+  /** @type {number[]} */
   const commits = [];
   const drag = knobDrag(knob([], commits));
   drag.down(200);
@@ -159,18 +171,21 @@ test("test_a_pointer_drag_commits_with_the_dial_never_focused", () => {
 });
 
 test("test_a_double_click_commits_with_the_dial_never_focused", () => {
+  /** @type {number[]} */
   const commits = [];
   knobKeys(knob([], commits)).dblClick();
   assert.equal(commits.length, 1);
 });
 
 test("test_the_horizontal_slider_commits_with_the_dial_never_focused", () => {
+  /** @type {number[]} */
   const commits = [];
   knobSliderEdit(knob([], commits), 10);
   assert.equal(commits[commits.length - 1], 10);
 });
 
 test("test_the_number_box_commits_with_the_dial_never_focused", () => {
+  /** @type {number[]} */
   const commits = [];
   knobBoxEdit(knob([], commits), 10);
   assert.equal(commits[commits.length - 1], 10);

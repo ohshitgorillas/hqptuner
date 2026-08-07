@@ -8,13 +8,43 @@
 import { parseProcess, serializeProcess } from "../../hqptuner/static/lib/matrixspec.js";
 import { bandToStage, eqTail, resolveChain } from "../eqlab/chain.js";
 
+/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
+/** @typedef {import("./post.js").FetchImpl} FetchImpl */
+
+/**
+ * A row as it arrives, before `canonRow` makes it a PipelineRow.
+ *
+ * Every field is optional and every one admits a number, because the two
+ * producers disagree and both are legitimate: `/api/config` hands back the
+ * daemon's own `matrix_pipelines` JSON, where the five keys are strings, while
+ * `/api/matrix` parses the management form and carries numeric `source`,
+ * `mixdown` and a sort-only `index` that canonicalisation drops. `null` is in
+ * each union because JSON round-trips a missing value that way, which is what
+ * the `??` defaults below exist to absorb.
+ *
+ * @typedef {{
+ *   source?: string | number | null,
+ *   mixdown?: string | number | null,
+ *   gain?: string | number | null,
+ *   gainunit?: string | null,
+ *   process?: string | null,
+ *   index?: string | number | null,
+ * }} RawRow
+ */
+
 const MAX_CHANNELS = 128;
 const GAIN_RE = /^-?\d+(\.\d+)?$/;
 const GAIN_UNITS = new Set(["dB", "Lin"]);
 
-const hasControlChar = (text) => [...text].some((c) => c.codePointAt(0) < 0x20);
+const hasControlChar = (/** @type {string} */ text) => [...text].some((c) => (c.codePointAt(0) ?? 0) < 0x20);
 
-/** One row in the canonical shape: five keys, alphabetical, all strings. */
+/**
+ * One row in the canonical shape: five keys, alphabetical, all strings.
+ *
+ * @param {RawRow} r
+ * @returns {PipelineRow}
+ */
 const canonRow = (r) => ({
   gain: String(r.gain ?? "0"),
   gainunit: r.gainunit || "dB",
@@ -23,17 +53,26 @@ const canonRow = (r) => ({
   source: String(r.source ?? "0"),
 });
 
-/** The whole row set as the atomic `matrix_pipelines` string. */
+/**
+ * The whole row set as the atomic `matrix_pipelines` string.
+ *
+ * @param {RawRow[]} rows
+ * @returns {string}
+ */
 export const canonPipelines = (rows) => JSON.stringify(rows.map(canonRow));
 
 /**
  * The row contract the server enforces at apply time (conf/matrixconf.py
  * `_validate_row`), checked here so a bad row fails before anything is staged
  * rather than at the user's Apply click.
+ *
+ * @param {PipelineRow} row
+ * @param {number} index
+ * @returns {PipelineRow}
  */
 export function lintRow(row, index) {
   const where = `row ${index}`;
-  for (const key of ["source", "mixdown"]) {
+  for (const key of /** @type {const} */ (["source", "mixdown"])) {
     const n = Number(row[key]);
     if (!Number.isInteger(n)) throw new Error(`${where}: ${key} must be an integer, got ${JSON.stringify(row[key])}`);
     if (n < 0 || n >= MAX_CHANNELS) throw new Error(`${where}: ${key} ${n} out of range 0..${MAX_CHANNELS - 1}`);
@@ -46,6 +85,11 @@ export function lintRow(row, index) {
 
 // --- baseline ---------------------------------------------------------------
 
+/**
+ * @param {FetchImpl} fetchImpl
+ * @param {string} url
+ * @returns {Promise<any>}
+ */
 async function getJson(fetchImpl, url) {
   const res = await fetchImpl(url, { method: "GET" });
   if (!res.ok) throw new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
@@ -58,6 +102,10 @@ async function getJson(fetchImpl, url) {
  * fallback, parsed from the management form. Rows are never synthesised — a
  * staged `matrix_pipelines` replaces the whole set, so the baseline is the only
  * safe starting point.
+ *
+ * @param {string} base
+ * @param {FetchImpl} fetchImpl
+ * @returns {Promise<{ rows: PipelineRow[], baseline_source: "config" | "matrix" }>}
  */
 export async function readBaseline(base, fetchImpl) {
   try {
@@ -84,6 +132,14 @@ export async function readBaseline(base, fetchImpl) {
  * The stages a job's `eq` spec resolves to. `{"process":"iir:..."}` is this
  * tool's own literal form; everything else is eqlab's chain resolver, so a
  * snapshot or a ParametricEQ file stages exactly what eqlab measured.
+ *
+ * The parameter is deliberately loose: the three accepted forms are disjoint
+ * and only the first two are this module's own, the rest being whatever
+ * `resolveChain` accepts as a chain source. Narrowing it here would duplicate
+ * eqlab's source schema in a second place that could drift from it.
+ *
+ * @param {import("../eqlab/chain.js").ChainSpec & { process?: string }} spec
+ * @returns {Promise<MatrixStage[]>}
  */
 export async function resolveEq(spec) {
   if (!spec) throw new Error('eq: give {"bands":[...]}, {"process":"..."}, or an eqlab chain source');
@@ -99,6 +155,11 @@ export async function resolveEq(spec) {
  * The row's process with the EQ applied. `replace_tail` drops only the trailing
  * run of parametric-EQ stages, so a crossfeed lead-in (`lp1`, `delay`, a
  * convolution) survives; `append` keeps everything and adds the bands after it.
+ *
+ * @param {string | null | undefined} process
+ * @param {MatrixStage[]} stages
+ * @param {string} mode
+ * @returns {string}
  */
 function processWith(process, stages, mode) {
   const existing = parseProcess(process || "");
@@ -111,6 +172,11 @@ function processWith(process, stages, mode) {
  * channel gain set in dB. A row already carrying a `Lin` gain is part of a
  * decomposed matrix (Bauer crossfeed writes those), where a dB preamp would
  * silently destroy the decomposition, so it is refused unless forced.
+ *
+ * @param {RawRow} row
+ * @param {MatrixStage[]} stages
+ * @param {{ mode: string, preampDb: number | null, forceGainunit: boolean }} opts
+ * @returns {PipelineRow}
  */
 export function editRow(row, stages, { mode, preampDb, forceGainunit }) {
   const out = { ...canonRow(row), process: processWith(row.process, stages, mode) };
@@ -124,7 +190,13 @@ export function editRow(row, stages, { mode, preampDb, forceGainunit }) {
   return { ...out, gain: preampDb.toFixed(1), gainunit: "dB" };
 }
 
-/** Which baseline row indices a job's `rows` selector picks. */
+/**
+ * Which baseline row indices a job's `rows` selector picks.
+ *
+ * @param {"all" | number[] | null | undefined} spec
+ * @param {number} count
+ * @returns {number[]}
+ */
 export function selectRows(spec, count) {
   if (spec === undefined || spec === null || spec === "all") return [...Array(count).keys()];
   if (!Array.isArray(spec)) throw new Error('rows: give "all" or a list of row indices');

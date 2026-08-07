@@ -21,10 +21,22 @@ import { near } from "../support/eqlab-helpers.js";
 
 // --- fixtures -------------------------------------------------------------------
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../scripts/eqstage/eqstage.js").Job} Job
+ * @typedef {import("../../../scripts/eqstage/eqstage.js").Report} Report
+ * @typedef {import("../../../scripts/eqstage/post.js").StagePayload} StagePayload
+ * @typedef {import("../../../scripts/eqstage/post.js").FetchImpl} FetchImpl
+ */
+
 const URL_BASE = "http://127.0.0.1:8090";
 
 // Canonical row JSON: keys in order gain,gainunit,mixdown,process,source, every
 // value a string, compact separators.
+/**
+ * @param {PipelineRow} row
+ * @returns {string}
+ */
 const canonicalRow = (row) =>
   JSON.stringify({
     gain: String(row.gain),
@@ -34,10 +46,15 @@ const canonicalRow = (row) =>
     source: String(row.source),
   });
 
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {string}
+ */
 const canonicalRows = (rows) => `[${rows.map(canonicalRow).join(",")}]`;
 
 const LP1_PLUS_PEAK = "iir:type=lp1;f=700,iir:type=peak;f=100;q=1;g=-2";
 
+/** @type {PipelineRow[]} */
 const ROWS = [
   { source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: LP1_PLUS_PEAK },
   { source: "1", gain: "0", gainunit: "dB", mixdown: "0", process: "iir:type=peak;f=200;q=1;g=1" },
@@ -47,6 +64,12 @@ const ROWS = [
 const NEW_BAND = { type: "peak", f: 5000, q: 2, g: -4 };
 const EQ = { bands: [NEW_BAND] };
 
+/**
+ * @param {PipelineRow[]} rows
+ * @param {number} index
+ * @param {Partial<PipelineRow>} patch
+ * @returns {PipelineRow[]}
+ */
 const withRow = (rows, index, patch) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r));
 
 // A baseline that is NOT already canonical: keys in a different order and
@@ -59,7 +82,41 @@ const SCRAMBLED_BASELINE = JSON.stringify([
 
 // --- wire fake ------------------------------------------------------------------
 
+/**
+ * A response as this fake serves one: the four members the tool reads.
+ *
+ * @typedef {{ ok: boolean, status: number, statusText: string, json: () => Promise<unknown> }} FakeResponse
+ */
+
+/**
+ * The log one run leaves behind: the requests it made, and the buffer they built.
+ *
+ * @typedef {{ calls: { path: string, method: string, body: unknown }[], pending: StagePayload }} WireLog
+ */
+
+/**
+ * A wire fake, ready to be injected.
+ *
+ * @typedef {{ w: WireLog, fetch: FetchImpl }} Wire
+ */
+
+// The tool's declared fetch answers with a real Response, which this fake does
+// not build; it is handed over as the injected implementation all the same.
+/**
+ * @param {(url: string, init?: RequestInit) => Promise<FakeResponse>} f
+ * @returns {FetchImpl}
+ */
+const asFetch = (f) => /** @type {FetchImpl} */ (/** @type {unknown} */ (f));
+
+/**
+ * @param {unknown} body
+ * @returns {FakeResponse}
+ */
 const ok = (body) => ({ ok: true, status: 200, statusText: "OK", json: async () => body });
+/**
+ * @param {number} status
+ * @returns {FakeResponse}
+ */
 const bad = (status) => ({
   ok: false,
   status,
@@ -70,8 +127,18 @@ const bad = (status) => ({
 // `externalStage` models another client POSTing to /api/config/stage between our
 // POST and our verify read: it goes through the same stage() the fake serves on
 // the wire, so the pending buffer is always a real product of real frames.
+/**
+ * @param {{ rows?: PipelineRow[], configStatus?: number,
+ *   externalStage?: StagePayload | null, raw?: string | null }} [options]
+ * @returns {Wire}
+ */
 function stageWire({ rows = ROWS, configStatus = 200, externalStage = null, raw = null } = {}) {
+  /** @type {WireLog} */
   const w = { calls: [], pending: { live: {}, http: {} } };
+  /**
+   * @param {StagePayload} body
+   * @returns {StagePayload}
+   */
   const stage = (body) => {
     w.pending = {
       live: { ...w.pending.live, ...body.live },
@@ -87,6 +154,7 @@ function stageWire({ rows = ROWS, configStatus = 200, externalStage = null, raw 
     }
     return ok(w.pending);
   };
+  /** @type {Record<string, (init: RequestInit) => FakeResponse>} */
   const routes = {
     "GET /api/config": () =>
       configStatus === 200
@@ -94,9 +162,14 @@ function stageWire({ rows = ROWS, configStatus = 200, externalStage = null, raw 
         : bad(configStatus),
     "GET /api/matrix": () =>
       ok({ data: { rows: rows.map((r, index) => ({ index, ...r })), loaded_at: 0, stale: false } }),
-    "POST /api/config/stage": (init) => ok(stage(JSON.parse(init.body))),
+    "POST /api/config/stage": (init) => ok(stage(JSON.parse(String(init.body)))),
     "GET /api/config/pending": readPending,
   };
+  /**
+   * @param {string} url
+   * @param {RequestInit} [init]
+   * @returns {Promise<FakeResponse>}
+   */
   const fetch = async (url, init = {}) => {
     const method = (init.method || "GET").toUpperCase();
     const path = new globalThis.URL(String(url)).pathname;
@@ -104,13 +177,21 @@ function stageWire({ rows = ROWS, configStatus = 200, externalStage = null, raw 
     const route = routes[`${method} ${path}`];
     return route ? route(init) : bad(404);
   };
-  return { w, fetch };
+  return { w, fetch: asFetch(fetch) };
 }
 
+/**
+ * @param {WireLog} w
+ * @returns {WireLog["calls"]}
+ */
 const posts = (w) => w.calls.filter((c) => c.method === "POST");
 
 // Swallows the documented rejection but never a resolution: a run that succeeds
 // fails the test here rather than passing on a vacuously empty POST count.
+/**
+ * @param {Promise<unknown>} promise
+ * @returns {Promise<void>}
+ */
 const rejected = (promise) =>
   promise.then(
     () => {
@@ -121,14 +202,31 @@ const rejected = (promise) =>
 
 // --- helpers on the answer ------------------------------------------------------
 
-const stagedRows = (answer) => JSON.parse(answer.staged.http.matrix_pipelines);
+// The buffer passes every field through as an opaque value; this one is the
+// pipeline JSON the tool wrote into it.
+/**
+ * @param {Report} answer
+ * @returns {string}
+ */
+const stagedPipelines = (answer) => String(answer.staged.http.matrix_pipelines);
+
+/**
+ * @param {Report} answer
+ * @returns {PipelineRow[]}
+ */
+const stagedRows = (answer) => JSON.parse(stagedPipelines(answer));
 
 // A stage as the process string carries it: "iir:type=peak;f=5000;q=2;g=-4".
+/**
+ * @param {string} process
+ * @returns {Record<string, string>[]}
+ */
 const parseStages = (process) =>
   String(process)
     .split(",")
     .filter((s) => s.length > 0)
     .map((s) => {
+      /** @type {Record<string, string>} */
       const args = {};
       for (const pair of s.replace(/^iir:/, "").split(";")) {
         const [k, v] = pair.split("=");
@@ -139,10 +237,26 @@ const parseStages = (process) =>
 
 // Format-agnostic: matches on the numeric value of f, so "700" and "700.0" both
 // count as the same stage.
+/**
+ * @param {string} process
+ * @param {string} type
+ * @param {number} f
+ * @returns {boolean}
+ */
 const hasStage = (process, type, f) => parseStages(process).some((a) => a.type === type && Number(a.f) === f);
 
+/**
+ * @param {string} process
+ * @param {number} f
+ * @returns {Record<string, string>}
+ */
 const stageAt = (process, f) => parseStages(process).find((a) => Number(a.f) === f) || {};
 
+/**
+ * @param {Partial<Job>} job
+ * @param {Wire} wire
+ * @returns {Promise<Report>}
+ */
 const run = async (job, wire) => runJob({ url: URL_BASE, eq: EQ, ...job }, { fetch: wire.fetch });
 
 // --- the POST itself ------------------------------------------------------------
@@ -150,7 +264,7 @@ const run = async (job, wire) => runJob({ url: URL_BASE, eq: EQ, ...job }, { fet
 test("test_the_staged_pipelines_are_the_ones_actually_posted_to_the_daemon", async () => {
   const wire = stageWire();
   const answer = await run({ rows: [0] }, wire);
-  assert.equal(JSON.parse(posts(wire.w)[0].body).http.matrix_pipelines, answer.staged.http.matrix_pipelines);
+  assert.equal(JSON.parse(String(posts(wire.w)[0].body)).http.matrix_pipelines, stagedPipelines(answer));
 });
 
 // --- untouched rows -------------------------------------------------------------
@@ -158,7 +272,7 @@ test("test_the_staged_pipelines_are_the_ones_actually_posted_to_the_daemon", asy
 test("test_a_row_outside_the_selection_is_staged_byte_identical_to_its_baseline", async () => {
   const wire = stageWire();
   const answer = await run({ rows: [0] }, wire);
-  assert.equal(answer.staged.http.matrix_pipelines.includes(canonicalRow(ROWS[1])), true);
+  assert.equal(stagedPipelines(answer).includes(canonicalRow(ROWS[1])), true);
 });
 
 // --- canonical form -------------------------------------------------------------

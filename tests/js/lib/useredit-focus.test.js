@@ -10,10 +10,10 @@
 //
 // tests/js/lib/useredit.test.js owns the rest of the provenance policy — held
 // pointer, release arm, one-shot consumption, the refusals — and this file adds
-// only the focus gate on the key arm, in that file's shape: a fake document
-// installed BEFORE the import, because dom.js registers its capture listeners at
-// module load, and events replayed to those listeners the way the capture phase
-// delivers them.
+// only the focus gate on the key arm, driven through the same seam: the fake
+// document tests/js/support/useredit-dom.js installs BEFORE importing dom.js,
+// which registers its capture listeners at module load, with events replayed to
+// those listeners the way the capture phase delivers them.
 //
 // A browser announces a focus change twice, and a document-level capture
 // listener sees both: `focus`/`blur` (which do not bubble but are capturable)
@@ -30,45 +30,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const registered = new Map();
-globalThis.document = {
-  addEventListener(type, fn) {
-    registered.set(type, [...(registered.get(type) || []), fn]);
-  },
-};
+import { documentSees, focus, keydown, press, setup, fire } from "../support/useredit-dom.js";
 
-const { userEdit } = await import("../../../hqptuner/static/lib/dom.js");
+/** @typedef {import("../support/useredit-dom.js").ControlSeam} ControlSeam */
 
-function documentSees(type, target, extra = {}) {
-  const event = { type, target, ...extra };
-  for (const fn of registered.get(type) || []) fn(event);
-}
-
-const focus = (el) => {
-  documentSees("focus", el, { relatedTarget: null });
-  documentSees("focusin", el, { relatedTarget: null });
-};
+/** @param {ControlSeam} el */
 const blur = (el) => {
   documentSees("blur", el, { relatedTarget: null });
   documentSees("focusout", el, { relatedTarget: null });
 };
-const keydown = (el, key) => documentSees("keydown", el, { key });
-const press = (el) => documentSees("pointerdown", el, { button: 0, buttons: 1 });
-
-// A range element mid-edit: the browser has already moved its value to 63 by the
-// time the input event fires; 50 is the canonical value the app last knew.
-function setup() {
-  const el = { tagName: "INPUT", type: "range", value: "63" };
-  const calls = [];
-  const handler = userEdit(50, (ev) => calls.push(ev));
-  return { el, calls, handler };
-}
-
-function fire(handler, el, type) {
-  const event = { type, target: el, currentTarget: el };
-  handler(event);
-  return event;
-}
 
 const ARROWS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 

@@ -24,13 +24,52 @@ import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaura
 import { recognizeRows } from "../../../hqptuner/static/lib/binaural/recognize.js";
 import { PRESETS } from "../../../hqptuner/static/lib/binaural-setup.js";
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../hqptuner/static/lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ * @typedef {NonNullable<Parameters<typeof compileRows>[0]>} BinauralParams
+ */
+
 // [ok, message] for spreading into ONE assert.ok — see matrixspec.test.js.
+/**
+ * @param {number} actual
+ * @param {number} expected
+ * @param {number} [tol]
+ * @returns {[boolean, string]}
+ */
 const near = (actual, expected, tol = 1e-9) => [
   Math.abs(actual - expected) <= tol,
   `expected ${expected} ± ${tol}, got ${actual}`,
 ];
 
+/**
+ * @param {BinauralParams} [params]
+ * @returns {StructuralRecognition | null}
+ */
 const rt = (params) => recognizeRows(compileRows(params));
+
+// The recognition of a block these cases build is read straight through; a
+// block that declines is asserted on as null through `rt` instead.
+/**
+ * @param {BinauralParams} [params]
+ * @returns {StructuralRecognition}
+ */
+const got = (params) => /** @type {StructuralRecognition} */ (rt(params));
+
+// Rows a hand edit can leave behind: the malformed-row cases feed the
+// recognizer shapes its declared input does not admit, which is the point.
+/**
+ * @param {unknown} rows
+ * @returns {PipelineRow[]}
+ */
+const asRows = (rows) => /** @type {PipelineRow[]} */ (rows);
+
+// PRESETS carry no `name`, so every preset names its test by its JSON.
+/**
+ * @param {(typeof PRESETS)[number]} preset
+ * @returns {string}
+ */
+const presetName = (preset) => preset.label;
 
 // --- shape ------------------------------------------------------------------
 
@@ -50,49 +89,49 @@ test("test_every_compiled_row_carries_a_linear_gain", () => {
 
 for (const angle of [0.5, 15, 22, 30, 45, 59.5]) {
   test(`test_speaker_angle_round_trips: ${angle}`, () => {
-    assert.ok(...near(rt({ angle }).angle, angle, 1e-9));
+    assert.ok(...near(got({ angle }).angle, angle, 1e-9));
   });
 }
 
 for (const lambda of [0, 0.25, 0.5, 0.7, 1]) {
   test(`test_centre_character_round_trips: ${lambda}`, () => {
-    assert.ok(...near(rt({ lambda }).lambda, lambda, 1e-9));
+    assert.ok(...near(got({ lambda }).lambda, lambda, 1e-9));
   });
 }
 
 for (const headRadius of [0.075, 0.0875, 0.095, 0.08753]) {
   test(`test_head_radius_round_trips: ${headRadius}`, () => {
     // recovered through a 1-dp corner frequency, so ~1e-5 m of slack
-    assert.ok(...near(rt({ headRadius }).headRadius, headRadius, 1e-5));
+    assert.ok(...near(got({ headRadius }).headRadius, headRadius, 1e-5));
   });
 }
 
 test("test_a_scalar_preamp_round_trips_to_both_ears", () => {
-  assert.ok(...near(rt({ preampDb: -3.5 }).preampDb.left, -3.5, 1e-9));
+  assert.ok(...near(got({ preampDb: -3.5 }).preampDb.left, -3.5, 1e-9));
 });
 
 test("test_an_asymmetric_preamp_is_carried_per_ear", () => {
-  assert.ok(...near(rt({ preampDb: { left: -1.25, right: -2.5 } }).preampDb.right, -2.5, 1e-9));
+  assert.ok(...near(got({ preampDb: { left: -1.25, right: -2.5 } }).preampDb.right, -2.5, 1e-9));
 });
 
 test("test_a_shared_eq_chain_round_trips_byte_identical", () => {
   const eq = "iir:type=peak;f=1000;q=1;g=-3";
-  assert.equal(rt({ eqProcess: eq }).eqProcess.left, eq);
+  assert.equal(got({ eqProcess: eq }).eqProcess.left, eq);
 });
 
 test("test_an_asymmetric_eq_is_carried_per_ear", () => {
   const eq = { left: "iir:type=peak;f=1000;q=1;g=-3", right: "iir:type=peak;f=2000;q=1;g=-6" };
-  assert.equal(rt({ eqProcess: eq }).eqProcess.right, eq.right);
+  assert.equal(got({ eqProcess: eq }).eqProcess.right, eq.right);
 });
 
 test("test_a_scalar_eq_is_reported_per_ear", () => {
   // shape is deliberately not preserved: scalar in, {left, right} out
   const eq = "iir:type=peak;f=1000;q=1;g=-3";
-  assert.equal(rt({ eqProcess: eq }).eqProcess.right, eq);
+  assert.equal(got({ eqProcess: eq }).eqProcess.right, eq);
 });
 
 for (const preset of PRESETS) {
-  test(`test_preset_round_trips: ${preset.name || JSON.stringify(preset)}`, () => {
+  test(`test_preset_round_trips: ${presetName(preset)}`, () => {
     assert.notEqual(rt(preset), null);
   });
 }
@@ -106,7 +145,7 @@ test("test_any_distinct_channel_pair_is_recognized", () => {
 // because the recognizer re-derives all 16 gains from the snapped value.
 
 test("test_a_lambda_a_hair_off_grid_is_accepted", () => {
-  assert.ok(...near(rt({ lambda: 0.700001 }).lambda, 0.7, 1e-9));
+  assert.ok(...near(got({ lambda: 0.700001 }).lambda, 0.7, 1e-9));
 });
 
 test("test_a_lambda_well_off_grid_is_refused", () => {
@@ -114,7 +153,7 @@ test("test_a_lambda_well_off_grid_is_refused", () => {
 });
 
 test("test_an_angle_a_hair_off_grid_is_accepted", () => {
-  assert.ok(...near(rt({ angle: 30.0001 }).angle, 30, 1e-9));
+  assert.ok(...near(got({ angle: 30.0001 }).angle, 30, 1e-9));
 });
 
 test("test_an_angle_well_off_grid_is_refused", () => {
@@ -128,7 +167,7 @@ test("test_a_preamp_well_off_grid_is_refused", () => {
 test("test_an_off_grid_head_radius_is_accepted_and_snapped", () => {
   // head radius never enters the gain coefficients, so it is the one control
   // the 1e-6 gain re-check does not police
-  assert.ok(...near(rt({ headRadius: 0.087534 }).headRadius, 0.08753, 1e-9));
+  assert.ok(...near(got({ headRadius: 0.087534 }).headRadius, 0.08753, 1e-9));
 });
 
 // --- domain limits ----------------------------------------------------------
@@ -153,7 +192,7 @@ test("test_a_negative_centre_character_is_not_recognized", () => {
 });
 
 test("test_a_deep_preamp_still_round_trips", () => {
-  assert.ok(...near(rt({ preampDb: -120 }).preampDb.left, -120, 1e-3));
+  assert.ok(...near(got({ preampDb: -120 }).preampDb.left, -120, 1e-3));
 });
 
 test("test_a_preamp_below_the_gain_resolution_is_not_recognized", () => {
@@ -181,7 +220,8 @@ test("test_a_negative_offset_is_not_recognized", () => {
 
 test("test_a_block_at_a_later_offset_is_recognized", () => {
   const padded = [...compileRows({ angle: 45 }), ...compileRows({ angle: 22 })];
-  assert.ok(...near(recognizeRows(padded, 16).angle, 22, 1e-9));
+  const found = /** @type {StructuralRecognition} */ (recognizeRows(padded, 16));
+  assert.ok(...near(found.angle, 22, 1e-9));
 });
 
 test("test_a_row_with_a_decibel_gain_unit_is_not_recognized", () => {
@@ -255,31 +295,31 @@ test("test_an_eq_with_a_first_order_lowpass_later_in_the_chain_is_recognized", (
 
 test("test_a_row_with_a_non_string_process_is_not_recognized", () => {
   const rows = compileRows().map((r, i) => (i === 3 ? { ...r, process: 42 } : r));
-  assert.equal(recognizeRows(rows), null);
+  assert.equal(recognizeRows(asRows(rows)), null);
 });
 
 test("test_a_null_row_is_not_recognized", () => {
   const rows = compileRows().map((r, i) => (i === 5 ? null : r));
-  assert.equal(recognizeRows(rows), null);
+  assert.equal(recognizeRows(asRows(rows)), null);
 });
 
 test("test_a_missing_row_is_not_recognized", () => {
   const rows = compileRows().map((r, i) => (i === 0 ? undefined : r));
-  assert.equal(recognizeRows(rows), null);
+  assert.equal(recognizeRows(asRows(rows)), null);
 });
 
 test("test_a_row_whose_process_is_absent_is_still_legal", () => {
   // a bare flat row carries no chain; that is not malformed
   const rows = compileRows().map((r) => (r.process === "" ? { ...r, process: null } : r));
-  assert.notEqual(recognizeRows(rows), null);
+  assert.notEqual(recognizeRows(asRows(rows)), null);
 });
 
 // --- defaults ---------------------------------------------------------------
 
 test("test_the_default_speaker_angle_is_recovered_from_a_default_block", () => {
-  assert.ok(...near(rt({}).angle, SPEAKER_ANGLE, 1e-9));
+  assert.ok(...near(got({}).angle, SPEAKER_ANGLE, 1e-9));
 });
 
 test("test_the_default_head_radius_is_recovered_from_a_default_block", () => {
-  assert.ok(...near(rt({}).headRadius, HEAD_RADIUS, 1e-5));
+  assert.ok(...near(got({}).headRadius, HEAD_RADIUS, 1e-5));
 });

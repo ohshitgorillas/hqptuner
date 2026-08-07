@@ -63,6 +63,88 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { writeLive } from "../../../hqptuner/static/store/live/write.js";
 import { ok } from "../support/wire.js";
 
+/**
+ * The globals a fake wire installs a `fetch` on, viewed as an optional
+ * member: the DOM lib declares it returning a real `Response`, which this
+ * fake does not build.
+ *
+ * @type {{ fetch?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * One filter/shaper/junk-filter enum entry the engine reports: enum ID
+ * differs from list index throughout.
+ *
+ * @typedef {{ index: string, value: string, name: string }} EnumItem
+ */
+
+/**
+ * One `<RatesItem index rate/>` — no name and no value (protocol.md §4/§6).
+ *
+ * @typedef {{ index: string, rate: string }} RateItem
+ */
+
+/**
+ * The /api/enumerations payload this suite drives.
+ *
+ * @typedef {{
+ *   filters: EnumItem[],
+ *   shapers: EnumItem[],
+ *   rates: RateItem[],
+ *   junk_filters: EnumItem[],
+ *   mode: { name: string },
+ * }} Enums
+ */
+
+/**
+ * The /api/state payload this suite drives.
+ *
+ * @typedef {{
+ *   mode: string,
+ *   filter1x: string,
+ *   filterNx: string,
+ *   shaper: string,
+ *   rate: string,
+ *   filter_junk: string,
+ *   adaptive: string,
+ *   volume: string,
+ *   active_chain: string | null,
+ * }} EngineState
+ */
+
+/**
+ * The config-file overlay keyed by form field: `FILE()` always carries the
+ * mode plus both rate limits.
+ *
+ * @typedef {{ mode: string, defaults_samplerate: string, defaults_bitrate: string }} FileOverlay
+ */
+
+/**
+ * The /api/status payload while a track plays — `metadata.samplerate` is
+ * absent when the daemon has been given no source rate at all.
+ *
+ * @typedef {{ status: { active_rate: string }, metadata: { samplerate?: string, bits: string } }} EngineStatus
+ */
+
+/**
+ * One scenario `reset()` drives the whole suite from.
+ *
+ * @typedef {{ state: EngineState, lists: Enums, file: FileOverlay, status?: EngineStatus | null }} Scenario
+ */
+
+/**
+ * A rate menu entry, as `optionFor` / `marks` / `markedCount` read it.
+ *
+ * @typedef {{ value: string | number, disabled?: boolean, reason?: string }} RateOption
+ */
+
+/**
+ * A rate column carrying its own menu.
+ *
+ * @typedef {{ field?: string, options: RateOption[] }} RateColumn
+ */
+
 // The chain enumerations play no part here; they are present because the store
 // reads one engine payload. Enum ID differs from list index throughout.
 const FILTERS = [
@@ -86,9 +168,19 @@ const DSD1024 = "49152000";
 const DSD512_44K = "22579200";
 const PCM_4X_44K = "176400";
 
-// `<RatesItem index rate/>`, in list order, index 0 being auto.
+/**
+ * `<RatesItem index rate/>`, in list order, index 0 being auto.
+ *
+ * @param {...string} hz
+ * @returns {RateItem[]}
+ */
 const rates = (...hz) => ["0", ...hz].map((rate, i) => ({ index: String(i), rate }));
 
+/**
+ * @param {string} modeName
+ * @param {RateItem[]} list
+ * @returns {Enums}
+ */
 const ENUMS = (modeName, list) => ({
   filters: FILTERS,
   shapers: SHAPERS,
@@ -99,6 +191,10 @@ const ENUMS = (modeName, list) => ({
 
 // State reports the rate as a LIST INDEX and answers only for the family the
 // engine is running (settings-classification.md: one pin, cleared by SetMode).
+/**
+ * @param {{ mode: string, chain: string | null, rate: string }} seams
+ * @returns {EngineState}
+ */
 const STATE = ({ mode, chain, rate }) => ({
   mode,
   filter1x: "0",
@@ -116,6 +212,12 @@ const STATE = ({ mode, chain, rate }) => ({
 // `defaults_bitrate`. Each scenario gives these numbers no other source in the
 // fixture carries, so a column reading the wrong one shows a rate nothing else
 // explains.
+/**
+ * @param {string} mode
+ * @param {string} samplerate
+ * @param {string} bitrate
+ * @returns {FileOverlay}
+ */
 const FILE = (mode, samplerate, bitrate) => ({
   mode,
   defaults_samplerate: samplerate,
@@ -130,26 +232,42 @@ const FILE = (mode, samplerate, bitrate) => ({
 // own member before sending (DSD512 on 44.1k track → 22579200)" — so the
 // caller names the output rate separately, and the cases below put it in the
 // family the source is NOT in.
+/**
+ * @param {string} out
+ * @returns {EngineStatus}
+ */
 const SOURCE_44K = (out) => ({ status: { active_rate: out }, metadata: { samplerate: "44100", bits: "24" } });
 
 // A source below the base rate: 22050 and 44100 divide the other way round, so
 // it is the same 44.1 family. A store testing only `rate % 44100 === 0` puts
 // this one in the 48k family and sends the wrong member.
+/**
+ * @param {string} out
+ * @returns {EngineStatus}
+ */
 const SOURCE_22K = (out) => ({ status: { active_rate: out }, metadata: { samplerate: "22050", bits: "24" } });
 
 // Playing, with no source rate reported at all — metadata the daemon has not
 // been given. The engine's own output rate is then all there is to go on.
+/**
+ * @param {string} out
+ * @returns {EngineStatus}
+ */
 const NO_SOURCE_RATE = (out) => ({ status: { active_rate: out }, metadata: { bits: "24" } });
 
 // A live-lane server: the one POST a rate edit takes, plus the endpoints the
 // store re-mirrors from afterwards, each answering what the scenario seeded so
 // a fake that has not moved says what the signals already hold. `w.posts` is
 // what actually left the browser.
+/**
+ * @param {{ state: EngineState, lists: Enums, file: FileOverlay }} seams
+ * @returns {{ posts: unknown[] }}
+ */
 function liveWire({ state, lists, file }) {
-  const w = { posts: [] };
-  globalThis.fetch = async (path, opts = {}) => {
+  const w = { posts: /** @type {unknown[]} */ ([]) };
+  env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
-      w.posts.push(JSON.parse(opts.body));
+      w.posts.push(JSON.parse(String(opts.body)));
       return ok({ live: [] });
     }
     if (path === "/api/state") return ok({ data: state });
@@ -163,6 +281,10 @@ function liveWire({ state, lists, file }) {
 // Total reset: module-level signals outlive a test, so a partial one makes
 // cases pass alone and fail in sequence. `status` defaults to null — the engine
 // reporting nothing playing, so no source's family answers for the send.
+/**
+ * @param {Scenario} seams
+ * @returns {{ posts: unknown[] }}
+ */
 function reset({ state, lists, file, status = null }) {
   const w = liveWire({ state, lists, file });
   engineState.value = state;
@@ -196,6 +318,10 @@ const PCM_RUNNING = () => ({
 // One of the tier's two members is listed, so the tier is reachable whatever is
 // playing; with nothing playing the source's own member is the 48k one, which
 // the list does not hold, so the write falls to the other member.
+/**
+ * @param {{ status?: EngineStatus }} [over]
+ * @returns {Scenario}
+ */
 const SDM_LIST_44K = (over = {}) => ({
   state: STATE({ mode: "2", chain: "sdm", rate: "1" }),
   lists: ENUMS("SDM (DSD)", rates(DSD512_44K)),
@@ -206,6 +332,10 @@ const SDM_LIST_44K = (over = {}) => ({
 // The PCM mirror of SDM_LIST_44K: the engine runs PCM and enumerates the 192000
 // tier by its 44.1k member 176400 alone. Nothing is playing, so the source's
 // member is the 48k one the list is missing and the write falls to the other.
+/**
+ * @param {{ status?: EngineStatus }} [over]
+ * @returns {Scenario}
+ */
 const PCM_LIST_44K = (over = {}) => ({
   state: STATE({ mode: "1", chain: "pcm", rate: "1" }),
   lists: ENUMS("PCM", rates(PCM_4X_44K)),
@@ -215,6 +345,10 @@ const PCM_LIST_44K = (over = {}) => ({
 
 // The engine enumerates the DSD512 tier at BOTH of its members, so the list
 // rules nothing out and the source alone decides which one is sent.
+/**
+ * @param {{ status?: EngineStatus }} [over]
+ * @returns {Scenario}
+ */
 const SDM_LIST_BOTH = (over = {}) => ({
   state: STATE({ mode: "2", chain: "sdm", rate: "1" }),
   lists: ENUMS("SDM (DSD)", rates(DSD512_44K, DSD512)),
@@ -260,6 +394,11 @@ const NOTHING_LOADED = () => ({
 
 // A menu entry by the tier it names. A miss throws rather than quietly
 // measuring nothing: a menu that has lost a tier must fail loudly.
+/**
+ * @param {RateColumn} control
+ * @param {string} value
+ * @returns {RateOption}
+ */
 function optionFor(control, value) {
   const hit = control.options.find((o) => String(o.value) === value);
   if (!hit) throw new Error(`the rate menu offers no ${value} entry`);
@@ -270,10 +409,12 @@ function optionFor(control, value) {
 // and what it says about itself. A grayed entry must carry BOTH — an entry
 // disabled without a reason leaves the user guessing, and a reason on an entry
 // that is still selectable grays nothing.
+/** @param {RateOption} o */
 const marks = (o) => [Boolean(o.disabled), o.reason || null];
 const GRAYED = [true, "unavailable"];
 const REACHABLE = [false, null];
 
+/** @param {RateColumn} control */
 const markedCount = (control) => control.options.filter((o) => o.disabled || o.reason).length;
 
 // --- both columns stay editable -----------------------------------------------
@@ -414,7 +555,7 @@ test("test_a_grayed_tier_is_still_listed_in_the_menu", () => {
   // not vouch for reads as a rate this build does not support rather than one
   // the engine is not offering right now.
   reset(SDM_RUNNING());
-  const found = liveModel.value.sdmRate.options.some((o) => String(o.value) === DSD512);
+  const found = liveModel.value.sdmRate.options.some((/** @type {RateOption} */ o) => String(o.value) === DSD512);
   assert.ok(found, "the grayed DSD512 tier was dropped from the menu instead of listed");
 });
 

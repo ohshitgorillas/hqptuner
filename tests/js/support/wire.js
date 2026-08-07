@@ -2,11 +2,62 @@
 // REST paths with the real response shapes (docs/testing.md rule 4); no store
 // function is ever stubbed.
 
+/**
+ * A response as these fakes serve it: the three members the client reads.
+ *
+ * @typedef {{ ok: boolean, status: number, json: () => Promise<unknown> }} FakeResponse
+ */
+
+/**
+ * A request as these fakes are handed one — the two members the store sets.
+ *
+ * @typedef {{ method?: string, body?: string }} FakeRequest
+ */
+
+/**
+ * The pending buffer, one bag per lane.
+ *
+ * @typedef {{ live: Record<string, unknown>, http: Record<string, unknown> }} StagedBuffer
+ */
+
+/**
+ * A POST /api/config/stage body: the values to merge, and the entries to remove
+ * once they are merged.
+ *
+ * @typedef {{
+ *   live?: Record<string, unknown>,
+ *   http?: Record<string, unknown>,
+ *   drop?: { live?: Record<string, string[]>, http?: string[] },
+ * }} StageBody
+ */
+
+/**
+ * The globals a wire fake installs a `fetch` on, viewed as an optional member:
+ * the DOM lib declares it returning a real `Response`, which these fakes do not
+ * build.
+ *
+ * @type {{ fetch?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * @param {unknown} body
+ * @returns {FakeResponse}
+ */
 export const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
 // A refusal in the daemon's own shape: FastAPI answers every error with a
 // `detail` string. `bad(status)` with no detail is the other real case — a
 // response that is not our JSON at all, which `json()` rejects on.
+/**
+ * A 409's `detail` is a per-field object where a 502's is a sentence —
+ * `livepresetapi.py:28` answers `str(exc)`, `:52` and `:90` answer a mapping.
+ * The fake carries both because the wire does.
+ *
+ * @param {number} status
+ * @param {string | Record<string, string>} [detail]
+ * @returns {FakeResponse}
+ */
 export const bad = (status, detail) => ({
   ok: false,
   status,
@@ -44,6 +95,11 @@ export const bad = (status, detail) => ({
 // Remove the named arguments from each live entry named in `drop`, and the
 // entry itself once nothing is left of it — the live lane's entries are keyed by
 // live key, each holding that setting's arguments.
+/**
+ * @param {Record<string, unknown>} staged
+ * @param {Record<string, string[]>} drop
+ * @returns {Record<string, unknown>}
+ */
 function dropLive(staged, drop) {
   const live = { ...staged };
   for (const [key, args] of Object.entries(drop)) {
@@ -59,8 +115,26 @@ function dropLive(staged, drop) {
   return live;
 }
 
+/**
+ * @typedef {{
+ *   staged: StagedBuffer,
+ *   posts: unknown[],
+ *   stages: StageBody[],
+ *   inflight: Set<Promise<FakeResponse>>,
+ * }} StagingWire
+ */
+
+/**
+ * @param {{
+ *   routes?: (path: string, opts: FakeRequest, w: StagingWire) => FakeResponse | Promise<FakeResponse> | undefined,
+ *   fallback?: (w: StagingWire) => FakeResponse,
+ * }} [seams]
+ * @returns {StagingWire}
+ */
 export function stagingWire({ routes, fallback } = {}) {
+  /** @type {StagingWire} */
   const w = { staged: { live: {}, http: {} }, posts: [], stages: [], inflight: new Set() };
+  /** @param {StageBody} body */
   const applyStage = (body) => {
     const drop = body.drop || {};
     const http = { ...w.staged.http, ...body.http };
@@ -69,9 +143,9 @@ export function stagingWire({ routes, fallback } = {}) {
     w.staged = { live, http };
     return w.staged;
   };
-  const answer = async (path, opts) => {
+  const answer = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts) => {
     if (path === "/api/config/stage") {
-      const body = JSON.parse(opts.body);
+      const body = JSON.parse(String(opts.body));
       w.stages.push(body);
       return ok(applyStage(body));
     }
@@ -83,7 +157,7 @@ export function stagingWire({ routes, fallback } = {}) {
     const hit = routes && (await routes(path, opts, w));
     return hit === undefined ? (fallback ? fallback(w) : ok({})) : hit;
   };
-  globalThis.fetch = (path, opts = {}) => {
+  env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const req = answer(path, opts);
     w.inflight.add(req);
     req.then(
@@ -112,6 +186,11 @@ export function stagingWire({ routes, fallback } = {}) {
 // Exhausting the turn cap throws rather than returning: a runaway poll or a
 // request nothing ever answers must not read as a quiet wire, which would hand
 // the caller the half-settled state this helper exists to eliminate.
+/**
+ * @param {StagingWire} w
+ * @param {number} [turns]
+ * @returns {Promise<void>}
+ */
 export async function quiesce(w, turns = 100) {
   for (let turn = 0; turn < turns; turn += 1) {
     await Promise.allSettled([...w.inflight]);
@@ -124,8 +203,13 @@ export async function quiesce(w, turns = 100) {
 // A fixed buffer rather than an accumulating one: the suite states what is
 // staged and the fake answers with exactly that, unmoved by anything the
 // component does. `routes` adds the endpoints a suite needs beyond it.
+/**
+ * @param {StagedBuffer} [staged]
+ * @param {(path: string, opts: FakeRequest) => FakeResponse | Promise<FakeResponse> | undefined} [routes]
+ * @returns {void}
+ */
 export function staticWire(staged = { live: {}, http: {} }, routes) {
-  globalThis.fetch = async (path, opts = {}) => {
+  env.fetch = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     if (path === "/api/config/stage" || path === "/api/config/pending") return ok(staged);
     const hit = routes && (await routes(path, opts));
     return hit === undefined ? ok({}) : hit;

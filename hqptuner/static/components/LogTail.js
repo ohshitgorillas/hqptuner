@@ -18,7 +18,11 @@ const POLL_MS = 3000;
 const shown = signal(null); // null = follow log_enabled; true/false = user choice
 const lines = signal([]);
 const message = signal(""); // reason when the tail isn't available (logging off, unreadable)
-/** @type {number | null} the open poll interval, or null when not polling */
+// `ReturnType` rather than `number`: this file is checked under both configs,
+// and the browser's `setInterval` answers a number where node's answers a
+// `Timeout`. The handle is only ever passed back to `clearInterval`, so which
+// one it is never matters here.
+/** @type {ReturnType<typeof setInterval> | null} the open poll interval, or null when not polling */
 let timer = null;
 
 async function refresh() {

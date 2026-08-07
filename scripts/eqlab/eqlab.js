@@ -103,15 +103,20 @@
 // instead of hedging the answer down to what happened to be implementable.
 
 import { resolveChain } from "./chain.js";
+import { curveOf, F_HI, F_LO, GRID_N } from "./curve.js";
 import { exportJob, snapshotJob } from "./io.js";
 import { diffJob, evaluateJob, probe } from "./jobs.js";
-import { curveOf, F_HI, F_LO, GRID_N, resolveMetricSpecs } from "./metrics.js";
+import { resolveMetricSpecs } from "./metrics.js";
 import { plotJob } from "./plot.js";
 import { render } from "./render.js";
 import { refineJob, searchJob } from "./search.js";
 import { MAX_COMBOS, MAX_STEPS } from "./space.js";
 import { resolveTarget } from "./target.js";
 
+// Every handler takes (spec, ctx) and answers the job's body. The spec shapes
+// differ per kind and each handler validates its own, so the table is typed by
+// what they have in common: `run` looks a handler up by a runtime string.
+/** @type {Record<string, (spec: any, ctx: any) => Record<string, any> | Promise<Record<string, any>>>} */
 const KINDS = {
   probe,
   evaluate: evaluateJob,
@@ -144,6 +149,10 @@ async function readStdin() {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/**
+ * @param {Record<string, any>} job the parsed job document from stdin
+ * @returns {Promise<import("./render.js").Report>}
+ */
 async function run(job) {
   const spec = job.job || {};
   const handler = KINDS[spec.kind];

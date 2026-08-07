@@ -16,13 +16,45 @@ import path from "node:path";
 
 import { resolveChain } from "../../../scripts/eqlab/chain.js";
 import { readXmlRows, readParametricEq } from "../../../scripts/eqlab/io.js";
-import { valueAt } from "../../../scripts/eqlab/metrics.js";
+import { valueAt } from "../../../scripts/eqlab/curve.js";
 import { near, curve, XFEED, TAIL } from "../support/eqlab-helpers.js";
 
 // --- fixtures ------------------------------------------------------------------
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").StageArgs} StageArgs */
+
+/**
+ * A stage parsed out of a file source always carries its parameters.
+ *
+ * @param {MatrixStage} stage
+ * @returns {StageArgs}
+ */
+const argsOf = (stage) => {
+  if (stage.args === undefined) throw new Error("stage carries no args");
+  return stage.args;
+};
+
+/**
+ * The tail-consistency record is null only for a single-chain source, which no
+ * case reading it uses.
+ *
+ * @template T
+ * @param {T | null} x
+ * @returns {T}
+ */
+const nonNull = (x) => {
+  if (x === null) throw new Error("expected a consistency record, got null");
+  return x;
+};
+
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "eqlab-io-"));
 
+/**
+ * @param {string} content
+ * @param {string} name
+ * @returns {string}
+ */
 const writeTmp = (content, name) => {
   const p = path.join(tmp(), name);
   fs.writeFileSync(p, content);
@@ -32,12 +64,27 @@ const writeTmp = (content, name) => {
 // Config-snapshot XML in hqplayerd.xml shape: <matrix> holds self-closing
 // <pipeline channel=... process=.../> rows (hqplayerd-readme.txt §1.11); a
 // <matrix_profile> holds its own rows for a saved profile (§1.12).
+/**
+ * @param {number} channel
+ * @param {string} process
+ * @returns {string}
+ */
 const pipe = (channel, process) =>
   `  <pipeline channel="${channel}" gain="0" mixdown="0" process="${process}" source="0"/>`;
 
+/**
+ * @param {string[]} rows
+ * @param {string} [extra]
+ * @returns {string}
+ */
 const xmlDoc = (rows, extra = "") =>
   `<?xml version="1.0" encoding="utf-8"?>\n<hqplayerd>\n <matrix>\n${rows.join("\n")}\n </matrix>\n${extra}\n</hqplayerd>\n`;
 
+/**
+ * @param {string[]} rows
+ * @param {string} [extra]
+ * @returns {string}
+ */
 const writeXml = (rows, extra = "") => writeTmp(xmlDoc(rows, extra), "cfg.xml");
 
 // REW / EQ APO text (docs/eq-export.md §2).
@@ -101,7 +148,7 @@ test("test_pipeline_rows_inside_a_matrix_profile_are_never_counted", async () =>
 test("test_a_matrix_profile_row_with_a_different_tail_does_not_break_consistency", async () => {
   const p = writeXml([pipe(0, TAIL), pipe(1, TAIL)], PROFILE);
   const resolved = await resolveChain({ from: "xml", path: p });
-  assert.equal(resolved.consistency.tail_consistent, true);
+  assert.equal(nonNull(resolved.consistency).tail_consistent, true);
 });
 
 test("test_xml_attribute_entities_in_the_process_attribute_are_unescaped", async () => {
@@ -154,32 +201,32 @@ test("test_an_xml_source_reports_the_rows_serialized_process_string", async () =
 test("test_identical_eq_tails_on_every_matrix_row_are_consistent", async () => {
   const p = writeXml([pipe(0, TAIL), pipe(1, `${XFEED},${TAIL}`)]);
   const resolved = await resolveChain({ from: "xml", path: p });
-  assert.equal(resolved.consistency.tail_consistent, true);
+  assert.equal(nonNull(resolved.consistency).tail_consistent, true);
 });
 
 test("test_a_matrix_row_whose_tail_differs_from_row_zero_is_an_offender", async () => {
   const p = writeXml([pipe(0, TAIL), pipe(1, "iir:type=peak;f=1000;q=1;g=5")]);
   const resolved = await resolveChain({ from: "xml", path: p });
-  assert.deepEqual(resolved.consistency.offending_rows, [1]);
+  assert.deepEqual(nonNull(resolved.consistency).offending_rows, [1]);
 });
 
 // --- ParametricEQ text chain source ----------------------------------------------
 
 test("test_a_pk_filter_line_becomes_a_peak_band", async () => {
   const resolved = await resolveChain({ from: "parametric_eq", path: writeTmp(PEQ_ONE, "eq.txt") });
-  assert.equal(resolved.stages[0].args.type, "peak");
+  assert.equal(argsOf(resolved.stages[0]).type, "peak");
 });
 
 test("test_an_lsc_filter_line_becomes_a_low_shelf_band", async () => {
   const p = writeTmp("Filter 1: ON LSC Fc 100 Hz Gain 2 dB Q 0.7\n", "eq.txt");
   const resolved = await resolveChain({ from: "parametric_eq", path: p });
-  assert.equal(resolved.stages[0].args.type, "lshelf");
+  assert.equal(argsOf(resolved.stages[0]).type, "lshelf");
 });
 
 test("test_an_hsc_filter_line_becomes_a_high_shelf_band", async () => {
   const p = writeTmp("Filter 1: ON HSC Fc 8000 Hz Gain -1.5 dB Q 0.7\n", "eq.txt");
   const resolved = await resolveChain({ from: "parametric_eq", path: p });
-  assert.equal(resolved.stages[0].args.type, "hshelf");
+  assert.equal(argsOf(resolved.stages[0]).type, "hshelf");
 });
 
 test("test_a_parsed_filters_frequency_and_gain_are_carried_through", async () => {
@@ -189,7 +236,7 @@ test("test_a_parsed_filters_frequency_and_gain_are_carried_through", async () =>
 
 test("test_a_parsed_filters_q_is_carried_through", async () => {
   const resolved = await resolveChain({ from: "parametric_eq", path: writeTmp(PEQ_ONE, "eq.txt") });
-  assert.ok(...near(Number(resolved.stages[0].args.q), 1.41, 0.001));
+  assert.ok(...near(Number(argsOf(resolved.stages[0]).q), 1.41, 0.001));
 });
 
 test("test_a_file_with_no_parseable_filter_lines_is_rejected_naming_the_path", async () => {
@@ -224,25 +271,25 @@ const NO_FC_THEN_VALID = `Filter 1: ON PK Gain 3 dB Q 1\n${VALID_PK}`;
 test("test_an_off_filter_line_is_counted_in_skipped", async () => {
   const p = writeTmp(OFF_THEN_VALID, "eq.txt");
   const resolved = await resolveChain({ from: "parametric_eq", path: p });
-  assert.equal(resolved.source.skipped.length, 1);
+  assert.equal(/** @type {string[]} */ (resolved.source.skipped).length, 1);
 });
 
 test("test_a_skipped_entrys_reason_names_the_cause", async () => {
   const p = writeTmp(OFF_THEN_VALID, "eq.txt");
   const resolved = await resolveChain({ from: "parametric_eq", path: p });
-  assert.match(resolved.source.skipped[0], /OFF/);
+  assert.match(/** @type {string[]} */ (resolved.source.skipped)[0], /OFF/);
 });
 
 test("test_a_filter_line_with_an_unsupported_type_is_counted_in_skipped", async () => {
   const p = writeTmp(`Filter 1: ON BP Fc 60 Hz Gain 0 dB Q 1.41\n${VALID_PK}`, "eq.txt");
   const resolved = await resolveChain({ from: "parametric_eq", path: p });
-  assert.equal(resolved.source.skipped.length, 1);
+  assert.equal(/** @type {string[]} */ (resolved.source.skipped).length, 1);
 });
 
 test("test_a_filter_line_with_no_fc_is_counted_in_skipped", async () => {
   const p = writeTmp(NO_FC_THEN_VALID, "eq.txt");
   const resolved = await resolveChain({ from: "parametric_eq", path: p });
-  assert.equal(resolved.source.skipped.length, 1);
+  assert.equal(/** @type {string[]} */ (resolved.source.skipped).length, 1);
 });
 
 test("test_a_filter_line_with_no_fc_never_becomes_a_stage", async () => {

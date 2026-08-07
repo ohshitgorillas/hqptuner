@@ -31,8 +31,17 @@ import { stagingWire } from "./wire.js";
 
 // --- the menus ---------------------------------------------------------------
 
-export const PCM_OPTIONS = schema.pcm_rate.options;
-export const MODE_OPTIONS = schema.output_mode.options;
+/**
+ * A menu entry as these helpers read it: the value naming the tier, plus the
+ * two marks a graying pass adds — absent on a menu no pass has touched.
+ *
+ * @typedef {{ value: string | number, label?: string, disabled?: boolean, reason?: string }} MenuOption
+ */
+
+// Both entries carry an option list in the catalog; `options` is optional on a
+// schema entry in general, which is what the assertions state past.
+export const PCM_OPTIONS = /** @type {MenuOption[]} */ (schema.pcm_rate.options);
+export const MODE_OPTIONS = /** @type {MenuOption[]} */ (schema.output_mode.options);
 
 // Tier menu members, 48k side — the numbers the options carry, as strings.
 // Every tier has a 44.1k member and a 48k member and the option's value carries
@@ -66,6 +75,11 @@ export const ALSA_DEVICE = "hw:CARD=NVidia,DEV=3";
 
 // What the log-derived capability looks like on the wire: integers, both
 // families, the device it was observed on.
+/**
+ * @param {string} device
+ * @param {number[]} pcmRates
+ * @param {number[]} dsdRates
+ */
 export const caps = (device, pcmRates, dsdRates) => ({
   device,
   pcm_rates: pcmRates,
@@ -87,6 +101,7 @@ export const PCM_TO_176 = [44100, 48000, 88200, 96000, 176400];
 // it makes to complete its round trip over the wire. Not a wall-clock wait:
 // zero-delay turns of the loop, so the suites pin what the effect concludes,
 // never how long it takes.
+/** @returns {Promise<void>} */
 export const tick = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -108,6 +123,24 @@ export const tick = async () => {
 // The buffer is cleared BEFORE the fixture payload lands, never after: the
 // fall-back correction is an effect on the capability and the current values,
 // so a discard afterwards would wipe the very thing those cases measure.
+/**
+ * The DoP switches take a string as well as a boolean: the daemon's form serves
+ * a boolean, but a staged edit of one arrives as `"1"` or `"0"`, and the store
+ * reads both shapes back.
+ *
+ * @param {{
+ *   backend?: string,
+ *   netDevice?: string,
+ *   alsaDevice?: string,
+ *   netDop?: boolean | string,
+ *   alsaDop?: boolean | string,
+ *   deviceCaps?: ReturnType<typeof caps> | null,
+ *   pcmRate?: string,
+ *   sdmRate?: string,
+ *   mode?: string,
+ * }} [fixture]
+ * @returns {Promise<import("./wire.js").StagingWire>}
+ */
 export async function reset({
   backend = "network",
   netDevice = NET_DEVICE,
@@ -130,8 +163,9 @@ export async function reset({
     { name: "net_dop", value: netDop },
     { name: "alsa_dop", value: alsaDop },
   ];
+  /** @type {Record<string, string>} */
   const file = {};
-  const control = (name, value) => {
+  const control = (/** @type {string} */ name, /** @type {string | undefined} */ value) => {
     if (value === undefined) return;
     fields.push({ name, value });
     file[name] = value;
@@ -152,6 +186,11 @@ export async function reset({
 // option list that has LOST an entry — or drifted to numeric values — must fail
 // loudly, since dropping what the device cannot reach is exactly the behaviour
 // house policy forbids.
+/**
+ * @param {MenuOption[]} options
+ * @param {string} value
+ * @returns {MenuOption}
+ */
 export function optionFor(options, value) {
   const hit = options.find((o) => o.value === value);
   if (!hit) throw new Error(`the menu offers no ${value} entry`);
@@ -161,15 +200,34 @@ export function optionFor(options, value) {
 // The two marks an entry can carry, read as a pair: whether it can be picked
 // and what it says about itself. An entry disabled without a reason leaves the
 // user guessing; a reason on a selectable entry grays nothing.
+/**
+ * @param {MenuOption} o
+ * @returns {[boolean, boolean]}
+ */
 export const marks = (o) => [o.disabled === true, typeof o.reason === "string" && o.reason.length > 0];
 export const GRAYED = [true, true];
 export const UNTOUCHED = [false, false];
 
+/**
+ * @param {MenuOption[]} options
+ * @returns {number}
+ */
 export const markedCount = (options) => options.filter((o) => o.disabled || o.reason).length;
 
 // The named tiers that came back grayed / untouched, in the order named. Read
 // against the full tier list, a short or reordered answer names which tier went
 // the wrong way.
+/**
+ * @param {MenuOption[]} options
+ * @param {string[]} tiers
+ * @returns {string[]}
+ */
 export const grayedAmong = (options, tiers) => tiers.filter((v) => optionFor(options, v).disabled === true);
+
+/**
+ * @param {MenuOption[]} options
+ * @param {string[]} tiers
+ * @returns {string[]}
+ */
 export const untouchedAmong = (options, tiers) =>
   tiers.filter((v) => !optionFor(options, v).disabled && !optionFor(options, v).reason);

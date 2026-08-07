@@ -52,28 +52,88 @@ import { engineState, engineStatus, enums, config, metadata } from "../../../hqp
 import { liveModel } from "../../../hqptuner/static/store/live/model.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../support/wire.js";
+import {
+  PCM_FILTERS,
+  PCM_SHAPERS,
+  SDM_FILTERS,
+  SDM_SHAPERS,
+  JUNK,
+  formField,
+  FORM,
+  LISTS,
+} from "../support/chainenums.js";
 
-// The daemon's two chain enumerations. Enum ID differs from list index, and the
-// same filter name is numbered differently on each chain (protocol.md §4), so a
-// chain control cannot borrow the other chain's list unnoticed.
-const PCM_FILTERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "2", value: "25", name: "sinc-M" },
-];
-const PCM_SHAPERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "5", name: "NS9" },
-];
-const SDM_FILTERS = [
-  { index: "0", value: "38", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "23", name: "sinc-M" },
-];
-const SDM_SHAPERS = [
-  { index: "0", value: "0", name: "ASDM5" },
-  { index: "1", value: "3", name: "ASDM7EC" },
-];
-const JUNK = [{ index: "0", value: "0", name: "none" }];
+/** @typedef {import("../support/chainenums.js").EnumItem} EnumItem */
+
+/**
+ * One `<RatesItem index rate/>` — no name and no value (protocol.md §6).
+ *
+ * @typedef {{ index: string, rate: string }} RateItem
+ */
+
+/**
+ * The /api/enumerations payload this suite drives.
+ *
+ * @typedef {{
+ *   filters: EnumItem[],
+ *   shapers: EnumItem[],
+ *   rates: RateItem[],
+ *   junk_filters: EnumItem[],
+ *   mode: { name: string },
+ * }} Enums
+ */
+
+/**
+ * The /api/state payload this suite drives.
+ *
+ * @typedef {{
+ *   mode: string,
+ *   filter1x: string,
+ *   filterNx: string,
+ *   shaper: string,
+ *   rate: string,
+ *   filter_junk: string,
+ *   adaptive: string,
+ *   volume: string,
+ *   active_chain: string | null,
+ * }} EngineState
+ */
+
+/**
+ * The config-file overlay keyed by form field: the two rate limits plus
+ * `FORM`'s own six keys, which `FILE()` spreads onto every fixture.
+ *
+ * @typedef {{
+ *   mode: string,
+ *   defaults_samplerate: string,
+ *   defaults_bitrate: string,
+ *   filter1x: string,
+ *   filter: string,
+ *   dither: string,
+ *   oversampling1x: string,
+ *   oversampling: string,
+ *   modulator: string,
+ * }} FileOverlay
+ */
+
+/**
+ * The /api/status payload while a track plays.
+ *
+ * @typedef {{ status: { active_rate: string }, metadata: { samplerate: string, bits: string } }} EngineStatus
+ */
+
+/**
+ * A rate column or chain control, as `liveModel` and `chainControl` hand one
+ * back — the members these cases read off it.
+ *
+ * @typedef {{ field?: string, value?: string, disabled?: boolean, reason?: string }} Column
+ */
+
+/**
+ * One scenario `reset()` drives the whole suite from.
+ *
+ * @typedef {{ state: EngineState, lists: Enums, file: FileOverlay, status?: EngineStatus | null }} Scenario
+ */
 
 // Tier menu members, 48k side (settings-classification §Rate per-family).
 const PCM_2X = "96000";
@@ -81,13 +141,22 @@ const PCM_8X = "384000";
 const DSD256 = "12288000";
 const DSD1024 = "49152000";
 
-// `<RatesItem index rate/>`, in list order, index 0 being auto.
+/**
+ * `<RatesItem index rate/>`, in list order, index 0 being auto.
+ *
+ * @param {...string} hz
+ * @returns {RateItem[]}
+ */
 const rates = (...hz) => ["0", ...hz].map((rate, i) => ({ index: String(i), rate }));
 
 // The engine's enumerations are MODE-DEPENDENT: it enumerates for the family it
 // has loaded and says nothing about the other one (protocol.md §6). `mode.name`
 // is the CONFIGURED output mode, which is `[source]` whatever chain the current
 // source happens to have left loaded.
+/**
+ * @param {{ modeName: string, list: RateItem[], filters: EnumItem[], shapers: EnumItem[] }} seams
+ * @returns {Enums}
+ */
 const ENUMS = ({ modeName, list, filters, shapers }) => ({
   filters,
   shapers,
@@ -101,6 +170,10 @@ const ENUMS = ({ modeName, list, filters, shapers }) => ({
 // here has to exist in the enumeration the engine is CURRENTLY serving
 // (protocol.md §5), and the two chains are different lengths, so `filterNx` is
 // the caller's to supply: the PCM list runs 0-2, the SDM one 0-1.
+/**
+ * @param {{ mode: string, chain: string | null, rate: string, filterNx: string }} seams
+ * @returns {EngineState}
+ */
 const STATE = ({ mode, chain, rate, filterNx }) => ({
   mode,
   filter1x: "1",
@@ -113,23 +186,6 @@ const STATE = ({ mode, chain, rate, filterNx }) => ({
   active_chain: chain,
 });
 
-// The daemon's raw /config form: every field carries the option list for its
-// OWN chain, in the enum-ID domain the config file speaks.
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
-
-const FORM = { filter1x: "40", filter: "40", dither: "5", oversampling1x: "38", oversampling: "38", modulator: "3" };
-const LISTS = {
-  filter1x: PCM_FILTERS,
-  filter: PCM_FILTERS,
-  dither: PCM_SHAPERS,
-  oversampling1x: SDM_FILTERS,
-  oversampling: SDM_FILTERS,
-  modulator: SDM_SHAPERS,
-};
 const FIELDS = () => Object.entries(FORM).map(([name, value]) => formField(name, value, LISTS[name]));
 
 // The running configuration with LIVE's overrides on top, keyed by form field.
@@ -137,6 +193,12 @@ const FIELDS = () => Object.entries(FORM).map(([name, value]) => formField(name,
 // and each scenario gives them numbers no other source in the fixture carries,
 // so a column reading the engine's pin instead shows a rate nothing else
 // explains.
+/**
+ * @param {string} mode
+ * @param {string} samplerate
+ * @param {string} bitrate
+ * @returns {FileOverlay}
+ */
 const FILE = (mode, samplerate, bitrate) => ({
   mode,
   defaults_samplerate: samplerate,
@@ -149,6 +211,10 @@ const FILE = (mode, samplerate, bitrate) => ({
 // putting out — a different number entirely with oversampling in the path. Both
 // members here are 48k-family, so no tier has to be re-resolved to its 44.1k
 // twin and the gray under test is the only thing in play.
+/**
+ * @param {string} out
+ * @returns {EngineStatus}
+ */
 const PLAYING = (out) => ({ status: { active_rate: out }, metadata: { samplerate: "48000", bits: "24" } });
 
 const METADATA = {
@@ -168,6 +234,7 @@ const METADATA = {
 // Total reset: module-level signals outlive a test, so a partial one makes cases
 // pass alone and fail in sequence. `status` defaults to null — the engine
 // reporting nothing playing at all.
+/** @param {Scenario} seams */
 function reset({ state, lists, file, status = null }) {
   staticWire();
   engineState.value = state;
@@ -227,10 +294,15 @@ const SDM_MODE_PLAYING = () => ({
 // product's to word; what is pinned is what it has to SAY (architecture.md §5:
 // names the restart, points at the Output tab), so these match on meaning and
 // nothing more.
+/** @param {Column} column */
 const reasonOf = (column) => String(column.reason || "").toLowerCase();
 
 // A chain control by its form field. A miss throws rather than quietly
 // measuring nothing: a chain that has lost a control must fail loudly.
+/**
+ * @param {string} field
+ * @returns {Column}
+ */
 function chainControl(field) {
   const all = [...liveModel.value.pcmChain, ...liveModel.value.sdmChain];
   const hit = all.find((c) => c.field === field);

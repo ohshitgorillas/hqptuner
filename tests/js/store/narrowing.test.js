@@ -52,10 +52,29 @@ import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
 
+/**
+ * A fixture row: filter name, its facet description, and an optional flags
+ * bitfield (bit 0 = apodizing).
+ *
+ * @typedef {[string, string, number?]} FilterTuple
+ */
+
+/**
+ * The two members `narrowOptions` and friends read off a dropdown option —
+ * matches store/narrowing.js's own `NarrowOption`.
+ *
+ * @typedef {{ value: string | number | undefined, label: string }} NarrowOption
+ */
+
 // One `<FiltersItem/>` as the enumeration serves it. `arg` is the flags
 // bitfield, bit 0 = apodizing (protocol.md:226); the backend derives the
 // `apodizing` field from that same bit, so the two always agree.
-const item = (name, description, index, arg) => ({
+const item = (
+  /** @type {string} */ name,
+  /** @type {string} */ description,
+  /** @type {number} */ index,
+  /** @type {number} */ arg,
+) => ({
   index: String(index),
   name,
   value: String(index),
@@ -64,6 +83,11 @@ const item = (name, description, index, arg) => ({
   apodizing: Boolean(arg & 1),
 });
 
+/**
+ * @param {FilterTuple[]} filters
+ * @param {Record<string, { genre?: string[] }>} [overlay]
+ * @returns {NarrowOption[]}
+ */
 function reset(filters, overlay = {}) {
   enums.value = { filters: filters.map(([name, desc, arg = 0], i) => item(name, desc, i, arg)) };
   metadata.value = {
@@ -75,6 +99,7 @@ function reset(filters, overlay = {}) {
   return filters.map(([name], i) => ({ label: name, value: String(i) }));
 }
 
+/** @param {NarrowOption[]} options */
 const labels = (options, stage = STAGE, field = FIELD) => narrowOptions(options, "", stage, field).map((o) => o.label);
 
 // --- fixtures ----------------------------------------------------------------
@@ -82,6 +107,7 @@ const labels = (options, stage = STAGE, field = FIELD) => narrowOptions(options,
 // the case is about one, so nothing narrows by a facet the case did not pick.
 
 // Focus, as the engine spells it: a comma-separated set between quality and glyph.
+/** @type {FilterTuple[]} */
 const FOCUS = [
   ["gauss-a", "5/5 timbre, transients ⥮ Any"],
   ["gauss-b", "5/5 timbre ⥮ Any"],
@@ -90,6 +116,7 @@ const FOCUS = [
 ];
 
 // Genre lives only in the static overlay; these four carry no focus at all.
+/** @type {FilterTuple[]} */
 const PLAIN = [
   ["gauss-a", "5/5 ⥮ Any"],
   ["gauss-b", "5/5 ⥮ Any"],
@@ -104,12 +131,14 @@ const GENRES = {
   "gauss-d": { genre: ["classical", "jazz"] },
 };
 
+/** @type {FilterTuple[]} */
 const LENGTHS = [
   ["gauss-short", "4/5 ⥮ Any"],
   ["gauss-plain", "4/5 ⥮ Any"],
   ["gauss-long", "4/5 ⥮ Any"],
 ];
 
+/** @type {FilterTuple[]} */
 const RATIOS = [
   ["rat-int", "4/5 ⥮ Int"],
   ["rat-two", "4/5 ⥮ 2^x"],
@@ -119,6 +148,7 @@ const RATIOS = [
 // For the per-stage switches: `arg` bit 0 is the apodizing flag, and a filter is
 // hi-res when its NAME carries `hires`. The 1x stage defaults to apodizing-only
 // and hi-res-hidden, the Nx stage to all of both.
+/** @type {FilterTuple[]} */
 const STAGES = [
   ["gauss-plain", "4/5 ⥮ Any", 0],
   ["gauss-apod", "4/5 ⥮ Any", 1],

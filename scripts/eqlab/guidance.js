@@ -12,7 +12,8 @@
 // earned — never what the user perceives: no audibility language, and they
 // never filter or rank a candidate.
 
-import { round } from "./metrics.js";
+import { stageArgs } from "../../hqptuner/static/lib/matrixspec.js";
+import { round } from "./curve.js";
 
 const TURN_GAIN_DB = 6.0;
 const Q_LOW = 0.18248;
@@ -22,13 +23,36 @@ const RESEAT_DB = 2.0; // TRANSDUCERS.md §3.1: reseat variance, 500 Hz-5 kHz
 const RESEAT_RANGE = [500, 5000];
 const QUALIFIED_HZ = 8000; // TRANSDUCERS.md §4: coupler qualified ceiling
 
-const gainOf = (args) => Number(args.g ?? 0);
-const fmt = (db) => `${db > 0 ? "+" : ""}${db.toFixed(2)}`;
+/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").MatrixStage} MatrixStage */
+/** @typedef {import("../../hqptuner/static/lib/matrixspec.js").StageArgs} StageArgs */
+/** @typedef {import("./chain.js").Edit} Edit */
+
+/**
+ * One thing worth saying about a change set. Never a rejection: `severity`
+ * separates the single policy limit from guidance and from the two rig
+ * statements, and nothing downstream filters on it.
+ *
+ * @typedef {{ severity: string, rule: string, detail: string }} Flag
+ */
+
+/**
+ * One edit reduced to a gain step at a band: where it landed, the band's
+ * arguments there, and the dB it moved.
+ *
+ * @typedef {{ where: string, args: StageArgs, delta: number }} Step
+ */
+
+const gainOf = (/** @type {StageArgs} */ args) => Number(args.g ?? 0);
+const fmt = (/** @type {number} */ db) => `${db > 0 ? "+" : ""}${db.toFixed(2)}`;
 
 // Every edit reduced to gain steps at a band: an amend is its gain delta, an
 // append is the new band's gain, a removal is -g, a replacement's new bands
 // count like appends. `args` is the band the step lands on (post-edit where one
 // exists).
+/**
+ * @param {Edit} edit
+ * @returns {Step[]}
+ */
 function stepsOf(edit) {
   if (edit.kind === "replace") {
     return [
@@ -45,6 +69,10 @@ function stepsOf(edit) {
   return [{ where, args: edit.after, delta }];
 }
 
+/**
+ * @param {Step} step
+ * @returns {Flag[]}
+ */
 function gainFlag({ where, delta }) {
   if (Math.abs(delta) <= TURN_GAIN_DB) return [];
   return [
@@ -58,6 +86,10 @@ function gainFlag({ where, delta }) {
 
 // Per-Q threshold floor on music (SOURCES.md §2: +/-1.5 dB at Q=1, +/-3 at
 // Q=10, +/-5 at Q=50), interpolated in log Q, clamped at the measured ends.
+/**
+ * @param {number} q
+ * @returns {number}
+ */
 function perQFloorDb(q) {
   const x = Math.log10(Math.min(Math.max(q, 1), 50));
   return x <= 1 ? 1.5 + 1.5 * x : 3 + (2 * (x - 1)) / (Math.log10(50) - 1);
@@ -66,6 +98,10 @@ function perQFloorDb(q) {
 // Narrow AND strong: the docs reserve Q >= 2.5 for named narrowband complaints,
 // so a step past the per-Q floor at that width is deliberate surgery worth
 // naming out loud.
+/**
+ * @param {Step} step
+ * @returns {Flag[]}
+ */
 function highQStepFlag({ where, args, delta }) {
   const q = Number(args.q);
   if (Number.isNaN(q) || q < Q_NARROW || Math.abs(delta) <= perQFloorDb(q)) return [];
@@ -78,8 +114,13 @@ function highQStepFlag({ where, args, delta }) {
   ];
 }
 
+/**
+ * @param {Step} step
+ * @returns {Flag[]}
+ */
 function confidenceFlags({ where, args, delta }) {
   const f = Number(args.f);
+  /** @type {Flag[]} */
   const out = [];
   if (delta !== 0 && Math.abs(delta) < RESEAT_DB && f >= RESEAT_RANGE[0] && f <= RESEAT_RANGE[1]) {
     out.push({
@@ -98,6 +139,10 @@ function confidenceFlags({ where, args, delta }) {
   return out;
 }
 
+/**
+ * @param {Edit} edit
+ * @returns {Flag[]}
+ */
 function fitRangeFlag(edit) {
   if (edit.kind !== "replace" || !edit.fit_range || edit.fit_range[1] <= QUALIFIED_HZ) return [];
   return [
@@ -109,18 +154,28 @@ function fitRangeFlag(edit) {
   ];
 }
 
+/**
+ * @param {MatrixStage[]} stages
+ * @returns {Flag[]}
+ */
 function qFlags(stages) {
   return stages
-    .filter((s) => s.kind === "iir" && s.args.q !== undefined)
-    .filter((s) => Number(s.args.q) < Q_LOW || Number(s.args.q) > Q_HIGH)
+    .filter((s) => s.kind === "iir" && stageArgs(s).q !== undefined)
+    .filter((s) => Number(stageArgs(s).q) < Q_LOW || Number(stageArgs(s).q) > Q_HIGH)
     .map((s) => ({
       severity: "guidance",
       rule: "Q outside AutoEq's starting range",
-      detail: `band at ${s.args.f} Hz has q=${s.args.q}, outside ${Q_LOW}-${Q_HIGH} (guidance only, Q is deliberately unclamped)`,
+      detail: `band at ${stageArgs(s).f} Hz has q=${stageArgs(s).q}, outside ${Q_LOW}-${Q_HIGH} (guidance only, Q is deliberately unclamped)`,
     }));
 }
 
-/** Flag when the sub-20 Hz shelf asymptote raises the chain's true maximum. */
+/**
+ * Flag when the sub-20 Hz shelf asymptote raises the chain's true maximum.
+ *
+ * @param {number} preamp
+ * @param {number} preampFull
+ * @returns {Flag[]}
+ */
 export function headroomFlags(preamp, preampFull) {
   if (round(preampFull, 2) === round(preamp, 2)) return [];
   return [
@@ -132,7 +187,13 @@ export function headroomFlags(preamp, preampFull) {
   ];
 }
 
-/** Flags for a change set and the chain it produced. Empty array = nothing to say. */
+/**
+ * Flags for a change set and the chain it produced. Empty array = nothing to say.
+ *
+ * @param {Edit[] | null | undefined} edits
+ * @param {MatrixStage[]} stages
+ * @returns {Flag[]}
+ */
 export function guidanceFlags(edits, stages) {
   const steps = (edits || []).flatMap(stepsOf);
   return [

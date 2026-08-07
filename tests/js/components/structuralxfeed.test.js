@@ -21,6 +21,8 @@ import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js"
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { staticWire } from "../support/wire.js";
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
 const EQ = "iir:type=peak;f=1000;q=1;g=-6";
 const EQ2 = "iir:type=peak;f=2000;q=1;g=-3";
 
@@ -28,12 +30,23 @@ const block = (over = {}) =>
   compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb: 0, eqProcess: "", ...over });
 
 // A plain stereo EQ pair — rows the recognizer must decline.
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ * @returns {PipelineRow}
+ */
 const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process: EQ, source });
 const pair = () => [row("0", "0"), row("1", "1")];
 
 const bounds = () => ({ min: 0, max: 0 });
 
 // [ok, message] for spreading into ONE assert.ok — see xfeed.test.js.
+/**
+ * @param {number} actual
+ * @param {number} expected
+ * @param {number} tol
+ * @returns {[boolean, string]}
+ */
 const near = (actual, expected, tol) => [
   Math.abs(actual - expected) <= tol,
   `expected ${expected} ± ${tol}, got ${actual}`,
@@ -104,6 +117,10 @@ test("test_a_lens_trace_spans_the_plot_band", () => {
 test("test_the_ear_eq_folds_into_the_lens_curve", () => {
   // the -6 dB peak at 1 kHz must show in the center trace, EQ included
   lensOn.value = true;
+  /**
+   * @param {PlotTrace[]} traces
+   * @returns {number}
+   */
   const at1k = (traces) => {
     let best = traces[0].points[0];
     for (const p of traces[0].points) if (Math.abs(p[0] - 1000) < Math.abs(best[0] - 1000)) best = p;
@@ -124,6 +141,10 @@ test("test_the_lens_updates_the_shared_plot_bounds", () => {
 // --- the pipelines badge ----------------------------------------------------------
 
 // Full reset every time — the staged buffer outlives a test.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {Promise<void>}
+ */
 async function reset(rows) {
   staticWire();
   matrixConfig.value = { fields: [] };

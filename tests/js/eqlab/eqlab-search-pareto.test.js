@@ -17,18 +17,90 @@ import assert from "node:assert/strict";
 import { searchJob, REJECTS_KEPT } from "../../../scripts/eqlab/search.js";
 import { FS, near, above } from "../support/eqlab-helpers.js";
 
+/** @typedef {import("../../../scripts/eqlab/metrics.js").MetricSpec} MetricSpec */
+/** @typedef {import("../../../scripts/eqlab/jobs.js").JobCtx} JobCtx */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").ChangeSet} ChangeSet */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").Failure} Failure */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").Objective} Objective */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+
+/** @typedef {NonNullable<SurvivorOut["binding"]>} Binding */
+
+/**
+ * A scalar-mode survivor: `score` and, under constraints, `binding` are written.
+ *
+ * @typedef {SurvivorOut & { score: number, binding: Binding }} TopOut
+ */
+
+/**
+ * A pareto-front survivor: per-objective `scores` in place of the scalar score.
+ *
+ * @typedef {SurvivorOut & { scores: Record<string, number>, binding: Binding }} FrontOut
+ */
+
+/** @typedef {{ metric: string, bound: string, limit: number, relax_by: number, score: number, gain: number }} Sensitivity */
+/** @typedef {{ signed: number, score: number, changes: ChangeSet, reasons: Failure[] }} Reject */
+
+/**
+ * @typedef {{
+ *   top: TopOut[],
+ *   margin: number | null,
+ *   sensitivity: Sensitivity[],
+ *   rejected_top: Reject[],
+ *   rejected_by: Record<string, number>,
+ * }} ScalarResult
+ */
+
+/**
+ * @typedef {{
+ *   front: FrontOut[],
+ *   front_size: number,
+ *   survived: number,
+ *   returned: number,
+ *   pareto: { objectives: Objective[] },
+ * }} ParetoResult
+ */
+
+/** @type {Record<string, MetricSpec>} */
 const AT = { a: { kind: "at", f: 1000 } };
+/** @type {Record<string, MetricSpec>} */
 const AGREE = { a: { kind: "at", f: 1000 }, b: { kind: "expr", expr: "a + 1" } };
+/** @type {Record<string, MetricSpec>} */
 const TRADE = { a: { kind: "at", f: 1000 }, b: { kind: "expr", expr: "0 - a" } };
 
+/**
+ * @param {Record<string, MetricSpec>} metrics
+ * @returns {JobCtx}
+ */
 const ctxOf = (metrics) => ({ stages: [], fs: FS, metrics });
+
+/**
+ * @param {number[]} gains
+ * @returns {Record<string, unknown>}
+ */
 const spaceOf = (gains) => ({ append: [{ type: "peak", f: 1000, q: 1, g: { values: gains } }] });
 const G123 = spaceOf([1, 2, 3]);
 
+/**
+ * @param {Record<string, unknown>} [over]
+ * @param {Record<string, MetricSpec>} [metrics]
+ * @returns {ScalarResult}
+ */
 const scalar = (over = {}, metrics = AT) =>
-  searchJob({ kind: "search", space: G123, objective: "maximize a", top: 5, ...over }, ctxOf(metrics));
+  /** @type {ScalarResult} */ (
+    searchJob({ kind: "search", space: G123, objective: "maximize a", top: 5, ...over }, ctxOf(metrics))
+  );
+
+/**
+ * @param {string[]} objectives
+ * @param {Record<string, unknown>} [over]
+ * @param {Record<string, MetricSpec>} [metrics]
+ * @returns {ParetoResult}
+ */
 const pareto = (objectives, over = {}, metrics = TRADE) =>
-  searchJob({ kind: "search", space: G123, pareto: objectives, top: 5, ...over }, ctxOf(metrics));
+  /** @type {ParetoResult} */ (
+    searchJob({ kind: "search", space: G123, pareto: objectives, top: 5, ...over }, ctxOf(metrics))
+  );
 
 const OPEN = scalar();
 const MIN = scalar({ objective: "minimize a" });
@@ -202,7 +274,7 @@ test("test_pareto_front_entries_carry_binding_too", () => {
 // --- margin ------------------------------------------------------------------
 
 test("test_margin_is_the_score_gap_between_winner_and_runner_up", () => {
-  assert.ok(...near(OPEN.margin, 1, 0.05));
+  assert.ok(...near(/** @type {number} */ (OPEN.margin), 1, 0.05));
 });
 
 test("test_margin_is_null_with_a_single_survivor", () => {
@@ -210,7 +282,7 @@ test("test_margin_is_null_with_a_single_survivor", () => {
 });
 
 test("test_margin_is_positive_under_minimize_too", () => {
-  assert.ok(...near(MIN.margin, 1, 0.05));
+  assert.ok(...near(/** @type {number} */ (MIN.margin), 1, 0.05));
 });
 
 // --- sensitivity -------------------------------------------------------------

@@ -74,6 +74,12 @@ repos:
         language: system
         pass_filenames: false
         types: [javascript]
+      - id: tsc-node
+        name: tsc (checkJs, node trees)
+        entry: npx tsc -p tsconfig.node.json
+        language: system
+        pass_filenames: false
+        types: [javascript]
       - id: knip
         name: knip dead-export gate
         entry: npx knip

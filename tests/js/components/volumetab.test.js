@@ -45,11 +45,19 @@ import { stagingWire } from "../support/wire.js";
 
 // The daemon's own forms, keyed by FORM FIELD name — the volume range is
 // volume_min / volume_max, loudness is post_loudness_enabled on /matrix.
+/**
+ * One field's spec on this tab: a level in dBFS, or a gate's on/off state.
+ *
+ * @typedef {string | boolean} FieldSpec
+ */
+
+/** @param {Record<string, FieldSpec>} spec */
 const formFields = (spec) => Object.entries(spec).map(([name, value]) => ({ name, value }));
 
 // A volume control that is live: a real range, nothing fixing or bypassing it.
 const FREE = { volume_min: "-60", volume_max: "0", defaults_volume: "-20", fixed_volume_enabled: false };
 
+/** @param {{ cfg?: Record<string, FieldSpec>, mtx?: Record<string, FieldSpec> }} [opts] */
 async function reset({ cfg = FREE, mtx = {} } = {}) {
   stagingWire();
   engineState.value = {};
@@ -71,6 +79,10 @@ const tab = () => render(html`<${Volume} />`);
 
 // One card's fragment, from its head to its close. Cards on this tab carry no
 // nested <section>, so the first close after the head is the card's own.
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 const card = (out, title) => {
   const head = out.indexOf(`<div class="card-head">${title}</div>`);
   return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
@@ -78,6 +90,7 @@ const card = (out, title) => {
 
 // A gate renders as a two-choice segmented strip, so its presence in a fragment
 // is read off the strip's button labels (card-gates.test.js).
+/** @param {string} s */
 const buttonLabels = (s) => [...s.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
 
 const LOUDNESS = "Loudness";

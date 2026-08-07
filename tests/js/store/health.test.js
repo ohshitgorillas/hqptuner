@@ -42,8 +42,18 @@ function reset(counters = {}) {
   poll(counters);
 }
 
+/**
+ * @typedef {{ sev: string, text: string }} Alert
+ */
+
+/** @param {Alert[]} alerts */
 const sevs = (alerts) => alerts.map((a) => a.sev);
+/** @param {Alert[]} alerts */
 const texts = (alerts) => alerts.map((a) => a.text).join(" | ");
+/**
+ * @param {number} n
+ * @param {Record<string, unknown>} fields
+ */
 const repeat = (n, fields) => {
   let last = [];
   for (let i = 0; i < n; i += 1) last = poll(fields);

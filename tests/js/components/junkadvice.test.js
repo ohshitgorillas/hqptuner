@@ -35,6 +35,10 @@ const ADVICE = {
 };
 
 // One fresh payload per call, then the rendered strip.
+/**
+ * @param {{ status: Record<string, string>,
+ *   junk: { filter: string, reason: string, ceiling_khz: number } | null }} payload
+ */
 function strip(payload) {
   engineStatus.value = payload;
   return render(html`<${AlertStrip} />`);

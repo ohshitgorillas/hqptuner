@@ -72,9 +72,35 @@ const FORM = { volume_min: "-60", volume_max: "0", defaults_volume: "-20" };
 // The engine's VolumeRange reply. The window it reports is deliberately NARROWER
 // than the axis (-60..0 against -120..+12) so that a needle placed against the
 // reported window rather than against the axis lands somewhere else entirely.
+/**
+ * The daemon's `VolumeRange` reply as this suite hands it to the store.
+ *
+ * `enabled` is the widest of the four members because the flag is what these
+ * cases vary: the wire spells it "1"/"0", a JSON decode can hand over 1/0 or a
+ * real boolean, and a form that never carried it leaves the member off
+ * altogether — every one of those is a state the card has to answer for.
+ *
+ * @typedef {{
+ *   min: string,
+ *   max: string,
+ *   enabled: string | number | boolean | undefined,
+ *   adaptive: string,
+ * }} VolumeRangeReply
+ */
+
+/** @type {VolumeRangeReply} */
 const ON = { min: "-60", max: "0", enabled: "1", adaptive: "0" };
 const OFF = { ...ON, enabled: "0" };
 
+/**
+ * @param {{
+ *   range?: VolumeRangeReply | null,
+ *   level?: string | null,
+ *   drag?: number | null,
+ *   running?: Record<string, string>,
+ * }} [scenario]
+ * @returns {Promise<void>}
+ */
 async function reset({ range = ON, level = null, drag = null, running = FORM } = {}) {
   // Fake wire (docs/testing.md rule 4): a real pending buffer over the real REST
   // paths, so the card's staged view is the one the backend would hand it.
@@ -93,35 +119,59 @@ const bar = () => render(html`<${VolumeRangeBar} />`);
 
 // Track position of a level in dBFS as a plain percentage of the -120..+12 axis
 // (hqptuner/static/lib/volume.js AXIS_MIN / AXIS_MAX, span 132).
+/** @param {number} db */
 const pos = (db) => ((db + 120) / 132) * 100;
+/**
+ * @param {number | undefined} a
+ * @param {number} b
+ */
 const near = (a, b) => a !== undefined && Math.abs(a - b) < 0.5;
 
+/**
+ * @param {string} tag
+ * @param {string} name
+ */
 const attrOf = (tag, name) => (new RegExp(`\\s${name}="([^"]*)"`).exec(tag) || [])[1];
+/** @param {string} tag */
 const classWords = (tag) => (attrOf(tag, "class") || "").split(/\s+/).filter(Boolean);
 
 // Whole open tags — of any element name — whose class list carries `word`. Class
 // words are matched whole: a bare substring match on `vr-needle` would also hit
 // a `vr-needle-legend`, exactly as `vr-tick` hits `vr-tick-label`.
+/**
+ * @param {string} out
+ * @param {string} word
+ */
 const tagged = (out, word) =>
   [...out.matchAll(/<[a-zA-Z][^>]*>/g)].map((m) => m[0]).filter((t) => classWords(t).includes(word));
 
 const NEEDLE = "vr-needle";
+/** @param {string} out */
 const needles = (out) => tagged(out, NEEDLE);
 
 // The needle's track position, as a percentage. `undefined` when the mark is
 // absent, and equally when it is present carrying a position that is not a
 // number — `left:NaN%` matches no percentage, so a case expecting a position
 // fails on it rather than reading past it.
+/**
+ * @param {string} tag
+ * @param {string} prop
+ * @returns {number | undefined}
+ */
 const cssPct = (tag, prop) => {
   const style = attrOf(tag, "style") || "";
   const hit = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*(-?[\\d.]+)%`).exec(style);
   return hit ? parseFloat(hit[1]) : undefined;
 };
+/** @param {string} out */
 const needleLeft = (out) => cssPct(needles(out)[0] || "", "left");
 
 const LEGEND = "Playback volume";
+/** @param {string} out */
 const legendPresent = (out) => out.includes(LEGEND);
+/** @param {string} out */
 const lefts = (out) => [...out.matchAll(/left\s*:\s*(-?[\d.]+)%/g)].map((m) => parseFloat(m[1]));
+/** @param {string} out */
 const inputs = (out) => [...out.matchAll(/<input[^>]*>/g)].map((m) => m[0]);
 
 // --- the mark exists ---------------------------------------------------------

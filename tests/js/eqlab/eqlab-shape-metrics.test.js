@@ -12,9 +12,28 @@ import { computeMetrics, resolveMetricSpecs } from "../../../scripts/eqlab/metri
 import { resolveTarget } from "../../../scripts/eqlab/target.js";
 import { FS, near, above, band, curve } from "../support/eqlab-helpers.js";
 
+/** @typedef {import("../../../scripts/eqlab/metrics.js").MetricSpec} MetricSpec */
+
+/**
+ * `resolveTarget` answers null only for a null spec, and `resolveMetricSpecs`
+ * only for an absent panel; neither happens here.
+ *
+ * @template T
+ * @param {T | null | undefined} x
+ * @returns {T}
+ */
+const nonNull = (x) => {
+  if (x === null || x === undefined) throw new Error("expected a value, got none");
+  return x;
+};
+
 const FLAT = curve([]);
 
-const flatTarget = async (db = 0) => (await resolveTarget({ from: "flat", db, align: "none" }, FLAT, FS)).curve;
+/**
+ * @param {number} [db]
+ * @returns {Promise<import("../../../scripts/eqlab/target.js").TargetCurve>}
+ */
+const flatTarget = async (db = 0) => nonNull(await resolveTarget({ from: "flat", db, align: "none" }, FLAT, FS)).curve;
 
 // --- target-relative kinds ---------------------------------------------------
 
@@ -43,11 +62,12 @@ test("test_maxdev_reports_the_absolute_worst_deviation", async () => {
 test("test_maxdev_reports_the_frequency_of_the_worst_deviation", async () => {
   const peaked = curve([band(1000, 3, 1)]);
   const m = computeMetrics(peaked, { dev: { kind: "maxdev", range: [100, 10000] } }, await flatTarget(0));
-  assert.ok(...near(m.dev.hz, 1000, 100));
+  assert.ok(...near(/** @type {number} */ (m.dev.hz), 1000, 100));
 });
 
 // 28
 test("test_maxdev_signed_keeps_the_sign_of_the_worst_deviation", async () => {
+  /** @type {Record<string, MetricSpec>} */
   const specs = { dev: { kind: "maxdev_signed", range: [100, 1000] } };
   const m = computeMetrics(FLAT, specs, await flatTarget(3));
   assert.ok(...near(m.dev.value, -3, 0.05));
@@ -55,6 +75,7 @@ test("test_maxdev_signed_keeps_the_sign_of_the_worst_deviation", async () => {
 
 // 29
 test("test_mean_signed_of_a_constant_deviation_is_that_deviation", async () => {
+  /** @type {Record<string, MetricSpec>} */
   const specs = { dev: { kind: "mean_signed", range: [100, 1000] } };
   const m = computeMetrics(FLAT, specs, await flatTarget(-2));
   assert.ok(...near(m.dev.value, 2, 0.05));
@@ -73,6 +94,7 @@ test("test_erb_domain_upweights_deviation_in_the_top_octaves", async () => {
 
 // 31
 test("test_an_unknown_domain_is_rejected", async () => {
+  /** @type {Record<string, MetricSpec>} */
   const specs = { d: { kind: "mean_signed", range: [20, 20000], domain: "banana" } };
   const target = await flatTarget(0);
   assert.throws(() => computeMetrics(FLAT, specs, target));
@@ -98,7 +120,7 @@ test("test_prominence_reads_the_peaks_height_above_its_plateau", () => {
 // 32
 test("test_prominence_reports_the_peaks_frequency", () => {
   const m = computeMetrics(PLATEAU_PEAK, { p: { kind: "prominence", range: [250, 1000] } });
-  assert.ok(...near(m.p.hz, 500, 50));
+  assert.ok(...near(/** @type {number} */ (m.p.hz), 500, 50));
 });
 
 // 33
@@ -151,21 +173,30 @@ const STANDARD_KEYS = [
   "spread_A2_G4",
 ];
 
+/**
+ * The one extra a preset call carries. `preset` rides alongside the metric
+ * entries in the same object, so the two halves are typed separately and joined
+ * at the call.
+ *
+ * @type {Record<string, MetricSpec>}
+ */
+const EXTRA = { extra: { kind: "max", range: [100, 200] } };
+
 // 36
 test("test_the_standard_preset_carries_exactly_its_documented_keys", () => {
-  assert.deepEqual(Object.keys(resolveMetricSpecs("standard")).sort(), [...STANDARD_KEYS].sort());
+  assert.deepEqual(Object.keys(nonNull(resolveMetricSpecs("standard"))).sort(), [...STANDARD_KEYS].sort());
 });
 
 // 37
 test("test_a_preset_with_extras_carries_the_preset_keys_plus_the_extras", () => {
-  const specs = resolveMetricSpecs({ preset: "standard", extra: { kind: "max", range: [100, 200] } });
-  assert.deepEqual(Object.keys(specs).sort(), [...STANDARD_KEYS, "extra"].sort());
+  const specs = resolveMetricSpecs(Object.assign({ preset: "standard" }, EXTRA));
+  assert.deepEqual(Object.keys(nonNull(specs)).sort(), [...STANDARD_KEYS, "extra"].sort());
 });
 
 // 37 — the extra spec passes through verbatim, not just as a key.
 test("test_a_presets_extra_spec_passes_through_verbatim", () => {
-  const specs = resolveMetricSpecs({ preset: "standard", extra: { kind: "max", range: [100, 200] } });
-  assert.deepEqual(specs.extra, { kind: "max", range: [100, 200] });
+  const specs = resolveMetricSpecs(Object.assign({ preset: "standard" }, EXTRA));
+  assert.deepEqual(nonNull(specs).extra, { kind: "max", range: [100, 200] });
 });
 
 // 38
@@ -175,6 +206,7 @@ test("test_an_unknown_preset_is_rejected_by_name", () => {
 
 // 39
 test("test_a_plain_specs_object_passes_through_unchanged", () => {
+  /** @type {Record<string, MetricSpec>} */
   const plain = { plain: { kind: "mean", range: [100, 200] } };
   assert.deepEqual(resolveMetricSpecs(plain), { plain: { kind: "mean", range: [100, 200] } });
 });

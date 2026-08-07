@@ -81,6 +81,9 @@ const NOTE = "Matrix engine is bypassed. These settings have no effect.";
 const PLOT_NOTE = "Matrix engine is bypassed. The changes below are not applied.";
 
 const PEAK = "iir:type=peak;f=100;q=1;g=-3";
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
+/** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 // A stereo pair carrying EQ, so there is a curve to draw; and the same pair as
 // bare passthrough, so there is not.
@@ -104,6 +107,10 @@ const DEF = BAUER_PRESETS.default;
 
 // A placed speaker set in the daemon's own /speakers shape, so the speaker card
 // has channels to draw.
+/**
+ * @param {number} index
+ * @param {string} label
+ */
 const CH = (index, label) => ({
   index,
   label,
@@ -121,6 +128,15 @@ const SPK = { enabled: false, channels: NAMES.map((n, i) => CH(i, n)) };
 // Full reset every time — every signal touched here outlives a test. The default
 // DSP mode is headphones, the mode the Headphone Auto EQ and Crossfeed cards
 // render in; the Pipelines card renders in both.
+/**
+ * @param {{
+ *   on?: string,
+ *   rows?: PipelineRow[],
+ *   mode?: string,
+ *   view?: string | null,
+ * }} [fixture]
+ * @returns {Promise<void>}
+ */
 async function reset({ on = "0", rows = ROWS, mode = "headphones", view = null } = {}) {
   stagingWire();
   showDescriptions.value = false;
@@ -155,6 +171,7 @@ async function reset({ on = "0", rows = ROWS, mode = "headphones", view = null }
 // --- rendering ----------------------------------------------------------------
 // SSR escapes entities; the contract is the text a user reads, not its encoding.
 
+/** @param {string} out */
 const decode = (out) =>
   out
     .replace(/&quot;/g, '"')
@@ -168,37 +185,62 @@ const speakerCard = () => decode(render(html`<${SpeakersCard} />`));
 // `<section class="card ...">` with the title in the head above the body
 // (tests/js/components/common.test.js), so a split on the section start yields
 // one fragment per card and the head is whatever precedes its body.
+/** @param {string} out */
 const cardsOf = (out) => out.split('<section class="card').slice(1);
+/** @param {string} frag */
 const headOf = (frag) => {
   const at = frag.indexOf('<div class="card-body"');
   return at < 0 ? frag : frag.slice(0, at);
 };
+/**
+ * @param {string} out
+ * @param {RegExp} re
+ */
 const cardTitled = (out, re) => cardsOf(out).find((frag) => re.test(headOf(frag))) || "";
 
 // Whether a card carries a given sentence — or a sentence saying the card was
 // never rendered, which equals neither true nor false and so fails either way
 // round.
+/**
+ * @param {string} frag
+ * @param {string} text
+ * @returns {boolean | string}
+ */
 const says = (frag, text) => (frag === "" ? "that card was not rendered at all" : frag.includes(text));
+/** @param {string} frag */
 const noteIn = (frag) => says(frag, NOTE);
+/** @param {string} frag */
 const plotNoteIn = (frag) => says(frag, PLOT_NOTE);
 
+/** @param {string} out */
 const pipelinesCard = (out) => cardTitled(out, /Pipelines/);
+/** @param {string} out */
 const autoEqCard = (out) => cardTitled(out, /Headphone\s*Auto\s*EQ/i);
+/** @param {string} out */
 const crossfeedCard = (out) => cardTitled(out, /Crossfeed/i);
+/** @param {string} out */
 const responseCard = (out) => cardTitled(out, /Matrix response/i);
 
 // The pipeline rows of the pipelines card, and the disabled state of every
 // control inside each one, in render order.
+/** @param {string} out */
 const rowsOf = (out) => out.split('<div class="mtx-row ').slice(1);
+/** @param {string} tag */
 const isDisabled = (tag) => /\bdisabled\b/.test(tag);
+/**
+ * @param {string} out
+ * @returns {boolean[][]}
+ */
 const rowControlStates = (out) =>
   rowsOf(pipelinesCard(out)).map((row) => (row.match(/<(?:button|input|select)[^>]*>/g) || []).map(isDisabled));
 
+/** @param {string} out */
 const buttonsOf = (out) =>
   out
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+/** @param {string} out */
 const addPipelineButton = (out) => buttonsOf(pipelinesCard(out)).find((b) => b.includes("Add pipeline"));
 
 // ============================================================================

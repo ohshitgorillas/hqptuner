@@ -32,6 +32,7 @@ import { stagingWire } from "../support/wire.js";
 
 // Full reset: a real staging wire (docs/testing.md rule 4), the /config form
 // grounding log_enabled, and a clean pending buffer via the public discard.
+/** @param {boolean} logEnabled */
 async function reset(logEnabled) {
   stagingWire();
   matrixConfig.value = null;

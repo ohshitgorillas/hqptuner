@@ -16,18 +16,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  sumCurves,
-  round,
-  preampDb,
-  valueAt,
-  computeMetrics,
-  metricValues,
-  extrema,
-} from "../../../scripts/eqlab/metrics.js";
+import { sumCurves, round, preampDb, valueAt, extrema } from "../../../scripts/eqlab/curve.js";
+import { computeMetrics, metricValues } from "../../../scripts/eqlab/metrics.js";
 import { near, below, above, meanOfRange, band, curve } from "../support/eqlab-helpers.js";
 
 // --- response and preamp -----------------------------------------------------
+
+/**
+ * Every `find` below looks for an extremum the fixture chain is built to have.
+ *
+ * @template T
+ * @param {T | undefined} x
+ * @returns {T}
+ */
+const found = (x) => {
+  if (x === undefined) throw new Error("expected an extremum, got none");
+  return x;
+};
 
 const FLAT = curve([]);
 const PEAK_5 = curve([band(1000, 5, 3)]);
@@ -75,7 +80,7 @@ test("test_a_max_metric_reports_the_largest_value_inside_its_range", () => {
 });
 
 test("test_a_max_metric_reports_the_frequency_where_the_maximum_occurs", () => {
-  assert.ok(...near(PANEL_MAX.peak.hz, 1000, 5));
+  assert.ok(...near(/** @type {number} */ (PANEL_MAX.peak.hz), 1000, 5));
 });
 
 test("test_a_min_metric_reports_the_smallest_value_inside_its_range", () => {
@@ -158,22 +163,22 @@ test("test_a_panel_flattens_to_plain_metric_values", () => {
 // --- extrema, sums, rounding -------------------------------------------------
 
 test("test_a_peaking_bands_local_maximum_appears_at_its_centre_frequency", () => {
-  const top = extrema(PEAK_5).find((e) => e.kind === "max");
+  const top = found(extrema(PEAK_5).find((e) => e.kind === "max"));
   assert.ok(...near(top.hz, 1000, 5));
 });
 
 test("test_a_local_maximum_carries_the_decibel_value_of_the_summed_curve", () => {
-  const top = extrema(PEAK_5).find((e) => e.kind === "max");
+  const top = found(extrema(PEAK_5).find((e) => e.kind === "max"));
   assert.ok(...near(top.db, 5));
 });
 
 test("test_a_cut_bands_local_minimum_appears_at_its_centre_frequency", () => {
-  const dip = extrema(curve([band(1000, -5, 3)])).find((e) => e.kind === "min");
+  const dip = found(extrema(curve([band(1000, -5, 3)])).find((e) => e.kind === "min"));
   assert.ok(...near(dip.hz, 1000, 5));
 });
 
 test("test_a_local_minimum_carries_the_decibel_value_of_the_summed_curve", () => {
-  const dip = extrema(curve([band(1000, -5, 3)])).find((e) => e.kind === "min");
+  const dip = found(extrema(curve([band(1000, -5, 3)])).find((e) => e.kind === "min"));
   assert.ok(...near(dip.db, -5));
 });
 

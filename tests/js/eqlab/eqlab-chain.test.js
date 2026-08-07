@@ -13,7 +13,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { valueAt } from "../../../scripts/eqlab/metrics.js";
+import { valueAt } from "../../../scripts/eqlab/curve.js";
 import {
   eqTail,
   tailConsistency,
@@ -27,6 +27,20 @@ import { near, band, curve, argNum, serveRows, REAL_FETCH, XFEED, TAIL } from ".
 afterEach(() => {
   globalThis.fetch = REAL_FETCH;
 });
+
+/** @typedef {import("../../../scripts/eqlab/chain.js").Edit} Edit */
+/** @typedef {import("../../../scripts/eqlab/chain.js").AmendEdit} AmendEdit */
+
+/**
+ * The amend branch of the edit union, which is the branch an amend records.
+ *
+ * @param {Edit} edit
+ * @returns {AmendEdit}
+ */
+const amendEdit = (edit) => {
+  if (edit.kind !== "amend") throw new Error(`expected an amend edit, got ${edit.kind}`);
+  return edit;
+};
 
 // --- chain resolution --------------------------------------------------------
 
@@ -54,7 +68,7 @@ test("test_reading_the_daemon_issues_exactly_one_request", async () => {
 test("test_reading_the_daemon_uses_the_matrix_endpoint", async () => {
   const seen = serveRows([{ index: 0, process: TAIL }]);
   await resolveChain({ from: "daemon" });
-  assert.ok(seen.path.includes("/api/matrix"), `expected /api/matrix, got ${seen.path}`);
+  assert.ok(String(seen.path).includes("/api/matrix"), `expected /api/matrix, got ${seen.path}`);
 });
 
 test("test_reading_the_daemon_is_a_get", async () => {
@@ -115,7 +129,7 @@ test("test_an_unknown_chain_source_is_rejected", async () => {
 });
 
 test("test_resolving_no_chain_at_all_is_rejected", async () => {
-  await assert.rejects(() => resolveChain());
+  await assert.rejects(() => resolveChain(undefined));
 });
 
 // --- eq tails and cross-row consistency --------------------------------------
@@ -207,15 +221,15 @@ test("test_an_amend_records_an_amend_edit", () => {
 });
 
 test("test_an_amend_edit_records_the_index_it_touched", () => {
-  assert.equal(AMENDED.edits[0].index, 0);
+  assert.equal(amendEdit(AMENDED.edits[0]).index, 0);
 });
 
 test("test_an_amend_edit_records_the_arguments_it_replaced", () => {
-  assert.equal(Number(AMENDED.edits[0].before.g), 2);
+  assert.equal(Number(amendEdit(AMENDED.edits[0]).before.g), 2);
 });
 
 test("test_an_amend_edit_records_the_arguments_it_installed", () => {
-  assert.equal(Number(AMENDED.edits[0].after.g), 5);
+  assert.equal(Number(amendEdit(AMENDED.edits[0]).after.g), 5);
 });
 
 test("test_an_amend_may_move_a_band_to_a_new_centre_frequency", () => {

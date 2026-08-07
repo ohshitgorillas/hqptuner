@@ -28,11 +28,31 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { profilePost, profileRows, stageProfileSave } from "../../../hqptuner/static/store/profiles.js";
 import { stagingWire, ok } from "../support/wire.js";
 
-const REAL_FETCH = globalThis.fetch;
+/**
+ * @typedef {import("../support/wire.js").StagingWire} StagingWire
+ */
+
+/**
+ * One pipeline row, every value a string.
+ *
+ * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
+ */
+
+// The globals a fake wire installs a `fetch` on, viewed as an optional member:
+// the DOM lib declares it returning a real `Response`, which these fakes do
+// not build.
+/** @type {{ fetch?: unknown }} */
+const env = globalThis;
+
+const REAL_FETCH = env.fetch;
 afterEach(() => {
-  globalThis.fetch = REAL_FETCH;
+  env.fetch = REAL_FETCH;
 });
 
+/**
+ * @param {Partial<PipelineRow>} [patch]
+ * @returns {PipelineRow}
+ */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
 const NIGHT_ROWS = [ROW({ gain: "-6" }), ROW({ source: "1", mixdown: "1", gain: "-6" })];
@@ -66,7 +86,7 @@ function wire() {
   return stagingWire({
     routes: (path, opts, w) => {
       if (path !== "/api/matrix/profile") return undefined;
-      const body = JSON.parse(opts.body);
+      const body = JSON.parse(String(opts.body));
       w.posts.push(body);
       return ok({ ok: true, name: body.name });
     },
@@ -75,6 +95,12 @@ function wire() {
 
 // `profiles` are the names the daemon read at startup; `saved` is what the
 // config file carries, name -> {rows, post}.
+/**
+ * @param {{
+ *   profiles?: string[],
+ *   saved?: Record<string, { rows: PipelineRow[], post: Record<string, string> }>,
+ * }} [fixture]
+ */
 async function reset({ profiles = [], saved = {} } = {}) {
   const w = wire();
   matrixConfig.value = {
@@ -90,6 +116,7 @@ async function reset({ profiles = [], saved = {} } = {}) {
 }
 
 // Every post-process field staged by a load, whatever its lane.
+/** @param {StagingWire} w */
 const stagedPost = (w) => Object.keys(w.staged.http).filter((k) => k.startsWith("post_"));
 
 // --- the staging lane installs the chain --------------------------------------
@@ -97,7 +124,7 @@ const stagedPost = (w) => Object.keys(w.staged.http).filter((k) => k.startsWith(
 test("test_loading_a_profile_the_daemon_does_not_know_stages_its_rows", async () => {
   const w = await reset({ saved: { Night: { rows: NIGHT_ROWS, post: NIGHT_POST } } });
   await loadProfile("Night");
-  assert.deepEqual(JSON.parse(w.staged.http.matrix_pipelines), NIGHT_ROWS);
+  assert.deepEqual(JSON.parse(String(w.staged.http.matrix_pipelines)), NIGHT_ROWS);
 });
 
 for (const [field, value] of Object.entries(NIGHT_POST)) {
@@ -113,7 +140,7 @@ for (const [field, value] of Object.entries(NIGHT_POST)) {
 test("test_loading_a_profile_with_an_empty_chain_still_stages_its_rows", async () => {
   const w = await reset({ saved: { Bare: { rows: NIGHT_ROWS, post: {} } } });
   await loadProfile("Bare");
-  assert.deepEqual(JSON.parse(w.staged.http.matrix_pipelines), NIGHT_ROWS);
+  assert.deepEqual(JSON.parse(String(w.staged.http.matrix_pipelines)), NIGHT_ROWS);
 });
 
 test("test_loading_a_profile_with_an_empty_chain_stages_no_post_process_edits", async () => {
@@ -155,7 +182,7 @@ test("test_loading_a_profile_staged_for_save_stages_the_staged_saves_rows", asyn
   const w = await reset({ saved: { Night: { rows: NIGHT_ROWS, post: NIGHT_POST } } });
   await stageProfileSave("Night", [ROW({ gain: "-1" })]);
   await loadProfile("Night");
-  assert.deepEqual(JSON.parse(w.staged.http.matrix_pipelines), [ROW({ gain: "-1" })]);
+  assert.deepEqual(JSON.parse(String(w.staged.http.matrix_pipelines)), [ROW({ gain: "-1" })]);
 });
 
 test("test_loading_a_profile_staged_for_save_stages_no_post_process_edits", async () => {

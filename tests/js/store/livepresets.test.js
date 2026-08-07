@@ -32,14 +32,40 @@ import {
 } from "../../../hqptuner/static/store/livepresets.js";
 import { rec, STATE, presetWire, settle } from "../support/livepresetwire.js";
 
+/** @typedef {import("../../../hqptuner/static/store/livepresets.js").LivePreset} LivePreset */
+
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = REAL_FETCH;
 });
 
+// The fixture reset() takes. A 409's `detail` is a per-field object on the real
+// wire — the fetch wrapper flattens its values into one sentence — so
+// `applyDetail` is wider here than the bare string the harness's own
+// PresetWireState spells it as.
+/**
+ * @typedef {{
+ *   state?: unknown,
+ *   presets?: import("../support/livepresetwire.js").PresetRecord[],
+ *   chain?: string,
+ *   listStatus?: number,
+ *   listDetail?: string,
+ *   saveStatus?: number,
+ *   saveDetail?: string,
+ *   applyStatus?: number,
+ *   applyDetail?: string | Record<string, string>,
+ *   report?: unknown,
+ *   mirrored?: unknown,
+ * }} Fixture
+ */
+
 // Module-level signals outlive a test, so every one this file touches is
 // reassigned in every case; a partial reset makes cases pass alone and fail in
 // sequence.
+/**
+ * @param {Fixture} [fixture]
+ * @returns {import("../support/livepresetwire.js").PresetWire}
+ */
 function reset({ state, ...wire } = {}) {
   engineState.value = state === undefined ? STATE("pcm") : state;
   livePresets.value = null;
@@ -48,6 +74,11 @@ function reset({ state, ...wire } = {}) {
   liveMode.value = false;
   return presetWire(wire);
 }
+
+// The saved list's display names, in list order — every case reading
+// `livePresets.value` after a settle reads it through here.
+/** @returns {string[]} */
+const names = () => (livePresets.value || []).map((/** @type {LivePreset} */ p) => p.name);
 
 // --- the list -----------------------------------------------------------------
 
@@ -62,10 +93,7 @@ test("test_turning_live_mode_on_reads_the_saved_presets", async () => {
   reset({ presets: [rec("Living Room", "pcm")] });
   liveMode.value = true;
   await settle();
-  assert.deepEqual(
-    (livePresets.value || []).map((p) => p.name),
-    ["Living Room"],
-  );
+  assert.deepEqual(names(), ["Living Room"]);
 });
 
 test("test_a_failed_read_leaves_the_list_empty", async () => {
@@ -206,16 +234,13 @@ test("test_a_save_sends_no_request_body", async () => {
   // frontend's idea of the settings instead of the engine's.
   const w = reset();
   await saveLivePreset("Den");
-  assert.equal(w.calls.find((c) => c.method === "PUT").body, undefined);
+  assert.equal(w.calls.find((c) => c.method === "PUT")?.body, undefined);
 });
 
 test("test_a_save_re_reads_the_preset_list", async () => {
   reset({ presets: [rec("Living Room", "pcm")] });
   await saveLivePreset("Den");
-  assert.deepEqual(
-    (livePresets.value || []).map((p) => p.name),
-    ["Living Room", "Den"],
-  );
+  assert.deepEqual(names(), ["Living Room", "Den"]);
 });
 
 test("test_a_failed_save_reports_its_reason", async () => {
@@ -233,8 +258,5 @@ test("test_deleting_a_preset_sends_a_delete_to_its_endpoint", async () => {
 test("test_a_delete_re_reads_the_preset_list", async () => {
   reset({ presets: [rec("Living Room", "pcm"), rec("Den", "pcm")] });
   await deleteLivePreset("Den");
-  assert.deepEqual(
-    (livePresets.value || []).map((p) => p.name),
-    ["Living Room"],
-  );
+  assert.deepEqual(names(), ["Living Room"]);
 });

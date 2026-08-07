@@ -8,69 +8,37 @@
 // anything else is refused and the control snaps back to the canonical value.
 //
 // Provenance is tracked by document-capture listeners dom.js installs at module
-// load, so a document must exist BEFORE the import — hence the dynamic import
-// below rather than a static one, which node would hoist above the setup. The
-// fake document records what dom.js registers and replays events to it the way
-// the browser's capture phase would; the events are plain objects carrying
-// exactly the surface those listeners read. Elements are fresh per test, and
-// provenance is per element, so no test can lend state to the next.
+// load, so a document must exist BEFORE that import. tests/js/support/useredit-dom.js
+// owns that ordering: it installs a fake document recording what dom.js
+// registers, then imports dom.js, and replays events the way the browser's
+// capture phase would — plain objects carrying exactly the surface those
+// listeners read. Elements are fresh per test, and provenance is per element, so
+// no test can lend state to the next.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/useredit.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const registered = new Map();
-globalThis.document = {
-  addEventListener(type, fn) {
-    registered.set(type, [...(registered.get(type) || []), fn]);
-  },
-};
+import { documentSees, focus, keydown, press, setup, fire } from "../support/useredit-dom.js";
 
-const { userEdit } = await import("../../../hqptuner/static/lib/dom.js");
+/** @typedef {import("../support/useredit-dom.js").ControlSeam} ControlSeam */
 
-// One document-level event, delivered to every listener dom.js registered for
-// its type — the browser's capture phase, which sees the event whatever element
-// it targets.
-function documentSees(type, target, extra = {}) {
-  const event = { type, target, ...extra };
-  for (const fn of registered.get(type) || []) fn(event);
-}
-
-const press = (el) => documentSees("pointerdown", el, { button: 0, buttons: 1 });
+/** @param {ControlSeam} el */
 const rightPress = (el) => documentSees("pointerdown", el, { button: 2, buttons: 2 });
+/** @param {ControlSeam} el */
 const release = (el) => documentSees("pointerup", el, { buttons: 0 });
+/** @param {ControlSeam} el */
 const cancel = (el) => documentSees("pointercancel", el, { buttons: 0 });
+/**
+ * @param {ControlSeam} el
+ * @param {number} buttons
+ */
 const glide = (el, buttons) => documentSees("pointermove", el, { buttons });
-const keydown = (el, key) => documentSees("keydown", el, { key });
 
-// A browser announces a focus change twice, and a document-level capture listener
-// sees both: `focus`/`blur` (which do not bubble but are capturable) and
-// `focusin`/`focusout` (which bubble). Both spellings are delivered, in the order
-// a browser fires them, so a case states "the element was focused" rather than
-// which of the two the implementation chose to listen for. A slider keystroke
-// carries provenance only while the element holds focus (the whole of that gate
-// is owned by tests/js/lib/useredit-focus.test.js), so every keyboard edit here
-// is preceded by the focus a real keystroke implies.
-const focus = (el) => {
-  documentSees("focus", el, { relatedTarget: null });
-  documentSees("focusin", el, { relatedTarget: null });
-};
-
-// A range element mid-edit: the browser has already moved its value to 63 by
-// the time the input event fires; 50 is the canonical value the app last knew.
-function setup() {
-  const el = { tagName: "INPUT", type: "range", value: "63" };
-  const calls = [];
-  const handler = userEdit(50, (ev) => calls.push(ev));
-  return { el, calls, handler };
-}
-
-function fire(handler, el, type) {
-  const event = { type, target: el, currentTarget: el };
-  handler(event);
-  return event;
-}
+// A slider keystroke carries provenance only while the element holds focus (the
+// whole of that gate is owned by tests/js/lib/useredit-focus.test.js), so every
+// keyboard edit here is preceded by the focus a real keystroke implies.
 
 const SLIDER_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"];
 

@@ -36,15 +36,15 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
+import { formFields, section, stateOf } from "../support/tabform.js";
 
-// The daemon's own /config form, keyed by FORM FIELD name (the PCM chain is
-// filter1x / filter / dither, the SDM chain oversampling1x / oversampling /
-// modulator). A spec value is a bare value or a {value, options} dropdown pair.
-const formFields = (spec) =>
-  Object.entries(spec).map(([name, v]) => (v && v.options ? { name, ...v } : { name, value: v }));
+// The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
+// filter / dither, the SDM chain oversampling1x / oversampling / modulator.
+/** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
 
 // `mode` is the output mode as the running config file reports it — the baseline
 // an appliesLive control reads (store/resolve.js fileValue).
+/** @param {{ cfg?: Record<string, FieldSpec>, mode?: string }} [opts] */
 async function reset({ cfg = {}, mode = "auto" } = {}) {
   stagingWire();
   engineState.value = {};
@@ -60,21 +60,11 @@ async function reset({ cfg = {}, mode = "auto" } = {}) {
 
 const tab = () => render(html`<${Resampling} />`);
 
-// One card's fragment, keyed by the title in its disclosure head.
-const section = (out, title) => {
-  const head = out.indexOf(`</span> ${title}</button>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
-
-// That card's state — "open" or "closed" — off the section's own class.
-const MARK = '<section class="card ';
-const stateOf = (out, title) => {
-  const head = out.indexOf(`</span> ${title}</button>`);
-  const at = head < 0 ? -1 : out.lastIndexOf(MARK, head);
-  return at < 0 ? "" : out.slice(at + MARK.length).split('"')[0];
-};
-
 // One SOURCE-type subsection of a card: from its subhead to the next one.
+/**
+ * @param {string} chunk
+ * @param {string} name
+ */
 const subsection = (chunk, name) => {
   const at = chunk.indexOf(`<div class="subhead">${name}</div>`);
   if (at < 0) return "";
@@ -91,6 +81,10 @@ const FROM_DSD = "DSD Sources";
 // Option sets with per-field names, so a chain can be shown to carry ITS OWN
 // filter list rather than merely "a filter list". Values are the form's enum
 // ids; the FFT card matches on the NAME, never on the number.
+/**
+ * @param {string} value
+ * @param {string} label
+ */
 const opt = (value, label) => ({ value, options: [{ value, label }] });
 const FFT_LIST = [
   { value: "1", label: "poly-sinc-gauss-long" },

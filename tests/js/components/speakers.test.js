@@ -36,6 +36,10 @@ import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { structuralBlock } from "../../../hqptuner/static/store/xfmode.js";
 import { ok, bad, stagingWire } from "../support/wire.js";
 
+/** @typedef {import("../support/wire.js").FakeResponse} FakeResponse */
+/** @typedef {import("../support/wire.js").StagingWire} StagingWire */
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
 const DEF = BAUER_PRESETS.default;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 
@@ -47,13 +51,14 @@ const structuralRows = () =>
   compileRows({ lambda: 1, angle: 30, headRadius: HEAD_RADIUS, srcA: 0, srcB: 1, preampDb: -3, eqProcess: EQ });
 
 // The staging wire plus /api/speakers, whose POST bodies the apply cases read.
+/** @type {StagingWire} */
 let W;
 
 function wire() {
   W = stagingWire({
     routes: (path, opts, w) => {
       if (path === "/api/speakers" && opts.method === "POST") {
-        w.posts.push(JSON.parse(opts.body));
+        w.posts.push(JSON.parse(String(opts.body)));
         return ok({ applied: true, speakers: SPK });
       }
       return undefined; // unhandled path: the wire's own fallback answers it
@@ -63,6 +68,10 @@ function wire() {
 
 // A placed speaker: distance is what puts it in the room, and a channel with no
 // distance is not drawn at all (see the unplaced case below).
+/**
+ * @param {number} index
+ * @param {string} label
+ */
 const CH = (index, label) => ({
   index,
   label,
@@ -79,6 +88,20 @@ const NAMES = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Lef
 const SPK = { enabled: false, channels: NAMES.map((n, i) => CH(i, n)) };
 
 // Full reset every time — every signal here outlives a test.
+/**
+ * `spk: null` is the card with no speaker form loaded yet, and `pipes: null` the
+ * config carrying no matrix pipelines at all — both states the daemon serves, so
+ * both are cases a suite states rather than absences.
+ *
+ * @param {{
+ *   mode?: string,
+ *   set?: string,
+ *   sdm?: boolean,
+ *   spk?: typeof SPK | null,
+ *   crossfeed?: string,
+ *   pipes?: PipelineRow[] | null,
+ * }} [caseState]
+ */
 async function reset({ mode = "speakers", set = "2.0", sdm = false, spk = SPK, crossfeed = "1", pipes = null } = {}) {
   wire();
   showDescriptions.value = false;
@@ -105,7 +128,9 @@ async function reset({ mode = "speakers", set = "2.0", sdm = false, spk = SPK, c
 
 const tab = () => render(html`<${MatrixTab} />`).replace(/&quot;/g, '"');
 const card = () => render(html`<${SpeakersCard} />`).replace(/&quot;/g, '"');
+/** @param {string} out */
 const rows = (out) => [...out.matchAll(/<div class="spkr-row">([\s\S]*?)<\/div>/g)].map((m) => m[1]);
+/** @param {string} row */
 const numbers = (row) => [...row.matchAll(/<input type="number"[^>]*>/g)].map((m) => m[0]);
 
 // --- the switcher ------------------------------------------------------------
@@ -187,7 +212,7 @@ test("test_switching_to_speakers_dismantles_the_compensation_block", async () =>
 test("test_switching_to_speakers_keeps_the_eq_profile", async () => {
   await reset({ mode: "headphones", crossfeed: "1", pipes: compBlock() });
   await setMatrixMode("speakers");
-  assert.ok(effectivePipelines.value.every((r) => r.process === EQ));
+  assert.ok(effectivePipelines.value.every((/** @type {PipelineRow} */ r) => r.process === EQ));
 });
 
 // --- the speaker set ---------------------------------------------------------
@@ -204,7 +229,7 @@ test("test_seven_one_set_renders_eight_channel_rows", async () => {
 
 test("test_a_channel_outside_the_set_is_drawn_dimmed", async () => {
   await reset({ set: "2.0" });
-  assert.equal(card().match(/room-spk room-off/g).length, 6);
+  assert.equal(/** @type {RegExpMatchArray} */ (card().match(/room-spk room-off/g)).length, 6);
 });
 
 test("test_the_row_carries_the_daemons_own_channel_name", async () => {
@@ -231,16 +256,25 @@ test("test_without_direct_sdm_the_level_box_is_editable", async () => {
 
 // --- the apply lane ----------------------------------------------------------
 
+/**
+ * A body the apply lane POSTs to /api/speakers: the enabled switch, and the
+ * per-channel overlay keyed by channel index. The wire records what it was
+ * handed as `unknown`, so a case reading a member names the shape it expects and
+ * fails on the read if the lane sent something else.
+ *
+ * @typedef {{ enabled: boolean, channels: Record<string, Record<string, string>> }} SpeakersPost
+ */
+
 test("test_apply_posts_the_enabled_switch", async () => {
   await reset();
   await applySpeakers(true, {});
-  assert.equal(W.posts[0].enabled, true);
+  assert.equal(/** @type {SpeakersPost} */ (W.posts[0]).enabled, true);
 });
 
 test("test_apply_posts_the_channel_overlay", async () => {
   await reset();
   await applySpeakers(true, { 0: { level: "-3" } });
-  assert.deepEqual(W.posts[0].channels, { 0: { level: "-3" } });
+  assert.deepEqual(/** @type {SpeakersPost} */ (W.posts[0]).channels, { 0: { level: "-3" } });
 });
 
 test("test_apply_refreshes_the_card_from_the_daemons_answer", async () => {
@@ -256,6 +290,7 @@ test("test_apply_refreshes_the_card_from_the_daemons_answer", async () => {
 // sentence still tells them the status. What the fallback wording IS belongs to
 // lib/api.js, not to this suite — the claim here is only that the code survives.
 
+/** @param {FakeResponse} answer */
 function refuse(answer) {
   stagingWire({
     routes: (path, opts) => (path === "/api/speakers" && opts.method === "POST" ? answer : undefined),
@@ -279,6 +314,7 @@ test("test_a_refusal_with_no_reason_still_reports_the_status", async () => {
 // --- the read lane -------------------------------------------------------------
 // /api/speakers answers the backend's snapshot wrapper {stale, loaded_at, data}.
 
+/** @param {FakeResponse} answer */
 function serve(answer) {
   stagingWire({ routes: (path, opts) => (path === "/api/speakers" && !opts.method ? answer : undefined) });
 }

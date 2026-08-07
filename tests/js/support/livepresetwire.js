@@ -16,9 +16,57 @@
 
 import { ok, bad } from "./wire.js";
 
-// A saved record as /api/livepresets serves it: `fields` is the batch that gets
-// applied, keyed by form-field name and carrying the output mode it was
-// captured under; `names` is display only.
+/** @typedef {import("./wire.js").FakeResponse} FakeResponse */
+/** @typedef {import("./wire.js").FakeRequest} FakeRequest */
+
+/** @typedef {ReturnType<typeof rec>} PresetRecord */
+
+/**
+ * The fake's own state: the defaults `presetWire` starts from, plus whatever a
+ * suite overrode. `report` is the body /apply answers with and `mirrored` the
+ * engine state /api/state serves, both suite-supplied shapes.
+ *
+ * @typedef {{
+ *   presets: PresetRecord[],
+ *   chain: string,
+ *   listStatus: number,
+ *   saveStatus: number,
+ *   applyStatus: number,
+ *   listDetail?: string,
+ *   saveDetail?: string,
+ *   applyDetail?: string | Record<string, string>,
+ *   report?: unknown,
+ *   mirrored?: unknown,
+ * }} PresetWireState
+ */
+
+/**
+ * What the fake was handed and what it now holds: the calls in arrival order,
+ * and the preset list the way the backend's store would have moved it.
+ *
+ * @typedef {{
+ *   calls: { path: string, method: string, body?: string }[],
+ *   presets: PresetRecord[],
+ * }} PresetWire
+ */
+
+/**
+ * The global a wire fake installs a `fetch` on, viewed as an optional member:
+ * the DOM lib declares it returning a real `Response`, which this fake does not
+ * build.
+ *
+ * @type {{ fetch?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * A saved record as /api/livepresets serves it: `fields` is the batch that gets
+ * applied, keyed by form-field name and carrying the output mode it was
+ * captured under; `names` is display only.
+ *
+ * @param {string} name
+ * @param {string} chain
+ */
 export const rec = (name, chain) => ({
   name,
   chain,
@@ -26,8 +74,13 @@ export const rec = (name, chain) => ({
   names: { mode: chain.toUpperCase(), filter1x: "poly-sinc-gauss-long" },
 });
 
-// The engine's own answer for /api/state: `active_chain` is "pcm", "sdm" or
-// null (nothing loaded yet).
+/**
+ * The engine's own answer for /api/state: `active_chain` is "pcm", "sdm" or
+ * null (nothing loaded yet).
+ *
+ * @param {string | null} chain
+ * @param {string} [rate]
+ */
 export const STATE = (chain, rate = "1") => ({
   mode: "1",
   filter1x: "0",
@@ -77,6 +130,12 @@ export const METADATA = {
 // PUT and DELETE move the list the fake HOLDS, the way the backend's store
 // does, so a following GET answers differently — the only way "a save re-reads
 // the list" can be told apart from a save that quietly kept the old one.
+/**
+ * @param {PresetWire} w
+ * @param {PresetWireState} c
+ * @param {string} name
+ * @returns {FakeResponse}
+ */
 function storeSave(w, c, name) {
   if (c.saveStatus !== 200) return bad(c.saveStatus, c.saveDetail);
   const saved = rec(name, c.chain);
@@ -84,12 +143,24 @@ function storeSave(w, c, name) {
   return ok(saved);
 }
 
+/**
+ * @param {PresetWire} w
+ * @param {string} name
+ * @returns {FakeResponse}
+ */
 function storeDelete(w, name) {
   w.presets = w.presets.filter((p) => p.name !== name);
   return ok({ deleted: name });
 }
 
-// /api/livepresets/{name} and its /apply sub-path.
+/**
+ * /api/livepresets/{name} and its /apply sub-path.
+ *
+ * @param {PresetWire} w
+ * @param {PresetWireState} c
+ * @param {{ name: string, isApply: boolean, method: string }} req
+ * @returns {FakeResponse}
+ */
 function onePreset(w, c, { name, isApply, method }) {
   if (isApply) return c.applyStatus === 200 ? ok(c.report) : bad(c.applyStatus, c.applyDetail);
   if (method === "PUT") return storeSave(w, c, name);
@@ -100,6 +171,11 @@ function onePreset(w, c, { name, isApply, method }) {
 // The endpoints a preset lane may touch on either side of its own: the engine's
 // state, and the three trees the page reads. Each answers its real shape, so a
 // lane that re-mirrors gets something it can adopt rather than a bare {}.
+/**
+ * @param {string} path
+ * @param {PresetWireState} c
+ * @returns {FakeResponse}
+ */
 function ambient(path, c) {
   // the whole frame the daemon lane serves, not just its payload: a lane reading
   // `stale` must see the real field rather than undefined (docs/testing.md rule 4)
@@ -113,11 +189,17 @@ function ambient(path, c) {
 
 const ONE = /^\/api\/livepresets\/([^/]+)(\/apply)?$/;
 
+/**
+ * @param {Partial<PresetWireState>} [cfg]
+ * @returns {PresetWire}
+ */
 export function presetWire(cfg = {}) {
+  /** @type {PresetWireState} */
   const c = { presets: [], chain: "pcm", listStatus: 200, saveStatus: 200, applyStatus: 200, ...cfg };
   c.report = cfg.report || { live: [], stored: {} };
+  /** @type {PresetWire} */
   const w = { calls: [], presets: [...c.presets] };
-  globalThis.fetch = async (path, opts = {}) => {
+  env.fetch = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const method = opts.method || "GET";
     w.calls.push({ path, method, body: opts.body });
     if (path === "/api/livepresets") {
@@ -135,6 +217,10 @@ export function presetWire(cfg = {}) {
 // settles in a handful of microtask ticks. No wall clock is waited on
 // (docs/testing.md rule 7): a lane that never fired fails here immediately
 // rather than hanging.
+/**
+ * @param {number} [ticks]
+ * @returns {Promise<void>}
+ */
 export async function settle(ticks = 50) {
   for (let i = 0; i < ticks; i++) await Promise.resolve();
 }

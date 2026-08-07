@@ -48,12 +48,57 @@
 import { options } from "preact";
 import { render } from "preact-render-to-string";
 
-// One render, keeping every vnode preact builds along the way. The hook is
-// restored even if the render throws, so no case can poison the next.
+/**
+ * A vnode's props, as the harnesses read them.
+ *
+ * The named members are the DOM attributes these helpers reason about; the index
+ * signature carries everything else a component passes through, `unknown` rather
+ * than a guess, so a handler is reached by testing `typeof … === "function"`.
+ *
+ * @typedef {{
+ *   [key: string]: unknown,
+ *   children?: unknown,
+ *   type?: string,
+ *   value?: string | number,
+ *   step?: string | number,
+ *   max?: string | number,
+ *   checked?: boolean,
+ * }} VNodeProps
+ */
+
+/**
+ * A preact vnode, as `options.vnode` hands it over.
+ *
+ * `type` is the tag name for a host element and the component function for a
+ * component, which is why the helpers below compare it against a string rather
+ * than assuming one.
+ *
+ * @typedef {{ type: string | Function, props: VNodeProps }} VNode
+ */
+
+/**
+ * The globals a dispatch installs, viewed as optional members.
+ *
+ * `globalThis.document` and `globalThis.window` are declared by the DOM lib as
+ * always present and fully shaped; under `node --test` they are neither. This
+ * view is what lets the harness put a stand-in in place and take it away again.
+ *
+ * @type {{ document?: unknown, window?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * One render, keeping every vnode preact builds along the way. The hook is
+ * restored even if the render throws, so no case can poison the next.
+ *
+ * @param {unknown} vnode
+ * @returns {{ out: string, seen: VNode[] }}
+ */
 export function renderWith(vnode) {
+  /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
-  options.vnode = (v) => {
+  options.vnode = (/** @type {VNode} */ v) => {
     seen.push(v);
     if (previous) previous(v);
   };
@@ -64,17 +109,30 @@ export function renderWith(vnode) {
   }
 }
 
+/**
+ * Every vnode among a props.children tree, flattened.
+ *
+ * @param {unknown} children
+ * @param {VNode[]} [out]
+ * @returns {VNode[]}
+ */
 const childList = (children, out = []) => {
   if (Array.isArray(children)) {
     for (const kid of children) childList(kid, out);
     return out;
   }
-  if (children && typeof children === "object") out.push(children);
+  if (children && typeof children === "object") out.push(/** @type {VNode} */ (children));
   return out;
 };
 
-// child vnode -> its parent vnode, for the bubble.
+/**
+ * child vnode -> its parent vnode, for the bubble.
+ *
+ * @param {VNode[]} seen
+ * @returns {Map<VNode, VNode>}
+ */
 function parentMap(seen) {
+  /** @type {Map<VNode, VNode>} */
   const map = new Map();
   for (const v of seen) {
     for (const kid of childList(v && v.props && v.props.children)) map.set(kid, v);
@@ -82,15 +140,36 @@ function parentMap(seen) {
   return map;
 }
 
+/**
+ * A vnode's props, standing in an empty bag for a node created without any.
+ *
+ * @param {VNode} v
+ * @returns {VNodeProps}
+ */
+export const propsOf = (v) => v.props || {};
+
+/** @param {VNode} v */
 const isWheelControl = (v) =>
   v &&
   typeof v === "object" &&
-  (v.type === "select" || (v.type === "input" && ["number", "range"].includes((v.props || {}).type)));
+  (v.type === "select" || (v.type === "input" && ["number", "range"].includes(String(propsOf(v).type))));
 
 // Every wheel-sensitive control the render produced, in creation order, each
 // with a label naming what it is so a case can say which control it drove, and
 // with whether a browser's default action could move it at all.
+/**
+ * One wheel-sensitive control of a render: the vnode, the name a case refers to
+ * it by, and whether a browser's default action could move it at all.
+ *
+ * @typedef {{ node: VNode, label: string, movable: boolean }} WheelControl
+ */
+
+/**
+ * @param {VNode[]} seen
+ * @returns {WheelControl[]}
+ */
 export function controlsIn(seen) {
+  /** @type {Record<string, number>} */
   const counts = {};
   return seen.filter(isWheelControl).map((node) => {
     const kind = node.type === "select" ? "select" : `${node.props.type}_box`;
@@ -102,20 +181,33 @@ export function controlsIn(seen) {
 // Whether the browser's default action has anywhere to move this control to. A
 // dropdown offering one option (or none) has not, and a wheel over it is a
 // no-op in a browser too — so it cannot witness the guard either way.
+/**
+ * @param {VNode} node
+ * @returns {boolean}
+ */
 function canMove(node) {
   if (node.type !== "select") return true;
-  const current = String((node.props || {}).value ?? "");
+  const current = String(propsOf(node).value ?? "");
   return optionValues(node).some((v) => v !== current);
 }
 
+/**
+ * @param {VNode} node
+ * @returns {string[]}
+ */
 const optionValues = (node) =>
   childList(node.props && node.props.children)
     .filter((v) => v && v.type === "option")
-    .map((v) => String((v.props || {}).value ?? ""));
+    .map((v) => String(propsOf(v).value ?? ""));
 
 // What the browser's default action would move the control to: the next step on
 // a number or range, some other option on a select.
+/**
+ * @param {VNode} node
+ * @returns {string}
+ */
 function steppedValue(node) {
+  /** @type {VNodeProps} */
   const p = node.props || {};
   if (node.type === "select") {
     const current = String(p.value ?? "");
@@ -133,7 +225,14 @@ function steppedValue(node) {
   return String(Number.isFinite(max) && up > max ? base - step : up);
 }
 
+/**
+ * The element an event targets: the surface a handler reads off it, carrying
+ * the values the vnode was rendered with.
+ *
+ * @param {VNode} node
+ */
 function element(node) {
+  /** @type {VNodeProps} */
   const p = node.props || {};
   return {
     tagName: String(node.type).toUpperCase(),
@@ -150,7 +249,12 @@ function element(node) {
   };
 }
 
+/**
+ * @param {VNode} node
+ * @param {ReturnType<typeof element>} el
+ */
 function runDefaultAction(node, el) {
+  /** @type {VNodeProps} */
   const p = node.props || {};
   const next = steppedValue(node);
   el.value = next;
@@ -165,24 +269,37 @@ function runDefaultAction(node, el) {
   if (typeof p.onChange === "function") p.onChange(ev);
 }
 
+/**
+ * @template T
+ * @param {unknown} active
+ * @param {() => T} body
+ * @returns {T}
+ */
 function withBrowserGlobals(active, body) {
   const hadDocument = "document" in globalThis;
   const hadWindow = "window" in globalThis;
-  const oldDocument = globalThis.document;
-  const oldWindow = globalThis.window;
-  globalThis.document = { activeElement: active };
-  globalThis.window = { scrollBy: () => {} };
+  const oldDocument = env.document;
+  const oldWindow = env.window;
+  env.document = { activeElement: active };
+  env.window = { scrollBy: () => {} };
   try {
     return body();
   } finally {
-    if (hadDocument) globalThis.document = oldDocument;
-    else delete globalThis.document;
-    if (hadWindow) globalThis.window = oldWindow;
-    else delete globalThis.window;
+    if (hadDocument) env.document = oldDocument;
+    else delete env.document;
+    if (hadWindow) env.window = oldWindow;
+    else delete env.window;
   }
 }
 
-// One wheel over `node`, focused, delivered as a browser delivers it.
+/**
+ * One wheel over `node`, focused, delivered as a browser delivers it.
+ *
+ * @param {VNode[]} seen
+ * @param {VNode} node
+ * @param {number} [deltaY]
+ * @returns {void}
+ */
 export function wheelAt(seen, node, deltaY = 120) {
   // Checked BEFORE the dispatch, not inside the default action: a guard that
   // cancels the event never reaches the default action, so an immovable control
@@ -211,7 +328,7 @@ export function wheelAt(seen, node, deltaY = 120) {
     },
   };
   withBrowserGlobals(el, () => {
-    for (let v = node; v; v = parents.get(v)) {
+    for (let v = /** @type {VNode | undefined} */ (node); v; v = parents.get(v)) {
       const handler = v.props && v.props.onWheel;
       if (typeof handler === "function") {
         event.currentTarget = v === node ? el : element(v);
@@ -233,7 +350,12 @@ export function wheelAt(seen, node, deltaY = 120) {
 // readings that cannot move. Those are left OUT, and `count` is what remains —
 // a case states how many readings it expects to be comparing, so one that
 // observes nothing fails loudly instead of comparing two empty lists.
+/**
+ * @param {string} out
+ * @returns {{ inputs: string[], picked: string[], count: number }}
+ */
 export function formValues(out) {
+  /** @type {(fragment: string) => string | undefined} */
   const valueOf = (fragment) => (/\bvalue="([^"]*)"/.exec(fragment) || [])[1];
   const inputs = [...out.matchAll(/<input\b[^>]*>/g)].map((m) => valueOf(m[0])).filter((v) => v !== undefined);
   const picked = [...out.matchAll(/<option\b([^>]*)>/g)]

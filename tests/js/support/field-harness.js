@@ -28,6 +28,17 @@ import { staticWire } from "./wire.js";
 // --- the wire ---------------------------------------------------------------
 // Real REST paths, real response shapes (hqptuner/static/lib/api.js).
 
+/** @typedef {import("./wire.js").StagedBuffer} StagedBuffer */
+
+/**
+ * One entry of a /api/config or /api/matrix field list: the name and value
+ * every entry carries, plus the form metadata a /config field brings with it —
+ * `options`, `min`, `max` and the rest, which the index signature admits.
+ *
+ * @typedef {{ [key: string]: unknown, name: string, value: unknown }} ConfigField
+ */
+
+/** @param {StagedBuffer} [staged] */
 function wire(staged = { live: {}, http: {} }) {
   staticWire(staged);
 }
@@ -93,6 +104,16 @@ export const META = {
 // bypass passes its own `matrix`.
 const MATRIX_ENGAGED = [{ name: "enabled", value: "1" }];
 
+/**
+ * @param {{
+ *   fields?: ConfigField[],
+ *   matrix?: ConfigField[],
+ *   meta?: import("../../../hqptuner/static/store/prose.js").Metadata,
+ *   desc?: boolean,
+ *   keep?: boolean,
+ * }} [fixture]
+ * @returns {Promise<void>}
+ */
 export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META, desc = true, keep = true } = {}) {
   wire();
   engineState.value = {};
@@ -108,6 +129,12 @@ export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META,
 
 // Stage one http-lane edit against a wire that echoes it back, exactly as the
 // server's pending buffer would.
+/**
+ * @param {string} key
+ * @param {string | number | boolean} value
+ * @param {Record<string, unknown>} http
+ * @returns {Promise<void>}
+ */
 export async function stageEdit(key, value, http) {
   wire({ live: {}, http });
   await edit(key, value);
@@ -116,17 +143,41 @@ export async function stageEdit(key, value, http) {
 // --- rendering --------------------------------------------------------------
 // SSR escapes entities; the contract is the text a user reads, not its encoding.
 
+/**
+ * @param {string} k
+ * @returns {string}
+ */
 export const field = (k) =>
   render(html`<${Field} k=${k} />`)
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, "&");
 
+/** @param {string} out */
 const rootAttrs = (out) => out.slice(0, out.indexOf(">"));
+
+/** @param {string} out */
 const classOf = (out) => (/class="([^"]*)"/.exec(rootAttrs(out)) || [])[1] || "";
+
+/**
+ * @param {string} out
+ * @returns {string | undefined}
+ */
 export const titleOf = (out) => (/title="([^"]*)"/.exec(rootAttrs(out)) || [])[1];
+
+/**
+ * @param {string} out
+ * @param {string} c
+ * @returns {boolean}
+ */
 export const hasClass = (out, c) => classOf(out).split(/\s+/).includes(c);
 
-// Text of one of the field's three prose lines (note / desc / gray reason).
+/**
+ * Text of one of the field's three prose lines (note / desc / gray reason).
+ *
+ * @param {string} out
+ * @param {string} cls
+ * @returns {string | null}
+ */
 export function line(out, cls) {
   const m = new RegExp(`<div class="${cls}">([\\s\\S]*?)</div>`).exec(out);
   return m ? m[1] : null;
@@ -136,6 +187,10 @@ export function line(out, cls) {
 // spec names. The class attribute must carry `control` as a whole token, so
 // wrappers classed `field-control`, `control-row` or `controls` are not it.
 // Nested <div>s are honoured. Null when there is no control row.
+/**
+ * @param {string} out
+ * @returns {{ outer: number, start: number, end: number, after: number } | null}
+ */
 function findControlRow(out) {
   const openers = /<div\b[^>]*>/g;
   let open;
@@ -156,24 +211,39 @@ function findControlRow(out) {
   return null;
 }
 
-// Inner HTML of the field's control row. Null when there is no control row.
+/**
+ * Inner HTML of the field's control row. Null when there is no control row.
+ *
+ * @param {string} out
+ * @returns {string | null}
+ */
 export function controlRow(out) {
   const at = findControlRow(out);
   return at ? out.slice(at.start, at.end) : null;
 }
 
-// The field with its control-row element excised — everything a caption sibling
-// of the control row would live in. Unchanged when there is no control row.
+/**
+ * The field with its control-row element excised — everything a caption sibling
+ * of the control row would live in. Unchanged when there is no control row.
+ *
+ * @param {string} out
+ * @returns {string}
+ */
 export function outsideControlRow(out) {
   const at = findControlRow(out);
   return at ? out.slice(0, at.outer) + out.slice(at.after) : out;
 }
 
-// Text of the gray-reason element in a fragment, whatever tag carries the class.
-// Found in two steps, the way advice() below does it: one regex that matches an
-// opening tag and a separate test of its class attribute. Asking a single
-// pattern for "a tag whose attributes contain this class somewhere" leaves the
-// engine re-splitting the attribute run at every offset, which is super-linear.
+/**
+ * Text of the gray-reason element in a fragment, whatever tag carries the class.
+ * Found in two steps, the way advice() below does it: one regex that matches an
+ * opening tag and a separate test of its class attribute. Asking a single
+ * pattern for "a tag whose attributes contain this class somewhere" leaves the
+ * engine re-splitting the attribute run at every offset, which is super-linear.
+ *
+ * @param {string} fragment
+ * @returns {string | null}
+ */
 export function grayReason(fragment) {
   const openers = /<(\w+)\b[^<>]*>/g;
   let open;
@@ -187,14 +257,19 @@ export function grayReason(fragment) {
   return null;
 }
 
-// Text of the advisory element in a fragment, whatever tag carries the class.
-// Distinct from the gray reason: an advisory says a setting does not apply to
-// the staged output mode, while leaving it editable.
-//
-// The class is matched as a WHOLE TOKEN, split on whitespace the way hasClass
-// does, because `-` is a word boundary: a `\bfield-advice\b` needle happily
-// matches `field-advice-note` and would report a different element's text as
-// the advisory.
+/**
+ * Text of the advisory element in a fragment, whatever tag carries the class.
+ * Distinct from the gray reason: an advisory says a setting does not apply to
+ * the staged output mode, while leaving it editable.
+ *
+ * The class is matched as a WHOLE TOKEN, split on whitespace the way hasClass
+ * does, because `-` is a word boundary: a `\bfield-advice\b` needle happily
+ * matches `field-advice-note` and would report a different element's text as
+ * the advisory.
+ *
+ * @param {string} fragment
+ * @returns {string | null}
+ */
 export function advice(fragment) {
   const openers = /<(\w+)\b[^<>]*>/g;
   let open;
@@ -208,17 +283,31 @@ export function advice(fragment) {
   return null;
 }
 
+/**
+ * @param {string} out
+ * @param {string} cls
+ * @returns {string | null}
+ */
 export const span = (out, cls) => {
   const m = new RegExp(`<span class="${cls}">([\\s\\S]*?)</span>`).exec(out);
   return m ? m[1] : null;
 };
 
+/**
+ * @param {string} fragment
+ * @param {string} name
+ * @returns {string | undefined}
+ */
 export const attrOf = (fragment, name) => (new RegExp(`\\b${name}="([^"]*)"`).exec(fragment || "") || [])[1];
 
 // Options come in two markups: native <option> tags, and the combobox's
 // .dd-opt rows (desc-carrying dropdowns, controls/Combobox.js). Both expose
 // the same {a, label} shape — a grayed row's aria-disabled satisfies the same
 // \bdisabled\b probe the native attribute does.
+/**
+ * @param {string} out
+ * @returns {{ a: string, label: string }[]}
+ */
 const opts = (out) => [
   ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] })),
   // the favorite-star button is a row affordance, not label text
@@ -227,12 +316,30 @@ const opts = (out) => [
     label: m[2].replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "").trim(),
   })),
 ];
+/**
+ * @param {string} out
+ * @returns {string[]}
+ */
 export const optionLabels = (out) => opts(out).map((o) => o.label);
+
+/**
+ * @param {string} out
+ * @param {string} label
+ * @returns {{ a: string, label: string } | undefined}
+ */
 export const optionByLabel = (out, label) => opts(out).find((o) => o.label.startsWith(label));
 
+/**
+ * @param {string} out
+ * @returns {string | null}
+ */
 export const activeSegment = (out) => {
   const m = /<button[^>]*class="seg active"[^>]*>([\s\S]*?)<\/button>/.exec(out);
   return m ? m[1].trim() : null;
 };
 
+/**
+ * @param {string} out
+ * @returns {boolean}
+ */
 export const isDisabled = (out) => /<(?:input|select)[^>]*\bdisabled\b/.test(out);

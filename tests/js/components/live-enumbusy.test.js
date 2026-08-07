@@ -49,6 +49,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { writeLive } from "../../../hqptuner/static/store/live/write.js";
 import { ok, bad, staticWire } from "../support/wire.js";
+import { formField } from "../support/chainenums.js";
 
 // The two chains number the same filters differently, so the dormant column can
 // only read the daemon's own /config form (protocol.md §4).
@@ -74,6 +75,10 @@ const SDM_RATES = [
 
 // The engine can only enumerate the chain it has LOADED. `[source]`: the
 // configured mode is 0 whatever chain the source left loaded.
+/**
+ * @param {string} chain
+ * @param {boolean} [auto]
+ */
 const ENUMS = (chain, auto) => ({
   filters: chain === "sdm" ? SDM_FILTERS : PCM_FILTERS,
   shapers: chain === "sdm" ? SDM_SHAPERS : PCM_SHAPERS,
@@ -107,6 +112,10 @@ const METADATA = {
 // State reports the LIST INDEX of the loaded chain's filter and shaper, and
 // nothing at all about the chain that is not loaded. The indices below are valid
 // in either chain's lists, so only `active_chain` says which they mean.
+/**
+ * @param {string} chain
+ * @param {boolean} [auto]
+ */
 const STATE = (chain, auto) => ({
   mode: auto ? "0" : chain === "sdm" ? "2" : "1",
   filter1x: "0",
@@ -121,11 +130,6 @@ const STATE = (chain, auto) => ({
 
 // The daemon's /config form: every field carries the option list for its OWN
 // chain, which is what the dormant column reads.
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
 const FIELDS = () => [
   formField("filter1x", "0", PCM_FILTERS),
   formField("filter", "40", PCM_FILTERS),
@@ -138,9 +142,12 @@ const FIELDS = () => [
 // A live-lane server for the cases that run a real write to its end. `status`
 // makes the daemon refuse instead of reporting; the three re-mirror endpoints
 // answer what the signals already hold, so only the window itself moves.
+/** @typedef {NonNullable<Parameters<typeof staticWire>[1]>} Routes */
+
+/** @param {{ status?: number }} [opts] */
 const liveRoutes =
   ({ status = 200 } = {}) =>
-  (path) => {
+  (/** @type {string} */ path) => {
     if (path === "/api/config/live")
       return status === 200 ? ok({ live: [{ setting: "filter", ok: true }], stored: {} }) : bad(status, "no reply");
     if (path === "/api/state") return ok({ data: STATE("pcm") });
@@ -152,6 +159,9 @@ const liveRoutes =
 // Total reset: module-level signals outlive a test, so a partial one makes cases
 // pass alone and fail in sequence. `staged` is private — it is mirrored from
 // whatever the faked /api/config/pending answers, via discardAll().
+/**
+ * @param {{ busy?: string, routes?: Routes, auto?: boolean, chain?: string }} [fixture]
+ */
 async function reset({ busy = "", routes, auto = false, chain = "pcm" } = {}) {
   staticWire({ live: {}, http: {} }, routes);
   health.value = { reachable: true, info: {} };
@@ -180,6 +190,10 @@ const page = () => render(html`<${LiveView} />`);
 // The chain card headed `title`, cut at whichever chain head comes next so a
 // collapsed card cannot silently lend its neighbour's controls to a lookup.
 const CHAINS = ["PCM Chain", "SDM Chain"];
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 function card(out, title) {
   const at = out.indexOf(title);
   if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
@@ -191,6 +205,10 @@ function card(out, title) {
 // the label and its control is skipped, and everything after the control is
 // ignored: a filter field also carries the narrowing tickboxes, which disable on
 // their own account.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 function widgetAttrs(out, label) {
   const at = out.search(new RegExp(`<label>${label}(<|</label>)`));
   if (at < 0) throw new Error(`no field labelled "${label}" in the markup given`);
@@ -202,10 +220,18 @@ function widgetAttrs(out, label) {
 // Delimited, so `aria-disabled` and the word in a caption are not mistaken for
 // the attribute.
 const DISABLED = /(^|\s)disabled(\s|=|\/|$)/;
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 const grayed = (out, label) => DISABLED.test(widgetAttrs(out, label));
 
 // The output-mode switch is a segment of buttons rather than one control, so its
 // refusal lands on the buttons. The field carries nothing else that can disable.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 function segmentGrayed(out, label) {
   const at = out.search(new RegExp(`<label>${label}</label>`));
   if (at < 0) throw new Error(`no field labelled "${label}" in the rendered page`);
@@ -238,11 +264,14 @@ for (const field of PLAIN) {
 // Both directions of `active_chain`, in `[source]` so both cards render open.
 // The field in flight is `rate`, which belongs to neither card.
 
+/** @type {Record<string, string[]>} */
 const CONTROLS = {
   "PCM Chain": ["1x filter", "Nx filter", "Dither"],
   "SDM Chain": ["1x filter", "Nx filter", "Sigma-delta modulator"],
 };
+/** @type {Record<string, string>} */
 const CARD = { pcm: "PCM Chain", sdm: "SDM Chain" };
+/** @param {string} chain */
 const other = (chain) => (chain === "pcm" ? "sdm" : "pcm");
 
 for (const chain of ["pcm", "sdm"]) {
@@ -363,6 +392,7 @@ test("test_nothing_is_left_grayed_once_a_re_enumerating_write_is_refused", async
 // The graying is the whole of it: no caption, note or status text appears while
 // it is open, so the page's text is the same text either way.
 
+/** @param {string} out */
 const words = (out) => out.replace(/<[^<>]*>/g, "");
 
 test("test_the_window_adds_no_text_to_the_page", async () => {

@@ -15,11 +15,20 @@ import assert from "node:assert/strict";
 import { computeMetrics } from "../../../scripts/eqlab/metrics.js";
 import { near } from "../support/eqlab-helpers.js";
 
-const FREQS = [100, 200, 400, 800];
-const RANGE = [50, 1000];
-const ZEROS = { db: [0, 0, 0, 0] };
+/** @typedef {import("../../../scripts/eqlab/curve.js").Curve} Curve */
+/** @typedef {import("../../../scripts/eqlab/curve.js").CurveLike} CurveLike */
 
-const grid = (db) => ({ freqs: FREQS, db });
+const FREQS = [100, 200, 400, 800];
+/** @type {[number, number]} */
+const RANGE = [50, 1000];
+/** @type {CurveLike} */
+const ZEROS = { freqs: FREQS, db: [0, 0, 0, 0] };
+
+/**
+ * @param {number[]} db
+ * @returns {Curve}
+ */
+const grid = (db) => ({ freqs: FREQS, db: Float64Array.from(db), fs: 48000, partial: false });
 
 // Mixed curve: two above target (3, 5), one below (−4), one at (0).
 const MIXED = grid([3, -4, 0, 5]);

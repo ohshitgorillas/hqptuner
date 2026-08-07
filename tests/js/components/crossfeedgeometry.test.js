@@ -20,6 +20,10 @@ import { CrossfeedGeometry } from "../../../hqptuner/static/components/Crossfeed
 const draw = (angle = 30, headRadius = 0.0875) =>
   render(html`<${CrossfeedGeometry} angle=${angle} headRadius=${headRadius} />`);
 
+/**
+ * @param {string} out
+ * @param {string} needle
+ */
 const count = (out, needle) => out.split(needle).length - 1;
 
 // --- frame ---------------------------------------------------------------------

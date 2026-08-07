@@ -98,6 +98,16 @@ const PCM = { mode: "1", chain: "pcm", modeName: "PCM", cfgMode: "pcm", sdm: fal
 const SDM = { mode: "2", chain: "sdm", modeName: "SDM (DSD)", cfgMode: "sdm", sdm: true };
 const AUTO = { mode: "0", chain: null, modeName: "[source]", cfgMode: "auto", sdm: false };
 
+/**
+ * One scenario the page can be showing: what the engine reports, what it has
+ * loaded, and what the config file says.
+ *
+ * @typedef {{ mode: string, chain: string | null, modeName: string, cfgMode: string, sdm: boolean }} Scenario
+ * @typedef {{ index: string, value: string, name: string }} EnumItem
+ * @typedef {import("../support/wheel.js").VNode} VNode
+ */
+
+/** @param {Scenario} sc */
 const STATE = (sc) => ({
   mode: sc.mode,
   filter1x: "1",
@@ -110,6 +120,7 @@ const STATE = (sc) => ({
   active_chain: sc.chain,
 });
 
+/** @param {Scenario} sc */
 const ENUMS = (sc) => ({
   filters: sc.sdm ? SDM_FILTERS : PCM_FILTERS,
   shapers: sc.sdm ? SDM_SHAPERS : PCM_SHAPERS,
@@ -120,12 +131,18 @@ const ENUMS = (sc) => ({
 
 // The daemon's /config form: every field carries its OWN chain's option list, in
 // the enum-ID domain the config file speaks.
+/**
+ * @param {string} name
+ * @param {string} value
+ * @param {EnumItem[]} items
+ */
 const formField = (name, value, items) => ({
   name,
   value,
   options: items.map((i) => ({ value: i.value, label: i.name })),
 });
 const FORM = { filter1x: "40", filter: "40", dither: "5", oversampling1x: "38", oversampling: "38", modulator: "3" };
+/** @type {Record<string, EnumItem[]>} */
 const LISTS = {
   filter1x: PCM_FILTERS,
   filter: PCM_FILTERS,
@@ -135,6 +152,7 @@ const LISTS = {
   modulator: SDM_SHAPERS,
 };
 const FIELDS = () => Object.entries(FORM).map(([name, value]) => formField(name, value, LISTS[name]));
+/** @param {Scenario} sc */
 const FILE = (sc) => ({ mode: sc.cfgMode, ...FORM });
 
 // settings.json's per-control prose, cut to a sentence each.
@@ -162,9 +180,10 @@ const METADATA = () => ({
 // preact's own creation hook (the seam its devtools use); it is restored even if
 // the render throws, so no case can poison the next.
 function renderPage() {
+  /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
-  options.vnode = (vnode) => {
+  options.vnode = (/** @type {VNode} */ vnode) => {
     seen.push(vnode);
     if (previous) previous(vnode);
   };
@@ -177,27 +196,38 @@ function renderPage() {
 
 const page = () => renderPage().out;
 
+/**
+ * @param {unknown} node
+ * @returns {string}
+ */
 function text(node) {
   if (node === null || node === undefined || typeof node === "boolean") return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(text).join("");
-  return text(node.props && node.props.children);
+  const props = /** @type {VNode} */ (node).props;
+  return text(props && props.children);
 }
 
 // The head of the named card, as the button a pointer would land on. Anything
 // other than exactly one match throws rather than clicking something else: a
 // restructured head must fail loudly, not quietly toggle the wrong card.
+/** @param {string} title */
 function clickHead(title) {
   const heads = renderPage().seen.filter(
     (v) => v && v.type === "button" && v.props && typeof v.props.onClick === "function" && text(v).includes(title),
   );
   if (heads.length !== 1) throw new Error(`expected one clickable head for "${title}", found ${heads.length}`);
-  heads[0].props.onClick({ preventDefault() {}, stopPropagation() {} });
+  const onClick = /** @type {(event: object) => void} */ (heads[0].props.onClick);
+  onClick({ preventDefault() {}, stopPropagation() {} });
 }
 
 const MARK = '<section class="card ';
 
 // A named card's disclosure, off its own section's class list.
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 function cardState(out, title) {
   const at = out.search(new RegExp(`class="card-head">(<span class="tri">.</span> )?${title}</(div|button)>`));
   if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
@@ -209,6 +239,10 @@ function cardState(out, title) {
 // Bring a card to the disclosure a case starts from, by clicking its head when
 // what is on screen is not it — the only route a user has. A single click that
 // does not land is an error, not something to click harder at.
+/**
+ * @param {string} title
+ * @param {string} want
+ */
 function ensure(title, want) {
   if (cardState(page(), title) === want) return;
   clickHead(title);
@@ -222,6 +256,7 @@ function ensure(title, want) {
 // object, whether or not the daemon said anything new. Passing the scenario the
 // page is already showing is the unchanged poll — identical in content, new in
 // identity, which is exactly what /api/state hands over on a quiet engine.
+/** @param {Scenario} sc */
 function poll(sc) {
   health.value = { reachable: true, info: {} };
   engineState.value = STATE(sc);
@@ -236,6 +271,7 @@ function poll(sc) {
 
 // Total reset of everything the page reads, less the manual override, which is
 // private and is pinned per case by `ensure()` instead (see header).
+/** @param {Scenario} sc */
 async function reset(sc) {
   staticWire({ live: {}, http: {} });
   metadata.value = METADATA();

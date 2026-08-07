@@ -26,13 +26,69 @@ import { engineState, engineStatus, matrixConfig, config } from "../../../hqptun
 
 const PLAYING = 2;
 
+/**
+ * The DSP form values a case overrides. Each is the raw option value the form
+ * carries, except `directSdm`, which is the form's own bool.
+ *
+ * @typedef {{
+ *   directSdm?: boolean,
+ *   integrator?: string,
+ *   sdmConversion?: string,
+ *   noiseFilter?: string,
+ *   pcmConversion?: string,
+ * }} DspCase
+ */
+
+/**
+ * The volume fields a case overrides: the two fixed-volume switches and the ends
+ * of the adjustable range, spelled as the /config form spells them.
+ *
+ * @typedef {{ fixedVolume?: boolean, volumeFixed?: boolean, min?: string, max?: string }} VolumeCase
+ */
+
+/**
+ * The matrix state a case overrides: the three enable switches, and the profile
+ * name on either carrier or on both at once.
+ *
+ * @typedef {{
+ *   enabled?: boolean,
+ *   crossfeed?: boolean,
+ *   loudness?: boolean,
+ *   profile?: string,
+ *   liveProfile?: string,
+ *   storedProfile?: string,
+ * }} MatrixCase
+ */
+
+/**
+ * One panel render's inputs. `status` and `metadata` are the engine's own
+ * digit-string fields, `file` the working config XML's, so all three are string
+ * bags; `state` is the numeric transport state a case names by number.
+ *
+ * @typedef {{
+ *   state?: number,
+ *   status?: Record<string, string>,
+ *   metadata?: Record<string, string>,
+ *   matrix?: MatrixCase,
+ *   dsp?: DspCase,
+ *   volume?: VolumeCase,
+ *   file?: Record<string, string>,
+ * }} PanelCase
+ */
+
 // The DSD-source chips read the /config form the same way the DSP tab's own
 // selects do — a raw option value joined to its label — so the fake carries real
 // option lists rather than pre-resolved display strings.
+/**
+ * @param {string} name
+ * @param {string} value
+ * @param {string[]} options
+ */
 function dspField(name, value, options) {
   return { name, value, options: options.map((label, i) => ({ value: String(i), label })) };
 }
 
+/** @param {DspCase} dsp */
 function configFields(dsp) {
   return [
     { name: "direct_sdm", value: dsp.directSdm ?? false },
@@ -46,6 +102,7 @@ function configFields(dsp) {
 // The /config form's volume fields, defaulted to a NOT-pinned volume — an
 // adjustable -60..0 dB range with neither fixed-volume switch engaged — so
 // every case that never mentions volume keeps its pre-existing meaning.
+/** @param {VolumeCase} volume */
 function volumeFields(volume) {
   return [
     { name: "fixed_volume_enabled", value: volume.fixedVolume ?? false },
@@ -62,6 +119,7 @@ function volumeFields(volume) {
 // empty. `matrix.profile` therefore drives BOTH — a case naming only one
 // carrier could not tell a chip that renders the other from one that renders
 // nothing. `liveProfile` / `storedProfile` drive a single carrier on purpose.
+/** @param {MatrixCase} matrix */
 function profileCarriers(matrix) {
   return {
     live_active: matrix.liveProfile ?? matrix.profile ?? "",
@@ -69,6 +127,7 @@ function profileCarriers(matrix) {
   };
 }
 
+/** @param {MatrixCase} matrix */
 function matrixFields(matrix) {
   return [
     { name: "enabled", value: matrix.enabled ?? false },
@@ -77,6 +136,10 @@ function matrixFields(matrix) {
   ];
 }
 
+/**
+ * @param {PanelCase} [caseState]
+ * @returns {string}
+ */
 function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {}, volume = {}, file } = {}) {
   engineState.value = { state: String(state) };
   engineStatus.value = { status, metadata };
@@ -86,7 +149,12 @@ function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {}, v
 }
 
 // label -> displayed value, in render order.
+/**
+ * @param {string} out
+ * @returns {Record<string, string>}
+ */
 function chips(out) {
+  /** @type {Record<string, string>} */
   const found = {};
   for (const m of out.matchAll(/<span class="chip-label">([^<]*)<\/span><span class="chip-val">([^<]*)<\/span>/g)) {
     found[m[1]] = m[2];
@@ -94,14 +162,37 @@ function chips(out) {
   return found;
 }
 
+/** @param {string} out */
 const labels = (out) => [...out.matchAll(/<span class="chip-label">([^<]*)<\/span>/g)].map((m) => m[1]);
 
 // SSR escapes the entities in a chip label, so "SDM → SDM" arrives encoded.
+/** @param {string} s */
 const decode = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
-const chip = (out, label) => chips(out)[Object.keys(chips(out)).find((k) => decode(k) === label)];
+
+// A chip is looked up by its DECODED label, so a case names the label a user
+// reads. No chip of that name reads as undefined, the same as any absent key.
+/**
+ * @param {string} out
+ * @param {string} label
+ * @returns {string | undefined}
+ */
+const chip = (out, label) => {
+  const found = chips(out);
+  const key = Object.keys(found).find((k) => decode(k) === label);
+  return key === undefined ? undefined : found[key];
+};
+
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 const has = (out, label) => labels(out).some((k) => decode(k) === label);
 
 // label -> that chip's own class attribute, verbatim.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 const chipClass = (out, label) => {
   const marked = [...out.matchAll(/<span class="(chip[^"]*)"><span class="chip-label">([^<]*)<\/span>/g)];
   return marked.find((m) => decode(m[2]) === label)?.[1] ?? "no such chip";

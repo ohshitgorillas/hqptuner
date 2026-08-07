@@ -68,6 +68,8 @@ import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { stagingWire } from "../support/wire.js";
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
 // The lens's shipped default, read at import time — before any fixture in this
 // file has touched the signal. A default asserted after a fixture wrote it is a
 // tautology an implementation shipping the lens ON would pass.
@@ -91,6 +93,10 @@ const PEAK = "iir:type=peak;f=1000;q=1;g=-3";
 
 // A symmetric stereo EQ pair — rows the Bauer lens accepts, and rows the plot
 // has something to draw for.
+/**
+ * @param {Partial<PipelineRow>} patch
+ * @returns {PipelineRow}
+ */
 const ROW = (patch) => ({ source: "0", gain: "-3", gainunit: "dB", mixdown: "0", process: PEAK, ...patch });
 const PAIR = () => [ROW({}), ROW({ source: "1", mixdown: "1" })];
 
@@ -134,6 +140,10 @@ async function reset({ enabled = true, view = "bauer", rows = PAIR(), lens = fal
 }
 
 // SSR escapes entities; the contract is the text a user reads, not its encoding.
+/**
+ * @param {string} out
+ * @returns {string}
+ */
 const decode = (out) =>
   out
     .replace(/&quot;/g, '"')
@@ -142,6 +152,10 @@ const decode = (out) =>
 
 // Browsers collapse runs of whitespace, so the comparisons here do too rather
 // than pinning the source's line breaks.
+/**
+ * @param {string} s
+ * @returns {string}
+ */
 const collapsed = (s) => s.replace(/\s+/g, " ");
 
 const raw = () => render(html`<${MatrixTab} />`);
@@ -149,37 +163,104 @@ const tab = () => decode(raw());
 
 // One card's rendered output, picked by the heading it carries — cards are
 // `<section class="card ...">` with the title in the head above the body.
+/**
+ * @param {string} out
+ * @returns {string[]}
+ */
 const cardsOf = (out) => out.split('<section class="card').slice(1);
+
+/**
+ * @param {string} frag
+ * @returns {string}
+ */
 const headOf = (frag) => {
   const at = frag.indexOf('<div class="card-body"');
   return at < 0 ? frag : frag.slice(0, at);
 };
+
+/**
+ * @param {string} frag
+ * @returns {string}
+ */
 const bodyOf = (frag) => {
   const at = frag.indexOf('<div class="card-body"');
   return at < 0 ? "" : frag.slice(at);
 };
+
+/**
+ * @param {string} out
+ * @param {RegExp} re
+ * @returns {string}
+ */
 const cardTitled = (out, re) => cardsOf(out).find((frag) => re.test(headOf(frag))) || "";
+
+/**
+ * @param {string} out
+ * @returns {string}
+ */
 const crossfeedCard = (out) => cardTitled(out, /Crossfeed/i);
+
+/**
+ * @param {string} out
+ * @returns {string}
+ */
 const responseCard = (out) => cardTitled(out, /Matrix response/i);
 
+/**
+ * @param {string} frag
+ * @returns {string[]}
+ */
 const buttonsOf = (frag) =>
   frag
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+
+/**
+ * @param {string} b
+ * @returns {string}
+ */
 const labelOf = (b) => b.slice(b.indexOf(">") + 1).trim();
+
+/**
+ * @param {string} b
+ * @returns {string}
+ */
 const attrsOf = (b) => b.slice(0, b.indexOf(">"));
+
 // The lens button, or "" when it was not rendered where we looked.
+/**
+ * @param {string} frag
+ * @returns {string}
+ */
 const lensButton = (frag) => buttonsOf(frag).find((b) => labelOf(b) === LABEL) || "";
+
+/**
+ * @param {string} b
+ * @returns {boolean}
+ */
 const isDisabled = (b) => /\bdisabled\b/.test(attrsOf(b));
+
+/**
+ * @param {string} b
+ * @returns {string}
+ */
 const titleOf = (b) => (/ title="([^"]*)"/.exec(attrsOf(b)) || [])[1] || "";
 
 // The lens button of the crossfeed card's BODY, or "" — one string, so a missing
 // button and a present one are told apart by every case below.
+/**
+ * @param {string} out
+ * @returns {string}
+ */
 const lensInCrossfeedBody = (out) => lensButton(bodyOf(crossfeedCard(out)));
 
 // Where the button stands relative to the row it must stand on: after the
 // Bauer|Structural segment, and before the caption that closes that stack.
+/**
+ * @param {string} out
+ * @returns {{ seg: number, lens: number, cap: number }}
+ */
 const placement = (out) => {
   const body = collapsed(bodyOf(crossfeedCard(out)));
   return { seg: body.indexOf(">Structural<"), lens: body.indexOf(LABEL), cap: body.indexOf(CAPTION) };
@@ -188,6 +269,10 @@ const placement = (out) => {
 // The text of the gate row itself — everything a user reads from the top of the
 // card body down to the caption, tags and attribute values gone. This is the
 // strip of UI that must not gain or lose a word when the lens goes dead.
+/**
+ * @param {string} out
+ * @returns {string}
+ */
 const gateRowText = (out) => {
   const body = collapsed(bodyOf(crossfeedCard(out)));
   const cap = body.indexOf(CAPTION);
@@ -196,6 +281,10 @@ const gateRowText = (out) => {
 
 // Whether the response card's HEAD carries the button — or a sentence saying the
 // card was never rendered, which equals neither true nor false.
+/**
+ * @param {string} out
+ * @returns {boolean | string}
+ */
 const lensInResponseHead = (out) => {
   const frag = responseCard(out);
   return frag === "" ? "the Matrix response card was not rendered at all" : lensButton(headOf(frag)) !== "";
@@ -205,7 +294,16 @@ const lensInResponseHead = (out) => {
 // over the card's TEXT, attribute values stripped: the toggle's own tooltip
 // names the curves in prose, so a naive substring search finds the lens wherever
 // the button happens to stand and never fails.
+/**
+ * @param {string} frag
+ * @returns {string}
+ */
 const textOf = (frag) => frag.replace(/="[^"]*"/g, "");
+
+/**
+ * @param {string} out
+ * @returns {boolean | string}
+ */
 const lensCurvesDrawn = (out) => {
   const frag = responseCard(out);
   return frag === "" ? "the Matrix response card was not rendered at all" : textOf(frag).includes(LENS_CURVE);
@@ -213,15 +311,38 @@ const lensCurvesDrawn = (out) => {
 
 // [ok, message] for spreading into ONE assert.ok — the house pattern for a
 // condition that needs a helper to build.
+/**
+ * @param {{ seg: number, lens: number, cap: number }} p
+ * @param {string} where
+ * @returns {[boolean, string]}
+ */
 const onTheGateRow = (p, where) => [
   p.seg > -1 && p.cap > -1 && p.lens > p.seg && p.lens < p.cap,
   `${where}: segment at ${p.seg}, lens button at ${p.lens}, caption at ${p.cap}`,
 ];
+
+/**
+ * @param {string} b
+ * @param {string} where
+ * @returns {[boolean, string]}
+ */
 const liveButton = (b, where) => [
   b !== "" && !isDisabled(b),
   b === "" ? `no lens button at all ${where}` : `lens button is disabled ${where}`,
 ];
+
+/**
+ * @param {string} a
+ * @param {string} b
+ * @returns {[boolean, string]}
+ */
 const sameTooltip = (a, b) => [a !== "" && a === b, `tooltip off=${JSON.stringify(a)} on=${JSON.stringify(b)}`];
+
+/**
+ * @param {string} a
+ * @param {string} b
+ * @returns {[boolean, string]}
+ */
 const unchangedText = (a, b) => [
   a !== "" && a.includes(LABEL) && a === b,
   `gate row reads\n  dead: ${JSON.stringify(a)}\n  live: ${JSON.stringify(b)}`,

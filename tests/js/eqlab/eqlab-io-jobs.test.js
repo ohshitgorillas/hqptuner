@@ -26,8 +26,23 @@ import { FS, near, above } from "../support/eqlab-helpers.js";
 
 // --- fixtures ------------------------------------------------------------------
 
+/** @typedef {import("../../../scripts/eqlab/io.js").Snapshot} Snapshot */
+/** @typedef {{ saved: Snapshot }} SaveResult */
+
+/**
+ * @typedef {{
+ *   dir: string,
+ *   snapshots: Pick<Snapshot, "name" | "saved_at" | "fs" | "band_count" | "preamp_db">[],
+ * }} ListResult
+ */
+
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "eqlab-io-"));
 
+/**
+ * @param {string} content
+ * @param {string} name
+ * @returns {string}
+ */
 const writeTmp = (content, name) => {
   const p = path.join(tmp(), name);
   fs.writeFileSync(p, content);
@@ -41,6 +56,9 @@ const TAIL_BANDS = [
   { type: "peak", f: 3000, q: 2, g: -2 },
 ];
 
+/**
+ * @param {import("../../../scripts/eqlab/chain.js").Band[]} bands
+ */
 async function ctxOf(bands) {
   const resolved = await resolveChain({ bands });
   return {
@@ -62,34 +80,34 @@ test("test_saving_a_snapshot_writes_name_dot_json_under_the_given_dir", async ()
 });
 
 test("test_the_save_result_reports_the_snapshot_name", async () => {
-  const result = await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS));
+  const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS)));
   assert.equal(result.saved.name, "tuned");
 });
 
 test("test_the_save_result_reports_the_chains_band_count", async () => {
-  const result = await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS));
+  const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS)));
   assert.equal(result.saved.band_count, 2);
 });
 
 test("test_the_save_result_reports_the_file_it_wrote", async () => {
   const dir = tmp();
-  const result = await snapshotJob({ save: "tuned", dir }, await ctxOf(TAIL_BANDS));
+  const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir }, await ctxOf(TAIL_BANDS)));
   assert.equal(result.saved.path, path.join(dir, "tuned.json"));
 });
 
 test("test_the_save_result_reports_the_chains_sample_rate", async () => {
-  const result = await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS));
+  const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS)));
   assert.equal(result.saved.fs, FS);
 });
 
 test("test_the_save_result_reports_a_numeric_preamp", async () => {
-  const result = await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS));
+  const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir: tmp() }, await ctxOf(TAIL_BANDS)));
   assert.equal(typeof result.saved.preamp_db, "number");
 });
 
 test("test_the_save_result_reports_the_serialized_process_string", async () => {
   const ctx = await ctxOf(TAIL_BANDS);
-  const result = await snapshotJob({ save: "tuned", dir: tmp() }, ctx);
+  const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir: tmp() }, ctx));
   assert.equal(result.saved.process, serialize(ctx.stages));
 });
 
@@ -119,7 +137,9 @@ test("test_a_snapshot_name_with_a_leading_dot_is_rejected", async () => {
 });
 
 test("test_a_simple_name_with_spaces_dots_and_hyphens_is_accepted", async () => {
-  const result = await snapshotJob({ save: "My snap_1.v2-final", dir: tmp() }, await ctxOf(TAIL_BANDS));
+  const result = /** @type {SaveResult} */ (
+    await snapshotJob({ save: "My snap_1.v2-final", dir: tmp() }, await ctxOf(TAIL_BANDS))
+  );
   assert.equal(result.saved.name, "My snap_1.v2-final");
 });
 
@@ -175,7 +195,7 @@ test("test_listing_snapshots_sorts_them_by_name", async () => {
   const ctx = await ctxOf(TAIL_BANDS);
   await snapshotJob({ save: "beta", dir }, ctx);
   await snapshotJob({ save: "alpha", dir }, ctx);
-  const listed = await snapshotJob({ list: true, dir }, ctx);
+  const listed = /** @type {ListResult} */ (await snapshotJob({ list: true, dir }, ctx));
   assert.deepEqual(
     listed.snapshots.map((s) => s.name),
     ["alpha", "beta"],
@@ -186,7 +206,7 @@ test("test_a_listed_snapshot_carries_its_sample_rate", async () => {
   const dir = tmp();
   const ctx = await ctxOf(TAIL_BANDS);
   await snapshotJob({ save: "tuned", dir }, ctx);
-  const listed = await snapshotJob({ list: true, dir }, ctx);
+  const listed = /** @type {ListResult} */ (await snapshotJob({ list: true, dir }, ctx));
   assert.equal(listed.snapshots[0].fs, FS);
 });
 
@@ -194,18 +214,20 @@ test("test_a_listed_snapshot_carries_a_numeric_preamp", async () => {
   const dir = tmp();
   const ctx = await ctxOf(TAIL_BANDS);
   await snapshotJob({ save: "tuned", dir }, ctx);
-  const listed = await snapshotJob({ list: true, dir }, ctx);
+  const listed = /** @type {ListResult} */ (await snapshotJob({ list: true, dir }, ctx));
   assert.equal(typeof listed.snapshots[0].preamp_db, "number");
 });
 
 test("test_the_list_result_reports_the_directory_it_listed", async () => {
   const dir = tmp();
-  const listed = await snapshotJob({ list: true, dir }, await ctxOf(TAIL_BANDS));
+  const listed = /** @type {ListResult} */ (await snapshotJob({ list: true, dir }, await ctxOf(TAIL_BANDS)));
   assert.equal(listed.dir, dir);
 });
 
 test("test_listing_a_directory_that_does_not_exist_yields_an_empty_list", async () => {
-  const listed = await snapshotJob({ list: true, dir: path.join(tmp(), "nope") }, await ctxOf(TAIL_BANDS));
+  const listed = /** @type {ListResult} */ (
+    await snapshotJob({ list: true, dir: path.join(tmp(), "nope") }, await ctxOf(TAIL_BANDS))
+  );
   assert.deepEqual(listed.snapshots, []);
 });
 
@@ -218,6 +240,10 @@ test("test_a_snapshot_job_with_neither_save_nor_list_is_rejected", async () => {
 
 // --- export job -------------------------------------------------------------------
 
+/**
+ * @param {import("../../../scripts/eqlab/chain.js").Band[]} bands
+ * @param {Record<string, unknown>} [spec]
+ */
 const exportTo = async (bands, spec = {}) => {
   const p = path.join(tmp(), "out.txt");
   const result = await exportJob({ path: p, ...spec }, await ctxOf(bands));

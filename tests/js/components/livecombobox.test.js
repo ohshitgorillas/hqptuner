@@ -100,6 +100,11 @@ const STATE = {
 
 // The daemon's /config form: every field carries the option list for its OWN
 // chain, which is what the dormant column reads.
+/**
+ * @param {string} name
+ * @param {string} value
+ * @param {{ index: string, value: string, name: string }[]} items
+ */
 const formField = (name, value, items) => ({
   name,
   value,
@@ -116,6 +121,9 @@ const FIELDS = () => [
 
 // Total reset: module-level signals outlive a test, so a partial one makes
 // cases pass alone and fail in sequence.
+/**
+ * @param {{ mtx?: Record<string, unknown>, presets?: ReturnType<typeof rec>[] }} [fixture]
+ */
 async function reset({ mtx = {}, presets = [] } = {}) {
   staticWire({ live: {}, http: {} });
   health.value = { reachable: true, info: {} };
@@ -140,6 +148,10 @@ const page = () => render(html`<${LiveView} />`);
 
 // One labelled control's own markup: from its `<label>` up to the next label
 // (or the end of the page). A miss throws rather than measuring the page.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 function row(out, label) {
   const at = out.search(new RegExp(`<label>${label}(<|</label>)`));
   if (at < 0) throw new Error(`no field labelled "${label}" in the rendered page`);
@@ -148,18 +160,28 @@ function row(out, label) {
 }
 
 // Opening tag of the first element in `out` whose attributes match `needle`.
+/**
+ * @param {string} out
+ * @param {string} needle
+ * @returns {string | null}
+ */
 const openTag = (out, needle) => {
   const m = new RegExp(`<[a-zA-Z][^>]*${needle}[^>]*>`).exec(out || "");
   return m ? m[0] : null;
 };
 
 // The tag name of the form control a labelled field wraps.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 function widgetTag(out, label) {
   const m = /<(select|input|button)\b/.exec(row(out, label));
   if (!m) throw new Error(`the field labelled "${label}" wraps no form control`);
   return m[1];
 }
 
+/** @param {string} out */
 const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)].map((m) => m[0]);
 
 // --- a desc-bearing chain control renders the custom combobox -----------------

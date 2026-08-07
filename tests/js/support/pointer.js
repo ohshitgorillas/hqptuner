@@ -44,22 +44,65 @@
 
 import { renderWith } from "./wheel.js";
 
+/** @typedef {import("./wheel.js").VNode} VNode */
+/** @typedef {import("./wheel.js").VNodeProps} VNodeProps */
+
+/**
+ * An event as the handlers under test read it: the fields every event carries,
+ * plus the ones a particular kind adds, which the index signature covers.
+ *
+ * @typedef {{
+ *   [key: string]: unknown,
+ *   type: string,
+ *   target: unknown,
+ *   currentTarget: unknown,
+ *   defaultPrevented: boolean,
+ *   propagationStopped: boolean,
+ *   preventDefault: () => void,
+ *   stopPropagation: () => void,
+ * }} HarnessEvent
+ */
+
+/**
+ * The globals one dispatch installs, viewed as optional members: under
+ * `node --test` neither exists, and the DOM lib declares both as always present
+ * and fully shaped.
+ *
+ * @type {{ document?: unknown, window?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * @param {VNodeProps} props
+ * @returns {string[]}
+ */
 const classWords = (props) =>
   String((props && (props.class ?? props.className)) || "")
     .split(/\s+/)
     .filter(Boolean);
 
+/**
+ * @param {unknown} children
+ * @param {VNode[]} [out]
+ * @returns {VNode[]}
+ */
 const kids = (children, out = []) => {
   if (Array.isArray(children)) {
     for (const kid of children) kids(kid, out);
     return out;
   }
-  if (children && typeof children === "object") out.push(children);
+  if (children && typeof children === "object") out.push(/** @type {VNode} */ (children));
   return out;
 };
 
-// child vnode -> its parent vnode, for the bubble.
+/**
+ * child vnode -> its parent vnode, for the bubble.
+ *
+ * @param {VNode[]} seen
+ * @returns {Map<VNode, VNode>}
+ */
 function parentMap(seen) {
+  /** @type {Map<VNode, VNode>} */
   const map = new Map();
   for (const v of seen) {
     for (const kid of kids(v && v.props && v.props.children)) map.set(kid, v);
@@ -67,8 +110,13 @@ function parentMap(seen) {
   return map;
 }
 
-// The dial the gesture lands on. Anything other than exactly one match throws
-// rather than dragging something else.
+/**
+ * The dial the gesture lands on. Anything other than exactly one match throws
+ * rather than dragging something else.
+ *
+ * @param {VNode[]} seen
+ * @returns {VNode}
+ */
 function findDial(seen) {
   const hits = seen.filter((v) => v && typeof v === "object" && v.props && classWords(v.props).includes("knob-dial"));
   if (hits.length !== 1) throw new Error(`expected one .knob-dial in the render, found ${hits.length}`);
@@ -78,15 +126,16 @@ function findDial(seen) {
 // An element for one level of the chain: the pointer-capture and geometry
 // surface a drag handler reads off `currentTarget`.
 function element(tag = "DIV") {
+  /** @type {Set<unknown>} */
   const captured = new Set();
   return {
     tagName: tag,
     dataset: {},
     focus() {},
     blur() {},
-    setPointerCapture: (id) => captured.add(id),
-    releasePointerCapture: (id) => captured.delete(id),
-    hasPointerCapture: (id) => captured.has(id),
+    setPointerCapture: (/** @type {unknown} */ id) => captured.add(id),
+    releasePointerCapture: (/** @type {unknown} */ id) => captured.delete(id),
+    hasPointerCapture: (/** @type {unknown} */ id) => captured.has(id),
     getBoundingClientRect: () => ({ top: 0, left: 0, right: 48, bottom: 48, width: 48, height: 48 }),
     closest: () => null,
     addEventListener() {},
@@ -98,6 +147,13 @@ function element(tag = "DIV") {
 // primary button going down, and -1 on a move, where none did. `buttons` is the
 // mask of what is held at that instant, and is the only one of the two that
 // answers "is the primary button still down".
+/**
+ * @param {string} type
+ * @param {unknown} el
+ * @param {number} clientY
+ * @param {number} buttons
+ * @returns {HarnessEvent}
+ */
 function pointerEvent(type, el, clientY, buttons) {
   return {
     type,
@@ -127,13 +183,17 @@ function pointerEvent(type, el, clientY, buttons) {
 
 // A window/document pair that records the listeners a handler installs, so the
 // rest of the gesture reaches them too.
+/** @typedef {Map<string, Function[]>} Listeners */
+
+/** @param {Listeners} listeners */
 function seams(listeners) {
-  const add = (type, fn) => {
+  const add = (/** @type {string} */ type, /** @type {unknown} */ fn) => {
     if (typeof fn !== "function") return;
-    if (!listeners.has(type)) listeners.set(type, []);
-    listeners.get(type).push(fn);
+    const forType = listeners.get(type) || [];
+    forType.push(fn);
+    listeners.set(type, forType);
   };
-  const remove = (type, fn) =>
+  const remove = (/** @type {string} */ type, /** @type {unknown} */ fn) =>
     listeners.set(
       type,
       (listeners.get(type) || []).filter((l) => l !== fn),
@@ -141,18 +201,27 @@ function seams(listeners) {
   return { addEventListener: add, removeEventListener: remove };
 }
 
+/**
+ * @template T
+ * @param {Listeners} listeners
+ * @param {unknown} active
+ * @param {() => T} body
+ * @returns {T}
+ */
 function withBrowserGlobals(listeners, active, body) {
   const had = { document: "document" in globalThis, window: "window" in globalThis };
-  const old = { document: globalThis.document, window: globalThis.window };
+  const old = { document: env.document, window: env.window };
   const seam = seams(listeners);
-  globalThis.document = { ...seam, activeElement: active, body: { ...seam } };
-  globalThis.window = { ...seam, scrollBy: () => {}, getComputedStyle: () => ({}) };
+  env.document = { ...seam, activeElement: active, body: { ...seam } };
+  env.window = { ...seam, scrollBy: () => {}, getComputedStyle: () => ({}) };
   try {
     return body();
   } finally {
-    for (const name of ["document", "window"]) {
-      if (had[name]) globalThis[name] = old[name];
-      else delete globalThis[name];
+    /** @type {("document" | "window")[]} */
+    const names = ["document", "window"];
+    for (const name of names) {
+      if (had[name]) env[name] = old[name];
+      else delete env[name];
     }
   }
 }
@@ -160,6 +229,13 @@ function withBrowserGlobals(listeners, active, body) {
 // The bubble: from the dial outwards, every ancestor carrying a handler for this
 // event, then the listeners installed on window/document. Returns how many
 // recipients the event actually had.
+/**
+ * @param {VNode[]} chain
+ * @param {HarnessEvent} event
+ * @param {string} prop
+ * @param {{ el: unknown, globals: Function[] }} into
+ * @returns {number}
+ */
 function bubble(chain, event, prop, { el, globals }) {
   let reached = 0;
   for (const v of chain) {
@@ -182,6 +258,12 @@ function bubble(chain, event, prop, { el, globals }) {
 // A keystroke, a focus change or a double click, shaped the way a browser shapes
 // one. `extra` carries the fields a handler reads off that particular kind of
 // event and nothing else.
+/**
+ * @param {string} type
+ * @param {unknown} el
+ * @param {Record<string, unknown>} extra
+ * @returns {HarnessEvent}
+ */
 function uiEvent(type, el, extra) {
   return {
     type,
@@ -199,6 +281,10 @@ function uiEvent(type, el, extra) {
   };
 }
 
+/**
+ * @param {string} key
+ * @param {boolean} shiftKey
+ */
 const keyFields = (key, shiftKey) => ({
   key,
   shiftKey,
@@ -217,24 +303,43 @@ const keyFields = (key, shiftKey) => ({
 // focus never having moved. The seam is offered in that state deliberately —
 // a knob deciding on `activeElement` would answer the same either way, so the
 // harness declines to make that signal look usable.
+/**
+ * @param {unknown} vnode
+ * @returns {{
+ *   focus: () => void,
+ *   blur: () => void,
+ *   key: (key: string, opts?: { shiftKey?: boolean }) => void,
+ *   dblClick: () => void,
+ * }}
+ */
 export function knobKeys(vnode) {
   const { seen } = renderWith(vnode);
   const dial = findDial(seen);
   const parents = parentMap(seen);
   const el = element("svg");
   const body = element("BODY");
+  /** @type {Listeners} */
   const listeners = new Map();
 
+  /** @type {VNode[]} */
   const chain = [];
-  for (let v = dial; v; v = parents.get(v)) chain.push(v);
+  for (let v = /** @type {VNode | undefined} */ (dial); v; v = parents.get(v)) chain.push(v);
 
-  const dispatch = (type, prop, extra) => {
+  const dispatch = (
+    /** @type {string} */ type,
+    /** @type {string} */ prop,
+    /** @type {Record<string, unknown>} */ extra,
+  ) => {
     const event = uiEvent(type, el, extra);
     const globals = (listeners.get(type) || []).slice();
     return withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, { el, globals }));
   };
 
-  const fire = (type, prop, extra) => {
+  const fire = (
+    /** @type {string} */ type,
+    /** @type {string} */ prop,
+    /** @type {Record<string, unknown>} */ extra,
+  ) => {
     if (dispatch(type, prop, extra) === 0)
       throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
   };
@@ -245,7 +350,7 @@ export function knobKeys(vnode) {
   // focused" rather than which of the two spellings the component chose to
   // listen for. Only the pair reaching nobody at all is an error — a component
   // listening for one spelling and not the other has still been told.
-  const firePair = (spellings) => {
+  const firePair = (/** @type {[string, string][]} */ spellings) => {
     let reached = 0;
     for (const [type, prop] of spellings) reached += dispatch(type, prop, { relatedTarget: null });
     if (reached === 0)
@@ -277,22 +382,37 @@ export function knobKeys(vnode) {
 // buttons)` delivers one pointermove carrying the buttons still held — 1 for a
 // live drag, 0 for a drag whose release the page never saw; `up(clientY)`
 // releases it the ordinary way.
+/**
+ * @param {unknown} vnode
+ * @returns {{
+ *   down: (clientY: number) => void,
+ *   move: (clientY: number, buttons: number) => void,
+ *   up: (clientY: number) => void,
+ * }}
+ */
 export function knobDrag(vnode) {
   const { seen } = renderWith(vnode);
   const dial = findDial(seen);
   const parents = parentMap(seen);
   const el = element("svg");
   const body = element("BODY");
+  /** @type {Listeners} */
   const listeners = new Map();
 
+  /** @type {VNode[]} */
   const chain = [];
-  for (let v = dial; v; v = parents.get(v)) chain.push(v);
+  for (let v = /** @type {VNode | undefined} */ (dial); v; v = parents.get(v)) chain.push(v);
 
   // `document.activeElement` reports the BODY throughout, exactly as `knobKeys`
   // offers it: the harness declines to make that signal look usable anywhere, so
   // a drag route narrowed to `activeElement === the dial` is caught here rather
   // than passing on a seam no engine actually reports that way.
-  const fire = (type, prop, clientY, buttons) => {
+  const fire = (
+    /** @type {string} */ type,
+    /** @type {string} */ prop,
+    /** @type {number} */ clientY,
+    /** @type {number} */ buttons,
+  ) => {
     const event = pointerEvent(type, el, clientY, buttons);
     const globals = (listeners.get(type) || []).slice();
     const reached = withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, { el, globals }));

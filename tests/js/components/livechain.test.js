@@ -45,33 +45,21 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveModel } from "../../../hqptuner/static/store/live/model.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../support/wire.js";
+import {
+  PCM_FILTERS,
+  PCM_SHAPERS,
+  SDM_FILTERS,
+  SDM_SHAPERS,
+  JUNK,
+  formField,
+  FORM,
+  LISTS,
+} from "../support/chainenums.js";
 
-// The daemon's two chain enumerations, verbatim in their numbering: the same
-// two filters carry different enum IDs and sit at different indices on each
-// chain, which is the whole reason the dormant chain cannot borrow the loaded
-// one's list.
-const PCM_FILTERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "2", value: "25", name: "sinc-M" },
-];
-const PCM_SHAPERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "5", name: "NS9" },
-];
-const SDM_FILTERS = [
-  { index: "0", value: "38", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "23", name: "sinc-M" },
-];
-const SDM_SHAPERS = [
-  { index: "0", value: "0", name: "ASDM5" },
-  { index: "1", value: "3", name: "ASDM7EC" },
-];
 const RATES = [
   { index: "0", rate: "0" },
   { index: "1", rate: "96000" },
 ];
-const JUNK = [{ index: "0", value: "0", name: "none" }];
 
 const base = { rates: RATES, junk_filters: JUNK };
 const PCM_ENUMS = () => ({ ...base, filters: PCM_FILTERS, shapers: PCM_SHAPERS, mode: { name: "PCM" } });
@@ -82,6 +70,7 @@ const AUTO_SDM_ENUMS = () => ({ ...SDM_ENUMS(), mode: { name: "[source]" } });
 
 // State reports the LIST INDEX of the loaded chain's filter and shaper, and
 // nothing at all about the chain that is not loaded.
+/** @param {{ mode?: string, chain?: string | null, filterNx?: string }} [sc] */
 const STATE = ({ mode = "1", chain = "pcm", filterNx = "2" } = {}) => ({
   mode,
   filter1x: "1",
@@ -94,24 +83,9 @@ const STATE = ({ mode = "1", chain = "pcm", filterNx = "2" } = {}) => ({
   active_chain: chain,
 });
 
-// The /config form as the daemon serves it: every field carries the option list
-// for its OWN chain, in the enum-ID domain the config file speaks.
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
+/** @typedef {ReturnType<typeof PCM_ENUMS>} Enums */
 
-const FORM = { filter1x: "40", filter: "40", dither: "5", oversampling1x: "38", oversampling: "38", modulator: "3" };
-const LISTS = {
-  filter1x: PCM_FILTERS,
-  filter: PCM_FILTERS,
-  dither: PCM_SHAPERS,
-  oversampling1x: SDM_FILTERS,
-  oversampling: SDM_FILTERS,
-  modulator: SDM_SHAPERS,
-};
-
+/** @param {Record<string, string>} [over] */
 const FIELDS = (over = {}) =>
   Object.entries({ ...FORM, ...over }).map(([name, value]) => formField(name, value, LISTS[name]));
 
@@ -119,6 +93,10 @@ const FIELDS = (over = {}) =>
 // a value held for the dormant chain shows up HERE and in no other source. Each
 // scenario gives the field it asserts on a value the form field does not carry,
 // so a control reading the raw form cannot pass by accident.
+/**
+ * @param {string} mode
+ * @param {Record<string, string>} [over]
+ */
 const FILE = (mode, over = {}) => ({ mode, ...FORM, ...over });
 
 const METADATA = {
@@ -138,6 +116,10 @@ const METADATA = {
 // Total reset: module-level signals outlive a test file, so a partial one makes
 // cases pass alone and fail in sequence. `staged` is private and is cleared
 // through the faked /api/config/pending, via discardAll().
+/**
+ * @param {{ chain?: string | null, mode?: string, lists?: Enums, cfgMode?: string,
+ *   form?: Record<string, string>, file?: Record<string, string>, filterNx?: string }} [scenario]
+ */
 async function reset({ chain = "pcm", mode = "1", lists, cfgMode = "pcm", form = {}, file = {}, filterNx } = {}) {
   staticWire({ live: {}, http: {} });
   health.value = { reachable: true, info: {} };
@@ -174,7 +156,9 @@ const NOTHING_LOADED = { chain: null, mode: "0", lists: AUTO_PCM_ENUMS(), cfgMod
 // source has left the SDM chain loaded, so the PCM chain IS the dormant one.
 const AUTO_SDM_LOADED = { chain: "sdm", mode: "0", lists: AUTO_SDM_ENUMS(), cfgMode: "auto", filterNx: "1" };
 
-const fields = (chain) => liveModel.value[chain].map((c) => c.field);
+/** @param {"pcmChain" | "sdmChain"} chain */
+const fields = (chain) => liveModel.value[chain].map((/** @type {{ field: string }} */ c) => c.field);
+/** @param {string} field */
 const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
 
 // --- each chain carries its own three controls --------------------------------
@@ -231,7 +215,7 @@ test("test_the_dormant_sdm_column_offers_its_own_chains_options", async () => {
   // chain is dormant.
   await reset(PCM_RUNNING);
   assert.deepEqual(
-    control("oversampling").options.map((o) => o.value),
+    control("oversampling").options.map((/** @type {{ value: string | number }} */ o) => o.value),
     ["38", "23"],
   );
 });
@@ -239,7 +223,7 @@ test("test_the_dormant_sdm_column_offers_its_own_chains_options", async () => {
 test("test_the_dormant_pcm_column_offers_its_own_chains_options", async () => {
   await reset(SDM_RUNNING);
   assert.deepEqual(
-    control("filter").options.map((o) => o.value),
+    control("filter").options.map((/** @type {{ value: string | number }} */ o) => o.value),
     ["0", "40", "25"],
   );
 });
@@ -264,6 +248,7 @@ const page = () => render(html`<${LiveView} />`);
 
 // A card head is `class="card-head">Title</div>`, or the collapsible form with
 // the disclosure triangle ahead of the title (components/common.js).
+/** @param {string} title */
 const head = (title) => new RegExp(`class="card-head">(<span class="tri">.</span> )?${title}</(div|button)>`);
 
 const MARK = '<section class="card ';
@@ -271,6 +256,10 @@ const MARK = '<section class="card ';
 // A named card's disclosure, off its own section's class. A miss throws rather
 // than reporting some other card's state: a renamed head or a restructured card
 // must fail loudly, not quietly measure the wrong thing.
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 function cardState(out, title) {
   const at = out.search(head(title));
   if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);

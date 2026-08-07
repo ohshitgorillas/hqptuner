@@ -52,6 +52,11 @@ afterEach(() => {
 // Total reset for the rendered page: every source signal the LIVE page reads,
 // plus the three this file's store owns. LIVE mode stays OFF so the list on
 // screen is the one the case seeded, not one the wire re-served.
+/** @typedef {import("../support/livepresetwire.js").PresetRecord} PresetRecord */
+
+/**
+ * @param {{ chain?: string, presets?: PresetRecord[], error?: string, busy?: string }} [fixture]
+ */
 async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } = {}) {
   presetWire({ presets, chain });
   health.value = { reachable: true, info: {} };
@@ -75,11 +80,16 @@ async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } 
 const page = () => render(html`<${LiveView} />`);
 
 const MARK = "<section";
+/** @param {string} title */
 const head = (title) => new RegExp(`class="card-head[^"]*">(<span class="tri">.</span> )?${title}</(div|button)>`);
 
 // One named card's own markup: from its section tag up to the next section. A
 // miss throws rather than quietly measuring the whole page — a renamed head must
 // fail loudly, not pass on some other card's text.
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 function card(out, title) {
   const at = out.search(head(title));
   if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
@@ -90,6 +100,7 @@ function card(out, title) {
 }
 
 // SSR escapes entities; decode before asserting on what the user reads.
+/** @param {string} s */
 const decode = (s) =>
   s
     .replace(/&quot;/g, '"')
@@ -98,6 +109,7 @@ const decode = (s) =>
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 
+/** @param {string} frag */
 const options = (frag) =>
   [...frag.matchAll(/<option\b[^>]*>([\s\S]*?)<\/option>/g)].map((m) => ({ tag: m[0], text: decode(m[1]).trim() }));
 
@@ -106,6 +118,7 @@ const options = (frag) =>
 const HERE = () => rec("Living Room", "pcm"); // captured under the running mode
 const ELSEWHERE = () => rec("Bedroom", "sdm"); // captured under the other one
 const BOTH = () => [HERE(), ELSEWHERE()];
+/** @param {string} frag */
 const NAMED = (frag) => options(frag).filter((o) => BOTH().some((p) => o.text.includes(p.name)));
 
 test("test_the_live_page_carries_a_live_mode_card", async () => {
@@ -130,6 +143,7 @@ test("test_every_saved_preset_is_offered_by_name", async () => {
 // Stated positively — "the pickable ones are BOTH of them", not "none is
 // disabled" — so a card that dropped a preset from the picker altogether fails
 // here instead of passing on an empty list.
+/** @param {string} frag */
 const pickable = (frag) =>
   NAMED(frag)
     .filter((o) => !/\bdisabled/.test(o.tag))
@@ -191,6 +205,7 @@ test("test_a_preset_failure_shows_on_the_card", async () => {
 // raw fragment let class names, `title` attributes and the fixtures' own control
 // tooltips — one of which is literally "Selects default output mode." — satisfy
 // assertions about the card's prose.
+/** @param {string} frag */
 const prose = (frag) =>
   decode(frag.replace(/<[^<>]*>/g, " "))
     .replace(/\s+/g, " ")
@@ -198,7 +213,12 @@ const prose = (frag) =>
 
 // Sentence-scoped: every claim below has to be made by ONE sentence, or the
 // card could satisfy it with two unrelated ones either side of a full stop.
+/** @param {string} frag */
 const sentences = (frag) => prose(frag).split(/[.!?]+/);
+/**
+ * @param {string} frag
+ * @param {...RegExp} parts
+ */
 const claims = (frag, ...parts) => sentences(frag).some((s) => parts.every((re) => re.test(s)));
 
 test("test_the_live_mode_card_says_a_preset_stores_the_page", async () => {

@@ -61,6 +61,12 @@ const DITHER_FIELDS = [
   },
 ];
 
+/**
+ * @typedef {import("../support/wheel.js").VNode} VNode
+ * @typedef {import("../support/field-harness.js").ConfigField} ConfigField
+ */
+
+/** @param {ConfigField[]} fields */
 async function start(fields) {
   await reset({ fields });
   for (const name of [...favoriteFilters.value]) toggleFavorite(name);
@@ -68,10 +74,12 @@ async function start(fields) {
 
 // One render of a Field, with every vnode preact builds along the way.
 // `options.vnode` is restored even if the render throws.
+/** @param {string} k */
 function renderField(k) {
+  /** @type {VNode[]} */
   const seen = [];
   const previous = options.vnode;
-  options.vnode = (vnode) => {
+  options.vnode = (/** @type {VNode} */ vnode) => {
     seen.push(vnode);
     if (previous) previous(vnode);
   };
@@ -82,38 +90,56 @@ function renderField(k) {
   }
 }
 
+/** @param {VNode} vnode */
 const classTokens = (vnode) => {
   const cls = (vnode.props && (vnode.props.class || vnode.props.className)) || "";
   return typeof cls === "string" ? cls.split(/\s+/) : [];
 };
 
 // The dd-opt rows of one rendered field, in document order.
+/** @param {VNode[]} seen */
 const rowsOf = (seen) => seen.filter((v) => v && v.props && classTokens(v).includes("dd-opt"));
 
 // Concatenated text of a vnode subtree.
+/**
+ * @param {unknown} node
+ * @returns {string}
+ */
 function textOf(node) {
-  if (node === null || node === undefined || node === false) return "";
+  if (node === false || node == null) return "";
   if (Array.isArray(node)) return node.map(textOf).join("");
   if (typeof node === "string" || typeof node === "number") return String(node);
-  if (typeof node === "object" && node.props) return textOf(node.props.children);
-  return "";
+  if (typeof node !== "object" || node === null) return "";
+  const props = /** @type {VNode} */ (node).props;
+  return props ? textOf(props.children) : "";
 }
 
 // Every clickable vnode strictly inside a subtree (never the subtree root).
+/**
+ * @param {unknown} node
+ * @param {VNode[]} [found]
+ * @returns {VNode[]}
+ */
 function clickablesIn(node, found = []) {
   if (Array.isArray(node)) {
     for (const kid of node) clickablesIn(kid, found);
     return found;
   }
-  if (!node || typeof node !== "object" || !node.props) return found;
-  if (typeof node.props.onClick === "function") found.push(node);
-  return clickablesIn(node.props.children, found);
+  if (!node || typeof node !== "object" || !("props" in node) || !node.props) return found;
+  const vnode = /** @type {VNode} */ (node);
+  if (typeof vnode.props.onClick === "function") found.push(vnode);
+  return clickablesIn(vnode.props.children, found);
 }
 
+/** @param {VNode} row */
 const starsOf = (row) => clickablesIn(row.props.children);
 
 // The star of the row labelled `label`; anything but exactly one match throws
 // rather than clicking something else.
+/**
+ * @param {VNode[]} seen
+ * @param {string} label
+ */
 function star(seen, label) {
   const row = rowsOf(seen).find((r) => textOf(r).includes(label));
   if (!row) throw new Error(`no dd-opt row labelled ${label}`);
@@ -122,7 +148,9 @@ function star(seen, label) {
   return stars[0];
 }
 
-const click = (vnode) => vnode.props.onClick({ preventDefault() {}, stopPropagation() {} });
+/** @param {VNode} vnode */
+const click = (vnode) =>
+  /** @type {(event: object) => void} */ (vnode.props.onClick)({ preventDefault() {}, stopPropagation() {} });
 
 // --- rendering: the star exists exactly where the fav wiring is -----------------
 

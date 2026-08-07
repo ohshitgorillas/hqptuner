@@ -15,8 +15,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
-import { edit, discardAll } from "../../../hqptuner/static/store/actions.js";
+import { edit } from "../../../hqptuner/static/store/actions.js";
 import {
   savedProfiles,
   profileRows,
@@ -25,27 +24,12 @@ import {
   stageProfileSave,
   stageProfileDelete,
 } from "../../../hqptuner/static/store/profiles.js";
-import { stagingWire } from "../support/wire.js";
+import { ROW, PROF, reset } from "../support/profile-fixtures.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = REAL_FETCH;
 });
-
-// A canonical pipeline row, the shape rows travel in everywhere.
-const ROW = (gain) => ({ gain, gainunit: "dB", mixdown: "0", process: "", source: "0" });
-
-// A stored profile as the config carries it: pipeline rows plus the profile's
-// own <post_process> chain, which nests inside <matrix> and so travels with it.
-const PROF = (rows, post = {}) => ({ rows, post });
-
-async function reset(m = {}) {
-  stagingWire();
-  engineState.value = {};
-  config.value = { fields: [], file: {}, active: "" };
-  matrixConfig.value = { fields: [], rows: [], ...m };
-  await discardAll();
-}
 
 // --- savedProfiles: the picker's union ------------------------------------------
 

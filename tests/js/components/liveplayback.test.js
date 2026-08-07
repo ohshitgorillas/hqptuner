@@ -98,6 +98,7 @@ const METADATA = {
   shapers: { pcm_dithers: { none: { description: "No dither." } }, sdm_modulators: {} },
 };
 
+/** @param {string} level */
 const STATE = (level) => ({
   mode: "1",
   filter1x: "0",
@@ -145,12 +146,17 @@ const volumeCard = () => render(html`<${PlaybackVolume} />`);
 
 // The title a card head announces: its own text, less the disclosure triangle a
 // collapsible head carries ahead of it (components/common.js).
+/** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
+
+/** @param {string} out */
 const heads = (out) => elements(out).filter((el) => classes(el).includes("card-head"));
+/** @param {MarkupElement} el */
 const title = (el) => text(el).replace(/^[^\p{L}\p{N}]+/u, "");
 
 // Every card title on a page, in document order. A page with no card heads at
 // all raises rather than reporting an empty list, so a question about what the
 // page does NOT carry can never be answered by markup that simply moved.
+/** @param {string} out */
 function cardTitles(out) {
   const found = heads(out);
   if (found.length === 0) throw new Error("the rendered page carries no card heads");
@@ -159,6 +165,10 @@ function cardTitles(out) {
 
 // One card's own markup: the smallest element enclosing its head. A miss throws
 // rather than handing back the page.
+/**
+ * @param {string} out
+ * @param {string} want
+ */
 function card(out, want) {
   const hit = heads(out).find((el) => title(el) === want);
   if (!hit) throw new Error(`no card headed "${want}" in the rendered page`);
@@ -166,8 +176,16 @@ function card(out, want) {
 }
 
 // One labelled control's own markup: the smallest element enclosing its label.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
 const row = (out, label) => enclosing(out, labelled(out, label)).html;
 
+/**
+ * @param {string} out
+ * @param {string} name
+ */
 const aria = (out, name) => (new RegExp(`${name}="([^"]*)"`).exec(out) || [])[1];
 
 // --- the cards the LIVE page lays out -----------------------------------------

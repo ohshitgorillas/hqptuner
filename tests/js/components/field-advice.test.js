@@ -30,28 +30,38 @@ import {
   isDisabled,
 } from "../support/field-harness.js";
 
+// The control row of a rendered field. A field that renders none is a broken
+// fixture rather than a case with nothing to say, so it raises here instead of
+// reaching an assertion as an absence.
+/** @param {string} out */
+const row = (out) => {
+  const found = controlRow(out);
+  if (found === null) throw new Error("the rendered field encloses no control row");
+  return found;
+};
+
 // ============================================================================
 // the note appears in the mode the setting does not serve
 // ============================================================================
 
 test("test_bit_depth_in_sdm_mode_advises_that_it_is_a_pcm_setting", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(advice(controlRow(field("alsa_bits"))), "Only relevant to PCM output mode.");
+  assert.equal(advice(row(field("alsa_bits"))), "Only relevant to PCM output mode.");
 });
 
 test("test_network_bit_depth_in_sdm_mode_advises_that_it_is_a_pcm_setting", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(advice(controlRow(field("net_bits"))), "Only relevant to PCM output mode.");
+  assert.equal(advice(row(field("net_bits"))), "Only relevant to PCM output mode.");
 });
 
 test("test_48k_dsd_in_pcm_mode_advises_that_it_is_an_sdm_setting", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.equal(advice(controlRow(field("alsa_anydsd"))), "Only relevant to SDM output mode.");
+  assert.equal(advice(row(field("alsa_anydsd"))), "Only relevant to SDM output mode.");
 });
 
 test("test_network_48k_dsd_in_pcm_mode_advises_that_it_is_an_sdm_setting", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.equal(advice(controlRow(field("net_anydsd"))), "Only relevant to SDM output mode.");
+  assert.equal(advice(row(field("net_anydsd"))), "Only relevant to SDM output mode.");
 });
 
 // ============================================================================

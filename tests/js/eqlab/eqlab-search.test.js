@@ -16,7 +16,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { valueAt } from "../../../scripts/eqlab/metrics.js";
+import { valueAt } from "../../../scripts/eqlab/curve.js";
 import { resolveChain, applyChanges, serialize } from "../../../scripts/eqlab/chain.js";
 import { searchJob } from "../../../scripts/eqlab/search.js";
 import { expandValue, expandChange } from "../../../scripts/eqlab/space.js";
@@ -72,7 +72,27 @@ test("test_an_explicit_values_object_of_three_numbers_stays_verbatim", () => {
   assert.deepEqual(expandValue({ values: [0, 0.5, 1.0] }), [0, 0.5, 1.0]);
 });
 
-const CROSS = expandChange({ select: 2090, g: [1, 2, 1], q: [3, 4, 1] });
+/** @typedef {import("../../../scripts/eqlab/search-space.js").Constraint} Constraint */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").Objective} Objective */
+/** @typedef {import("../../../scripts/eqlab/search-space.js").SurvivorOut} SurvivorOut */
+/** @typedef {SurvivorOut & { score: number }} TopOut */
+
+/**
+ * @typedef {{
+ *   top: TopOut[],
+ *   survived: number,
+ *   considered: number,
+ *   returned: number,
+ *   rejected_by: Record<string, number>,
+ *   objective: Objective,
+ *   constraints: Constraint[],
+ * }} SearchResult
+ */
+
+/** A sweep over two parameters yields only real changes, never the null one. */
+const CROSS = /** @type {NonNullable<ReturnType<typeof expandChange>[number]>[]} */ (
+  expandChange({ select: 2090, g: [1, 2, 1], q: [3, 4, 1] })
+);
 
 test("test_a_change_over_two_swept_parameters_expands_to_their_cross_product", () => {
   assert.deepEqual(CROSS.map((c) => `${c.g}/${c.q}`).sort(), ["1/3", "1/4", "2/3", "2/4"]);
@@ -98,17 +118,27 @@ test("test_an_absent_change_expands_to_a_single_null_candidate", () => {
 const BASE = [band(1000, 0, 1)];
 const CTX = { stages: BASE, fs: FS, metrics: { spot: { kind: "at", f: 1000 } } };
 const SPACE = { amend: { select: 1000, g: [1, 3, 1], q: 1 } };
+/**
+ * @param {Record<string, unknown>} [over]
+ * @returns {Record<string, unknown>}
+ */
 const jobOf = (over) => ({ space: SPACE, constraints: [], objective: "maximize spot", top: 5, ...over });
 
-const OPEN = searchJob(jobOf(), CTX);
-const CAPPED = searchJob(jobOf({ constraints: [{ metric: "spot", max: 2.5 }] }), CTX);
+/**
+ * @param {Record<string, unknown>} job
+ * @returns {SearchResult}
+ */
+const run = (job) => /** @type {SearchResult} */ (searchJob(job, CTX));
+
+const OPEN = run(jobOf());
+const CAPPED = run(jobOf({ constraints: [{ metric: "spot", max: 2.5 }] }));
 
 test("test_a_search_considers_every_candidate_the_space_generates", () => {
   const wide = {
     amend: { select: 1000, g: [1, 3, 1], q: 1 },
     append: { type: "peak", f: [4000, 8000, 4000], q: 1, g: 1 },
   };
-  assert.equal(searchJob(jobOf({ space: wide }), CTX).considered, 6);
+  assert.equal(run(jobOf({ space: wide })).considered, 6);
 });
 
 test("test_with_no_constraints_every_candidate_survives", () => {
@@ -140,7 +170,7 @@ test("test_a_maximize_objective_orders_the_results_by_descending_score", () => {
 });
 
 test("test_a_minimize_objective_orders_the_results_by_ascending_score", () => {
-  const scores = searchJob(jobOf({ objective: "minimize spot" }), CTX).top.map((entry) => entry.score);
+  const scores = run(jobOf({ objective: "minimize spot" })).top.map((entry) => entry.score);
   assert.deepEqual(
     scores,
     [...scores].sort((a, b) => a - b),
@@ -164,11 +194,11 @@ test("test_the_result_echoes_the_constraints_it_was_given", () => {
 });
 
 test("test_the_results_are_capped_at_the_requested_count", () => {
-  assert.equal(searchJob(jobOf({ top: 2 }), CTX).top.length, 2);
+  assert.equal(run(jobOf({ top: 2 })).top.length, 2);
 });
 
 test("test_the_returned_count_reports_how_many_came_back", () => {
-  assert.equal(searchJob(jobOf({ top: 2 }), CTX).returned, 2);
+  assert.equal(run(jobOf({ top: 2 })).returned, 2);
 });
 
 test("test_a_result_entry_carries_the_process_string_of_its_own_chain", async () => {

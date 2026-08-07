@@ -66,7 +66,7 @@ function reset() {
   const w = stagingWire({
     routes: (path, opts, x) => {
       if (path === "/api/volume" && opts.method === "POST") {
-        x.posts.push(JSON.parse(opts.body));
+        x.posts.push(JSON.parse(String(opts.body)));
         return ok({ volume: POLLED });
       }
       return undefined; // unhandled path: the wire's own fallback answers it

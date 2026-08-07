@@ -18,18 +18,58 @@ import { stageResponse } from "../../../hqptuner/static/lib/dsp/stages.js";
 import { chainResponse } from "../../../hqptuner/static/lib/dsp/chain.js";
 import { registerIr } from "../../../hqptuner/static/lib/dsp/impulse.js";
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/dsp/stages.js").Stage} Stage
+ * @typedef {import("../../../hqptuner/static/lib/dsp/biquad.js").StageArgs} StageArgs
+ * @typedef {import("../../../hqptuner/static/lib/dsp/biquad.js").Response} StageResponse
+ */
+
 const FS = 48000;
 
 // [ok, message] for spreading into ONE assert.ok — see matrixspec.test.js.
+/**
+ * @param {number} actual
+ * @param {number} expected
+ * @param {number} [tol]
+ * @returns {[boolean, string]}
+ */
 const near = (actual, expected, tol = 0.05) => [
   Math.abs(actual - expected) <= tol,
   `expected ${expected} ± ${tol}, got ${actual}`,
 ];
+/**
+ * @param {number} actual
+ * @param {number} ceiling
+ * @returns {[boolean, string]}
+ */
 const below = (actual, ceiling) => [actual < ceiling, `expected < ${ceiling}, got ${actual}`];
 
+/**
+ * @param {StageArgs} args
+ * @returns {Stage}
+ */
 const iir = (args) => ({ kind: "iir", args });
-const db = (stage, f) => stageResponse(stage, f, FS).db;
-const deg = (stage, f) => stageResponse(stage, f, FS).deg;
+
+// Every stage these helpers are handed is plottable, so the response is read
+// straight through; an unplottable one would be asserted on as null instead.
+/**
+ * @param {Stage} stage
+ * @param {number} f
+ * @returns {StageResponse}
+ */
+const resp = (stage, f) => /** @type {StageResponse} */ (stageResponse(stage, f, FS));
+/**
+ * @param {Stage} stage
+ * @param {number} f
+ * @returns {number}
+ */
+const db = (stage, f) => resp(stage, f).db;
+/**
+ * @param {Stage} stage
+ * @param {number} f
+ * @returns {number}
+ */
+const deg = (stage, f) => resp(stage, f).deg;
 
 // --- peaking ----------------------------------------------------------------
 
@@ -178,7 +218,23 @@ test("test_the_riaa_subsonic_pole_attenuates_the_lowest_bass", () => {
 
 // --- convolution / WAV reading ----------------------------------------------
 
+/**
+ * A WAV header's fields, each defaulted to the common case.
+ *
+ * @typedef {{
+ *   bits?: number,
+ *   audioFormat?: number,
+ *   channels?: number,
+ *   rate?: number,
+ *   samples?: number[],
+ * }} WavSpec
+ */
+
 // Minimal RIFF/WAVE writer, first channel only — the shape wavSamples parses.
+/**
+ * @param {WavSpec} spec
+ * @returns {ArrayBuffer}
+ */
 function wavBuffer({ bits = 16, audioFormat = 1, channels = 1, rate = 48000, samples = [] }) {
   const bytesPer = bits / 8;
   const dataSize = samples.length * bytesPer * channels;
@@ -201,6 +257,13 @@ function wavBuffer({ bits = 16, audioFormat = 1, channels = 1, rate = 48000, sam
   return buf;
 }
 
+/**
+ * @param {DataView} v
+ * @param {number} at
+ * @param {number} x
+ * @param {{ bits: number, audioFormat: number }} format
+ * @returns {void}
+ */
 function writeSample(v, at, x, { bits, audioFormat }) {
   if (audioFormat === 3) return v.setFloat32(at, x, true);
   if (bits === 8) return v.setUint8(at, Math.min(255, Math.round(x * 127) + 128)); // unsigned, per RIFF
@@ -216,6 +279,7 @@ function writeSample(v, at, x, { bits, audioFormat }) {
 // A unit impulse has a flat unity spectrum, so every format that decodes
 // correctly plots as 0 dB — one case per PCM width the reader claims to support.
 const IMPULSE = [1, 0, 0, 0, 0, 0, 0, 0];
+/** @type {[string, WavSpec][]} */
 const FORMATS = [
   ["pcm16", { bits: 16 }],
   ["pcm24", { bits: 24 }],

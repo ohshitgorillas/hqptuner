@@ -30,12 +30,20 @@ import { plottedRows } from "../../../hqptuner/static/components/MatrixPlot.js";
 import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
+/** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
 // A stereo pair — two pipelines is what mirroring concerns.
 const PAIR = () => [ROW({}), ROW({ source: "1", mixdown: "1" })];
 
 // Full reset every time — every one of these signals outlives a test.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {{ mode?: string }} [opts]
+ * @returns {Promise<void>}
+ */
 async function reset(rows, { mode = "speakers" } = {}) {
   stagingWire();
   showDescriptions.value = true;
@@ -64,6 +72,7 @@ const LABEL = "mirror to stereo pair";
 // The Pipelines card's own slice of the render, from its title onward. The tab
 // carries other checkboxes; a control found outside this card is not the one
 // under test.
+/** @param {string} out */
 const pipelinesCard = (out) => {
   const at = out.indexOf("Pipelines <span");
   return at < 0 ? "" : out.slice(at);
@@ -74,6 +83,10 @@ const pipelinesCard = (out) => {
 // proximity is markup shape, whereas label association is the control's contract
 // with the user. Null when the card, the label or the input is missing, so that
 // "no control" can never be read as "control unchecked".
+/**
+ * @param {string} out
+ * @returns {string | null}
+ */
 function mirrorBox(out) {
   for (const m of pipelinesCard(out).matchAll(/<label\b[^>]*>(.*?)<\/label>/gs)) {
     if (!m[1].includes(LABEL)) continue;
@@ -87,6 +100,10 @@ function mirrorBox(out) {
 // when unchecked — matched in that bare form, so an `aria-checked="false"` or a
 // class containing "checked" cannot answer for it. A missing box throws rather
 // than reporting unchecked.
+/**
+ * @param {string} out
+ * @returns {boolean}
+ */
 function mirrorChecked(out) {
   const box = mirrorBox(out);
   if (box === null) throw new Error(`no "${LABEL}" checkbox in the Pipelines card`);

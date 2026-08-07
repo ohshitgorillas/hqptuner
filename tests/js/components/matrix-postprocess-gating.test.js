@@ -114,7 +114,8 @@ const WIRE = {
 };
 
 // The feature gate each control hangs off — its "own gate", the one that already
-// grays it today.
+// grays it today. Keyed by schema key, which is how `SUB_CONTROLS` reads it back.
+/** @type {Record<string, string>} */
 const OWN_GATE = {
   crossfeed_preset: CROSSFEED_GATE,
   crossfeed_frequency: CROSSFEED_GATE,
@@ -138,6 +139,7 @@ const SUB_CONTROLS = Object.keys(OWN_GATE);
 // Reset options that shut exactly one control's OWN gate and leave the other two
 // engaged, so whatever grays that control is the gate it hangs off and nothing
 // else. Spread over a `matrix` of the case's choosing.
+/** @param {string} key */
 const ownGateShut = (key) => ({
   crossfeed: OWN_GATE[key] === CROSSFEED_GATE ? "0" : "1",
   correction: OWN_GATE[key] === CORRECTION_GATE ? "0" : "1",
@@ -167,6 +169,9 @@ const LOUDNESS_NUMERICS = [
   { name: "post_loudness_rangehigh", value: "-10", min: "-90", max: "0" },
 ];
 
+/**
+ * @param {{ matrix: string, crossfeed: string, correction: string, loudness: string }} gates
+ */
 const matrixForm = ({ matrix, crossfeed, correction, loudness }) => [
   { name: "enabled", value: matrix },
   { name: "post_bauer_enabled", value: crossfeed },
@@ -204,10 +209,17 @@ const CONFIG_FORM = [
 ];
 
 // A stereo pipeline pair, so the matrix table has rows carrying controls.
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
+/** @param {Partial<PipelineRow>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 const ROWS = [ROW({}), ROW({ source: "1", mixdown: "1" })];
 
 // A placed speaker set in the daemon's own /speakers shape.
+/**
+ * @param {number} index
+ * @param {string} label
+ */
 const CH = (index, label) => ({
   index,
   label,
@@ -226,6 +238,16 @@ const NAMES = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Lef
 // test, so a partial reset makes cases pass alone and fail in sequence. `staged`
 // is private and is cleared through discardAll().
 
+/**
+ * @param {{
+ *   matrix?: string,
+ *   crossfeed?: string,
+ *   correction?: string,
+ *   loudness?: string,
+ *   view?: string | null,
+ * }} [fixture]
+ * @returns {Promise<void>}
+ */
 async function reset({ matrix = "0", crossfeed = "1", correction = "1", loudness = "1", view = null } = {}) {
   stagingWire();
   engineState.value = {};
@@ -260,6 +282,7 @@ async function reset({ matrix = "0", crossfeed = "1", correction = "1", loudness
 // --- rendering --------------------------------------------------------------------
 // SSR escapes entities; the contract is the text a user reads, not its encoding.
 
+/** @param {string} out */
 const decode = (out) =>
   out
     .replace(/&quot;/g, '"')
@@ -273,15 +296,23 @@ const volumeTab = () => decode(render(html`<${Volume} />`));
 // Whether any control of a rendered field carries the disabled attribute. Which
 // element carries it is not part of the contract, so all three control tags are
 // looked at.
+/** @param {string} out */
 const controlTags = (out) => (out || "").match(/<(?:button|input|select)\b[^>]*>/g) || [];
+/** @param {string} out */
 const isDisabled = (out) => controlTags(out).some((tag) => /\sdisabled\b/.test(tag));
 
 // The reason a field is grayed, wherever it is placed — null when there is none.
+/** @param {string} key */
 const reasonOf = (key) => grayReason(field(key));
+/** @param {string | null | undefined} reason */
 const namesMatrix = (reason) => /matrix/i.test(String(reason ?? ""));
 
 // One card's fragment, picked by the head that titles it. Cards carry no nested
 // <section>, so the first close after the head is the card's own.
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 const cardTitled = (out, title) => {
   const head = out.indexOf(`<div class="card-head">${title}</div>`);
   return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
@@ -289,14 +320,24 @@ const cardTitled = (out, title) => {
 
 // Whether a fragment carries the note — or a sentence saying the card was never
 // rendered, which equals neither true nor false and so fails either way round.
+/**
+ * @param {string} frag
+ * @returns {boolean | string}
+ */
 const noteIn = (frag) => (frag === "" ? "that card was not rendered at all" : frag.includes(NOTE));
 
+/** @param {string} out */
 const buttonsOf = (out) =>
   out
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+/**
+ * @param {string} out
+ * @param {string} text
+ */
 const buttonLabelled = (out, text) => buttonsOf(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
+/** @param {string | undefined} b */
 const attrsOf = (b) => (b === undefined ? "" : b.slice(0, b.indexOf(">")));
 
 // ============================================================================

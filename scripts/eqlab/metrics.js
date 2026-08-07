@@ -1,76 +1,49 @@
-// Response sampling, extrema, and metric evaluation — all on the SUMMED chain.
+// Metric kinds, presets, and panel evaluation — all on the SUMMED chain.
 //
-// Every number this file produces comes out of `chainMagDbGrid` (lib/dsp/chain.js),
+// Every number this file produces is a reduction over a curve from curve.js,
 // the same math the UI plots minus phase. No band is ever measured in isolation:
 // a metric over a range is a reduction over the summed curve inside that range.
 
-import { chainMagDbGrid, chainResponse } from "../../hqptuner/static/lib/dsp/chain.js";
+import { linfit, valueAt } from "./curve.js";
 import { parse, evaluate } from "./expr.js";
 import { noteRange } from "./notes.js";
 
-export const F_LO = 20;
-export const F_HI = 20000;
-export const GRID_N = 4096;
-
-function logGrid(n, f0, f1) {
-  const k = Math.log(f1 / f0) / (n - 1);
-  return Array.from({ length: n }, (_, i) => f0 * Math.exp(k * i));
-}
-
-const GRID = logGrid(GRID_N, F_LO, F_HI);
-
-/** Summed response of a stage list over the standard 20 Hz - 20 kHz log grid. */
-export function curveOf(stages, fs) {
-  const { db, partial } = chainMagDbGrid(stages, GRID, fs);
-  return { freqs: GRID, db, fs, partial };
-}
+/** @typedef {import("./curve.js").CurveLike} CurveLike */
+/** @typedef {import("./curve.js").Curve} Curve */
 
 /**
- * Point-wise sum of two curves over the shared grid. dB responses of stages in
- * series add, so a search can hold the unchanged part of a chain fixed and
- * recompute only the stages a candidate actually varies.
+ * One metric's answer. `hz` is present only where the metric localises to a
+ * frequency — a mean or an rmse has no single place it happened.
+ *
+ * @typedef {{ value: number, hz?: number }} MetricResult
  */
-export function sumCurves(a, b) {
-  const db = new Float64Array(a.db.length);
-  for (let i = 0; i < db.length; i += 1) db[i] = a.db[i] + b.db[i];
-  return { freqs: a.freqs, db, fs: a.fs, partial: a.partial || b.partial };
-}
 
-/** Round for output — raw doubles print 17 digits of noise nobody can act on. */
-export const round = (x, dp = 3) => (x === null || x === undefined ? null : Math.round(x * 10 ** dp) / 10 ** dp);
-
-/** Preamp per PRIMER guardrails: negative of the max of the SUMMED response. */
-export function preampDb(curve) {
-  let max = -Infinity;
-  for (let i = 0; i < curve.db.length; i += 1) if (curve.db[i] > max) max = curve.db[i];
-  return -max;
-}
-
-// The 20 Hz-bounded grid misses a low shelf whose plateau keeps rising below
-// the grid floor; this samples 1-20 Hz and folds the sub-bass maximum in.
-const SUB_GRID = logGrid(256, 1, F_LO);
-
-/** Preamp including the sub-20 Hz shelf asymptote: max over 1 Hz - 20 kHz. */
-export function preampDbFull(stages, fs, preamp) {
-  const subMax = Math.max(...SUB_GRID.map((f) => chainResponse(stages, f, fs).db));
-  return Math.min(preamp, -subMax);
-}
-
-/** Response at an arbitrary frequency, linearly interpolated in log f. */
-export function valueAt(curve, f) {
-  const { freqs, db } = curve;
-  if (f <= freqs[0]) return db[0];
-  if (f >= freqs[freqs.length - 1]) return db[db.length - 1];
-  const k = Math.log(freqs[1] / freqs[0]);
-  const x = Math.log(f / freqs[0]) / k;
-  const i = Math.floor(x);
-  return db[i] + (db[i + 1] - db[i]) * (x - i);
-}
+/**
+ * One metric as a job declares it. One shape rather than a union per kind: the
+ * handler for each kind reads the fields that kind defines and the others are
+ * absent, which is exactly what the optionality says.
+ *
+ * @typedef {{
+ *   kind: string,
+ *   range?: [number, number],
+ *   f?: number,
+ *   expr?: string,
+ *   side?: string,
+ *   domain?: string,
+ *   from?: string,
+ *   to?: string,
+ * }} MetricSpec
+ */
 
 // Closed-form bounds — the grid is uniform in log f, so the first and last
 // in-range indices need no scan. The one-step nudges settle float edge cases
 // so boundary membership matches the exact `f >= a && f <= b` test.
-function rangeIndices(curve, range) {
+/**
+ * @param {CurveLike} curve
+ * @param {[number, number]} range
+ * @returns {{ lo: number, hi: number }}
+ */
+export function rangeIndices(curve, range) {
   const [a, b] = range;
   const { freqs } = curve;
   const n = freqs.length;
@@ -85,6 +58,12 @@ function rangeIndices(curve, range) {
   return { lo, hi };
 }
 
+/**
+ * @param {CurveLike} curve
+ * @param {[number, number]} range
+ * @param {boolean} wantMax
+ * @returns {MetricResult}
+ */
 function extremum(curve, range, wantMax) {
   const { lo, hi } = rangeIndices(curve, range);
   let best = lo;
@@ -94,6 +73,11 @@ function extremum(curve, range, wantMax) {
   return { value: curve.db[best], hz: curve.freqs[best] };
 }
 
+/**
+ * @param {CurveLike} curve
+ * @param {[number, number]} range
+ * @returns {MetricResult}
+ */
 function meanOver(curve, range) {
   const { lo, hi } = rangeIndices(curve, range);
   let sum = 0;
@@ -101,18 +85,12 @@ function meanOver(curve, range) {
   return { value: sum / (hi - lo + 1) };
 }
 
-/** Least-squares line over [x, y] pairs -> { slope, icept }. */
-export function linfit(pts) {
-  const n = pts.length;
-  const [sx, sy] = [pts.reduce((s, p) => s + p[0], 0), pts.reduce((s, p) => s + p[1], 0)];
-  const [sxx, sxy] = [pts.reduce((s, p) => s + p[0] * p[0], 0), pts.reduce((s, p) => s + p[0] * p[1], 0)];
-  const d = n * sxx - sx * sx;
-  const slope = d === 0 ? 0 : (n * sxy - sx * sy) / d;
-  return { slope, icept: (sy - slope * sx) / n };
-}
-
 // Functions an `expr` metric may call. All reduce the summed curve; `at` is the
 // only one that reads a single frequency.
+/**
+ * @param {CurveLike} curve
+ * @returns {Record<string, (...args: number[]) => number>}
+ */
 function exprFuncs(curve) {
   return {
     mean: (a, b) => meanOver(curve, [a, b]).value,
@@ -120,44 +98,6 @@ function exprFuncs(curve) {
     min: (a, b) => extremum(curve, [a, b], false).value,
     at: (f) => valueAt(curve, f),
   };
-}
-
-/**
- * Fit of a replacement segment against the segment it removed: the residual is
- * the replacement bands' response minus the removed bands' contribution, each
- * measured alone. Reported, never gating — a deliberate reshape has a large
- * residual on purpose.
- */
-export function residualFit(removedStages, addedStages, fs, range) {
-  const rem = curveOf(removedStages, fs);
-  const add = curveOf(addedStages, fs);
-  const residual = { freqs: rem.freqs, db: add.db.map((v, i) => v - rem.db[i]) };
-  const { lo, hi } = rangeIndices(residual, range || [F_LO, F_HI]);
-  let [best, sq] = [lo, 0];
-  for (let i = lo; i <= hi; i += 1) {
-    sq += residual.db[i] * residual.db[i];
-    if (Math.abs(residual.db[i]) > Math.abs(residual.db[best])) best = i;
-  }
-  return {
-    rmse: round(Math.sqrt(sq / (hi - lo + 1))),
-    maxdev: round(Math.abs(residual.db[best])),
-    hz: round(residual.freqs[best], 2),
-    range: range || [F_LO, F_HI],
-  };
-}
-
-/** Per replace edit, its residual fit — [] when the change set replaced nothing. */
-export function fitOfEdits(edits, fs) {
-  return (edits || [])
-    .filter((e) => e.kind === "replace")
-    .map((e) =>
-      residualFit(
-        e.removed.map((r) => ({ kind: "iir", args: r.before })),
-        e.added.map((a) => ({ kind: "iir", args: a.after })),
-        fs,
-        e.fit_range,
-      ),
-    );
 }
 
 // ---- target-relative kinds -------------------------------------------------
@@ -175,11 +115,34 @@ export function fitOfEdits(edits, fs) {
 // the constant factor cancels in the weighted mean. `domain` applies to rmse
 // and mean_signed; a maximum is weight-independent.
 
+/**
+ * The range a range-taking kind declares.
+ *
+ * A type assertion, deliberately not a check: the kinds below that reach
+ * `rangeIndices` all define a range, and a spec that omits one has always died
+ * on the destructure inside it. Throwing a nicer error here would be a second,
+ * different failure for the same bad job — so this narrows and leaves the
+ * runtime exactly where it was.
+ *
+ * @param {[number, number] | undefined} range
+ * @returns {[number, number]}
+ */
+const needRange = (range) => /** @type {[number, number]} */ (range);
+
+/**
+ * @param {CurveLike | null | undefined} target
+ * @param {string} kind
+ * @returns {CurveLike}
+ */
 function needTarget(target, kind) {
   if (!target) throw new Error(`metric kind "${kind}" needs a target — declare job.target`);
   return target;
 }
 
+/**
+ * @param {string | undefined} domain
+ * @returns {(f: number) => number}
+ */
 function weightOf(domain) {
   if (domain === undefined || domain === "log") return () => 1;
   if (domain === "erb") return (f) => (4.37 * f) / 1000 / (1 + (4.37 * f) / 1000);
@@ -188,9 +151,16 @@ function weightOf(domain) {
 
 // Weighted mean of `fn(curve - target)` over a range, folded into one loop —
 // no per-point deviation objects.
+/**
+ * @param {CurveLike} curve
+ * @param {CurveLike} target
+ * @param {MetricSpec} spec
+ * @param {(dev: number) => number} fn
+ * @returns {number}
+ */
 function weightedDevMean(curve, target, { range, domain }, fn) {
   const wf = weightOf(domain);
-  const { lo, hi } = rangeIndices(curve, range);
+  const { lo, hi } = rangeIndices(curve, needRange(range));
   let [sw, s] = [0, 0];
   for (let i = lo; i <= hi; i += 1) {
     const w = wf(curve.freqs[i]);
@@ -205,6 +175,11 @@ function weightedDevMean(curve, target, { range, domain }, fn) {
 // denominator — the metric prices unserved deviation on one side without
 // paying for the other, which is what lets an objective demand full peak
 // service while leaving valleys to explicit guards.
+/**
+ * @param {number} dev
+ * @param {string | undefined} side
+ * @returns {number}
+ */
 function sideClip(dev, side) {
   if (side === undefined) return dev;
   if (side === "above") return Math.max(dev, 0);
@@ -212,9 +187,16 @@ function sideClip(dev, side) {
   throw new Error(`unknown side "${side}" (above or below)`);
 }
 
+/**
+ * @param {CurveLike} curve
+ * @param {CurveLike | null | undefined} target
+ * @param {MetricSpec} spec
+ * @param {boolean} signed
+ * @returns {MetricResult}
+ */
 function maxDev(curve, target, spec, signed) {
   const t = needTarget(target, signed ? "maxdev_signed" : "maxdev");
-  const { lo, hi } = rangeIndices(curve, spec.range);
+  const { lo, hi } = rangeIndices(curve, needRange(spec.range));
   let [best, bestDev] = [lo, curve.db[lo] - t.db[lo]];
   for (let i = lo + 1; i <= hi; i += 1) {
     const dev = curve.db[i] - t.db[i];
@@ -230,9 +212,15 @@ function maxDev(curve, target, spec, signed) {
 // bump with the plateau under it — the plateau is what sets the preamp, the
 // prominence is what sets the colouration. The declared range IS the trend
 // width: widen it to measure against a broader baseline.
+/**
+ * @param {CurveLike} curve
+ * @param {[number, number]} range
+ * @returns {MetricResult}
+ */
 function prominenceOver(curve, range) {
   const [a, b] = range;
   const [ya, yb] = [valueAt(curve, a), valueAt(curve, b)];
+  /** @type {MetricResult | null} */
   let best = null;
   const { lo, hi } = rangeIndices(curve, range);
   for (let i = lo; i <= hi; i += 1) {
@@ -240,14 +228,28 @@ function prominenceOver(curve, range) {
     const p = curve.db[i] - base;
     if (!best || p > best.value) best = { value: p, hz: curve.freqs[i] };
   }
-  return best;
+  // `rangeIndices` throws when the range holds no grid point, so the loop above
+  // always ran at least once and `best` is always set by here.
+  return /** @type {MetricResult} */ (best);
 }
 
+/**
+ * Every metric kind, by name. The four arguments are fixed across the table
+ * even though most kinds ignore the last two — `computeMetrics` calls them
+ * uniformly.
+ *
+ * @type {Record<string, (
+ *   curve: Curve,
+ *   spec: MetricSpec,
+ *   vars: Record<string, number>,
+ *   target: CurveLike | null | undefined,
+ * ) => MetricResult>}
+ */
 const KINDS = {
-  max: (curve, spec) => extremum(curve, spec.range, true),
-  min: (curve, spec) => extremum(curve, spec.range, false),
-  mean: (curve, spec) => meanOver(curve, spec.range),
-  at: (curve, spec) => ({ value: valueAt(curve, spec.f), hz: spec.f }),
+  max: (curve, spec) => extremum(curve, needRange(spec.range), true),
+  min: (curve, spec) => extremum(curve, needRange(spec.range), false),
+  mean: (curve, spec) => meanOver(curve, needRange(spec.range)),
+  at: (curve, spec) => ({ value: valueAt(curve, Number(spec.f)), hz: spec.f }),
   expr: (curve, spec, vars) => ({
     value: evaluate(parse(spec.expr), { funcs: exprFuncs(curve), vars }),
   }),
@@ -264,18 +266,19 @@ const KINDS = {
   mean_signed: (curve, spec, _vars, target) => ({
     value: weightedDevMean(curve, needTarget(target, "mean_signed"), spec, (dev) => dev),
   }),
-  prominence: (curve, spec) => prominenceOver(curve, spec.range),
+  prominence: (curve, spec) => prominenceOver(curve, needRange(spec.range)),
   ripple: (curve, spec) => ({
-    value: extremum(curve, spec.range, true).value - extremum(curve, spec.range, false).value,
+    value: extremum(curve, needRange(spec.range), true).value - extremum(curve, needRange(spec.range), false).value,
   }),
   slope: (curve, spec) => {
-    const { lo, hi } = rangeIndices(curve, spec.range);
+    const { lo, hi } = rangeIndices(curve, needRange(spec.range));
+    /** @type {[number, number][]} */
     const pts = [];
     for (let i = lo; i <= hi; i += 1) pts.push([Math.log2(curve.freqs[i]), curve.db[i]]);
     return { value: linfit(pts).slope };
   },
   note_spread: (curve, spec) => {
-    const vals = noteRange(spec.from, spec.to).map((n) => valueAt(curve, n.hz));
+    const vals = noteRange(String(spec.from), String(spec.to)).map((n) => valueAt(curve, n.hz));
     return { value: Math.max(...vals) - Math.min(...vals) };
   },
 };
@@ -283,6 +286,7 @@ const KINDS = {
 // The standing panel PRIMER requires on every answer, as a named preset —
 // retyping it per job invites drift. `"metrics": "standard"` uses it as-is;
 // `{"preset": "standard", ...more}` extends it.
+/** @type {Record<string, Record<string, MetricSpec>>} */
 const PRESETS = {
   standard: {
     bass_50_150: { kind: "mean", range: [50, 150] },
@@ -296,14 +300,38 @@ const PRESETS = {
   },
 };
 
-/** job.metrics -> concrete spec object: a preset name, {preset, ...extras}, or specs as given. */
+/**
+ * A spec bag as a job writes it: named specs, optionally alongside a `preset`
+ * naming a bag to start from. The index signature admits the `string` that
+ * `preset` carries, because an intersection with `Record<string, MetricSpec>`
+ * would demand `preset` be a spec AND a string at once — a bag no caller can
+ * write.
+ *
+ * @typedef {{ preset?: string } & { [k: string]: MetricSpec | string | undefined }} MetricSpecBag
+ */
+
+/**
+ * job.metrics -> concrete spec object: a preset name, {preset, ...extras}, or specs as given.
+ *
+ * @param {string | MetricSpecBag | null | undefined} metrics
+ * @returns {Record<string, MetricSpec> | null | undefined}
+ */
 export function resolveMetricSpecs(metrics) {
   const name = typeof metrics === "string" ? metrics : metrics && metrics.preset;
-  if (!name) return metrics;
+  // A `metrics` of "" names no preset and declares no specs. It resolves to
+  // nothing rather than to the empty string it arrived as; downstream is
+  // unchanged, since `computeMetrics` reads `specs || {}` and both are falsy.
+  // No preset named means every remaining key is a spec — the one key that
+  // could have held a string is the `preset` this branch has ruled out.
+  if (!name) return typeof metrics === "string" ? undefined : /** @type {Record<string, MetricSpec>} */ (metrics);
   const preset = PRESETS[name];
   if (!preset) throw new Error(`metrics: unknown preset "${name}" (${Object.keys(PRESETS).join(", ")})`);
-  const { preset: _p, ...extras } = typeof metrics === "string" ? { preset: name } : metrics;
-  return { ...preset, ...extras };
+  // `metrics ?? {}` is unreachable — a null/undefined `metrics` yields no `name`
+  // and returned above — and is here only to narrow the object branch.
+  const { preset: _p, ...extras } = typeof metrics === "string" ? { preset: name } : (metrics ?? {});
+  // `extras` is the bag with its `preset` key destructured away, so the string
+  // that key held is gone and every value left is a spec.
+  return { ...preset, .../** @type {Record<string, MetricSpec>} */ (extras) };
 }
 
 /**
@@ -311,9 +339,16 @@ export function resolveMetricSpecs(metrics) {
  * Metrics are evaluated in declaration order; an `expr` metric may reference
  * any metric declared before it by name. `target` (a curve from target.js) is
  * required by the target-relative kinds and ignored by the rest.
+ *
+ * @param {Curve} curve
+ * @param {Record<string, MetricSpec> | null | undefined} specs
+ * @param {CurveLike | null | undefined} [target]
+ * @returns {Record<string, MetricResult>}
  */
 export function computeMetrics(curve, specs, target) {
+  /** @type {Record<string, MetricResult>} */
   const out = {};
+  /** @type {Record<string, number>} */
   const vars = {};
   for (const [name, spec] of Object.entries(specs || {})) {
     const kind = KINDS[spec.kind];
@@ -324,35 +359,12 @@ export function computeMetrics(curve, specs, target) {
   return out;
 }
 
-/** Flat name -> number view of a metric panel (objective / constraint scope). */
+/**
+ * Flat name -> number view of a metric panel (objective / constraint scope).
+ *
+ * @param {Record<string, MetricResult>} panel
+ * @returns {Record<string, number>}
+ */
 export function metricValues(panel) {
   return Object.fromEntries(Object.entries(panel).map(([k, v]) => [k, v.value]));
-}
-
-// Quadratic refinement in (log f, dB) — the grid is 4096 points over three
-// decades, so the true peak sits between samples and the naive grid maximum
-// under-reports both its height and its frequency.
-function refine(curve, i) {
-  const [y0, y1, y2] = [curve.db[i - 1], curve.db[i], curve.db[i + 1]];
-  const denom = y0 - 2 * y1 + y2;
-  const d = denom === 0 ? 0 : (0.5 * (y0 - y2)) / denom;
-  const k = Math.log(curve.freqs[1] / curve.freqs[0]);
-  return { hz: curve.freqs[i] * Math.exp(k * d), db: y1 - 0.25 * (y0 - y2) * d };
-}
-
-/** Local maxima and minima of the summed curve, refined off-grid. */
-export function extrema(curve) {
-  const last = curve.db.length - 1;
-  // Band edges are reported as `edge`: a shelf's plateau is the chain's
-  // maximum without ever being a local maximum, and it is usually what sets
-  // the preamp. Omitting it makes the extrema list contradict `preamp_db`.
-  const out = [{ kind: "edge", hz: curve.freqs[0], db: curve.db[0] }];
-  for (let i = 1; i < curve.db.length - 1; i += 1) {
-    const [prev, here, next] = [curve.db[i - 1], curve.db[i], curve.db[i + 1]];
-    const isMax = here > prev && here >= next;
-    const isMin = here < prev && here <= next;
-    if (isMax || isMin) out.push({ kind: isMax ? "max" : "min", ...refine(curve, i) });
-  }
-  out.push({ kind: "edge", hz: curve.freqs[last], db: curve.db[last] });
-  return out;
 }

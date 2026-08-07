@@ -23,6 +23,28 @@ import { render } from "preact-render-to-string";
 
 import { Segment } from "../../../hqptuner/static/components/controls/index.js";
 
+/** @typedef {Parameters<typeof Segment>[0]} SegmentProps */
+
+/**
+ * The props a case hands the strip, which are Segment's own with two widenings.
+ * `onChange` is optional because the render cases never click, and `disabled` is
+ * whatever a caller passes rather than a boolean, because the strip tests it for
+ * truth (`disabled || !!o.disabled`) and a case below hands it a 1.
+ *
+ * @typedef {Omit<SegmentProps, "disabled" | "onChange"> & {
+ *   disabled?: unknown,
+ *   onChange?: SegmentProps["onChange"],
+ * }} CaseProps
+ */
+
+/**
+ * One strip, built from a case's props. The assertion is the seam between the
+ * two shapes above and Segment's own signature.
+ *
+ * @param {CaseProps} props
+ */
+const segmentOf = (props) => Segment(/** @type {SegmentProps} */ (props));
+
 const OPTIONS = [
   { value: "a", label: "Alpha" },
   { value: "b", label: "Bravo" },
@@ -38,12 +60,18 @@ const FLAGS = [
 
 // --- the rendered string ------------------------------------------------------
 
-const out = (props) => render(Segment({ options: OPTIONS, ...props }));
+/** @param {Omit<CaseProps, "options">} props */
+const out = (props) => render(segmentOf({ options: OPTIONS, ...props }));
 
+/** @param {string} s */
 const buttonClasses = (s) => [...s.matchAll(/<button[^>]*\bclass="([^"]*)"/g)].map((m) => m[1]);
+/** @param {string} s */
 const buttonTypes = (s) => [...s.matchAll(/<button[^>]*\btype="([^"]*)"/g)].map((m) => m[1]);
+/** @param {string} s */
 const buttonLabels = (s) => [...s.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
+/** @param {string} s */
 const disabledCount = (s) => (s.match(/<button[^>]*\bdisabled/g) || []).length;
+/** @param {string} s */
 const activeSegment = (s) => {
   const m = /<button[^>]*class="seg active"[^>]*>([\s\S]*?)<\/button>/.exec(s);
   return m ? m[1].trim() : null;
@@ -53,20 +81,44 @@ const activeSegment = (s) => {
 // Walk the tree the component returns and collect the button vnodes in document
 // order. Each carries the onClick a browser would fire.
 
+/**
+ * A button vnode of the strip: the click a browser fires, and the children the
+ * walk descends into. Every button the strip emits carries an onClick, so a
+ * render that produced one without it throws here exactly as it would in a
+ * browser.
+ *
+ * @typedef {{
+ *   type?: unknown,
+ *   props: { children?: unknown, onClick: (ev: unknown) => void },
+ * }} ButtonNode
+ */
+
+/**
+ * @param {unknown} node
+ * @param {ButtonNode[]} [found]
+ * @returns {ButtonNode[]}
+ */
 function buttons(node, found = []) {
   if (Array.isArray(node)) {
     for (const kid of node) buttons(kid, found);
     return found;
   }
   if (!node || typeof node !== "object") return found;
-  if (node.type === "button") found.push(node);
-  return buttons(node.props && node.props.children, found);
+  const v = /** @type {{ type?: unknown, props?: { children?: unknown } }} */ (node);
+  if (v.type === "button") found.push(/** @type {ButtonNode} */ (node));
+  return buttons(v.props && v.props.children, found);
 }
 
 // One click on the nth button, with the event surface a real click carries.
+/**
+ * @param {Omit<CaseProps, "options" | "onChange">} props
+ * @param {number} index
+ * @returns {(string | number)[][]}
+ */
 function click(props, index) {
+  /** @type {(string | number)[][]} */
   const calls = [];
-  const strip = Segment({ options: OPTIONS, onChange: (...args) => calls.push(args), ...props });
+  const strip = segmentOf({ options: OPTIONS, onChange: (...args) => calls.push(args), ...props });
   buttons(strip)[index].props.onClick({ preventDefault() {}, stopPropagation() {} });
   return calls;
 }
@@ -103,7 +155,7 @@ test("test_a_value_matching_no_option_activates_nothing", () => {
 });
 
 test("test_a_numeric_value_activates_its_string_valued_option", () => {
-  assert.equal(activeSegment(render(Segment({ value: 0, options: FLAGS }))), "Off");
+  assert.equal(activeSegment(render(segmentOf({ value: 0, options: FLAGS }))), "Off");
 });
 
 test("test_a_disabled_strip_disables_every_button", () => {
@@ -131,15 +183,17 @@ test("test_re_picking_the_current_selection_reports_nothing", () => {
 });
 
 test("test_re_picking_a_selection_that_matches_only_as_a_string_reports_nothing", () => {
+  /** @type {(string | number)[][]} */
   const calls = [];
-  const strip = Segment({ value: 0, options: FLAGS, onChange: (...args) => calls.push(args) });
+  const strip = segmentOf({ value: 0, options: FLAGS, onChange: (...args) => calls.push(args) });
   buttons(strip)[0].props.onClick({ preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(calls, []);
 });
 
 test("test_a_numeric_value_still_reports_a_genuinely_different_option", () => {
+  /** @type {(string | number)[][]} */
   const calls = [];
-  const strip = Segment({ value: 0, options: FLAGS, onChange: (...args) => calls.push(args) });
+  const strip = segmentOf({ value: 0, options: FLAGS, onChange: (...args) => calls.push(args) });
   buttons(strip)[1].props.onClick({ preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(calls, [["1"]]);
 });

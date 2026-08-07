@@ -40,6 +40,10 @@ function wire() {
 
 // Keys are the daemon's own /config FORM field names (startup volume is
 // defaults_volume); an omitted key is a field the form never sent.
+/**
+ * @param {Record<string, string>} [running]
+ * @returns {Promise<void>}
+ */
 async function reset(running = {}) {
   wire();
   enums.value = null;
@@ -51,21 +55,48 @@ async function reset(running = {}) {
 
 const bar = () => render(html`<${VolumeRangeBar} />`);
 
+/** @param {string} out */
 const inputs = (out) => [...out.matchAll(/<input[^>]*>/g)].map((m) => m[0]);
-const handle = (out, which) => inputs(out).find((t) => t.includes(`vr-${which} `));
+
+// The one handle carrying `vr-<which>`. A missing handle is an error rather than
+// nothing, so a case cannot read an attribute off an absent control and report
+// that as the attribute's value.
+/**
+ * @param {string} out
+ * @param {string} which
+ * @returns {string}
+ */
+const handle = (out, which) => {
+  const tag = inputs(out).find((t) => t.includes(`vr-${which} `));
+  if (!tag) throw new Error(`no vr-${which} handle in the rendered card`);
+  return tag;
+};
+
+/** @param {string} out */
 const handles = (out) => inputs(out).filter((t) => t.includes("vr-handle"));
 // Render order of the number boxes is Min, Startup, Max — the order the card
 // presents them in, which is itself part of the contract.
+/** @param {string} out */
 const boxes = (out) => inputs(out).filter((t) => t.includes('type="number"'));
 const MIN_BOX = 0;
 const STARTUP_BOX = 1;
 const MAX_BOX = 2;
 
+/**
+ * @param {string} tag
+ * @param {string} name
+ */
 const attr = (tag, name) => (new RegExp(`\\b${name}="([^"]*)"`).exec(tag) || [])[1];
 // A label carries its edge anchor as a second class word, so match the class as
 // a prefix rather than as the whole attribute.
+/** @param {string} out */
 const labels = (out) => [...out.matchAll(/<span class="vr-tick-label[^"]*"[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
+/** @param {string} out */
 const ariaLabels = (out) => handles(out).map((t) => attr(t, "aria-label"));
+/**
+ * @param {string} out
+ * @param {string} needle
+ */
 const count = (out, needle) => out.split(needle).length - 1;
 
 const DEFAULTS = { volume_min: "-60", volume_max: "0", defaults_volume: "-20" };

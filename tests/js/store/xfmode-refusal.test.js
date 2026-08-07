@@ -23,12 +23,32 @@ import { effective, effectivePipelines, isDirty } from "../../../hqptuner/static
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../support/wire.js";
 
+/**
+ * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../../hqptuner/static/lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ */
+
+/**
+ * One /config or /matrix form field, as `resetForms()` below builds it.
+ * `value` is a union because the form answers a checkbox with a real bool and
+ * everything else with a string.
+ *
+ * @typedef {{ name: string, value: string | boolean }} FormField
+ */
+
 const EQ_L = "iir:type=peak;f=1000;q=1;g=-3";
 const EQ_R = "iir:type=peak;f=2000;q=2;g=2";
 const EQ_X = "iir:type=peak;f=500;q=1;g=1";
 
 const DEFAULTS = { angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS, lambda: 1 };
 
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ * @param {string} gain
+ * @param {string} process
+ * @returns {PipelineRow}
+ */
 const dbRow = (source, mixdown, gain, process) => ({
   gain,
   gainunit: "dB",
@@ -36,6 +56,13 @@ const dbRow = (source, mixdown, gain, process) => ({
   process,
   source,
 });
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ * @param {string} gain
+ * @param {string} process
+ * @returns {PipelineRow}
+ */
 const linRow = (source, mixdown, gain, process) => ({
   gain,
   gainunit: "Lin",
@@ -44,6 +71,32 @@ const linRow = (source, mixdown, gain, process) => ({
   source,
 });
 
+// The block a test knows is installed, typed without the `| null` case: every
+// call site here follows a compile of a real block, so what `structuralBlock`
+// hands back always recognizes.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {StructuralRecognition}
+ */
+function installedBlock(rows) {
+  const rec = structuralBlock(rows);
+  if (!rec) throw new Error("expected a recognized block");
+  return rec;
+}
+
+// The parse a test knows succeeded, typed without the refusal case: every call
+// site here feeds a pair `pairInfo` accepts, so what it hands back always
+// carries `eq` and `gain`.
+/**
+ * @param {PipelineRow[]} rows
+ * @returns {{ eq: { left: string, right: string }, gain: { left: number, right: number } }}
+ */
+function parsed(rows) {
+  const { eq, gain } = pairInfo(rows);
+  if (!eq || !gain) throw new Error("expected a parsed pair");
+  return { eq, gain };
+}
+
 // The parseable shapes: a straight dB pair, and a straight Lin pair whose
 // gains 2 and 0.5 land on +/-20*log10(2) dB exactly.
 const straight = () => [dbRow("0", "0", "-3", EQ_L), dbRow("1", "1", "2", EQ_R)];
@@ -51,6 +104,7 @@ const linPair = () => [linRow("0", "0", "2", EQ_L), linRow("1", "1", "0.5", EQ_R
 const LIN2_DB = 20 * Math.log10(2);
 
 // Full reset every time — the staging buffer outlives a test.
+/** @param {PipelineRow[]} rows */
 async function reset(rows) {
   stagingWire({ fallback: (w) => ok(w.staged) });
   matrixConfig.value = { fields: [] };
@@ -59,7 +113,8 @@ async function reset(rows) {
 }
 
 const live = () => effectivePipelines.value;
-const bySource = (source) => live().find((r) => r.source === source);
+/** @param {string} source */
+const bySource = (source) => live().find((/** @type {PipelineRow} */ r) => r.source === source);
 
 // --- a parseable pair installs -------------------------------------------------
 
@@ -95,7 +150,7 @@ test("test_a_reversed_straight_pair_installs_with_no_note", async () => {
 test("test_an_installed_block_carries_the_left_ears_chain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
-  assert.equal(structuralBlock(live()).eqProcess.left, EQ_L);
+  assert.equal(installedBlock(live()).eqProcess.left, EQ_L);
 });
 
 // --- what the block carries in comes back out ----------------------------------
@@ -103,21 +158,21 @@ test("test_an_installed_block_carries_the_left_ears_chain", async () => {
 test("test_removal_recovers_the_left_ears_chain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("0").process, EQ_L);
 });
 
 test("test_removal_recovers_the_right_ears_chain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("1").process, EQ_R);
 });
 
 test("test_removal_recovers_the_right_ears_db_gain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.ok(Math.abs(parseFloat(bySource("1").gain) - 2) < 1e-3);
 });
 
@@ -126,7 +181,7 @@ test("test_removal_recovers_the_right_ears_db_gain", async () => {
 test("test_a_reversed_straight_pair_recovers_the_source_0_chain", async () => {
   await reset([...straight()].reverse());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("0").process, EQ_L);
 });
 
@@ -136,28 +191,28 @@ test("test_a_reversed_straight_pair_recovers_the_source_0_chain", async () => {
 test("test_a_lin_install_recovers_its_gain_converted_to_db", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("0").gain, "6.021");
 });
 
 test("test_a_lin_install_recovers_its_chain", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("0").process, EQ_L);
 });
 
 test("test_a_lin_install_hands_back_a_db_marked_pair", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("0").gainunit, "dB");
 });
 
 test("test_a_lin_install_hands_back_a_db_marked_right_row", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
-  removeStructural(live(), structuralBlock(live()));
+  removeStructural(live(), installedBlock(live()));
   assert.equal(bySource("1").gainunit, "dB");
 });
 
@@ -187,6 +242,7 @@ test("test_install_with_extra_rows_outside_the_stereo_mixdowns_returns_no_note",
 const REFUSAL_NOTE =
   "⚠ Structural crossfeed requires a stereo starting point. Ensure the first two pipelines route to themselves.";
 
+/** @type {[string, PipelineRow[]][]} */
 const REFUSALS = [
   ["a_crossed_pair", [dbRow("0", "1", "-3", EQ_L), dbRow("1", "0", "-3", EQ_R)]],
   ["a_half_misrouted_pair", [dbRow("0", "0", "-3", EQ_L), dbRow("1", "2", "2", EQ_R)]],
@@ -230,6 +286,10 @@ const crossed = () => [dbRow("0", "1", "-3", EQ_L), dbRow("1", "0", "-3", EQ_R)]
 
 // Same reset, with forms carrying the settings under test: the matrix form for
 // the two conflict fixes, the config form for the DSP pipelines row count.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {{ matrix?: FormField[], fields?: FormField[] }} [forms]
+ */
 async function resetForms(rows, { matrix = [], fields = [] } = {}) {
   stagingWire({ fallback: (w) => ok(w.staged) });
   matrixConfig.value = { fields: matrix };
@@ -270,19 +330,19 @@ test("test_a_refused_install_leaves_no_block_installed", async () => {
 // the right — never off row position.
 
 test("test_pair_info_carries_the_source_0_chain_as_the_left_ear", () => {
-  assert.equal(pairInfo(straight()).eq.left, EQ_L);
+  assert.equal(parsed(straight()).eq.left, EQ_L);
 });
 
 test("test_pair_info_reads_ears_by_source_not_row_order", () => {
-  assert.equal(pairInfo([...straight()].reverse()).eq.left, EQ_L);
+  assert.equal(parsed([...straight()].reverse()).eq.left, EQ_L);
 });
 
 test("test_pair_info_reads_a_db_gain_as_is", () => {
-  assert.ok(Math.abs(pairInfo(straight()).gain.left - -3) < 1e-3);
+  assert.ok(Math.abs(parsed(straight()).gain.left - -3) < 1e-3);
 });
 
 test("test_pair_info_converts_a_lin_gain_to_db", () => {
-  assert.ok(Math.abs(pairInfo(linPair()).gain.left - LIN2_DB) < 1e-3);
+  assert.ok(Math.abs(parsed(linPair()).gain.left - LIN2_DB) < 1e-3);
 });
 
 test("test_pair_info_refusal_carries_no_eq", () => {

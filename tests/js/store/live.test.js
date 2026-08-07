@@ -21,7 +21,95 @@ import { engineState, enums, config } from "../../../hqptuner/static/store/signa
 import { liveModel } from "../../../hqptuner/static/store/live/model.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { writeLive } from "../../../hqptuner/static/store/live/write.js";
-import { ok, bad } from "../support/wire.js";
+import { bad, ok } from "../support/wire.js";
+
+/**
+ * The globals a fake wire installs a `fetch` on, viewed as an optional
+ * member: the DOM lib declares it returning a real `Response`, which this
+ * fake does not build.
+ *
+ * @type {{ fetch?: unknown }}
+ */
+const env = globalThis;
+
+/**
+ * One filter/shaper/junk-filter enum entry the engine reports.
+ *
+ * @typedef {{ index: string, value: string, name: string }} EnumItem
+ */
+
+/**
+ * One `<RatesItem index rate/>` — no name and no value (protocol.md §6).
+ *
+ * @typedef {{ index: string, rate: string }} RateItem
+ */
+
+/**
+ * The /api/enumerations payload this suite drives.
+ *
+ * @typedef {{
+ *   filters: EnumItem[],
+ *   shapers: EnumItem[],
+ *   rates: RateItem[],
+ *   junk_filters: EnumItem[],
+ *   mode: { name: string },
+ * }} Enums
+ */
+
+/**
+ * The /api/state payload this suite drives.
+ *
+ * @typedef {{
+ *   mode: string,
+ *   filter1x: string,
+ *   filterNx: string,
+ *   shaper: string,
+ *   rate: string,
+ *   filter_junk: string,
+ *   adaptive: string,
+ *   active_chain: string,
+ * }} EngineState
+ */
+
+/**
+ * The config-file overlay keyed by form field: `mode` is always present, the
+ * two rate limits only when a scenario needs them.
+ *
+ * @typedef {{ mode: string, defaults_samplerate?: string, defaults_bitrate?: string }} FileOverlay
+ */
+
+/**
+ * One /api/config/live report entry.
+ *
+ * @typedef {{ setting: string, ok: boolean, error?: string }} LiveReportEntry
+ */
+
+/**
+ * The /api/config/live success body.
+ *
+ * @typedef {{ live: LiveReportEntry[] }} LiveReport
+ */
+
+/**
+ * The seams `liveWire` answers from — `detail` on a refusal is a plain string
+ * for a transport-level failure (a 503 the daemon never answered) and a
+ * per-field object for a 409 the daemon refused outright (docs/protocol.md:
+ * FastAPI's own `detail` shape differs by status).
+ *
+ * @typedef {{
+ *   status?: number,
+ *   detail?: string | Record<string, string>,
+ *   report?: LiveReport,
+ *   fresh?: Enums,
+ *   mirrored?: EngineState,
+ *   file?: FileOverlay,
+ *   refreshed?: FileOverlay,
+ * }} WireSeams
+ */
+
+/**
+ * @typedef {{ state?: EngineState, lists?: Enums } & WireSeams} ResetSeams
+ */
 
 const FILTERS = [
   { index: "0", value: "0", name: "none" },
@@ -87,11 +175,12 @@ const FILE = () => ({ mode: "pcm" });
 // are what the daemon reports AFTER the write — enumerations, State, and the
 // config overlay — each defaulting to what the test seeded, so a fake that has
 // not moved answers what the signals already hold.
+/** @param {WireSeams} [seams] */
 function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored, file = FILE(), refreshed } = {}) {
-  const w = { posts: [] };
-  globalThis.fetch = async (path, opts = {}) => {
+  const w = { posts: /** @type {unknown[]} */ ([]) };
+  env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
-      w.posts.push(JSON.parse(opts.body));
+      w.posts.push(JSON.parse(String(opts.body)));
       return status === 200 ? ok(report) : bad(status, detail);
     }
     if (path === "/api/state") return ok({ data: mirrored || STATE() });
@@ -106,6 +195,7 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
 // Total reset: module-level signals outlive a test, so a partial one makes cases
 // pass alone and fail in sequence. `state` / `lists` / `file` seed the three
 // source signals a rate control reads; the rest goes to the wire.
+/** @param {ResetSeams} [seams] */
 function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
@@ -115,6 +205,7 @@ function reset({ state, lists, file = FILE(), ...wire } = {}) {
   return liveWire({ mirrored: state, file, ...wire });
 }
 
+/** @param {string} field */
 const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
 
 test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", () => {

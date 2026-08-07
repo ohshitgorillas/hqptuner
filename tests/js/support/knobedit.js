@@ -26,18 +26,29 @@
 // imported BEFORE lib/dom.js or any component that pulls it in.
 
 import { documentSees } from "./domseam.js";
-import { renderWith } from "./wheel.js";
+import { propsOf, renderWith } from "./wheel.js";
 
+/** @typedef {import("./wheel.js").VNode} VNode */
+/** @typedef {import("./wheel.js").VNodeProps} VNodeProps */
+
+/** @param {VNode} v */
 const isInput = (v) => v && typeof v === "object" && v.type === "input";
-const typeOf = (v) => (v.props || {}).type;
+
+/** @param {VNode} v */
+const typeOf = (v) => propsOf(v).type;
 
 // The one input of its kind in the render: the horizontal slider is the range
 // input, and the number box is the other one — named by what it is not, since
 // which `type` a text-shaped box carries is the component's own choice and a box
 // spelled `number`, `text` or `tel` is the same box to a user. Anything other
 // than exactly one match throws rather than editing something else.
+/**
+ * @param {VNode[]} seen
+ * @param {"slider" | "box"} kind
+ * @returns {VNode}
+ */
 function pick(seen, kind) {
-  const wanted = (v) => (kind === "slider" ? typeOf(v) === "range" : typeOf(v) !== "range");
+  const wanted = (/** @type {VNode} */ v) => (kind === "slider" ? typeOf(v) === "range" : typeOf(v) !== "range");
   const hits = seen.filter((v) => isInput(v) && wanted(v));
   if (hits.length !== 1) throw new Error(`expected one ${kind} input in the render, found ${hits.length}`);
   return hits[0];
@@ -45,7 +56,12 @@ function pick(seen, kind) {
 
 // The element the event targets, carrying the value the browser has already
 // moved the control to by the time the handler runs.
+/**
+ * @param {VNode} node
+ * @param {string | number} value
+ */
 function element(node, value) {
+  /** @type {VNodeProps} */
   const p = node.props || {};
   return {
     tagName: "INPUT",
@@ -61,6 +77,10 @@ function element(node, value) {
   };
 }
 
+/**
+ * @param {string} type
+ * @param {ReturnType<typeof element>} el
+ */
 function controlEvent(type, el) {
   return {
     type,
@@ -76,6 +96,13 @@ function controlEvent(type, el) {
 
 // Fire one of the control's own handlers, if it mounts that one. Returns how
 // many recipients the event had.
+/**
+ * @param {VNode} node
+ * @param {ReturnType<typeof element>} el
+ * @param {string} type
+ * @param {string} prop
+ * @returns {number}
+ */
 function deliver(node, el, type, prop) {
   const handler = node.props && node.props[prop];
   if (typeof handler !== "function") return 0;
@@ -83,10 +110,19 @@ function deliver(node, el, type, prop) {
   return 1;
 }
 
+/** @param {ReturnType<typeof element>} el */
 const press = (el) => documentSees("pointerdown", el, { button: 0, buttons: 1 });
+
+/** @param {ReturnType<typeof element>} el */
 const release = (el) => documentSees("pointerup", el, { buttons: 0 });
 
-// A drag of the knob's horizontal slider to `value`, released on it.
+/**
+ * A drag of the knob's horizontal slider to `value`, released on it.
+ *
+ * @param {unknown} vnode
+ * @param {string | number} value
+ * @returns {void}
+ */
 export function knobSliderEdit(vnode, value) {
   const { seen } = renderWith(vnode);
   const node = pick(seen, "slider");
@@ -99,7 +135,13 @@ export function knobSliderEdit(vnode, value) {
     throw new Error("nothing received the slider edit: the range input mounts no input or change handler");
 }
 
-// `value` typed into the knob's number box, committed, and the box left.
+/**
+ * `value` typed into the knob's number box, committed, and the box left.
+ *
+ * @param {unknown} vnode
+ * @param {string | number} value
+ * @returns {void}
+ */
 export function knobBoxEdit(vnode, value) {
   const { seen } = renderWith(vnode);
   const node = pick(seen, "box");

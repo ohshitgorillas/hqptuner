@@ -94,6 +94,55 @@ const SDM_ENUMS = () => ({ ...ENUMS(), rates: SDM_RATES, mode: { name: "SDM (DSD
 const SDM_RE_ENUMS = () => ({ ...SDM_ENUMS(), filters: RE_FILTERS });
 const SDM_STATE = () => ({ ...STATE(), mode: "2", rate: "1", active_chain: "sdm" });
 
+/** @typedef {{ index: string, value: string, name: string }} EnumItem */
+/** @typedef {{ index: string, rate: string }} RateItem */
+/**
+ * @typedef {{
+ *   filters: EnumItem[],
+ *   shapers: EnumItem[],
+ *   rates: RateItem[],
+ *   junk_filters: EnumItem[],
+ *   mode: { name: string },
+ * }} Enums
+ */
+/**
+ * @typedef {{
+ *   mode: string,
+ *   filter1x: string,
+ *   filterNx: string,
+ *   shaper: string,
+ *   rate: string,
+ *   filter_junk: string,
+ *   adaptive: string,
+ *   active_chain: string,
+ * }} EngineState
+ */
+/** @typedef {Record<string, string>} FileTruth */
+/** @typedef {{ live: { setting: string, ok: boolean }[], stored?: Record<string, string> }} LiveReport */
+/** @typedef {{ posts: unknown[], gets: string[], seen: string[] }} LiveWireHandle */
+
+/**
+ * @typedef {{
+ *   status?: number,
+ *   detail?: string,
+ *   report?: LiveReport,
+ *   fresh?: Enums,
+ *   mirrored?: EngineState,
+ *   file?: FileTruth,
+ *   refreshed?: FileTruth,
+ *   gate?: (w: LiveWireHandle) => Promise<void> | void,
+ * }} WireOpts
+ */
+
+/**
+ * The global fetch this suite fakes, viewed as an optional member: the DOM
+ * lib declares it returning a real `Response`, which these fakes do not
+ * build.
+ *
+ * @type {{ fetch?: unknown }}
+ */
+const env = globalThis;
+
 const FILE = () => ({ mode: "pcm" });
 
 // A live-lane server: the write path, plus the endpoints a write re-mirrors
@@ -104,6 +153,10 @@ const FILE = () => ({ mode: "pcm" });
 // daemon answers AFTER the write, defaulting to what the test seeded. Every GET
 // is recorded on `w.gets`, so a lane that was never walked, or walked twice, is
 // observable without stubbing anything.
+/**
+ * @param {WireOpts} [opts]
+ * @returns {LiveWireHandle}
+ */
 function liveWire({
   status = 200,
   detail,
@@ -114,13 +167,14 @@ function liveWire({
   refreshed,
   gate,
 } = {}) {
+  /** @type {LiveWireHandle} */
   const w = { posts: [], gets: [], seen: [] };
   const state = mirrored || STATE();
   const lists = fresh || ENUMS();
   const overlay = refreshed || file;
-  globalThis.fetch = async (path, opts = {}) => {
+  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
-      w.posts.push(JSON.parse(opts.body));
+      w.posts.push(JSON.parse(String(opts.body)));
       return status === 200 ? ok(report) : bad(status, detail);
     }
     w.gets.push(path);
@@ -137,6 +191,10 @@ function liveWire({
 
 // Total reset: module-level signals outlive a test, so a partial one makes cases
 // pass alone and fail in sequence.
+/**
+ * @param {WireOpts & { state?: EngineState, lists?: Enums }} [opts]
+ * @returns {LiveWireHandle}
+ */
 function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
@@ -146,7 +204,16 @@ function reset({ state, lists, file = FILE(), ...wire } = {}) {
   return liveWire({ mirrored: state, file, ...wire });
 }
 
-const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
+// Throws rather than returning undefined when a suite names a field the
+// current chain does not carry: every case below names one that is there, so
+// this only ever narrows the found control's type for the `.value` reads that
+// follow — it never fires along a passing path.
+/** @param {string} field */
+const control = (field) => {
+  const found = [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
+  if (found === undefined) throw new Error(`no control for field "${field}"`);
+  return found;
+};
 const filterName = () => enums.value.filters[0].name;
 
 // --- every field that rebuilds the engine's menus ------------------------------
@@ -154,6 +221,9 @@ const filterName = () => enums.value.filters[0].name;
 // loaded, because a write for the chain the engine has NOT loaded is held rather
 // than applied and re-enumerates nothing (the HELD case below).
 
+/** @typedef {{ field: string, value: string, sdm?: boolean }} ReenumCase */
+
+/** @type {ReenumCase[]} */
 const REENUM = [
   { field: "mode", value: "sdm" },
   { field: "filter1x", value: "40" },
@@ -163,6 +233,7 @@ const REENUM = [
   { field: "oversampling", value: "38", sdm: true },
 ];
 
+/** @param {ReenumCase} c */
 const scene = (c) =>
   c.sdm ? { state: SDM_STATE(), lists: SDM_ENUMS(), fresh: SDM_RE_ENUMS() } : { fresh: RE_ENUMS() };
 

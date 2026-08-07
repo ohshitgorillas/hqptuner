@@ -3,12 +3,44 @@
 // first-class output instead of hand-rolled one-off scripts.
 //
 // Same math as everything else here: every series comes out of `curveOf`
-// (metrics.js -> lib/dsp/chain.js), the target out of target.js — nothing replotted
+// (curve.js -> lib/dsp/chain.js), the target out of target.js — nothing replotted
 // from a different model. Writes go to the named file only.
 
 import { stat, writeFile } from "node:fs/promises";
 import { resolveChain } from "./chain.js";
-import { curveOf, round } from "./metrics.js";
+import { curveOf, round } from "./curve.js";
+
+/** @typedef {import("./curve.js").Curve} Curve */
+/** @typedef {import("./target.js").TargetCurve} TargetCurve */
+/** @typedef {import("./chain.js").ChainSpec} ChainSpec */
+
+/**
+ * One plotted series. `db` is `ArrayLike` because the sources honestly differ —
+ * a chain response is a `Float64Array`, a target and every derived series is a
+ * plain array — and every consumer here only indexes it.
+ *
+ * @typedef {{ name: string, db: ArrayLike<number>, color: string, dash: boolean }} Series
+ */
+
+/**
+ * The plot job's spec.
+ *
+ * @typedef {{
+ *   path?: string,
+ *   show?: string[],
+ *   against?: ChainSpec,
+ *   range?: [number, number],
+ *   y?: [number, number],
+ *   overwrite?: boolean,
+ * }} PlotSpec
+ */
+
+/**
+ * What the plot is drawn from: the resolved chain, its rate, and the target if
+ * one was declared.
+ *
+ * @typedef {{ stages: import("../../hqptuner/static/lib/matrixspec.js").MatrixStage[], fs: number, target?: TargetCurve | null }} PlotCtx
+ */
 
 const SERIES = ["response", "target", "residual", "terrain"];
 const NEEDS_TARGET = new Set(["target", "residual", "terrain"]);
@@ -17,14 +49,20 @@ const CHAIN_DEPENDENT = new Set(["response", "residual"]);
 // Fixed categorical slots (validated palette, light surface) — color follows
 // the series identity, never its position in `show`. An `against` series
 // reuses its base hue and carries a dash instead: same measure, other chain.
+/** @type {Record<string, string>} */
 const COLORS = { response: "#2a78d6", target: "#eb6834", residual: "#1baf7a", terrain: "#eda100" };
 
-const exists = (path) =>
+const exists = (/** @type {string} */ path) =>
   stat(path).then(
     () => true,
     () => false,
   );
 
+/**
+ * @param {string[]} show
+ * @param {TargetCurve | null | undefined} target
+ * @returns {void}
+ */
 function checkShow(show, target) {
   for (const name of show) {
     if (!SERIES.includes(name)) throw new Error(`plot: unknown series "${name}" (${SERIES.join(", ")})`);
@@ -35,14 +73,31 @@ function checkShow(show, target) {
   if (show.length === 0) throw new Error(`plot: "show" is empty — pick from ${SERIES.join(", ")}`);
 }
 
+/**
+ * @param {string} name
+ * @param {Curve} curve
+ * @param {TargetCurve | null | undefined} target
+ * @returns {ArrayLike<number>}
+ */
 function seriesDb(name, curve, target) {
   if (name === "response") return curve.db;
-  if (name === "target") return target.db;
-  if (name === "residual") return curve.db.map((v, i) => v - target.db[i]);
-  return target.db.map((v) => -v); // terrain: what a no-op chain leaves
+  // `checkShow` has already rejected every target-needing series when no target
+  // was declared, so the three branches below cannot see a null one.
+  const t = /** @type {TargetCurve} */ (target);
+  if (name === "target") return t.db;
+  if (name === "residual") return curve.db.map((v, i) => v - t.db[i]);
+  return t.db.map((v) => -v); // terrain: what a no-op chain leaves
 }
 
-/** [{name, db, color, dash}] — base chain's series first, then `against`'s. */
+/**
+ * [{name, db, color, dash}] — base chain's series first, then `against`'s.
+ *
+ * @param {string[]} show
+ * @param {Curve} curve
+ * @param {TargetCurve | null | undefined} target
+ * @param {Curve | null} againstCurve
+ * @returns {Series[]}
+ */
 function buildSeries(show, curve, target, againstCurve) {
   const out = show.map((name) => ({ name, db: seriesDb(name, curve, target), color: COLORS[name], dash: false }));
   if (againstCurve) {
@@ -58,14 +113,26 @@ function buildSeries(show, curve, target, againstCurve) {
   return out;
 }
 
+/**
+ * @param {unknown} spec
+ * @param {string} what
+ * @param {number} [lo]
+ * @returns {[number, number]}
+ */
 function pair(spec, what, lo = -Infinity) {
   const ok = Array.isArray(spec) && spec.length === 2 && spec.every(Number.isFinite) && spec[0] < spec[1];
   if (!ok || spec[0] <= lo) throw new Error(`plot: "${what}" must be [low, high]${lo === 0 ? ", low > 0" : ""}`);
-  return spec;
+  return /** @type {[number, number]} */ (spec);
 }
 
 // y default: auto from the plotted data, padded, always spanning 0 so the
 // zero line — the "nothing left to correct" reference — is never off-frame.
+/**
+ * @param {[number, number] | undefined} spec
+ * @param {Series[]} series
+ * @param {number[]} idx
+ * @returns {[number, number]}
+ */
 function yDomain(spec, series, idx) {
   if (spec) return pair(spec, "y");
   const vals = series.flatMap((s) => idx.map((i) => s.db[i]));
@@ -75,10 +142,15 @@ function yDomain(spec, series, idx) {
 }
 
 const F_TICKS = [20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 20000];
-const fLabel = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
+const fLabel = (/** @type {number} */ f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 
+/**
+ * @param {[number, number]} ydom
+ * @returns {number[]}
+ */
 function yTicks([lo, hi]) {
   const step = [0.5, 1, 2, 5, 10, 20, 50].find((s) => (hi - lo) / s <= 10) || 100;
+  /** @type {number[]} */
   const out = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(round(v, 3));
   return out;
@@ -94,6 +166,11 @@ const M = { l: 58, r: 18, t: 18, b: 42 };
 const PW = W - M.l - M.r;
 const PH = H - M.t - M.b;
 
+/**
+ * @param {[number, number]} range
+ * @param {[number, number]} ydom
+ * @returns {{ x: (f: number) => number, y: (v: number) => number }}
+ */
 function scales(range, ydom) {
   const [f0, f1] = range;
   const [y0, y1] = ydom;
@@ -103,7 +180,14 @@ function scales(range, ydom) {
   };
 }
 
+/**
+ * @param {[number, number]} range
+ * @param {[number, number]} ydom
+ * @param {ReturnType<typeof scales>} sc
+ * @returns {string[]}
+ */
 function grid(range, ydom, sc) {
+  /** @type {string[]} */
   const parts = [];
   for (const f of F_TICKS.filter((t) => t >= range[0] && t <= range[1])) {
     const x = round(sc.x(f), 2);
@@ -120,12 +204,23 @@ function grid(range, ydom, sc) {
   return parts;
 }
 
+/**
+ * @param {Series} s
+ * @param {number[]} freqs
+ * @param {number[]} idx
+ * @param {ReturnType<typeof scales>} sc
+ * @returns {string}
+ */
 function polyline(s, freqs, idx, sc) {
   const pts = idx.map((i) => `${round(sc.x(freqs[i]), 2)},${round(sc.y(s.db[i]), 2)}`).join(" ");
   const dash = s.dash ? ' stroke-dasharray="6 4"' : "";
   return `<polyline data-series="${s.name}" points="${pts}" fill="none" stroke="${s.color}" stroke-width="2"${dash}/>`;
 }
 
+/**
+ * @param {Series[]} series
+ * @returns {string[]}
+ */
 function legend(series) {
   return series.flatMap((s, i) => {
     const y = M.t + 14 + i * 20;
@@ -137,6 +232,13 @@ function legend(series) {
   });
 }
 
+/**
+ * @param {Series[]} series
+ * @param {{ freqs: number[], idx: number[] }} grid
+ * @param {[number, number]} range
+ * @param {[number, number]} ydom
+ * @returns {string}
+ */
 function svgOf(series, { freqs, idx }, range, ydom) {
   const sc = scales(range, ydom);
   return [
@@ -159,11 +261,16 @@ function svgOf(series, { freqs, idx }, range, ydom) {
  * Writes a self-contained SVG; answers {path, series}. `show` defaults to
  * ["residual"]; target/residual/terrain need job.target; `against` adds the
  * second chain's response/residual as dashed twins.
+ *
+ * @param {PlotSpec} spec
+ * @param {PlotCtx} ctx
+ * @returns {Promise<{ path: string, series: string[] }>}
  */
 export async function plotJob(spec, ctx) {
   if (!spec.path) throw new Error("plot: needs a path");
   const show = [...new Set(spec.show === undefined ? ["residual"] : spec.show)];
   checkShow(show, ctx.target);
+  /** @type {[number, number]} */
   const range = spec.range === undefined ? [20, 20000] : pair(spec.range, "range", 0);
   const curve = curveOf(ctx.stages, ctx.fs);
   const against = spec.against ? curveOf((await resolveChain(spec.against)).stages, ctx.fs) : null;

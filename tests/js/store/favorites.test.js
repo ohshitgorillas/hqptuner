@@ -29,6 +29,8 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
+import { useStorage, dropStorage } from "../support/storage.js";
+
 const warns = [];
 const realWarn = console.warn;
 console.warn = (msg) => warns.push(String(msg));
@@ -48,8 +50,28 @@ const favOnlyAtLoad = nFavOnly.value;
 const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
 
+/**
+ * One fixture row: a filter name, its hand-written description, and an
+ * optional `arg` bitfield (apodizing is bit 0). `reset()` below is the only
+ * consumer, so the shape lives here rather than in a shared file.
+ *
+ * @typedef {[name: string, description: string, arg?: number]} FixtureRow
+ */
+
+/**
+ * One dropdown option as `reset()` and `narrowOptions` both build/consume it.
+ *
+ * @typedef {{ label: string, value: string }} Option
+ */
+
 // One `<FiltersItem/>` as the enumeration serves it (protocol.md:226); `arg`
 // bit 0 is the apodizing flag and the backend-derived field agrees with it.
+/**
+ * @param {string} name
+ * @param {string} description
+ * @param {number} index
+ * @param {number} arg
+ */
 const item = (name, description, index, arg) => ({
   index: String(index),
   name,
@@ -59,6 +81,10 @@ const item = (name, description, index, arg) => ({
   apodizing: Boolean(arg & 1),
 });
 
+/**
+ * @param {FixtureRow[]} filters
+ * @returns {Option[]}
+ */
 function reset(filters) {
   enums.value = { filters: filters.map(([name, desc, arg = 0], i) => item(name, desc, i, arg)) };
   metadata.value = {
@@ -74,27 +100,22 @@ function reset(filters) {
 
 // `current` is the selection the dropdown is showing — the option VALUE, as the
 // /config form carries it — which favorites-only must never hide.
+/**
+ * @param {Option[]} options
+ * @param {string} [current]
+ * @param {string} [stage]
+ * @param {string} [field]
+ */
 const labels = (options, current = "", stage = STAGE, field = FIELD) =>
   narrowOptions(options, current, stage, field).map((o) => o.label);
 
-function fakeStorage() {
-  const map = new Map();
-  return {
-    map,
-    getItem: (k) => (map.has(k) ? map.get(k) : null),
-    setItem: (k, v) => map.set(k, v),
-    removeItem: (k) => map.delete(k),
-  };
-}
-
-afterEach(() => {
-  delete globalThis.localStorage;
-});
+afterEach(dropStorage);
 
 // --- fixtures ----------------------------------------------------------------
 // Names carry no phase, length or hires marker, so nothing narrows by a facet a
 // case did not engage.
 
+/** @type {FixtureRow[]} */
 const PLAIN = [
   ["gauss-a", "5/5 ⥮ Any"],
   ["gauss-b", "5/5 ⥮ Any"],
@@ -102,6 +123,7 @@ const PLAIN = [
   ["gauss-d", "4/5 ⥮ Any"],
 ];
 
+/** @type {FixtureRow[]} */
 const FOCUS = [
   ["gauss-a", "5/5 timbre, transients ⥮ Any"],
   ["gauss-b", "5/5 timbre ⥮ Any"],
@@ -146,25 +168,24 @@ test("test_a_later_toggle_does_not_repeat_the_warning", () => {
 
 test("test_a_favorite_persists_under_an_hqptuner_prefixed_key", () => {
   reset(PLAIN);
-  globalThis.localStorage = fakeStorage();
+  const storage = useStorage();
   toggleFavorite("gauss-a");
-  assert.ok(
-    [...globalThis.localStorage.map.entries()].some(
-      ([k, v]) => k.startsWith("hqptuner.") && String(v).includes("gauss-a"),
-    ),
-  );
+  assert.ok([...storage.map.entries()].some(([k, v]) => k.startsWith("hqptuner.") && String(v).includes("gauss-a")));
 });
 
 // The READ side of persistence, as a round-trip: whatever serialized form a
 // toggle wrote to storage, a fresh module instance started over that same
 // storage must load back — no serialization shape is assumed, and the fresh
 // instance comes from a cache-busting dynamic import because node caches a
-// module per URL.
+// module per URL. The specifier is built rather than literal so the query
+// suffix — a cache-buster, not a real path — never has to resolve against a
+// module on disk.
 test("test_a_persisted_favorite_is_loaded_back_at_startup", async () => {
   reset(PLAIN);
-  globalThis.localStorage = fakeStorage();
+  useStorage();
   toggleFavorite("gauss-a");
-  const fresh = await import("../../../hqptuner/static/store/favorites.js?seeded");
+  const seededPath = `${"../../../hqptuner/static/store/favorites.js"}?seeded`;
+  const fresh = await import(seededPath);
   assert.equal(fresh.isFavorite("gauss-a"), true);
 });
 
@@ -270,6 +291,7 @@ test("test_removing_a_favorite_that_is_not_the_last_keeps_favorites_only_on", ()
 // only narrowing left in play is the favorite itself — toggled ONCE, never per
 // field.
 
+/** @type {FixtureRow[]} */
 const SHARED = [
   ["gauss-apod-a", "5/5 ⥮ Any", 1],
   ["gauss-apod-b", "4/5 ⥮ Any", 1],

@@ -81,6 +81,9 @@ import { cancel } from "../../../hqptuner/static/store/ask.js";
 import { stagingWire, quiesce, ok } from "../support/wire.js";
 import { renderWith, controlsIn, wheelAt, formValues } from "../support/wheel.js";
 
+/** @typedef {import("../support/wire.js").StagingWire} StagingWire */
+/** @typedef {import("../support/wheel.js").VNode} VNode */
+
 // --- the dispatch ------------------------------------------------------------
 
 // Wheel over every wheel-sensitive control the mount renders that a browser's
@@ -93,6 +96,15 @@ import { renderWith, controlsIn, wheelAt, formValues } from "../support/wheel.js
 // input loses its value attribute — fails the case instead of shrinking its
 // coverage in silence. `values` is omitted by the cases that assert on the store
 // or on a callback rather than on rendered values.
+/**
+ * @param {() => unknown} mount
+ * @param {StagingWire | null} w
+ * @param {{ controls?: number, values?: number }} [expected]
+ * @returns {Promise<{
+ *   before: ReturnType<typeof formValues>,
+ *   after: ReturnType<typeof formValues>,
+ * }>}
+ */
 async function wheelOverEverything(mount, w, { controls, values } = {}) {
   const first = renderWith(mount());
   const found = controlsIn(first.seen);
@@ -117,6 +129,10 @@ const IDLE = [
   { value: "60", label: "1 min" },
 ];
 
+/**
+ * @param {Record<string, unknown>[]} fields
+ * @returns {Promise<StagingWire>}
+ */
 async function field(fields) {
   const w = stagingWire({ fallback: (x) => ok(x.staged) });
   engineState.value = {};
@@ -170,14 +186,15 @@ test("test_a_wheel_over_a_number_box_stages_nothing", async () => {
 // did not change" is "the parent was told nothing".
 
 test("test_a_wheel_over_a_knob_slider_reports_no_move_to_its_parent", async () => {
+  /** @type {[string, unknown][]} */
   const moves = [];
   const knob = () => html`<${Knob}
     min="-60"
     max="0"
     step="1"
     value=${-20}
-    onLive=${(v) => moves.push(["live", v])}
-    onCommit=${(v) => moves.push(["commit", v])}
+    onLive=${(/** @type {unknown} */ v) => moves.push(["live", v])}
+    onCommit=${(/** @type {unknown} */ v) => moves.push(["commit", v])}
   />`;
   await wheelOverEverything(knob, null, { controls: 1 });
   assert.deepEqual(moves, []);
@@ -185,6 +202,7 @@ test("test_a_wheel_over_a_knob_slider_reports_no_move_to_its_parent", async () =
 
 // --- VolumeRangeBar: its range input -----------------------------------------
 
+/** @returns {Promise<StagingWire>} */
 async function volumeBar() {
   const w = stagingWire({ fallback: (x) => ok(x.staged) });
   enums.value = null;
@@ -219,6 +237,7 @@ test("test_a_wheel_over_a_volume_range_handle_stages_nothing", async () => {
 
 // --- MatrixTab: the flow row's three controls and the profile picker ----------
 
+/** @param {Record<string, string>} patch */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 
 // What this fixture renders, stated so a shrunken render fails the case rather
@@ -229,6 +248,7 @@ const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", 
 const MATRIX_CONTROLS = 14;
 const MATRIX_VALUES = 9;
 
+/** @returns {Promise<StagingWire>} */
 async function matrixTab() {
   const w = stagingWire();
   showDescriptions.value = false;
@@ -274,22 +294,28 @@ test("test_a_wheel_over_the_matrix_tab_controls_stages_nothing", async () => {
 const PEAK = "iir:type=peak;f=1000;q=1;g=0";
 const RIAA = "riaa:subsonic=0";
 
+/**
+ * @param {string} process
+ * @param {unknown[]} replaced
+ */
 const stageEditor = (process, replaced) => () => {
   setSelected(null);
   return html`<${StageEditor}
     stages=${parseProcess(process)}
     stageIndex=${0}
-    replaceStages=${(s) => replaced.push(s)}
+    replaceStages=${(/** @type {unknown} */ s) => replaced.push(s)}
   />`;
 };
 
 test("test_a_wheel_over_the_stage_kind_and_type_pickers_replaces_no_stage", async () => {
+  /** @type {unknown[]} */
   const replaced = [];
   await wheelOverEverything(stageEditor(PEAK, replaced), null, { controls: 2 });
   assert.deepEqual(replaced, []);
 });
 
 test("test_a_wheel_over_the_subsonic_picker_replaces_no_stage", async () => {
+  /** @type {unknown[]} */
   const replaced = [];
   await wheelOverEverything(stageEditor(RIAA, replaced), null, { controls: 2 });
   assert.deepEqual(replaced, []);
@@ -297,6 +323,10 @@ test("test_a_wheel_over_the_subsonic_picker_replaces_no_stage", async () => {
 
 // --- SpeakersCard: the speaker-set select ------------------------------------
 
+/**
+ * @param {number} index
+ * @param {string} label
+ */
 const CH = (index, label) => ({
   index,
   label,
@@ -315,11 +345,12 @@ const SPK = {
   ),
 };
 
+/** @returns {Promise<StagingWire>} */
 async function speakersCard() {
   const w = stagingWire({
     routes: (path, opts, x) => {
       if (path === "/api/speakers" && opts.method === "POST") {
-        x.posts.push(JSON.parse(opts.body));
+        x.posts.push(JSON.parse(String(opts.body)));
         return ok({ applied: true, speakers: SPK });
       }
       return undefined; // unhandled path: the wire's own fallback answers it
@@ -388,6 +419,10 @@ test("test_a_wheel_over_the_header_picker_leaves_its_selection_alone", async () 
 // dispatch helper refuses such a control outright.
 
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
+/**
+ * @param {string} source
+ * @param {string} mixdown
+ */
 const XROW = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process: EQ, source });
 // Five drivable controls — the preset picker, the two dials, the feed slider and
 // its number box — of which three carry a value a render shows.
@@ -398,6 +433,7 @@ const PRESETS = [
   { value: "chumoy", label: "Chu Moy" },
 ];
 
+/** @returns {Promise<StagingWire>} */
 async function crossfeedCard() {
   const w = stagingWire();
   matrixConfig.value = {

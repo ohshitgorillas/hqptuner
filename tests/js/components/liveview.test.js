@@ -80,6 +80,7 @@ const METADATA = {
   shapers: { pcm_dithers: { none: { description: "No dither." } }, sdm_modulators: {} },
 };
 
+/** @param {string} chain */
 const STATE = (chain) => ({
   mode: "1",
   filter1x: "0",

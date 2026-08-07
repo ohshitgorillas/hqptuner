@@ -42,7 +42,9 @@ import { stagingWire } from "../support/wire.js";
 // The daemon's /config form: Min and Startup inside the volume range, Max at
 // unity. The axis itself is fixed (-120..+12), so these are scenery for every
 // gridline case and only the loudness cases vary anything.
+/** @type {Record<string, string>} */
 const FORM = { volume_min: "-60", volume_max: "0", defaults_volume: "-20" };
+/** @param {Record<string, string>} spec */
 const formFields = (spec) => Object.entries(spec).map(([name, value]) => ({ name, value }));
 
 // The daemon's /matrix form. `loud()` builds the loudness fields the card reads;
@@ -54,6 +56,15 @@ const formFields = (spec) => Object.entries(spec).map(([name, value]) => ({ name
 // every case that pins a handle's own min/max overrides one half of this pair
 // with a different number — a bound assertion that echoed the fixture's own
 // string back would pass on a card that simply forwarded the daemon's window.
+/**
+ * One field of the /matrix form as this suite puts it on the wire: the name and
+ * the value every field carries, plus the declared window the two range fields
+ * ship with and the flags do not.
+ *
+ * @typedef {{ name: string, value: string | boolean, min?: string, max?: string }} MatrixField
+ */
+
+/** @type {{ min: string, max: string }} */
 const BOUND = { min: "-120", max: "0" };
 
 // The matrix engine's own enable flag rides the same form (`enabled`,
@@ -65,8 +76,19 @@ const BOUND = { min: "-120", max: "0" };
 // `null` for either flag omits that field entirely, which is how a form that
 // never carried the switch looks on the wire; `bound` overrides the declared
 // window the two range fields ship with.
+/**
+ * @param {{
+ *   enabled?: boolean | null,
+ *   engine?: boolean | null,
+ *   low?: string,
+ *   high?: string,
+ *   bound?: { min?: string, max?: string },
+ * }} [spec]
+ * @returns {MatrixField[]}
+ */
 function loud({ enabled = true, engine = true, low, high, bound = {} } = {}) {
   const window = { ...BOUND, ...bound };
+  /** @type {MatrixField[]} */
   const fields = [];
   if (engine !== null) fields.push({ name: "enabled", value: engine });
   if (enabled !== null) fields.push({ name: "post_loudness_enabled", value: enabled });
@@ -75,6 +97,11 @@ function loud({ enabled = true, engine = true, low, high, bound = {} } = {}) {
   return fields;
 }
 
+/**
+ * @param {MatrixField[]} [matrixFields]
+ * @param {Record<string, string>} [form]
+ * @returns {Promise<void>}
+ */
 async function reset(matrixFields = [], form = FORM) {
   stagingWire();
   engineState.value = {};
@@ -89,20 +116,35 @@ const bar = () => render(html`<${VolumeRangeBar} />`);
 // --- reading the rendered track ---------------------------------------------------
 
 // Track position of a level in dBFS, as a percentage of the -120..+12 axis.
+/** @param {number} db */
 const pos = (db) => ((db + 120) / 132) * 100;
 
 // Marks are placed by percentage; a mark is "at" a level when it lands within
 // half a percent of it. The closest pair of gridlines the axis draws (0 and -3
 // dBFS) are 2.3% apart, so this cannot confuse one mark for another, and it
 // holds however many decimals the component chooses to print.
+/**
+ * @param {number | undefined} a
+ * @param {number} b
+ */
 const near = (a, b) => a !== undefined && Math.abs(a - b) < 0.5;
 
+/**
+ * @param {string} attrs
+ * @param {string} name
+ */
 const attrOf = (attrs, name) => (new RegExp(`\\s${name}="([^"]*)"`).exec(attrs) || [])[1];
+/**
+ * @param {string} attrs
+ * @param {string} prop
+ * @returns {number | undefined}
+ */
 const cssPct = (attrs, prop) => {
   const style = attrOf(attrs, "style") || "";
   const hit = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*(-?[\\d.]+)%`).exec(style);
   return hit ? parseFloat(hit[1]) : undefined;
 };
+/** @param {string} s */
 const decode = (s) =>
   s
     .replace(/&quot;/g, '"')
@@ -111,8 +153,27 @@ const decode = (s) =>
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 
+/**
+ * One mark read off the rendered card: its class words, its two track positions
+ * — each absent when the element carries no percentage for that edge — and its
+ * flattened text.
+ *
+ * @typedef {{
+ *   words: string[],
+ *   left: number | undefined,
+ *   right: number | undefined,
+ *   text: string,
+ * }} Mark
+ */
+
 // Every element of `tag` whose class list contains `word` as a whole word, with
 // its position, its remaining class words, and its text.
+/**
+ * @param {string} out
+ * @param {string} tag
+ * @param {string} word
+ * @returns {Mark[]}
+ */
 function elements(out, tag, word) {
   return out
     .split(`<${tag}`)
@@ -137,19 +198,30 @@ function elements(out, tag, word) {
     .filter((e) => e.words.includes(word));
 }
 
+/** @param {string} out */
 const ticks = (out) => elements(out, "div", "vr-tick");
+/** @param {string} out */
 const labels = (out) => elements(out, "span", "vr-tick-label");
 
 // Whole tags — of any element name — whose class list carries `word`. The
 // loudness bound handles and the legend are addressed this way because what the
 // card owes is the class word and the attributes, not any particular element
 // name around them.
+/** @param {string} tag */
 const classWords = (tag) => (attrOf(tag, "class") || "").split(/\s+/).filter(Boolean);
+/**
+ * @param {string} out
+ * @param {string} word
+ */
 const tagged = (out, word) =>
   [...out.matchAll(/<[a-zA-Z][^>]*>/g)].map((m) => m[0]).filter((t) => classWords(t).includes(word));
 
 // The card's own class words. Missing card is an error rather than an empty
 // list, so an absence assertion cannot pass by the card having vanished.
+/**
+ * @param {string} out
+ * @returns {string[]}
+ */
 const cardWords = (out) => {
   const tag = tagged(out, "vr-card")[0];
   if (!tag) throw new Error("no element with class vr-card in the rendered card");
@@ -158,19 +230,31 @@ const cardWords = (out) => {
 
 // The band is addressed by its class word alone: what the card owes is a lane
 // spanning the two bounds, not any particular element name around it.
+/** @param {string} out */
 const lanes = (out) => tagged(out, "vr-loud").map((t) => ({ left: cssPct(t, "left"), right: cssPct(t, "right") }));
 
 // A control is gated when it carries the `disabled` attribute itself — not when
 // the word appears inside `aria-disabled`, a class name, or any other value.
+/** @param {string} tag */
 const isDisabled = (tag) => /\sdisabled(?:=|[\s/>])/.test(tag.replace(/="[^"]*"/g, "="));
 
 // The card's own three volume handles, which ride the same track as the two
 // loudness bounds and gray on their own reasons.
 const VOLUME_HANDLES = ["vr-min", "vr-startup", "vr-max"];
+/**
+ * @param {string} out
+ * @param {string} word
+ */
 const volumeHandle = (out, word) => tagged(out, word).filter((t) => attrOf(t, "type") === "range")[0] || "";
+/** @param {string} out */
 const volumeHandles = (out) => VOLUME_HANDLES.map((word) => volumeHandle(out, word)).filter(Boolean);
 
 // The text of the first element carrying `word`, nested markup flattened.
+/**
+ * @param {string} out
+ * @param {string} word
+ * @returns {string | undefined}
+ */
 function innerText(out, word) {
   const open = tagged(out, word)[0];
   if (!open) return undefined;
@@ -196,18 +280,45 @@ function innerText(out, word) {
 
 const LOW = "vr-loud-low";
 const HIGH = "vr-loud-high";
+/**
+ * @param {string} out
+ * @param {string} word
+ */
 const bound = (out, word) => tagged(out, word)[0] || "";
+/** @param {string} out */
 const bounds = (out) => [...tagged(out, LOW), ...tagged(out, HIGH)];
+/** @param {string} out */
 const numberBoxes = (out) =>
   [...out.matchAll(/<input[^>]*>/g)].map((m) => m[0]).filter((t) => attrOf(t, "type") === "number");
 
 // The one extra class word a mark carries beside its own kind: a gridline's
 // weight, a label's anchor.
+/**
+ * @param {Mark | undefined} el
+ * @param {string} kind
+ * @returns {string | undefined}
+ */
 const modifier = (el, kind) => (el ? el.words.filter((w) => w !== kind)[0] : undefined);
 
+/**
+ * @param {string} out
+ * @param {number} db
+ */
 const tickAt = (out, db) => ticks(out).find((t) => near(t.left, pos(db)));
+/**
+ * @param {string} out
+ * @param {number} db
+ */
 const labelAt = (out, db) => labels(out).find((l) => near(l.left, pos(db)));
+/**
+ * @param {string} out
+ * @param {string} weight
+ */
 const weightCount = (out, weight) => ticks(out).filter((t) => modifier(t, "vr-tick") === weight).length;
+/**
+ * @param {string} out
+ * @param {string} anchor
+ */
 const anchorCount = (out, anchor) => labels(out).filter((l) => modifier(l, "vr-tick-label") === anchor).length;
 
 // --- gridlines ---------------------------------------------------------------------

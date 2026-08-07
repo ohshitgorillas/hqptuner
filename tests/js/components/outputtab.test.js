@@ -32,13 +32,17 @@ import { config, matrixConfig, metadata, engineState, enums } from "../../../hqp
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
+import { formFields, section, stateOf } from "../support/tabform.js";
 
-// The daemon's own forms, keyed by FORM FIELD name (backend's field is `backend`,
-// DAC correction's is `post_correction_enabled` on /matrix). A spec value is
-// either a bare value or a {value, options} pair for a dropdown.
-const formFields = (spec) =>
-  Object.entries(spec).map(([name, v]) => (v && v.options ? { name, ...v } : { name, value: v }));
+/** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
 
+/**
+ * @param {{
+ *   cfg?: Record<string, FieldSpec>,
+ *   mtx?: Record<string, FieldSpec>,
+ *   file?: Record<string, string>,
+ * }} [opts]
+ */
 async function reset({ cfg = {}, mtx = {}, file = { mode: "auto" } } = {}) {
   stagingWire();
   engineState.value = {};
@@ -55,6 +59,10 @@ const tab = () => render(html`<${Output} />`);
 
 // One card's fragment, from its head to its close. Cards on this tab carry no
 // nested <section>, so the first close after the head is the card's own.
+/**
+ * @param {string} out
+ * @param {string} title
+ */
 const card = (out, title) => {
   const head = out.indexOf(`<div class="card-head">${title}</div>`);
   return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
@@ -63,6 +71,7 @@ const card = (out, title) => {
 // The dsp-body wrapper's full extent: from its opening tag to its matching
 // close, tracked by <div>/</div> depth so nested row divs stay inside. Empty
 // string when the fragment carries no dsp-body at all.
+/** @param {string} frag */
 const dspBody = (frag) => {
   const start = frag.indexOf('<div class="dsp-body');
   if (start < 0) return "";
@@ -74,20 +83,6 @@ const dspBody = (frag) => {
     if (depth === 0) return frag.slice(start, m.index + m[0].length);
   }
   return frag.slice(start);
-};
-
-// One backend disclosure's fragment, keyed by the title in its head.
-const section = (out, title) => {
-  const head = out.indexOf(`</span> ${title}</button>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
-
-// That disclosure's state — "open" or "closed" — off the section's own class.
-const MARK = '<section class="card ';
-const stateOf = (out, title) => {
-  const head = out.indexOf(`</span> ${title}</button>`);
-  const at = head < 0 ? -1 : out.lastIndexOf(MARK, head);
-  return at < 0 ? "" : out.slice(at + MARK.length).split('"')[0];
 };
 
 const ALSA = "ALSA Backend";
@@ -102,7 +97,9 @@ const NET_DEVICES = [
   { value: "", label: "" },
   { value: "naa:1", label: "Living room NAA" },
 ];
+/** @param {string} value */
 const alsaDev = (value) => ({ value, options: ALSA_DEVICES });
+/** @param {string} value */
 const netDev = (value) => ({ value, options: NET_DEVICES });
 // Both backends pointed at a device that is actually present.
 const PRESENT = { alsa_device: alsaDev("hw:0"), net_device: netDev("naa:1") };

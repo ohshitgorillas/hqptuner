@@ -15,6 +15,12 @@ import { rowToRewText, pipelinesToRewText } from "../../../hqptuner/static/lib/e
 import { parseEqText } from "../../../hqptuner/static/lib/eqimport.js";
 import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 
+/** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
+
+/**
+ * @param {Partial<PipelineRow>} patch
+ * @returns {PipelineRow}
+ */
 const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", process: "", ...patch });
 const PEAK = "iir:type=peak;f=105;q=1.41;g=-3.2";
 

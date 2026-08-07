@@ -86,13 +86,23 @@ const APPLY = 1;
 const SAVE = 2;
 const SAVE_NEW = 3;
 
+/** @param {string} out */
 const buttons = (out) =>
   out
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+/** @param {string} b */
 const attrsOf = (b) => b.slice(0, b.indexOf(">"));
+/**
+ * @param {string} out
+ * @param {number} i
+ */
 const disabled = (out, i) => attrsOf(buttons(out)[i]).includes("disabled");
+/**
+ * @param {string} out
+ * @param {number} i
+ */
 const label = (out, i) => {
   const b = buttons(out)[i];
   return b.slice(b.indexOf(">") + 1).trim();
