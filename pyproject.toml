@@ -57,9 +57,13 @@ pytest_add_cli_args = ["-m", "not live", "-x", "-q"]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not
 # called by name, so ignore those decorators or every @router.* endpoint reads
 # as unused. min_confidence 60 is vulture's floor for unused module-level defs.
-paths = ["hqptuner"]
+paths = ["hqptuner", "scripts", "tests"]
 min_confidence = 60
-ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.delete"]
+ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.delete", "@pytest.fixture"]
+# BaseHTTPRequestHandler overrides in the wire-protocol fakes are dispatched by
+# http.server via getattr, never called by name; pytest_plugins is read by
+# pytest itself. All four read as unused to a static sweep.
+ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins"]
 
 [tool.ruff]
 line-length = 120
