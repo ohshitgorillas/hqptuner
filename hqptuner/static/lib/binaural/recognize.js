@@ -149,7 +149,7 @@ function recoverEar(ear) {
   const same = g[6] + g[7]; // (lambda+1)/4 * k
   const cross = g[2] + g[3]; // (lambda-1)/4 * k
   const diff = same - cross; // k/2
-  if (!(diff > 0)) return null;
+  if (Number.isNaN(diff) || diff <= 0) return null;
   return {
     k: 2 * diff,
     lambda: (same + cross) / diff,

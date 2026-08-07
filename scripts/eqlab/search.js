@@ -56,7 +56,7 @@ function makeMeasurer(ctx, sample) {
 }
 
 function parseObjective(text) {
-  const m = /^\s*(maximize|minimize)\s+(.+)$/i.exec(String(text || ""));
+  const m = /^\s*(maximize|minimize)\s+(\S.*)$/i.exec(String(text || ""));
   if (!m) throw new Error('search: objective must read "maximize <expr>" or "minimize <expr>"');
   return { direction: m[1].toLowerCase(), ast: parse(m[2]), expr: m[2].trim() };
 }

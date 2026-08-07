@@ -57,7 +57,7 @@ function pointsDb(freqs, points) {
 
 // --- points sources ---------------------------------------------------------
 
-const NUMBER_RE = /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+const NUMBER_RE = /^[-+]?(\d+(?:\.\d*)?|\.\d+)([eE][-+]?\d+)?$/;
 
 /**
  * Plain measured-response text: one point per line, whitespace-separated,
@@ -100,6 +100,10 @@ const median = (xs) => {
 // normally distributed data.
 const MAD_SCALE = 1.4826;
 
+// NaN fails every comparison, so `x <= 0` lets a NaN through where the older
+// `!(x > 0)` spelling caught it. This keeps that guard in one place.
+const notPositive = (x) => Number.isNaN(x) || x <= 0;
+
 function despikeOptions(spec) {
   const opts = spec === true ? {} : spec;
   if (!opts || typeof opts !== "object")
@@ -108,7 +112,7 @@ function despikeOptions(spec) {
   const threshold = opts.threshold_db ?? 3;
   if (!(Number.isInteger(window) && window >= 3 && window % 2 === 1))
     throw new Error(`target: despike window must be an odd integer >= 3, got ${JSON.stringify(opts.window)}`);
-  if (!(threshold > 0))
+  if (notPositive(threshold))
     throw new Error(`target: despike threshold_db must be positive, got ${JSON.stringify(opts.threshold_db)}`);
   return { half: (window - 1) / 2, threshold };
 }
@@ -220,7 +224,7 @@ async function sourceDb(spec, base, fs) {
 }
 
 function boxSmooth(freqs, db, octaves) {
-  if (!(octaves > 0)) throw new Error(`target: smooth octaves must be positive, got ${octaves}`);
+  if (notPositive(octaves)) throw new Error(`target: smooth octaves must be positive, got ${octaves}`);
   const perOctave = Math.LN2 / ln(freqs[1] / freqs[0]);
   const half = Math.max(1, Math.round((octaves / 2) * perOctave));
   return db.map((_, i) => {

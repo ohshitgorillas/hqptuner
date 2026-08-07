@@ -363,7 +363,7 @@ test("test_nothing_is_left_grayed_once_a_re_enumerating_write_is_refused", async
 // The graying is the whole of it: no caption, note or status text appears while
 // it is open, so the page's text is the same text either way.
 
-const words = (out) => out.replace(/<[^>]*>/g, "");
+const words = (out) => out.replace(/<[^<>]*>/g, "");
 
 test("test_the_window_adds_no_text_to_the_page", async () => {
   await reset();

@@ -68,7 +68,7 @@ function perQFloorDb(q) {
 // naming out loud.
 function highQStepFlag({ where, args, delta }) {
   const q = Number(args.q);
-  if (!(q >= Q_NARROW) || Math.abs(delta) <= perQFloorDb(q)) return [];
+  if (Number.isNaN(q) || q < Q_NARROW || Math.abs(delta) <= perQFloorDb(q)) return [];
   return [
     {
       severity: "guidance",

@@ -36,7 +36,7 @@ export async function readXmlRows(path) {
   if (!body) throw new Error(`xml: no <matrix> element in ${path}`);
   const rows = [];
   for (const pm of body[1].matchAll(/<pipeline\b[^>]*\/>/g)) {
-    const attrs = Object.fromEntries([...pm[0].matchAll(/(\w+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+    const attrs = Object.fromEntries([...pm[0].matchAll(/\b(\w+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
     rows.push({ index: Number(attrs.channel ?? rows.length), process: attrUnescape(attrs.process ?? "") });
   }
   if (rows.length === 0) throw new Error(`xml: no <pipeline> rows in ${path}`);

@@ -192,7 +192,7 @@ test("test_a_preset_failure_shows_on_the_card", async () => {
 // tooltips — one of which is literally "Selects default output mode." — satisfy
 // assertions about the card's prose.
 const prose = (frag) =>
-  decode(frag.replace(/<[^>]*>/g, " "))
+  decode(frag.replace(/<[^<>]*>/g, " "))
     .replace(/\s+/g, " ")
     .trim();
 

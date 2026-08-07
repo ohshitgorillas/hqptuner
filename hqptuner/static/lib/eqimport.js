@@ -42,7 +42,11 @@ const TYPE_MAP = {
 const GAINLESS = new Set(["lp", "hp", "notch", "ap"]);
 
 const PREAMP_RE = /^Preamp\s*:\s*(-?\d+(?:\.\d+)?)\s*dB/i;
-const FILTER_RE = /^Filter\s*\d+\s*:\s*(ON|OFF)\s+([A-Za-z]+)\s*(.*)$/i;
+// `(\S.*|)` rather than `(.*)`: `.` matches a space, so `\s*(.*)` leaves the
+// engine free to split the gap after the type either way, and that ambiguity is
+// what makes the match super-linear. The empty alternative keeps group 3
+// defined for a filter that carries no arguments.
+const FILTER_RE = /^Filter\s*\d+\s*:\s*(ON|OFF)\s+([a-z]+)\b\s*(\S.*|)$/i;
 
 /**
  * @param {string} line the trimmed source line, quoted back in any skip reason

@@ -14,7 +14,7 @@ export const MAX_STEPS = 100_000;
 const asList = (x) => (x === undefined ? [] : Array.isArray(x) ? x : [x]);
 
 function rangeValues(from, to, step) {
-  if (!(step > 0)) throw new Error(`search: step must be positive, got ${step}`);
+  if (Number.isNaN(step) || step <= 0) throw new Error(`search: step must be positive, got ${step}`);
   if (to < from) throw new Error(`search: range [${from}, ${to}] runs backwards`);
   const n = Math.floor((to - from) / step + 1e-9) + 1;
   if (n > MAX_STEPS)

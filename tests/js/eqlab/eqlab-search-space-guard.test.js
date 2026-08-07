@@ -49,7 +49,7 @@ test("test_a_search_job_whose_space_is_a_string_is_rejected_naming_job_space", (
 test("test_a_misplaced_amend_under_the_job_is_named_and_pointed_at_job_space", () => {
   assert.throws(
     () => searchJob(jobOf({ space: undefined, amend: SPACE.amend }), CTX),
-    /(?=[\s\S]*amend)(?=[\s\S]*job\.space)/,
+    /^(?=[\s\S]*amend)(?=[\s\S]*job\.space)/,
   );
 });
 
@@ -64,7 +64,7 @@ test("test_misplaced_replace_and_append_under_the_job_are_both_named", () => {
         }),
         CTX,
       ),
-    /(?=[\s\S]*replace)(?=[\s\S]*append)(?=[\s\S]*job\.space)/,
+    /^(?=[\s\S]*replace)(?=[\s\S]*append)(?=[\s\S]*job\.space)/,
   );
 });
 

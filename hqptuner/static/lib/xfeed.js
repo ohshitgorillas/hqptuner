@@ -351,7 +351,7 @@ const usableRow = (/** @type {PipelineRow} */ r) =>
  */
 function blockGain(b) {
   const k = Math.abs(Number(b[0].gain));
-  if (!(k > 0)) return null;
+  if (Number.isNaN(k) || k <= 0) return null;
   return b.some((r) => Math.abs(Math.abs(Number(r.gain)) - k) > 1e-6) ? null : k;
 }
 

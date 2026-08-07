@@ -129,7 +129,7 @@ function elements(out, tag, word) {
         text: decode(
           inner
             .replace(/<!--.*?-->/g, "")
-            .replace(/<[^>]*>/g, "")
+            .replace(/<[^<>]*>/g, "")
             .trim(),
         ),
       };

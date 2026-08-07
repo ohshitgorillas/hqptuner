@@ -30,6 +30,21 @@ const RULES = {
   // cyclomatic complexity scores as cheap.
   "sonarjs/cognitive-complexity": "error",
   "sonarjs/no-identical-functions": "error",
+  // `!(a === b)` and friends: the negation reads as a claim about the whole
+  // expression when it is really one about the operator.
+  "sonarjs/no-inverted-boolean-check": "error",
+  // `^a|b$` binds looser than it reads — the alternation splits the whole
+  // pattern, so only one branch is anchored. Always a bug or a misreading.
+  "sonarjs/anchor-precedence": "error",
+  // A character class listing the same character twice. Usually harmless, but
+  // it is the shape a case-insensitive [A-Za-z] takes, where the /i flag has
+  // already merged the two halves and the second one is telling you nothing.
+  "sonarjs/duplicates-in-character-class": "error",
+  // Backtracking that goes super-linear on input length. Enforced everywhere,
+  // tests included: a regex whose cost explodes is worth fixing wherever it
+  // lives, and exempting the trees where it is merely cheap to ignore is how
+  // the rule stops being a rule.
+  "sonarjs/super-linear-regex": "error",
 };
 
 const PLUGINS = { sonarjs };

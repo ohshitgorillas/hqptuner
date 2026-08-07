@@ -191,7 +191,7 @@ const placement = (out) => {
 const gateRowText = (out) => {
   const body = collapsed(bodyOf(crossfeedCard(out)));
   const cap = body.indexOf(CAPTION);
-  return collapsed((cap < 0 ? body : body.slice(0, cap)).replace(/<[^>]*>/g, " ")).trim();
+  return collapsed((cap < 0 ? body : body.slice(0, cap)).replace(/<[^<>]*>/g, " ")).trim();
 };
 
 // Whether the response card's HEAD carries the button — or a sentence saying the

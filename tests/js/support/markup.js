@@ -18,12 +18,19 @@ const VOID = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input"
 // below ("what is the OUTERMOST element carrying this?", "what is the SMALLEST
 // element enclosing that?") quietly answer about the wrong element.
 export function elements(out) {
-  const tag = /<(\/?)([a-zA-Z][\w-]*)((?:[^>"]|"[^"]*")*?)(\/?)>/g;
+  // The attribute run is greedy, not lazy, and the name is followed by a
+  // lookahead: both alternatives inside the run start with a different
+  // character class, so a greedy run has exactly one way to match and the
+  // engine never re-splits it. A lazy run plus a trailing (\/?) gave it two.
+  // The self-closing slash lands at the end of the run and is peeled off below.
+  const tag = /<(\/?)([a-zA-Z][\w-]*)(?=[\s/>])((?:[^>"]|"[^"]*")*)>/g;
   const stack = [];
   const all = [];
   let m;
   while ((m = tag.exec(out)) !== null) {
-    const [full, close, name, attrs, selfClose] = m;
+    const [full, close, name, run] = m;
+    const selfClose = run.endsWith("/");
+    const attrs = selfClose ? run.slice(0, -1) : run;
     if (close) {
       const at = stack.map((e) => e.name).lastIndexOf(name);
       if (at < 0) continue;
@@ -44,7 +51,7 @@ export const classes = (el) => ((/class="([^"]*)"/.exec(el.attrs) || [])[1] || "
 // What a reader sees inside an element: markup stripped, whitespace collapsed.
 export const text = (el) =>
   el.html
-    .replace(/<[^>]*>/g, "")
+    .replace(/<[^<>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
 

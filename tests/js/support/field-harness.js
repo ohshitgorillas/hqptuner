@@ -170,10 +170,21 @@ export function outsideControlRow(out) {
 }
 
 // Text of the gray-reason element in a fragment, whatever tag carries the class.
+// Found in two steps, the way advice() below does it: one regex that matches an
+// opening tag and a separate test of its class attribute. Asking a single
+// pattern for "a tag whose attributes contain this class somewhere" leaves the
+// engine re-splitting the attribute run at every offset, which is super-linear.
 export function grayReason(fragment) {
-  const re = /<(\w+)[^>]*\bclass="[^"]*\bfield-gray-reason\b[^"]*"[^>]*>([\s\S]*?)<\/\1>/;
-  const m = re.exec(fragment || "");
-  return m ? m[2] : null;
+  const openers = /<(\w+)\b[^<>]*>/g;
+  let open;
+  while ((open = openers.exec(fragment || "")) !== null) {
+    const cls = (/\bclass="([^"]*)"/.exec(open[0]) || [])[1] || "";
+    if (!/\bfield-gray-reason\b/.test(cls)) continue;
+    const rest = fragment.slice(open.index + open[0].length);
+    const close = new RegExp(`</${open[1]}>`).exec(rest);
+    return close ? rest.slice(0, close.index) : null;
+  }
+  return null;
 }
 
 // Text of the advisory element in a fragment, whatever tag carries the class.
@@ -185,7 +196,7 @@ export function grayReason(fragment) {
 // matches `field-advice-note` and would report a different element's text as
 // the advisory.
 export function advice(fragment) {
-  const openers = /<(\w+)[^>]*>/g;
+  const openers = /<(\w+)\b[^<>]*>/g;
   let open;
   while ((open = openers.exec(fragment || "")) !== null) {
     const cls = (/\bclass="([^"]*)"/.exec(open[0]) || [])[1] || "";

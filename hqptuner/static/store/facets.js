@@ -62,7 +62,7 @@ import { enums, metadata } from "./signals.js";
  * @returns {number}
  */
 function quality(desc) {
-  const m = /(\d+)\s*\/\s*5/.exec(desc || "");
+  const m = /\b(\d+)\s*\/\s*5/.exec(desc || "");
   return m ? Number(m[1]) : null;
 }
 
@@ -107,12 +107,14 @@ function focus(desc) {
  * @returns {string}
  */
 function normRatio(s) {
-  const t = (s || "")
+  const raw = (s || "")
     .toLowerCase()
     .replace(/ˣ/g, "x") // 2ˣ -> 2x
     .replace(/\^/g, "") // 2^x -> 2x
-    .replace(/\s*up\s*$/, "")
     .trim();
+  // Drop a trailing "up", as in "2x up". A slice rather than /\s*up$/, which
+  // the engine has to retry from every offset in the string.
+  const t = raw.endsWith("up") ? raw.slice(0, -2).trimEnd() : raw;
   if (!t) return null;
   if (t === "1:1") return "1:1";
   if (t.startsWith("int")) return "integer";
@@ -152,9 +154,9 @@ function ratioFacet(liveDesc, s) {
  */
 function phase(name) {
   const n = name || "";
-  if (/-ip\b|-ip$/.test(n)) return "intermediate";
+  if (/-ip\b/.test(n)) return "intermediate";
   if (/-mp\b|-mp$|min/i.test(n)) return "minimum";
-  if (/-lp\b|-lp$/.test(n)) return "linear";
+  if (/-lp\b/.test(n)) return "linear";
   return "";
 }
 
@@ -221,7 +223,7 @@ function length(name) {
   if (LENGTH_OVERRIDES[base]) return LENGTH_OVERRIDES[base];
   if (/short|shrt|-hb-xs$|-hb-s$/.test(base)) return "short";
   if (/-xla?$/.test(base)) return "xlong";
-  if (/long|-hb-l$/.test(base)) return "long";
+  if (/(?:long)|(?:-hb-l$)/.test(base)) return "long";
   return "medium";
 }
 

@@ -27,15 +27,33 @@ const openTag = (out, needle) => {
 // The dd-opt rows of a rendered field: full opening tag + tag-stripped text.
 // The favorite-star button is an affordance riding in the row, not part of its
 // label — drop it whole (tag AND glyph) before stripping the remaining tags.
+// Asking one pattern for "a tag whose attributes contain this class somewhere"
+// makes the engine re-split the attribute run at every offset, so the opening
+// tag is matched first and its class attribute tested separately. Same reason
+// the favourite-star button is matched whole and then checked for dd-fav.
+const classOf = (tag) => (/\bclass="([^"]*)"/.exec(tag) || [])[1] || "";
+
+const withoutFavButton = (s) =>
+  s.replace(/<button\b[^<>]*>[\s\S]*?<\/button>/g, (b) => (/\bdd-fav\b/.test(b.slice(0, b.indexOf(">"))) ? "" : b));
+
 function optRows(out) {
-  const rows = [...(out || "").matchAll(/<(\w+)([^>]*\bclass="[^"]*\bdd-opt\b[^"]*"[^>]*)>([\s\S]*?)<\/\1>/g)];
-  return rows.map((m) => ({
-    tag: `<${m[1]}${m[2]}>`,
-    text: m[3]
-      .replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "")
-      .replace(/<[^>]*>/g, "")
-      .trim(),
-  }));
+  const src = out || "";
+  const openers = /<(\w+)\b([^<>]*)>/g;
+  const rows = [];
+  let open;
+  while ((open = openers.exec(src)) !== null) {
+    if (!/\bdd-opt\b/.test(classOf(open[0]))) continue;
+    const rest = src.slice(open.index + open[0].length);
+    const close = new RegExp(`</${open[1]}>`).exec(rest);
+    const inner = close ? rest.slice(0, close.index) : rest;
+    rows.push({
+      tag: open[0],
+      text: withoutFavButton(inner)
+        .replace(/<[^<>]*>/g, "")
+        .trim(),
+    });
+  }
+  return rows;
 }
 
 const FILTER_FIELDS = [
