@@ -402,5 +402,3 @@ export function applyChanges(stages, changes) {
   }
   return { stages: out, edits };
 }
-
-export const serialize = serializeProcess;

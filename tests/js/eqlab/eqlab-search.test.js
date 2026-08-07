@@ -17,7 +17,8 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { valueAt } from "../../../scripts/eqlab/curve.js";
-import { resolveChain, applyChanges, serialize } from "../../../scripts/eqlab/chain.js";
+import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
+import { resolveChain, applyChanges } from "../../../scripts/eqlab/chain.js";
 import { searchJob } from "../../../scripts/eqlab/search.js";
 import { expandValue, expandChange } from "../../../scripts/eqlab/space.js";
 import { FS, near, band, curve, serveRows, REAL_FETCH } from "../support/eqlab-helpers.js";
@@ -238,5 +239,5 @@ test("test_a_constraint_naming_a_metric_outside_the_panel_is_rejected", () => {
 
 test("test_a_result_entrys_changes_reproduce_its_process_string", () => {
   const rebuilt = applyChanges(BASE, OPEN.top[0].changes);
-  assert.equal(serialize(rebuilt.stages), OPEN.top[0].process);
+  assert.equal(serializeProcess(rebuilt.stages), OPEN.top[0].process);
 });

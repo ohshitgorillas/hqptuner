@@ -9,7 +9,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { applyChanges, serialize, selectBand } from "../../../scripts/eqlab/chain.js";
+import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
+import { applyChanges, selectBand } from "../../../scripts/eqlab/chain.js";
 import { candidates } from "../../../scripts/eqlab/space.js";
 import { evaluateJob } from "../../../scripts/eqlab/jobs.js";
 import { searchJob, refineJob } from "../../../scripts/eqlab/search.js";
@@ -68,7 +69,7 @@ test("test_replace_yields_original_minus_removed_plus_added_stage_count", () => 
 });
 
 test("test_a_removed_band_leaves_no_trace_in_the_process_string", () => {
-  assert.equal(hasBand(serialize(REPL.stages), 1000), false);
+  assert.equal(hasBand(serializeProcess(REPL.stages), 1000), false);
 });
 
 test("test_the_with_band_sits_where_the_first_removed_band_sat", () => {
@@ -89,7 +90,7 @@ test("test_an_empty_with_list_means_pure_removal", () => {
 });
 
 test("test_pure_removal_leaves_no_g_zero_placeholder", () => {
-  assert.equal(hasBand(serialize(PURE.stages), 1000), false);
+  assert.equal(hasBand(serializeProcess(PURE.stages), 1000), false);
 });
 
 // --- 3, 4, 5: validation -----------------------------------------------------

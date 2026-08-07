@@ -26,8 +26,8 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
 import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { resetNarrowing, nFavOnly } from "../../../hqptuner/static/store/narrowing.js";
-import { favoriteFilters, toggleFavorite } from "../../../hqptuner/static/store/favorites.js";
+import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { favoriteFilters, toggleFavorite, nFavOnly } from "../../../hqptuner/static/store/favorites.js";
 import { staticWire } from "../support/wire.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */

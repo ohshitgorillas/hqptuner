@@ -1,7 +1,7 @@
 // The probe, evaluate and diff jobs, plus the panel shape all share with search.
 
-import { stageArgs } from "../../hqptuner/static/lib/matrixspec.js";
-import { applyChanges, isEq, resolveChain, serialize } from "./chain.js";
+import { serializeProcess, stageArgs } from "../../hqptuner/static/lib/matrixspec.js";
+import { applyChanges, isEq, resolveChain } from "./chain.js";
 import { curveOf, extrema, preampDb, preampDbFull, round } from "./curve.js";
 import { fitOfEdits } from "./fit.js";
 import { guidanceFlags, headroomFlags } from "./guidance.js";
@@ -81,7 +81,7 @@ function panelOf(stages, fs, metricSpecs, target) {
     preamp,
     preampFull,
     out: {
-      process: serialize(stages),
+      process: serializeProcess(stages),
       band_count: stages.length,
       preamp_db: round(preamp, 2),
       preamp_db_full: round(preampFull, 2),

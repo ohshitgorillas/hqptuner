@@ -18,7 +18,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { resolveChain, serialize } from "../../../scripts/eqlab/chain.js";
+import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
+import { resolveChain } from "../../../scripts/eqlab/chain.js";
 import { readSnapshot, snapshotJob, exportJob } from "../../../scripts/eqlab/io.js";
 import { diffJob } from "../../../scripts/eqlab/jobs.js";
 import { resolveMetricSpecs } from "../../../scripts/eqlab/metrics.js";
@@ -108,7 +109,7 @@ test("test_the_save_result_reports_a_numeric_preamp", async () => {
 test("test_the_save_result_reports_the_serialized_process_string", async () => {
   const ctx = await ctxOf(TAIL_BANDS);
   const result = /** @type {SaveResult} */ (await snapshotJob({ save: "tuned", dir: tmp() }, ctx));
-  assert.equal(result.saved.process, serialize(ctx.stages));
+  assert.equal(result.saved.process, serializeProcess(ctx.stages));
 });
 
 test("test_saving_over_an_existing_name_without_overwrite_is_rejected", async () => {
@@ -148,7 +149,7 @@ test("test_a_loaded_snapshot_carries_the_saved_chains_bands", async () => {
   const ctx = await ctxOf(TAIL_BANDS);
   await snapshotJob({ save: "tuned", dir }, ctx);
   const loaded = await resolveChain({ from: "snapshot", name: "tuned", dir });
-  assert.equal(serialize(loaded.stages), serialize(ctx.stages));
+  assert.equal(serializeProcess(loaded.stages), serializeProcess(ctx.stages));
 });
 
 test("test_a_loaded_snapshot_reports_snapshot_as_its_source_kind", async () => {

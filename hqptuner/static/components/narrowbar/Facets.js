@@ -7,8 +7,8 @@ import { GENRES, QUALITY, FOCUS, PHASES, LENGTHS, RATIOS } from "./facet-data.js
 import { genreOpen, qualityOpen, focusOpen, phaseOpen, lengthOpen, ratioOpen } from "./popover.js";
 import { focusLabel, genreLabel, ratioLabel, oneLabel, toggleVal } from "./labels.js";
 import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
-import { nGenre, nQuality, nFocus, nPhase, nLength, nRatio, nUpsampleOnly, nFavOnly } from "../../store/narrowing.js";
-import { favoriteFilters } from "../../store/favorites.js";
+import { nGenre, nQuality, nFocus, nPhase, nLength, nRatio, nUpsampleOnly } from "../../store/narrowing.js";
+import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
 
 // The facet row: six dropdowns and the favorites toggle. Each dropdown's `count`
 // maps a candidate option to the narrowing override the chip counts against.

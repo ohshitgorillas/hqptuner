@@ -34,14 +34,15 @@ import { useStorage, dropStorage } from "../support/storage.js";
 const warns = [];
 const realWarn = console.warn;
 console.warn = (msg) => warns.push(String(msg));
-const { favoriteFilters, toggleFavorite, isFavorite } = await import("../../../hqptuner/static/store/favorites.js");
+const { favoriteFilters, toggleFavorite, isFavorite, nFavOnly } =
+  await import("../../../hqptuner/static/store/favorites.js");
 // The warning window covers first USE as well as load: a module that defers its
 // storage probe to the first toggle still owes exactly one warning.
 toggleFavorite("__warmup__");
 toggleFavorite("__warmup__");
 console.warn = realWarn;
 
-const { nFavOnly, nFocus, narrowingActive, resetNarrowing, narrowOptions, narrowCount, previewCount } =
+const { nFocus, narrowingActive, resetNarrowing, narrowOptions, narrowCount, previewCount } =
   await import("../../../hqptuner/static/store/narrowing.js");
 const { enums, metadata } = await import("../../../hqptuner/static/store/signals.js");
 

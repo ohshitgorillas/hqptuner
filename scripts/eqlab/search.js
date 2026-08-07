@@ -6,7 +6,8 @@
 // candidate does not vary are summed ONCE, and each candidate re-measures only
 // the band(s) it actually moves. Metrics are still read off the summed chain.
 
-import { applyChanges, serialize } from "./chain.js";
+import { serializeProcess } from "../../hqptuner/static/lib/matrixspec.js";
+import { applyChanges } from "./chain.js";
 import { curveOf, preampDb, preampDbFull, round, sumCurves } from "./curve.js";
 import { evaluate, parse } from "./expr.js";
 import { fitOfEdits } from "./fit.js";
@@ -225,7 +226,7 @@ function survivorOut(cand, spec, constraints, ctx) {
     preamp_db_full: round(preampFull, 2),
     ...(fit.length ? { fit } : {}),
     ...(constraints.length ? { binding: bindingOf(constraints, cand.values) } : {}),
-    process: serialize(cand.stages),
+    process: serializeProcess(cand.stages),
     partial: cand.partial,
     flags: [...guidanceFlags(cand.edits, cand.stages), ...headroomFlags(cand.preamp, preampFull)],
   };

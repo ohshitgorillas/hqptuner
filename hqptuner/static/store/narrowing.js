@@ -6,11 +6,6 @@ import { signal, computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 import { favoriteFilters, nFavOnly } from "./favorites.js";
 
-// Favorites-only rides the narrow bar with the facets, so narrowing is its
-// public surface; the signal itself lives in favorites.js beside the set it
-// depends on (removing the last star turns it off).
-export { nFavOnly };
-
 export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] = any)
 export const nQuality = signal(0); // 0 = any, else minimum quality (3 | 4 | 5)
 export const nFocus = signal([]); // multi-select: transients | timbre | space

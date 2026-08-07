@@ -14,14 +14,8 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { valueAt } from "../../../scripts/eqlab/curve.js";
-import {
-  eqTail,
-  tailConsistency,
-  resolveChain,
-  selectBand,
-  applyChanges,
-  serialize,
-} from "../../../scripts/eqlab/chain.js";
+import { eqTail, tailConsistency, resolveChain, selectBand, applyChanges } from "../../../scripts/eqlab/chain.js";
+import { serializeProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 import { near, band, curve, argNum, serveRows, REAL_FETCH, XFEED, TAIL } from "../support/eqlab-helpers.js";
 
 afterEach(() => {
@@ -264,16 +258,16 @@ test("test_an_amend_and_an_append_compose_in_one_call", () => {
 });
 
 test("test_a_serialized_chain_round_trips_through_the_process_grammar", async () => {
-  const once = serialize(COMPOSED.stages);
+  const once = serializeProcess(COMPOSED.stages);
   serveRows([{ index: 0, process: once }]);
   const reread = await resolveChain({ from: "daemon" });
-  assert.equal(serialize(reread.stages), once);
+  assert.equal(serializeProcess(reread.stages), once);
 });
 
-// Anchor for the test above: identity alone also holds for a serialize() that
+// Anchor for the test above: identity alone also holds for a serializeProcess() that
 // returns the empty string, so pin what the rendered chain actually measures.
 test("test_a_serialized_chain_carries_the_amended_band_it_was_built_from", async () => {
-  serveRows([{ index: 0, process: serialize(COMPOSED.stages) }]);
+  serveRows([{ index: 0, process: serializeProcess(COMPOSED.stages) }]);
   const reread = await resolveChain({ from: "daemon" });
   assert.ok(...near(valueAt(curve(reread.stages), 1000), 4, 0.15));
 });
