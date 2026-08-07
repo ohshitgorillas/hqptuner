@@ -11,7 +11,7 @@ import pytest
 from conftest import _closed_port, _live_app, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 

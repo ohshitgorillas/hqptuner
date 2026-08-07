@@ -26,7 +26,7 @@ from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.presetstore import PresetStore
 

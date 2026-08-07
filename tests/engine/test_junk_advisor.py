@@ -32,7 +32,7 @@ from junk_spectra import (
     spur_min_176,
 )
 
-from hqptuner.api import create_app
+from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import MIN_SECONDS, classify, treats
