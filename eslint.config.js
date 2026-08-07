@@ -49,6 +49,45 @@ const RULES = {
 
 const PLUGINS = { sonarjs };
 
+// Import layering, the frontend peer of the Python contract in pyproject.toml
+// under [tool.importlinter]. Highest first:
+//
+//   app.js + components/App.js   the shell
+//   components/tabs
+//   components
+//   components/controls
+//   store
+//   lib
+//
+// A layer imports below it and never above. App.js is the shell rather than a
+// component: static/app.js renders it, it assembles the header, the tab bar and
+// the pending bar, and it is the only module under components/ that may reach
+// into tabs/.
+//
+// The node CLIs form their own chain on the same base — eqstage > eqlab >
+// static/lib — and reach into neither store/ nor components/.
+//
+// Patterns match the import SPECIFIER, not a resolved path, so each rule lists
+// the shapes a relative specifier can take from the depths that layer occupies.
+// `**` matches a leading `..` the same as any other segment.
+const ABOVE = {
+  app: "**/app.js",
+  components: ["**/components/*.js", "**/components/**/*.js"],
+  tabs: ["**/tabs/*.js", "**/tabs/**/*.js"],
+  store: ["**/store/*.js", "**/store/**/*.js"],
+  eqstage: "**/eqstage/**/*.js",
+};
+
+/**
+ * @param {string[]} group
+ * @param {string} message
+ */
+const noUp = (group, message) => ({
+  "no-restricted-imports": ["error", { patterns: [{ group, message }] }],
+});
+
+const LAYER_MSG = "import layering: a layer imports below it, never above (see the contract in eslint.config.js)";
+
 export default [
   // mutants/ is `make mutate`'s copy of the whole tree, static/ included. eslint
   // is invoked as `eslint .`, so without this it lints the copy — 83 no-undef
@@ -100,6 +139,45 @@ export default [
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
     plugins: PLUGINS,
     rules: RULES,
+  },
+  // --- the layering contract ---------------------------------------------
+  {
+    files: ["hqptuner/static/lib/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store], LAYER_MSG),
+  },
+  {
+    files: ["hqptuner/static/store/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.components], LAYER_MSG),
+  },
+  {
+    // Controls sit under the components that compose them. `../*.js` is a
+    // sibling of components/, one level up from here; `../../lib/…` is deeper
+    // and unaffected.
+    files: ["hqptuner/static/components/controls/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.tabs, "../*.js"], LAYER_MSG),
+  },
+  {
+    files: ["hqptuner/static/components/**/*.js"],
+    ignores: [
+      "hqptuner/static/components/App.js",
+      "hqptuner/static/components/tabs/**",
+      "hqptuner/static/components/controls/**",
+    ],
+    rules: noUp([ABOVE.app, ...ABOVE.tabs], LAYER_MSG),
+  },
+  {
+    files: ["hqptuner/static/components/tabs/**/*.js"],
+    rules: noUp([ABOVE.app], LAYER_MSG),
+  },
+  {
+    // The node CLIs share static/lib and nothing above it. eqstage imports
+    // eqlab; eqlab must not import back.
+    files: ["scripts/eqlab/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store, ABOVE.eqstage], LAYER_MSG),
+  },
+  {
+    files: ["scripts/eqstage/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store], LAYER_MSG),
   },
   {
     // The config and its local rules run in node.
