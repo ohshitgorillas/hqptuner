@@ -125,13 +125,26 @@ function findDial(seen) {
 
 // An element for one level of the chain: the pointer-capture and geometry
 // surface a drag handler reads off `currentTarget`.
-function element(tag = "DIV") {
+//
+// `focus()` is a real one, not a no-op: in a browser, focusing an element
+// synchronously announces the change to that element's ancestor chain, and a
+// handler that focuses its own `currentTarget` is therefore telling the
+// component the same thing a click on it would. `onFocus` is how the rig below
+// performs that announcement; an element built without one focuses nothing,
+// which is the browser's behaviour for an element already focused.
+/**
+ * @param {string} [tag]
+ * @param {() => void} [onFocus]
+ */
+function element(tag = "DIV", onFocus = () => {}) {
   /** @type {Set<unknown>} */
   const captured = new Set();
   return {
     tagName: tag,
     dataset: {},
-    focus() {},
+    focus() {
+      onFocus();
+    },
     blur() {},
     setPointerCapture: (/** @type {unknown} */ id) => captured.add(id),
     releasePointerCapture: (/** @type {unknown} */ id) => captured.delete(id),
@@ -229,24 +242,31 @@ function withBrowserGlobals(listeners, active, body) {
 // The bubble: from the dial outwards, every ancestor carrying a handler for this
 // event, then the listeners installed on window/document. Returns how many
 // recipients the event actually had.
+//
+// `elFor` names the element each level's listener sits on. Every level gets a
+// real one — a handler moved from the dial to a wrapper of the same component
+// still reads a `currentTarget` it can focus and capture the pointer on, which
+// is what a browser hands it, so which level carries the handler stays
+// implementation shape rather than something a case can accidentally pin.
 /**
  * @param {VNode[]} chain
  * @param {HarnessEvent} event
  * @param {string} prop
- * @param {{ el: unknown, globals: Function[] }} into
+ * @param {{ elFor: (v: VNode) => unknown, globals: Function[] }} into
  * @returns {number}
  */
-function bubble(chain, event, prop, { el, globals }) {
+function bubble(chain, event, prop, { elFor, globals }) {
   let reached = 0;
   for (const v of chain) {
     const handler = v.props && v.props[prop];
     if (typeof handler === "function") {
-      event.currentTarget = v === chain[0] ? el : element();
+      event.currentTarget = elFor(v);
       handler(event);
       reached += 1;
     }
     if (event.propagationStopped) break;
   }
+  const el = elFor(chain[0]);
   event.currentTarget = el;
   for (const listener of globals) {
     listener(event);
@@ -304,6 +324,205 @@ const keyFields = (key, shiftKey) => ({
 // a knob deciding on `activeElement` would answer the same either way, so the
 // harness declines to make that signal look usable.
 /**
+ * Every gesture a knob's dial can be given, on ONE render, so a case can press
+ * it and then press a key against the same component instance — which is the
+ * only way to state what a mouse press leaves behind.
+ *
+ * `focusCalls()` reports how many times a handler asked its own
+ * `currentTarget` to take focus during the gestures so far. That is the
+ * observable of an explicit focus: `preventDefault()` on a `pointerdown`
+ * suppresses the browser's focus-on-click, so a control that wants focus has to
+ * ask for it, and asking is a call a browser can see.
+ *
+ * `inert: true` says the control is expected to take NO part in the gesture, so
+ * a dispatch nobody receives is a way of satisfying that and not an error. Every
+ * other case keeps the loud default: a gesture delivered into nothing is a limit
+ * of the dispatch and must say so rather than reporting that no callback ran.
+ *
+ * @typedef {{
+ *   down: (clientY: number) => HarnessEvent,
+ *   move: (clientY: number, buttons: number) => HarnessEvent,
+ *   up: (clientY: number) => HarnessEvent,
+ *   focus: () => void,
+ *   blur: () => void,
+ *   key: (key: string, opts?: { shiftKey?: boolean }) => void,
+ *   dblClick: () => void,
+ *   focusCalls: () => number,
+ * }} KnobGestures
+ */
+
+/**
+ * One rendered knob, standing ready to be gestured at: the dial's ancestor
+ * chain, the listeners its handlers install, the BODY `document.activeElement`
+ * reports, whether a dispatch reaching nobody is an error, and the element each
+ * level's listener sits on.
+ *
+ * @typedef {{
+ *   chain: VNode[],
+ *   listeners: Listeners,
+ *   body: unknown,
+ *   inert: boolean,
+ *   elFor: (v: VNode) => unknown,
+ * }} Rig
+ */
+
+/**
+ * @param {unknown} vnode
+ * @param {boolean} inert
+ * @returns {Rig}
+ */
+function mount(vnode, inert) {
+  const { seen } = renderWith(vnode);
+  const parents = parentMap(seen);
+  /** @type {VNode[]} */
+  const chain = [];
+  for (let v = /** @type {VNode | undefined} */ (findDial(seen)); v; v = parents.get(v)) chain.push(v);
+  return { chain, listeners: new Map(), body: element("BODY"), inert, elFor: () => undefined };
+}
+
+// One element per level, kept for the life of the rig: a handler that captures
+// the pointer on `currentTarget` at pointerdown and releases it at pointerup is
+// talking about the same element both times, exactly as in a browser.
+/**
+ * @param {VNode[]} chain
+ * @param {() => void} onFocus
+ * @returns {(v: VNode) => unknown}
+ */
+function elementsFor(chain, onFocus) {
+  /** @type {Map<VNode, ReturnType<typeof element>>} */
+  const elements = new Map();
+  return (v) => {
+    let el = elements.get(v);
+    if (!el) {
+      el = element(v === chain[0] ? "svg" : "DIV", onFocus);
+      elements.set(v, el);
+    }
+    return el;
+  };
+}
+
+/**
+ * @param {Rig} rig
+ * @param {HarnessEvent} event
+ * @param {string} prop
+ * @param {boolean} [nested]
+ * @returns {number}
+ */
+function dispatchIn({ chain, listeners, body, elFor }, event, prop, nested = false) {
+  const globals = (listeners.get(event.type) || []).slice();
+  const run = () => bubble(chain, event, prop, { elFor, globals });
+  return nested ? run() : withBrowserGlobals(listeners, body, run);
+}
+
+/**
+ * An event kind, named the two ways a dispatch needs it: what a browser calls
+ * it, and the prop a preact component listens for it with.
+ *
+ * @typedef {[string, string]} Spelling
+ */
+
+/**
+ * @param {Rig} rig
+ * @param {Spelling} spelling
+ * @param {Record<string, unknown>} extra
+ * @param {boolean} [nested]
+ * @returns {number}
+ */
+const uiDispatchIn = (rig, [type, prop], extra, nested = false) =>
+  dispatchIn(rig, uiEvent(type, rig.elFor(rig.chain[0]), extra), prop, nested);
+
+/**
+ * @param {Rig} rig
+ * @param {Spelling} spelling
+ * @param {Record<string, unknown>} extra
+ * @returns {void}
+ */
+function fireIn(rig, [type, prop], extra) {
+  if (uiDispatchIn(rig, [type, prop], extra) === 0 && !rig.inert)
+    throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
+}
+
+// A browser announces a focus change twice: `focus`/`blur`, which do not bubble
+// but are capturable, and `focusin`/`focusout`, which bubble. Both are
+// delivered, in the order a browser fires them, so a case states "the dial was
+// focused" rather than which of the two spellings the component chose to listen
+// for. Only the pair reaching nobody at all is an error — a component listening
+// for one spelling and not the other has still been told.
+/** @type {Spelling[]} */
+const FOCUS = [
+  ["focus", "onFocus"],
+  ["focusin", "onFocusIn"],
+];
+
+/** @type {Spelling[]} */
+const BLUR = [
+  ["blur", "onBlur"],
+  ["focusout", "onFocusOut"],
+];
+
+const DBL_CLICK = { button: 0, buttons: 0, detail: 2, clientX: 24, clientY: 24 };
+
+/**
+ * @param {Rig} rig
+ * @param {Spelling[]} spellings
+ * @param {boolean} [nested]
+ * @returns {number}
+ */
+function firePairIn(rig, spellings, nested = false) {
+  let reached = 0;
+  for (const spelling of spellings) reached += uiDispatchIn(rig, spelling, { relatedTarget: null }, nested);
+  if (reached === 0 && !rig.inert && !nested)
+    throw new Error(
+      `nothing received the focus change: no ${spellings.map(([, p]) => p).join("/")} on the dial's chain, ` +
+        `no listener for ${spellings.map(([t]) => t).join("/")}`,
+    );
+  return reached;
+}
+
+/**
+ * @param {Rig} rig
+ * @param {Spelling} spelling
+ * @param {number} clientY
+ * @param {number} buttons
+ * @returns {HarnessEvent}
+ */
+function firePointerIn(rig, [type, prop], clientY, buttons) {
+  const event = pointerEvent(type, rig.elFor(rig.chain[0]), clientY, buttons);
+  if (dispatchIn(rig, event, prop) === 0 && !rig.inert)
+    throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
+  return event;
+}
+
+/**
+ * @param {unknown} vnode
+ * @param {{ inert?: boolean }} [opts]
+ * @returns {KnobGestures}
+ */
+export function knobGestures(vnode, { inert = false } = {}) {
+  const rig = mount(vnode, inert);
+  let focusCalls = 0;
+  // What `element.focus()` does in a browser, from inside whatever handler
+  // called it: the focus change is announced synchronously, up the same chain,
+  // before the caller's next statement runs. Reaching nobody is not an error —
+  // an element with no focus listener is still focusable.
+  rig.elFor = elementsFor(rig.chain, () => {
+    focusCalls += 1;
+    firePairIn(rig, FOCUS, true);
+  });
+
+  return {
+    down: (clientY) => firePointerIn(rig, ["pointerdown", "onPointerDown"], clientY, 1),
+    move: (clientY, buttons) => firePointerIn(rig, ["pointermove", "onPointerMove"], clientY, buttons),
+    up: (clientY) => firePointerIn(rig, ["pointerup", "onPointerUp"], clientY, 0),
+    focus: () => void firePairIn(rig, FOCUS),
+    blur: () => void firePairIn(rig, BLUR),
+    key: (key, { shiftKey = false } = {}) => fireIn(rig, ["keydown", "onKeyDown"], keyFields(key, shiftKey)),
+    dblClick: () => fireIn(rig, ["dblclick", "onDblClick"], DBL_CLICK),
+    focusCalls: () => focusCalls,
+  };
+}
+
+/**
  * @param {unknown} vnode
  * @returns {{
  *   focus: () => void,
@@ -313,67 +532,8 @@ const keyFields = (key, shiftKey) => ({
  * }}
  */
 export function knobKeys(vnode) {
-  const { seen } = renderWith(vnode);
-  const dial = findDial(seen);
-  const parents = parentMap(seen);
-  const el = element("svg");
-  const body = element("BODY");
-  /** @type {Listeners} */
-  const listeners = new Map();
-
-  /** @type {VNode[]} */
-  const chain = [];
-  for (let v = /** @type {VNode | undefined} */ (dial); v; v = parents.get(v)) chain.push(v);
-
-  const dispatch = (
-    /** @type {string} */ type,
-    /** @type {string} */ prop,
-    /** @type {Record<string, unknown>} */ extra,
-  ) => {
-    const event = uiEvent(type, el, extra);
-    const globals = (listeners.get(type) || []).slice();
-    return withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, { el, globals }));
-  };
-
-  const fire = (
-    /** @type {string} */ type,
-    /** @type {string} */ prop,
-    /** @type {Record<string, unknown>} */ extra,
-  ) => {
-    if (dispatch(type, prop, extra) === 0)
-      throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
-  };
-
-  // A browser announces a focus change twice: `focus`/`blur`, which do not
-  // bubble but are capturable, and `focusin`/`focusout`, which bubble. Both are
-  // delivered, in the order a browser fires them, so a case states "the dial was
-  // focused" rather than which of the two spellings the component chose to
-  // listen for. Only the pair reaching nobody at all is an error — a component
-  // listening for one spelling and not the other has still been told.
-  const firePair = (/** @type {[string, string][]} */ spellings) => {
-    let reached = 0;
-    for (const [type, prop] of spellings) reached += dispatch(type, prop, { relatedTarget: null });
-    if (reached === 0)
-      throw new Error(
-        `nothing received the focus change: no ${spellings.map(([, p]) => p).join("/")} on the dial's chain, ` +
-          `no listener for ${spellings.map(([t]) => t).join("/")}`,
-      );
-  };
-
-  return {
-    focus: () =>
-      firePair([
-        ["focus", "onFocus"],
-        ["focusin", "onFocusIn"],
-      ]),
-    blur: () =>
-      firePair([
-        ["blur", "onBlur"],
-        ["focusout", "onFocusOut"],
-      ]),
-    key: (key, { shiftKey = false } = {}) => fire("keydown", "onKeyDown", keyFields(key, shiftKey)),
-    dblClick: () => fire("dblclick", "onDblClick", { button: 0, buttons: 0, detail: 2, clientX: 24, clientY: 24 }),
-  };
+  const { focus, blur, key, dblClick } = knobGestures(vnode);
+  return { focus, blur, key, dblClick };
 }
 
 // One gesture over the dial of a rendered knob.
@@ -382,47 +542,22 @@ export function knobKeys(vnode) {
 // buttons)` delivers one pointermove carrying the buttons still held — 1 for a
 // live drag, 0 for a drag whose release the page never saw; `up(clientY)`
 // releases it the ordinary way.
+//
+// `document.activeElement` reports the BODY throughout, exactly as `knobKeys`
+// offers it: the harness declines to make that signal look usable anywhere, so
+// a drag route narrowed to `activeElement === the dial` is caught here rather
+// than passing on a seam no engine actually reports that way. A dial that asks
+// its own `currentTarget` for focus is a different thing, and IS seen — see
+// `knobGestures`.
 /**
  * @param {unknown} vnode
  * @returns {{
- *   down: (clientY: number) => void,
- *   move: (clientY: number, buttons: number) => void,
- *   up: (clientY: number) => void,
+ *   down: (clientY: number) => HarnessEvent,
+ *   move: (clientY: number, buttons: number) => HarnessEvent,
+ *   up: (clientY: number) => HarnessEvent,
  * }}
  */
 export function knobDrag(vnode) {
-  const { seen } = renderWith(vnode);
-  const dial = findDial(seen);
-  const parents = parentMap(seen);
-  const el = element("svg");
-  const body = element("BODY");
-  /** @type {Listeners} */
-  const listeners = new Map();
-
-  /** @type {VNode[]} */
-  const chain = [];
-  for (let v = /** @type {VNode | undefined} */ (dial); v; v = parents.get(v)) chain.push(v);
-
-  // `document.activeElement` reports the BODY throughout, exactly as `knobKeys`
-  // offers it: the harness declines to make that signal look usable anywhere, so
-  // a drag route narrowed to `activeElement === the dial` is caught here rather
-  // than passing on a seam no engine actually reports that way.
-  const fire = (
-    /** @type {string} */ type,
-    /** @type {string} */ prop,
-    /** @type {number} */ clientY,
-    /** @type {number} */ buttons,
-  ) => {
-    const event = pointerEvent(type, el, clientY, buttons);
-    const globals = (listeners.get(type) || []).slice();
-    const reached = withBrowserGlobals(listeners, body, () => bubble(chain, event, prop, { el, globals }));
-    if (reached === 0)
-      throw new Error(`nothing received the ${type}: no ${prop} on the dial's chain, no listener for it`);
-  };
-
-  return {
-    down: (clientY) => fire("pointerdown", "onPointerDown", clientY, 1),
-    move: (clientY, buttons) => fire("pointermove", "onPointerMove", clientY, buttons),
-    up: (clientY) => fire("pointerup", "onPointerUp", clientY, 0),
-  };
+  const { down, move, up } = knobGestures(vnode);
+  return { down, move, up };
 }
