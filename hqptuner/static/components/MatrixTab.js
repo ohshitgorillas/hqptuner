@@ -35,8 +35,8 @@ import { BypassNote } from "./MatrixBypassNote.js";
 const pipelinesCardOpen = signal(true);
 
 // Single column — a .pack's two tracks inside a half-width card would starve
-// the selects below their longest option (the "over ⌄" defect). Selects here
-// are content-sized via .mtx-global.
+// the dropdowns below their longest option (the "over ⌄" defect). Dropdowns
+// here are content-sized via .mtx-global, native select and Combobox alike.
 function GlobalCard() {
   return html`
     <${Card} title="General" subtitle=${noteFor("matrix_enabled")}>

@@ -127,16 +127,33 @@
 .mtx-editor-head select {
   width: auto;
 }
-/* Matrix card: single column, selects sized to their longest option (item 4) —
-   overrides the half-card 100% stretch. */
+/* Matrix card: single column, dropdowns sized to their longest option (item 4) —
+   overrides the half-card 100% stretch. Both dropdown widgets are named: a
+   `widget: "dropdown"` field renders the Combobox trigger (`.dd-box`), not a
+   native `select`, and naming only `select` here left `matrix_engine` and
+   `matrix_iir2fir` at their fixed `--w-select`. */
 .mtx-global {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
 }
-.mtx-global .field select {
+/* `1fr` is `minmax(auto, 1fr)`, and a grid item's automatic minimum is its
+   min-content size — for a fixed-width control that IS its width, so a 28rem
+   control blows the control track past the card whatever max-width it carries,
+   taking the description text under it along. Releasing the items' automatic
+   minimum lets the track shrink to the card, which is the cap a half-width card
+   requires (design-system.md, "half-track rows"). Done on the items rather than
+   by respelling the row's template as `minmax(0, 1fr)`: this rule outranks
+   `.field-nolabel`'s single-track template, so respelling would put a label
+   column back on the label-less ENGAGE/BYPASS row and clip the switch. */
+.mtx-global .field > * {
+  min-width: 0;
+}
+.mtx-global .field select,
+.mtx-global .field .dd-box {
   width: auto;
   max-width: 100%;
+  min-width: 0;
 }
 /* Profile card lanes (item 5): the live switch row is primary — accent button,
    hairline separation from the reload lane below; captions sit under their row

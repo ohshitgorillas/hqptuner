@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Matrix tab's Engine and IIR to FIR dropdowns no longer run off the edge of their card.** Both sat at a fixed width wider than the card holding them, so each dropdown hung 50 px past the card's right edge — and the description under IIR to FIR, which is long on the `linear` setting, overran and clipped with it. Both now size to their content and their text wraps inside the card.
+
 ### Changed
 
 - **Saving a matrix profile now tells you it isn't finished.** A saved profile isn't kept until you hit Apply and the engine restarts, and the only sign of that was the Apply button lighting up — so a profile could look saved and then be gone. The Profile card now says "Restart the engine (Apply) to finalize the save." under the save box.
