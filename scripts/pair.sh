@@ -106,28 +106,51 @@ in_tree() {   # in_tree <tree> <cmd>...
   ( cd "$tree" && PYTHONPATH="$tree" "$@" )
 }
 
-# Everything this tree has changed since it was cut: committed, staged,
-# unstaged and untracked alike.
+# Uncommitted work in a tree: staged, unstaged and untracked alike.
 #
 # Minus the two links link_tooling put there. .gitignore spells those `.venv/`
 # and `node_modules/`, and a trailing-slash pattern matches a directory but not
 # a symlink to one — so git reports them untracked and the lane check would
 # fail every merge on the script's own scaffolding.
-tree_files() {   # tree_files <tree> <base>
-  local tree=$1 base=$2
+dirty_files() {   # dirty_files <tree>
+  local tree=$1
   {
-    git -C "$tree" diff --name-only "$base"
+    git -C "$tree" diff --name-only HEAD
     git -C "$tree" ls-files --others --exclude-standard
   } | grep -Ev '^(\.venv|node_modules)$' | sort -u
 }
 
+# Everything THIS tree wrote — which is not the same as everything it contains.
+# Step 4 merges impl/<slug> into the spec branch, so once a combine has run the
+# spec branch holds implementation relative to base; diffing against base would
+# make the lane check reject the script's own step 4 and wedge every re-run
+# after a red gate.
+#
+# So enumerate the tree's own contribution: files touched by its own non-merge
+# commits along its first-parent chain, plus whatever is uncommitted now. A
+# combine is a merge commit, so it is skipped, and everything it brought in
+# arrived through it and is skipped with it — while a file the writer really
+# did author outside tests/ is a plain commit on that chain and still shows.
+#
+# The chain starts at `merge-base dev HEAD` rather than the recorded base: a
+# branch already rebased onto a moved dev is then measured from where it now
+# sits, so dev's own commits never read as this tree's work.
+tree_files() {   # tree_files <tree>
+  local tree=$1 from
+  from=$(git -C "$tree" merge-base dev HEAD)
+  {
+    git -C "$tree" log --first-parent --no-merges --name-only --pretty=format: "$from"..HEAD
+    dirty_files "$tree"
+  } | grep -Ev '^(\.venv|node_modules|)$' | sort -u
+}
+
 # The disjoint-path rule, enforced rather than trusted. It is what makes the
 # combine in step 4 conflict-free by construction.
-lane_check() {   # lane_check <tree> <base> spec|impl
-  local tree=$1 base=$2 lane=$3 bad
+lane_check() {   # lane_check <tree> spec|impl
+  local tree=$1 lane=$2 bad
   case "$lane" in
-    spec) bad=$(tree_files "$tree" "$base" | grep -v '^tests/' || true) ;;
-    impl) bad=$(tree_files "$tree" "$base" | grep    '^tests/' || true) ;;
+    spec) bad=$(tree_files "$tree" | grep -v '^tests/' || true) ;;
+    impl) bad=$(tree_files "$tree" | grep    '^tests/' || true) ;;
   esac
   if [ -z "$bad" ]; then return 0; fi
   echo "  $lane tree wrote outside its lane:" >&2
@@ -135,12 +158,14 @@ lane_check() {   # lane_check <tree> <base> spec|impl
   return 1
 }
 
-commit_tree() {   # commit_tree <tree> <base> <message>
-  local tree=$1 base=$2 msg=$3
-  # "is there anything here" asks tree_files, not `status`, so the tooling
+commit_tree() {   # commit_tree <tree> <message>
+  local tree=$1 msg=$2
+  # "is there anything here" asks dirty_files, not `status`, so the tooling
   # links do not count as work — and `.gitignore` spells them without a
-  # trailing slash, so `add -A -- .` cannot stage them either.
-  if [ -z "$(tree_files "$tree" "$base")" ]; then echo "  $tree: nothing to commit"; return 0; fi
+  # trailing slash, so `add -A -- .` cannot stage them either. It asks about
+  # uncommitted work only: on a re-run the last run's commits are already in,
+  # and `git commit` with nothing staged would abort the script.
+  if [ -z "$(dirty_files "$tree")" ]; then echo "  $tree: nothing to commit"; return 0; fi
   if [ "$DRY" = 1 ]; then echo "  would commit: $tree — $msg"; return 0; fi
   git -C "$tree" add -A -- .
   # pre-commit runs the full gate set here, from inside the worktree; the
@@ -213,16 +238,16 @@ do_merge() {
   base=$(cat "$BASE_FILE")
 
   local lane_ok=1
-  lane_check "$SPEC_DIR" "$base" spec || lane_ok=0
-  lane_check "$IMPL_DIR" "$base" impl || lane_ok=0
+  lane_check "$SPEC_DIR" spec || lane_ok=0
+  lane_check "$IMPL_DIR" impl || lane_ok=0
   [ "$lane_ok" = 1 ] || die "the lanes are what make this merge conflict-free; move those files to the other tree."
   echo "  spec tree confined to tests/, impl tree clear of it"
 
   [ -n "$SUBJECT" ] || SUBJECT="$SLUG"
 
   say "[2/6] commit both trees"
-  commit_tree "$SPEC_DIR" "$base" "test: $SUBJECT"
-  commit_tree "$IMPL_DIR" "$base" "$SUBJECT"
+  commit_tree "$SPEC_DIR" "test: $SUBJECT"
+  commit_tree "$IMPL_DIR" "$SUBJECT"
 
   if [ "$DRY" = 1 ]; then
     echo; echo "  (dry run — nothing below is executed)"
@@ -245,6 +270,13 @@ do_merge() {
     echo "  dev has not moved since $SLUG was opened"
   else
     echo "  dev moved $(git rev-list --count "$base".."$dev_tip") commit(s) since branch point — rebasing both branches"
+    # A re-run after a red gate reaches here with step 4's combine already on
+    # the spec branch. A plain rebase drops merge commits and replays their
+    # side, so it would flatten that combine and duplicate the implementation
+    # commits the impl rebase is about to rewrite. Stop instead of corrupting.
+    if [ -n "$(git -C "$SPEC_DIR" rev-list --merges "$base"..HEAD)" ]; then
+      die "dev moved after $SLUG was already combined; rebasing $SPEC_BR would flatten that merge and duplicate $IMPL_BR's commits. Rebase it by hand in $SPEC_DIR, keeping the combine, and rerun."
+    fi
     git -C "$IMPL_DIR" rebase --quiet dev || die "$IMPL_BR does not rebase onto dev cleanly — resolve it in $IMPL_DIR and rerun."
     git -C "$SPEC_DIR" rebase --quiet dev || die "$SPEC_BR does not rebase onto dev cleanly — resolve it in $SPEC_DIR and rerun."
   fi
