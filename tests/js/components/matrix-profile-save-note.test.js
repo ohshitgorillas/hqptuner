@@ -8,7 +8,7 @@
 // edit on `matrix_profile_save` over the http lane, because hqplayerd's own
 // /matrix/save registers the profile in memory only and the config it writes back
 // omits the `<matrix_profile>` element, so a profile saved that way dies at the
-// next daemon start (hqplayerd-readme.txt §1.12, docs/matrix-spec.md round 5). A
+// next daemon start (hqplayerd-readme.txt §1.12, docs/matrix-spec.md). A
 // staged http-lane edit reaches the daemon only through POST /api/config/apply,
 // whose persistent lane restarts the daemon — and there is no separate restart
 // control in the UI, so Apply IS the restart.
