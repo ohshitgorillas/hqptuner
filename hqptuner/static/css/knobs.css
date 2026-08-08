@@ -47,6 +47,8 @@
   flex: 0 0 auto;
   cursor: ns-resize;
   touch-action: none; /* vertical drag owns the gesture */
+  -webkit-user-select: none;
+  user-select: none; /* the dial is never a selection anchor; the press cancels the rest */
   border-radius: var(--r-circle);
   outline: none;
 }

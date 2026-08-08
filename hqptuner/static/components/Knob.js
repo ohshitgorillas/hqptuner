@@ -23,9 +23,9 @@ import { clamp, num } from "../lib/coerce.js";
  *   The input/change events the slider and the box answer — the handler is
  *   bound to that element, so its target is that element.
  * @typedef {{ clientX: number, clientY: number, pointerId: number, buttons: number, shiftKey: boolean,
- *             currentTarget: Element }} PointerEv
+ *             preventDefault: () => void, currentTarget: Element & { focus: () => void } }} PointerEv
  *   The dial's pointer gestures. `currentTarget` is the dial's <svg>, which is
- *   what pointer capture is taken on.
+ *   what pointer capture is taken on and what the press moves focus to.
  * @typedef {{ key: string, shiftKey: boolean, preventDefault: () => void }} KeyEv
  * @typedef {{ current: HTMLInputElement | null }} InputRef
  * @typedef {{ y: number, v: number, last: number }} DragState
@@ -182,6 +182,14 @@ function useKnobGestures({ disabled, val, st, fine, lo, hi, log, def, snap, live
   const onPointerDown = useCallback(
     (/** @type {PointerEv} */ e) => {
       if (disabled) return;
+      // A press on the dial must not also start the browser's text-selection
+      // gesture — a drag would otherwise rubber-band the surrounding page text
+      // while the value moves. Cancelling the pointerdown suppresses the
+      // compatibility mousedown, which is what selection rides on; it also
+      // suppresses the focus that same mousedown would have moved here, so the
+      // dial takes focus itself or every keyboard gesture dies after a click.
+      e.preventDefault();
+      e.currentTarget.focus();
       e.currentTarget.setPointerCapture(e.pointerId);
       drag.current = { y: e.clientY, v: val, last: val };
     },

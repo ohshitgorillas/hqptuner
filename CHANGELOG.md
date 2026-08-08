@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Dragging a knob no longer highlights the text around it.** A press on a dial started the browser's own text-selection gesture alongside the value change, so every drag left a trail of blue-highlighted labels behind it. Dials now take the press without starting a selection; text everywhere else stays selectable as normal.
+
 - **The Matrix tab's Engine and IIR to FIR dropdowns no longer run off the edge of their card.** Both sat at a fixed width wider than the card holding them, so each dropdown hung 50 px past the card's right edge — and the description under IIR to FIR, which is long on the `linear` setting, overran and clipped with it. Both now size to their content and their text wraps inside the card.
 
 ### Changed
