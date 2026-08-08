@@ -108,6 +108,16 @@ const label = (out, i) => {
   return b.slice(b.indexOf(">") + 1).trim();
 };
 
+// The status note's class list, order-independent. The note carries `note` plus
+// state modifiers; asking "is `busy` among them" is what the contract says,
+// where matching an exact full class string would red on a reordering that
+// changed nothing a user can see.
+/** @param {string} out */
+const noteClasses = (out) =>
+  [...out.matchAll(/class="([^"]*)"/g)]
+    .map((m) => m[1].split(/\s+/).filter(Boolean))
+    .find((cs) => cs.includes("note")) ?? [];
+
 // --- the bar itself ---------------------------------------------------------
 
 test("test_an_idle_bar_is_not_marked_active", async () => {
@@ -222,6 +232,37 @@ test("test_a_held_bar_carries_the_warning_class", async () => {
   await reset({ reachable: false });
   await stageOne();
   assert.ok(bar().includes('class="note warn"'));
+});
+
+// --- status line: busy ------------------------------------------------------
+//
+// Only an apply that is still in flight is busy. A concluded apply — succeeded
+// or failed — and a held bar are all resting states, and marking any of them
+// busy would leave the bar reading as working when nothing is happening.
+
+test("test_an_apply_in_flight_marks_the_status_note_busy", async () => {
+  await reset();
+  await stageOne();
+  applying.value = true;
+  assert.equal(noteClasses(bar()).includes("busy"), true);
+});
+
+test("test_a_successful_apply_does_not_leave_the_status_note_busy", async () => {
+  await reset();
+  lastApply.value = { ok: true, text: "Applied 1 change" };
+  assert.equal(noteClasses(bar()).includes("busy"), false);
+});
+
+test("test_a_failed_apply_does_not_leave_the_status_note_busy", async () => {
+  await reset();
+  lastApply.value = { ok: false, text: "Failed: filter" };
+  assert.equal(noteClasses(bar()).includes("busy"), false);
+});
+
+test("test_a_held_bar_is_not_marked_busy", async () => {
+  await reset({ reachable: false });
+  await stageOne();
+  assert.equal(noteClasses(bar()).includes("busy"), false);
 });
 
 // --- status line: the live/restart split ------------------------------------
