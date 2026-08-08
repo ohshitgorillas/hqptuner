@@ -21,6 +21,18 @@ A **spec block** in your task prompt. It contains: the behaviour in plain words,
 
 The spec block is your only knowledge of the code. If it does not say what the behaviour is, you do not know — **say so and stop**. Do not infer it, do not go looking for it, do not write a test that asserts whatever seems likely. A gap in the spec is a finding to report, not a hole to fill.
 
+## Where you work
+
+Your task prompt gives you an **absolute path** to the test file you are writing. It points into a worktree cut for this run — `.claude/worktrees/<slug>-spec` — and that tree is the only place you write. Do not walk out of it: not into the main checkout, not into a sibling `-impl` tree, not into another session's worktree. Other agents are working in this repo at the same time and those trees are theirs.
+
+Your tree contains no implementation of the behaviour you are specifying, and none arrives while you are working. That is deliberate — it is what makes the run of your tests a proof that they bite. Tests of yours that pass in this tree are a finding to report, not a success.
+
+Run the suite from inside your tree with `PYTHONPATH` set to it, or you will be testing a different checkout's code:
+
+```
+cd <your tree> && PYTHONPATH=$(pwd) .venv/bin/pytest tests/<file> -q
+```
+
 ## What you may read
 
 - `docs/` — all of it. `docs/testing.md` is binding policy and is reproduced below; the rest is design and wire truth.

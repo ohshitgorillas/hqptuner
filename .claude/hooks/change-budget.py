@@ -57,8 +57,8 @@ import json
 import re
 import importlib.util
 
-CHANGE_LIMIT = 5   # metered actions since the user last spoke; the next blocks
-EDIT_LIMIT = 30    # in-tree structured edits since the user last spoke
+CHANGE_LIMIT = 8   # metered actions since the user last spoke; the next blocks
+EDIT_LIMIT = 100    # in-tree structured edits since the user last spoke
 FREE_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}  # read-only tools
 
 # structured edit tools -> the input field naming their target path

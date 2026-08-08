@@ -288,6 +288,10 @@ def _stage_ok(mstage, ostage, is_head):
         return bool(pos) and (pos[-1] == "-" or _is_scratch(pos[-1]))
     if name in FREE_PY_CMDS:
         return True
+    if name == "pair.sh":
+        # `list` prints the open /tests worktree pairs and touches nothing;
+        # open / merge / abort move branches and are meant to cost an action.
+        return bool(rest) and rest[0] == "list"
     if name == "git":
         return _git_ok(rest)
     if name in ("node", "nodejs"):

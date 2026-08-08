@@ -126,6 +126,12 @@ ALLOWLIST_CASES = [
     ("node --import ./tests/js/support/vendor-resolve.js --test tests/js/eqlab/a.test.js", True),
     ("node -e 'require(\"fs\").rmSync(\"x\")'", False),
     ("node scripts/build.js", False),
+    # pair.sh: listing the open /tests worktree pairs reads, the rest moves branches
+    ("scripts/pair.sh list", True),
+    ("scripts/pair.sh open eqfix", False),
+    ("scripts/pair.sh merge eqfix", False),
+    ("scripts/pair.sh abort eqfix", False),
+    ("bash scripts/pair.sh list", False),        # `bash` is not a recognised head
     # unchanged: a shell loop is not parsed, so it still meters
     ("for f in a b; do diff -q $f x/$f; done", False),
 ]

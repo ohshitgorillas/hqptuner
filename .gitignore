@@ -1,5 +1,5 @@
 # virtualenv / python
-.venv/
+.venv
 __pycache__/
 *.pyc
 *.egg-info/
@@ -72,13 +72,17 @@ hqpcreds
 .claude/scheduled_tasks.lock
 # analyzer output over this machine's session transcripts (scripts/budget_miner.py)
 .claude/logs/
+# per-session agent worktrees and scripts/pair.sh's state for them (branch
+# points, the merge lock). Registered worktrees git already keeps out of
+# status; the state files it would not.
+.claude/worktrees/
 
 # local docker test stack + its state
 docker-compose.yaml
 state/
 
 # node dev tooling (lint/format/dead-code gates) — dev-only, never shipped
-node_modules/
+node_modules
 
 # setuptools build dir (pip wheel / python -m build)
 build/

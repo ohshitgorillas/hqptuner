@@ -6,7 +6,11 @@ Cover this with tests: $ARGUMENTS
 
 You are the orchestrator. You do not write these tests, because you have read (or written) the implementation, and a test written from the code mirrors the code — it passes on an implementation that is wrong in exactly the way you were wrong. Run the chain below end to end without stopping to re-ask between steps.
 
-The chain runs tests-first: spec at the plan gate, writer before implementation, red run as the bite proof. Section 6 is invoked from sections 3 and 5 rather than walked through in order.
+The chain runs tests-first and concurrently: spec at the plan gate, then the writer and the implementation run at the same time in two worktrees, and the red run happens in the writer's tree while implementation is still in flight. Section 6 is invoked from sections 3 and 5 rather than walked through in order.
+
+Waiting on the writer before starting to implement is the thing this chain no longer does. The writer is the slow step and it constrains nothing you need in order to start, because you wrote the spec.
+
+The pair costs two metered actions end to end (`open` and `merge`), so there is no size threshold worth arguing about: anything carrying a spec block uses it. Implement in the main checkout only for a change too small to have one.
 
 ## 1. Build the spec block
 
@@ -24,47 +28,79 @@ Read whatever you need of the implementation — that is your job, not the write
 
 **The spec block contains zero implementation detail.** No function bodies, no private names, no control flow, no "it loops until", no algorithm. If a behaviour cannot be stated without describing how it is implemented, that is a spec smell — it usually means the behaviour has no observable contract, or the contract is the implementation. **Stop and put that to the user** rather than leaking it into the spec; a test written against implementation shape is the thing this whole chain exists to prevent.
 
-## 2. Spawn the test-writer — before implementing
+## 2. Open the pair, then start both sides at once
 
-On approval, spawn the writer first, ahead of any implementation work. Hand the spec block to the `test-writer` subagent; give it the spec and the target test file, nothing else.
+On approval, open the two worktrees this run needs — one action:
 
-Blindness holds by construction here: the implementation does not exist yet, so there is no diff to leak and no module to read even by accident. The writer's no-implementation-reads hook still applies.
+```
+scripts/pair.sh open <slug>
+```
+
+`<slug>` is a short topic slug plus a few characters of the session id, because other agents are working in this repo at the same time and must not land in your trees. You get:
+
+- `.claude/worktrees/<slug>-spec` on branch `spec/<slug>` — the writer's tree. Tests only; no implementation reaches it until section 5.
+- `.claude/worktrees/<slug>-impl` on branch `impl/<slug>` — yours. Implementation, docs, `CHANGELOG.md`; never `tests/`.
+
+Both are cut from dev's committed tip. The main checkout is the user's and is never an agent workspace.
+
+Then, **in a single message**, do both:
+
+- spawn the `test-writer` with the spec block and the **absolute path** of its target file inside the spec tree — `.claude/worktrees/<slug>-spec/tests/<file>`. Give it the spec and that path, nothing else.
+- enter the impl tree and start implementing (section 4).
+
+From here the writer and the implementation run concurrently. Blindness holds by construction: the implementation does not exist yet, and when it does it is in a different tree the writer never opens. The writer's no-implementation-reads hook still applies.
+
+**The lanes are enforced, not trusted.** `pair.sh merge` refuses if the spec tree wrote outside `tests/` or the impl tree wrote inside it. That rule is what makes the two branches combine without conflict, so treat a lane failure as a misplaced file, never as something to argue with.
 
 ## 3. Red run — prove the tests bite
 
-Run the new test file against the still-unchanged tree:
+When the writer returns, run its file in the spec tree. That tree has no implementation in it and will not until section 5, so this costs no waiting — the implementation is still in flight in the other tree.
 
 ```
-.venv/bin/pytest tests/<file> -q
+cd .claude/worktrees/<slug>-spec && PYTHONPATH=$(pwd) .venv/bin/pytest tests/<file> -q
 ```
 
-Expected result is **red**. That is the bite proof (`docs/testing.md` rule 8), and it is stronger than reverting an implementation after the fact, because nothing has been written for the tests to have been shaped around.
+The `PYTHONPATH` is not optional. A worktree borrows the main checkout's `.venv`, which has `hqptuner` installed editable against the main checkout — without it you are testing the wrong tree's code.
+
+Expected result is **red**. That is the bite proof (`docs/testing.md` rule 8), and it is the strongest form available: nothing has been written anywhere in this tree for the tests to have been shaped around, and no revert is involved.
 
 Read the result:
 
 - **Red — bite confirmed.** Assertion failures are the strong form. A collection or import error is a weak bite: it proves the tests reach the new surface, not that the assertions constrain it. Report which you got.
-- **Green — bite failure.** The test passes against a tree that lacks the change, so it constrains nothing. Do not hand-edit it into failing: name the vacuous test, work out which spec behaviour failed to pin the outcome, tighten that line, and re-run the writer **as a delta** — the corrected behaviour lines and the affected tests only, not a rewrite of the whole file.
+- **Green — bite failure.** The test passes against a tree that lacks the change, so it constrains nothing. Do not hand-edit it into failing: name the vacuous test, work out which spec behaviour failed to pin the outcome, tighten that line, and re-run the writer **as a delta** — the corrected behaviour lines and the affected tests only, not a rewrite of the whole file. Implementation keeps running in its own tree while you do; the retry is concurrent too.
 
 Skip the check only when there is no pre-change state to fail against — characterization tests of existing behaviour, tests accompanying a pure refactor, both expected green here — and say so in the report instead of skipping silently.
 
-## 4. Implement
+## 4. Implement — in the impl tree
 
-Write the change. If implementing surfaces a spec that was wrong, do not quietly diverge from it — that is adjudication, section 6.
+Write the change in `.claude/worktrees/<slug>-impl`, starting as soon as the pair is open. You implement it; that is settled, because you wrote the spec and you are the one who will adjudicate a failing test, which is impossible against code you have not read.
 
-## 5. Green run, then fan out
+**Rote work goes to a builder, not into your own context.** A rename across N files, one edit applied down a list of call sites, boilerplate that follows a pattern already in the tree — if you can state the change as a rule and check the result by reading a diff, hand it out. See the Delegation section of `CLAUDE.md`; it is a rule there, not a suggestion. The line is decisions, not size.
 
-Run the new tests plus the offline suite:
+You do not touch `tests/` here. If implementing shows a test needs to change, that is adjudication (section 6), and it happens after the merge, in the combined tree.
+
+If implementing surfaces a spec that was wrong, do not quietly diverge from it — also section 6.
+
+## 5. Converge, then fan out
+
+One action brings the two trees together, gates the result, and lands it:
 
 ```
-.venv/bin/pytest tests/<file> -q && make check
+scripts/pair.sh merge <slug>
 ```
+
+It lane-checks both trees, commits them, rebases onto dev if dev moved underneath, merges `impl/<slug>` into the spec tree so that tree holds tests plus implementation, runs `make check` there, and only then fast-forwards dev and removes both worktrees. A red gate stops it with dev untouched and both trees left standing — the combined tree is where you adjudicate.
 
 **Green** — in a single message, both of:
 
 - spawn the `test-reviewer` (spec block + test files, brief unchanged), and
-- run `/task-check`.
+- run `/task-check`, from the main checkout.
 
 They are independent; there is no reason to serialise them.
+
+`/task-check` binds the one container and `:8090`, host-wide, which the worktrees do not isolate. It stays post-merge and stays in the main checkout.
+
+Abandoning the work instead: `scripts/pair.sh abort <slug>` removes both trees and branches. `scripts/pair.sh list` shows the open pairs and is free.
 
 **Red** — adjudicate first, per section 6. Spawn the reviewer only once the tests are final: a reviewer running against tests that adjudication is about to change is a wasted spawn, and green is the common case.
 

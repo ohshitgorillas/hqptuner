@@ -37,7 +37,12 @@ Do yourself when you know file (one Read beats subagent), when material *is* out
 - One delegation per question, not per file.
 - You own result. Relaying unverified subagent claim = confabulation with extra steps; "agent said so" not verification.
 - Change budget and plan gate follow you into delegation — subagent writes = your writes.
-- **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block at plan gate, blind writer before implementation, red run as bite proof (new tests must fail against pre-change tree), implement, green run, then `test-reviewer` in parallel with `/task-check`.
+- **Tests for new/changed behavior are authored by the `test-writer` agent from a spec block, never by the agent that wrote the implementation.** Orchestrator adjudicates failures; editing a test to make it pass requires stating why the test, not the code, was wrong. Chain is `/tests`: spec block at plan gate, `scripts/pair.sh open` for the two worktrees, writer and implementation running **concurrently** (writer in `<slug>-spec`, you in `<slug>-impl`), red run in the spec tree as bite proof, `scripts/pair.sh merge` to combine and gate, then `test-reviewer` in parallel with `/task-check`. Never wait on the writer before starting to implement.
+- **You implement; you do not hand the whole change to a builder.** You wrote the spec, and adjudicating a failing test against code you have not read is guesswork — which is the exact failure this chain exists to catch.
+
+**Rote work is delegated, not typed.** Inside the impl tree, mechanical work is a builder's job, not yours: a rename across N files, the same edit applied to a list of call sites, boilerplate following a pattern already in the tree, a sweep with no decisions in it. If you can state the change as a rule and check the result by reading a diff, you are not allowed to do it by hand — hand it a builder and spend your own context on the parts that need judgment. Typing out rote edits yourself burns the context adjudication will need, and adjudication is the step this whole chain exists for.
+
+The line is decisions, not size. Anything where you'd have to *decide* mid-edit — what the interface should be, which of two behaviors is right, whether the spec was wrong — stays yours no matter how small. Anything where the decision is already made and only application remains goes out, no matter how small. A builder's writes are your writes for the budget, so batching a sweep into one delegation beats three of your own edits on both counts.
 
 ## Verification & hand-back
 
@@ -52,8 +57,10 @@ Do yourself when you know file (one Read beats subagent), when material *is* out
 
 **Only prose you typed resets the leashes.** Slash command, `/clear`, local-command output — harness rows, not user reading anything, so they buy nothing. One exception: first human row after a trip always resets, whatever it is, so answering a trip with a slash command never wedges you.
 
-- **Change budget — 5.** Anything escaping working tree or not undoable from it: `sudo`, docker, `git commit`, `git push`, mutating `curl`, `rm`, `python -c` / `python script.py`, package installs, writes outside repo.
-- **Edit allowance — 30.** `Write` / `Edit` / `NotebookEdit` to path inside git working tree.
+- **Change budget — 8.** Anything escaping working tree or not undoable from it: `sudo`, docker, `git commit`, `git push`, mutating `curl`, `rm`, `python -c` / `python script.py`, package installs, writes outside repo.
+- **Edit allowance — 100.** `Write` / `Edit` / `NotebookEdit` to path inside git working tree.
+
+`scripts/pair.sh open|merge|abort` is one metered action each — whole lifecycle of a `/tests` run costs two. `scripts/pair.sh list` is free.
 
 Free, never counted, never blocked: file reads, `Grep`/`Glob`, web fetch/search, delegation to read-only agent type, read-only Bash — verification (`make check`, `make lint-js`, `make test-js`, `node --test <file>`, `pytest`, `ruff check`, `mypy`, …) and investigation (`grep`, `sed -n`, `ls`, `find`, `cat`, `jq`, read-only `git log`/`show`/`diff`/`blame`, …), even piped or redirected to `/dev/null` or scratchpad. Ground yourself in code, docs, live state before spending anything.
 
