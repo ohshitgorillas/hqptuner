@@ -121,8 +121,13 @@ const switchLabel = (/** @type {string | null} */ name) => (name === null ? null
 
 // A persistent edit or a preset switch both restart the daemon, so say so while
 // the apply is in flight rather than leaving a silent pause.
+//
+// `busy` is what names this state. The other three notes carry `ok`, `err` or
+// `warn`, so without it the in-flight note would be the only one identified by
+// the ABSENCE of a modifier — leaving `.note` the sole selector for "an apply is
+// running", which also matches all three concluded states.
 const applyingLine = (/** @type {Split} */ sp, /** @type {string | null} */ switchName) =>
-  html`<span class="note">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
+  html`<span class="note busy">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
 
 // What is waiting to go out, as a readable list.
 /**
