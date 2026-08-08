@@ -127,6 +127,7 @@ const switchLabel = (/** @type {string | null} */ name) => (name === null ? null
 // the ABSENCE of a modifier — leaving `.note` the sole selector for "an apply is
 // running", which also matches all three concluded states.
 const applyingLine = (/** @type {Split} */ sp, /** @type {string | null} */ switchName) =>
+  // class-exempt: "busy" is a hook, not styling — the base .note rule paints this state.
   html`<span class="note busy">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
 
 // What is waiting to go out, as a readable list.
