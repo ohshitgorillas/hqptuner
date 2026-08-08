@@ -305,10 +305,20 @@ select.mtx-ch {
    whole point is that it gets noticed by someone editing pipelines that are
    not in the signal path. Sits at the top of the card body, above the
    controls it qualifies. */
-.mtx-bypass-note {
+/* "Restart the engine (Apply) to finalize the save" — the same kind of line for
+   the same reason: a save that is never applied is a profile the daemon drops at
+   its next start, so the sentence has to be read, not hovered for. Sits under
+   the save-as control it qualifies. */
+.mtx-bypass-note,
+.mtx-save-note {
   font-size: var(--fs-caption);
   color: var(--amber);
   max-width: var(--measure);
+}
+/* Under the save-as control, not under its label — the field is the two-track
+   grid, so the line takes control column the same way .field-note does. */
+.mtx-save-note {
+  grid-column: 2;
 }
 .mtx-raw {
   flex: 1;

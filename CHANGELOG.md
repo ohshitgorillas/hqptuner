@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Saving a matrix profile now tells you it isn't finished.** A saved profile isn't kept until you hit Apply and the engine restarts, and the only sign of that was the Apply button lighting up — so a profile could look saved and then be gone. The Profile card now says "Restart the engine (Apply) to finalize the save." under the save box.
+
 ## [1.3.2] — 2026-08-07
 
 ### Fixed

@@ -16,7 +16,7 @@
 // concerned, and is the one case a load cannot switch live.
 import { computed } from "@preact/signals";
 import { matrixConfig } from "./signals.js";
-import { effective } from "./resolve.js";
+import { effective, isDirty } from "./resolve.js";
 import { edit } from "./actions.js";
 
 const SAVE = "matrix_profile_save";
@@ -128,6 +128,12 @@ export const stageProfileSave = (
 /** Stage a profile delete, and the stored presets it fans out to. */
 export const stageProfileDelete = (/** @type {string} */ name, /** @type {string[]} */ presets = []) =>
   edit(DELETE, presets.length ? JSON.stringify({ name, presets }) : name);
+
+// Whether a profile save is staged and waiting for an apply. The card's save
+// consequence line follows this: a save that is still staged has not reached
+// HQPlayer's configuration, and Discard takes it back off the buffer, so the
+// line goes with it.
+export const profileSavePending = computed(() => isDirty(SAVE));
 
 // Each stored preset's saved profile names (/api/matrix preset_profiles) — the
 // fan-out pickers' read model. {} until the poll delivers one.

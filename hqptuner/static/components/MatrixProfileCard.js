@@ -28,6 +28,7 @@ import {
   presetProfiles,
   stageProfileSave,
   stageProfileDelete,
+  profileSavePending,
 } from "../store/profiles.js";
 import { askChoices } from "../store/ask.js";
 import { notesVisible } from "../store/prefs.js";
@@ -35,6 +36,17 @@ import { Ask } from "./Ask.js";
 import { Card } from "./common.js";
 
 const OWNER = "matrix-profile";
+
+// What a staged save still needs, stated on the card for as long as it needs it.
+// Not a manual note and so not gated on the description preference: a
+// description explains a control, this states the consequence of using one. A
+// save is a staged <matrix_profile> config edit, and the only thing that writes
+// it out is Apply, whose persistent lane restarts the engine — so a profile
+// saved and never applied is gone. The line names Apply because there is no
+// separate restart control to point at, and it follows the staged edit rather
+// than standing on the card forever: Discard takes the save back, and the line
+// would be describing nothing.
+const SAVE_CONSEQUENCE = "Restart the engine (Apply) to finalize the save.";
 
 const profileSel = signal(null); // picker value; null = follow the active profile
 const profileNewName = signal("");
@@ -236,6 +248,7 @@ export function ProfileCard() {
           <${ProfileNote}>
             Save the current Matrix settings to one or more presets.
           <//>
+          ${profileSavePending.value ? html`<div class="mtx-save-note">${SAVE_CONSEQUENCE}</div>` : null}
         </div>
         <${Ask} owner=${OWNER} />
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
