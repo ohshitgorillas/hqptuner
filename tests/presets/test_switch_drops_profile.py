@@ -46,6 +46,12 @@ OWN_ROWS = [
     {"gain": "-2", "mixdown": "1", "process": "", "source": "1"},
 ]
 
+#: The same row sets as ``matrix_pipelines`` reads them back: the file rows plus
+#: the derived ``gainunit`` (a plain numeric gain is dB) — compared parsed, so
+#: the canonical string's key order and separators cannot mask a difference.
+OWN_ROWS_READBACK = [{**row, "gainunit": "dB"} for row in OWN_ROWS]
+NIGHT_ROWS_READBACK = [{**row, "gainunit": "dB"} for row in NIGHT["rows"]]
+
 
 def night_cfg() -> dict[str, Any]:
     """Fake-daemon state whose config carries a saved "Night" profile alongside
@@ -121,7 +127,8 @@ async def test_a_preset_switch_apply_keeps_the_presets_own_pipeline_rows(
     plain_manager.presetops.store.save("Base", cfg_xml(night_cfg()))
     await plain_manager.applyops.matrix_switch_profile("Night")
     await plain_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
-    assert (await rows(plain_manager))[0]["gain"] == "-2"
+    # exactly the preset's own rows: nothing of Night's appended, prepended or merged
+    assert await rows(plain_manager) == OWN_ROWS_READBACK
 
 
 async def test_a_preset_switch_apply_does_not_install_the_profiles_chain(
@@ -143,4 +150,5 @@ async def test_a_plain_apply_still_installs_the_active_profiles_rows(
 ) -> None:
     await night_manager.applyops.matrix_switch_profile("Night")
     await night_manager.applyops.apply({}, {"title": "Renamed"})
-    assert (await rows(night_manager))[0]["gain"] == "-7"
+    # exactly Night's rows: installed means replaced wholesale, not present somewhere
+    assert await rows(night_manager) == NIGHT_ROWS_READBACK
