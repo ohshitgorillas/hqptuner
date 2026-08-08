@@ -73,7 +73,7 @@ class ApplyOps:
                 raise ControlError("daemon not connected")
             live_report = live_report + await apply_live(client, live_edits, mgr.audit)
             mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
-        persistent = await httplane.apply(mgr, http_fields) if http_fields else None
+        persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
         if persistent is not None and persistent.get("applied"):
             # the restore that just applied carried the parked filter files —
             # they live on the daemon now, so the parking area is done with them

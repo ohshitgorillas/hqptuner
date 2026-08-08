@@ -70,8 +70,13 @@ def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[st
     return {k: {"want": intended.get(k), "got": realized.get(k)} for k in keys if realized.get(k) != intended.get(k)}
 
 
-async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]:
+async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> dict[str, Any]:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
+
+    ``switched`` marks an apply that just loaded a different preset: the restart
+    dropped the live matrix profile (the daemon persists the selection nowhere,
+    readme §1.12), and the cached state still names the OLD preset's profile —
+    adopting it would install that profile into the preset just switched to.
 
     Each pass: fetch a fresh /backup, build a restore archive whose
     working config is the running config with edits applied (plus the forced
@@ -87,8 +92,9 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str]) -> dict[str, Any]
     # settings ride along, under the staged edits, which win (presetfields)
     merged = {**presetfields.stored_live_fields(mgr), **edits, **FORCED_CONFIG}
     # the profile the listener is on: the restart comes up on <matrix>, so that
-    # profile's matrix is what <matrix> has to become
-    active_profile = _active_profile(mgr, edits)
+    # profile's matrix is what <matrix> has to become — unless a preset switch
+    # already dropped it (profiles do not follow the listener across presets)
+    active_profile = "" if switched else _active_profile(mgr, edits)
     diff: dict[str, dict[str, str | None]] = {}
     last_error: str | None = None
     for attempt in range(_PERSIST_RETRIES + 1):
