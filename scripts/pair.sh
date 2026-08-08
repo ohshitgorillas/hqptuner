@@ -138,11 +138,11 @@ lane_check() {   # lane_check <tree> <base> spec|impl
 commit_tree() {   # commit_tree <tree> <base> <message>
   local tree=$1 base=$2 msg=$3
   # "is there anything here" asks tree_files, not `status`, so the tooling
-  # links do not count as work — and the pathspec below makes sure a real
-  # commit cannot stage them even if something else is being committed.
+  # links do not count as work — and `.gitignore` spells them without a
+  # trailing slash, so `add -A -- .` cannot stage them either.
   if [ -z "$(tree_files "$tree" "$base")" ]; then echo "  $tree: nothing to commit"; return 0; fi
   if [ "$DRY" = 1 ]; then echo "  would commit: $tree — $msg"; return 0; fi
-  git -C "$tree" add -A -- . ':(exclude).venv' ':(exclude)node_modules'
+  git -C "$tree" add -A -- .
   # pre-commit runs the full gate set here, from inside the worktree; the
   # PYTHONPATH is what points it at this tree's code rather than the main one.
   in_tree "$tree" git commit -m "$msg"
