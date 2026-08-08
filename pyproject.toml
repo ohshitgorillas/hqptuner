@@ -45,7 +45,10 @@ testpaths = ["tests"]
 # Fakes and shared fixtures live in tests/support/; tests import them bare
 # (`from fake_control import serve`), so both directories go on sys.path.
 pythonpath = ["tests", "tests/support"]
-markers = ["live: requires a reachable hqplayerd (deselect with '-m \"not live\"')"]
+markers = [
+    "live: requires a reachable hqplayerd (deselect with '-m \"not live\"')",
+    "e2e: browser tests driving a real server (deselected by default)",
+]
 
 [tool.mutmut]
 # Mutation testing, run by hand via `make mutate` — never in `make check` or
@@ -58,7 +61,7 @@ source_paths = ["hqptuner"]
 do_not_mutate = ["hqptuner/static/*"]
 # Same suite the gate runs: offline and deterministic. A mutation run must never
 # reach the production daemon, so the live marker is deselected here too.
-pytest_add_cli_args = ["-m", "not live", "-x", "-q"]
+pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q"]
 
 [tool.vulture]
 # Dead-code gate. FastAPI route handlers are invoked via their decorators, not

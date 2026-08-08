@@ -40,3 +40,34 @@ jobs:
       # and no hqplayerd exists here to serve the live-marked tests.
       - name: make check
         run: make check
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+          npm ci
+
+      # No HQPTUNER_CHROMIUM here: unset, the harness falls back to playwright's
+      # own chromium, which is the browser this step installs.
+      - name: install chromium
+        run: .venv/bin/playwright install --with-deps chromium
+
+      # The e2e tests spawn `python -m hqptuner` plus in-process socket fakes on
+      # loopback, so nothing external is needed.
+      - name: make test-e2e
+        run: make test-e2e

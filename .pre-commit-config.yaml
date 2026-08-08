@@ -48,7 +48,7 @@ repos:
         files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
-        entry: .venv/bin/pytest -m "not live" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
+        entry: .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
         language: system
         pass_filenames: false
         always_run: true

@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-js check manual mutate
+.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -54,10 +54,13 @@ lint-js:
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
 test:
-	$(VENV)/pytest -m "not live" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
+	$(VENV)/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
 
 test-live:
-	$(VENV)/pytest -q
+	$(VENV)/pytest -m "not e2e" -q
+
+test-e2e:
+	$(VENV)/pytest -m e2e --no-cov -q
 
 # --import installs tests/js/vendor-resolve.js, which reads the importmap out of
 # hqptuner/static/index.html and resolves the bare specifiers (preact, htm,

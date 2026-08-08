@@ -22,6 +22,7 @@ Violations rejected in review even if tests pass.
    - **Advance clock; never freeze one half.** No-op `sleep` with real `monotonic` turns every deadline loop into hot spin hammering fake for full wall-clock deadline — slower than sleeps it removed, and different code path than production.
    - **`ConnectionManager.run()` stays on real clock** by design. Paces on private stop-event wait, which `virtual_clock` does not touch, so manager started with `create_task(manager.run())` polls at real interval instead of spinning.
    - **Fake servers tear down promptly.** `http.server.HTTPServer.shutdown()` blocks on `serve_forever`'s `poll_interval`, 0.5 s default charged to every fixture teardown; `fake_http.spawn` passes `poll_interval=0.01`. Any new threaded fake does same.
+   - **E2E exception, `e2e`-marked tests only.** The browser suite drives the app in a subprocess, so there is no seam to inject a clock through and nothing to virtualize. There the rule is narrower: fixed sleeps stay forbidden, bounded condition-polls are allowed — a `wait_for_selector` / `wait_for_function` / `Locator.wait_for` with a timeout, or an equivalent bounded poll for a non-DOM condition. The timeout is a ceiling on a condition, never a duration anything is expected to take. The offline suite is unaffected: it keeps the full rule and the virtual clock.
 
    Reason: suite once took 84 s, ~80 s of it real sleeps. Now 7 s. Test reintroducing wall-clock wait is defective even when it passes.
 
@@ -31,6 +32,7 @@ Violations rejected in review even if tests pass.
 
 - Default suite offline and deterministic; must pass on machine with no hqplayerd.
 - Tests needing real daemon marked `@pytest.mark.live`, must be read-only against it. Everything write-shaped runs against fakes — permanently: live tests never write to production daemon.
+- Browser end-to-end tests live in `tests/e2e/` and carry `e2e`, applied for them by that package's `conftest.py` — do not write `pytestmark`. They drive a real headless chromium against a real `python -m hqptuner` subprocess wired to the same wire fakes the offline suite uses, so they write freely: nothing they touch is the production daemon. Deselected from `make test`, `make test-live`, the pre-commit pytest hook and mutmut; run them with `make test-e2e`. `make check` does not include them. Rule 2 still holds, and the assertion gate counts `assert` statements only — playwright's `expect()` counts zero, so locators do the waiting and each test makes exactly one plain `assert`.
 
 ## Mutation testing
 
