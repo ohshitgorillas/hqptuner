@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Settings that leave HQPlayer producing no sound now say so.** A modulator picked below the DSD rate it needs stopped the sound with nothing on screen to explain it. Those modulators are now grayed with the rate they need, and dropping the rate under one raises a red warning naming both. Dithers below their tuned rate get an amber note instead, and stay pickable at every rate.
+
 - **A loaded matrix profile no longer follows you to a different preset.** Switching presets could drag the matrix profile you had loaded along with it, so the new preset came up running the old preset's profile instead of its own matrix.
 
 - **Dragging a knob no longer highlights the text around it.** A press on a dial started the browser's own text-selection gesture alongside the value change, so every drag left a trail of blue-highlighted labels behind it. Dials now take the press without starting a selection; text everywhere else stays selectable as normal.

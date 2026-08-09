@@ -143,7 +143,8 @@ function rateOptions(key) {
 // Which family the engine is running. The loaded chain answers it outright; with
 // no chain loaded the mode does, and in auto mode before playback nothing does —
 // there neither column is grayed, because the engine takes a rate for either.
-function liveFamily() {
+/** Which family the engine will produce output in: the loaded chain, else the mode, else null for both. */
+export function liveFamily() {
   const chain = (engineState.value || {}).active_chain;
   if (chain) return chain;
   const mode = modeValue();
