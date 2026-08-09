@@ -7,13 +7,18 @@
 // the same "the engine has something to tell you" surface, but advisory rather
 // than a fault, so it carries its own tone. Text only — no controls; it clears
 // itself when the track changes or the engaged settings treat the junk.
+// Rate/shaper conflicts (store/shaperfit.js) ride the strip between the two:
+// they are faults like the health alerts rather than advice, but they are a
+// property of the settings rather than of playback, so unlike the health alerts
+// they show with the engine stopped.
 import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
+import { shaperAlerts } from "../store/shaperfit.js";
 import { junkAdvice } from "../store/junkadvice.js";
 
-/** Warning row of engine-health alerts plus the junk-filter advice chip; renders nothing when both are empty. */
+/** Warning row of engine-health and rate/shaper alerts plus the junk-filter advice chip; renders nothing when all are empty. */
 export function AlertStrip() {
-  const alerts = engineAlerts.value;
+  const alerts = [...engineAlerts.value, ...shaperAlerts.value];
   const advice = junkAdvice.value;
   if (!alerts.length && !advice) return null;
   return html`

@@ -5,7 +5,7 @@
 // somewhere other than the enumerations.
 
 import { runningValue } from "../resolve.js";
-import { optionsFor } from "../options.js";
+import { optionsFor, grayShapersByRate } from "../options.js";
 import { narrowOptions, narrowCount } from "../narrowing.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
 
@@ -29,6 +29,16 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
 // never hides the running selection (store/narrowing.js), so no live value can
 // be narrowed off its own dropdown. Shapers carry `narrow` nowhere and are left
 // whole.
+//
+// Rate graying is the other half of the same story, and the same feature the
+// tabs have (components/Field.js): a modulator whose floor is above the selected
+// SDM rate is grayed with that floor as the reason. It is driven off the same
+// schema `rateGray` field the tabs read, so the two views share one rule rather
+// than growing two — and it is what closes the modulator-first order into a
+// rate/shaper conflict. The rate-first order is not closed by graying rates,
+// which would lock the user into the higher rate; it is reported in words
+// (store/shaperfit.js). A selected option below the floor grays but stays
+// listed and stays selected — grayShapersByRate marks, it never drops.
 /**
  * @param {ChainControl} c
  * @param {string | number | boolean | undefined} value
@@ -36,7 +46,8 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
  * @returns {MenuOption[]}
  */
 function chainOptions(c, value, base) {
-  const options = base || idOptions(c.enumKey);
+  let options = base || idOptions(c.enumKey);
+  if (c.entry.rateGray) options = grayShapersByRate(options, c.entry.rateGray);
   return c.entry.narrow ? narrowOptions(options, value, c.entry.narrow, c.key) : options;
 }
 

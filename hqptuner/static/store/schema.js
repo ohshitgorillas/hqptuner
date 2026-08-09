@@ -146,7 +146,7 @@ const loudnessOff = (/** @type {GrayCtx} */ ctx) =>
 // picking the tier: verified live on 6.0.4, an unset rate under a DSD512 limit and
 // a pinned DSD512 both play a 44.1k source at 22579200. A menu entry whose only
 // effect is to stop naming the tier is what made the two views disagree.
-const PCM_RATES = [
+export const PCM_RATES = [
   { value: "48000", label: "1x" },
   { value: "96000", label: "2x" },
   { value: "192000", label: "4x" },
@@ -526,7 +526,11 @@ export const schema = {
     field: "dither",
     optionsFrom: "config",
     wide: true,
-    rateGray: "pcm",
+    // No rateGray. The PCM dither floors are the manual's recommendations, not
+    // faults: a ditherer below its floor still dithers and the engine still
+    // produces output, so every dither stays selectable at every rate and the
+    // mismatch is reported in words instead (store/shaperfit.js). `rateGray`
+    // stays on sdm_modulator, where the floor really does stop output.
     desc: "dither",
   },
   sdm_filter_1x: {
