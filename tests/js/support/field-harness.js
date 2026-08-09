@@ -91,6 +91,11 @@ export const META = {
     },
     sdm_modulators: {
       ASDM7: { description: "Seventh order modulator." },
+      // A modulator the constraint file gives a rate FLOOR: below it the engine
+      // produces no output at all, so the option row grays. The value sits
+      // between the DSD512 and DSD1024 tiers, as the file's own floors do — the
+      // manual states MHz thresholds rather than tiers.
+      ASDM7EC: { min_rate_hz: 40960000 },
       AHM5EC5L: { description: "Fifth order AHM.", notes: "Limited SNR." },
     },
   },

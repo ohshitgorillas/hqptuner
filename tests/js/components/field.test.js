@@ -246,38 +246,31 @@ test("test_narrowing_never_hides_the_selected_option", async () => {
   assert.ok(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"));
 });
 
-test("test_a_shaper_below_the_rate_floor_is_offered_disabled", async () => {
-  await reset({
-    fields: [
-      { name: "defaults_samplerate", value: "44100" },
-      {
-        name: "dither",
-        value: "0",
-        options: [
-          { value: "0", label: "TPDF" },
-          { value: "1", label: "NS9" },
-        ],
-      },
+// A modulator below its floor stops the engine producing output at all, so its
+// option row is grayed. The SDM rate limit is `defaults_bitrate`; DSD512 leaves
+// ASDM7EC below its 40.96 MHz floor. (A PCM DITHER below its floor still plays,
+// so no rate grays a dither row at all; that advice is reported as an alert
+// instead — tests/js/components/shaperfit-fields.test.js.)
+const BELOW_MODULATOR_FLOOR = [
+  { name: "defaults_bitrate", value: "24576000" },
+  {
+    name: "modulator",
+    value: "0",
+    options: [
+      { value: "0", label: "ASDM7" },
+      { value: "1", label: "ASDM7EC" },
     ],
-  });
-  assert.ok(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a));
+  },
+];
+
+test("test_a_modulator_below_the_rate_floor_is_offered_disabled", async () => {
+  await reset({ fields: BELOW_MODULATOR_FLOOR });
+  assert.ok(/\bdisabled\b/.test(option(field("sdm_modulator"), "ASDM7EC").a));
 });
 
-test("test_a_rate_grayed_shaper_names_the_rate_it_needs", async () => {
-  await reset({
-    fields: [
-      { name: "defaults_samplerate", value: "44100" },
-      {
-        name: "dither",
-        value: "0",
-        options: [
-          { value: "0", label: "TPDF" },
-          { value: "1", label: "NS9" },
-        ],
-      },
-    ],
-  });
-  assert.equal(option(field("pcm_dither"), "NS9").label, "NS9 — needs ≥ 352.8 kHz");
+test("test_a_rate_grayed_modulator_names_the_rate_it_needs", async () => {
+  await reset({ fields: BELOW_MODULATOR_FLOOR });
+  assert.equal(option(field("sdm_modulator"), "ASDM7EC").label, "ASDM7EC — needs ≥ 40.96 MHz");
 });
 
 test("test_a_shaper_the_rate_can_reach_stays_selectable", async () => {

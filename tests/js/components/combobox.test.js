@@ -77,16 +77,19 @@ const FILTER_FIELDS = [
   },
 ];
 
-// A 44.1k rate leaves NS9 below its 352.8k floor, so its row is rate-grayed
-// (same wire setup as field.test.js's rate-gray cases).
-const GRAYED_DITHER_FIELDS = [
-  { name: "defaults_samplerate", value: "44100" },
+// A DSD512 rate leaves ASDM7EC below its 40.96 MHz floor, so its row is
+// rate-grayed (same wire setup as field.test.js's rate-gray cases). The
+// modulator is what these two cases need: a modulator below its floor stops the
+// engine producing output and stays grayed, where a PCM dither below its floor
+// still plays and no longer grays at all.
+const GRAYED_MODULATOR_FIELDS = [
+  { name: "defaults_bitrate", value: "24576000" },
   {
-    name: "dither",
+    name: "modulator",
     value: "0",
     options: [
-      { value: "0", label: "TPDF" },
-      { value: "1", label: "NS9" },
+      { value: "0", label: "ASDM7" },
+      { value: "1", label: "ASDM7EC" },
     ],
   },
 ];
@@ -129,16 +132,19 @@ test("test_every_option_appears_as_a_row_labelled_by_its_option_label", async ()
 });
 
 test("test_a_grayed_options_row_is_aria_disabled", async () => {
-  await reset({ fields: GRAYED_DITHER_FIELDS });
+  await reset({ fields: GRAYED_MODULATOR_FIELDS });
   assert.equal(
-    attrOf(optRows(field("pcm_dither")).find((r) => r.text.startsWith("NS9"))?.tag || "", "aria-disabled"),
+    attrOf(optRows(field("sdm_modulator")).find((r) => r.text.startsWith("ASDM7EC"))?.tag || "", "aria-disabled"),
     "true",
   );
 });
 
 test("test_a_grayed_options_row_names_the_gray_reason_after_the_label", async () => {
-  await reset({ fields: GRAYED_DITHER_FIELDS });
-  assert.equal(optRows(field("pcm_dither")).find((r) => r.text.startsWith("NS9"))?.text, "NS9 — needs ≥ 352.8 kHz");
+  await reset({ fields: GRAYED_MODULATOR_FIELDS });
+  assert.equal(
+    optRows(field("sdm_modulator")).find((r) => r.text.startsWith("ASDM7EC"))?.text,
+    "ASDM7EC — needs ≥ 40.96 MHz",
+  );
 });
 
 test("test_a_dropdown_without_desc_keeps_its_native_select", async () => {
