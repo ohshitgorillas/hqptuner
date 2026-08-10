@@ -90,14 +90,24 @@ def open_system_tab(page: Page, stack: Stack) -> None:
 
 
 def show_tail(page: Page) -> None:
-    """Drive the toggle to the shown state and wait for the pane.
+    """Drive the toggle to the shown state and wait for what the shown state renders.
 
     Driven, not toggled: the toggle DEFAULTS to the daemon's logging setting, so
     a blind click on a tail that is already shown would hide it.
+
+    The decision is keyed off the CHECKBOX, never off the pane. A shown tail
+    renders the pane only once its first poll has resolved, and renders
+    `.log-tail-msg` instead of the pane when the log is unavailable, so "no
+    `pre.log-tail` on screen" is not the same question as "the tail is hidden" —
+    asking it that way races the first poll and hides a tail that was already
+    shown.
     """
-    if page.locator(TAIL).count() == 0:
+    box = page.locator(f"{TOGGLE} input[type='checkbox']")
+    box.wait_for(state="attached", timeout=SETTLE_MS)
+    if not box.is_checked():
         page.locator(TOGGLE).click()
-    page.wait_for_selector(TAIL, timeout=SETTLE_MS)
+    # Either child of the wrapper means shown: the pane, or the unavailable note.
+    page.wait_for_selector(f"{TAIL}, {WRAP} .log-tail-msg", timeout=SETTLE_MS)
 
 
 def wait_for_text(page: Page, marker: str) -> None:
@@ -130,6 +140,25 @@ def wait_for_scroll_past(page: Page, mark: float) -> None:
     page.wait_for_function(
         "(mark) => { const p = document.querySelector('pre.log-tail');" "  return p !== null && p.scrollTop > mark; }",
         arg=mark,
+        timeout=SETTLE_MS,
+    )
+
+
+def wait_for_gap_between(page: Page, low: float, high: float) -> None:
+    """Poll until the pane sits strictly between `low` and `high` px off the bottom.
+
+    A PRECONDITION, not a result: the browser clamps `scrollTop`, so a pane whose
+    overflow is smaller than the offset asked for lands at 0 or at the bottom
+    instead of where the case needs it, and the case then silently becomes a
+    different one that still goes green. Failing here says the fixture never set
+    up the situation, which is a different diagnosis from the behaviour breaking.
+    """
+    page.wait_for_function(
+        "([low, high]) => { const p = document.querySelector('pre.log-tail');"
+        "  if (p === null) return false;"
+        "  const gap = p.scrollHeight - p.scrollTop - p.clientHeight;"
+        "  return gap > low && gap < high; }",
+        arg=[low, high],
         timeout=SETTLE_MS,
     )
 
@@ -199,11 +228,6 @@ def copy_button(page: Page) -> Locator:
     return page.locator(COPY)
 
 
-def pane_text(page: Page) -> str:
-    """The pane's own text, exactly as it holds it — never `inner_text`, which re-wraps."""
-    return str(page.evaluate("() => document.querySelector('pre.log-tail').textContent"))
-
-
 def observed_copy_label(page: Page) -> str:
     """Wait for the button to stop reading `Copy`, and report what it read instead.
 
@@ -262,6 +286,9 @@ def test_a_tail_scrolled_to_the_top_stays_at_the_top_across_a_poll(page: Page, s
     """Reading the oldest lines in the window is not interrupted by a poll."""
     open_tail_with(page, stack, "TAG04", WINDOW)
     wait_for_overflow(page)
+    # Let the open-time pin land BEFORE scrolling away, or it lands afterwards and
+    # fails this case for a reason that is not the behaviour under test.
+    wait_for_scroll_past(page, 0)
     scroll_to(page, 0)
     poll_with(page, stack, "TAG05", WINDOW)
     flush_frames(page)
@@ -272,6 +299,7 @@ def test_a_tail_scrolled_to_the_middle_does_not_move_across_a_poll(page: Page, s
     """A pane the user has parked mid-way stays exactly where they parked it."""
     open_tail_with(page, stack, "TAG06", WINDOW)
     wait_for_overflow(page)
+    wait_for_scroll_past(page, 0)  # the open-time pin, before the user moves the pane
     parked = scroll_to_middle(page)
     poll_with(page, stack, "TAG07", WINDOW)
     flush_frames(page)
@@ -283,9 +311,30 @@ def test_a_tail_within_the_slack_of_the_bottom_counts_as_at_the_bottom(page: Pag
     open_tail_with(page, stack, "TAG08", WINDOW - 5)
     wait_for_overflow(page)
     near = scroll_near_bottom(page, SLACK - 1)
+    # Strictly inside the slack and strictly off the bottom: without this the
+    # browser's clamp can park the pane exactly at the bottom and the case
+    # degenerates into the already-following one above while still going green.
+    wait_for_gap_between(page, 0, SLACK)
     poll_with(page, stack, "TAG09", WINDOW + 10)
     wait_for_scroll_past(page, near)
     assert bottom_gap(page) <= SLACK
+
+
+def test_a_tail_just_outside_the_slack_does_not_move_across_a_poll(page: Page, stack: Stack) -> None:
+    """Past the slack the user is reading, not following, so a poll leaves the pane alone.
+
+    The discriminating case for the whole feature: every other case is satisfied
+    by a slack of 4, of 40, or of the pane's whole height. This one is what makes
+    the constant mean something — a pane parked a couple of pixels beyond it must
+    stay put.
+    """
+    open_tail_with(page, stack, "TAG14", WINDOW - 5)
+    wait_for_overflow(page)
+    parked = scroll_near_bottom(page, SLACK + 2)
+    wait_for_gap_between(page, SLACK, SLACK + 4)
+    poll_with(page, stack, "TAG15", WINDOW + 10)
+    flush_frames(page)
+    assert scroll_top(page) == parked
 
 
 # --- the copy button ----------------------------------------------------------
@@ -323,11 +372,14 @@ document.execCommand = () => { throw new Error('denied'); };
 def test_copying_puts_the_displayed_lines_on_the_clipboard(page: Page, stack: Stack) -> None:
     """Copy hands over exactly what the pane shows, newline-joined."""
     page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=stack.base_url)
+    # Compared against the body the test SERVED, not against what the pane ended
+    # up showing: a component that renders the wrong lines and then copies those
+    # same wrong lines has to fail here, and comparing with the pane's own text
+    # would let it through.
     open_tail_with(page, stack, "TAG10", 12)
-    shown = pane_text(page)
     copy_button(page).click()
     observed_copy_label(page)
-    assert page.evaluate("() => navigator.clipboard.readText()") == shown
+    assert page.evaluate("() => navigator.clipboard.readText()") == logged("TAG10", 12)
 
 
 def test_copying_without_a_clipboard_falls_back_to_the_legacy_command(page: Page, stack: Stack) -> None:
