@@ -188,7 +188,7 @@ test("test_a_toggle_puts_the_whole_resulting_set_of_names", async () => {
   const w = favoritesWire();
   await toggleFavorite("gauss-a");
   await toggleFavorite("gauss-c");
-  assert.deepEqual([...puts(w).at(-1)].sort(), ["gauss-a", "gauss-c"]);
+  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-a", "gauss-c"]);
 });
 
 test("test_a_toggle_that_unstars_puts_the_set_without_that_name", async () => {
@@ -197,7 +197,7 @@ test("test_a_toggle_that_unstars_puts_the_set_without_that_name", async () => {
   await toggleFavorite("gauss-a");
   await toggleFavorite("gauss-c");
   await toggleFavorite("gauss-a");
-  assert.deepEqual([...puts(w).at(-1)].sort(), ["gauss-c"]);
+  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-c"]);
 });
 
 // --- a refused save ------------------------------------------------------------
