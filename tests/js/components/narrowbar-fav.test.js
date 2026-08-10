@@ -27,8 +27,9 @@ import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
 import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { favoriteFilters, toggleFavorite, nFavOnly } from "../../../hqptuner/static/store/favorites.js";
+import { favoriteFilters, favoritesError, toggleFavorite, nFavOnly } from "../../../hqptuner/static/store/favorites.js";
 import { staticWire } from "../support/wire.js";
+import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
 
@@ -39,7 +40,9 @@ const FILTERS = [
 ];
 
 async function reset() {
-  staticWire();
+  // The favorites set is server-backed: /api/favorites is routed into the
+  // suite's own wire so a star's PUT is answered rather than left hanging.
+  staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));
   engineState.value = {};
   enums.value = { filters: FILTERS };
   metadata.value = {
@@ -50,7 +53,8 @@ async function reset() {
   config.value = { fields: [], file: {}, active: "", profiles: null };
   matrixConfig.value = { fields: [] };
   resetNarrowing();
-  for (const name of [...favoriteFilters.value]) toggleFavorite(name);
+  favoriteFilters.value = new Set();
+  favoritesError.value = "";
   nFavOnly.value = false;
   await discardAll();
 }
@@ -118,7 +122,7 @@ test("test_with_zero_favorites_the_toggle_renders_disabled", async () => {
 
 test("test_with_a_favorite_the_toggle_renders_enabled", async () => {
   await reset();
-  toggleFavorite("gauss-plain");
+  await toggleFavorite("gauss-plain");
   assert.equal(Boolean(favButton().props.disabled), false);
 });
 
@@ -126,14 +130,14 @@ test("test_with_a_favorite_the_toggle_renders_enabled", async () => {
 
 test("test_clicking_the_toggle_turns_favorites_only_on", async () => {
   await reset();
-  toggleFavorite("gauss-plain");
+  await toggleFavorite("gauss-plain");
   click(favButton());
   assert.equal(nFavOnly.value, true);
 });
 
 test("test_clicking_the_toggle_again_turns_favorites_only_off", async () => {
   await reset();
-  toggleFavorite("gauss-plain");
+  await toggleFavorite("gauss-plain");
   click(favButton());
   click(favButton());
   assert.equal(nFavOnly.value, false);

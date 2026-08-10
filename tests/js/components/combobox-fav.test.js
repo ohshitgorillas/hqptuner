@@ -32,8 +32,9 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Field } from "../../../hqptuner/static/components/Field.js";
 import { reset } from "../support/field-harness.js";
-import { stagingWire, quiesce } from "../support/wire.js";
-import { favoriteFilters, toggleFavorite, isFavorite } from "../../../hqptuner/static/store/favorites.js";
+import { staticWire, stagingWire, quiesce } from "../support/wire.js";
+import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
+import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/favorites.js";
 
 const FILTER_FIELDS = [
   {
@@ -66,10 +67,16 @@ const DITHER_FIELDS = [
  * @typedef {import("../support/field-harness.js").ConfigField} ConfigField
  */
 
+// The favorites set is server-backed now, so the harness's own wire has to keep
+// answering /api/favorites: an unanswered PUT from a star click would leave a
+// promise nothing settles. The set and its error line are emptied by assigning
+// the exported signals, the way the source signals are driven everywhere else.
 /** @param {ConfigField[]} fields */
 async function start(fields) {
   await reset({ fields });
-  for (const name of [...favoriteFilters.value]) toggleFavorite(name);
+  favoriteFilters.value = new Set();
+  favoritesError.value = "";
+  staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));
 }
 
 // One render of a Field, with every vnode preact builds along the way.
@@ -196,10 +203,12 @@ test("test_clicking_one_star_leaves_the_other_options_unfavorited", async () => 
 });
 
 // A row's own click commits the option; the star's must not — no stage request
-// may reach the wire.
+// may reach the wire. The star's OWN request (PUT /api/favorites) is routed and
+// answered, so `quiesce` sees a wire that went quiet rather than one still
+// waiting.
 test("test_clicking_a_rows_star_commits_no_value", async () => {
   await start(FILTER_FIELDS);
-  const w = stagingWire();
+  const w = stagingWire({ routes: favoritesRoutes(favoritesState()) });
   click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
   await quiesce(w);
   assert.equal(w.stages.length, 0);
