@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **Starred filters are now saved on the server, not in the browser.** Favorites lived in one browser's local storage, so starring a filter on the laptop left the phone and the tablet showing none. They now live with the rest of HQPTuner's state and every browser pointed at the install sees the same stars. Stars already set in a browser are moved up the first time it loads the new version, so nothing is lost. A star that fails to save says so under the dropdown and goes back off, rather than looking saved until the next reload.
+- **Stars set on the laptop no longer leave the phone showing none.** Favorites were kept in whichever browser you starred them in. They now save with the rest of HQPTuner's state, so every browser shows the same stars; the ones you already had carry over on first load.
 
 - **The live log tail no longer drags you back to the bottom.** Scrolling up to read an older line lasted three seconds — the next poll snapped the view to the newest entry, every time. The tail now only follows the newest line while you are already parked at the bottom; scroll up and it stays where you put it.
 

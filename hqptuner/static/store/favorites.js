@@ -58,29 +58,37 @@ function dropLegacy() {
   try {
     localStorage.removeItem(LEGACY_KEY);
   } catch {
-    // A store we cannot clear is a store the next hydrate reads again — harmless,
-    // because the server is non-empty by then and the migration no longer runs.
+    // A store we cannot clear is one the next hydrate migrates again. Harmless:
+    // the union of a set with itself is that set, so the re-run writes back what
+    // the server already holds.
   }
 }
 
 /**
  * Fill the set from the server, migrating this browser's leftover localStorage
- * stars up on the way if the server has none. Never throws: an unreachable
- * backend leaves the set empty, which is what the page can honestly show.
+ * stars up on the way. Never throws: an unreachable backend leaves whatever is
+ * already starred alone, which is what the page can honestly show.
+ *
+ * The migration is a UNION, not a "only if the server is empty" upload, because
+ * the stars being migrated are per browser: a laptop and a phone starred
+ * different filters, and whichever loaded first would otherwise have decided
+ * the whole list while the second silently showed someone else's stars. Every
+ * browser contributes its old set exactly once, and dropping the key is what
+ * makes it once. The cost is a star unstarred on an already-migrated browser
+ * coming back when a second browser migrates its own older key — a narrow
+ * window, and it errs toward keeping a star rather than losing one.
  * @returns {Promise<void>}
  */
 export async function hydrateFavorites() {
   try {
     const body = await api.favorites();
     const stored = body.filters || [];
-    if (stored.length) {
-      favoriteFilters.value = new Set(stored);
-      return;
-    }
+    favoriteFilters.value = new Set(stored);
     const legacy = legacyNames();
+    // No legacy key is the steady state — every load after the first — and it
+    // must not write, or every page open would PUT the list back unchanged.
     if (!legacy.length) return;
-    favoriteFilters.value = new Set(legacy);
-    const saved = await api.saveFavorites([...favoriteFilters.value]);
+    const saved = await api.saveFavorites([...new Set([...stored, ...legacy])]);
     favoriteFilters.value = new Set(saved.filters || []);
     dropLegacy();
   } catch (e) {
