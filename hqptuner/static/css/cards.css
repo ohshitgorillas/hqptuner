@@ -355,6 +355,14 @@ button.card-head {
   flex-direction: column;
   gap: var(--sp-2);
 }
+/* toggle on the left, Copy on the right — one row above the tail */
+.log-tail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
 /* live log tail — static 50-line window, monospace, scrolls internally */
 .log-tail {
   margin: 0; /* <pre> carries a UA margin — the wrapper's gap owns the spacing */
