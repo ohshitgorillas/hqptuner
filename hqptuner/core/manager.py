@@ -22,6 +22,7 @@ import asyncio
 import contextlib
 import logging
 import time
+import zipfile
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -36,6 +37,7 @@ from hqptuner.engine.control import CommandError, ControlClient, ControlError
 from hqptuner.lanes import httpforms, livechain, livelane, settle
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetops import PresetOps
+from hqptuner.presets.presetstore import PresetError
 
 if TYPE_CHECKING:
     from hqptuner.engine.metering import MeteringReader
@@ -44,6 +46,11 @@ log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
+# What the supervisor loop treats as "the daemon, not us": a refused or severed socket, a
+# timeout, a non-2xx on the 8088 lane, a command the engine rejected. These are the faults
+# `daemon unreachable` is an honest report of. Anything outside this set is a bug of ours,
+# and the loop's second clause keeps it loud instead of dressing it as an outage.
+_WIRE_FAULTS = (ControlError, CommandError, httpx.HTTPError, OSError, TimeoutError)
 # How long to wait before looking for a device announcement that was not there
 # last time (Manager.refresh_device_caps). Long, because the reader is a full log
 # fetch and the announcement only appears when the daemon opens the device.
@@ -143,17 +150,41 @@ class ConnectionManager:
             if self._client is None:
                 try:
                     await self._connect_and_load()
-                except Exception as exc:
+                except _WIRE_FAULTS as exc:
                     await self._drop(f"connect/load failed: {exc}")
-                    # aggressive inside the expected-restart window, then back off
-                    await self._sleep(RECONNECT_FAST if not self.alarm else RECONNECT_SLOW)
+                    await self._sleep(self._reconnect_delay())
+                    continue
+                except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
+                    self._bug("connect/load")
+                    await self._sleep(self._reconnect_delay())
                     continue
             try:
                 await self._poll()
-            except Exception as exc:
+            except _WIRE_FAULTS as exc:
                 await self._drop(f"poll failed: {exc}")
                 continue
+            except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
+                self._bug("poll")
+                await self._sleep(self._cfg.poll_interval)
+                continue
             await self._sleep(self._cfg.poll_interval)
+
+    def _reconnect_delay(self) -> float:
+        """Retry aggressively inside the expected-restart window, then back off once in alarm."""
+        return RECONNECT_FAST if not self.alarm else RECONNECT_SLOW
+
+    def _bug(self, stage: str) -> None:
+        """Report a fault that is ours, not the daemon's, and leave reachability alone.
+
+        The blind ``except`` above this is deliberate and stays: ``run()`` is started with
+        ``create_task`` and never awaited until shutdown, so an escaping exception surfaces
+        nowhere at all — the supervisor would die in silence while the API kept serving. What
+        changes is that a fault outside ``_WIRE_FAULTS`` no longer reaches ``_drop``, which
+        logs at most once per outage and would report our own ``TypeError`` as the daemon
+        being unreachable. Every iteration logs a traceback instead, and the connection is
+        left as it was: nothing here is evidence the daemon went away.
+        """
+        log.exception("%s failed with a fault of ours, not the daemon's; retrying", stage)
 
     async def _sleep(self, seconds: float) -> None:
         """Perform the poll loop's own wait.
@@ -208,12 +239,17 @@ class ConnectionManager:
             await self.refresh_device_caps(force=True)
             try:
                 await self.load_file_config()
-            except Exception as exc:
-                # the form still carries every field; only the lossy ones degrade
+            except (httpx.HTTPError, ControlError) as exc:
+                # the form still carries every field; only the lossy ones degrade.
+                # A corrupt archive is not in this set on purpose: engineconf.base_config_xml
+                # already answers unreadable bytes with b"", so BadZipFile cannot arrive here.
                 log.warning("file-config read failed: %s", exc)
             try:
                 await self.presetops.migrate_once(active_config)
-            except Exception as exc:
+            except (httpx.HTTPError, PresetError, OSError, zipfile.BadZipFile) as exc:
+                # the daemon's own snapshots stay unimported; the store keeps whatever it had.
+                # BadZipFile belongs here and not above: presetzip.snapshot_members opens the
+                # archive itself, with no empty-bytes fallback under it.
                 log.warning("preset migration skipped: %s", exc)
         log.info("connected: %s engine %s", info.get("name"), info.get("engine") or info.get("version"))
 

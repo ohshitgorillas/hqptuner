@@ -111,6 +111,7 @@ select = [
     "DTZ",              # timezone-naive datetime
     "PGH",              # blanket noqa / type-ignore
     "ASYNC",            # async antipatterns: busy-wait loops, timeout parameters
+    "BLE",              # blind except: name the exception set or say why not
     "RUF",
     # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
     # tests/ is exempt by decision: docs/testing.md rule 6 already requires a
