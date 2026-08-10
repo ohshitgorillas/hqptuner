@@ -1,72 +1,113 @@
 flowchart TD
-    W["Welcome"] --> NP["How many endpoints?<br/>→ N presets"]
-
-    subgraph BACKEND["BACKEND — repeat per preset"]
-        NAME["Name this preset<br/>(tip: multi-headphone EQ = matrix profiles, not presets)"] --> PWR["Device plugged in + powered on"]
-        PWR --> BT{"Backend type?"}
-        BT -->|"NAA over network"| FW["Disable/remove host firewall<br/>(ufw / firewalld)"]
-        FW --> NF{"NAA flavor"}
-        NF -->|"NAA OS image (recommended)"| BOOT["NAA booted + on network"]
-        NF -->|"Built-in device mode"| BOOT
-        NF -->|"networkaudiod + avahi"| BOOT
-        BOOT --> IDN["Identify NAA<br/>[GET /config/refresh → net_device options]"]
-        BT -->|"ALSA direct out"| DDC
-        IDN --> DDC{"DDC/transport feeding<br/>DAC over USB?"}
-        DDC -->|"no"| SEL["Select device from list<br/>[refresh devices if ambiguous]"]
-        DDC -->|"yes"| DIS1["Select the two device listings"]
-        DIS1 --> DIS2["User unplugs DAC USB"]
-        DIS2 --> DIS3["Refresh + diff listings<br/>[survivor = working device]"]
-        DIS3 --> DIS4["Replug DAC → device locked in"]
-    end
+    W["Welcome<br/>(IPv6 disabled to start — wizard assumes IPv4,<br/>tests IPv6 explicitly later)"] --> NP["How many endpoints?<br/>→ N presets"]
 
     NP --> NAME
-    SEL --> HWQ
-    DIS4 --> HWQ
 
-    subgraph HARDWARE["HARDWARE — HQPlayer host (once)"]
-        HWQ{"Nvidia GPU and/or<br/>E-core CPU?"}
-        HWQ -->|"GPU"| MG{"More than one GPU?"}
-        MG -->|"yes"| IDX["User enters indices from nvidia-smi<br/>→ one card convolution, one card resampling"]
-        MG -->|"no"| PWRQ{"Rate GPU power"}
-        PWRQ -->|"don't bother"| C0["No CUDA offload"]
-        PWRQ -->|"low"| C1["CUDA: convolution only"]
-        PWRQ -->|"moderate-high"| C2["CUDA: convolution + resampling"]
-        HWQ -->|"E-cores, no GPU"| EC["E-core DSP ON · CUDA off · multicore ON"]
-        HWQ -->|"neither"| MC["Multicore DSP only"]
+    subgraph PRESETS["§1 PRESET CREATION — loop per preset"]
+        NAME["Name this preset<br/>(tip: multi-headphone EQ = matrix profiles, not presets)"] --> PWR["Device plugged in + powered on"]
+        PWR --> BT{"§1.1 Backend?"}
+
+        BT -->|"ALSA direct out"| SEL
+        BT -->|"NAA over network"| VIS{"NAA visible<br/>in device list?"}
+
+        VIS -->|"yes"| SEL
+        VIS -->|"no"| BRING["§1.2 NAA bring-up (shown once total)<br/>Flavors: NAA OS image (recommended) ·<br/>built-in device mode · networkaudiod + avahi<br/>+ CRITICAL: disable/remove host firewall<br/>(ufw / firewalld)"]
+        BRING --> VIS2{"NAA visible after<br/>Refresh devices?"}
+        VIS2 -->|"no — must fix to proceed"| BRING
+        VIS2 -->|"yes"| SEL
+
+        SEL["§1.3 Select device from list<br/>· ambiguous duplicates: power others down + refresh<br/>· one physical device, multiple listings: select both"] --> BGATE{"Backend is NAA?"}
+
+        BGATE -->|"no (ALSA)"| DDC
+        BGATE -->|"yes"| IP6{"§1.4 IPv6 on LAN?<br/>(per device)"}
+
+        IP6 -->|"no / skip"| DDC
+        IP6 -->|"yes"| IP6C["Enable IPv6, confirm NAA still visible"]
+        IP6 -->|"don't know"| IP6T["Auto-detect: restart daemon with IPv6,<br/>verify NAA visibility"]
+        IP6C --> IP6R{"Still visible?"}
+        IP6T --> IP6R
+        IP6R -->|"yes"| IP6Y["IPv6 confirmed"]
+        IP6R -->|"no"| IP6N["Leave IPv6 off<br/>(no performance impact)"]
+        IP6Y --> DDC
+        IP6N --> DDC
+
+        DDC{"§1.5 DDC/transport feeding<br/>DAC over USB?<br/>(two listings, one works)"}
+        DDC -->|"no"| RATE
+        DDC -->|"yes"| DIS1["Unplug DAC USB or power DAC off,<br/>click Disambiguate"]
+        DIS1 --> DIS2{"Exactly one<br/>listing survived?"}
+        DIS2 -->|"yes"| DIS3["Survivor locked in as endpoint,<br/>both listings hidden from future lists<br/>→ replug DAC"]
+        DIS2 -->|"no (both gone / neither gone)"| DIS4["Can't disambiguate —<br/>experiment later: load each,<br/>the one that makes sound wins"]
+        DIS3 --> RATE
+        DIS4 --> RATE
+
+        RATE{"§1.5 Rate detection:<br/>how does DAC receive input?"}
+        RATE -->|"AES/EBU or S/PDIF coax"| FIX1["Limits fixed:<br/>4x PCM, DSD64 via DoP"]
+        RATE -->|"S/PDIF Toslink"| FIX2["Limits fixed:<br/>2x PCM, no DSD"]
+        RATE -->|"USB or I2S"| QD["Query daemon:<br/>48kHz-family DSD support"]
+        QD --> LIM["Show detected limits:<br/>PCM · SDM (DoP/None) · 48k DSD ·<br/>DAC bits · PCM gain compensation"]
+        LIM --> CONF["User confirms vs DAC manual<br/>(lower if DDC masks real limits)<br/>· DAC bits for R-2R dithering<br/>· PCM gain comp if switching PCM/DSD"]
+        FIX1 --> VOLQ
+        FIX2 --> VOLQ
+        CONF --> VOLQ
+
+        VOLQ{"§1.6 HQPlayer for<br/>volume control?"}
+        VOLQ -->|"yes"| VY["Fixed volume off<br/>range −60..−3 dB<br/>startup −40 dB"]
+        VOLQ -->|"no"| CLIP{"Frequently clipped<br/>material?"}
+        CLIP -->|"yes"| H6["−6 dB auto headroom / optimal ISO"]
+        CLIP -->|"no"| H3["−3 dB auto headroom / optimal ISO"]
+        H6 --> PITCH["Pitch: give HQP volume a shot<br/>(perfect channel matching,<br/>volume-adaptive loudness)"]
+        H3 --> PITCH
     end
 
-    IDX --> RATES
-    C0 --> RATES
-    C1 --> RATES
-    C2 --> RATES
-    EC --> RATES
-    MC --> RATES
+    VY --> LOOP{"More presets?"}
+    PITCH --> LOOP
+    LOOP -->|"yes — next preset"| NAME
+    LOOP -->|"no"| EQT
 
-    RATES["Auto-detect supported rates + DSD support<br/>per preset device [GetRates on demand]"] --> VOLQ
-
-    subgraph PREFS["PREFERENCES"]
-        VOLQ{"HQPlayer for volume control?"}
-        VOLQ -->|"yes"| EQQ["EQ profiles to load? How many?"]
-        VOLQ -->|"no"| CLIP{"Frequently clipped material?"}
-        CLIP -->|"answer decides"| ISON["→ optimal ISO −3 dB vs −6 dB<br/>[volume_fixed, fixed-volume setting]"]
-        ISON --> PITCH["Volume control + adaptive loudness pitch"]
-        PITCH --> EQQ
+    subgraph EQ["§3 EQ / MATRIX PROFILES — after presets, per endpoint"]
+        EQT{"Endpoint streams to?"}
+        EQT -->|"speakers"| SPK["Setup type: 2.0 / 2.1 / 3.0 / 3.1 / 5.1 ..."]
+        SPK --> LVL["Per-speaker levels/delays needed?"]
+        LVL --> RC["Room correction / per-speaker EQ?<br/>→ upload filter file per channel"]
+        EQT -->|"headphones"| HP["Existing EQ profiles? How many?<br/>Hearing symmetrical? Overlay or<br/>separate L/R files?<br/>(tip: Headphone Auto EQ library built in)"]
+        HP --> HPL["Loop per headphone:<br/>name profile + upload EQ file(s)"]
+        EQT -->|"both"| SPK
+        EQT -->|"both"| HP
     end
 
-    EQQ --> MODEGATE{"DSD/DoP supported?<br/>[from detected rates]"}
-    MODEGATE -->|"yes"| MODE["Output mode for first listen:<br/>PCM · SDM · Auto<br/>(DSD pitch: start 64-128x)"]
-    MODEGATE -->|"no"| APPLY
-    MODE --> APPLY
+    RC --> HWQ
+    HPL --> HWQ
 
-    APPLY["Apply everything now<br/>[one restore cycle per preset, ~5.6s restart each —<br/>runs while user reads the filter step]"]
-
-    APPLY --> GENRE
-
-    subgraph FILTERS["FILTERS — live lane, no restart"]
-        GENRE["Genre?"] --> FOC["Pick 1-2 focus qualities:<br/>space · timbre · transients"]
-        FOC --> FAM["Material 1x or Nx?"]
-        FAM --> CHAR["Leaner/detailed vs smoother/analog?"]
-        CHAR --> CUR["Curated filter list<br/>[facet data, Jussi quality 4-5/5 only]<br/>[SetFilter — switchable live]"]
+    subgraph HW["§4 HQPLAYER HARDWARE — once, written to all presets"]
+        HWQ{"Nvidia GPU and/or<br/>CPU with E-cores?"}
+        HWQ -->|"2+ GPUs"| IDX["Enter indices from nvidia-smi<br/>→ convolution on one card,<br/>resampling on other · multicore on ·<br/>E-core per CPU"]
+        HWQ -->|"1 GPU"| PWRQ{"Rate GPU power"}
+        PWRQ -->|"don't bother"| C0["No CUDA offload ·<br/>multicore on · E-core per CPU"]
+        PWRQ -->|"low"| C1["CUDA: convolution only ·<br/>multicore on · E-core per CPU"]
+        PWRQ -->|"moderate-high"| C2["CUDA: convolution + resampling ·<br/>multicore on · E-core per CPU"]
+        HWQ -->|"E-cores, no GPU"| EC["CUDA off · multicore on · E-core on"]
+        HWQ -->|"neither"| MC["CUDA off · multicore on · E-core off"]
     end
 
-    CUR --> FIN["FIN — press play"]
+    IDX --> TOUR0
+    C0 --> TOUR0
+    C1 --> TOUR0
+    C2 --> TOUR0
+    EC --> TOUR0
+    MC --> TOUR0
+
+    subgraph TOUR["§5 THE TOUR — skippable at any point"]
+        TOUR0["Interface opens: Output tab, (no preset)"] --> PICK{"Multiple presets?"}
+        PICK -->|"yes"| SELP["Pick preset from dropdown"]
+        PICK -->|"no"| PRE["Single preset pre-loaded"]
+        SELP --> APPLY["Click Apply → daemon restarts,<br/>back in <10 s"]
+        APPLY --> TOUT
+        PRE --> TOUT["Output tab: device/backend/mode/rates ·<br/>junk filter · output mode when available:<br/>PCM / SDM / Auto<br/>(DSD pitch: try PCM→SDM, start 64-128x)"]
+        TOUT --> TVOL["Volume tab:<br/>fixed → keep −3 dB headroom, −6 if clipping ·<br/>adaptive → master volume, range,<br/>loudness calibration recipe (later)"]
+        TVOL --> TRES["Resampling tab: PCM + SDM chain cards ·<br/>1x vs Nx filters · Filter Narrowing:<br/>fill genre/focus, quality ≥3/5 ·<br/>favorites · live-switchable<br/>(defaults pre-favorited, fine to skip)"]
+        TRES --> TMTX["Matrix tab: speaker levels/delays ·<br/>Headphone Auto EQ library ·<br/>crossfeed (Bauer + structural) ·<br/>live-swappable profiles"]
+        TMTX --> TSYS["System tab: accent color ·<br/>hw accel tweaks · daemon log ·<br/>engine health (buffers, realtime speed)"]
+        TSYS --> TLIVE["LIVE mode: on-the-fly settings,<br/>applied on selection · live presets"]
+    end
+
+    TLIVE --> FIN["FIN — press Play :)"]
