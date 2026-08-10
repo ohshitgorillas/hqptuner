@@ -31,6 +31,14 @@ from hqptuner.engine.control import ControlClient, ControlError
 #: default is 5.0 (config.Config.request_timeout).
 STALL_TIMEOUT = 0.5
 
+#: The manager's background poll, parked past the end of any case here, so the
+#: fake daemon sees traffic from the case's own request and nothing else. The
+#: poll shares the one control connection: a poll that trips the same `_stall` or
+#: `_close` knob gives up on its deadline and drops that connection, and the
+#: request under test then fails "not connected" without ever reaching the fake —
+#: the case would be asserting on the poll's failure rather than on the route.
+PARKED_POLL_INTERVAL = 3600.0
+
 #: A live setting whose setter is one command with one State attribute behind it
 #: (`SetJunkFilter` -> `filter_junk`), so a stalled write has nothing else in the
 #: batch to confuse the report with.
@@ -61,7 +69,7 @@ def stalling_setter_api(tmp_path: Path) -> Iterator[TestClient]:
     """The control-only app on a daemon that never answers `SetJunkFilter`.
     Everything else answers, so the app loads and connects normally."""
     daemon = spawn_threaded_daemon({"_stall": STALLED_SETTER})
-    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT)
+    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     yield next(app)
     next(app, None)
     next(daemon, None)
@@ -72,7 +80,7 @@ def stalling_mode_api(tmp_path: Path) -> Iterator[TestClient]:
     """The control-only app on the daemon from the field report: `SetMode` is
     received and never answered. Every other command answers, so the app loads."""
     daemon = spawn_threaded_daemon({"_stall": STALLED_MODE_SETTER})
-    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT)
+    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     yield next(app)
     next(app, None)
     next(daemon, None)
@@ -89,7 +97,7 @@ def stalling_readback_api(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str
     503 raised by the readback from one raised before the setter ever went out."""
     state = dict(DEFAULTS)
     daemon = spawn_threaded_daemon(state=state)
-    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT)
+    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
     state["_stall"] = "State"
     yield client, state
@@ -224,7 +232,7 @@ def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
     side of the wire without asking it anything."""
     state = dict(DEFAULTS)
     daemon = spawn_threaded_daemon(state=state)
-    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT)
+    app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
     state["_close"] = HOUSEKEEPING_COMMAND
     yield client, state

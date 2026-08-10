@@ -65,8 +65,18 @@ def _reachable(client: TestClient) -> bool:
     return bool(client.get("/api/health").json()["reachable"])
 
 
-def _live_app(control_port: int, tmp_path: Path, request_timeout: float | None = None) -> Iterator[TestClient]:
-    """Control lane only — no credentials, so the app talks 4321 alone."""
+def _live_app(
+    control_port: int,
+    tmp_path: Path,
+    request_timeout: float | None = None,
+    poll_interval: float | None = None,
+) -> Iterator[TestClient]:
+    """Control lane only — no credentials, so the app talks 4321 alone.
+
+    ``poll_interval`` reshapes the manager's background poll the same way
+    ``request_timeout`` reshapes the per-command deadline: a caller that must be
+    the only traffic its fake daemon sees parks the poll out past the case.
+    Passing nothing keeps the production pacing."""
     cfg = Config(
         hqp_host="127.0.0.1",
         hqp_control_port=control_port,
@@ -80,6 +90,8 @@ def _live_app(control_port: int, tmp_path: Path, request_timeout: float | None =
     )
     if request_timeout is not None:  # real wall clock, unlike the virtualized one
         cfg = replace(cfg, request_timeout=request_timeout)
+    if poll_interval is not None:
+        cfg = replace(cfg, poll_interval=poll_interval)
     with TestClient(create_app(cfg)) as client:
         wait_for_api(client, _reachable)
         yield client
