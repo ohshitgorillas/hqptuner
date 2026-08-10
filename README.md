@@ -26,7 +26,7 @@ HQPlayer is a complex program that takes time to learn. A bad UI doesn't just fr
 
 HQPTuner offers the following features and improvements over the stock web configuration UI.
 
-**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks. Star the filters you keep coming back to and the ★ Favorites toggle narrows every filter dropdown to just those (saved per browser).
+**1. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks. Star the filters you keep coming back to and the ★ Favorites toggle narrows every filter dropdown to just those (saved on the server, so every browser you open sees the same stars).
 
 **2. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
 
@@ -149,6 +149,8 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
 | `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
+| `HQPTUNER_LIVE_PRESET_FILE` | `state/live-presets.json` | The LIVE view's saved setting combos, one JSON file |
+| `HQPTUNER_FAVORITES_FILE` | `state/favorites.json` | Starred filter names, one JSON file shared by every browser |
 | `HQPTUNER_DEBUG_LOG` | unset (off) | Path to the append-only event log. Unset means no file and no records. Set it to record every durable write — staged edits, applies, profile writes, preset writes — as JSON Lines, e.g. `/state/audit.jsonl` in the container |
 | `HQPTUNER_LOG_LEVEL` | `INFO` | Level for ordinary prose logging. A level name, not a number; an unparseable value falls back to `INFO` rather than refusing to start |
 

@@ -13,7 +13,7 @@ import { describe, selectionDescription, optionDescription } from "../store/pros
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
-import { isFavorite, toggleFavorite } from "../store/favorites.js";
+import { isFavorite, toggleFavorite, favoritesError } from "../store/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
@@ -77,6 +77,19 @@ export const favFor = (/** @type {FieldEntry} */ entry) =>
         onFav: (/** @type {OptionItem} */ o) => toggleFavorite(o.label),
       }
     : undefined;
+
+/**
+ * A refused favorites write, under the dropdown whose star did not stick. Only
+ * the star-carrying (`narrow`) dropdowns render it, for the same reason only
+ * they render stars — there is one set and one error, and repeating it under a
+ * dither combobox would put it beside a control that cannot cause it. Shared
+ * with the LIVE page's binder, same as widgetFor/tipsFor/favFor.
+ * @param {{ entry: FieldEntry }} props
+ */
+export function FavoriteError({ entry }) {
+  if (!entry.narrow || !favoritesError.value) return null;
+  return html`<div class="field-error">${favoritesError.value}</div>`;
+}
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds). A schema entry may
@@ -225,7 +238,7 @@ function hoverTitle(entry, meta, reason) {
 }
 
 // The prose under the control, in reading order: per-selection manual text,
-// static feature note, gray reason.
+// static feature note, gray reason, refused favorites write.
 /**
  * @param {FieldEntry} entry
  * @param {string} key
@@ -239,6 +252,7 @@ function fieldProse(entry, key, meta, { reason, options }) {
     ${showDesc ? html`<div class="field-desc">${selectionDescription(entry, effective(key), options, meta)}</div>` : null}
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
     ${stackedCaption(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}
+    <${FavoriteError} entry=${entry} />
   `;
 }
 

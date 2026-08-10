@@ -60,6 +60,14 @@ class Config:
             _env("LIVE_PRESET_FILE", str(Path(__file__).resolve().parent.parent / "state" / "live-presets.json"))
         )
     )
+    # Starred filter names (see favoritestore) — one JSON file beside the live
+    # presets, in the same bind-mounted state dir, because favorites belong to
+    # the install rather than to whichever browser starred them.
+    favorites_file: Path = field(
+        default_factory=lambda: Path(
+            _env("FAVORITES_FILE", str(Path(__file__).resolve().parent.parent / "state" / "favorites.json"))
+        )
+    )
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files

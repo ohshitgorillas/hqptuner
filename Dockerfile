@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir .
 ENV HQPTUNER_BACKUP_DIR=/state/backups \
     HQPTUNER_PRESET_DIR=/state/presets \
     HQPTUNER_LIVE_PRESET_FILE=/state/live-presets.json \
+    HQPTUNER_FAVORITES_FILE=/state/favorites.json \
     HQPTUNER_LISTEN_HOST=0.0.0.0
 
 USER hqptuner
