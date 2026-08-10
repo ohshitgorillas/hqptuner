@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
+from conftest import eventually
 from narrow import present
 
 from hqptuner.config import Config
@@ -16,19 +17,11 @@ from hqptuner.engine.control import ControlError
 from hqptuner.lanes import livemap, liveoverrides
 
 
-async def _until_reachable(manager: ConnectionManager, timeout: float = 2.0) -> None:
-    async def wait() -> None:
-        while not manager.reachable:
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(wait(), timeout)
-
-
 @pytest.fixture
 async def running_manager(live_daemon_port: int) -> AsyncIterator[ConnectionManager]:
     manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=live_daemon_port))
     task = asyncio.create_task(manager.run())
-    await _until_reachable(manager)
+    await eventually(lambda: manager.reachable, timeout=2.0)
     yield manager
     manager.stop()
     await task
@@ -40,7 +33,7 @@ async def split_filter_manager(split_filter_daemon_port: int) -> AsyncIterator[C
     """Connected to the daemon whose two filter slots differ — see the fixture."""
     manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=split_filter_daemon_port))
     task = asyncio.create_task(manager.run())
-    await _until_reachable(manager)
+    await eventually(lambda: manager.reachable, timeout=2.0)
     yield manager
     manager.stop()
     await task

@@ -11,6 +11,7 @@ from typing import Any
 
 import fake_http
 import pytest
+from conftest import eventually
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
@@ -25,19 +26,14 @@ def empty_backup_daemon() -> Iterator[dict[str, Any]]:
     yield from fake_http.spawn(fake_http.state(_empty=True))
 
 
-async def _settled(manager: ConnectionManager, timeout: float = 5.0) -> None:
+async def _settled(manager: ConnectionManager) -> None:
     """A full connect plus one completed poll. ``run()`` flags the daemon
     reachable before the best-effort 8088 loads run, so the flag alone cannot
     prove the connect returned whole — a completed poll can."""
 
-    async def wait() -> None:
-        while not (manager.reachable and manager.loaded_at is not None):
-            await asyncio.sleep(0.01)
-        first = manager.loaded_at
-        while not (manager.reachable and manager.loaded_at != first):
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(wait(), timeout)
+    await eventually(lambda: manager.reachable and manager.loaded_at is not None, timeout=5.0)
+    first = manager.loaded_at
+    await eventually(lambda: manager.reachable and manager.loaded_at != first, timeout=5.0)
 
 
 @pytest.fixture

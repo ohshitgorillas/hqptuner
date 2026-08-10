@@ -106,13 +106,17 @@ LiveBuilt = tuple[ConnectionManager, CommandLog, dict[str, str]]
 LiveManager = Callable[..., Awaitable[LiveBuilt]]
 
 
-async def eventually(condition: Callable[[], bool], timeout: float = 3.0) -> None:
+async def eventually(condition: Callable[[], bool], timeout: float = 3.0) -> None:  # noqa: ASYNC109
     """Wait until the condition holds; a TimeoutError means the behavior never
     happened. Real clock with tiny polls, because ``run()`` is deliberately
-    real-paced (docs/testing.md §7) — the lanes' own waits stay virtual."""
+    real-paced (docs/testing.md §7) — the lanes' own waits stay virtual.
+
+    ASYNC109 and ASYNC110 are suppressed rather than fixed: the helper polls a
+    caller-supplied ``condition()``, so by construction there is no mutation
+    point to hang an ``asyncio.Event`` on."""
 
     async def wait() -> None:
-        while not condition():
+        while not condition():  # noqa: ASYNC110
             await asyncio.sleep(0.01)
 
     await asyncio.wait_for(wait(), timeout)

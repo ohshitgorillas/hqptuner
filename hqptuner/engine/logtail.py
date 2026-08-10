@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
+_HTTP_TIMEOUT = 10.0  # httpx would otherwise default to 5.0
 
 
 def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool]:
@@ -32,12 +33,12 @@ def log_file_field(config_form: dict[str, Any] | None) -> tuple[str | None, bool
     return path, enabled
 
 
-async def fetch_log(base_url: str, timeout: float = 10.0) -> str:
+async def fetch_log(base_url: str) -> str:
     """Return the daemon's full log text from GET /log on the 8088 web interface.
 
     Unauthenticated — the log page is not credential-gated.
     """
-    async with httpx.AsyncClient(base_url=base_url, timeout=timeout) as client:
+    async with httpx.AsyncClient(base_url=base_url, timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get("/log")
         resp.raise_for_status()
         return resp.text

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import eventually
 from narrow import present
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -36,11 +37,7 @@ async def switch_manager(
     )
     task = asyncio.create_task(manager.run())
 
-    async def until_reachable() -> None:
-        while not manager.reachable:
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(until_reachable(), 3.0)
+    await eventually(lambda: manager.reachable, timeout=3.0)
     yield manager
     manager.stop()
     await task

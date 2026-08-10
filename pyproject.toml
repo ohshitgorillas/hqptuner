@@ -110,6 +110,7 @@ select = [
     "PTH",              # pathlib over os.path
     "DTZ",              # timezone-naive datetime
     "PGH",              # blanket noqa / type-ignore
+    "ASYNC",            # async antipatterns: busy-wait loops, timeout parameters
     "RUF",
     # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
     # tests/ is exempt by decision: docs/testing.md rule 6 already requires a

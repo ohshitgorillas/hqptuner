@@ -12,6 +12,7 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import pytest
+from conftest import eventually
 from fake_control import serve as fake_serve
 from narrow import present
 
@@ -21,17 +22,6 @@ from hqptuner.engine.control import ControlError
 
 KillableDaemon = tuple[int, Callable[[], Awaitable[None]]]
 OutageManager = tuple[ConnectionManager, Callable[[], Awaitable[None]]]
-
-
-async def _eventually(condition: Callable[[], bool], timeout: float = 3.0) -> None:
-    """Wait (real clock, tiny polls — the run() loop is deliberately real-paced)
-    until the condition holds; a TimeoutError means the behavior never happened."""
-
-    async def wait() -> None:
-        while not condition():
-            await asyncio.sleep(0.01)
-
-    await asyncio.wait_for(wait(), timeout)
 
 
 @pytest.fixture
@@ -64,7 +54,7 @@ async def outage_manager(killable_daemon: KillableDaemon) -> AsyncIterator[Outag
     port, kill = killable_daemon
     manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port, poll_interval=0.02))
     task = asyncio.create_task(manager.run())
-    await _eventually(lambda: manager.reachable)
+    await eventually(lambda: manager.reachable)
     yield manager, kill
     manager.stop()
     await task
@@ -77,21 +67,21 @@ async def outage_manager(killable_daemon: KillableDaemon) -> AsyncIterator[Outag
 async def test_a_poll_failure_marks_the_daemon_unreachable(outage_manager: OutageManager) -> None:
     manager, kill = outage_manager
     await kill()
-    await _eventually(lambda: not manager.reachable)
+    await eventually(lambda: not manager.reachable)
     assert manager.reachable is False
 
 
 async def test_a_poll_failure_closes_the_control_client(outage_manager: OutageManager) -> None:
     manager, kill = outage_manager
     await kill()
-    await _eventually(lambda: manager.control is None)
+    await eventually(lambda: manager.control is None)
     assert manager.control is None
 
 
 async def test_a_poll_failure_records_when_the_outage_began(outage_manager: OutageManager) -> None:
     manager, kill = outage_manager
     await kill()
-    await _eventually(lambda: not manager.reachable)
+    await eventually(lambda: not manager.reachable)
     assert manager.unreachable_since is not None
 
 
@@ -129,7 +119,7 @@ async def test_a_mode_change_is_reenumerated_on_the_next_poll(outage_manager: Ou
     # wholesale — enum 38 is the SDM chain's poly-sinc-gauss-long, not PCM's 40
     manager, _ = outage_manager
     await present(manager.control).set_command("SetMode", value="2")
-    await _eventually(lambda: (manager.enums or {}).get("filters", [{}])[0].get("value") == "38")
+    await eventually(lambda: (manager.enums or {}).get("filters", [{}])[0].get("value") == "38")
     assert present(manager.enums)["filters"][0]["value"] == "38"
 
 
