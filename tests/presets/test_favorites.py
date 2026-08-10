@@ -19,7 +19,6 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from conftest import _closed_port
 from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
@@ -48,20 +47,24 @@ def seed(tmp_path: Path, content: str) -> Path:
 
 
 @pytest.fixture
-def favorites_api(tmp_path: Path) -> Iterator[Callable[[], TestClient]]:
+def favorites_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
     """The REST surface over a favorites file in ``tmp_path``, daemonless.
 
     `api_client` is the right shape but builds a bare `Config()`, whose
     `favorites_file` points into the repo's own state dir; a test writing there
     would outlive the run. A factory rather than a plain client so a case can
     hand-write a file another HQPTuner version stamped and then open the app
-    over it."""
+    over it.
+
+    Every client is built with no credentials and a control lane pointed at
+    `closed_port`, a port nothing listens on: nothing here can reach hqplayerd,
+    so a route that answers at all answered without it."""
     clients: list[TestClient] = []
 
     def build() -> TestClient:
         cfg = Config(
             hqp_host="127.0.0.1",
-            hqp_control_port=_closed_port(),
+            hqp_control_port=closed_port,
             hqp_username="",
             hqp_password="",
             favorites_file=tmp_path / "favorites.json",
@@ -106,10 +109,12 @@ def test_write_answers_with_the_names_deduplicated_and_sorted(tmp_path: Path) ->
     assert store_at(tmp_path).write(["zulu", "alpha", "zulu"]) == ["alpha", "zulu"]
 
 
+# The file is hand-written rather than produced by `write`, so a store that
+# normalizes only on the way out and hands back whatever the file holds fails
+# here: the list on disk is one another version left behind.
 def test_read_answers_with_the_names_deduplicated_and_sorted(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.write(["zulu", "alpha", "zulu"])
-    assert store.read() == ["alpha", "zulu"]
+    seed(tmp_path, json.dumps({"schema": 1, "filters": ["zulu", "alpha", "zulu"]}))
+    assert store_at(tmp_path).read() == ["alpha", "zulu"]
 
 
 def test_a_write_replaces_the_whole_previous_set(tmp_path: Path) -> None:
@@ -161,10 +166,19 @@ def test_an_unstamped_file_is_read_rather_than_refused(tmp_path: Path) -> None:
     assert store_at(tmp_path).read() == ["alpha"]
 
 
+# Any stamp at all is not enough: the number a write puts on the file has to be
+# one this version's `read` accepts, or the next start refuses its own file. The
+# stamp is lifted off the written file and put on a second, hand-written one,
+# which is then read: a missing stamp raises `KeyError` here, and a stamp this
+# version refuses raises `FavoriteSchemaError`.
 def test_an_unstamped_file_carries_a_stamp_after_the_next_write(tmp_path: Path) -> None:
     path = seed(tmp_path, json.dumps({"filters": ["alpha"]}))
     store_at(tmp_path).write(["bravo"])
-    assert isinstance(json.loads(path.read_text()).get("schema"), int)
+    stamp = json.loads(path.read_text())["schema"]
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    seed(elsewhere, json.dumps({"schema": stamp, "filters": ["charlie"]}))
+    assert store_at(elsewhere).read() == ["charlie"]
 
 
 @pytest.mark.parametrize("content", UNREADABLE)
@@ -263,8 +277,10 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     assert favorites_api().put("/api/favorites", json={"filters": ["alpha"]}).status_code == 409
 
 
-# The app these clients are built on has no credentials and a control lane at a
-# closed port: nothing here can reach hqplayerd, so a route that answers at all
-# answered without it.
-def test_favorites_are_served_with_no_daemon_reachable(fav_client: TestClient) -> None:
-    assert fav_client.put("/api/favorites", json={"filters": ["alpha"]}).status_code == 200
+# Both directions of the pair, in one case, because the point being pinned is
+# the pair itself: with hqplayerd unreachable (see `favorites_api`), reading and
+# writing favorites both still answer. The other REST cases each pin one route's
+# content; this one pins that neither route needs the daemon.
+def test_favorites_are_served_in_both_directions_with_no_daemon_reachable(fav_client: TestClient) -> None:
+    written = fav_client.put("/api/favorites", json={"filters": ["alpha"]})
+    assert (written.status_code, fav_client.get("/api/favorites").status_code) == (200, 200)

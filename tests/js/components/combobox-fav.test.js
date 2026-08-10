@@ -12,11 +12,12 @@
 // A star is clicked the way narrowbar.test.js clicks a facet button: through
 // the onClick its vnode carries, collected via preact's own `options.vnode`
 // creation hook — the renderer's public seam, nothing of HQPTuner's stubbed.
-// The star is found structurally, as the interactive element INSIDE a dd-opt
-// row (the row's own onClick is the commit; a nested clickable is the
-// affordance that is not it). That couples these cases to the row shape the
-// combobox suite already pins; a markup change fails them for a reason that is
-// not a regression — check the shape before reading the failure as one.
+// The star is found as a clickable INSIDE a dd-opt row (the row's own onClick is
+// the commit) that carries the favorites marking narrowbar-fav.test.js uses — a
+// class token, title, aria-label or star glyph naming favorites. That couples
+// these cases to the row shape the combobox suite already pins; a markup change
+// fails them for a reason that is not a regression — check the shape before
+// reading the failure as one.
 //
 // NOT covered here (SSR reaches the closed state only, and the open flag is a
 // module private written by pointer handlers): that a star click leaves the
@@ -138,8 +139,21 @@ function clickablesIn(node, found = []) {
   return clickablesIn(vnode.props.children, found);
 }
 
+// The favorites marking narrowbar-fav.test.js identifies the bar's toggle by: a
+// class token, title, aria-label or star glyph naming favorites. A clickable
+// carrying none of it is some other affordance — a label wrapped in a clickable
+// span is not a star — so counting bare clickables would score a row with no
+// star at all.
+/** @param {VNode} vnode */
+const favMarked = (vnode) => {
+  const marking = [vnode.props.class, vnode.props.className, vnode.props.title, vnode.props["aria-label"]]
+    .filter((x) => typeof x === "string")
+    .join(" ");
+  return /fav|★|☆/i.test(`${marking} ${textOf(vnode)}`);
+};
+
 /** @param {VNode} row */
-const starsOf = (row) => clickablesIn(row.props.children);
+const starsOf = (row) => clickablesIn(row.props.children).filter(favMarked);
 
 // The star of the row labelled `label`; anything but exactly one match throws
 // rather than clicking something else.

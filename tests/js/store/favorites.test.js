@@ -255,11 +255,17 @@ test("test_hydration_fills_the_set_from_the_server", async () => {
   assert.deepEqual([...favoriteFilters.value].sort(), ["gauss-b", "gauss-d"]);
 });
 
-test("test_a_failed_hydration_leaves_the_set_empty", async () => {
+// The set is populated BEFORE the failing GET, because the behaviour that
+// matters is a backend down at page load leaving the stars already on screen
+// alone: a hydration that clobbers the set on the way to failing passes any
+// check made against a set the reset just emptied.
+test("test_a_failed_hydration_leaves_the_favorites_already_starred_alone", async () => {
   reset(PLAIN);
+  favoritesWire();
+  await toggleFavorite("gauss-a");
   favoritesWire({ getStatus: 503, getDetail: "Favorites are unavailable." });
   await hydrateFavorites();
-  assert.equal(favoriteFilters.value.size, 0);
+  assert.deepEqual([...favoriteFilters.value], ["gauss-a"]);
 });
 
 test("test_a_failed_hydration_does_not_throw", async () => {

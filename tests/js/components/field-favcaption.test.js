@@ -81,7 +81,43 @@ test("test_a_failed_save_shows_nothing_under_a_dropdown_that_carries_no_stars", 
   assert.equal(field("pcm_dither").includes(SENTENCE), false);
 });
 
+// With no error, no caption ELEMENT may render: an empty caption box is a stray
+// gap under the dropdown, and an absent sentence does not rule one out. The
+// caption is identified by its own class run rather than by a hand-written class
+// name — the run is lifted off the element carrying the sentence in the failing
+// render, so the case pins "that element is gone", not a name this suite guessed.
+/** @param {string} out */
+function captionClasses(out) {
+  const at = out.indexOf(SENTENCE);
+  if (at < 0) throw new Error("the sentence did not render");
+  const openers = /<(\w+)\b[^<>]*>/g;
+  let opener = null;
+  let m;
+  while ((m = openers.exec(out)) !== null && m.index < at) opener = m[0];
+  const cls = (/\bclass="([^"]*)"/.exec(opener || "") || [])[1] || "";
+  const tokens = cls.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) throw new Error("the caption element carries no class of its own");
+  return tokens;
+}
+
+/**
+ * @param {string} out
+ * @param {string[]} tokens
+ */
+function carriesElementWith(out, tokens) {
+  const openers = /<(\w+)\b[^<>]*>/g;
+  let m;
+  while ((m = openers.exec(out)) !== null) {
+    const cls = (/\bclass="([^"]*)"/.exec(m[0]) || [])[1] || "";
+    const has = cls.split(/\s+/);
+    if (tokens.every((t) => has.includes(t))) return true;
+  }
+  return false;
+}
+
 test("test_with_no_error_no_caption_renders_under_a_filter_dropdown", async () => {
+  await start(FILTER_FIELDS, SENTENCE);
+  const caption = captionClasses(field("pcm_filter_1x"));
   await start(FILTER_FIELDS, "");
-  assert.equal(field("pcm_filter_1x").includes(SENTENCE), false);
+  assert.equal(carriesElementWith(field("pcm_filter_1x"), caption), false);
 });
