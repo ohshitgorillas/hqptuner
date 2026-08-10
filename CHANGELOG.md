@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.3.4] — 2026-08-09
+
 ### Internal
 
 - Testing fix caught by the CI gate. A fixture in the control-stall suite let the background poll race the request under test, so the suite passed locally and failed on CI. No user-visible change.
