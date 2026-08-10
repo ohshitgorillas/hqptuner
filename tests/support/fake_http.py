@@ -148,7 +148,10 @@ def _matrix_render(st: dict[str, Any]) -> str:
 
 
 def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
-    if st.get("_down"):  # restore accepted, daemon never came back
+    # `_down`: restore accepted, daemon never came back. `_fail_paths`: the same
+    # 503 frame narrowed to named routes — a daemon answering some pages and
+    # refusing others (one subsystem down, the rest of the web UI up).
+    if st.get("_down") or path in st.get("_fail_paths", ()):
         return 503, b""
     if path == "/config/refresh":  # webUI: a bare GET in a method=get form
         _refresh_devices(st)
@@ -384,6 +387,8 @@ def state(**extra: Any) -> dict[str, Any]:
         "volume_min": "-60",
         "volume_adaptive": "0",
         "defaults_volume": "-3",
+        # GET routes answered 503 instead of their page; tests move it mid-run
+        "_fail_paths": [],
         "_lag": 0,
         # POST /restore arrivals to refuse with 503 before adopting one, and the
         # running count of arrivals. Both default to the healthy daemon: nothing
