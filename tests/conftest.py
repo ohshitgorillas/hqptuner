@@ -15,7 +15,7 @@ import functools
 import socket
 import threading
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -151,6 +151,51 @@ async def live_manager(daemon: DaemonFactory) -> AsyncIterator[LiveManager]:
         manager.stop()
         await task
         await manager.aclose()
+
+
+# --- a manager running BOTH lanes, 4321 and 8088 ----------------------------
+
+#: Start a manager against the 4321 fake plus an 8088 lane on the given port,
+#: settled before it comes back; keyword arguments override its Config.
+StartManager = Callable[..., Coroutine[Any, Any, ConnectionManager]]
+
+
+async def settled(manager: ConnectionManager) -> None:
+    """A full connect plus one completed poll. ``run()`` flags the daemon
+    reachable before the best-effort 8088 loads run, so the flag alone cannot
+    prove the connect returned whole — a completed poll can."""
+    await eventually(lambda: manager.reachable and manager.loaded_at is not None, timeout=5.0)
+    first = manager.loaded_at
+    await eventually(lambda: manager.reachable and manager.loaded_at != first, timeout=5.0)
+
+
+@pytest.fixture
+async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[StartManager]:
+    """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``,
+    waiting until it has settled; everything is torn down at exit."""
+    started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
+
+    async def start(http_port: int, **overrides: Any) -> ConnectionManager:
+        http = HttpConfigClient("127.0.0.1", http_port, "u", "p")
+        defaults: dict[str, Any] = {
+            "hqp_host": "127.0.0.1",
+            "hqp_control_port": live_daemon_port,
+            "poll_interval": 0.02,
+            "backup_dir": tmp_path / "backups",
+            "preset_dir": tmp_path / "presets",
+        }
+        manager = ConnectionManager(Config(**{**defaults, **overrides}), http)
+        task = asyncio.create_task(manager.run())
+        started.append((manager, task, http))
+        await settled(manager)
+        return manager
+
+    yield start
+    for manager, task, http in started:
+        manager.stop()
+        await task
+        await manager.aclose()
+        await http.aclose()
 
 
 # --- the same control-daemon fake, served from a background thread ----------
