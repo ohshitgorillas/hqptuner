@@ -96,6 +96,10 @@ export const META = {
       // between the DSD512 and DSD1024 tiers, as the file's own floors do — the
       // manual states MHz thresholds rather than tiers.
       ASDM7EC: { min_rate_hz: 40960000 },
+      // A second floor, so the reason a grayed row carries can be shown to name
+      // the floor it was given rather than one constant. 6144000 is the DSD128
+      // tier.
+      ASDM5: { min_rate_hz: 6144000 },
       AHM5EC5L: { description: "Fifth order AHM.", notes: "Limited SNR." },
     },
   },

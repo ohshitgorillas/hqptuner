@@ -40,13 +40,16 @@ export const PCM_1X = "48000";
 export const PCM_4X = "192000";
 export const PCM_8X = "384000";
 
-// The two shapers every scenario runs on, by the name the engine reports them
-// under. `state.shaper` is list index 1 on either chain, and `FORM` carries the
-// matching enum ID (dither 5 = NS9, modulator 3 = ASDM7EC).
+// The shapers the scenarios run on, by the name the engine reports them under.
+// `shaper` picks one by LIST INDEX, the way `State` reports it, and the running
+// configuration's enum ID is derived from the same pick — enum ID and list index
+// differ throughout, so a fixture that stated one and not the other would let a
+// reader join on the wrong domain and still find a name.
 export const MODULATOR = "ASDM7EC";
-export const DITHER = "NS9";
-// The other member of each list, which no scenario selects.
 export const OTHER_MODULATOR = "ASDM5";
+export const DITHER = "NS9";
+/** Index into either chain's shaper list: 0 is ASDM5 / none, 1 is ASDM7EC / NS9. */
+export const SELECTS = { OTHER: "0", MAIN: "1" };
 
 /**
  * The rate floors a scenario gives the shapers, in Hz, `null` for a shaper the
@@ -96,6 +99,7 @@ const FILE_MODE = { 0: "auto", 1: "pcm", 2: "sdm" };
  *   sdmRate?: string,
  *   pcmRate?: string,
  *   floors?: Floors,
+ *   shaper?: string,
  *   status?: unknown,
  * }} Scenario
  */
@@ -118,8 +122,9 @@ const settle = ({
   sdmRate = DSD512,
   pcmRate = PCM_8X,
   floors = DEFAULT_FLOORS,
+  shaper = SELECTS.MAIN,
   status = null,
-}) => ({ chain, mode, sdmRate, pcmRate, floors, status });
+}) => ({ chain, mode, sdmRate, pcmRate, floors, shaper, status });
 
 // Total reset: module-level signals outlive a test file, so a partial one makes
 // cases pass alone and fail in sequence. `staged` is private and is cleared
@@ -129,14 +134,20 @@ const settle = ({
  * @returns {Promise<void>}
  */
 export async function reset(scenario = {}) {
-  const { chain, mode, sdmRate, pcmRate, floors, status } = settle(scenario);
+  const { chain, mode, sdmRate, pcmRate, floors, shaper, status } = settle(scenario);
   staticWire({ live: {}, http: {} });
   const loaded = chain === "sdm";
+  // The same pick in the two domains it is reported in: `State` gives the list
+  // index, the configuration form the enum ID (protocol.md §4).
+  const picked = {
+    dither: PCM_SHAPERS[Number(shaper)].value,
+    modulator: SDM_SHAPERS[Number(shaper)].value,
+  };
   engineState.value = {
     mode,
     filter1x: "1",
     filterNx: loaded ? "1" : "2",
-    shaper: "1",
+    shaper,
     rate: chain === null ? "0" : "1",
     filter_junk: "0",
     adaptive: "0",
@@ -154,13 +165,19 @@ export async function reset(scenario = {}) {
   metadata.value = META(floors);
   config.value = {
     fields: [
-      ...Object.entries(FORM).map(([name, value]) => formField(name, value, LISTS[name])),
+      ...Object.entries({ ...FORM, ...picked }).map(([name, value]) => formField(name, value, LISTS[name])),
       // The two rate LIMITS, as the daemon's own form carries them: the PCM
       // family's is `defaults_samplerate`, the SDM family's `defaults_bitrate`.
       { name: "defaults_samplerate", value: pcmRate },
       { name: "defaults_bitrate", value: sdmRate },
     ],
-    file: { mode: FILE_MODE[mode], ...FORM, defaults_samplerate: pcmRate, defaults_bitrate: sdmRate },
+    file: {
+      mode: FILE_MODE[mode],
+      ...FORM,
+      ...picked,
+      defaults_samplerate: pcmRate,
+      defaults_bitrate: sdmRate,
+    },
     active: "",
     profiles: null,
   };

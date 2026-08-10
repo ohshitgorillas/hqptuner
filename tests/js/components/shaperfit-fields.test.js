@@ -6,7 +6,9 @@
 // PLAYS below its floor — so the row stays pickable and the advice is reported
 // as an alert instead (store/shaperfit.js). The hard half of the same file, the
 // SDM modulator floors, still grays: a modulator below its floor produces no
-// output at all, and that case is pinned in field.test.js and combobox.test.js.
+// output at all. That case is pinned in field.test.js and combobox.test.js; the
+// one case of it here is the SECOND floor, which shows the reason naming the
+// floor it was given rather than repeating one constant.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, driven
 // through the exported store signals over a faked wire on the real REST paths.
@@ -55,4 +57,24 @@ test("test_a_dither_below_its_floor_carries_no_rate_reason_after_its_label", asy
 test("test_a_dither_below_its_floor_is_not_disabled_at_the_48k_base_rate", async () => {
   await reset({ fields: DITHER_AT("48000") });
   assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a), false);
+});
+
+test("test_a_rate_grayed_modulator_names_a_second_floor_as_its_own", async () => {
+  // ASDM5's floor is 6144000, the DSD128 tier, against a DSD64 rate — a
+  // different modulator, floor and rate from field.test.js's pair, so a reason
+  // built out of one constant satisfies one of the two and not the other.
+  await reset({
+    fields: [
+      { name: "defaults_bitrate", value: "3072000" },
+      {
+        name: "modulator",
+        value: "0",
+        options: [
+          { value: "0", label: "ASDM7" },
+          { value: "1", label: "ASDM5" },
+        ],
+      },
+    ],
+  });
+  assert.equal(option(field("sdm_modulator"), "ASDM5").label, "ASDM5 — needs ≥ 6.144 MHz");
 });

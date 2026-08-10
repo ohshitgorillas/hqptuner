@@ -273,21 +273,24 @@ test("test_a_rate_grayed_modulator_names_the_rate_it_needs", async () => {
   assert.equal(option(field("sdm_modulator"), "ASDM7EC").label, "ASDM7EC — needs ≥ 40.96 MHz");
 });
 
-test("test_a_shaper_the_rate_can_reach_stays_selectable", async () => {
+test("test_a_modulator_the_rate_can_reach_stays_selectable", async () => {
+  // The discriminating half: the SAME modulator one tier up from its floor. A
+  // gray that fired on every modulator row, or on the rate rather than the
+  // comparison, passes the two cases above and fails here.
   await reset({
     fields: [
-      { name: "defaults_samplerate", value: "705600" },
+      { name: "defaults_bitrate", value: "49152000" },
       {
-        name: "dither",
+        name: "modulator",
         value: "0",
         options: [
-          { value: "0", label: "TPDF" },
-          { value: "1", label: "NS9" },
+          { value: "0", label: "ASDM7" },
+          { value: "1", label: "ASDM7EC" },
         ],
       },
     ],
   });
-  assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a), false);
+  assert.equal(/\bdisabled\b/.test(option(field("sdm_modulator"), "ASDM7EC").a), false);
 });
 
 // ============================================================================

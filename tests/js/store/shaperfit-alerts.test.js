@@ -29,7 +29,19 @@ import assert from "node:assert/strict";
 import { shaperAlerts } from "../../../hqptuner/static/store/shaperfit.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
 import { stagingWire, quiesce } from "../support/wire.js";
-import { reset, DSD64, DSD512, DSD1024, PCM_4X, PCM_8X, MODULATOR, DITHER } from "../support/shaperfit-fixtures.js";
+import {
+  reset,
+  DSD64,
+  DSD512,
+  DSD1024,
+  PCM_1X,
+  PCM_4X,
+  PCM_8X,
+  MODULATOR,
+  OTHER_MODULATOR,
+  DITHER,
+  SELECTS,
+} from "../support/shaperfit-fixtures.js";
 
 /**
  * One alert row.
@@ -54,9 +66,23 @@ const PCM_TEXT =
   "The current settings are suboptimal: ditherer NS9 is optimized for output rates >=8x, " +
   "but the current rate is 4x.";
 
+// A second data point per family, sharing not one substitution with the first:
+// a different shaper at a different floor against a different rate. A formatter
+// that emitted any of the three as a constant satisfies one pair and fails the
+// other.
+const SDM_TEXT_2 =
+  "The current settings are invalid: modulator ASDM5 is incompatible with DSD64 output. " +
+  "HQPlayer cannot produce output.";
+const PCM_TEXT_2 =
+  "The current settings are suboptimal: ditherer NS9 is optimized for output rates >=16x, " +
+  "but the current rate is 1x.";
+
 // The floors the two conflicts turn on: 40960000 between DSD512 and DSD1024,
 // 352800 the 8x tier's 44.1k member.
 const FLOORS = { sdm: { [MODULATOR]: 40960000 }, pcm: { [DITHER]: 352800 } };
+// The second pair's: 6144000 is the DSD128 tier, 705600 the 16x tier's 44.1k
+// member.
+const FLOORS_2 = { sdm: { [OTHER_MODULATOR]: 6144000 }, pcm: { [DITHER]: 705600 } };
 
 // Both families conflicting at once: SDM sits at DSD512 under a 40.96 MHz floor,
 // PCM at 4x under an 8x floor.
@@ -71,6 +97,14 @@ test("test_a_modulator_above_the_sdm_rate_raises_one_alert_naming_the_rate_tier"
   assert.deepEqual(texts(), [SDM_TEXT]);
 });
 
+test("test_a_second_modulator_at_a_second_rate_names_itself_and_that_rate", async () => {
+  // ASDM5 is the OTHER member of the engine's modulator list, selected by the
+  // list index `State` reports; its 6.144 MHz floor is the DSD128 tier, and the
+  // engine is one tier below it.
+  await reset({ chain: "sdm", mode: "2", sdmRate: DSD64, floors: FLOORS_2, shaper: SELECTS.OTHER });
+  assert.deepEqual(texts(), [SDM_TEXT_2]);
+});
+
 test("test_a_modulator_conflict_is_critical", async () => {
   await reset({ chain: "sdm", mode: "2", ...BOTH_CONFLICT });
   assert.deepEqual(sevs(), ["crit"]);
@@ -81,6 +115,13 @@ test("test_a_modulator_conflict_is_critical", async () => {
 test("test_a_ditherer_above_the_pcm_rate_raises_one_alert_naming_both_tiers", async () => {
   await reset({ chain: "pcm", mode: "1", ...BOTH_CONFLICT });
   assert.deepEqual(texts(), [PCM_TEXT]);
+});
+
+test("test_a_ditherer_at_a_second_floor_and_rate_names_both_of_those_tiers", async () => {
+  // The same ditherer, a floor three tiers higher and the base rate: both tiers
+  // in the sentence move, and neither is the pair the case above states.
+  await reset({ chain: "pcm", mode: "1", pcmRate: PCM_1X, floors: FLOORS_2 });
+  assert.deepEqual(texts(), [PCM_TEXT_2]);
 });
 
 test("test_a_ditherer_conflict_is_a_warning", async () => {

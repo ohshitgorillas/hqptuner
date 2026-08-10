@@ -79,9 +79,16 @@ test("test_a_shaper_conflict_renders_while_the_engine_is_stopped", async () => {
   assert.ok(strip().includes(SHAPER_TEXT));
 });
 
+// Every class token of every element in the strip, so a severity can be looked
+// for as a WHOLE token: a row that gains a class alongside `alert-crit` has not
+// changed severity, and matching the attribute run whole would call that a
+// regression.
+/** @param {string} out */
+const classTokens = (out) => [...out.matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/));
+
 test("test_a_shaper_conflict_renders_at_its_own_severity_class", async () => {
   await reset({ ...CONFLICTING, status: IDLE() });
-  assert.ok(strip().includes('class="alert alert-crit"'));
+  assert.ok(classTokens(strip()).includes("alert-crit"));
 });
 
 test("test_the_shaper_rows_sit_between_the_health_alerts_and_the_junk_chip", async () => {
