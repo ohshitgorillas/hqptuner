@@ -18,12 +18,26 @@
 // 3-second polling machinery itself, belong to the playwright hand-back
 // protocol.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/logtail.test.js
+// The COPY button and the SCROLL-PINNING behaviour are subject to the same
+// limit, and it bites harder. Both were specified against a DOM the JS harness
+// does not have: docs/testing.md pins components to preact-render-to-string, so
+// there is no element to carry scrollTop/scrollHeight/clientHeight, no useEffect
+// to run the poll that fills the pane, and no event dispatch to click a button
+// with. Nothing is reachable here that needs LINES on screen. What IS reachable
+// is the button's ABSENCE, in both states this harness can reach — tail hidden,
+// and tail shown but empty — because absence is a property of the render alone.
+// Its presence over a populated pane, the clipboard/execCommand routes, the
+// Copied / Copy failed labels and every scroll case belong to tests/e2e/ and the
+// playwright hand-back protocol; they are NOT covered here and must not be
+// manufactured by exporting the module's private lines/message signals.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/logtail.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
+import { elements } from "../support/markup.js";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { LogTail } from "../../../hqptuner/static/components/LogTail.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
@@ -81,4 +95,25 @@ test("test_an_off_toggle_hides_the_tail_pane", async () => {
 test("test_the_toggle_names_its_fifty_line_window", async () => {
   await reset(false);
   assert.ok(block().includes("last 50 lines"));
+});
+
+// --- the copy button ------------------------------------------------------------
+//
+// Selected as a user finds it: a <button> reading "Copy" anywhere in the block,
+// never a test-only hook. "Copied" and "Copy failed" are the same button under a
+// changed label, so the needle matches those too and an absence assertion stays
+// an absence assertion whatever the button last did.
+/** @param {string} out */
+const copyButtons = (out) => elements(out).filter((e) => e.name === "button" && e.html.includes("Copy"));
+
+test("test_a_hidden_tail_offers_no_copy_button", async () => {
+  // The toggle is drawn either way, so a copy button sharing its header row is
+  // one gate away from being drawn either way too.
+  await reset(false);
+  assert.equal(copyButtons(block()).length, 0);
+});
+
+test("test_a_shown_tail_with_no_lines_offers_no_copy_button", async () => {
+  await reset(true);
+  assert.equal(copyButtons(block()).length, 0);
 });
