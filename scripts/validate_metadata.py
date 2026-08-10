@@ -25,7 +25,7 @@ warnings = []
 
 def load(name: str) -> Any:
     """Return the parsed contents of a JSON data file sitting beside this script."""
-    with open(DATA / name) as f:
+    with (DATA / name).open() as f:
         return json.load(f)
 
 

@@ -48,9 +48,9 @@ HOLE = "\x00"
 #: kebab-lowercase — the shape every class in this codebase has
 TOKEN = re.compile(r"^[a-z][a-z0-9-]*$")
 #: a whole-line `//` comment: safe to strip, unlike a `//` inside a URL literal
-LINE_COMMENT = re.compile(r"^[ \t]*//[^\n]*$", re.M)
-BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
-STRING = re.compile(r"\"([^\"\n]*)\"|'([^'\n]*)'|`([^`]*)`", re.S)
+LINE_COMMENT = re.compile(r"^[ \t]*//[^\n]*$", re.MULTILINE)
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+STRING = re.compile(r"\"([^\"\n]*)\"|'([^'\n]*)'|`([^`]*)`", re.DOTALL)
 IDENT = re.compile(r"[A-Za-z_$][\w$]*")
 DECL = re.compile(r"\b(?:const|let|var|function)\s+")
 #: a literal being compared is a value, not a class: `entry.size === "lg"`
@@ -232,7 +232,7 @@ def css_classes(paths: list[Path]) -> set[str]:
     names: set[str] = set()
     for path in paths:
         text = BLOCK_COMMENT.sub("", path.read_text())
-        for prelude in re.finditer(r"^[^{}]*\{", text, re.M):
+        for prelude in re.finditer(r"^[^{}]*\{", text, re.MULTILINE):
             names.update(re.findall(r"\.([a-zA-Z_][\w-]*)", prelude.group(0)))
     return names
 

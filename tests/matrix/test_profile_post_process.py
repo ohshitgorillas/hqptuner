@@ -73,7 +73,7 @@ def without_profile(xml: bytes, name: str) -> bytes:
     """The snapshot with that profile's element excised, by the documented element
     shape (readme §1.12) — what a write must have left byte-identical."""
     pattern = rb'<matrix_profile\b[^>]*name="' + re.escape(name).encode() + rb'"[^>]*>.*?</matrix_profile>'
-    return re.sub(pattern, b"", xml, flags=re.S)
+    return re.sub(pattern, b"", xml, flags=re.DOTALL)
 
 
 async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:

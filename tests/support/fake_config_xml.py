@@ -150,7 +150,7 @@ def _adopt_profiles(st: dict[str, Any], xml: bytes) -> None:
             "rows": [_attrs(pm.group(0)) for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(2))],
             "plugins": [_attrs(pm.group(0)) for pm in re.finditer(rb"<plugin\b[^>]*?>", m.group(2))],
         }
-        for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.S)
+        for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.DOTALL)
     }
 
 
@@ -185,7 +185,7 @@ def _adopt_pipelines(st: dict[str, Any], xml: bytes) -> None:
     """Adopt the ``<pipeline>`` rows inside ``<matrix>`` as raw attribute strings
     — no interpretation, so the next /backup serves back exactly what the writer
     produced (and only what it produced)."""
-    m = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.S)
+    m = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.DOTALL)
     if m is None:
         return
     rows = [
@@ -223,7 +223,7 @@ def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
     daemon does not confuse a stored profile with what is running. A scan over
     every <plugin> in the document would adopt a profile's settings as the live
     ones and quietly bless a writer that stored the wrong chain."""
-    matrix = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.S)
+    matrix = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.DOTALL)
     if matrix is None:
         return
     for m in re.finditer(rb"<plugin\b[^>]*?>", matrix.group(1)):

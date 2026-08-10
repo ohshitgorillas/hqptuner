@@ -16,10 +16,12 @@ abuse guard and nothing else: HQPlayer 6.0.4 offers 67 PCM and 77 SDM filters, a
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
 # refused rather than guessed at. An unstamped file predates the stamp and is adopted as schema 1 on its next write.

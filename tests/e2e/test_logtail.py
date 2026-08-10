@@ -138,7 +138,7 @@ def wait_for_scroll_past(page: Page, mark: float) -> None:
     timeout.
     """
     page.wait_for_function(
-        "(mark) => { const p = document.querySelector('pre.log-tail');" "  return p !== null && p.scrollTop > mark; }",
+        "(mark) => { const p = document.querySelector('pre.log-tail');  return p !== null && p.scrollTop > mark; }",
         arg=mark,
         timeout=SETTLE_MS,
     )

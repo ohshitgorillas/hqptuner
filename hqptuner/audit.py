@@ -24,8 +24,10 @@ import hashlib
 import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 #: Per-value ceiling. Above this a value is truncated and digested instead.
 MAX_VALUE_BYTES = 131_072

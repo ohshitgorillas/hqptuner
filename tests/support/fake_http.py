@@ -121,19 +121,27 @@ def _matrix_render(st: dict[str, Any]) -> str:
     pipelines = _matrix_pipeline_row(0, "0", "0", st["process_0"]) + _matrix_pipeline_row(1, "1", "1", "")
     parts = [
         '<h2>Matrix pipeline</h2><input type="checkbox" name="enabled" value="1" checked/>',
-        '<select name="engine"><option value="0">overlap-save</option>'
-        '<option value="1" selected>overlap-add</option></select>',
+        (
+            '<select name="engine"><option value="0">overlap-save</option>'
+            '<option value="1" selected>overlap-add</option></select>'
+        ),
         '<input type="checkbox" name="expand_hf" value="1"/>',
-        '<select name="iir2fir"><option value="0" selected>none</option>'
-        '<option value="1">direct</option><option value="2">linear</option></select>',
+        (
+            '<select name="iir2fir"><option value="0" selected>none</option>'
+            '<option value="1">direct</option><option value="2">linear</option></select>'
+        ),
         f'<b>Active: </b>{st["matrix_active"]}<br>',
-        f'<input type="text" size="64" name="profile" list="profile_items"/><datalist id="profile_items">{profs}'
-        "</datalist>",
+        (
+            f'<input type="text" size="64" name="profile" list="profile_items"/><datalist id="profile_items">{profs}'
+            "</datalist>"
+        ),
         f"<table>{pipelines}</table>",
         f'<input type="checkbox" name="post_bauer_enabled" value="1"{" checked" if st["post_bauer_enabled"] else ""}/>',
         f'<input type="number" name="post_bauer_frequency" value="{st["post_bauer_frequency"]}"/>',
-        f'<input type="checkbox" name="post_loudness_enabled" value="1"'
-        f'{" checked" if st["post_loudness_enabled"] else ""}/>',
+        (
+            f'<input type="checkbox" name="post_loudness_enabled" value="1"'
+            f'{" checked" if st["post_loudness_enabled"] else ""}/>'
+        ),
         f'<input type="number" name="post_loudness_lowfreq" value="{st["post_loudness_lowfreq"]}"/>',
     ]
     return '<form method="post" enctype="multipart/form-data">' + "".join(parts) + "</form>"

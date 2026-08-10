@@ -66,7 +66,7 @@ async def main() -> int:
 
     enums = json.loads((DATA / "engine-enums.json").read_text())
     enums.update(captured)
-    enums["pcm_captured"] = datetime.date.today().isoformat()
+    enums["pcm_captured"] = datetime.datetime.now(datetime.UTC).astimezone().date().isoformat()
     (DATA / "engine-enums.json").write_text(json.dumps(enums, indent=2) + "\n")
     print(
         f"captured: {len(captured['filters_pcm'])} PCM filters, "

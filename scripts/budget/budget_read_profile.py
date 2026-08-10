@@ -22,11 +22,10 @@ Emits one record per period to ``.claude/logs/read-profile.jsonl``.
 
 from __future__ import annotations
 
-import os
 import re
 from collections import Counter
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from budget_common import (
     LOG_DIR,
@@ -44,6 +43,9 @@ from budget_common import (
     tool_uses,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 OUT_PATH = LOG_DIR / "read-profile.jsonl"
 
 #: Grep and Glob take patterns, not paths, so they cannot be re-read tracked.
@@ -58,7 +60,7 @@ REDIRECT = re.compile(r"^\d*[<>]")
 
 
 def _resolve(path: str, cwd: str) -> str:
-    return os.path.abspath(os.path.join(cwd or "/", os.path.expanduser(path)))
+    return str(Path(cwd or "/", Path(path).expanduser()).resolve())
 
 
 def _bash_paths(command: str, cwd: str) -> list[str]:

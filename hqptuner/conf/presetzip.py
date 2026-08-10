@@ -5,11 +5,14 @@ from __future__ import annotations
 import io
 import zipfile
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from hqptuner.audit import AuditLog
 from hqptuner.conf import engineconf
 from hqptuner.conf.presetconf import apply_edits
 from hqptuner.conf.xmledit import GroundingError
+
+if TYPE_CHECKING:
+    from hqptuner.audit import AuditLog
 
 
 def snapshot_member(zip_bytes: bytes, active: str | None, running_label: str | None = None) -> bytes:

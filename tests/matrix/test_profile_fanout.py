@@ -59,7 +59,7 @@ def stored_profiles(xml: bytes) -> dict[str, list[dict[str, str]]]:
             {k.decode(): v.decode() for k, v in re.findall(rb'(\w+)="([^"]*)"', pm.group(0))}
             for pm in re.finditer(rb"<pipeline\b[^>]*/>", m.group(2))
         ]
-        for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.S)
+        for m in re.finditer(rb'<matrix_profile\b[^>]*name="([^"]*)"[^>]*>(.*?)</matrix_profile>', xml, re.DOTALL)
     }
 
 
@@ -67,7 +67,7 @@ def without_profile(xml: bytes, name: str) -> bytes:
     """The stored XML with that profile's element excised (readme §1.12 shape) —
     what a fan-out must have left byte-identical to the pre-fan-out snapshot."""
     pattern = rb'<matrix_profile\b[^>]*name="' + re.escape(name).encode() + rb'"[^>]*>.*?</matrix_profile>'
-    return re.sub(pattern, b"", xml, flags=re.S)
+    return re.sub(pattern, b"", xml, flags=re.DOTALL)
 
 
 async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, Any]]:

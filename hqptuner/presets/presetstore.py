@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
 from hqptuner.audit import AuditLog
 from hqptuner.presets import names
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _ACTIVE_FILE = "active.json"
 _STORE_FILE = "store.json"

@@ -19,11 +19,13 @@ import importlib.util
 import json
 import re
 import shlex
-from collections import Counter
-from collections.abc import Iterator
 from pathlib import Path
-from types import ModuleType
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections import Counter
+    from collections.abc import Iterator
+    from types import ModuleType
 
 #: A decoded JSONL object — a transcript row, a message, or a content block.
 JsonDict = dict[str, Any]

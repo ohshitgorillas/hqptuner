@@ -32,11 +32,13 @@ card can still say what was saved even when an ID no longer resolves.
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from hqptuner import __version__
 from hqptuner.presets import names
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
 # wrote it. A file stamped higher is refused rather than guessed at: applying a

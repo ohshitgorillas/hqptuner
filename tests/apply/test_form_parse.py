@@ -69,7 +69,7 @@ def test_profile_list_includes_the_default_base_configuration() -> None:
 def _raw_wire_value(name: str, ftype: str) -> object:
     """Independent extraction from the raw document (not via the parser)."""
     if ftype == "select":
-        block = present(re.search(rf'<select name="{name}".*?</select>', _HTML, re.S)).group(0)
+        block = present(re.search(rf'<select name="{name}".*?</select>', _HTML, re.DOTALL)).group(0)
         selected = re.search(r'<option value="([^"]*)"[^>]*\bselected\b', block)
         if selected:
             return selected.group(1)

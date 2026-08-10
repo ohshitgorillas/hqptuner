@@ -92,14 +92,14 @@ def live_state(xml: bytes) -> dict[str, Any]:
 def live_matrix(xml: bytes) -> bytes:
     """The live ``<matrix>`` element's body. ``<matrix_profile>`` does not match
     ``<matrix\\b``, so a stored profile never leaks in here."""
-    m = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.S)
+    m = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.DOTALL)
     return m.group(1) if m else b""
 
 
 def stored_element(xml: bytes, name: str) -> bytes:
     """The stored profile element itself, by the documented shape (readme §1.12)."""
     pattern = rb'<matrix_profile\b[^>]*name="' + re.escape(name).encode() + rb'"[^>]*>.*?</matrix_profile>'
-    m = re.search(pattern, xml, re.S)
+    m = re.search(pattern, xml, re.DOTALL)
     return m.group(0) if m else b""
 
 

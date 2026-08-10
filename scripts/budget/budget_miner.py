@@ -47,8 +47,8 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import budget_read_profile as profiler
 from budget_common import (
@@ -65,6 +65,9 @@ from budget_common import (
     text_of,
     write_jsonl,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 OUT_PATH = LOG_DIR / "budget-trips.jsonl"
 

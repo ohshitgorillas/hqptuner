@@ -119,7 +119,7 @@ def analyze_main(argv: list[str]) -> None:
     print(" ", band_profile([v / n_frames for v in interleaved], bandwidth))
     print("interpretation B — split halves (reals then imags), mean band power dB:")
     print(" ", band_profile([v / n_frames for v in split], bandwidth))
-    print("raw first-half value range across frames: " f"min={min(as_db_halves):.4g} max={max(as_db_halves):.4g}")
+    print(f"raw first-half value range across frames: min={min(as_db_halves):.4g} max={max(as_db_halves):.4g}")
 
 
 def main() -> None:

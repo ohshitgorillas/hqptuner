@@ -40,9 +40,9 @@ PRAGMA = "dead-exempt:"
 #: contract check_css_tokens.py enforces: without the lookahead the comment's
 #: own `*/` reads as a reason and a blank exemption buys silence.
 EXEMPT = re.compile(re.escape(PRAGMA) + r"\s*(?!\*/)\S")
-BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 #: a whole-line `//` comment: safe to strip, unlike a `//` inside a URL literal
-LINE_COMMENT = re.compile(r"^[ \t]*//[^\n]*$", re.M)
+LINE_COMMENT = re.compile(r"^[ \t]*//[^\n]*$", re.MULTILINE)
 
 #: a custom property being given a value — the declaring side
 DECLARED = re.compile(r"(--[a-zA-Z_][\w-]*)\s*:")

@@ -104,6 +104,12 @@ select = [
     "PERF",             # performance anti-patterns
     "FBT",              # boolean-trap arguments
     "TID",              # absolute imports only
+    "TC",               # typing-only imports belong in a TYPE_CHECKING block
+    "FURB",             # refurb modernizations
+    "ISC",              # implicit string concatenation
+    "PTH",              # pathlib over os.path
+    "DTZ",              # timezone-naive datetime
+    "PGH",              # blanket noqa / type-ignore
     "RUF",
     # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
     # tests/ is exempt by decision: docs/testing.md rule 6 already requires a

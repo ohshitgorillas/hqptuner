@@ -99,7 +99,7 @@ def _document_complete(body: str, tag: str) -> bool:
     Closed means self-closing (`<Tag .../>`) or its end tag arrived (`</Tag>`). Distinguishes a still-arriving frame
     (keep reading) from a fully-received one that simply won't parse.
     """
-    if re.match(rf"<{re.escape(tag)}\b[^>]*/>\s*$", body, re.S):
+    if re.match(rf"<{re.escape(tag)}\b[^>]*/>\s*$", body, re.DOTALL):
         return True
     return re.search(rf"</{re.escape(tag)}>\s*$", body) is not None
 
@@ -112,7 +112,7 @@ def _recover_root(body: str) -> ET.Element | None:
     loaded. The live fields we need (active_filter/active_shaper/active_rate) are ROOT attributes, so drop the children
     and parse the root open-tag alone. Returns None when the frame is merely still-arriving (caller keeps reading).
     """
-    m = re.match(r"<([A-Za-z][\w-]*)\b[^>]*", body, re.S)
+    m = re.match(r"<([A-Za-z][\w-]*)\b[^>]*", body, re.DOTALL)
     if m is None:
         return None
     if not _document_complete(body, m.group(1)):
