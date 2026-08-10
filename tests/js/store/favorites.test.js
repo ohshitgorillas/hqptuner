@@ -12,8 +12,9 @@
 // waiting on a clock (rule 7).
 //
 // localStorage is no longer where favorites live; it survives only as the
-// one-shot migration source hydration drains. The fake storage is therefore
-// installed for the migration cases alone and removed after every test.
+// one-shot migration source hydration drains INTO the server's list, as a
+// union. The fake storage is therefore installed for the migration cases alone
+// and removed after every test.
 //
 // `nFavOnly` stays client-only and unpersisted.
 //
@@ -276,8 +277,10 @@ test("test_a_failed_hydration_does_not_throw", async () => {
 
 // --- the one-shot migration out of localStorage ---------------------------------
 // The pre-server build kept the starred names in localStorage under
-// "hqptuner.favoriteFilters". Hydration adopts them ONCE, when the server has
-// nothing of its own, and then the key is gone for good.
+// "hqptuner.favoriteFilters". Hydration UNIONs them with whatever the server
+// already held — empty server or not, so the second device to load is not
+// stranded showing the first machine's stars — and then the key is gone for
+// good. A browser with no legacy names contributes nothing and must not write.
 
 test("test_hydration_uploads_the_names_localstorage_still_holds", async () => {
   reset(PLAIN);
@@ -287,12 +290,36 @@ test("test_hydration_uploads_the_names_localstorage_still_holds", async () => {
   assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-a", "gauss-c"]);
 });
 
+test("test_hydration_uploads_the_union_when_the_server_already_has_names", async () => {
+  reset(PLAIN);
+  const w = favoritesWire({ filters: ["gauss-d"] });
+  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a", "gauss-c"]));
+  await hydrateFavorites();
+  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-a", "gauss-c", "gauss-d"]);
+});
+
+test("test_a_name_the_server_already_held_survives_the_migration", async () => {
+  reset(PLAIN);
+  favoritesWire({ filters: ["gauss-d"] });
+  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
+  await hydrateFavorites();
+  assert.equal(favoriteFilters.value.has("gauss-d"), true);
+});
+
 test("test_the_migrated_names_end_up_in_the_favorites_set", async () => {
   reset(PLAIN);
   favoritesWire({ filters: [] });
   useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a", "gauss-c"]));
   await hydrateFavorites();
   assert.deepEqual([...favoriteFilters.value].sort(), ["gauss-a", "gauss-c"]);
+});
+
+test("test_the_favorites_set_holds_the_union_after_the_migration", async () => {
+  reset(PLAIN);
+  favoritesWire({ filters: ["gauss-d"] });
+  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a", "gauss-c"]));
+  await hydrateFavorites();
+  assert.deepEqual([...favoriteFilters.value].sort(), ["gauss-a", "gauss-c", "gauss-d"]);
 });
 
 test("test_migration_removes_the_localstorage_key", async () => {
@@ -304,21 +331,32 @@ test("test_migration_removes_the_localstorage_key", async () => {
   assert.equal(storage.map.has(LEGACY_KEY), false);
 });
 
-test("test_a_server_that_already_has_favorites_ignores_localstorage", async () => {
-  reset(PLAIN);
-  favoritesWire({ filters: ["gauss-d"] });
-  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
-  await hydrateFavorites();
-  assert.deepEqual([...favoriteFilters.value], ["gauss-d"]);
-});
-
-test("test_a_server_that_already_has_favorites_leaves_the_localstorage_key_alone", async () => {
+test("test_migration_removes_the_localstorage_key_when_the_server_already_has_names", async () => {
   reset(PLAIN);
   favoritesWire({ filters: ["gauss-d"] });
   const storage = useStorage();
   storage.map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
   await hydrateFavorites();
-  assert.equal(storage.map.get(LEGACY_KEY), JSON.stringify(["gauss-a"]));
+  assert.equal(storage.map.has(LEGACY_KEY), false);
+});
+
+// "localStorage holds no names" covers both shapes a browser can be in: no key
+// at all, and a key left holding an empty list. Neither may provoke a write.
+
+test("test_hydration_with_no_legacy_key_puts_nothing", async () => {
+  reset(PLAIN);
+  const w = favoritesWire({ filters: ["gauss-d"] });
+  useStorage();
+  await hydrateFavorites();
+  assert.deepEqual(puts(w), []);
+});
+
+test("test_hydration_with_an_empty_legacy_key_puts_nothing", async () => {
+  reset(PLAIN);
+  const w = favoritesWire({ filters: ["gauss-d"] });
+  useStorage().map.set(LEGACY_KEY, JSON.stringify([]));
+  await hydrateFavorites();
+  assert.deepEqual(puts(w), []);
 });
 
 // --- loading the module ---------------------------------------------------------
