@@ -69,7 +69,9 @@ async def _config_list(cfg: Config) -> tuple[str, list[str], bytes, str | None]:
     try:
         root = await client.request("<ConfigurationList/>")
         return root.attrib.get("active", ""), [i.attrib.get("name", "") for i in root], raw, None
-    except Exception as exc:
+    # A profile name the daemon emits unescaped can break the reply in any number of ways; whatever the parse throws
+    # is the observation, returned alongside the raw bytes rather than raised.
+    except Exception as exc:  # noqa: BLE001
         return "", [], raw, f"{type(exc).__name__}: {exc}"
     finally:
         await client.close()
@@ -103,7 +105,9 @@ async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: s
         await http.post_profile("save", profile_name=name)
         saved = True
         print("  POST /config/profile/save -> HTTP 2xx")
-    except Exception as exc:
+    # Rejecting a candidate name is a legitimate result for this probe, and the daemon may signal it as an HTTP error,
+    # a transport failure or a mangled reply — all of them recorded as "save rejected" rather than aborting the sweep.
+    except Exception as exc:  # noqa: BLE001
         print(f"  POST /config/profile/save FAILED: {type(exc).__name__}: {exc}")
         verdict = "save rejected"
 
@@ -143,7 +147,9 @@ async def _probe_one(cfg: Config, http: HttpConfigClient, name: str, base_zip: s
         try:
             await http.post_profile("delete", profile=name)
             print("  POST /config/profile/delete -> HTTP 2xx")
-        except Exception as exc:
+        # Cleanup delete; whether the profile actually went away is adjudicated below by readback of ConfigurationList
+        # and settings.zip, which sets deleted = "NO" on any stray — not by this handler, so the error is only logged.
+        except Exception as exc:  # noqa: BLE001
             print(f"  DELETE POST FAILED: {type(exc).__name__}: {exc}")
         _, names2, raw2, err2 = await _config_list(cfg)
         zip2 = {i.filename for i in _members(await http.backup())}
@@ -186,7 +192,9 @@ async def main() -> int:
         for name in wanted:
             try:
                 verdict, zipnote, deleted = await _probe_one(cfg, http, name, base_zip)
-            except Exception as exc:
+            # Outermost per-name guard: any unexpected failure inside a single candidate is recorded as its row with
+            # deleted="UNKNOWN", which stops the loop below so the summary table still prints from the finally block.
+            except Exception as exc:  # noqa: BLE001
                 print(f"  PROBE ERROR: {type(exc).__name__}: {exc}")
                 verdict, zipnote, deleted = f"ERROR {type(exc).__name__}", "n/a", "UNKNOWN"
             rows.append((name, verdict, zipnote, deleted))

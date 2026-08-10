@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import httpx
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
@@ -19,8 +21,13 @@ if TYPE_CHECKING:
 async def refresh(mgr: ConnectionManager) -> None:
     """Best-effort refresh of the /config, /matrix and /speakers snapshots.
 
-    A failure on the 8088 lane must never fail the 4321 poll — the last-good form is
-    kept and only that form's error is recorded.
+    A wire failure on the 8088 lane must never fail the 4321 poll — the last-good form is
+    kept and only that form's error is recorded. That tolerance is for the daemon being
+    unreachable or answering non-2xx, not for a parser of ours raising: an ``AttributeError``
+    out of ``parse_config_form`` is our bug, and recording it as this form's error hid it
+    behind a message that reads like the daemon's fault. Anything but ``httpx.HTTPError``
+    propagates — to a 500 on the request paths and, on the poll path, to the supervisor
+    clause that logs a traceback without reporting the daemon unreachable.
 
     One table instead of three identical try/except blocks: a fourth polled form
     is a row, not another block to keep in step. The getters are bound methods
@@ -39,7 +46,7 @@ async def refresh(mgr: ConnectionManager) -> None:
     for form_attr, error_attr, getter in forms:
         try:
             form = await getter()
-        except Exception as exc:
+        except httpx.HTTPError as exc:
             setattr(mgr, error_attr, str(exc))
             continue
         setattr(mgr, form_attr, form)

@@ -37,7 +37,9 @@ async def main() -> int:
         for name in ["", *names]:
             try:
                 root = await control.request(f'<MatrixGetProfile value="{name}"/>')
-            except Exception as exc:  # probe: report, keep going
+            # However the daemon refuses a MatrixGetProfile for a given profile name is the finding here, so every
+            # failure gets printed and the sweep moves to the next name.
+            except Exception as exc:  # noqa: BLE001  # probe: report, keep going
                 print(f"\n--- {name or '[Default]'!r}: {type(exc).__name__}: {exc}")
                 continue
             raw = ET.tostring(root, encoding="unicode")
