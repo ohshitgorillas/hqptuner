@@ -1,0 +1,72 @@
+flowchart TD
+    W["Welcome"] --> NP["How many endpoints?<br/>→ N presets"]
+
+    subgraph BACKEND["BACKEND — repeat per preset"]
+        NAME["Name this preset<br/>(tip: multi-headphone EQ = matrix profiles, not presets)"] --> PWR["Device plugged in + powered on"]
+        PWR --> BT{"Backend type?"}
+        BT -->|"NAA over network"| FW["Disable/remove host firewall<br/>(ufw / firewalld)"]
+        FW --> NF{"NAA flavor"}
+        NF -->|"NAA OS image (recommended)"| BOOT["NAA booted + on network"]
+        NF -->|"Built-in device mode"| BOOT
+        NF -->|"networkaudiod + avahi"| BOOT
+        BOOT --> IDN["Identify NAA<br/>[GET /config/refresh → net_device options]"]
+        BT -->|"ALSA direct out"| DDC
+        IDN --> DDC{"DDC/transport feeding<br/>DAC over USB?"}
+        DDC -->|"no"| SEL["Select device from list<br/>[refresh devices if ambiguous]"]
+        DDC -->|"yes"| DIS1["Select the two device listings"]
+        DIS1 --> DIS2["User unplugs DAC USB"]
+        DIS2 --> DIS3["Refresh + diff listings<br/>[survivor = working device]"]
+        DIS3 --> DIS4["Replug DAC → device locked in"]
+    end
+
+    NP --> NAME
+    SEL --> HWQ
+    DIS4 --> HWQ
+
+    subgraph HARDWARE["HARDWARE — HQPlayer host (once)"]
+        HWQ{"Nvidia GPU and/or<br/>E-core CPU?"}
+        HWQ -->|"GPU"| MG{"More than one GPU?"}
+        MG -->|"yes"| IDX["User enters indices from nvidia-smi<br/>→ one card convolution, one card resampling"]
+        MG -->|"no"| PWRQ{"Rate GPU power"}
+        PWRQ -->|"don't bother"| C0["No CUDA offload"]
+        PWRQ -->|"low"| C1["CUDA: convolution only"]
+        PWRQ -->|"moderate-high"| C2["CUDA: convolution + resampling"]
+        HWQ -->|"E-cores, no GPU"| EC["E-core DSP ON · CUDA off · multicore ON"]
+        HWQ -->|"neither"| MC["Multicore DSP only"]
+    end
+
+    IDX --> RATES
+    C0 --> RATES
+    C1 --> RATES
+    C2 --> RATES
+    EC --> RATES
+    MC --> RATES
+
+    RATES["Auto-detect supported rates + DSD support<br/>per preset device [GetRates on demand]"] --> VOLQ
+
+    subgraph PREFS["PREFERENCES"]
+        VOLQ{"HQPlayer for volume control?"}
+        VOLQ -->|"yes"| EQQ["EQ profiles to load? How many?"]
+        VOLQ -->|"no"| CLIP{"Frequently clipped material?"}
+        CLIP -->|"answer decides"| ISON["→ optimal ISO −3 dB vs −6 dB<br/>[volume_fixed, fixed-volume setting]"]
+        ISON --> PITCH["Volume control + adaptive loudness pitch"]
+        PITCH --> EQQ
+    end
+
+    EQQ --> MODEGATE{"DSD/DoP supported?<br/>[from detected rates]"}
+    MODEGATE -->|"yes"| MODE["Output mode for first listen:<br/>PCM · SDM · Auto<br/>(DSD pitch: start 64-128x)"]
+    MODEGATE -->|"no"| APPLY
+    MODE --> APPLY
+
+    APPLY["Apply everything now<br/>[one restore cycle per preset, ~5.6s restart each —<br/>runs while user reads the filter step]"]
+
+    APPLY --> GENRE
+
+    subgraph FILTERS["FILTERS — live lane, no restart"]
+        GENRE["Genre?"] --> FOC["Pick 1-2 focus qualities:<br/>space · timbre · transients"]
+        FOC --> FAM["Material 1x or Nx?"]
+        FAM --> CHAR["Leaner/detailed vs smoother/analog?"]
+        CHAR --> CUR["Curated filter list<br/>[facet data, Jussi quality 4-5/5 only]<br/>[SetFilter — switchable live]"]
+    end
+
+    CUR --> FIN["FIN — press play"]
