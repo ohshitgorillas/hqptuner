@@ -108,6 +108,10 @@ export const api = {
   saveLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT"),
   applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
   deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
+  // Favorite filters — starred filter NAMES, stored for the install rather than
+  // for one browser. Whole-set replace: unstarring is a PUT without the name.
+  favorites: () => getJSON("/api/favorites"),
+  saveFavorites: (/** @type {string[]} */ filters) => send("/api/favorites", "PUT", { filters }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
   setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
   profile: (/** @type {string} */ action, /** @type {string} */ name) =>

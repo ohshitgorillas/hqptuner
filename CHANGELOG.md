@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Starred filters are now saved on the server, not in the browser.** Favorites lived in one browser's local storage, so starring a filter on the laptop left the phone and the tablet showing none. They now live with the rest of HQPTuner's state and every browser pointed at the install sees the same stars. Stars already set in a browser are moved up the first time it loads the new version, so nothing is lost. A star that fails to save says so under the dropdown and goes back off, rather than looking saved until the next reload.
+
 ## [1.3.4] — 2026-08-09
 
 ### Internal

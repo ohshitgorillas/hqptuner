@@ -37,7 +37,7 @@ import {
 import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
-import { widgetFor, tipsFor, favFor } from "./Field.js";
+import { widgetFor, tipsFor, favFor, FavoriteError } from "./Field.js";
 import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { PlaybackVolumeBody } from "./PlaybackVolume.js";
@@ -151,6 +151,7 @@ function LiveField({ control, widget }) {
       </div>
       <${LiveProse} control=${control} meta=${meta} />
       ${error ? html`<div class="live-error">${error}</div>` : null}
+      <${FavoriteError} entry=${entry} />
     </div>
   `;
 }
