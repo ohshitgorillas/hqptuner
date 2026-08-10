@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.3.3] — 2026-08-09
+
 ### Fixed
 
 - **Settings that leave HQPlayer producing no sound now say so.** A modulator picked below the DSD rate it needs stopped the sound with nothing on screen to explain it. Those modulators are now grayed with the rate they need, and dropping the rate under one raises a red warning naming both. Dithers below their tuned rate get an amber note instead, and stay pickable at every rate.
