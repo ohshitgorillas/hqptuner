@@ -215,3 +215,105 @@ async def test_a_rescan_refetches_the_matrix_form(
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
     await manager.refresh_devices()
     assert present(manager.matrix_form)["active"] == "Mch-to-Stereo mixdown"
+
+
+# --- the daemon that never comes back ----------------------------------------
+# The replay waits for the control lane to settle, and the wait is bounded by
+# the alarm threshold. A daemon that accepts every connection and drops it
+# again — received, logged, nothing answered, socket gone — never settles, so
+# the wait runs out. Nothing about that may cost the rescan its result.
+
+#: Every command the fake knows, so `_close` covers the whole lane rather than
+#: one command: a daemon that is up enough to accept a socket and answers
+#: nothing on it, for as long as the test lasts.
+EVERY_COMMAND = (
+    "GetInfo GetLicense ConfigurationGet MatrixListProfiles MatrixGetProfile State VolumeRange Status "
+    "GetModes GetFilters GetShapers GetRates GetJunkFilters "
+    "SetMode SetFilter SetShaping SetRate SetAdaptiveVolume SetJunkFilter Volume MatrixSetProfile"
+)
+
+
+async def test_a_rescan_the_control_lane_never_returns_from_still_reports_refreshed(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
+    assert (await manager.refresh_devices())["refreshed"] is True
+
+
+async def test_a_rescan_the_control_lane_never_returns_from_restores_nothing(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
+    assert (await manager.refresh_devices())["restored"] == {}
+
+
+# --- the replay raising mid-write --------------------------------------------
+# Distinct from a setter that answers OK and applies nothing (above): here the
+# socket goes away underneath the write, so the lane raises rather than
+# reporting a setting that did not verify. The daemon is otherwise healthy —
+# it answers every read, and drops the connection only on a write — so this is
+# the replay failing, not the lane being gone.
+
+#: The write side of the lane, and only it: reads are answered normally, so the
+#: manager settles and the replay starts — and then dies on its first setter.
+EVERY_SETTER = "SetMode SetFilter SetShaping SetRate SetAdaptiveVolume SetJunkFilter Volume MatrixSetProfile"
+
+
+async def test_a_rescan_whose_replay_raises_still_reports_refreshed(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, _state = await _rescanning(
+        daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
+    )
+    assert (await manager.refresh_devices())["refreshed"] is True
+
+
+async def test_a_rescan_whose_replay_raises_restores_nothing(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, _state = await _rescanning(
+        daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
+    )
+    assert (await manager.refresh_devices())["restored"] == {}
+
+
+# --- what the user is told when the settings could not be put back -----------
+# Both failures above are silent otherwise: the rescan succeeded, the devices
+# are re-scanned, and the settings the user had set live are quietly gone. The
+# `warning` key is the sentence that says so. It is ABSENT when there is nothing
+# to say — a bar that renders whatever is in that slot must not be handed an
+# empty string to show.
+
+
+async def test_a_rescan_the_control_lane_never_returns_from_warns_the_user(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
+    assert (await manager.refresh_devices())["warning"]
+
+
+async def test_a_rescan_whose_replay_raises_warns_the_user(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, _state = await _rescanning(
+        daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
+    )
+    assert (await manager.refresh_devices())["warning"]
+
+
+async def test_a_rescan_that_put_everything_back_warns_about_nothing(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
+    assert "warning" not in await manager.refresh_devices()
+
+
+async def test_a_rescan_with_autosave_off_warns_about_nothing(
+    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    # nothing was going to be put back, so nothing was lost to report
+    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
+    assert "warning" not in await manager.refresh_devices()
