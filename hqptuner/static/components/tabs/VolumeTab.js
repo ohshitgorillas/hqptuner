@@ -1,5 +1,5 @@
 // Volume tab: the live playback knob, the three-handle volume range, the
-// fixed/automatic volume cards, and Loudness (volume-adaptive by definition).
+// fixed-volume and adjustments cards, and Loudness (volume-adaptive by definition).
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { BypassNote } from "../MatrixBypassNote.js";
@@ -70,7 +70,7 @@ function LoudnessCard() {
   `;
 }
 
-/** Volume tab: playback and fixed-volume cards, the volume range bar, automatic gain fields and the loudness card. */
+/** Volume tab: playback and fixed-volume cards, the volume range bar, gain-adjustment fields and the loudness card. */
 export const Volume = () =>
   html`<${Section}>
     <div class="card-grid">
@@ -84,10 +84,11 @@ export const Volume = () =>
       <//>
     </div>
     <${VolumeRangeBar} />
-    <${Card} title="Automatic">
+    <${Card} title="Adjustments">
       <div class="pack">
         <${Field} k="adaptive_volume" />
         <${Field} k="playlist_album_gain" />
+        <${Field} k="gain_comp" />
       </div>
     <//>
     <${LoudnessCard} />
