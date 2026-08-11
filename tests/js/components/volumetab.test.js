@@ -162,7 +162,7 @@ test("test_the_fixed_volume_card_has_no_indented_layout", async () => {
   assert.equal(card(tab(), "Fixed volume").includes('<div class="indent'), false);
 });
 
-test("test_the_volume_range_bar_follows_the_knob_and_the_fixed_card", async () => {
+test("test_the_volume_range_bar_stands_on_the_tab", async () => {
   await reset();
   assert.ok(tab().includes("vr-card"));
 });

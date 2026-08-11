@@ -228,10 +228,20 @@ test("test_the_channels_card_carries_exactly_the_channel_count", async () => {
   assert.deepEqual(labelsOf(cardOf(tab(), "Channels")), ["Output Channels"]);
 });
 
-test("test_the_open_pipelines_card_carries_no_channel_count", async () => {
+test("test_the_open_pipelines_card_still_carries_the_pipelines_field", async () => {
   await resetWithChannels([ROW({})]);
   const out = tab();
-  assert.equal(out.slice(out.indexOf("Pipelines <span")).includes("<label>Output Channels"), false);
+  assert.ok(out.slice(out.indexOf("Pipelines <span")).includes("<label>DSP pipelines"));
+});
+
+test("test_the_open_pipelines_card_carries_no_channel_count", async () => {
+  // Openness is established in the same fragment the absence is read from: the
+  // pipeline rows render only inside the open card, so a collapsed card cannot
+  // pass this vacuously.
+  await resetWithChannels([ROW({})]);
+  const out = tab();
+  const seg = out.slice(out.indexOf("Pipelines <span"));
+  assert.ok(seg.includes('<div class="mtx-row ') && !seg.includes("<label>Output Channels"));
 });
 
 test("test_the_channels_card_stands_below_the_profile_card_in_its_stack", async () => {

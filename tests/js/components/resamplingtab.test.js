@@ -101,7 +101,7 @@ const CHAINS = {
 
 // --- narrowing bar ------------------------------------------------------------
 
-test("test_the_narrowing_bar_leads_the_tab", async () => {
+test("test_the_narrowing_bar_stands_on_the_tab", async () => {
   await reset({ cfg: CHAINS });
   assert.ok(tab().includes("Narrow filters"));
 });
@@ -128,9 +128,10 @@ test("test_the_resampling_tab_id_still_activates_this_tab", async () => {
 
 // --- pre-process card ----------------------------------------------------------
 // The two controls that shape the signal BEFORE the conversion chains moved in
-// from the Output tab: a plain card titled Pre-process, standing before the
-// chain cards, carrying exactly the high-frequency filter and the metering
-// order — pinned as the card's whole <label> sequence, in order.
+// from the Output tab: a plain card titled Pre-process, leading the tab ahead
+// of the narrowing bar and the chain cards, carrying exactly the high-frequency
+// filter and the metering order — pinned as the card's whole <label> sequence,
+// in order.
 
 /**
  * @param {string} out
@@ -144,11 +145,13 @@ const card = (out, title) => {
 const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
 const PREP = { junk_filter: "0", pre_before_meter: false };
 
-test("test_the_pre_process_card_stands_before_the_chain_cards", async () => {
+test("test_the_pre_process_card_leads_the_tab", async () => {
+  // First element of the tab: ahead of the narrowing bar, and so of the chain
+  // cards that follow it.
   await reset({ cfg: { ...CHAINS, ...PREP } });
   const out = tab();
   const at = out.indexOf('<div class="card-head">Pre-process</div>');
-  assert.ok(at >= 0 && at < out.indexOf(PCM));
+  assert.ok(at >= 0 && at < out.indexOf("Narrow filters") && at < out.indexOf(PCM));
 });
 
 test("test_the_pre_process_card_carries_exactly_its_two_controls_in_order", async () => {
