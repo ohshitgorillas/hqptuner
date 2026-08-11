@@ -431,6 +431,15 @@ input[type="checkbox"]:disabled {
 .ask-choices {
   position: relative;
 }
+/* the warn ask (hazardous-edit guard, store/actions.js) is the same top-layer
+   panel holding a sentence rather than a list: cap it so the warning wraps as
+   a paragraph instead of one viewport-wide line */
+.ask-warn {
+  position: relative;
+}
+.ask-warn .ask-pop {
+  max-width: 28rem;
+}
 /* top-layer mode (Ask.js sets popover="manual"): the UA centres a popover with
    inset:0 + margin:auto and .multi-pop pins absolute under its anchor — both
    wrong here. Neutralise both; Ask.js pins the viewport coords inline. The

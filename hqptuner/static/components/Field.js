@@ -20,6 +20,7 @@ import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Combobox } from "./controls/Combobox.js";
 import { Knob } from "./Knob.js";
+import { Ask } from "./Ask.js";
 
 /**
  * @typedef {SchemaField & { narrow?: string, slider?: boolean }} FieldEntry
@@ -350,6 +351,7 @@ export function Field({ k }) {
         />
         ${entry.unit && entry.widget !== "knob" ? html`<span class="unit">${entry.unit}</span>` : null}
         ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
+        <${Ask} owner=${k} />
         <${ControlCaptions} entry=${entry} reason=${reason} advice=${advice} />
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
