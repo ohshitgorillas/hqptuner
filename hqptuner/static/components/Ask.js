@@ -66,8 +66,13 @@ const pinToAnchor = (pop) => {
   const anchor = pop.parentElement;
   if (!anchor) return;
   const r = anchor.getBoundingClientRect();
-  pop.style.left = `${r.left}px`;
-  pop.style.top = `${r.bottom}px`;
+  // Clamp into the viewport: an anchor row near the page edge would otherwise
+  // pin the panel partly or wholly off-screen (a control at the bottom of a
+  // tall tab opens its warn panel below the fold).
+  const left = Math.min(r.left, window.innerWidth - pop.offsetWidth - 8);
+  const top = Math.min(r.bottom, window.innerHeight - pop.offsetHeight - 8);
+  pop.style.left = `${Math.max(8, left)}px`;
+  pop.style.top = `${Math.max(8, top)}px`;
 };
 
 /**

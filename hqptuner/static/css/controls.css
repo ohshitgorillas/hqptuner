@@ -437,8 +437,19 @@ input[type="checkbox"]:disabled {
 .ask-warn {
   position: relative;
 }
+/* Definite width, not intrinsic: a fixed-position popover sizes shrink-to-fit
+   from wherever it lands before the pin, so one opened beside the viewport's
+   right edge would lay out as a skinny strip and stay that way. */
 .ask-warn .ask-pop {
-  max-width: 28rem;
+  width: 28rem;
+  max-width: calc(100vw - 16px); /* token-exempt: pairs with the 8px viewport clamp in Ask.js pinToAnchor */
+}
+/* the choices ask's one-line rows keep nowrap; a warning is a paragraph and
+   must wrap inside the capped panel instead of clipping at its edge. Three
+   classes deep to outweigh `.ask-pop .ask-msg`'s nowrap below regardless of
+   rule order. */
+.ask-warn .ask-pop .ask-msg {
+  white-space: normal;
 }
 /* top-layer mode (Ask.js sets popover="manual"): the UA centres a popover with
    inset:0 + margin:auto and .multi-pop pins absolute under its anchor — both

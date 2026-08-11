@@ -169,8 +169,15 @@ export async function edit(key, value) {
         `Otherwise, this is probably going to break your setup or fail to produce music. ` +
         `Are you certain you actually know what you're doing?`,
     ))
-  )
+  ) {
+    // Declining stages nothing, but the control's DOM already shows the value
+    // the user picked. Nothing here changed a signal, so no re-render would
+    // snap it back until the next poll tick — a visible seconds-long lag.
+    // Bump the staged identity (contents untouched) so every field re-renders
+    // now and the control returns to its baseline immediately.
+    staged.value = { ...staged.value };
     return;
+  }
   // The last apply's verdict is about the set the user just changed, so it stops
   // being true here. The pending bar shows a FAILED verdict alongside the staged
   // count (a failed apply keeps its staging), and a stale one sitting next to a

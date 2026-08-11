@@ -55,10 +55,14 @@ async function stage(w, key, value) {
 // The dangerous stagings: each opens a warn question naming its own key, and
 // each carries the phrase the caption is built from — "minimum short buffer"
 // for the engine attribute, "minimum buffer time" for the per-backend times.
+// `staged` is the exact http-lane representation a confirm must land (the lane
+// is a Record<string, string>); `safe` is a harmless value of the same key,
+// pre-staged before the cancel tests so a cancel path that wiped the whole
+// pending set could not pass as "stages nothing".
 const DANGEROUS = [
-  { key: "short_buffer", value: "2", phrase: "minimum short buffer" },
-  { key: "alsa_period", value: -1, phrase: "minimum buffer time" },
-  { key: "net_period", value: -5, phrase: "minimum buffer time" },
+  { key: "short_buffer", value: "2", staged: "2", safe: "1", phrase: "minimum short buffer" },
+  { key: "alsa_period", value: -1, staged: "-1", safe: 100, phrase: "minimum buffer time" },
+  { key: "net_period", value: -5, staged: "-5", safe: 100, phrase: "minimum buffer time" },
 ];
 
 for (const { key, value } of DANGEROUS) {
@@ -101,25 +105,31 @@ for (const { key, value } of DANGEROUS) {
   });
 }
 
-for (const { key, value } of DANGEROUS) {
+for (const { key, value, staged } of DANGEROUS) {
   test(`confirming the ${key.replaceAll("_", " ")} warning stages the edit`, async () => {
     const w = await reset();
     const { held } = await stage(w, key, value);
     answer();
     await held;
     await quiesce(w);
-    assert.equal(String(w.staged.http[key]), String(value));
+    assert.equal(w.staged.http[key], staged);
   });
 }
 
-for (const { key, value } of DANGEROUS) {
-  test(`cancelling the ${key.replaceAll("_", " ")} warning stages nothing`, async () => {
+// "Stages nothing" means the pending set is UNCHANGED, not emptied: a safe edit
+// of the same key is staged first, and after the cancel it must still be there
+// at its safe value — neither overwritten by the dangerous value nor swept out
+// with it.
+for (const { key, value, safe } of DANGEROUS) {
+  test(`cancelling the ${key.replaceAll("_", " ")} warning leaves the staged set unchanged`, async () => {
     const w = await reset();
+    const { held: pre } = await stage(w, key, safe);
+    await pre;
     const { held } = await stage(w, key, value);
     cancel();
     await held;
     await quiesce(w);
-    assert.deepEqual(w.staged, { live: {}, http: {} });
+    assert.equal(w.staged.http[key], String(safe));
   });
 }
 
@@ -148,7 +158,7 @@ for (const { key, value } of SAFE) {
   test(`a safe ${key.replaceAll("_", " ")} of ${value} stages immediately`, async () => {
     const w = await reset();
     const { held } = await stage(w, key, value);
-    assert.equal(key in w.staged.http, true);
+    assert.equal(w.staged.http[key], String(value));
     cancel();
     await held;
   });
@@ -191,13 +201,16 @@ test("a superseding question resolves a pending askWarn as declined", async () =
 });
 
 // The one-question-at-a-time contract, end to end: a question opened over a
-// pending buffer warning declines the guard, so the dangerous edit never lands.
+// pending buffer warning declines the guard, so the dangerous edit never lands
+// — and, as with an explicit cancel, what was already staged stays staged.
 test("a question opened over a pending buffer warning stages nothing", async () => {
   const w = await reset();
+  const { held: pre } = await stage(w, "short_buffer", "1");
+  await pre;
   const { held } = await stage(w, "short_buffer", "2");
   askConfirm("pending", "Replace the staged set?");
   await held;
   await quiesce(w);
   cancel();
-  assert.deepEqual(w.staged, { live: {}, http: {} });
+  assert.equal(w.staged.http.short_buffer, "1");
 });
