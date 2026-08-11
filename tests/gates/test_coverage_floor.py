@@ -48,6 +48,44 @@ GATE = _load_gate_module()
 CHECK = GATE.check
 
 
+def _a_shipped_exemption_key() -> str:
+    """One path out of the gate's own exemption mapping — what ``exempt=None`` falls back to.
+
+    Found by looking for it rather than by name: the contract is that the gate
+    ships exemptions and uses them when the caller passes none, not that they
+    live under any particular attribute.
+    """
+    keys = [
+        key
+        for value in vars(GATE).values()
+        if isinstance(value, dict)
+        for key in value
+        if isinstance(key, str) and key.endswith(".py")
+    ]
+    assert keys, "the gate ships no exemption mapping for `exempt=None` to fall back to"
+    return keys[0]
+
+
+SHIPPED_EXEMPTION = _a_shipped_exemption_key()
+
+
+def line_naming(out: str, path: str) -> str:
+    """The single stdout line that names ``path``."""
+    lines = [line for line in out.splitlines() if path in line]
+    assert len(lines) == 1, f"expected exactly one line naming {path}, got {lines!r}"
+    return lines[0]
+
+
+def without_the_report_path(text: str, report: Path) -> str:
+    """``text`` with the report's own filesystem path removed.
+
+    ``tmp_path`` is named after the test function, so words from a test's name
+    turn up inside any path the gate echoes back. Stripping the path first
+    means an assertion can only match the gate's own wording.
+    """
+    return text.replace(str(report), "")
+
+
 def write_report(tmp_path: Path, percentages: dict[str, float]) -> Path:
     """Write a coverage.py-shaped JSON report naming each file at its percentage."""
     report = {
@@ -74,7 +112,22 @@ def test_a_file_below_the_floor_is_named_with_its_percentage_and_the_floor(
 ) -> None:
     report = write_report(tmp_path, {"hqptuner/thin.py": 71.5})
     CHECK(report, 90, {})
-    assert expected in capsys.readouterr().out
+    out = without_the_report_path(capsys.readouterr().out, report)
+    assert expected in line_naming(out, "hqptuner/thin.py")
+
+
+def test_one_file_below_the_floor_fails_a_report_whose_other_files_pass(tmp_path: Path) -> None:
+    """The question is asked of every file: one offender among many sinks the gate."""
+    report = write_report(
+        tmp_path,
+        {
+            "hqptuner/good_one.py": 99.0,
+            "hqptuner/good_two.py": 100.0,
+            "hqptuner/thin.py": 3.0,
+            "hqptuner/good_three.py": 96.0,
+        },
+    )
+    assert CHECK(report, 90, {}) == 1
 
 
 def test_every_file_above_the_floor_passes_the_gate(tmp_path: Path) -> None:
@@ -100,6 +153,12 @@ def test_an_exempt_file_below_the_floor_is_not_named_on_stdout(tmp_path: Path, c
     assert "hqptuner/legacy.py" not in capsys.readouterr().out
 
 
+def test_an_exemption_excuses_only_the_file_it_names(tmp_path: Path) -> None:
+    """The excuse is scoped to its own path; the file beside it is still checked."""
+    report = write_report(tmp_path, {"hqptuner/legacy.py": 12.0, "hqptuner/thin.py": 40.0})
+    assert CHECK(report, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"}) == 1
+
+
 def test_an_exemption_naming_no_file_in_the_report_fails_the_gate(tmp_path: Path) -> None:
     report = write_report(tmp_path, {"hqptuner/present.py": 99.0})
     assert CHECK(report, 90, {"hqptuner/deleted_last_year.py": "excused for a forgotten reason"}) == 1
@@ -122,14 +181,27 @@ def test_a_missing_report_is_named_on_stdout(tmp_path: Path, capsys: Any) -> Non
     assert str(missing) in capsys.readouterr().out
 
 
+def test_a_missing_report_is_said_to_be_absent_on_stdout(tmp_path: Path, capsys: Any) -> None:
+    """Naming the path is not enough — the line has to say the report is not there.
+
+    Asserted against the line with the path stripped out, so the wording has to
+    come from the gate and not from a ``tmp_path`` named after this test.
+    """
+    missing = tmp_path / "never-written.json"
+    CHECK(missing, 90, {})
+    said = without_the_report_path(line_naming(capsys.readouterr().out, str(missing)), missing)
+    assert "no coverage report" in said.lower()
+
+
 def test_a_report_measuring_no_files_fails_the_gate(tmp_path: Path) -> None:
     """An empty measurement is not a pass."""
     assert CHECK(write_report(tmp_path, {}), 90, {}) == 1
 
 
 def test_a_report_measuring_no_files_says_so_on_stdout(tmp_path: Path, capsys: Any) -> None:
-    CHECK(write_report(tmp_path, {}), 90, {})
-    assert "files" in capsys.readouterr().out.lower()
+    report = write_report(tmp_path, {})
+    CHECK(report, 90, {})
+    assert "files" in without_the_report_path(capsys.readouterr().out, report).lower()
 
 
 @pytest.mark.parametrize("expected", ["hqptuner/first.py", "hqptuner/second.py", "hqptuner/third.py"])
@@ -147,7 +219,19 @@ def test_every_file_below_the_floor_is_reported_not_only_the_first(tmp_path: Pat
     assert expected in capsys.readouterr().out
 
 
+def test_a_file_above_the_floor_is_not_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+    """The report lists offenders; a compliant file beside them is not one."""
+    report = write_report(tmp_path, {"hqptuner/first.py": 10.0, "hqptuner/fine.py": 99.0})
+    CHECK(report, 90, {})
+    assert "hqptuner/fine.py" not in capsys.readouterr().out
+
+
 def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path) -> None:
-    """A caller who passes no mapping gets the module's own, not a blanket pardon."""
-    report = write_report(tmp_path, {"tests/nowhere/definitely_not_exempt.py": 3.0})
-    assert CHECK(report, 90) == 1
+    """A caller who passes no mapping gets the module's own, not an empty one.
+
+    The report holds nothing but a file the shipped mapping excuses, at a
+    percentage far under the floor: only the shipped exemptions can turn that
+    into a pass, and a stale-exemption check finds nothing to complain about.
+    """
+    report = write_report(tmp_path, {SHIPPED_EXEMPTION: 3.0})
+    assert CHECK(report, 90) == 0

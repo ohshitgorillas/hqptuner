@@ -7,7 +7,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
-# the per-file floor gate's input, rewritten by every `make test`
 .coverage.json
 htmlcov/
 

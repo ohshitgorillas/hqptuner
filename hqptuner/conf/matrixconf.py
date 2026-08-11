@@ -292,12 +292,7 @@ def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
     refused.
     """
     m = next((c for c in re.finditer(rb"(?:\n([ \t]*))?<matrix\b", xml) if not in_comment(xml, c.end())), None)
-    # The sole caller runs `ensure_element(xml, "matrix")` immediately before
-    # this, and both sides skip commented-out elements the same way — this one
-    # through `in_comment`, `find_element` through `live_tags` — so a snapshot
-    # whose only <matrix> is commented out gets a live one inserted rather than
-    # reaching here. The guard stays because the helper cannot see its caller.
-    if m is None:  # pragma: no cover - unreachable: ensure_element ran first
+    if m is None:  # pragma: no cover - unreachable: the caller runs ensure_element first
         raise GroundingError("the matrix element is absent from this snapshot")
     indent = m.group(1)
     return m.start(), b"" if indent is None else b"\n" + indent

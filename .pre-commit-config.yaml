@@ -53,10 +53,9 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Reads the report the hook above writes, so it has to run after it — and
-      # there is no fail_fast here, so it still runs when that hook reds. That is
-      # why the gate refuses a missing or empty report instead of passing: a
-      # suite that died must not read as a tree that measured clean.
+      # Reads the report the hook above writes, so it runs after it. No
+      # fail_fast here, so it also runs when that hook reds — hence the gate
+      # refusing a missing report rather than passing.
       - id: coverage-floor
         name: per-file coverage floor
         entry: .venv/bin/python scripts/gates/check_coverage_floor.py

@@ -1,26 +1,13 @@
 #!/usr/bin/env python3
 """Gate: no single source file falls below the coverage floor.
 
-An aggregate floor is a subsidy. A tree at 95% overall can carry a module at
-60% indefinitely, because the modules near 100% pay for it — and the module
-that needs the tests is precisely the one the aggregate hides. A per-file
-minimum is strictly stronger for the failure the aggregate was guarding, so
-this replaces ``--cov-fail-under`` rather than standing beside it.
+Reads the JSON report ``make test`` writes and refuses any file under the
+floor. Exemptions are per file, each with a reason; an exemption naming no
+file in the report fails too.
 
-The floor is a standard, not a measurement: it ships at a round number the
-tree clears, not at the worst module's percentage minus a point. A floor
-derived from the tree ratifies whatever the tree happens to be.
-
-Exemptions are per file with a written reason. A file with no behaviour to
-assert is a legitimate exemption; a file nobody got round to testing is not.
-An exemption naming a file the report does not carry fails too — a stale
-reason is drift wearing a permission slip, the same way it is in
-``check_gates_wired.py``.
-
-A missing or empty report fails. This gate runs after the suite in a
-pre-commit config with no ``fail_fast``, so a suite that died leaves nothing
-behind; passing vacuously there would make the gate worse than absent,
-because it would report green over an unmeasured tree.
+A missing or empty report fails rather than passing. Pre-commit sets no
+``fail_fast``, so this still runs when the suite dies, and a tree that was
+never measured must not read as a tree that measured clean.
 
 Usage: ``python scripts/gates/check_coverage_floor.py [report] [floor]``
 """
@@ -40,8 +27,7 @@ REPORT = ROOT / ".coverage.json"
 #: The minimum every individual file must reach.
 FLOOR = 90
 
-#: Files excused from the floor, path to the reason. A reason is a sentence
-#: about the file's nature, not about anyone's plans for it.
+#: Files excused from the floor, path to the reason.
 EXEMPT: dict[str, str] = {
     "hqptuner/__main__.py": "uvicorn launch shim — no behaviour to assert, and running it starts a server",
 }
@@ -68,8 +54,7 @@ def stale(measured: dict[str, float], exempt: dict[str, str]) -> list[str]:
 def check(report: Path, floor: int, exempt: dict[str, str] | None = None) -> int:
     """Refuse a tree where any single non-exempt file covers less than ``floor``.
 
-    Both checks run every time: a tree failing the floor still reports its
-    stale exemptions, so one fix per run is never the shape of this.
+    Both checks run every time, so one fix per run is never the shape of this.
     """
     if exempt is None:
         exempt = EXEMPT

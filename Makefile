@@ -53,10 +53,8 @@ lint-js:
 	$(VENV)/python scripts/gates/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
-# The floor is per file, not aggregate: --cov-fail-under is gone rather than
-# kept beside the gate, because a whole-tree percentage lets a module near 100%
-# subsidise one near nothing, which is the failure it was supposed to catch.
-# The gate is a second recipe line so a failing suite reports before it does.
+# The coverage floor is per file and lives in the gate below, not in
+# --cov-fail-under. Second recipe line, so a failing suite reports first.
 test:
 	$(VENV)/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
 	$(VENV)/python scripts/gates/check_coverage_floor.py
