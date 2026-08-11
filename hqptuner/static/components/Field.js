@@ -7,7 +7,7 @@ import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { schema, MATRIX_BYPASS_REASON } from "../store/schema.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
-import { edit, setLive } from "../store/actions.js";
+import { edit, setLive, autosave } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
 import { describe, selectionDescription, optionDescription, selectedLabel } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
@@ -118,6 +118,14 @@ async function doRescan() {
     rescanning.value = false;
   }
 }
+// What a rescan costs, said under the device list rather than on hover. Only
+// with auto-save on, because auto-save is what puts the live settings back
+// afterwards (lanes/rescan.py) — with it off a rescan loses them and the
+// sentence would be false. The matrix profile is the one exception either way:
+// loading a profile needs live playback and the rescan has just stopped the
+// engine, so nothing can pre-load it.
+const RESCAN_COST = "Stops the engine. All live settings except matrix profiles survive.";
+
 function RescanButton() {
   return html`<button type="button" class="rescan-btn" disabled=${rescanning.value} onClick=${doRescan}>
     ${rescanning.value ? "Rescanning…" : "⟳ Rescan devices"}
@@ -266,6 +274,7 @@ function fieldProse(entry, key, meta, { reason, options }) {
   return html`
     ${showDesc ? html`<div class="field-desc">${selectionDescription(entry, effective(key), options, meta)}</div>` : null}
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
+    ${entry.rescan && autosave.value ? html`<div class="field-rescan-cost">${RESCAN_COST}</div>` : null}
     ${stackedCaption(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}
     <${FavoriteError} entry=${entry} />
   `;

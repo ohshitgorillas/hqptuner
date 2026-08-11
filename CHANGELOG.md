@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rescanning devices no longer resets your live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
+
 ### Changed
 
 - **The Output tab's "General" card is gone; its settings now live where they belong.** Gain compensation joined the Volume tab (card renamed "Adjustments"), the junk filter and pre-metering moved to a new "Pre-process" card on the tab now labeled "Conversion" (formerly "Resampling"), idle time / quick pause / short buffer landed in a "Timing" card and UPnP freewheel in a "UPnP" card on the System tab, and Channels got its own small card on the Matrix tab, under the profile card. Nothing changed about what any of these settings do.

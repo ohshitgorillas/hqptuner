@@ -34,7 +34,7 @@ from hqptuner.config import Config
 from hqptuner.core.applyops import ApplyOps
 from hqptuner.engine import devicecaps, logtail
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
-from hqptuner.lanes import httpforms, livechain, livelane, settle
+from hqptuner.lanes import httpforms, livechain, livelane, rescan, settle
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetops import PresetOps
 from hqptuner.presets.presetstore import PresetError
@@ -422,11 +422,18 @@ class ConnectionManager:
         """Trigger a daemon output-device re-scan, then refetch the /config and /matrix forms.
 
         The refetch makes the device dropdowns serve the new endpoint list (an NAA powered back on,
-        a DAC replugged). No restart, no idle gate — a rescan is read-only on the audio path.
+        a DAC replugged).
+
+        The rescan stops the engine, and the engine comes back on the config file —
+        which never learned a live-routed setting. With auto-save on, what it was
+        running is read first and put back afterwards (``lanes/rescan``), and
+        ``restored`` names what landed. No idle gate: interrupting playback is the
+        user's call to spend (CLAUDE.md).
         """
+        snap = rescan.snapshot(self)
         await self.require_http().refresh_devices()
         await self.refresh_http_forms()
-        return {"refreshed": True}
+        return {"refreshed": True, "restored": await rescan.replay(self, snap)}
 
     def require_http(self) -> HttpConfigClient:
         """Return the 8088 config client, raising ControlError when no credentials were configured.
