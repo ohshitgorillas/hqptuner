@@ -7,7 +7,7 @@ import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
 import { schema, MATRIX_BYPASS_REASON } from "../store/schema.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
-import { edit, setLive, autosave } from "../store/actions.js";
+import { edit, setLive, autosave, lastApply } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
 import { describe, selectionDescription, optionDescription, selectedLabel } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
@@ -110,10 +110,14 @@ function cfgConstraint(entry, name) {
 // Rescan-devices affordance for the output-device dropdowns (schema `rescan`).
 // Sits in the field's grid column 2, directly under the device list.
 const rescanning = signal(false);
+// A rescan that could not put the live settings back says so in the bar the
+// applies report through, rather than leaving the user to notice their filter
+// changed on its own (lanes/rescan.py).
 async function doRescan() {
   rescanning.value = true;
   try {
-    await refreshDevices();
+    const r = await refreshDevices();
+    if (r && r.warning) lastApply.value = { ok: false, text: r.warning };
   } finally {
     rescanning.value = false;
   }

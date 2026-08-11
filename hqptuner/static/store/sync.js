@@ -70,10 +70,18 @@ async function refreshFast() {
 
 // Trigger a daemon output-device rescan, then re-pull the config forms so the
 // device dropdowns show a newly-present endpoint (an NAA powered back on).
-/** Trigger a daemon output-device rescan, then re-pull the config forms. */
+/**
+ * Trigger a daemon output-device rescan, then re-pull the config forms.
+ *
+ * @returns {Promise<{ refreshed: boolean, restored: Record<string, string>, warning?: string }>}
+ *   The rescan report. `warning` is set when the rescan finished but the live
+ *   settings it stopped the engine for could not be put back — the caller
+ *   surfaces it, because a silent loss is the bug this reports on.
+ */
 export async function refreshDevices() {
-  await api.refreshDevices();
+  const r = await api.refreshDevices();
   await refreshConfig();
+  return r;
 }
 
 /** Re-pull the slow snapshots — enumerations, config, matrix and the pending buffer. */

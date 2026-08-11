@@ -13,6 +13,10 @@ rescan, put it back after. Gated on auto-save, because auto-save is the user
 saying "keep what I set" — with it off a rescan loses live settings exactly as it
 always did.
 
+A replay that cannot run says so. Losing the settings quietly is the bug this
+module exists to fix, and a rescan that reports nothing but success while the
+engine sits on the config file's values is that same bug with a different cause.
+
 The matrix profile is deliberately not here. Loading one needs live playback
 (``matrixlane``), and the engine is stopped at the point this runs, so the
 frontend says so beside the rescan control instead.
@@ -21,7 +25,6 @@ frontend says so beside the rescan control instead.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine.control import ControlError
@@ -34,22 +37,8 @@ log = logging.getLogger(__name__)
 
 READY_INTERVAL = 0.25
 
-
-@dataclass(frozen=True)
-class Snapshot:
-    """What the engine was running before the rescan, in live-write terms.
-
-    ``fields`` are config-form field names with the values ``livelane`` resolves
-    against the enumerations. ``rates`` and ``chain`` are copies of what LIVE
-    remembered for the family and chain the engine is NOT running
-    (``livelane.LiveMemory``) — the manager drops that memory on the reconnect a
-    rescan can cause, and it is what the rate-pin and dormant-chain re-asserts
-    read.
-    """
-
-    fields: dict[str, str] = field(default_factory=dict)
-    rates: dict[str, str] = field(default_factory=dict)
-    chain: dict[str, dict[str, str]] = field(default_factory=dict)
+NO_DAEMON = "The engine did not come back after the rescan — your live settings were not restored."
+WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 
 
 def _live_writable(overrides: dict[str, str]) -> dict[str, str]:
@@ -58,25 +47,20 @@ def _live_writable(overrides: dict[str, str]) -> dict[str, str]:
     ``live_overrides`` answers in config-file terms, which includes the per-family
     rate LIMITS (``defaults_samplerate`` / ``defaults_bitrate``). Those are a
     ceiling the config carries, not the target rate ``SetRate`` writes
-    (``livemap``), so they cannot be replayed as live writes. The pin itself comes
-    back through ``rates`` instead.
+    (``livemap``), so they cannot be replayed as live writes.
     """
     return {name: value for name, value in overrides.items() if name in livemap.ROUTABLE or name in livemap.DIRECT}
 
 
-def snapshot(mgr: ConnectionManager) -> Snapshot | None:
-    """Read the live settings a rescan is about to cost, or None when nothing will be put back.
+def snapshot(mgr: ConnectionManager) -> dict[str, str]:
+    """Read the live settings a rescan is about to cost, in live-write terms.
 
-    None when auto-save is off — the flag is the whole gate, and the auto-save
+    Empty when auto-save is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``).
     """
     if not mgr.presetops.store.autosave:
-        return None
-    return Snapshot(
-        fields=_live_writable(liveoverrides.live_overrides(mgr)),
-        rates=dict(mgr.live.rates),
-        chain={name: dict(held) for name, held in mgr.live.chain.items()},
-    )
+        return {}
+    return _live_writable(liveoverrides.live_overrides(mgr))
 
 
 def _setting_of(name: str) -> str:
@@ -89,7 +73,8 @@ def _restored(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str,
 
     A field held for the chain the engine did not load is not in here: it was
     remembered, not written, and reporting it as restored would claim an engine
-    change nobody can hear (``livelane.apply_now``).
+    change nobody can hear (``livelane.apply_now``). A replay that dies partway
+    reports what landed before it did, for the same reason.
     """
     landed = {entry["setting"] for entry in report if entry["ok"]}
     return {name: value for name, value in fields.items() if _setting_of(name) in landed}
@@ -100,29 +85,22 @@ async def _reachable(mgr: ConnectionManager) -> bool:
     return mgr.reachable and mgr.control is not None
 
 
-async def replay(mgr: ConnectionManager, snap: Snapshot | None) -> dict[str, str]:
-    """Put a snapshot back on the engine once it answers again, and report what landed.
+async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
+    """Put a snapshot back on the engine once it answers again.
 
-    Empty when there was nothing to put back, when the daemon never came back
-    inside the alarm window, or when the writes failed. Best-effort throughout:
-    the rescan the caller asked for succeeded either way, and reporting it as a
-    failure because the replay could not finish would be a lie about the rescan.
-
-    The wait matters. A rescan can drop the control connection, and the
-    manager's reconnect clears LIVE's memory (``livelane.LiveMemory.forget``) —
-    so the memory is restored from the snapshot after that wait, not before it.
+    Answers ``restored`` — the fields whose setter verified by readback — and a
+    ``warning`` naming what the user lost when the replay could not run. The
+    rescan itself succeeded either way, so neither outcome is an error: the
+    caller reports the rescan as done and carries the warning.
     """
-    if snap is None or not snap.fields:
-        return {}
+    if not fields:
+        return {"restored": {}}
     if not await settle.poll_until(mgr, lambda: _reachable(mgr), interval=READY_INTERVAL):
         log.warning("device rescan: daemon never came back, live settings not restored")
-        return {}
-    mgr.live.rates.update(snap.rates)
-    for name, held in snap.chain.items():
-        mgr.live.chain.setdefault(name, {}).update(held)
+        return {"restored": {}, "warning": NO_DAEMON}
     try:
-        report = await livelane.apply_preset(mgr, snap.fields)
+        report = await livelane.apply_preset(mgr, fields)
     except (ControlError, livemap.LiveRouteError) as exc:
         log.warning("device rescan: restoring live settings failed: %s", exc)
-        return {}
-    return _restored(report["live"], snap.fields)
+        return {"restored": {}, "warning": WRITE_FAILED}
+    return {"restored": _restored(report["live"], fields)}

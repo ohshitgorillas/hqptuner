@@ -426,14 +426,14 @@ class ConnectionManager:
 
         The rescan stops the engine, and the engine comes back on the config file —
         which never learned a live-routed setting. With auto-save on, what it was
-        running is read first and put back afterwards (``lanes/rescan``), and
-        ``restored`` names what landed. No idle gate: interrupting playback is the
-        user's call to spend (CLAUDE.md).
+        running is read first and put back afterwards (``lanes/rescan``): ``restored``
+        names what landed, and a ``warning`` says so when the replay could not run.
+        No idle gate: interrupting playback is the user's call to spend (CLAUDE.md).
         """
         snap = rescan.snapshot(self)
         await self.require_http().refresh_devices()
         await self.refresh_http_forms()
-        return {"refreshed": True, "restored": await rescan.replay(self, snap)}
+        return {"refreshed": True, **await rescan.replay(self, snap)}
 
     def require_http(self) -> HttpConfigClient:
         """Return the 8088 config client, raising ControlError when no credentials were configured.
