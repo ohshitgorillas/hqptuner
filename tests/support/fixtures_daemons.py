@@ -7,7 +7,7 @@ fakes from `fake_http`, and the fake 4322 metering streams."""
 
 import asyncio
 import functools
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import Any
 
 import fake_http
@@ -107,6 +107,37 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
     await client.close()
     server.close()
     await server.wait_closed()
+
+
+#: Build a client whose daemon reports the given level back from `State`, or, for
+#: ``None``, a `State` frame carrying no volume attribute at all.
+DeafVolumeClient = Callable[[str | None], Awaitable[ControlClient]]
+
+
+@pytest.fixture
+async def deaf_volume_client(daemon: DaemonFactory) -> AsyncIterator[DeafVolumeClient]:
+    """Clients on daemons whose `Volume` is answered `result="OK"` but never
+    applied (the `_deaf` knob, protocol.md §6: OK is not proof), so `State` keeps
+    reporting the level the caller names however loud the write was — which is
+    how a test says the readback disagrees with what was asked for.
+
+    ``None`` deletes the key from the daemon's live State, so its `State` frame
+    goes out with no volume attribute: what a daemon with no engine loaded
+    answers, and the case a float readback comparison has nothing to compare."""
+    clients: list[ControlClient] = []
+
+    async def build(reported: str | None) -> ControlClient:
+        port, _log, state = await daemon(_deaf="Volume", volume=reported or "")
+        if reported is None:
+            del state["volume"]
+        client = ControlClient("127.0.0.1", port, timeout=2.0)
+        await client.connect()
+        clients.append(client)
+        return client
+
+    yield build
+    for client in clients:
+        await client.close()
 
 
 @pytest.fixture
