@@ -31,6 +31,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Resampling } from "../../../hqptuner/static/components/tabs/ResamplingTab.js";
+import { TabBar, TabBody } from "../../../hqptuner/static/components/tabs/index.js";
+import { activeTab } from "../../../hqptuner/static/store/ui.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -102,6 +104,56 @@ const CHAINS = {
 test("test_the_narrowing_bar_leads_the_tab", async () => {
   await reset({ cfg: CHAINS });
   assert.ok(tab().includes("Narrow filters"));
+});
+
+// --- the tab's name on the bar -------------------------------------------------
+// The reorganization renamed the tab "Conversion" on the bar; its id stays
+// `resampling`, so that id still activates this tab's body.
+
+test("test_the_tab_bar_names_this_tab_conversion", async () => {
+  await reset({ cfg: CHAINS });
+  assert.ok(render(html`<${TabBar} />`).includes("Conversion"));
+});
+
+test("test_the_tab_bar_no_longer_says_resampling", async () => {
+  await reset({ cfg: CHAINS });
+  assert.equal(render(html`<${TabBar} />`).includes("Resampling"), false);
+});
+
+test("test_the_resampling_tab_id_still_activates_this_tab", async () => {
+  await reset({ cfg: CHAINS });
+  activeTab.value = "resampling";
+  assert.ok(render(html`<${TabBody} />`).includes("Narrow filters"));
+});
+
+// --- pre-process card ----------------------------------------------------------
+// The two controls that shape the signal BEFORE the conversion chains moved in
+// from the Output tab: a plain card titled Pre-process, standing before the
+// chain cards, carrying exactly the high-frequency filter and the metering
+// order — pinned as the card's whole <label> sequence, in order.
+
+/**
+ * @param {string} out
+ * @param {string} title
+ */
+const card = (out, title) => {
+  const head = out.indexOf(`<div class="card-head">${title}</div>`);
+  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
+};
+/** @param {string} frag */
+const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+const PREP = { junk_filter: "0", pre_before_meter: false };
+
+test("test_the_pre_process_card_stands_before_the_chain_cards", async () => {
+  await reset({ cfg: { ...CHAINS, ...PREP } });
+  const out = tab();
+  const at = out.indexOf('<div class="card-head">Pre-process</div>');
+  assert.ok(at >= 0 && at < out.indexOf(PCM));
+});
+
+test("test_the_pre_process_card_carries_exactly_its_two_controls_in_order", async () => {
+  await reset({ cfg: { ...CHAINS, ...PREP } });
+  assert.deepEqual(labelsOf(card(tab(), "Pre-process")), ["High-frequency filter", "Pre-process before metering"]);
 });
 
 // --- which card opens ---------------------------------------------------------

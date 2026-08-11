@@ -227,20 +227,42 @@ test("test_the_alert_says_how_to_recover_the_device", async () => {
 
 // --- cards --------------------------------------------------------------------
 
-test("test_the_general_card_carries_the_high_frequency_filter", async () => {
-  await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.ok(card(tab(), "General").includes("<label>High-frequency filter"));
+// The reorganization moved the old General card's residents to the tabs that
+// own them (Volume, Conversion, System, Matrix). The form still CARRIES every
+// moved field — the seed below stages them all — so an Output tab that kept
+// rendering any of them would show it here.
+const MOVED_AWAY = {
+  channels: "Output Channels",
+  gain_comp: "PCM gain compensation",
+  idle_time: "Engine idle time",
+  quick_pause: "Quick pause",
+  short_buffer: "Short buffer",
+  upnp_freewheel: "UPnP freewheel",
+  junk_filter: "High-frequency filter",
+  pre_before_meter: "Pre-process before metering",
+};
+const MOVED_FORM = {
+  channels: "2",
+  gain_comp: "0.0",
+  idle_time: "0",
+  quick_pause: false,
+  short_buffer: "0",
+  upnp_freewheel: false,
+  junk_filter: "0",
+  pre_before_meter: false,
+};
+
+test("test_no_card_is_titled_general_any_more", async () => {
+  await reset({ cfg: { backend: "alsa", ...PRESENT, ...MOVED_FORM } });
+  assert.equal(tab().includes('<div class="card-head">General</div>'), false);
 });
 
-test("test_the_general_card_carries_pre_process_before_metering", async () => {
-  await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.ok(card(tab(), "General").includes("<label>Pre-process before metering</label>"));
-});
-
-test("test_the_general_card_leaves_the_device_lists_to_the_backend_sections", async () => {
-  await reset({ cfg: { backend: "alsa", ...PRESENT } });
-  assert.equal(card(tab(), "General").includes("Topping DAC"), false);
-});
+for (const [key, label] of Object.entries(MOVED_AWAY)) {
+  test(`test_the_${key}_field_no_longer_renders_on_the_output_tab`, async () => {
+    await reset({ cfg: { backend: "alsa", ...PRESENT, ...MOVED_FORM } });
+    assert.equal(tab().includes(`<label>${label}`), false);
+  });
+}
 
 // Top to bottom: the ENGAGE|BYPASS gate strip, then the body wrapper. The
 // DAC model row must fall INSIDE the dsp-body's extent (opening tag to matching

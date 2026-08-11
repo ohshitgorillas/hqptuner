@@ -1,6 +1,6 @@
 // Behavioral suite for components/tabs/VolumeTab.js — the Volume tab's rendered
 // contract: the live knob paired with the fixed-volume card, the range bar, the
-// automatic card, and the Loudness card's dimming rule.
+// adjustments card, and the Loudness card's dimming rule.
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 // `LoudnessCard` is private and stays that way — every case here goes through
@@ -167,14 +167,24 @@ test("test_the_volume_range_bar_follows_the_knob_and_the_fixed_card", async () =
   assert.ok(tab().includes("vr-card"));
 });
 
-test("test_the_automatic_card_carries_adaptive_volume", async () => {
+// The reorganization renamed Automatic to Adjustments and moved the PCM gain
+// compensation in from the Output tab. Membership and order are pinned as the
+// card's whole <label> sequence — a stray fourth control or a reordering fails.
+/** @param {string} frag */
+const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+
+test("test_the_adjustments_card_carries_exactly_its_three_controls_in_order", async () => {
   await reset();
-  assert.ok(card(tab(), "Automatic").includes("<label>Adaptive volume</label>"));
+  assert.deepEqual(labelsOf(card(tab(), "Adjustments")), [
+    "Adaptive volume",
+    "Playlist album gain",
+    "PCM gain compensation",
+  ]);
 });
 
-test("test_the_automatic_card_carries_playlist_album_gain", async () => {
+test("test_no_card_is_titled_automatic_any_more", async () => {
   await reset();
-  assert.ok(card(tab(), "Automatic").includes("<label>Playlist album gain</label>"));
+  assert.equal(tab().includes('<div class="card-head">Automatic</div>'), false);
 });
 
 // --- loudness -----------------------------------------------------------------

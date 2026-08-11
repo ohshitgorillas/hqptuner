@@ -23,22 +23,64 @@ import { schema } from "../../../hqptuner/static/store/schema.js";
 import { stagingWire } from "../support/wire.js";
 
 async function reset() {
-  stagingWire();
+  const w = stagingWire();
   engineState.value = { filter_junk: 0 };
   config.value = { fields: [{ name: "pre_before_meter", value: false }], file: {}, active: "", profiles: null };
   await discardAll();
+  return w;
 }
 
-test("a staged high-frequency filter lights the output tab", async () => {
+// The reorganization moved the old Output-tab residents to the tabs that now
+// render them: the pre-process pair to Conversion (id `resampling`), gain
+// compensation to Volume, the engine timing knobs and UPnP freewheel to System,
+// the channel count to Matrix. The accent follows the control.
+
+test("a staged high-frequency filter lights the conversion tab", async () => {
   await reset();
   await edit("junk_filter", "3");
-  assert.deepEqual([...dirtyTabs.value], ["output"]);
+  assert.deepEqual([...dirtyTabs.value], ["resampling"]);
 });
 
-test("a staged pre-process before metering lights the output tab", async () => {
+test("a staged pre-process before metering lights the conversion tab", async () => {
   await reset();
   await edit("pre_before_meter", "1");
-  assert.deepEqual([...dirtyTabs.value], ["output"]);
+  assert.deepEqual([...dirtyTabs.value], ["resampling"]);
+});
+
+test("a staged gain compensation lights the volume tab", async () => {
+  await reset();
+  await edit("gain_comp", "-0.5");
+  assert.deepEqual([...dirtyTabs.value], ["volume"]);
+});
+
+test("a staged engine idle time lights the system tab", async () => {
+  await reset();
+  await edit("idle_time", "10000");
+  assert.deepEqual([...dirtyTabs.value], ["system"]);
+});
+
+test("a staged quick pause lights the system tab", async () => {
+  await reset();
+  await edit("quick_pause", "1");
+  assert.deepEqual([...dirtyTabs.value], ["system"]);
+});
+
+test("a staged short buffer lights the system tab", async () => {
+  await reset();
+  await edit("short_buffer", "1");
+  assert.deepEqual([...dirtyTabs.value], ["system"]);
+});
+
+test("a staged upnp freewheel lights the system tab", async () => {
+  await reset();
+  await edit("upnp_freewheel", "1");
+  assert.deepEqual([...dirtyTabs.value], ["system"]);
+});
+
+test("a staged channel count lights the matrix tab", async () => {
+  await reset();
+  await edit("channels", "4");
+  assert.deepEqual([...dirtyTabs.value], ["matrix"]);
 });
 
 test("a staged minimum volume lights the volume tab", async () => {
@@ -83,6 +125,7 @@ test("a staged minimum volume does not light the Matrix tab", async () => {
 // The companion below catches the other direction — "matrix" turning up anywhere
 // in a non-Matrix key's list.
 const MATRIX_KEYS = [
+  "channels",
   "crossfeed_enabled",
   "crossfeed_frequency",
   "crossfeed_level",
@@ -130,4 +173,36 @@ test("every schema key stages an edit that lights a tab", async () => {
   const lit = await sweepSchema();
   const silent = [...lit].filter(([, tabs]) => tabs.length === 0).map(([key]) => key);
   assert.deepEqual(silent, []);
+});
+
+// --- the wire under the moved controls ----------------------------------------
+// Moving a control to another tab is pure presentation: each one still stages
+// on the lane and wire field it always had (docs/settings-classification.md —
+// idle_time, upnp_freewheel, quick_pause, short_buffer, channels, gain_comp and
+// pre_before_meter are http-lane form fields under their own names; the
+// high-frequency filter has the live SetJunkFilter setter). These pin today's
+// wire, so a tab move that also rewired a field fails here.
+
+const HTTP_MOVED = [
+  "channels",
+  "gain_comp",
+  "idle_time",
+  "quick_pause",
+  "short_buffer",
+  "upnp_freewheel",
+  "pre_before_meter",
+];
+
+for (const key of HTTP_MOVED) {
+  test(`a staged ${key.replaceAll("_", " ")} still rides the http lane under its own field name`, async () => {
+    const w = await reset();
+    await edit(key, "1");
+    assert.ok(key in w.staged.http && !(key in w.staged.live));
+  });
+}
+
+test("a staged high-frequency filter still rides the live lane under its own key", async () => {
+  const w = await reset();
+  await edit("junk_filter", "3");
+  assert.ok("junk_filter" in w.staged.live && !("junk_filter" in w.staged.http));
 });

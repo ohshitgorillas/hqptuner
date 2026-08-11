@@ -193,6 +193,26 @@ test("test_the_profile_save_caption_hides_with_feature_descriptions_off", async 
   assert.equal(tab().includes("Save the current Matrix settings"), false);
 });
 
+// --- pipelines card head fields -----------------------------------------------
+// The reorganization moved the engine's output-channel count in from the Output
+// tab: inside the open Pipelines card it renders before the DSP pipelines
+// control. Both fields ride the /config form, so the form is seeded with them.
+
+test("test_the_open_pipelines_card_puts_channels_before_the_pipelines_field", async () => {
+  await reset([ROW({})]);
+  config.value = {
+    fields: [
+      { name: "channels", value: "2" },
+      { name: "pipelines", value: "0" },
+    ],
+    file: { matrix_pipelines: JSON.stringify([ROW({})]) },
+  };
+  const seg = tab();
+  const from = seg.slice(seg.indexOf("Pipelines <span"));
+  const at = from.indexOf("<label>Output Channels");
+  assert.ok(at >= 0 && at < from.indexOf("<label>DSP pipelines"));
+});
+
 // --- flow rows ---------------------------------------------------------------
 
 test("test_every_pipeline_is_rendered", async () => {

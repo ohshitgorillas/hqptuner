@@ -21,7 +21,11 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { System } from "../../../hqptuner/static/components/tabs/SystemTab.js";
-import { health } from "../../../hqptuner/static/store/signals.js";
+import { health, config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
+import { discardAll } from "../../../hqptuner/static/store/actions.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
+import { stagingWire } from "../support/wire.js";
+import { formFields } from "../support/tabform.js";
 
 test("about hqptuner prose stays unrendered until the subsection is opened", () => {
   health.value = { info: {}, license: null };
@@ -55,4 +59,54 @@ test("a daemon in the verified series draws no notice", () => {
 test("the engine health card keeps its quick updates tickbox on the tab", () => {
   health.value = { info: {}, license: null };
   assert.ok(render(html`<${System} />`).includes("Quick updates"));
+});
+
+// --- engine timing and UPnP ---------------------------------------------------
+// The reorganization moved the engine's timing knobs and the UPnP freewheel in
+// from the Output tab. Membership is "exactly": each card's whole <label>
+// sequence is compared, so a stray extra control fails alongside a missing one.
+// Timing's internal order is not part of the contract, so its labels are
+// compared as a sorted set.
+
+async function reset() {
+  stagingWire();
+  health.value = { info: {}, license: null };
+  engineState.value = {};
+  enums.value = null;
+  metadata.value = null;
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = true;
+  matrixConfig.value = { fields: [] };
+  config.value = {
+    fields: formFields({ idle_time: "0", quick_pause: false, short_buffer: "0", upnp_freewheel: false }),
+    file: {},
+    active: "",
+    profiles: null,
+  };
+  await discardAll();
+}
+
+/**
+ * @param {string} out
+ * @param {string} title
+ */
+const card = (out, title) => {
+  const head = out.indexOf(`<div class="card-head">${title}</div>`);
+  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
+};
+/** @param {string} frag */
+const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+
+test("the timing card carries exactly the three engine timing controls", async () => {
+  await reset();
+  assert.deepEqual(labelsOf(card(render(html`<${System} />`), "Timing")).sort(), [
+    "Engine idle time",
+    "Quick pause",
+    "Short buffer",
+  ]);
+});
+
+test("the upnp card carries exactly the upnp freewheel control", async () => {
+  await reset();
+  assert.deepEqual(labelsOf(card(render(html`<${System} />`), "UPnP")), ["UPnP freewheel"]);
 });
