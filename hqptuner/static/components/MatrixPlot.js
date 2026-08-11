@@ -195,7 +195,7 @@ export function MatrixPlot() {
     <${Card} title="Matrix response">
         ${
           traces.length
-            ? html`<${BypassNote} text="Matrix engine is bypassed. The changes below are not applied." />`
+            ? html`<${BypassNote} on=${true} text="Matrix engine is bypassed. The changes below are not applied." />`
             : null
         }
         <${PlotFrame}

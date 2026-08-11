@@ -131,13 +131,24 @@ const GATE_OPTIONS = [
   { value: "0", label: "BYPASS" },
 ];
 
+// Whether crossfeed is engaged in the view the user is looking at — the gate's
+// own reading, shared with the card so the bypass note and the ENGAGE / BYPASS
+// segment can never disagree about it.
+/**
+ * @param {PipelineRow[]} rows
+ * @param {string} active
+ * @returns {boolean}
+ */
+const crossfeedOn = (rows, active) =>
+  active !== "structural" ? truthy(effective("crossfeed_enabled")) : !!structuralBlock(rows);
+
 /**
  * @param {{ rows: PipelineRow[], active: string }} props
  */
 function Gate({ rows, active }) {
   const bauer = active !== "structural";
   const rec = structuralBlock(rows);
-  const on = bauer ? truthy(effective("crossfeed_enabled")) : !!rec;
+  const on = crossfeedOn(rows, active);
   const dirty = bauer ? isDirty("crossfeed_enabled") : pipelinesDirty();
   const toggle = (/** @type {string} */ v) => {
     if (bauer) {
@@ -445,7 +456,7 @@ export function CrossfeedCard() {
       ${
         open
           ? html`<div class="card-body">
-              <${BypassNote} />
+              <${BypassNote} on=${crossfeedOn(rows, active)} />
               <div class="xfs-top">
                 <${Gate} rows=${rows} active=${active} />
                 <${Segment}

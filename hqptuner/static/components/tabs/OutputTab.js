@@ -113,7 +113,7 @@ export const Output = () => {
     <${NetCard} />
     <${Card} title="DAC correction" subtitle=${noteFor("dac_correction_enabled")}>
       <div class="dsp-card">
-        <${BypassNote} />
+        <${BypassNote} on=${dacOn} />
         <${Field} k="dac_correction_enabled" />
         <div class="dsp-body ${dacOn ? "" : "off"}">
           <${Field} k="dac_correction_profile" />

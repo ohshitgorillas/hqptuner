@@ -171,7 +171,6 @@ function HeadphoneEqCard() {
   };
   return html`
     <${Card} title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }} headClass="mtx-eq-head">
-      <${BypassNote} />
       <${ImportPanel} rows=${effectivePipelines.value} />
     <//>
   `;
@@ -254,7 +253,7 @@ function PipelinesCard() {
     ? // htm has no <>...</> fragment shorthand — a template with several roots
       // already yields an array, and Card wraps it in the card body.
       html`
-        <${BypassNote} />
+        <${BypassNote} on=${true} />
         <${PipelinesNote} />
         <div class="mtx-global">
           <${Field} k="pipelines" />
