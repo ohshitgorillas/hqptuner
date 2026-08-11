@@ -227,7 +227,10 @@ test("test_narrowing_drops_an_option_the_active_facets_exclude", async () => {
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["poly-sinc-mp"]);
 });
 
-test("test_narrowing_never_hides_the_selected_option", async () => {
+// The current selection is judged on the facets like any other option: the
+// field's value points at sinc-Lm, which is not minimum phase, so the engaged
+// phase facet drops it from the list the dropdown offers.
+test("test_narrowing_hides_the_selected_option_when_it_fails_the_facets", async () => {
   await reset({
     fields: [
       {
@@ -243,7 +246,7 @@ test("test_narrowing_never_hides_the_selected_option", async () => {
   enums.value = { filters: [{ name: "poly-sinc-mp" }, { name: "sinc-Lm" }] };
   nApod1x.value = "all";
   nPhase.value = "minimum";
-  assert.ok(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"));
+  assert.equal(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"), false);
 });
 
 // A modulator below its floor stops the engine producing output at all, so its

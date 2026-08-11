@@ -37,6 +37,7 @@ import { reset, field, line, optionLabels } from "../support/field-harness.js";
 import { staticWire } from "../support/wire.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/favorites.js";
+import { nApod1x } from "../../../hqptuner/static/store/narrowing.js";
 
 // The 1x filter dropdown, with a selection (sinc-M) the harness's metadata
 // describes and a second filter the user has starred.
@@ -63,6 +64,10 @@ const STARRED = "poly-sinc-xtr-mp";
  */
 async function narrowedField({ favOnly = true } = {}) {
   await reset({ fields: FILTER_FIELDS });
+  // The 1x stage narrows to apodizing filters by default; opening that switch
+  // leaves favorites-only as the ONLY facet in play, so `favOnly` alone decides
+  // whether the current selection passes and each case says what it means.
+  nApod1x.value = "all";
   staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));
   favoriteFilters.value = new Set([STARRED]);
   favoritesError.value = "";

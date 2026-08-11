@@ -36,6 +36,7 @@ import { reset } from "../support/field-harness.js";
 import { staticWire, stagingWire, quiesce } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/favorites.js";
+import { nApod1x } from "../../../hqptuner/static/store/narrowing.js";
 
 const FILTER_FIELDS = [
   {
@@ -75,6 +76,10 @@ const DITHER_FIELDS = [
 /** @param {ConfigField[]} fields */
 async function start(fields) {
   await reset({ fields });
+  // The 1x stage narrows to apodizing filters by default and spares no option,
+  // the selected one included, so the switch is opened for every case here:
+  // these are cases about the STAR on a row, and each wants both rows listed.
+  nApod1x.value = "all";
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));

@@ -17,6 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field, controlRow, attrOf } from "../support/field-harness.js";
+import { nApod1x } from "../../../hqptuner/static/store/narrowing.js";
 
 // Opening tag of the first element in `out` whose attributes match `needle`.
 /**
@@ -123,8 +124,12 @@ test("test_the_option_list_is_hidden_while_closed", async () => {
   assert.equal(/\shidden(?=[\s>])/.test(tag), true);
 });
 
+// The 1x stage narrows to apodizing filters by default, and narrowing spares no
+// option — not even the selected one. This case is about the ROWS, so the
+// apodizing switch is opened first and both fixture filters stay listed.
 test("test_every_option_appears_as_a_row_labelled_by_its_option_label", async () => {
   await reset({ fields: FILTER_FIELDS });
+  nApod1x.value = "all";
   assert.deepEqual(
     optRows(field("pcm_filter_1x")).map((r) => r.text),
     ["sinc-M", "poly-sinc-xtr-mp"],
