@@ -18,8 +18,10 @@ Policy notes (docs/testing.md):
   poll on a condition (a selector, or a DOM predicate).
 - These are characterization tests for already-shipped behaviour, so the
   "new tests must bite" rule does not apply to them (rule 8's stated exemption).
-- The stack is session-scoped and its state persists between tests, so each case
-  clears any leftover staging first and asserts on the transition it caused.
+- The stack is session-scoped and its engine state persists between tests, so
+  each case states the baseline it needs and asserts on the transition it
+  caused. Server-side state (staging, auto-save, presets) is the one thing put
+  back before every test, by conftest's `clean_slate`.
 
 The control it drives through the staging round trip is the Output tab's
 High-frequency filter (`junk_filter`), which is a live-lane setting written with
@@ -88,7 +90,13 @@ def open_app(page: Page, stack: Stack) -> None:
 
 
 def clear_staging(page: Page) -> None:
-    """Drop anything a previous test left staged, so a case starts from clean."""
+    """Drop anything staged earlier in this case, so it goes on from clean.
+
+    The buffer a *previous* test left is not this helper's job: the
+    `clean_slate` fixture empties it server-side before the page ever loads.
+    Deciding here whether anything is staged would race the app's fetch of that
+    buffer, which lands after the first render.
+    """
     discard = page.get_by_role("button", name="Discard")
     if discard.is_enabled():
         discard.click()
