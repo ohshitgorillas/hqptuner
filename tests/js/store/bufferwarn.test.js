@@ -41,6 +41,11 @@ async function reset() {
 // adopt it and never resolve while the question is open. Every test awaits the
 // held edit after closing its question, so a guard that never resolves shows up
 // as a hang rather than as a silent leak.
+/**
+ * @param {import("../support/wire.js").StagingWire} w
+ * @param {string} key
+ * @param {string | number} value
+ */
 async function stage(w, key, value) {
   const held = edit(key, value);
   await quiesce(w);
