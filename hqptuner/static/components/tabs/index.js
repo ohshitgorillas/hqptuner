@@ -14,7 +14,7 @@ import { dirtyTabs } from "../../store/tabmap.js";
 const TABS = [
   ["output", "Output", Output],
   ["volume", "Volume", Volume],
-  ["resampling", "Resampling", Resampling],
+  ["resampling", "Conversion", Resampling],
   ["matrix", "Matrix", MatrixTab],
   ["system", "System", System],
 ];

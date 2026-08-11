@@ -256,6 +256,7 @@ function PipelinesCard() {
         <${BypassNote} on=${true} />
         <${PipelinesNote} />
         <div class="mtx-global">
+          <${Field} k="channels" />
           <${Field} k="pipelines" />
         </div>
         <${XfeedBadge} />

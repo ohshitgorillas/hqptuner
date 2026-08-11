@@ -1,10 +1,10 @@
 // Field → tab, for accenting a tab whose staged edits are hidden behind the
 // pending bar. Schema `group` is NOT the tab: the "dsp" group straddles the
-// Resampling and Matrix tabs, and dsp-group fields like `channels` render on
-// Output. The mapping is sourced from the k= fields each tab component actually
+// Resampling and Matrix tabs, and e.g. `junk_filter` renders on Resampling.
+// The mapping is sourced from the k= fields each tab component actually
 // renders — keep these sets in sync with tabs/*.js and ResamplingTab.js. The
 // Matrix tab ("matrix") is the fallback: the remaining dsp-group fields
-// (crossfeed_*, matrix_*, pipelines) light it without being enumerated.
+// (channels, crossfeed_*, matrix_*, pipelines) light it without being enumerated.
 //
 // Harvesting k= only finds keys rendered through Field, so a bespoke component's
 // keys are invisible to it and fall silently through to the Matrix tab — which is
@@ -19,16 +19,8 @@ const TAB_KEYS = {
   output: new Set([
     "output_mode",
     "backend",
-    "channels",
     "pcm_rate",
     "sdm_rate",
-    "short_buffer",
-    "quick_pause",
-    "idle_time",
-    "upnp_freewheel",
-    "gain_comp",
-    "junk_filter",
-    "pre_before_meter",
     "dac_correction_enabled",
     "dac_correction_profile",
     "alsa_device",
@@ -50,6 +42,7 @@ const TAB_KEYS = {
     "adaptive_volume",
     "optimal_iso",
     "playlist_album_gain",
+    "gain_comp",
     "loudness_enabled",
     "loudness_low_freq",
     "loudness_low_level",
@@ -80,8 +73,10 @@ const TAB_KEYS = {
     "sdm_conversion",
     "fft_size",
     "direct_sdm",
+    "junk_filter",
+    "pre_before_meter",
   ]),
-  system: new Set(["log_enabled", "log_file"]),
+  system: new Set(["log_enabled", "log_file", "idle_time", "quick_pause", "short_buffer", "upnp_freewheel"]),
 };
 
 /**

@@ -1,5 +1,5 @@
-// System tab: engine identity + backup/restore, HQPTuner preferences, hardware
-// acceleration, the logging card, and the About HQPTuner card.
+// System tab: engine identity + backup/restore, HQPTuner preferences, timing and
+// UPnP cards, hardware acceleration, the logging card, and the About HQPTuner card.
 import { computed, signal } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -182,7 +182,7 @@ const LoggingCard = () =>
     <${LogTail} />
   <//>`;
 
-/** System tab: about and HQPTuner preference cards, engine health, hardware, and the logging card with the log tail. */
+/** System tab: about and HQPTuner preference cards, engine health, timing, UPnP, hardware, and the logging card with the log tail. */
 export const System = () =>
   html`<${Section}>
     <div class="card-grid">
@@ -200,6 +200,16 @@ export const System = () =>
     </div>
     <${Card} title="Engine health">
       <${EngineHealth} />
+    <//>
+    <${Card} title="Timing">
+      <div class="pack">
+        <${Field} k="idle_time" />
+        <${Field} k="quick_pause" />
+        <${Field} k="short_buffer" />
+      </div>
+    <//>
+    <${Card} title="UPnP">
+      <${Field} k="upnp_freewheel" />
     <//>
     <${HardwareCard} />
     <${LoggingCard} />

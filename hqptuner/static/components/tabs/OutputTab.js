@@ -1,6 +1,5 @@
-// Output tab: Mode / Backend / Rate master switches, general engine options,
-// the two backend sections, and DAC correction (it corrects the selected
-// output device's signal).
+// Output tab: Mode / Backend / Rate master switches, the two backend sections,
+// and DAC correction (it corrects the selected output device's signal).
 import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -78,7 +77,7 @@ const NetCard = () => html`<${Card} title="Network Backend" collapse=${collapseF
 <//>`;
 
 // Mode / Backend / Rate lead the tab as the three master switches.
-/** Output tab: backend, mode and rate switches, general output fields, the ALSA and network cards, and DAC correction. */
+/** Output tab: backend, mode and rate switches, the ALSA and network cards, and DAC correction. */
 export const Output = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
   return html`<${Section}>
@@ -97,18 +96,6 @@ export const Output = () => {
         </div>
       <//>
     </div>
-    <${Card} title="General">
-      <div class="pack">
-        <${Field} k="channels" />
-        <${Field} k="gain_comp" />
-        <${Field} k="idle_time" />
-        <${Field} k="upnp_freewheel" />
-        <${Field} k="quick_pause" />
-        <${Field} k="short_buffer" />
-        <${Field} k="junk_filter" />
-        <${Field} k="pre_before_meter" />
-      </div>
-    <//>
     <${AlsaCard} />
     <${NetCard} />
     <${Card} title="DAC correction" subtitle=${noteFor("dac_correction_enabled")}>

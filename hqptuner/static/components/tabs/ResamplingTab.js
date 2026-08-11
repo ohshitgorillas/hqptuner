@@ -1,4 +1,5 @@
-// Resampling tab: filter narrowing bar, the PCM and SDM output cards, and FFT
+// Resampling tab: filter narrowing bar, pre-process card, the PCM and SDM
+// output cards, and FFT
 // filter length. Each output card is split by SOURCE type — a "PCM Sources"
 // subsection (how a PCM source is handled for that output) and a "DSD Sources"
 // subsection (how a DSD/SDM source is handled) — with a mode-mismatch note at
@@ -69,6 +70,12 @@ const fftOverride = signal(null);
 export const Resampling = () =>
   html`<${Section}>
     <${NarrowBar} />
+    <${Card} title="Pre-process">
+      <div class="pack">
+        <${Field} k="junk_filter" />
+        <${Field} k="pre_before_meter" />
+      </div>
+    <//>
     <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
       ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
       <div class="subhead">PCM Sources</div>
