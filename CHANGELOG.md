@@ -14,7 +14,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Stars set on the laptop no longer leave the phone showing none.** Favorites were kept in whichever browser you starred them in. They now save with the rest of HQPTuner's state, so every browser shows the same stars; the ones you already had carry over on first load.
 
-- **The "Matrix engine is bypassed" note now says something useful on a card whose own feature is switched off.** A bypassed DAC correction, Loudness or Crossfeed card said "These settings have no effect" about settings the user was not using; it now says "Matrix engine is bypassed. Engage it to use this feature." Cards with the feature engaged keep the old sentence, the Pipelines card has no switch of its own and keeps it too, and the Headphone Auto EQ card no longer carries the note at all — what it imports lands in the Pipelines card, which says it already.
+- **The "Matrix engine is bypassed" note now says something useful on a card whose own feature is switched off.** Instead of "These settings have no effect" about settings you were not using, it says "Engage it to use this feature." It reads as advice now, in the same muted italic as "Only relevant to PCM output mode.", and the General card carries it too.
 
 - **The live log tail no longer drags you back to the bottom.** Scrolling up to read an older line lasted three seconds — the next poll snapped the view to the newest entry, every time. The tail now only follows the newest line while you are already parked at the bottom; scroll up and it stays where you put it.
 

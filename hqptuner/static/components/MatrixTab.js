@@ -40,6 +40,7 @@ const pipelinesCardOpen = signal(true);
 function GlobalCard() {
   return html`
     <${Card} title="General" subtitle=${noteFor("matrix_enabled")}>
+      <${BypassNote} on=${true} advisory=${true} />
       <div class="mtx-global">
         <${Field} k="matrix_enabled" />
         <${Field} k="matrix_engine" />
@@ -253,7 +254,7 @@ function PipelinesCard() {
     ? // htm has no <>...</> fragment shorthand — a template with several roots
       // already yields an array, and Card wraps it in the card body.
       html`
-        <${BypassNote} on=${true} />
+        <${BypassNote} on=${true} advisory=${true} />
         <${PipelinesNote} />
         <div class="mtx-global">
           <${Field} k="pipelines" />

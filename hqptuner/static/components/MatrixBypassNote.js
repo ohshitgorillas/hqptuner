@@ -55,10 +55,18 @@ const MATRIX_BYPASS_ENGAGE = "Matrix engine is bypassed. Engage it to use this f
  * Renders the "matrix engine is bypassed" note on a card, or nothing when the
  * effective `matrix_enabled` is truthy.
  *
- * @param {{ on: boolean, text?: string }} props `on` is whether this card's own
- *   feature is engaged, which picks the sentence; `text` overrides both
+ * @param {{ on: boolean, text?: string, advisory?: boolean }} props `on` is
+ *   whether this card's own feature is engaged, which picks the sentence;
+ *   `text` overrides both; `advisory` forces the muted italic tone
  */
-export function BypassNote({ on, text }) {
+export function BypassNote({ on, text, advisory }) {
   if (truthy(effective("matrix_enabled"))) return null;
-  return html`<div class="mtx-bypass-note">${text || (on ? MATRIX_BYPASS_REASON : MATRIX_BYPASS_ENGAGE)}</div>`;
+  const said = text || (on ? MATRIX_BYPASS_REASON : MATRIX_BYPASS_ENGAGE);
+  // The engage sentence is advisory in the same voice as a schema `adviseWhen`
+  // note — it names the state the feature needs, it does not report settings
+  // being ignored — so it takes the muted italic caption rather than amber. The
+  // Pipelines card takes that tone too (`advisory`): it has no switch of its
+  // own, so its note is the same "engage the engine" advice in other words.
+  const cls = advisory || said === MATRIX_BYPASS_ENGAGE ? "mtx-bypass-advice" : "mtx-bypass-note";
+  return html`<div class=${cls}>${said}</div>`;
 }

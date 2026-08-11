@@ -320,6 +320,12 @@ select.mtx-ch {
 .mtx-save-note {
   grid-column: 2;
 }
+/* "Engage it to use this feature" — advisory, not a complaint: the card's own
+   feature is off, so nothing the user set is being ignored. Same voice and tone
+   as .field-advice, the schema's `adviseWhen` note. */
+.mtx-bypass-advice {
+  font-style: italic;
+}
 .mtx-raw {
   flex: 1;
   min-width: 12rem;
