@@ -242,10 +242,11 @@ const ROW = (patch) => ({ source: "0", gain: "0", gainunit: "dB", mixdown: "0", 
 
 // What this fixture renders, stated so a shrunken render fails the case rather
 // than covering less of it: the two pipeline rows bring a gain box, a unit
-// picker and two channel pickers each, the profile card brings its picker, and
-// the card's dials bring their sliders. Four further selects render with no
-// options at all and are not driven (see the header).
-const MATRIX_CONTROLS = 14;
+// picker and two channel pickers each, the profile card brings its picker, the
+// card's dials bring their sliders, and the Pipelines card head brings the
+// channel-count box moved in from the Output tab. Four further selects render
+// with no options at all and are not driven (see the header).
+const MATRIX_CONTROLS = 15;
 const MATRIX_VALUES = 9;
 
 /** @returns {Promise<StagingWire>} */

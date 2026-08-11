@@ -193,24 +193,52 @@ test("test_the_profile_save_caption_hides_with_feature_descriptions_off", async 
   assert.equal(tab().includes("Save the current Matrix settings"), false);
 });
 
-// --- pipelines card head fields -----------------------------------------------
+// --- the channels card --------------------------------------------------------
 // The reorganization moved the engine's output-channel count in from the Output
-// tab: inside the open Pipelines card it renders before the DSP pipelines
-// control. Both fields ride the /config form, so the form is seeded with them.
+// tab: a card of its own titled Channels, stacked directly below the profile
+// card in the top card row — NOT inside the Pipelines card, whose own block
+// keeps the DSP pipelines control alone. Both fields ride the /config form, so
+// the form is seeded with them.
 
-test("test_the_open_pipelines_card_puts_channels_before_the_pipelines_field", async () => {
-  await reset([ROW({})]);
+/** @param {PipelineRow[]} rows */
+async function resetWithChannels(rows) {
+  await reset(rows);
   config.value = {
     fields: [
       { name: "channels", value: "2" },
       { name: "pipelines", value: "0" },
     ],
-    file: { matrix_pipelines: JSON.stringify([ROW({})]) },
+    file: { matrix_pipelines: JSON.stringify(rows) },
   };
-  const seg = tab();
-  const from = seg.slice(seg.indexOf("Pipelines <span"));
-  const at = from.indexOf("<label>Output Channels");
-  assert.ok(at >= 0 && at < from.indexOf("<label>DSP pipelines"));
+}
+
+/**
+ * @param {string} out
+ * @param {string} title
+ */
+const cardOf = (out, title) => {
+  const head = out.indexOf(`<div class="card-head">${title}</div>`);
+  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
+};
+/** @param {string} frag */
+const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+
+test("test_the_channels_card_carries_exactly_the_channel_count", async () => {
+  await resetWithChannels([ROW({})]);
+  assert.deepEqual(labelsOf(cardOf(tab(), "Channels")), ["Output Channels"]);
+});
+
+test("test_the_open_pipelines_card_carries_no_channel_count", async () => {
+  await resetWithChannels([ROW({})]);
+  const out = tab();
+  assert.equal(out.slice(out.indexOf("Pipelines <span")).includes("<label>Output Channels"), false);
+});
+
+test("test_the_channels_card_stands_below_the_profile_card_in_its_stack", async () => {
+  await resetWithChannels([ROW({})]);
+  const stack = tab().slice(tab().indexOf('<div class="card-stack'));
+  const profile = stack.indexOf("mtx-profile");
+  assert.ok(profile >= 0 && profile < stack.indexOf('<div class="card-head">Channels</div>'));
 });
 
 // --- flow rows ---------------------------------------------------------------
