@@ -7,6 +7,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+# the per-file floor gate's input, rewritten by every `make test`
+.coverage.json
 htmlcov/
 
 # editor scratch — vim swap files for anything open in the tree

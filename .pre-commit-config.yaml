@@ -48,7 +48,18 @@ repos:
         files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
-        entry: .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-fail-under=93.9
+        entry: .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Reads the report the hook above writes, so it has to run after it — and
+      # there is no fail_fast here, so it still runs when that hook reds. That is
+      # why the gate refuses a missing or empty report instead of passing: a
+      # suite that died must not read as a tree that measured clean.
+      - id: coverage-floor
+        name: per-file coverage floor
+        entry: .venv/bin/python scripts/gates/check_coverage_floor.py
         language: system
         pass_filenames: false
         always_run: true
