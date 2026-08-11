@@ -22,7 +22,7 @@ import { api } from "../lib/api.js";
 import { liveModel } from "../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../store/live/state.js";
 import { writeLive } from "../store/live/write.js";
-import { describe, selectionDescription } from "../store/prose.js";
+import { describe, selectionDescription, selectedLabel } from "../store/prose.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { refreshConfig } from "../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
@@ -53,7 +53,7 @@ import { Section, Card, collapseFrom } from "./common.js";
  *   identical control, so it takes the identical type.
  * @typedef {{
  *   field: string, key: string, entry: FieldEntry, value: string | number,
- *   options?: OptionItem[], badge?: NarrowBadge | null,
+ *   options?: OptionItem[], optionsRaw?: OptionItem[], badge?: NarrowBadge | null,
  *   enumBacked?: boolean, disabled?: boolean, reason?: string,
  * }} LiveControl
  *   One control as store/live/model.js `liveModel` builds it: the live write's target
@@ -80,7 +80,9 @@ function LiveProse({ control, meta }) {
   return html`
     ${
       showDesc
-        ? html`<div class="field-desc">${selectionDescription(entry, control.value, control.options, meta)}</div>`
+        ? html`<div class="field-desc">
+          ${selectionDescription(entry, control.value, control.optionsRaw || control.options, meta)}
+        </div>`
         : null
     }
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
@@ -142,6 +144,7 @@ function LiveField({ control, widget }) {
         <${W}
           value=${control.value}
           options=${control.options}
+          valueLabel=${selectedLabel(control.optionsRaw || control.options, control.value)}
           tips=${tipsFor(entry, meta)}
           fav=${fav}
           onFav=${onFav}

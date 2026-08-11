@@ -9,7 +9,7 @@ import { schema, MATRIX_BYPASS_REASON } from "../store/schema.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
 import { edit, setLive } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
-import { describe, selectionDescription, optionDescription } from "../store/prose.js";
+import { describe, selectionDescription, optionDescription, selectedLabel } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrowing.js";
@@ -167,14 +167,15 @@ function rawOptions(entry) {
 /**
  * @param {FieldEntry} entry
  * @param {string} key
+ * @param {FieldOptions} raw
  * @returns {FieldOptions}
  */
-function fieldOptions(entry, key) {
-  let options = rawOptions(entry);
+function fieldOptions(entry, key, raw) {
+  let options = raw;
   // The non-list widgets have no options at all, and none of the transforms
   // below has anything to do to them.
   if (!options) return undefined;
-  if (entry.narrow) options = narrowOptions(options, effective(key), entry.narrow, key);
+  if (entry.narrow) options = narrowOptions(options, entry.narrow, key);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
   // Last, because it is about the hardware rather than the settings: what the
   // selected output device announced it can carry (store/devicecaps.js).
@@ -189,13 +190,23 @@ function fieldOptions(entry, key) {
 /**
  * @param {FieldEntry} entry
  * @param {string} key
+ * @param {FieldOptions} raw
  * @returns {NarrowBadge | null}
  */
-function narrowBadge(entry, key) {
+function narrowBadge(entry, key, raw) {
   if (!entry.narrow) return null;
-  const raw = rawOptions(entry);
   return raw ? narrowCount(raw, entry.narrow, key) : null;
 }
+
+// The label the closed control wears, read off the RAW list: narrowing can drop
+// the current selection off the list the widget renders, and the control still
+// has to name what is selected rather than fall back to the raw value.
+/**
+ * @param {string} key
+ * @param {FieldOptions} raw
+ * @returns {string}
+ */
+const valueLabel = (key, raw) => selectedLabel(raw, effective(key));
 
 // A grayed control names WHY, visibly — the reason renders as a caption
 // appended after the manual note (user decision; hover-only reasons
@@ -238,7 +249,10 @@ function hoverTitle(entry, meta, reason) {
 }
 
 // The prose under the control, in reading order: per-selection manual text,
-// static feature note, gray reason, refused favorites write.
+// static feature note, gray reason, refused favorites write. The per-selection
+// text is looked up in the RAW option list, not the narrowed one: a selection
+// the facets narrowed off the menu still has prose, and it still describes what
+// is selected.
 /**
  * @param {FieldEntry} entry
  * @param {string} key
@@ -303,8 +317,9 @@ export function Field({ k }) {
   // Advisory note (schema adviseWhen): always inline, never disables, never
   // touches the hover title — it is already visible beside the control.
   const advice = adviceNote(k);
-  const options = fieldOptions(entry, k);
-  const badge = narrowBadge(entry, k);
+  const raw = rawOptions(entry);
+  const options = fieldOptions(entry, k, raw);
+  const badge = narrowBadge(entry, k, raw);
   const { fav, onFav } = favFor(entry) || {};
   const classes = fieldClasses(entry, k, label);
   return html`
@@ -314,6 +329,7 @@ export function Field({ k }) {
         <${W}
           value=${controlValue(entry, k)}
           options=${options}
+          valueLabel=${valueLabel(k, raw)}
           tips=${tipsFor(entry, meta)}
           fav=${fav}
           onFav=${onFav}
@@ -337,7 +353,7 @@ export function Field({ k }) {
         <${ControlCaptions} entry=${entry} reason=${reason} advice=${advice} />
       </div>
       ${entry.rescan ? html`<${RescanButton} />` : null}
-      ${fieldProse(entry, k, meta, { reason, options })}
+      ${fieldProse(entry, k, meta, { reason, options: raw })}
     </div>
   `;
 }
