@@ -99,6 +99,12 @@ repos:
         language: system
         files: ^hqptuner/static/css/.*\.css$
 
+      - id: css-cards
+        name: css one-card-component gate
+        entry: .venv/bin/python scripts/gates/check_css_cards.py
+        language: system
+        files: ^hqptuner/static/css/.*\.css$
+
       # Cross-cutting: a class is a string on the JS side and a selector on the
       # CSS side, so the gate has to run when EITHER side moves.
       - id: css-classes
@@ -149,3 +155,44 @@ repos:
         language: system
         pass_filenames: false
         files: ^(hqptuner/static/store/schema\.js|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
+
+      # Cross-cutting: a citation names a doc heading, so the gate has to run
+      # when either the citing source or the cited doc moves.
+      - id: doc-refs
+        name: doc citation gate
+        entry: .venv/bin/python scripts/gates/check_doc_refs.py
+        language: system
+        types_or: [python, javascript, markdown]
+        exclude: ^hqptuner/static/vendor/
+
+      - id: archaeology
+        name: decision-archaeology gate
+        entry: .venv/bin/python scripts/gates/check_archaeology.py
+        language: system
+        types_or: [python, javascript, css]
+        exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
+
+      # Wiring drifts when either config moves, and neither is a source file any
+      # types: selector matches, so this one always runs.
+      - id: gates-wired
+        name: gate wiring gate
+        entry: .venv/bin/python scripts/gates/check_gates_wired.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Both drive the real modules through node and read the whole lib dir, so
+      # they take no filenames and trigger on any lib JS.
+      - id: binaural
+        name: binaural crossfeed reference check
+        entry: .venv/bin/python scripts/gates/check_binaural.py
+        language: system
+        pass_filenames: false
+        files: ^hqptuner/static/lib/.*\.js$
+
+      - id: xfeed
+        name: crossfeed EQ-handling regression gate
+        entry: .venv/bin/python scripts/gates/check_xfeed.py
+        language: system
+        pass_filenames: false
+        files: ^hqptuner/static/lib/.*\.js$
