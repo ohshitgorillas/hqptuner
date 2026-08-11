@@ -15,7 +15,8 @@
 # What it does, in order:
 #   1. preflight   clean tree, on dev, versions agree, remotes fetched,
 #                  and for beta/main: HEAD is the bump.sh release commit
-#   2. make check  full gate; red aborts before anything is pushed
+#   2. gate        make check, plus make test-e2e for beta/main; red aborts
+#                  before anything is pushed
 #   3. push dev
 #   4. promote     ff-only merges dev->beta (and beta->main for `main`)
 #   5. tag         v<version> on a main ship, pushed
@@ -120,11 +121,15 @@ trap 'git checkout --quiet dev 2>/dev/null || true' EXIT
 
 # ---- 2. gate ----------------------------------------------------------------
 
-say "[2/6] make check"
+# A beta or main ship runs the full gate including the browser e2e suite;
+# `make check` alone deselects it, and that gap has shipped e2e-red promotions.
+GATE=(make check)
+[ "$TARGET" != dev ] && GATE+=(test-e2e)
+say "[2/6] ${GATE[*]}"
 if [ "$DRY" = 1 ]; then
-  echo "  would run: make check"
+  echo "  would run: ${GATE[*]}"
 else
-  make check || die "make check is red — nothing pushed."
+  "${GATE[@]}" || die "gate is red — nothing pushed."
 fi
 
 # ---- 3. push dev ------------------------------------------------------------
