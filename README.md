@@ -81,32 +81,67 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 * A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets; read-only use and live settings work without it
-* Either Docker OR Python v3.12+ (developed on v3.14)
+* Either Docker with Compose v2 OR Python v3.12+ (developed on v3.14)
 
 ## Install & run
 
 ### Docker (recommended)
 
-Grab [`compose.yaml`](compose.yaml) and start:
+If you're new to Docker, the gist is that it creates small, portable virtual machines called containers. Containers are distinct from traditional VMs in that they share the host computer's resources, but can only access file paths that you explicitly give them.
+
+First, install Docker and the Compose plugin:
 
 ```sh
-mkdir -p state   # backups + presets live here; create it first so it's owned by you
-docker compose up -d
+# Ubuntu
+sudo apt install docker.io docker-compose-v2
+
+# Debian 13+
+sudo apt install docker.io docker-compose
+
+# Fedora
+sudo dnf install moby-engine docker-cli docker-compose
 ```
 
-Credentials default to hqplayerd's stock management credential (`hqplayer` / `password`). If your daemon's auth was re-provisioned, put yours in a `.env` file next to the compose file:
+These are the Docker versions packaged with your OS; the Community Edition needs a separate repository, but gets faster updates and is generally recommended.
+
+Then start the Docker daemon:
 
 ```sh
-printf 'HQPTUNER_HQP_USERNAME=<user>\nHQPTUNER_HQP_PASSWORD=<pass>\n' > .env
+sudo systemctl enable --now docker
 ```
 
-Start the container:
+Create a new folder for HQPTuner, e.g., `~/hqptuner`. You'll also need to make the folder `~/hqptuner/state/` yourself, which holds backups and presets. If Docker creates it, it will end up owned by root.
 
 ```sh
-sudo docker compose -f /path/to/compose.yaml up -d
+mkdir -p ~/hqptuner/state && cd ~/hqptuner
 ```
 
-Then open `http://<serverIP>:8090`.
+Next, copy [`compose.yaml`](compose.yaml) into the `hqptuner` folder:
+
+```sh
+curl -fLO https://raw.githubusercontent.com/ohshitgorillas/hqptuner/main/compose.yaml
+```
+
+Put your hqplayerd credentials into a `.env` file: run `nano .env` and enter your username and password.
+
+```
+HQPTUNER_HQP_USERNAME="username"
+HQPTUNER_HQP_PASSWORD="password"
+```
+
+The default `compose.yaml` configuration assumes that HQPTuner is running on the same host as HQPlayer/hqplayerd; if HQPTuner is on a separate machine, you'll need to edit the compose file to:
+
+* set `HQPTUNER_HQP_HOST` to the IP address of the hqplayerd host.
+* delete the `extra_hosts` lines.
+
+Once the compose file is correct, bring the container up with:
+
+```sh
+# must be run from within the same folder as compose.yaml
+sudo docker compose up -d
+```
+
+Then open `http://yourserverIP:8090` in your favorite browser, and enjoy HQPTuner!
 
 Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) in two channels:
 
@@ -116,7 +151,9 @@ Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) in two
 | `:beta` | `beta` | Testers trying a fix before it ships. Expect rough edges. |
 | `:vX.Y.Z` | version tags | Pinned to one release. |
 
-To try a beta build, point the image at `ghcr.io/ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
+To try a beta build, point the image at `ghcr.io/ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose pull && docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
+
+**Docker Pro Tip:** Use [Watchtower](https://watchtower.nickfedor.com/) for automated updates of HQPTuner and your other containers.
 
 ### From a clone (no Docker)
 
