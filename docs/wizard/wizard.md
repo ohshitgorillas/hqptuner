@@ -44,9 +44,9 @@ The following dialog is shown only once, regardless of how many NAAs the user is
 > Network Audio Adapters (NAAs) come in three flavors:
 > 1. **NAA OS**: Download the latest NAA OS image from [Signalyst's website](https://signalyst.com/bins/naa/), flash it onto an SD card (or whatever the device uses for a boot drive/OS storage), and let the endpoint device boot that directly.
 > 2. **Built-in**: the device features an HQPlayer NAA plugin or mode which is enabled through its native settings. Consult your device's manual.
-> 3. **DIY**: the `networkaudiod` + `avahi-daemon` packages available on various Linux distros.
+> 3. **DIY**: the `networkaudiod` package, also available directly from [Signalyst](https://signalyst.com/bins/naa/).
 >
-> **HQPTuner Tips**: The NAA OS is highly optimized; use it whenever possible unless you also want to non-HQPlayer sources.
+> **HQPTuner Tips**: The NAA OS is highly optimized; use it whenever possible unless you also want to use non-HQPlayer sources.
 >
 > Once the NAA is connected to the network, booted up, and ready, click Refresh devices and make sure it's there. If you see multiple ambiguous listings, don't worry, we'll sort that out later. If you don't see the device at all, you'll need to figure out why it's not appearing before proceeding.
 >
