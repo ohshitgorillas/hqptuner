@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Descriptions cleaned up.** In some cases, descriptions were taken from the manual *too* literally, leading to some (e.g., Output device) describing themselves plus multiple other settings. Descriptions now say what the setting does, not what other settings do.
+
 - **A narrowed filter menu now lists only what the narrowing matched.** The filter you had selected was pinned to the top of every narrowed list whether or not it matched, so there was no telling which entries the facets actually found. It now lists only when it matches. Your selection is untouched either way — close the menu without picking anything and it stays where it was, and the control still names it and still describes it.
 
 - **Stars set on the laptop no longer leave the phone showing none.** Favorites were kept in whichever browser you starred them in. They now save with the rest of HQPTuner's state, so every browser shows the same stars; the ones you already had carry over on first load.

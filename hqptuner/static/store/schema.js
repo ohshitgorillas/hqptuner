@@ -355,7 +355,6 @@ export const schema = {
   alsa_device: {
     label: "Output Device",
     group: "output",
-    note: "output_device",
     widget: "dropdown",
     lane: "http",
     field: "alsa_device",
@@ -421,7 +420,6 @@ export const schema = {
   net_device: {
     label: "Output Device",
     group: "output",
-    note: "output_device",
     widget: "dropdown",
     lane: "http",
     field: "net_device",
@@ -519,7 +517,6 @@ export const schema = {
   pcm_dither: {
     label: "Dither",
     group: "dsp",
-    note: "shaper",
     widget: "dropdown",
     lane: "http",
     appliesLive: true,
@@ -562,7 +559,6 @@ export const schema = {
   sdm_modulator: {
     label: "Sigma-delta modulator",
     group: "dsp",
-    note: "shaper",
     widget: "dropdown",
     lane: "http",
     appliesLive: true,

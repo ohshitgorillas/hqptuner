@@ -31,9 +31,14 @@
       "tooltip": "When automatic rate selection is enabled, select only multiples of the source rate. Adaptive output rate makes automatic output rate selection pick sampling rates based on two different rules; disabled selects default or lower rate based on filter and DAC capabilities, while enabled selects rate that is multiple of the same base sampling rate as the source.",
       "source": "readme §1.2 (auto_family), manual §4.2 (adaptive rate)"
     },
-    "output_device": {
+    "alsa_device": {
       "label": "Output device",
-      "tooltip": "On Linux, the ALSA audio endpoint (device) lists all the available hardware audio endpoints. For Network Audio driver type, list of remote audio devices is shown. This always combination of the NAA device plus the hardware device ID.",
+      "tooltip": "On Linux, the ALSA audio endpoint (device) lists all the available hardware audio endpoints.",
+      "source": "manual §4"
+    },
+    "net_device": {
+      "label": "Output device",
+      "tooltip": "A list of remote audio devices is shown. This always combination of the NAA device plus the hardware device ID.",
       "source": "manual §4"
     },
     "dac_bits": {
@@ -105,7 +110,7 @@
   "dsp": {
     "filter_1x": {
       "label": "1x filter",
-      "tooltip": "This selection can be used to switch between PCM resampling / oversampling filters. This selection has an impact on available hardware sampling rates. Filter/oversampling selection for \"1x\" rates covers source sampling rates below 50 kHz, so called base rates.",
+      "tooltip": "This selection can be used to switch between resampling / oversampling filters. This selection has an impact on available hardware sampling rates. Filter/oversampling selection for \"1x\" rates covers source sampling rates below 50 kHz, so called base rates.",
       "source": "manual §4.6"
     },
     "filter_nx": {
@@ -143,9 +148,14 @@
       "tooltip": "This option specifies length of the FFT filter. Default value is 512. Length affects steepness of the filter, shorter lengths result in slower (gentler) roll-off, while higher lengths result in faster (steeper) roll-off. This setting is per each 2x cascade filter, thus it is not conversion ratio dependent. Only applies when an FFT-family filter is selected.",
       "source": "manual §4.7"
     },
-    "shaper": {
-      "label": "Dither / Modulator",
-      "tooltip": "In PCM mode, this selection can be used to switch between different word-length reduction algorithms. It is always recommended to use at least TPDF dither. In SDM mode, it allows selection of the delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal. Options unsuitable for the selected output rate are grayed with the reason.",
+    "pcm_dither": {
+      "label": "Dither",
+      "tooltip": "Word-length algorithms. This selection can be used to switch between different word-length reduction algorithms. It is always recommended to use at least TPDF dither.",
+      "source": "manual §4.4/§4.5"
+    },
+    "sdm_modulator": {
+      "label": "Sigma-delta modulator",
+      "tooltip": "The delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter. Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal. Options unsuitable for the selected output rate are grayed with the reason.",
       "source": "manual §4.4/§4.5"
     },
     "matrix_enabled": {
@@ -229,7 +239,7 @@
     },
     "loudness_low_level": {
       "label": "Bass level",
-      "tooltip": "Bass adjustment level in dB. Lower bound is volume setting where at or below, this maximum loudness value is reached.",
+      "tooltip": "Bass adjustment level in dB.",
       "source": "readme §1.11.2.1 (low_level)"
     },
     "loudness_low_freq": {
@@ -249,7 +259,7 @@
     },
     "loudness_high_level": {
       "label": "Treble level",
-      "tooltip": "Treble adjustment level in dB. Lower bound is volume setting where at or below, this maximum loudness value is reached. Set to 0 for bass-only loudness compensation.",
+      "tooltip": "Treble adjustment level in dB. Set to 0 for bass-only loudness compensation.",
       "source": "readme §1.11.2.1 (high_level)"
     },
     "loudness_high_freq": {
@@ -314,7 +324,7 @@
     },
     "pdm_filter": {
       "label": "Noise filter",
-      "tooltip": "Different types of noise filters for PCM are provided. These reduce amount of ultrasonic noise present in the source data. Standard filtering leaves low level of ultrasonic noise. Some loudspeakers with tweeters of low power handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in presence of such ultrasonic content. Therefore more aggressive noise filters can be selected. These filters will also limit bandwidth available for the audio content. When processing output rate of DSD source (assuming DSD64) is 88.2/96 kHz PCM, use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When processing output rate of DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
+      "tooltip": "Different types of noise filters are provided for the PCM output of DSD/SDM sources. These reduce amount of ultrasonic noise present in the source data. Standard filtering leaves low level of ultrasonic noise. Some loudspeakers with tweeters of low power handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in presence of such ultrasonic content. Therefore more aggressive noise filters can be selected. These filters will also limit bandwidth available for the audio content. When processing output rate of DSD source (assuming DSD64) is 88.2/96 kHz PCM, use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When processing output rate of DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will actually just reduce playback quality.",
       "options": {
         "0": "Standard noise filter will be applied. Recommended.",
         "1": "Similar to standard, but has lower corner frequency and results in almost flat noise profile in ultrasonic range. Recommended.",
@@ -357,7 +367,7 @@
   "volume": {
     "fixed_volume_enabled": {
       "label": "Fixed volume",
-      "tooltip": "Fixed value setting that the user cannot change on the fly. Fixed volume setting at desired level can also be achieved by setting both min and max to the same value. Note! When both values are set to zero (0), volume control is bypassed completely. However, this is not suitable for normal cases since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.",
+      "tooltip": "Fixed value setting that the user cannot change on the fly.",
       "source": "manual §4.2"
     },
     "fixed_volume": {
@@ -372,7 +382,7 @@
     },
     "volume_max": {
       "label": "Max volume",
-      "tooltip": "Maximum output volume setting in dB. Allows also positive values (gain). Together with the minimum this configures the adjustment range of the volume control.",
+      "tooltip": "Maximum output volume setting in dB. Allows also positive values (gain). Together with the minimum this configures the adjustment range of the volume control. Setting both to the same value gives a fixed volume at that level. Note! When both values are set to zero (0), volume control is bypassed completely. However, this is not suitable for normal cases since it will cause inter-sample overs and thus limiting either at HQPlayer side or at the DAC side.",
       "source": "manual §4.2, readme §1.3 (volume_max)"
     },
     "volume_min": {
