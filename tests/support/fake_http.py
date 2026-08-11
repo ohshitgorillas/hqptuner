@@ -214,13 +214,22 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
 
 
 def _refresh_devices(st: dict[str, Any]) -> None:
-    """POST /config/refresh — re-scan output devices. Endpoints that were powered
+    """GET /config/refresh — re-scan output devices. Endpoints that were powered
     off (staged in _hidden_endpoints) become bindable and join the offered set,
-    modelling a NAA that came back on since the last form read."""
+    modelling a NAA that came back on since the last form read.
+
+    The rescan also STOPS THE ENGINE (6.0.4, reported on Opal), so every
+    live-only setting comes back at the config file's value. That side of it
+    lands on the 4321 daemon, which this fake cannot see: a test that wants it
+    hangs its own callable on ``_on_refresh`` and moves the control fake's State
+    from there, the way a real rescan would."""
     for ep in st.get("_hidden_endpoints", []):
         if ep not in st["_net_endpoints"]:
             st["_net_endpoints"].append(ep)
     st["_hidden_endpoints"] = []
+    engine_stops = st.get("_on_refresh")
+    if engine_stops is not None:
+        engine_stops()
 
 
 def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
