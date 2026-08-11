@@ -76,8 +76,9 @@ async function narrowedField({ favOnly = true } = {}) {
 }
 
 // Text a user reads off the closed combobox button: the dd-box element's own
-// content, tags stripped. The caret glyph rides along, so cases ask what the
-// text CONTAINS rather than equalling a whole rendering.
+// content, tags stripped, so the caret the shape draws in its own element does
+// not ride along. Cases ask what that text EQUALS: "names the filter" is only
+// half the contract, and a button reading "0 sinc-M" satisfies a contains.
 /**
  * @param {string} out
  * @returns {string}
@@ -100,7 +101,7 @@ test("test_an_engaged_facet_leaves_the_narrowed_out_selection_off_the_option_row
 // --- what the control still says about the selection --------------------------
 
 test("test_a_closed_combobox_still_names_the_selection_that_was_narrowed_out", async () => {
-  assert.equal(boxText(await narrowedField()).includes(SELECTED), true);
+  assert.equal(boxText(await narrowedField()), SELECTED);
 });
 
 test("test_a_field_still_describes_the_selection_that_was_narrowed_out", async () => {
@@ -130,11 +131,10 @@ const noop = () => {};
 
 test("test_a_combobox_shows_its_value_label_when_the_value_is_not_among_its_options", () => {
   const out = render(html`<${Combobox} value="0" options=${OPTIONS} valueLabel=${SELECTED} onChange=${noop} />`);
-  assert.equal(boxText(out).includes(SELECTED), true);
+  assert.equal(boxText(out), SELECTED);
 });
 
 test("test_a_matching_options_own_label_outranks_the_value_label", () => {
   const out = render(html`<${Combobox} value="1" options=${OPTIONS} valueLabel="stale" onChange=${noop} />`);
-  const text = boxText(out);
-  assert.deepEqual([text.includes(STARRED), text.includes("stale")], [true, false]);
+  assert.equal(boxText(out), STARRED);
 });

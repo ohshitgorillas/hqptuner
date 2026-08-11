@@ -76,13 +76,18 @@ const DITHER_FIELDS = [
 /** @param {ConfigField[]} fields */
 async function start(fields) {
   await reset({ fields });
-  // The 1x stage narrows to apodizing filters by default and spares no option,
-  // the selected one included, so the switch is opened for every case here:
-  // these are cases about the STAR on a row, and each wants both rows listed.
-  nApod1x.value = "all";
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));
+}
+
+// The FILTER fixture, which the 1x stage narrows: its apodizing switch defaults
+// to apodizing-only and spares no option, the selected one included, so a case
+// wanting both filter rows listed opens the switch first. The dither fixture is
+// not narrowed at all and starts through `start` alone.
+async function startFilters() {
+  await start(FILTER_FIELDS);
+  nApod1x.value = "all";
 }
 
 // One render of a Field, with every vnode preact builds along the way.
@@ -181,7 +186,7 @@ const click = (vnode) =>
 // --- rendering: the star exists exactly where the fav wiring is -----------------
 
 test("test_each_filter_row_carries_one_star_affordance", async () => {
-  await start(FILTER_FIELDS);
+  await startFilters();
   const { seen } = renderField("pcm_filter_1x");
   assert.deepEqual(
     rowsOf(seen).map((r) => starsOf(r).length),
@@ -210,13 +215,13 @@ test("test_a_dropdown_without_fav_wiring_keeps_its_row_text_bare", async () => {
 // --- clicking: the star toggles THAT filter's favorite, and nothing else ---------
 
 test("test_clicking_a_rows_star_marks_that_filter_favorite", async () => {
-  await start(FILTER_FIELDS);
+  await startFilters();
   click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
   assert.equal(isFavorite("poly-sinc-xtr-mp"), true);
 });
 
 test("test_clicking_one_star_leaves_the_other_options_unfavorited", async () => {
-  await start(FILTER_FIELDS);
+  await startFilters();
   click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
   assert.equal(isFavorite("sinc-M"), false);
 });
@@ -226,7 +231,7 @@ test("test_clicking_one_star_leaves_the_other_options_unfavorited", async () => 
 // answered, so `quiesce` sees a wire that went quiet rather than one still
 // waiting.
 test("test_clicking_a_rows_star_commits_no_value", async () => {
-  await start(FILTER_FIELDS);
+  await startFilters();
   const w = stagingWire({ routes: favoritesRoutes(favoritesState()) });
   click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
   await quiesce(w);

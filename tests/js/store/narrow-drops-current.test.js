@@ -1,16 +1,17 @@
-// Behavioral suite for what an ENGAGED facet does to the option a filter
-// dropdown currently has selected (store/narrowing.js `narrowOptions`).
+// Behavioral suite for which options an engaged facet leaves a filter dropdown
+// offering (store/narrowing.js `narrowOptions`), and what the counts beside it
+// say while it does.
 //
-// The rule pinned here: narrowing answers one question per option — does this
-// option pass the facets the user engaged — and the currently selected option
-// gets no exemption from it. An option that fails the facets is absent from the
-// offered list whether or not it is the one the field is showing; an option that
-// passes is present because it matches, never because it is current. With no
-// facet engaged the offered list is the whole option list.
+// The rule pinned here: narrowing answers ONE question per option — does this
+// option pass the facets the user engaged — and no option is exempt from it, the
+// one the field happens to be showing included. `narrowOptions` is not told what
+// the field is showing, which is the whole of the change these cases belong to;
+// what a caller does with a selection that did not survive is a component
+// contract, pinned in tests/js/components/combobox-narrowed-current.test.js.
 //
-// The counts beside the dropdown are a separate contract and unchanged: they are
-// taken off the RAW, pre-narrow option list, so a selection the facets narrowed
-// out raises the total and not the match count.
+// The counts beside the dropdown are a separate contract and unchanged: `n` is
+// how many options passed, `total` is the length of the RAW, pre-narrow list, so
+// an option the facets excluded is counted in the second and not the first.
 //
 // Facet data is driven the way narrowing.test.js drives it — by assigning the
 // two source signals the real payloads carry: `enums.filters` is the running
@@ -28,11 +29,6 @@
 // `reset()` reassigns BOTH source signals and calls resetNarrowing() on every
 // case: module-level signals outlive a test, and a partial reset makes cases
 // pass alone and fail in sequence.
-//
-// These cases state the store's contract; the change they belong to is only
-// OBSERVABLE through a caller, because the exemption they remove was expressed
-// by an argument the caller passed and this signature has no such argument.
-// tests/js/components/combobox-narrowed-current.test.js is where it bites.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow-drops-current.test.js
 
@@ -53,9 +49,9 @@ const FIELD = "pcm_filter_nx";
  */
 
 /**
- * The filter list under test. `gauss-c` is deliberately the odd one out: it is
- * the only member carrying no `timbre` focus, and it is the option every case
- * below treats as the field's current selection.
+ * The filter list under test. `gauss-c` is deliberately the odd one out — the
+ * only member carrying no `timbre` focus — so a `timbre` facet excludes exactly
+ * one filter and a `transients` facet excludes a different one.
  *
  * @type {[name: string, description: string][]}
  */
@@ -65,10 +61,6 @@ const FILTERS = [
   ["gauss-c", "4/5 transients ⥮ Any"],
   ["gauss-d", "4/5 timbre, transients ⥮ Any"],
 ];
-
-// The option the field is showing for every case in this file: gauss-c, which
-// fails a `timbre` facet and passes a `transients` one.
-const CURRENT = "2";
 
 /** @returns {Option[]} */
 function reset() {
@@ -94,43 +86,26 @@ function reset() {
 /** @param {Option[]} options */
 const offered = (options) => narrowOptions(options, STAGE, FIELD).map((o) => o.label);
 
-/**
- * The label of the option the field currently has selected, as the fixture
- * spells it — so a case says "the current selection" rather than "gauss-c".
- *
- * @param {Option[]} options
- */
-const currentLabel = (options) => (options.find((o) => o.value === CURRENT) || { label: "" }).label;
+// --- an engaged facet offers the filters carrying it, and only those ----------
+// The two cases run the same fixture past two different focus values, so the
+// offered list is shown to follow the facet rather than any one filter's
+// standing: `timbre` excludes gauss-c, `transients` excludes gauss-b.
 
-// --- an engaged facet judges the current selection like any other -------------
-
-test("test_a_current_selection_failing_the_engaged_facet_is_not_offered", () => {
-  const options = reset();
-  nFocus.value = ["timbre"];
-  assert.equal(offered(options).includes(currentLabel(options)), false);
-});
-
-test("test_an_engaged_facet_offers_exactly_the_options_that_pass_it", () => {
+test("test_an_engaged_focus_facet_offers_exactly_the_filters_carrying_it", () => {
   const options = reset();
   nFocus.value = ["timbre"];
   assert.deepEqual(offered(options), ["gauss-a", "gauss-b", "gauss-d"]);
 });
 
-test("test_a_current_selection_passing_the_engaged_facet_is_offered", () => {
-  const options = reset();
-  nFocus.value = ["transients"];
-  assert.equal(offered(options).includes(currentLabel(options)), true);
-});
-
-// Kept because it matches, not because it is current: the same facet keeps the
-// other transient-carrying filters alongside it.
-test("test_an_engaged_facet_keeps_the_current_selection_on_the_same_terms_as_the_rest", () => {
+test("test_a_different_focus_value_offers_the_filters_carrying_that_one", () => {
   const options = reset();
   nFocus.value = ["transients"];
   assert.deepEqual(offered(options), ["gauss-a", "gauss-c", "gauss-d"]);
 });
 
 // --- no facet engaged: nothing is narrowed at all ------------------------------
+// Distinct from narrowing.test.js's empty-selection cases, which clear ONE facet
+// and leave the rest at their defaults: here nothing has been touched at all.
 
 test("test_with_no_facet_engaged_the_offered_list_is_the_whole_option_list", () => {
   const options = reset();
@@ -140,15 +115,13 @@ test("test_with_no_facet_engaged_the_offered_list_is_the_whole_option_list", () 
   );
 });
 
-// --- the badge still counts off the raw list -----------------------------------
+// --- the badge counts matches over the raw list --------------------------------
+// `timbre` excludes gauss-c, so the badge reads 3/4: the excluded filter is in
+// the denominator, which is the raw option list, and not in the numerator.
 
-test("test_the_badge_match_count_excludes_a_narrowed_out_current_selection", () => {
+test("test_the_badge_counts_the_matches_over_the_raw_option_count", () => {
   const options = reset();
   nFocus.value = ["timbre"];
-  assert.equal(narrowCount(options, STAGE, FIELD).n, 3);
+  const count = narrowCount(options, STAGE, FIELD);
+  assert.deepEqual([count.n, count.total], [3, 4]);
 });
-
-// NOT covered here: that the badge's denominator is the raw option count. The
-// match count is `n` and the suite has no name for the other half of "n/total"
-// — every existing case reads `n` alone — so pinning it would mean guessing a
-// member name rather than stating a behaviour.
