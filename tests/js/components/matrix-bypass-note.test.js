@@ -223,19 +223,29 @@ const cardTitled = (out, re) => cardsOf(out).find((frag) => re.test(headOf(frag)
  */
 const says = (frag, text) => (frag === "" ? "that card was not rendered at all" : frag.includes(text));
 
-// Which of the two sentences a card carries — named rather than asked about one
-// at a time, so a single assertion pins the presence of the sentence that belongs
-// there AND the absence of the one that does not. An implementation that renders
-// both, or that renders A where B belongs, answers something other than the
+// Which of the two sentences a card SHOWS — named rather than asked about one at
+// a time, so a single assertion pins the presence of the sentence that belongs
+// there AND the absence of the one that does not. An implementation that shows
+// both, or that shows A where B belongs, answers something other than the
 // expected name and fails.
+//
+// Text nodes only. Sentence A also appears under a bypassed matrix as the hover
+// TITLE of every grayed post-process control (a separate behaviour, pinned in
+// matrix-postprocess-gating.test.js), and an attribute value is not something the
+// user reads off the card. Every tag is replaced by a separator rather than
+// deleted, so neighbouring text nodes cannot fuse into a sentence that was never
+// shown; which element carries the note stays outside the contract.
+/** @param {string} frag */
+const shownText = (frag) => frag.replace(/<[^<>]*>/g, " ");
 /**
  * @param {string} frag
  * @returns {"A" | "B" | "both" | "neither" | string}
  */
 const sentenceIn = (frag) => {
   if (frag === "") return "that card was not rendered at all";
-  const a = frag.includes(NOTE);
-  const b = frag.includes(ENGAGE_NOTE);
+  const shown = shownText(frag);
+  const a = shown.includes(NOTE);
+  const b = shown.includes(ENGAGE_NOTE);
   if (a && b) return "both";
   return a ? "A" : b ? "B" : "neither";
 };
