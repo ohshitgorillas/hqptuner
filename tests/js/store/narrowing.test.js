@@ -100,7 +100,7 @@ function reset(filters, overlay = {}) {
 }
 
 /** @param {NarrowOption[]} options */
-const labels = (options, stage = STAGE, field = FIELD) => narrowOptions(options, "", stage, field).map((o) => o.label);
+const labels = (options, stage = STAGE, field = FIELD) => narrowOptions(options, stage, field).map((o) => o.label);
 
 // --- fixtures ----------------------------------------------------------------
 // Names carry no phase (-lp/-mp/-ip), length (short/long) or hires marker unless

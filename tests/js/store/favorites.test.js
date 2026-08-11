@@ -120,16 +120,14 @@ function reset(filters) {
   return filters.map(([name], i) => ({ label: name, value: String(i) }));
 }
 
-// `current` is the selection the dropdown is showing — the option VALUE, as the
-// /config form carries it — which favorites-only must never hide.
+// Narrowing judges every option on the facets alone: the selection the dropdown
+// happens to be showing gets no exemption, so there is nothing to tell it about.
 /**
  * @param {Option[]} options
- * @param {string} [current]
  * @param {string} [stage]
  * @param {string} [field]
  */
-const labels = (options, current = "", stage = STAGE, field = FIELD) =>
-  narrowOptions(options, current, stage, field).map((o) => o.label);
+const labels = (options, stage = STAGE, field = FIELD) => narrowOptions(options, stage, field).map((o) => o.label);
 
 afterEach(dropStorage);
 
@@ -406,15 +404,17 @@ test("test_with_favorites_only_off_favorites_change_the_offered_list_not_at_all"
   assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d"]);
 });
 
-// --- favorites-only on: exactly the favorites, plus the current selection ------
+// --- favorites-only on: exactly the favorites ---------------------------------
+// The dropdown is showing gauss-a (value "0") in both cases below and gauss-a is
+// not favorited: an engaged facet judges the current selection like any other
+// option, so it is not offered.
 
-test("test_favorites_only_offers_exactly_the_favorites_plus_the_current_selection", async () => {
+test("test_favorites_only_offers_exactly_the_favorites", async () => {
   const options = reset(PLAIN);
   await toggleFavorite("gauss-b");
   await toggleFavorite("gauss-d");
   nFavOnly.value = true;
-  // current is gauss-a (value "0"), unfavorited — it must survive anyway.
-  assert.deepEqual(labels(options, "0"), ["gauss-a", "gauss-b", "gauss-d"]);
+  assert.deepEqual(labels(options), ["gauss-b", "gauss-d"]);
 });
 
 test("test_favorites_only_ands_with_an_engaged_facet", async () => {
@@ -424,7 +424,7 @@ test("test_favorites_only_ands_with_an_engaged_facet", async () => {
   nFocus.value = ["timbre"];
   nFavOnly.value = true;
   // timbre keeps a, b, d; the favorites are b and c; only b passes both.
-  assert.deepEqual(labels(options, "1"), ["gauss-b"]);
+  assert.deepEqual(labels(options), ["gauss-b"]);
 });
 
 // --- the counts follow the engaged favorites -----------------------------------
@@ -512,6 +512,6 @@ for (const [stage, field] of [
     const options = reset(SHARED);
     await toggleFavorite("gauss-apod-a");
     nFavOnly.value = true;
-    assert.deepEqual(labels(options, "", stage, field), ["gauss-apod-a"]);
+    assert.deepEqual(labels(options, stage, field), ["gauss-apod-a"]);
   });
 }
