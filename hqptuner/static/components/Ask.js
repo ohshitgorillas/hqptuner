@@ -71,10 +71,12 @@ const pinToAnchor = (pop) => {
 };
 
 /**
- * @param {{ q: Question }} props
+ * Show the popover in the top layer, pinned under its anchor row and re-pinned
+ * as the page scrolls or resizes beneath it.
+ *
+ * @param {{ current: HTMLElement | null }} pop
  */
-function ChoicesList({ q }) {
-  const pop = useRef(/** @type {HTMLElement | null} */ (null));
+function usePinnedPopover(pop) {
   useLayoutEffect(() => {
     const el = pop.current;
     if (!el) return undefined;
@@ -88,6 +90,14 @@ function ChoicesList({ q }) {
       window.removeEventListener("scroll", place, true);
     };
   }, []);
+}
+
+/**
+ * @param {{ q: Question }} props
+ */
+function ChoicesList({ q }) {
+  const pop = useRef(/** @type {HTMLElement | null} */ (null));
+  usePinnedPopover(pop);
   return html`
   <span class="ask ask-choices">
     <span class="multi-pop ask-pop" popover="manual" ref=${pop}>
@@ -108,6 +118,30 @@ function ChoicesList({ q }) {
       <span class="ask-pop-actions">
         <button class="primary" onClick=${() => answer()}>Confirm</button>
         <button onClick=${cancel}>Cancel</button>
+      </span>
+    </span>
+  </span>
+`;
+}
+
+// The warn ask is the guard in front of a hazardous edit (store/actions.js).
+// Same top-layer popover chrome as the choices ask, and "manual" for the same
+// reason — light-dismiss would hide it without settling the promise. The safe
+// way out is the primary button; the destructive choice is deliberately the
+// plain one.
+/**
+ * @param {{ q: Question }} props
+ */
+function WarnBox({ q }) {
+  const pop = useRef(/** @type {HTMLElement | null} */ (null));
+  usePinnedPopover(pop);
+  return html`
+  <span class="ask ask-warn">
+    <span class="multi-pop ask-pop" popover="manual" ref=${pop}>
+      <span class="ask-msg">${q.message}</span>
+      <span class="ask-pop-actions">
+        <button class="primary" onClick=${cancel}>Revert the change</button>
+        <button onClick=${() => answer()}>Yes, I know what I'm doing, set it</button>
       </span>
     </span>
   </span>
@@ -139,5 +173,6 @@ export function Ask({ owner }) {
   }, [mine]);
   if (!q || q.owner !== owner) return null;
   if (q.kind === "choices") return html`<${ChoicesList} q=${q} />`;
+  if (q.kind === "warn") return html`<${WarnBox} q=${q} />`;
   return q.kind === "name" ? nameField(q, ref) : confirmLine(q);
 }

@@ -11,6 +11,7 @@ import { truthy } from "../lib/coerce.js";
 import { config, volume, staged, liveOverride, previewConfig, pendingPreset } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys } from "./resolve.js";
 import { mirror, refreshConfig } from "./sync.js";
+import { askWarn } from "./ask.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor
 // keystrokes) each POST, and an EARLIER request's response must not clobber a
@@ -131,6 +132,24 @@ function applyFixedVolumeCoupling(key, value, http) {
   else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
 }
 
+// Minimum-buffer values break real setups — per Signalyst's own guidance, the
+// minimum device buffer time mostly yields packet-underflow drop-outs or no
+// output at all, and the minimum short-buffer FIFO is a realtime-processing
+// setting with system-design prerequisites. Staging one asks first; declining
+// stages nothing, so the control snaps back to its baseline.
+/**
+ * The warn phrase a hazardous (key, value) pair earns, or "" for a safe one.
+ *
+ * @param {string} key
+ * @param {string | number | boolean} value
+ * @returns {string}
+ */
+function bufferHazard(key, value) {
+  if (key === "short_buffer" && String(value) === "2") return "minimum short buffer";
+  if ((key === "alsa_period" || key === "net_period") && Number(value) < 0) return "minimum buffer time";
+  return "";
+}
+
 /**
  * Stage one schema-key edit into its lane, with the coupled fields it drags along.
  *
@@ -141,6 +160,17 @@ function applyFixedVolumeCoupling(key, value, http) {
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
+  const hazard = bufferHazard(key, value);
+  if (
+    hazard &&
+    !(await askWarn(
+      key,
+      `It is strongly recommended NOT to use this setting (${hazard}) except under guidance from Jussi himself. ` +
+        `Otherwise, this is probably going to break your setup or fail to produce music. ` +
+        `Are you certain you actually know what you're doing?`,
+    ))
+  )
+    return;
   // The last apply's verdict is about the set the user just changed, so it stops
   // being true here. The pending bar shows a FAILED verdict alongside the staged
   // count (a failed apply keeps its staging), and a stale one sitting next to a

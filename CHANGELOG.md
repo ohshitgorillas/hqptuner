@@ -20,6 +20,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **Setting a buffer to minimum now asks first.** Short buffer at Minimum, or Buffer time at −1, breaks playback on most setups — short drop-outs, distorted output, or no sound at all. Changing either now opens a warning over the control: "Revert the change" backs out, "Yes, I know what I'm doing, set it" stages it as before. Loading a preset or profile that already uses these values doesn't nag.
+
 - **A Copy button on the live log tail.** Copies the lines currently in the window to the clipboard in one click, instead of selecting fifty lines by hand.
 
 ## [1.3.4] — 2026-08-09

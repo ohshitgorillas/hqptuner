@@ -16,7 +16,7 @@ import { signal } from "@preact/signals";
  *   The one open question. `cancelled` is what "no answer" resolves to for this
  *   kind: null for a name or a choice set, false for a confirm.
  * @property {string} owner component that asked — where the question renders
- * @property {string} kind name | confirm | choices
+ * @property {string} kind name | confirm | choices | warn
  * @property {string} message
  * @property {string | boolean | null} cancelled
  * @property {boolean} refused a blank name was submitted and not committed
@@ -66,6 +66,13 @@ export const askName = (/** @type {string} */ owner, /** @type {string} */ messa
 /** Open a yes/no question, resolving true only on an explicit confirm. */
 export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ message) =>
   open(owner, "confirm", message, false);
+
+// Warn before a hazardous edit. Same yes/no contract as a confirm, but the UI
+// renders it as a top-layer popover with explicit consequence wording instead
+// of an inline Confirm/Cancel line.
+/** Open a warn question, resolving true only on an explicit confirm. */
+export const askWarn = (/** @type {string} */ owner, /** @type {string} */ message) =>
+  open(owner, "warn", message, false);
 
 // Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
 // the checked values in option order, or null if the user backs out. A disabled
