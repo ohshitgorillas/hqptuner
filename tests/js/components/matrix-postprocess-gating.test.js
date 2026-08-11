@@ -343,6 +343,12 @@ const cardTitled = (out, title) => {
 // card. Every tag is replaced by a separator rather than deleted, so neighbouring
 // text nodes cannot fuse into a sentence that was never shown; which element
 // carries the note stays outside the contract.
+//
+// The tag pattern assumes no attribute value contains a raw ">": SSR escapes only
+// "&", "<" and '"', so an attribute carrying ">" would end a "tag" early and leak
+// the rest of its value into the shown text. The failure direction is safe — a
+// grayed control's title="...These settings have no effect." leaking in turns a
+// sentence-B case into "both", which is a RED, never a false green.
 /** @param {string} frag */
 const shownText = (frag) => frag.replace(/<[^<>]*>/g, " ");
 /**
@@ -398,11 +404,18 @@ for (const key of POST_PROCESS) {
     assert.equal(reasonOf(key), null);
   });
 
-  // Same surface under a STAGED bypass — no apply, still no caption.
+  // Same surface under a STAGED bypass — no apply, still no caption. The staged
+  // DISABLING is asserted alongside the absent caption in the one assertion: an
+  // engaged matrix renders this control enabled and uncaptioned too, so the empty
+  // caption alone would be satisfied by a staging edit that did nothing at all.
   test(`test_a_staged_matrix_bypass_renders_no_caption_on_${key}`, async () => {
     await reset({ matrix: "1" });
     await edit("matrix_enabled", "0");
-    assert.equal(reasonOf(key), null);
+    const reason = reasonOf(key);
+    assert.ok(
+      isDisabled(field(key)) && reason === null,
+      `under a staged bypass ${key} renders disabled=${isDisabled(field(key))} with caption ${JSON.stringify(reason)}`,
+    );
   });
 
   // The other side: with the engine engaged and the control's own feature gate
@@ -420,14 +433,23 @@ for (const key of POST_PROCESS) {
 // bypassed: an engaged matrix leaves those exactly as they were, so whatever they
 // say, they do not say the matrix did it.
 
-for (const key of SUB_CONTROLS) {
+// The "does not blame the matrix" case runs over OWN_GATED, not SUB_CONTROLS, for
+// the reason stated at OWN_GATED: the DAC correction dropdown has no own-gate
+// state for an engaged matrix to leave alone, so under `matrix: "1"` /
+// `correction: "0"` it carries no hover title at all — and a case that reads
+// "the missing title does not name the matrix" would pass against a field that
+// rendered nothing whatsoever. It stays covered by every matrix-gate case in this
+// file; only this own-gate case drops it.
+for (const key of OWN_GATED) {
   // These fields are quietGray, so their reason lives on the hover title — the
   // caption is empty either way and cannot carry the blame.
   test(`test_an_engaged_matrix_does_not_blame_the_matrix_for_a_gated_${key}`, async () => {
     await reset({ matrix: "1", ...ownGateShut(key) });
     assert.equal(namesMatrix(titleOf(field(key))), false);
   });
+}
 
+for (const key of SUB_CONTROLS) {
   // These sub-controls are quietGray: their reason is the hover title, not a
   // caption, and under a bypassed matrix that title carries the card's sentence.
   // This suite loads no metadata, so any title the field carries is that reason

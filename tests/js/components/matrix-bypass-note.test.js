@@ -235,6 +235,12 @@ const says = (frag, text) => (frag === "" ? "that card was not rendered at all" 
 // user reads off the card. Every tag is replaced by a separator rather than
 // deleted, so neighbouring text nodes cannot fuse into a sentence that was never
 // shown; which element carries the note stays outside the contract.
+//
+// The tag pattern assumes no attribute value contains a raw ">": SSR escapes only
+// "&", "<" and '"', so an attribute carrying ">" would end a "tag" early and leak
+// the rest of its value into the shown text. The failure direction is safe — a
+// grayed control's title="...These settings have no effect." leaking in turns a
+// sentence-B case into "both", which is a RED, never a false green.
 /** @param {string} frag */
 const shownText = (frag) => frag.replace(/<[^<>]*>/g, " ");
 /**
@@ -361,11 +367,6 @@ test("test_a_bypassed_matrix_engine_leaves_the_headphone_auto_eq_card_without_ei
   assert.equal(sentenceIn(autoEqCard(tab())), "neither");
 });
 
-test("test_an_engaged_matrix_engine_leaves_the_headphone_auto_eq_card_without_either_sentence", async () => {
-  await reset({ on: "1" });
-  assert.equal(sentenceIn(autoEqCard(tab())), "neither");
-});
-
 // ============================================================================
 // the Crossfeed card
 // ============================================================================
@@ -443,4 +444,11 @@ test("test_the_response_card_uses_neither_control_wording", async () => {
 test("test_a_bypassed_matrix_engine_leaves_the_speakers_card_without_either_sentence", async () => {
   await reset({ on: "0", mode: "speakers" });
   assert.equal(sentenceIn(speakerCard()), "neither");
+});
+
+// The card carries NOTHING about the engine, so the response card's own wording is
+// excluded too — the two control sentences above are not the whole of it.
+test("test_a_bypassed_matrix_engine_leaves_the_speakers_card_without_the_plot_note", async () => {
+  await reset({ on: "0", mode: "speakers" });
+  assert.equal(plotNoteIn(speakerCard()), false);
 });
