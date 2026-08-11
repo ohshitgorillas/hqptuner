@@ -34,7 +34,7 @@ function LoudnessCard() {
   return html`
     <${Card} title="Loudness" subtitle=${noteFor("loudness_enabled")}>
       <div class="dsp-card">
-        <${BypassNote} />
+        <${BypassNote} on=${truthy(effective("loudness_enabled"))} />
         <${Field} k="loudness_enabled" />
         <div class="dsp-body ${on ? "" : "off"}">
           <div class="dsp-controls">
