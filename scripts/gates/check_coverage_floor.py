@@ -100,8 +100,9 @@ def check(report: Path, floor: int, exempt: dict[str, str] | None = None) -> int
 
 def main() -> int:
     """Check this repo's report, or one named on argv."""
-    report = Path(sys.argv[1]) if len(sys.argv) > 1 else REPORT
-    floor = int(sys.argv[2]) if len(sys.argv) > 2 else FLOOR
+    args = sys.argv[1:]
+    report = Path(args[0]) if args else REPORT
+    floor = int(args[1]) if len(args) > 1 else FLOOR
     return check(report, floor)
 
 
