@@ -87,6 +87,18 @@ button.card-head {
      putting 16px above a card-grid against 8px above every other card. See the
      rhythm note in tokens.css. */
 }
+/* a card-grid cell holding two stacked cards: the first card takes its natural
+   height, the last stretches to the row's shared height, so the pair's spare
+   space pools in the bottom card instead of the top one's frame. */
+.card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-row);
+  min-width: 0;
+}
+.card-stack > :last-child {
+  flex: 1;
+}
 /* controls inside a half-width card-grid card must fit that half — the 28rem
    select token overflows a 12rem-label + half-container row (same math as the
    packs), so the column is the cap here too. */

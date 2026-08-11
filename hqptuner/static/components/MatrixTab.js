@@ -180,8 +180,8 @@ function HeadphoneEqCard() {
 const PipelinesNote = () =>
   notesVisible.value
     ? html`<div class="field-note">
-        Each pipeline copies a source channel through a chain of processing stages — filter impulse-response files
-        (convolution) or iir / delay / riaa plugin specs — then applies gain and mixes into an output channel. Pipelines
+        Each pipeline copies a source channel through a chain of processing stages (filter impulse-response files for
+        convolution, or iir / delay / riaa plugin specs), then applies gain and mixes into an output channel. Pipelines
         sharing an output channel are summed (Σ). Gain applies in dB or linear scale; negative linear factors invert
         polarity (e.g. for M/S processing).
       </div>`
@@ -256,7 +256,6 @@ function PipelinesCard() {
         <${BypassNote} on=${true} />
         <${PipelinesNote} />
         <div class="mtx-global">
-          <${Field} k="channels" />
           <${Field} k="pipelines" />
         </div>
         <${XfeedBadge} />
@@ -357,7 +356,14 @@ export function MatrixTab() {
     <${DspSwitcher} />
     <div class="card-grid">
       <${GlobalCard} />
-      <${ProfileCard} />
+      <div class="card-stack">
+        <${ProfileCard} />
+        <${Card} title="Channels">
+          <div class="mtx-global">
+            <${Field} k="channels" />
+          </div>
+        <//>
+      </div>
     </div>
     <${PipelinesCard} />
     ${speakerMode ? html`<${SpeakersCard} />` : html`<${HeadphoneEqCard} /><${CrossfeedCard} />`}

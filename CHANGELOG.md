@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The Output tab's "General" card is gone; its settings now live where they belong.** Gain compensation joined the Volume tab (card renamed "Adjustments"), the junk filter and pre-metering moved to a new "Pre-process" card on the tab now labeled "Conversion" (formerly "Resampling"), idle time / quick pause / short buffer landed in a "Timing" card and UPnP freewheel in a "UPnP" card on the System tab, and Channels sits in the Matrix tab's Pipelines card next to the pipelines it counts. Nothing changed about what any of these settings do.
+- **The Output tab's "General" card is gone; its settings now live where they belong.** Gain compensation joined the Volume tab (card renamed "Adjustments"), the junk filter and pre-metering moved to a new "Pre-process" card on the tab now labeled "Conversion" (formerly "Resampling"), idle time / quick pause / short buffer landed in a "Timing" card and UPnP freewheel in a "UPnP" card on the System tab, and Channels got its own small card on the Matrix tab, under the profile card. Nothing changed about what any of these settings do.
 
 - **Descriptions cleaned up.** In some cases, descriptions were taken from the manual *too* literally, leading to some (e.g., Output device) describing themselves plus multiple other settings. Descriptions now say what the setting does, not what other settings do.
 
