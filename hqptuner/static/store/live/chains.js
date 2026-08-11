@@ -25,10 +25,10 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
 // Filter narrowing is the same feature the Resampling tab has, on the same
 // state: one set of facets narrows a control here and its twin there, because
 // they are the same control and the narrowing is the user's standing answer to
-// "which of these 77 filters am I willing to look at". Presentational only — it
-// never hides the running selection (store/narrowing.js), so no live value can
-// be narrowed off its own dropdown. Shapers carry `narrow` nowhere and are left
-// whole.
+// "which of these 77 filters am I willing to look at". Presentational only — a
+// running value the facets exclude drops off its own dropdown and stays selected
+// and named on the closed control (`valueLabel`), the same as on the tab.
+// Shapers carry `narrow` nowhere and are left whole.
 //
 // Rate graying is the other half of the same story, and the same feature the
 // tabs have (components/Field.js): a modulator whose floor is above the selected
@@ -41,26 +41,23 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
 // listed and stays selected — grayShapersByRate marks, it never drops.
 /**
  * @param {ChainControl} c
- * @param {string | number | boolean | undefined} value
- * @param {MenuOption[] | null} base the dormant chain's list, null when live
+ * @param {MenuOption[]} raw
  * @returns {MenuOption[]}
  */
-function chainOptions(c, value, base) {
-  let options = base || idOptions(c.enumKey);
-  if (c.entry.rateGray) options = grayShapersByRate(options, c.entry.rateGray);
-  return c.entry.narrow ? narrowOptions(options, value, c.entry.narrow, c.key) : options;
+function chainOptions(c, raw) {
+  const options = c.entry.rateGray ? grayShapersByRate(raw, c.entry.rateGray) : raw;
+  return c.entry.narrow ? narrowOptions(options, c.entry.narrow, c.key) : options;
 }
 
 // The tab's "n/total" label badge, counted off the same RAW (pre-narrow) list
 // Field.js counts — null for the shapers, which carry `narrow` nowhere.
 /**
  * @param {ChainControl} c
- * @param {MenuOption[] | null} base
+ * @param {MenuOption[]} raw
  * @returns {{ n: number, total: number } | null}
  */
-function chainBadge(c, base) {
+function chainBadge(c, raw) {
   if (!c.entry.narrow) return null;
-  const raw = base || idOptions(c.enumKey);
   return narrowCount(raw, c.entry.narrow, c.key);
 }
 
@@ -84,14 +81,18 @@ export function chainControls(chain, loaded) {
   return CHAINS[chain].map((c) => {
     const live = chain === loaded;
     const value = live ? idValue(c.enumKey, c.state) : (runningValue(c.key) ?? "");
-    const base = live ? null : optionsFor("config", c.field);
+    const raw = live ? idOptions(c.enumKey) : optionsFor("config", c.field);
     return {
       field: c.field,
       key: c.key,
       entry: c.entry,
       value,
-      options: chainOptions(c, value, base),
-      badge: chainBadge(c, base),
+      // The pre-narrow list rides along: what the closed control names and what
+      // its prose describes are read off it, so a selection the facets narrowed
+      // off the menu is still named and still described.
+      optionsRaw: raw,
+      options: chainOptions(c, raw),
+      badge: chainBadge(c, raw),
       // The loaded chain's lists come from the enumerations; the dormant one's
       // come from the running config's form and are not invalidated by an
       // engine re-enumeration.

@@ -1,7 +1,11 @@
 // Client-side filter narrowing — HQPTuner's own feature (no daemon field): the
 // filter menus are 60-77 entries, so the narrow bar filters which options show
 // by facet. Purely presentational: it never changes a staged value, only what
-// the dropdown offers. The currently-selected option is always kept visible.
+// the dropdown offers. The current selection gets no exemption: it lists only
+// when it passes the facets, so what the menu shows is exactly the batch the
+// facets describe. Nothing is lost by that — dismissing the dropdown without
+// picking a row leaves the selection where it was, and the closed control still
+// names it (components/controls/Combobox.js `valueLabel`).
 import { signal, computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 import { favoriteFilters, nFavOnly } from "./favorites.js";
@@ -241,30 +245,25 @@ function anyEngaged(s) {
 }
 
 /**
- * Filter a filter-field option list down to the ones the active facets keep,
- * `current` always among them.
+ * Filter a filter-field option list down to the ones the active facets keep.
  *
  * @template {NarrowOption} T
  * @param {T[]} options
- * @param {string | number | boolean | undefined} current never hidden, whatever the facets say
  * @param {string} stage
  * @param {string} field
  * @returns {T[]}
  */
-export function narrowOptions(options, current, stage, field) {
+export function narrowOptions(options, stage, field) {
   const sel = buildSel(stage, field);
   if (!anyEngaged(sel)) return options;
   const facets = filterFacets.value;
-  return options.filter(
-    (o) => String(o.value) === String(current) || (favPass(o.label, sel) && facetPass(facets[o.label], sel)),
-  );
+  return options.filter((o) => favPass(o.label, sel) && facetPass(facets[o.label], sel));
 }
 
 // ---- result counts (narrowing UI) -----------------------------------------
-// How many options a selection would keep. PURE: unlike narrowOptions it does
-// NOT force `current` visible — this is an honest "how many MATCH", the number
-// the live badge and the per-option popover previews report, not the dropdown's
-// rendered length. An all-default snapshot short-circuits to the full length.
+// How many options a selection would keep — the number the live badge and the
+// per-option popover previews report. An all-default snapshot short-circuits to
+// the full length.
 /**
  * @param {NarrowOption[]} options
  * @param {Sel} sel

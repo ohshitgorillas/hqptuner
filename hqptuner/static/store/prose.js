@@ -79,11 +79,13 @@ export function noteFor(key) {
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
 // selected option's label.
 /**
+ * The label of the option carrying `value`, empty when the list does not carry it.
+ *
  * @param {{ value: string | number | undefined, label: string }[] | undefined} options
  * @param {string | number | boolean | undefined} value
  * @returns {string}
  */
-function selectedLabel(options, value) {
+export function selectedLabel(options, value) {
   const opt = (options || []).find((o) => String(o.value) === String(value));
   return (opt && opt.label) || "";
 }

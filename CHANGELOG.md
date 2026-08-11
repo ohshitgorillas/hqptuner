@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **A narrowed filter menu now lists only what the narrowing matched.** The filter you had selected was pinned to the top of every narrowed list whether or not it matched, so there was no telling which entries the facets actually found. It now lists only when it matches. Your selection is untouched either way — close the menu without picking anything and it stays where it was, and the control still names it and still describes it.
+
 - **Stars set on the laptop no longer leave the phone showing none.** Favorites were kept in whichever browser you starred them in. They now save with the rest of HQPTuner's state, so every browser shows the same stars; the ones you already had carry over on first load.
 
 - **The "Matrix engine is bypassed" note now says something useful on a card whose own feature is switched off.** A bypassed DAC correction, Loudness or Crossfeed card said "These settings have no effect" about settings the user was not using; it now says "Matrix engine is bypassed. Engage it to use this feature." Cards with the feature engaged keep the old sentence, the Pipelines card has no switch of its own and keeps it too, and the Headphone Auto EQ card no longer carries the note at all — what it imports lands in the Pipelines card, which says it already.

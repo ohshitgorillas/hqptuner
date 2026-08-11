@@ -235,11 +235,11 @@ function OptionRow({ o, i, row }) {
  * row can show its own tip from `tips` and, where `fav` is passed, a favorite
  * star. Reports a value on commit only.
  * @param {{ value: string | number | undefined, options: RenderOption[] | undefined,
- *   tips?: (o: RenderOption) => string, fav?: (o: RenderOption) => boolean,
+ *   valueLabel?: string, tips?: (o: RenderOption) => string, fav?: (o: RenderOption) => boolean,
  *   onFav?: (o: RenderOption) => void, disabled?: boolean,
  *   onChange: (v: string | number) => void }} props
  */
-export function Combobox({ value, options, tips, fav, onFav, disabled, onChange }) {
+export function Combobox({ value, options, valueLabel, tips, fav, onFav, disabled, onChange }) {
   const opts = options || [];
   const [open, setOpen] = useState(false);
   const [hl, setHl] = useState(0);
@@ -271,7 +271,10 @@ export function Combobox({ value, options, tips, fav, onFav, disabled, onChange 
 
   usePopPlacement({ open, hl, tipText, byKey, btnRef, popRef, tipRef });
 
-  const label = selIdx >= 0 ? opts[selIdx].label : s(value);
+  // A narrowed dropdown can drop the current selection off its own list
+  // (store/narrowing.js); the closed control still has to name that selection,
+  // so the caller passes the label the option list no longer carries.
+  const label = selIdx >= 0 ? opts[selIdx].label : valueLabel || s(value);
   const row = { open, hl, selIdx, id, fav, onFav, byKey, setHl, commit };
   return html`
     <button
