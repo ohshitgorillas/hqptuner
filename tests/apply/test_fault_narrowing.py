@@ -6,27 +6,32 @@ happened and costs nothing else. Every fault here is injected at the wire (a 503
 on a named 8088 route) or through constructor inputs (a preset directory another
 HQPTuner version stamped), never by patching the manager.
 
-**Uncovered by design.** The other half of the contract — an UNEXPECTED fault,
-one that is neither an HTTP/transport error nor the control protocol's own error
-type, the kind our own parsing bug would raise — has no test here, because no
-body either fake can serve produces such a fault. ``parse_config_form``,
-``parse_matrix_form`` and ``parse_speakers_form`` all return normally on an empty
-body, on a non-form page, and on non-numeric values and constraints in a
-``type="number"`` input; the control lane likewise polls clean against a State
-carrying a non-numeric volume, mode or filter index, and against a non-numeric
-``RatesItem``. Manufacturing the fault by patching the parser or the manager
-would be testing our own mock (docs/testing.md rules 3 and 4), so the gap is
-recorded rather than faked.
+The other half of the contract — an UNEXPECTED fault, one that is neither an
+HTTP/transport error nor the control protocol's own error type, the kind our own
+parsing bug would raise — has no wire injection available: no body we could
+construct for either fake produces such a fault. Empty bodies, non-form pages,
+non-numeric values in a ``type="number"`` input and a State carrying a non-numeric
+volume, mode, filter index or ``RatesItem`` were all tried and all parse clean.
+That is a statement about what we could build, not a pinned property of the
+parsers. Those cases are injected through the manager's public constructor seam
+instead — see
+``FaultingMatrixClient`` at the foot of this file, and the reading of
+docs/testing.md rule 4 recorded above it.
 """
 
+import asyncio
+import contextlib
 import json
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import ManagerFactory, StartManager
+from conftest import ManagerFactory, StartManager, eventually
 from narrow import present
 
+from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes import httpforms
 
@@ -147,3 +152,90 @@ async def test_a_healthy_pass_records_no_error_for_any_form(
     manager = http_manager_factory(http_daemon)
     await httpforms.refresh(manager)
     assert getattr(manager, f"{form}_error") is None
+
+
+# --- the other half: an UNEXPECTED fault must not be swallowed ----------------
+# Neither fake can serve a body that makes a parser raise (see the module
+# docstring), so the fault is injected where a caller could inject it: the 8088
+# client is a public constructor argument of ConnectionManager, and this subclass
+# is passed as that argument. docs/testing.md rule 4 forbids stubbing a client's
+# own methods in order to test THAT client; here the client is a collaborator
+# handed in through a documented public seam and the subject under test is the
+# manager's own fault classification. Nothing else is patched: no manager method,
+# no parser, no monkeypatching.
+
+
+class FaultingMatrixClient(HttpConfigClient):
+    """An 8088 client whose /matrix read raises the way one of our own parsing
+    bugs would — a TypeError, which is neither an ``httpx.HTTPError`` nor the
+    control protocol's error type. Counts its calls so a test can see the poll
+    loop come back around."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.matrix_calls = 0
+
+    async def get_matrix(self) -> Any:
+        self.matrix_calls += 1
+        raise TypeError("unexpected fault: our bug, not the daemon's")
+
+
+@pytest.fixture
+async def faulting_matrix(
+    live_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path
+) -> AsyncIterator[tuple[ConnectionManager, FaultingMatrixClient]]:
+    """A manager on a HEALTHY 4321 fake whose 8088 lane raises an unexpected
+    fault. Built by hand rather than from ``start_manager``: that fixture builds
+    its own client and waits for a completed poll, which a client that always
+    raises never delivers."""
+    client = FaultingMatrixClient("127.0.0.1", http_daemon["_port"], "u", "p")
+    manager = ConnectionManager(
+        Config(
+            hqp_host="127.0.0.1",
+            hqp_control_port=live_daemon_port,
+            poll_interval=0.02,
+            backup_dir=tmp_path / "backups",
+            preset_dir=tmp_path / "presets",
+        ),
+        client,
+    )
+    yield manager, client
+    await manager.aclose()
+    await client.aclose()
+
+
+async def test_an_unexpected_fault_propagates_out_of_the_form_refresh(
+    faulting_matrix: tuple[ConnectionManager, FaultingMatrixClient],
+) -> None:
+    manager, _client = faulting_matrix
+    with pytest.raises(TypeError):
+        await httpforms.refresh(manager)
+
+
+async def test_an_unexpected_fault_is_not_recorded_as_that_forms_error(
+    faulting_matrix: tuple[ConnectionManager, FaultingMatrixClient],
+) -> None:
+    # recording our own bug as the matrix form's error would hide it behind a
+    # message that reads like the daemon refusing
+    manager, _client = faulting_matrix
+    with contextlib.suppress(TypeError):
+        await httpforms.refresh(manager)
+    assert manager.matrix_error is None
+
+
+async def test_an_unexpected_poll_fault_records_no_outage(
+    faulting_matrix: tuple[ConnectionManager, FaultingMatrixClient],
+) -> None:
+    # the control lane is healthy; a fault in our own code is no evidence the
+    # daemon went away. The wait is on the SECOND faulting read, not the first:
+    # the loop having come back around is what proves the first fault was
+    # classified rather than merely raised, and it pins that the loop survived it.
+    manager, client = faulting_matrix
+    task = asyncio.create_task(manager.run())
+    try:
+        await eventually(lambda: client.matrix_calls > 1)
+        outage = manager.unreachable_since
+    finally:
+        manager.stop()
+        await task
+    assert outage is None
