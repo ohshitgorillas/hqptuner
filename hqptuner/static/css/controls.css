@@ -431,6 +431,14 @@ input[type="checkbox"]:disabled {
 .ask-choices {
   position: relative;
 }
+/* top-layer mode (Ask.js sets popover="manual"): the UA centres a popover with
+   inset:0 + margin:auto and .multi-pop pins absolute under its anchor — both
+   wrong here. Neutralise both; Ask.js pins the viewport coords inline. The
+   margin-top offset below the anchor row survives from .multi-pop. */
+.ask-pop[popover] {
+  position: fixed;
+  inset: auto;
+}
 .ask-pop .ask-msg {
   padding-bottom: var(--sp-1);
   border-bottom: 1px solid var(--surface-raised);

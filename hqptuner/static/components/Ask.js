@@ -50,12 +50,47 @@ const nameField = (q, ref) => html`
 // The choices ask renders as a dropdown panel anchored under the row that
 // asked — .multi-pop is the app's one popover chrome (narrowing.css), borrowed
 // here so this reads as the same species as the filter facet dropdowns.
+//
+// The panel is a native manual popover: it lives in the top layer, so no
+// ancestor's overflow clip can cut it off however many options it lists (the
+// profile picker grows by one row per preset, unbounded). "manual" and not
+// "auto" because light-dismiss would hide the panel without settling the
+// question's promise, leaving the asking card stuck busy — Cancel/Escape via
+// store/ask.js are the only ways out. The top layer ignores the anchor's
+// positioning context, so the panel is pinned to the ask row's viewport rect
+// imperatively, and re-pinned while the page scrolls or resizes under it.
 /**
- * @param {Question} q
+ * @param {HTMLElement} pop
  */
-const choicesList = (q) => html`
+const pinToAnchor = (pop) => {
+  const anchor = pop.parentElement;
+  if (!anchor) return;
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = `${r.left}px`;
+  pop.style.top = `${r.bottom}px`;
+};
+
+/**
+ * @param {{ q: Question }} props
+ */
+function ChoicesList({ q }) {
+  const pop = useRef(/** @type {HTMLElement | null} */ (null));
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!el) return undefined;
+    el.showPopover();
+    const place = () => pinToAnchor(el);
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, []);
+  return html`
   <span class="ask ask-choices">
-    <span class="multi-pop ask-pop">
+    <span class="multi-pop ask-pop" popover="manual" ref=${pop}>
       <span class="ask-msg">${q.message}</span>
       ${(q.options || []).map(
         (o) => html`
@@ -77,6 +112,7 @@ const choicesList = (q) => html`
     </span>
   </span>
 `;
+}
 
 /**
  * @param {Question} q
@@ -102,6 +138,6 @@ export function Ask({ owner }) {
     if (mine && ref.current) ref.current.focus();
   }, [mine]);
   if (!q || q.owner !== owner) return null;
-  if (q.kind === "choices") return choicesList(q);
+  if (q.kind === "choices") return html`<${ChoicesList} q=${q} />`;
   return q.kind === "name" ? nameField(q, ref) : confirmLine(q);
 }
