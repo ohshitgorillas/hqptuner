@@ -9,6 +9,18 @@
 //
 //     Matrix engine is bypassed. These settings have no effect.
 //
+// The CARD-LEVEL note forks on the card's own feature switch. A user who has
+// crossfeed, DAC correction or loudness switched off is not told that settings
+// they are not using have no effect — their card reads the other sentence
+// instead, which explains the grayed controls by pointing at the engine:
+//
+//     A: Matrix engine is bypassed. These settings have no effect.
+//     B: Matrix engine is bypassed. Engage it to use this feature.
+//
+// The graying below is a different thing and is NOT conditional on the feature
+// switch — a bypassed matrix disables every post-process control and puts
+// sentence A on every hover title, own gate shut or not.
+//
 // That card-level note is the ONLY place the sentence appears as visible text:
 // no field repeats it in a ".field-gray-reason" caption. The sub-controls
 // (quietGray) carry it as their hover title instead, where it outranks any
@@ -84,6 +96,7 @@ import { field, grayReason, titleOf } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
 
 const NOTE = "Matrix engine is bypassed. These settings have no effect.";
+const ENGAGE_NOTE = "Matrix engine is bypassed. Engage it to use this feature.";
 
 // --- the controls under test ---------------------------------------------------
 // Each schema key with the /matrix form field behind it. The three feature gates
@@ -318,13 +331,28 @@ const cardTitled = (out, title) => {
   return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
 };
 
-// Whether a fragment carries the note — or a sentence saying the card was never
-// rendered, which equals neither true nor false and so fails either way round.
+// Which of the two sentences a card carries — named rather than asked about one
+// at a time, so a single assertion pins the presence of the sentence that belongs
+// there AND the absence of the one that does not. An implementation that renders
+// both, or that renders A where B belongs, answers something other than the
+// expected name and fails.
 /**
  * @param {string} frag
- * @returns {boolean | string}
+ * @returns {"A" | "B" | "both" | "neither" | string}
  */
-const noteIn = (frag) => (frag === "" ? "that card was not rendered at all" : frag.includes(NOTE));
+const sentenceIn = (frag) => {
+  if (frag === "") return "that card was not rendered at all";
+  const a = frag.includes(NOTE);
+  const b = frag.includes(ENGAGE_NOTE);
+  if (a && b) return "both";
+  return a ? "A" : b ? "B" : "neither";
+};
+
+// The Crossfeed card is rendered on its own, so there is no head to pick it out
+// by — an empty render is the "never rendered" case, and answers the same
+// non-name sentence so a negative case cannot pass by looking at nothing.
+/** @returns {string} */
+const crossfeedSentence = () => sentenceIn(crossfeed().trim());
 
 /** @param {string} out */
 const buttonsOf = (out) =>
@@ -506,35 +534,104 @@ test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_structural_view"
 // ============================================================================
 // the note on the three post-process cards
 // ============================================================================
+// A bypassed engine always leaves a note; the card's own feature switch picks
+// which of the two sentences it is.
 
-test("test_a_bypassed_matrix_tells_the_bauer_crossfeed_view_its_settings_are_inert", async () => {
-  await reset({ matrix: "0", view: "bauer" });
-  assert.equal(crossfeed().includes(NOTE), true);
+test("test_a_bypassed_matrix_tells_an_engaged_bauer_crossfeed_view_its_settings_are_inert", async () => {
+  await reset({ matrix: "0", crossfeed: "1", view: "bauer" });
+  assert.equal(crossfeedSentence(), "A");
 });
 
-test("test_a_bypassed_matrix_tells_the_dac_correction_card_its_settings_are_inert", async () => {
-  await reset({ matrix: "0" });
-  assert.equal(noteIn(cardTitled(outputTab(), "DAC correction")), true);
+test("test_a_bypassed_matrix_tells_an_engaged_dac_correction_card_its_settings_are_inert", async () => {
+  await reset({ matrix: "0", correction: "1" });
+  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "A");
 });
 
-test("test_a_bypassed_matrix_tells_the_loudness_card_its_settings_are_inert", async () => {
-  await reset({ matrix: "0" });
-  assert.equal(noteIn(cardTitled(volumeTab(), "Loudness")), true);
+test("test_a_bypassed_matrix_tells_an_engaged_loudness_card_its_settings_are_inert", async () => {
+  await reset({ matrix: "0", loudness: "1" });
+  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "A");
 });
 
-test("test_an_engaged_matrix_leaves_the_bauer_crossfeed_view_without_the_note", async () => {
-  await reset({ matrix: "1", view: "bauer" });
-  assert.equal(crossfeed().includes(NOTE), false);
+// The other fork: a feature the user has switched off has no settings in the
+// signal path to call inert, but its controls are grayed on screen all the same —
+// so the card explains that by pointing at the engine instead.
+
+test("test_a_bypassed_matrix_asks_a_bypassed_bauer_crossfeed_view_to_engage_it", async () => {
+  await reset({ matrix: "0", crossfeed: "0", view: "bauer" });
+  assert.equal(crossfeedSentence(), "B");
 });
 
-test("test_an_engaged_matrix_leaves_the_dac_correction_card_without_the_note", async () => {
-  await reset({ matrix: "1" });
-  assert.equal(noteIn(cardTitled(outputTab(), "DAC correction")), false);
+test("test_a_bypassed_matrix_asks_a_bypassed_dac_correction_card_to_engage_it", async () => {
+  await reset({ matrix: "0", correction: "0" });
+  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "B");
 });
 
-test("test_an_engaged_matrix_leaves_the_loudness_card_without_the_note", async () => {
-  await reset({ matrix: "1" });
-  assert.equal(noteIn(cardTitled(volumeTab(), "Loudness")), false);
+test("test_a_bypassed_matrix_asks_a_bypassed_loudness_card_to_engage_it", async () => {
+  await reset({ matrix: "0", loudness: "0" });
+  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "B");
+});
+
+// An engaged engine silences BOTH sentences, whatever the feature switches say.
+
+test("test_an_engaged_matrix_leaves_the_bauer_crossfeed_view_without_either_sentence", async () => {
+  await reset({ matrix: "1", crossfeed: "1", view: "bauer" });
+  assert.equal(crossfeedSentence(), "neither");
+});
+
+test("test_an_engaged_matrix_leaves_the_dac_correction_card_without_either_sentence", async () => {
+  await reset({ matrix: "1", correction: "1" });
+  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "neither");
+});
+
+test("test_an_engaged_matrix_leaves_the_loudness_card_without_either_sentence", async () => {
+  await reset({ matrix: "1", loudness: "1" });
+  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "neither");
+});
+
+test("test_an_engaged_matrix_leaves_a_bypassed_bauer_crossfeed_view_without_either_sentence", async () => {
+  await reset({ matrix: "1", crossfeed: "0", view: "bauer" });
+  assert.equal(crossfeedSentence(), "neither");
+});
+
+test("test_an_engaged_matrix_leaves_a_bypassed_dac_correction_card_without_either_sentence", async () => {
+  await reset({ matrix: "1", correction: "0" });
+  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "neither");
+});
+
+test("test_an_engaged_matrix_leaves_a_bypassed_loudness_card_without_either_sentence", async () => {
+  await reset({ matrix: "1", loudness: "0" });
+  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "neither");
+});
+
+// ============================================================================
+// the wording follows the EFFECTIVE feature switch
+// ============================================================================
+// The staged edit over the daemon's running value, no apply involved: switching a
+// feature on under a bypassed engine swaps its note from B to A, switching it off
+// swaps it back.
+
+test("test_staging_dac_correction_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_wording", async () => {
+  await reset({ matrix: "0", correction: "0" });
+  await edit(CORRECTION_GATE, "1");
+  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "A");
+});
+
+test("test_staging_dac_correction_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_wording", async () => {
+  await reset({ matrix: "0", correction: "1" });
+  await edit(CORRECTION_GATE, "0");
+  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "B");
+});
+
+test("test_staging_loudness_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_wording", async () => {
+  await reset({ matrix: "0", loudness: "0" });
+  await edit(LOUDNESS_GATE, "1");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "A");
+});
+
+test("test_staging_loudness_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_wording", async () => {
+  await reset({ matrix: "0", loudness: "1" });
+  await edit(LOUDNESS_GATE, "0");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "B");
 });
 
 // The matrix table staying editable under a bypass (pipeline rows, "+ Add
