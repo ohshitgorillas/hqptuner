@@ -18,9 +18,13 @@
 // modulators — the same fixtures the prose suites pin "today's" tip text with.
 //
 // Rows are looked up by their label, never by position: the spec fixes which
-// rows exist and what they say, not their order. Spec ambiguity, reading
-// taken: multi-value genre/focus row values are matched case-insensitively —
-// the spec fixes the ", " join and the member order, not the casing.
+// rows exist and what they say, not their order. Spec ambiguity, readings
+// taken: multi-value genre/focus row values are compared case-insensitively —
+// the spec fixes the ", " join and the member order, not the casing. And
+// behaviour 10's "static fills only filters the live enum lacks" is read
+// PER-FACET, not per-filter — a live-enumerated filter still takes its Genre
+// (and other static-only facets) from the overlay, since live items never
+// carry genre.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/facettip.test.js
 
@@ -108,6 +112,20 @@ const row = (name, key) => filterTipFacets(name).rows.find((r) => r[0] === key);
  */
 const rowKeys = (name) => filterTipFacets(name).rows.map((r) => r[0]);
 
+/**
+ * Case-insensitive equality of a row's value — pins the exact ", " join and
+ * membership while keeping casing latitude. Builds the condition for the one
+ * assert at the call site.
+ *
+ * @param {[string, string] | undefined} pair
+ * @param {string} expected
+ * @returns {[boolean, string]}
+ */
+const rowValueIs = (pair, expected) => {
+  const got = String((pair || [])[1]);
+  return [got.toLowerCase() === expected, `expected row value "${expected}", got "${got}"`];
+};
+
 // ============================================================================
 // filterTipFacets — unknown names
 // ============================================================================
@@ -182,12 +200,12 @@ test("test_a_live_integer_ratio_renders_an_integer_ratio_row", () => {
 
 test("test_a_multi_genre_list_joins_with_comma_space", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }], { "gauss-plain": { genre: ["jazz", "classical"] } });
-  assert.match(String((row("gauss-plain", "Genre") || [])[1]), /jazz, classical/i);
+  assert.ok(...rowValueIs(row("gauss-plain", "Genre"), "jazz, classical"));
 });
 
 test("test_a_multi_focus_list_joins_with_comma_space", () => {
   seed([{ name: "gauss-a", description: "4/5 timbre, transients ⥮ Any" }]);
-  assert.match(String((row("gauss-a", "Focus") || [])[1]), /timbre, transients/i);
+  assert.ok(...rowValueIs(row("gauss-a", "Focus"), "timbre, transients"));
 });
 
 // ============================================================================
@@ -267,6 +285,14 @@ test("test_a_live_apodizing_filter_carries_the_apodizing_chip", () => {
   assert.deepEqual(filterTipFacets("gauss-apod").chips, ["Apodizing"]);
 });
 
+// Bit 1 of the raw (string) arg is read in the frontend; the backend derives a
+// boolean field for bit 0 only, so the item carries no derived half field and
+// its `apodizing` boolean stays false.
+test("test_a_live_half_apodizing_filter_carries_the_half_apodizing_chip", () => {
+  seed([{ name: "gauss-hapod", description: "4/5 ⥮ Any", arg: 2 }]);
+  assert.deepEqual(filterTipFacets("gauss-hapod").chips, ["Half apodizing"]);
+});
+
 test("test_a_half_apodizing_overlay_filter_carries_the_half_apodizing_chip", () => {
   seed([], { "closed-form": { apodizing: "half" } });
   assert.deepEqual(filterTipFacets("closed-form").chips, ["Half apodizing"]);
@@ -319,7 +345,7 @@ test("test_an_sdm_arrow_description_parses_its_quality", () => {
 
 test("test_an_sdm_arrow_description_parses_its_focus", () => {
   seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
-  assert.match(String((row("sdm-a", "Focus") || [])[1]), /space/i);
+  assert.ok(...rowValueIs(row("sdm-a", "Focus"), "space"));
 });
 
 test("test_an_sdm_arrow_description_parses_its_ratio", () => {
