@@ -233,7 +233,10 @@ def metering_on_app(tmp_path: Path) -> Iterator[AppOnStream]:
 
 def test_a_metering_enabled_app_connects_to_the_metering_port(metering_on_app: AppOnStream) -> None:
     client, listener = metering_on_app
-    wait_for_api(client, lambda _c: listener.accepts >= 1)
+    # the predicate must keep making requests: wait_for_api advances the app's
+    # own loop between tries, and a check that never calls it spins past the
+    # reader's first idle tick in microseconds
+    wait_for_api(client, lambda c: _loaded(c) and listener.accepts >= 1)
     assert listener.accepts >= 1
 
 
