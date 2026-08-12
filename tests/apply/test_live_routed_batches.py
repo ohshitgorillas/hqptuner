@@ -42,8 +42,12 @@ def control_log() -> CommandLog:
 @pytest.fixture
 def control_state() -> dict[str, str]:
     """The control fake's live State, shared across its connections — the
-    handle a restore's self-restart moves (see ``pcm_file_daemon``)."""
-    return dict(DEFAULTS)
+    handle a restore's self-restart moves (see ``pcm_file_daemon``). The
+    ``_cfg_*`` knobs mirror the 8088 fake's config file (dither enum "0",
+    modulator enum "0"), so a ``SetMode`` loads the entered chain on the FILE's
+    shaper rather than carrying the previous chain's pin across — which is what
+    makes a skipped re-pin after a mode round trip readable on ``State``."""
+    return {**DEFAULTS, "_cfg_dither": "0", "_cfg_modulator": "0"}
 
 
 @pytest.fixture
@@ -114,9 +118,10 @@ def test_a_pure_live_dither_apply_sends_setshaping_with_the_list_index(
     client: TestClient, control_log: CommandLog
 ) -> None:
     # enum ID "5" is NS9 at PCM list index "1": the setter speaks indices, the
-    # file speaks enum IDs, and the two must never mix (protocol.md §4)
+    # file speaks enum IDs, and the two must never mix (protocol.md §4) — so
+    # exactly one SetShaping goes out and it carries the index, never the ID
     _apply_staged(client, {"dither": "5"})
-    assert "1" in [attrs.get("value") for attrs in _sent(control_log, "SetShaping")]
+    assert [attrs.get("value") for attrs in _sent(control_log, "SetShaping")] == ["1"]
 
 
 def test_a_pure_live_dither_apply_reports_no_persistent_lane(client: TestClient) -> None:
@@ -195,6 +200,9 @@ def test_autosave_keeps_the_applied_dither_across_a_live_mode_switch(client: Tes
     client.post("/api/autosave", json={"enabled": True})
     _apply_staged(client, {"dither": "5"})
     client.post("/api/config/live", json={"fields": {"mode": "sdm"}})
+    # the fold under test only runs on a landed write: a dead live route would
+    # leave the preset untouched and pass vacuously, so it must fail loudly here
+    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["mode"] == "2")
     assert client.get("/api/preset/Kept").json()["config"]["dither"] == "5"
 
 
@@ -204,5 +212,8 @@ def test_a_live_mode_round_trip_ends_on_the_applied_shaper_index(client: TestCli
     # index "1" is where enum "5" sits on the fake's PCM list
     _apply_staged(client, {"dither": "5"})
     client.post("/api/config/live", json={"fields": {"mode": "sdm"}})
+    # prove the switch LANDED before coming back: a live route that no-ops
+    # would leave the engine in PCM and the round trip would never happen
+    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["mode"] == "2")
     client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
     assert client.get("/api/state").json()["data"]["shaper"] == "1"

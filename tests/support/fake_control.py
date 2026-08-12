@@ -99,11 +99,30 @@ DEFAULTS = {
 }
 
 
+def _reload_shaper(state: dict[str, str]) -> None:
+    """What a mode switch does to the shaper pin: SetMode loads the entered
+    chain from the daemon's config file, so the fresh chain's shaper is the
+    FILE's dither/modulator — never the previous chain's pin carried across
+    (protocol.md §SetMode: the enumeration lists swap wholesale). Opt-in via
+    the ``_cfg_dither`` / ``_cfg_modulator`` knobs (enum IDs, config-file
+    domain), resolved on the loaded chain's own list; a state without the knobs
+    keeps the fake's old carry-the-pin behaviour, so existing suites see no
+    change."""
+    sdm = _active_sdm(state)
+    enum_id = state.get("_cfg_modulator" if sdm else "_cfg_dither")
+    if enum_id is None:
+        return
+    for index, _name, value in _SDM_SHAPERS if sdm else _PCM_SHAPERS:
+        if value == enum_id:
+            state["shaper"] = index
+
+
 def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> None:
     value = attrs.get("value", "")
     if name == "SetMode":
         state["mode"] = value
         state["rate"] = "0"  # mode resets rate to auto (protocol.md §6)
+        _reload_shaper(state)  # the entered chain comes up on the FILE's shaper
     elif name == "SetFilter":
         state["filterNx"] = value
         state["filter1x"] = attrs.get("value1x", value)
@@ -154,13 +173,12 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     IDs; State speaks the mode index and list indices resolved against the
     chain the restart loaded (protocol.md §4 — the domains never mix), so the
     restored shaper is the loaded chain's dither or modulator looked up on that
-    chain's own enumeration."""
+    chain's own enumeration. The restored file also becomes the per-chain
+    shaper a later ``SetMode`` loads (``_reload_shaper``)."""
     state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
-    sdm = state["mode"] == "2"
-    enum_id = modulator if sdm else dither
-    for index, _name, value in _SDM_SHAPERS if sdm else _PCM_SHAPERS:
-        if value == enum_id:
-            state["shaper"] = index
+    state["_cfg_dither"] = dither
+    state["_cfg_modulator"] = modulator
+    _reload_shaper(state)
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
