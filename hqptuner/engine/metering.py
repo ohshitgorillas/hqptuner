@@ -273,24 +273,45 @@ class MeteringReader:
             await asyncio.wait_for(self._stop.wait(), seconds)
 
     async def _stream(self) -> bool:
-        """Ingest frames until the engine stops playing (True) or the loop is stopped (False)."""
+        """Ingest frames until the engine stops playing (True) or the loop is stopped (False).
+
+        The play state is checked on a tick of its own rather than after each frame: a stream that goes quiet must
+        still be let go, and blocking in ``readexactly`` until the next frame arrives would hold the socket open for
+        as long as the daemon stays silent.
+        """
         reader, writer = await asyncio.open_connection(self._host, self._port)
         log.info("metering stream connected (%s:%s)", self._host, self._port)
+        read: asyncio.Task[tuple[tuple[float, ...], bytes]] | None = None
         try:
             frame = 0
             while not self._stop.is_set():
-                header, body = await self._read_frame(reader)
                 ctx = self._context()
                 if ctx is None or not ctx.playing:
                     return ctx is not None  # paused keeps the evidence; unreachable does not
+                if read is None:
+                    read = asyncio.create_task(self._read_frame(reader))
+                if not await self._arrived(read):
+                    continue  # the tick won: re-check the engine, leave the read running
+                header, body = read.result()
+                read = None
                 frame += 1
                 if frame % DECIMATE == 0:
                     self._ingest(header, body, ctx)
             return False
         finally:
+            await _discard(read)
             writer.close()
             with contextlib.suppress(OSError):
                 await writer.wait_closed()
+
+    async def _arrived(self, read: "asyncio.Task[tuple[tuple[float, ...], bytes]]") -> bool:
+        """Wait up to one idle tick for the pending frame; False means the tick won and the read is still running."""
+        tick = asyncio.ensure_future(self._wait(IDLE_RECHECK))
+        try:
+            await asyncio.wait({read, tick}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            tick.cancel()
+        return read.done()
 
     async def _read_frame(self, reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
         header = HEADER.unpack(await reader.readexactly(HEADER.size))
@@ -312,6 +333,15 @@ class MeteringReader:
             xform_time * DECIMATE,
             silent=_frame_silent(body, channels, bins),
         )
+
+
+async def _discard(read: "asyncio.Task[tuple[tuple[float, ...], bytes]] | None") -> None:
+    """Cancel a still-pending frame read and collect whatever it ended with, so nothing is left unretrieved."""
+    if read is None:
+        return
+    read.cancel()
+    with contextlib.suppress(asyncio.CancelledError, OSError, asyncio.IncompleteReadError):
+        await read
 
 
 def _frame_silent(body: bytes, channels: int, bins: int) -> bool:
