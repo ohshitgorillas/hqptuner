@@ -17,6 +17,15 @@ import { oneLabel } from "./narrowbar/labels.js";
  */
 const lbl = (items, v) => String(oneLabel(items, v, v));
 
+// "any" is a real ratio class (the manual's any-ratio filters), but the narrow
+// table has no row for it — its "" row means "not narrowed" — so it is
+// labelled here rather than falling through as the raw lowercase token.
+/**
+ * @param {string} v
+ * @returns {string}
+ */
+const ratioLbl = (v) => (v === "any" ? "Any" : lbl(RATIOS, v));
+
 // The mode-split filters (mqa/mp3) carry a ratio class per chain instead of
 // one; the pair renders as a single row so the tip keeps one line per facet.
 /**
@@ -26,11 +35,11 @@ const lbl = (items, v) => String(oneLabel(items, v, v));
 function ratioValue(f) {
   if (f.ratioPcm != null || f.ratioSdm != null) {
     const parts = [];
-    if (f.ratioPcm != null) parts.push(`PCM ${lbl(RATIOS, f.ratioPcm)}`);
-    if (f.ratioSdm != null) parts.push(`SDM ${lbl(RATIOS, f.ratioSdm)}`);
+    if (f.ratioPcm != null) parts.push(`PCM ${ratioLbl(f.ratioPcm)}`);
+    if (f.ratioSdm != null) parts.push(`SDM ${ratioLbl(f.ratioSdm)}`);
     return parts.join(" · ");
   }
-  return f.ratio == null ? "" : lbl(RATIOS, f.ratio);
+  return f.ratio == null ? "" : ratioLbl(f.ratio);
 }
 
 // Rows appear only for facets that hold a value, in the narrow bar's own order.
