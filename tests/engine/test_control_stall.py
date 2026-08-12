@@ -20,8 +20,8 @@ from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
-from conftest import DaemonFactory, _live_app, spawn_threaded_daemon
-from fake_control import DEFAULTS
+from conftest import DaemonFactory, _live_app, spawn_threaded_daemon, wait_for_api
+from fake_control import DEFAULTS, CommandLog
 from fastapi.testclient import TestClient
 
 from hqptuner.engine.control import ControlClient, ControlError
@@ -52,6 +52,27 @@ STALLED_FIELD = "junk_filter"
 #: the `SetJunkFilter` cases never reach. A mode change cannot be batched with
 #: other live fields (the route answers 409), so it goes out alone.
 STALLED_MODE_SETTER = "SetMode"
+
+#: The last Control API command of both `_connect_and_load` and `_poll` in a
+#: control-only app (the 8088 refreshes that follow never touch this wire), so
+#: its SECOND appearance in the daemon's log is the first background poll
+#: finishing. The fixtures that flip a `_stall`/`_close` knob on a healthy
+#: daemon wait for it first: the app reports reachable after connect-and-load
+#: but BEFORE that first poll, so a knob flipped straight after the yield can
+#: catch the poll instead, which then times out and drops the shared connection
+#: before the case's own write gets near the wire.
+FIRST_POLL_SENTINEL = "MatrixListProfiles"
+
+
+def _await_first_poll(client: TestClient, log: CommandLog) -> None:
+    """Spin on real requests until the manager's first poll has completed —
+    the request is what progresses the app's own loop (see wait_for_api)."""
+
+    def first_poll_done(c: TestClient) -> bool:
+        c.get("/api/health")
+        return sum(1 for name, _ in log if name == FIRST_POLL_SENTINEL) >= 2
+
+    wait_for_api(client, first_poll_done)
 
 
 @pytest.fixture
@@ -96,9 +117,11 @@ def stalling_readback_api(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str
     daemon's side of the wire without asking it anything — the only way to tell a
     503 raised by the readback from one raised before the setter ever went out."""
     state = dict(DEFAULTS)
-    daemon = spawn_threaded_daemon(state=state)
+    log: CommandLog = []
+    daemon = spawn_threaded_daemon(state=state, log=log)
     app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
+    _await_first_poll(client, log)  # see FIRST_POLL_SENTINEL: flipped earlier, the knob catches the poll
     state["_stall"] = "State"
     yield client, state
     next(app, None)
@@ -231,9 +254,11 @@ def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
     the shared State dict afterwards, which is also how a case reads the daemon's
     side of the wire without asking it anything."""
     state = dict(DEFAULTS)
-    daemon = spawn_threaded_daemon(state=state)
+    log: CommandLog = []
+    daemon = spawn_threaded_daemon(state=state, log=log)
     app = _live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
+    _await_first_poll(client, log)  # see FIRST_POLL_SENTINEL: flipped earlier, the knob catches the poll
     state["_close"] = HOUSEKEEPING_COMMAND
     yield client, state
     next(app, None)

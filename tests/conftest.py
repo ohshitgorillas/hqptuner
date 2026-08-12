@@ -207,14 +207,15 @@ async def start_manager(live_daemon_port: int, tmp_path: Path) -> AsyncIterator[
 
 
 def spawn_threaded_daemon(
-    overrides: dict[str, str] | None = None, state: dict[str, str] | None = None
+    overrides: dict[str, str] | None = None, state: dict[str, str] | None = None, log: CommandLog | None = None
 ) -> Iterator[int]:
     # `state` shares ONE dict across connections, as the `daemon` fixture does —
-    # how a sync test moves a daemon the app has already connected to
+    # how a sync test moves a daemon the app has already connected to; `log`
+    # likewise, so a sync test can watch the daemon's side of the wire
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
-    handler = functools.partial(serve, overrides=overrides, state=state)
+    handler = functools.partial(serve, overrides=overrides, state=state, log=log)
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, "127.0.0.1", 0), loop).result()
     port: int = server.sockets[0].getsockname()[1]
     yield port
