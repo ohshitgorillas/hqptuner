@@ -8,6 +8,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Rescanning devices no longer resets your live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
 
+- **HQPTuner no longer pulls megabytes a second off the daemon while nothing is playing.** The junk-filter advisor reads hqplayerd's metering side channel, and the daemon streams that unconditionally to anyone connected — so the advisor was paying for a few MB/s of spectrum frames around the clock, playing or not. In a plain install the traffic sits on loopback and nothing notices; run HQPTuner in Docker and the same bytes cross the bridge, where they show up as constant network load. The advisor now connects only while the engine is actually playing and disconnects when it stops. Advice is unchanged, including across a pause mid-track.
+
 ### Changed
 
 - **The Output tab's "General" card is gone; its settings now live where they belong.** Gain compensation joined the Volume tab (card renamed "Adjustments"), the junk filter and pre-metering moved to a new "Pre-process" card on the tab now labeled "Conversion" (formerly "Resampling"), idle time / quick pause / short buffer landed in a "Timing" card and UPnP freewheel in a "UPnP" card on the System tab, and Channels got its own small card on the Matrix tab, under the profile card. Nothing changed about what any of these settings do.
@@ -27,6 +29,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Setting a buffer to minimum now asks first.** Short buffer at Minimum, or Buffer time at −1, breaks playback on most setups — short drop-outs, distorted output, or no sound at all. Changing either now opens a warning over the control: "Revert the change" backs out, "Yes, I know what I'm doing, set it" stages it as before.
 
 - **A Copy button on the live log tail.** Copies the lines currently in the window to the clipboard in one click, instead of selecting fifty lines by hand.
+
+- **A switch to turn the junk-filter advisor off entirely: `HQPTUNER_METERING_ENABLED=0`.** With it off, HQPTuner never opens the metering connection at all and the advisor's note never appears. Everything else works as before. Leave it alone unless you want the advisor gone — the traffic it used to cost while idle is fixed above.
 
 ## [1.3.4] — 2026-08-09
 

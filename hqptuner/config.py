@@ -9,6 +9,11 @@ def _env(name: str, default: str) -> str:
     return os.environ.get(f"HQPTUNER_{name}", default)
 
 
+def _env_flag(name: str, default: str) -> bool:
+    """Read an on/off var, spelled the way an operator would spell it in a compose file."""
+    return _env(name, default).strip().lower() not in ("0", "false", "no", "off")
+
+
 def _optional_path(name: str) -> Path | None:
     """Read a path var that is OFF when unset.
 
@@ -31,6 +36,10 @@ class Config:
     hqp_http_port: int = field(default_factory=lambda: int(_env("HQP_HTTP_PORT", "8088")))
     # metering side channel (protocol.md §7) — control port + 1 on a stock daemon
     hqp_metering_port: int = field(default_factory=lambda: int(_env("HQP_METERING_PORT", "4322")))
+    # Whether the junk-filter advisor's metering reader runs at all. Off means the
+    # reader is never constructed, nothing connects to 4322, and the advisor's
+    # recommendation is permanently null — the rest of HQPTuner is unaffected.
+    metering_enabled: bool = field(default_factory=lambda: _env_flag("METERING_ENABLED", "1"))
     # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
     # override only if the daemon's auth was re-provisioned.
     hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))
