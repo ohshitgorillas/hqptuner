@@ -16,6 +16,14 @@
 // is prose that may be reworded, so where a test looks at text at all it looks
 // for the shaper's NAME and nothing else.
 //
+// Three cases here are CHARACTERIZATION, not bite proof (docs/testing.md rule
+// 8): test_staged_auto_mode_reports_the_loaded_chains_conflict,
+// test_staged_auto_mode_silences_the_dormant_familys_conflict and
+// test_with_nothing_staged_the_running_sdm_engines_modulator_conflict_still_raises
+// are green against the older "family = loaded chain" rule too, because in each
+// the loaded chain and the effective mode agree. They pin behaviour that must
+// not regress; they do not distinguish the two rules.
+//
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire — the scenario arrives through the exported signals carrying the
 // /api/state, /api/enumerations, /api/config and /api/metadata shapes, the
@@ -165,6 +173,15 @@ test("test_staged_auto_mode_silences_the_dormant_familys_conflict", async () => 
   assert.deepEqual(alerts(), []);
 });
 
+test("test_staged_auto_mode_over_a_loaded_pcm_chain_reports_the_pcm_conflict_alone", async () => {
+  // The mirror of the case above: auto names no family, so the loaded chain
+  // decides, and here the loaded chain is PCM. Both families conflict, and only
+  // the PCM row may appear.
+  await scene({ chain: "pcm", mode: "2", ...BOTH_CONFLICT });
+  await stageEdit("output_mode", "auto");
+  assert.deepEqual(sevs(), ["warn"]);
+});
+
 test("test_staged_auto_mode_with_no_chain_loaded_reports_both_families", async () => {
   await scene({ chain: null, mode: "1", ...BOTH_CONFLICT });
   await stageEdit("output_mode", "auto");
@@ -197,20 +214,26 @@ test("test_a_previewed_pcm_preset_silences_the_sdm_conflict", async () => {
   assert.deepEqual(alerts(), []);
 });
 
-test("test_a_previewed_mode_and_a_staged_mode_choose_the_same_family", async () => {
-  // The same mode by the two staging routes against the same scenario: whatever
-  // the family choice is, it cannot depend on which route the mode arrived by.
-  await scene({ chain: "pcm", mode: "1", ...BOTH_CONFLICT });
-  await stageEdit("output_mode", "sdm");
-  const staged = sevs();
+test("test_a_previewed_sdm_mode_reports_the_sdm_conflict_alone_when_both_families_conflict", async () => {
+  // Both families are below their floors and the engine runs PCM, so a preview
+  // route that is ignored shows the PCM row and one that judges the loaded
+  // chain shows it too: only the previewed mode leaves the SDM row alone.
   await scene({ chain: "pcm", mode: "1", ...BOTH_CONFLICT });
   previewMode("sdm", BOTH_CONFLICT);
-  assert.deepEqual(sevs(), staged);
+  assert.deepEqual(sevs(), ["crit"]);
 });
 
 // --- nothing staged, nothing previewed: the engine is the answer ---------------
 
 test("test_with_nothing_staged_the_running_sdm_engines_modulator_conflict_still_raises", async () => {
   await scene({ chain: "sdm", mode: "2", ...SDM_CONFLICTS });
+  assert.deepEqual(sevs(), ["crit"]);
+});
+
+test("test_with_nothing_staged_the_running_configurations_mode_beats_the_loaded_chain", async () => {
+  // Nothing staged and nothing previewed, so the effective mode is the running
+  // configuration's — SDM — even though the chain the engine still has loaded
+  // is PCM. Only the SDM conflict is real.
+  await scene({ chain: "pcm", mode: "2", ...SDM_CONFLICTS });
   assert.deepEqual(sevs(), ["crit"]);
 });
