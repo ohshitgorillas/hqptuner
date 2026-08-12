@@ -85,13 +85,41 @@ async def _reachable(mgr: ConnectionManager) -> bool:
     return mgr.reachable and mgr.control is not None
 
 
+def _lost(mgr: ConnectionManager, fields: dict[str, str], restored: dict[str, str], held: dict[str, str]) -> set[str]:
+    """Return the snapshot fields that neither landed nor were deliberately held.
+
+    Judged on the readback-verified report, because nothing else can be trusted
+    to say so. ``livelane`` absorbs a control-lane failure of its own and answers
+    with unverified setters rather than raising, and the manager's cached
+    ``State`` is whatever it read BEFORE that failure — so a replay can lose every
+    setting while both the return value and the cached state still look right. A
+    setter that verified by readback is the one thing here that cannot be stale.
+
+    A HELD field is not lost: it belongs to the chain the engine has not loaded,
+    and ``livelane`` puts it back when that chain comes round
+    (``livelane.reassert_chain``). Nor is a mode the engine is already running —
+    ``apply_preset`` drops that rather than re-sending it, since ``SetMode``
+    clears the rate pin even when it changes nothing.
+    """
+    missing = {name for name in fields if name not in restored and name not in held}
+    mode = fields.get("mode")
+    if mode is not None and livelane.mode_already_running(mgr, mode):
+        missing.discard("mode")
+    return missing
+
+
 async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
     """Put a snapshot back on the engine once it answers again.
 
     Answers ``restored`` — the fields whose setter verified by readback — and a
-    ``warning`` naming what the user lost when the replay could not run. The
+    ``warning`` when the engine is not running what it was running before. The
     rescan itself succeeded either way, so neither outcome is an error: the
     caller reports the rescan as done and carries the warning.
+
+    Silence here is the original bug wearing a different hat. A rescan that
+    reports nothing but success while the engine sits on the config file's values
+    is exactly what this module exists to stop, so the check is on the outcome
+    and not on whether anything raised.
     """
     if not fields:
         return {"restored": {}}
@@ -103,4 +131,10 @@ async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, An
     except (ControlError, livemap.LiveRouteError) as exc:
         log.warning("device rescan: restoring live settings failed: %s", exc)
         return {"restored": {}, "warning": WRITE_FAILED}
-    return {"restored": _restored(report["live"], fields)}
+    restored = _restored(report["live"], fields)
+    result: dict[str, Any] = {"restored": restored}
+    lost = _lost(mgr, fields, restored, report["stored"])
+    if lost:
+        log.warning("device rescan: live settings not put back: %s", ", ".join(sorted(lost)))
+        result["warning"] = WRITE_FAILED
+    return result
