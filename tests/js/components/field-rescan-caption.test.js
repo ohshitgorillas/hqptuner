@@ -22,18 +22,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { reset, field } from "../support/field-harness.js";
+import { reset, field, META } from "../support/field-harness.js";
 import { config } from "../../../hqptuner/static/store/signals.js";
 
 const CAPTION = "Stops the engine. All live settings except matrix profiles survive.";
 
-// The output-device field's manual prose, as the harness' /api/metadata fixture
-// carries it (settings.output.output_device.tooltip).
-const NOTE = "Device prose.";
+// The device field's manual prose, verbatim from hqptuner/data/settings.json
+// (`alsa_device.tooltip`, manual §4) — the shared harness fixture carries no
+// record under that key, and the field's label comes from the schema rather
+// than from metadata, so without this the field renders no note at all.
+const NOTE = "On Linux, the ALSA audio endpoint (device) lists all the available hardware audio endpoints.";
+
+const META_WITH_DEVICE_PROSE = {
+  ...META,
+  settings: {
+    ...META.settings,
+    output: { ...META.settings.output, alsa_device: { label: "Output device", tooltip: NOTE } },
+  },
+};
 
 /** @param {boolean} autosave */
 async function withAutosave(autosave) {
-  await reset();
+  await reset({ meta: META_WITH_DEVICE_PROSE });
   config.value = { ...config.value, autosave };
 }
 
