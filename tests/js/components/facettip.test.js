@@ -33,6 +33,20 @@ import { schema } from "../../../hqptuner/static/store/schema.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 import { reset, META } from "../support/field-harness.js";
 
+/**
+ * The tip resolver for a desc-carrying entry — throws (not an assertion)
+ * rather than returning undefined, so tests can invoke it directly under
+ * strict checkJs.
+ *
+ * @param {Parameters<typeof tipsFor>[0]} entry
+ * @param {Parameters<typeof tipsFor>[1]} meta
+ */
+function resolver(entry, meta) {
+  const fn = tipsFor(entry, meta);
+  if (!fn) throw new Error("expected a tip resolver for this entry");
+  return fn;
+}
+
 const FILTER_META = META.settings.dsp.filter_1x;
 const SHAPER_META = META.settings.dsp.shaper;
 const INTEGRATOR_META = META.settings.dsp.sdm_integrator;
@@ -120,9 +134,11 @@ test("test_a_linear_phase_name_token_renders_a_linear_phase_row", () => {
   assert.deepEqual(row("poly-sinc-lp", "Phase"), ["Phase", "Linear"]);
 });
 
-test("test_an_xlong_name_token_renders_an_extra_long_length_row", () => {
-  seed([{ name: "poly-sinc-xlong", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-xlong", "Length"), ["Length", "Extra long"]);
+// The xlong class has no literal name token: it derives from an -xl/-xla
+// suffix (or a fixed per-name override table). "Extra long" is its label.
+test("test_an_xla_suffixed_name_renders_an_extra_long_length_row", () => {
+  seed([{ name: "poly-sinc-ext2-xla", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("poly-sinc-ext2-xla", "Length"), ["Length", "Extra long"]);
 });
 
 test("test_an_any_genre_filter_renders_all_genres", () => {
@@ -169,9 +185,11 @@ test("test_a_filter_without_focus_renders_no_focus_row", () => {
   assert.equal(rowKeys("gauss-plain").includes("Focus"), false);
 });
 
-test("test_a_name_without_length_tokens_renders_no_length_row", () => {
+// Length is not an empty-able facet: every filter carries a length class, and
+// a name with no length token classifies as medium — so the row always shows.
+test("test_a_name_without_length_tokens_renders_a_medium_length_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.equal(rowKeys("gauss-plain").includes("Length"), false);
+  assert.deepEqual(row("gauss-plain", "Length"), ["Length", "Medium"]);
 });
 
 test("test_a_filter_without_ratio_renders_no_ratio_row", () => {
@@ -247,19 +265,19 @@ test("test_live_focus_outranks_a_conflicting_overlay_focus", () => {
 
 test("test_a_filter_option_tip_text_is_the_manual_description_and_notes", async () => {
   await reset();
-  const tip = tipsFor(schema.pcm_filter_1x, FILTER_META);
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   assert.equal(tip({ value: "0", label: "sinc-S" }).text, "A short sinc. Not recommended.");
 });
 
 test("test_a_filter_option_tip_text_resolves_through_an_alias", async () => {
   await reset();
-  const tip = tipsFor(schema.pcm_filter_1x, FILTER_META);
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   assert.equal(tip({ value: "0", label: "poly-sinc-xtr-mp" }).text, "Extra transient.");
 });
 
 test("test_a_two_stage_filter_option_tip_appends_the_two_stage_note", async () => {
   await reset();
-  const tip = tipsFor(schema.pcm_filter_1x, FILTER_META);
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   assert.equal(tip({ value: "0", label: "sinc-M-2s" }).text, "A very long sinc. Two stage oversampling.");
 });
 
@@ -270,7 +288,7 @@ test("test_a_two_stage_filter_option_tip_appends_the_two_stage_note", async () =
 test("test_a_filter_option_tip_carries_the_filters_facet_rows", async () => {
   await reset();
   enums.value = { filters: [item("sinc-M", "4/5 ⥮ Int", 0)] };
-  const tip = tipsFor(schema.pcm_filter_1x, FILTER_META);
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   assert.deepEqual(
     tip({ value: "0", label: "sinc-M" }).rows.find((r) => r[0] === "Quality"),
     ["Quality", "4/5"],
@@ -280,13 +298,13 @@ test("test_a_filter_option_tip_carries_the_filters_facet_rows", async () => {
 test("test_a_filter_option_tip_carries_the_filters_chips", async () => {
   await reset();
   enums.value = { filters: [item("sinc-M", "4/5 ⥮ Int", 0, 1)] };
-  const tip = tipsFor(schema.pcm_filter_1x, FILTER_META);
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   assert.deepEqual(tip({ value: "0", label: "sinc-M" }).chips, ["Apodizing"]);
 });
 
 test("test_a_filter_absent_from_the_facet_map_tips_empty_rows_and_chips", async () => {
   await reset();
-  const tip = tipsFor(schema.pcm_filter_1x, FILTER_META);
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   const content = tip({ value: "9", label: "made-up" });
   assert.deepEqual([content.rows, content.chips], [[], []]);
 });
@@ -297,19 +315,19 @@ test("test_a_filter_absent_from_the_facet_map_tips_empty_rows_and_chips", async 
 
 test("test_a_dither_option_tip_is_prose_only", async () => {
   await reset();
-  const tip = tipsFor(schema.pcm_dither, SHAPER_META);
+  const tip = resolver(schema.pcm_dither, SHAPER_META);
   assert.deepEqual(tip({ value: "0", label: "TPDF" }), { text: "Triangular dither.", rows: [], chips: [] });
 });
 
 test("test_a_modulator_option_tip_is_prose_only", async () => {
   await reset();
-  const tip = tipsFor(schema.sdm_modulator, SHAPER_META);
+  const tip = resolver(schema.sdm_modulator, SHAPER_META);
   assert.deepEqual(tip({ value: "0", label: "ASDM7" }), { text: "Seventh order modulator.", rows: [], chips: [] });
 });
 
 test("test_a_config_desc_option_tip_is_prose_only", async () => {
   await reset();
-  const tip = tipsFor(schema.sdm_integrator, INTEGRATOR_META);
+  const tip = resolver(schema.sdm_integrator, INTEGRATOR_META);
   assert.deepEqual(tip({ value: "1", label: "Slow" }), { text: "Slow integrator.", rows: [], chips: [] });
 });
 
