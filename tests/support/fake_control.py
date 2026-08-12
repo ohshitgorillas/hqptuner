@@ -147,6 +147,22 @@ _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4"
 _SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
 
 
+def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
+    """Move the fake's State to what a daemon reports after a restore's
+    self-restart: it comes back up running the restored config file
+    (docs/architecture.md §1 lane 2). The file speaks ``pcm``/``sdm`` and enum
+    IDs; State speaks the mode index and list indices resolved against the
+    chain the restart loaded (protocol.md §4 — the domains never mix), so the
+    restored shaper is the loaded chain's dither or modulator looked up on that
+    chain's own enumeration."""
+    state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
+    sdm = state["mode"] == "2"
+    enum_id = modulator if sdm else dither
+    for index, _name, value in _SDM_SHAPERS if sdm else _PCM_SHAPERS:
+        if value == enum_id:
+            state["shaper"] = index
+
+
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
     return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
 

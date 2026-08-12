@@ -26,7 +26,7 @@ from typing import Any
 import fake_http
 import pytest
 from conftest import spawn_threaded_daemon, wait_for_api
-from fake_control import CommandLog
+from fake_control import DEFAULTS, CommandLog, restart_into
 from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
@@ -40,16 +40,32 @@ def control_log() -> CommandLog:
 
 
 @pytest.fixture
-def control_port(control_log: CommandLog) -> Iterator[int]:
-    yield from spawn_threaded_daemon(log=control_log)
+def control_state() -> dict[str, str]:
+    """The control fake's live State, shared across its connections — the
+    handle a restore's self-restart moves (see ``pcm_file_daemon``)."""
+    return dict(DEFAULTS)
 
 
 @pytest.fixture
-def pcm_file_daemon() -> Iterator[dict[str, Any]]:
+def control_port(control_log: CommandLog, control_state: dict[str, str]) -> Iterator[int]:
+    yield from spawn_threaded_daemon(state=control_state, log=control_log)
+
+
+@pytest.fixture
+def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     """The 8088 fake with a config file that agrees with the loaded PCM chain:
     dither enum "0" so a staged "5" is a real change, and a modulator the fake's
-    SDM shaper list actually offers (enum "0" = ASDM5)."""
-    yield from fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
+    SDM shaper list actually offers (enum "0" = ASDM5).
+
+    An adopted restore self-restarts the daemon (docs/architecture.md §1 lane
+    2), after which the Control API's State reflects the restored config file —
+    so the ``_on_restore`` hook moves the control fake's State to the config
+    the 8088 fake just adopted, the way one real daemon would."""
+    server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
+    daemon = next(server)
+    daemon["_on_restore"] = lambda: restart_into(control_state, daemon["mode"], daemon["dither"], daemon["modulator"])
+    yield daemon
+    next(server, None)
 
 
 def _config_loaded(client: TestClient) -> bool:
@@ -68,6 +84,10 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         hqp_username="u",
         hqp_password="p",
         alarm_threshold=1.0,
+        # the restore's self-restart is only visible to the manager on its next
+        # State poll (the fake cannot sever the 4321 socket the way a real
+        # restart does), so the poll runs at test pace rather than production's
+        poll_interval=0.02,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
@@ -142,7 +162,12 @@ def test_the_shared_restore_carries_the_restart_field_too(client: TestClient, pc
 
 
 def test_the_config_file_view_reports_the_restored_dither(client: TestClient) -> None:
+    # the restore self-restarted the daemon, whose State now reports the
+    # restored file (shaper index "1" = enum "5" on the PCM list); once the
+    # manager's poll has caught up with the restarted engine, the file view's
+    # live overlay must agree with the file instead of shadowing it
     _apply_staged(client, {"dither": "5", "title": "Renamed"})
+    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["shaper"] == "1")
     assert client.get("/api/config").json()["data"]["file"]["dither"] == "5"
 
 
