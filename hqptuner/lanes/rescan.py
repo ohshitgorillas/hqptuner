@@ -3,7 +3,7 @@
 hqplayerd's ``GET /config/refresh`` stops the engine to re-scan its outputs, and
 the engine comes back on the config file — which never learned a live-routed
 setting, because a live setting is applied over 4321 and written nowhere
-(``liveoverrides.LIVE_DOMAIN``). Every OTHER daemon reload survives that, since a
+(``livesnapshot``). Every OTHER daemon reload survives that, since a
 restore-shaped write folds the active preset's stored values into the XML it
 pushes (``presetfields.stored_live_fields``); a rescan writes no config at all,
 so nothing carries them and the user's filters, mode and rate pin are gone.
@@ -28,7 +28,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import livelane, livemap, liveoverrides, settle
+from hqptuner.lanes import livelane, livemap, livesnapshot, settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -41,26 +41,24 @@ NO_DAEMON = "The engine did not come back after the rescan — your live setting
 WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 
 
-def _live_writable(overrides: dict[str, str]) -> dict[str, str]:
-    """Keep the overrides a live setter can actually write.
-
-    ``live_overrides`` answers in config-file terms, which includes the per-family
-    rate LIMITS (``defaults_samplerate`` / ``defaults_bitrate``). Those are a
-    ceiling the config carries, not the target rate ``SetRate`` writes
-    (``livemap``), so they cannot be replayed as live writes.
-    """
-    return {name: value for name, value in overrides.items() if name in livemap.ROUTABLE or name in livemap.DIRECT}
-
-
 def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     """Read the live settings a rescan is about to cost, in live-write terms.
 
+    ``livesnapshot`` is the reader, the same one a live preset is taken with: its
+    field set is every setting the live lane can write — the chains' filters and
+    shapers, output mode, adaptive volume, and the two that exist ONLY on the
+    engine, the rate pin and the junk filter. Reading them any other way loses
+    those two, because the config file has no field for either.
+
     Empty when auto-save is off — the flag is the whole gate, and the auto-save
-    toggle cannot be on without an active preset (``store/actions.js``).
+    toggle cannot be on without an active preset (``store/actions.js``) — and
+    empty when the engine cannot say which chain it has loaded, which is
+    ``live_snapshot`` refusing to report a half-taken record rather than an error.
     """
     if not mgr.presetops.store.autosave:
         return {}
-    return _live_writable(liveoverrides.live_overrides(mgr))
+    taken = livesnapshot.live_snapshot(mgr)
+    return {} if taken is None else {field: item["value"] for field, item in taken.items()}
 
 
 def _setting_of(name: str) -> str:
@@ -83,6 +81,37 @@ def _restored(report: list[dict[str, Any]], fields: dict[str, str]) -> dict[str,
 async def _reachable(mgr: ConnectionManager) -> bool:
     """Whether the control lane is answering again."""
     return mgr.reachable and mgr.control is not None
+
+
+async def _reread_engine(mgr: ConnectionManager) -> None:
+    """Re-read State and the enumerations the engine came back on.
+
+    Without this the manager is still holding what it read BEFORE the rescan, and
+    every question the replay asks of it gets a pre-rescan answer — most
+    damagingly ``livelane.mode_already_running``, which then reports the engine
+    as already running the mode it was just dropped from and the mode write is
+    skipped. The lists move too: the engine reverts to the config file's mode, so
+    the filter and shaper enumerations the replay resolves against are the other
+    chain's.
+    """
+    client = mgr.control
+    if client is None:
+        raise ControlError("daemon not connected")
+    mgr.state = await client.get_state()
+    mgr.enums = await client.get_all_enumerations()
+
+
+def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
+    """Return the snapshot fields the engine is no longer running.
+
+    Read through the same ``livesnapshot`` the snapshot was taken with, so both
+    sides of the comparison speak one domain. Only these are written: a live
+    setter is not free even when it changes nothing — ``SetMode`` clears the rate
+    pin outright and ``SetFilter`` reloads the engine — so re-asserting a setting
+    the rescan did not disturb would cost the user something for no gain.
+    """
+    after = livesnapshot.live_snapshot(mgr) or {}
+    return {field: value for field, value in fields.items() if (after.get(field) or {}).get("value") != value}
 
 
 def _lost(mgr: ConnectionManager, fields: dict[str, str], restored: dict[str, str], held: dict[str, str]) -> set[str]:
@@ -127,13 +156,17 @@ async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, An
         log.warning("device rescan: daemon never came back, live settings not restored")
         return {"restored": {}, "warning": NO_DAEMON}
     try:
-        report = await livelane.apply_preset(mgr, fields)
+        await _reread_engine(mgr)
+        moved = _moved(mgr, fields)
+        if not moved:
+            return {"restored": {}}
+        report = await livelane.apply_preset(mgr, moved)
     except (ControlError, livemap.LiveRouteError) as exc:
         log.warning("device rescan: restoring live settings failed: %s", exc)
         return {"restored": {}, "warning": WRITE_FAILED}
-    restored = _restored(report["live"], fields)
+    restored = _restored(report["live"], moved)
     result: dict[str, Any] = {"restored": restored}
-    lost = _lost(mgr, fields, restored, report["stored"])
+    lost = _lost(mgr, moved, restored, report["stored"])
     if lost:
         log.warning("device rescan: live settings not put back: %s", ", ".join(sorted(lost)))
         result["warning"] = WRITE_FAILED
