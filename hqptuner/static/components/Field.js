@@ -67,12 +67,14 @@ export const widgetFor = (/** @type {FieldEntry} */ entry) =>
 /**
  * Builds the combobox's per-row tip resolver for a desc-carrying dropdown;
  * undefined for every native widget. Filter dropdowns carry the facet rows and
- * chips beside the prose; every other desc source ships text alone.
- * @type {(entry: FieldEntry, meta: FieldMeta) => ((o: OptionItem) => TipContent) | undefined}
+ * chips beside the prose; every other desc source ships text alone. The
+ * resolver asks value+label only, so it takes the bare SchemaOption shape —
+ * a schema literal's rows reach the combobox unenriched.
+ * @type {(entry: FieldEntry, meta: FieldMeta) => ((o: SchemaOption) => TipContent) | undefined}
  */
 export const tipsFor = (entry, meta) =>
   tipped(entry)
-    ? (/** @type {OptionItem} */ o) => ({
+    ? (/** @type {SchemaOption} */ o) => ({
         text: optionDescription(entry, o, meta),
         ...(entry.desc === "filter" ? filterTipFacets(o.label) : { rows: [], chips: [] }),
       })
