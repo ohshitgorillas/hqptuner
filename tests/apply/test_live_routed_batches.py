@@ -83,7 +83,8 @@ def _sent(log: CommandLog, name: str) -> list[dict[str, str]]:
 
 def _apply_staged(client: TestClient, fields: dict[str, str]) -> dict[str, Any]:
     client.post("/api/config/stage", json={"http": fields})
-    return client.post("/api/config/apply").json()
+    report: dict[str, Any] = client.post("/api/config/apply").json()
+    return report
 
 
 # --- a batch of nothing but live-capable fields rides the Control API --------
