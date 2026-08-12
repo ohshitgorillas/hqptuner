@@ -16,7 +16,7 @@ import re
 import threading
 import zipfile
 from collections.abc import Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -291,10 +291,37 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    """A daemon fake whose shutdown cannot be held up by a client still holding
+    a connection open.
+
+    A plain `HTTPServer` handles each request INLINE in the accept loop, so a
+    keep-alive connection with no request in flight parks that loop in
+    `socket.readinto` — and `shutdown()`, which waits for the loop to come
+    round, then blocks forever. Real clients keep sockets open: an
+    `HttpConfigClient` whose manager outlives the fixture that served it has one
+    idle-open at teardown, and whether the accept loop is parked in it at that
+    instant is a race. It hung the suite about one run in five.
+
+    A handler thread per connection takes that read off the accept loop.
+    `daemon_threads` keeps a parked handler from outliving the test, and
+    `block_on_close=False` keeps `server_close()` from joining one.
+
+    Handlers now touch `st` concurrently, where before they were serialised.
+    Every route reads it or replaces whole keys, which the GIL makes safe
+    enough; the read-modify-write counters (`_restore_attempts`, `_stale`,
+    `_restore_refusals`) are the exception, and they are only ever driven by the
+    write lane, which issues one request at a time.
+    """
+
+    daemon_threads = True
+    block_on_close = False
+
+
 def spawn(st: dict[str, Any]) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
     state dict with `_port` filled in — tests read and mutate it directly."""
-    server = HTTPServer(("127.0.0.1", 0), _http_handler(st))
+    server = _Server(("127.0.0.1", 0), _http_handler(st))
     # poll_interval is what `shutdown()` waits on, so it is per-test teardown
     # cost: the 0.5 s default charged every fixture half a second for nothing.
     thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
