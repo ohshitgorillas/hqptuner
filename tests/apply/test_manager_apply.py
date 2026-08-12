@@ -159,18 +159,22 @@ async def test_a_mode_equal_to_the_running_mode_is_not_resent(running_manager: C
     assert present(running_manager.state)["rate"] == "1"
 
 
-async def test_a_mode_batch_with_a_leftover_field_still_routes_the_mode_live(
+# A leftover field means the restore lane's restart is happening regardless, and
+# that restart boots the daemon from its config file — a value applied live never
+# reaches that file, so routing any of the batch live would revert it moments
+# later. The whole batch rides the restore instead.
+async def test_a_mode_batch_with_a_leftover_field_keeps_the_mode_off_the_live_lane(
     running_manager: ConnectionManager,
 ) -> None:
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert next((r["ok"] for r in report["live"] if r["setting"] == "mode"), False) is True
+    assert all(r["setting"] != "mode" for r in report["live"])
 
 
-async def test_a_mode_batch_with_a_leftover_field_still_routes_the_chain_field_live(
+async def test_a_mode_batch_with_a_leftover_field_keeps_the_chain_field_off_the_live_lane(
     running_manager: ConnectionManager,
 ) -> None:
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert next((r["ok"] for r in report["live"] if r["setting"] == "shaper"), False) is True
+    assert all(r["setting"] != "shaper" for r in report["live"])
 
 
 async def test_the_leftover_field_rides_the_persistent_lane(running_manager: ConnectionManager) -> None:
