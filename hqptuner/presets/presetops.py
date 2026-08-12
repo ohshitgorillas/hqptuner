@@ -89,6 +89,31 @@ class PresetOps:
                 results[preset] = str(exc)
         return results
 
+    def backfill_profiles(self) -> dict[str, str]:
+        """Backfill every stored preset's chain-less profiles from that preset's own live matrix.
+
+        The applied config gets this in ``presetconf.apply_edits``; a stored
+        preset is a config the daemon has not read yet, carrying its own copies
+        of the same profiles, so without this the bug comes back the next time
+        the preset is loaded.
+
+        Each preset is filled from ITS OWN ``<matrix>`` — a speaker preset must
+        never inherit a headphone preset's chain. Returns {preset: "ok" | error
+        text}, carrying only the presets actually written; a preset that needed
+        no change is absent, and one bad preset never blocks another.
+        """
+        results: dict[str, str] = {}
+        for preset in self.store.names():
+            try:
+                xml = self.store.read(preset)
+                filled = matrixconf.backfill_profile_chains(xml)
+                if filled != xml:
+                    self.store.save(preset, filled, trigger="backfill")
+                    results[preset] = "ok"
+            except (PresetError, xmledit.GroundingError, OSError) as exc:
+                results[preset] = str(exc)
+        return results
+
     def preset_profiles(self) -> dict[str, list[str]]:
         """Each stored preset's saved matrix-profile names, sorted.
 

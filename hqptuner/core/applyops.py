@@ -85,6 +85,15 @@ class ApplyOps:
             # profile verbs staged with fan-out targets also land in those
             # stored preset files — after the restore, so a refused apply
             # fans out nothing (presetops.fanout_profiles)
+            # the applied config was backfilled inside apply_edits; the stored
+            # presets carry their own copies of the same profiles and are filled
+            # from their own matrices here (presetops.backfill_profiles).
+            # BEFORE the fan-out below: backfill is a migration of profiles
+            # saved earlier, and the user's own save is the write that should
+            # land last on any preset both of them touch.
+            backfilled = mgr.presetops.backfill_profiles()
+            if backfilled:
+                persistent["profile_backfill"] = backfilled
             fanout = mgr.presetops.fanout_profiles(http_fields)
             if fanout:
                 persistent["profile_fanout"] = fanout

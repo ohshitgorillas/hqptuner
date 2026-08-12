@@ -46,6 +46,7 @@ from hqptuner.conf.matrixconf import (
     MATRIX_PROFILE_SAVE,
     MATRIX_PROFILES,
     PLUGIN_MAP,
+    backfill_profile_chains,
     delete_profile,
     materialize_profile,
     parse_delete,
@@ -267,6 +268,12 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
     staged edits then land on that matrix like any other.
     """
     remaining = dict(edits)
+    # FIRST, ahead of the materialize below: a profile saved before HQPTuner
+    # stored a chain carries none, and materializing that one would install an
+    # empty chain over the live matrix before there was anything left to copy
+    # from. Backfilling first gives it the chain the user is running, which
+    # materialize then puts back where it came from.
+    xml = backfill_profile_chains(xml)
     adopt = _profile_to_materialize(edits, profile)
     if adopt:
         xml = materialize_profile(xml, adopt)

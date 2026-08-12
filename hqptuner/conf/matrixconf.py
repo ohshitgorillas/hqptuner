@@ -440,6 +440,43 @@ def _post_of(body: bytes) -> dict[str, str]:
     return out
 
 
+_PROFILE_ELEMENT_RE = re.compile(rb"<matrix_profile\b[^>]*>.*?</matrix_profile>", re.DOTALL)
+
+
+def _with_chain(element: bytes, post: bytes) -> bytes:
+    """One profile element carrying ``post``, or itself unchanged when it already carries a chain.
+
+    A profile that has one is the user's saved choice and never overwritten; the
+    chain goes in ahead of the closing tag, indented like the rows it joins.
+    """
+    if b"<post_process" in element:
+        return element
+    close = element.rfind(b"</matrix_profile>")
+    indent_m = re.search(rb"\n([ \t]*)<pipeline\b", element)
+    lead = b"\n" + indent_m.group(1) if indent_m is not None else b"\n\t\t\t\t"
+    return element[:close] + lead + post + element[close:]
+
+
+def backfill_profile_chains(xml: bytes) -> bytes:
+    """Give every saved profile carrying no ``<post_process>`` a verbatim copy of the live ``<matrix>``'s chain.
+
+    A live switch installs a profile's whole matrix context, and one carrying no
+    chain installs an EMPTY chain — crossfeed / DAC correction / loudness all
+    drop in the running engine (measured, matrix-spec.md "Probe findings — form
+    lane, checkbox encoding and the live lane"). Every profile saved before
+    HQPTuner stored a chain is in that state; filling them from the matrix the
+    user is running makes them behave like the ones saved since.
+
+    A snapshot whose live ``<matrix>`` carries no chain comes back unchanged.
+    Verbatim, for the same reason ``write_profile`` copies verbatim — the plugin
+    attributes HQPTuner does not map are still the user's settings.
+    """
+    post = _live_post_process(xml)
+    if not post:
+        return xml
+    return _PROFILE_ELEMENT_RE.sub(lambda m: _with_chain(m.group(0), post), xml)
+
+
 def read_profiles(xml: bytes) -> str:
     """Every saved profile in the snapshot as canonical JSON.
 
