@@ -54,10 +54,12 @@ const INTEGRATOR_META = META.settings.dsp.sdm_integrator;
 // --- fixtures -----------------------------------------------------------------
 
 /**
- * One `<FiltersItem/>` as the enumeration serves it — all-string attributes,
- * `arg` the flags bitfield (bit 0 = apodizing, bit 1 = half-apodizing;
- * protocol.md:226). The backend derives `apodizing` from bit 0, so the two
- * always agree.
+ * One `<FiltersItem/>` as the enumeration serves it — all-string attributes
+ * (every daemon attribute arrives as a string), `arg` the flags bitfield
+ * (bit 0 = apodizing, bit 1 = half-apodizing; protocol.md:226). The
+ * pre-derived `apodizing` boolean is the backend-merged shape the frontend
+ * receives: the backend adds it from bit 0 during the overlay merge, so the
+ * two always agree.
  *
  * @param {string} name
  * @param {string} description
@@ -68,7 +70,7 @@ const item = (name, description, index, arg = 0) => ({
   index: String(index),
   name,
   value: String(index),
-  arg,
+  arg: String(arg),
   description,
   apodizing: Boolean(arg & 1),
 });
@@ -141,6 +143,33 @@ test("test_an_xla_suffixed_name_renders_an_extra_long_length_row", () => {
   assert.deepEqual(row("poly-sinc-ext2-xla", "Length"), ["Length", "Extra long"]);
 });
 
+test("test_a_minimum_phase_name_token_renders_a_minimum_phase_row", () => {
+  seed([{ name: "poly-sinc-mp", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("poly-sinc-mp", "Phase"), ["Phase", "Minimum"]);
+});
+
+test("test_an_intermediate_phase_name_token_renders_an_intermediate_phase_row", () => {
+  seed([{ name: "poly-sinc-ip", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("poly-sinc-ip", "Phase"), ["Phase", "Intermediate"]);
+});
+
+test("test_a_long_name_substring_renders_a_long_length_row", () => {
+  seed([{ name: "poly-sinc-gauss-long", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("poly-sinc-gauss-long", "Length"), ["Length", "Long"]);
+});
+
+test("test_an_xl_suffixed_name_renders_an_extra_long_length_row", () => {
+  seed([{ name: "poly-sinc-ext3-xl", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("poly-sinc-ext3-xl", "Length"), ["Length", "Extra long"]);
+});
+
+// sinc-M carries no length token at all: its xlong class comes from the fixed
+// per-name override table.
+test("test_an_override_table_name_renders_its_extra_long_length_row", () => {
+  seed([{ name: "sinc-M", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("sinc-M", "Length"), ["Length", "Extra long"]);
+});
+
 test("test_an_any_genre_filter_renders_all_genres", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }], { "gauss-plain": { genre: ["any"] } });
   assert.deepEqual(row("gauss-plain", "Genre"), ["Genre", "All genres"]);
@@ -201,12 +230,32 @@ test("test_a_filter_without_ratio_renders_no_ratio_row", () => {
 // filterTipFacets — mode-split ratio
 // ============================================================================
 
+// The two sides differ on purpose: equal values would pass under a PCM/SDM swap.
 test("test_a_mode_split_ratio_renders_one_pcm_and_sdm_valued_ratio_row", () => {
-  seed([], { "closed-form": { ratio_pcm: "integer", ratio_sdm: "integer" } });
+  seed([], { "closed-form": { ratio_pcm: "integer", ratio_sdm: "2x" } });
   assert.deepEqual(
     filterTipFacets("closed-form").rows.filter((r) => r[0] === "Ratio"),
-    [["Ratio", "PCM Integer · SDM Integer"]],
+    [["Ratio", "PCM Integer · SDM 2x"]],
   );
+});
+
+// ============================================================================
+// filterTipFacets — an "any" ratio renders its label, never the raw token
+// ============================================================================
+
+test("test_a_live_any_ratio_renders_the_any_label", () => {
+  seed([{ name: "rat-any", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("rat-any", "Ratio"), ["Ratio", "Any"]);
+});
+
+test("test_a_static_any_ratio_renders_the_any_label", () => {
+  seed([], { "closed-form": { ratio: "any" } });
+  assert.deepEqual(row("closed-form", "Ratio"), ["Ratio", "Any"]);
+});
+
+test("test_a_mode_split_any_side_renders_the_any_label", () => {
+  seed([], { "closed-form": { ratio_pcm: "any", ratio_sdm: "2x" } });
+  assert.deepEqual(row("closed-form", "Ratio"), ["Ratio", "PCM Any · SDM 2x"]);
 });
 
 // ============================================================================
@@ -260,6 +309,25 @@ test("test_live_focus_outranks_a_conflicting_overlay_focus", () => {
 });
 
 // ============================================================================
+// filterTipFacets — the SDM arrow glyph parses like the PCM one
+// ============================================================================
+
+test("test_an_sdm_arrow_description_parses_its_quality", () => {
+  seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
+  assert.deepEqual(row("sdm-a", "Quality"), ["Quality", "3/5"]);
+});
+
+test("test_an_sdm_arrow_description_parses_its_focus", () => {
+  seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
+  assert.match(String((row("sdm-a", "Focus") || [])[1]), /space/i);
+});
+
+test("test_an_sdm_arrow_description_parses_its_ratio", () => {
+  seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
+  assert.deepEqual(row("sdm-a", "Ratio"), ["Ratio", "Integer"]);
+});
+
+// ============================================================================
 // tipsFor — the filter tip's text is today's manual prose
 // ============================================================================
 
@@ -307,6 +375,15 @@ test("test_a_filter_absent_from_the_facet_map_tips_empty_rows_and_chips", async 
   const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   const content = tip({ value: "9", label: "made-up" });
   assert.deepEqual([content.rows, content.chips], [[], []]);
+});
+
+// The facet map (a live enum naming other filters only) leaves sinc-S's manual
+// prose untouched.
+test("test_a_filter_absent_from_the_facet_map_keeps_its_manual_prose_text", async () => {
+  await reset();
+  enums.value = { filters: [item("gauss-plain", "4/5 ⥮ Any", 0)] };
+  const tip = resolver(schema.pcm_filter_1x, FILTER_META);
+  assert.equal(tip({ value: "1", label: "sinc-S" }).text, "A short sinc. Not recommended.");
 });
 
 // ============================================================================
