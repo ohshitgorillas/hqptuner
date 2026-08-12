@@ -9,6 +9,7 @@ bounds how much coverage the wire ever carried)."""
 
 import asyncio
 import contextlib
+import socket
 import struct
 import threading
 from collections.abc import Iterator, Sequence
@@ -43,7 +44,11 @@ class MeteringStream:
     real event on this side of the wire: ``accepts`` counts every client the
     listener has ever taken, ``connected`` how many are attached right now. A
     peer's close arrives as EOF on the read half, exactly as the real daemon
-    sees it."""
+    sees it.
+
+    A stream can break either way a real one does: `close` hangs up cleanly, so
+    the client reads EOF, while `crash` resets the connection, so the client's
+    next read raises instead."""
 
     def __init__(self, repeat: bytes | None = None, interval: float = 0.0) -> None:
         self._repeat = repeat
@@ -53,6 +58,7 @@ class MeteringStream:
         self._flushed.set()
         self._server: asyncio.Server | None = None
         self._handlers: set[asyncio.Task[None]] = set()
+        self._peers: set[asyncio.StreamWriter] = set()
         self._accepts = 0
         self._connected = 0
 
@@ -103,6 +109,7 @@ class MeteringStream:
         if task is None:  # pragma: no cover — handlers always run as tasks
             return
         self._handlers.add(task)
+        self._peers.add(writer)
         self._accepts += 1
         self._connected += 1
         pump = asyncio.create_task(self._pump(writer))
@@ -114,11 +121,26 @@ class MeteringStream:
         finally:
             self._connected -= 1
             self._handlers.discard(task)
+            self._peers.discard(writer)
             writer.close()
             pump.cancel()
             hangup.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await asyncio.gather(pump, hangup, return_exceptions=True)
+
+    async def crash(self) -> None:
+        """Break every live connection with a TCP reset and stop listening — a
+        daemon whose process dies mid-stream.
+
+        The difference from `close` is what the client's pending read does:
+        after a reset it raises (ECONNRESET), where a clean hang-up returns
+        EOF. `SO_LINGER` with a zero timeout is what turns the close into a
+        reset rather than a FIN."""
+        for writer in list(self._peers):
+            peer = writer.get_extra_info("socket")
+            if peer is not None:
+                peer.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+        await self.close()
 
     async def close(self) -> None:
         for task in list(self._handlers):

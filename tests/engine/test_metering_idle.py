@@ -9,15 +9,20 @@ than asked of the reader.
 
 The idle loop's pacing is read through the reader's injected ``sleep`` seam
 (docs/testing.md §7): an idle pass is one recorded sleep, never a wall-clock
-wait.
+wait. Where a case has to let a stretch of reader life go by before it can
+assert, it waits on further recorded sleeps, never on the thing it is about to
+assert.
 
-The config cases build a `Config` under a patched environment, and the app
-cases run the whole REST app on a threaded fake control daemon that reports a
-playing 96 kHz PCM track plus a threaded fake 4322 stream, so "nothing ever
-connects" is the listener's own accept count."""
+The config cases build a `Config` under a patched environment. The app cases
+run the whole REST app on a threaded fake control daemon that reports a playing
+96 kHz PCM track plus a threaded fake 4322 stream, so "nothing ever connects"
+is the listener's own accept count; the metering-off cases run their app
+alongside a metering-on one and take that one's first accept as the gate, so
+the silent app is always given at least as much of its own loop as the dialling
+app needed."""
 
 import asyncio
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -37,6 +42,12 @@ PAUSED = replace(PLAYING, playing=False)
 METADATA_96K_PCM = '<metadata samplerate="96000" sdm="0"/>'
 
 
+def _cell(context: metering.TrackContext | None) -> list[metering.TrackContext | None]:
+    """The one-slot window the reader reads its context out of; a test moves the
+    engine by writing to it."""
+    return [context]
+
+
 def _recorder() -> tuple[list[float], Callable[[float], Any]]:
     """An injected sleep that pays its waits in recorded seconds, not real ones."""
     sleeps: list[float] = []
@@ -46,6 +57,12 @@ def _recorder() -> tuple[list[float], Callable[[float], Any]]:
         await asyncio.sleep(0)
 
     return sleeps, sleep
+
+
+async def _passes(sleeps: list[float], count: int) -> None:
+    """Let ``count`` further reader passes go by, counted on the sleep seam."""
+    mark = len(sleeps)
+    await eventually(lambda: len(sleeps) >= mark + count)
 
 
 async def _earn_20k(stream: MeteringStream, reader: Any) -> None:
@@ -64,7 +81,7 @@ async def test_a_playing_engine_keeps_a_client_on_the_metering_port(
     metering_stream: Callable[..., Any],
 ) -> None:
     stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[metering.TrackContext | None] = [PLAYING]
+    cell = _cell(PLAYING)
     async with running_reader(port, cell):
         await eventually(lambda: stream.accepts >= 1)
         assert stream.connected == 1
@@ -74,46 +91,63 @@ async def test_a_not_playing_engine_leaves_no_client_on_the_metering_port(
     metering_stream: Callable[..., Any],
 ) -> None:
     stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[metering.TrackContext | None] = [PLAYING]
+    cell = _cell(PLAYING)
     _sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep):
         await eventually(lambda: stream.connected == 1)
         cell[0] = PAUSED
         await eventually(lambda: stream.connected == 0)
-        assert stream.connected == 0
+        # the wait above only caught a moment with nobody attached; the accept
+        # count says the reader let go for good rather than thrashing the port
+        assert stream.accepts == 1
 
 
 async def test_an_idle_reader_opens_no_new_connection(metering_stream: Callable[..., Any]) -> None:
     stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[metering.TrackContext | None] = [PAUSED]
+    cell = _cell(PAUSED)
     sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep):
         await eventually(lambda: len(sleeps) >= 5)  # five idle re-checks gone by
         assert stream.accepts == 0
 
 
-async def test_an_idle_reader_waits_the_idle_recheck_between_context_checks(
+async def test_no_new_client_connects_after_the_idle_close(metering_stream: Callable[..., Any]) -> None:
+    stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
+    cell = _cell(PLAYING)
+    sleeps, sleep = _recorder()
+    async with running_reader(port, cell, sleep=sleep):
+        await eventually(lambda: stream.connected == 1)
+        cell[0] = PAUSED
+        await eventually(lambda: stream.connected == 0)
+        at_close = stream.accepts
+        await _passes(sleeps, 5)  # five idle re-checks after the close
+        assert stream.accepts == at_close
+
+
+async def test_an_idle_reader_pays_a_wait_between_context_checks(
     metering_stream: Callable[..., Any],
 ) -> None:
     _stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[metering.TrackContext | None] = [PAUSED]
+    cell = _cell(PAUSED)
     sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep):
         await eventually(lambda: len(sleeps) >= 3)
-        assert metering.IDLE_RECHECK in sleeps
+        # every idle pass is paid for: an idle reader waits between context
+        # checks rather than spinning on them
+        assert min(sleeps) > 0
 
 
 async def test_an_unreachable_manager_leaves_no_client_on_the_metering_port(
     metering_stream: Callable[..., Any],
 ) -> None:
     stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[metering.TrackContext | None] = [PLAYING]
+    cell = _cell(PLAYING)
     _sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep):
         await eventually(lambda: stream.connected == 1)
         cell[0] = None  # the manager lost the daemon
         await eventually(lambda: stream.connected == 0)
-        assert stream.connected == 0
+        assert stream.accepts == 1  # let go for good, not redialled
 
 
 # --- pausing and resuming inside one track ----------------------------------
@@ -123,22 +157,23 @@ async def test_resuming_the_same_track_reconnects_to_the_metering_port(
     metering_stream: Callable[..., Any],
 ) -> None:
     stream, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
-    cell: list[metering.TrackContext | None] = [PLAYING]
+    cell = _cell(PLAYING)
     _sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep):
         await eventually(lambda: stream.connected == 1)
         cell[0] = PAUSED
         await eventually(lambda: stream.connected == 0)
+        before = stream.accepts
         cell[0] = PLAYING
         await eventually(lambda: stream.connected == 1)
-        assert stream.accepts >= 2
+        assert stream.accepts == before + 1  # one fresh dial, not a redial storm
 
 
 async def test_the_idle_close_keeps_the_verdict_earned_before_the_pause(
     metering_stream: Callable[..., Any],
 ) -> None:
     stream, port = await metering_stream()
-    cell: list[metering.TrackContext | None] = [PLAYING]
+    cell = _cell(PLAYING)
     _sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep) as (reader, _task):
         await _earn_20k(stream, reader)
@@ -150,23 +185,37 @@ async def test_the_idle_close_keeps_the_verdict_earned_before_the_pause(
         assert verdict is not None and verdict["filter"] == "20k"
 
 
-async def test_a_stream_that_breaks_while_playing_still_discards_the_verdict(
+async def test_a_stream_that_ends_while_playing_discards_the_verdict(
     metering_stream: Callable[..., Any],
 ) -> None:
     stream, port = await metering_stream()
-    cell: list[metering.TrackContext | None] = [PLAYING]
-    _sleeps, sleep = _recorder()
+    cell = _cell(PLAYING)
+    sleeps, sleep = _recorder()
     async with running_reader(port, cell, sleep=sleep) as (reader, _task):
         await _earn_20k(stream, reader)
-        await stream.close()  # not the idle gate: the connection broke
-        await eventually(lambda: reader.recommendation() is None)
+        await stream.close()  # not the idle gate: the daemon hung up, EOF
+        await _passes(sleeps, 3)  # the reader has been round its retry a few times
+        assert reader.recommendation() is None
+
+
+async def test_a_stream_that_errors_while_playing_discards_the_verdict(
+    metering_stream: Callable[..., Any],
+) -> None:
+    stream, port = await metering_stream()
+    cell = _cell(PLAYING)
+    sleeps, sleep = _recorder()
+    async with running_reader(port, cell, sleep=sleep) as (reader, _task):
+        await _earn_20k(stream, reader)
+        await stream.crash()  # the connection broke under the reader: a read error
+        await _passes(sleeps, 3)
         assert reader.recommendation() is None
 
 
 # --- the config switch ------------------------------------------------------
 
 
-def test_metering_is_enabled_by_default() -> None:
+def test_metering_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HQPTUNER_METERING_ENABLED", raising=False)
     assert Config().metering_enabled is True
 
 
@@ -178,13 +227,23 @@ def test_a_falsey_env_value_disables_metering(monkeypatch: pytest.MonkeyPatch, v
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])
 def test_a_truthy_env_value_leaves_metering_enabled(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.delenv("HQPTUNER_METERING_ENABLED", raising=False)
     monkeypatch.setenv("HQPTUNER_METERING_ENABLED", value)
     assert Config().metering_enabled is True
 
 
-# --- the whole app with metering switched off -------------------------------
+# --- the whole app, metering on and off -------------------------------------
 
 AppOnStream = tuple[TestClient, MeteringStream]
+
+#: The app is ready within a handful of requests (observed: 1-4), so this bound
+#: only turns a hang into a loud failure.
+READY_PASSES = 200
+
+#: A metering-enabled app takes ≈ 2,000-2,500 further requests' worth of its own
+#: loop before its first dial on this host. The budget is several times that,
+#: and is only ever paid in full by a case whose gate never arms.
+LOOP_PASSES = 20_000
 
 
 def _app_on_stream(tmp_path: Path, *, metering_enabled: bool) -> Iterator[AppOnStream]:
@@ -221,6 +280,25 @@ def _loaded(client: TestClient) -> bool:
     return client.get("/api/status").json().get("data") is not None
 
 
+def _junk(client: TestClient) -> Any:
+    return (client.get("/api/status").json().get("data") or {}).get("junk")
+
+
+def _pumped(clients: Sequence[TestClient], gate: Callable[[], bool]) -> bool:
+    """Run the apps' own loops forward with real requests until ``gate`` holds,
+    reporting whether it ever did within the budget.
+
+    Requests are the only thing that advances a `TestClient` app's loop from a
+    sync test body, so a pass here is a pass of the app under test — and never
+    a wall-clock sleep (docs/testing.md §7)."""
+    for _ in range(LOOP_PASSES):
+        if gate():
+            return True
+        for client in clients:
+            client.get("/api/health")
+    return gate()
+
+
 @pytest.fixture
 def metering_off_app(tmp_path: Path) -> Iterator[AppOnStream]:
     yield from _app_on_stream(tmp_path, metering_enabled=False)
@@ -233,26 +311,41 @@ def metering_on_app(tmp_path: Path) -> Iterator[AppOnStream]:
 
 def test_a_metering_enabled_app_connects_to_the_metering_port(metering_on_app: AppOnStream) -> None:
     client, listener = metering_on_app
-    # the predicate must keep making requests: wait_for_api advances the app's
-    # own loop between tries, and a check that never calls it spins past the
-    # reader's first idle tick in microseconds
-    wait_for_api(client, lambda c: _loaded(c) and listener.accepts >= 1)
+    wait_for_api(client, _loaded, tries=READY_PASSES)
+    _pumped([client], lambda: listener.accepts >= 1)
     assert listener.accepts >= 1
 
 
-def test_a_metering_disabled_app_never_connects_to_the_metering_port(metering_off_app: AppOnStream) -> None:
-    client, listener = metering_off_app
-    wait_for_api(client, _loaded)
-    assert listener.accepts == 0
+def test_a_metering_enabled_app_serves_a_junk_recommendation(metering_on_app: AppOnStream) -> None:
+    # the counterpart of the metering-off case below: a null verdict there has
+    # to mean "switched off", not "this app never advises anything"
+    client, _listener = metering_on_app
+    wait_for_api(client, _loaded, tries=READY_PASSES)
+    _pumped([client], lambda: _junk(client) is not None)
+    assert _junk(client) is not None
 
 
-def test_a_metering_disabled_app_still_answers_status(metering_off_app: AppOnStream) -> None:
-    client, _listener = metering_off_app
-    wait_for_api(client, _loaded)
-    assert client.get("/api/status").status_code == 200
+def test_a_metering_disabled_app_never_connects_to_the_metering_port(
+    metering_off_app: AppOnStream, metering_on_app: AppOnStream
+) -> None:
+    off_client, off_listener = metering_off_app
+    on_client, on_listener = metering_on_app
+    wait_for_api(off_client, _loaded, tries=READY_PASSES)
+    wait_for_api(on_client, _loaded, tries=READY_PASSES)
+    # the gate: an identical app with metering on has by now dialled, so the
+    # silent one has had at least as much of its own loop as a dial takes
+    if not _pumped([off_client, on_client], lambda: on_listener.accepts >= 1):
+        pytest.fail("the metering-enabled app never dialled: this case's gate never armed")
+    assert off_listener.accepts == 0
 
 
-def test_a_metering_disabled_app_serves_a_null_junk_recommendation(metering_off_app: AppOnStream) -> None:
-    client, _listener = metering_off_app
-    wait_for_api(client, _loaded)
-    assert client.get("/api/status").json()["data"]["junk"] is None
+def test_a_metering_disabled_app_serves_a_null_junk_recommendation(
+    metering_off_app: AppOnStream, metering_on_app: AppOnStream
+) -> None:
+    off_client, _off_listener = metering_off_app
+    on_client, _on_listener = metering_on_app
+    wait_for_api(off_client, _loaded, tries=READY_PASSES)
+    wait_for_api(on_client, _loaded, tries=READY_PASSES)
+    if not _pumped([off_client, on_client], lambda: _junk(on_client) is not None):
+        pytest.fail("the metering-enabled app never advised: this case's gate never armed")
+    assert _junk(off_client) is None
