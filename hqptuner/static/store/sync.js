@@ -4,6 +4,7 @@
 
 import { effect } from "@preact/signals";
 import { api } from "../lib/api.js";
+import { lastApply } from "./actions.js";
 import { fastPollMs } from "./ui.js";
 import {
   health,
@@ -81,6 +82,11 @@ async function refreshFast() {
 export async function refreshDevices() {
   const r = await api.refreshDevices();
   await refreshConfig();
+  // Reported here rather than at the button, so every caller surfaces it: a
+  // rescan that lost the user's live settings must say so whoever asked for it.
+  // Left untouched when there is nothing to warn about — the line is still
+  // showing the last apply's result and the user may be reading it.
+  if (r && r.warning) lastApply.value = { ok: false, text: r.warning };
   return r;
 }
 
