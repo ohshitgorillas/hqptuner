@@ -12,9 +12,10 @@
 // is reassigned as a fresh object because writing the same reference does not
 // notify.
 //
-// What is NOT asserted here: that the caption sits BELOW the manual note. SSR
-// order is checkable, but the spec states the caption's presence and its gate,
-// and ordering is the design system's business at hand-back.
+// Where it sits is asserted too: the caption is an addition to the field's
+// prose, so it follows the manual note the field already carries rather than
+// pushing it down the page. Asserting presence alone would be satisfied by a
+// field that renders the caption and no manual note at all.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/field-rescan-caption.test.js
 
@@ -26,6 +27,10 @@ import { config } from "../../../hqptuner/static/store/signals.js";
 
 const CAPTION = "Stops the engine. All live settings except matrix profiles survive.";
 
+// The output-device field's manual prose, as the harness' /api/metadata fixture
+// carries it (settings.output.output_device.tooltip).
+const NOTE = "Device prose.";
+
 /** @param {boolean} autosave */
 async function withAutosave(autosave) {
   await reset();
@@ -35,6 +40,14 @@ async function withAutosave(autosave) {
 test("test_a_rescan_field_carries_the_engine_stop_caption_when_autosave_is_on", async () => {
   await withAutosave(true);
   assert.ok(field("alsa_device").includes(CAPTION));
+});
+
+test("test_a_rescan_fields_engine_stop_caption_follows_its_manual_note", async () => {
+  await withAutosave(true);
+  const out = field("alsa_device");
+  const noteAt = out.indexOf(NOTE);
+  const captionAt = out.indexOf(CAPTION);
+  assert.ok(noteAt >= 0 && captionAt > noteAt, `manual note at ${noteAt}, caption at ${captionAt}`);
 });
 
 test("test_a_rescan_field_carries_no_engine_stop_caption_when_autosave_is_off", async () => {

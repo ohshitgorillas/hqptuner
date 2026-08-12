@@ -22,6 +22,16 @@ from urllib.parse import parse_qs
 
 from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
 
+#: Guards every read-modify-write of a served state dict. Handlers run on their
+#: own threads (see `_Server`), and the read lane mutates state too — the stale
+#: window counts down on `GET /backup/settings.zip` and a rescan rewrites the
+#: endpoint lists on `GET /config/refresh`, while the test thread is assigning
+#: the same keys and another handler may be rendering `/config` off them. One
+#: module-level lock rather than one per server: fakes are per-test and the
+#: sections are three dict operations long, so the contention is not worth the
+#: bookkeeping of threading a lock through every module-level helper.
+_STATE = threading.Lock()
+
 
 def _backup_zip(st: dict[str, Any]) -> bytes:
     xml = cfg_xml(st)
@@ -50,8 +60,10 @@ def _http_render(st: dict[str, Any]) -> str:
     opts = "".join(
         f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
     )
+    with _STATE:  # a rescan on another handler thread may be rewriting the list
+        endpoints = tuple(st["_net_endpoints"])
     dev_opts = "".join(
-        f'<option value="{v}"{" selected" if st["net_device"] == v else ""}>{v}</option>' for v in st["_net_endpoints"]
+        f'<option value="{v}"{" selected" if st["net_device"] == v else ""}>{v}</option>' for v in endpoints
     )
     rows = [
         f'<input type="text" name="title" value="{st["title"]}"/>',
@@ -165,15 +177,21 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
     if path == "/speakers":
         return 200, _speakers_render(st).encode()
     if path == "/backup/settings.zip":
-        if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
-            return 200, _empty_backup_zip()
-        # after a restore the daemon serves the pre-restart archive for a read or
-        # two before catching up — the restart window verify must ride through
-        if st.get("_stale", 0) > 0:
-            st["_stale"] -= 1
-            return 200, st["_pre_backup"]
-        return 200, _backup_zip(st)
+        return 200, _backup_response(st)
     return 404, b""
+
+
+def _backup_response(st: dict[str, Any]) -> bytes:
+    """The archive GET /backup/settings.zip serves right now."""
+    if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
+        return _empty_backup_zip()
+    # after a restore the daemon serves the pre-restart archive for a read or two
+    # before catching up — the restart window verify must ride through
+    with _STATE:  # read lane, but this one counts down: two concurrent reads
+        stale = st.get("_stale", 0) > 0  # must not both take the same ticket
+        if stale:
+            st["_stale"] -= 1
+    return st["_pre_backup"] if stale else _backup_zip(st)
 
 
 def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
@@ -205,9 +223,12 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
 
     ``_restore_attempts`` counts every arrival, refused or not, so a retry loop
     can be tested for how many passes it makes (docs/testing.md rule 7)."""
-    st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
-    if st.get("_restore_refusals", 0) > 0:
-        st["_restore_refusals"] -= 1
+    with _STATE:
+        st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
+        refused = st.get("_restore_refusals", 0) > 0
+        if refused:
+            st["_restore_refusals"] -= 1
+    if refused:
         return 503
     _restore_config(st, content_type, raw)
     return 200
@@ -223,10 +244,13 @@ def _refresh_devices(st: dict[str, Any]) -> None:
     lands on the 4321 daemon, which this fake cannot see: a test that wants it
     hangs its own callable on ``_on_refresh`` and moves the control fake's State
     from there, the way a real rescan would."""
-    for ep in st.get("_hidden_endpoints", []):
-        if ep not in st["_net_endpoints"]:
-            st["_net_endpoints"].append(ep)
-    st["_hidden_endpoints"] = []
+    with _STATE:  # both lists are read-modify-written here, off a handler thread
+        endpoints = list(st["_net_endpoints"])
+        endpoints += [ep for ep in st.get("_hidden_endpoints", []) if ep not in endpoints]
+        st["_net_endpoints"] = endpoints  # a fresh list, so no renderer sees it grow
+        st["_hidden_endpoints"] = []
+    # outside the lock: the callable is the test's own, and it reaches for the
+    # 4321 fake rather than for anything served here
     engine_stops = st.get("_on_refresh")
     if engine_stops is not None:
         engine_stops()
@@ -307,11 +331,14 @@ class _Server(ThreadingHTTPServer):
     `daemon_threads` keeps a parked handler from outliving the test, and
     `block_on_close=False` keeps `server_close()` from joining one.
 
-    Handlers now touch `st` concurrently, where before they were serialised.
-    Every route reads it or replaces whole keys, which the GIL makes safe
-    enough; the read-modify-write counters (`_restore_attempts`, `_stale`,
-    `_restore_refusals`) are the exception, and they are only ever driven by the
-    write lane, which issues one request at a time.
+    Handlers now touch `st` concurrently, where before they were serialised, and
+    the test thread writes the same dict throughout. Neither lane is read-only:
+    `_stale` counts down inside a `GET /backup/settings.zip`, and
+    `GET /config/refresh` rewrites `_net_endpoints` and `_hidden_endpoints`
+    while `/config` may be rendering off them. Every read-modify-write of `st`
+    therefore runs under the module's `_STATE` lock, and the sections under it
+    publish whole replacement values rather than mutating a list in place, so a
+    reader that took the old list keeps a list nothing is appending to.
     """
 
     daemon_threads = True
