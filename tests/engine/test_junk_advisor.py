@@ -209,14 +209,20 @@ async def test_fake_hires_stream_yields_20k_advice(metering_stream: Callable[...
         assert verdict is not None and verdict["filter"] == "20k"
 
 
-async def test_frames_streamed_while_paused_buy_no_coverage(metering_stream: Callable[..., Any]) -> None:
-    stream, port = await metering_stream()
+async def test_a_paused_engine_buys_no_coverage(metering_stream: Callable[..., Any]) -> None:
+    # The daemon streams a damning spectrum to whoever connects, endlessly. A
+    # paused engine still earns nothing from it, because a paused reader is not
+    # on the wire at all (tests/engine/test_metering_idle.py).
+    _, port = await metering_stream(repeat=FAKE_HIRES_FRAME)
+    passes: list[float] = []
+
+    async def idle(seconds: float) -> None:
+        passes.append(seconds)
+        await asyncio.sleep(0)
+
     cell: list[TrackContext | None] = [replace(PLAYING, playing=False)]
-    async with running_reader(port, cell) as (reader, _):
-        stream.send(FAKE_HIRES_FRAME, count=200)  # ≈ 140 s of damning spectrum
-        await asyncio.wait_for(stream.flushed(), 3.0)
-        for _ in range(100):  # let the reader digest the buffered tail
-            await asyncio.sleep(0)
+    async with running_reader(port, cell, sleep=idle) as (reader, _):
+        await eventually(lambda: len(passes) >= 5)  # ≈ 5 re-checks' worth of stream
         assert reader.recommendation() is None
 
 
