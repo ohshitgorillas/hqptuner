@@ -165,6 +165,20 @@ def _applied_chain_fields(report: list[dict[str, Any]], fields: dict[str, str]) 
     }
 
 
+def remember_routed(mgr: ConnectionManager, report: list[dict[str, Any]], fields: dict[str, str]) -> None:
+    """Record a staged apply's live-routed chain fields, the same bookkeeping ``apply_now`` does for LIVE's.
+
+    The staged lane routes chain fields live too (``livemap.split_live``), and a
+    value the record never learns is a value the next chain entry cannot re-assert
+    and the next auto-save on the other chain cannot report — it falls back to the
+    config file's stale copy instead (``liveoverrides.live_overrides``), quietly
+    reverting the setting the user just applied.
+    """
+    chain = livechain.active_chain(mgr)
+    if chain is not None:
+        _remember_chain(mgr, chain, _applied_chain_fields(report, fields))
+
+
 async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[dict[str, Any]]:
     """Put back what LIVE set on the chain the engine has now loaded.
 
@@ -310,8 +324,14 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
     """Return the staged mode value when it cannot ride its batch.
 
     Beside other routable fields, ``SetMode`` swaps the lists they resolve against
-    (``livemap._mode_blocks_batch``), so it has to go first on its own.
+    (``livemap._mode_blocks_batch``), so it has to go first on its own — but only
+    in a batch that can go fully live. One restore-lane field means the restart is
+    happening regardless, and that restart boots the daemon onto its config file,
+    so the mode belongs in that file with the rest of the batch, not on a live
+    setter the restore would immediately overwrite.
     """
+    if any(field not in livemap.ROUTABLE for field in http_fields):
+        return None
     routable = [field for field in http_fields if field in livemap.ROUTABLE]
     return http_fields["mode"] if "mode" in routable and len(routable) > 1 else None
 
@@ -346,4 +366,9 @@ async def mode_then_split(
         return [], edits, remainder
     rest = {field: value for field, value in http_fields.items() if field != "mode"}
     edits, remainder = livemap.split_live(mgr, rest, live_edits)
+    if remainder:
+        # the rest fell back to the restore lane, whose restart boots the daemon
+        # from its config file — the mode just applied live rides along or the
+        # restart reverts it (the file never learned it)
+        remainder = {**remainder, "mode": http_fields["mode"]}
     return report, edits, remainder

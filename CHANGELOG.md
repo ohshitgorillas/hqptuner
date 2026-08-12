@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Dither (and other live-capable settings) no longer quietly revert.** Two holes closed. Applying a live-capable setting together with a restart-required one used to apply it live and then restart the daemon onto a config file that never learned it — the restart snapped it straight back. Such a batch now rides the one restore whole, so the file learns every value it carries; the pending bar's live/restart counts follow the same rule. And a dither or filter applied from the tabs view is now remembered per chain, so switching to the other chain (or letting a DSD track do it) no longer makes auto-save fold the stale file value back into the preset, and returning to the chain re-asserts what you applied.
+
 - **Rescanning devices no longer resets your live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
 
 - **HQPTuner no longer pulls megabytes a second off the daemon while nothing is playing.** The junk-filter advisor reads hqplayerd's metering side channel, and the daemon streams that unconditionally to anyone connected — so the advisor was paying for a few MB/s of spectrum frames around the clock, playing or not. In a plain install the traffic sits on loopback and nothing notices; run HQPTuner in Docker and the same bytes cross the bridge, where they show up as constant network load. The advisor now connects only while the engine is actually playing and disconnects when it stops. Advice is unchanged, including across a pause mid-track.
