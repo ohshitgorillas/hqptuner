@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Rate/shaper warnings no longer fire about the chain your pending settings will not use.** Staging a mode change — on its own, or as part of a preset you picked but have not applied — left the warning judging whichever chain the engine happened to be playing, against the rate and shaper the pending settings carry. Pick an SDM preset while PCM is playing and it would report the preset's PCM dither, which that preset never engages; the reverse produced a red "HQPlayer cannot produce output" about a modulator that was not going to run. The warning now follows the mode the settings will run under. In Auto, where the engine picks the chain per track, it still follows the chain the engine has loaded.
+
 - **Dither (and other live-capable settings) no longer quietly revert.** Two holes closed. Applying a live-capable setting together with a restart-required one used to apply it live and then restart the daemon onto a config file that never learned it — the restart snapped it straight back. Such a batch now rides the one restore whole, so the file learns every value it carries; the pending bar's live/restart counts follow the same rule. And a dither or filter applied from the tabs view is now remembered per chain, so switching to the other chain (or letting a DSD track do it) no longer makes auto-save fold the stale file value back into the preset, and returning to the chain re-asserts what you applied.
 
 - **Rescanning devices no longer resets your live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.

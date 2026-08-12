@@ -132,12 +132,31 @@ function conflict(family) {
   return { sev: f.sev, text: f.text(name, tierLabel(f.rates, rate), floorLabel(f.rates, floor)) };
 }
 
+// Which families to judge — the ones the settings on screen will actually
+// produce output in. The operands already read the pending picture (`effective`
+// covers a staged edit and a previewed preset alike), so the family gate has to
+// as well: gating on the chain the engine has loaded RIGHT NOW while judging the
+// pending rate and shaper mixes two pictures, and reports a conflict in a chain
+// the pending settings never load — a previewed SDM preset judged as PCM because
+// PCM is what is playing, and the reverse.
+//
+// `auto` is the one mode that names no family: there the engine chooses per
+// track from the source and the configured limit (manual §4.4), so the setting
+// has no answer to give and the loaded chain is the only thing that does. With
+// nothing loaded either — auto, stopped — neither has decided, and both families
+// are judged, which is what liveFamily's null has always meant.
+/**
+ * @returns {string[]}
+ */
+function familiesToJudge() {
+  const mode = String(effective("output_mode") ?? "");
+  if (mode === "pcm" || mode === "sdm") return [mode];
+  const live = liveFamily();
+  return live ? [live] : ["sdm", "pcm"];
+}
+
 /**
  * Rate/shaper conflicts as alert-strip rows, empty when the settings are consistent.
  * SDM first — it is the one that stops output.
  */
-export const shaperAlerts = computed(() => {
-  const live = liveFamily();
-  const families = live ? [live] : ["sdm", "pcm"];
-  return families.map(conflict).filter(Boolean);
-});
+export const shaperAlerts = computed(() => familiesToJudge().map(conflict).filter(Boolean));
