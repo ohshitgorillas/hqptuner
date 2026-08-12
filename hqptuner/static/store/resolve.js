@@ -329,12 +329,18 @@ export const hasPending = computed(() => stagedCount.value > 0 || pendingPreset.
 export const split = computed(() => {
   let live = 0;
   let restart = 0;
+  let routable = 0;
   for (const k of dirtyKeys.value) {
-    // lane 'live' goes out over the Control API; so does an http-lane field the
-    // write path routes to a Control API setter (schema appliesLive) — neither
-    // restarts the daemon, so both count as live here.
-    if (schema[k].lane === "live" || schema[k].appliesLive) live += 1;
+    // lane 'live' goes out over the Control API whatever else is staged. An
+    // http-lane field the write path CAN route to a Control API setter (schema
+    // appliesLive) only goes live when the whole staged batch does: one
+    // restart-required field sends the entire batch down the restore lane
+    // (lanes/livemap.split_live), so it restarts with the rest.
+    if (schema[k].lane === "live") live += 1;
+    else if (schema[k].appliesLive) routable += 1;
     else restart += 1;
   }
+  if (restart > 0) restart += routable;
+  else live += routable;
   return { live, restart };
 });

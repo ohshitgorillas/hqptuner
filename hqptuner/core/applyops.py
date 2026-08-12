@@ -60,10 +60,13 @@ class ApplyOps:
         switched: dict[str, Any] | None = None
         if switch_to is not None:
             switched = await presetlane.switch(mgr, switch_to)
-        # Form fields the Control API can set outright route live instead, so a
-        # fully routable batch never restarts — a staged mode goes first as its
-        # own batch (livelane.mode_then_split). Skipped on a LOAD, which reloads
-        # anyway; an unload does not, so its staged edits still split.
+        # A fully routable batch routes live through the Control API and never
+        # restarts — a staged mode goes first as its own batch
+        # (livelane.mode_then_split); one restore-lane field sends the whole
+        # batch to the restore lane instead (livemap.split_live). Skipped on a
+        # LOAD, which reloads anyway; an unload does not, so its staged edits
+        # still split.
+        staged = dict(http_fields)
         live_report: list[dict[str, Any]] = []
         if not switch_to:
             live_report, live_edits, http_fields = await livelane.mode_then_split(mgr, http_fields, live_edits)
@@ -73,6 +76,7 @@ class ApplyOps:
                 raise ControlError("daemon not connected")
             live_report = live_report + await apply_live(client, live_edits, mgr.audit)
             mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
+            livelane.remember_routed(mgr, live_report, staged)
         persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
         if persistent is not None and persistent.get("applied"):
             # the restore that just applied carried the parked filter files —

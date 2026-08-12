@@ -192,10 +192,13 @@ def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) ->
 def split_live(
     mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
-    """Fold every routable form field into ``live_edits``, returning it alongside the restore lane's remainder.
+    """Fold the whole batch into ``live_edits`` when every field routes live, else hand the whole batch back.
 
-    The remainder is the fields that still need the restore lane. An empty remainder means the
-    whole batch applies live and the daemon is never restarted.
+    All-or-nothing: an empty remainder means the whole batch applies live and the
+    daemon is never restarted. Any field that needs the restore lane sends the
+    ENTIRE batch there instead — the restore restarts the daemon onto its config
+    file, and a value applied live never reaches that file, so a split batch would
+    boot the daemon straight back onto the values it just replaced.
     """
     routable = {k: v for k, v in http_fields.items() if k in ROUTABLE}
     if not routable or _mode_blocks_batch(routable):
@@ -203,7 +206,9 @@ def split_live(
     live, routed = _route_all(mgr, routable, active_chain(mgr))
     if "filter" in live and not _complete_filter_pair(live["filter"], mgr.state or {}):
         routed = _unroute_filter(live, routed)
-    return _merge(live_edits, live), {k: v for k, v in http_fields.items() if k not in routed}
+    if any(field not in routed for field in http_fields):
+        return live_edits, dict(http_fields)
+    return _merge(live_edits, live), {}
 
 
 # --- LIVE lane: the LIVE view's immediate, unstaged writes --------------------
