@@ -289,7 +289,9 @@ A separate binary TCP stream on **port 4321 + 1 = 4322**. The daemon streams unc
 - Header, 32 bytes: `u32 version` (1), `u32 channels`, `u32 xformLength` (spectrum bins, N/2+1; observed 1025 → N=2048), `u32 transformBits` (observed 16), `f32 bandwidth` (Nyquist, Hz), `f32 transformTime` (s, = hop/rate), `f32 gain` (observed 2.0), `u32 reserved` (0).
 - Per channel: `f32 peakMax, peak, rms, rmsMax` (dBFS), then `2 × xformLength` f32 transform values as **two consecutive halves** (reals then imaginaries, *not* interleaved pairs) — magnitude of bin `k` is `hypot(a[k], b[k])`, linear amplitude, bin `k` → `k · bandwidth / (xformLength − 1)` Hz.
 
-Consumed at runtime by `hqptuner/metering.py` (the junk-filter advisor's reader); `scripts/probes/probe_metering_stream.py` captures and decodes it standalone.
+Consumed at runtime by `hqptuner/engine/metering.py` (the junk-filter advisor's reader); `scripts/probes/probe_metering_stream.py` captures and decodes it standalone.
+
+Because the daemon streams unconditionally and offers no way to ask for less, the socket is the only throttle a consumer has: at ~43 frames/s of `channels × (16 + 8 × xformLength)` bytes, an idle connection costs megabytes a second for frames nobody uses. The reader therefore holds the connection only while `State` reports playing (state 2) and closes it otherwise — invisible on loopback, but the difference between constant load and none once the traffic crosses a Docker bridge.
 
 ## 8. Out of scope
 

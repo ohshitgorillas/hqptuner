@@ -11,6 +11,11 @@ means "no recommendation", never a user-facing error. The reader reconnects
 with a fixed backoff and throws the aggregate away whenever the stream or the
 track context breaks, so a verdict is only ever computed over one track's
 frames.
+
+The connection is held only while the engine is playing. The daemon cannot be
+asked to send less, so the socket is the only throttle there is, and an idle
+stream is pure cost — megabytes a second of it once the traffic leaves loopback
+for a Docker bridge. ``Config.metering_enabled`` turns the whole reader off.
 """
 
 import asyncio
@@ -33,6 +38,10 @@ log = logging.getLogger(__name__)
 HEADER = struct.Struct("<4I3fI")  # version, channels, bins, bits, bandwidth, xformTime, gain, reserved
 PLAYING = 2
 RECONNECT_DELAY = 5.0
+# How long the reader waits before re-checking whether the engine started playing
+# again. Shorter than the manager's own status poll, so the gate adds no latency
+# of its own beyond the staleness of the status it reads.
+IDLE_RECHECK = 1.0
 # Ingest every Nth frame (~43/s at 44.1k). The aggregate is a long-run average;
 # a quarter of the hops carries the same verdict at a quarter of the CPU.
 DECIMATE = 4
@@ -225,38 +234,59 @@ class MeteringReader:
         return self._verdict
 
     async def run(self) -> None:
-        """Stream frames until stopped, reconnecting after a fixed backoff whenever the connection fails or drops.
+        """Hold the stream only while the engine is playing, and reconnect after a backoff whenever it breaks.
+
+        The daemon streams unconditionally on bare accept (protocol.md §7) — there is no way to ask it for less, so
+        the only way to stop paying for frames nobody ingests is to close the socket. The reader therefore connects
+        when the engine reports playing and disconnects when it stops, which on a bridged Docker network is the
+        difference between megabytes a second of idle traffic and none.
 
         A broken stream is not an error: it is logged at debug and the aggregate and verdict are discarded, so a
-        verdict is only ever computed over one unbroken run of one track's frames.
+        verdict is only ever computed over one unbroken run of one track's frames. A *deliberate* disconnect at the
+        idle gate is not a break — a pause mid-track leaves the evidence standing, so the verdict survives it.
         """
         while not self._stop.is_set():
+            keep = False
+            delay = IDLE_RECHECK
             try:
-                await self._stream()
+                ctx = self._context()
+                if ctx is None:
+                    pass  # unreachable daemon: nothing to stream, and no evidence worth keeping
+                elif ctx.playing:
+                    keep = await self._stream()
+                else:
+                    keep = True  # paused mid-track: the aggregate is still this track's
             except (OSError, asyncio.IncompleteReadError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
-            self._agg = None  # a broken stream ends the track's evidence
-            self._verdict = None
+                delay = RECONNECT_DELAY  # a refused or broken stream, not merely an idle engine
+            if not keep:
+                self._agg = None  # a broken stream ends the track's evidence
+                self._verdict = None
             if not self._stop.is_set():
-                await self._backoff()
+                await self._wait(delay)
 
-    async def _backoff(self) -> None:
+    async def _wait(self, seconds: float) -> None:
         if self._sleep is not None:  # test seam — virtualized clock
-            await self._sleep(RECONNECT_DELAY)
+            await self._sleep(seconds)
             return
         with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(self._stop.wait(), RECONNECT_DELAY)
+            await asyncio.wait_for(self._stop.wait(), seconds)
 
-    async def _stream(self) -> None:
+    async def _stream(self) -> bool:
+        """Ingest frames until the engine stops playing (True) or the loop is stopped (False)."""
         reader, writer = await asyncio.open_connection(self._host, self._port)
         log.info("metering stream connected (%s:%s)", self._host, self._port)
         try:
             frame = 0
             while not self._stop.is_set():
                 header, body = await self._read_frame(reader)
+                ctx = self._context()
+                if ctx is None or not ctx.playing:
+                    return ctx is not None  # paused keeps the evidence; unreachable does not
                 frame += 1
                 if frame % DECIMATE == 0:
-                    self._ingest(header, body)
+                    self._ingest(header, body, ctx)
+            return False
         finally:
             writer.close()
             with contextlib.suppress(OSError):
@@ -269,13 +299,7 @@ class MeteringReader:
             raise OSError(f"implausible metering header (channels={channels}, bins={bins})")
         return header, await reader.readexactly(channels * (16 + 8 * bins))
 
-    def _ingest(self, header: tuple[float, ...], body: bytes) -> None:
-        ctx = self._context()
-        if ctx is None:
-            self._agg = None
-            return
-        if not ctx.playing:
-            return  # keep the aggregate across a pause; idle frames carry no music
+    def _ingest(self, header: tuple[float, ...], body: bytes, ctx: TrackContext) -> None:
         channels, bins = int(header[1]), int(header[2])
         bandwidth, xform_time = float(header[4]), float(header[5])
         agg = self._agg

@@ -175,6 +175,8 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_HQP_HOST` | `127.0.0.1` | hqplayerd host |
 | `HQPTUNER_HQP_CONTROL_PORT` | `4321` | Control API port |
 | `HQPTUNER_HQP_HTTP_PORT` | `8088` | hqplayerd web config port |
+| `HQPTUNER_HQP_METERING_PORT` | `4322` | hqplayerd's metering side channel, read by the junk-filter advisor. Control port + 1 on a stock daemon |
+| `HQPTUNER_METERING_ENABLED` | `1` | Whether the junk-filter advisor runs. Set to `0` and HQPTuner never connects to the metering port and never offers junk-filter advice; nothing else changes |
 | `HQPTUNER_HQP_USERNAME` | `hqplayer` | Management username (Digest auth); default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_PASSWORD` | `password` | Management password; default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_HOME` | `/var/lib/hqplayer/home` | hqplayerd's data/home directory on the daemon host (uploaded convolution impulses land here) |

@@ -36,17 +36,22 @@ def make_lifespan(
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         task = asyncio.create_task(manager.run())
         # junk-filter advisor's metering reader — best-effort alongside the poll
-        # loop; an absent 4322 stream just means "no recommendation"
-        reader = MeteringReader(cfg.hqp_host, cfg.hqp_metering_port, lambda: context_from(manager))
-        manager.metering = reader
-        metering_task = asyncio.create_task(reader.run())
+        # loop; an absent 4322 stream just means "no recommendation". Switched off
+        # entirely, nothing is constructed and nothing ever connects.
+        reader: MeteringReader | None = None
+        metering_task: asyncio.Task[None] | None = None
+        if cfg.metering_enabled:
+            reader = MeteringReader(cfg.hqp_host, cfg.hqp_metering_port, lambda: context_from(manager))
+            manager.metering = reader
+            metering_task = asyncio.create_task(reader.run())
         yield
         manager.stop()
-        reader.stop()
+        if reader is not None and metering_task is not None:
+            reader.stop()
+            # no grace for the reader: it blocks in readexactly, which its stop flag
+            # cannot interrupt, so waiting on it always costs the full grace
+            await _finish(metering_task, 0)
         await _finish(task, SHUTDOWN_GRACE)
-        # no grace for the reader: it blocks in readexactly, which its stop flag
-        # cannot interrupt, so waiting on it always costs the full grace
-        await _finish(metering_task, 0)
         await manager.aclose()
         if http_client is not None:
             await http_client.aclose()
