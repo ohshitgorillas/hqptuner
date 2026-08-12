@@ -143,7 +143,7 @@ sudo docker compose up -d
 
 Then open `http://yourserverIP:8090` in your favorite browser, and enjoy HQPTuner!
 
-Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) in two channels:
+Images are published to `ohshitgorillas/hqptuner` on Docker Hub (amd64 + arm64) in two channels:
 
 | Tag | Branch | Who it's for |
 |---|---|---|
@@ -151,7 +151,9 @@ Images are published to `ghcr.io/ohshitgorillas/hqptuner` (amd64 + arm64) in two
 | `:beta` | `beta` | Testers trying a fix before it ships. Expect rough edges. |
 | `:vX.Y.Z` | version tags | Pinned to one release. |
 
-To try a beta build, point the image at `ghcr.io/ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose pull && docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
+The same images are mirrored to `ghcr.io/ohshitgorillas/hqptuner` with identical tags, so an existing `ghcr.io/...` compose file keeps working and keeps updating. Either registry is fine; they're built from the same commit in the same job.
+
+To try a beta build, point the image at `ohshitgorillas/hqptuner:beta` in your `compose.yaml` and `docker compose pull && docker compose up -d`. Switch back by setting it to `:latest` and pulling again.
 
 **Docker Pro Tip:** Use [Watchtower](https://watchtower.nickfedor.com/) for automated updates of HQPTuner and your other containers.
 

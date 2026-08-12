@@ -16,7 +16,7 @@
 
 services:
   hqptuner:
-    image: ghcr.io/ohshitgorillas/hqptuner:latest
+    image: ohshitgorillas/hqptuner:latest
     container_name: hqptuner
     restart: unless-stopped
 
