@@ -290,6 +290,11 @@
 .field-note {
   grid-column: 2;
 }
+/* What a device rescan costs — under the device list, only while auto-save is
+   on (components/Field.js). Same column and voice as the manual note it follows. */
+.field-rescan-cost {
+  grid-column: 2;
+}
 /* Grayed-control explanation — appended after the manual note (schema grayWhen
    reason). Italic + dimmer than .field-note so it reads as state, not prose. */
 /* CUDA DSP-device id in convolution-only mode — unused, reads muted */

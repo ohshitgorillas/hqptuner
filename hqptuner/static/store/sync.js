@@ -4,6 +4,7 @@
 
 import { effect } from "@preact/signals";
 import { api } from "../lib/api.js";
+import { lastApply } from "./actions.js";
 import { fastPollMs } from "./ui.js";
 import {
   health,
@@ -70,10 +71,23 @@ async function refreshFast() {
 
 // Trigger a daemon output-device rescan, then re-pull the config forms so the
 // device dropdowns show a newly-present endpoint (an NAA powered back on).
-/** Trigger a daemon output-device rescan, then re-pull the config forms. */
+/**
+ * Trigger a daemon output-device rescan, then re-pull the config forms.
+ *
+ * @returns {Promise<{ refreshed: boolean, restored: Record<string, string>, warning?: string }>}
+ *   The rescan report. `warning` is set when the rescan finished but the live
+ *   settings it stopped the engine for could not be put back — the caller
+ *   surfaces it, because a silent loss is the bug this reports on.
+ */
 export async function refreshDevices() {
-  await api.refreshDevices();
+  const r = await api.refreshDevices();
   await refreshConfig();
+  // Reported here rather than at the button, so every caller surfaces it: a
+  // rescan that lost the user's live settings must say so whoever asked for it.
+  // Left untouched when there is nothing to warn about — the line is still
+  // showing the last apply's result and the user may be reading it.
+  if (r && r.warning) lastApply.value = { ok: false, text: r.warning };
+  return r;
 }
 
 /** Re-pull the slow snapshots — enumerations, config, matrix and the pending buffer. */

@@ -72,8 +72,9 @@ min_confidence = 60
 ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.delete", "@pytest.fixture"]
 # BaseHTTPRequestHandler overrides in the wire-protocol fakes are dispatched by
 # http.server via getattr, never called by name; pytest_plugins is read by
-# pytest itself. All four read as unused to a static sweep.
-ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins"]
+# pytest itself. socketserver reads daemon_threads and block_on_close off the
+# server class rather than from any call site. All read as unused to a static sweep.
+ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins", "daemon_threads", "block_on_close"]
 
 [tool.ruff]
 line-length = 120
