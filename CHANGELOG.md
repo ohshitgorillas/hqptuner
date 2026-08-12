@@ -36,6 +36,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **A switch to turn the junk-filter advisor off entirely: `HQPTUNER_METERING_ENABLED=0`.** With it off, HQPTuner never opens the metering connection at all and the advisor's note never appears. Everything else works as before. Leave it alone unless you want the advisor gone — the traffic it used to cost while idle is fixed above.
 
+- **Filter hover tips now carry the filter's facts, not just its prose.** Hovering an option in the filter dropdowns shows, under the manual's description, the same facts the narrowing bar filters on — quality, genre, focus, phase, length and ratio class, plus apodizing and upsample-only tags — each line present only when the filter actually has that fact.
+
 ## [1.3.4] — 2026-08-09
 
 ### Internal

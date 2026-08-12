@@ -1,0 +1,155 @@
+/* combobox — the desc-carrying dropdown (controls/Combobox.js): trigger, pop,
+   option rows, favourite star and the hover tip. Split out of controls.css;
+   loads immediately after controls-fields.css, which is where the native select
+   it impersonates is dressed. Order is fixed by the <link> sequence in
+   hqptuner/static/index.html — do not reorder. */
+
+/* The trigger is dressed exactly as the native selects around it so the swap is
+   invisible until it opens; the caret a native select paints comes back as a
+   glyph. Pop and tip are position:fixed with coordinates set inline by the
+   component — the rules here carry only their surface. */
+.dd-box {
+  /* buttons inherit neither font nor appearance; without these Safari paints
+     its UA button (which can swallow the label entirely) and every engine
+     falls back to its default button face instead of the page's */
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: var(--w-select);
+  max-width: 100%;
+  text-align: left;
+  background: var(--surface-raised);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+.dd-box::after {
+  content: "▾";
+  color: var(--muted);
+}
+.dd-box[aria-expanded="true"]::after {
+  content: "▴";
+}
+.dd-box:disabled {
+  opacity: var(--o-disabled);
+  cursor: default;
+}
+.field.wide .dd-box {
+  width: 100%;
+  max-width: var(--w-select-wide);
+}
+.dd-pop {
+  /* fixed from the stylesheet, never from script: the first open frame must
+     not spend a single layout in the flow — a 700px block popping in-flow
+     shifts the page before the placement effect runs */
+  position: fixed;
+  overflow-y: auto;
+  /* wheel at the list's edge must not chain to the document — the page
+     scrolling under an open fixed pop detaches it */
+  overscroll-behavior: contain;
+  /* above the sticky chrome (z 30, chrome.css) — a fixed-position popup near
+     the top of the page overlaps the pinned header, and a transient popup
+     paints over everything, as the native one it replaces did */
+  z-index: 40;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
+  border-radius: var(--r-md);
+  padding: var(--sp-1);
+  /* both shadows in one value, same reason as .multi-pop (narrowing.css) */
+  box-shadow:
+    var(--edge-light),
+    var(--shadow-pop);
+}
+.dd-opt {
+  /* flex so the star pins right; the label + optional " — reason" are
+     contiguous text runs, which merge into one anonymous flex item */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* Per-row favorite star (filter dropdowns only). Muted until starred or
+   hovered — never the accent, which means staged edit and nothing else. */
+.dd-fav {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  transition: color var(--dur) var(--ease);
+}
+.dd-fav:hover,
+.dd-fav.on {
+  color: var(--fg);
+}
+/* Shared hover/keyboard highlight — never the accent, which means staged edit
+   and nothing else. */
+.dd-opt.hl {
+  background: var(--surface-card);
+}
+.dd-opt[aria-selected="true"] {
+  font-weight: var(--fw-semibold);
+}
+.dd-opt[aria-disabled="true"] {
+  opacity: var(--o-disabled);
+  cursor: default;
+}
+.dd-tip {
+  z-index: 41;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-raised);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+  font-size: var(--fs-label);
+  color: var(--fg);
+  box-shadow:
+    var(--edge-light),
+    var(--shadow-pop);
+  display: grid;
+  gap: var(--sp-2);
+}
+/* Facet block under the prose: label/value rows in the narrow bar's own terms,
+   then boolean chips. The hairline belongs to the boundary with the prose, so
+   it only paints when a description precedes the rows or chips. */
+.dd-tip-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-caption);
+}
+.dd-tip-desc + .dd-tip-rows,
+.dd-tip-desc + .dd-tip-chips {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-2);
+}
+.dd-tip-key {
+  color: var(--fg-2);
+}
+.dd-tip-val {
+  color: var(--fg);
+}
+.dd-tip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.dd-tip-chip {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-caption);
+  color: var(--fg-2);
+}

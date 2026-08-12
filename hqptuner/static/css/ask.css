@@ -1,0 +1,93 @@
+/* ask — the app's one prompt/confirm affordance (components/Ask.js), inline
+   and top-layer. Split out of controls.css; last of the four control modules,
+   so it keeps the slot the tail of that file had. Order is fixed by the <link>
+   sequence in hqptuner/static/index.html — do not reorder. */
+
+/* Replaces the native prompt()/confirm(): styled with the app, always
+   cancellable, and it works in the embedded browsers that block the native
+   dialogs. It renders in the row that asked (pending bar, header), so it takes
+   that row's alignment and only sets its own internal gap.
+
+   It wraps. In a chrome row nothing ever does, but the row is also mounted in
+   a half-width column's control track (the LIVE preset picker), narrower than
+   the row's own minimum width; without the wrap the message is the only
+   shrinkable item, so it collapses to one word per line and the buttons still
+   overrun the column. The buttons are the wrong thing to shrink either way —
+   their labels are already at their width. */
+.ask {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ask-msg {
+  color: var(--fg-2);
+  font-size: var(--fs-label);
+}
+/* the shared text-input rule is 28rem (a full-width form field); an inline
+   chrome field takes the narrower name width instead */
+.ask input[type="text"] {
+  width: var(--w-name);
+}
+.ask button {
+  flex: none;
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-label);
+}
+/* a blank name is refused in place (store/ask.js); the refusal says so rather
+   than leaving a Save click looking like it worked */
+.ask-refused {
+  color: var(--warn);
+  font-size: var(--fs-label);
+}
+/* the choices ask (preset fan-out picker) is a dropdown panel, not an inline
+   row: it anchors under the row that asked and borrows .multi-pop's popover
+   chrome (narrowing.css) for the panel itself */
+.ask-choices {
+  position: relative;
+}
+/* the warn ask (hazardous-edit guard, store/actions.js) is the same top-layer
+   panel holding a sentence rather than a list: cap it so the warning wraps as
+   a paragraph instead of one viewport-wide line */
+.ask-warn {
+  position: relative;
+}
+/* Definite width, not intrinsic: a fixed-position popover sizes shrink-to-fit
+   from wherever it lands before the pin, so one opened beside the viewport's
+   right edge would lay out as a skinny strip and stay that way. */
+.ask-warn .ask-pop {
+  width: 28rem;
+  max-width: calc(100vw - 16px); /* token-exempt: pairs with the 8px viewport clamp in Ask.js pinToAnchor */
+}
+/* the choices ask's one-line rows keep nowrap; a warning is a paragraph and
+   must wrap inside the capped panel instead of clipping at its edge. Three
+   classes deep to outweigh `.ask-pop .ask-msg`'s nowrap below regardless of
+   rule order. */
+.ask-warn .ask-pop .ask-msg {
+  white-space: normal;
+}
+/* top-layer mode (Ask.js sets popover="manual"): the UA centres a popover with
+   inset:0 + margin:auto and .multi-pop pins absolute under its anchor — both
+   wrong here. Neutralise both; Ask.js pins the viewport coords inline. The
+   margin-top offset below the anchor row survives from .multi-pop. */
+.ask-pop[popover] {
+  position: fixed;
+  inset: auto;
+}
+.ask-pop .ask-msg {
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--surface-raised);
+  white-space: nowrap;
+}
+.ask-pop-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--surface-raised);
+}
+/* the pinned option (the current preset) cannot be unchecked; its label reads
+   as informational rather than operable. Two classes deep so it outweighs
+   narrowing.css's `.multi-pop label` colour whatever the module order. */
+.ask-pop .ask-choice-pinned {
+  color: var(--muted);
+}

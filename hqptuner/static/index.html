@@ -14,7 +14,12 @@
     <link rel="stylesheet" href="/css/chrome.css" />
     <link rel="stylesheet" href="/css/fields.css" />
     <link rel="stylesheet" href="/css/hero.css" />
-    <link rel="stylesheet" href="/css/controls.css" />
+    <!-- the four control modules were one controls.css; they load consecutively
+         and in this order so the cascade is the one that file had. -->
+    <link rel="stylesheet" href="/css/controls-fields.css" />
+    <link rel="stylesheet" href="/css/combobox.css" />
+    <link rel="stylesheet" href="/css/sliders.css" />
+    <link rel="stylesheet" href="/css/ask.css" />
     <link rel="stylesheet" href="/css/cards.css" />
     <link rel="stylesheet" href="/css/pending-bar.css" />
     <link rel="stylesheet" href="/css/narrowing.css" />

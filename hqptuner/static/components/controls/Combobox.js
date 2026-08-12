@@ -14,6 +14,9 @@ import { html } from "../../lib/dom.js";
  *   `optionsFrom` — so disabled/reason are present on one path only.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
+ * @typedef {{ text: string, rows: [string, string][], chips: string[] }} TipContent
+ *   One option's hover tip: the manual prose, plus label/value facet rows and
+ *   boolean facet chips (both empty outside the filter dropdowns).
  * @typedef {{ open: boolean, hl: number, selIdx: number, id: string,
  *   fav?: (o: RenderOption) => boolean, onFav?: (o: RenderOption) => void,
  *   byKey: { current: boolean }, setHl: (i: number) => void,
@@ -167,10 +170,10 @@ function useDismissOnOutside({ open, setOpen, btnRef, popRef }) {
 // and places the tip. Layout effects, so both land before the frame paints; they
 // do not run under SSR.
 /**
- * @param {{ open: boolean, hl: number, tipText: string, byKey: { current: boolean },
+ * @param {{ open: boolean, hl: number, tipKey: string, byKey: { current: boolean },
  *   btnRef: ElRef, popRef: ElRef, tipRef: ElRef }} ctx
  */
-function usePopPlacement({ open, hl, tipText, byKey, btnRef, popRef, tipRef }) {
+function usePopPlacement({ open, hl, tipKey, byKey, btnRef, popRef, tipRef }) {
   useLayoutEffect(() => {
     if (!open) return;
     if (btnRef.current && popRef.current) placePop(btnRef.current, popRef.current);
@@ -183,7 +186,7 @@ function usePopPlacement({ open, hl, tipText, byKey, btnRef, popRef, tipRef }) {
     if (!row) return;
     if (byKey.current) revealRow(p, row);
     if (tipRef.current) placeTip(tipRef.current, p, row);
-  }, [open, hl, tipText]);
+  }, [open, hl, tipKey]);
 }
 
 // One option in the pop. `row` is the shared context the whole list draws from:
@@ -230,12 +233,52 @@ function OptionRow({ o, i, row }) {
   `;
 }
 
+// The highlighted option's tip, or null when the pop is closed, the widget has
+// no tip resolver, or the tip carries nothing to show.
+/**
+ * @param {boolean} open
+ * @param {((o: RenderOption) => TipContent) | undefined} tips
+ * @param {RenderOption | undefined} o
+ * @returns {TipContent | null}
+ */
+function tipFor(open, tips, o) {
+  if (!open || !tips || !o) return null;
+  const t = tips(o);
+  return t.text || t.rows.length || t.chips.length ? t : null;
+}
+
+// The tip beside the highlighted row: the manual prose, then the facet rows
+// and chips where the option carries them. Positioned by placeTip after paint,
+// so it renders hidden at a fixed origin.
+/**
+ * @param {{ tip: TipContent, tipRef: ElRef }} props
+ */
+function TipPop({ tip, tipRef }) {
+  return html`
+    <div class="dd-tip" ref=${tipRef} style="position:fixed;max-width:340px;visibility:hidden">
+      ${tip.text ? html`<div class="dd-tip-desc">${tip.text}</div>` : null}
+      ${
+        tip.rows.length
+          ? html`<div class="dd-tip-rows">
+            ${tip.rows.map(([k, v]) => html`<span class="dd-tip-key">${k}</span><span class="dd-tip-val">${v}</span>`)}
+          </div>`
+          : null
+      }
+      ${
+        tip.chips.length
+          ? html`<div class="dd-tip-chips">${tip.chips.map((c) => html`<span class="dd-tip-chip">${c}</span>`)}</div>`
+          : null
+      }
+    </div>
+  `;
+}
+
 /**
  * Renders a dropdown as a button and an owned listbox popover, so each option
  * row can show its own tip from `tips` and, where `fav` is passed, a favorite
  * star. Reports a value on commit only.
  * @param {{ value: string | number | undefined, options: RenderOption[] | undefined,
- *   valueLabel?: string, tips?: (o: RenderOption) => string, fav?: (o: RenderOption) => boolean,
+ *   valueLabel?: string, tips?: (o: RenderOption) => TipContent, fav?: (o: RenderOption) => boolean,
  *   onFav?: (o: RenderOption) => void, disabled?: boolean,
  *   onChange: (v: string | number) => void }} props
  */
@@ -253,7 +296,10 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   const byKey = useRef(false);
 
   const selIdx = opts.findIndex((o) => s(o.value) === s(value));
-  const tipText = (open && tips && opts[hl] && tips(opts[hl])) || "";
+  const tip = tipFor(open, tips, opts[hl]);
+  // Placement keys on the highlighted option, not the tip object — `tips` builds
+  // a fresh object every render, and an identity dep would re-place per render.
+  const tipKey = tip ? s(opts[hl].value) : "";
 
   const show = () => {
     byKey.current = true; // opening reveals the selection, same as a key move
@@ -269,7 +315,7 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   const onKey = comboKeyHandler({ open, setOpen, opts, hl, setHl, byKey, show, commit });
   useDismissOnOutside({ open, setOpen, btnRef, popRef });
 
-  usePopPlacement({ open, hl, tipText, byKey, btnRef, popRef, tipRef });
+  usePopPlacement({ open, hl, tipKey, byKey, btnRef, popRef, tipRef });
 
   // A narrowed dropdown can drop the current selection off its own list
   // (store/narrowing.js); the closed control still has to name that selection,
@@ -294,12 +340,6 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
     <div class="dd-pop" role="listbox" hidden=${!open} ref=${popRef} title="">
       ${opts.map((o, i) => html`<${OptionRow} o=${o} i=${i} row=${row} />`)}
     </div>
-    ${
-      tipText
-        ? html`<div class="dd-tip" ref=${tipRef} style="position:fixed;max-width:340px;visibility:hidden">
-          ${tipText}
-        </div>`
-        : null
-    }
+    ${tip ? html`<${TipPop} tip=${tip} tipRef=${tipRef} />` : null}
   `;
 }

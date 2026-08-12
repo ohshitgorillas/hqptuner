@@ -1,0 +1,122 @@
+/* controls-fields — the native form primitives: segmented switch, select,
+   text/number input, checkbox. Was the head and the checkbox block of
+   controls.css, which outgrew the length gate and was split by control family
+   (controls-fields, combobox, sliders, ask) — they load consecutively in that
+   order, so the cascade is the one the single file had. Order is fixed by the
+   <link> sequence in hqptuner/static/index.html — do not reorder. */
+
+/* segmented control */
+.segment {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.segment .seg {
+  background: var(--surface-raised);
+  border: none;
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-body-lg);
+  color: var(--muted);
+}
+.segment .seg:first-child {
+  border-left: none;
+}
+.segment .seg.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
+}
+.segment .seg:disabled {
+  opacity: var(--o-disabled);
+  cursor: not-allowed;
+}
+/* staged-edit marker on a segment button whose (hidden) controls are dirty —
+   the Loudness strip's inactive side. Same accent the dirty border rule uses. */
+.seg-dirty-dot {
+  display: inline-block;
+  width: 6px; /* token-exempt: dot mark sized to its text's cap height, not a spacing step */
+  height: 6px; /* token-exempt: dot mark sized to its text's cap height, not a spacing step */
+  margin-left: var(--sp-1);
+  border-radius: var(--r-circle);
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  background: var(--surface-raised);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-body);
+}
+select,
+input[type="text"] {
+  width: var(--w-select);
+  max-width: 100%;
+}
+input[type="number"] {
+  width: var(--w-num);
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+/* native spin buttons render black-on-dark and aren't reliably styleable — drop them */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+/* Wide controls (long endpoint / filter strings): fill the control column but
+   cap so they never span the whole card — the full-bleed empty-select problem. */
+.field.wide .control {
+  width: 100%;
+}
+.field.wide select,
+.field.wide input[type="text"] {
+  width: 100%;
+  max-width: var(--w-select-wide);
+}
+input:disabled,
+select:disabled {
+  opacity: var(--o-disabled);
+}
+
+/* checkbox: one unmistakable style, consistent size, clear checked state.
+   Unchecked border uses --muted, not --line — the line hairline vanished
+   against a card background. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  position: relative;
+  cursor: pointer;
+}
+input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-bold);
+}
+input[type="checkbox"]:disabled {
+  opacity: var(--o-disabled);
+  cursor: not-allowed;
+}

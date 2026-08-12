@@ -19,6 +19,7 @@ import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Combobox } from "./controls/Combobox.js";
+import { filterTipFacets } from "./facettip.js";
 import { Knob } from "./Knob.js";
 import { Ask } from "./Ask.js";
 
@@ -35,6 +36,7 @@ import { Ask } from "./Ask.js";
  * @typedef {{ label: string, tooltip: string }} FieldMeta
  *   What store/prose.js describe() resolves for a key: the manual's name for the
  *   control and its prose.
+ * @typedef {import("./controls/Combobox.js").TipContent} TipContent
  * @typedef {{ n: number, total: number }} NarrowBadge
  * @typedef {OptionItem[] | SchemaOption[] | undefined} FieldOptions
  *   A control's option list — the stores' enriched form, the schema's bare
@@ -62,9 +64,19 @@ const tipped = (/** @type {FieldEntry} */ entry) => entry.desc && entry.widget =
 /** Picks the widget component a schema entry renders through: Combobox for a desc-carrying dropdown, else the entry's `widget` kind. */
 export const widgetFor = (/** @type {FieldEntry} */ entry) =>
   tipped(entry) ? Combobox : WIDGETS[/** @type {keyof typeof WIDGETS} */ (entry.widget)];
-/** Builds the combobox's per-row tip resolver for a desc-carrying dropdown; undefined for every native widget. */
-export const tipsFor = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ meta) =>
-  tipped(entry) ? (/** @type {OptionItem} */ o) => optionDescription(entry, o, meta) : undefined;
+/**
+ * Builds the combobox's per-row tip resolver for a desc-carrying dropdown;
+ * undefined for every native widget. Filter dropdowns carry the facet rows and
+ * chips beside the prose; every other desc source ships text alone.
+ * @type {(entry: FieldEntry, meta: FieldMeta) => ((o: OptionItem) => TipContent) | undefined}
+ */
+export const tipsFor = (entry, meta) =>
+  tipped(entry)
+    ? (/** @type {OptionItem} */ o) => ({
+        text: optionDescription(entry, o, meta),
+        ...(entry.desc === "filter" ? filterTipFacets(o.label) : { rows: [], chips: [] }),
+      })
+    : undefined;
 /**
  * Builds the favorite-star wiring for the filter dropdowns (`narrow`-carrying
  * entries), keyed by option label = filter name (store/favorites.js); undefined

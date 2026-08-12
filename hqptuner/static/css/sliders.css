@@ -1,0 +1,135 @@
+/* sliders — the range primitive, the slidernum (range + number box + sub
+   figure), the shared thumb body and the tick marks. Split out of controls.css;
+   loads after combobox.css and before ask.css. Order is fixed by the <link>
+   sequence in hqptuner/static/index.html — do not reorder. */
+
+.slider {
+  display: inline-flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+/* the plain range primitive (e.g. Blocks/cycle) — tint the native track/thumb
+   with the accent instead of the browser default blue */
+.slider input[type="range"] {
+  accent-color: var(--accent);
+}
+.slidernum {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.range-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+}
+/* a wide slidernum field (e.g. crossfeed level) gets the full control width for
+   fine adjustment, not the compact 220px cap */
+.field.wide .range-wrap {
+  max-width: none;
+}
+.range-wrap input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--r-xs);
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+/* One thumb body for every styled slider. The vendor PAIR is forced duplication
+   — one unrecognized selector kills a grouped rule, so -webkit- and -moz- can
+   never share a block — but the body itself need only exist once per vendor.
+   Each slider varies it by setting its own --thumb-* values (see volume.css). */
+.rng,
+.vr-handle {
+  --thumb-w: 16px;
+  --thumb-h: 16px;
+  --thumb-r: 50%;
+  --thumb-bg: var(--fg);
+  --thumb-border: 1px solid var(--line);
+  --thumb-cursor: pointer;
+}
+.rng::-webkit-slider-thumb,
+.vr-handle::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-w);
+  height: var(--thumb-h);
+  border-radius: var(--thumb-r);
+  background: var(--thumb-bg);
+  border: var(--thumb-border);
+  cursor: var(--thumb-cursor);
+  pointer-events: auto;
+}
+.rng::-moz-range-thumb,
+.vr-handle::-moz-range-thumb {
+  width: var(--thumb-w);
+  height: var(--thumb-h);
+  border-radius: var(--thumb-r);
+  background: var(--thumb-bg);
+  border: var(--thumb-border);
+  cursor: var(--thumb-cursor);
+  pointer-events: auto;
+}
+.range-wrap input[type="range"]::-moz-range-track {
+  background: transparent;
+}
+.tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 11px;
+  background: var(--muted);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+/* the box stacked over its sub-figure, so the gap between them lives here */
+.slidernum-readbox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  flex: none;
+}
+/* the number box is a label wrapping a bare input, so an optional unit sits
+   INSIDE the same chrome as the figure — same surface, border and radius any
+   other number field gets, rather than a hardcoded width of its own */
+.slidernum-box {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2em; /* token-exempt: em — the unit hangs off the figure and must track the box's own type, not the root */
+  width: var(--w-num);
+  flex: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-body);
+}
+.slidernum-box input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+}
+.slidernum-unit {
+  color: var(--muted);
+}
+/* the figure the model works from, annotating the one you can measure — toned
+   and outside the box, so the boxed values stay one per control */
+.slidernum-sub {
+  display: block;
+  width: var(--w-num);
+  flex: none;
+  font-size: 0.8em; /* token-exempt: relative to the box above it — tracks that control, not the root */
+  color: var(--muted);
+  text-align: right;
+}

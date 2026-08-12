@@ -52,14 +52,28 @@
 /* The volume column: the dial, its opt-in and its notice, stacked on the card
    body's own rhythm. It carries that stack rather than .card-body because on
    LIVE it is one COLUMN of a shared card and there is no body of its own to
-   inherit — and because the volume-disabled dim has to stop at this edge
-   (controls.css). `flex: 1` so the column still fills the Volume tab's card the
-   way the body it replaced did. */
+   inherit — and because the volume-disabled dim, below, has to stop at this
+   edge. `flex: 1` so the column still fills the Volume tab's card the way the
+   body it replaced did. */
 .playback-col {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--rhythm-field);
+}
+/* Volume control unavailable: dim the knob only, at the same --o-dim every
+   other switched-off section uses. The head stays legible so the card is still
+   identifiable, and .playback-hint — which is the reason it is dead — stays
+   full strength rather than being faded along with the thing it explains. The
+   "Faster volume updates" checkbox is a page-local preference that keeps
+   working, so it is not dimmed either.
+
+   The dim keys on the volume COLUMN, not on the card. On LIVE the dial shares
+   its card with Adaptive volume and the high-frequency filter, both of which
+   stay live while the engine holds the volume control — dimming the card would
+   fade two working controls to say something about a third. */
+.playback-col.off {
+  opacity: var(--o-dim);
 }
 /* the column centers the knob group + notice vertically so the panel doesn't
    read as mostly empty space */
