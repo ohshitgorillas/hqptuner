@@ -104,6 +104,8 @@ Idle-gated, live 6.0.4.
 
 **4321 `MatrixSetProfile` — clean live lane.** `MatrixListProfiles` / `MatrixGetProfile` / `MatrixSetProfile` work **unauthenticated, live, zero reload**; `State.matrix_profile` and stock UI's active label track switch; working XML untouched (memory-only — reverts on daemon restart, standard Control API semantics). Switch installs profile's whole matrix context, its `<post_process>` chain included: profile element's content model is `<matrix>`'s minus `enabled` (readme §1.12 → §1.11), so crossfeed / DAC correction / loudness move with it.
 
+**Measured, not inferred** (`scripts/probes/probe_switch_post_effect.py`, 6.0.4, engine idle, no config write): switching to a profile whose config element carries `correction enabled="1" dac0="Holo Audio Cyan 2"` installed exactly that; switching to one carrying no `<post_process>` gave `correction=0`, `dac0=""` and loudness off. Zero reload both ways. **A chain-less profile therefore installs an EMPTY chain — it does not leave the running one alone.** Every profile saved before profiles stored a chain is in that state, which is why `matrixconf.backfill_profile_chains` fills them from the live `<matrix>` at apply — the applied config in `presetconf.apply_edits`, stored presets in `presetops.backfill_profiles`, each from its own matrix. A profile that already carries a chain is never overwritten: that is the user's saved choice.
+
 **Client-code note:** 4321 responses arrive prefixed with `<?xml?>` declaration, which naive recv loop chokes on. `control.py` already handles this; any new `Matrix*` helper must go through it, not fresh socket reader.
 
 ## Probe findings — `/matrix/plot` as a numeric oracle
