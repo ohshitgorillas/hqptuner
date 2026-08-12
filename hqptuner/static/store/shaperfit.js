@@ -23,7 +23,7 @@ import { metadata } from "./signals.js";
 import { effective } from "./resolve.js";
 import { optionsFor } from "./options.js";
 import { schema, DSD_RATES, PCM_RATES, TIER } from "./schema.js";
-import { liveFamily } from "./live/rates.js";
+import { loadedChain } from "./live/rates.js";
 
 /**
  * @typedef {{ value: string, label: string }} RateTier
@@ -142,17 +142,23 @@ function conflict(family) {
 //
 // `auto` is the one mode that names no family: there the engine chooses per
 // track from the source and the configured limit (manual §4.4), so the setting
-// has no answer to give and the loaded chain is the only thing that does. With
-// nothing loaded either — auto, stopped — neither has decided, and both families
-// are judged, which is what liveFamily's null has always meant.
+// has no answer to give and the chain the engine has LOADED is the only thing
+// that does. With nothing loaded either — auto, stopped — neither has decided
+// and both families are judged.
+//
+// The loaded chain, deliberately, and not `liveFamily` — that falls back to the
+// mode the ENGINE reports, which is the same question `effective` has already
+// answered here from the better source. Asking it twice puts the stale answer
+// back: stage auto while the engine still reports PCM and only PCM would be
+// judged, though after the apply either family may run.
 /**
  * @returns {string[]}
  */
 function familiesToJudge() {
   const mode = String(effective("output_mode") ?? "");
   if (mode === "pcm" || mode === "sdm") return [mode];
-  const live = liveFamily();
-  return live ? [live] : ["sdm", "pcm"];
+  const chain = loadedChain();
+  return chain ? [chain] : ["sdm", "pcm"];
 }
 
 /**
