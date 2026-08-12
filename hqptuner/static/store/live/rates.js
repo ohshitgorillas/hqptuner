@@ -140,12 +140,20 @@ function rateOptions(key) {
   );
 }
 
+// The chain the engine has LOADED, "" for none — the one family question the
+// engine alone can answer, and the only one a caller reading the mode from
+// elsewhere still has to ask it (store/shaperfit.js).
+/** The family of the chain the engine has loaded, "" when it has none. */
+export function loadedChain() {
+  return (engineState.value || {}).active_chain || "";
+}
+
 // Which family the engine is running. The loaded chain answers it outright; with
 // no chain loaded the mode does, and in auto mode before playback nothing does —
 // there neither column is grayed, because the engine takes a rate for either.
 /** Which family the engine will produce output in: the loaded chain, else the mode, else null for both. */
-export function liveFamily() {
-  const chain = (engineState.value || {}).active_chain;
+function liveFamily() {
+  const chain = loadedChain();
   if (chain) return chain;
   const mode = modeValue();
   return mode === "pcm" || mode === "sdm" ? mode : null;
