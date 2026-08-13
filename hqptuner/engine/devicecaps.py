@@ -95,12 +95,20 @@ def agreed_device(config_form: dict[str, Any] | None, file_config: dict[str, str
     The file view speaks the same form-field names (conf/presetconf.FIELD_MAP),
     so the two are compared directly. A file view that is absent, or silent about
     the device, is not a disagreement: there is only one answer and the form
-    carries it.
+    carries it. A file view naming ``combo`` is not silence — it names two
+    devices while the daemon announces one, so which limits bind is unknown from
+    that view and nothing narrows.
     """
     selected = selected_device(config_form)
     if selected is None or not file_config:
         return selected
-    other = _device(dict(file_config))
+    values = dict(file_config)
+    backend = str(values.get("backend") or "")
+    if not backend:
+        return selected
+    if backend not in _DEVICE_FIELD:
+        return None
+    other = _device(values)
     return selected if other is None or other == selected else None
 
 
