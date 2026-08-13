@@ -226,7 +226,7 @@ SECOND_PERSON = [
     ("- **Lead.** It follows your setup now.", "your"),
     ("- **Lead.** The choice is yours here.", "yours"),
     ("- **Lead.** The check runs yourself out of it.", "yourself"),
-    ("- **Lead.** Your setup is unaffected.", "your"),
+    ("- **Lead.** Your setup drives it now.", "your"),
 ]
 
 
@@ -284,6 +284,60 @@ def test_a_marketing_word_inside_a_longer_word_passes_the_gate(tmp_path: Path) -
     """The match is word-bounded: ``simplynoise`` is not ``simply``."""
     bullet = "- **Lead.** The simplynoise generator is gone."
     assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 0
+
+
+# --- narration by negation --------------------------------------------------
+
+
+NEGATION = [
+    ("- **Lead.** The knob moves; the dial is unchanged.", "is unchanged"),
+    ("- **Lead.** The dials are unchanged.", "are unchanged"),
+    ("- **Lead.** The dial remains unchanged.", "remains unchanged"),
+    ("- **Lead.** The dial is otherwise unchanged.", "otherwise unchanged"),
+    ("- **Lead.** The dial is unaffected.", "unaffected"),
+    ("- **Lead.** The dial is untouched.", "untouched"),
+    ("- **Lead.** The dial moved and nothing changed.", "nothing changed"),
+    ("- **Lead.** The dial moves and nothing else changes.", "nothing else changes"),
+    ("- **Lead.** The dial moves and everything else works as before.", "everything else works as before"),
+]
+
+
+@pytest.mark.parametrize("bullet", [b for b, _ in NEGATION], ids=[p for _, p in NEGATION])
+def test_a_bullet_narrating_by_negation_fails_the_gate(tmp_path: Path, bullet: str) -> None:
+    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 1
+
+
+@pytest.mark.parametrize("bullet,phrase", NEGATION, ids=[p for _, p in NEGATION])
+def test_a_bullet_narrating_by_negation_is_reported_with_the_offending_phrase(
+    tmp_path: Path, capsys: Any, bullet: str, phrase: str
+) -> None:
+    path = write_changelog(tmp_path, under_added(bullet))
+    CHECK(path)
+    assert phrase in report(capsys.readouterr().out, path, bullet).lower()
+
+
+def test_a_negation_phrase_inside_a_longer_word_passes_the_gate(tmp_path: Path) -> None:
+    """The match is word-bounded: ``unaffectedness`` is not ``unaffected``."""
+    bullet = "- **Lead.** The unaffectedness score is gone."
+    assert CHECK(write_changelog(tmp_path, under_added(bullet))) == 0
+
+
+#: One marketing word and one negation phrase — two rules, one bullet.
+HYPE_AND_NEGATION = "- **Lead.** The knob simply moves and the rest is unchanged."
+
+
+def test_a_bullet_breaking_the_marketing_and_negation_rules_is_reported_twice(tmp_path: Path, capsys: Any) -> None:
+    """The two wordlists are separate rules, so a bullet on both lists earns both reports."""
+    path = write_changelog(tmp_path, under_added(HYPE_AND_NEGATION))
+    CHECK(path)
+    assert len(problem_lines(capsys.readouterr().out, path)) == 2
+
+
+@pytest.mark.parametrize("expected", ["simply", "is unchanged"])
+def test_both_wordlist_rules_a_single_bullet_breaks_are_named(tmp_path: Path, capsys: Any, expected: str) -> None:
+    path = write_changelog(tmp_path, under_added(HYPE_AND_NEGATION))
+    CHECK(path)
+    assert expected in report(capsys.readouterr().out, path, HYPE_AND_NEGATION).lower()
 
 
 # --- several rules at once --------------------------------------------------

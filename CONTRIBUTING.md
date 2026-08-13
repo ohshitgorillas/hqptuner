@@ -36,7 +36,9 @@ The shape is one line, a bold lead first:
 - **What it does now.** What went wrong before, and anything the reader has to know to recognise it.
 ```
 
-`scripts/gates/check_changelog.py` enforces the mechanical half of that on `[Unreleased]` — released sections are history and are never rewritten. It refuses an entry over 75 words, an entry running to a second paragraph, an entry not opening with a bold lead, second person (`you`, `your`), marketing register (`simply`, `seamless`, `finally`, `quietly`, `significantly`, `under the hood`, …), and a duplicate or out-of-order `###` heading. It runs in `make check`, in pre-commit, and on every write to the file.
+`scripts/gates/check_changelog.py` enforces the mechanical half of that on `[Unreleased]` — released sections are history and are never rewritten. It refuses an entry over 75 words, an entry running to a second paragraph, an entry not opening with a bold lead, second person (`you`, `your`), marketing register (`simply`, `seamless`, `finally`, `quietly`, `significantly`, `under the hood`, …), narration by negation (`is unchanged`, `unaffected`, `untouched`, `nothing else changes`, …), and a duplicate or out-of-order `###` heading. It runs in `make check`, in pre-commit, and on every write to the file.
+
+Narration by negation is worth its own note, because it is the one an author reaches for while trying to be helpful. "What the settings do is unchanged", "the selection is unaffected either way", "everything else works as before" — a changelog says what changed, and a reader already assumes anything it does not mention stayed put, so the clause carries nothing. Where it is load-bearing it is really a scope boundary, and a scope boundary reads positively: "only chainless profiles are filled in", not "profiles that already carry a chain are untouched".
 
 What it cannot check is tone, and that is where entries actually go wrong. Three rules the gate will never catch:
 

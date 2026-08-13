@@ -12,17 +12,17 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **A Copy button on the live log tail**, for the lines currently in the window.
 
-- **`HQPTUNER_METERING_ENABLED=0` turns the junk-filter advisor off entirely.** HQPTuner then never opens the metering connection and the advisor's note never appears; everything else is unchanged.
+- **`HQPTUNER_METERING_ENABLED=0` turns the junk-filter advisor off entirely.** HQPTuner then never opens the metering connection and the advisor's note never appears.
 
 - **Filter hover tips now carry the filter's facts, not just its prose.** Under the manual's description, the tip lists the same facts the narrowing bar filters on — quality, genre, focus, phase, length, ratio class, apodizing and upsample-only — each line present only when the filter has that fact.
 
 ### Changed
 
-- **The Output tab's "General" card is gone; its settings moved.** Gain compensation to the Volume tab ("Adjustments"), junk filter and pre-metering to a "Pre-process" card on the tab now called "Conversion" (was "Resampling"), idle time / quick pause / short buffer to "Timing" and UPnP freewheel to "UPnP" on the System tab, Channels to its own card on the Matrix tab. What the settings do is unchanged.
+- **The Output tab's "General" card is gone; its settings moved.** Gain compensation to the Volume tab ("Adjustments"), junk filter and pre-metering to a "Pre-process" card on the tab now called "Conversion" (was "Resampling"), idle time / quick pause / short buffer to "Timing" and UPnP freewheel to "UPnP" on the System tab, Channels to its own card on the Matrix tab.
 
 - **Descriptions now say what the setting does, not what other settings do.** Some had been lifted from the manual too literally and described their neighbours as well.
 
-- **A narrowed filter menu lists only what the narrowing matched.** The selected filter used to be pinned to the top whether or not it matched, which obscured what the facets had found. The selection itself is unaffected either way.
+- **A narrowed filter menu lists only what the narrowing matched.** The selected filter used to be pinned to the top whether or not it matched, which obscured what the facets had found. Closing the menu without picking keeps the filter that was selected.
 
 - **Favorite filters are shared across browsers.** Stars were kept per browser; they now save with the rest of HQPTuner's state, and existing stars carry over on first load.
 
@@ -34,7 +34,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The About card called HQPlayer's DSP-engine version (6.0.4) the "Version", though the installed release is 6.0.2.** Signalyst numbers them separately, so the card now shows both: "Version" and "Engine".
 
-- **Matrix profiles saved before profiles carried a chain no longer blank the DAC correction.** HQPlayer installs a whole matrix on a profile switch, so a chainless profile turned correction off, emptied the DAC model and dropped loudness — and applying while it was loaded wrote that blank into the config. Such profiles are filled in from the running matrix at the next apply; profiles that already carry a chain are untouched.
+- **Matrix profiles saved before profiles carried a chain no longer blank the DAC correction.** HQPlayer installs a whole matrix on a profile switch, so a chainless profile turned correction off, emptied the DAC model and dropped loudness — and applying while it was loaded wrote that blank into the config. Only chainless profiles are filled in, from the running matrix, at the next apply.
 
 - **Rate/shaper warnings no longer report on a chain the pending settings will not use.** Staging a mode change, or selecting an unapplied preset, left the warning reading whichever chain was playing: an SDM preset selected during PCM playback reported the preset's PCM dither, and the reverse raised a red "HQPlayer cannot produce output" about a modulator that would never run. The warning now follows the mode the settings run under; in Auto, the loaded chain.
 
@@ -42,7 +42,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Rescanning devices no longer resets the live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
 
-- **HQPTuner no longer reads the daemon's metering stream while nothing is playing.** The junk-filter advisor held that connection open around the clock, and hqplayerd sends spectrum frames unconditionally — a few MB/s, unnoticed on loopback but visible as constant network load in Docker. The advisor now connects only while the engine is playing. Advice is unchanged, including across a pause mid-track.
+- **HQPTuner no longer reads the daemon's metering stream while nothing is playing.** The junk-filter advisor held that connection open around the clock, and hqplayerd sends spectrum frames unconditionally — a few MB/s, unnoticed on loopback but visible as constant network load in Docker. The advisor now connects only while the engine is playing, and reconnects across a pause mid-track.
 
 ## [1.3.4] — 2026-08-09
 

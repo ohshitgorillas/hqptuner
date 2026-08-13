@@ -19,6 +19,7 @@ are never rewritten:
 * a bullet opens with a bold lead: what it does now, in a clause
 * no second person
 * no marketing register (``HYPE``)
+* no narration by negation (``NEGATION``)
 * one heading per kind, in Keep a Changelog order
 
 What it cannot enforce is tone. ``reads as advice`` passes every rule here and
@@ -69,6 +70,29 @@ HYPE = (
     "under the hood",
     "where they belong",
     "out of the box",
+)
+
+#: Narration by negation: a clause whose content is that something did *not*
+#: change. It reads as reassurance and carries nothing — a changelog says what
+#: changed, and a reader assumes everything it does not mention stayed put. Where
+#: the clause is load-bearing it is a scope boundary, and a scope boundary states
+#: positively which things the change reached: "only chainless profiles are
+#: filled in", not "profiles that already carry a chain are untouched".
+NEGATION = (
+    "is unchanged",
+    "are unchanged",
+    "remains unchanged",
+    "remain unchanged",
+    "stays unchanged",
+    "otherwise unchanged",
+    "unaffected",
+    "untouched",
+    "nothing changed",
+    "nothing else changes",
+    "nothing else is affected",
+    "everything else is unchanged",
+    "everything else works as before",
+    "no other settings",
 )
 
 VERSION_RE = re.compile(r"^## ")
@@ -140,6 +164,11 @@ def _entry_problems(number: int, block: list[str]) -> list[str]:
         f"line {number}: {word!r} is marketing register — state the change"
         for word in HYPE
         if re.search(rf"\b{re.escape(word)}\b", lowered)
+    )
+    found.extend(
+        f"line {number}: {phrase!r} narrates by negation — cut it, or state the scope positively"
+        for phrase in NEGATION
+        if re.search(rf"\b{re.escape(phrase)}\b", lowered)
     )
     return found
 
