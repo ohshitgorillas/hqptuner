@@ -15,7 +15,7 @@
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/systemtab.test.js
 
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
@@ -27,6 +27,13 @@ import { showDescriptions, keepOptionDescriptions, quickSystemUpdates } from "..
 import { stagingWire } from "../support/wire.js";
 import { formFields } from "../support/tabform.js";
 import { elements, enclosing, hasAttr, hasLabel, labelled } from "../support/markup.js";
+
+// The quick-updates preference is a module-level signal and outlives a case
+// (docs/testing.md, harness facts), so the cases that write it are put back to
+// the off state here rather than left for whatever runs next.
+afterEach(() => {
+  quickSystemUpdates.value = false;
+});
 
 test("about hqptuner prose stays unrendered until the subsection is opened", () => {
   health.value = { info: {}, license: null };

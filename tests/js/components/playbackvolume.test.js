@@ -90,6 +90,15 @@ function knob(out) {
   return hit;
 }
 
+// The dial's own range input, and the quantum it steps in. Read off the slider
+// rather than any other input in the card, the way tests/js/components/
+// loudness-strip.test.js reads a dial's step.
+/** @param {string} out */
+const sliderStep = (out) => {
+  const input = (/<input[^>]*knob-slider[^>]*>/.exec(out) || [""])[0];
+  return (/\sstep="([^"]*)"/.exec(input) || [])[1];
+};
+
 const ON = { enabled: "1", min: "-60", max: "0" };
 const OFF = { enabled: "0", min: "-60", max: "0" };
 const APPLY_HINT = "Apply the staged change to free the volume control.";
@@ -178,6 +187,14 @@ test("test_a_missing_minimum_defaults_to_minus_sixty_dbfs", async () => {
 test("test_a_missing_maximum_defaults_to_zero_dbfs", async () => {
   await reset({ range: { enabled: "1", min: "-60" } });
   assert.equal(aria(card(), "aria-valuemax"), "0");
+});
+
+// Half a decibel is the quantum the volume dial moves in, unchanged by the
+// removal of the faster-updates opt-in from this card.
+
+test("test_the_volume_dial_steps_in_half_decibel_increments", async () => {
+  await reset({ range: ON, level: "-12" });
+  assert.equal(sliderStep(card()), "0.5");
 });
 
 // --- the value shown ---------------------------------------------------------

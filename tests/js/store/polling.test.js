@@ -199,8 +199,25 @@ test("test_leaving_live_returns_the_page_underneath_to_its_own_cadence", () => {
   assert.equal(last(intervals).ms, 2000);
 });
 
+// LIVE is fast regardless of the tab underneath, not only on a tab that has a
+// fast rule of its own. The output page has no rule and no opt-in, so it is
+// pinned at the default cadence first: the second cadence below can only come
+// from the mode.
+
+test("test_live_mode_polls_every_second_over_a_page_with_no_fast_rule_of_its_own", () => {
+  activeTab.value = "output"; // no fast rule, no opt-in: the default cadence
+  liveMode.value = true;
+  assert.equal(last(intervals).ms, 1000);
+});
+
+// A tab opt-in switched on while LIVE is shown survives LIVE being switched
+// off: the opt-in is left SET across the toggle here, so the page underneath
+// keeps the fast cadence instead of falling back to the default.
+
 test("test_a_tab_opt_in_still_holds_after_live_is_switched_off", () => {
-  quickSystemUpdates.value = true; // the system page is the one shown
+  activeTab.value = "system";
+  quickSystemUpdates.value = true;
+  liveMode.value = false;
   assert.equal(last(intervals).ms, 1000);
 });
 

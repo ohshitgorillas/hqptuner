@@ -187,6 +187,25 @@ const row = (out, label) => enclosing(out, labelled(out, label)).html;
  */
 const aria = (out, name) => (new RegExp(`${name}="([^"]*)"`).exec(out) || [])[1];
 
+// The dial itself: the one element carrying the bare `knob` class token, as
+// opposed to the `knob-*` parts it is built from. Reading the dial alone keeps
+// the name cases below off the prose of the controls beside it.
+/**
+ * @param {string} frag
+ * @returns {MarkupElement}
+ */
+function dial(frag) {
+  const hit = elements(frag).find((el) => classes(el).includes("knob"));
+  if (!hit) throw new Error("no dial in the fragment");
+  return hit;
+}
+
+// What a reader sees in the dial's own region: the smallest element enclosing
+// the dial, which is where a name for it would sit — beside the readout, not
+// inside the card head.
+/** @param {string} frag */
+const dialRegion = (frag) => text(enclosing(frag, dial(frag)));
+
 // --- the cards the LIVE page lays out -----------------------------------------
 
 test("test_the_live_page_carries_a_playback_card", async () => {
@@ -238,6 +257,20 @@ test("test_adaptive_volume_precedes_the_high_frequency_filter", async () => {
 test("test_the_playback_card_carries_the_volume_dial", async () => {
   await reset({ level: "-12" });
   assert.equal(aria(card(page(), "Playback"), "aria-valuenow"), "-12");
+});
+
+// The consolidated card is headed "Playback" and holds three controls, so the
+// dial carries its own name to say which of them it is; the Volume tab's card
+// is headed "Playback volume" and says it already.
+
+test("test_the_dial_names_itself_inside_the_consolidated_playback_card", async () => {
+  await reset();
+  assert.ok(dialRegion(card(page(), "Playback")).includes("Playback volume"));
+});
+
+test("test_the_volume_tabs_dial_leaves_the_naming_to_the_card_head", async () => {
+  await reset();
+  assert.equal(dialRegion(card(volumeCard(), "Playback volume")).includes("Playback volume"), false);
 });
 
 test("test_the_playback_card_offers_no_faster_updates_tickbox", async () => {
