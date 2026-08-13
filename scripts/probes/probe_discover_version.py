@@ -1,4 +1,4 @@
-"""Probe: what does the UDP discovery reply's ``version`` attribute carry?
+"""Probe what the UDP discovery reply's ``version`` attribute carries.
 
 protocol.md §2 documents the request and the reply shape but the ``version``
 value was unverified — GetInfo's ``version`` is the bare major ("6") while
@@ -16,6 +16,7 @@ REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 
 
 def main() -> None:
+    """Send one discovery datagram and print every reply until the 3 s timeout."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(3.0)
     sock.sendto(REQUEST, ("239.192.0.199", 4321))
