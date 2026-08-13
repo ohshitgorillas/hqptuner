@@ -26,6 +26,7 @@ import {
   nHires1x,
   nHiresNx,
 } from "../store/narrowing.js";
+import { notesVisible } from "../store/prefs.js";
 import { closeExcept } from "./narrowbar/popover.js";
 import { NarrowFacets } from "./narrowbar/Facets.js";
 import {
@@ -58,11 +59,15 @@ export function NarrowBar() {
       }`}
       cardClass="narrow-card"
     >
-      <div class="t-caption">
-        Reduce the number of filters in the dropdowns below by selecting which features you're looking for. Dropdown
-        counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing data are sourced
-        directly from the HQPlayer manual.
-      </div>
+      ${
+        notesVisible.value
+          ? html`<div class="t-caption">
+              Reduce the number of filters in the dropdowns below by selecting which features you're looking for.
+              Dropdown counts show the number of 1x/Nx filters resulting from (de)selecting that option. All narrowing
+              data are sourced directly from the HQPlayer manual.
+            </div>`
+          : null
+      }
       <div class="narrow-controls">
         <${NarrowFacets} />
       </div>

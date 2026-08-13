@@ -34,6 +34,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The narrowing card's intro caption follows the Setting descriptions switch.** The "Reduce the number of filters" explainer stayed on screen with setting descriptions turned off; it now hides with the other static notes.
+
 - **The Option descriptions switch shows its forced state.** With Setting descriptions on, option descriptions are always visible, but the switch could sit unchecked and grayed while they showed anyway; it now renders checked whenever the master forces them on. The master toggle is renamed from Feature descriptions to Setting descriptions.
 
 - **The narrowing bar's apodizing and hi-res captions now follow the feature-description switch.** Both stayed on screen with feature descriptions turned off; they now hide with every other static note and move to a hover tip.
