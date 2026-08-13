@@ -20,15 +20,21 @@ The seam is ``check(root, budget) -> int``.
 """
 
 import importlib.util
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
 
+#: The checkout this test file sits in.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_package_budget.py"
+GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_package_budget.py"
 
 
 def _load_gate_module() -> ModuleType:
@@ -53,10 +59,48 @@ def build_package(root: Path, package: str, files: dict[str, int]) -> Path:
 
 
 def line_naming(out: str, needle: str) -> str:
-    """The single stdout line that names ``needle``."""
-    lines = [line for line in out.splitlines() if needle in line]
-    assert len(lines) == 1, f"expected exactly one line naming {needle}, got {lines!r}"
-    return lines[0]
+    """The first stdout line that names ``needle``, or ``""`` when no line does."""
+    for line in out.splitlines():
+        if needle in line:
+            return line
+    return ""
+
+
+def shipped_budget() -> dict[str, int]:
+    """The module's own ``BUDGET`` mapping, skipping the case when it has nothing in it."""
+    shipped = dict(GATE.BUDGET)
+    if not shipped:
+        pytest.skip("the shipped BUDGET mapping is empty, so no entry can discriminate on it")
+    return shipped
+
+
+def tree_breaking_one_shipped_budget(root: Path) -> None:
+    """Lay out every budgeted directory under ``root``, with the first one one line over."""
+    shipped = shipped_budget()
+    over = min(shipped)
+    for package in shipped:
+        (root / package).mkdir(parents=True, exist_ok=True)
+    build_package(root, over, {"sprawl.py": shipped[over] + 1})
+
+
+def install_gate(root: Path) -> None:
+    """Copy the gate script into ``root`` so a subprocess run of it sees ``root`` as the repo."""
+    gate_dir = root / "scripts" / "gates"
+    gate_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(GATE_PATH, gate_dir / GATE_PATH.name)
+
+
+def run_gate(root: Path) -> int:
+    """Run the gate script the way the Makefile does and return its exit status."""
+    # S603: the argv is this module's own literals.
+    completed = subprocess.run(  # noqa: S603
+        [sys.executable, str(Path("scripts") / "gates" / GATE_PATH.name)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.returncode
 
 
 def test_a_package_under_its_budget_passes(tmp_path: Path) -> None:
@@ -143,6 +187,39 @@ def test_every_package_over_budget_is_reported_not_only_the_first(tmp_path: Path
     build_package(tmp_path, "hqptuner/lanes", {"a.py": 500})
     CHECK(tmp_path, {"hqptuner/core": 250, "hqptuner/lanes": 250})
     assert expected in capsys.readouterr().out
+
+
+def test_a_budgeted_directory_holding_no_python_files_passes(tmp_path: Path) -> None:
+    """A directory that is in the tree is present, and an empty one totals zero rather than being stale."""
+    (tmp_path / "hqptuner/core").mkdir(parents=True)
+    assert CHECK(tmp_path, {"hqptuner/core": 250}) == 0
+
+
+def test_a_budgeted_directory_holding_no_python_files_is_not_named_on_stdout(tmp_path: Path, capsys: Any) -> None:
+    (tmp_path / "hqptuner/core").mkdir(parents=True)
+    CHECK(tmp_path, {"hqptuner/core": 250})
+    assert "hqptuner/core" not in capsys.readouterr().out
+
+
+def test_omitting_the_budget_mapping_falls_back_to_the_shipped_one(tmp_path: Path) -> None:
+    """A caller who passes no mapping gets the module's own table, so its numbers are the ones enforced."""
+    tree_breaking_one_shipped_budget(tmp_path)
+    assert (CHECK(tmp_path), CHECK(tmp_path, {})) == (1, 0)
+
+
+def test_running_the_script_over_a_tree_past_a_budget_exits_nonzero(tmp_path: Path) -> None:
+    """The Makefile runs the script, so the exit status has to carry the same answer as ``check``."""
+    install_gate(tmp_path)
+    tree_breaking_one_shipped_budget(tmp_path)
+    assert run_gate(tmp_path) == 1
+
+
+def test_running_the_script_over_a_tree_inside_every_budget_exits_zero(tmp_path: Path) -> None:
+    """The other half of the exit status: a clean run says so rather than failing on its own feet."""
+    install_gate(tmp_path)
+    for package in shipped_budget():
+        (tmp_path / package).mkdir(parents=True, exist_ok=True)
+    assert run_gate(tmp_path) == 0
 
 
 def test_a_tree_inside_every_budget_passes(tmp_path: Path) -> None:

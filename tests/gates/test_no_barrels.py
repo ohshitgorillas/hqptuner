@@ -34,15 +34,22 @@ The seam is ``check(paths, exempt=None, module_exempt=None) -> int``.
 """
 
 import importlib.util
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
 
+#: The checkout this test file sits in, which is the tree the shipped exemption
+#: mappings describe.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_no_barrels.py"
+GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_no_barrels.py"
 
 
 def _load_gate_module() -> ModuleType:
@@ -98,6 +105,38 @@ from hqptuner.presets import presetlane
 class Presets:
     async def read_preset(self, name):
         return await presetlane.read(self, name)
+"""
+
+#: A method forwarding through a parameter that is not its first one. Nothing
+#: drops out of the argument list, so the call carries every parameter.
+NON_FIRST_PARAMETER_ROOTED_FORWARDER = """
+class Tuner:
+    def f(self, client, x):
+        return client.g(self, client, x)
+"""
+
+#: The same shape with the root dropped from the call anyway, which leaves the
+#: argument list one short of the parameter list.
+NON_FIRST_PARAMETER_ROOTED_DROPPED = """
+class Tuner:
+    def f(self, client, x):
+        return client.g(self, x)
+"""
+
+#: A property-style delegation: the body returns an attribute, never a call.
+ATTRIBUTE_DELEGATION = """
+class Tuner:
+    def value(self):
+        return self.client.value
+"""
+
+#: Imports, a re-export manifest, and a constant the module actually defines.
+IMPORTS_ALL_AND_A_CONSTANT = """
+from hqptuner.core.tuner import Tuner
+
+DEFAULT_RATE = 44100
+
+__all__ = ["Tuner", "DEFAULT_RATE"]
 """
 
 #: A forwarder whose call rearranges the parameters, so the wrapper does work.
@@ -168,6 +207,56 @@ def write_source(tmp_path: Path, relpath: str, source: str) -> str:
     return relpath
 
 
+def line_naming(out: str, needle: str) -> str:
+    """The first stdout line that names ``needle``, or ``""`` when no line does."""
+    for line in out.splitlines():
+        if needle in line:
+            return line
+    return ""
+
+
+def install_gate(root: Path) -> None:
+    """Copy the gate script into ``root`` so a subprocess run of it sees ``root`` as the repo."""
+    gate_dir = root / "scripts" / "gates"
+    gate_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(GATE_PATH, gate_dir / GATE_PATH.name)
+
+
+def run_gate(root: Path, *args: str) -> int:
+    """Run the gate script the way the Makefile does and return its exit status."""
+    # S603: the argv is this module's own literals plus paths the case just wrote.
+    completed = subprocess.run(  # noqa: S603
+        [sys.executable, str(Path("scripts") / "gates" / GATE_PATH.name), *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.returncode
+
+
+def satisfy_shipped_exemptions(root: Path) -> None:
+    """Copy into ``root`` the real file behind every shipped exemption entry.
+
+    A subprocess run of the script carries both mappings with it and audits them
+    against whatever tree it is pointed at, so a throwaway tree has to honour them
+    before any other verdict the run reaches is about the case under test.
+    """
+    keys = [key.split("::")[0] for key in GATE.FORWARDER_EXEMPT] + list(GATE.MODULE_EXEMPT)
+    for relpath in keys:
+        target = root / relpath
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(REPO_ROOT / relpath, target)
+
+
+def a_shipped_key(mapping: dict[str, str], label: str) -> str:
+    """One key out of a shipped exemption mapping, skipping the case when it has nothing in it."""
+    shipped = dict(mapping)
+    if not shipped:
+        pytest.skip(f"the shipped {label} mapping is empty, so no entry can discriminate on it")
+    return min(shipped)
+
+
 # --- rule 1: re-export modules -------------------------------------------------
 
 
@@ -210,6 +299,13 @@ def test_a_module_of_imports_and_only_an_all_manifest_fails(tmp_path: Path, monk
     assert CHECK([path], {}, {}) == 1
 
 
+def test_a_module_of_imports_an_all_manifest_and_a_constant_passes(tmp_path: Path, monkeypatch: Any) -> None:
+    """``__all__`` does not earn a module its keep, but the constant beside it does."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/rates.py", IMPORTS_ALL_AND_A_CONSTANT)
+    assert CHECK([path], {}, {}) == 0
+
+
 def test_an_empty_module_with_no_imports_passes(tmp_path: Path, monkeypatch: Any) -> None:
     """Nothing to re-export is not a barrel."""
     monkeypatch.chdir(tmp_path)
@@ -250,7 +346,7 @@ def test_a_forwarder_is_named_on_stdout(tmp_path: Path, monkeypatch: Any, capsys
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/tuner.py", FORWARDER)
     CHECK([path], {}, {})
-    assert "set_volume" in capsys.readouterr().out
+    assert "set_volume" in line_naming(capsys.readouterr().out, "hqptuner/core/tuner.py")
 
 
 def test_a_forwarder_with_no_docstring_fails(tmp_path: Path, monkeypatch: Any) -> None:
@@ -282,7 +378,7 @@ def test_a_module_rooted_forwarder_is_named_on_stdout(tmp_path: Path, monkeypatc
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/presets.py", MODULE_ROOTED_FORWARDER)
     CHECK([path], {}, {})
-    assert "read_preset" in capsys.readouterr().out
+    assert "read_preset" in line_naming(capsys.readouterr().out, "hqptuner/core/presets.py")
 
 
 def test_a_pass_through_whose_call_reorders_the_parameters_passes(tmp_path: Path, monkeypatch: Any) -> None:
@@ -310,6 +406,34 @@ def test_a_forwarder_outside_the_scoped_layers_passes(tmp_path: Path, monkeypatc
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "scripts/probes/probe_volume.py", FORWARDER)
     assert CHECK([path], {}, {}) == 0
+
+
+def test_a_forwarder_rooted_at_a_parameter_that_is_not_the_first_one_fails(tmp_path: Path, monkeypatch: Any) -> None:
+    """Only the first parameter drops out: rooted at a later one, the call still carries them all."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/tuner.py", NON_FIRST_PARAMETER_ROOTED_FORWARDER)
+    assert CHECK([path], {}, {}) == 1
+
+
+def test_a_call_rooted_at_a_later_parameter_that_drops_that_parameter_passes(tmp_path: Path, monkeypatch: Any) -> None:
+    """One parameter short of the full list is a different argument list, so the wrapper does work."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/tuner.py", NON_FIRST_PARAMETER_ROOTED_DROPPED)
+    assert CHECK([path], {}, {}) == 0
+
+
+def test_a_method_returning_an_attribute_rather_than_a_call_passes(tmp_path: Path, monkeypatch: Any) -> None:
+    """Property-style delegation is not a forwarder: there is no call for the caller to have made instead."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/tuner.py", ATTRIBUTE_DELEGATION)
+    assert CHECK([path], {}, {}) == 0
+
+
+def test_a_forwarder_inside_a_package_init_under_a_scoped_layer_fails(tmp_path: Path, monkeypatch: Any) -> None:
+    """``__init__.py`` is excused the barrel rule only; a forwarder written in one is still a forwarder."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/__init__.py", FORWARDER)
+    assert CHECK([path], {}, {}) == 1
 
 
 @pytest.mark.parametrize("layer", ["core", "lanes", "presets", "engine", "conf"])
@@ -388,6 +512,24 @@ def test_a_forwarder_exemption_naming_no_such_forwarder_is_named_on_stdout(
     }
     CHECK([path], exempt, {})
     assert "set_balance" in capsys.readouterr().out
+
+
+def test_a_forwarder_exemption_naming_a_function_that_stopped_forwarding_fails_as_stale(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """The function is still there, but it does work now, so the excuse has nothing left to excuse."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/tuner.py", GUARDED)
+    assert CHECK([path], {f"{path}::set_volume": "the protocol interface requires this name"}, {}) == 1
+
+
+def test_a_forwarder_exemption_naming_a_function_that_stopped_forwarding_is_named_on_stdout(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/tuner.py", GUARDED)
+    CHECK([path], {f"{path}::set_volume": "the protocol interface requires this name"}, {})
+    assert "set_volume" in line_naming(capsys.readouterr().out, "hqptuner/core/tuner.py")
 
 
 def test_a_stale_forwarder_exemption_for_a_file_not_passed_on_argv_still_fails(
@@ -490,3 +632,36 @@ def test_a_tree_with_neither_shape_passes(tmp_path: Path, monkeypatch: Any) -> N
         write_source(tmp_path, "hqptuner/core/__init__.py", BARREL),
     ]
     assert CHECK(paths, {}, {}) == 0
+
+
+# --- the shipped mappings and the script itself --------------------------------
+
+
+def test_omitting_the_forwarder_exemption_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
+    """A caller who passes no mapping gets the module's own, so a shipped excuse is honoured."""
+    monkeypatch.chdir(REPO_ROOT)
+    path = a_shipped_key(GATE.FORWARDER_EXEMPT, "FORWARDER_EXEMPT").split("::")[0]
+    assert (CHECK([path]), CHECK([path], {}, {})) == (0, 1)
+
+
+def test_omitting_the_module_exemption_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
+    """The same for the module mapping: the shipped excuse is what an omitted argument means."""
+    monkeypatch.chdir(REPO_ROOT)
+    path = a_shipped_key(GATE.MODULE_EXEMPT, "MODULE_EXEMPT")
+    assert (CHECK([path]), CHECK([path], {}, {})) == (0, 1)
+
+
+def test_running_the_script_over_a_forwarder_exits_nonzero(tmp_path: Path) -> None:
+    """The Makefile runs the script, so argv and the exit status have to carry the same answer."""
+    install_gate(tmp_path)
+    satisfy_shipped_exemptions(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/tuner.py", FORWARDER)
+    assert run_gate(tmp_path, path) == 1
+
+
+def test_running_the_script_over_a_module_with_behaviour_in_it_exits_zero(tmp_path: Path) -> None:
+    """The other half of the exit status: a clean run says so rather than failing on its own feet."""
+    install_gate(tmp_path)
+    satisfy_shipped_exemptions(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/codec.py", IMPORTS_AND_A_CLASS)
+    assert run_gate(tmp_path, path) == 0

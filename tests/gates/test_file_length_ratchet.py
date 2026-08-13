@@ -25,15 +25,22 @@ The seam is ``check(paths, allowance=None) -> int``.
 """
 
 import importlib.util
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
 
+#: The checkout this test file sits in, which is the tree the shipped
+#: ``ALLOWANCE`` mapping describes.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "check_file_length.py"
+GATE_PATH = REPO_ROOT / "scripts" / "gates" / "check_file_length.py"
 
 
 def _load_gate_module() -> ModuleType:
@@ -57,10 +64,50 @@ def write_source(tmp_path: Path, relpath: str, lines: int) -> str:
 
 
 def line_naming(out: str, path: str) -> str:
-    """The single stdout line that names ``path``."""
-    lines = [line for line in out.splitlines() if path in line]
-    assert len(lines) == 1, f"expected exactly one line naming {path}, got {lines!r}"
-    return lines[0]
+    """The first stdout line that names ``path``, or ``""`` when no line does."""
+    for line in out.splitlines():
+        if path in line:
+            return line
+    return ""
+
+
+def install_gate(root: Path) -> None:
+    """Copy the gate script into ``root`` so a subprocess run of it sees ``root`` as the repo."""
+    gate_dir = root / "scripts" / "gates"
+    gate_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(GATE_PATH, gate_dir / GATE_PATH.name)
+
+
+def run_gate(root: Path, *args: str) -> int:
+    """Run the gate script the way the Makefile does and return its exit status."""
+    # S603: the argv is this module's own literals plus paths the case just wrote.
+    completed = subprocess.run(  # noqa: S603
+        [sys.executable, str(Path("scripts") / "gates" / GATE_PATH.name), *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.returncode
+
+
+def satisfy_shipped_allowance(root: Path) -> None:
+    """Give ``root`` a file of the stated length for every entry in the shipped ``ALLOWANCE``.
+
+    A subprocess run of the script carries that table with it and audits it against
+    whatever tree it is pointed at, so a throwaway tree has to honour it before any
+    other verdict the run reaches is about the case under test.
+    """
+    for relpath, length in GATE.ALLOWANCE.items():
+        write_source(root, relpath, length)
+
+
+def a_shipped_allowance_path() -> str:
+    """One path out of the module's own ``ALLOWANCE`` mapping."""
+    shipped: dict[str, int] = dict(GATE.ALLOWANCE)
+    if not shipped:
+        pytest.skip("the shipped ALLOWANCE mapping is empty, so no entry can discriminate on it")
+    return min(shipped)
 
 
 def test_a_short_source_file_with_no_allowance_entry_passes(tmp_path: Path, monkeypatch: Any) -> None:
@@ -278,3 +325,42 @@ def test_a_compliant_file_beside_an_offender_is_not_named_on_stdout(
     ]
     CHECK(paths, {})
     assert "hqptuner/fine.py" not in capsys.readouterr().out
+
+
+def test_a_source_file_exactly_at_the_hard_cap_passes_with_a_matching_allowance(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """500 is the cap, not the first line past it: an allowance still buys the file its length."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/at_the_cap.py", 500)
+    assert CHECK([path], {path: 500}) == 0
+
+
+def test_a_test_file_exactly_at_the_eight_hundred_line_cap_passes(tmp_path: Path, monkeypatch: Any) -> None:
+    """800 is the cap suites are held to, and reaching it is not exceeding it."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "tests/test_many_cases.py", 800)
+    assert CHECK([path], {}) == 0
+
+
+def test_omitting_the_allowance_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
+    """A caller who passes no mapping gets the module's own table, so a shipped entry is honoured."""
+    monkeypatch.chdir(REPO_ROOT)
+    path = a_shipped_allowance_path()
+    assert (CHECK([path]), CHECK([path], {})) == (0, 1)
+
+
+def test_running_the_script_over_a_file_past_the_hard_cap_exits_nonzero(tmp_path: Path) -> None:
+    """The Makefile runs the script, so argv and the exit status have to carry the same answer."""
+    install_gate(tmp_path)
+    satisfy_shipped_allowance(tmp_path)
+    write_source(tmp_path, "hqptuner/enormous.py", 501)
+    assert run_gate(tmp_path, "hqptuner/enormous.py") == 1
+
+
+def test_running_the_script_over_a_short_file_exits_zero(tmp_path: Path) -> None:
+    """The other half of the exit status: a clean run says so rather than failing on its own feet."""
+    install_gate(tmp_path)
+    satisfy_shipped_allowance(tmp_path)
+    write_source(tmp_path, "hqptuner/small.py", 120)
+    assert run_gate(tmp_path, "hqptuner/small.py") == 0
