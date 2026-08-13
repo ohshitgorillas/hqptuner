@@ -77,6 +77,15 @@ class Config:
             _env("FAVORITES_FILE", str(Path(__file__).resolve().parent.parent / "state" / "favorites.json"))
         )
     )
+    # Matrix-profile descriptions (see descriptionstore) — one JSON file beside
+    # the favorites, in the same bind-mounted state dir. A description belongs to
+    # the install for the same reason a favorite does, and there is nowhere in
+    # hqplayerd's config for it: <matrix_profile> carries only `name`.
+    description_file: Path = field(
+        default_factory=lambda: Path(
+            _env("DESCRIPTION_FILE", str(Path(__file__).resolve().parent.parent / "state" / "descriptions.json"))
+        )
+    )
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files
