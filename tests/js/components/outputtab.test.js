@@ -381,7 +381,10 @@ test("test_the_merged_cards_stand_in_order_from_the_top_row_to_the_backends", as
   await reset({ cfg: FULL });
   const out = tab();
   const at = CARD_ORDER.map((mark) => out.indexOf(mark));
-  assert.ok(at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1])), `landmarks out of order: ${at}`);
+  assert.ok(
+    at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1])),
+    `landmarks out of order: ${at}`,
+  );
 });
 
 test("test_a_missing_device_still_warns_above_the_top_row", async () => {
