@@ -94,7 +94,7 @@ def test_put_then_get_answers_with_the_stored_mode(modes_client: TestClient, mod
     assert modes_client.get(PATH).json()["presets"][NAME] == mode
 
 
-def test_a_put_is_accepted_with_no_daemon_reachable(modes_client: TestClient) -> None:
+def test_a_put_that_stores_a_mode_answers_200(modes_client: TestClient) -> None:
     assert modes_client.put(PATH, json={"name": NAME, "mode": "speakers"}).status_code == 200
 
 
@@ -130,6 +130,27 @@ def test_a_put_leaves_another_presets_mode_alone(modes_client: TestClient) -> No
 )
 def test_a_put_carrying_a_mode_that_is_not_a_half_of_the_tab_answers_422(modes_client: TestClient, mode: str) -> None:
     assert modes_client.put(PATH, json={"name": NAME, "mode": mode}).status_code == 422
+
+
+# --- a name the store refuses ------------------------------------------------------------
+# The store's name rule is pinned in the store's own suite; what is pinned here
+# is that the route turns a refusal into a refusal the browser can read, and not
+# into a 500.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("", id="empty"),
+        pytest.param(" ", id="only-whitespace"),
+        pytest.param("a/b", id="forward-slash"),
+        pytest.param("..", id="parent-directory"),
+        pytest.param(".hidden", id="leading-dot"),
+        pytest.param("Night ", id="trailing-space"),
+    ],
+)
+def test_a_put_carrying_a_name_the_store_refuses_answers_422(modes_client: TestClient, name: str) -> None:
+    assert modes_client.put(PATH, json={"name": name, "mode": "speakers"}).status_code == 422
 
 
 def test_a_refused_put_stores_nothing(modes_client: TestClient) -> None:
