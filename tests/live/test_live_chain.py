@@ -286,7 +286,7 @@ async def test_a_held_edit_does_not_survive_the_connection_being_remade(
     before = manager.loaded_at
     await sever()
     # Waits on `loaded_at`, not on the reachable flag, because the flag is not
-    # observable: `manager._connect_and_load` lowers it and raises it again within
+    # observable: `manager.connect_and_load` lowers it and raises it again within
     # one handshake, so a 10 ms sampler can miss the entire window and time out on
     # a reconnect that did happen — which is how this test failed in CI while
     # passing locally. `loaded_at` is stamped once per handshake and never reverts,

@@ -13,7 +13,9 @@ import pytest
 from conftest import ManagerFactory
 
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.core import deviceops
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import presetlane
 
 
 @pytest.fixture
@@ -112,7 +114,7 @@ async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
     manager, _ = apply_via
     await manager.applyops.apply({}, {"title": "Renamed"})
     await manager.presetops.save_preset("Fresh")
-    assert (await manager.read_preset("Fresh"))["title"] == "Renamed"
+    assert (await presetlane.read(manager, "Fresh"))["title"] == "Renamed"
 
 
 async def test_a_net_device_the_daemon_no_longer_offers_is_reported_unfixable(
@@ -145,7 +147,7 @@ async def test_rescan_surfaces_a_newly_present_output_device(
     # rescan; refresh_devices must trigger it AND refetch the form so the new
     # device is actually offered — a bare POST that skipped the refetch would not
     http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
-    await http_manager.refresh_devices()
+    await deviceops.refresh_devices(http_manager)
     fields = (http_manager.config_form or {}).get("fields", [])
     offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
     assert "S99/hw:CARD=WokeUp,DEV=0" in offered
@@ -159,5 +161,5 @@ async def test_read_preset_reads_the_store_and_survives_an_empty_backup(
     # the daemon's /backup goes empty (the 6.0.4 post-load bug, protocol §3.6)
     await http_manager.presetops.save_preset("Kept")  # snapshot the running config into the store
     http_daemon["_empty"] = True
-    cfg = await http_manager.read_preset("Kept")
+    cfg = await presetlane.read(http_manager, "Kept")
     assert cfg["title"] == "Opal"

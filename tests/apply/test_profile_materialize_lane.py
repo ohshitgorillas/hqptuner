@@ -50,6 +50,10 @@ async def running_profile(
 
     async def build(active: str) -> Built:
         port, log, state = await daemon(matrix_profile=active, _profile_names=active)
+        # the restore the apply posts restarts hqplayerd: the process exits, its
+        # control socket dies, and the daemon that answers the next connection is
+        # the one that came back
+        http_daemon["_on_restore"] = lambda: restart_after(state, commands=2)
         manager = http_manager_factory(
             http_daemon,
             hqp_host="127.0.0.1",
@@ -57,12 +61,6 @@ async def running_profile(
             hqp_http_port=http_daemon["_port"],
             poll_interval=0.02,
         )
-        # The restore this lane exists for SELF-RESTARTS the daemon: it answers
-        # 200, then exits and comes back running the config it just adopted,
-        # taking the Control API socket with it. The whole point of materializing
-        # the profile is what that restarted process comes up on, so the fake has
-        # to actually restart.
-        http_daemon["_on_restore"] = lambda: restart_after(state)
         task = asyncio.create_task(manager.run())
         await eventually(lambda: manager.reachable)
         started.append((manager, task))

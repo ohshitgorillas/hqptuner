@@ -160,14 +160,18 @@ async def test_an_autosaved_apply_stores_the_rate_limit_of_the_engine_that_came_
 ) -> None:
     # per-family rate limit, the third live-domain slot: the pre-restart engine
     # is pinned to PCM index 4 (384000 Hz) and the one that comes back to index 1
-    # (44100 Hz), so which process was read is readable off <defaults samplerate>
+    # (44100 Hz), so which process was read is readable off <defaults samplerate>.
+    # The stored value is the TIER, not the engine's raw Hz: the config's rate
+    # menu carries a tier ceiling and the engine picks the 44.1/48 base off the
+    # source under auto_family, so every 44.1k-base rate is stored as the 48k-base
+    # member of its own tier — 44100 Hz is written as 48000.
     manager, state = await dual_lane(rate="4")
     await _armed(manager, "Kept")
     http_daemon["_on_restore"] = lambda: restart_after(state, {"rate": "1"}, commands=WINDOW)
     await manager.applyops.apply({}, {"title": "Renamed"})
     await presetlane.autosave(manager)
     _restore_landed(http_daemon)
-    assert elem_attr(manager.presetops.store.read("Kept"), "defaults", "samplerate") == "44100"
+    assert elem_attr(manager.presetops.store.read("Kept"), "defaults", "samplerate") == "48000"
 
 
 # --- no process comes back: the applied config alone, no overlay --------------

@@ -92,19 +92,6 @@ DEFAULTS = {
     # knob says only what a daemon answered, never why.
     "_rates": "",
     "_sdm_rates": "",
-    # The self-restart a POST /restore triggers, as the Control API sees it
-    # (docs/protocol.md: an adopted restore is scope=system, so the daemon exits
-    # and comes back). `_restart_in` is how many more commands the process now on
-    # the socket answers before it goes: while it counts down the OLD state is
-    # what goes out, which is the ~5.6 s window the real daemon serves its
-    # pre-restart settings in. On the command that finds it gone the socket
-    # closes with nothing on it and `_restart_into` is adopted, so the connection
-    # that replaces it reaches a process answering the restored config. Empty
-    # means no restart is pending — the daemon this fake serves keeps running.
-    "_restart_in": "",
-    # State the restarted process comes up on: `key=value` pairs, ONE PER LINE
-    # (a value may contain spaces, as `_active_mode="SDM (DSD)"` does).
-    "_restart_into": "",
     # What Status.active_filter reports — the ACTIVE main filter as a display
     # string (protocol.md: Status reports display strings, State numeric
     # indices). Empty means the frame carries no active_filter attribute at all.
@@ -190,61 +177,75 @@ _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4"
 _SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
 
 
+#: Prefix under which `restart_after` parks the state the NEW process comes up
+#: on, until the old one actually exits. Underscore-led like every other internal
+#: knob, so a parked value never reaches a `State` frame.
+_RESTARTING = "_restart:"
+
+#: How many more commands the departing process answers before its socket dies.
+#: Absent means no restart is pending, which is every daemon that was not asked
+#: for one.
+_EXIT_AFTER = "_exit_after"
+
+
 def restart_after(state: dict[str, str], into: dict[str, str] | None = None, *, commands: int = 0) -> None:
-    """Arm the self-restart an adopted ``POST /restore`` triggers.
+    """Arm the fake to model its PROCESS EXITING and a new one taking its place —
+    what an adopted ``POST /restore`` does to hqplayerd (docs/architecture.md §1
+    lane 2).
 
-    The daemon writes the uploaded files, answers 200, and only THEN exits and
-    comes back (docs/protocol.md §3.6). So for a window after the 200 the OLD
-    process is still on the Control API socket, still answering the settings it
-    booted on; ``commands`` is how many more commands it answers before it goes.
-    The command that finds it gone gets no answer and the socket closes under
-    the client — the restart's only signature on this lane — and the connection
-    that replaces it reaches a process answering ``into``.
+    A restart is not a settings change: the old process stops answering, so its
+    Control API socket dies under whatever client holds it, and the state
+    ``into`` names belongs to the process that replaces it. That is why this
+    severs rather than merely updating — a fake that only updated would be
+    modelling a daemon whose settings changed without its process ever going
+    away, which no real restore does.
 
-    ``commands=0`` is the instant restart: the next command on the socket is
-    already too late. Arming nothing at all is the daemon that accepts the
-    restore and never restarts, which is a different case again.
-
-    The restarted state is a plain dict argument rather than ``**kwargs``: a
-    caller spreading one (``restart_after(state, RESTARTED_INTO_SDM)``) is the
-    common shape here, and a ``**dict[str, str]`` spread past an ``int``
-    parameter is what mypy has to reject."""
-    state["_restart_in"] = str(commands)
-    state["_restart_into"] = "\n".join(f"{key}={value}" for key, value in (into or {}).items())
+    ``commands`` is the departing process's own window: hqplayerd answers the
+    restore's 200 and keeps serving both lanes for seconds before it goes, so a
+    client can get that many more commands answered on the doomed connection
+    before one of them finds the socket gone. The default, 0, sends the very next
+    command into a dead socket."""
+    state[_EXIT_AFTER] = str(commands)
+    for key, value in (into or {}).items():
+        state[_RESTARTING + key] = value
 
 
-def _restart_due(state: dict[str, str]) -> bool:
-    """Whether this command is the one that finds the process gone; counts the
-    pre-restart window down otherwise, and adopts the restarted state on the way
-    out so the NEXT connection sees the daemon that came back."""
-    pending = state.get("_restart_in", "")
-    if not pending:
+def _exits_now(state: dict[str, str]) -> bool:
+    """Whether this command is the one that finds the process gone.
+
+    The command before it is answered normally (the ``commands`` window); the
+    one that lands on zero gets nothing back and the socket closes, and the
+    parked state becomes the state the next connection reads — which is the new
+    process, since a connection is all a client can tell processes apart by."""
+    remaining = int(state.get(_EXIT_AFTER, "-1"))
+    if remaining < 0:
         return False
-    if int(pending) > 0:
-        state["_restart_in"] = str(int(pending) - 1)
+    if remaining > 0:
+        state[_EXIT_AFTER] = str(remaining - 1)
         return False
-    state["_restart_in"] = ""
-    for line in state.get("_restart_into", "").splitlines():
-        key, _, value = line.partition("=")
-        if key:
-            state[key] = value
-    state["_restart_into"] = ""
+    del state[_EXIT_AFTER]
+    for key in [k for k in state if k.startswith(_RESTARTING)]:
+        state[key[len(_RESTARTING) :]] = state.pop(key)
     return True
 
 
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
-    """Move the fake's State to what a daemon reports after a restore's
-    self-restart: it comes back up running the restored config file
-    (docs/architecture.md §1 lane 2). The file speaks ``pcm``/``sdm`` and enum
-    IDs; State speaks the mode index and list indices resolved against the
-    chain the restart loaded (protocol.md §4 — the domains never mix), so the
+    """Restart the fake into the restored config file: the daemon exits and comes
+    back up running that file (``restart_after``). The file speaks ``pcm``/``sdm``
+    and enum IDs; State speaks the mode index and list indices resolved against
+    the chain the restart loaded (protocol.md §4 — the domains never mix), so the
     restored shaper is the loaded chain's dither or modulator looked up on that
     chain's own enumeration. The restored file also becomes the per-chain
     shaper a later ``SetMode`` loads (``_reload_shaper``)."""
-    state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
-    state["_cfg_dither"] = dither
-    state["_cfg_modulator"] = modulator
-    _reload_shaper(state)
+    into = {
+        "mode": {"pcm": "1", "sdm": "2"}.get(mode, "0"),
+        "_cfg_dither": dither,
+        "_cfg_modulator": modulator,
+    }
+    came_back_as = {**state, **into}
+    _reload_shaper(came_back_as)
+    into["shaper"] = came_back_as["shaper"]
+    restart_after(state, into)
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -390,8 +391,8 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
     name, attrs = el.tag, el.attrib
     if log is not None:
         log.append((name, dict(attrs)))
-    if _restart_due(state):
-        return CLOSE  # the process that was answering has exited; the socket goes with it
+    if _exits_now(state):
+        return CLOSE  # the process this connection belongs to is gone
     if name in state.get("_close", "").split():
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
