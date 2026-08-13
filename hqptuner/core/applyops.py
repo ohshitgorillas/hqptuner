@@ -75,7 +75,7 @@ class ApplyOps:
             if client is None:
                 raise ControlError("daemon not connected")
             live_report = live_report + await apply_live(client, live_edits, mgr.audit)
-            mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
+            await livelane.refresh_after_live(mgr, client, live_edits)
             livelane.remember_routed(mgr, live_report, staged)
         persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
         if persistent is not None and persistent.get("applied"):

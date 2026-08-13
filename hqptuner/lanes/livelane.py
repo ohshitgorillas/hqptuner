@@ -225,6 +225,21 @@ async def chain_entered(
         mgr.state = await client.get_state()
 
 
+async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
+    """Re-read what a live batch just invalidated: the running state always, the enumerations when the batch moved one.
+
+    Live edits bypass the config file, so State is the only record of them. The
+    enumerations are the subtler half: a write in ``_REENUMERATES`` swaps a list
+    the NEXT write resolves its value against, and refreshing State alone also
+    consumes the mode transition the poll loop watches to re-enumerate on its own
+    (``manager._poll``) — so a caller that skipped this left both the cache and
+    the fallback stale. Every live-routing caller runs it, staged lane included.
+    """
+    mgr.state = await client.get_state()
+    if _REENUMERATES & set(edits):
+        mgr.enums = await client.get_all_enumerations()
+
+
 async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
     """Resolve, apply and readback-verify a batch of LIVE config-form fields.
 
@@ -256,9 +271,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     edits, stored = livemap.resolve_live(mgr, fields)
     report = await apply_live(client, edits, mgr.audit)
     try:
-        mgr.state = await client.get_state()  # live edits bypass the file: refresh running truth
-        if _REENUMERATES & set(edits):
-            mgr.enums = await client.get_all_enumerations()
+        await refresh_after_live(mgr, client, edits)
     except ControlError as exc:
         log.warning("post-apply refresh failed: %s", exc)
     if _applied(report, "rate"):
@@ -321,19 +334,26 @@ async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[s
 
 
 def _mode_apart(http_fields: dict[str, str]) -> str | None:
-    """Return the staged mode value when it cannot ride its batch.
+    """Return the staged mode value when it goes on the wire as its own batch.
 
-    Beside other routable fields, ``SetMode`` swaps the lists they resolve against
-    (``livemap._mode_blocks_batch``), so it has to go first on its own — but only
-    in a batch that can go fully live. One restore-lane field means the restart is
-    happening regardless, and that restart boots the daemon onto its config file,
-    so the mode belongs in that file with the rest of the batch, not on a live
-    setter the restore would immediately overwrite.
+    Every live mode write does, whatever else is staged with it. ``SetMode`` swaps
+    the lists every later value resolves against, so it has to go through the
+    re-enumerating path (``apply_now``) — beside other routable fields because
+    those fields resolve against the lists it swapped
+    (``livemap._mode_blocks_batch``), and ALONE because the batch after it does.
+    A mode routed as an ordinary edit left the enumerations stale and the poll
+    loop blind to the switch it watches for, so the next apply's filter resolved
+    against the departed mode's list and the engine took a different filter than
+    the one named.
+
+    Only in a batch that can go fully live, though. One restore-lane field means
+    the restart is happening regardless, and that restart boots the daemon onto
+    its config file, so the mode belongs in that file with the rest of the batch,
+    not on a live setter the restore would immediately overwrite.
     """
     if any(field not in livemap.ROUTABLE for field in http_fields):
         return None
-    routable = [field for field in http_fields if field in livemap.ROUTABLE]
-    return http_fields["mode"] if "mode" in routable and len(routable) > 1 else None
+    return http_fields.get("mode")
 
 
 async def mode_then_split(
@@ -351,19 +371,34 @@ async def mode_then_split(
     alone and the remainder splits against the lists the switch produced. A mode
     the engine is already running is dropped rather than re-sent — ``SetMode``
     clears the rate pin even when it changes nothing (``mode_already_running``).
-    A mode batch that cannot resolve or apply sends the whole batch to the
-    restore lane, exactly as before.
+    A mode that does not resolve, does not reach the daemon, or reaches it and
+    does not verify sends the whole batch to the restore lane — the restart boots
+    the daemon from the config file the batch is written to, so the mode still
+    lands. Dropping it was the alternative and it was silent.
+
+    A staged mode with nothing beside it takes the same route (``_mode_apart``):
+    the batch that needs the post-switch lists is then the NEXT apply rather than
+    the remainder of this one, and it is no less entitled to them.
     """
     mode = _mode_apart(http_fields)
-    report: list[dict[str, Any]] | None = None
-    if mode is not None:
-        try:
-            report = [] if mode_already_running(mgr, mode) else (await apply_now(mgr, {"mode": mode}))["live"]
-        except (livemap.LiveRouteError, ControlError) as exc:
-            log.warning("mode-first batch fell back to the restore lane: %s", exc)
-    if report is None:
+    if mode is None:
         edits, remainder = livemap.split_live(mgr, http_fields, live_edits)
         return [], edits, remainder
+    if mode_already_running(mgr, mode):
+        report: list[dict[str, Any]] = []
+    else:
+        try:
+            report = (await apply_now(mgr, {"mode": mode}))["live"]
+        except (livemap.LiveRouteError, ControlError) as exc:
+            log.warning("mode-first batch fell back to the restore lane: %s", exc)
+            return [], live_edits, dict(http_fields)
+        if not _applied(report, "mode"):
+            # `apply_live` reports an unverified setter rather than raising, so a
+            # daemon that answered OK and did not switch arrives here looking like
+            # a success. The whole batch, not a re-split: a mode the engine did not
+            # take must still land, and the restore lane is what lands it.
+            log.warning("mode setter did not verify; whole batch to the restore lane")
+            return [], live_edits, dict(http_fields)
     rest = {field: value for field, value in http_fields.items() if field != "mode"}
     edits, remainder = livemap.split_live(mgr, rest, live_edits)
     if remainder:
