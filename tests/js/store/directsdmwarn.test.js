@@ -26,15 +26,20 @@
 // tests hold the promise, drive the question, then await — never the reverse.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/directsdmwarn.test.js
+//
+// Rule-8 exemption, stated rather than assumed: the two askWarn default-label
+// tests at the bottom of this file characterize behaviour that predates the
+// Direct SDM guard, so they cannot fail against the pre-change tree. Every other
+// test here bites on the guard.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { config, engineState } from "../../../hqptuner/static/store/signals.js";
-import { discardAll, edit, lastApply } from "../../../hqptuner/static/store/actions.js";
+import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
+import { applyAll, discardAll, edit, lastApply } from "../../../hqptuner/static/store/actions.js";
 import { question, askWarn, askConfirm, answer, cancel } from "../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../hqptuner/static/store/schema.js";
-import { stagingWire, quiesce } from "../support/wire.js";
+import { ok, stagingWire, quiesce } from "../support/wire.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool and
@@ -57,12 +62,41 @@ import { stagingWire, quiesce } from "../support/wire.js";
  * @returns {Promise<import("../support/wire.js").StagingWire>}
  */
 async function reset(volume) {
-  const w = stagingWire();
+  // The read endpoints answer with the trees this suite set, the way the real
+  // ones answer with the daemon's: an apply refreshes them, and a fake that
+  // answered `{}` there would quietly erase the volume state under test.
+  const w = stagingWire({
+    routes: (path) => {
+      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/matrix") return ok({ data: matrixConfig.value });
+      if (path === "/api/enumerations") return ok({ data: null });
+      return undefined;
+    },
+  });
   engineState.value = {};
   config.value = { fields: volume.fields, file: volume.file, active: "", profiles: null };
+  matrixConfig.value = { fields: [], active: "[Default]" };
+  lastApply.value = null;
   cancel();
   await discardAll();
   return w;
+}
+
+// Put a real apply result in `lastApply` by applying for real over the wire, so
+// "untouched" is a claim about a value something actually wrote. Throws rather
+// than asserting: a seed that failed to seed makes the test that follows
+// vacuous, which is a broken fixture and not a broken behaviour.
+/**
+ * @param {import("../support/wire.js").StagingWire} w
+ * @returns {Promise<unknown>}
+ */
+async function seedApply(w) {
+  await applyAll();
+  await quiesce(w);
+  if (lastApply.value === null || lastApply.value === undefined) {
+    throw new Error("apply recorded no result: lastApply is still empty, so the test below cannot bite");
+  }
+  return lastApply.value;
 }
 
 // Fire an edit without awaiting it and let the wire go quiet, so the suite can
@@ -73,7 +107,7 @@ async function reset(volume) {
 // as a hang rather than as a silent leak.
 /**
  * @param {import("../support/wire.js").StagingWire} w
- * @param {string} value
+ * @param {string | boolean} value
  */
 async function stage(w, value) {
   const held = edit("direct_sdm", value);
@@ -148,6 +182,26 @@ test("the direct sdm warning declines with No", async () => {
   await held;
 });
 
+// The /config form spells a checkbox with a real bool (see FormField above, and
+// the baseline in FREE_WITH_DIRECT_SDM_ON), so the value reaching edit() from a
+// form-driven control is `true`, not the string "1". A guard keyed on the string
+// alone would wave the real form path straight through.
+test("staging direct sdm on as a bare bool opens a warn question", async () => {
+  const w = await reset(FREE);
+  const { held } = await stage(w, true);
+  assert.equal(question.value?.kind, "warn");
+  cancel();
+  await held;
+});
+
+test("staging direct sdm off as a bare bool opens no question", async () => {
+  const w = await reset(FREE_WITH_DIRECT_SDM_ON);
+  const { held } = await stage(w, false);
+  assert.equal(question.value, null);
+  cancel();
+  await held;
+});
+
 test("direct sdm does not stage while its question is open", async () => {
   const w = await reset(FREE);
   const { held } = await stage(w, "1");
@@ -179,9 +233,12 @@ test("cancelling the direct sdm warning leaves the staged set unchanged", async 
   assert.equal(w.staged.http.direct_sdm, "0");
 });
 
+// The apply comes first so `before` is a result the store itself wrote: against
+// an empty `lastApply` this reads null === null and passes on an implementation
+// that never touches the signal at all.
 test("a cancelled direct sdm warning leaves lastApply untouched", async () => {
   const w = await reset(FREE);
-  const before = lastApply.value;
+  const before = await seedApply(w);
   const { held } = await stage(w, "1");
   cancel();
   await held;
@@ -232,6 +289,10 @@ for (const { what, volume } of PINNED_AT_MINUS_THREE) {
   });
 }
 
+// Deliberate overlap with the loop above: both drive the same edit, and each
+// watches a different half of it. A failure here says the guard asked a question
+// it had no business asking; a failure above says it swallowed the edit. Only
+// one of those is diagnosed by either loop alone, so both stay.
 for (const { what, volume } of PINNED_AT_MINUS_THREE) {
   test(`direct sdm on with ${what} opens no question`, async () => {
     const w = await reset(volume);
@@ -308,11 +369,15 @@ for (const { what, volume } of STILL_DANGEROUS) {
 // Whatever the volume state: switching the setting off cannot force anything.
 // "0" is the trap — a guard that tests the raw value for truthiness warns on
 // the string zero the form spells "off" with.
-
+//
+// Every state here is one the guard WOULD warn about on an on-staging, so the
+// off-value is the only thing that can account for the silence. A volume state
+// that suppresses the guard by itself would make these pass against a guard
+// that never looks at the staged value at all.
 const OFF_STATES = [
   { what: "a free volume", volume: FREE },
   { what: "optimal iso at -6 dB", volume: STILL_DANGEROUS[0].volume },
-  { what: "a fixed -3 dB", volume: PINNED_AT_MINUS_THREE[0].volume },
+  { what: "fixed volume on at -6", volume: STILL_DANGEROUS[1].volume },
 ];
 
 for (const { what, volume } of OFF_STATES) {
