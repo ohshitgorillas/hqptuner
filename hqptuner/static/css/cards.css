@@ -216,9 +216,11 @@ button.card-head {
     gap: var(--sp-3);
     min-width: 0;
   }
-  .pack .field:not(.span) select,
-  .pack .field:not(.span) .dd-box,
-  .pack .field:not(.span) input[type="text"] {
+  /* .compact opts out: its control is content-sized (combobox.css), and filling
+     the pack column is the thing it exists to avoid. */
+  .pack .field:not(.span):not(.compact) select,
+  .pack .field:not(.span):not(.compact) .dd-box,
+  .pack .field:not(.span):not(.compact) input[type="text"] {
     width: 100%;
     max-width: 100%;
     min-width: 0;

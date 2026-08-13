@@ -45,6 +45,16 @@
   width: 100%;
   max-width: var(--w-select-wide);
 }
+/* Opposite of .wide: a dropdown whose option list is short takes one of two
+   small FIXED widths rather than the form-field width across a mostly empty box.
+   Fixed, not content-sized: an auto-width trigger resizes as the selection
+   changes and the control jitters under the cursor. */
+.field.compact-sm .dd-box {
+  width: var(--w-select-sm);
+}
+.field.compact-md .dd-box {
+  width: var(--w-select-md);
+}
 .dd-pop {
   /* fixed from the stylesheet, never from script: the first open frame must
      not spend a single layout in the flow — a 700px block popping in-flow

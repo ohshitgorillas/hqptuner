@@ -82,6 +82,17 @@ input[type="number"]::-webkit-inner-spin-button {
   width: 100%;
   max-width: var(--w-select-wide);
 }
+/* Compact controls, the .wide opposite: a short option list takes a small fixed
+   width instead of the form-field width across a mostly empty box. Both widths
+   are matched on the combobox side (combobox.css) — a control renders native or
+   as a Combobox depending on whether it carries a description, and the two must
+   not disagree about how wide the same setting is. */
+.field.compact-sm select {
+  width: var(--w-select-sm);
+}
+.field.compact-md select {
+  width: var(--w-select-md);
+}
 input:disabled,
 select:disabled {
   opacity: var(--o-disabled);

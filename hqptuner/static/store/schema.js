@@ -254,6 +254,7 @@ export const schema = {
     lane: "http",
     field: "idle_time",
     optionsFrom: "config",
+    compact: "sm",
   },
   upnp_freewheel: {
     label: "UPnP freewheel",
@@ -270,6 +271,7 @@ export const schema = {
     lane: "http",
     field: "short_buffer",
     optionsFrom: "config",
+    compact: "sm",
   },
   // The manual's "Playback filter" (§2.8) — a source-side high-frequency cut for
   // noise, errors and fake hires. Named for what it does; every option is an HF
@@ -294,6 +296,9 @@ export const schema = {
     optionsFrom: "enum",
     enumKey: "junk_filters",
     desc: "config",
+    // every option is a short token ("none", "20k", "2x"), so the global select
+    // width leaves most of the control empty
+    compact: "sm",
   },
 
   // --- Output: per-family rate (both shown, inactive one grayed by mode) ---
@@ -522,7 +527,7 @@ export const schema = {
     appliesLive: true,
     field: "dither",
     optionsFrom: "config",
-    wide: true,
+    compact: "sm",
     // No rateGray. The PCM dither floors are the manual's recommendations, not
     // faults: a ditherer below its floor still dithers and the engine still
     // produces output, so every dither stays selectable at every rate and the
@@ -564,7 +569,7 @@ export const schema = {
     appliesLive: true,
     field: "modulator",
     optionsFrom: "config",
-    wide: true,
+    compact: "md",
     rateGray: "sdm",
     desc: "modulator",
   },

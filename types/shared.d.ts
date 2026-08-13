@@ -173,6 +173,10 @@ interface SchemaField {
   anchor?: string;
   wide?: boolean;
   span?: boolean;
+  // Opposite of `wide`, and a DISCRIMINATOR rather than a flag: "sm" | "md",
+  // naming the small fixed width a dropdown takes instead of the global select
+  // width, sized to the longest label its option list carries.
+  compact?: string;
   // Also a DISCRIMINATOR rather than a flag: "1x" | "nx", naming which filter
   // family to narrow the option list to (schema.js:500,513,539,552). Passed as
   // the `kind` argument of narrowOptions()/narrowCount() at Field.js:158,177 and
