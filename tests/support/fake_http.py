@@ -218,6 +218,10 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     for part in raw.split(b"--" + boundary):
         if b'name="cfgfile"' in part:
             zbytes = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]
+    # the upload EXACTLY as it arrived, recorded before anything parses it, so a
+    # test can say what HQPTuner put on the wire — including an upload the
+    # daemon then refuses
+    st["_restore_bytes"] = zbytes
     archive = zipfile.ZipFile(io.BytesIO(zbytes))
     st["_restore_members"] = archive.namelist()  # what the restore carried (filter uploads land as data/*)
     xml = archive.read("hqplayerd.xml")
@@ -257,7 +261,13 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
             st["_restore_refusals"] -= 1
     if refused:
         return 503
-    _restore_config(st, content_type, raw)
+    try:
+        _restore_config(st, content_type, raw)
+    except (zipfile.BadZipFile, KeyError):
+        # An upload that is not a readable settings archive is refused: the
+        # daemon adopts nothing and does not answer success. The upload itself is
+        # already recorded, so a caller can still be asked what it sent.
+        return 400
     return 200
 
 

@@ -1,0 +1,723 @@
+"""User-written descriptions attached to saved matrix profiles.
+
+Four surfaces, one behaviour: `DescriptionStore` over a JSON file, the GET/PUT
+`/api/descriptions` pair over that store, the two zip helpers that carry the
+store through a settings archive, and the backup/restore routes that use them.
+
+A description is keyed by profile NAME, the stable join key
+(docs/architecture.md §2) — `<matrix_profile>` carries exactly one attribute,
+`name` (hqplayerd-readme.txt §1.12), so there is nowhere in the config XML for
+prose to live and the store is HQPTuner's own state. The store surface therefore
+never touches hqplayerd: those clients are built with no credentials and a
+control lane pointed at a closed port. The carriage surface does talk to the
+daemon, through the faithful fake 8088 daemon, because "the daemon's own members
+survive byte-for-byte" is a claim about a real archive.
+
+Every store file lands under pytest's ``tmp_path``, never in the repo's state
+dir. The on-disk layout — ``{"schema": N, "profiles": {name: {"text", "updated"}}}``
+— is the contract a DIFFERENT HQPTuner version reads, so the cases about a
+foreign file hand-write one, the way a wire test hand-writes a frame.
+"""
+
+import contextlib
+import io
+import json
+import zipfile
+from collections.abc import Callable, Iterator
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import pytest
+from fastapi.testclient import TestClient
+
+from hqptuner.api.factory import create_app
+from hqptuner.conf.presetzip import DESCRIPTIONS_MEMBER, embed_descriptions, take_descriptions
+from hqptuner.config import Config
+from hqptuner.presets.descriptionstore import (
+    DescriptionError,
+    DescriptionSchemaError,
+    DescriptionStore,
+)
+
+#: A stamp no released HQPTuner can claim to understand.
+TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}
+
+#: Content that is not our record: not JSON at all, and JSON that is not an
+#: object. All read as empty rather than raising — a corrupt store loses
+#: descriptions, it does not brick the page.
+UNREADABLE = ["not json at all {", "[]", '"Living Room"', "17", "null"]
+
+#: A stamp left by an earlier write, far enough in the past that no write made
+#: during a test run can land on it.
+ANCIENT = "2000-01-01T00:00:00+00:00"
+
+NAME = "Living Room"
+TEXT = "Wide stereo, gentle tilt below 200 Hz."
+
+
+def store_at(tmp_path: Path) -> DescriptionStore:
+    return DescriptionStore(tmp_path / "descriptions.json")
+
+
+def seed(tmp_path: Path, content: str) -> Path:
+    path = tmp_path / "descriptions.json"
+    path.write_text(content)
+    return path
+
+
+def stamped(profiles: dict[str, dict[str, str]]) -> bytes:
+    """A store file as another HQPTuner would have left it."""
+    return json.dumps({"schema": 1, "profiles": profiles}).encode()
+
+
+def entry(text: str, updated: str = ANCIENT) -> dict[str, str]:
+    return {"text": text, "updated": updated}
+
+
+def members(zip_bytes: bytes) -> dict[str, bytes]:
+    archive = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    return {name: archive.read(name) for name in archive.namelist()}
+
+
+@pytest.fixture
+def descriptions_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
+    """The REST surface over a description file in ``tmp_path``, daemonless.
+
+    A factory rather than a plain client so a case can hand-write a file another
+    HQPTuner version stamped and then open the app over it. Nothing here can
+    reach hqplayerd — the control lane points at `closed_port`, which nothing
+    listens on — so a route that answers at all answered without the daemon."""
+    clients: list[TestClient] = []
+
+    def build() -> TestClient:
+        cfg = Config(
+            hqp_host="127.0.0.1",
+            hqp_control_port=closed_port,
+            hqp_username="",
+            hqp_password="",
+            description_file=tmp_path / "descriptions.json",
+        )
+        client = TestClient(create_app(cfg))
+        clients.append(client)
+        client.__enter__()
+        return client
+
+    yield build
+    for client in clients:
+        client.__exit__(None, None, None)
+
+
+@pytest.fixture
+def desc_client(descriptions_api: Callable[[], TestClient]) -> TestClient:
+    return descriptions_api()
+
+
+@pytest.fixture
+def carriage_client(
+    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int
+) -> Iterator[tuple[TestClient, DescriptionStore]]:
+    """The backup/restore routes wired to the fake 8088 daemon, over a
+    description store in ``tmp_path``. The store is handed back alongside the
+    client so a case can state what was stored before a backup and read what a
+    restore left behind, without going through the REST pair it is not testing."""
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=closed_port,
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",
+        alarm_threshold=1.0,
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        description_file=tmp_path / "descriptions.json",
+    )
+    with TestClient(create_app(cfg)) as test_client:
+        yield test_client, DescriptionStore(tmp_path / "descriptions.json")
+
+
+def upload(client: TestClient, data: bytes) -> Any:
+    return client.post("/api/restore", files={"cfgfile": ("settings.zip", data, "application/zip")})
+
+
+# --- reading a store that was never written ---------------------------------
+
+
+def test_reading_a_store_with_no_file_yields_no_descriptions(tmp_path: Path) -> None:
+    assert store_at(tmp_path).read() == {}
+
+
+def test_reading_a_store_with_no_file_creates_nothing(tmp_path: Path) -> None:
+    store_at(tmp_path).read()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
+    DescriptionStore(tmp_path / "never-created" / "descriptions.json").write(NAME, TEXT)
+    assert (tmp_path / "never-created" / "descriptions.json").is_file()
+
+
+# --- the round trip -----------------------------------------------------------
+
+
+def test_written_text_reads_back(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    assert store.read()[NAME]["text"] == TEXT
+
+
+def test_a_write_answers_with_the_whole_map_so_no_follow_up_read_is_needed(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write("Study", "near field")
+    assert sorted(store.write(NAME, TEXT)) == ["Living Room", "Study"]
+
+
+def test_writing_one_name_leaves_another_names_text_alone(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write("Study", "near field")
+    store.write(NAME, TEXT)
+    assert store.read()["Study"]["text"] == "near field"
+
+
+# --- the stamp on an entry -----------------------------------------------------
+
+
+def test_a_written_entry_carries_an_instant_in_utc(tmp_path: Path) -> None:
+    written = store_at(tmp_path).write(NAME, TEXT)
+    assert datetime.fromisoformat(written[NAME]["updated"]).utcoffset().total_seconds() == 0  # type: ignore[union-attr]
+
+
+def test_rewriting_a_name_replaces_its_text(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    store.write(NAME, "Flat now.")
+    assert store.read()[NAME]["text"] == "Flat now."
+
+
+# The old stamp is hand-written rather than produced by a first `write`, so the
+# case does not depend on two writes landing in different clock ticks: a store
+# that keeps the stamp it found on disk fails here whatever the resolution.
+def test_rewriting_a_name_replaces_the_stamp_an_earlier_write_left(tmp_path: Path) -> None:
+    seed(tmp_path, stamped({NAME: entry("warm")}).decode())
+    assert store_at(tmp_path).write(NAME, TEXT)[NAME]["updated"] != ANCIENT
+
+
+# --- blank text removes the entry ------------------------------------------------
+
+
+@pytest.mark.parametrize("blank", [pytest.param("", id="empty"), pytest.param("   \n\t ", id="whitespace-only")])
+def test_writing_blank_text_removes_the_entry(tmp_path: Path, blank: str) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    store.write(NAME, blank)
+    assert NAME not in store.read()
+
+
+def test_removing_one_name_leaves_another_alone(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    store.write("Study", "near field")
+    store.write(NAME, "")
+    assert store.read()["Study"]["text"] == "near field"
+
+
+def test_blanking_a_name_that_was_never_written_is_not_refused(tmp_path: Path) -> None:
+    assert store_at(tmp_path).write(NAME, "") == {}
+
+
+# --- what a name may be ----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param("", id="empty"),
+        pytest.param("x" * 129, id="129-chars"),
+        pytest.param("Living\x00Room", id="null-byte"),
+        pytest.param("Living\nRoom", id="newline"),
+        pytest.param("Living\x07Room", id="bell"),
+    ],
+)
+def test_an_invalid_name_is_refused(tmp_path: Path, name: str) -> None:
+    with pytest.raises(DescriptionError):
+        store_at(tmp_path).write(name, TEXT)
+
+
+def test_a_name_of_exactly_128_characters_is_accepted(tmp_path: Path) -> None:
+    assert "x" * 128 in store_at(tmp_path).write("x" * 128, TEXT)
+
+
+def test_a_refused_name_stores_nothing(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    with contextlib.suppress(DescriptionError):
+        store.write("", TEXT)
+    assert store.read() == {}
+
+
+# --- what text may be -------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("x" * 2001, id="2001-chars"),
+        pytest.param("warm\x00room", id="null-byte"),
+        pytest.param("warm\x07room", id="bell"),
+        pytest.param("warm\x1broom", id="escape"),
+    ],
+)
+def test_invalid_text_is_refused(tmp_path: Path, text: str) -> None:
+    with pytest.raises(DescriptionError):
+        store_at(tmp_path).write(NAME, text)
+
+
+def test_text_of_exactly_2000_characters_is_accepted(tmp_path: Path) -> None:
+    assert store_at(tmp_path).write(NAME, "x" * 2000)[NAME]["text"] == "x" * 2000
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("first line\nsecond line", id="newline"),
+        pytest.param("gain\tphase", id="tab"),
+        pytest.param("two  spaces  between", id="interior-spaces"),
+        pytest.param("a paragraph\n\nand another", id="blank-line-between"),
+    ],
+)
+def test_accepted_text_survives_verbatim(tmp_path: Path, text: str) -> None:
+    assert store_at(tmp_path).write(NAME, text)[NAME]["text"] == text
+
+
+def test_a_refused_text_leaves_the_previous_text_in_place(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    with contextlib.suppress(DescriptionError):
+        store.write(NAME, "x" * 2001)
+    assert store.read()[NAME]["text"] == TEXT
+
+
+# --- how many profiles may carry one -----------------------------------------------
+
+
+def test_exactly_256_profiles_are_accepted(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    for i in range(255):
+        store.write(f"profile-{i}", "note")
+    assert len(store.write("profile-255", "note")) == 256
+
+
+def test_a_257th_profile_is_refused(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    for i in range(256):
+        store.write(f"profile-{i}", "note")
+    with pytest.raises(DescriptionError):
+        store.write("profile-256", "note")
+
+
+# A rewrite is not a new profile: the count that matters is how many names the
+# store holds, so the store staying full must not lock out an edit.
+def test_rewriting_a_name_is_allowed_with_the_store_full(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    for i in range(256):
+        store.write(f"profile-{i}", "note")
+    assert store.write("profile-0", "edited")["profile-0"]["text"] == "edited"
+
+
+# --- a file this HQPTuner did not write ---------------------------------------------
+
+
+@pytest.mark.parametrize("content", UNREADABLE)
+def test_a_file_that_is_not_our_record_reads_as_empty(tmp_path: Path, content: str) -> None:
+    seed(tmp_path, content)
+    assert store_at(tmp_path).read() == {}
+
+
+def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps(TOO_NEW))
+    with pytest.raises(DescriptionSchemaError, match="99"):
+        store_at(tmp_path).read()
+
+
+def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_write(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps(TOO_NEW))
+    with pytest.raises(DescriptionSchemaError, match="99"):
+        store_at(tmp_path).write(NAME, TEXT)
+
+
+def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp_path: Path) -> None:
+    seed(tmp_path, json.dumps(TOO_NEW))
+    with pytest.raises(DescriptionError):
+        store_at(tmp_path).read()
+
+
+def test_a_refused_write_leaves_the_newer_file_untouched(tmp_path: Path) -> None:
+    # The refusal itself is pinned above; suppressed here so the one assertion
+    # this test owns is the on-disk check.
+    path = seed(tmp_path, json.dumps(TOO_NEW))
+    with contextlib.suppress(DescriptionError):
+        store_at(tmp_path).write(NAME, TEXT)
+    assert json.loads(path.read_text()) == TOO_NEW
+
+
+def test_a_file_another_hqptuner_wrote_reads_back_its_text(tmp_path: Path) -> None:
+    seed(tmp_path, stamped({NAME: entry("warm")}).decode())
+    assert store_at(tmp_path).read()[NAME]["text"] == "warm"
+
+
+# --- merging a payload ----------------------------------------------------------------
+
+
+def test_merge_adds_a_name_the_store_did_not_have(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write("Study", "near field")
+    assert store.merge(stamped({NAME: entry("warm")}))[NAME]["text"] == "warm"
+
+
+def test_merge_keeps_a_name_the_payload_did_not_carry(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write("Study", "near field")
+    assert store.merge(stamped({NAME: entry("warm")}))["Study"]["text"] == "near field"
+
+
+def test_a_name_in_both_takes_the_payloads_text(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    assert store.merge(stamped({NAME: entry("from the payload")}))[NAME]["text"] == "from the payload"
+
+
+def test_a_merged_payload_reads_back_off_disk(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.merge(stamped({NAME: entry("warm")}))
+    assert store_at(tmp_path).read()[NAME]["text"] == "warm"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(b"not json at all {", id="not-json"),
+        pytest.param(b"[]", id="not-an-object"),
+        pytest.param(b'{"schema": 1, "profiles": ["Living Room"]}', id="profiles-not-a-map"),
+        pytest.param(b'{"schema": 1, "profiles": {"Living Room": "warm"}}', id="entry-not-a-map"),
+        pytest.param(b'{"schema": 1, "profiles": {"": {"text": "warm"}}}', id="empty-name"),
+    ],
+)
+def test_an_unreadable_payload_is_refused(tmp_path: Path, payload: bytes) -> None:
+    with pytest.raises(DescriptionError):
+        store_at(tmp_path).merge(payload)
+
+
+def test_a_refused_merge_changes_nothing(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write(NAME, TEXT)
+    with contextlib.suppress(DescriptionError):
+        store.merge(b"not json at all {")
+    assert store.read()[NAME]["text"] == TEXT
+
+
+# --- exporting the store ----------------------------------------------------------
+
+
+def test_exported_bytes_merged_into_an_empty_store_reproduce_the_text(tmp_path: Path) -> None:
+    source = store_at(tmp_path)
+    source.write(NAME, TEXT)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    assert store_at(elsewhere).merge(source.export_bytes())[NAME]["text"] == TEXT
+
+
+def test_exported_bytes_merged_into_an_empty_store_reproduce_every_name(tmp_path: Path) -> None:
+    source = store_at(tmp_path)
+    source.write(NAME, TEXT)
+    source.write("Study", "near field")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    assert sorted(store_at(elsewhere).merge(source.export_bytes())) == ["Living Room", "Study"]
+
+
+def test_exported_bytes_carry_the_stamp_a_write_left(tmp_path: Path) -> None:
+    source = store_at(tmp_path)
+    written = source.write(NAME, TEXT)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    assert store_at(elsewhere).merge(source.export_bytes())[NAME]["updated"] == written[NAME]["updated"]
+
+
+# --- the REST pair -------------------------------------------------------------------
+
+
+def test_a_fresh_install_answers_get_with_no_descriptions(desc_client: TestClient) -> None:
+    assert desc_client.get("/api/descriptions").json()["profiles"] == {}
+
+
+def test_a_fresh_install_answers_get_with_200(desc_client: TestClient) -> None:
+    assert desc_client.get("/api/descriptions").status_code == 200
+
+
+def test_put_then_get_answers_with_the_stored_text(desc_client: TestClient) -> None:
+    desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    assert desc_client.get("/api/descriptions").json()["profiles"][NAME]["text"] == TEXT
+
+
+def test_a_served_entry_carries_the_stamp_of_its_write(desc_client: TestClient) -> None:
+    desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    served = desc_client.get("/api/descriptions").json()["profiles"][NAME]["updated"]
+    assert datetime.fromisoformat(served).utcoffset().total_seconds() == 0  # type: ignore[union-attr]
+
+
+def test_put_answers_with_the_whole_map_so_no_follow_up_get_is_needed(desc_client: TestClient) -> None:
+    desc_client.put("/api/descriptions", json={"name": "Study", "text": "near field"})
+    answer = desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    assert sorted(answer.json()["profiles"]) == ["Living Room", "Study"]
+
+
+def test_putting_blank_text_drops_the_entry(desc_client: TestClient) -> None:
+    desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    desc_client.put("/api/descriptions", json={"name": NAME, "text": "   "})
+    assert NAME not in desc_client.get("/api/descriptions").json()["profiles"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param({"name": "", "text": TEXT}, id="empty-name"),
+        pytest.param({"name": "x" * 129, "text": TEXT}, id="129-char-name"),
+        pytest.param({"name": "Living\x07Room", "text": TEXT}, id="control-char-name"),
+        pytest.param({"name": NAME, "text": "x" * 2001}, id="2001-char-text"),
+        pytest.param({"name": NAME, "text": "warm\x00room"}, id="control-char-text"),
+    ],
+)
+def test_a_put_the_store_would_refuse_answers_422(desc_client: TestClient, body: object) -> None:
+    assert desc_client.put("/api/descriptions", json=body).status_code == 422
+
+
+# The message is not pinned word for word — what is pinned is that the sentence
+# the user is shown is the store's own, so a route inventing its own wording for
+# a refusal it did not diagnose fails here whatever the store ends up saying.
+def test_a_refused_put_answers_with_the_stores_own_message(desc_client: TestClient, tmp_path: Path) -> None:
+    with pytest.raises(DescriptionError) as refusal:
+        store_at(tmp_path).write(NAME, "x" * 2001)
+    answer = desc_client.put("/api/descriptions", json={"name": NAME, "text": "x" * 2001})
+    assert str(refusal.value) in json.dumps(answer.json())
+
+
+def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
+    tmp_path: Path, descriptions_api: Callable[[], TestClient]
+) -> None:
+    seed(tmp_path, json.dumps(TOO_NEW))
+    assert descriptions_api().get("/api/descriptions").status_code == 409
+
+
+def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
+    tmp_path: Path, descriptions_api: Callable[[], TestClient]
+) -> None:
+    seed(tmp_path, json.dumps(TOO_NEW))
+    answer = descriptions_api().put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    assert answer.status_code == 409
+
+
+# Both directions in one case, because what is being pinned is the pair itself:
+# with hqplayerd unreachable, reading and writing descriptions both still answer.
+def test_descriptions_are_served_in_both_directions_with_no_daemon_reachable(desc_client: TestClient) -> None:
+    written = desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    assert (written.status_code, desc_client.get("/api/descriptions").status_code) == (200, 200)
+
+
+# --- the two zip helpers -------------------------------------------------------------
+
+
+def test_an_embedded_payload_comes_back_out() -> None:
+    base = stamped({NAME: entry("warm")})
+    archive = embed_descriptions(members_zip(), base)
+    assert take_descriptions(archive)[1] == base
+
+
+def test_taking_the_payload_removes_its_member() -> None:
+    archive = embed_descriptions(members_zip(), stamped({NAME: entry("warm")}))
+    assert DESCRIPTIONS_MEMBER not in members(take_descriptions(archive)[0])
+
+
+def test_taking_the_payload_leaves_every_other_member_byte_identical() -> None:
+    plain = members_zip()
+    archive = embed_descriptions(plain, stamped({NAME: entry("warm")}))
+    assert members(take_descriptions(archive)[0]) == members(plain)
+
+
+def test_an_archive_with_no_payload_yields_no_payload() -> None:
+    assert take_descriptions(members_zip())[1] is None
+
+
+def test_an_archive_with_no_payload_comes_back_unchanged() -> None:
+    plain = members_zip()
+    assert take_descriptions(plain)[0] == plain
+
+
+def members_zip() -> bytes:
+    """An archive shaped the way hqplayerd's own /backup is: a working config
+    and the data tree beside it (docs/protocol.md §3.6)."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("hqplayerd.xml", b"<hqplayer/>")
+        z.writestr("data/library.xml", b"<library/>")
+    return out.getvalue()
+
+
+# --- carriage through backup ----------------------------------------------------------
+
+
+def test_a_backup_carries_the_descriptions_member(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
+    client, store = carriage_client
+    store.write(NAME, TEXT)
+    assert DESCRIPTIONS_MEMBER in members(client.get("/api/backup").content)
+
+
+def test_the_carried_member_holds_the_stored_text(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
+    client, store = carriage_client
+    store.write(NAME, TEXT)
+    carried = json.loads(members(client.get("/api/backup").content)[DESCRIPTIONS_MEMBER])
+    assert carried["profiles"][NAME]["text"] == TEXT
+
+
+def test_an_empty_store_adds_no_member(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
+    client, _store = carriage_client
+    assert DESCRIPTIONS_MEMBER not in members(client.get("/api/backup").content)
+
+
+def test_a_backup_leaves_the_daemons_own_members_byte_identical(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    plain = members(client.get("/api/backup").content)
+    store.write(NAME, TEXT)
+    carried = members(client.get("/api/backup").content)
+    assert {name: body for name, body in carried.items() if name != DESCRIPTIONS_MEMBER} == plain
+
+
+def test_a_backup_is_still_a_zip_download_with_descriptions_carried(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    store.write(NAME, TEXT)
+    assert client.get("/api/backup").headers["content-type"] == "application/zip"
+
+
+# --- carriage through restore -----------------------------------------------------------
+
+
+def test_a_restore_merges_the_carried_descriptions(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
+    assert store.read()[NAME]["text"] == "warm"
+
+
+def test_a_restore_keeps_a_description_the_archive_did_not_carry(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    store.write("Study", "near field")
+    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
+    assert store.read()["Study"]["text"] == "near field"
+
+
+def test_a_restore_forwards_an_archive_without_the_descriptions_member(
+    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
+) -> None:
+    client, _store = carriage_client
+    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
+    assert DESCRIPTIONS_MEMBER not in http_daemon["_restore_members"]
+
+
+def test_a_restore_forwards_every_other_member_byte_identical(
+    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
+) -> None:
+    client, _store = carriage_client
+    plain = client.get("/api/backup").content
+    upload(client, embed_descriptions(plain, stamped({NAME: entry("warm")})))
+    assert members(http_daemon["_restore_bytes"]) == members(plain)
+
+
+def test_a_restore_carrying_descriptions_still_reports_restored(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, _store = carriage_client
+    archive = embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")}))
+    assert upload(client, archive).json()["restored"] is True
+
+
+# --- an archive carrying nothing of ours ------------------------------------------------
+
+
+def test_a_restore_with_no_carried_member_changes_no_descriptions(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    store.write(NAME, TEXT)
+    upload(client, client.get("/api/backup").content)
+    assert store.read()[NAME]["text"] == TEXT
+
+
+def test_a_restore_with_no_carried_member_forwards_the_bytes_unchanged(
+    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
+) -> None:
+    client, _store = carriage_client
+    plain = client.get("/api/backup").content
+    upload(client, plain)
+    assert http_daemon["_restore_bytes"] == plain
+
+
+# The daemon refuses an upload that is not a settings archive, and how the route
+# reports that refusal is pre-existing behaviour no part of this spec speaks to —
+# hence the suppression. What is under test is that an upload HQPTuner cannot
+# read is still the user's upload: it reaches the daemon as it was sent, and it
+# does not disturb prose it never mentioned.
+
+
+def test_a_non_zip_upload_changes_no_descriptions(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    store.write(NAME, TEXT)
+    with contextlib.suppress(Exception):
+        upload(client, b"this is not a zip at all")
+    assert store.read()[NAME]["text"] == TEXT
+
+
+def test_a_non_zip_upload_is_forwarded_unchanged(
+    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
+) -> None:
+    client, _store = carriage_client
+    with contextlib.suppress(Exception):
+        upload(client, b"this is not a zip at all")
+    assert http_daemon["_restore_bytes"] == b"this is not a zip at all"
+
+
+# --- a carried member this HQPTuner cannot read -------------------------------------------
+# The archive came from somewhere else and its descriptions member is rubbish.
+# The settings restore is the point of the upload; the prose riding along must
+# not be able to fail it, and must not take the existing prose down with it.
+
+
+def test_an_unreadable_carried_member_leaves_the_store_untouched(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, store = carriage_client
+    store.write(NAME, TEXT)
+    upload(client, embed_descriptions(client.get("/api/backup").content, b"not json at all {"))
+    assert store.read()[NAME]["text"] == TEXT
+
+
+def test_an_unreadable_carried_member_does_not_fail_the_restore(
+    carriage_client: tuple[TestClient, DescriptionStore],
+) -> None:
+    client, _store = carriage_client
+    archive = embed_descriptions(client.get("/api/backup").content, b"not json at all {")
+    assert upload(client, archive).json()["restored"] is True
+
+
+def test_an_unreadable_carried_member_is_still_stripped_before_forwarding(
+    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
+) -> None:
+    client, _store = carriage_client
+    upload(client, embed_descriptions(client.get("/api/backup").content, b"not json at all {"))
+    assert DESCRIPTIONS_MEMBER not in http_daemon["_restore_members"]
