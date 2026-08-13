@@ -14,7 +14,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from conftest import ManagerFactory, wait_for_api
+from conftest import ManagerFactory, StartManager, wait_for_api
 from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
@@ -303,8 +303,19 @@ def disagreeing_daemon() -> Iterator[dict[str, Any]]:
 @pytest.fixture
 def backupless_daemon() -> Iterator[dict[str, Any]]:
     """A daemon announcing its selected device whose settings archive cannot be
-    read — the unauthenticated app, or a failed archive read."""
-    yield from fake_http.spawn(fake_http.state(_log=SELECTED_LOG, _fail_paths=["/backup/settings.zip"]))
+    read — a failed archive read, so no file view exists.
+
+    Its config FILE names another device than its form and log do, so a readable
+    archive here would put the two views a generation apart and withhold the
+    capability: the refusal is what the case turns on, not an unfetched view."""
+    yield from fake_http.spawn(
+        fake_http.state(
+            _log=SELECTED_LOG,
+            net_device=OTHER,
+            _form_net_device=SELECTED,
+            _fail_paths=["/backup/settings.zip"],
+        )
+    )
 
 
 async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
@@ -339,19 +350,20 @@ async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agre
     # the daemon opens the preset's device and the form catches up
     disagreeing_daemon["_form_net_device"] = None
     disagreeing_daemon["_log"] = SELECTED_LOG
+    # one ordinary refresh, unforced and with no virtual time passed: a retry
+    # interval charged for the disagreement would still be closed here
     await manager.refresh_devices()
-    # unforced, and no virtual time has passed: a retry interval charged for the
-    # disagreement would still be closed here
-    await manager.refresh_device_caps()
     assert (manager.device_caps or {})["device"] == SELECTED
 
 
 async def test_manager_serves_the_capability_when_the_archive_read_failed(
-    http_manager_factory: ManagerFactory, backupless_daemon: dict[str, Any]
+    start_manager: StartManager, backupless_daemon: dict[str, Any]
 ) -> None:
-    # no file view exists to agree or disagree with, so the form is the sole
-    # authority on the selected device, exactly as before
-    manager = _manager(http_manager_factory, backupless_daemon)
+    # the connect path reads the settings archive and is refused, so no file view
+    # exists to agree or disagree with: the form is the sole authority on the
+    # selected device, exactly as before
+    port = backupless_daemon["_port"]
+    manager = await start_manager(port, hqp_http_port=port)
     await manager.refresh_devices()
     assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
 
