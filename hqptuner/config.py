@@ -77,6 +77,15 @@ class Config:
             _env("FAVORITES_FILE", str(Path(__file__).resolve().parent.parent / "state" / "favorites.json"))
         )
     )
+    # Narrow-bar facets (see narrowingstore) — one JSON file beside the
+    # favorites, in the same bind-mounted state dir. The narrow bar is
+    # presentational and has no daemon field behind it, so the install is the
+    # only place it can live; a browser that reloads picks the facets back up.
+    narrowing_file: Path = field(
+        default_factory=lambda: Path(
+            _env("NARROWING_FILE", str(Path(__file__).resolve().parent.parent / "state" / "narrowing.json"))
+        )
+    )
     # Matrix-profile descriptions (see descriptionstore) — one JSON file beside
     # the favorites, in the same bind-mounted state dir. A description belongs to
     # the install for the same reason a favorite does, and there is nowhere in

@@ -17,7 +17,15 @@
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
-import { narrowingActive, resetNarrowing, nApod1x, nApodNx, nHires1x, nHiresNx } from "../store/narrowing.js";
+import {
+  narrowingActive,
+  narrowingError,
+  resetNarrowing,
+  nApod1x,
+  nApodNx,
+  nHires1x,
+  nHiresNx,
+} from "../store/narrowing.js";
 import { closeExcept } from "./narrowbar/popover.js";
 import { NarrowFacets } from "./narrowbar/Facets.js";
 import {
@@ -69,6 +77,7 @@ export function NarrowBar() {
           <${StageSeg} stage="nx" sig=${nHiresNx} options=${HIRES_NX_SEGS} />
         <//>
       </div>
+      ${narrowingError.value ? html`<div class="field-error">${narrowingError.value}</div>` : null}
     <//>
   `;
 }
