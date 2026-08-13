@@ -329,10 +329,16 @@ const CHAINS = {
 const PREP = { junk_filter: "0", pre_before_meter: false };
 const FULL = { backend: "alsa", ...PRESENT, ...CHAINS, ...PREP };
 
-// A tab button's visible label, accents and markup stripped.
+// A tab button's visible label, accents and markup stripped. Buttons are cut
+// out by string index rather than one lazy regex (sonarjs/super-linear-regex);
+// the tag strip is the suite's excluded-bracket precedent.
 /** @param {string} out */
 const tabLabels = (out) =>
-  [...out.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) => m[1].replace(/<[^>]*>/g, "").trim());
+  out
+    .split("</button>")
+    .slice(0, -1)
+    .map((chunk) => chunk.slice(chunk.lastIndexOf("<button")))
+    .map((btn) => btn.replace(/<[^<>]*>/g, "").trim());
 
 test("test_the_tab_bar_offers_exactly_output_volume_matrix_system_in_order", async () => {
   await reset({ cfg: FULL });
