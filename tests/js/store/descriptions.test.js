@@ -65,8 +65,7 @@ const env = globalThis;
  * @param {DescriptionWire} w
  * @returns {{ name: string, text: string }[]}
  */
-const puts = (w) =>
-  w.calls.filter((c) => c.path === PATH && c.method === "PUT").map((c) => JSON.parse(String(c.body)));
+const puts = (w) => w.calls.filter((c) => c.path === PATH && c.method === "PUT").map((c) => JSON.parse(String(c.body)));
 
 /**
  * A fake of the server side of the pair: it holds the map, stores what a PUT
