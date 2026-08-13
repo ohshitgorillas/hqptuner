@@ -1,5 +1,8 @@
-// Output tab: Mode / Backend / Rate master switches, the two backend sections,
-// and DAC correction (it corrects the selected output device's signal).
+// Output tab: Mode / Backend / Rate master switches, the conversion cards
+// (pre-process, filter narrowing, the PCM/SDM chains, FFT filter length),
+// DAC correction (it corrects the selected output device's signal), and the
+// two backend sections. Tuned-per-album cards sit above the set-once backend
+// plumbing.
 import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -7,8 +10,10 @@ import { BypassNote } from "../MatrixBypassNote.js";
 import { noteFor } from "../../store/prose.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
+import { NarrowBar } from "../NarrowBar.js";
 import { Section, Card, collapseFrom } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
+import { PreProcessCard, PcmChainCard, SdmChainCard, FilterLengthCard } from "./ConversionCards.js";
 
 // A backend section reveals itself when its backend is selected (or Combo, which
 // runs both). Collapse is purely visual — every field still POSTs (the daemon
@@ -77,7 +82,7 @@ const NetCard = () => html`<${Card} title="Network Backend" collapse=${collapseF
 <//>`;
 
 // Mode / Backend / Rate lead the tab as the three master switches.
-/** Output tab: backend, mode and rate switches, the ALSA and network cards, and DAC correction. */
+/** Output tab: backend, mode and rate switches, the conversion cards, DAC correction, and the ALSA and network cards. */
 export const Output = () => {
   const dacOn = truthy(effective("dac_correction_enabled"));
   return html`<${Section}>
@@ -96,8 +101,11 @@ export const Output = () => {
         </div>
       <//>
     </div>
-    <${AlsaCard} />
-    <${NetCard} />
+    <${PreProcessCard} />
+    <${NarrowBar} />
+    <${PcmChainCard} />
+    <${SdmChainCard} />
+    <${FilterLengthCard} />
     <${Card} title="DAC correction" subtitle=${noteFor("dac_correction_enabled")}>
       <div class="dsp-card">
         <${BypassNote} on=${dacOn} />
@@ -107,5 +115,7 @@ export const Output = () => {
         </div>
       </div>
     <//>
+    <${AlsaCard} />
+    <${NetCard} />
   <//>`;
 };
