@@ -14,16 +14,32 @@
 // Both directions are STAGED like any other edit — the pending bar counts them
 // and Discard undoes them. Nothing reaches the daemon until Apply.
 //
-// The mode itself is client-only and persisted in localStorage (prefs.js
-// precedent): the daemon has no field for "which controls am I looking at". The
-// snapshot rides along with it, so a reload on the speaker side does not strand
-// the headphone setup.
-import { signal } from "@preact/signals";
+// The mode BELONGS TO THE PRESET, not to the browser. Which half of the tab a
+// configuration is listened through is a property of that configuration — a
+// preset built around crossfeed and a headphone EQ profile is a headphone preset
+// whatever machine opens it — so the choice is stored for the install, keyed by
+// preset name (presets/matrixmodestore.py, GET/PUT /api/matrixmodes). hqplayerd's
+// config has nowhere to carry it: the daemon re-serializes configuration from its
+// own model, so an attribute of ours would not survive.
+//
+// A preset with no recorded mode leaves the tab where it is. Nothing migrates
+// existing presets, because "nobody has said" is not "this one is for speakers",
+// and the last-used mode in localStorage remains the fallback for that case and
+// for the moments there is no preset at all. The snapshot rides along with it, so
+// a reload on the speaker side does not strand the headphone setup.
+//
+// Binding the view to a preset sets the signal DIRECTLY, never through
+// `setMatrixMode`: the preset carries its own pipelines and crossfeed in its own
+// config, so the suppress/restore below would stage edits the preset already
+// accounts for. Only the hand-driven switcher suppresses and restores.
+import { signal, computed, effect } from "@preact/signals";
 
-import { effective, effectivePipelines, canonPipelines } from "./resolve.js";
+import { effective, effectivePipelines, canonPipelines, activePreset } from "./resolve.js";
 import { stagePipelines, edit } from "./actions.js";
 import { structuralBlock, removeStructural, disableBauer } from "./xfmode.js";
+import { pendingPreset } from "./signals.js";
 import { truthy } from "../lib/coerce.js";
+import { api } from "../lib/api.js";
 
 // DELIBERATELY still says dspMode, and must stay that way. This module, its
 // signal and its setter were renamed dspMode -> matrixMode when the DSP tab
@@ -81,6 +97,72 @@ function saveSnapshot(v) {
 
 export const matrixMode = signal(load());
 
+// Every preset's stored mode, keyed by preset name, as /api/matrixmodes serves
+// it. Private: the map is this module's business, and what the rest of the app
+// reads is the mode it resolves to.
+const presetModes = signal(/** @type {Record<string, string>} */ ({}));
+
+// Which preset the tab is looking at: the previewed one while a preset is staged
+// but not applied, else the active one. The preview is what is on screen, so it
+// is what the view follows.
+const boundPreset = computed(() => pendingPreset.value || activePreset.value || "");
+
+/**
+ * Fill the map from the server. Never throws: an unreachable backend leaves the
+ * tab on the last-used mode, which is what it can honestly show.
+ * @returns {Promise<void>}
+ */
+async function hydrateMatrixModes() {
+  try {
+    const body = await api.matrixModes();
+    presetModes.value = body.presets || {};
+  } catch {
+    /* unreachable or unreadable store — the last-used mode stands */
+  }
+}
+
+// Follow the preset. Fires on a preset switch and on the hydrate that first
+// learns the map; a preset with no recorded mode leaves the signal alone. The
+// last-used value is kept current as it goes, so the fallback a reload lands on
+// is the side the user was last looking at rather than the last one they clicked.
+effect(() => {
+  const recorded = presetModes.value[boundPreset.value];
+  if (recorded !== "speakers" && recorded !== "headphones") return;
+  matrixMode.value = recorded;
+  rememberLast(recorded);
+});
+
+// The last-used mode, the fallback for a preset nobody has said anything about
+// and for the moments there is no preset at all.
+/**
+ * @param {string} mode
+ * @returns {void}
+ */
+function rememberLast(mode) {
+  try {
+    localStorage.setItem(KEY, mode);
+  } catch {
+    /* storage disabled — in-memory value drives the session */
+  }
+}
+
+// Record the hand-driven choice against the preset it was made on. Nothing to key
+// it to means nothing to store — an install with no preset loaded still switches,
+// it just switches for this browser only.
+/**
+ * @param {string} mode
+ * @returns {void}
+ */
+function remember(mode) {
+  const name = boundPreset.value;
+  if (!name) return;
+  presetModes.value = { ...presetModes.value, [name]: mode };
+  void api.saveMatrixMode(name, mode).catch(() => {
+    /* refused write leaves the switch where the user put it — a view choice
+       costs nothing to be wrong about until the next reload */
+  });
+}
+
 // EVERY crossfeed carrier, since any of them may be installed: the structural
 // block is sixteen matrix rows, Bauer is a post-process flag PLUS the eight
 // compensation rows built to correct for it. Dropping only the flag left that
@@ -121,12 +203,13 @@ export function setMatrixMode(next) {
   const mode = next === "speakers" ? "speakers" : "headphones";
   const prev = matrixMode.value;
   matrixMode.value = mode;
-  try {
-    localStorage.setItem(KEY, mode);
-  } catch {
-    /* storage disabled — in-memory value drives the session */
-  }
+  rememberLast(mode);
   if (mode === prev) return;
+  remember(mode);
   if (mode === "speakers") suppress();
   else restore();
 }
+
+// Read the map once, at load. Guarded on `fetch` because this module is imported
+// by the SSR harness, where there is no backend to ask.
+if (typeof fetch === "function") void hydrateMatrixModes();

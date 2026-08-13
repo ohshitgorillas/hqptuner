@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **The Matrix tab's speakers/headphones choice now belongs to the preset.** Each preset remembers which half of the tab it is listened through, stored for the install rather than for one browser, so loading a preset puts the tab on its own side. A preset with no remembered side opens on the last one used.
+
 - **Matrix profiles can carry a description** — room, mic position, target curve, date, whatever the name has no room for. The box on the Matrix tab's Profile card binds to the selected profile or to the name being typed into Save as, and saves on each keystroke with no Apply and no restart. LIVE shows the running profile's description under its picker. Descriptions travel in backup download and upload.
 
 - **Setting a buffer to minimum now asks first.** Short buffer at Minimum, or Buffer time at −1, breaks playback on most setups. Changing either now opens a warning over the control: revert, or confirm and stage it as before.
