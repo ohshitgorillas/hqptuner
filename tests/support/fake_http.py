@@ -159,6 +159,22 @@ def _matrix_render(st: dict[str, Any]) -> str:
     return '<form method="post" enctype="multipart/form-data">' + "".join(parts) + "</form>"
 
 
+def _about_render(st: dict[str, Any]) -> str:
+    """GET /about — the stock UI page (protocol.md §3.6 route table). The
+    daemon's installed release string follows the Version heading on its own
+    line, which is where a reader parses it from. ``_about_body`` overrides the
+    whole page: a daemon whose about page carries no Version heading at all."""
+    body = st.get("_about_body")
+    if body is not None:
+        return str(body)
+    return (
+        "<html><body>\n<h1>HQPlayer Embedded</h1>\n"
+        "<h3>Version</h3>\n"
+        f"{st['release']}\n"
+        "<h3>Copyright</h3>\nJussi Laako\n</body></html>"
+    )
+
+
 def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
     # `_down`: restore accepted, daemon never came back. `_fail_paths`: the same
     # 503 frame narrowed to named routes — a daemon answering some pages and
@@ -170,6 +186,8 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
         return 200, b""
     if path == "/log":
         return 200, st["_log"].encode()
+    if path == "/about":
+        return 200, _about_render(st).encode()
     if path == "/config":
         return 200, _http_render(st).encode()
     if path == "/matrix":
@@ -376,6 +394,8 @@ def state(**extra: Any) -> dict[str, Any]:
         # GET /log body — the 8088 web interface serves the daemon's log here
         "_log": "\n".join(f"log line {i}" for i in range(1, 61)),
         "backend": "network",
+        # GET /about — the installed release string under the Version heading
+        "release": "6.0.2",
         # the live-routed set as the config file carries it: a control-lane write
         # never reaches these, so a restore is the only way they ever change
         "mode": "sdm",

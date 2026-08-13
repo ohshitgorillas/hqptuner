@@ -37,24 +37,29 @@ test("about hqptuner head offers a closed disclosure triangle by default", () =>
   assert.ok(render(html`<${System} />`).includes("▸"));
 });
 
-test("engine build string is labelled engine", () => {
-  health.value = { info: { engine: "6.0.4" }, license: null };
-  assert.ok(render(html`<${System} />`).includes("<dt>Engine</dt>"));
+test("the version row carries the daemon's release string", () => {
+  health.value = { info: { engine: "6.0.4" }, release: "6.0.2", license: null };
+  assert.match(render(html`<${System} />`), /<dt>Version<\/dt>\s*<dd>6\.0\.2<\/dd>/);
 });
 
 test("the engine row carries the reported engine version", () => {
-  health.value = { info: { engine: "6.0.4" }, license: null };
-  assert.ok(render(html`<${System} />`).includes("6.0.4"));
+  health.value = { info: { engine: "6.0.4" }, release: "6.0.2", license: null };
+  assert.match(render(html`<${System} />`), /<dt>Engine<\/dt>\s*<dd>6\.0\.4<\/dd>/);
 });
 
-test("no about row is labelled version", () => {
-  health.value = { info: { engine: "6.0.4" }, license: null };
+test("an empty release renders no version row", () => {
+  health.value = { info: { engine: "6.0.4" }, release: "", license: null };
   assert.ok(!render(html`<${System} />`).includes("<dt>Version</dt>"));
 });
 
-test("the about card notes the figure is the dsp engine version", () => {
-  health.value = { info: { engine: "6.0.4" }, license: null };
-  assert.ok(render(html`<${System} />`).includes("DSP engine"));
+test("an empty release still leaves the engine row in place", () => {
+  health.value = { info: { engine: "6.0.4" }, release: "", license: null };
+  assert.match(render(html`<${System} />`), /<dt>Engine<\/dt>\s*<dd>6\.0\.4<\/dd>/);
+});
+
+test("the system tab carries a note that the figures may differ", () => {
+  health.value = { info: { engine: "6.0.4" }, release: "6.0.2", license: null };
+  assert.ok(render(html`<${System} />`).includes("may differ"));
 });
 
 test("a daemon outside the verified series says so under its version", () => {
