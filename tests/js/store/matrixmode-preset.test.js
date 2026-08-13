@@ -71,8 +71,13 @@ const W = stagingWire({
 const { matrixMode, setMatrixMode } = await import("../../../hqptuner/static/store/matrixmode.js");
 
 /**
- * Put the module back to a stated starting state: nothing previewed, the config
- * naming the applied preset, nothing staged, and the switcher sitting on `mode`.
+ * Put the module back to a stated starting state: the config naming the applied
+ * preset, nothing staged, the preview the case asked for, and the switcher
+ * sitting on `mode`.
+ *
+ * The preview is set AFTER `discardAll()`, which throws away every staged edit
+ * and the previewed preset with it — seeding it earlier would leave the fixture
+ * claiming a preview the store no longer has.
  *
  * Crossfeed is left ON in the matrix config on purpose: the HAND-driven switcher
  * suppresses it on the way to speakers (tests/js/components/speakers.test.js),
@@ -84,7 +89,7 @@ const { matrixMode, setMatrixMode } = await import("../../../hqptuner/static/sto
  */
 async function reset({ mode = "headphones", active = "", pending = null } = {}) {
   PUTS.length = 0;
-  pendingPreset.value = pending;
+  pendingPreset.value = null;
   config.value = { fields: [], file: {}, active, profiles: null };
   matrixConfig.value = {
     fields: [
@@ -94,6 +99,7 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
     rows: [],
   };
   await discardAll();
+  pendingPreset.value = pending;
   matrixMode.value = mode;
   await quiesce(W);
   PUTS.length = 0;
@@ -194,7 +200,7 @@ test("test_switching_by_hand_sends_exactly_one_put", async () => {
 });
 
 test("test_switching_by_hand_records_the_choice_against_a_previewed_preset", async () => {
-  await reset({ mode: "headphones", active: HP, pending: SPK });
+  await reset({ mode: "speakers", active: HP, pending: SPK });
   await setMatrixMode("headphones");
   await quiesce(W);
   assert.deepEqual(PUTS.at(-1), { name: SPK, mode: "headphones" });
@@ -230,7 +236,10 @@ test("test_a_backend_that_cannot_be_reached_leaves_the_tab_on_the_last_used_mode
   env.fetch = async () => {
     throw new TypeError("fetch failed");
   };
-  const offline = await import("../../../hqptuner/static/store/matrixmode.js?offline");
+  // The specifier is assembled at runtime: a literal one with a query string is
+  // not statically resolvable, and `tsc -p jsconfig.json` refuses it (TS2307).
+  const copy = `${new URL("../../../hqptuner/static/store/matrixmode.js", import.meta.url).href}?offline`;
+  const offline = await import(copy);
   env.fetch = saved;
   dropStorage();
   assert.equal(offline.matrixMode.value, "headphones");
