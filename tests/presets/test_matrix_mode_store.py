@@ -30,6 +30,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from hqptuner.presets.matrixmodestore import (
     MatrixModeError,
     MatrixModeSchemaError,
@@ -192,7 +193,46 @@ def test_an_unusual_name_reads_back_off_disk_exactly_as_given(tmp_path: Path) ->
     assert list(store_at(tmp_path).read()) == ["音楽プリセット"]
 
 
+# --- how many presets may carry a mode -------------------------------------------
+
+
+def test_the_two_hundred_and_fifty_seventh_preset_is_refused(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    for i in range(256):
+        store.write(f"preset-{i}", "speakers")
+    with pytest.raises(MatrixModeError):
+        store.write("preset-256", "speakers")
+
+
+# The refusal above says nothing on its own about WHERE the ceiling is — a store
+# that stopped at five would satisfy it — so the last preset under the ceiling is
+# stated too.
+def test_exactly_two_hundred_and_fifty_six_presets_are_accepted(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    for i in range(255):
+        store.write(f"preset-{i}", "speakers")
+    assert len(store.write("preset-255", "speakers")) == 256
+
+
 # --- a file this HQPTuner did not write ---------------------------------------------
+
+
+# A damaged file costs the recorded modes, not the page: the tab falls back to
+# the last-used side rather than raising at the user.
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param("not json at all {", id="not-json"),
+        pytest.param("", id="empty-file"),
+        pytest.param("[]", id="json-list"),
+        pytest.param('"Night"', id="json-string"),
+        pytest.param("17", id="json-number"),
+        pytest.param("null", id="json-null"),
+    ],
+)
+def test_a_file_that_is_not_our_record_reads_as_empty(tmp_path: Path, content: str) -> None:
+    seed(tmp_path, content)
+    assert store_at(tmp_path).read() == {}
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:
