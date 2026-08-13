@@ -18,6 +18,7 @@ ENV HQPTUNER_BACKUP_DIR=/state/backups \
     HQPTUNER_LIVE_PRESET_FILE=/state/live-presets.json \
     HQPTUNER_FAVORITES_FILE=/state/favorites.json \
     HQPTUNER_DESCRIPTION_FILE=/state/descriptions.json \
+    HQPTUNER_NARROWING_FILE=/state/narrowing.json \
     HQPTUNER_LISTEN_HOST=0.0.0.0
 
 USER hqptuner
