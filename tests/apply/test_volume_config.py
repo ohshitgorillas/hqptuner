@@ -17,6 +17,7 @@ from typing import Any
 
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import presetlane
 
 # 6.0.4 shape, fixed volume OFF: the daemon keeps the last level in a COMMENTED
 # top-level line, and that comment is its memory. HQPTuner used to delete the
@@ -140,7 +141,7 @@ async def test_a_live_adaptive_volume_is_saved_into_the_preset(http_manager: Con
     # the file says off (fake default volume_adaptive="0"); the engine says on
     http_manager.state = {"adaptive": "1"}
     await http_manager.presetops.save_preset("Loud")
-    assert (await http_manager.read_preset("Loud"))["adaptive_volume"] == "1"
+    assert (await presetlane.read(http_manager, "Loud"))["adaptive_volume"] == "1"
 
 
 async def test_a_saved_preset_reports_success(http_manager: ConnectionManager) -> None:
