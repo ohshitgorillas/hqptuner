@@ -116,9 +116,6 @@ const SIGNALS = {
   hires_nx: nHiresNx,
 };
 
-/** Every facet as the signals currently hold it. @returns {Facets} */
-const facetsNow = () => Object.fromEntries(Object.entries(SIGNALS).map(([key, sig]) => [key, sig.value]));
-
 /**
  * The PUT bodies the wire was handed, newest last, each as its `facets` member.
  *
@@ -219,10 +216,13 @@ test("test_hydration_writes_nothing_back", async () => {
 
 // --- a hydration the server refused ---------------------------------------------
 
-test("test_a_failed_hydration_leaves_every_facet_at_its_default", async () => {
+// The facet is set away from its default first, so this tells "left alone"
+// apart from "wiped back to the defaults" — after `reset()` both look alike.
+test("test_a_failed_hydration_leaves_a_facet_at_the_value_it_already_held", async () => {
   await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
+  nPhase.value = "minimum";
   await hydrateNarrowing();
-  assert.deepEqual(facetsNow(), DEFAULTS);
+  assert.equal(nPhase.value, "minimum");
 });
 
 test("test_a_failed_hydration_reports_the_sentence_the_server_sent", async () => {
@@ -310,14 +310,17 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
 });
 
 // Favorites-only is session state, deliberately not part of this record: a
-// browser that had it on must not push it onto every other browser.
+// browser that had it on must not push it onto every other browser. The
+// sentinel stands in for a flush that sent nothing at all, so a client that
+// never writes fails here rather than passing on an empty key list.
 test("test_the_put_carries_no_favorites_only_key", async () => {
   const w = await reset();
   await hydrateNarrowing();
   nPhase.value = "minimum";
   await flushNarrowing();
+  const sent = puts(w).at(-1) || { no_put_was_sent: true };
   assert.deepEqual(
-    Object.keys(puts(w).at(-1) || {}).filter((k) => k.includes("fav")),
+    Object.keys(sent).filter((k) => k.includes("fav") || k === "no_put_was_sent"),
     [],
   );
 });

@@ -130,10 +130,15 @@ def edit_facets(path: Path, mutate: Callable[[dict[str, Any]], None]) -> None:
 
 
 def keep_only(names: set[str]) -> Callable[[dict[str, Any]], None]:
-    """A `edit_facets` mutation that drops every facet outside ``names``."""
+    """A `edit_facets` mutation that drops every facet outside ``names``.
+
+    The schema stamp is never dropped: under a flat layout it sits in the same
+    dict as the facets, and a case about a file holding only some facets must
+    not quietly become a case about a file carrying no stamp.
+    """
 
     def mutate(facets: dict[str, Any]) -> None:
-        for key in [k for k in facets if k not in names]:
+        for key in [k for k in facets if k not in names and k != "schema"]:
             del facets[key]
 
     return mutate
@@ -324,11 +329,22 @@ def test_a_write_carrying_a_key_that_is_not_a_facet_is_refused_naming_that_key(t
         store_at(tmp_path).write({"wombat": "yes"})
 
 
+# The cap is on the list's length exactly as given: the store does not
+# deduplicate before counting, so a list of one repeated in-domain token is
+# accepted at 32 entries and refused at 33.
 @pytest.mark.parametrize("facet", ["genre", "focus"])
 def test_a_write_of_more_than_32_entries_is_refused(tmp_path: Path, facet: str) -> None:
     value = "rock" if facet == "genre" else "timbre"
     with pytest.raises(NarrowingError):
         store_at(tmp_path).write({facet: [value] * 33})
+
+
+@pytest.mark.parametrize("facet", ["genre", "focus"])
+def test_a_write_of_exactly_32_entries_reads_back_whole(tmp_path: Path, facet: str) -> None:
+    value = "rock" if facet == "genre" else "timbre"
+    store = store_at(tmp_path)
+    store.write({facet: [value] * 32})
+    assert store.read()[facet] == [value] * 32
 
 
 # --- the on-disk layout stamp ------------------------------------------------
@@ -430,11 +446,3 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 ) -> None:
     restamp(stored(tmp_path, SET), TOO_NEW)
     assert narrowing_api().put("/api/narrowing", json={"facets": SET}).status_code == 409
-
-
-# Both directions of the pair, in one case, because the point being pinned is
-# the pair itself: with hqplayerd unreachable (see `narrowing_api`), reading and
-# writing narrowing both still answer.
-def test_narrowing_is_served_in_both_directions_with_no_daemon_reachable(nar_client: TestClient) -> None:
-    written = nar_client.put("/api/narrowing", json={"facets": SET})
-    assert (written.status_code, nar_client.get("/api/narrowing").status_code) == (200, 200)

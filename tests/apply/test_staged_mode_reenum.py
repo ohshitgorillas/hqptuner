@@ -96,6 +96,22 @@ async def test_a_filter_apply_leaves_the_enumerations_re_read(live_manager: Live
     assert _filter_enum_ids(manager) == ["38", "23", "57"]
 
 
+async def test_a_filter_apply_re_reads_early_enough_for_the_next_resolve(live_manager: LiveManager) -> None:
+    # the re-read has to land BEFORE the next field resolve, not merely by the
+    # time the caller looks: enum 57 is SDM index 2 and PCM index 3, so a second
+    # apply that lands index 2 is the proof the fresh list was the one consulted.
+    # The two chains carry separate config-form fields for the same setter:
+    # `filter` is the PCM chain's, `oversampling` is the SDM chain's. A field
+    # belonging to the chain the engine has not loaded is held, never written, so
+    # the second apply — made after the engine moved to SDM — has to name the
+    # entered chain's own field to reach the engine at all.
+    manager, _, state = await live_manager(mode="1")
+    state["mode"] = "2"
+    await manager.applyops.apply({}, {"filter": "57"})
+    await manager.applyops.apply({}, {"oversampling": "57"})
+    assert present(manager.state)["filterNx"] == "2"
+
+
 # --- a mode the daemon answers OK for and never applies ------------------------
 # `result="OK"` is not proof the setter took (protocol.md §6), so the readback
 # disagrees and the mode is reported not applied. It does NOT escalate onto the
@@ -149,18 +165,10 @@ async def test_a_mode_the_daemon_answered_but_never_applied_reports_not_applied(
 
 
 async def test_a_mode_the_daemon_answered_but_never_applied_does_not_restart_the_daemon(
-    deaf_mode_manager: ConnectionManager,
+    deaf_mode_manager: ConnectionManager, pcm_file_daemon: dict[str, Any]
 ) -> None:
-    report = await deaf_mode_manager.applyops.apply({}, {"mode": "sdm"})
-    assert report["persistent"] is None
-
-
-# --- regression guard: the batch that already applies live -------------------
-# Covered elsewhere; pinned here so a re-read added to the mode path cannot turn
-# a live-routed batch into a restart.
-
-
-async def test_a_mode_beside_a_live_routable_field_stays_off_the_restore_lane(live_manager: LiveManager) -> None:
-    manager, _, _ = await live_manager(mode="1")
-    report = await manager.applyops.apply({}, {"mode": "sdm", "modulator": "3"})
-    assert report["persistent"] is None
+    # asserted at the wire: POST /restore self-restarts the daemon, so the fake's
+    # arrival count is what says the engine was never restarted behind the user
+    before = pcm_file_daemon["_restore_attempts"]
+    await deaf_mode_manager.applyops.apply({}, {"mode": "sdm"})
+    assert pcm_file_daemon["_restore_attempts"] == before
