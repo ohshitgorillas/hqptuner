@@ -19,6 +19,9 @@ import {
 import { Section, Card, collapseFrom } from "../common.js";
 
 const info = computed(() => (health.value && health.value.info) || {});
+// installed release ("6.0.2") off the daemon's /about page; "" when it could
+// not be read — the Version row simply stays absent then.
+const release = computed(() => (health.value && health.value.release) || "");
 const license = computed(() => (health.value && health.value.license) || {});
 
 /**
@@ -50,6 +53,7 @@ const About = () => {
   const i = info.value;
   const rows = [
     ["Product", i.product],
+    ["Version", release.value],
     ["Engine", i.engine],
     ["Licensed", licenseLabel(license.value)],
     ["Platform", i.platform],
@@ -67,8 +71,8 @@ const About = () => {
     ${
       i.engine
         ? html`<p class="field-note">
-          Engine is the version of HQPlayer's DSP engine, which Signalyst numbers separately — it can differ from the
-          installed hqplayerd release number.
+          Engine is the version of HQPlayer's DSP engine, which Signalyst numbers separately — it may differ from the
+          installed hqplayerd release (Version).
         </p>`
         : ""
     }

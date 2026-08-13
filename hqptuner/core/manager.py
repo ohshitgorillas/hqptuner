@@ -32,7 +32,7 @@ from hqptuner.conf import engineconf, presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.applyops import ApplyOps
-from hqptuner.engine import devicecaps, logtail
+from hqptuner.engine import devicecaps, logtail, release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
 from hqptuner.lanes import httpforms, livechain, livelane, rescan, settle
 from hqptuner.presets import presetlane
@@ -80,6 +80,9 @@ class ConnectionManager:
         self._unreachable_mono: float = time.monotonic()
 
         self.info: dict[str, str] | None = None
+        # installed release string off the 8088 /about page (engine/release.py);
+        # "" until read, and stays "" when the page is unreachable or unparseable.
+        self.release: str = ""
         self.license: dict[str, str] | None = None
         self.state: dict[str, str] | None = None
         self.status: dict[str, str] | None = None
@@ -232,6 +235,9 @@ class ConnectionManager:
         self.loaded_at = time.time()
         self.reachable = True
         self.unreachable_since = None
+        # best-effort and credential-free: /about is not gated, and fetch_release
+        # answers any failure with "" — reachability is already decided above.
+        self.release = await release.fetch_release(f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}")
         if self._http is not None:
             # best-effort 8088 lane — a failure here must not undo the 4321 connect.
             # refresh_http_forms populates config/matrix/speakers (+ their *_error).
