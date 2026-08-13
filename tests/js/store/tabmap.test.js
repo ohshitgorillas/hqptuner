@@ -55,6 +55,32 @@ test("a staged fft filter length lights the output tab", async () => {
   assert.deepEqual([...dirtyTabs.value], ["output"]);
 });
 
+// Every chain field the merge moved onto the Output tab accents it — the whole
+// PCM chain, the whole SDM chain, and the DSD-source handling of each. A key
+// left behind in the mapping would light nothing or the wrong tab.
+const MOVED_CHAIN_KEYS = [
+  "pcm_filter_1x",
+  "pcm_filter_nx",
+  "pcm_dither",
+  "noise_filter",
+  "pcm_conversion",
+  "dsd_gain_6db",
+  "sdm_filter_1x",
+  "sdm_filter_nx",
+  "sdm_modulator",
+  "sdm_integrator",
+  "sdm_conversion",
+  "direct_sdm",
+];
+
+for (const key of MOVED_CHAIN_KEYS) {
+  test(`a staged ${key.replaceAll("_", " ")} lights the output tab`, async () => {
+    await reset();
+    await edit(key, "1");
+    assert.deepEqual([...dirtyTabs.value], ["output"]);
+  });
+}
+
 test("a staged gain compensation lights the volume tab", async () => {
   await reset();
   await edit("gain_comp", "-0.5");

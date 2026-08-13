@@ -205,3 +205,34 @@ test("test_a_card_closed_by_hand_survives_an_unrelated_staged_edit", async () =>
   await edit("gain_comp", "-0.5");
   assert.equal(stateOf(tab(), PCM), "closed");
 });
+
+// The same lifecycle, mirrored for a card the user OPENED by hand — an inert
+// chain shown against its mode's auto disclosure. It stays open through
+// anything short of a mode change, and a mode change drops the override.
+
+test("test_a_card_opened_by_hand_survives_a_fresh_config_at_the_same_mode", async () => {
+  await reset("pcm");
+  ensure(SDM, "open"); // the SDM card's automatic disclosure in PCM is closed
+  setMode("pcm"); // identical in content, new in identity — a quiet re-fetch
+  assert.equal(stateOf(tab(), SDM), "open");
+});
+
+test("test_a_card_opened_by_hand_survives_an_unrelated_staged_edit", async () => {
+  await reset("pcm");
+  ensure(SDM, "open");
+  await edit("gain_comp", "-0.5");
+  assert.equal(stateOf(tab(), SDM), "open");
+});
+
+test("test_a_hand_opened_inert_card_recloses_once_the_mode_has_changed", async () => {
+  // Each card is auto-closed in exactly one mode, so no single transition lands
+  // a hand-opened card where auto disclosure is closed again — a kept override
+  // and a dropped one render the same after one change. The round trip tells
+  // them apart: if the first mode change dropped the open-override, returning
+  // to SDM finds the PCM card back on its automatic (closed) disclosure.
+  await reset("sdm");
+  ensure(PCM, "open"); // auto-closed in SDM, so this is the user's own doing
+  setMode("pcm");
+  setMode("sdm");
+  assert.equal(stateOf(tab(), PCM), "closed");
+});

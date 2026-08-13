@@ -192,6 +192,22 @@ def test_the_index_page_renders_the_app_shell(page: Page, stack: Stack) -> None:
     assert [name.strip() for name in page.locator("nav.tab-nav button").all_text_contents()] == TAB_NAMES
 
 
+def test_the_high_frequency_filter_is_reachable_without_switching_tabs(page: Page, stack: Stack) -> None:
+    """The landing tab carries the High-frequency filter: no tab click between load and control.
+
+    Every other case leans on this through `open_app`, where a regression would
+    surface as a timeout inside whichever test runs first; this one names the
+    behaviour. The page is loaded directly — deliberately not via `open_app` —
+    and no tab-nav click happens before the assert.
+    """
+    page.goto(stack.base_url)
+    # The waits are bounded polls for the shell and then the field; the assert
+    # is what they left on screen.
+    page.wait_for_selector("footer.pending-bar", timeout=LOAD_MS)
+    page.wait_for_selector(f"label:has-text('{JUNK_LABEL}')", timeout=LOAD_MS)
+    assert field(page, JUNK_LABEL).is_visible()
+
+
 def test_the_daemons_filter_enumeration_fills_the_live_filter_selector(page: Page, stack: Stack) -> None:
     """The LIVE Nx filter selector offers exactly what the daemon enumerated."""
     open_app(page, stack)
