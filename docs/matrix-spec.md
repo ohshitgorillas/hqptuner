@@ -34,6 +34,8 @@ A profile name is a filename-shaped thing and the conditions a filter set was me
 
 **Descriptions ride the backup archive** as one member, `hqptuner/descriptions.json` (`conf/presetzip.py`). `GET /api/backup` adds it, `POST /api/restore` takes it out and merges it before the archive reaches hqplayerd — the daemon never sees a member it did not write. A name in both takes the archive's, a restore being the thing that should win. This is the only lane that carries descriptions between installs.
 
+**A carried payload is refused by its envelope and cleaned by its entries (binding).** Bytes that are not readable JSON, or that are not a descriptions store at all, are refused whole and change nothing — that is the case the user needs told about. An entry *inside* a readable store that is not storable is dropped on the way in and the rest merges, exactly as a corrupt entry in the store's own file is dropped rather than raising. Refusing a whole archive over one malformed row would cost the user every other description in it, and the two roads into the store must not disagree about the same bytes.
+
 Nothing here is gated on the descriptions preference (`notesVisible`): that pref hides prose HQPTuner wrote, and this is prose the user wrote.
 
 ### Pipeline flow rows
