@@ -4,7 +4,7 @@ A polished and enhanced configuration interface for HQPlayer Embedded.
 
 ![The Output tab during DSD512 playback](docs/images/hqptuner-v1-output.png)
 
-*The Output tab during DSD512 playback: live signal path across the top, an advisory reading the source's noise profile, Backend / Mode / Rate master switches, and every setting explained in place.*
+*The Output tab, converting a 192kHz/24bit source to DSD512.*
 
 ## Inspiration
 
@@ -35,24 +35,29 @@ HQPTuner offers the following features and improvements over the stock web confi
 The above three features are my flagships, but the following benefits are offered as well:
 
 * **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
-* **More sensible organization**: Settings are organized into five tabs: Output, Volume, Resampling, Matrix, and System.
+* **More sensible organization**: Settings are organized into four tabs: Output, Volume, Matrix, and System. Stop wondering where to find a certain feature.
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the output rate menu.
 * **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out.
 * **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.
 * **Live volume control**: For those who rely on HQPlayer for volume adjustment.
-* **LIVE mode**: A switch at the top drops the tabs for a single page of everything the running engine can change in place — mode, rate, both filter chains, dither, volume, matrix profile. No Apply: each control writes when you change it. Save the lot as a **live preset** and load it back in one click, output mode included, so a DSD preset applies while PCM is playing by switching the engine over. Nothing on the page is saved to the configuration; it lasts until the daemon restarts.
+* **LIVE mode**: A switch at the top drops the tabs for a single page of everything the running engine can change in place — mode, rate, both filter chains, dither, volume, matrix profile. No Apply: each control writes when you change it. Save the lot as a **live preset** and load it back in one click.
 * **Exposes more options**: Critical hardware acceleration options like multicore DSP, CUDA mode, and E-core modes are all exposed and explained.
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
 * **Log tail in the browser**: The daemon's log, right in the System tab.
+* **Customizable accent color**: Choose from one of four presets, or roll your own with a hex code.
+
+![The Volume tab](docs/images/hqptuner-v1-volume.png)
+
+*The Volume tab.*
 
 ![LIVE mode](docs/images/hqptuner-v1-live.png)
 
-*LIVE mode: engine health, filter narrowing with live per-dropdown counts, both filter chains, playback volume, and matrix profile on one page. No Apply — every control writes as you change it.*
+*LIVE mode. Every control on the page writes to the engine when changed; there is no Apply.*
 
 ![The Matrix tab](docs/images/hqptuner-v1-matrix.png)
 
-*The Matrix tab: sixteen structural-crossfeed pipelines carrying a headphone EQ, the crossfeed model's geometry readout, and the combined result on the Matrix Response plot — each EQ band a draggable dot, with a knob row for the selected one.*
+*The Matrix tab. Sixteen structural-crossfeed pipelines carrying a headphone EQ; the Matrix Response plot at the bottom shows the combined result.*
 
 ## Drawbacks of HQPTuner
 
@@ -194,35 +199,6 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_FAVORITES_FILE` | `state/favorites.json` | Starred filter names, one JSON file shared by every browser |
 | `HQPTUNER_DEBUG_LOG` | unset (off) | Path to the append-only event log. Unset means no file and no records. Set it to record every durable write — staged edits, applies, profile writes, preset writes — as JSON Lines, e.g. `/state/audit.jsonl` in the container |
 | `HQPTUNER_LOG_LEVEL` | `INFO` | Level for ordinary prose logging. A level name, not a number; an unparseable value falls back to `INFO` rather than refusing to start |
-
-## Development
-
-Backend and frontend carry matching gate suites. Run `npm install` once alongside the venv — the JS tooling is dev-only and never ships. The Python dev tools are the `dev` extra:
-
-```sh
-.venv/bin/pip install -e ".[dev]"
-```
-
-
-* `make check` — everything below. Must be green before every commit.
-* `make lint` — Python: ruff, black, xenon complexity, vulture, strict mypy, file-length and test-assertion checks.
-* `make lint-js` — frontend, one-for-one with the above: eslint (ruff), prettier (black), `tsc --checkJs` (mypy), knip (vulture), file-length, plus the CSS design-token (`check_css_tokens.py`) and control-catalog (`check_control_catalog.py`) gates. The complexity ceiling is 10, matching `xenon --max-absolute B`.
-* `make test` — offline Python suite (fake daemons speaking the real wire protocol).
-* `make test-live` — adds `live`-marked tests; needs a reachable hqplayerd.
-* `make test-js` — frontend suite on node's built-in runner. No browser, no bundler: a loader hook reads the importmap out of `index.html` so tests exercise the same vendored preact/htm the browser loads, and components render through `preact-render-to-string`.
-
-Pre-commit runs both lint suites and the Python tests; the JS suite is `make check` only, to keep the commit path from carrying two full suites.
-
-Design and reference docs:
-
-* `docs/architecture.md` — architecture, integration lanes, and the normative rules (enumeration volatility, behavior rules, presets)
-* `docs/protocol.md` — Control API + HTTP lane wire reference (derived from the official MIT-licensed `hqp-control` source, verified against a live daemon)
-* `docs/matrix-spec.md` — matrix pipeline editing design of record, probe findings, delivery checklist
-* `docs/settings-classification.md` — every setting tagged live vs restart
-* `docs/crossfeed-math.md` — structural crossfeed model, derivation, and matrix realization
-* `docs/eq-export.md` — REW / Equalizer APO export format reference
-* `docs/testing.md` — binding testing policy
-* `docs/eq-assistant/eq-assistant-plan.md` — EQ Assistant implementation plan (not yet built), alongside its research base in the same directory
 
 ## Status
 
