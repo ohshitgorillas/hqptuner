@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Enabling Direct SDM now asks first.** The daemon pins PCM volume at a fixed −3 dBFS whenever Direct SDM is on, so the control opens a yes/no warning saying so. The warning appears when Direct SDM turns on from any volume state other than a fixed −3 dB, whether by Fixed level or Auto headroom.
+
 ### Changed
 
 - **Six checkboxes became two-button switches with named sides.** DoP is now DSD support (Native DSD / DSD over PCM), 48kHz DSD rates is DSD rates (44.1kHz only / +48kHz family), IPv6 discovery is Discovery (IPv4 / +IPv6), and Gain +6 dB is Source gain (0 dB / +6 dB), on both the ALSA and Network backend cards where each applies. Descriptions quoting the old checkbox labels now quote the new sides.

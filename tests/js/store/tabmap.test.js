@@ -20,7 +20,8 @@ import { dirtyTabs } from "../../../hqptuner/static/store/tabmap.js";
 import { config, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
-import { stagingWire } from "../support/wire.js";
+import { question, answer } from "../../../hqptuner/static/store/ask.js";
+import { stagingWire, quiesce } from "../support/wire.js";
 
 async function reset() {
   const w = stagingWire();
@@ -28,6 +29,23 @@ async function reset() {
   config.value = { fields: [{ name: "pre_before_meter", value: false }], file: {}, active: "", profiles: null };
   await discardAll();
   return w;
+}
+
+// A staged edit that gets past any guard question the store opens on the way —
+// direct_sdm's forced fixed volume is one (store/ask.js). A guarded edit does
+// not resolve until its question is answered, so fire it, let the wire settle,
+// confirm whatever stands, then await. The guards are pinned in their own
+// suites; this one's subject is which tab the staged edit lights.
+/**
+ * @param {import("../support/wire.js").StagingWire} w
+ * @param {string} key
+ * @param {string} value
+ */
+async function stage(w, key, value) {
+  const held = edit(key, value);
+  await quiesce(w);
+  if (question.value) answer();
+  await held;
 }
 
 // The reorganization moved the old Output-tab residents to the tabs that now
@@ -75,8 +93,8 @@ const MOVED_CHAIN_KEYS = [
 
 for (const key of MOVED_CHAIN_KEYS) {
   test(`a staged ${key.replaceAll("_", " ")} lights the output tab`, async () => {
-    await reset();
-    await edit(key, "1");
+    const w = await reset();
+    await stage(w, key, "1");
     assert.deepEqual([...dirtyTabs.value], ["output"]);
   });
 }
@@ -178,8 +196,8 @@ const MATRIX_KEYS = [
 async function sweepSchema() {
   const lit = new Map();
   for (const key of Object.keys(schema)) {
-    await reset();
-    await edit(key, "1");
+    const w = await reset();
+    await stage(w, key, "1");
     lit.set(key, [...dirtyTabs.value]);
   }
   return lit;
