@@ -39,6 +39,9 @@
 .mtx-desc {
   width: 100%;
   max-width: var(--measure);
+  /* prose, so the UI face — a textarea's UA default is monospace, which is the
+     paste box's job (wire data) and not this one's */
+  font-family: var(--font-ui);
   font-size: var(--fs-body);
   background: var(--surface-well);
   color: var(--fg);
