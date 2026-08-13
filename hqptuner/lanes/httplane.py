@@ -176,7 +176,13 @@ async def _judge(
     log.warning("apply pass %d did not converge: %s", attempt + 1, diff)
     unfixable = await _unfixable_device(mgr, diff)
     if unfixable:
-        final = {"submitted": True, "applied": False, "reason": "unavailable", "unfixable": unfixable, "diff": diff}
+        final = {
+            "submitted": True,
+            "applied": False,
+            "reason": "unavailable",
+            "unfixable": unfixable,
+            "diff": diff,
+        }
         return final, diff, None
     return None, diff, None
 
@@ -211,7 +217,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await mgr.require_http().restore(restore_zip, scope="system")
+    await mgr.push_restore(restore_zip)
     return presetconf.read_config(intended_xml)
 
 

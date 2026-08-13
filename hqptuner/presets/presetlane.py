@@ -75,7 +75,7 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
-    await mgr.require_http().restore(archive, scope="system")
+    await mgr.push_restore(archive)
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
     await mgr.await_http_ready()
@@ -147,6 +147,12 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
     warning = await _mirror(mgr, name, working, backup)
+    # the mirror rides a restore, and a restore restarts the daemon — so the client we
+    # hold is the departing process's, and the next write through it finds a dead socket.
+    # Waiting for the boundary reconnects us; the picture does NOT need invalidating the
+    # way a load's does, because what this save stored was read BEFORE the restore and is
+    # exactly what the daemon is coming back up on.
+    await mgr.await_restart()
     if warning is None:
         return {"name": name, "ok": True}
     return {"name": name, "ok": True, "warning": warning}
@@ -192,7 +198,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
 
     async def push() -> bool:
-        await mgr.require_http().restore(archive, scope="system")
+        await mgr.push_restore(archive)
         return True
 
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):

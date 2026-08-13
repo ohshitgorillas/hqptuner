@@ -69,6 +69,11 @@ class ConnectionManager:
         # seconds — so "a daemon answered" cannot tell the two apart and this can:
         # a different generation is a different process (``await_restart``).
         self._generation = 0
+        # The generation a restore was pushed at (``push_restore``). "Has the daemon
+        # restarted since?" is then one question with one answer, askable any number
+        # of times — the write lane and the resync both ask, and a restart is a single
+        # event that a second waiter would otherwise sit out the deadline waiting for.
+        self._restore_baseline: int | None = None
         # Serializes connects. The poll loop is no longer the only path that brings
         # a connection up — ``await_restart`` does it too, on its own clock — and two
         # tasks connecting at once would leave one client orphaned and unclosed.
@@ -317,23 +322,42 @@ class ConnectionManager:
         settings this exists to discard — the preset switch that stored the previous preset's
         modulator was that window, 200 ms wide against a restart of several seconds. A boundary that
         never arrives leaves the invalidation standing.
+
+        It then RETRIES the read: the poll loop meets the same severed socket independently and can
+        drop the connection between the boundary and this read, and a one-shot refill that lands in
+        that gap leaves the picture blank — which reads to every overlay exactly like a daemon that
+        never came back.
+
+        The wait is against the restore that was pushed (``await_restart``), so asking here after the
+        write lane already asked returns the same answer instead of waiting out a second restart that
+        is never coming.
         """
         self.live.forget()
         self.state = None
+        if self._client is None:
+            return  # no lane to resync: nothing was read off an engine, nothing to put back
         if not await self.await_restart():
             log.warning("engine resync: no restarted daemon within the deadline, live state left invalid")
             return
-        client = self._client
-        if client is None:
+        if await settle.poll_until(self, self._refill_engine, interval=RECONNECT_FAST, deadline=_RESTART_WINDOW):
             return
+        log.warning("engine resync: the restarted daemon never answered, live state left invalid")
+
+    async def _refill_engine(self) -> bool:
+        """Read state and enumerations off the current process, reconnecting first if the loop dropped it."""
         try:
-            state = await client.get_state()
-            enums = await client.get_all_enumerations()
-        except ControlError as exc:
-            # the poll loop's own reconnect refills both; until then None is the honest answer
-            log.warning("engine resync after restart failed: %s", exc)
-            return
-        self.state, self.enums = state, enums
+            await self._connect_and_load()  # no-op when a connection is already up
+            client = self._client
+            if client is None:
+                return False
+            self.state = await client.get_state()
+            self.enums = await client.get_all_enumerations()
+        except _WIRE_FAULTS:
+            # the client we hold is the dead one, and holding it makes the reconnect
+            # above a no-op — so let it go and let the next attempt bring a live one up
+            await self._drop("engine resync read failed")
+            return False
+        return True
 
     async def refresh_http_forms(self) -> None:
         """Refresh the three polled 8088 form snapshots (lanes/httpforms) and the device capability.
@@ -396,7 +420,7 @@ class ConnectionManager:
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
 
     async def await_restart(self) -> bool:
-        """Wait until the daemon process running at call time is gone and a new one has answered.
+        """Whether the daemon has restarted onto the config the last ``push_restore`` sent.
 
         ``POST /restore`` returns 200 when the archive is on disk and the daemon restarts after that
         (~5.6 s, docs/protocol.md), so the departing process keeps serving both lanes meanwhile:
@@ -408,20 +432,25 @@ class ConnectionManager:
         poll loop: the probe discovers the dead socket between ticks, the reconnect proves a NEW
         process answers, and leaving either to the loop makes this verdict wait on that loop's cadence.
 
-        False when none answered in time — 'the engine cannot be trusted', never 'it restarted'.
-        True at once with no connection to observe: nothing is readable off an engine we are not
-        connected to, so the boundary guards nothing, and waiting would refuse every apply whenever
-        4321 is down while 8088 still serves.
+        Asked against the PUSH's generation, not the caller's, so it is a fact about the daemon
+        rather than about who asked first: the write lane and the resync that follows it both need
+        the answer, and a restart is one event — keyed on the caller, the second one waits out its
+        deadline for a restart that already happened and reports the engine untrustworthy.
+
+        False when no new process answered in time — 'the engine cannot be trusted', never 'it
+        restarted'. True at once when no restore is outstanding, and when there is no connection to
+        observe: nothing is readable off an engine we are not connected to, so the boundary guards
+        nothing, and waiting would refuse every apply whenever 4321 is down while 8088 still serves.
         """
-        if self._client is None:
+        baseline = self._restore_baseline
+        if baseline is None or self._client is None:
             return True
-        start = self._generation
         # NOT the alarm threshold: that is how long an unreachable daemon may go
         # unreported, and a deployment tuning it below the restart would never see one.
         deadline = max(_RESTART_WINDOW, self.alarm_threshold)
 
         async def probe() -> bool:
-            if self._generation != start:
+            if self._generation != baseline:
                 return True
             client = self._client
             if client is not None:
@@ -433,7 +462,7 @@ class ConnectionManager:
                     return False  # the process that took the restore is still answering
             with contextlib.suppress(*_WIRE_FAULTS):
                 await self._connect_and_load()  # whatever answers now is a new process
-            return self._generation != start
+            return self._generation != baseline
 
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST, deadline=deadline))
 
@@ -469,6 +498,15 @@ class ConnectionManager:
 
         The daemon self-restarts, interrupting playback if any.
         """
+        await self.push_restore(data, scope=scope)
+
+    async def push_restore(self, data: bytes, scope: str = "system") -> None:
+        """POST a settings archive to ``/restore`` and mark the restart it triggers as owed.
+
+        Every restore in HQPTuner goes through here so the mark cannot be forgotten: the 200 says
+        the files are on disk, the restart follows it, and ``await_restart`` answers for THIS push.
+        """
+        self._restore_baseline = self._generation
         await self.require_http().restore(data, scope=scope)
 
     @property

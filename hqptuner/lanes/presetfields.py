@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.conf import engineconf, presetconf, xmledit
+from hqptuner.conf import engineconf, presetconf
 from hqptuner.lanes import liveoverrides
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -58,10 +58,13 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     Carrying it is how the daemon's native profile list catches up with auto-save.
 
     Auto-save itself never restores, so the mirror rides restores that happen
-    anyway. ``intended_xml`` is the working config that restore lands; folded with
-    the live overrides it is exactly what the next auto-save will store. Without it
-    (an engine-lane restore) the store file itself is the freshest mirror. Empty
-    when auto-save is off, no preset is active, or the preset has no store file yet.
+    anyway. ``intended_xml`` is the working config that restore lands, and it is
+    mirrored AS IS: the archive is built before the restore is pushed, so a live
+    overlay folded in here is read off the process the restore is about to replace.
+    That is how one apply wrote PCM into the working config and the departing
+    engine's SDM into the mirror beside it. Without ``intended_xml`` (an
+    engine-lane restore) the store file itself is the freshest mirror. Empty when
+    auto-save is off, no preset is active, or the preset has no store file yet.
     """
     name = _mirrored_preset(mgr)
     if name is None:
@@ -69,7 +72,4 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     member = engineconf.snapshot_member_name(name)
     if intended_xml is None:
         return {member: mgr.presetops.store.read(name)}
-    try:
-        return {member: presetconf.apply_edits(intended_xml, liveoverrides.live_overrides(mgr))}
-    except xmledit.GroundingError:
-        return {member: mgr.presetops.store.read(name)}
+    return {member: intended_xml}
