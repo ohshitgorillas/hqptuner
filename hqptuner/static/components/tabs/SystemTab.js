@@ -83,28 +83,30 @@ const About = () => {
 // Inline-description visibility prefs. The master hides both the static feature
 // notes and the per-selection option descriptions; the second checkbox — only
 // live while the master is off — keeps the filter / DSD-source option
-// descriptions visible even then.
+// descriptions visible even then. While the master is on the second switch
+// renders checked, since the master forces those descriptions visible; the
+// stored pref is untouched.
 const DescriptionPrefs = () => html`
   <div class="field">
-    <label>Feature descriptions</label>
+    <label>Setting descriptions</label>
     <div class="control">
       <${Checkbox}
         value=${showDescriptions.value ? "1" : "0"}
         onChange=${(/** @type {string | number} */ v) => setShowDescriptions(v === "1")}
       />
     </div>
-    <div class="field-note">Show the description from the manual under each feature. Disabling this converts those descriptions to hover tips.</div>
+    <div class="field-note">Show the description from the manual under each setting. Disabling this converts those descriptions to hover tips.</div>
   </div>
   <div class="field">
     <label>Option descriptions</label>
     <div class="control">
       <${Checkbox}
-        value=${keepOptionDescriptions.value ? "1" : "0"}
+        value=${showDescriptions.value || keepOptionDescriptions.value ? "1" : "0"}
         disabled=${showDescriptions.value}
         onChange=${(/** @type {string | number} */ v) => setKeepOptionDescriptions(v === "1")}
       />
     </div>
-    <div class="field-note">Keep filter and DSD source option descriptions when feature descriptions are hidden</div>
+    <div class="field-note">Keep filter and DSD source option descriptions when setting descriptions are hidden</div>
   </div>
 `;
 
