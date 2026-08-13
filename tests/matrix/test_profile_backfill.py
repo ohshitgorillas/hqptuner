@@ -17,6 +17,7 @@ not produce, so "nothing was written" never reads as a pass.
 
 import json
 import re
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -138,6 +139,13 @@ def test_a_profile_that_already_carries_a_chain_keeps_its_own_plugin_value() -> 
     assert profile_plugin(backfilled, "Day", "bauer")["frequency"] == "300"
 
 
+def test_a_chainless_profile_beside_a_chained_one_is_still_filled() -> None:
+    # a backfill that gives up as soon as one profile carries a chain leaves
+    # "Stock" empty, and every other case in this file would still pass
+    backfilled = matrixconf.backfill_profile_chains(snapshot({"Day": CHAINED, "Stock": CHAINLESS}))
+    assert profile_plugin(backfilled, "Stock", "bauer")["frequency"] == "850"
+
+
 # --- nothing to copy: the snapshot comes back unchanged ------------------------
 
 
@@ -146,8 +154,17 @@ def test_a_snapshot_whose_live_matrix_has_no_chain_comes_back_unchanged() -> Non
     assert matrixconf.backfill_profile_chains(xml) == xml
 
 
+#: A live ``<matrix>`` element that is present but carries nothing at all — no
+#: rows, no chain. There is still nothing to copy.
+EMPTY_MATRIX = (
+    '<?xml version="1.0" encoding="UTF-8"?><hqplayerd><engine channels="2">'
+    f'<matrix_profile name="Stock">{CHAINLESS}</matrix_profile>'
+    '<matrix enabled="1"></matrix></engine></hqplayerd>'
+).encode()
+
 UNTOUCHED = [
-    pytest.param(snapshot({"Stock": CHAINLESS}, matrix=False), id="no-matrix-body"),
+    pytest.param(snapshot({"Stock": CHAINLESS}, matrix=False), id="no-matrix-element"),
+    pytest.param(EMPTY_MATRIX, id="empty-matrix-body"),
     pytest.param(snapshot({}), id="no-saved-profiles"),
     pytest.param(b"<hqplayerd/>", id="bare-root"),
 ]
@@ -167,8 +184,9 @@ def test_a_backfilled_profile_keeps_its_own_pipeline_rows() -> None:
 
 
 def test_a_backfilled_profile_does_not_gain_the_live_matrixs_rows() -> None:
+    # the live matrix's only row sits at gain -2, a gain no profile here carries
     backfilled = matrixconf.backfill_profile_chains(snapshot({"Stock": CHAINLESS}))
-    assert len(profile_rows(backfilled, "Stock")) == 1
+    assert "-2" not in [row["gain"] for row in profile_rows(backfilled, "Stock")]
 
 
 # --- the copy is verbatim ------------------------------------------------------
@@ -191,6 +209,12 @@ async def test_after_an_apply_every_profile_reads_back_with_a_non_empty_post(
     # the fake daemon ships "Stock", a profile saved before chains were stored
     await http_manager.applyops.apply({}, {"title": "Renamed"})
     assert all(p["post"] for p in (await running_profiles(http_manager)).values())
+
+
+async def test_an_apply_keeps_every_profile_the_config_carried(http_manager: ConnectionManager) -> None:
+    # the non-empty-post case above is vacuous if the apply dropped the profiles
+    await http_manager.applyops.apply({}, {"title": "Renamed"})
+    assert set(await running_profiles(http_manager)) == {"Stock"}
 
 
 async def test_after_an_apply_a_backfilled_profile_carries_the_live_chains_value(
@@ -232,15 +256,56 @@ async def test_a_backfilled_preset_reports_ok(http_manager: ConnectionManager) -
     assert http_manager.presetops.backfill_profiles()["Office"] == "ok"
 
 
-async def test_a_preset_whose_live_matrix_has_no_chain_is_not_rewritten(http_manager: ConnectionManager) -> None:
+async def test_a_preset_whose_live_matrix_has_no_chain_keeps_its_bytes(http_manager: ConnectionManager) -> None:
     seeded = snapshot({"Stock": CHAINLESS}, live_chain="")
     http_manager.presetops.store.save("Attic", seeded)
     http_manager.presetops.backfill_profiles()
     assert http_manager.presetops.store.read("Attic") == seeded
 
 
-async def test_a_preset_whose_profiles_all_carry_chains_is_not_rewritten(http_manager: ConnectionManager) -> None:
+async def test_a_preset_whose_live_matrix_has_no_chain_is_absent_from_the_report(
+    http_manager: ConnectionManager,
+) -> None:
+    # the report carries a key only for a preset that was written or that failed
+    http_manager.presetops.store.save("Attic", snapshot({"Stock": CHAINLESS}, live_chain=""))
+    assert "Attic" not in http_manager.presetops.backfill_profiles()
+
+
+async def test_a_preset_whose_profiles_all_carry_chains_keeps_its_bytes(http_manager: ConnectionManager) -> None:
     seeded = snapshot({"Day": CHAINED})
     http_manager.presetops.store.save("Den", seeded)
     http_manager.presetops.backfill_profiles()
     assert http_manager.presetops.store.read("Den") == seeded
+
+
+async def test_a_preset_whose_profiles_all_carry_chains_is_absent_from_the_report(
+    http_manager: ConnectionManager,
+) -> None:
+    http_manager.presetops.store.save("Den", snapshot({"Day": CHAINED}))
+    assert "Den" not in http_manager.presetops.backfill_profiles()
+
+
+# --- a preset that cannot be read ----------------------------------------------
+
+
+def unreadable(preset_dir: Path, name: str) -> None:
+    """Make that stored preset's file unreadable: the entry stays in the store's
+    directory under the same name, and reading it raises."""
+    path = next(p for p in preset_dir.iterdir() if p.stem == name)
+    path.unlink()
+    path.mkdir()
+
+
+async def test_a_preset_that_cannot_be_read_does_not_report_ok(http_manager: ConnectionManager, tmp_path: Path) -> None:
+    http_manager.presetops.store.save("Broken", preset_xml("850"))
+    unreadable(tmp_path / "presets", "Broken")
+    assert http_manager.presetops.backfill_profiles()["Broken"] != "ok"
+
+
+async def test_a_preset_that_cannot_be_read_does_not_block_a_healthy_one(
+    http_manager: ConnectionManager, tmp_path: Path
+) -> None:
+    http_manager.presetops.store.save("Broken", preset_xml("850"))
+    http_manager.presetops.store.save("Office", preset_xml("850"))
+    unreadable(tmp_path / "presets", "Broken")
+    assert http_manager.presetops.backfill_profiles()["Office"] == "ok"
