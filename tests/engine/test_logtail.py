@@ -5,7 +5,6 @@ daemon's 8088 lane (docs/testing.md — public API, fake speaks the wire)."""
 from typing import Any
 
 from hqptuner.config import Config
-from hqptuner.core import deviceops
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import logtail
 
@@ -36,7 +35,7 @@ def test_log_file_field_is_empty_when_form_not_loaded() -> None:
 async def test_read_log_tail_returns_the_last_lines_of_the_daemon_log(http_daemon: dict[str, Any]) -> None:
     cfg = Config(hqp_host="127.0.0.1", hqp_http_port=http_daemon["_port"])
     manager = ConnectionManager(cfg)
-    result = await deviceops.read_log_tail(manager, 3)
+    result = await manager.read_log_tail(3)
     await manager.aclose()
     # the tail reaches the daemon's most recent log line — proves it fetched /log
     assert result["lines"][-1] == "log line 60"
@@ -45,6 +44,6 @@ async def test_read_log_tail_returns_the_last_lines_of_the_daemon_log(http_daemo
 async def test_read_log_tail_reports_unavailable_when_the_daemon_is_unreachable() -> None:
     cfg = Config(hqp_host="127.0.0.1", hqp_http_port=1)  # nothing listening
     manager = ConnectionManager(cfg)
-    result = await deviceops.read_log_tail(manager)
+    result = await manager.read_log_tail()
     await manager.aclose()
     assert result["available"] is False

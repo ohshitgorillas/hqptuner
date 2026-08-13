@@ -41,7 +41,6 @@ from fake_control import CommandLog
 from narrow import present
 
 from hqptuner.conf import presetconf
-from hqptuner.core import deviceops
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets.presetstore import PresetStore
 
@@ -158,7 +157,7 @@ async def test_a_rescan_puts_the_engines_pre_rescan_setting_back(
     held: str,
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert state[reported] == held
 
 
@@ -187,7 +186,7 @@ async def test_a_rescan_reports_the_value_it_put_back(
     # `restored` is keyed by the field name the setting is known by, so the
     # caller can say which settings the rescan cost and what they came back as
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert (await deviceops.refresh_devices(manager))["restored"][field] == value
+    assert (await manager.refresh_devices())["restored"][field] == value
 
 
 # --- the order the replay has to go in ---------------------------------------
@@ -201,7 +200,7 @@ async def test_a_rescan_replays_the_output_mode_before_any_other_setting(
 ) -> None:
     manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     before = len(log)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert [name for name, _ in _setters(log[before:])][:1] == ["SetMode"]
 
 
@@ -212,7 +211,7 @@ async def test_a_replayed_mode_switch_carries_no_other_setter_with_it(
     # enumerations the switch was still moving
     manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     before = len(log)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert _next_after_the_mode_switch(_sent(log[before:])) not in SETTERS
 
 
@@ -222,7 +221,7 @@ async def test_a_rescan_pins_the_rate_after_the_mode_switch(
     # a rate pinned before the switch is the pin the switch clears
     manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     before = len(log)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     sent = _sent(log[before:])
     assert _at(sent, "SetRate") > _at(sent, "SetMode") >= 0
 
@@ -237,7 +236,7 @@ async def test_a_rescan_never_reloads_the_matrix_profile(
     # rescan leaves alone — which is exactly what the field's caption promises
     manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     before = len(log)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert "MatrixSetProfile" not in _sent(log[before:])
 
 
@@ -249,7 +248,7 @@ async def test_a_rescan_with_autosave_off_sends_no_live_setters(
 ) -> None:
     manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
     before = len(log)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert _setters(log[before:]) == []
 
 
@@ -264,7 +263,7 @@ async def test_a_rescan_with_autosave_off_leaves_the_engine_where_the_rescan_lef
 ) -> None:
     # the engine-only settings are on the same gate as every other live one
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert state[reported] == ENGINE_AFTER_RESCAN[reported]
 
 
@@ -289,7 +288,7 @@ async def test_a_rescan_with_no_live_settings_held_sends_no_live_setters(
 ) -> None:
     manager, log = await _nothing_to_carry(daemon, start_manager, http_daemon, tmp_path)
     before = len(log)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert _setters(log[before:]) == []
 
 
@@ -297,7 +296,7 @@ async def test_a_rescan_with_no_live_settings_held_reports_an_empty_restored_map
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log = await _nothing_to_carry(daemon, start_manager, http_daemon, tmp_path)
-    assert (await deviceops.refresh_devices(manager))["restored"] == {}
+    assert (await manager.refresh_devices())["restored"] == {}
 
 
 # --- the replay is best-effort ------------------------------------------------
@@ -311,7 +310,7 @@ async def _deaf_replay(
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _deaf=EVERY_SETTER
     )
-    return dict(await deviceops.refresh_devices(manager))
+    return dict(await manager.refresh_devices())
 
 
 async def test_a_rescan_whose_replay_fails_still_reports_refreshed(
@@ -349,7 +348,7 @@ async def test_the_replay_carries_the_engines_value_and_not_the_stored_one(
     store = PresetStore(tmp_path / "presets")
     store.save("Kept", presetconf.apply_edits(store.read("Kept"), {"adaptive_volume": "0"}))
     store.set_active("Kept")
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert state["adaptive"] == "1"
 
 
@@ -360,7 +359,7 @@ async def test_a_rescan_reports_refreshed(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert (await deviceops.refresh_devices(manager))["refreshed"] is True
+    assert (await manager.refresh_devices())["refreshed"] is True
 
 
 async def test_a_rescan_offers_a_device_that_only_the_new_scan_found(
@@ -370,7 +369,7 @@ async def test_a_rescan_offers_a_device_that_only_the_new_scan_found(
     # the /config form was refetched after it
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     fields = present(manager.config_form)["fields"]
     offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
     assert "S99/hw:CARD=WokeUp,DEV=0" in offered
@@ -383,7 +382,7 @@ async def test_a_rescan_refetches_the_matrix_form(
     # refetched /matrix reports it
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert present(manager.matrix_form)["active"] == "Mch-to-Stereo mixdown"
 
 
@@ -407,7 +406,7 @@ async def test_a_rescan_the_control_lane_never_returns_from_still_reports_refres
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await deviceops.refresh_devices(manager))["refreshed"] is True
+    assert (await manager.refresh_devices())["refreshed"] is True
 
 
 async def test_a_rescan_the_control_lane_never_returns_from_restores_nothing(
@@ -415,7 +414,7 @@ async def test_a_rescan_the_control_lane_never_returns_from_restores_nothing(
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert (await deviceops.refresh_devices(manager))["restored"] == {}
+    assert (await manager.refresh_devices())["restored"] == {}
 
 
 # --- the replay raising mid-write --------------------------------------------
@@ -432,7 +431,7 @@ async def test_a_rescan_whose_replay_raises_still_reports_refreshed(
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
     )
-    assert (await deviceops.refresh_devices(manager))["refreshed"] is True
+    assert (await manager.refresh_devices())["refreshed"] is True
 
 
 async def test_a_rescan_whose_replay_raises_restores_nothing(
@@ -441,7 +440,7 @@ async def test_a_rescan_whose_replay_raises_restores_nothing(
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
     )
-    assert (await deviceops.refresh_devices(manager))["restored"] == {}
+    assert (await manager.refresh_devices())["restored"] == {}
 
 
 # --- what the user is told when the settings could not be put back -----------
@@ -458,7 +457,7 @@ async def test_a_rescan_the_control_lane_never_returns_from_warns_the_user(
 ) -> None:
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
     http_daemon["_on_refresh"] = lambda: state.update({"_close": EVERY_COMMAND})
-    assert "live settings" in (await deviceops.refresh_devices(manager))["warning"].lower()
+    assert "live settings" in (await manager.refresh_devices())["warning"].lower()
 
 
 async def test_a_rescan_whose_replay_raises_warns_the_user(
@@ -467,14 +466,14 @@ async def test_a_rescan_whose_replay_raises_warns_the_user(
     manager, _log, _state = await _rescanning(
         daemon, start_manager, http_daemon, tmp_path, autosave=True, _close=EVERY_SETTER
     )
-    assert "live settings" in (await deviceops.refresh_devices(manager))["warning"].lower()
+    assert "live settings" in (await manager.refresh_devices())["warning"].lower()
 
 
 async def test_a_rescan_that_put_everything_back_warns_about_nothing(
     daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    assert "warning" not in await deviceops.refresh_devices(manager)
+    assert "warning" not in await manager.refresh_devices()
 
 
 async def test_a_rescan_with_autosave_off_warns_about_nothing(
@@ -482,4 +481,4 @@ async def test_a_rescan_with_autosave_off_warns_about_nothing(
 ) -> None:
     # nothing was going to be put back, so nothing was lost to report
     manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    assert "warning" not in await deviceops.refresh_devices(manager)
+    assert "warning" not in await manager.refresh_devices()

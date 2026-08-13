@@ -92,6 +92,6 @@ async def apply(
     backup = _with_stored_live_fields(mgr, backup, active)
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
-    await settle.push_restore(mgr, modified)
+    await mgr.require_http().restore(modified, scope="system")
     verified = await verify(mgr, overrides)
     return {"submitted": True, "verified": verified, "members": members, "backup_bytes": len(backup)}

@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 from conftest import DaemonFactory, ManagerFactory, eventually
-from fake_control import CommandLog, restart_after
+from fake_control import CommandLog
 
 from hqptuner.core.manager import ConnectionManager
 
@@ -49,11 +49,7 @@ async def running_profile(
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 
     async def build(active: str) -> Built:
-        port, log, state = await daemon(matrix_profile=active, _profile_names=active)
-        # the restore the apply posts restarts hqplayerd: the process exits, its
-        # control socket dies, and the daemon that answers the next connection is
-        # the one that came back
-        http_daemon["_on_restore"] = lambda: restart_after(state, commands=2)
+        port, log, _state = await daemon(matrix_profile=active, _profile_names=active)
         manager = http_manager_factory(
             http_daemon,
             hqp_host="127.0.0.1",

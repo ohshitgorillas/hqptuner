@@ -235,14 +235,11 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     if st.get("_die"):
         st["_down"] = True
     # An adopted restore SELF-RESTARTS the daemon (docs/architecture.md §1 lane
-    # 2): the process exits and a new one comes up running the restored file, so
-    # the Control API socket dies and the State the next connection reads is the
-    # new process's. That side lands on the 4321 daemon, which this fake cannot
-    # see: a dual-lane test hangs its own callable on ``_on_restore`` and calls
-    # ``fake_control.restart_after`` from there, the way ``_on_refresh`` models
-    # the rescan stopping the engine. A hook that only rewrote the control
-    # fake's State would model a daemon whose settings changed without its
-    # process ever going away, which no restore does.
+    # 2), and the restarted engine comes up running the restored file — so the
+    # Control API's State reflects it afterwards. That side lands on the 4321
+    # daemon, which this fake cannot see: a dual-lane test hangs its own
+    # callable on ``_on_restore`` and moves the control fake's State from there,
+    # the way ``_on_refresh`` models the rescan stopping the engine.
     restarted = st.get("_on_restore")
     if restarted is not None:
         restarted()

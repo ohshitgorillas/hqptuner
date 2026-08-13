@@ -14,9 +14,8 @@ from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
-from hqptuner.core import deviceops
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import liveoverrides, settle
+from hqptuner.lanes import liveoverrides
 from hqptuner.presets import presetlane
 from hqptuner.presets.descriptionstore import DescriptionError, DescriptionStore
 from hqptuner.presets.presetstore import PresetError
@@ -53,7 +52,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
             "autosave": presets["autosave"],
             "file": {**(manager.file_config or {}), **liveoverrides.live_overrides(manager)},
             # What the selected output device announced it can carry, or null when
-            # nothing is known about it (core/deviceops.refresh_caps). The rate
+            # nothing is known about it (core/manager.refresh_device_caps). The rate
             # menus gray against this; null grays nothing.
             "device_caps": manager.device_caps,
         },
@@ -88,7 +87,7 @@ async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
     A device that was absent (a powered-off NAA endpoint) appears in the dropdown afterwards.
     """
     try:
-        return await deviceops.refresh_devices(manager)
+        return await manager.refresh_devices()
     except (ControlError, httpx.HTTPError) as exc:
         raise HTTPException(status_code=502, detail=f"device refresh failed: {exc}") from exc
 
@@ -172,7 +171,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
             # in front of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
     try:
-        await settle.push_restore(manager, data)
+        await manager.restore_config(data)
     except (ControlError, httpx.HTTPError) as exc:
         raise HTTPException(status_code=502, detail=f"restore failed: {exc}") from exc
     return {"restored": True, "bytes": len(data)}

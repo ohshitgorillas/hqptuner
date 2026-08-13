@@ -177,75 +177,19 @@ _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4"
 _SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
 
 
-#: Prefix under which `restart_after` parks the state the NEW process comes up
-#: on, until the old one actually exits. Underscore-led like every other internal
-#: knob, so a parked value never reaches a `State` frame.
-_RESTARTING = "_restart:"
-
-#: How many more commands the departing process answers before its socket dies.
-#: Absent means no restart is pending, which is every daemon that was not asked
-#: for one.
-_EXIT_AFTER = "_exit_after"
-
-
-def restart_after(state: dict[str, str], into: dict[str, str] | None = None, *, commands: int = 0) -> None:
-    """Arm the fake to model its PROCESS EXITING and a new one taking its place —
-    what an adopted ``POST /restore`` does to hqplayerd (docs/architecture.md §1
-    lane 2).
-
-    A restart is not a settings change: the old process stops answering, so its
-    Control API socket dies under whatever client holds it, and the state
-    ``into`` names belongs to the process that replaces it. That is why this
-    severs rather than merely updating — a fake that only updated would be
-    modelling a daemon whose settings changed without its process ever going
-    away, which no real restore does.
-
-    ``commands`` is the departing process's own window: hqplayerd answers the
-    restore's 200 and keeps serving both lanes for seconds before it goes, so a
-    client can get that many more commands answered on the doomed connection
-    before one of them finds the socket gone. The default, 0, sends the very next
-    command into a dead socket."""
-    state[_EXIT_AFTER] = str(commands)
-    for key, value in (into or {}).items():
-        state[_RESTARTING + key] = value
-
-
-def _exits_now(state: dict[str, str]) -> bool:
-    """Whether this command is the one that finds the process gone.
-
-    The command before it is answered normally (the ``commands`` window); the
-    one that lands on zero gets nothing back and the socket closes, and the
-    parked state becomes the state the next connection reads — which is the new
-    process, since a connection is all a client can tell processes apart by."""
-    remaining = int(state.get(_EXIT_AFTER, "-1"))
-    if remaining < 0:
-        return False
-    if remaining > 0:
-        state[_EXIT_AFTER] = str(remaining - 1)
-        return False
-    del state[_EXIT_AFTER]
-    for key in [k for k in state if k.startswith(_RESTARTING)]:
-        state[key[len(_RESTARTING) :]] = state.pop(key)
-    return True
-
-
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
-    """Restart the fake into the restored config file: the daemon exits and comes
-    back up running that file (``restart_after``). The file speaks ``pcm``/``sdm``
-    and enum IDs; State speaks the mode index and list indices resolved against
-    the chain the restart loaded (protocol.md §4 — the domains never mix), so the
+    """Move the fake's State to what a daemon reports after a restore's
+    self-restart: it comes back up running the restored config file
+    (docs/architecture.md §1 lane 2). The file speaks ``pcm``/``sdm`` and enum
+    IDs; State speaks the mode index and list indices resolved against the
+    chain the restart loaded (protocol.md §4 — the domains never mix), so the
     restored shaper is the loaded chain's dither or modulator looked up on that
     chain's own enumeration. The restored file also becomes the per-chain
     shaper a later ``SetMode`` loads (``_reload_shaper``)."""
-    into = {
-        "mode": {"pcm": "1", "sdm": "2"}.get(mode, "0"),
-        "_cfg_dither": dither,
-        "_cfg_modulator": modulator,
-    }
-    came_back_as = {**state, **into}
-    _reload_shaper(came_back_as)
-    into["shaper"] = came_back_as["shaper"]
-    restart_after(state, into)
+    state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
+    state["_cfg_dither"] = dither
+    state["_cfg_modulator"] = modulator
+    _reload_shaper(state)
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -391,8 +335,6 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
     name, attrs = el.tag, el.attrib
     if log is not None:
         log.append((name, dict(attrs)))
-    if _exits_now(state):
-        return CLOSE  # the process this connection belongs to is gone
     if name in state.get("_close", "").split():
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():

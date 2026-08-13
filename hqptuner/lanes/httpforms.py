@@ -1,6 +1,9 @@
 """Refresh of the three polled 8088 forms — /config, /matrix and /speakers.
 
-The read side of the HTTP lane the manager polls on every tick.
+Split out of ``manager`` on size alone; the behaviour is unchanged. It sits with
+the lanes because it is the same shape as they are: a function over the manager
+that owns one slice of the daemon conversation, here the read side of the HTTP
+lane the manager polls on every tick.
 """
 
 from __future__ import annotations
@@ -21,14 +24,16 @@ async def refresh(mgr: ConnectionManager) -> None:
     A wire failure on the 8088 lane must never fail the 4321 poll — the last-good form is
     kept and only that form's error is recorded. That tolerance is for the daemon being
     unreachable or answering non-2xx, not for a parser of ours raising: an ``AttributeError``
-    out of ``parse_config_form`` is our bug, and recording it as this form's error would hide
-    it behind a message that reads like the daemon's fault. Anything but ``httpx.HTTPError``
+    out of ``parse_config_form`` is our bug, and recording it as this form's error hid it
+    behind a message that reads like the daemon's fault. Anything but ``httpx.HTTPError``
     propagates — to a 500 on the request paths and, on the poll path, to the supervisor
     clause that logs a traceback without reporting the daemon unreachable.
 
-    The getters are bound methods rather than names looked up by string — reflection
-    here would hide them from the dead-code gate, which is how a genuinely orphaned
-    getter would then survive unnoticed.
+    One table instead of three identical try/except blocks: a fourth polled form
+    is a row, not another block to keep in step. The getters are bound methods
+    rather than names looked up by string — reflection here would hide them from
+    the dead-code gate, which is how a genuinely orphaned getter would then
+    survive unnoticed.
     """
     http = mgr.http_client
     if http is None:

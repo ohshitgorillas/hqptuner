@@ -53,7 +53,7 @@ STALLED_FIELD = "junk_filter"
 #: other live fields (the route answers 409), so it goes out alone.
 STALLED_MODE_SETTER = "SetMode"
 
-#: The last Control API command of both `connect_and_load` and `_poll` in a
+#: The last Control API command of both `_connect_and_load` and `_poll` in a
 #: control-only app (the 8088 refreshes that follow never touch this wire), so
 #: its SECOND appearance in the daemon's log is the first background poll
 #: finishing. The fixtures that flip a `_stall`/`_close` knob on a healthy

@@ -1,12 +1,15 @@
 """Persistent config write lane (HTTP 8088) — a self-contained lane with its own retry/verify loop.
 
-The lane writes by **restore**, not by form POST: build an archive whose working ``hqplayerd.xml``
-is the running config with the staged edits applied, push it to ``POST /restore`` (scope=system),
-and let the daemon self-restart. That is the only route that can express settings the daemon's own
-``/config`` form renders lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
+The lane writes by **restore**, not by form POST: build an archive whose working
+``hqplayerd.xml`` is the running config with the staged edits applied, push it to
+``POST /restore`` (scope=system), and let the daemon self-restart. That is the
+only route that can express settings the daemon's own ``/config`` form renders
+lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
 
-Every apply is incremental against the RUNNING config, never a rebuild from the active preset's
-snapshot, so sequential applies do not clobber each other. See ``presetzip.restore_zip_from_running``.
+Every apply is incremental against the RUNNING config, never a rebuild from the
+active preset's snapshot: a rebuild resets every field the user did not stage in
+that particular apply, so sequential applies clobber each other. See
+``presetzip.restore_zip_from_running``.
 """
 
 from __future__ import annotations
@@ -134,7 +137,7 @@ async def _one_pass(
     # a preset switch (or a prior attempt) just restarted the daemon and the
     # active label flips before the restart finishes — wait for the HTTP lane
     # to actually serve before writing, rather than racing it
-    await settle.await_http_ready(mgr)
+    await mgr.await_http_ready()
     try:
         intended = await _restore_once(mgr, merged, active_profile)
     except xmledit.GroundingError as exc:
@@ -142,22 +145,6 @@ async def _one_pass(
     except httpx.HTTPError as exc:
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
         return None, {}, str(exc)
-    if not await settle.await_restart(mgr):
-        # every readback below would be served by the process this restore was meant to
-        # replace, and that process serves the archive we just uploaded — so the verify
-        # agrees with itself and reports an apply the running daemon never took. No
-        # boundary, no verdict: unconverged, and the staged batch stays for a retry.
-        return {"submitted": True, "applied": False, "reason": "unrestarted"}, {}, None
-    return await _judge(mgr, merged, intended, attempt)
-
-
-async def _judge(
-    mgr: ConnectionManager, merged: dict[str, str], intended: dict[str, str], attempt: int
-) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
-    """Read the restarted daemon back and rule on the pass, in ``_one_pass``'s ``(final, diff, error)`` terms.
-
-    Only reachable once the restart is proven, so what it reads is the config the daemon booted onto.
-    """
     keys = verified_keys(merged, intended)
     diff = config_diff(intended, await verify(mgr, intended, keys), keys)
     if not diff:
@@ -173,13 +160,7 @@ async def _judge(
     log.warning("apply pass %d did not converge: %s", attempt + 1, diff)
     unfixable = await _unfixable_device(mgr, diff)
     if unfixable:
-        final = {
-            "submitted": True,
-            "applied": False,
-            "reason": "unavailable",
-            "unfixable": unfixable,
-            "diff": diff,
-        }
+        final = {"submitted": True, "applied": False, "reason": "unavailable", "unfixable": unfixable, "diff": diff}
         return final, diff, None
     return None, diff, None
 
@@ -214,7 +195,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await settle.push_restore(mgr, restore_zip)
+    await mgr.require_http().restore(restore_zip, scope="system")
     return presetconf.read_config(intended_xml)
 
 
@@ -237,9 +218,8 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
         converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None
 
-    # the caller waited for the restart on the 4321 lane; 8088 comes back a moment
-    # behind it, so spend the first interval waiting rather than on a read that
-    # would only 502
+    # the restore just restarted the daemon: nothing has landed yet, so spend the
+    # first interval waiting rather than on a read that cannot succeed
     await mgr.sleep(RECONNECT_FAST)
     return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 

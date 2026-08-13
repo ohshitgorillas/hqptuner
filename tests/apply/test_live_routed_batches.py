@@ -62,10 +62,9 @@ def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     SDM shaper list actually offers (enum "0" = ASDM5).
 
     An adopted restore self-restarts the daemon (docs/architecture.md §1 lane
-    2): the process exits, its Control API socket dies, and the process that
-    answers the next connection is running the restored config file — so the
-    ``_on_restore`` hook restarts the control fake into the config the 8088 fake
-    just adopted (``restart_into``), the way one real daemon would."""
+    2), after which the Control API's State reflects the restored config file —
+    so the ``_on_restore`` hook moves the control fake's State to the config
+    the 8088 fake just adopted, the way one real daemon would."""
     server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
     daemon = next(server)
     daemon["_on_restore"] = lambda: restart_into(control_state, daemon["mode"], daemon["dither"], daemon["modulator"])
@@ -89,9 +88,9 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         hqp_username="u",
         hqp_password="p",
         alarm_threshold=1.0,
-        # the restore's self-restart severs the 4321 socket, and the manager
-        # notices on its next poll, so the poll runs at test pace rather than
-        # production's
+        # the restore's self-restart is only visible to the manager on its next
+        # State poll (the fake cannot sever the 4321 socket the way a real
+        # restart does), so the poll runs at test pace rather than production's
         poll_interval=0.02,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",

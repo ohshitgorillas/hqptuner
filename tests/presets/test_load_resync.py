@@ -10,13 +10,10 @@ describes a process that no longer exists. The contract asserted here: the
 manager's picture after a load is the picture of the engine that came back, or
 nothing at all, and never the one held before.
 
-The 4321 fake is RESTARTED from inside the 8088 fake's restore
-(``fake_control.restart_after``): the process exits, the control socket dies
-under whatever client holds it, and the daemon that answers the next connection
-is the one that came back. So what the manager is holding afterwards is compared
-against the engine the daemon actually came back as, never against a value the
-test handed it — and the departing process answers a couple more commands
-first, which is the window a picture may not be re-read from.
+The 4321 fake is moved from inside the 8088 fake's restore, the way
+``test_rescan_replay`` moves it from inside the rescan — so what the manager is
+holding afterwards is compared against the engine the daemon actually came back
+as, never against a value the test handed it.
 
 The managers here run at the production poll pacing, so no background poll
 interleaves with the load: what the picture holds when the load returns is what
@@ -31,7 +28,6 @@ from typing import Any
 import pytest
 from conftest import DaemonFactory, eventually
 from fake_config_xml import elem_attr
-from fake_control import restart_after
 from narrow import present
 
 from hqptuner.conf import presetconf
@@ -87,11 +83,6 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
             lambda: manager.reachable and manager.state is not None and manager.loaded_at is not None,
             timeout=5.0,
         )
-        # Every adopted restore restarts hqplayerd, and a restart is a process
-        # exiting: the control socket dies and the daemon that answers the next
-        # connection is a new one. Armed here so it holds for every case; the
-        # ones that care WHICH engine came back re-arm with their own state.
-        http_daemon["_on_restore"] = lambda: restart_after(state, commands=2)
         built.append((manager, task, http))
         return manager, state
 
@@ -182,7 +173,7 @@ async def test_a_preset_load_leaves_the_post_restore_state_in_the_picture(
     # comes back from the restore in SDM holding slot 2
     manager, state = await dual_lane()
     await _stored_preset(manager)
-    http_daemon["_on_restore"] = lambda: restart_after(state, RESTARTED_INTO_SDM, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     await presetlane.load(manager, "Stored")
     assert present(manager.state).get("filterNx") == "2"
 
@@ -194,7 +185,7 @@ async def test_a_preset_load_leaves_the_post_restore_enumerations_in_the_picture
     # daemon comes back in SDM, where the same filter is 23
     manager, state = await dual_lane()
     await _stored_preset(manager)
-    http_daemon["_on_restore"] = lambda: restart_after(state, RESTARTED_INTO_SDM, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     await presetlane.load(manager, "Stored")
     assert _filter_id(manager, SINC_M) == SINC_M_ON_THE_SDM_CHAIN
 
@@ -232,7 +223,7 @@ async def test_a_preset_load_whose_state_read_finds_the_connection_gone_leaves_n
 ) -> None:
     manager, state = await dual_lane()
     await _stored_preset(manager)
-    http_daemon["_on_restore"] = lambda: restart_after(state, STATE_READ_DIES, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(STATE_READ_DIES)
     await presetlane.load(manager, "Stored")
     assert manager.state is None
 
@@ -244,7 +235,7 @@ async def test_a_preset_load_whose_state_read_finds_the_connection_gone_still_lo
     # the load failing
     manager, state = await dual_lane()
     await _stored_preset(manager)
-    http_daemon["_on_restore"] = lambda: restart_after(state, STATE_READ_DIES, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(STATE_READ_DIES)
     assert (await presetlane.load(manager, "Stored"))["active"] is True
 
 
@@ -271,7 +262,7 @@ async def _autosaved_after_loading_a(
     store = PresetStore(tmp_path / "presets")
     store.save("A", presetconf.apply_edits(store.read("B"), stored_in_a))
     store.set_autosave(enabled=True)
-    http_daemon["_on_restore"] = lambda: restart_after(state, restarted_as, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(restarted_as)
     await presetlane.load(manager, "A")
     await presetlane.autosave(manager)
     return store
@@ -336,7 +327,7 @@ async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
     dual_lane: DualLane, http_daemon: dict[str, Any]
 ) -> None:
     manager, state = await dual_lane()
-    http_daemon["_on_restore"] = lambda: restart_after(state, RESTARTED_INTO_SDM, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
     assert present(manager.state).get("filterNx") == "2"
 
@@ -361,6 +352,6 @@ async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(
     dual_lane: DualLane, http_daemon: dict[str, Any]
 ) -> None:
     manager, state = await dual_lane()
-    http_daemon["_on_restore"] = lambda: restart_after(state, RESTARTED_INTO_SDM, commands=2)
+    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
     assert present(manager.state).get("filterNx") == "2"

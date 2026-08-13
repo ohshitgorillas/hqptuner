@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException, Request
 from hqptuner import __version__
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
-from hqptuner.core import deviceops
 from hqptuner.lanes import livechain
 from hqptuner.metadata import StaticMetadata, merge_enumerations
 
@@ -97,6 +96,9 @@ def metadata(request: Request) -> dict[str, Any]:
 
 @router.get("/log")
 async def log_tail(manager: Mgr, lines: int = 50) -> dict[str, Any]:
-    """Return a static tail of the daemon's log for the System-tab live view, off the 8088 lane."""
+    """Return a static tail of the daemon's log file (System-tab live view).
+
+    Read-only, no daemon socket — reads the file the running config points at.
+    """
     n = max(1, min(lines, 500))
-    return await deviceops.read_log_tail(manager, n)
+    return await manager.read_log_tail(n)

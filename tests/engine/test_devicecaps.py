@@ -19,7 +19,6 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.core import deviceops
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps
 
@@ -258,7 +257,7 @@ async def _loaded(factory: ManagerFactory, daemon: dict[str, Any]) -> Connection
     Learning the device capability is part of that load, so no test below asks
     for it separately: a manager that only learns caps when told to fails here."""
     manager = _manager(factory, daemon)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     return manager
 
 
@@ -324,7 +323,7 @@ async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> Connec
     which is the state every ordinary poll leaves it in."""
     manager = _manager(factory, daemon)
     await manager.load_file_config()
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     return manager
 
 
@@ -353,7 +352,7 @@ async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agre
     disagreeing_daemon["_log"] = SELECTED_LOG
     # one ordinary refresh, unforced and with no virtual time passed: a retry
     # interval charged for the disagreement would still be closed here
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert (manager.device_caps or {})["device"] == SELECTED
 
 
@@ -365,7 +364,7 @@ async def test_manager_serves_the_capability_when_the_archive_read_failed(
     # selected device, exactly as before
     port = backupless_daemon["_port"]
     manager = await start_manager(port, hqp_http_port=port)
-    await deviceops.refresh_devices(manager)
+    await manager.refresh_devices()
     assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
 
 

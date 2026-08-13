@@ -10,11 +10,12 @@ so nothing carries them and the user's filters, mode and rate pin are gone.
 
 This is the carrier for that one case: read what the engine is running BEFORE the
 rescan, put it back after. Gated on auto-save, because auto-save is the user
-saying "keep what I set" — with it off a rescan loses live settings.
+saying "keep what I set" — with it off a rescan loses live settings exactly as it
+always did.
 
-A replay that cannot run says so: a rescan reporting nothing but success while
-the engine sits on the config file's values is the outcome this exists to stop,
-so the check is on the outcome and not on whether anything raised.
+A replay that cannot run says so. Losing the settings quietly is the bug this
+module exists to fix, and a rescan that reports nothing but success while the
+engine sits on the config file's values is that same bug with a different cause.
 
 The matrix profile is deliberately not here. Loading one needs live playback
 (``matrixlane``), and the engine is stopped at the point this runs, so the
@@ -88,7 +89,7 @@ async def _reread_engine(mgr: ConnectionManager) -> None:
     Without this the manager is still holding what it read BEFORE the rescan, and
     every question the replay asks of it gets a pre-rescan answer — most
     damagingly ``livelane.mode_already_running``, which then reports the engine
-    as already running the mode it was just dropped from, so the mode write is
+    as already running the mode it was just dropped from and the mode write is
     skipped. The lists move too: the engine reverts to the config file's mode, so
     the filter and shaper enumerations the replay resolves against are the other
     chain's.
@@ -104,10 +105,10 @@ def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
     """Return the snapshot fields the engine is no longer running.
 
     Read through the same ``livesnapshot`` the snapshot was taken with, so both
-    sides of the comparison speak one domain. Only these are written: a live setter
-    is not free even when it changes nothing — ``SetMode`` clears the rate pin
-    outright and ``SetFilter`` reloads the engine — so re-asserting a setting the
-    rescan did not disturb would cost the user something for no gain.
+    sides of the comparison speak one domain. Only these are written: a live
+    setter is not free even when it changes nothing — ``SetMode`` clears the rate
+    pin outright and ``SetFilter`` reloads the engine — so re-asserting a setting
+    the rescan did not disturb would cost the user something for no gain.
     """
     after = livesnapshot.live_snapshot(mgr) or {}
     return {field: value for field, value in fields.items() if (after.get(field) or {}).get("value") != value}
@@ -116,9 +117,9 @@ def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
 def _lost(mgr: ConnectionManager, fields: dict[str, str], restored: dict[str, str], held: dict[str, str]) -> set[str]:
     """Return the snapshot fields that neither landed nor were deliberately held.
 
-    Judged on the readback-verified report, because nothing else here can be
-    trusted to say so. ``livelane`` absorbs a control-lane failure of its own and
-    answers with unverified setters rather than raising, and the manager's cached
+    Judged on the readback-verified report, because nothing else can be trusted
+    to say so. ``livelane`` absorbs a control-lane failure of its own and answers
+    with unverified setters rather than raising, and the manager's cached
     ``State`` is whatever it read BEFORE that failure — so a replay can lose every
     setting while both the return value and the cached state still look right. A
     setter that verified by readback is the one thing here that cannot be stale.
@@ -144,9 +145,10 @@ async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, An
     rescan itself succeeded either way, so neither outcome is an error: the
     caller reports the rescan as done and carries the warning.
 
-    The check is on the outcome and not on whether anything raised — a replay that
-    silently leaves the engine on the config file's values is the failure this
-    guards against.
+    Silence here is the original bug wearing a different hat. A rescan that
+    reports nothing but success while the engine sits on the config file's values
+    is exactly what this module exists to stop, so the check is on the outcome
+    and not on whether anything raised.
     """
     if not fields:
         return {"restored": {}}
