@@ -151,6 +151,16 @@ async def _one_pass(
         # agrees with itself and reports an apply the running daemon never took. No
         # boundary, no verdict: unconverged, and the staged batch stays for a retry.
         return {"submitted": True, "applied": False, "reason": "unrestarted"}, {}, None
+    return await _judge(mgr, merged, intended, attempt)
+
+
+async def _judge(
+    mgr: ConnectionManager, merged: dict[str, str], intended: dict[str, str], attempt: int
+) -> tuple[dict[str, Any] | None, dict[str, dict[str, str | None]], str | None]:
+    """Read the restarted daemon back and rule on the pass, in ``_one_pass``'s ``(final, diff, error)`` terms.
+
+    Only reachable once the restart is proven, so what it reads is the config the daemon booted onto.
+    """
     keys = verified_keys(merged, intended)
     diff = config_diff(intended, await verify(mgr, intended, keys), keys)
     if not diff:
