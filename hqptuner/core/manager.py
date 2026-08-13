@@ -46,6 +46,9 @@ log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
+# How long a restore's restart has to produce a new process (`await_restart`) —
+# the ~5.6 s restart (docs/protocol.md) with room for a loaded host.
+_RESTART_WINDOW = 15.0
 # What the supervisor loop treats as "the daemon, not us": a refused or severed socket, a
 # timeout, a non-2xx on the 8088 lane, a command the engine rejected. These are the faults
 # `daemon unreachable` is an honest report of. Anything outside this set is a bug of ours,
@@ -395,30 +398,27 @@ class ConnectionManager:
     async def await_restart(self) -> bool:
         """Wait until the daemon process running at call time is gone and a new one has answered.
 
-        ``POST /restore`` returns 200 when the archive is on disk, and the daemon restarts *after*
-        that (~5.6 s, docs/protocol.md) — the departing process keeps serving both lanes meanwhile.
-        So neither a 200 nor ``await_http_ready`` says the restart happened, and anything that
-        re-reads the engine on that evidence reads the process it just replaced.
+        ``POST /restore`` returns 200 when the archive is on disk and the daemon restarts after that
+        (~5.6 s, docs/protocol.md), so the departing process keeps serving both lanes meanwhile:
+        neither the 200 nor ``await_http_ready`` is evidence the restart happened, and a read taken
+        on that evidence answers for the process being replaced.
 
-        The boundary that is actually observable is the Control API connection: it breaks when the
-        process exits, and the connect that replaces it counts a new generation. Both halves are done
-        here rather than left to the poll loop — the probe is what discovers the socket is dead
-        between ticks, and the reconnect is what proves a NEW process answers. Leaving either to the
-        loop makes this wait depend on that loop's cadence to reach its own verdict.
+        The observable boundary is the Control API connection — it breaks when the process exits, and
+        the connect replacing it counts a new generation. Both halves happen here rather than in the
+        poll loop: the probe discovers the dead socket between ticks, the reconnect proves a NEW
+        process answers, and leaving either to the loop makes this verdict wait on that loop's cadence.
 
-        False when no new process answered before the alarm deadline. That is 'the engine cannot be
-        trusted', never 'the restart happened' — callers leave their live state invalid rather than
-        refill it from whatever is still answering.
-
-        True at once when there is no Control API connection to observe: nothing can be read off an
-        engine we are not connected to, so there is nothing for the boundary to protect — the resync
-        returns early and the overlays are empty either way. Waiting out the deadline there would
-        refuse every apply whenever 4321 is down while 8088 still serves, which is a working write
-        path traded for a guarantee that had nothing left to guard.
+        False when none answered in time — 'the engine cannot be trusted', never 'it restarted'.
+        True at once with no connection to observe: nothing is readable off an engine we are not
+        connected to, so the boundary guards nothing, and waiting would refuse every apply whenever
+        4321 is down while 8088 still serves.
         """
         if self._client is None:
             return True
         start = self._generation
+        # NOT the alarm threshold: that is how long an unreachable daemon may go
+        # unreported, and a deployment tuning it below the restart would never see one.
+        deadline = max(_RESTART_WINDOW, self.alarm_threshold)
 
         async def probe() -> bool:
             if self._generation != start:
@@ -435,7 +435,7 @@ class ConnectionManager:
                 await self._connect_and_load()  # whatever answers now is a new process
             return self._generation != start
 
-        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
+        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST, deadline=deadline))
 
     async def read_engine(self) -> dict[str, str]:
         """Return current hardware-accel engine attributes, parsed from a fresh backup's base config.
