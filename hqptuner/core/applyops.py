@@ -79,6 +79,10 @@ class ApplyOps:
             livelane.remember_routed(mgr, live_report, staged)
         persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
         if persistent is not None and persistent.get("applied"):
+            # the restore restarted the daemon, so every live reading we hold belongs
+            # to the process it replaced — and the auto-save that follows this apply
+            # reads exactly those (ConnectionManager.resync_engine_state)
+            await mgr.resync_engine_state()
             # the restore that just applied carried the parked filter files —
             # they live on the daemon now, so the parking area is done with them
             mgr.presetops.clear_parked_filters()
@@ -115,6 +119,8 @@ class ApplyOps:
             result = await enginelane.apply(mgr, backup, overrides, mgr.active_config, all_presets=all_presets)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
+        # same restart, same stale readings as the staged-apply path above
+        await mgr.resync_engine_state()
         engine = result["verified"].get("engine")
         if engine:
             mgr.engine = engine

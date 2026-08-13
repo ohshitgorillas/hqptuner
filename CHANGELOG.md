@@ -36,6 +36,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Auto-save no longer writes the previous preset's settings into the one just loaded.** Loading a preset restarts the daemon, and an auto-save landing in the second that followed stored the readings taken from the engine before the restart — so a switch away and back could leave a preset holding the other one's mode, filters and dither. A load now re-reads the engine before anything saves.
+
 - **Loading a preset no longer stages a rate nobody picked.** A preset whose device carries a higher rate than the one before it could come up with its SDM or PCM rate already dropped to the previous device's ceiling, waiting in the pending bar. Device limits now apply only once both views of the running config name the same device.
 
 - **The narrowing card's intro caption follows the Setting descriptions switch.** The "Reduce the number of filters" explainer stayed on screen with setting descriptions turned off; it now hides with the other static notes.

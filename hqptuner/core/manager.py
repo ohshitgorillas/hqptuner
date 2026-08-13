@@ -287,6 +287,32 @@ class ConnectionManager:
         await self.refresh_http_forms()
         self.loaded_at = time.time()
 
+    async def resync_engine_state(self) -> None:
+        """Re-read the engine after something restarted it, so nothing reads the old engine's answers.
+
+        ``state``, ``enums`` and ``live`` all describe a daemon process that is gone the moment a restore
+        restarts it, and only the poll loop refreshes them — a second later. Anything reading in between
+        (``liveoverrides.live_overrides``, and so every save and auto-save) reports the settings of the
+        engine that was running BEFORE the restart and writes them into the preset that just replaced it.
+
+        Invalidated first and refilled second on purpose: the fetch can fail, and a reader that lands on
+        ``state = None`` overlays nothing, which stores the config as loaded. Stale answers are the one
+        outcome this must never leave behind.
+        """
+        self.live.forget()
+        self.state = None
+        client = self._client
+        if client is None:
+            return
+        try:
+            state = await client.get_state()
+            enums = await client.get_all_enumerations()
+        except ControlError as exc:
+            # the poll loop's own reconnect refills both; until then None is the honest answer
+            log.warning("engine resync after restart failed: %s", exc)
+            return
+        self.state, self.enums = state, enums
+
     async def refresh_http_forms(self) -> None:
         """Refresh the three polled 8088 form snapshots (lanes/httpforms) and the device capability.
 
