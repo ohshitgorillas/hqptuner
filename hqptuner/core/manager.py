@@ -31,11 +31,11 @@ from hqptuner.audit import AuditLog
 from hqptuner.conf import engineconf, presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
+from hqptuner.core import deviceops
 from hqptuner.core.applyops import ApplyOps
 from hqptuner.engine import release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
-from hqptuner.lanes import devicelane, httpforms, livechain, livelane, settle
-from hqptuner.presets import presetlane
+from hqptuner.lanes import httpforms, livechain, livelane, settle
 from hqptuner.presets.presetops import PresetOps
 from hqptuner.presets.presetstore import PresetError
 
@@ -46,14 +46,6 @@ log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 RECONNECT_SLOW = 5.0
-# How long a restore's restart has to produce a new process (`await_restart`) —
-# the ~5.6 s restart (docs/protocol.md) with room for a loaded host.
-_RESTART_WINDOW = 15.0
-# What the supervisor loop treats as "the daemon, not us": a refused or severed socket, a
-# timeout, a non-2xx on the 8088 lane, a command the engine rejected. These are the faults
-# `daemon unreachable` is an honest report of. Anything outside this set is a bug of ours,
-# and the loop's second clause keeps it loud instead of dressing it as an outage.
-_WIRE_FAULTS = (ControlError, CommandError, httpx.HTTPError, OSError, TimeoutError)
 
 
 class ConnectionManager:
@@ -68,12 +60,12 @@ class ConnectionManager:
         # the daemon restarts, and the departing process keeps answering for
         # seconds — so "a daemon answered" cannot tell the two apart and this can:
         # a different generation is a different process (``await_restart``).
-        self._generation = 0
+        self.generation = 0
         # The generation a restore was pushed at (``push_restore``). "Has the daemon
         # restarted since?" is then one question with one answer, askable any number
         # of times — the write lane and the resync both ask, and a restart is a single
         # event that a second waiter would otherwise sit out the deadline waiting for.
-        self._restore_baseline: int | None = None
+        self.restore_baseline: int | None = None
         # Serializes connects. The poll loop is no longer the only path that brings
         # a connection up — ``await_restart`` does it too, on its own clock — and two
         # tasks connecting at once would leave one client orphaned and unclosed.
@@ -131,7 +123,7 @@ class ConnectionManager:
         # connect and after every persistent apply (never per-poll: /backup is ~5 MB).
         self.file_config: dict[str, str] | None = None
         # What the selected output device announced it can carry, with the selection and
-        # clock its refresh reads (lanes/devicelane); None narrows no menu.
+        # clock its refresh reads (core/deviceops); None narrows no menu.
         self.device_caps: dict[str, Any] | None = None
         self.caps_device: str | None = None
         self.caps_at: float = 0.0
@@ -163,9 +155,9 @@ class ConnectionManager:
         while not self._stop.is_set():
             if self._client is None:
                 try:
-                    await self._connect_and_load()
-                except _WIRE_FAULTS as exc:
-                    await self._drop(f"connect/load failed: {exc}")
+                    await self.connect_and_load()
+                except settle.WIRE_FAULTS as exc:
+                    await self.drop(f"connect/load failed: {exc}")
                     await self._sleep(self._reconnect_delay())
                     continue
                 except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
@@ -174,8 +166,8 @@ class ConnectionManager:
                     continue
             try:
                 await self._poll()
-            except _WIRE_FAULTS as exc:
-                await self._drop(f"poll failed: {exc}")
+            except settle.WIRE_FAULTS as exc:
+                await self.drop(f"poll failed: {exc}")
                 continue
             except Exception:  # noqa: BLE001 — see _bug(): the loop must outlive our own bugs, loudly
                 self._bug("poll")
@@ -193,7 +185,7 @@ class ConnectionManager:
         The blind ``except`` above this is deliberate and stays: ``run()`` is started with
         ``create_task`` and never awaited until shutdown, so an escaping exception surfaces
         nowhere at all — the supervisor would die in silence while the API kept serving. What
-        changes is that a fault outside ``_WIRE_FAULTS`` no longer reaches ``_drop``, which
+        changes is that a fault outside ``settle.WIRE_FAULTS`` no longer reaches ``drop``, which
         logs at most once per outage and would report our own ``TypeError`` as the daemon
         being unreachable. Every iteration logs a traceback instead, and the connection is
         left as it was: nothing here is evidence the daemon went away.
@@ -210,7 +202,8 @@ class ConnectionManager:
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._stop.wait(), seconds)
 
-    async def _drop(self, reason: str) -> None:
+    async def drop(self, reason: str) -> None:
+        """Mark the daemon unreachable and close the control connection, logging at most once per outage."""
         if self.reachable or self._client is not None:
             log.warning("daemon unreachable: %s", reason)
         if self.reachable:
@@ -221,7 +214,8 @@ class ConnectionManager:
             await self._client.close()
             self._client = None
 
-    async def _connect_and_load(self) -> None:
+    async def connect_and_load(self) -> None:
+        """Bring a connection up and reload every snapshot from scratch, unless another task got there first."""
         async with self._connecting:
             if self._client is not None:
                 return  # another task got there first; its handshake is this one's answer
@@ -250,7 +244,7 @@ class ConnectionManager:
         self.matrix_profiles = matrix_profiles
         self.live.forget()
         self.loaded_at = time.time()
-        self._generation += 1
+        self.generation += 1
         self.reachable = True
         self.unreachable_since = None
         # best-effort and credential-free: /about is not gated, and fetch_release
@@ -260,7 +254,7 @@ class ConnectionManager:
             # best-effort 8088 lane — a failure here must not undo the 4321 connect.
             # refresh_http_forms populates config/matrix/speakers (+ their *_error).
             await self.refresh_http_forms()
-            await devicelane.refresh_caps(self, force=True)
+            await deviceops.refresh_caps(self, force=True)
             try:
                 await self.load_file_config()
             except (httpx.HTTPError, ControlError) as exc:
@@ -305,74 +299,13 @@ class ConnectionManager:
         await self.refresh_http_forms()
         self.loaded_at = time.time()
 
-    async def resync_engine_state(self) -> None:
-        """Re-read the engine after something restarted it, so nothing reads the old engine's answers.
-
-        ``state``, ``enums`` and ``live`` all describe a daemon process that is gone the moment a restore
-        restarts it, and only the poll loop refreshes them — a second later. Anything reading in between
-        (``liveoverrides.live_overrides``, and so every save and auto-save) reports the settings of the
-        engine that was running BEFORE the restart and writes them into the preset that just replaced it.
-
-        Invalidated first and refilled second on purpose: the fetch can fail, and a reader that lands on
-        ``state = None`` overlays nothing, which stores the config as loaded. Stale answers are the one
-        outcome this must never leave behind.
-
-        The refill waits for the restart to actually happen (``await_restart``). Re-reading on the
-        restore's own 200 answered from the departing process and refilled with exactly the stale
-        settings this exists to discard — the preset switch that stored the previous preset's
-        modulator was that window, 200 ms wide against a restart of several seconds. A boundary that
-        never arrives leaves the invalidation standing.
-
-        It then RETRIES the read: the poll loop meets the same severed socket independently and can
-        drop the connection between the boundary and this read, and a one-shot refill that lands in
-        that gap leaves the picture blank — which reads to every overlay exactly like a daemon that
-        never came back.
-
-        The wait is against the restore that was pushed (``await_restart``), so asking here after the
-        write lane already asked returns the same answer instead of waiting out a second restart that
-        is never coming.
-        """
-        self.live.forget()
-        self.state = None
-        if self._client is None:
-            return  # no lane to resync: nothing was read off an engine, nothing to put back
-        if not await self.await_restart():
-            log.warning("engine resync: no restarted daemon within the deadline, live state left invalid")
-            return
-        if await settle.poll_until(self, self._refill_engine, interval=RECONNECT_FAST, deadline=_RESTART_WINDOW):
-            return
-        log.warning("engine resync: the restarted daemon never answered, live state left invalid")
-
-    async def _refill_engine(self) -> bool:
-        """Read state and enumerations off the current process, reconnecting first if the loop dropped it."""
-        try:
-            await self._connect_and_load()  # no-op when a connection is already up
-            client = self._client
-            if client is None:
-                return False
-            self.state = await client.get_state()
-            self.enums = await client.get_all_enumerations()
-        except _WIRE_FAULTS:
-            # the client we hold is the dead one, and holding it makes the reconnect
-            # above a no-op — so let it go and let the next attempt bring a live one up
-            await self._drop("engine resync read failed")
-            return False
-        return True
-
     async def refresh_http_forms(self) -> None:
         """Refresh the three polled 8088 form snapshots (lanes/httpforms) and the device capability.
 
-        The capability hangs off those forms; ``lanes/devicelane.refresh_caps`` says why.
+        The capability hangs off those forms; ``core/deviceops.refresh_caps`` says why.
         """
         await httpforms.refresh(self)
-        await devicelane.refresh_caps(self)
-
-    async def read_preset(self, name: str) -> dict[str, str]:
-        """Return a stored preset's saved settings in form-field terms without loading it.
-
-        The empty name means "(no preset)" and returns the running config instead.
-        """
-        return await presetlane.read(self, name)
+        await deviceops.refresh_caps(self)
 
     # --- accessors for the extracted lanes --------------------------------
 
@@ -406,66 +339,6 @@ class ConnectionManager:
         """
         await self._sleep(seconds)
 
-    async def await_http_ready(self) -> bool:
-        """Wait until the HTTP config lane serves again.
-
-        The daemon restarts on a preset load and on every restore, and its active label flips before
-        the restart completes — so callers must not assume 'label switched' means 'ready to write'.
-        """
-
-        async def probe() -> bool:
-            await self.require_http().get_config()
-            return True
-
-        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
-
-    async def await_restart(self) -> bool:
-        """Whether the daemon has restarted onto the config the last ``push_restore`` sent.
-
-        ``POST /restore`` returns 200 when the archive is on disk and the daemon restarts after that
-        (~5.6 s, docs/protocol.md), so the departing process keeps serving both lanes meanwhile:
-        neither the 200 nor ``await_http_ready`` is evidence the restart happened, and a read taken
-        on that evidence answers for the process being replaced.
-
-        The observable boundary is the Control API connection — it breaks when the process exits, and
-        the connect replacing it counts a new generation. Both halves happen here rather than in the
-        poll loop: the probe discovers the dead socket between ticks, the reconnect proves a NEW
-        process answers, and leaving either to the loop makes this verdict wait on that loop's cadence.
-
-        Asked against the PUSH's generation, not the caller's, so it is a fact about the daemon
-        rather than about who asked first: the write lane and the resync that follows it both need
-        the answer, and a restart is one event — keyed on the caller, the second one waits out its
-        deadline for a restart that already happened and reports the engine untrustworthy.
-
-        False when no new process answered in time — 'the engine cannot be trusted', never 'it
-        restarted'. True at once when no restore is outstanding, and when there is no connection to
-        observe: nothing is readable off an engine we are not connected to, so the boundary guards
-        nothing, and waiting would refuse every apply whenever 4321 is down while 8088 still serves.
-        """
-        baseline = self._restore_baseline
-        if baseline is None or self._client is None:
-            return True
-        # NOT the alarm threshold: that is how long an unreachable daemon may go
-        # unreported, and a deployment tuning it below the restart would never see one.
-        deadline = max(_RESTART_WINDOW, self.alarm_threshold)
-
-        async def probe() -> bool:
-            if self._generation != baseline:
-                return True
-            client = self._client
-            if client is not None:
-                try:
-                    await client.get_info()
-                except (ControlError, OSError):
-                    await self._drop("restart in progress")
-                else:
-                    return False  # the process that took the restore is still answering
-            with contextlib.suppress(*_WIRE_FAULTS):
-                await self._connect_and_load()  # whatever answers now is a new process
-            return self._generation != baseline
-
-        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST, deadline=deadline))
-
     async def read_engine(self) -> dict[str, str]:
         """Return current hardware-accel engine attributes, parsed from a fresh backup's base config.
 
@@ -489,34 +362,10 @@ class ConnectionManager:
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
 
-    async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
-        """Return a static tail of the daemon's log for the System-tab live view (lanes/devicelane)."""
-        return await devicelane.read_log_tail(self, lines)
-
-    async def restore_config(self, data: bytes, scope: str = "system") -> None:
-        """Restore a user-supplied settings archive as-is (the System-tab restore action).
-
-        The daemon self-restarts, interrupting playback if any.
-        """
-        await self.push_restore(data, scope=scope)
-
-    async def push_restore(self, data: bytes, scope: str = "system") -> None:
-        """POST a settings archive to ``/restore`` and mark the restart it triggers as owed.
-
-        Every restore in HQPTuner goes through here so the mark cannot be forgotten: the 200 says
-        the files are on disk, the restart follows it, and ``await_restart`` answers for THIS push.
-        """
-        self._restore_baseline = self._generation
-        await self.require_http().restore(data, scope=scope)
-
     @property
     def control(self) -> ControlClient | None:
         """The live 4321 client, for the extracted lanes (None while unreachable)."""
         return self._client
-
-    async def refresh_devices(self) -> dict[str, Any]:
-        """Trigger a daemon output-device re-scan and refetch the forms it moves (lanes/devicelane)."""
-        return await devicelane.refresh_devices(self)
 
     def require_http(self) -> HttpConfigClient:
         """Return the 8088 config client, raising ControlError when no credentials were configured.

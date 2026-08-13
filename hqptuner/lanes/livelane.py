@@ -89,9 +89,7 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     """Put the entered family's remembered pin back on the engine.
 
     ``SetMode`` clears the rate pin outright — the engine keeps one, not one per
-    family (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``). Without this
-    a mode switch silently throws away the rate the user picked, and both this page
-    and the Output tab fall back to the configured limit.
+    family (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``).
 
     Asks ``pin_family`` rather than ``active_chain``, because leaving ``[source]``
     is a switch this has to land on too: the rate was held for want of a pin slot,
@@ -119,8 +117,7 @@ async def _refresh_rates(mgr: ConnectionManager, client: ControlClient, fields: 
     ``mode`` or ``state`` moves (``manager._poll``). That is right for the dropdowns
     it feeds and wrong for a write: ``GetRates`` answers per mode AND per transport
     state, so a connect taken while the transport was idle caches the auto entry
-    alone, and no ``mode``/``state`` transition is pending to clear it. Every rate
-    the user then picks resolves against that degenerate list and is refused.
+    alone, and no ``mode``/``state`` transition is pending to clear it.
 
     The first ask on a fresh connection is already truthful — verified on 6.0.4,
     two connections, three ``GetRates`` each, all six answers the full 11-item
@@ -171,8 +168,7 @@ def remember_routed(mgr: ConnectionManager, report: list[dict[str, Any]], fields
     The staged lane routes chain fields live too (``livemap.split_live``), and a
     value the record never learns is a value the next chain entry cannot re-assert
     and the next auto-save on the other chain cannot report — it falls back to the
-    config file's stale copy instead (``liveoverrides.live_overrides``), quietly
-    reverting the setting the user just applied.
+    config file's stale copy instead (``liveoverrides.live_overrides``).
     """
     chain = livechain.active_chain(mgr)
     if chain is not None:
@@ -210,10 +206,10 @@ async def chain_entered(
 
     The chain can change with the configured mode standing still. In `[source]`
     mode the engine follows the source (readme §1.7), so a DSD track after a PCM
-    one swaps the filter and shaper lists without touching `State.mode` — and
-    watching the mode index alone therefore served the previous chain's lists for
-    the whole of the next track. `reenumerated` says the caller already pulled
-    fresh lists for a mode change, so this does not pull them twice.
+    one swaps the filter and shaper lists without touching `State.mode`, and
+    watching the mode index alone is therefore not enough. `reenumerated` says the
+    caller already pulled fresh lists for a mode change, so this does not pull them
+    twice.
     """
     after = livechain.active_chain(mgr)
     if after is None or after == before:
@@ -232,8 +228,8 @@ async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edit
     enumerations are the subtler half: a write in ``_REENUMERATES`` swaps a list
     the NEXT write resolves its value against, and refreshing State alone also
     consumes the mode transition the poll loop watches to re-enumerate on its own
-    (``manager._poll``) — so a caller that skipped this left both the cache and
-    the fallback stale. Every live-routing caller runs it, staged lane included.
+    (``manager._poll``). Every live-routing caller must run this, staged lane
+    included.
     """
     mgr.state = await client.get_state()
     if _REENUMERATES & set(edits):
@@ -244,8 +240,8 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     """Resolve, apply and readback-verify a batch of LIVE config-form fields.
 
     A batch carrying a rate re-asks the daemon for the rates list first
-    (`_refresh_rates`): the cached one can be degenerate, and resolving a rate
-    against it refused every tier the user picked.
+    (`_refresh_rates`): the cached one can be degenerate, and a rate resolved
+    against it is refused.
 
     Fields for the chain the engine has not loaded are held rather than refused —
     LIVE shows both chains at once — and come back under `stored` so the caller
@@ -259,9 +255,10 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     Everything after `apply_live` is bookkeeping for the NEXT write — the write
     itself is already readback-verified — so a control-connection failure there is
     logged, not raised. `SetFilter` and `SetMode` reload the engine and the daemon
-    can drop the connection under the refresh that follows; raising turned a change
-    the user watched land into an error on the control they just touched. The poll
-    loop reconnects and reloads state and enumerations (`manager._connect_and_load`).
+    can drop the connection under the refresh that follows; raising there would turn
+    a change the user watched land into an error on the control they just touched.
+    The poll loop reconnects and reloads state and enumerations
+    (`manager._connect_and_load`).
     """
     client = mgr.control
     if client is None:
@@ -300,8 +297,8 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
 
     Worth checking because ``SetMode`` is not free even when it changes nothing:
     it clears the engine's rate pin outright (probe-verified on 6.0.4,
-    ``scripts/probes/probe_mode_rate_pin.py``) and reloads the chain. A preset saved and
-    re-applied in the same mode should disturb neither.
+    ``scripts/probes/probe_mode_rate_pin.py``) and reloads the chain. A preset saved
+    and re-applied in the same mode should disturb neither.
     """
     index = (mgr.state or {}).get("mode")
     if index is None:
@@ -341,10 +338,6 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
     re-enumerating path (``apply_now``) — beside other routable fields because
     those fields resolve against the lists it swapped
     (``livemap._mode_blocks_batch``), and ALONE because the batch after it does.
-    A mode routed as an ordinary edit left the enumerations stale and the poll
-    loop blind to the switch it watches for, so the next apply's filter resolved
-    against the departed mode's list and the engine took a different filter than
-    the one named.
 
     Only in a batch that can go fully live, though. One restore-lane field means
     the restart is happening regardless, and that restart boots the daemon onto
@@ -361,8 +354,6 @@ async def mode_then_split(
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, str]], dict[str, str]]:
     """Route the tabs view's staged batch, mode first.
 
-    ``apply_preset``'s two-batch workaround, ported to the apply lane.
-
     Without a re-enumeration between ``SetMode`` and the rest, a staged mode
     beside other routable fields sends the whole batch to the restore lane
     (``livemap._mode_blocks_batch``) — one daemon restart, playback
@@ -371,11 +362,10 @@ async def mode_then_split(
     alone and the remainder splits against the lists the switch produced. A mode
     the engine is already running is dropped rather than re-sent — ``SetMode``
     clears the rate pin even when it changes nothing (``mode_already_running``).
-    A mode that cannot resolve or apply sends the whole batch to the restore
-    lane, exactly as before. A mode that reaches the daemon and does not verify
-    does NOT: the batch stays live and reports the setter as failed. The restore
-    lane restarts the daemon, and the user was told before Apply that this batch
-    would not.
+    A mode that cannot resolve or apply sends the whole batch to the restore lane.
+    A mode that reaches the daemon and does not verify does NOT: the batch stays
+    live and reports the setter as failed, because the restore lane restarts the
+    daemon and the user was told before Apply that this batch would not.
 
     A staged mode with nothing beside it takes the same route (``_mode_apart``):
     the batch that needs the post-switch lists is then the NEXT apply rather than

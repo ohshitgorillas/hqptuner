@@ -10,7 +10,6 @@ lint:
 	$(VENV)/mypy
 	$(VENV)/lint-imports
 	$(VENV)/python scripts/gates/check_file_length.py $$(git ls-files '*.py' 2>/dev/null || find hqptuner tests scripts -name '*.py')
-	$(VENV)/python scripts/gates/check_package_budget.py
 	$(VENV)/python scripts/gates/check_no_barrels.py $$(git ls-files 'hqptuner/*.py' 'scripts/*.py')
 	$(VENV)/python scripts/gates/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')

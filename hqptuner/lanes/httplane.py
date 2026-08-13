@@ -1,15 +1,12 @@
 """Persistent config write lane (HTTP 8088) — a self-contained lane with its own retry/verify loop.
 
-The lane writes by **restore**, not by form POST: build an archive whose working
-``hqplayerd.xml`` is the running config with the staged edits applied, push it to
-``POST /restore`` (scope=system), and let the daemon self-restart. That is the
-only route that can express settings the daemon's own ``/config`` form renders
-lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
+The lane writes by **restore**, not by form POST: build an archive whose working ``hqplayerd.xml``
+is the running config with the staged edits applied, push it to ``POST /restore`` (scope=system),
+and let the daemon self-restart. That is the only route that can express settings the daemon's own
+``/config`` form renders lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
 
-Every apply is incremental against the RUNNING config, never a rebuild from the
-active preset's snapshot: a rebuild resets every field the user did not stage in
-that particular apply, so sequential applies clobber each other. See
-``presetzip.restore_zip_from_running``.
+Every apply is incremental against the RUNNING config, never a rebuild from the active preset's
+snapshot, so sequential applies do not clobber each other. See ``presetzip.restore_zip_from_running``.
 """
 
 from __future__ import annotations
@@ -137,7 +134,7 @@ async def _one_pass(
     # a preset switch (or a prior attempt) just restarted the daemon and the
     # active label flips before the restart finishes — wait for the HTTP lane
     # to actually serve before writing, rather than racing it
-    await mgr.await_http_ready()
+    await settle.await_http_ready(mgr)
     try:
         intended = await _restore_once(mgr, merged, active_profile)
     except xmledit.GroundingError as exc:
@@ -145,7 +142,7 @@ async def _one_pass(
     except httpx.HTTPError as exc:
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
         return None, {}, str(exc)
-    if not await mgr.await_restart():
+    if not await settle.await_restart(mgr):
         # every readback below would be served by the process this restore was meant to
         # replace, and that process serves the archive we just uploaded — so the verify
         # agrees with itself and reports an apply the running daemon never took. No
@@ -217,7 +214,7 @@ async def _restore_once(mgr: ConnectionManager, merged: dict[str, str], active_p
     mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await mgr.push_restore(restore_zip)
+    await settle.push_restore(mgr, restore_zip)
     return presetconf.read_config(intended_xml)
 
 
