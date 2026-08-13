@@ -1,6 +1,10 @@
 // Behavioral suite for components/tabs/OutputTab.js — the Output tab's rendered
 // contract: the three master switches, the missing-device alert, the two backend
-// disclosures and the DAC-correction card.
+// disclosures and the DAC-correction card. The Conversion tab is gone: its cards
+// (Pre-process, the narrowing bar, the two chains, Filter length) now live here,
+// so this suite also pins the tab bar's four-entry shape, the merged card order,
+// and that the retired tab id still lands a stale visitor on this body. The
+// moved cards' own contracts are conversioncards.test.js's.
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 // `DeviceAlert`, `deviceMissing` and the two override signals are private and
@@ -28,9 +32,12 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
+import { TabBar, TabBody } from "../../../hqptuner/static/components/tabs/index.js";
+import { activeTab } from "../../../hqptuner/static/store/ui.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
+import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields, section, stateOf } from "../support/tabform.js";
 
@@ -50,6 +57,7 @@ async function reset({ cfg = {}, mtx = {}, file = { mode: "auto" } } = {}) {
   metadata.value = null;
   showDescriptions.value = true;
   keepOptionDescriptions.value = true;
+  resetNarrowing();
   matrixConfig.value = { fields: formFields(mtx) };
   config.value = { fields: formFields(cfg), file, active: "", profiles: null };
   await discardAll();
@@ -228,9 +236,10 @@ test("test_the_alert_says_how_to_recover_the_device", async () => {
 // --- cards --------------------------------------------------------------------
 
 // The reorganization moved the old General card's residents to the tabs that
-// own them (Volume, Conversion, System, Matrix). The form still CARRIES every
-// moved field — the seed below stages them all — so an Output tab that kept
-// rendering any of them would show it here.
+// own them (Volume, System, Matrix) — the pre-process pair came BACK with the
+// Conversion merge and is pinned as rendering here, in conversioncards.test.js.
+// The form still CARRIES every moved field — the seed below stages them all —
+// so an Output tab that kept rendering any of them would show it here.
 const MOVED_AWAY = {
   channels: "Output Channels",
   gain_comp: "PCM gain compensation",
@@ -238,8 +247,6 @@ const MOVED_AWAY = {
   quick_pause: "Quick pause",
   short_buffer: "Short buffer",
   upnp_freewheel: "UPnP freewheel",
-  junk_filter: "High-frequency filter",
-  pre_before_meter: "Pre-process before metering",
 };
 const MOVED_FORM = {
   channels: "2",
@@ -300,4 +307,80 @@ test("test_the_dac_correction_card_has_no_indented_layout", async () => {
 test("test_the_dac_correction_card_carries_the_correction_profile", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
   assert.ok(card(tab(), "DAC correction").includes("<label>DAC model</label>"));
+});
+
+// --- the merged tab ------------------------------------------------------------
+// The Conversion tab is gone. The bar offers exactly four tabs; its cards now
+// stand on this tab in a fixed order; and the retired id "resampling", left in a
+// stale visitor's saved UI state, still lands on this body rather than on a
+// blank page.
+
+/**
+ * @param {string} value
+ * @param {string} label
+ */
+const opt = (value, label) => ({ value, options: [{ value, label }] });
+const CHAINS = {
+  filter1x: opt("1", "poly-sinc-gauss-long"),
+  filter: opt("2", "poly-sinc-xtr-mp"),
+  oversampling1x: opt("3", "poly-sinc-short-mp"),
+  oversampling: opt("4", "closed-form-M"),
+};
+const PREP = { junk_filter: "0", pre_before_meter: false };
+const FULL = { backend: "alsa", ...PRESENT, ...CHAINS, ...PREP };
+
+// A tab button's visible label, accents and markup stripped.
+/** @param {string} out */
+const tabLabels = (out) =>
+  [...out.matchAll(/<button[^>]*>(.*?)<\/button>/g)].map((m) => m[1].replace(/<[^>]*>/g, "").trim());
+
+test("test_the_tab_bar_offers_exactly_output_volume_matrix_system_in_order", async () => {
+  await reset({ cfg: FULL });
+  assert.deepEqual(tabLabels(render(html`<${TabBar} />`)), ["Output", "Volume", "Matrix", "System"]);
+});
+
+test("test_no_tab_is_labelled_conversion", async () => {
+  await reset({ cfg: FULL });
+  assert.equal(render(html`<${TabBar} />`).includes("Conversion"), false);
+});
+
+test("test_no_tab_is_labelled_resampling", async () => {
+  await reset({ cfg: FULL });
+  assert.equal(render(html`<${TabBar} />`).includes("Resampling"), false);
+});
+
+test("test_a_stale_resampling_tab_id_renders_the_output_tab_body", async () => {
+  await reset({ cfg: FULL });
+  activeTab.value = "resampling";
+  assert.ok(render(html`<${TabBody} />`).includes('<div class="card-head center">Backend</div>'));
+});
+
+// Top to bottom: the Backend/Mode/Rate top row, then the moved Conversion cards,
+// then the cards that were already Output's. Each landmark is the card's own
+// head (a disclosure head for the collapsibles, the plain card head otherwise),
+// present whether the card is open or closed, so the ORDER is what this pins.
+const CARD_ORDER = [
+  '<div class="card-head center">Backend</div>',
+  '<div class="card-head">Pre-process</div>',
+  "Narrow filters",
+  "</span> PCM Chain</button>",
+  "</span> SDM Chain</button>",
+  "</span> Filter length</button>",
+  '<div class="card-head">DAC correction</div>',
+  "</span> ALSA Backend</button>",
+  "</span> Network Backend</button>",
+];
+
+test("test_the_merged_cards_stand_in_order_from_the_top_row_to_the_backends", async () => {
+  await reset({ cfg: FULL });
+  const out = tab();
+  const at = CARD_ORDER.map((mark) => out.indexOf(mark));
+  assert.ok(at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1])), `landmarks out of order: ${at}`);
+});
+
+test("test_a_missing_device_still_warns_above_the_top_row", async () => {
+  await reset({ cfg: { ...FULL, alsa_device: alsaDev("") } });
+  const out = tab();
+  const alert = out.indexOf("No output device for the ALSA backend");
+  assert.ok(alert >= 0 && alert < out.indexOf('<div class="card-head center">Backend</div>'));
 });

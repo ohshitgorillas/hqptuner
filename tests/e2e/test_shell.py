@@ -23,11 +23,12 @@ Policy notes (docs/testing.md):
   caused. Server-side state (staging, auto-save, presets) is the one thing put
   back before every test, by conftest's `clean_slate`.
 
-The control it drives through the staging round trip is the Conversion tab's
-High-frequency filter (`junk_filter`), which is a live-lane setting written with
+The control it drives through the staging round trip is the High-frequency
+filter (`junk_filter`), which is a live-lane setting written with
 `SetJunkFilter` (docs/settings-classification.md), so one control exercises both
-the staging UI and the control wire. The app opens on the Output tab, so
-`open_app` switches to Conversion before waiting on the field.
+the staging UI and the control wire. The Conversion tab is gone and its cards
+live on the Output tab, so the control sits on the landing tab: `open_app`
+reaching it with no tab switch is itself part of the pinned behaviour.
 """
 
 import re
@@ -63,7 +64,7 @@ PCM_FILTER_NAMES = ["none", "poly-sinc-gauss-long", "sinc-M"]
 #: The tabs the shell puts up. Pinning the names is what makes "the shell
 #: rendered" mean something: a skeleton carrying the right class names but no
 #: tabs is not a shell.
-TAB_NAMES = ["Output", "Volume", "Conversion", "Matrix", "System"]
+TAB_NAMES = ["Output", "Volume", "Matrix", "System"]
 
 #: The engine baseline each staging case starts the High-frequency filter from,
 #: as the control fake stores it: an index string, `"0"` being the `none` entry
@@ -87,9 +88,8 @@ def open_app(page: Page, stack: Stack) -> None:
     """Load the SPA and wait until the config-driven body is on screen."""
     page.goto(stack.base_url)
     page.wait_for_selector("footer.pending-bar", timeout=LOAD_MS)
-    # The High-frequency filter lives on the Conversion tab; the app opens on
-    # Output, so get there before waiting on the field.
-    page.locator("nav.tab-nav button", has_text="Conversion").click()
+    # The High-frequency filter lives on the Output tab the app opens on, so it
+    # must come up with NO tab switch — every case in this module rides on that.
     page.wait_for_selector(f"label:has-text('{JUNK_LABEL}')", timeout=LOAD_MS)
 
 

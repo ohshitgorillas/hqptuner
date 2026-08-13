@@ -1,38 +1,30 @@
-// Behavioral suite for components/tabs/ResamplingTab.js — the Resampling tab's
-// rendered contract: the narrowing bar, the two output cards (each split by
-// SOURCE type) and the FFT filter-length card that follows the selection.
+// Behavioral suite for the conversion cards — Pre-process, the narrowing bar,
+// the two chain cards (each split by SOURCE type) and the FFT filter-length card
+// — as they render on the Output tab, where the Conversion-tab merge moved them.
+// There is no Resampling/Conversion tab component any more: the cards are
+// internal composition of the exported `Output`, so every case here goes through
+// `Output`, driven by the exported store signals (`config` carrying the daemon's
+// own /config form) over a faked wire on the real REST paths. Nothing is stubbed.
 //
-// Policy (docs/testing.md): public API only, one assertion per test. The four
-// override signals and the FILTER_CONTROLS table are private and stay that way —
-// every case here goes through the exported `Resampling`, driven by the exported
-// store signals (`config` carrying the daemon's own /config form) over a faked
-// wire on the real REST paths. Nothing is stubbed.
+// Policy (docs/testing.md): public API only, one assertion per test.
 //
-// NOT covered, and deliberately not reached by widening the surface:
-//   * The mode-mismatch note ("Output mode is SDM. These settings have no
-//     effect."). It renders inside the PCM card exactly when the mode is SDM —
-//     which is exactly when that card auto-CLOSES, so a closed Collapsible never
-//     renders it. Seeing it requires the user to re-open the card by hand, i.e.
-//     the module-private `pcmOverride` / `sdmOverride`, written only from the
-//     disclosure head's onClick, which SSR never fires. Same for the SDM card's
-//     note. Those belong to the playwright hand-back protocol.
-//   * The override-reset effect (a mode change drops a manual collapse so the
-//     auto disclosure re-asserts). Its whole observable is those same private
-//     signals, whose only public writer is the click.
+// Automatic disclosure with NO manual override is this file's subject; the
+// manual toggles (the mode-mismatch notes and the override lifecycle) live in
+// conversioncards-collapse.test.js, a separate file, because a click's override
+// is module-level state that outlives a test and each test FILE gets its own
+// process.
 //
 // State reset is total on every call — module-level signals, including the
 // narrowing facets the filter dropdowns read, outlive a test.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/resamplingtab.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/conversioncards.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Resampling } from "../../../hqptuner/static/components/tabs/ResamplingTab.js";
-import { TabBar, TabBody } from "../../../hqptuner/static/components/tabs/index.js";
-import { activeTab } from "../../../hqptuner/static/store/ui.js";
+import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
@@ -60,7 +52,7 @@ async function reset({ cfg = {}, mode = "auto" } = {}) {
   await discardAll();
 }
 
-const tab = () => render(html`<${Resampling} />`);
+const tab = () => render(html`<${Output} />`);
 
 // One SOURCE-type subsection of a card: from its subhead to the next one.
 /**
@@ -82,7 +74,8 @@ const FROM_DSD = "DSD Sources";
 
 // Option sets with per-field names, so a chain can be shown to carry ITS OWN
 // filter list rather than merely "a filter list". Values are the form's enum
-// ids; the FFT card matches on the NAME, never on the number.
+// ids — volatile across engine versions — so the FFT card matches on the LABEL,
+// never on the number (docs/protocol.md §4, hqplayerd-readme.txt fft_size).
 /**
  * @param {string} value
  * @param {string} label
@@ -101,37 +94,16 @@ const CHAINS = {
 
 // --- narrowing bar ------------------------------------------------------------
 
-test("test_the_narrowing_bar_stands_on_the_tab", async () => {
+test("test_the_narrowing_bar_stands_on_the_output_tab", async () => {
   await reset({ cfg: CHAINS });
   assert.ok(tab().includes("Narrow filters"));
 });
 
-// --- the tab's name on the bar -------------------------------------------------
-// The reorganization renamed the tab "Conversion" on the bar; its id stays
-// `resampling`, so that id still activates this tab's body.
-
-test("test_the_tab_bar_names_this_tab_conversion", async () => {
-  await reset({ cfg: CHAINS });
-  assert.ok(render(html`<${TabBar} />`).includes("Conversion"));
-});
-
-test("test_the_tab_bar_no_longer_says_resampling", async () => {
-  await reset({ cfg: CHAINS });
-  assert.equal(render(html`<${TabBar} />`).includes("Resampling"), false);
-});
-
-test("test_the_resampling_tab_id_still_activates_this_tab", async () => {
-  await reset({ cfg: CHAINS });
-  activeTab.value = "resampling";
-  assert.ok(render(html`<${TabBody} />`).includes("Narrow filters"));
-});
-
 // --- pre-process card ----------------------------------------------------------
-// The two controls that shape the signal BEFORE the conversion chains moved in
-// from the Output tab: a plain card titled Pre-process, leading the tab ahead
-// of the narrowing bar and the chain cards, carrying exactly the high-frequency
-// filter and the metering order — pinned as the card's whole <label> sequence,
-// in order.
+// The two controls that shape the signal BEFORE the conversion chains: a plain
+// card titled Pre-process, ahead of the narrowing bar and the chain cards,
+// carrying exactly the high-frequency filter and the metering order — pinned as
+// the card's whole <label> sequence, in order.
 
 /**
  * @param {string} out
@@ -145,9 +117,7 @@ const card = (out, title) => {
 const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
 const PREP = { junk_filter: "0", pre_before_meter: false };
 
-test("test_the_pre_process_card_leads_the_tab", async () => {
-  // First element of the tab: ahead of the narrowing bar, and so of the chain
-  // cards that follow it.
+test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
   const out = tab();
   const at = out.indexOf('<div class="card-head">Pre-process</div>');
@@ -271,24 +241,40 @@ test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
 });
 
 // --- FFT filter length --------------------------------------------------------
+// Open exactly when any of the four filter slots SELECTS an option whose label
+// names FFT. The enum ids under the labels are the engine's and volatile, so an
+// id proves nothing either way — only the label does.
 
 test("test_the_filter_length_card_stays_closed_with_no_fft_filter_selected", async () => {
   await reset({ cfg: CHAINS });
   assert.equal(stateOf(tab(), LENGTH), "closed");
 });
 
-test("test_the_filter_length_card_opens_for_an_fft_filter_on_the_pcm_1x_slot", async () => {
-  await reset({ cfg: { ...CHAINS, filter1x: { value: "7", options: FFT_LIST } } });
-  assert.equal(stateOf(tab(), LENGTH), "open");
-});
-
-test("test_the_filter_length_card_opens_for_an_fft_filter_on_the_sdm_nx_slot", async () => {
-  await reset({ cfg: { ...CHAINS, oversampling: { value: "7", options: FFT_LIST } } });
-  assert.equal(stateOf(tab(), LENGTH), "open");
-});
+// Every one of the four slots can open the card on its own.
+const FFT_SLOTS = ["filter1x", "filter", "oversampling1x", "oversampling"];
+for (const slot of FFT_SLOTS) {
+  test(`test_the_filter_length_card_opens_for_an_fft_filter_on_the_${slot}_slot`, async () => {
+    await reset({ cfg: { ...CHAINS, [slot]: { value: "7", options: FFT_LIST } } });
+    assert.equal(stateOf(tab(), LENGTH), "open");
+  });
+}
 
 test("test_an_fft_filter_merely_offered_leaves_the_filter_length_card_closed", async () => {
   await reset({ cfg: { ...CHAINS, filter1x: { value: "1", options: FFT_LIST } } });
+  assert.equal(stateOf(tab(), LENGTH), "closed");
+});
+
+test("test_an_fft_label_under_an_unfamiliar_enum_id_still_opens_the_card", async () => {
+  // The id domain is the engine's and shifts between versions; the label is the
+  // contract. The same FFT filter under a different number must still count.
+  await reset({ cfg: { ...CHAINS, filter1x: opt("42", "sinc-L (FFT)") } });
+  assert.equal(stateOf(tab(), LENGTH), "open");
+});
+
+test("test_a_familiar_enum_id_with_a_non_fft_label_leaves_the_card_closed", async () => {
+  // The mirror: the id an FFT filter USED to sit on, now carrying a plain
+  // filter's label, must not open the card — matching on the number would.
+  await reset({ cfg: { ...CHAINS, filter1x: opt("7", "poly-sinc-gauss-short") } });
   assert.equal(stateOf(tab(), LENGTH), "closed");
 });
 

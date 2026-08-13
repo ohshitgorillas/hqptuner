@@ -31,20 +31,28 @@ async function reset() {
 }
 
 // The reorganization moved the old Output-tab residents to the tabs that now
-// render them: the pre-process pair to Conversion (id `resampling`), gain
-// compensation to Volume, the engine timing knobs and UPnP freewheel to System,
-// the channel count to Matrix. The accent follows the control.
+// render them: gain compensation to Volume, the engine timing knobs and UPnP
+// freewheel to System, the channel count to Matrix. The Conversion tab is gone —
+// its controls render on Output again, so their accent lands there, and the
+// retired tab id `resampling` may never appear in the dirty set. The accent
+// follows the control.
 
-test("a staged high-frequency filter lights the conversion tab", async () => {
+test("a staged high-frequency filter lights the output tab", async () => {
   await reset();
   await edit("junk_filter", "3");
-  assert.deepEqual([...dirtyTabs.value], ["resampling"]);
+  assert.deepEqual([...dirtyTabs.value], ["output"]);
 });
 
-test("a staged pre-process before metering lights the conversion tab", async () => {
+test("a staged pre-process before metering lights the output tab", async () => {
   await reset();
   await edit("pre_before_meter", "1");
-  assert.deepEqual([...dirtyTabs.value], ["resampling"]);
+  assert.deepEqual([...dirtyTabs.value], ["output"]);
+});
+
+test("a staged fft filter length lights the output tab", async () => {
+  await reset();
+  await edit("fft_size", "1");
+  assert.deepEqual([...dirtyTabs.value], ["output"]);
 });
 
 test("a staged gain compensation lights the volume tab", async () => {
@@ -163,6 +171,15 @@ test("no non-Matrix control lights the Matrix tab", async () => {
   const dsp = new Set(MATRIX_KEYS);
   const lit = await sweepSchema();
   const strays = [...lit].filter(([key, tabs]) => tabs.includes("matrix") && !dsp.has(key)).map(([key]) => key);
+  assert.deepEqual(strays, []);
+});
+
+// The Conversion tab's id is retired: no schema key, whatever tab set claims
+// it, may light "resampling" — a leftover mapping entry would accent a tab
+// button that no longer exists, invisibly.
+test("no schema key lights the retired resampling tab", async () => {
+  const lit = await sweepSchema();
+  const strays = [...lit].filter(([, tabs]) => tabs.includes("resampling")).map(([key]) => key);
   assert.deepEqual(strays, []);
 });
 
