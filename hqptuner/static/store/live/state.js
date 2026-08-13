@@ -28,7 +28,7 @@ export const RATE_MIRRORED = new Set(["mode", "rate"]);
 
 // A live error is about one write and the connection that write died on. The
 // engine goes down briefly under SetFilter and SetMode, and the poll loop brings
-// a new connection up within seconds (manager._connect_and_load) — at which point
+// a new connection up within seconds (manager.connect_and_load) — at which point
 // the message describes a moment that is over, and the control it sits on is
 // working again. So it goes when the connection does.
 //

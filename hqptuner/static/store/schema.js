@@ -90,6 +90,15 @@ export const volumePinned = (/** @type {(key: string) => string | number | boole
   truthy(get("fixed_volume_enabled")) ||
   isoLevel(get("optimal_iso")) !== "0" ||
   (Number(get("volume_min")) === 0 && Number(get("volume_max")) === 0);
+/**
+ * Whether the volume is already pinned at a fixed −3 dB, by either of the two
+ * independent fixed-volume modes: the manual level (the `<fixed>` element, live
+ * only while fixed_volume_enabled is on) or Auto headroom at its −3 dB setting
+ * (isoLevel "1", which is also what the /config form's bare checkbox means).
+ * Takes a getter, like volumePinned, so the same predicate serves any view.
+ */
+export const atFixedMinusThree = (/** @type {(key: string) => string | number | boolean | undefined} */ get) =>
+  (truthy(get("fixed_volume_enabled")) && Number(get("fixed_volume")) === -3) || isoLevel(get("optimal_iso")) === "1";
 const levelGray = (/** @type {GrayCtx} */ ctx) =>
   fixedOff(ctx) || (isoOn(ctx) ? "Auto headroom sets the level automatically." : "");
 // The live volume control is bypassed in three documented cases (manual §4.2,

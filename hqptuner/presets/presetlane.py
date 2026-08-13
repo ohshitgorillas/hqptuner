@@ -71,18 +71,18 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     """
     xml = mgr.presetops.store.read(name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
-    await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
+    await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
     backup = await mgr.presetops.backup_or_cached(for_write=True)
     mgr.presetops.persist_backup(backup)
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
-    await mgr.require_http().restore(archive, scope="system")
+    await settle.push_restore(mgr, archive)
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
-    await mgr.await_http_ready()
+    await settle.await_http_ready(mgr)
     # the restore restarted the daemon: every live reading we hold is the previous
     # engine's, and an auto-save riding this load would fold those into the preset
-    # it just loaded (ConnectionManager.resync_engine_state)
-    await mgr.resync_engine_state()
+    # it just loaded (lanes/settle.resync_engine_state)
+    await settle.resync_engine_state(mgr)
     await mgr.load_file_config()
     await mgr.refresh_http_forms()
     return {"name": name, "active": True}
@@ -132,7 +132,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     that was already there.
     """
     try:
-        await mgr.await_http_ready()  # a prior load/save may have restarted the daemon
+        await settle.await_http_ready(mgr)  # a prior load/save may have restarted the daemon
         backup = await mgr.presetops.backup_or_cached(for_write=True)
         working = engineconf.base_config_xml(backup, mgr.active_config)
         if not working:
@@ -147,6 +147,12 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         return {"name": name, "ok": False, "error": str(exc)}
     warning = await _mirror(mgr, name, working, backup)
+    # the mirror rides a restore, and a restore restarts the daemon — so the client we
+    # hold is the departing process's, and the next write through it finds a dead socket.
+    # Waiting for the boundary reconnects us; the picture does NOT need invalidating the
+    # way a load's does, because what this save stored was read BEFORE the restore and is
+    # exactly what the daemon is coming back up on.
+    await settle.await_restart(mgr)
     if warning is None:
         return {"name": name, "ok": True}
     return {"name": name, "ok": True, "warning": warning}
@@ -192,11 +198,11 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
 
     async def push() -> bool:
-        await mgr.require_http().restore(archive, scope="system")
+        await settle.push_restore(mgr, archive)
         return True
 
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
-        await mgr.await_http_ready()
+        await settle.await_http_ready(mgr)
         return None
     log.warning("preset %r saved, but its daemon mirror did not land", name)
     return "hqplayerd's own profile list was not updated"

@@ -36,10 +36,16 @@ repos:
         pass_filenames: false
         types: [python]
       - id: file-length
-        name: max 500 source / 800 test lines
+        name: max 500 source / 800 test lines, watched files only shrink
         entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [python]
+      - id: no-barrels
+        name: no re-export modules or trivial forwarders
+        entry: .venv/bin/python scripts/gates/check_no_barrels.py
+        language: system
+        types: [python]
+        exclude: ^tests/
       - id: changelog-style
         name: changelog entry style ([Unreleased] only)
         entry: .venv/bin/python scripts/gates/check_changelog.py

@@ -12,7 +12,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import enginelane, httplane, livelane, matrixlane, speakerlane
+from hqptuner.lanes import enginelane, httplane, livelane, matrixlane, settle, speakerlane
 from hqptuner.lanes.writer import apply_live
 from hqptuner.presets import presetlane
 
@@ -89,11 +89,11 @@ class ApplyOps:
             return  # nothing reached the daemon: no restart, nothing to reconcile
         # the restore reached the daemon, so every live reading we hold belongs to a
         # process on its way out — and the auto-save that follows this apply reads
-        # exactly those (ConnectionManager.resync_engine_state). Gated on SUBMITTED,
+        # exactly those (lanes/settle.resync_engine_state). Gated on SUBMITTED,
         # not on applied: an apply that could not prove the restart is the case where
         # the picture is least trustworthy, and leaving it standing there was how a
         # stale engine reading reached the store by the back door.
-        await mgr.resync_engine_state()
+        await settle.resync_engine_state(mgr)
         if not persistent.get("applied"):
             return
         # the restore that just applied carried the parked filter files —
@@ -132,7 +132,7 @@ class ApplyOps:
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         # same restart, same stale readings as the staged-apply path above
-        await mgr.resync_engine_state()
+        await settle.resync_engine_state(mgr)
         engine = result["verified"].get("engine")
         if engine:
             mgr.engine = engine
