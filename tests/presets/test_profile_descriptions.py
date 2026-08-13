@@ -397,13 +397,49 @@ def test_a_merged_payload_reads_back_off_disk(tmp_path: Path) -> None:
         pytest.param(b"not json at all {", id="not-json"),
         pytest.param(b"[]", id="not-an-object"),
         pytest.param(b'{"schema": 1, "profiles": ["Living Room"]}', id="profiles-not-a-map"),
-        pytest.param(b'{"schema": 1, "profiles": {"Living Room": "warm"}}', id="entry-not-a-map"),
-        pytest.param(b'{"schema": 1, "profiles": {"": {"text": "warm"}}}', id="empty-name"),
     ],
 )
-def test_an_unreadable_payload_is_refused(tmp_path: Path, payload: bytes) -> None:
+def test_a_payload_that_is_not_a_descriptions_store_is_refused(tmp_path: Path, payload: bytes) -> None:
     with pytest.raises(DescriptionError):
         store_at(tmp_path).merge(payload)
+
+
+# --- one bad entry inside a readable payload ---------------------------------------------
+# The envelope is what a refusal is for. An entry inside a store that reads fine
+# is dropped on the way in, the way a corrupt file drops one on the way out — so
+# an archive carrying one unstorable row still gives the user back every other
+# description it carried, and merging it does not raise.
+
+#: A readable descriptions store carrying one entry that cannot be stored, and
+#: one good one beside it, keyed by `id`.
+SPOILED = {
+    "entry-not-a-map": json.dumps({"schema": 1, "profiles": {NAME: "warm", "Study": entry("near field")}}).encode(),
+    "empty-name": stamped({"": entry("warm"), "Study": entry("near field")}),
+}
+
+
+@pytest.mark.parametrize(
+    ("payload", "dropped"),
+    [
+        pytest.param(SPOILED["entry-not-a-map"], NAME, id="entry-not-a-map"),
+        pytest.param(SPOILED["empty-name"], "", id="empty-name"),
+    ],
+)
+def test_an_entry_that_cannot_be_stored_is_dropped_on_the_way_in(tmp_path: Path, payload: bytes, dropped: str) -> None:
+    assert dropped not in store_at(tmp_path).merge(payload)
+
+
+# The pair above and this one are what separates dropping the ROW from dropping
+# the PAYLOAD: a merge that discarded everything passes the first alone.
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(SPOILED["entry-not-a-map"], id="entry-not-a-map"),
+        pytest.param(SPOILED["empty-name"], id="empty-name"),
+    ],
+)
+def test_the_rest_of_a_payload_merges_around_an_entry_that_cannot_be_stored(tmp_path: Path, payload: bytes) -> None:
+    assert store_at(tmp_path).merge(payload)["Study"]["text"] == "near field"
 
 
 def test_a_refused_merge_changes_nothing(tmp_path: Path) -> None:
@@ -490,14 +526,26 @@ def test_a_put_the_store_would_refuse_answers_422(desc_client: TestClient, body:
     assert desc_client.put("/api/descriptions", json=body).status_code == 422
 
 
+def refusal(tmp_path: Path, name: str, text: str) -> str:
+    """The sentence the store itself gives for a write it refuses.
+
+    A store that ACCEPTS the write yields a sentence nothing can contain, rather
+    than the empty string every answer trivially contains: the caller below is
+    checking that a route repeats this sentence, and a write that stopped being
+    refused must fail that check rather than satisfy it."""
+    try:
+        store_at(tmp_path).write(name, text)
+    except DescriptionError as exc:
+        return str(exc)
+    return "\x00the store accepted a write it should have refused"
+
+
 # The message is not pinned word for word — what is pinned is that the sentence
 # the user is shown is the store's own, so a route inventing its own wording for
 # a refusal it did not diagnose fails here whatever the store ends up saying.
 def test_a_refused_put_answers_with_the_stores_own_message(desc_client: TestClient, tmp_path: Path) -> None:
-    with pytest.raises(DescriptionError) as refusal:
-        store_at(tmp_path).write(NAME, "x" * 2001)
     answer = desc_client.put("/api/descriptions", json={"name": NAME, "text": "x" * 2001})
-    assert str(refusal.value) in json.dumps(answer.json())
+    assert refusal(tmp_path, NAME, "x" * 2001) in json.dumps(answer.json())
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
