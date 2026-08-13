@@ -9,7 +9,7 @@ mirror removal (restore is additive and cannot delete a member).
 Every function takes the ``ConnectionManager`` and reaches the daemon through its
 public accessors, exactly like the other lanes. It lives under ``presets`` rather
 than ``lanes`` because it depends on the store: the two readers that do not
-(``stored_live_fields``, ``autosave_mirror``) stayed behind in
+(``carried_live_fields``, ``autosave_mirror``) stayed behind in
 ``lanes/presetfields.py``, where the engine and http lanes can still reach them.
 """
 

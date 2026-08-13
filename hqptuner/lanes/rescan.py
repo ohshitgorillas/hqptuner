@@ -5,7 +5,7 @@ the engine comes back on the config file — which never learned a live-routed
 setting, because a live setting is applied over 4321 and written nowhere
 (``livesnapshot``). Every OTHER daemon reload survives that, since a
 restore-shaped write folds the active preset's stored values into the XML it
-pushes (``presetfields.stored_live_fields``); a rescan writes no config at all,
+pushes (``presetfields.carried_live_fields``); a rescan writes no config at all,
 so nothing carries them and the user's filters, mode and rate pin are gone.
 
 This is the carrier for that one case: read what the engine is running BEFORE the

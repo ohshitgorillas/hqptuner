@@ -52,14 +52,14 @@ async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> dict[str,
     return {"applied": applied is not None, "engine": got}
 
 
-def _with_stored_live_fields(mgr: ConnectionManager, backup: bytes, active: str | None) -> bytes:
-    """``backup`` with the active preset's stored live-domain settings written into its working config member.
+def _with_carried_live_fields(mgr: ConnectionManager, backup: bytes, active: str | None) -> bytes:
+    """``backup`` with the running live-domain settings (store as fallback) written into its working config member.
 
     This restore restarts the daemon onto that member, and a live edit never wrote
     those settings to any file — so without this the engine-attribute apply costs
     the user the mode, filters and shapers they saved (``presetfields``).
     """
-    stored = presetfields.stored_live_fields(mgr)
+    stored = presetfields.carried_live_fields(mgr)
     working = engineconf.base_config_xml(backup, active or None)
     if not stored or not working:
         return backup
@@ -89,7 +89,7 @@ async def apply(
     mirror = presetfields.autosave_mirror(mgr)
     if mirror:
         backup = engineconf.rewrite_zip(backup, mirror)
-    backup = _with_stored_live_fields(mgr, backup, active)
+    backup = _with_carried_live_fields(mgr, backup, active)
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
     await mgr.require_http().restore(modified, scope="system")

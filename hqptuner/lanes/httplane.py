@@ -88,9 +88,9 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     if mgr.http_client is None:
         return {"submitted": False, "error": "no credentials for HTTP config lane"}
     # the restore restarts the daemon onto the config it carries, and a live edit
-    # never reached that file — so the active preset's stored values for those
-    # settings ride along, under the staged edits, which win (presetfields)
-    merged = {**presetfields.stored_live_fields(mgr), **edits, **FORCED_CONFIG}
+    # never reached that file — so the running values for those settings ride
+    # along (store as fallback), under the staged edits, which win (presetfields)
+    merged = {**presetfields.carried_live_fields(mgr), **edits, **FORCED_CONFIG}
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
