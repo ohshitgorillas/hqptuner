@@ -11,6 +11,7 @@ from hqptuner.api import (
     favoritesapi,
     livepresetapi,
     matrixapi,
+    matrixmodesapi,
     narrowingapi,
     pendingapi,
     presetapi,
@@ -28,6 +29,7 @@ from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.descriptionstore import DescriptionStore
 from hqptuner.presets.favoritestore import FavoriteStore
 from hqptuner.presets.livepresets import LivePresetStore
+from hqptuner.presets.matrixmodestore import MatrixModeStore
 from hqptuner.presets.narrowingstore import NarrowingStore
 
 log = logging.getLogger(__name__)
@@ -59,6 +61,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.favorites = FavoriteStore(cfg.favorites_file)
     app.state.descriptions = DescriptionStore(cfg.description_file)
     app.state.narrowing = NarrowingStore(cfg.narrowing_file)
+    app.state.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
     # Registration order is load-bearing: configapi's `GET /preset/{name:path}`
     # must stay ahead of presetapi's `DELETE /preset/{name}`, as it was when both
     # lived on one router.
@@ -73,5 +76,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(favoritesapi.router)
     app.include_router(descriptionsapi.router)
     app.include_router(narrowingapi.router)
+    app.include_router(matrixmodesapi.router)
     mount_spa(app)
     return app

@@ -95,6 +95,16 @@ class Config:
             _env("DESCRIPTION_FILE", str(Path(__file__).resolve().parent.parent / "state" / "descriptions.json"))
         )
     )
+    # Per-preset Matrix-tab modes (see matrixmodestore) — one JSON file beside
+    # the descriptions, in the same bind-mounted state dir. Which half of the
+    # Matrix tab a preset is listened through belongs to the preset, so it has to
+    # outlive the browser that chose it, and hqplayerd's config has nowhere to
+    # carry it.
+    matrix_mode_file: Path = field(
+        default_factory=lambda: Path(
+            _env("MATRIX_MODE_FILE", str(Path(__file__).resolve().parent.parent / "state" / "matrixmodes.json"))
+        )
+    )
     # hqplayerd's data/home directory on the daemon host — where a /backup
     # archive's data/ members land on restore, and the absolute-path prefix a
     # pipeline `process` attribute uses for uploaded filter impulse files

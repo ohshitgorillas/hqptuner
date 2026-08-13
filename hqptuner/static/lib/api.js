@@ -122,6 +122,12 @@ export const api = {
   descriptions: () => getJSON("/api/descriptions"),
   saveDescription: (/** @type {string} */ name, /** @type {string} */ text) =>
     send("/api/descriptions", "PUT", { name, text }),
+  // Per-preset Matrix-tab mode — which half of the tab a preset is listened
+  // through, stored for the install. One preset per write, like descriptions:
+  // two browsers on different presets must not undo each other's choice.
+  matrixModes: () => getJSON("/api/matrixmodes"),
+  saveMatrixMode: (/** @type {string} */ name, /** @type {string} */ mode) =>
+    send("/api/matrixmodes", "PUT", { name, mode }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
   setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
   profile: (/** @type {string} */ action, /** @type {string} */ name) =>
