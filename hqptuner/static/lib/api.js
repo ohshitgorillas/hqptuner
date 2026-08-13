@@ -112,6 +112,10 @@ export const api = {
   // for one browser. Whole-set replace: unstarring is a PUT without the name.
   favorites: () => getJSON("/api/favorites"),
   saveFavorites: (/** @type {string[]} */ filters) => send("/api/favorites", "PUT", { filters }),
+  // Narrow-bar facets — which filters the dropdowns offer, stored for the
+  // install. Whole-bar replace: a facet left out comes back at its default.
+  narrowing: () => getJSON("/api/narrowing"),
+  saveNarrowing: (/** @type {Record<string, unknown>} */ facets) => send("/api/narrowing", "PUT", { facets }),
   // Matrix-profile descriptions — what the user wrote about a saved profile,
   // stored for the install. One profile per write, unlike favorites: the text is
   // long and two browsers on different profiles must not overwrite each other.

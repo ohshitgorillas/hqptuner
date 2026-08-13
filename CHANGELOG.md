@@ -14,6 +14,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **`HQPTUNER_METERING_ENABLED=0` turns the junk-filter advisor off entirely.** HQPTuner then never opens the metering connection and the advisor's note never appears.
 
+- **Filter narrowing now survives a reload.** The narrow bar's facets are stored for the install rather than for the browser session, so reopening the page — or restarting HQPTuner — brings the filter menus back narrowed the same way. The favorites-only switch stays per session.
+
 - **Filter hover tips now carry the filter's facts, not just its prose.** Under the manual's description, the tip lists the same facts the narrowing bar filters on — quality, genre, focus, phase, length, ratio class, apodizing and upsample-only — each line present only when the filter has that fact.
 
 ### Changed
