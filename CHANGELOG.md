@@ -16,8 +16,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **`HQPTUNER_METERING_ENABLED=0` turns the junk-filter advisor off entirely.** HQPTuner then never opens the metering connection and the advisor's note never appears.
 
-- **Filter narrowing now survives a reload.** The narrow bar's facets are stored for the install rather than for the browser session, so reopening the page — or restarting HQPTuner — brings the filter menus back narrowed the same way. The favorites-only switch stays per session.
-
 - **Filter hover tips now carry the filter's facts, not just its prose.** Under the manual's description, the tip lists the same facts the narrowing bar filters on — quality, genre, focus, phase, length, ratio class, apodizing and upsample-only — each line present only when the filter has that fact.
 
 ### Changed
@@ -30,7 +28,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **A narrowed filter menu lists only what the narrowing matched.** The selected filter used to be pinned to the top whether or not it matched, which obscured what the facets had found. Closing the menu without picking keeps the filter that was selected.
 
-- **Favorite filters are shared across browsers.** Stars were kept per browser; they now save with the rest of HQPTuner's state, and existing stars carry over on first load.
+- **Filter narrowing and favorites are stored for the install, not for the browser.** The narrow bar's facets and the filter stars were kept per browser; both now save with the rest of HQPTuner's state, so reopening the page — or restarting HQPTuner — brings the menus back narrowed and starred the same way on any browser. Existing stars carry over on first load. The favorites-only switch stays per session.
 
 - **The "Matrix engine is bypassed" note now says "Engage it to use this feature."** on a card whose own feature is switched off, instead of "These settings have no effect" about settings that were not in use. The General card carries the note too.
 
@@ -42,21 +40,17 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Loading a preset no longer stages a rate nobody picked.** A preset whose device carries a higher rate than the one before it could come up with its SDM or PCM rate already dropped to the previous device's ceiling, waiting in the pending bar. Device limits now apply only once both views of the running config name the same device.
 
-- **The narrowing card's intro caption follows the Setting descriptions switch.** The "Reduce the number of filters" explainer stayed on screen with setting descriptions turned off; it now hides with the other static notes.
-
-- **The Option descriptions switch shows its forced state.** With Setting descriptions on, option descriptions are always visible, but the switch could sit unchecked and grayed while they showed anyway; it now renders checked whenever the master forces them on. The master toggle is renamed from Feature descriptions to Setting descriptions.
-
-- **The narrowing bar's apodizing and hi-res captions now follow the feature-description switch.** Both stayed on screen with feature descriptions turned off; they now hide with every other static note and move to a hover tip.
+- **Static notes now hide with the descriptions switch, and the switches show their real state.** The narrowing card's "Reduce the number of filters" explainer and the narrow bar's apodizing and hi-res captions stayed on screen with descriptions off; both now hide with every other note, the captions moving to a hover tip. Option descriptions renders checked whenever the master forces it on. That master is renamed from Feature descriptions to Setting descriptions.
 
 - **A filter applied after a mode change now lands the filter that was picked.** Applying the output mode on its own, then applying a filter, ran a different filter instead. Re-applying the mode already running also no longer disturbs the output rate.
 
 - **The About card called HQPlayer's DSP-engine version (6.0.4) the "Version", though the installed release is 6.0.2.** Signalyst numbers them separately, so the card now shows both: "Version" and "Engine".
 
-- **Matrix profiles saved before profiles carried a chain no longer blank the DAC correction.** HQPlayer installs a whole matrix on a profile switch, so a chainless profile turned correction off, emptied the DAC model and dropped loudness — and applying while it was loaded wrote that blank into the config. Only chainless profiles are filled in, from the running matrix, at the next apply.
+- **Matrix profiles saved before profiles carried a chain no longer blank the DAC correction.** Loading one turned correction off, emptied the DAC model and dropped loudness, and applying while it was loaded stored that blank. Only chainless profiles are filled in, from the running matrix, at the next apply.
 
-- **Rate/shaper warnings no longer report on a chain the pending settings will not use.** Staging a mode change, or selecting an unapplied preset, left the warning reading whichever chain was playing: an SDM preset selected during PCM playback reported the preset's PCM dither, and the reverse raised a red "HQPlayer cannot produce output" about a modulator that would never run. The warning now follows the mode the settings run under; in Auto, the loaded chain.
+- **Rate/shaper warnings no longer report on a chain the pending settings will not use.** Staging a mode change, or selecting an unapplied preset, left the warning reading whichever chain was playing — down to a red "HQPlayer cannot produce output" about a modulator that would never run. The warning now follows the mode the settings run under; in Auto, the loaded chain.
 
-- **Dither and other live-capable settings no longer revert.** Applied alongside a restart-required setting, a live value reached the engine but not the config file, and the restart reverted it; such a batch is now written to the file whole, and the pending bar's live/restart counts follow. A dither or filter applied from the tabs view is also recorded per chain, so switching chains no longer folds the stale file value into the preset.
+- **Dither and other live-capable settings no longer revert.** Applied alongside a restart-required setting, a live value reached the engine but not the config file, and the restart took it back; such a batch is now stored whole, and the pending bar's live/restart counts follow. Dithers and filters applied from the tabs view are recorded per chain, so switching chains no longer folds a stale value into the preset.
 
 - **Rescanning devices no longer resets the live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
 
