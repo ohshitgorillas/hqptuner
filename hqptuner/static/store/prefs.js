@@ -15,7 +15,6 @@ import { signal, computed } from "@preact/signals";
 const K_DESC = "hqptuner.showDescriptions";
 const K_KEEP = "hqptuner.keepOptionDescriptions";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
-const K_FAST_VOL = "hqptuner.fastVolumeUpdates";
 const K_LIVE = "hqptuner.liveMode";
 
 // A dead store is worth exactly one line of console noise: silence hides the
@@ -92,11 +91,11 @@ export function setKeepOptionDescriptions(on) {
   persist(K_KEEP, keepOptionDescriptions.value);
 }
 
-// Faster-poll opt-ins, per page. Off by default (the 2 s default is fine for
-// most use); a page's checkbox bumps its status poll to 500 ms while shown.
-// Consumed by store/ui.js (fastPollMs).
+// The System page's faster-poll opt-in. Off by default (the 2 s default is fine
+// for diagnostic readings); ticked, its status poll runs at 1 s while the page
+// is shown. Consumed by store/ui.js (fastPollMs). The volume page and LIVE take
+// that cadence unconditionally and have no pref of their own.
 export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
-export const fastVolumeUpdates = signal(loadBool(K_FAST_VOL, false));
 
 /**
  * Set the System page's faster-poll opt-in and persist it.
@@ -107,19 +106,6 @@ export const fastVolumeUpdates = signal(loadBool(K_FAST_VOL, false));
 export function setQuickSystemUpdates(on) {
   quickSystemUpdates.value = !!on;
   persist(K_QUICK_SYS, quickSystemUpdates.value);
-}
-
-/**
- * Takes a string as well as a boolean. Every UI caller hands it a checkbox's
- * boolean, but the daemon's boolean fields arrive as truthy strings elsewhere
- * in this store, so the coercion is part of what this setter promises.
- *
- * @param {boolean | string} on
- * @returns {void}
- */
-export function setFastVolumeUpdates(on) {
-  fastVolumeUpdates.value = !!on;
-  persist(K_FAST_VOL, fastVolumeUpdates.value);
 }
 
 // The LIVE switch. Persisted like every other pref, so a reload lands back on
