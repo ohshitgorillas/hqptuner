@@ -36,6 +36,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **Loading a preset no longer stages a rate nobody picked.** A preset whose device carries a higher rate than the one before it could come up with its SDM or PCM rate already dropped to the previous device's ceiling, waiting in the pending bar. Device limits now apply only once both views of the running config name the same device.
+
 - **The narrowing card's intro caption follows the Setting descriptions switch.** The "Reduce the number of filters" explainer stayed on screen with setting descriptions turned off; it now hides with the other static notes.
 
 - **The Option descriptions switch shows its forced state.** With Setting descriptions on, option descriptions are always visible, but the switch could sit unchecked and grayed while they showed anyway; it now renders checked whenever the master forces them on. The master toggle is renamed from Feature descriptions to Setting descriptions.

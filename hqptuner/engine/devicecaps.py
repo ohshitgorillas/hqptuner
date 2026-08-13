@@ -64,6 +64,14 @@ def _caps(device: str | None, formats: list[tuple[str, str]]) -> dict[str, Any] 
     return {"device": device, "pcm_rates": _rates(formats, "pcm"), "dsd_rates": _rates(formats, "dsd")}
 
 
+def _device(values: dict[Any, Any]) -> str | None:
+    """Return the device one view's field values name — its backend's own device field, or None."""
+    field = _DEVICE_FIELD.get(str(values.get("backend") or ""))
+    if field is None:
+        return None
+    return str(values.get(field) or "") or None
+
+
 def selected_device(config_form: dict[str, Any] | None) -> str | None:
     """Return the device the menus should narrow to, from a parsed ``GET /config`` form.
 
@@ -71,11 +79,29 @@ def selected_device(config_form: dict[str, Any] | None) -> str | None:
     drives both at once, and the log announces one — which device's limits bind
     is unknown, so combo narrows nothing.
     """
-    values = _form_values(config_form)
-    field = _DEVICE_FIELD.get(str(values.get("backend") or ""))
-    if field is None:
-        return None
-    return str(values.get(field) or "") or None
+    return _device(_form_values(config_form))
+
+
+def agreed_device(config_form: dict[str, Any] | None, file_config: dict[str, str] | None) -> str | None:
+    """Return the device both config views name, or None when they disagree.
+
+    The ``/config`` form and the file view are refreshed on different schedules,
+    so loading a preset leaves a window where they describe different devices —
+    the file already carries the new preset's, the form still reports the one
+    before it. A capability read in that window describes one generation's device
+    beside another generation's settings, which is how a reachable rate came to
+    be corrected down to a device the user had just switched away from.
+
+    The file view speaks the same form-field names (conf/presetconf.FIELD_MAP),
+    so the two are compared directly. A file view that is absent, or silent about
+    the device, is not a disagreement: there is only one answer and the form
+    carries it.
+    """
+    selected = selected_device(config_form)
+    if selected is None or not file_config:
+        return selected
+    other = _device(dict(file_config))
+    return selected if other is None or other == selected else None
 
 
 def caps_for(text: str, selected: str | None) -> dict[str, Any] | None:

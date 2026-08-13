@@ -377,8 +377,14 @@ class ConnectionManager:
         connect (``force``), and — while the selection has no announcement yet —
         no more often than ``_CAPS_RETRY``, since that announcement may simply not
         have been written when we last looked.
+
+        Which device that is comes from both config views agreeing on it
+        (devicecaps.agreed_device): the form and the file refresh separately, and
+        while they disagree there is no capability to serve. Disagreement caches
+        as ``None``, so the refresh that ends it sees a different selection and
+        re-reads at once rather than sitting out ``_CAPS_RETRY``.
         """
-        selected = devicecaps.selected_device(self.config_form)
+        selected = devicecaps.agreed_device(self.config_form, self.file_config)
         stale = self.device_caps is None and self.monotonic() - self._caps_at >= _CAPS_RETRY
         if not force and not stale and selected == self._caps_device:
             return
