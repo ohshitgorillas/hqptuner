@@ -24,10 +24,11 @@ import io
 import json
 import zipfile
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -187,6 +188,17 @@ def test_a_written_entry_carries_an_instant_in_utc(tmp_path: Path) -> None:
     assert datetime.fromisoformat(written[NAME]["updated"]).utcoffset().total_seconds() == 0  # type: ignore[union-attr]
 
 
+# A stamp is the instant of THIS write, not a constant: the window is opened and
+# closed around the write itself, so an entry stamped with anything fixed —
+# however plausible the value — lands outside it. The floor drops the
+# microseconds because a store stamping whole seconds is still stamping the
+# instant of the write.
+def test_a_written_entry_is_stamped_with_the_instant_of_the_write(tmp_path: Path) -> None:
+    before = datetime.now(UTC).replace(microsecond=0)
+    written = store_at(tmp_path).write(NAME, TEXT)
+    assert before <= datetime.fromisoformat(written[NAME]["updated"]) <= datetime.now(UTC)
+
+
 def test_rewriting_a_name_replaces_its_text(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.write(NAME, TEXT)
@@ -228,6 +240,9 @@ def test_blanking_a_name_that_was_never_written_is_not_refused(tmp_path: Path) -
 # --- what a name may be ----------------------------------------------------------
 
 
+# The refusal has to NAME the problem, so `match=` holds it to saying which of
+# the two fields it is about — the wording beyond that is the store's to choose,
+# but a bare "invalid input" leaves the user nothing to act on.
 @pytest.mark.parametrize(
     "name",
     [
@@ -239,7 +254,7 @@ def test_blanking_a_name_that_was_never_written_is_not_refused(tmp_path: Path) -
     ],
 )
 def test_an_invalid_name_is_refused(tmp_path: Path, name: str) -> None:
-    with pytest.raises(DescriptionError):
+    with pytest.raises(DescriptionError, match=r"(?i)name"):
         store_at(tmp_path).write(name, TEXT)
 
 
@@ -267,7 +282,7 @@ def test_a_refused_name_stores_nothing(tmp_path: Path) -> None:
     ],
 )
 def test_invalid_text_is_refused(tmp_path: Path, text: str) -> None:
-    with pytest.raises(DescriptionError):
+    with pytest.raises(DescriptionError, match=r"(?i)(text|description)"):
         store_at(tmp_path).write(NAME, text)
 
 
@@ -470,6 +485,22 @@ def test_exported_bytes_merged_into_an_empty_store_reproduce_every_name(tmp_path
     assert sorted(store_at(elsewhere).merge(source.export_bytes())) == ["Living Room", "Study"]
 
 
+# The two cases below read the exported BYTES rather than round-tripping them
+# through our own `merge`: the envelope is what a different HQPTuner version
+# reads, so a store that agreed with itself on a wrong one would carry an
+# archive no other version can open.
+def test_exported_bytes_are_stamped_with_the_schema_a_reader_expects(tmp_path: Path) -> None:
+    source = store_at(tmp_path)
+    source.write(NAME, TEXT)
+    assert json.loads(source.export_bytes())["schema"] == 1
+
+
+def test_exported_bytes_are_the_bytes_a_write_left_on_disk(tmp_path: Path) -> None:
+    source = store_at(tmp_path)
+    source.write(NAME, TEXT)
+    assert source.export_bytes() == (tmp_path / "descriptions.json").read_bytes()
+
+
 def test_exported_bytes_carry_the_stamp_a_write_left(tmp_path: Path) -> None:
     source = store_at(tmp_path)
     written = source.write(NAME, TEXT)
@@ -527,25 +558,44 @@ def test_a_put_the_store_would_refuse_answers_422(desc_client: TestClient, body:
 
 
 def refusal(tmp_path: Path, name: str, text: str) -> str:
-    """The sentence the store itself gives for a write it refuses.
+    """The sentence the store itself gives for a write it refuses, JSON-escaped
+    so it can be looked for inside a rendered answer verbatim — a message
+    quoting the offending name carries control characters the answer escapes.
 
     A store that ACCEPTS the write yields a sentence nothing can contain, rather
     than the empty string every answer trivially contains: the caller below is
     checking that a route repeats this sentence, and a write that stopped being
-    refused must fail that check rather than satisfy it."""
+    refused must fail that check rather than satisfy it. An EMPTY refusal is the
+    same hole from the other side — every answer contains it — so the store
+    saying nothing is a failure here, not a pass."""
     try:
         store_at(tmp_path).write(name, text)
     except DescriptionError as exc:
-        return str(exc)
+        assert str(exc), "the store refused the write without saying why"
+        return json.dumps(str(exc))[1:-1]
     return "\x00the store accepted a write it should have refused"
 
 
 # The message is not pinned word for word — what is pinned is that the sentence
 # the user is shown is the store's own, so a route inventing its own wording for
 # a refusal it did not diagnose fails here whatever the store ends up saying.
-def test_a_refused_put_answers_with_the_stores_own_message(desc_client: TestClient, tmp_path: Path) -> None:
-    answer = desc_client.put("/api/descriptions", json={"name": NAME, "text": "x" * 2001})
-    assert refusal(tmp_path, NAME, "x" * 2001) in json.dumps(answer.json())
+# Name cases as well as text: FastAPI's own body validation also answers 422, so
+# a status code alone cannot say the route ever consulted the store about a name.
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [
+        pytest.param("", TEXT, id="empty-name"),
+        pytest.param("x" * 129, TEXT, id="129-char-name"),
+        pytest.param("Living\x07Room", TEXT, id="control-char-name"),
+        pytest.param(NAME, "x" * 2001, id="2001-char-text"),
+        pytest.param(NAME, "warm\x00room", id="control-char-text"),
+    ],
+)
+def test_a_refused_put_answers_with_the_stores_own_message(
+    desc_client: TestClient, tmp_path: Path, name: str, text: str
+) -> None:
+    answer = desc_client.put("/api/descriptions", json={"name": name, "text": text})
+    assert refusal(tmp_path, name, text) in json.dumps(answer.json())
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
@@ -563,11 +613,10 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     assert answer.status_code == 409
 
 
-# Both directions in one case, because what is being pinned is the pair itself:
-# with hqplayerd unreachable, reading and writing descriptions both still answer.
-def test_descriptions_are_served_in_both_directions_with_no_daemon_reachable(desc_client: TestClient) -> None:
-    written = desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
-    assert (written.status_code, desc_client.get("/api/descriptions").status_code) == (200, 200)
+# The read direction is pinned by every GET case above, all of which run against
+# this same daemonless client; what is left to say is that a WRITE lands too.
+def test_a_description_is_written_with_no_daemon_reachable(desc_client: TestClient) -> None:
+    assert desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT}).status_code == 200
 
 
 # --- the two zip helpers -------------------------------------------------------------
@@ -630,11 +679,23 @@ def test_an_empty_store_adds_no_member(carriage_client: tuple[TestClient, Descri
     assert DESCRIPTIONS_MEMBER not in members(client.get("/api/backup").content)
 
 
+def daemon_backup(http_daemon: dict[str, Any]) -> dict[str, bytes]:
+    """The members of the archive hqplayerd itself serves, read straight off the
+    fake's own `GET /backup/settings.zip` (docs/protocol.md §3.6).
+
+    The reference for "the daemon's own members survive" has to come from the
+    daemon, not from another trip through HQPTuner: a backup that mangled a
+    member on every call would agree with itself while the user's
+    `data/library.xml` came back wrong."""
+    with httpx.Client(base_url=f"http://127.0.0.1:{http_daemon['_port']}") as raw:
+        return members(raw.get("/backup/settings.zip").content)
+
+
 def test_a_backup_leaves_the_daemons_own_members_byte_identical(
-    carriage_client: tuple[TestClient, DescriptionStore],
+    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
 ) -> None:
     client, store = carriage_client
-    plain = members(client.get("/api/backup").content)
+    plain = daemon_backup(http_daemon)
     store.write(NAME, TEXT)
     carried = members(client.get("/api/backup").content)
     assert {name: body for name, body in carried.items() if name != DESCRIPTIONS_MEMBER} == plain

@@ -14,8 +14,10 @@
 // reaches the wire assert on the PUT bodies the fake was handed, and the case
 // about a refused save asserts on what the user is left looking at.
 //
-// `reset()` reassigns both module-level signals a test touches — they outlive a
-// test file, and a partial reset makes tests pass alone and fail in sequence.
+// `reset()` puts every piece of module state a test touches back: both signals,
+// and the private queue, which it empties by flushing once against an accepting
+// wire. All three outlive a test, and a partial reset makes cases that only pass
+// in a particular order — the one hazard docs/testing.md names for this harness.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/descriptions.test.js
 
@@ -94,10 +96,20 @@ function descriptionsWire(cfg = {}) {
 }
 
 /**
+ * Put the module back to a stated starting state: nothing queued, the map and
+ * the error line as the case says they are, and the case's own wire installed.
+ *
+ * The queue is module-private and outlives a test, so it is emptied the only
+ * way a caller can — one flush against a wire that accepts everything, sent
+ * BEFORE the case's wire is installed so that drain lands nowhere the case can
+ * see. Without it a case passes only behind whichever case last drained.
+ *
  * @param {{ profiles?: ProfileMap, putStatus?: number, putDetail?: string }} [cfg]
- * @returns {DescriptionWire}
+ * @returns {Promise<DescriptionWire>}
  */
-function reset(cfg = {}) {
+async function reset(cfg = {}) {
+  descriptionsWire();
+  await flushDescriptions();
   const w = descriptionsWire(cfg);
   descriptions.value = { ...(cfg.profiles || {}) };
   descriptionError.value = "";
@@ -109,44 +121,39 @@ const entry = (text, updated = STAMP) => ({ text, updated });
 
 // --- reading one profile's description ------------------------------------------
 
-test("test_a_stored_description_is_answered_for_its_profile_name", () => {
-  reset({ profiles: { [NAME]: entry(TEXT) } });
+test("test_a_stored_description_is_answered_for_its_profile_name", async () => {
+  await reset({ profiles: { [NAME]: entry(TEXT) } });
   assert.equal(descriptionFor(NAME)?.text, TEXT);
 });
 
-test("test_a_stored_description_carries_the_stamp_the_server_sent", () => {
-  reset({ profiles: { [NAME]: entry(TEXT) } });
-  assert.equal(descriptionFor(NAME)?.updated, STAMP);
-});
-
-test("test_a_profile_with_no_description_answers_null", () => {
-  reset({ profiles: { [NAME]: entry(TEXT) } });
+test("test_a_profile_with_no_description_answers_null", async () => {
+  await reset({ profiles: { [NAME]: entry(TEXT) } });
   assert.equal(descriptionFor(OTHER), null);
 });
 
-test("test_a_profile_name_answers_null_when_nothing_is_stored_at_all", () => {
-  reset();
+test("test_a_profile_name_answers_null_when_nothing_is_stored_at_all", async () => {
+  await reset();
   assert.equal(descriptionFor(NAME), null);
 });
 
 // --- queue then flush --------------------------------------------------------------
 
 test("test_queueing_a_description_sends_nothing_until_the_flush", async () => {
-  const w = reset();
+  const w = await reset();
   queueDescription(NAME, TEXT);
   await settle();
   assert.deepEqual(puts(w), []);
 });
 
 test("test_a_flush_sends_exactly_one_put_for_one_queued_profile", async () => {
-  const w = reset();
+  const w = await reset();
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(puts(w).length, 1);
 });
 
 test("test_a_flush_sends_the_last_text_queued_for_that_profile", async () => {
-  const w = reset();
+  const w = await reset();
   queueDescription(NAME, "half a thou");
   queueDescription(NAME, "half a thought");
   queueDescription(NAME, TEXT);
@@ -155,7 +162,7 @@ test("test_a_flush_sends_the_last_text_queued_for_that_profile", async () => {
 });
 
 test("test_retyping_a_profile_before_the_flush_sends_only_one_put", async () => {
-  const w = reset();
+  const w = await reset();
   queueDescription(NAME, "half a thought");
   queueDescription(NAME, TEXT);
   await flushDescriptions();
@@ -163,13 +170,13 @@ test("test_retyping_a_profile_before_the_flush_sends_only_one_put", async () => 
 });
 
 test("test_a_flush_with_nothing_queued_sends_nothing", async () => {
-  const w = reset();
+  const w = await reset();
   await flushDescriptions();
   assert.deepEqual(puts(w), []);
 });
 
 test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async () => {
-  const w = reset();
+  const w = await reset();
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   await flushDescriptions();
@@ -179,28 +186,28 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
 // --- what the save leaves on screen --------------------------------------------------
 
 test("test_a_saved_description_is_readable_back_out_of_the_store", async () => {
-  reset();
+  await reset();
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(descriptionFor(NAME)?.text, TEXT);
 });
 
 test("test_a_saved_description_takes_the_stamp_the_server_answered_with", async () => {
-  reset();
+  await reset();
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(descriptionFor(NAME)?.updated, STAMP);
 });
 
 test("test_a_save_leaves_another_profiles_description_alone", async () => {
-  reset({ profiles: { [OTHER]: entry("near field") } });
+  await reset({ profiles: { [OTHER]: entry("near field") } });
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(descriptionFor(OTHER)?.text, "near field");
 });
 
 test("test_a_successful_save_leaves_no_error", async () => {
-  reset();
+  await reset();
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(descriptionError.value, "");
@@ -212,14 +219,14 @@ test("test_a_successful_save_leaves_no_error", async () => {
 // says why on the error line — it never blanks what is on screen.
 
 test("test_a_failed_save_reports_the_sentence_the_server_sent", async () => {
-  reset({ putStatus: 422, putDetail: "That description is too long." });
+  await reset({ putStatus: 422, putDetail: "That description is too long." });
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(descriptionError.value, "That description is too long.");
 });
 
 test("test_a_failed_save_keeps_the_text_queued_for_the_next_flush", async () => {
-  const w = reset({ putStatus: 500, putDetail: "State directory is read-only." });
+  const w = await reset({ putStatus: 500, putDetail: "State directory is read-only." });
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   await flushDescriptions();
@@ -227,14 +234,8 @@ test("test_a_failed_save_keeps_the_text_queued_for_the_next_flush", async () => 
 });
 
 test("test_a_failed_save_does_not_blank_the_description_already_stored", async () => {
-  reset({ profiles: { [NAME]: entry("warm") }, putStatus: 500, putDetail: "State directory is read-only." });
+  await reset({ profiles: { [NAME]: entry("warm") }, putStatus: 500, putDetail: "State directory is read-only." });
   queueDescription(NAME, TEXT);
   await flushDescriptions();
   assert.equal(descriptionFor(NAME)?.text, "warm");
-});
-
-test("test_a_failed_save_does_not_throw", async () => {
-  reset({ putStatus: 500, putDetail: "State directory is read-only." });
-  queueDescription(NAME, TEXT);
-  await assert.doesNotReject(() => flushDescriptions());
 });
