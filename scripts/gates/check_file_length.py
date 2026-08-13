@@ -84,8 +84,8 @@ def measure(name: str) -> int:
 def cap_fault(name: str, lines: int) -> str | None:
     """Return why a file is over its hard cap, or None when it is not.
 
-    Checked independently of the allowance so that an entry permitting a length
-    the cap forbids cannot be used to buy past the cap.
+    Checked independently of the allowance, so an entry permitting a length the
+    cap forbids still cannot buy past the cap.
     """
     if lines <= limit_for(name):
         return None
