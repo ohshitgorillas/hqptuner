@@ -19,6 +19,7 @@ from hqptuner.conf import xmledit
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import presetlane
 
 # --- backup_or_cached: the workaround itself ----------------------------------
 
@@ -93,7 +94,7 @@ async def test_apply_with_switch_to_lands_staged_edits_on_top_of_the_preset(
 
 
 async def test_reading_the_default_preset_serves_the_running_config(http_manager: ConnectionManager) -> None:
-    assert (await http_manager.read_preset(""))["title"] == "Opal"
+    assert (await presetlane.read(http_manager, ""))["title"] == "Opal"
 
 
 # --- apply_engine error returns ------------------------------------------------
