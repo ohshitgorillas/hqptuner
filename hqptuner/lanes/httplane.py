@@ -145,6 +145,12 @@ async def _one_pass(
     except httpx.HTTPError as exc:
         await mgr.sleep(RECONNECT_FAST)  # daemon dropped mid-write: transient, retry
         return None, {}, str(exc)
+    if not await mgr.await_restart():
+        # every readback below would be served by the process this restore was meant to
+        # replace, and that process serves the archive we just uploaded — so the verify
+        # agrees with itself and reports an apply the running daemon never took. No
+        # boundary, no verdict: unconverged, and the staged batch stays for a retry.
+        return {"submitted": True, "applied": False, "reason": "unrestarted"}, {}, None
     keys = verified_keys(merged, intended)
     diff = config_diff(intended, await verify(mgr, intended, keys), keys)
     if not diff:
@@ -218,8 +224,9 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
         converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None
 
-    # the restore just restarted the daemon: nothing has landed yet, so spend the
-    # first interval waiting rather than on a read that cannot succeed
+    # the caller waited for the restart on the 4321 lane; 8088 comes back a moment
+    # behind it, so spend the first interval waiting rather than on a read that
+    # would only 502
     await mgr.sleep(RECONNECT_FAST)
     return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 

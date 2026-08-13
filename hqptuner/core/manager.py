@@ -65,6 +65,11 @@ class ConnectionManager:
         self._cfg = cfg
         self._http = http_client
         self._client: ControlClient | None = None
+        # Bumped on every completed connect handshake. A restore returns 200 before
+        # the daemon restarts, and the departing process keeps answering for
+        # seconds — so "a daemon answered" cannot tell the two apart and this can:
+        # a different generation is a different process (``await_restart``).
+        self._generation = 0
         self._stop = asyncio.Event()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
@@ -233,6 +238,7 @@ class ConnectionManager:
         self.matrix_profiles = matrix_profiles
         self.live.forget()
         self.loaded_at = time.time()
+        self._generation += 1
         self.reachable = True
         self.unreachable_since = None
         # best-effort and credential-free: /about is not gated, and fetch_release
@@ -298,9 +304,18 @@ class ConnectionManager:
         Invalidated first and refilled second on purpose: the fetch can fail, and a reader that lands on
         ``state = None`` overlays nothing, which stores the config as loaded. Stale answers are the one
         outcome this must never leave behind.
+
+        The refill waits for the restart to actually happen (``await_restart``). Re-reading on the
+        restore's own 200 answered from the departing process and refilled with exactly the stale
+        settings this exists to discard — the preset switch that stored the previous preset's
+        modulator was that window, 200 ms wide against a restart of several seconds. A boundary that
+        never arrives leaves the invalidation standing.
         """
         self.live.forget()
         self.state = None
+        if not await self.await_restart():
+            log.warning("engine resync: no restarted daemon within the deadline, live state left invalid")
+            return
         client = self._client
         if client is None:
             return
@@ -368,6 +383,46 @@ class ConnectionManager:
         async def probe() -> bool:
             await self.require_http().get_config()
             return True
+
+        return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
+
+    async def await_restart(self) -> bool:
+        """Wait until the daemon process running at call time is gone and a new one has answered.
+
+        ``POST /restore`` returns 200 when the archive is on disk, and the daemon restarts *after*
+        that (~5.6 s, docs/protocol.md) — the departing process keeps serving both lanes meanwhile.
+        So neither a 200 nor ``await_http_ready`` says the restart happened, and anything that
+        re-reads the engine on that evidence reads the process it just replaced.
+
+        The boundary that is actually observable is the Control API connection: it breaks when the
+        process exits, and the reconnect counts a new generation. This probes as well as watches —
+        between poll ticks nothing else notices the socket is dead, and the probe's own failure is
+        what hands the reconnect to the poll loop.
+
+        False when no new process answered before the alarm deadline. That is 'the engine cannot be
+        trusted', never 'the restart happened' — callers leave their live state invalid rather than
+        refill it from whatever is still answering.
+
+        True at once when there is no Control API connection to observe: nothing can be read off an
+        engine we are not connected to, so there is nothing for the boundary to protect — the resync
+        returns early and the overlays are empty either way. Waiting out the deadline there would
+        refuse every apply whenever 4321 is down while 8088 still serves, which is a working write
+        path traded for a guarantee that had nothing left to guard.
+        """
+        if self._client is None:
+            return True
+        start = self._generation
+
+        async def probe() -> bool:
+            if self._generation != start:
+                return True
+            client = self._client
+            if client is not None:
+                try:
+                    await client.get_info()
+                except (ControlError, OSError):
+                    await self._drop("restart in progress")
+            return self._generation != start
 
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
 
