@@ -126,6 +126,7 @@
   --w-select: 28rem; /* dropdowns / text — capped ~448px */
   --w-select-sm: 7rem; /* short-token dropdowns: "none", "20k", "Minimum", "LNS15" */
   --w-select-md: 14rem; /* one-phrase dropdowns: "ASDM7EC-super 512+fs" */
+  --w-select-lg: 18rem; /* filter-name dropdowns: "poly-sinc-gauss-halfband-s" */
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
   --measure: 68ch; /* one caption/description measure everywhere */

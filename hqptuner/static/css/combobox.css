@@ -55,6 +55,9 @@
 .field.compact-md .dd-box {
   width: var(--w-select-md);
 }
+.field.compact-lg .dd-box {
+  width: var(--w-select-lg);
+}
 .dd-pop {
   /* fixed from the stylesheet, never from script: the first open frame must
      not spend a single layout in the flow — a 700px block popping in-flow

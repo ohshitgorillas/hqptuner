@@ -93,6 +93,9 @@ input[type="number"]::-webkit-inner-spin-button {
 .field.compact-md select {
   width: var(--w-select-md);
 }
+.field.compact-lg select {
+  width: var(--w-select-lg);
+}
 input:disabled,
 select:disabled {
   opacity: var(--o-disabled);

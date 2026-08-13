@@ -502,7 +502,9 @@ export const schema = {
     appliesLive: true,
     field: "filter1x",
     optionsFrom: "config",
-    wide: true,
+    // All four chain filter selectors carry one width, sized to the longest name
+    // the enumeration holds — a chain reads as a chain only if its steps line up.
+    compact: "lg",
     narrow: "1x",
     desc: "filter",
   },
@@ -515,7 +517,7 @@ export const schema = {
     appliesLive: true,
     field: "filter",
     optionsFrom: "config",
-    wide: true,
+    compact: "lg",
     narrow: "nx",
     desc: "filter",
   },
@@ -544,7 +546,7 @@ export const schema = {
     appliesLive: true,
     field: "oversampling1x",
     optionsFrom: "config",
-    wide: true,
+    compact: "lg",
     narrow: "1x",
     desc: "filter",
   },
@@ -557,7 +559,7 @@ export const schema = {
     appliesLive: true,
     field: "oversampling",
     optionsFrom: "config",
-    wide: true,
+    compact: "lg",
     narrow: "nx",
     desc: "filter",
   },
@@ -619,7 +621,7 @@ export const schema = {
     lane: "http",
     field: "integrator",
     optionsFrom: "config",
-    wide: true,
+    compact: "sm",
     desc: "config",
   },
   sdm_conversion: {
@@ -629,7 +631,7 @@ export const schema = {
     lane: "http",
     field: "sdm_conversion",
     optionsFrom: "config",
-    wide: true,
+    compact: "sm",
     desc: "config",
   },
   noise_filter: {
@@ -640,7 +642,7 @@ export const schema = {
     lane: "http",
     field: "noise_filter",
     optionsFrom: "config",
-    wide: true,
+    compact: "md",
     desc: "config",
   },
   pcm_conversion: {
@@ -651,7 +653,7 @@ export const schema = {
     lane: "http",
     field: "pcm_conversion",
     optionsFrom: "config",
-    wide: true,
+    compact: "md",
     desc: "config",
   },
 
