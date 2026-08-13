@@ -18,7 +18,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The Output tab's "General" card is gone; its settings moved.** Gain compensation to the Volume tab ("Adjustments"), junk filter and pre-metering to a "Pre-process" card on the tab now called "Conversion" (was "Resampling"), idle time / quick pause / short buffer to "Timing" and UPnP freewheel to "UPnP" on the System tab, Channels to its own card on the Matrix tab.
+- **Settings tabs reorganized.** The Resampling tab and the Output tab's "General" card are gone: Output now runs Backend / Mode / Rate, Pre-process, filter narrowing, the PCM and SDM chains, Filter length, DAC correction, then the two backend cards; gain compensation moved to the Volume tab ("Adjustments"), idle time / quick pause / short buffer to "Timing" and UPnP freewheel to "UPnP" on the System tab, and Channels to its own card on the Matrix tab.
 
 - **Descriptions now say what the setting does, not what other settings do.** Some had been lifted from the manual too literally and described their neighbours as well.
 

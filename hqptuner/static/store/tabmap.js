@@ -1,8 +1,8 @@
 // Field → tab, for accenting a tab whose staged edits are hidden behind the
 // pending bar. Schema `group` is NOT the tab: the "dsp" group straddles the
-// Resampling and Matrix tabs, and e.g. `junk_filter` renders on Resampling.
+// Output and Matrix tabs, and e.g. `junk_filter` renders on Output.
 // The mapping is sourced from the k= fields each tab component actually
-// renders — keep these sets in sync with tabs/*.js and ResamplingTab.js. The
+// renders — keep these sets in sync with tabs/*.js and ConversionCards.js. The
 // Matrix tab ("matrix") is the fallback: the remaining dsp-group fields
 // (channels, crossfeed_*, matrix_*, pipelines) light it without being enumerated.
 //
@@ -35,6 +35,22 @@ const TAB_KEYS = {
     "net_anydsd",
     "net_ipv6",
     "net_period",
+    // Conversion cards (ConversionCards.js), rendered on this tab.
+    "pcm_filter_1x",
+    "pcm_filter_nx",
+    "pcm_dither",
+    "noise_filter",
+    "pcm_conversion",
+    "dsd_gain_6db",
+    "sdm_filter_1x",
+    "sdm_filter_nx",
+    "sdm_modulator",
+    "sdm_integrator",
+    "sdm_conversion",
+    "fft_size",
+    "direct_sdm",
+    "junk_filter",
+    "pre_before_meter",
   ]),
   volume: new Set([
     "fixed_volume",
@@ -58,23 +74,6 @@ const TAB_KEYS = {
     "volume_min",
     "volume_max",
     "startup_volume",
-  ]),
-  resampling: new Set([
-    "pcm_filter_1x",
-    "pcm_filter_nx",
-    "pcm_dither",
-    "noise_filter",
-    "pcm_conversion",
-    "dsd_gain_6db",
-    "sdm_filter_1x",
-    "sdm_filter_nx",
-    "sdm_modulator",
-    "sdm_integrator",
-    "sdm_conversion",
-    "fft_size",
-    "direct_sdm",
-    "junk_filter",
-    "pre_before_meter",
   ]),
   system: new Set(["log_enabled", "log_file", "idle_time", "quick_pause", "short_buffer", "upnp_freewheel"]),
 };
