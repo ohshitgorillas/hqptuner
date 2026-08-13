@@ -32,6 +32,9 @@ def health(manager: Mgr) -> dict[str, Any]:
         "connected_at": manager.loaded_at,
         "alarm": manager.alarm,
         "info": manager.info,
+        # installed release ("6.0.2") off the daemon's /about page — GetInfo's
+        # `engine` is the separately-numbered DSP engine, not this.
+        "release": manager.release,
         "license": manager.license,
         # HQPTuner's own version, not the engine's: the About HQPTuner card reads
         # it from here so the package is the single source of truth.

@@ -160,7 +160,9 @@ Request: `<GetInfo/>` Response attributes: `name` (friendly name), `product`, `v
 <GetInfo engine="6.0.4" name="Opal" platform="Linux" product="Signalyst HQPlayer Embedded" version="6"/>
 ```
 
-(`version` is the major version; `engine` carries the full version string. Attribute set on hqplayerd 5.x unverified.)
+(`version` is the major version; `engine` carries the full **engine** version string, which Signalyst numbers separately from the release — a 6.0.2 install reports `engine="6.0.4"`. Attribute set on hqplayerd 5.x unverified.)
+
+**Installed release number** (**verified** on 6.0.2): no Control API command carries it. UDP discovery (§2) answers `version="Signalyst HQPlayer Embedded 6"` — major only (probe: `scripts/probes/probe_discover_version.py`). The sole wire source is the 8088 web interface's `GET /about` page, not credential-gated, which prints the release under a `Version` heading: `<h3>Version</h3>` followed by the bare number (`6.0.2`) on its own line. `engine/release.py` reads it there.
 
 ### GetLicense
 

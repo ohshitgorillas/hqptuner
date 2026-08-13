@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
-- **The About card no longer passes HQPlayer's DSP-engine version off as the release you installed.** hqplayerd reports two numbers about itself: the product release (say 6.0.2) and its DSP engine's own version (say 6.0.4), which Signalyst numbers separately. The card showed the engine number under the plain label "Version", which read as a release you couldn't find on the download page. The row is now labelled "Engine", with a note saying it can differ from the installed release number.
+- **The About card showed HQPlayer's DSP-engine version (6.0.4) as "Version", though the installed release is 6.0.2 — Signalyst numbers them separately.** It now shows both: "Version" (the release, from the daemon's About page) and "Engine".
 
 - **Matrix profiles saved before profiles carried a chain no longer blank your DAC correction.** A saved profile is a whole matrix, and HQPlayer installs the whole thing on a switch — including the crossfeed, DAC correction and loudness it carries. Profiles saved before HQPTuner stored those carry none, so loading one turned correction off, emptied the DAC model and dropped loudness, and applying anything while sitting on one wrote that blank into the config, where it survived a restart. HQPlayer's own web interface does the same thing for the same reason. Those profiles are now filled in from the matrix you are running the next time you apply — the applied config and every stored preset, each from its own matrix, so a speaker preset never inherits a headphone one's correction. Profiles that already carry a chain are left exactly as saved.
 
