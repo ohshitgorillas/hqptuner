@@ -13,11 +13,16 @@ Three distinct modes are in play so the restored one names its own source: the
 and the active preset's snapshot holds a third value. The 8088 fake adopts the
 uploaded ``hqplayerd.xml``, so its own record of what it booted on is the
 reading — not a claim by the lane that wrote it.
+
+``test_a_staged_mode_beats_both_the_engine_and_the_store`` is a regression guard
+whose contract predates this change: a staged edit has always outranked every
+other source, and the case is here so carrying the engine cannot quietly take
+that precedence away.
 """
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import fake_http
 import pytest
@@ -85,25 +90,58 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         yield test_client
 
 
-def _engine_on_sdm_with_stored_mode(client: TestClient, preset_dir: Path, stored: str) -> None:
-    """Active preset stored on ``stored``, engine switched live to SDM, config
-    file still on PCM. The switch is proven landed before anything is staged — a
-    live route that no-opped would leave the engine on PCM and the case would
-    pass vacuously."""
+def _preset_stored_on(client: TestClient, preset_dir: Path, edits: dict[str, str]) -> None:
+    """Save the running config as the active preset, then move ``edits`` in its
+    stored snapshot so the store disagrees with both the file and the engine."""
     client.post("/api/profile/save", json={"name": "Kept"})
     store = PresetStore(preset_dir)
-    store.save("Kept", presetconf.apply_edits(store.read("Kept"), {"mode": stored}))
-    client.post("/api/config/live", json={"fields": {"mode": "sdm"}})
-    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["mode"] == "2")
+    store.save("Kept", presetconf.apply_edits(store.read("Kept"), edits))
 
 
-def test_the_restore_boots_the_daemon_on_the_engines_mode_not_the_stored_one(
-    client: TestClient, pcm_file_daemon: dict[str, Any], tmp_path: Path
+def _route_live(client: TestClient, fields: dict[str, str], state_key: str, landed: str) -> None:
+    """Route ``fields`` over the control lane and prove the engine took them: a
+    live route that no-opped would leave the engine where it started and every
+    case below would pass vacuously. ``state_key``/``landed`` are the State
+    attribute and index the daemon reports the change as (protocol.md §4 — State
+    speaks indices, the config form speaks enum IDs)."""
+    client.post("/api/config/live", json={"fields": fields})
+    wait_for_api(client, lambda c: c.get("/api/state").json()["data"][state_key] == landed)
+
+
+#: (field, live value, stored value, State attribute, landed index) per live-only
+#: field the restore has to carry. ``mode`` is the switch itself; ``modulator`` is
+#: routed on top of it, on the SDM chain that switch loads — enum 3 is ASDM7EC at
+#: SDM shaper index 1, against a config file whose modulator is 0. Each row's
+#: engine value, stored value and file value are three distinct values, so the
+#: restored one names its own source.
+class EngineCase(NamedTuple):
+    """One live-only field routed onto the engine: the field, the value routed,
+    the different value the active preset stores for it, and the State attribute
+    and index the daemon reports the route as."""
+
+    field: str
+    running: str
+    stored: str
+    state_key: str
+    landed: str
+
+
+ENGINE_WINS = [
+    EngineCase("mode", "sdm", "auto", "mode", "2"),
+    EngineCase("modulator", "3", "7", "shaper", "1"),
+]
+
+
+@pytest.mark.parametrize("case", ENGINE_WINS, ids=[c.field for c in ENGINE_WINS])
+def test_the_restore_boots_the_daemon_on_the_engines_value_not_the_stored_one(
+    client: TestClient, pcm_file_daemon: dict[str, Any], tmp_path: Path, case: EngineCase
 ) -> None:
-    _engine_on_sdm_with_stored_mode(client, tmp_path / "presets", stored="auto")
+    _preset_stored_on(client, tmp_path / "presets", {case.field: case.stored})
+    _route_live(client, {"mode": "sdm"}, "mode", "2")
+    _route_live(client, {case.field: case.running}, case.state_key, case.landed)
     client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     client.post("/api/config/apply")
-    assert pcm_file_daemon["mode"] == "sdm"
+    assert pcm_file_daemon[case.field] == case.running
 
 
 def test_a_staged_mode_beats_both_the_engine_and_the_store(
@@ -111,7 +149,8 @@ def test_a_staged_mode_beats_both_the_engine_and_the_store(
 ) -> None:
     # the batch carries a restart-required field too, so the whole thing rides
     # the restore rather than routing the mode live
-    _engine_on_sdm_with_stored_mode(client, tmp_path / "presets", stored="pcm")
+    _preset_stored_on(client, tmp_path / "presets", {"mode": "pcm"})
+    _route_live(client, {"mode": "sdm"}, "mode", "2")
     client.post("/api/config/stage", json={"http": {"mode": "auto", "title": "Renamed"}})
     client.post("/api/config/apply")
     assert pcm_file_daemon["mode"] == "auto"

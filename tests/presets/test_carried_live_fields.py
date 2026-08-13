@@ -28,7 +28,7 @@ The apply path over the same contract is `test_restore_carries_the_engine.py`.
 import asyncio
 from collections.abc import AsyncIterator, Callable, Coroutine
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 from conftest import DaemonFactory, eventually
@@ -85,28 +85,93 @@ def _active_preset_holding(preset_dir: Path, edits: dict[str, str], name: str = 
 # --- the running engine outranks the store ------------------------------------
 
 
-async def test_the_engines_own_mode_beats_a_different_stored_mode(
-    engine_manager: EngineManager, tmp_path: Path
+class EngineCase(NamedTuple):
+    """One live-domain field: the State the daemon starts on, the field it
+    answers for, that answer in the config form's domain, and the different
+    value the active preset has stored for it."""
+
+    state: dict[str, str]
+    field: str
+    running: str
+    stored: str
+
+
+#: One row per field of the live domain: the State the daemon starts on, the
+#: field that State answers for, the config-domain value the engine's answer
+#: resolves to, and a DIFFERENT value sitting in the active preset's snapshot.
+#:
+#: The engine's answer is an index into an enumeration the daemon serves for the
+#: chain it has LOADED, and the two chains number the same names differently
+#: (protocol.md §4) — so each row names the chain it reads under. Under PCM
+#: (``mode="1"``) State's ``filterNx``/``filter1x``/``shaper``/``rate`` are the
+#: ``filter``/``filter1x``/``dither``/``defaults_samplerate`` answers, resolved on
+#: the fake's PCM lists; under SDM (``mode="2"``) the same four attributes answer
+#: for ``oversampling``/``oversampling1x``/``modulator``/``defaults_bitrate`` on
+#: the SDM lists. ``adaptive`` belongs to neither chain, and ``mode`` is itself.
+#:
+#: Values from the fake's own enumerations: PCM filter index 2 = sinc-M = enum 25
+#: and index 3 = poly-sinc-short-mp = enum 57; PCM shaper index 1 = NS9 = enum 5;
+#: PCM rate index 2 = 352800 Hz. SDM filter index 1 = sinc-M = enum 23 and index
+#: 2 = poly-sinc-short-lp = enum 57; SDM shaper index 1 = ASDM7EC = enum 3; SDM
+#: rate index 2 = 5644800 Hz. The stored value differs from the engine's in every
+#: row, so a field taken from the store instead of the engine reads back wrong
+#: rather than reading back the same thing twice.
+#:
+#: The two rate rows land in a different domain from the rest: the limit slots
+#: are friendly per-tier menus written as the 48k-base member of each tier
+#: (settings-classification.md §Rate slots, §Rate per-family and friendly), so a
+#: 44.1-base engine rate is carried as its own tier's 48k-base member — 352800 is
+#: the 8x tier, written 384000; 5644800 is DSD128, written 6144000.
+ENGINE_WINS = [
+    EngineCase({"mode": "2"}, "mode", "sdm", "auto"),
+    EngineCase({"mode": "1", "filterNx": "2"}, "filter", "25", "40"),
+    EngineCase({"mode": "1", "filter1x": "3"}, "filter1x", "57", "40"),
+    EngineCase({"mode": "1", "shaper": "1"}, "dither", "5", "7"),
+    EngineCase({"mode": "2", "filterNx": "1"}, "oversampling", "23", "38"),
+    EngineCase({"mode": "2", "filter1x": "2"}, "oversampling1x", "57", "38"),
+    EngineCase({"mode": "2", "shaper": "1"}, "modulator", "3", "12"),
+    EngineCase({"mode": "1", "adaptive": "1"}, "adaptive_volume", "1", "0"),
+    EngineCase({"mode": "1", "rate": "2"}, "defaults_samplerate", "384000", "88200"),
+    EngineCase({"mode": "2", "rate": "2"}, "defaults_bitrate", "6144000", "2048000"),
+]
+
+
+@pytest.mark.parametrize("case", ENGINE_WINS, ids=[c.field for c in ENGINE_WINS])
+async def test_the_engines_own_value_beats_a_different_stored_one(
+    engine_manager: EngineManager, tmp_path: Path, case: EngineCase
 ) -> None:
-    # the engine is running SDM and the preset was saved on PCM: a restore that
-    # carried the stored answer would boot the daemon out of the chain the user
-    # is listening to
-    manager = await engine_manager(mode="2")
-    _active_preset_holding(tmp_path / "presets", {"mode": "pcm"})
-    assert carried_live_fields(manager)["mode"] == "sdm"
+    # the engine is running one value and the preset was saved on another: a
+    # restore that carried the stored answer would boot the daemon out of the
+    # filter, shaper, rate or chain the user is listening to
+    manager = await engine_manager(**case.state)
+    _active_preset_holding(tmp_path / "presets", {case.field: case.stored})
+    assert carried_live_fields(manager)[case.field] == case.running
 
 
 # --- the store answers only where the engine cannot ---------------------------
 
 
+#: (State, field, stored) for the fields belonging to the chain the engine does
+#: NOT have loaded: State carries one filter, one 1x filter and one shaper, and
+#: they answer for the loaded chain alone (protocol.md §4), so the other chain's
+#: three fields have no engine answer at all and the snapshot is the only source.
+STORE_ANSWERS = [
+    ({"mode": "1"}, "oversampling", "23"),
+    ({"mode": "1"}, "oversampling1x", "38"),
+    ({"mode": "1"}, "modulator", "12"),
+    ({"mode": "2"}, "filter", "25"),
+    ({"mode": "2"}, "filter1x", "40"),
+    ({"mode": "2"}, "dither", "7"),
+]
+
+
+@pytest.mark.parametrize(("state", "field", "stored"), STORE_ANSWERS, ids=[row[1] for row in STORE_ANSWERS])
 async def test_a_field_the_engine_cannot_answer_for_comes_from_the_store(
-    engine_manager: EngineManager, tmp_path: Path
+    engine_manager: EngineManager, tmp_path: Path, state: dict[str, str], field: str, stored: str
 ) -> None:
-    # `oversampling` is the SDM chain's filter and the engine is running PCM, so
-    # State says nothing about it; the stored snapshot is the only answer there is
-    manager = await engine_manager(mode="1")
-    _active_preset_holding(tmp_path / "presets", {"oversampling": "23"})
-    assert carried_live_fields(manager)["oversampling"] == "23"
+    manager = await engine_manager(**state)
+    _active_preset_holding(tmp_path / "presets", {field: stored})
+    assert carried_live_fields(manager)[field] == stored
 
 
 async def test_a_stored_field_outside_the_live_domain_is_not_carried(
@@ -114,18 +179,26 @@ async def test_a_stored_field_outside_the_live_domain_is_not_carried(
 ) -> None:
     # the snapshot is a whole config file, so it holds settings that reach the
     # daemon through the file like any other; carrying those would push a
-    # preset's value for a setting the user never staged
-    manager = await engine_manager()
-    _active_preset_holding(tmp_path / "presets", {"volume_min": "-40"})
-    assert "volume_min" not in carried_live_fields(manager)
+    # preset's value for a setting the user never staged.
+    #
+    # Both stored fields are moved in the SAME snapshot and the engine is on PCM,
+    # so `oversampling` is the positive control: it can only have come from the
+    # store. Asserting the absence alone would pass just as well on a snapshot
+    # nothing ever read — an inactive preset, or a save that never landed.
+    manager = await engine_manager(mode="1")
+    _active_preset_holding(tmp_path / "presets", {"oversampling": "23", "volume_min": "-40"})
+    carried = carried_live_fields(manager)
+    assert set(carried) & {"oversampling", "volume_min"} == {"oversampling"}
 
 
 # --- nothing to carry ---------------------------------------------------------
 
 
-def test_with_no_preset_and_no_engine_nothing_is_carried(tmp_path: Path) -> None:
-    # a manager that never connected: no State to read the engine off, and the
-    # empty preset directory has no active preset either
+def test_a_manager_with_neither_source_answers_empty_instead_of_raising(tmp_path: Path) -> None:
+    # a no-crash guard, not a coverage claim: a manager that never connected has
+    # no State to read the engine off and its empty preset directory has no
+    # active preset, so the only contract left is that the call still answers —
+    # a restore on a cold manager must not die on the way to the push
     manager = ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"))
     assert carried_live_fields(manager) == {}
 
