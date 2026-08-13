@@ -96,7 +96,11 @@ async def test_a_filter_apply_leaves_the_enumerations_re_read(live_manager: Live
     assert _filter_enum_ids(manager) == ["38", "23", "57"]
 
 
-# --- a mode that cannot be applied live ---------------------------------------
+# --- a mode the daemon answers OK for and never applies ------------------------
+# `result="OK"` is not proof the setter took (protocol.md §6), so the readback
+# disagrees and the mode is reported not applied. It does NOT escalate onto the
+# restore lane: the pending-changes bar promised this batch would stay live, and
+# an unverified setter must not silently turn into a daemon restart.
 
 
 @pytest.fixture
@@ -137,11 +141,18 @@ async def deaf_mode_manager(
     await http.aclose()
 
 
-async def test_a_mode_the_live_lane_cannot_apply_reaches_the_config_file(
-    deaf_mode_manager: ConnectionManager, pcm_file_daemon: dict[str, Any]
+async def test_a_mode_the_daemon_answered_but_never_applied_reports_not_applied(
+    deaf_mode_manager: ConnectionManager,
 ) -> None:
-    await deaf_mode_manager.applyops.apply({}, {"mode": "sdm"})
-    assert pcm_file_daemon["mode"] == "sdm"
+    report = await deaf_mode_manager.applyops.apply({}, {"mode": "sdm"})
+    assert next(entry["ok"] for entry in report["live"] if entry["setting"] == "mode") is False
+
+
+async def test_a_mode_the_daemon_answered_but_never_applied_does_not_restart_the_daemon(
+    deaf_mode_manager: ConnectionManager,
+) -> None:
+    report = await deaf_mode_manager.applyops.apply({}, {"mode": "sdm"})
+    assert report["persistent"] is None
 
 
 # --- regression guard: the batch that already applies live -------------------

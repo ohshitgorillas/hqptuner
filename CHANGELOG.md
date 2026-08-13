@@ -34,8 +34,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **A filter applied after a mode change now lands the filter that was picked.** Applying the output mode on its own, then applying a filter, ran a different filter instead. Re-applying the mode already running also no longer disturbs the output rate.
 
-- **An output mode HQPlayer declines to switch to no longer disappears.** The change was reported as applied and then lost. It now lands the slower way, with the restart that costs.
-
 - **The About card called HQPlayer's DSP-engine version (6.0.4) the "Version", though the installed release is 6.0.2.** Signalyst numbers them separately, so the card now shows both: "Version" and "Engine".
 
 - **Matrix profiles saved before profiles carried a chain no longer blank the DAC correction.** HQPlayer installs a whole matrix on a profile switch, so a chainless profile turned correction off, emptied the DAC model and dropped loudness — and applying while it was loaded wrote that blank into the config. Only chainless profiles are filled in, from the running matrix, at the next apply.

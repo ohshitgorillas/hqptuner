@@ -371,10 +371,11 @@ async def mode_then_split(
     alone and the remainder splits against the lists the switch produced. A mode
     the engine is already running is dropped rather than re-sent — ``SetMode``
     clears the rate pin even when it changes nothing (``mode_already_running``).
-    A mode that does not resolve, does not reach the daemon, or reaches it and
-    does not verify sends the whole batch to the restore lane — the restart boots
-    the daemon from the config file the batch is written to, so the mode still
-    lands. Dropping it was the alternative and it was silent.
+    A mode that cannot resolve or apply sends the whole batch to the restore
+    lane, exactly as before. A mode that reaches the daemon and does not verify
+    does NOT: the batch stays live and reports the setter as failed. The restore
+    lane restarts the daemon, and the user was told before Apply that this batch
+    would not.
 
     A staged mode with nothing beside it takes the same route (``_mode_apart``):
     the batch that needs the post-switch lists is then the NEXT apply rather than
@@ -392,13 +393,11 @@ async def mode_then_split(
         except (livemap.LiveRouteError, ControlError) as exc:
             log.warning("mode-first batch fell back to the restore lane: %s", exc)
             return [], live_edits, dict(http_fields)
-        if not _applied(report, "mode"):
-            # `apply_live` reports an unverified setter rather than raising, so a
-            # daemon that answered OK and did not switch arrives here looking like
-            # a success. The whole batch, not a re-split: a mode the engine did not
-            # take must still land, and the restore lane is what lands it.
-            log.warning("mode setter did not verify; whole batch to the restore lane")
-            return [], live_edits, dict(http_fields)
+        # A mode the daemon answered OK and did not take comes back unverified in
+        # the report (`writer.apply_live`), and that is where it stays. The
+        # pending-changes bar told the user before Apply whether this batch
+        # restarts the daemon; escalating to the restore lane here would restart
+        # it anyway, on a batch the user was promised would not.
     rest = {field: value for field, value in http_fields.items() if field != "mode"}
     edits, remainder = livemap.split_live(mgr, rest, live_edits)
     if remainder:
