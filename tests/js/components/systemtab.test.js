@@ -37,9 +37,24 @@ test("about hqptuner head offers a closed disclosure triangle by default", () =>
   assert.ok(render(html`<${System} />`).includes("▸"));
 });
 
-test("engine build string is labelled version", () => {
-  health.value = { info: { engine: "6.0.0-test" }, license: null };
-  assert.ok(render(html`<${System} />`).includes("<dt>Version</dt>"));
+test("engine build string is labelled engine", () => {
+  health.value = { info: { engine: "6.0.4" }, license: null };
+  assert.ok(render(html`<${System} />`).includes("<dt>Engine</dt>"));
+});
+
+test("the engine row carries the reported engine version", () => {
+  health.value = { info: { engine: "6.0.4" }, license: null };
+  assert.ok(render(html`<${System} />`).includes("6.0.4"));
+});
+
+test("no about row is labelled version", () => {
+  health.value = { info: { engine: "6.0.4" }, license: null };
+  assert.ok(!render(html`<${System} />`).includes("<dt>Version</dt>"));
+});
+
+test("the about card notes the figure is the dsp engine version", () => {
+  health.value = { info: { engine: "6.0.4" }, license: null };
+  assert.ok(render(html`<${System} />`).includes("DSP engine"));
 });
 
 test("a daemon outside the verified series says so under its version", () => {
