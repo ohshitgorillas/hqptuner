@@ -275,7 +275,7 @@ function PlaybackCard() {
           <${LiveField} control=${junk} />
         </div>
         <span class="col-rule" aria-hidden="true"></span>
-        <${PlaybackVolumeBody} showQuick=${false} showName=${true} />
+        <${PlaybackVolumeBody} showName=${true} />
       </div>
     <//>
   `;
@@ -454,9 +454,9 @@ export function LiveView() {
       <${HeroRow} />
       <!-- The same card the System tab carries, second on the page because on
            LIVE it is the instrument you judge a write by: change the rate or the
-           filter and the needle is what tells you the engine took it. Both this
-           and the volume dial drop their "quick updates" checkbox here — LIVE
-           polls at 500 ms unconditionally (store/ui.js). -->
+           filter and the needle is what tells you the engine took it. This
+           card drops its "quick updates" checkbox here — LIVE polls at 1 s
+           unconditionally (store/ui.js). -->
       <${Card} title="Engine health">
         <${EngineHealth} showQuick=${false} />
       <//>

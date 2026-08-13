@@ -105,8 +105,8 @@ export function startPolling(interval = 2000) {
   });
   refreshFast();
   refreshConfig();
-  // The fast (status/volume) cadence is reactive: a page's "quick updates" opt-in
-  // drops it to 500 ms while that page is shown (store/ui.js). Reschedule the
+  // The fast (status/volume) cadence is reactive: the volume page, LIVE, and the
+  // System page with quick updates ticked run at 1 s (store/ui.js). Reschedule the
   // timer whenever the derived cadence changes; the config poll stays fixed.
   /** @type {ReturnType<typeof setInterval>} */
   let fastTimer;

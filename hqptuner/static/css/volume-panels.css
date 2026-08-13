@@ -64,9 +64,7 @@
 /* Volume control unavailable: dim the knob only, at the same --o-dim every
    other switched-off section uses. The head stays legible so the card is still
    identifiable, and .playback-hint — which is the reason it is dead — stays
-   full strength rather than being faded along with the thing it explains. The
-   "Faster volume updates" checkbox is a page-local preference that keeps
-   working, so it is not dimmed either.
+   full strength rather than being faded along with the thing it explains.
 
    The dim keys on the volume COLUMN, not on the card. On LIVE the dial shares
    its card with Adaptive volume and the high-frequency filter, both of which

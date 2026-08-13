@@ -20,6 +20,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The Volume tab now tracks the engine every second, with no checkbox to tick.** Its "Faster volume updates" opt-in is gone; the knob and the Loudness plot follow the daemon at one-second cadence whenever the tab is open. LIVE and the System page's Quick updates opt-in settle on the same one-second rate, matching how often the daemon's own readings move.
+
 - **Settings tabs reorganized.** The Resampling tab and the Output tab's "General" card are gone: Output now runs Backend / Mode / Rate, Pre-process, filter narrowing, the PCM and SDM chains, Filter length, DAC correction, then the two backend cards; gain compensation moved to the Volume tab ("Adjustments"), idle time / quick pause / short buffer to "Timing" and UPnP freewheel to "UPnP" on the System tab, and Channels to its own card on the Matrix tab.
 
 - **Descriptions now say what the setting does, not what other settings do.** Some had been lifted from the manual too literally and described their neighbours as well.
