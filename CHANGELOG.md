@@ -6,45 +6,43 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- **Matrix profiles can carry a description.** A profile name has room for "Auteur v3" and nothing else, so the Matrix tab's Profile card now has a box for the rest of it — the room, the mic position, the target curve, the date, whatever the filters in that profile were made under. It binds to whichever profile you have picked, or to the name you are typing into Save as, so you can write the description while you are naming the profile rather than going back for it afterwards. It saves on its own as you type, with no Apply and no engine restart. The LIVE page shows the running profile's description under its picker, so you can see what you are listening to. Descriptions travel in Download backup and are restored by Upload backup, which means they follow the profiles onto another install.
+- **Matrix profiles can carry a description** — room, mic position, target curve, date, whatever the name has no room for. The box on the Matrix tab's Profile card binds to the selected profile or to the name being typed into Save as, and saves on each keystroke with no Apply and no restart. LIVE shows the running profile's description under its picker. Descriptions travel in backup download and upload.
 
-### Fixed
+- **Setting a buffer to minimum now asks first.** Short buffer at Minimum, or Buffer time at −1, breaks playback on most setups. Changing either now opens a warning over the control: revert, or confirm and stage it as before.
 
-- **The About card showed HQPlayer's DSP-engine version (6.0.4) as "Version", though the installed release is 6.0.2 — Signalyst numbers them separately.** It now shows both: "Version" (the release, from the daemon's About page) and "Engine".
+- **A Copy button on the live log tail**, for the lines currently in the window.
 
-- **Matrix profiles saved before profiles carried a chain no longer blank your DAC correction.** A saved profile is a whole matrix, and HQPlayer installs the whole thing on a switch — including the crossfeed, DAC correction and loudness it carries. Profiles saved before HQPTuner stored those carry none, so loading one turned correction off, emptied the DAC model and dropped loudness, and applying anything while sitting on one wrote that blank into the config, where it survived a restart. HQPlayer's own web interface does the same thing for the same reason. Those profiles are now filled in from the matrix you are running the next time you apply — the applied config and every stored preset, each from its own matrix, so a speaker preset never inherits a headphone one's correction. Profiles that already carry a chain are left exactly as saved.
+- **`HQPTUNER_METERING_ENABLED=0` turns the junk-filter advisor off entirely.** HQPTuner then never opens the metering connection and the advisor's note never appears; everything else is unchanged.
 
-- **Rate/shaper warnings no longer fire about the chain your pending settings will not use.** Staging a mode change — on its own, or as part of a preset you picked but have not applied — left the warning judging whichever chain the engine happened to be playing, against the rate and shaper the pending settings carry. Pick an SDM preset while PCM is playing and it would report the preset's PCM dither, which that preset never engages; the reverse produced a red "HQPlayer cannot produce output" about a modulator that was not going to run. The warning now follows the mode the settings will run under. In Auto, where the engine picks the chain per track, it still follows the chain the engine has loaded.
-
-- **Dither (and other live-capable settings) no longer quietly revert.** Two holes closed. Applying a live-capable setting together with a restart-required one used to apply it live and then restart the daemon onto a config file that never learned it — the restart snapped it straight back. Such a batch now rides the one restore whole, so the file learns every value it carries; the pending bar's live/restart counts follow the same rule. And a dither or filter applied from the tabs view is now remembered per chain, so switching to the other chain (or letting a DSD track do it) no longer makes auto-save fold the stale file value back into the preset, and returning to the chain re-asserts what you applied.
-
-- **Rescanning devices no longer resets your live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
-
-- **HQPTuner no longer pulls megabytes a second off the daemon while nothing is playing.** The junk-filter advisor reads hqplayerd's metering side channel, and the daemon streams that unconditionally to anyone connected — so the advisor was paying for a few MB/s of spectrum frames around the clock, playing or not. In a plain install the traffic sits on loopback and nothing notices; run HQPTuner in Docker and the same bytes cross the bridge, where they show up as constant network load. The advisor now connects only while the engine is actually playing and disconnects when it stops. Advice is unchanged, including across a pause mid-track.
+- **Filter hover tips now carry the filter's facts, not just its prose.** Under the manual's description, the tip lists the same facts the narrowing bar filters on — quality, genre, focus, phase, length, ratio class, apodizing and upsample-only — each line present only when the filter has that fact.
 
 ### Changed
 
-- **The Output tab's "General" card is gone; its settings now live where they belong.** Gain compensation joined the Volume tab (card renamed "Adjustments"), the junk filter and pre-metering moved to a new "Pre-process" card on the tab now labeled "Conversion" (formerly "Resampling"), idle time / quick pause / short buffer landed in a "Timing" card and UPnP freewheel in a "UPnP" card on the System tab, and Channels got its own small card on the Matrix tab, under the profile card. Nothing changed about what any of these settings do.
+- **The Output tab's "General" card is gone; its settings moved.** Gain compensation to the Volume tab ("Adjustments"), junk filter and pre-metering to a "Pre-process" card on the tab now called "Conversion" (was "Resampling"), idle time / quick pause / short buffer to "Timing" and UPnP freewheel to "UPnP" on the System tab, Channels to its own card on the Matrix tab. What the settings do is unchanged.
 
-- **Descriptions cleaned up.** In some cases, descriptions were taken from the manual *too* literally, leading to some (e.g., Output device) describing themselves plus multiple other settings. Descriptions now say what the setting does, not what other settings do.
+- **Descriptions now say what the setting does, not what other settings do.** Some had been lifted from the manual too literally and described their neighbours as well.
 
-- **A narrowed filter menu now lists only what the narrowing matched.** The filter you had selected was pinned to the top of every narrowed list whether or not it matched, so there was no telling which entries the facets actually found. It now lists only when it matches. Your selection is untouched either way — close the menu without picking anything and it stays where it was, and the control still names it and still describes it.
+- **A narrowed filter menu lists only what the narrowing matched.** The selected filter used to be pinned to the top whether or not it matched, which obscured what the facets had found. The selection itself is unaffected either way.
 
-- **Stars set on the laptop no longer leave the phone showing none.** Favorites were kept in whichever browser you starred them in. They now save with the rest of HQPTuner's state, so every browser shows the same stars; the ones you already had carry over on first load.
+- **Favorite filters are shared across browsers.** Stars were kept per browser; they now save with the rest of HQPTuner's state, and existing stars carry over on first load.
 
-- **The "Matrix engine is bypassed" note now says something useful on a card whose own feature is switched off.** Instead of "These settings have no effect" about settings you were not using, it says "Engage it to use this feature." It reads as advice now, in the same muted italic as "Only relevant to PCM output mode.", and the General card carries it too.
+- **The "Matrix engine is bypassed" note now says "Engage it to use this feature."** on a card whose own feature is switched off, instead of "These settings have no effect" about settings that were not in use. The General card carries the note too.
 
-- **The live log tail no longer drags you back to the bottom.** Scrolling up to read an older line lasted three seconds — the next poll snapped the view to the newest entry, every time. The tail now only follows the newest line while you are already parked at the bottom; scroll up and it stays where you put it.
+- **The live log tail no longer scrolls itself to the bottom on every poll.** It follows the newest line only when the view is already at the bottom.
 
-### Added
+### Fixed
 
-- **Setting a buffer to minimum now asks first.** Short buffer at Minimum, or Buffer time at −1, breaks playback on most setups — short drop-outs, distorted output, or no sound at all. Changing either now opens a warning over the control: "Revert the change" backs out, "Yes, I know what I'm doing, set it" stages it as before.
+- **The About card called HQPlayer's DSP-engine version (6.0.4) the "Version", though the installed release is 6.0.2.** Signalyst numbers them separately, so the card now shows both: "Version" and "Engine".
 
-- **A Copy button on the live log tail.** Copies the lines currently in the window to the clipboard in one click, instead of selecting fifty lines by hand.
+- **Matrix profiles saved before profiles carried a chain no longer blank the DAC correction.** HQPlayer installs a whole matrix on a profile switch, so a chainless profile turned correction off, emptied the DAC model and dropped loudness — and applying while it was loaded wrote that blank into the config. Such profiles are filled in from the running matrix at the next apply; profiles that already carry a chain are untouched.
 
-- **A switch to turn the junk-filter advisor off entirely: `HQPTUNER_METERING_ENABLED=0`.** With it off, HQPTuner never opens the metering connection at all and the advisor's note never appears. Everything else works as before. Leave it alone unless you want the advisor gone — the traffic it used to cost while idle is fixed above.
+- **Rate/shaper warnings no longer report on a chain the pending settings will not use.** Staging a mode change, or selecting an unapplied preset, left the warning reading whichever chain was playing: an SDM preset selected during PCM playback reported the preset's PCM dither, and the reverse raised a red "HQPlayer cannot produce output" about a modulator that would never run. The warning now follows the mode the settings run under; in Auto, the loaded chain.
 
-- **Filter hover tips now carry the filter's facts, not just its prose.** Hovering an option in the filter dropdowns shows, under the manual's description, the same facts the narrowing bar filters on — quality, genre, focus, phase, length and ratio class, plus apodizing and upsample-only tags — each line present only when the filter actually has that fact.
+- **Dither and other live-capable settings no longer revert.** Applied alongside a restart-required setting, a live value reached the engine but not the config file, and the restart reverted it; such a batch is now written to the file whole, and the pending bar's live/restart counts follow. A dither or filter applied from the tabs view is also recorded per chain, so switching chains no longer folds the stale file value into the preset.
+
+- **Rescanning devices no longer resets the live settings.** With auto-save on, the filter, mode, dither and rate the engine was running come back after the rescan. Matrix profiles are the exception.
+
+- **HQPTuner no longer reads the daemon's metering stream while nothing is playing.** The junk-filter advisor held that connection open around the clock, and hqplayerd sends spectrum frames unconditionally — a few MB/s, unnoticed on loopback but visible as constant network load in Docker. The advisor now connects only while the engine is playing. Advice is unchanged, including across a pause mid-track.
 
 ## [1.3.4] — 2026-08-09
 

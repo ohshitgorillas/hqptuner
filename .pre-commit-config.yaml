@@ -40,6 +40,11 @@ repos:
         entry: .venv/bin/python scripts/gates/check_file_length.py
         language: system
         types: [python]
+      - id: changelog-style
+        name: changelog entry style ([Unreleased] only)
+        entry: .venv/bin/python scripts/gates/check_changelog.py
+        language: system
+        files: ^CHANGELOG\.md$
       - id: single-assertion
         name: one assertion per test
         entry: .venv/bin/python scripts/gates/check_test_assertions.py
