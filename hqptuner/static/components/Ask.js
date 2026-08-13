@@ -19,9 +19,10 @@ import { question, answer, cancel, clearRefusal, toggleChoice } from "../store/a
 
 /**
  * @typedef {{ owner: string, kind: string, message: string, refused?: boolean,
- *   options?: ChoiceOption[] }} Question
+ *   options?: ChoiceOption[], confirm?: string, decline?: string }} Question
  *   The open question as store/ask.js publishes it. `options` exists on the
- *   "choices" kind only; `refused` is set by the name kind's empty-answer path.
+ *   "choices" kind only; `confirm` and `decline` on the "warn" kind only;
+ *   `refused` is set by the name kind's empty-answer path.
  * @typedef {{ current: HTMLInputElement | null }} FieldRef
  */
 
@@ -133,7 +134,7 @@ function ChoicesList({ q }) {
 // Same top-layer popover chrome as the choices ask, and "manual" for the same
 // reason — light-dismiss would hide it without settling the promise. The safe
 // way out is the primary button; the destructive choice is deliberately the
-// plain one.
+// plain one — whatever wording the asker gave them (store/ask.js).
 /**
  * @param {{ q: Question }} props
  */
@@ -145,8 +146,8 @@ function WarnBox({ q }) {
     <span class="multi-pop ask-pop" popover="manual" ref=${pop}>
       <span class="ask-msg">${q.message}</span>
       <span class="ask-pop-actions">
-        <button class="primary" onClick=${cancel}>Revert the change</button>
-        <button onClick=${() => answer()}>Yes, I know what I'm doing, set it</button>
+        <button class="primary" onClick=${cancel}>${q.decline}</button>
+        <button onClick=${() => answer()}>${q.confirm}</button>
       </span>
     </span>
   </span>

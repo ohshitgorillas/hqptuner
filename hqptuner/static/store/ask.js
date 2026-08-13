@@ -21,6 +21,8 @@ import { signal } from "@preact/signals";
  * @property {string | boolean | null} cancelled
  * @property {boolean} refused a blank name was submitted and not committed
  * @property {ChoiceOption[]} [options] choices only
+ * @property {string} [confirm] warn only — wording of the button that proceeds
+ * @property {string} [decline] warn only — wording of the button that backs out
  */
 
 // The signals package is declared ambiently (types/vendor.d.ts), so `signal()`
@@ -70,9 +72,27 @@ export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ me
 // Warn before a hazardous edit. Same yes/no contract as a confirm, but the UI
 // renders it as a top-layer popover with explicit consequence wording instead
 // of an inline Confirm/Cancel line.
-/** Open a warn question, resolving true only on an explicit confirm. */
-export const askWarn = (/** @type {string} */ owner, /** @type {string} */ message) =>
-  open(owner, "warn", message, false);
+//
+// The buttons carry their own wording, because a warning's two answers are only
+// as clear as the words on them: the buffer warnings are asking whether the user
+// is sure they know better than the daemon's own guidance, while the Direct SDM
+// warning is a plain yes/no about a documented consequence. Callers that omit
+// labels get the buffer wording.
+const WARN_LABELS = { confirm: "Yes, I know what I'm doing, set it", decline: "Revert the change" };
+
+/**
+ * Open a warn question, resolving true only on an explicit confirm.
+ *
+ * @param {string} owner
+ * @param {string} message
+ * @param {{ confirm: string, decline: string }} [labels] button wording
+ * @returns {Promise<unknown>}
+ */
+export function askWarn(owner, message, labels = WARN_LABELS) {
+  const q = open(owner, "warn", message, false);
+  question.value = { ...question.value, confirm: labels.confirm, decline: labels.decline };
+  return q;
+}
 
 // Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
 // the checked values in option order, or null if the user backs out. A disabled
