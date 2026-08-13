@@ -217,6 +217,22 @@ const ON_OFF = [
   { value: "1", label: "ON" },
   { value: "0", label: "OFF" },
 ];
+const DSD_TRANSPORT = [
+  { value: "0", label: "Native DSD" },
+  { value: "1", label: "DSD over PCM (DoP)" },
+];
+const DSD_RATE_FAMILIES = [
+  { value: "0", label: "44.1kHz only" },
+  { value: "1", label: "+48kHz family" },
+];
+const DISCOVERY = [
+  { value: "0", label: "IPv4" },
+  { value: "1", label: "+IPv6" },
+];
+const SOURCE_GAIN = [
+  { value: "0", label: "0 dB" },
+  { value: "1", label: "+6 dB" },
+];
 // Fixed mode segment — order PCM / SDM (DSD) / Auto, stable http `mode` values.
 const MODES = [
   { value: "pcm", label: "PCM" },
@@ -398,10 +414,12 @@ export const schema = {
     hint: "−1 = minimum, 0 = default",
   },
   alsa_dop: {
-    label: "DSD over PCM (DoP)",
+    label: "DSD support",
+    bool: true,
     group: "output",
+    widget: "segment",
+    options: DSD_TRANSPORT,
     note: "dop",
-    widget: "checkbox",
     lane: "http",
     field: "alsa_dop",
     // NOT grayed in PCM, unlike its neighbours. On a device with no native DSD
@@ -412,10 +430,12 @@ export const schema = {
     // gray the one control that escapes the state.
   },
   alsa_anydsd: {
-    label: "48kHz DSD rates",
+    label: "DSD rates",
+    bool: true,
     group: "output",
+    widget: "segment",
+    options: DSD_RATE_FAMILIES,
     note: "dsd_48k",
-    widget: "checkbox",
     lane: "http",
     field: "alsa_anydsd",
     adviseWhen: isPcm, // see alsa_bits — staged in PCM, live once the mode is SDM
@@ -453,28 +473,34 @@ export const schema = {
     hint: "−1 = minimum, 0 = default",
   },
   net_dop: {
-    label: "DSD over PCM (DoP)",
+    label: "DSD support",
+    bool: true,
     group: "output",
+    widget: "segment",
+    options: DSD_TRANSPORT,
     note: "dop",
-    widget: "checkbox",
     lane: "http",
     field: "net_dop",
     // see alsa_dop — never grayed in PCM, it is the escape from it
   },
   net_anydsd: {
-    label: "48kHz DSD rates",
+    label: "DSD rates",
+    bool: true,
     group: "output",
+    widget: "segment",
+    options: DSD_RATE_FAMILIES,
     note: "dsd_48k",
-    widget: "checkbox",
     lane: "http",
     field: "net_anydsd",
     adviseWhen: isPcm, // see alsa_bits
   },
   net_ipv6: {
-    label: "IPv6 discovery",
+    label: "Discovery",
+    bool: true,
     group: "output",
+    widget: "segment",
+    options: DISCOVERY,
     note: "ipv6",
-    widget: "checkbox",
     lane: "http",
     field: "net_ipv6",
   },
@@ -608,9 +634,11 @@ export const schema = {
     field: "direct_sdm",
   },
   dsd_gain_6db: {
-    label: "Gain +6 dB",
+    label: "Source gain",
+    bool: true,
     group: "dsp",
-    widget: "checkbox",
+    widget: "segment",
+    options: SOURCE_GAIN,
     lane: "http",
     field: "dsd_6db",
   },

@@ -53,11 +53,11 @@
     },
     "dop": {
       "label": "DoP",
-      "tooltip": "DSD content can be transferred to/from the audio device by packing it into suitable PCM container; select \"DoP\" to use the DoP v1.1 standard. PCM mode does not use this setting.",
+      "tooltip": "DSD content can be transferred to/from the audio device by packing it into suitable PCM container; select \"DSD over PCM (DoP)\" to use the DoP v1.1 standard. PCM mode does not use this setting.",
       "source": "manual §4, readme §1.3 (pack_sdm)"
     },
     "dsd_48k": {
-      "label": "48k DSD",
+      "label": "DSD rates",
       "tooltip": "Allow any DSD base rate instead of being constrained to 44.1 kHz base rate (e.g. DSD128x48 = 6.144 MHz). Only meaningful for DACs that accept 48k-family DSD rates.",
       "source": "readme §1.3 (any_dsd)"
     },
@@ -293,8 +293,8 @@
       "source": "manual §4.5, readme §1.2 (direct_sdm)"
     },
     "dsd_gain_6db": {
-      "label": "Gain +6 dB",
-      "tooltip": "DSDIFF or DSF file should typically have 6 dB of headroom on the signal level. By selecting \"6 dB gain\", 6 decibels of gain is applied, removing this headroom from the converted signal. This way the normal playback level reaches that of normal PCM. However, this may cause overloads with some source material and may require extra attenuation using volume control.",
+      "label": "Source gain",
+      "tooltip": "DSDIFF or DSF file should typically have 6 dB of headroom on the signal level. By selecting \"+6 dB\", 6 decibels of gain is applied, removing this headroom from the converted signal. This way the normal playback level reaches that of normal PCM. However, this may cause overloads with some source material and may require extra attenuation using volume control.",
       "source": "manual §4.4"
     },
     "sdm_integrator": {
