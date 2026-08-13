@@ -176,26 +176,33 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state(
     assert manager.state is None
 
 
-async def test_a_preset_load_whose_state_read_is_refused_leaves_no_state(
+#: The restarted daemon takes the post-restore `State` read down with it: the
+#: command is received and the socket closes under the client with nothing
+#: coming back, which the client raises as a `ControlError`. That — not an error
+#: document — is what a failed read looks like here: `State` is a getter, and
+#: `result="OK"`/`result="Error"` is the SETTER reply shape (docs/protocol.md
+#: §6), so an error document would come back as an ordinary reading.
+STATE_READ_DIES = {"_close": "State"}
+
+
+async def test_a_preset_load_whose_state_read_finds_the_connection_gone_leaves_no_state(
     dual_lane: DualLane, http_daemon: dict[str, Any]
 ) -> None:
-    # the restarted daemon answers `State` with result="Error" (protocol.md §6),
-    # which the client raises as a ControlError
     manager, state = await dual_lane()
     await _stored_preset(manager)
-    http_daemon["_on_restore"] = lambda: state.update({"_error": "State"})
+    http_daemon["_on_restore"] = lambda: state.update(STATE_READ_DIES)
     await presetlane.load(manager, "Stored")
     assert manager.state is None
 
 
-async def test_a_preset_load_whose_state_read_is_refused_still_loads(
+async def test_a_preset_load_whose_state_read_finds_the_connection_gone_still_loads(
     dual_lane: DualLane, http_daemon: dict[str, Any]
 ) -> None:
     # the preset was restored; failing to re-read the engine afterwards is not
     # the load failing
     manager, state = await dual_lane()
     await _stored_preset(manager)
-    http_daemon["_on_restore"] = lambda: state.update({"_error": "State"})
+    http_daemon["_on_restore"] = lambda: state.update(STATE_READ_DIES)
     assert (await presetlane.load(manager, "Stored"))["active"] is True
 
 
