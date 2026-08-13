@@ -29,7 +29,7 @@
  *   The config lane's outcome (httplane).
  * @property {boolean} [submitted]
  * @property {boolean} [applied]
- * @property {string} [reason] unconverged | unavailable
+ * @property {string} [reason] unconverged | unavailable | unrestarted
  * @property {string} [error]
  * @property {Record<string, unknown>} [diff] the fields that did not converge
  * @property {{ net_device?: { want: string } }} [unfixable]
@@ -75,6 +75,9 @@ function persistentFailure(p) {
   const nd = p.unfixable && p.unfixable.net_device;
   if (nd) return failure(`Endpoint "${nd.want}" not present — config not applied`);
   if (p.error) return failure(`Config not applied: ${p.error}`);
+  // The daemon never restarted onto the uploaded config, so nothing was read back
+  // from it. There are no diverged fields to name — the whole apply is unconfirmed.
+  if (p.reason === "unrestarted") return failure("Config not applied — the daemon did not restart in time");
   // Name the fields that didn't converge. "unconverged" alone is undebuggable —
   // it says a setting the daemon kept refusing exists, but not which one, and
   // the user is the only one who can see their own config.

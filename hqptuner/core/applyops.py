@@ -78,30 +78,42 @@ class ApplyOps:
             await livelane.refresh_after_live(mgr, client, live_edits)
             livelane.remember_routed(mgr, live_report, staged)
         persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
-        if persistent is not None and persistent.get("applied"):
-            # the restore restarted the daemon, so every live reading we hold belongs
-            # to the process it replaced — and the auto-save that follows this apply
-            # reads exactly those (ConnectionManager.resync_engine_state)
-            await mgr.resync_engine_state()
-            # the restore that just applied carried the parked filter files —
-            # they live on the daemon now, so the parking area is done with them
-            mgr.presetops.clear_parked_filters()
-            # profile verbs staged with fan-out targets also land in those
-            # stored preset files — after the restore, so a refused apply
-            # fans out nothing (presetops.fanout_profiles)
-            # the applied config was backfilled inside apply_edits; the stored
-            # presets carry their own copies of the same profiles and are filled
-            # from their own matrices here (presetops.backfill_profiles).
-            # BEFORE the fan-out below: backfill is a migration of profiles
-            # saved earlier, and the user's own save is the write that should
-            # land last on any preset both of them touch.
-            backfilled = mgr.presetops.backfill_profiles()
-            if backfilled:
-                persistent["profile_backfill"] = backfilled
-            fanout = mgr.presetops.fanout_profiles(http_fields)
-            if fanout:
-                persistent["profile_fanout"] = fanout
+        if persistent is not None:
+            await self._after_restore(persistent, http_fields)
         return {"live": live_report, "persistent": persistent, "switched": switched}
+
+    async def _after_restore(self, persistent: dict[str, Any], http_fields: dict[str, str]) -> None:
+        """Settle the manager and the preset store after the restore lane ran, in place on ``persistent``."""
+        mgr = self._mgr
+        if not persistent.get("submitted"):
+            return  # nothing reached the daemon: no restart, nothing to reconcile
+        # the restore reached the daemon, so every live reading we hold belongs to a
+        # process on its way out — and the auto-save that follows this apply reads
+        # exactly those (ConnectionManager.resync_engine_state). Gated on SUBMITTED,
+        # not on applied: an apply that could not prove the restart is the case where
+        # the picture is least trustworthy, and leaving it standing there was how a
+        # stale engine reading reached the store by the back door.
+        await mgr.resync_engine_state()
+        if not persistent.get("applied"):
+            return
+        # the restore that just applied carried the parked filter files —
+        # they live on the daemon now, so the parking area is done with them
+        mgr.presetops.clear_parked_filters()
+        # profile verbs staged with fan-out targets also land in those
+        # stored preset files — after the restore, so a refused apply
+        # fans out nothing (presetops.fanout_profiles)
+        # the applied config was backfilled inside apply_edits; the stored
+        # presets carry their own copies of the same profiles and are filled
+        # from their own matrices here (presetops.backfill_profiles).
+        # BEFORE the fan-out below: backfill is a migration of profiles
+        # saved earlier, and the user's own save is the write that should
+        # land last on any preset both of them touch.
+        backfilled = mgr.presetops.backfill_profiles()
+        if backfilled:
+            persistent["profile_backfill"] = backfilled
+        fanout = mgr.presetops.fanout_profiles(http_fields)
+        if fanout:
+            persistent["profile_fanout"] = fanout
 
     async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
         """Apply hardware-acceleration engine attributes via the config-file-only lane (`enginelane`).
