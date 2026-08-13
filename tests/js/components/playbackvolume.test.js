@@ -31,9 +31,8 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { PlaybackVolume } from "../../../hqptuner/static/components/PlaybackVolume.js";
 import { volume, volumeRange, config, engineState, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { ok, stagingWire } from "../support/wire.js";
-import { classes, disabledRegion, elements, hasAttr, labelled } from "../support/markup.js";
+import { classes, disabledRegion, elements } from "../support/markup.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -54,15 +53,13 @@ function wire() {
  *   range?: Record<string, string | number | boolean> | null,
  *   level?: string | null,
  *   running?: Record<string, string>,
- *   fast?: boolean,
  * }} [scenario]
  * @returns {Promise<void>}
  */
-async function reset({ range = null, level = null, running = {}, fast = false } = {}) {
+async function reset({ range = null, level = null, running = {} } = {}) {
   wire();
   volume.value = level;
   volumeRange.value = range;
-  fastVolumeUpdates.value = fast;
   engineState.value = {};
   matrixConfig.value = null;
   config.value = { fields: Object.entries(running).map(([name, value]) => ({ name, value })), file: {} };
@@ -70,7 +67,6 @@ async function reset({ range = null, level = null, running = {}, fast = false } 
 }
 
 const card = () => render(html`<${PlaybackVolume} />`);
-const quietCard = () => render(html`<${PlaybackVolume} showQuick=${false} />`);
 
 // One attribute off the dial, which is the only element carrying ARIA values.
 /**
@@ -91,18 +87,6 @@ const isKnob = (el) => classes(el).includes("knob");
 function knob(out) {
   const hit = elements(out).find(isKnob);
   if (!hit) throw new Error("no dial in the fragment");
-  return hit;
-}
-
-// The tickbox a label announces: the input the label itself encloses.
-/**
- * @param {string} out
- * @param {string} label
- * @returns {MarkupElement}
- */
-function tickbox(out, label) {
-  const hit = elements(labelled(out, label).html).find((el) => el.name === "input");
-  if (!hit) throw new Error(`the control labelled "${label}" encloses no input`);
   return hit;
 }
 
@@ -166,17 +150,12 @@ test("test_an_enabled_control_leaves_the_knob_live", async () => {
   assert.equal(classes(knob(card())).includes("off"), false);
 });
 
-// Behaviour 9: the dial, the opt-in beside it and the reason hint are ONE
-// region, so what the engine takes away it takes away in one piece.
+// Behaviour 9: the dial and the reason hint are ONE region, so what the engine
+// takes away it takes away in one piece.
 
 test("test_the_disabled_region_encloses_the_knob", async () => {
   await reset({ range: OFF });
   assert.ok(elements(disabledRegion(card())).some(isKnob));
-});
-
-test("test_the_disabled_region_encloses_the_faster_updates_tickbox", async () => {
-  await reset({ range: OFF });
-  assert.ok(disabledRegion(card()).includes(QUICK));
 });
 
 // --- the range the knob spans ------------------------------------------------
@@ -306,27 +285,17 @@ test("test_fixed_volume_outranks_a_zero_width_range_as_the_named_cause", async (
   assert.ok(card().includes("Fixed volume in effect"));
 });
 
-// --- the faster-updates opt-in -----------------------------------------------
-// LIVE renders this same card with the opt-in suppressed, because that page
-// polls at 500 ms regardless (store/ui.js). Everywhere else the choice is real,
-// so the card offers it unless a caller says otherwise.
+// --- no faster-updates opt-in ------------------------------------------------
+// The volume page polls every second unconditionally now (store/ui.js), so there
+// is no choice left to offer: the card carries neither the old wording nor the
+// poll opt-in's class.
 
-test("test_the_card_offers_the_faster_updates_opt_in_by_default", async () => {
+test("test_the_card_offers_no_faster_updates_opt_in", async () => {
   await reset({ range: ON });
-  assert.ok(card().includes(QUICK));
+  assert.equal(card().includes(QUICK), false);
 });
 
-test("test_a_caller_can_suppress_the_faster_updates_opt_in", async () => {
+test("test_the_card_carries_no_poll_opt_in_element", async () => {
   await reset({ range: ON });
-  assert.equal(quietCard().includes(QUICK), false);
-});
-
-test("test_the_faster_updates_checkbox_is_clear_by_default", async () => {
-  await reset({ range: ON });
-  assert.equal(hasAttr(tickbox(card(), QUICK), "checked"), false);
-});
-
-test("test_the_faster_updates_checkbox_reflects_an_enabled_preference", async () => {
-  await reset({ range: ON, fast: true });
-  assert.ok(hasAttr(tickbox(card(), QUICK), "checked"));
+  assert.equal(card().includes("poll-quick"), false);
 });

@@ -40,7 +40,7 @@ import {
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 
 // The daemon's own forms, keyed by FORM FIELD name — the volume range is
@@ -67,7 +67,6 @@ async function reset({ cfg = FREE, mtx = {} } = {}) {
   volumeRange.value = null;
   showDescriptions.value = true;
   keepOptionDescriptions.value = true;
-  fastVolumeUpdates.value = false;
   // matrix engaged unless a case says otherwise: a bypassed matrix grays the whole
   // post-process chain, loudness included, which is a different behaviour
   matrixConfig.value = { fields: formFields({ enabled: true, ...mtx }) };

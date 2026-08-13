@@ -23,7 +23,7 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { System } from "../../../hqptuner/static/components/tabs/SystemTab.js";
 import { health, config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions, quickSystemUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields } from "../support/tabform.js";
 import { elements, enclosing, hasAttr, hasLabel, labelled } from "../support/markup.js";
@@ -75,6 +75,31 @@ test("a daemon in the verified series draws no notice", () => {
 test("the engine health card keeps its quick updates tickbox on the tab", () => {
   health.value = { info: {}, license: null };
   assert.ok(render(html`<${System} />`).includes("Quick updates"));
+});
+
+test("the quick updates opt-in keeps its poll opt-in class", () => {
+  health.value = { info: {}, license: null };
+  assert.ok(render(html`<${System} />`).includes("poll-quick"));
+});
+
+// The cadence the opt-in buys is one second, and the note says so in those
+// words — one second is what every fast page now polls at (store/ui.js).
+
+test("the quick updates note names a one second refresh", () => {
+  health.value = { info: {}, license: null };
+  assert.ok(render(html`<${System} />`).includes("refresh every second while this page is open"));
+});
+
+test("the quick updates tickbox reflects the stored preference", () => {
+  health.value = { info: {}, license: null };
+  quickSystemUpdates.value = true;
+  assert.ok(hasAttr(switchOf(render(html`<${System} />`), "Quick updates"), "checked"));
+});
+
+test("the quick updates tickbox is clear when the preference is off", () => {
+  health.value = { info: {}, license: null };
+  quickSystemUpdates.value = false;
+  assert.equal(hasAttr(switchOf(render(html`<${System} />`), "Quick updates"), "checked"), false);
 });
 
 // --- engine timing and UPnP ---------------------------------------------------

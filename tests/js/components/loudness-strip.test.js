@@ -32,7 +32,7 @@ import {
 } from "../../../hqptuner/static/store/signals.js";
 import { edit, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
-import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 
 // A volume control that is live, so loudness is not gated by a bypassed volume.
@@ -79,7 +79,6 @@ async function reset(fields = MTX) {
   volumeRange.value = null;
   showDescriptions.value = true;
   keepOptionDescriptions.value = true;
-  fastVolumeUpdates.value = false;
   loudnessSide.value = "low";
   matrixConfig.value = { fields };
   config.value = { fields: formFields(FREE), file: {}, active: "", profiles: null };

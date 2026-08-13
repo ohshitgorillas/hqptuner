@@ -45,7 +45,7 @@ import {
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
-import { liveMode, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
+import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { classes, disabledRegion, elements, enclosing, hasLabel, labelled, text } from "../support/markup.js";
 
@@ -118,7 +118,7 @@ const FIXED_HINT = "Fixed volume in effect";
 
 // `running` is the daemon's own /config form, keyed by FORM FIELD name — the
 // authority the disabled reason is read from, ahead of anything staged.
-async function reset({ range = ON, level = "-12", running = {}, fast = false } = {}) {
+async function reset({ range = ON, level = "-12", running = {} } = {}) {
   staticWire({ live: {}, http: {} });
   health.value = { reachable: true, info: {} };
   engineState.value = STATE(level);
@@ -137,7 +137,6 @@ async function reset({ range = ON, level = "-12", running = {}, fast = false } =
   liveErrors.value = {};
   liveBusy.value = "";
   liveMode.value = false;
-  fastVolumeUpdates.value = fast;
   await discardAll();
 }
 
@@ -303,7 +302,7 @@ test("test_the_volume_tabs_card_still_carries_the_dial", async () => {
   assert.equal(aria(card(volumeCard(), "Playback volume"), "aria-valuenow"), "-12");
 });
 
-test("test_the_volume_tabs_card_still_offers_the_faster_updates_tickbox", async () => {
+test("test_the_volume_tabs_card_offers_no_faster_updates_tickbox_either", async () => {
   await reset();
-  assert.ok(volumeCard().includes("Faster volume updates"));
+  assert.equal(volumeCard().includes("Faster volume updates"), false);
 });

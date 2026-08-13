@@ -47,7 +47,7 @@ import {
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
-import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 
 // A volume control that is live, so loudness is not gated by a bypassed volume.
@@ -86,7 +86,6 @@ async function reset({ level = POLLED, drag = null } = {}) {
   volumeRange.value = ON;
   showDescriptions.value = true;
   keepOptionDescriptions.value = true;
-  fastVolumeUpdates.value = false;
   loudnessSide.value = "low";
   matrixConfig.value = { fields: MTX };
   config.value = {

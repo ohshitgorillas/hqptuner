@@ -36,7 +36,7 @@ import {
 import { startPolling, refreshConfig, refreshDevices } from "../../../hqptuner/static/store/sync.js";
 import { setVolume } from "../../../hqptuner/static/store/actions.js";
 import { activeTab } from "../../../hqptuner/static/store/ui.js";
-import { quickSystemUpdates, fastVolumeUpdates, liveMode } from "../../../hqptuner/static/store/prefs.js";
+import { quickSystemUpdates, liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { ok, bad } from "../support/wire.js";
 
 // --- the timer seam, faked for the file's life (see header) -------------------
@@ -116,7 +116,6 @@ const drain = () => new Promise((resolve) => setImmediate(resolve));
 // default inputs, pinned here rather than assumed.
 activeTab.value = "output";
 quickSystemUpdates.value = false;
-fastVolumeUpdates.value = false;
 liveMode.value = false;
 wire();
 startPolling(2000);
@@ -154,10 +153,10 @@ test("test_the_volume_endpoint_feeds_the_range_signal_from_the_same_answer", () 
 // Sequence-dependent by design: each case advances the shared registration the
 // way the app would (the user changes page / flips the opt-in).
 
-test("test_quick_updates_on_the_shown_page_drop_the_cadence_to_half_a_second", () => {
+test("test_quick_updates_on_the_shown_system_page_poll_every_second", () => {
   activeTab.value = "system";
   quickSystemUpdates.value = true;
-  assert.equal(last(intervals).ms, 500);
+  assert.equal(last(intervals).ms, 1000);
 });
 
 test("test_the_reschedule_clears_the_previous_fast_timer", () => {
@@ -165,29 +164,34 @@ test("test_the_reschedule_clears_the_previous_fast_timer", () => {
 });
 
 test("test_a_quick_opt_in_for_a_page_not_shown_keeps_the_default_cadence", () => {
-  activeTab.value = "volume"; // system's opt-in is still on, but system is not shown
+  activeTab.value = "output"; // system's opt-in is still on, but system is not shown
   assert.equal(last(intervals).ms, 2000);
 });
 
-test("test_the_volume_page_has_its_own_fast_opt_in", () => {
-  fastVolumeUpdates.value = true; // volume page is the one shown
-  assert.equal(last(intervals).ms, 500);
+// The volume page is fast unconditionally: there is no opt-in gating it, so the
+// system opt-in is switched OFF first — nothing but the tab itself can account
+// for the cadence below.
+
+test("test_the_volume_page_polls_every_second_with_no_opt_in_at_all", () => {
+  quickSystemUpdates.value = false;
+  activeTab.value = "volume";
+  assert.equal(last(intervals).ms, 1000);
 });
 
-test("test_leaving_the_quick_page_restores_the_default_cadence", () => {
-  activeTab.value = "output";
+test("test_the_system_page_without_its_opt_in_polls_at_the_default_cadence", () => {
+  activeTab.value = "system"; // the opt-in went off just above
   assert.equal(last(intervals).ms, 2000);
 });
 
 // LIVE has no opt-in and needs none. It is a mode rather than a tab, so
 // `activeTab` still names the tab the user left while LIVE is shown — the page
 // polled at the default cadence no matter what until fastPollMs read the mode
-// itself. `activeTab` is left on `output`, whose opt-in does not exist, so only
-// the mode can account for the cadence below.
+// itself. `activeTab` is left on `system` with its opt-in off, so only the mode
+// can account for the cadence below.
 
-test("test_live_mode_polls_at_half_a_second", () => {
+test("test_live_mode_polls_every_second", () => {
   liveMode.value = true;
-  assert.equal(last(intervals).ms, 500);
+  assert.equal(last(intervals).ms, 1000);
 });
 
 test("test_leaving_live_returns_the_page_underneath_to_its_own_cadence", () => {
@@ -196,8 +200,8 @@ test("test_leaving_live_returns_the_page_underneath_to_its_own_cadence", () => {
 });
 
 test("test_a_tab_opt_in_still_holds_after_live_is_switched_off", () => {
-  activeTab.value = "system"; // system's opt-in went on further up and stayed on
-  assert.equal(last(intervals).ms, 500);
+  quickSystemUpdates.value = true; // the system page is the one shown
+  assert.equal(last(intervals).ms, 1000);
 });
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------

@@ -88,7 +88,7 @@ import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
 import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfmode.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions, fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
 import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
@@ -270,7 +270,6 @@ async function reset({ matrix = "0", crossfeed = "1", correction = "1", loudness
   volumeRange.value = null;
   showDescriptions.value = false;
   keepOptionDescriptions.value = false;
-  fastVolumeUpdates.value = false;
   loudnessSide.value = "low";
   plottedRows.value = new Set();
   previewEq.value = null;

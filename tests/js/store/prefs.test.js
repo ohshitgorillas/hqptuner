@@ -29,7 +29,7 @@ afterEach(dropStorage);
 // --- the storage-disabled warn contract -----------------------------------------
 
 test("test_loading_without_storage_warns_exactly_once", () => {
-  // four prefs were read at import; one warning, not four
+  // several prefs were read at import; one warning, not one per pref
   assert.equal(warns.length, 1);
 });
 
@@ -67,18 +67,23 @@ test("test_the_quick_setter_persists_when_storage_works", () => {
   assert.equal(globalThis.localStorage.getItem("hqptuner.quickSystemUpdates"), "1");
 });
 
-test("test_the_fast_volume_setter_persists_off_as_zero", () => {
+test("test_the_quick_setter_persists_off_as_zero", () => {
   useStorage();
-  prefs.setFastVolumeUpdates(false);
-  assert.equal(globalThis.localStorage.getItem("hqptuner.fastVolumeUpdates"), "0");
+  prefs.setQuickSystemUpdates(false);
+  assert.equal(globalThis.localStorage.getItem("hqptuner.quickSystemUpdates"), "0");
 });
 
-test("test_the_setters_coerce_truthiness_into_a_boolean", () => {
-  // The setter's own parameter is typed `boolean`, and every real caller is a
-  // checkbox event — but the daemon's own boolean fields arrive as truthy
-  // strings elsewhere in this store, so the setter coerces defensively too.
-  prefs.setFastVolumeUpdates("yes");
-  assert.equal(prefs.fastVolumeUpdates.value, true);
+// The volume page is fast unconditionally now, so there is no volume opt-in to
+// store, no key to persist it under, and nothing for a caller to read. Membership
+// rather than a property read: after the export goes, naming it directly is a
+// type error, and the question here is exactly whether the name is there.
+
+test("test_the_store_offers_no_fast_volume_preference", () => {
+  assert.equal("fastVolumeUpdates" in prefs, false);
+});
+
+test("test_the_store_offers_no_fast_volume_setter", () => {
+  assert.equal("setFastVolumeUpdates" in prefs, false);
 });
 
 // --- the derived visibility flags ------------------------------------------------------

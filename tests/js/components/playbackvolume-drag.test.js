@@ -45,7 +45,6 @@ import {
   matrixConfig,
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { fastVolumeUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { ok, stagingWire } from "../support/wire.js";
 import { knobDrag } from "../support/pointer.js";
 
@@ -76,7 +75,6 @@ function reset() {
   volume.value = POLLED;
   volumeDrag.value = null;
   volumeRange.value = ON;
-  fastVolumeUpdates.value = false;
   engineState.value = {};
   matrixConfig.value = null;
   config.value = { fields: [], file: {} };
