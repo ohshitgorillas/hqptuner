@@ -204,8 +204,13 @@ export function setMatrixMode(next) {
   const prev = matrixMode.value;
   matrixMode.value = mode;
   rememberLast(mode);
-  if (mode === prev) return;
+  // Records even when the mode did not change. Clicking the half already on
+  // screen is how an unrecorded preset gets bound to the side it opened on —
+  // the click IS the choice, and refusing it because nothing moved would leave
+  // that preset unrecorded forever. Suppression is the other way round: nothing
+  // changed, so there is nothing to suppress or put back.
   remember(mode);
+  if (mode === prev) return;
   if (mode === "speakers") suppress();
   else restore();
 }
