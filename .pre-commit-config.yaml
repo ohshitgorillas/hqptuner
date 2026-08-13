@@ -211,3 +211,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^hqptuner/static/lib/.*\.js$
+
+      # Reads the config module and the e2e harness together, so it triggers on
+      # either: a new path knob and a harness that forgot it are the same defect
+      # seen from two files.
+      - id: e2e-isolation
+        name: e2e state-isolation gate
+        entry: .venv/bin/python scripts/gates/check_e2e_isolation.py
+        language: system
+        pass_filenames: false
+        files: ^(hqptuner/config\.py|tests/e2e/support/stack\.py)$

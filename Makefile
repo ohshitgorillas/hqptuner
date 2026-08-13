@@ -17,6 +17,7 @@ lint:
 	$(VENV)/python scripts/gates/check_gates_wired.py
 	$(VENV)/python scripts/gates/check_binaural.py
 	$(VENV)/python scripts/gates/check_xfeed.py
+	$(VENV)/python scripts/gates/check_e2e_isolation.py
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
 # prettier (black), tsc --checkJs (mypy), knip (vulture). The complexity ceiling

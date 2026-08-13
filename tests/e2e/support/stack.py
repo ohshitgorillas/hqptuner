@@ -12,9 +12,9 @@ its configuration surface (hqptuner/config.py). Nothing is stubbed inside it:
 what the browser drives is the shipped app over real HTTP.
 
 `stack()` is a generator shaped for a yield fixture. It yields a `Stack` only
-after `/api/health` has answered 200 — a bounded poll, never a fixed sleep —
-and on the way out terminates the app and drains the three fake generators so
-each runs its own teardown.
+after both `/api/health` and `/api/config` have answered 200 — a bounded poll,
+never a fixed sleep — and on the way out terminates the app and drains the three
+fake generators so each runs its own teardown.
 """
 
 import asyncio
@@ -103,6 +103,15 @@ def _app_env(listen_port: int, control_port: int, http_port: int, metering_port:
     Credentials are arbitrary — the HTTP fake authenticates nothing — but they
     must be non-empty, because the app only opens the 8088 lane when it has a
     username and password to open it with.
+
+    EVERY filesystem path the app writes is redirected into `tmp`, not just the
+    presets: the narrowing facets, favorites, descriptions and per-preset matrix
+    modes all default under the repo's own `state/`, so an app left pointing at
+    them boots on whatever the developer last clicked. That is not a hygiene
+    point — the narrow bar filters the filter enumerations, so one saved facet
+    empties a chain selector and the browser tests read it as the engine
+    offering nothing. `scripts/gates/check_e2e_isolation.py` fails the build
+    when a new path knob lands here unredirected.
     """
     return {
         **os.environ,
@@ -117,6 +126,10 @@ def _app_env(listen_port: int, control_port: int, http_port: int, metering_port:
         "HQPTUNER_PRESET_DIR": str(tmp / "presets"),
         "HQPTUNER_BACKUP_DIR": str(tmp / "backups"),
         "HQPTUNER_LIVE_PRESET_FILE": str(tmp / "live-presets.json"),
+        "HQPTUNER_FAVORITES_FILE": str(tmp / "favorites.json"),
+        "HQPTUNER_NARROWING_FILE": str(tmp / "narrowing.json"),
+        "HQPTUNER_DESCRIPTION_FILE": str(tmp / "descriptions.json"),
+        "HQPTUNER_MATRIX_MODE_FILE": str(tmp / "matrixmodes.json"),
         "HQPTUNER_POLL_INTERVAL": "0.1",
     }
 
@@ -134,17 +147,29 @@ def _answers(url: str) -> bool:
         return False
 
 
-def _wait_for_health(base_url: str, proc: "subprocess.Popen[bytes]", log_path: Path) -> None:
-    """Poll `/api/health` until it answers 200, or fail loudly with the app's output."""
-    url = f"{base_url}/api/health"
+def _wait_for_ready(base_url: str, proc: "subprocess.Popen[bytes]", log_path: Path) -> None:
+    """Poll until the app serves daemon-derived state, or fail loudly with the app's output.
+
+    `/api/health` alone is not readiness. It reports on the connection manager
+    and answers 200 before any lane has loaded anything (api/statusapi.py), while
+    `/api/config` 503s `not yet loaded from daemon` until the first 8088 poll
+    lands (api/deps.py). A stack yielded between those two moments hands the
+    session its first fixture call in that window, and every test in the run
+    errors in setup rather than failing on anything it asserts. So readiness is
+    both: the app is up AND it has something from the daemon to serve.
+    """
+    urls = [f"{base_url}/api/health", f"{base_url}/api/config"]
+    refusing = urls[0]
     deadline = time.monotonic() + READY_TIMEOUT
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             raise RuntimeError(_startup_failure(f"app exited with status {proc.returncode}", log_path))
-        if _answers(url):
+        still = [url for url in urls if not _answers(url)]
+        if not still:
             return
+        refusing = still[0]
         time.sleep(READY_POLL)
-    raise RuntimeError(_startup_failure(f"{url} never answered within {READY_TIMEOUT:.0f}s", log_path))
+    raise RuntimeError(_startup_failure(f"{refusing} never answered within {READY_TIMEOUT:.0f}s", log_path))
 
 
 def _launch_app(env: dict[str, str], log_path: Path) -> "subprocess.Popen[bytes]":
@@ -191,7 +216,7 @@ def stack(tmp: Path) -> Iterator[Stack]:
         env = _app_env(listen_port, control_port, int(http_state["_port"]), metering_port, tmp)
         proc = _launch_app(env, log_path)
         base_url = f"http://127.0.0.1:{listen_port}"
-        _wait_for_health(base_url, proc, log_path)
+        _wait_for_ready(base_url, proc, log_path)
         yield Stack(
             base_url=base_url,
             control_log=control_log,
