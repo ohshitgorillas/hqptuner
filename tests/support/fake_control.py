@@ -151,9 +151,20 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
 # differently — poly-sinc-gauss-long is enum 40 under PCM `filter` and 38 under
 # SDM `oversampling` (protocol.md §4, readme §1.5/§1.6). The fake models both
 # facts because the live-routing chain gate exists precisely to protect them.
+#
+# The two filter lists also deliberately SHARE one enum ID under different names:
+# enum 57 is `poly-sinc-short-mp` at PCM index 3 and `poly-sinc-short-lp` at SDM
+# index 2. Without a shared ID a lookup against the stale chain's list simply
+# misses, so the outcome an index resolved against the wrong list really has —
+# a different filter, silently — could not be expressed.
 _MODES = (("0", "[source]", "-1"), ("1", "PCM", "0"), ("2", "SDM (DSD)", "1"))
-_PCM_FILTERS = (("0", "none", "0"), ("1", "poly-sinc-gauss-long", "40"), ("2", "sinc-M", "25"))
-_SDM_FILTERS = (("0", "poly-sinc-gauss-long", "38"), ("1", "sinc-M", "23"))
+_PCM_FILTERS = (
+    ("0", "none", "0"),
+    ("1", "poly-sinc-gauss-long", "40"),
+    ("2", "sinc-M", "25"),
+    ("3", "poly-sinc-short-mp", "57"),
+)
+_SDM_FILTERS = (("0", "poly-sinc-gauss-long", "38"), ("1", "sinc-M", "23"), ("2", "poly-sinc-short-lp", "57"))
 _PCM_SHAPERS = (("0", "none", "0"), ("1", "NS9", "5"))
 _SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
 _JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))

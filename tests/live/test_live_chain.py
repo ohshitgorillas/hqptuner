@@ -308,8 +308,8 @@ async def test_a_source_change_serves_the_entered_chains_filters(live_manager: L
     # list being served says without ambiguity which chain was enumerated.
     manager, _, state = await live_manager(poll_interval=0.02, mode="0", _active_mode="PCM")
     state["_active_mode"] = "SDM (DSD)"
-    await eventually(lambda: [i["value"] for i in (manager.enums or {}).get("filters", [])] == ["38", "23"])
-    assert [i["value"] for i in present(manager.enums)["filters"]] == ["38", "23"]
+    await eventually(lambda: [i["value"] for i in (manager.enums or {}).get("filters", [])] == ["38", "23", "57"])
+    assert [i["value"] for i in present(manager.enums)["filters"]] == ["38", "23", "57"]
 
 
 async def test_a_source_change_serves_the_entered_chains_shapers(live_manager: LiveManager) -> None:

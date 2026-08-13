@@ -59,7 +59,7 @@ FAIL_MARK = "✗"
 #: The filter names the control fake's PCM chain enumerates over GetFilters. The
 #: running engine is the enumeration authority (architecture §2), so this is the
 #: list the LIVE filter selector must be offering.
-PCM_FILTER_NAMES = ["none", "poly-sinc-gauss-long", "sinc-M"]
+PCM_FILTER_NAMES = ["none", "poly-sinc-gauss-long", "sinc-M", "poly-sinc-short-mp"]
 
 #: The tabs the shell puts up. Pinning the names is what makes "the shell
 #: rendered" mean something: a skeleton carrying the right class names but no
