@@ -79,6 +79,10 @@ async def load(mgr: ConnectionManager, name: str) -> dict[str, Any]:
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
     await mgr.await_http_ready()
+    # the restore restarted the daemon: every live reading we hold is the previous
+    # engine's, and an auto-save riding this load would fold those into the preset
+    # it just loaded (ConnectionManager.resync_engine_state)
+    await mgr.resync_engine_state()
     await mgr.load_file_config()
     await mgr.refresh_http_forms()
     return {"name": name, "active": True}
