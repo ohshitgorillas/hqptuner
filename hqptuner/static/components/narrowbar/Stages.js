@@ -8,6 +8,7 @@ import { optionsFor } from "../../store/options.js";
 import { metadata } from "../../store/signals.js";
 import { Segment } from "../controls/index.js";
 import { previewCount } from "../../store/narrowing.js";
+import { notesVisible } from "../../store/prefs.js";
 
 /**
  * @typedef {{ value: string }} StageSignal
@@ -34,8 +35,8 @@ export const HIRES_NX_SEGS = [
 ];
 
 // The manual's apodizing explainer (data/settings.json dsp.apodizing tooltip) —
-// stays a VISIBLE caption under the switch row (user decision), as it was under
-// the 1x dropdowns.
+// a caption under the switch row, following the feature-description master like
+// every other static note: hidden when it is off, hover tip instead.
 /** The apodizing caption text, read from the loaded metadata's dsp.apodizing tooltip; empty string when absent. */
 export function apodTip() {
   const s = (metadata.value && metadata.value.settings) || {};
@@ -73,19 +74,22 @@ export function StageSeg({ stage, sig, options }) {
 }
 
 // One function group: title beside its two stage rows, description under the
-// rows in the same column.
+// rows in the same column. The description is a static feature note, so it
+// follows the feature-description master: caption when on, hover tip when off.
 /**
  * Renders one function group: its title beside the stage rows passed as
- * children, with `desc` as a caption under them in the same column.
+ * children, with `desc` as a caption under them in the same column when feature
+ * descriptions are shown, and as the group's hover title when they are hidden.
  * @param {{ title: string, desc?: string, cls?: string, children?: unknown }} props
  */
 export function SwitchGroup({ title, desc, cls, children }) {
+  const show = desc && notesVisible.value;
   return html`
-    <div class="narrow-group ${cls || ""}">
+    <div class="narrow-group ${cls || ""}" title=${show ? "" : desc || ""}>
       <span class="t-label narrow-group-title">${title}</span>
       <div class="narrow-group-body">
         ${children}
-        ${desc ? html`<div class="t-caption">${desc}</div>` : null}
+        ${show ? html`<div class="t-caption">${desc}</div>` : null}
       </div>
     </div>
   `;

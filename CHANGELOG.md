@@ -34,6 +34,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The narrowing bar's apodizing and hi-res captions now follow the feature-description switch.** Both stayed on screen with feature descriptions turned off; they now hide with every other static note and move to a hover tip.
+
 - **A filter applied after a mode change now lands the filter that was picked.** Applying the output mode on its own, then applying a filter, ran a different filter instead. Re-applying the mode already running also no longer disturbs the output rate.
 
 - **The About card called HQPlayer's DSP-engine version (6.0.4) the "Version", though the installed release is 6.0.2.** Signalyst numbers them separately, so the card now shows both: "Version" and "Engine".
