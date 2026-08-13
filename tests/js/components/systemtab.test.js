@@ -57,11 +57,6 @@ test("an empty release still leaves the engine row in place", () => {
   assert.match(render(html`<${System} />`), /<dt>Engine<\/dt>\s*<dd>6\.0\.4<\/dd>/);
 });
 
-test("the system tab carries a note that the figures may differ", () => {
-  health.value = { info: { engine: "6.0.4" }, release: "6.0.2", license: null };
-  assert.ok(render(html`<${System} />`).includes("may differ"));
-});
-
 test("a daemon outside the verified series says so under its version", () => {
   health.value = { info: { engine: "6.1.0" }, license: null };
   assert.ok(render(html`<${System} />`).includes("verified against"));

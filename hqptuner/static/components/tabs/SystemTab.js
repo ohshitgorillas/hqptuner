@@ -69,14 +69,6 @@ const About = () => {
       )}
     </dl>
     ${
-      i.engine
-        ? html`<p class="field-note">
-          Engine is the version of HQPlayer's DSP engine, which Signalyst numbers separately — it may differ from the
-          installed hqplayerd release (Version).
-        </p>`
-        : ""
-    }
-    ${
       engineMismatch.value
         ? html`<p class="field-note">
           HQPTuner is verified against the hqplayerd ${VERIFIED_SERIES} series and this daemon reports
