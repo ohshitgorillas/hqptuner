@@ -15,7 +15,8 @@ is written, no daemon restart, no ``sudo``:
   QB  switching to a profile that carries one with ``enabled="1"`` — is it
       installed into the running engine?
 
-The switch is memory-only (matrix-spec.md "Probe findings"), so the only
+The switch is memory-only (matrix-spec.md "Probe findings — form lane, checkbox
+encoding and the live lane"), so the only
 cleanup is switching back to the profile that was active, verified by readback.
 Correction state is read from ``GET /matrix``, which is the running form.
 
