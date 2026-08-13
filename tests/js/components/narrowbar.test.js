@@ -46,6 +46,7 @@ import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
 import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { resetNarrowing, nFocus } from "../../../hqptuner/static/store/narrowing.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
@@ -302,4 +303,26 @@ test("test_the_count_on_a_picked_facet_row_previews_unpicking_it", async () => {
   await reset({ filters: FOCUS_FILTERS, fields: chainFields(FOCUS_FILTERS) });
   nFocus.value = ["timbre"];
   assert.equal(nxCount(chip(open("focus"), "Timbre")), 3);
+});
+
+// --- the intro caption follows the setting-descriptions pref ----------------------
+// The card's intro caption is a setting description, so it obeys the master
+// "Setting descriptions" pref alone. The keep-option pref governs OPTION
+// descriptions only, so the caption stays hidden under master OFF even in the
+// keep-ON state where option descriptions still show.
+
+const CAPTION = "Reduce the number of filters in the dropdowns below";
+
+test("test_the_intro_caption_renders_while_the_descriptions_pref_is_on", async () => {
+  await reset();
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = false;
+  assert.ok(render(html`<${NarrowBar} />`).includes(CAPTION));
+});
+
+test("test_the_intro_caption_is_absent_with_the_master_pref_off_even_with_keep_option_on", async () => {
+  await reset();
+  showDescriptions.value = false;
+  keepOptionDescriptions.value = true;
+  assert.equal(render(html`<${NarrowBar} />`).includes(CAPTION), false);
 });

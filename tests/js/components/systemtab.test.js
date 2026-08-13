@@ -191,6 +191,13 @@ test("with the master off the option descriptions switch is enabled", async () =
   assert.equal(hasAttr(switchOf(render(html`<${System} />`), KEEP), "disabled"), false);
 });
 
+test("with the master off an on keep pref leaves the switch enabled", async () => {
+  await reset();
+  showDescriptions.value = false;
+  keepOptionDescriptions.value = true;
+  assert.equal(hasAttr(switchOf(render(html`<${System} />`), KEEP), "disabled"), false);
+});
+
 test("a render under the master pref leaves the stored keep pref untouched", async () => {
   await reset();
   showDescriptions.value = true;
