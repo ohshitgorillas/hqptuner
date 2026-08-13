@@ -22,6 +22,8 @@ The tab's speakers/headphones switcher is a view selector (`store/matrixmode.js`
 
 **The preset the view follows is the previewed one when a preset is staged but not applied, and the active one otherwise** — the preview is what is on screen. **A preset with no recorded mode leaves the tab where it is**, falling back to the last-used mode in `localStorage`: nothing migrates existing presets, because "nobody has said" is not "this one is for speakers". That fallback also covers the case with no preset at all, where there is nothing to key a choice to and nothing is written.
 
+**Every hand click records, including a click on the half already on screen (binding).** That click is how a preset with no recorded mode gets bound to the side it opened on; refusing it because nothing moved would leave that preset unrecorded forever. Suppression is the other way round — nothing changed, so there is nothing to suppress or put back.
+
 **Binding the view to a preset stages nothing (binding).** The hand-driven switcher suppresses crossfeed on the way to speakers and restores it on the way back; a preset switch must not, because the preset carries its own pipelines and crossfeed in its own config and suppression would stage edits over settings the preset already accounts for. Only the user's click suppresses and restores. A refused write leaves the switch where the user put it — a view choice costs nothing to be wrong about until the next reload.
 
 ### Profiles
