@@ -182,6 +182,62 @@ def test_capability_is_nothing_when_no_device_is_selected() -> None:
     assert devicecaps.caps_for(SELECTED_LOG, None) is None
 
 
+# --- agreed_device: the two config views, compared --------------------------
+# The /config form and the config file are read on different schedules, so a
+# preset load leaves a window where they describe different devices. The file
+# view arrives in the same form-field terms the form does (`backend`,
+# `net_device`, `alsa_device`), which is what makes the two comparable.
+
+ALSA = "hw:CARD=NVidia,DEV=3"
+OTHER = "S30/hw:CARD=Other,DEV=0"
+FORM = form(backend="network", net_device=SELECTED, alsa_device=ALSA)
+FILE: dict[str, str] = {"backend": "network", "net_device": SELECTED, "alsa_device": ALSA}
+
+
+def test_both_views_naming_one_device_agree_on_it() -> None:
+    assert devicecaps.agreed_device(FORM, FILE) == SELECTED
+
+
+def test_views_naming_different_devices_agree_on_nothing() -> None:
+    # the preset-load window: the file already carries the new preset's device
+    # while the form still reports the previous one
+    assert devicecaps.agreed_device(FORM, {**FILE, "net_device": OTHER}) is None
+
+
+def test_no_file_view_leaves_the_form_the_sole_authority() -> None:
+    # unauthenticated, or the archive read failed: nothing to disagree with
+    assert devicecaps.agreed_device(FORM, None) == SELECTED
+
+
+@pytest.mark.parametrize(
+    "file_view",
+    [
+        pytest.param({}, id="file view carries no fields at all"),
+        pytest.param({"backend": "network"}, id="file view names the backend but no device"),
+    ],
+)
+def test_a_file_view_silent_about_the_device_falls_back_to_the_form(file_view: dict[str, str]) -> None:
+    # silence is not disagreement: absence of evidence narrows nothing, and it
+    # takes away nothing the form already established either
+    assert devicecaps.agreed_device(FORM, file_view) == SELECTED
+
+
+@pytest.mark.parametrize(
+    ("form_backend", "file_backend"),
+    [
+        pytest.param("combo", "combo", id="both views say combo"),
+        pytest.param("combo", "network", id="only the form says combo"),
+        pytest.param("network", "combo", id="only the file says combo"),
+    ],
+)
+def test_the_combo_backend_agrees_on_no_device(form_backend: str, file_backend: str) -> None:
+    # combo drives an ALSA and a network device at once while the daemon
+    # announces one, so neither view can name the device whose limits bind
+    parsed = form(backend=form_backend, net_device=SELECTED, alsa_device=ALSA)
+    file_view = {**FILE, "backend": file_backend}
+    assert devicecaps.agreed_device(parsed, file_view) is None
+
+
 # --- the connection manager -------------------------------------------------
 
 
@@ -233,6 +289,73 @@ async def test_manager_reports_nothing_when_the_log_carries_no_announcement(
     assert manager.device_caps is None
 
 
+# --- the manager, with both config views in hand ----------------------------
+
+
+@pytest.fixture
+def disagreeing_daemon() -> Iterator[dict[str, Any]]:
+    """The daemon mid preset-load: the config file already carries the new
+    preset's device, while GET /config still renders the previous one — which is
+    the device the engine still has open, and the one its log announces."""
+    yield from fake_http.spawn(fake_http.state(_log=OTHER_LOG, _form_net_device=OTHER))
+
+
+@pytest.fixture
+def backupless_daemon() -> Iterator[dict[str, Any]]:
+    """A daemon announcing its selected device whose settings archive cannot be
+    read — the unauthenticated app, or a failed archive read."""
+    yield from fake_http.spawn(fake_http.state(_log=SELECTED_LOG, _fail_paths=["/backup/settings.zip"]))
+
+
+async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
+    """A manager holding both config views: the file read and the forms loaded,
+    which is the state every ordinary poll leaves it in."""
+    manager = _manager(factory, daemon)
+    await manager.load_file_config()
+    await manager.refresh_devices()
+    return manager
+
+
+async def test_manager_serves_the_capability_when_both_views_name_the_announced_device(
+    http_manager_factory: ManagerFactory, announcing_daemon: dict[str, Any]
+) -> None:
+    manager = await _both_views(http_manager_factory, announcing_daemon)
+    assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
+
+
+async def test_manager_serves_nothing_while_the_two_views_name_different_devices(
+    http_manager_factory: ManagerFactory, disagreeing_daemon: dict[str, Any]
+) -> None:
+    # the log agrees with the form here, so the announcement alone would narrow:
+    # what must stop it is the file naming another generation's device
+    manager = await _both_views(http_manager_factory, disagreeing_daemon)
+    assert manager.device_caps is None
+
+
+async def test_the_capability_comes_back_at_the_next_refresh_once_the_views_agree(
+    http_manager_factory: ManagerFactory, disagreeing_daemon: dict[str, Any]
+) -> None:
+    manager = await _both_views(http_manager_factory, disagreeing_daemon)
+    # the daemon opens the preset's device and the form catches up
+    disagreeing_daemon["_form_net_device"] = None
+    disagreeing_daemon["_log"] = SELECTED_LOG
+    await manager.refresh_devices()
+    # unforced, and no virtual time has passed: a retry interval charged for the
+    # disagreement would still be closed here
+    await manager.refresh_device_caps()
+    assert (manager.device_caps or {})["device"] == SELECTED
+
+
+async def test_manager_serves_the_capability_when_the_archive_read_failed(
+    http_manager_factory: ManagerFactory, backupless_daemon: dict[str, Any]
+) -> None:
+    # no file view exists to agree or disagree with, so the form is the sole
+    # authority on the selected device, exactly as before
+    manager = _manager(http_manager_factory, backupless_daemon)
+    await manager.refresh_devices()
+    assert (manager.device_caps or {})["pcm_rates"] == [44100, 192000]
+
+
 # --- the REST surface -------------------------------------------------------
 
 
@@ -243,16 +366,13 @@ def _config_loaded(client: TestClient) -> bool:
     return resp.status_code == 200 and "title" in resp.json()["data"]["file"]
 
 
-@pytest.fixture
-def announcing_client(
-    announcing_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
-) -> Iterator[TestClient]:
-    """Both lanes live, with the 8088 daemon announcing the device its own config
-    form has selected — the ordinary connected app."""
+def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> Iterator[TestClient]:
+    """The app with both lanes live against the given 8088 fake, ready once its
+    connect-and-load sequence has finished."""
     cfg = Config(
         hqp_host="127.0.0.1",
-        hqp_control_port=threaded_daemon_port,
-        hqp_http_port=announcing_daemon["_port"],
+        hqp_control_port=control_port,
+        hqp_http_port=daemon["_port"],
         hqp_username="u",
         hqp_password="p",
         alarm_threshold=1.0,
@@ -265,6 +385,24 @@ def announcing_client(
         yield test_client
 
 
+@pytest.fixture
+def announcing_client(
+    announcing_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
+) -> Iterator[TestClient]:
+    """Both lanes live, with the 8088 daemon announcing the device its own config
+    form has selected — the ordinary connected app."""
+    yield from _wired_client(announcing_daemon, threaded_daemon_port, tmp_path)
+
+
+@pytest.fixture
+def disagreeing_client(
+    disagreeing_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
+) -> Iterator[TestClient]:
+    """The connected app mid preset-load, its two config views a generation
+    apart."""
+    yield from _wired_client(disagreeing_daemon, threaded_daemon_port, tmp_path)
+
+
 def test_api_config_carries_the_selected_devices_capability(announcing_client: TestClient) -> None:
     body = announcing_client.get("/api/config").json()
     assert (body["data"]["device_caps"] or {})["pcm_rates"] == [44100, 192000]
@@ -274,3 +412,10 @@ def test_api_config_carries_a_null_capability_when_none_is_known(http_client: Te
     # the stock fake's log has no device announcement at all
     http_client.post("/api/config/refresh")
     assert http_client.get("/api/config").json()["data"]["device_caps"] is None
+
+
+def test_api_config_carries_a_null_capability_while_the_two_views_disagree(
+    disagreeing_client: TestClient,
+) -> None:
+    disagreeing_client.post("/api/config/refresh")
+    assert disagreeing_client.get("/api/config").json()["data"]["device_caps"] is None

@@ -62,9 +62,11 @@ def _http_render(st: dict[str, Any]) -> str:
     )
     with _STATE:  # a rescan on another handler thread may be rewriting the list
         endpoints = tuple(st["_net_endpoints"])
-    dev_opts = "".join(
-        f'<option value="{v}"{" selected" if st["net_device"] == v else ""}>{v}</option>' for v in endpoints
-    )
+    # `_form_net_device` is the lag window: the config file already carries the
+    # device a just-loaded preset picked, while this page still renders the one
+    # the engine has open. Unset (the usual state) means both routes agree.
+    form_device = st.get("_form_net_device") or st["net_device"]
+    dev_opts = "".join(f'<option value="{v}"{" selected" if form_device == v else ""}>{v}</option>' for v in endpoints)
     rows = [
         f'<input type="text" name="title" value="{st["title"]}"/>',
         f'<select name="backend">{opts}</select>',
@@ -424,6 +426,10 @@ def state(**extra: Any) -> dict[str, Any]:
         "auto_family": False,
         "net_ipv6": False,
         "net_device": "S26/hw:CARD=Output,DEV=0",
+        # the device GET /config renders while the file above already names
+        # another: the window after a preset load, before the form catches up.
+        # None means the two routes agree, which is the ordinary case.
+        "_form_net_device": None,
         # endpoints the daemon can bind; a net_device outside this set is refused
         # on restore (endpoint gone) — the unfixable-divergence case
         "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
