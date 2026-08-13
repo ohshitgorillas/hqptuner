@@ -32,9 +32,9 @@ from hqptuner.conf import engineconf, presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.applyops import ApplyOps
-from hqptuner.engine import devicecaps, logtail, release
+from hqptuner.engine import release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
-from hqptuner.lanes import httpforms, livechain, livelane, rescan, settle
+from hqptuner.lanes import devicelane, httpforms, livechain, livelane, settle
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetops import PresetOps
 from hqptuner.presets.presetstore import PresetError
@@ -51,10 +51,6 @@ RECONNECT_SLOW = 5.0
 # `daemon unreachable` is an honest report of. Anything outside this set is a bug of ours,
 # and the loop's second clause keeps it loud instead of dressing it as an outage.
 _WIRE_FAULTS = (ControlError, CommandError, httpx.HTTPError, OSError, TimeoutError)
-# How long to wait before looking for a device announcement that was not there
-# last time (Manager.refresh_device_caps). Long, because the reader is a full log
-# fetch and the announcement only appears when the daemon opens the device.
-_CAPS_RETRY = 30.0
 
 
 class ConnectionManager:
@@ -70,6 +66,10 @@ class ConnectionManager:
         # seconds — so "a daemon answered" cannot tell the two apart and this can:
         # a different generation is a different process (``await_restart``).
         self._generation = 0
+        # Serializes connects. The poll loop is no longer the only path that brings
+        # a connection up — ``await_restart`` does it too, on its own clock — and two
+        # tasks connecting at once would leave one client orphaned and unclosed.
+        self._connecting = asyncio.Lock()
         self._stop = asyncio.Event()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
@@ -122,13 +122,11 @@ class ConnectionManager:
         # the frontend schema read their baseline from here instead. Refreshed on
         # connect and after every persistent apply (never per-poll: /backup is ~5 MB).
         self.file_config: dict[str, str] | None = None
-        # What the selected output device announced it can carry (engine/devicecaps).
-        # None means nothing is known about it and no menu narrows. Refreshed on
-        # connect and whenever the selected device changes (never per-poll: GET
-        # /log pulls the whole log, and the announcement only moves on a connect).
+        # What the selected output device announced it can carry, with the selection and
+        # clock its refresh reads (lanes/devicelane); None narrows no menu.
         self.device_caps: dict[str, Any] | None = None
-        self._caps_device: str | None = None
-        self._caps_at: float = 0.0
+        self.caps_device: str | None = None
+        self.caps_at: float = 0.0
 
     @property
     def alarm(self) -> bool:
@@ -216,6 +214,12 @@ class ConnectionManager:
             self._client = None
 
     async def _connect_and_load(self) -> None:
+        async with self._connecting:
+            if self._client is not None:
+                return  # another task got there first; its handshake is this one's answer
+            await self._connect_and_load_locked()
+
+    async def _connect_and_load_locked(self) -> None:
         client = ControlClient(self._cfg.hqp_host, self._cfg.hqp_control_port, self._cfg.request_timeout)
         await client.connect()
         info = await client.get_info()  # the handshake — this defines "reachable"
@@ -243,12 +247,12 @@ class ConnectionManager:
         self.unreachable_since = None
         # best-effort and credential-free: /about is not gated, and fetch_release
         # answers any failure with "" — reachability is already decided above.
-        self.release = await release.fetch_release(f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}")
+        self.release = await release.fetch_release(self.http_base_url)
         if self._http is not None:
             # best-effort 8088 lane — a failure here must not undo the 4321 connect.
             # refresh_http_forms populates config/matrix/speakers (+ their *_error).
             await self.refresh_http_forms()
-            await self.refresh_device_caps(force=True)
+            await devicelane.refresh_caps(self, force=True)
             try:
                 await self.load_file_config()
             except (httpx.HTTPError, ControlError) as exc:
@@ -331,13 +335,10 @@ class ConnectionManager:
     async def refresh_http_forms(self) -> None:
         """Refresh the three polled 8088 form snapshots (lanes/httpforms) and the device capability.
 
-        The capability hangs off those forms: it is read for whichever device the config form says
-        is selected, so it belongs wherever that form is refreshed — the poll loop, connect, and the
-        rescan route alike — rather than at the poll loop alone, which leaves every other path
-        serving a stale answer or none.
+        The capability hangs off those forms; ``lanes/devicelane.refresh_caps`` says why.
         """
         await httpforms.refresh(self)
-        await self.refresh_device_caps()
+        await devicelane.refresh_caps(self)
 
     async def read_preset(self, name: str) -> dict[str, str]:
         """Return a stored preset's saved settings in form-field terms without loading it.
@@ -346,12 +347,17 @@ class ConnectionManager:
         """
         return await presetlane.read(self, name)
 
-    # --- accessors for the extracted write lanes --------------------------
+    # --- accessors for the extracted lanes --------------------------------
 
     @property
     def http_client(self) -> HttpConfigClient | None:
         """Return the 8088 config client, or None when no management credentials were configured."""
         return self._http
+
+    @property
+    def http_base_url(self) -> str:
+        """Return the base URL of the daemon's 8088 web interface, which the read lanes fetch from."""
+        return f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}"
 
     @property
     def alarm_threshold(self) -> float:
@@ -395,9 +401,10 @@ class ConnectionManager:
         re-reads the engine on that evidence reads the process it just replaced.
 
         The boundary that is actually observable is the Control API connection: it breaks when the
-        process exits, and the reconnect counts a new generation. This probes as well as watches —
-        between poll ticks nothing else notices the socket is dead, and the probe's own failure is
-        what hands the reconnect to the poll loop.
+        process exits, and the connect that replaces it counts a new generation. Both halves are done
+        here rather than left to the poll loop — the probe is what discovers the socket is dead
+        between ticks, and the reconnect is what proves a NEW process answers. Leaving either to the
+        loop makes this wait depend on that loop's cadence to reach its own verdict.
 
         False when no new process answered before the alarm deadline. That is 'the engine cannot be
         trusted', never 'the restart happened' — callers leave their live state invalid rather than
@@ -422,6 +429,10 @@ class ConnectionManager:
                     await client.get_info()
                 except (ControlError, OSError):
                     await self._drop("restart in progress")
+                else:
+                    return False  # the process that took the restore is still answering
+            with contextlib.suppress(*_WIRE_FAULTS):
+                await self._connect_and_load()  # whatever answers now is a new process
             return self._generation != start
 
         return bool(await settle.poll_until(self, probe, interval=RECONNECT_FAST))
@@ -449,55 +460,9 @@ class ConnectionManager:
         self.file_config = presetconf.read_config(engineconf.base_config_xml(backup, self.active_config))
         return self.file_config
 
-    async def refresh_device_caps(self, *, force: bool = False) -> None:
-        """Re-learn what the selected output device can carry (engine/devicecaps).
-
-        Reading it costs a whole ``GET /log``, so this is deliberately not a
-        per-poll job: the announcement only moves when the daemon opens a device,
-        which is a connect. The log is fetched when the selection changed, on
-        connect (``force``), and — while the selection has no announcement yet —
-        no more often than ``_CAPS_RETRY``, since that announcement may simply not
-        have been written when we last looked.
-
-        Which device that is comes from both config views agreeing on it
-        (devicecaps.agreed_device): the form and the file refresh separately, and
-        while they disagree there is no capability to serve. Disagreement caches
-        as ``None``, so the refresh that ends it sees a different selection and
-        re-reads at once rather than sitting out ``_CAPS_RETRY``.
-        """
-        selected = devicecaps.agreed_device(self.config_form, self.file_config)
-        stale = self.device_caps is None and self.monotonic() - self._caps_at >= _CAPS_RETRY
-        if not force and not stale and selected == self._caps_device:
-            return
-        self._caps_device, self._caps_at = selected, self.monotonic()
-        if selected is None:
-            self.device_caps = None
-            return
-        base_url = f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}"
-        try:
-            text = await logtail.fetch_log(base_url)
-        except httpx.HTTPError as exc:
-            # No log, no capability, no narrowing — the menus stay whole, which is
-            # the correct answer to "the device has not told us anything".
-            log.debug("device capability read failed: %s", exc)
-            self.device_caps = None
-            return
-        self.device_caps = devicecaps.caps_for(text, selected)
-
     async def read_log_tail(self, lines: int = 50) -> dict[str, Any]:
-        """Return a static tail of the daemon's log for the System-tab live view.
-
-        Not a stream — a fresh GET /log per call over the 8088 web interface, so it works regardless
-        of the daemon's `<log file>` setting and needs no host mount. Reports `available` false (with
-        a reason) when /log can't be read.
-        """
-        path, enabled = logtail.log_file_field(self.config_form)
-        base_url = f"http://{self._cfg.hqp_host}:{self._cfg.hqp_http_port}"
-        try:
-            text = await logtail.fetch_log(base_url)
-        except httpx.HTTPError as exc:
-            return {"path": path, "enabled": enabled, "available": False, "reason": str(exc), "lines": []}
-        return {"path": path, "enabled": enabled, "available": True, "lines": logtail.tail_text(text, lines)}
+        """Return a static tail of the daemon's log for the System-tab live view (lanes/devicelane)."""
+        return await devicelane.read_log_tail(self, lines)
 
     async def restore_config(self, data: bytes, scope: str = "system") -> None:
         """Restore a user-supplied settings archive as-is (the System-tab restore action).
@@ -512,21 +477,8 @@ class ConnectionManager:
         return self._client
 
     async def refresh_devices(self) -> dict[str, Any]:
-        """Trigger a daemon output-device re-scan, then refetch the /config and /matrix forms.
-
-        The refetch makes the device dropdowns serve the new endpoint list (an NAA powered back on,
-        a DAC replugged).
-
-        The rescan stops the engine, and the engine comes back on the config file —
-        which never learned a live-routed setting. With auto-save on, what it was
-        running is read first and put back afterwards (``lanes/rescan``): ``restored``
-        names what landed, and a ``warning`` says so when the replay could not run.
-        No idle gate: interrupting playback is the user's call to spend (CLAUDE.md).
-        """
-        snap = rescan.snapshot(self)
-        await self.require_http().refresh_devices()
-        await self.refresh_http_forms()
-        return {"refreshed": True, **await rescan.replay(self, snap)}
+        """Trigger a daemon output-device re-scan and refetch the forms it moves (lanes/devicelane)."""
+        return await devicelane.refresh_devices(self)
 
     def require_http(self) -> HttpConfigClient:
         """Return the 8088 config client, raising ControlError when no credentials were configured.
