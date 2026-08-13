@@ -36,7 +36,7 @@ const licenseLabel = (l) => {
 // HQPTuner is developed and verified against the hqplayerd 6.0 series. Another
 // series is never refused and nothing is disabled for it — the running engine is
 // the authority for its own enumerations, so a different daemon largely just
-// works — but the mismatch is worth saying once, directly under the Version row
+// works — but the mismatch is worth saying once, directly under the Engine row
 // it is about. Empty string when the daemon matches or has not reported one.
 const VERIFIED_SERIES = "6.0";
 
@@ -50,7 +50,7 @@ const About = () => {
   const i = info.value;
   const rows = [
     ["Product", i.product],
-    ["Version", i.engine],
+    ["Engine", i.engine],
     ["Licensed", licenseLabel(license.value)],
     ["Platform", i.platform],
   ].filter((r) => r[1]);
@@ -64,6 +64,14 @@ const About = () => {
           </div>`,
       )}
     </dl>
+    ${
+      i.engine
+        ? html`<p class="field-note">
+          Engine is the version of HQPlayer's DSP engine, which Signalyst numbers separately — it can differ from the
+          installed hqplayerd release number.
+        </p>`
+        : ""
+    }
     ${
       engineMismatch.value
         ? html`<p class="field-note">
