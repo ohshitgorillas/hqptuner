@@ -1,17 +1,16 @@
-// Resampling tab: pre-process card, filter narrowing bar, the PCM and SDM
-// output cards, and FFT
-// filter length. Each output card is split by SOURCE type — a "PCM Sources"
-// subsection (how a PCM source is handled for that output) and a "DSD Sources"
-// subsection (how a DSD/SDM source is handled) — with a mode-mismatch note at
-// the top when the current output mode doesn't use the card.
+// Conversion cards, rendered on the Output tab: pre-process, the PCM and SDM
+// output cards, and FFT filter length. Each output card is split by SOURCE
+// type — a "PCM Sources" subsection (how a PCM source is handled for that
+// output) and a "DSD Sources" subsection (how a DSD/SDM source is handled) —
+// with a mode-mismatch note at the top when the current output mode doesn't
+// use the card.
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
 import { ChainPack } from "../ChainPack.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { NarrowBar } from "../NarrowBar.js";
-import { Section, Card, collapseFrom } from "../common.js";
+import { Card, collapseFrom } from "../common.js";
 
 // DSP chain cards auto-open by mode (auto shows both). PCM chain is irrelevant
 // in pure SDM mode and vice-versa; DSD-source decoding is irrelevant in PCM.
@@ -66,47 +65,53 @@ const fftOpen = computed(() =>
 );
 const fftOverride = signal(null);
 
-/** Resampling tab: the PCM and SDM chain cards, each noting when the output mode makes it inert, plus filter length. */
-export const Resampling = () =>
-  html`<${Section}>
-    <${Card} title="Pre-process">
-      <div class="pack">
-        <${Field} k="junk_filter" />
-        <${Field} k="pre_before_meter" />
-      </div>
+/** Pre-process card: the junk filter and pre-before-meter toggles. */
+export const PreProcessCard = () =>
+  html`<${Card} title="Pre-process">
+    <div class="pack">
+      <${Field} k="junk_filter" />
+      <${Field} k="pre_before_meter" />
+    </div>
+  <//>`;
+
+/** PCM chain card, noting when the output mode makes it inert. */
+export const PcmChainCard = () =>
+  html`<${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+    ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
+    <div class="subhead">PCM Sources</div>
+    <${ChainPack}>
+      <${Field} k="pcm_filter_1x" />
+      <${Field} k="pcm_filter_nx" />
+      <${Field} k="pcm_dither" />
     <//>
-    <${NarrowBar} />
-    <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
-      ${effective("output_mode") === "sdm" ? html`<div class="section-note">Output mode is SDM. These settings have no effect.</div>` : null}
-      <div class="subhead">PCM Sources</div>
-      <${ChainPack}>
-        <${Field} k="pcm_filter_1x" />
-        <${Field} k="pcm_filter_nx" />
-        <${Field} k="pcm_dither" />
-      <//>
-      <div class="subhead">DSD Sources</div>
-      <${ChainPack}>
-        <${Field} k="noise_filter" />
-        <${Field} k="pcm_conversion" />
-        <${Field} k="dsd_gain_6db" />
-      <//>
+    <div class="subhead">DSD Sources</div>
+    <${ChainPack}>
+      <${Field} k="noise_filter" />
+      <${Field} k="pcm_conversion" />
+      <${Field} k="dsd_gain_6db" />
     <//>
-    <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
-      ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
-      <div class="subhead">PCM Sources</div>
-      <${ChainPack}>
-        <${Field} k="sdm_filter_1x" />
-        <${Field} k="sdm_filter_nx" />
-        <${Field} k="sdm_modulator" />
-      <//>
-      <div class="subhead">DSD Sources</div>
-      <${ChainPack}>
-        <${Field} k="sdm_integrator" />
-        <${Field} k="sdm_conversion" />
-        <${Field} k="direct_sdm" />
-      <//>
+  <//>`;
+
+/** SDM chain card, noting when the output mode makes it inert. */
+export const SdmChainCard = () =>
+  html`<${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+    ${effective("output_mode") === "pcm" ? html`<div class="section-note">Output mode is PCM. These settings have no effect.</div>` : null}
+    <div class="subhead">PCM Sources</div>
+    <${ChainPack}>
+      <${Field} k="sdm_filter_1x" />
+      <${Field} k="sdm_filter_nx" />
+      <${Field} k="sdm_modulator" />
     <//>
-    <${Card} title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
-      <${Field} k="fft_size" />
+    <div class="subhead">DSD Sources</div>
+    <${ChainPack}>
+      <${Field} k="sdm_integrator" />
+      <${Field} k="sdm_conversion" />
+      <${Field} k="direct_sdm" />
     <//>
+  <//>`;
+
+/** Filter length card, open while any filter slot selects an FFT filter. */
+export const FilterLengthCard = () =>
+  html`<${Card} title="Filter length" collapse=${collapseFrom(fftOpen, fftOverride)}>
+    <${Field} k="fft_size" />
   <//>`;
