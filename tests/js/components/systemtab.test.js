@@ -26,6 +26,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields } from "../support/tabform.js";
+import { elements, enclosing, hasAttr, hasLabel, labelled } from "../support/markup.js";
 
 test("about hqptuner prose stays unrendered until the subsection is opened", () => {
   health.value = { info: {}, license: null };
@@ -124,4 +125,91 @@ test("the timing card carries exactly the three engine timing controls", async (
 test("the upnp card carries exactly the upnp freewheel control", async () => {
   await reset();
   assert.deepEqual(labelsOf(card(render(html`<${System} />`), "UPnP")), ["UPnP freewheel"]);
+});
+
+// --- description-visibility prefs ---------------------------------------------
+// Two client-only localStorage prefs surface here as switches. The master
+// ("Setting descriptions") forces the second ("Option descriptions") on while
+// itself on: the second renders checked and disabled, purely as presentation —
+// the stored keep-option pref is never rewritten by a render. With the master
+// off, the second switch is live and mirrors the stored pref exactly.
+
+const MASTER = "Setting descriptions";
+const KEEP = "Option descriptions";
+
+// The switch input a label announces. Starts inside the label itself (the
+// tickbox convention from playbackvolume.test.js) and, when the input sits
+// beside the label rather than inside it, widens to the smallest enclosing
+// region — the row the pair shares — without naming any structure in between.
+/**
+ * @param {string} out
+ * @param {string} label
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function switchOf(out, label) {
+  let region = labelled(out, label);
+  for (let step = 0; step < 3; step += 1) {
+    const hit = elements(region.html).find((el) => el.name === "input");
+    if (hit) return hit;
+    region = enclosing(out, region);
+  }
+  throw new Error(`no input near the control labelled "${label}"`);
+}
+
+test("the master pref on forces the option descriptions switch checked", async () => {
+  await reset();
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = false;
+  assert.ok(hasAttr(switchOf(render(html`<${System} />`), KEEP), "checked"));
+});
+
+test("the master pref on disables the option descriptions switch", async () => {
+  await reset();
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = false;
+  assert.ok(hasAttr(switchOf(render(html`<${System} />`), KEEP), "disabled"));
+});
+
+test("with the master off an off keep pref renders the switch unchecked", async () => {
+  await reset();
+  showDescriptions.value = false;
+  keepOptionDescriptions.value = false;
+  assert.equal(hasAttr(switchOf(render(html`<${System} />`), KEEP), "checked"), false);
+});
+
+test("with the master off an on keep pref renders the switch checked", async () => {
+  await reset();
+  showDescriptions.value = false;
+  keepOptionDescriptions.value = true;
+  assert.ok(hasAttr(switchOf(render(html`<${System} />`), KEEP), "checked"));
+});
+
+test("with the master off the option descriptions switch is enabled", async () => {
+  await reset();
+  showDescriptions.value = false;
+  keepOptionDescriptions.value = false;
+  assert.equal(hasAttr(switchOf(render(html`<${System} />`), KEEP), "disabled"), false);
+});
+
+test("a render under the master pref leaves the stored keep pref untouched", async () => {
+  await reset();
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = false;
+  render(html`<${System} />`);
+  assert.equal(keepOptionDescriptions.value, false);
+});
+
+test("the master toggle is labelled setting descriptions", async () => {
+  await reset();
+  assert.ok(hasLabel(render(html`<${System} />`), MASTER));
+});
+
+test("no toggle is labelled feature descriptions any more", async () => {
+  await reset();
+  assert.equal(hasLabel(render(html`<${System} />`), "Feature descriptions"), false);
+});
+
+test("the second toggle is labelled option descriptions", async () => {
+  await reset();
+  assert.ok(hasLabel(render(html`<${System} />`), KEEP));
 });
