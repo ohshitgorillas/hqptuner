@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 from conftest import DaemonFactory, ManagerFactory, eventually
-from fake_control import CommandLog
+from fake_control import CommandLog, restart_after
 
 from hqptuner.core.manager import ConnectionManager
 
@@ -49,7 +49,7 @@ async def running_profile(
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 
     async def build(active: str) -> Built:
-        port, log, _state = await daemon(matrix_profile=active, _profile_names=active)
+        port, log, state = await daemon(matrix_profile=active, _profile_names=active)
         manager = http_manager_factory(
             http_daemon,
             hqp_host="127.0.0.1",
@@ -57,6 +57,12 @@ async def running_profile(
             hqp_http_port=http_daemon["_port"],
             poll_interval=0.02,
         )
+        # The restore this lane exists for SELF-RESTARTS the daemon: it answers
+        # 200, then exits and comes back running the config it just adopted,
+        # taking the Control API socket with it. The whole point of materializing
+        # the profile is what that restarted process comes up on, so the fake has
+        # to actually restart.
+        http_daemon["_on_restore"] = lambda: restart_after(state)
         task = asyncio.create_task(manager.run())
         await eventually(lambda: manager.reachable)
         started.append((manager, task))

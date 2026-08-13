@@ -92,6 +92,19 @@ DEFAULTS = {
     # knob says only what a daemon answered, never why.
     "_rates": "",
     "_sdm_rates": "",
+    # The self-restart a POST /restore triggers, as the Control API sees it
+    # (docs/protocol.md: an adopted restore is scope=system, so the daemon exits
+    # and comes back). `_restart_in` is how many more commands the process now on
+    # the socket answers before it goes: while it counts down the OLD state is
+    # what goes out, which is the ~5.6 s window the real daemon serves its
+    # pre-restart settings in. On the command that finds it gone the socket
+    # closes with nothing on it and `_restart_into` is adopted, so the connection
+    # that replaces it reaches a process answering the restored config. Empty
+    # means no restart is pending — the daemon this fake serves keeps running.
+    "_restart_in": "",
+    # State the restarted process comes up on: `key=value` pairs, ONE PER LINE
+    # (a value may contain spaces, as `_active_mode="SDM (DSD)"` does).
+    "_restart_into": "",
     # What Status.active_filter reports — the ACTIVE main filter as a display
     # string (protocol.md: Status reports display strings, State numeric
     # indices). Empty means the frame carries no active_filter attribute at all.
@@ -175,6 +188,48 @@ _JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
 # existing index moves, not because the daemon orders them that way.
 _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4", "384000"))
 _SDM_RATES = (("0", "0"), ("1", "2822400"), ("2", "5644800"), ("3", "12288000"))
+
+
+def restart_after(state: dict[str, str], into: dict[str, str] | None = None, *, commands: int = 0) -> None:
+    """Arm the self-restart an adopted ``POST /restore`` triggers.
+
+    The daemon writes the uploaded files, answers 200, and only THEN exits and
+    comes back (docs/protocol.md §3.6). So for a window after the 200 the OLD
+    process is still on the Control API socket, still answering the settings it
+    booted on; ``commands`` is how many more commands it answers before it goes.
+    The command that finds it gone gets no answer and the socket closes under
+    the client — the restart's only signature on this lane — and the connection
+    that replaces it reaches a process answering ``into``.
+
+    ``commands=0`` is the instant restart: the next command on the socket is
+    already too late. Arming nothing at all is the daemon that accepts the
+    restore and never restarts, which is a different case again.
+
+    The restarted state is a plain dict argument rather than ``**kwargs``: a
+    caller spreading one (``restart_after(state, RESTARTED_INTO_SDM)``) is the
+    common shape here, and a ``**dict[str, str]`` spread past an ``int``
+    parameter is what mypy has to reject."""
+    state["_restart_in"] = str(commands)
+    state["_restart_into"] = "\n".join(f"{key}={value}" for key, value in (into or {}).items())
+
+
+def _restart_due(state: dict[str, str]) -> bool:
+    """Whether this command is the one that finds the process gone; counts the
+    pre-restart window down otherwise, and adopts the restarted state on the way
+    out so the NEXT connection sees the daemon that came back."""
+    pending = state.get("_restart_in", "")
+    if not pending:
+        return False
+    if int(pending) > 0:
+        state["_restart_in"] = str(int(pending) - 1)
+        return False
+    state["_restart_in"] = ""
+    for line in state.get("_restart_into", "").splitlines():
+        key, _, value = line.partition("=")
+        if key:
+            state[key] = value
+    state["_restart_into"] = ""
+    return True
 
 
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
@@ -335,6 +390,8 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
     name, attrs = el.tag, el.attrib
     if log is not None:
         log.append((name, dict(attrs)))
+    if _restart_due(state):
+        return CLOSE  # the process that was answering has exited; the socket goes with it
     if name in state.get("_close", "").split():
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
