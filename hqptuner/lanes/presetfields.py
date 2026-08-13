@@ -39,17 +39,12 @@ def carried_live_fields(mgr: ConnectionManager) -> dict[str, str]:
 
     **The running engine is the authority, the store is the fallback.** A restore
     re-asserts the RUNNING configuration (``presetzip.restore_zip_from_running``),
-    and for this field set the engine is the only thing that knows what is running
-    — so what the user is hearing is what the restart has to come back on. The
-    store answers only for fields the engine cannot: a dormant chain it holds no
-    enumeration for, or a daemon that has not reported ``State`` yet.
-
-    Reading the store first and letting it win was a defect with no user-reachable
-    workaround. A live-routed mode never reaches the config file, so a stored mode
-    was re-asserted on every restore and the daemon restarted onto it; and because
-    the config surface grounds those controls on live truth
-    (``api/configapi.config``), re-selecting the mode the engine already held read
-    as clean and staged nothing. The file could not be corrected from the UI at all.
+    so what the user is hearing is what the restart has to come back on. The store
+    answers only for what the engine cannot: a dormant chain it holds no
+    enumeration for, or a daemon that has not reported ``State`` yet. Letting the
+    store win instead strands the config file, because the surface that would
+    correct it grounds on live truth (``api/configapi.config``) and so reads a
+    re-selection of the running value as clean and stages nothing.
 
     Deliberately NOT gated on the auto-save flag: auto-save decides whether the
     store is UPDATED, never whether it is honoured.
