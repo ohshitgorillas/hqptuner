@@ -32,6 +32,28 @@
   padding: var(--sp-1) var(--sp-2);
   white-space: nowrap;
 }
+/* The profile description box — a well, the same role the paste box takes: text
+   the user types INTO the card. Prose, not wire data, so it stays on the body
+   face rather than the mono one, and caps at the caption measure so a long
+   paragraph wraps at a readable line rather than running the card's full width. */
+.mtx-desc {
+  width: 100%;
+  max-width: var(--measure);
+  font-size: var(--fs-body);
+  background: var(--surface-well);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+  resize: vertical;
+}
+/* The state line under the box. No margin of its own — the field's own gap is
+   what separates a control from the line under it (design-system: space between
+   siblings has exactly one mechanism). */
+.mtx-desc-state {
+  font-size: var(--fs-micro);
+  color: var(--muted);
+}
 /* ── Matrix tab step 6: AutoEq / REW import panel ────────────────────────── */
 /* lives in the Headphone AutoEQ card body — the card is the container now */
 .mtx-import {

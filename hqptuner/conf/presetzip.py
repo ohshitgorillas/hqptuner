@@ -127,6 +127,45 @@ def restore_zip_with_working(
     return engineconf.rewrite_zip(zip_bytes, substitutions)
 
 
+#: Where HQPTuner's own records ride in a settings archive. Namespaced under a directory of ours so it can never
+#: collide with a member hqplayerd writes, and stripped again before any archive is handed back to the daemon —
+#: what the user downloads carries it, what the daemon restores does not.
+DESCRIPTIONS_MEMBER = "hqptuner/descriptions.json"
+
+
+def embed_descriptions(zip_bytes: bytes, payload: bytes) -> bytes:
+    """Return the archive with ``payload`` added as the descriptions member; unchanged for an empty payload.
+
+    This is what makes a downloaded backup carry the user's profile descriptions to another install. Every daemon
+    member is copied byte-for-byte (``rewrite_zip``), so the archive stays a valid restore source with or without us.
+    """
+    if not payload:
+        return zip_bytes
+    return engineconf.rewrite_zip(zip_bytes, {DESCRIPTIONS_MEMBER: payload})
+
+
+def take_descriptions(zip_bytes: bytes) -> tuple[bytes, bytes | None]:
+    """Split an uploaded archive into (archive without our member, the member's bytes or None).
+
+    The daemon never sees the member: it is not a member hqplayerd wrote, and a restore is not the place to find out
+    what it does with one. A payload that is not a zip at all — the restore route also accepts a bare XML file — comes
+    back untouched with no payload.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
+            if DESCRIPTIONS_MEMBER not in zin.namelist():
+                return zip_bytes, None
+            payload = zin.read(DESCRIPTIONS_MEMBER)
+            kept = [(item, zin.read(item.filename)) for item in zin.infolist() if item.filename != DESCRIPTIONS_MEMBER]
+    except (zipfile.BadZipFile, OSError):
+        return zip_bytes, None
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item, data in kept:
+            zout.writestr(item, data)
+    return out.getvalue(), payload
+
+
 def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
     """Every named preset snapshot in a ``/backup`` archive, keyed by preset name.
 

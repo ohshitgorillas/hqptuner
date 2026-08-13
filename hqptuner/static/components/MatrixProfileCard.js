@@ -12,6 +12,7 @@
 // and Load are therefore one lane each, and neither is ever refused for
 // playback state.
 import { signal } from "@preact/signals";
+import { useEffect } from "preact/hooks";
 import { html, wheelGuard } from "../lib/dom.js";
 import { api } from "../lib/api.js";
 import { errText } from "../lib/errtext.js";
@@ -30,6 +31,7 @@ import {
   stageProfileDelete,
   profileSavePending,
 } from "../store/profiles.js";
+import { descriptionFor, descriptionError, queueDescription, flushDescriptions } from "../store/descriptions.js";
 import { askChoices } from "../store/ask.js";
 import { notesVisible } from "../store/prefs.js";
 import { Ask } from "./Ask.js";
@@ -52,6 +54,12 @@ const profileSel = signal(null); // picker value; null = follow the active profi
 const profileNewName = signal("");
 const profileBusy = signal("");
 const profileNote = signal("");
+// What the user is typing into the description box, and which profile it is for.
+// A draft rather than a value read straight off the store because the config
+// poll refreshes every two seconds: a box bound to stored text would be rewritten
+// mid-sentence. Null means "nothing being typed" and the box shows what is
+// stored. Cleared whenever the box binds to a different profile.
+const draft = signal(/** @type {{ name: string, text: string } | null} */ (null));
 
 // A load is the live switch, and staging is not part of it: the switch already
 // installs the whole matrix context — rows and post-process chain — in the
@@ -166,10 +174,95 @@ function ProfileSaveRow({ saved, busy }) {
             if (targets === null) return;
             await stageProfileSave(newName, effectivePipelines.value, targets);
             profileNewName.value = "";
+            // Move the picker onto what was just saved, so the description box
+            // stays bound to the same profile as the name field empties under it.
+            profileSel.value = newName;
           })}
       >
         ${exists ? "Replace" : "Save"}
       </button>
+    </div>
+  `;
+}
+
+// The description box. It binds to the name in the Save-as field while there is
+// one, and to the picker's selection otherwise: the moment a description exists
+// in the user's head is the moment they are naming the profile, so making them
+// save first and come back to describe it would be the wrong order. After a save
+// the name field clears and the picker moves to the new name, which is the same
+// profile — so the text on screen keeps standing for the same thing.
+//
+// [Default] takes no description: it is not a saved profile and has no name to
+// key one by, so the box is present and disabled rather than absent, and says
+// which of the two the user has to do first.
+/**
+ * @param {string} updated an entry's ISO-8601 stamp
+ * @returns {string}
+ */
+function editedOn(updated) {
+  const at = new Date(updated);
+  if (Number.isNaN(at.getTime())) return "";
+  return at.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+// Which profile the box is describing, and what it is showing: the draft while
+// one is being typed for that profile, the stored text otherwise. `bound` is ""
+// when neither a saved profile nor a new name is in play — [Default].
+/**
+ * @param {string} sel the picker's selection
+ * @returns {{ bound: string, stored: { text: string, updated: string } | null, text: string, unsaved: boolean }}
+ */
+function describing(sel) {
+  const bound = profileNewName.value.trim() || sel;
+  const stored = bound ? descriptionFor(bound) : null;
+  const storedText = stored ? stored.text : "";
+  const d = draft.value;
+  const text = d && d.name === bound ? d.text : storedText;
+  return { bound, stored, text, unsaved: text !== storedText };
+}
+
+// The one line under the box, saying which of three things is true: the write
+// failed, the text has not been written yet, or here is when it last was.
+/**
+ * @param {{ stored: { text: string, updated: string } | null, unsaved: boolean }} props
+ */
+function DescriptionState({ stored, unsaved }) {
+  if (descriptionError.value) {
+    return html`<span class="mtx-issues">Description not saved — ${descriptionError.value}. Your text is here.</span>`;
+  }
+  if (unsaved) return "Saves when you pause typing.";
+  return stored ? `Edited ${editedOn(stored.updated)}` : "";
+}
+
+/**
+ * @param {{ sel: string }} props
+ */
+function DescriptionField({ sel }) {
+  const { bound, stored, text, unsaved } = describing(sel);
+  // A description is written where the user is, and left behind where they are
+  // not: a card that unmounts on a tab switch takes the box with it, and the
+  // paragraph in it has to reach the server on the way out.
+  useEffect(() => () => void flushDescriptions(), []);
+  return html`
+    <div class="field">
+      <label>Description${bound ? ` — ${bound}` : ""}</label>
+      <textarea
+        class="mtx-desc"
+        rows="4"
+        placeholder=${
+          bound
+            ? "Room, mic, target, date — whatever the name can't hold."
+            : "Pick a saved profile, or name one above, to describe it."
+        }
+        disabled=${!bound}
+        value=${text}
+        onInput=${(/** @type {{ target: HTMLTextAreaElement }} */ e) => {
+          draft.value = { name: bound, text: e.target.value };
+          queueDescription(bound, e.target.value);
+        }}
+        onBlur=${() => void flushDescriptions()}
+      ></textarea>
+      <div class="mtx-desc-state"><${DescriptionState} stored=${stored} unsaved=${unsaved} /></div>
     </div>
   `;
 }
@@ -250,6 +343,7 @@ export function ProfileCard() {
           <//>
           ${profileSavePending.value ? html`<div class="mtx-save-note">${SAVE_CONSEQUENCE}</div>` : null}
         </div>
+        <${DescriptionField} sel=${sel} />
         <${Ask} owner=${OWNER} />
         ${profileNote.value ? html`<div class="mtx-issues">${profileNote.value}</div>` : null}
     <//>

@@ -26,6 +26,7 @@ import { describe, selectionDescription, selectedLabel } from "../store/prose.js
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { refreshConfig } from "../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
+import { descriptionFor } from "../store/descriptions.js";
 import {
   livePresets,
   livePresetsBusy,
@@ -318,6 +319,12 @@ function profileOptions(saved) {
 
 function MatrixProfileCard() {
   const active = matrixActiveProfile.value;
+  // What the user wrote about the profile that is running, if they wrote
+  // anything. No box and no empty state: LIVE is a status page, and an empty
+  // frame here would be a control that does nothing. The description reads in
+  // the content grey against the muted caption below it, which is what separates
+  // the user's own words from ours.
+  const described = descriptionFor(active);
   return html`
     <${Card} title="Matrix profile">
       <div class="field">
@@ -330,6 +337,7 @@ function MatrixProfileCard() {
             onChange=${switchProfile}
           />
         </div>
+        ${described ? html`<div class="live-desc">${described.text}</div>` : null}
         <div class="field-note">
           Switches the running matrix immediately — no engine reload, and your crossfeed, DAC correction and loudness
           settings are left alone. A live switch alone is dropped at the next daemon restart; save it from the Matrix tab

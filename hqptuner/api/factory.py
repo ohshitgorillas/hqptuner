@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from hqptuner.api import (
     applyapi,
     configapi,
+    descriptionsapi,
     favoritesapi,
     livepresetapi,
     matrixapi,
@@ -23,6 +24,7 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
+from hqptuner.presets.descriptionstore import DescriptionStore
 from hqptuner.presets.favoritestore import FavoriteStore
 from hqptuner.presets.livepresets import LivePresetStore
 
@@ -53,6 +55,7 @@ def create_app(cfg: Config | None = None) -> FastAPI:
         app.include_router(audit_router(manager.audit))
     app.state.live_presets = LivePresetStore(cfg.live_preset_file)
     app.state.favorites = FavoriteStore(cfg.favorites_file)
+    app.state.descriptions = DescriptionStore(cfg.description_file)
     # Registration order is load-bearing: configapi's `GET /preset/{name:path}`
     # must stay ahead of presetapi's `DELETE /preset/{name}`, as it was when both
     # lived on one router.
@@ -65,5 +68,6 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.include_router(matrixapi.router)
     app.include_router(livepresetapi.router)
     app.include_router(favoritesapi.router)
+    app.include_router(descriptionsapi.router)
     mount_spa(app)
     return app

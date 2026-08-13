@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Matrix profiles can carry a description.** A profile name has room for "Auteur v3" and nothing else, so the Matrix tab's Profile card now has a box for the rest of it — the room, the mic position, the target curve, the date, whatever the filters in that profile were made under. It binds to whichever profile you have picked, or to the name you are typing into Save as, so you can write the description while you are naming the profile rather than going back for it afterwards. It saves on its own as you type, with no Apply and no engine restart. The LIVE page shows the running profile's description under its picker, so you can see what you are listening to. Descriptions travel in Download backup and are restored by Upload backup, which means they follow the profiles onto another install.
+
 ### Fixed
 
 - **The About card showed HQPlayer's DSP-engine version (6.0.4) as "Version", though the installed release is 6.0.2 — Signalyst numbers them separately.** It now shows both: "Version" (the release, from the daemon's About page) and "Engine".

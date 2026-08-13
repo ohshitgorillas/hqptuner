@@ -4,18 +4,23 @@ These are the routes that need the daemon's 8088 management lane, so every one o
 """
 
 import hashlib
+import logging
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
 
 from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr
 from hqptuner.api.models import EngineBody
+from hqptuner.conf import presetzip
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import liveoverrides
 from hqptuner.presets import presetlane
+from hqptuner.presets.descriptionstore import DescriptionError, DescriptionStore
 from hqptuner.presets.presetstore import PresetError
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
@@ -88,12 +93,23 @@ async def config_refresh(manager: HttpMgr) -> dict[str, Any]:
 
 
 @router.get("/backup")
-async def backup(manager: HttpMgr) -> Response:
-    """Return the daemon's own settings archive as a zip download (the System tab's Download backup link)."""
+async def backup(manager: HttpMgr, request: Request) -> Response:
+    """Return the daemon's settings archive as a zip download, carrying HQPTuner's profile descriptions.
+
+    The descriptions ride as one extra member (``presetzip.DESCRIPTIONS_MEMBER``) so the download is the whole of
+    what the user has here, not the daemon's half of it; every daemon member is copied byte-for-byte, so the archive
+    still restores anywhere. A store with nothing in it adds no member.
+    """
     try:
         data = await manager.presetops.backup()
     except ControlError as exc:
         raise HTTPException(status_code=502, detail=f"backup failed: {exc}") from exc
+    store: DescriptionStore = request.app.state.descriptions
+    try:
+        data = presetzip.embed_descriptions(data, store.export_bytes())
+    except DescriptionError as exc:
+        # An unreadable store is not a reason to withhold the daemon's own backup.
+        log.warning("descriptions not carried in backup: %s", exc)
     return Response(
         content=data,
         media_type="application/zip",
@@ -135,13 +151,25 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> dict[str, Any]:
 
 
 @router.post("/restore")
-async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr) -> dict[str, Any]:
-    """Push a user-uploaded settings archive to the daemon as-is, recording its name, size, and SHA-256 first.
+async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, request: Request) -> dict[str, Any]:
+    """Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.
 
-    The daemon self-restarts on it, interrupting playback. Nothing here inspects or rewrites the archive.
+    The daemon self-restarts on it, interrupting playback. The one thing taken out of the archive first is
+    HQPTuner's own descriptions member, which ``GET /api/backup`` put there: it is folded into this install's store
+    and never handed to hqplayerd, which did not write it and has no idea what it is. Everything else — including a
+    bare XML upload, which is not an archive at all — reaches the daemon exactly as the user sent it.
     """
     data = await cfgfile.read()
     manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
+    data, carried = presetzip.take_descriptions(data)
+    if carried is not None:
+        store: DescriptionStore = request.app.state.descriptions
+        try:
+            store.merge(carried)
+        except DescriptionError as exc:
+            # A restore is about the daemon's config; descriptions we cannot read are a note in the log, not a 4xx
+            # in front of the user's restore.
+            log.warning("carried descriptions not restored: %s", exc)
     try:
         await manager.restore_config(data)
     except (ControlError, httpx.HTTPError) as exc:

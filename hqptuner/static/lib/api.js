@@ -112,6 +112,12 @@ export const api = {
   // for one browser. Whole-set replace: unstarring is a PUT without the name.
   favorites: () => getJSON("/api/favorites"),
   saveFavorites: (/** @type {string[]} */ filters) => send("/api/favorites", "PUT", { filters }),
+  // Matrix-profile descriptions — what the user wrote about a saved profile,
+  // stored for the install. One profile per write, unlike favorites: the text is
+  // long and two browsers on different profiles must not overwrite each other.
+  descriptions: () => getJSON("/api/descriptions"),
+  saveDescription: (/** @type {string} */ name, /** @type {string} */ text) =>
+    send("/api/descriptions", "PUT", { name, text }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
   setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
   profile: (/** @type {string} */ action, /** @type {string} */ name) =>

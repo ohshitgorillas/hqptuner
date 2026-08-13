@@ -14,6 +14,19 @@
   max-width: var(--measure);
 }
 
+/* What the user wrote about the running matrix profile, under its picker (grid
+   col 2). The content grey and no frame of its own: it is the user's own words,
+   and the only thing separating them from the caption under them is that a
+   caption is ours. `pre-wrap` because a description is typed in lines — a pasted
+   measurement header loses its shape without it. */
+.live-desc {
+  grid-column: 2;
+  font-size: var(--fs-caption);
+  color: var(--fg);
+  max-width: var(--measure);
+  white-space: pre-wrap;
+}
+
 /* The LIVE MODE card: presets on the left, the page's lede on the right. A
    fixed two-column split, so the hairline gets its own 1px TRACK and lands on
    the card's centre line with every other divider down the page (design-system
