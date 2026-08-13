@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-08-13
+
 ### Added
 
 - **The Matrix tab's speakers/headphones choice now belongs to the preset.** Each preset remembers which half of the tab it is listened through, stored for the install rather than for one browser, so loading a preset puts the tab on its own side. A preset with no remembered side opens on the last one used.
