@@ -73,7 +73,7 @@ async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     previews the running config.
     """
     try:
-        return {"name": name, "config": await manager.read_preset(name)}
+        return {"name": name, "config": await presetlane.read(manager, name)}
     except PresetError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:

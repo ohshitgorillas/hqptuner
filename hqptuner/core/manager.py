@@ -35,7 +35,6 @@ from hqptuner.core.applyops import ApplyOps
 from hqptuner.engine import devicecaps, logtail, release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
 from hqptuner.lanes import httpforms, livechain, livelane, rescan, settle
-from hqptuner.presets import presetlane
 from hqptuner.presets.presetops import PresetOps
 from hqptuner.presets.presetstore import PresetError
 
@@ -323,13 +322,6 @@ class ConnectionManager:
         """
         await httpforms.refresh(self)
         await self.refresh_device_caps()
-
-    async def read_preset(self, name: str) -> dict[str, str]:
-        """Return a stored preset's saved settings in form-field terms without loading it.
-
-        The empty name means "(no preset)" and returns the running config instead.
-        """
-        return await presetlane.read(self, name)
 
     # --- accessors for the extracted write lanes --------------------------
 

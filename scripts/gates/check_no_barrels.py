@@ -66,7 +66,6 @@ MODULE_EXEMPT: dict[str, str] = {}
 FORWARDER_EXEMPT: dict[str, str] = {
     "hqptuner/presets/presetops.py::park_filter": "reaches the private filter park, which callers have no route to",
     "hqptuner/presets/presetops.py::parked_filter_members": "same park, same reason — the facade is the interface",
-    "hqptuner/core/manager.py::read_preset": "dies with the manager split; this entry fails as stale once it does",
 }
 
 
