@@ -161,29 +161,34 @@ function bufferHazard(key, value) {
  */
 const forcesFixedVolume = (key, value) => key === "direct_sdm" && truthy(value) && !atFixedMinusThree(effective);
 
+// Returns a question to settle before staging, or null for a safe edit — and
+// stays synchronous so a safe edit reaches its optimistic merge in the caller's
+// own tick. An `await` on the safe path defers that merge by a microtask, which
+// is long enough for a caller that fires an edit without awaiting it (setXfMode)
+// to read the pre-edit value back out of effective().
 /**
- * Ask the guard a hazardous (key, value) pair earns, or resolve true for a safe one.
+ * The guard question a hazardous (key, value) pair earns, or null for a safe one.
  *
  * @param {string} key
  * @param {string | number | boolean} value
- * @returns {Promise<boolean>}
+ * @returns {Promise<unknown> | null}
  */
-async function permitted(key, value) {
+function guard(key, value) {
   const hazard = bufferHazard(key, value);
   if (hazard)
-    return !!(await askWarn(
+    return askWarn(
       key,
       `It is strongly recommended NOT to use this setting (${hazard}) except under guidance from Jussi himself. ` +
         `Otherwise, this is probably going to break your setup or fail to produce music. ` +
         `Are you certain you actually know what you're doing?`,
-    ));
+    );
   if (forcesFixedVolume(key, value))
-    return !!(await askWarn(
+    return askWarn(
       key,
       "Enabling this setting will force a -3dB fixed volume on the PCM chain as well. Are you sure you want to proceed?",
       { confirm: "Yes", decline: "No" },
-    ));
-  return true;
+    );
+  return null;
 }
 
 /**
@@ -196,7 +201,8 @@ async function permitted(key, value) {
 export async function edit(key, value) {
   const e = schema[key];
   if (!e) return;
-  if (!(await permitted(key, value))) {
+  const ask = guard(key, value);
+  if (ask && !(await ask)) {
     // Declining stages nothing, but the control's DOM already shows the value
     // the user picked. Nothing here changed a signal, so no re-render would
     // snap it back until the next poll tick — a visible seconds-long lag.
