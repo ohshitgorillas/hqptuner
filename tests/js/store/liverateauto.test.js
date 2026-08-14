@@ -352,22 +352,11 @@ test("test_the_grayed_sdm_rate_column_says_the_engine_selects_the_rate_in_auto",
   assert.equal(liveModel.value.sdmRate.reason, AUTO_REASON);
 });
 
-// The two things the sentence must NOT say. Both are what the caption used to
-// carry, and either one back in the text is the old caption returning by the
-// back door — the reason is about what auto IS, not about what changing it
-// would cost or where else to go.
-
-test("test_the_grayed_pcm_rate_reason_names_no_restart", () => {
-  reset(AUTO_IDLE());
-  const said = reasonOf(liveModel.value.pcmRate);
-  assert.equal(said.includes("restart"), false, `the PCM rate reason still names a restart: ${JSON.stringify(said)}`);
-});
-
-test("test_the_grayed_pcm_rate_reason_names_no_destination_tab", () => {
-  reset(AUTO_IDLE());
-  const said = reasonOf(liveModel.value.pcmRate);
-  assert.equal(said.includes("tab"), false, `the PCM rate reason still names a tab: ${JSON.stringify(said)}`);
-});
+// What the sentence must NOT say — that the change costs a restart, and that the
+// setting lives on another tab — is what the old caption carried, and the
+// verbatim pair above pins it: either phrase back in the text is a different
+// sentence and fails there. The reason is about what auto IS, not about what
+// changing it would cost or where else to go.
 
 // --- the gray is the configured mode's, never the loaded chain's --------------
 // Auto mid-playback: a chain IS loaded and a source IS playing — and the engine

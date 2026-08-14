@@ -65,6 +65,12 @@ const METADATA = {
     output: {
       output_mode: { label: "Output mode", tooltip: "Selects default output mode." },
       rate: { label: "Output rate", tooltip: "Output sample rate request, or upper limit." },
+      // The two rate columns are addressed by their own keys, and the catalog
+      // serves each its own prose — the tooltip a field with nothing refusing it
+      // shows on hover. Distinct sentences, so a title read off the wrong key
+      // cannot pass.
+      pcm_rate: { label: "PCM", tooltip: "PCM output target rate." },
+      sdm_rate: { label: "SDM", tooltip: "SDM output target rate." },
       junk_filter: {
         label: "High-frequency filter",
         tooltip: "Playback filters for noise.",
@@ -183,9 +189,11 @@ test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
 // (store/liverateauto.test.js pins the sentence itself). What is pinned here is
 // where the user MEETS that sentence: on hover, as the field's own title — and
 // nowhere as a caption underneath, which is what the old gray had and what
-// reflows the row on every mode change. The rate columns are addressed by no
-// catalog key of their own, so the title is the reason or it is empty; there is
-// no tooltip for it to compete with.
+// reflows the row on every mode change. The reason stands IN PLACE OF the
+// column's own catalog prose, which is what the field shows on hover in every
+// other mode, so METADATA above seeds both `pcm_rate` and `sdm_rate` with a
+// tooltip: without one an empty title would be indistinguishable from a fixture
+// hole, and the case that asks for the tooltip would pin nothing.
 //
 // The anchors are what a user reads: the rate columns are labelled `PCM` and
 // `SDM`, and the field root is the single smallest element enclosing that label,
@@ -204,6 +212,9 @@ const EXPLICIT_PCM = { state: "1", name: "PCM", file: { mode: "pcm", ...LIMITS }
 // The sentence the store hands a grayed column in auto.
 const AUTO_REASON = "The engine selects the rate in Auto mode.";
 
+// The PCM column's own catalog prose, as METADATA above serves it.
+const PCM_RATE_TOOLTIP = "PCM output target rate.";
+
 /** @param {{ state: string, name: string, file: Record<string, string> }} mode */
 async function inOutputMode(mode) {
   await reset();
@@ -217,15 +228,31 @@ async function inOutputMode(mode) {
 /** @param {string} raw */
 const decode = (raw) => raw.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
-// The hover title of the field a rate column is rendered in. A miss throws
-// rather than quietly comparing `undefined`: a column that has lost its label
-// must fail loudly.
+// The field a rate column is rendered in: the smallest element enclosing its
+// label, which is the element a pointer hovers. A miss throws rather than
+// quietly measuring nothing — a column that has lost its label must fail loudly.
+/**
+ * @param {string} out
+ * @param {string} label
+ */
+const rateField = (out, label) => enclosing(out, labelled(out, label));
+
 /**
  * @param {string} out
  * @param {string} label
  * @returns {string}
  */
-const hoverTitle = (out, label) => decode(attrOf(enclosing(out, labelled(out, label)).attrs, "title") || "");
+const hoverTitle = (out, label) => decode(attrOf(rateField(out, label).attrs, "title") || "");
+
+// Whether one element encloses another — the question the title cases turn on,
+// since a title parked on a wrapper around BOTH columns would answer every one
+// of them and hover as one region rather than two.
+/**
+ * @param {import("../support/markup.js").MarkupElement} outer
+ * @param {import("../support/markup.js").MarkupElement} inner
+ */
+const encloses = (outer, inner) =>
+  outer.start <= inner.start && outer.start + outer.html.length >= inner.start + inner.html.length;
 
 // The whole Rate card — the smallest element enclosing its head, so a caption
 // anywhere in it counts, whether it sits on a field or beside the pair. A miss
@@ -248,12 +275,20 @@ test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_tit
   assert.equal(hoverTitle(page(), "SDM"), AUTO_REASON);
 });
 
-test("test_a_live_rate_field_with_no_reason_carries_no_hover_title_at_all", async () => {
-  // The rate columns are addressed by no catalog key of their own, so there is
-  // no prose for a title to fall back to: under an explicit mode, where the
-  // column carries no reason either, the field's title is empty.
+test("test_a_live_rate_field_with_no_reason_carries_its_own_catalog_prose_on_hover", async () => {
+  // Under an explicit mode the column carries no reason, so the hover title is
+  // the field's own tooltip — the prose the catalog serves under `pcm_rate`,
+  // not the neighbouring `sdm_rate` sentence and not the generic `rate` one.
   await inOutputMode(EXPLICIT_PCM);
-  assert.equal(hoverTitle(page(), "PCM"), "");
+  assert.equal(hoverTitle(page(), "PCM"), PCM_RATE_TOOLTIP);
+});
+
+test("test_the_pcm_rate_fields_hover_title_is_not_shared_with_the_sdm_column", async () => {
+  // The titled element is the PCM field itself. A title on a row wrapper around
+  // the pair reads the same to every case above and hovers as one region.
+  await inOutputMode(AUTO);
+  const out = page();
+  assert.equal(encloses(rateField(out, "PCM"), labelled(out, "SDM")), false);
 });
 
 // The caption is gone in BOTH modes: in auto because the reason now rides on the
