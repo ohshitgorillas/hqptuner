@@ -721,9 +721,9 @@ export const schema = {
     endpoint: "matrix",
     field: "post_bauer_preset",
     optionsFrom: "matrix",
-    // Four short options ("default", "Jan Meier", "Chu Moy", "custom"), so the
+    // Four short options ("Default", "Chu Moy", "Jan Meier", "Custom"), so the
     // wide form width left most of the control empty.
-    compact: "md",
+    compact: "sm",
     grayWhen: crossfeedOff,
     quietGray: true,
   },
