@@ -7,10 +7,11 @@
 // genre by AND (every picked genre must hold, so the list only shrinks as values
 // are added), focus by OR (any one is enough, so the list only grows). Those are
 // the defaults this file reads at; the modes themselves, and the other setting
-// of each, belong to tests/js/store/narrowing-mode.test.js. Length and ratio are
+// of each, belong to tests/js/store/narrowing-mode.test.js. Length is
 // single-valued: a filter is short or it is long, and picking one asks for that
-// one. The manual's escape hatches ("any" genre, "any" ratio) sit outside both
-// and survive every selection.
+// one. The manual's escape hatch ("any" genre) sits outside both and survives
+// every selection. The rate-narrowing switches — hide-2x, hide-integer,
+// downsample-safe-only — are tests/js/store/narrowing-rate.test.js's subject.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. Facet data is driven by assigning the two source signals the real
@@ -39,7 +40,6 @@ import {
   nGenre,
   nFocus,
   nLength,
-  nRatio,
   nApod1x,
   nApodNx,
   nHires1x,
@@ -139,13 +139,6 @@ const LENGTHS = [
   ["gauss-long", "4/5 ⥮ Any"],
 ];
 
-/** @type {FilterTuple[]} */
-const RATIOS = [
-  ["rat-int", "4/5 ⥮ Int"],
-  ["rat-two", "4/5 ⥮ 2^x"],
-  ["rat-any", "4/5 ⥮ Any"],
-];
-
 // For the per-stage switches: `arg` bit 0 is the apodizing flag, and a filter is
 // hi-res when its NAME carries `hires`. The 1x stage defaults to apodizing-only
 // and hi-res-hidden, the Nx stage to all of both.
@@ -213,17 +206,8 @@ test("test_narrowing_by_length_keeps_only_the_filters_of_that_length", () => {
   assert.deepEqual(labels(options), ["gauss-short"]);
 });
 
-test("test_narrowing_by_ratio_keeps_only_the_filters_of_that_ratio_class", () => {
-  const options = reset(RATIOS.slice(0, 2));
-  nRatio.value = "integer";
-  assert.deepEqual(labels(options), ["rat-int"]);
-});
-
-test("test_an_any_ratio_filter_survives_every_ratio_picked", () => {
-  const options = reset(RATIOS);
-  nRatio.value = "2x";
-  assert.deepEqual(labels(options), ["rat-two", "rat-any"]);
-});
+// The ratio-class and downsample-safety switches that replaced the single
+// ratio pick are pinned in tests/js/store/narrowing-rate.test.js.
 
 // Setting the facet back to "" gives the whole list back — the narrowing is
 // undone, not merely never applied, so each case narrows for real first.
@@ -233,13 +217,6 @@ test("test_putting_length_back_to_empty_narrows_by_length_not_at_all", () => {
   nLength.value = "short";
   nLength.value = "";
   assert.deepEqual(labels(options), ["gauss-short", "gauss-plain", "gauss-long"]);
-});
-
-test("test_putting_ratio_back_to_empty_narrows_by_ratio_not_at_all", () => {
-  const options = reset(RATIOS);
-  nRatio.value = "integer";
-  nRatio.value = "";
-  assert.deepEqual(labels(options), ["rat-int", "rat-two", "rat-any"]);
 });
 
 // --- selection state ------------------------------------------------------------
@@ -255,24 +232,11 @@ test("test_a_picked_length_is_active_narrowing", () => {
   assert.equal(narrowingActive.value, true);
 });
 
-test("test_a_picked_ratio_is_active_narrowing", () => {
-  reset(RATIOS);
-  nRatio.value = "integer";
-  assert.equal(narrowingActive.value, true);
-});
-
 test("test_reset_returns_length_to_not_narrowed", () => {
   reset(LENGTHS);
   nLength.value = "long";
   resetNarrowing();
   assert.equal(nLength.value, "");
-});
-
-test("test_reset_returns_ratio_to_not_narrowed", () => {
-  reset(RATIOS);
-  nRatio.value = "integer";
-  resetNarrowing();
-  assert.equal(nRatio.value, "");
 });
 
 // The per-stage switches reset to their OWN defaults, not to a bare clear: the
@@ -310,7 +274,6 @@ test("test_reset_returns_the_nx_hires_switch_to_all", () => {
 test("test_reset_leaves_narrowing_inactive", () => {
   reset(LENGTHS);
   nLength.value = "long";
-  nRatio.value = "integer";
   resetNarrowing();
   assert.equal(narrowingActive.value, false);
 });

@@ -1,21 +1,24 @@
 // Behavioral suite for the PERSISTENCE half of filter narrowing
 // (store/narrowing.js): the facets the narrow bar is set to, kept on the SERVER
 // so a reload finds the bar the way the user left it. Which filters a facet
-// then hides is narrowing.test.js's subject, not this file's.
+// then hides is narrowing.test.js's subject, not this file's. The three
+// rate-narrowing switches that replaced the ratio pick live in
+// tests/js/store/narrowing-rate.test.js, wire keys and all.
 //
 // Persistence is one REST pair, GET/PUT /api/narrowing, both sides carrying
-// `{facets: {...}}`, driven through the fetch fake below: it speaks that path
-// with those shapes and HOLDS the facet map the way the backend's store does
-// (docs/testing.md rule 4 — real path, real shapes, nothing of ours stubbed).
-// No daemon is behind it; narrowing is HQPTuner's own presentational state
-// (docs/architecture.md, "Filter narrowing").
+// `{facets: {...}}`, driven through the shared fetch fake in
+// tests/js/support/narrowingwire.js: it speaks that path with those shapes and
+// HOLDS the facet map the way the backend's store does (docs/testing.md rule 4
+// — real path, real shapes, nothing of ours stubbed). No daemon is behind it;
+// narrowing is HQPTuner's own presentational state (docs/architecture.md,
+// "Filter narrowing").
 //
 // Writing is coalesce-then-flush. The debounce window is not a behaviour to
 // test on a clock (rule 7), so every case that sends drives the write through
 // `flushNarrowing()`, the way descriptions.test.js drives `flushDescriptions`.
 //
-// `reset()` puts every piece of module state a case touches back: the thirteen
-// facet signals, the error line, and the private "changed since the last write"
+// `reset()` puts every piece of module state a case touches back: the facet
+// signals, the error line, and the private "changed since the last write"
 // mark, which it clears the only way a caller can — one flush against a
 // throwaway wire, sent BEFORE the case's own wire is installed so that drain
 // lands nowhere the case can see. Without it a case passes only behind
@@ -26,8 +29,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ok, bad } from "../support/wire.js";
+import { ok } from "../support/wire.js";
 import { settle } from "../support/livepresetwire.js";
+import { NARROWING_DEFAULTS as DEFAULTS, narrowingWire, puts } from "../support/narrowingwire.js";
 import {
   nGenre,
   nGenreMode,
@@ -36,8 +40,6 @@ import {
   nFocusMode,
   nPhase,
   nLength,
-  nRatio,
-  nUpsampleOnly,
   nApod1x,
   nApodNx,
   nHires1x,
@@ -57,34 +59,8 @@ const PATH = "/api/narrowing";
  */
 const env = globalThis;
 
-/** @typedef {Record<string, unknown>} Facets */
-
-/**
- * @typedef {{
- *   calls: { path: string, method: string, body?: string }[],
- *   facets: Facets,
- *   hold: boolean,
- *   release: () => void,
- * }} NarrowingWire
- */
-
-/** The thirteen facets at their documented defaults — the contract table. */
-/** @type {Facets} */
-const DEFAULTS = {
-  genre: [],
-  genre_mode: "and",
-  quality: 0,
-  focus: [],
-  focus_mode: "or",
-  phase: "",
-  length: "",
-  ratio: "",
-  upsample_only: false,
-  apod_1x: "only",
-  apod_nx: "all",
-  hires_1x: "hide",
-  hires_nx: "all",
-};
+/** @typedef {import("../support/narrowingwire.js").Facets} Facets */
+/** @typedef {import("../support/narrowingwire.js").NarrowingWire} NarrowingWire */
 
 /** One in-domain value per facet, each different from that facet's default. */
 /** @type {Facets} */
@@ -96,8 +72,6 @@ const SET = {
   focus_mode: "and",
   phase: "linear",
   length: "long",
-  ratio: "2x",
-  upsample_only: true,
   apod_1x: "all",
   apod_nx: "only",
   hires_1x: "show",
@@ -114,64 +88,11 @@ const SIGNALS = {
   focus_mode: nFocusMode,
   phase: nPhase,
   length: nLength,
-  ratio: nRatio,
-  upsample_only: nUpsampleOnly,
   apod_1x: nApod1x,
   apod_nx: nApodNx,
   hires_1x: nHires1x,
   hires_nx: nHiresNx,
 };
-
-/**
- * The PUT bodies the wire was handed, newest last, each as its `facets` member.
- *
- * @param {NarrowingWire} w
- * @returns {Facets[]}
- */
-const puts = (w) =>
-  w.calls.filter((c) => c.path === PATH && c.method === "PUT").map((c) => JSON.parse(String(c.body)).facets);
-
-/**
- * A fake of the server side of the pair: it holds the facet map, replaces the
- * whole map on a PUT, and answers `{facets}` either way — which is what the
- * real routes do. `hold` parks every answer until `release()`, which is how a
- * case observes what the client did BEFORE its request came back without
- * waiting on a clock.
- *
- * @param {{ facets?: Facets, getStatus?: number, getDetail?: string, putStatus?: number, putDetail?: string }} [cfg]
- * @returns {NarrowingWire}
- */
-function narrowingWire(cfg = {}) {
-  /** @type {(() => void)[]} */
-  let parked = [];
-  /** @type {NarrowingWire} */
-  const w = {
-    calls: [],
-    facets: { ...DEFAULTS, ...(cfg.facets || {}) },
-    hold: false,
-    release: () => {
-      const waiting = parked;
-      parked = [];
-      for (const resume of waiting) resume();
-    },
-  };
-  const getStatus = cfg.getStatus || 200;
-  const putStatus = cfg.putStatus || 200;
-  env.fetch = async (/** @type {string} */ path, /** @type {{method?: string, body?: string}} */ opts = {}) => {
-    const method = opts.method || "GET";
-    w.calls.push({ path, method, body: opts.body });
-    if (path !== PATH) return ok({});
-    if (w.hold) await new Promise((resolve) => parked.push(() => resolve(undefined)));
-    if (method !== "PUT") {
-      if (getStatus !== 200) return bad(getStatus, cfg.getDetail);
-      return ok({ facets: w.facets });
-    }
-    if (putStatus !== 200) return bad(putStatus, cfg.putDetail);
-    w.facets = { ...DEFAULTS, ...JSON.parse(String(opts.body)).facets };
-    return ok({ facets: w.facets });
-  };
-  return w;
-}
 
 /**
  * Put the module back to a stated starting state: every facet at its default,
@@ -265,12 +186,19 @@ test("test_one_changed_facet_flushes_as_exactly_one_put", async () => {
   assert.equal(puts(w).length, 1);
 });
 
-test("test_a_flush_sends_all_thirteen_facets", async () => {
+// The put may carry keys this table does not name — the rate-narrowing
+// switches, whose wire keys are pinned by their own suite — but every facet of
+// the table rides along.
+test("test_a_flush_sends_every_facet_of_the_contract_table", async () => {
   const w = await reset();
   await hydrateNarrowing();
   nPhase.value = "minimum";
   await flushNarrowing();
-  assert.deepEqual(Object.keys(puts(w).at(-1) || {}).sort(), Object.keys(DEFAULTS).sort());
+  const sent = puts(w).at(-1) || {};
+  assert.deepEqual(
+    Object.keys(DEFAULTS).filter((k) => !(k in sent)),
+    [],
+  );
 });
 
 test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
@@ -331,13 +259,17 @@ test("test_the_put_carries_no_favorites_only_key", async () => {
   );
 });
 
-test("test_a_reset_flushes_every_facet_at_its_default", async () => {
+test("test_a_reset_flushes_every_facet_of_the_contract_table_at_its_default", async () => {
   const w = await reset({ facets: SET });
   await hydrateNarrowing();
   nPhase.value = "minimum";
   resetNarrowing();
   await flushNarrowing();
-  assert.deepEqual(puts(w).at(-1), DEFAULTS);
+  const sent = puts(w).at(-1) || {};
+  assert.deepEqual(
+    Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, sent[k]])),
+    DEFAULTS,
+  );
 });
 
 // --- a write the server refused -----------------------------------------------------

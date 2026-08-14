@@ -1,11 +1,9 @@
 // Behavioral suite for the narrowing bar's rendered controls
-// (components/NarrowBar.js). Length and ratio are facets a filter carries
-// exactly ONE of, so their popovers offer their values as a single choice —
-// radio rows, not the checkbox rows the set-valued facets (genre, focus) use —
-// plus a row that clears the facet again. Ratio additionally carries the
-// orthogonal Upsample-only checkbox, which is not one of its classes. Last, the
-// count chip on a row previews the click that row would perform, which on a
-// value already picked is an UNPICK.
+// (components/NarrowBar.js). Length is a facet a filter carries exactly ONE
+// of, so its popover offers its values as a single choice — radio rows, not
+// the checkbox rows the set-valued facets (genre, focus) use — plus a row that
+// clears the facet again. Last, the count chip on a row previews the click
+// that row would perform, which on a value already picked is an UNPICK.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no store
 // function stubbed. State is driven by assigning the exported source signals the
@@ -201,8 +199,8 @@ function open(name) {
 }
 
 // One facet's own block, so nothing is read off the rest of the bar — the facet
-// BUTTON carries the same "Any length" / "Any ratio" wording as the row that
-// clears it, and every other facet has rows of its own.
+// BUTTON carries the same "Any length" wording as the row that clears it, and
+// every other facet has rows of its own.
 /**
  * @param {string} out
  * @param {string} name
@@ -258,13 +256,10 @@ test("test_the_length_facet_offers_its_values_as_radio_rows", async () => {
   assert.deepEqual(rowKinds(open("length")), ["radio"]);
 });
 
-// Every row of the ratio popover except the orthogonal upsample-only switch is
-// one of its classes, and each of those is a radio.
-test("test_the_ratio_facet_offers_its_values_as_radio_rows", async () => {
-  await reset();
-  const classes = rows(open("ratio")).filter((r) => !/upsample/i.test(r.label));
-  assert.deepEqual([...new Set(classes.map((r) => r.type))], ["radio"]);
-});
+// The single-select ratio popover and its upsample-only checkbox are gone —
+// three boolean rate-narrowing switches replaced them at the store level
+// (tests/js/store/narrowing-rate.test.js); their rendered controls are not
+// specified here.
 
 // --- the row that gives the facet back ------------------------------------------
 // A shut popover has no rows at all, so the row is read from the OPEN one; the
@@ -273,22 +268,6 @@ test("test_the_ratio_facet_offers_its_values_as_radio_rows", async () => {
 test("test_the_length_popover_offers_a_row_that_clears_the_facet", async () => {
   await reset();
   assert.ok(rowLabels(open("length")).includes("Any length"));
-});
-
-test("test_the_ratio_popover_offers_a_row_that_clears_the_facet", async () => {
-  await reset();
-  assert.ok(rowLabels(open("ratio")).includes("Any ratio"));
-});
-
-// --- the orthogonal switch that rides along with ratio ---------------------------
-
-test("test_the_ratio_popover_carries_the_upsample_only_checkbox", async () => {
-  await reset();
-  const upsample = rows(open("ratio")).filter((r) => /upsample[\s-]?only/i.test(r.label));
-  assert.deepEqual(
-    upsample.map((r) => r.type),
-    ["checkbox"],
-  );
 });
 
 // --- a row's count previews the click it would perform ----------------------------
