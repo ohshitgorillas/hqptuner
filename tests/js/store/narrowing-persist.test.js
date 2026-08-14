@@ -44,11 +44,7 @@ import {
   nHiresNx,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
-import {
-  narrowingError,
-  hydrateNarrowing,
-  flushNarrowing,
-} from "../../../hqptuner/static/store/narrowpersist.js";
+import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
 
 const PATH = "/api/narrowing";
 
