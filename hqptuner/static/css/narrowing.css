@@ -158,9 +158,13 @@
 }
 /* rate-change popover (Facets.js RateFacet): the three hide-rule rows plus
    explanatory prose. Wide enough for the prose to read as short paragraphs —
-   the row chrome is nowrap, so the popover needs its own measure. */
+   the row chrome is nowrap, so the popover needs its own measure. Anchored to
+   the button's RIGHT edge: the rate facet closes the facet row, so a
+   left-anchored pop this wide runs off the viewport. */
 .rate-pop {
   width: 24rem;
+  left: auto;
+  right: 0;
 }
 /* explainer / hint prose under the rule rows: caption voice, wraps, divided
    off the rows above it the way .multi-extra is. */

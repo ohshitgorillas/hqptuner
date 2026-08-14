@@ -148,7 +148,7 @@ function RatePop() {
     <${RateRule}
       on=${nDownsafeOnly.value}
       onToggle=${() => (nDownsafeOnly.value = !nDownsafeOnly.value)}
-      label="Show only downsampling-safe"
+      label="Show only downsampling-safe filters"
       count=${{ downsafeOnly: !nDownsafeOnly.value }}
     />
     ${
@@ -160,14 +160,16 @@ function RatePop() {
         : null
     }
     <div class="rate-note t-caption">
-      2x-only filters multiply the source rate by powers of two: a 48 kHz source can become 96, 192 or 384 kHz —
-      never a 44.1 kHz-family rate. Integer-only filters also allow in-between multiples (3x, 5x, …) but stay
-      locked to the source family. Neither can downsample.
+      <strong>2x-only:</strong> This filter can only output multiples of the source rate by factors of two. For
+      example, for a 48kHz source file, the filter could output 2x48, 4x48, 8x48, ...
     </div>
     <div class="rate-note t-caption">
-      Hint: if the output is SDM and the DAC lacks 48 kHz-family DSD rates, hide 2x- and integer-only filters —
-      they produce no output from 48 kHz-family sources. To downsample (say 192 to 96 kHz), show only
-      downsampling-safe filters.
+      <strong>Integer-only:</strong> Similar to 2x-only, but also capable of intermediate rates like 3x, 5x, etc.
+    </div>
+    <div class="rate-note t-caption">
+      <strong>HQPTuner Hints:</strong> If your output mode is SDM but your DAC doesn't support 48kHz-family DSD
+      rates, avoid 2x- and Integer-only filters. These will fail to produce output with 48kHz-family source
+      material.
     </div>
   </div>`;
 }
