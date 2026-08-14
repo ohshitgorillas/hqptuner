@@ -40,7 +40,7 @@ import {
   narrowingActive,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
+import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
 import { genreLabel, focusLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
@@ -104,13 +104,27 @@ const FOCUS = [
   ["gauss-d", "4/5 ⥮ Any"],
 ];
 
-// Genre lives only in the static overlay; these four carry no focus at all.
+// Two filters alike in everything the narrow bar reads except that one carries
+// no focus at all, so a case run past this pair turns on that one difference:
+// the tagged filter passes in either mode, and only the untagged one can move
+// the answer.
+/** @type {FilterTuple[]} */
+const FOCUS_UNTAGGED = [
+  ["gauss-tagged", "5/5 timbre, transients ⥮ Any"],
+  ["gauss-untagged", "5/5 ⥮ Any"],
+];
+
+// Genre lives only in the static overlay; these five carry no focus at all.
+// `gauss-e` is tagged with a genre no case picks alongside it, so an OR over the
+// picked genres leaves it out and the expected result of a case is never the
+// whole list — a genre facet dropped altogether would answer five.
 /** @type {FilterTuple[]} */
 const PLAIN = [
   ["gauss-a", "5/5 ⥮ Any"],
   ["gauss-b", "5/5 ⥮ Any"],
   ["gauss-c", "4/5 ⥮ Any"],
   ["gauss-d", "4/5 ⥮ Any"],
+  ["gauss-e", "4/5 ⥮ Any"],
 ];
 
 // `any` is the manual's genre-agnostic tag: a real genre value meaning "suits
@@ -120,6 +134,7 @@ const GENRES = {
   "gauss-b": { genre: ["jazz"] },
   "gauss-c": { genre: ["any"] },
   "gauss-d": { genre: ["classical"] },
+  "gauss-e": { genre: ["pop"] },
 };
 
 // --- genre combines by its own mode -------------------------------------------
@@ -130,7 +145,9 @@ test("test_two_genres_in_the_default_mode_keep_only_the_filters_tagged_with_both
   assert.deepEqual(labels(options), ["gauss-a", "gauss-c"]);
 });
 
-test("test_two_genres_in_or_mode_keep_every_filter_tagged_with_either", () => {
+// `gauss-e` is the discriminator: pop is neither picked genre, so an OR still
+// leaves it out and a genre facet ignored in or mode would answer five.
+test("test_two_genres_in_or_mode_keep_every_filter_tagged_with_either_and_no_other", () => {
   const options = reset(PLAIN, GENRES);
   nGenreMode.value = "or";
   nGenre.value = ["jazz", "classical"];
@@ -146,12 +163,12 @@ test("test_a_genre_agnostic_filter_survives_every_genre_picked_in_and_mode", () 
   assert.deepEqual(labels(options), ["gauss-c"]);
 });
 
-// "pop" is carried by nothing but the `any` tag, so only the escape hatch can
+// "metal" is carried by nothing but the `any` tag, so only the escape hatch can
 // answer here — an OR over the picked genre alone would leave the list empty.
 test("test_a_genre_agnostic_filter_survives_a_genre_no_filter_carries_in_or_mode", () => {
   const options = reset(PLAIN, GENRES);
   nGenreMode.value = "or";
-  nGenre.value = ["pop"];
+  nGenre.value = ["metal"];
   assert.deepEqual(labels(options), ["gauss-c"]);
 });
 
@@ -171,18 +188,22 @@ test("test_two_focus_values_in_and_mode_keep_only_the_filters_carrying_both", ()
 });
 
 // --- focus has no escape hatch ----------------------------------------------------
+// Genre's `any` has no focus counterpart, so an untagged filter is out of every
+// non-empty focus pick whichever mode is set. The pair below is one tagged
+// filter and one untagged, and the tagged one passes in both modes: the only
+// thing either assertion can be reading is the untagged filter's exclusion.
 
 test("test_a_filter_with_no_focus_fails_a_focus_pick_in_the_default_mode", () => {
-  const options = reset(FOCUS);
+  const options = reset(FOCUS_UNTAGGED);
   nFocus.value = ["timbre", "transients"];
-  assert.equal(labels(options).includes("gauss-d"), false);
+  assert.deepEqual(labels(options), ["gauss-tagged"]);
 });
 
 test("test_a_filter_with_no_focus_fails_a_focus_pick_in_and_mode", () => {
-  const options = reset(FOCUS);
+  const options = reset(FOCUS_UNTAGGED);
   nFocusMode.value = "and";
-  nFocus.value = ["timbre"];
-  assert.equal(labels(options).includes("gauss-d"), false);
+  nFocus.value = ["timbre", "transients"];
+  assert.deepEqual(labels(options), ["gauss-tagged"]);
 });
 
 // --- a mode alone narrows nothing --------------------------------------------------
@@ -190,7 +211,7 @@ test("test_a_filter_with_no_focus_fails_a_focus_pick_in_and_mode", () => {
 test("test_a_genre_mode_with_no_genre_picked_narrows_nothing", () => {
   const options = reset(PLAIN, GENRES);
   nGenreMode.value = "or";
-  assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d"]);
+  assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d", "gauss-e"]);
 });
 
 test("test_a_focus_mode_with_no_focus_picked_narrows_nothing", () => {
@@ -228,12 +249,33 @@ test("test_reset_returns_the_focus_mode_to_or", () => {
   assert.equal(nFocusMode.value, "or");
 });
 
+// --- the count beside a dropdown follows the mode -----------------------------------
+// The count chips are what a user reads while deciding, so each has to answer
+// under the mode that is set. Both cases pick values the two modes disagree
+// about, and neither expected number is the fixture's total, so a count taken
+// under the default mode or with the facet dropped answers something else.
+
+test("test_the_count_under_a_non_default_genre_mode_is_the_number_tagged_with_either", () => {
+  const options = reset(PLAIN, GENRES);
+  nGenreMode.value = "or";
+  nGenre.value = ["jazz", "classical"];
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 4);
+});
+
+test("test_the_count_under_a_non_default_focus_mode_is_the_number_carrying_both", () => {
+  const options = reset(FOCUS);
+  nFocusMode.value = "and";
+  nFocus.value = ["timbre", "transients"];
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 1);
+});
+
 // --- a preview counts under the mode it is handed -------------------------------
 // The chip beside a mode row says what the dropdowns would offer if that row
 // were clicked, so it has to answer for the mode in its overrides and not the
 // one the store is on. Each case leaves the picked values live and overrides the
-// mode alone, and the two modes give different numbers, so a preview reading the
-// live mode could not answer.
+// mode alone, and the two modes give different numbers — neither of them the
+// fixture's total, so a preview that dropped the facet on an override key it did
+// not recognise could not answer either.
 
 test("test_a_preview_counts_genres_under_the_mode_in_its_overrides", () => {
   const options = reset(PLAIN, GENRES);
