@@ -256,10 +256,25 @@ test("test_the_length_facet_offers_its_values_as_radio_rows", async () => {
   assert.deepEqual(rowKinds(open("length")), ["radio"]);
 });
 
+// --- the rate popover ----------------------------------------------------------
 // The single-select ratio popover and its upsample-only checkbox are gone —
-// three boolean rate-narrowing switches replaced them at the store level
-// (tests/js/store/narrowing-rate.test.js); their rendered controls are not
-// specified here.
+// the rate facet offers the three narrowing switches
+// (tests/js/store/narrowing-rate.test.js) as independent checkbox rows, each
+// under its exact user-facing wording.
+
+const RATE_ROWS = [
+  "Hide output rate-limited filters",
+  "Show only filters that support downsampling",
+  "Show only filters that support resampling uncommon source rates (e.g., 32kHz)",
+];
+
+test("test_the_rate_popover_offers_exactly_the_three_switches_as_checkbox_rows", async () => {
+  await reset();
+  assert.deepEqual(
+    rows(open("rate")),
+    RATE_ROWS.map((label) => ({ type: "checkbox", label })),
+  );
+});
 
 // --- the row that gives the facet back ------------------------------------------
 // A shut popover has no rows at all, so the row is read from the OPEN one; the

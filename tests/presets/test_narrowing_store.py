@@ -8,11 +8,11 @@ built with no credentials and a control lane pointed at a closed port, and every
 store file lands under pytest's ``tmp_path``, never in the repo's state dir.
 
 The facets and their defaults are the contract this file is written against;
-`DEFAULTS` below is that table, not a snapshot of anything. The single-select
-``ratio`` and the ``upsample_only`` flag are gone from it — two tri-state
-class hides (``hide_2x`` and ``hide_int``, each ``auto``/``on``/``off``,
-default ``auto``) and the boolean ``downsafe_only`` replaced them, and the
-retired keys are refused on write and never surfaced on read.
+`DEFAULTS` below is that table, not a snapshot of anything. The rate half is
+the tri-state ``hide_limited`` (``auto``/``on``/``off``, default ``auto``) and
+the two real booleans ``odd_rate_only`` and ``downsafe_only`` (default False,
+truthy strings refused); the retired ``hide_2x``, ``hide_int``, ``ratio`` and
+``upsample_only`` keys are refused on write and never surfaced on read.
 
 On-disk layout: the file carries a schema stamp under ``schema``, the way
 `favoritestore` stamps its own file. Where the facets themselves sit inside that
@@ -45,8 +45,8 @@ DEFAULTS: dict[str, object] = {
     "focus_mode": "or",
     "phase": "",
     "length": "",
-    "hide_2x": "auto",
-    "hide_int": "auto",
+    "hide_limited": "auto",
+    "odd_rate_only": False,
     "downsafe_only": False,
     "apod_1x": "only",
     "apod_nx": "all",
@@ -63,8 +63,8 @@ SET: dict[str, object] = {
     "focus_mode": "and",
     "phase": "linear",
     "length": "long",
-    "hide_2x": "on",
-    "hide_int": "off",
+    "hide_limited": "on",
+    "odd_rate_only": True,
     "downsafe_only": True,
     "apod_1x": "all",
     "apod_nx": "only",
@@ -79,8 +79,7 @@ OUT_OF_DOMAIN: dict[str, object] = {
     "focus": ["loudness"],
     "phase": "banana",
     "length": "enormous",
-    "hide_2x": "yes",
-    "hide_int": "maybe",
+    "hide_limited": "yes",
     "apod_1x": "some",
     "apod_nx": "some",
     "hires_1x": "maybe",
@@ -94,9 +93,11 @@ WRONG_TYPE: dict[str, object] = {
     "focus": "timbre",
     "phase": 1,
     "length": ["long"],
-    "hide_2x": True,
-    "hide_int": False,
-    "downsafe_only": "on",
+    "hide_limited": True,
+    # The two switches are real booleans: a truthy string is refused, never
+    # coerced.
+    "odd_rate_only": "on",
+    "downsafe_only": "true",
     "apod_1x": 0,
     "apod_nx": None,
     "hires_1x": ["show"],
@@ -341,22 +342,28 @@ def test_a_write_carrying_a_key_that_is_not_a_facet_is_refused_naming_that_key(t
         store_at(tmp_path).write({"wombat": "yes"})
 
 
-# --- the retired ratio facets -------------------------------------------------
-# The single-select ratio and the upsample-only flag are no longer facets at
-# all: a client still writing them is refused the way any unknown key is, and a
-# file an older HQPTuner left carrying them reads as if they were never there.
+# --- the retired rate facets --------------------------------------------------
+# The single-select ratio, the upsample-only flag and the per-class hide pair
+# are no longer facets at all: a client still writing them is refused the way
+# any unknown key is, and a file an older HQPTuner left carrying them reads as
+# if they were never there.
 
-RETIRED: dict[str, object] = {"ratio": "2x", "upsample_only": True}
+RETIRED: dict[str, object] = {
+    "ratio": "2x",
+    "upsample_only": True,
+    "hide_2x": "on",
+    "hide_int": "off",
+}
 
 
 @pytest.mark.parametrize("legacy", sorted(RETIRED))
-def test_a_write_of_a_retired_ratio_facet_is_refused(tmp_path: Path, legacy: str) -> None:
+def test_a_write_of_a_retired_rate_facet_is_refused(tmp_path: Path, legacy: str) -> None:
     with pytest.raises(NarrowingError):
         store_at(tmp_path).write({legacy: RETIRED[legacy]})
 
 
 @pytest.mark.parametrize("legacy", sorted(RETIRED))
-def test_a_stored_retired_ratio_facet_does_not_surface_on_read(tmp_path: Path, legacy: str) -> None:
+def test_a_stored_retired_rate_facet_does_not_surface_on_read(tmp_path: Path, legacy: str) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to(legacy, RETIRED[legacy]))
     assert legacy not in store_at(tmp_path).read()
@@ -365,16 +372,16 @@ def test_a_stored_retired_ratio_facet_does_not_surface_on_read(tmp_path: Path, l
 def drop_new_switches(facets: dict[str, Any]) -> None:
     """A `edit_facets` mutation shaping the file an older HQPTuner left: the
     retired facets present, the switches that replaced them absent."""
-    for key in ("hide_2x", "hide_int", "downsafe_only"):
+    for key in ("hide_limited", "odd_rate_only", "downsafe_only"):
         facets.pop(key, None)
     facets.update(RETIRED)
 
 
 @pytest.mark.parametrize(
     ("switch", "default"),
-    [("hide_2x", "auto"), ("hide_int", "auto"), ("downsafe_only", False)],
+    [("hide_limited", "auto"), ("odd_rate_only", False), ("downsafe_only", False)],
 )
-def test_a_legacy_ratio_file_reads_the_replacement_switch_at_its_default(
+def test_a_legacy_rate_file_reads_the_replacement_switch_at_its_default(
     tmp_path: Path, switch: str, default: object
 ) -> None:
     path = stored(tmp_path, SET)
@@ -383,8 +390,8 @@ def test_a_legacy_ratio_file_reads_the_replacement_switch_at_its_default(
 
 
 def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path: Path) -> None:
-    answered = store_at(tmp_path).write({"hide_2x": "on"})
-    assert {"hide_2x", "hide_int", "downsafe_only"} <= answered.keys()
+    answered = store_at(tmp_path).write({"hide_limited": "on"})
+    assert {"hide_limited", "odd_rate_only", "downsafe_only"} <= answered.keys()
 
 
 # The cap is on the list's length exactly as given: the store does not

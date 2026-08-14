@@ -1,17 +1,17 @@
 // Behavioral suite for the RATE half of filter narrowing (store/narrowing.js +
-// store/narrowmatch.js): the switches that replaced the single-select ratio
-// pick and the show-only Upsample-only checkbox —
+// store/narrowmatch.js): the three switches that narrow by what a filter can
+// do with the engine's rates —
 //
-//   nHide2x       "auto" | "on" | "off" — hide filters whose ratio class is "2x"
-//   nHideInt      "auto" | "on" | "off" — hide filters whose ratio class is "integer"
-//   nDownsafeOnly boolean — show only downsampling-safe filters
+//   nHideLimited  "auto" | "on" | "off" — hide filters whose ratio class is
+//                 "2x" OR "integer" (the output rate-limited classes)
+//   nOddRateOnly  boolean — hide the "2x" ratio filters only
+//   nDownsafeOnly boolean — hide the upsample-only filters
 //
-// "auto" follows the engine: the class hides engage on their own exactly when
-// the effective output mode is SDM and the live rates enumeration offers no
-// rate that is a positive multiple of 48000 (the `rate:"0"` row is a sentinel,
-// not a rate — protocol.md §6). `rateAutoHide` is that condition, and
-// `effHide2x` / `effHideInt` are the effective booleans after "on"/"off"
-// overrides.
+// "auto" follows the engine: the limited-class hide engages on its own exactly
+// when the effective output mode is SDM and the live rates enumeration offers
+// no rate that is a positive multiple of 48000 (the `rate:"0"` row is a
+// sentinel, not a rate — protocol.md §6). `rateAutoHide` is that condition and
+// `effHideLimited` the effective boolean after the "on"/"off" overrides.
 //
 // Facet data is driven the way narrowing.test.js drives it — `enums.filters`
 // carries the engine's own `<GetFilters/>` items (protocol.md:226) with the
@@ -20,18 +20,17 @@
 // /api/metadata. The 1:1 class, the mode-split ratio pair and the flat
 // upsample flag live in the overlay, the shape data/filters.json ships
 // (`ratio: "1:1"`, `ratio_pcm`/`ratio_sdm`, `upsample_only`); on a mode-split
-// record the flat flag reads per chain — PCM yes, SDM never. The
-// output mode and the rates list ride the payloads that really carry them:
-// the /config form's `mode` field and the enumeration's `rates` items,
-// the way liverate.test.js and the shaperfit fixtures seed them.
+// record the flat flag reads per chain — PCM yes, SDM never. The output mode
+// and the rates list ride the payloads that really carry them: the /config
+// form's `mode` field and the enumeration's `rates` items, the way
+// liverate.test.js and the shaperfit fixtures seed them.
 //
 // Persistence rides the same GET/PUT /api/narrowing pair as every other facet,
 // driven through the shared fetch fake (tests/js/support/narrowingwire.js).
-// The wire keys of the three switches are the implementation's to name, so the
-// round-trip cases hydrate from the facets the client itself flushed rather
-// than hard-coding keys; what IS pinned by name is that the legacy `ratio` and
-// `upsample_only` keys are neither written nor choked on when an old file
-// still carries them.
+// The wire keys are pinned BY NAME — `hide_limited`, `odd_rate_only`,
+// `downsafe_only` — on the PUT body itself, and the legacy `hide_2x`,
+// `hide_int`, `ratio` and `upsample_only` keys are neither written nor choked
+// on when an old file still carries them.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire.
@@ -43,19 +42,13 @@ import assert from "node:assert/strict";
 
 import { narrowingWire, puts } from "../support/narrowingwire.js";
 import {
-  nHide2x,
-  nHideInt,
+  nHideLimited,
+  nOddRateOnly,
   nDownsafeOnly,
   narrowingActive,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
-import {
-  narrowOptions,
-  narrowCount,
-  rateAutoHide,
-  effHide2x,
-  effHideInt,
-} from "../../../hqptuner/static/store/narrowmatch.js";
+import { narrowOptions, rateAutoHide, effHideLimited } from "../../../hqptuner/static/store/narrowmatch.js";
 import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
 import { enums, metadata, config } from "../../../hqptuner/static/store/signals.js";
 
@@ -70,7 +63,7 @@ const SDM_FIELD = "sdm_filter_nx";
  */
 
 /**
- * The two members `narrowOptions` and friends read off a dropdown option.
+ * The two members `narrowOptions` reads off a dropdown option.
  *
  * @typedef {{ value: string | number | undefined, label: string }} NarrowOption
  */
@@ -147,6 +140,8 @@ const CLASSES = [
   ["rat-any", "4/5 ⥮ Any"],
 ];
 
+const ALL_CLASSES = ["rat-two", "rat-int", "rat-any", "none"];
+
 const ONE_TO_ONE = { none: { ratio: "1:1" } };
 
 /** @param {{ mode?: string, rates?: string[] }} [engine] */
@@ -166,81 +161,63 @@ const UPSAMPLE_OVERLAY = {
   "down-ok": { upsample_only: false },
 };
 
-// Mode-split records, overlay-only the way inactive-mode filters are, in
-// exactly the shape data/filters.json ships: a ratio integer on the PCM side
-// but any on the SDM side, and the mqa/mp3 pair, whose FLAT `upsample_only`
-// flag on a mode-split record holds on PCM fields and never on SDM fields —
-// that per-chain reading is resolution-time, not a pair of overlay keys.
-const SPLIT_RATIO = { "closed-form": { ratio_pcm: "integer", ratio_sdm: "any" } };
-const SPLIT_UPSAMPLE = {
+// The mode-split record, overlay-only the way inactive-mode filters are, in
+// exactly the shape data/filters.json ships for the mqa/mp3 pair: a ratio
+// integer on the PCM side, any on the SDM side, and a FLAT `upsample_only`
+// flag that holds on PCM fields and never on SDM fields — that per-chain
+// reading is resolution-time, not a pair of overlay keys.
+const SPLIT = {
   "poly-sinc-mqa/mp3-lp": { ratio_pcm: "integer", ratio_sdm: "any", upsample_only: true },
 };
 
+const split = () => reset([], SPLIT, ["poly-sinc-mqa/mp3-lp"]);
+
 // --- nothing engaged ---------------------------------------------------------
 
-test("test_every_switch_at_its_default_returns_the_option_list_untouched", () => {
+test("test_every_switch_at_its_default_returns_the_labels_untouched", () => {
   const options = classes();
-  assert.equal(narrowOptions(options, STAGE, PCM_FIELD), options);
+  assert.deepEqual(labels(options), ALL_CLASSES);
 });
 
-// --- each class hide switched on hides its class -------------------------------
+// --- the limited-class hide ----------------------------------------------------
 
-test("test_hide_2x_on_excludes_only_the_2x_ratio_filters", () => {
+test("test_hide_limited_on_excludes_the_2x_and_integer_filters", () => {
   const options = classes();
-  nHide2x.value = "on";
-  assert.deepEqual(labels(options), ["rat-int", "rat-any", "none"]);
-});
-
-test("test_hide_integer_on_excludes_only_the_integer_ratio_filters", () => {
-  const options = classes();
-  nHideInt.value = "on";
-  assert.deepEqual(labels(options), ["rat-two", "rat-any", "none"]);
-});
-
-test("test_both_hides_on_leave_only_the_any_and_one_to_one_filters", () => {
-  const options = classes();
-  nHide2x.value = "on";
-  nHideInt.value = "on";
+  nHideLimited.value = "on";
   assert.deepEqual(labels(options), ["rat-any", "none"]);
 });
 
-test("test_the_count_under_hide_2x_on_is_the_number_of_non_2x_filters", () => {
-  const options = classes();
-  nHide2x.value = "on";
-  assert.equal(narrowCount(options, STAGE, PCM_FIELD).n, 3);
+test("test_hide_limited_off_passes_the_limited_classes_auto_would_hide", () => {
+  const options = classes({ mode: "sdm", rates: DSD_44K });
+  nHideLimited.value = "off";
+  assert.deepEqual(labels(options), ALL_CLASSES);
 });
 
 // Putting the switch back to "auto" — under conditions where auto does not
 // engage — gives the whole list back: the narrowing is undone, not merely
 // never applied, so the case narrows for real first.
-test("test_putting_hide_2x_back_to_auto_narrows_by_ratio_not_at_all", () => {
+test("test_putting_hide_limited_back_to_auto_narrows_by_ratio_not_at_all", () => {
   const options = classes();
-  nHide2x.value = "on";
-  nHide2x.value = "auto";
-  assert.deepEqual(labels(options), ["rat-two", "rat-int", "rat-any", "none"]);
+  nHideLimited.value = "on";
+  nHideLimited.value = "auto";
+  assert.deepEqual(labels(options), ALL_CLASSES);
 });
 
 // --- auto follows the engine ----------------------------------------------------
 
-test("test_auto_hides_both_classes_in_sdm_with_no_48k_family_rate", () => {
+test("test_auto_hides_both_limited_classes_in_sdm_with_no_48k_family_rate", () => {
   const options = classes({ mode: "sdm", rates: DSD_44K });
   assert.deepEqual(labels(options), ["rat-any", "none"]);
 });
 
 test("test_auto_hides_nothing_when_a_48k_multiple_rate_is_offered", () => {
   const options = classes({ mode: "sdm", rates: DSD_MIXED });
-  assert.deepEqual(labels(options), ["rat-two", "rat-int", "rat-any", "none"]);
+  assert.deepEqual(labels(options), ALL_CLASSES);
 });
 
 test("test_auto_hides_nothing_outside_sdm_output_whatever_the_rates", () => {
   const options = classes({ mode: "pcm", rates: DSD_44K });
-  assert.deepEqual(labels(options), ["rat-two", "rat-int", "rat-any", "none"]);
-});
-
-test("test_an_off_override_passes_the_2x_filters_auto_would_hide", () => {
-  const options = classes({ mode: "sdm", rates: DSD_44K });
-  nHide2x.value = "off";
-  assert.deepEqual(labels(options), ["rat-two", "rat-any", "none"]);
+  assert.deepEqual(labels(options), ALL_CLASSES);
 });
 
 test("test_rate_auto_hide_engages_in_sdm_with_no_48k_family_rate", () => {
@@ -265,21 +242,34 @@ test("test_the_zero_rate_sentinel_row_is_not_a_48k_family_rate", () => {
   assert.equal(rateAutoHide.value, true);
 });
 
-test("test_eff_hide_2x_is_false_when_auto_engages_but_the_switch_is_off", () => {
-  classes({ mode: "sdm", rates: DSD_44K });
-  nHide2x.value = "off";
-  assert.equal(effHide2x.value, false);
-});
-
-test("test_eff_hide_2x_is_true_when_the_switch_is_on_and_auto_is_not", () => {
+test("test_eff_hide_limited_is_true_when_the_switch_is_on_and_auto_is_not", () => {
   classes({ mode: "pcm", rates: DSD_MIXED });
-  nHide2x.value = "on";
-  assert.equal(effHide2x.value, true);
+  nHideLimited.value = "on";
+  assert.equal(effHideLimited.value, true);
 });
 
-test("test_eff_hide_int_is_true_on_auto_while_auto_engages", () => {
+test("test_eff_hide_limited_is_true_on_auto_while_auto_engages", () => {
   classes({ mode: "sdm", rates: DSD_44K });
-  assert.equal(effHideInt.value, true);
+  assert.equal(effHideLimited.value, true);
+});
+
+test("test_eff_hide_limited_is_false_on_auto_while_auto_does_not_engage", () => {
+  classes({ mode: "pcm", rates: DSD_MIXED });
+  assert.equal(effHideLimited.value, false);
+});
+
+test("test_eff_hide_limited_is_false_when_auto_engages_but_the_switch_is_off", () => {
+  classes({ mode: "sdm", rates: DSD_44K });
+  nHideLimited.value = "off";
+  assert.equal(effHideLimited.value, false);
+});
+
+// --- the odd-rate switch ------------------------------------------------------
+
+test("test_odd_rate_only_excludes_the_2x_filters_and_passes_the_rest", () => {
+  const options = classes();
+  nOddRateOnly.value = true;
+  assert.deepEqual(labels(options), ["rat-int", "rat-any", "none"]);
 });
 
 // --- the downsample-safe switch ----------------------------------------------
@@ -294,26 +284,27 @@ test("test_downsample_safe_only_excludes_only_the_upsample_only_filters", () => 
 
 // --- the 1:1 filter survives every combination --------------------------------
 
-for (const [hide2x, hideInt, downsafe] of [
-  ["on", "auto", false],
-  ["auto", "on", false],
-  ["auto", "auto", true],
-  ["on", "on", false],
-  ["on", "auto", true],
-  ["auto", "on", true],
-  ["on", "on", true],
+for (const [hideLimited, oddRate, downsafe] of [
+  ["on", false, false],
+  ["auto", true, false],
+  ["auto", false, true],
+  ["on", true, false],
+  ["on", false, true],
+  ["auto", true, true],
+  ["on", true, true],
 ]) {
-  test(`test_the_one_to_one_filter_survives_${hide2x}_${hideInt}_${downsafe}`, () => {
+  test(`test_the_one_to_one_filter_survives_${hideLimited}_${oddRate}_${downsafe}`, () => {
     const options = classes();
-    nHide2x.value = String(hide2x);
-    nHideInt.value = String(hideInt);
+    nHideLimited.value = String(hideLimited);
+    nOddRateOnly.value = Boolean(oddRate);
     nDownsafeOnly.value = Boolean(downsafe);
     assert.equal(labels(options).includes("none"), true);
   });
 }
 
-test("test_the_one_to_one_filter_survives_the_auto_engaged_hides", () => {
+test("test_the_one_to_one_filter_survives_the_auto_engaged_hide", () => {
   const options = classes({ mode: "sdm", rates: DSD_44K });
+  nOddRateOnly.value = true;
   nDownsafeOnly.value = true;
   assert.equal(labels(options).includes("none"), true);
 });
@@ -322,34 +313,53 @@ test("test_the_one_to_one_filter_survives_the_auto_engaged_hides", () => {
 
 test("test_a_filter_with_no_facet_record_survives_every_switch_engaged", () => {
   const options = reset([], {}, ["mystery"]);
-  nHide2x.value = "on";
-  nHideInt.value = "on";
+  nHideLimited.value = "on";
+  nOddRateOnly.value = true;
   nDownsafeOnly.value = true;
+  assert.deepEqual(labels(options), ["mystery"]);
+});
+
+test("test_a_filter_with_no_facet_record_survives_the_auto_engaged_hide", () => {
+  const options = reset([], {}, ["mystery"], { mode: "sdm", rates: DSD_44K });
   assert.deepEqual(labels(options), ["mystery"]);
 });
 
 // --- mode-split records answer for the field's side ----------------------------
 
-test("test_hide_integer_on_hides_a_pcm_integer_split_ratio_on_a_pcm_field", () => {
-  const options = reset([], SPLIT_RATIO, ["closed-form"]);
-  nHideInt.value = "on";
+test("test_hide_limited_on_hides_the_split_ratio_pair_on_a_pcm_field", () => {
+  const options = split();
+  nHideLimited.value = "on";
   assert.deepEqual(labels(options, STAGE, PCM_FIELD), []);
 });
 
-test("test_hide_integer_on_passes_a_pcm_integer_split_ratio_on_an_sdm_field", () => {
-  const options = reset([], SPLIT_RATIO, ["closed-form"]);
-  nHideInt.value = "on";
-  assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["closed-form"]);
+test("test_hide_limited_on_passes_the_split_ratio_pair_on_an_sdm_field", () => {
+  const options = split();
+  nHideLimited.value = "on";
+  assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
+});
+
+// The pair's PCM ratio is integer, not 2x, so the odd-rate switch — which hides
+// the 2x class alone — leaves it alone on both sides.
+test("test_odd_rate_only_passes_the_split_ratio_pair_on_a_pcm_field", () => {
+  const options = split();
+  nOddRateOnly.value = true;
+  assert.deepEqual(labels(options, STAGE, PCM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
+});
+
+test("test_odd_rate_only_passes_the_split_ratio_pair_on_an_sdm_field", () => {
+  const options = split();
+  nOddRateOnly.value = true;
+  assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
 });
 
 test("test_downsample_safe_only_hides_the_mqa_pair_on_a_pcm_field", () => {
-  const options = reset([], SPLIT_UPSAMPLE, ["poly-sinc-mqa/mp3-lp"]);
+  const options = split();
   nDownsafeOnly.value = true;
   assert.deepEqual(labels(options, STAGE, PCM_FIELD), []);
 });
 
 test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", () => {
-  const options = reset([], SPLIT_UPSAMPLE, ["poly-sinc-mqa/mp3-lp"]);
+  const options = split();
   nDownsafeOnly.value = true;
   assert.deepEqual(labels(options, STAGE, SDM_FIELD), ["poly-sinc-mqa/mp3-lp"]);
 });
@@ -363,21 +373,21 @@ test("test_auto_engaged_hides_are_not_active_narrowing", () => {
   assert.equal(narrowingActive.value, false);
 });
 
-test("test_hide_2x_on_is_active_narrowing", () => {
+test("test_hide_limited_on_is_active_narrowing", () => {
   classes();
-  nHide2x.value = "on";
+  nHideLimited.value = "on";
   assert.equal(narrowingActive.value, true);
 });
 
-test("test_hide_2x_off_is_active_narrowing", () => {
+test("test_hide_limited_off_is_active_narrowing", () => {
   classes();
-  nHide2x.value = "off";
+  nHideLimited.value = "off";
   assert.equal(narrowingActive.value, true);
 });
 
-test("test_hide_integer_on_is_active_narrowing", () => {
+test("test_an_engaged_odd_rate_switch_is_active_narrowing", () => {
   classes();
-  nHideInt.value = "on";
+  nOddRateOnly.value = true;
   assert.equal(narrowingActive.value, true);
 });
 
@@ -387,18 +397,18 @@ test("test_an_engaged_downsample_safe_switch_is_active_narrowing", () => {
   assert.equal(narrowingActive.value, true);
 });
 
-test("test_reset_returns_hide_2x_to_auto", () => {
+test("test_reset_returns_hide_limited_to_auto", () => {
   classes();
-  nHide2x.value = "on";
+  nHideLimited.value = "on";
   resetNarrowing();
-  assert.equal(nHide2x.value, "auto");
+  assert.equal(nHideLimited.value, "auto");
 });
 
-test("test_reset_returns_hide_integer_to_auto", () => {
+test("test_reset_returns_odd_rate_only_to_off", () => {
   classes();
-  nHideInt.value = "off";
+  nOddRateOnly.value = true;
   resetNarrowing();
-  assert.equal(nHideInt.value, "auto");
+  assert.equal(nOddRateOnly.value, false);
 });
 
 test("test_reset_returns_downsample_safe_only_to_off", () => {
@@ -423,78 +433,95 @@ async function persistReset(cfg = {}) {
   return w;
 }
 
+// Every key on the rate side of the record, old and new alike, so a filter on
+// the PUT body's keys reads back exactly the three the record now carries.
+const RATE_KEYS = ["hide_limited", "odd_rate_only", "downsafe_only", "hide_2x", "hide_int", "ratio", "upsample_only"];
+
 /**
- * Flush the switch as set, drain the reset that puts it back to its default,
- * then hydrate a fresh wire seeded with exactly the facets the client itself
- * wrote — the reload path, without naming the wire key.
+ * The last PUT body a flush of one changed switch produced. The sentinel
+ * stands in for a flush that sent nothing at all, so a client that never
+ * writes fails here rather than passing on an empty key list.
  *
  * @param {{ value: unknown }} signal
  * @param {unknown} value
- * @returns {Promise<unknown>}
+ * @returns {Promise<Facets>}
  */
-async function roundtrip(signal, value) {
+async function flushed(signal, value) {
   const w = await persistReset();
   await hydrateNarrowing();
   signal.value = value;
   await flushNarrowing();
-  const sent = puts(w).at(-1) || {};
-  narrowingWire();
-  resetNarrowing();
-  await flushNarrowing();
-  narrowingWire({ facets: sent });
-  await hydrateNarrowing();
-  return signal.value;
+  return puts(w).at(-1) || { no_put_was_sent: true };
 }
 
-test("test_a_persisted_hide_2x_on_restores_on_hydration", async () => {
-  assert.equal(await roundtrip(nHide2x, "on"), "on");
+// The wire keys are pinned by NAME on the PUT body: of the rate-side keys the
+// record has ever carried, the flush sends exactly the three new ones.
+
+test("test_the_put_carries_the_three_rate_keys_and_no_legacy_ones", async () => {
+  const sent = await flushed(nHideLimited, "on");
+  assert.deepEqual(
+    Object.keys(sent)
+      .filter((k) => RATE_KEYS.includes(k) || k === "no_put_was_sent")
+      .sort(),
+    ["downsafe_only", "hide_limited", "odd_rate_only"],
+  );
 });
 
-test("test_a_persisted_hide_integer_off_restores_on_hydration", async () => {
-  assert.equal(await roundtrip(nHideInt, "off"), "off");
+test("test_the_put_carries_hide_limited_as_the_tri_state_token", async () => {
+  const sent = await flushed(nHideLimited, "on");
+  assert.equal(sent.hide_limited, "on");
+});
+
+test("test_the_put_carries_odd_rate_only_as_a_real_boolean", async () => {
+  const sent = await flushed(nOddRateOnly, true);
+  assert.equal(sent.odd_rate_only, true);
+});
+
+test("test_the_put_carries_downsafe_only_as_a_real_boolean", async () => {
+  const sent = await flushed(nDownsafeOnly, true);
+  assert.equal(sent.downsafe_only, true);
+});
+
+// The read path pins the same key names: a stored value under the pinned key
+// restores the switch on hydration.
+
+test("test_a_persisted_hide_limited_on_restores_on_hydration", async () => {
+  await persistReset({ facets: { hide_limited: "on" } });
+  await hydrateNarrowing();
+  assert.equal(nHideLimited.value, "on");
+});
+
+test("test_a_persisted_hide_limited_off_restores_on_hydration", async () => {
+  await persistReset({ facets: { hide_limited: "off" } });
+  await hydrateNarrowing();
+  assert.equal(nHideLimited.value, "off");
+});
+
+test("test_a_persisted_odd_rate_switch_restores_on_hydration", async () => {
+  await persistReset({ facets: { odd_rate_only: true } });
+  await hydrateNarrowing();
+  assert.equal(nOddRateOnly.value, true);
 });
 
 test("test_a_persisted_downsample_safe_switch_restores_on_hydration", async () => {
-  assert.equal(await roundtrip(nDownsafeOnly, true), true);
-});
-
-// The sentinel stands in for a flush that sent nothing at all, so a client
-// that never writes fails here rather than passing on an empty key list.
-test("test_the_put_carries_no_legacy_ratio_key", async () => {
-  const w = await persistReset();
+  await persistReset({ facets: { downsafe_only: true } });
   await hydrateNarrowing();
-  nHide2x.value = "on";
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || { no_put_was_sent: true };
-  assert.deepEqual(
-    Object.keys(sent).filter((k) => k === "ratio" || k === "no_put_was_sent"),
-    [],
-  );
-});
-
-test("test_the_put_carries_no_legacy_upsample_only_key", async () => {
-  const w = await persistReset();
-  await hydrateNarrowing();
-  nHide2x.value = "on";
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || { no_put_was_sent: true };
-  assert.deepEqual(
-    Object.keys(sent).filter((k) => k === "upsample_only" || k === "no_put_was_sent"),
-    [],
-  );
+  assert.equal(nDownsafeOnly.value, true);
 });
 
 // A file an older HQPTuner left behind still carries the retired facets; the
 // hydration neither chokes on them nor lets them narrow anything.
 
-test("test_hydrating_a_legacy_ratio_and_upsample_record_does_not_throw", async () => {
-  await persistReset({ facets: { ratio: "2x", upsample_only: true } });
+const LEGACY = { hide_2x: "on", hide_int: "on", ratio: "2x", upsample_only: true };
+
+test("test_hydrating_a_legacy_rate_record_does_not_throw", async () => {
+  await persistReset({ facets: LEGACY });
   await assert.doesNotReject(() => hydrateNarrowing());
 });
 
-test("test_hydrating_a_legacy_ratio_and_upsample_record_narrows_nothing", async () => {
-  classes();
-  await persistReset({ facets: { ratio: "2x", upsample_only: true } });
+test("test_hydrating_a_legacy_rate_record_narrows_nothing", async () => {
+  const options = classes();
+  await persistReset({ facets: LEGACY });
   await hydrateNarrowing();
-  assert.equal(narrowingActive.value, false);
+  assert.deepEqual(labels(options), ALL_CLASSES);
 });

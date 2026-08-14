@@ -30,10 +30,9 @@ const env = globalThis;
 
 /**
  * The persisted facets at their documented defaults — the contract table. The
- * ratio class and upsample-only facets the record once carried are gone from
- * it: the three rate-narrowing switches that replaced them are the client's
- * own signals, and their wire keys are the implementation's to name, so no
- * suite hard-codes them here.
+ * rate half is the three switches that replaced the retired single-select
+ * `ratio` and `upsample_only` facets: the tri-state `hide_limited` and the two
+ * booleans `odd_rate_only` and `downsafe_only`, wire keys pinned by name.
  */
 /** @type {Facets} */
 export const NARROWING_DEFAULTS = {
@@ -44,6 +43,9 @@ export const NARROWING_DEFAULTS = {
   focus_mode: "or",
   phase: "",
   length: "",
+  hide_limited: "auto",
+  odd_rate_only: false,
+  downsafe_only: false,
   apod_1x: "only",
   apod_nx: "all",
   hires_1x: "hide",
