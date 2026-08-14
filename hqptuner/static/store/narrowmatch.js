@@ -1,0 +1,256 @@
+// Does a filter pass the narrow bar, and how many would — the matching half of
+// narrowing, split out from the state it reads. Everything here is a pure read
+// of the facet signals: one pass answers whether an option survives, the counts
+// answer how many would under the live selection or a hypothetical one.
+import {
+  nGenre,
+  nGenreMode,
+  nQuality,
+  nFocus,
+  nFocusMode,
+  nPhase,
+  nLength,
+  nRatio,
+  nUpsampleOnly,
+  nApod1x,
+  nApodNx,
+  nHires1x,
+  nHiresNx,
+} from "./narrowing.js";
+import { filterFacets } from "./facets.js";
+import { favoriteFilters, nFavOnly } from "./favorites.js";
+
+// pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
+// mode-split ratio (mqa/mp3) to test; null for non-chain callers.
+/**
+ * @typedef {import("./facets.js").FilterFacet} FilterFacet
+ *
+ * @typedef {object} Sel
+ *   One snapshot of the narrow bar, as buildSel freezes it for a single pass.
+ * @property {string[]} genre
+ * @property {string} genreMode "and" | "or" — how the genre picks combine
+ * @property {number} quality
+ * @property {string[]} focus
+ * @property {string} focusMode "and" | "or" — how the focus picks combine
+ * @property {string} phase
+ * @property {string} length
+ * @property {string} ratio
+ * @property {boolean} upsampleOnly
+ * @property {boolean} favOnly
+ * @property {string|null} family which side of a mode-split ratio to test; null off-chain
+ * @property {boolean} apod
+ * @property {boolean} half
+ * @property {boolean} hideHires
+ * @property {boolean} hiresOnly
+ *
+ * @typedef {object} NarrowOption
+ *   The two members of a dropdown option this module reads. Deliberately looser
+ *   than OptionItem: the option lists reaching here are OptionItem (from the
+ *   option stores) as well as the schema's own bare {value, label} lists.
+ * @property {string | number | undefined} value
+ * @property {string} label
+ */
+
+/**
+ * @param {string} field
+ * @returns {string|null}
+ */
+function family(field) {
+  if (!field) return null;
+  if (field.startsWith("pcm")) return "pcm";
+  if (field.startsWith("sdm")) return "sdm";
+  return null;
+}
+
+// Ratio is the one chain-dependent facet: mqa/mp3 filters upsample-only on PCM
+// but any-ratio on SDM, so their facet carries ratioPcm/ratioSdm instead of a
+// single ratio. Every other filter has a single `ratio`.
+/**
+ * @param {FilterFacet} f
+ * @param {string|null} fam
+ * @returns {string|null}
+ */
+function ratioOf(f, fam) {
+  if (f.ratio != null) return f.ratio;
+  return fam === "sdm" ? f.ratioSdm : f.ratioPcm;
+}
+
+// Filter a filter-field option list by the active facets. Options whose name
+// carries no facet data pass through — narrowing hides only what it can
+// positively exclude. `current` is never hidden. The apodizing check reads the
+// dropdown's STAGE switch (1x or Nx): on "only", full-apodizing filters pass;
+// ½-apodizing ones pass only on "half".
+// Each entry reads "facet not engaged, or the filter passes it", so an unset
+// facet excludes nothing. "any" is the escape hatch for genre and ratio — a
+// filter the manual marks agnostic survives every selection of that facet.
+//
+// The multi-select facets (genre, focus) carry their own combine mode: "and"
+// intersects, so each further pick narrows, and "or" unions, so each further
+// pick widens. Either way the per-option counts read the live mode, so a row's
+// chip is the count that clicking it lands on.
+/**
+ * Does a filter's tag list satisfy the picks under this mode?
+ * @param {string[]} picked the facet's selection — never empty here
+ * @param {string[]} tagged the filter's own tags for that facet
+ * @param {string} mode "and" | "or"
+ * @returns {boolean}
+ */
+const multiPass = (picked, tagged, mode) =>
+  mode === "or" ? picked.some((x) => tagged.includes(x)) : picked.every((x) => tagged.includes(x));
+
+/** @type {((f: FilterFacet, s: Sel) => boolean)[]} */
+const FACET_CHECKS = [
+  // "any" is genre's escape hatch and outranks the mode: the manual marks such a
+  // filter as suiting every genre, so it survives any selection either way.
+  (f, s) => !s.genre.length || f.genre.includes("any") || multiPass(s.genre, f.genre, s.genreMode),
+  (f, s) => !s.quality || (f.quality != null && f.quality >= s.quality),
+  // Focus has no "any" tag in the manual — an untagged filter fails a focus pick.
+  (f, s) => !s.focus.length || multiPass(s.focus, f.focus, s.focusMode),
+  (f, s) => !s.phase || f.phase === s.phase,
+  (f, s) => !s.length || f.length === s.length,
+  (f, s) => !s.ratio || ratioPass(f, s),
+  (f, s) => !s.upsampleOnly || f.upsampleOnly === true,
+  (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
+  // hide-hires (1x): drop the strict *-hires-* set — the mqa/mp3 filters stay,
+  // they belong at 1x for lossy sources. show-only-hires (Nx): keep the whole
+  // hi-res family, mqa/mp3 included. Each engages only when its flag is set, so
+  // an untouched stage excludes nothing.
+  (f, s) => !s.hideHires || !f.hires,
+  (f, s) => !s.hiresOnly || f.hiresFamily === true,
+];
+
+/**
+ * @param {FilterFacet} f
+ * @param {Sel} s
+ * @returns {boolean}
+ */
+function ratioPass(f, s) {
+  const r = ratioOf(f, s.family);
+  return r != null && (r === "any" || r === s.ratio);
+}
+
+// A filter with no facet record passes untouched — narrowing hides only what it
+// can positively exclude (an option not in the active-mode enum nor the static
+// overlay carries no facets).
+const facetPass = (/** @type {FilterFacet} */ f, /** @type {Sel} */ sel) =>
+  !f || FACET_CHECKS.every((check) => check(f, sel));
+
+// Favorites are NOT a facet check: a facet-less option passes facetPass
+// untouched, but favorites-only must still hide it. Keyed by option label —
+// the filter's name, the same key the facet overlay uses.
+const favPass = (/** @type {string} */ label, /** @type {Sel} */ sel) =>
+  !sel.favOnly || favoriteFilters.value.has(label);
+
+// The active selection snapshot. Number() on quality — the raw signal in
+// narrowingActive and this can disagree: a non-numeric value reads as active in
+// the bar but narrows nothing. Apod and hi-res read the dropdown's STAGE
+// switch; `field` only selects the ratio family (pcm vs sdm).
+/**
+ * @param {string} stage "1x" | "nx"
+ * @param {string} field
+ * @returns {Sel}
+ */
+function buildSel(stage, field) {
+  const apod = stage === "1x" ? nApod1x.value : nApodNx.value;
+  return {
+    genre: nGenre.value,
+    genreMode: nGenreMode.value,
+    quality: Number(nQuality.value),
+    focus: nFocus.value,
+    focusMode: nFocusMode.value,
+    phase: nPhase.value,
+    length: nLength.value,
+    ratio: nRatio.value,
+    upsampleOnly: nUpsampleOnly.value,
+    favOnly: nFavOnly.value,
+    family: family(field),
+    apod: apod !== "all",
+    half: apod === "half",
+    hideHires: stage === "1x" && nHires1x.value === "hide",
+    hiresOnly: stage === "nx" && nHiresNx.value === "only",
+  };
+}
+
+// Any facet actually narrowing? An unset facet excludes nothing, so an
+// all-default snapshot returns the option list untouched (same object).
+/** @type {(keyof Sel)[]} */
+const SCALAR_FACETS = [
+  "quality",
+  "phase",
+  "length",
+  "ratio",
+  "upsampleOnly",
+  "favOnly",
+  "apod",
+  "hideHires",
+  "hiresOnly",
+];
+/**
+ * @param {Sel} s
+ * @returns {number | boolean} truthy when any facet narrows; the two array
+ *   facets answer with their length, which is what the `||` chain returns
+ */
+function anyEngaged(s) {
+  return s.genre.length || s.focus.length || SCALAR_FACETS.some((k) => s[k]);
+}
+
+/**
+ * Filter a filter-field option list down to the ones the active facets keep.
+ *
+ * @template {NarrowOption} T
+ * @param {T[]} options
+ * @param {string} stage
+ * @param {string} field
+ * @returns {T[]}
+ */
+export function narrowOptions(options, stage, field) {
+  const sel = buildSel(stage, field);
+  if (!anyEngaged(sel)) return options;
+  const facets = filterFacets.value;
+  return options.filter((o) => favPass(o.label, sel) && facetPass(facets[o.label], sel));
+}
+
+// ---- result counts (narrowing UI) -----------------------------------------
+// How many options a selection would keep — the number the live badge and the
+// per-option popover previews report. An all-default snapshot short-circuits to
+// the full length.
+/**
+ * @param {NarrowOption[]} options
+ * @param {Sel} sel
+ * @returns {number}
+ */
+function countPass(options, sel) {
+  if (!anyEngaged(sel)) return options.length;
+  const facets = filterFacets.value;
+  return options.reduce((n, o) => (favPass(o.label, sel) && facetPass(facets[o.label], sel) ? n + 1 : n), 0);
+}
+
+// Live badge for one filter dropdown: { n, total } against the ACTIVE facets.
+/**
+ * How many of a dropdown's options the active facets match, against the total —
+ * the live badge's numbers.
+ *
+ * @param {NarrowOption[]} options
+ * @param {string} stage
+ * @param {string} field
+ * @returns {{ n: number, total: number }}
+ */
+export function narrowCount(options, stage, field) {
+  return { n: countPass(options, buildSel(stage, field)), total: options.length };
+}
+
+// Per-option popover preview: how many options survive if `overrides` were
+// merged onto the current selection (e.g. { genre: [...current, "rock"] }).
+/**
+ * How many options would survive if `overrides` were merged onto the current
+ * selection — the per-option popover preview.
+ *
+ * @param {NarrowOption[]} options
+ * @param {string} stage
+ * @param {string} field
+ * @param {Partial<Sel>} overrides
+ * @returns {number}
+ */
+export function previewCount(options, stage, field, overrides) {
+  return countPass(options, { ...buildSel(stage, field), ...overrides });
+}

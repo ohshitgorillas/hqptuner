@@ -47,6 +47,9 @@ _QUALITIES = frozenset({0, 3, 4, 5})
 _APOD = frozenset({"only", "half", "all"})
 _HIRES_1X = frozenset({"hide", "show"})
 _HIRES_NX = frozenset({"all", "only"})
+# How each multi-select facet combines its picks. The defaults differ by facet and are the frontend's
+# (``static/store/narrowing.js``): genre ``and``, focus ``or``.
+_MODES = frozenset({"and", "or"})
 
 
 class NarrowingError(ValueError):
@@ -90,8 +93,10 @@ def _flag(value: Any) -> bool:
 # keys in the obvious way (nUpsampleOnly <-> upsample_only, nApod1x <-> apod_1x).
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
+    "genre_mode": ("and", _one_of(_MODES)),
     "quality": (0, _quality),
     "focus": ([], _list_of(_FOCUS)),
+    "focus_mode": ("or", _one_of(_MODES)),
     "phase": ("", _one_of(_PHASES)),
     "length": ("", _one_of(_LENGTHS)),
     "ratio": ("", _one_of(_RATIOS)),

@@ -5,11 +5,13 @@
 // the facet assembly.
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { nGenre, nFocus, nRatio, nUpsampleOnly, previewCount } from "../../store/narrowing.js";
+import { nGenre, nGenreMode, nFocus, nFocusMode, nRatio, nUpsampleOnly } from "../../store/narrowing.js";
+import { previewCount } from "../../store/narrowmatch.js";
 import { GENRES, FOCUS, RATIOS } from "./facet-data.js";
 
 /**
- * @typedef {{ genre?: string[], quality?: number, focus?: string[], phase?: string, length?: string,
+ * @typedef {{ genre?: string[], genreMode?: string, quality?: number, focus?: string[], focusMode?: string,
+ *             phase?: string, length?: string,
  *             ratio?: string, upsampleOnly?: boolean, apod?: boolean, half?: boolean,
  *             hideHires?: boolean, hiresOnly?: boolean }} NarrowOverrides
  *   A partial facet selection laid over the live one — what a candidate pick
@@ -29,20 +31,25 @@ export function toggleIn(sig, v) {
   sig.value = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
 }
 
-/** Summary label for the focus dropdown's button: "Any focus", the one picked focus, or "N focuses". */
+// The combine mode only reaches a button label once it can change the result —
+// at two picks. One pick or none, the mode is inert and naming it would report a
+// setting that is doing nothing.
+const withMode = (/** @type {string} */ text, /** @type {string} */ mode) => `${text} · ${mode.toUpperCase()}`;
+
+/** Summary label for the focus dropdown's button: "Any focus", the one picked focus, or "N focuses" with its mode. */
 export function focusLabel() {
   const sel = nFocus.value;
   if (!sel.length) return "Any focus";
   if (sel.length === 1) return (FOCUS.find(([v]) => v === sel[0]) || [])[1];
-  return `${sel.length} focuses`;
+  return withMode(`${sel.length} focuses`, nFocusMode.value);
 }
 
-/** Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres". */
+/** Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres" with its mode. */
 export function genreLabel() {
   const sel = nGenre.value;
   if (!sel.length) return "Any genre";
   if (sel.length === 1) return oneLabel(GENRES, sel[0], sel[0]);
-  return `${sel.length} genres`;
+  return withMode(`${sel.length} genres`, nGenreMode.value);
 }
 
 /**

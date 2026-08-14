@@ -12,7 +12,7 @@ import { refreshDevices } from "../store/sync.js";
 import { describe, selectionDescription, optionDescription, selectedLabel } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
-import { narrowOptions, narrowCount } from "../store/narrowing.js";
+import { narrowOptions, narrowCount } from "../store/narrowmatch.js";
 import { isFavorite, toggleFavorite, favoritesError } from "../store/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
