@@ -166,6 +166,11 @@
   left: auto;
   right: 0;
 }
+/* the scenario labels run long (uncommon-source-rates row): rule rows wrap
+   rather than forcing the popover wider than its measure */
+.rate-pop label {
+  white-space: normal;
+}
 /* explainer / hint prose under the rule rows: caption voice, wraps, divided
    off the rows above it the way .multi-extra is. */
 .rate-note {

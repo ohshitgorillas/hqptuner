@@ -16,12 +16,12 @@ import {
   nFocusMode,
   nPhase,
   nLength,
-  nHide2x,
-  nHideInt,
+  nHideLimited,
+  nOddRateOnly,
   nDownsafeOnly,
   RATE_RULE_DEFAULT,
 } from "../../store/narrowing.js";
-import { rateAutoHide, effHide2x, effHideInt } from "../../store/narrowmatch.js";
+import { rateAutoHide, effHideLimited } from "../../store/narrowmatch.js";
 import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
 
 // How a multi-select facet's picks combine, as the last row of its own popover:
@@ -129,53 +129,48 @@ function RateRule({ on, label, onToggle, count }) {
 // limitation X" pick. The favorites toggle closes the row: it needs a starred
 // filter to be reachable.
 function RatePop() {
-  const autoEngaged =
-    rateAutoHide.value && (nHide2x.value === RATE_RULE_DEFAULT || nHideInt.value === RATE_RULE_DEFAULT);
+  const autoEngaged = rateAutoHide.value && nHideLimited.value === RATE_RULE_DEFAULT;
   return html`<div class="multi-pop rate-pop">
     <div class="multi-head t-label">1x / Nx</div>
     <${RateRule}
-      on=${effHide2x.value}
-      onToggle=${() => (nHide2x.value = effHide2x.value ? "off" : "on")}
-      label="Hide 2x-only filters"
-      count=${{ hide2x: !effHide2x.value }}
-    />
-    <${RateRule}
-      on=${effHideInt.value}
-      onToggle=${() => (nHideInt.value = effHideInt.value ? "off" : "on")}
-      label="Hide integer-only filters"
-      count=${{ hideInt: !effHideInt.value }}
+      on=${effHideLimited.value}
+      onToggle=${() => (nHideLimited.value = effHideLimited.value ? "off" : "on")}
+      label="Hide output rate-limited filters"
+      count=${{ hideLimited: !effHideLimited.value }}
     />
     <${RateRule}
       on=${nDownsafeOnly.value}
       onToggle=${() => (nDownsafeOnly.value = !nDownsafeOnly.value)}
-      label="Show only downsampling-safe filters"
+      label="Show only filters that support downsampling"
       count=${{ downsafeOnly: !nDownsafeOnly.value }}
+    />
+    <${RateRule}
+      on=${nOddRateOnly.value}
+      onToggle=${() => (nOddRateOnly.value = !nOddRateOnly.value)}
+      label="Show only filters that support resampling uncommon source rates (e.g., 32kHz)"
+      count=${{ oddOnly: !nOddRateOnly.value }}
     />
     ${
       autoEngaged
         ? html`<div class="rate-note t-caption">
-            Auto: this device exposes no 48 kHz-family DSD rates, so 2x- and integer-only filters are hidden by
-            default. Toggling a rule overrides the automatic choice.
+            Auto: this device exposes no 48kHz-family DSD rates, so rate-limited filters are hidden by default.
+            Toggling the rule overrides the automatic choice.
           </div>`
         : null
     }
     <div class="rate-note t-caption">
-      <strong>2x-only:</strong> This filter can only output multiples of the source rate by factors of two. For
-      example, for a 48kHz source file, the filter could output 2x48, 4x48, 8x48, ...
-    </div>
-    <div class="rate-note t-caption">
-      <strong>Integer-only:</strong> Similar to 2x-only, but also capable of intermediate rates like 3x, 5x, etc.
-    </div>
-    <div class="rate-note t-caption">
-      <strong>HQPTuner Hints:</strong> If your output mode is SDM but your DAC doesn't support 48kHz-family DSD
-      rates, avoid 2x- and Integer-only filters. These will fail to produce output with 48kHz-family source
-      material.
+      <strong>HQPTuner Hints:</strong> Rate-limited filters are only capable of output rates that are whole-number
+      or factor-of-two multiples of the source rate. For example, given a 48kHz source file, such filters cannot
+      resample to 44.1kHz-family output rates: they are restricted to PCM output at 2x48k, 4x48k, 8x48k, … and DSD
+      at 64x48k, 128x48k, 256x48k, … If your output mode is SDM and your DAC doesn't support 48kHz-family DSD
+      rates, these filters will produce no output when fed 48k-family source files; hide them with the checkbox
+      above.
     </div>
   </div>`;
 }
 
 function RateFacet() {
-  const active = nHide2x.value !== RATE_RULE_DEFAULT || nHideInt.value !== RATE_RULE_DEFAULT || nDownsafeOnly.value;
+  const active = nHideLimited.value !== RATE_RULE_DEFAULT || nOddRateOnly.value || nDownsafeOnly.value;
   return html`
       <div class="multi" data-multi="rate">
         <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (rateOpen.value = !rateOpen.value)}>
