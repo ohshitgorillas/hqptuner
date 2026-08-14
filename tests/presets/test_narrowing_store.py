@@ -7,7 +7,7 @@ hqplayerd (docs/architecture.md, "Filter narrowing") — so every client here is
 built with no credentials and a control lane pointed at a closed port, and every
 store file lands under pytest's ``tmp_path``, never in the repo's state dir.
 
-The eleven facets and their defaults are the contract this file is written
+The thirteen facets and their defaults are the contract this file is written
 against; `DEFAULTS` below is that table, not a snapshot of anything.
 
 On-disk layout: the file carries a schema stamp under ``schema``, the way
@@ -35,8 +35,10 @@ from hqptuner.presets.narrowingstore import NarrowingError, NarrowingSchemaError
 #: Every facet at its default — the table the feature is specified by.
 DEFAULTS: dict[str, object] = {
     "genre": [],
+    "genre_mode": "and",
     "quality": 0,
     "focus": [],
+    "focus_mode": "or",
     "phase": "",
     "length": "",
     "ratio": "",
@@ -50,8 +52,10 @@ DEFAULTS: dict[str, object] = {
 #: One in-domain value per facet, each different from that facet's default.
 SET: dict[str, object] = {
     "genre": ["rock"],
+    "genre_mode": "or",
     "quality": 4,
     "focus": ["timbre"],
+    "focus_mode": "and",
     "phase": "linear",
     "length": "long",
     "ratio": "2x",

@@ -40,11 +40,13 @@ import {
   nApodNx,
   nHires1x,
   nHiresNx,
-  narrowingError,
   resetNarrowing,
+} from "../../../hqptuner/static/store/narrowing.js";
+import {
+  narrowingError,
   hydrateNarrowing,
   flushNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
+} from "../../../hqptuner/static/store/narrowpersist.js";
 
 const PATH = "/api/narrowing";
 

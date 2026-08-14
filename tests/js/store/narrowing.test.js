@@ -3,8 +3,11 @@
 // beside it say.
 //
 // Two shapes of facet, and the difference is the whole point. Genre and focus
-// are SETS a filter carries — picking two means every one must hold, so the
-// surviving list can only shrink as values are added. Length and ratio are
+// are SETS a filter carries, and each combines picked values by its own mode —
+// genre by AND (every picked genre must hold, so the list only shrinks as values
+// are added), focus by OR (any one is enough, so the list only grows). Those are
+// the defaults this file reads at; the modes themselves, and the other setting
+// of each, belong to tests/js/store/narrowing-mode.test.js. Length and ratio are
 // single-valued: a filter is short or it is long, and picking one asks for that
 // one. The manual's escape hatches ("any" genre, "any" ratio) sit outside both
 // and survive every selection.
@@ -43,10 +46,8 @@ import {
   nHiresNx,
   narrowingActive,
   resetNarrowing,
-  narrowOptions,
-  narrowCount,
-  previewCount,
 } from "../../../hqptuner/static/store/narrowing.js";
+import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 const STAGE = "nx";
@@ -155,26 +156,29 @@ const STAGES = [
   ["gauss-hires-apod", "4/5 ⥮ Any", 1],
 ];
 
-// --- set-valued facets AND together -------------------------------------------
+// --- set-valued facets combine by their own default mode -------------------------
+// Focus at its default: a filter passes on ANY one picked value. `gauss-b` is
+// the discriminator — it carries timbre alone, so the union of space and
+// transients leaves it out while the other three stay.
 
-test("test_two_focus_values_keep_only_the_filters_carrying_both", () => {
+test("test_two_focus_values_keep_every_filter_carrying_either", () => {
   const options = reset(FOCUS);
-  nFocus.value = ["timbre", "transients"];
-  assert.deepEqual(labels(options), ["gauss-a", "gauss-d"]);
+  nFocus.value = ["space", "transients"];
+  assert.deepEqual(labels(options), ["gauss-a", "gauss-c", "gauss-d"]);
 });
 
-test("test_the_count_for_two_focus_values_is_the_number_carrying_both", () => {
+test("test_the_count_for_two_focus_values_is_the_number_carrying_either", () => {
   const options = reset(FOCUS);
-  nFocus.value = ["timbre", "transients"];
-  assert.equal(narrowCount(options, STAGE, FIELD).n, 2);
+  nFocus.value = ["space", "transients"];
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 3);
 });
 
-test("test_adding_a_second_focus_value_never_grows_the_surviving_set", () => {
+test("test_adding_a_second_focus_value_never_shrinks_the_surviving_set", () => {
   const options = reset(FOCUS);
-  nFocus.value = ["timbre"];
+  nFocus.value = ["space"];
   const one = narrowCount(options, STAGE, FIELD).n;
-  nFocus.value = ["timbre", "transients"];
-  assert.deepEqual([one, narrowCount(options, STAGE, FIELD).n], [3, 2]);
+  nFocus.value = ["space", "transients"];
+  assert.deepEqual([one, narrowCount(options, STAGE, FIELD).n], [1, 3]);
 });
 
 test("test_two_genres_keep_only_the_filters_tagged_with_both", () => {
@@ -313,7 +317,7 @@ test("test_reset_leaves_narrowing_inactive", () => {
 
 // --- previews answer for the selection they are handed ---------------------------
 
-// The live selection leaves 2 and the override leaves 3, so a preview that
+// The live selection leaves 4 and the override leaves 3, so a preview that
 // ignored its overrides could not answer 3.
 test("test_a_preview_counts_its_own_overrides_not_the_live_selection", () => {
   const options = reset(FOCUS);

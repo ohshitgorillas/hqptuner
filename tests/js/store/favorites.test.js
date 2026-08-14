@@ -44,14 +44,8 @@ import {
   toggleFavorite,
   hydrateFavorites,
 } from "../../../hqptuner/static/store/favorites.js";
-import {
-  nFocus,
-  narrowingActive,
-  resetNarrowing,
-  narrowOptions,
-  narrowCount,
-  previewCount,
-} from "../../../hqptuner/static/store/narrowing.js";
+import { nFocus, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 const FAVORITES_MODULE = "../../../hqptuner/static/store/favorites.js";

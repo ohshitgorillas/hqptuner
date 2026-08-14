@@ -35,7 +35,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nFocus, resetNarrowing, narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrowing.js";
+import { nFocus, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrowmatch.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 const STAGE = "nx";
