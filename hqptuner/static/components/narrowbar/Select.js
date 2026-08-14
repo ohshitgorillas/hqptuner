@@ -26,10 +26,9 @@ export function CountChip({ overrides }) {
 
 // single-select twin of MultiSelect — same button + popover chrome so every
 // facet renders as one identical control (no native <select> chrome mixed in).
-// Picking a value closes the popover. Quality, phase, length and ratio use it:
-// each is a facet a filter carries exactly one of, so two picks could only
-// intersect to nothing. `extra` matches MultiSelect's — the ratio popover hangs
-// its orthogonal upsample-only checkbox there.
+// Picking a value closes the popover. Quality, phase and length use it: each
+// is a facet a filter carries exactly one of, so two picks could only
+// intersect to nothing. `extra` matches MultiSelect's.
 /**
  * Renders a facet button and a popover of radio rows; picking a value calls
  * `onPick` and closes the popover.
@@ -74,8 +73,8 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
 
 // a checkbox-dropdown multi-select (the shared genre/focus pattern): a button
 // showing the summary label, a popover of checkboxes toggling `sig`'s array.
-// `extra` is an optional element appended below the item rows, divided off — the
-// ratio popover uses it for the orthogonal upsample-only checkbox.
+// `extra` is an optional element appended below the item rows, divided off —
+// genre and focus use it for their AND/OR combine switch.
 /**
  * Renders a facet button and a popover of checkbox rows, each toggling its
  * value in `sig`'s array; the popover stays open across picks.

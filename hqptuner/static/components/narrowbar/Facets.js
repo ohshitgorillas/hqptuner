@@ -3,9 +3,9 @@
 // because this is the wiring layer — the widgets in Select.js stay facet-blind,
 // and everything facet-specific about the dropdown row lands here.
 import { html } from "../../lib/dom.js";
-import { GENRES, QUALITY, FOCUS, PHASES, LENGTHS, RATIOS } from "./facet-data.js";
-import { genreOpen, qualityOpen, focusOpen, phaseOpen, lengthOpen, ratioOpen } from "./popover.js";
-import { focusLabel, genreLabel, ratioLabel, oneLabel, toggleVal } from "./labels.js";
+import { GENRES, QUALITY, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
+import { genreOpen, qualityOpen, focusOpen, phaseOpen, lengthOpen, rateOpen } from "./popover.js";
+import { focusLabel, genreLabel, rateLabel, oneLabel, toggleVal } from "./labels.js";
 import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
 import { Segment } from "../controls/index.js";
 import {
@@ -16,9 +16,12 @@ import {
   nFocusMode,
   nPhase,
   nLength,
-  nRatio,
-  nUpsampleOnly,
+  nHide2x,
+  nHideInt,
+  nDownsafeOnly,
+  RATE_RULE_DEFAULT,
 } from "../../store/narrowing.js";
+import { rateAutoHide, effHide2x, effHideInt } from "../../store/narrowmatch.js";
 import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
 
 // How a multi-select facet's picks combine, as the last row of its own popover:
@@ -99,34 +102,85 @@ export function NarrowFacets() {
         active=${!!nLength.value}
         count=${(/** @type {string} */ v) => ({ length: v })}
       />
-      <${RatioFacet} />
+      <${RateFacet} />
     </div>
   `;
 }
 
-// The ratio dropdown carries the upsample-only checkbox inside its pop, and the
-// favorites toggle closes the row: it needs a starred filter to be reachable.
-function RatioFacet() {
+// One hide-rule row of the rate-change popover: a checkbox showing the rule's
+// EFFECTIVE state, with the count preview of the state clicking it lands on.
+// Clicking writes the explicit opposite of what the box shows — from "auto"
+// that is an override, and only overrides highlight the facet button.
+/**
+ * @param {{ on: boolean, label: string, onToggle: () => void,
+ *           count: import("./labels.js").NarrowOverrides }} props
+ */
+function RateRule({ on, label, onToggle, count }) {
+  return html`<label>
+    <input type="checkbox" checked=${on} onChange=${onToggle} />
+    <span class="opt-label">${label}</span>
+    <${CountChip} overrides=${count} />
+  </label>`;
+}
+
+// The rate-change facet. The manual's ratio column names limitations, so the
+// popover offers hide rules for the scenarios where a limitation bites —
+// cross-family (fractional) conversion and downsampling — never a "show only
+// limitation X" pick. The favorites toggle closes the row: it needs a starred
+// filter to be reachable.
+function RatePop() {
+  const autoEngaged =
+    rateAutoHide.value && (nHide2x.value === RATE_RULE_DEFAULT || nHideInt.value === RATE_RULE_DEFAULT);
+  return html`<div class="multi-pop rate-pop">
+    <div class="multi-head t-label">1x / Nx</div>
+    <${RateRule}
+      on=${effHide2x.value}
+      onToggle=${() => (nHide2x.value = effHide2x.value ? "off" : "on")}
+      label="Hide 2x-only filters"
+      count=${{ hide2x: !effHide2x.value }}
+    />
+    <${RateRule}
+      on=${effHideInt.value}
+      onToggle=${() => (nHideInt.value = effHideInt.value ? "off" : "on")}
+      label="Hide integer-only filters"
+      count=${{ hideInt: !effHideInt.value }}
+    />
+    <${RateRule}
+      on=${nDownsafeOnly.value}
+      onToggle=${() => (nDownsafeOnly.value = !nDownsafeOnly.value)}
+      label="Show only downsampling-safe"
+      count=${{ downsafeOnly: !nDownsafeOnly.value }}
+    />
+    ${
+      autoEngaged
+        ? html`<div class="rate-note t-caption">
+            Auto: this device exposes no 48 kHz-family DSD rates, so 2x- and integer-only filters are hidden by
+            default. Toggling a rule overrides the automatic choice.
+          </div>`
+        : null
+    }
+    <div class="rate-note t-caption">
+      2x-only filters multiply the source rate by powers of two: a 48 kHz source can become 96, 192 or 384 kHz —
+      never a 44.1 kHz-family rate. Integer-only filters also allow in-between multiples (3x, 5x, …) but stay
+      locked to the source family. Neither can downsample.
+    </div>
+    <div class="rate-note t-caption">
+      Hint: if the output is SDM and the DAC lacks 48 kHz-family DSD rates, hide 2x- and integer-only filters —
+      they produce no output from 48 kHz-family sources. To downsample (say 192 to 96 kHz), show only
+      downsampling-safe filters.
+    </div>
+  </div>`;
+}
+
+function RateFacet() {
+  const active = nHide2x.value !== RATE_RULE_DEFAULT || nHideInt.value !== RATE_RULE_DEFAULT || nDownsafeOnly.value;
   return html`
-      <${SingleSelect}
-        open=${ratioOpen}
-        name="ratio"
-        label=${ratioLabel()}
-        value=${nRatio.value}
-        items=${RATIOS}
-        onPick=${(/** @type {string} */ v) => (nRatio.value = v)}
-        active=${!!nRatio.value || nUpsampleOnly.value}
-        count=${(/** @type {string} */ v) => ({ ratio: v })}
-        extra=${html`<label class="multi-extra">
-          <input
-            type="checkbox"
-            checked=${nUpsampleOnly.value}
-            onChange=${() => (nUpsampleOnly.value = !nUpsampleOnly.value)}
-          />
-          <span class="opt-label">Upsample-only</span>
-          <${CountChip} overrides=${{ upsampleOnly: true }} />
-        </label>`}
-      />
+      <div class="multi" data-multi="rate">
+        <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (rateOpen.value = !rateOpen.value)}>
+          ${rateLabel()} <span class="multi-caret">▾</span>
+        </button>
+        ${rateOpen.value ? html`<${RatePop} />` : null}
+      </div>
       <button
         type="button"
         class="multi-btn ${nFavOnly.value ? "active" : ""}"

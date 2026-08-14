@@ -45,10 +45,9 @@ export const LENGTHS = [
   ["long", "Long"],
   ["xlong", "Extra long"],
 ];
-// The manual's own "any" ratio class is an escape hatch, not a pick: a filter it
-// marks any-ratio survives every ratio selection. The "" row here is the
-// separate "not narrowed by ratio at all". Upsample-only ("up" in the manual)
-// rides in the popover as an extra checkbox.
+// Ratio-class display names — no longer a dropdown's rows (the rate-change
+// facet is three hide rules, Facets.js), but facettip.js still labels a
+// filter's own ratio class through this table.
 export const RATIOS = [
   ["", "Any ratio"],
   ["integer", "Integer"],

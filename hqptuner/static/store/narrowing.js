@@ -25,16 +25,26 @@ export const FOCUS_MODE_DEFAULT = "or";
 export const nGenreMode = signal(GENRE_MODE_DEFAULT);
 export const nFocusMode = signal(FOCUS_MODE_DEFAULT);
 export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)
-// Length and ratio are SINGLE-select, unlike genre and focus: a filter carries
-// exactly one length and one ratio class, so an intersection of two picks is
-// empty by construction and a multi-select would offer a choice it cannot
-// honour. "" = any.
+// Length is SINGLE-select, unlike genre and focus: a filter carries exactly
+// one length, so an intersection of two picks is empty by construction and a
+// multi-select would offer a choice it cannot honour. "" = any.
 export const nLength = signal("");
-export const nRatio = signal("");
-// ratio-dropdown extra: the manual fuses "up" (upsample-only) INTO the ratio
-// column ("Integer up"). Not a ratio class — orthogonal — so it rides as a
-// checkbox in the ratio popover, ANDing with any ratio class picked.
-export const nUpsampleOnly = signal(false);
+// Rate-change narrowing. The manual's ratio column names LIMITATIONS (2x-only,
+// integer-only, upsample-only), and nobody shops FOR a limitation — the user's
+// scenario decides which limitation would bite, so the control is three
+// independent hide rules rather than a "show only class X" pick. Any-ratio
+// filters and `none` (1:1) survive all three.
+//
+// The two class hides are TRI-STATE: "auto" (default) follows the DAC — when
+// the output mode is SDM and the device exposes no 48 kHz-family DSD rate,
+// 2x-/integer-only filters cannot produce output from 48 kHz-family sources,
+// so "auto" hides them (narrowmatch.js resolves it against the live rates
+// enum). "on"/"off" are the user's explicit override either way. Only an
+// explicit value reads as engaged — the auto default is not a changed field.
+export const RATE_RULE_DEFAULT = "auto";
+export const nHide2x = signal(RATE_RULE_DEFAULT); // hide 2x-only filters: auto | on | off
+export const nHideInt = signal(RATE_RULE_DEFAULT); // hide integer-only filters: auto | on | off
+export const nDownsafeOnly = signal(false); // show only downsampling-safe (hide upsample-only)
 
 // Apodizing and hi-res narrowing are PER-STAGE, not per-chain (user decision):
 // one state each for 1x and Nx, shared by PCM and SDM, driven by the segmented
@@ -76,8 +86,9 @@ export const narrowingActive = computed(
       nFocus.value.length ||
       nPhase.value ||
       nLength.value ||
-      nRatio.value ||
-      nUpsampleOnly.value ||
+      nHide2x.value !== RATE_RULE_DEFAULT ||
+      nHideInt.value !== RATE_RULE_DEFAULT ||
+      nDownsafeOnly.value ||
       nFavOnly.value ||
       stageTogglesEngaged()
     ),
@@ -90,8 +101,9 @@ export function resetNarrowing() {
   nFocus.value = [];
   nPhase.value = "";
   nLength.value = "";
-  nRatio.value = "";
-  nUpsampleOnly.value = false;
+  nHide2x.value = RATE_RULE_DEFAULT;
+  nHideInt.value = RATE_RULE_DEFAULT;
+  nDownsafeOnly.value = false;
   nFavOnly.value = false; // the switch only — reset clears narrowing, never the stars
   nApod1x.value = APOD_1X_DEFAULT; // back to per-stage defaults, not a bare clear
   nApodNx.value = APOD_NX_DEFAULT;

@@ -10,15 +10,19 @@ import {
   nFocusMode,
   nPhase,
   nLength,
-  nRatio,
-  nUpsampleOnly,
+  nHide2x,
+  nHideInt,
+  nDownsafeOnly,
   nApod1x,
   nApodNx,
   nHires1x,
   nHiresNx,
 } from "./narrowing.js";
+import { computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 import { favoriteFilters, nFavOnly } from "./favorites.js";
+import { enums } from "./signals.js";
+import { effective } from "./resolve.js";
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
 // mode-split ratio (mqa/mp3) to test; null for non-chain callers.
@@ -34,8 +38,9 @@ import { favoriteFilters, nFavOnly } from "./favorites.js";
  * @property {string} focusMode "and" | "or" — how the focus picks combine
  * @property {string} phase
  * @property {string} length
- * @property {string} ratio
- * @property {boolean} upsampleOnly
+ * @property {boolean} hide2x
+ * @property {boolean} hideInt
+ * @property {boolean} downsafeOnly
  * @property {boolean} favOnly
  * @property {string|null} family which side of a mode-split ratio to test; null off-chain
  * @property {boolean} apod
@@ -81,8 +86,8 @@ function ratioOf(f, fam) {
 // dropdown's STAGE switch (1x or Nx): on "only", full-apodizing filters pass;
 // ½-apodizing ones pass only on "half".
 // Each entry reads "facet not engaged, or the filter passes it", so an unset
-// facet excludes nothing. "any" is the escape hatch for genre and ratio — a
-// filter the manual marks agnostic survives every selection of that facet.
+// facet excludes nothing. "any" is genre's escape hatch — a filter the manual
+// marks agnostic survives every selection of that facet.
 //
 // The multi-select facets (genre, focus) carry their own combine mode: "and"
 // intersects, so each further pick narrows, and "or" unions, so each further
@@ -108,8 +113,11 @@ const FACET_CHECKS = [
   (f, s) => !s.focus.length || multiPass(s.focus, f.focus, s.focusMode),
   (f, s) => !s.phase || f.phase === s.phase,
   (f, s) => !s.length || f.length === s.length,
-  (f, s) => !s.ratio || ratioPass(f, s),
-  (f, s) => !s.upsampleOnly || f.upsampleOnly === true,
+  // The rate-change rules hide only what they can positively exclude: a filter
+  // whose ratio class is unknown (null) is never hidden by them.
+  (f, s) => !s.hide2x || ratioOf(f, s.family) !== "2x",
+  (f, s) => !s.hideInt || ratioOf(f, s.family) !== "integer",
+  (f, s) => !s.downsafeOnly || !upsampleOf(f, s.family),
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
   // hide-hires (1x): drop the strict *-hires-* set — the mqa/mp3 filters stay,
   // they belong at 1x for lossy sources. show-only-hires (Nx): keep the whole
@@ -119,14 +127,44 @@ const FACET_CHECKS = [
   (f, s) => !s.hiresOnly || f.hiresFamily === true,
 ];
 
+// The "auto" state of the two class hides, resolved against the DAC: with the
+// output mode SDM and no 48 kHz-family DSD rate in the live rates enum (no
+// listed rate is a positive multiple of 48000 — the rate-0 row is the auto-rate
+// sentinel, not a rate), a 2x-/integer-only filter cannot produce output from
+// 48 kHz-family sources, so auto reads as hidden. Anywhere else auto reads as
+// not hidden.
+export const rateAutoHide = computed(() => {
+  if (effective("output_mode") !== "sdm") return false;
+  const rates = (enums.value && enums.value.rates) || [];
+  return !rates.some((/** @type {{ rate?: string }} */ r) => {
+    const hz = Number(r.rate);
+    return hz > 0 && hz % 48000 === 0;
+  });
+});
+
 /**
- * @param {FilterFacet} f
- * @param {Sel} s
+ * Resolve one tri-state class-hide rule to the boolean the checks run on.
+ * @param {string} v "auto" | "on" | "off"
  * @returns {boolean}
  */
-function ratioPass(f, s) {
-  const r = ratioOf(f, s.family);
-  return r != null && (r === "any" || r === s.ratio);
+const ruleOn = (v) => v === "on" || (v === "auto" && rateAutoHide.value);
+
+/** Effective "hide 2x-only" rule — the user's override, or the auto default. */
+export const effHide2x = computed(() => ruleOn(nHide2x.value));
+/** Effective "hide integer-only" rule — the user's override, or the auto default. */
+export const effHideInt = computed(() => ruleOn(nHideInt.value));
+
+// Upsample-only is chain-dependent for the same mode-split pair: the manual's
+// "up" rides their PCM row ("Integer up") while their SDM row reads plain
+// "Any", so the flat flag applies to the PCM side only.
+/**
+ * @param {FilterFacet} f
+ * @param {string|null} fam
+ * @returns {boolean}
+ */
+function upsampleOf(f, fam) {
+  if (f.ratio != null) return f.upsampleOnly;
+  return fam === "sdm" ? false : f.upsampleOnly;
 }
 
 // A filter with no facet record passes untouched — narrowing hides only what it
@@ -160,8 +198,9 @@ function buildSel(stage, field) {
     focusMode: nFocusMode.value,
     phase: nPhase.value,
     length: nLength.value,
-    ratio: nRatio.value,
-    upsampleOnly: nUpsampleOnly.value,
+    hide2x: effHide2x.value,
+    hideInt: effHideInt.value,
+    downsafeOnly: nDownsafeOnly.value,
     favOnly: nFavOnly.value,
     family: family(field),
     apod: apod !== "all",
@@ -178,8 +217,9 @@ const SCALAR_FACETS = [
   "quality",
   "phase",
   "length",
-  "ratio",
-  "upsampleOnly",
+  "hide2x",
+  "hideInt",
+  "downsafeOnly",
   "favOnly",
   "apod",
   "hideHires",
