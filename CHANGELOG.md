@@ -12,6 +12,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The header prints the installed HQPlayer release, not the DSP engine build.**
 - **Several dropdowns narrow to widths that fit their options.**
+- **On LIVE, the rate pair explains its Auto graying on hover rather than in a caption under the card.** The caption is gone and the Mode switch beside it keeps one size in every mode.
 
 ### Fixed
 
