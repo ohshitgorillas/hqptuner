@@ -178,18 +178,23 @@ const FILE = () => ({ mode: "pcm" });
 /** @param {WireSeams} [seams] */
 function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored, file = FILE(), refreshed } = {}) {
   const w = { posts: /** @type {unknown[]} */ ([]) };
+  // The read-side routes, each answering what its endpoint really wraps —
+  // pending answers RAW, no {data}: the store mirrors it with the raw
+  // unwrapper.
+  /** @type {Record<string, () => unknown>} */
+  const reads = {
+    "/api/state": () => ok({ data: mirrored || STATE() }),
+    "/api/enumerations": () => ok({ data: fresh || ENUMS() }),
+    "/api/config": () => ok({ data: { fields: [], file: refreshed || file, active: "", profiles: null } }),
+    "/api/config/pending": () => ok({ live: {}, http: {} }),
+  };
   env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
       w.posts.push(JSON.parse(String(opts.body)));
       return status === 200 ? ok(report) : bad(status, detail);
     }
-    if (path === "/api/state") return ok({ data: mirrored || STATE() });
-    if (path === "/api/enumerations") return ok({ data: fresh || ENUMS() });
-    if (path === "/api/config")
-      return ok({ data: { fields: [], file: refreshed || file, active: "", profiles: null } });
-    // Pending answers RAW — the store mirrors it with the raw unwrapper.
-    if (path === "/api/config/pending") return ok({ live: {}, http: {} });
-    return ok({});
+    const answer = reads[path];
+    return answer ? answer() : ok({});
   };
   return w;
 }
