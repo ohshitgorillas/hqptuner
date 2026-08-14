@@ -6,7 +6,7 @@
 
 import { runningValue } from "../resolve.js";
 import { optionsFor, grayShapersByRate } from "../options.js";
-import { narrowOptions, narrowCount } from "../narrowing.js";
+import { narrowOptions, narrowCount } from "../narrowmatch.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
 
 /**

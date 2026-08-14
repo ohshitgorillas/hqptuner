@@ -17,15 +17,8 @@
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
-import {
-  narrowingActive,
-  narrowingError,
-  resetNarrowing,
-  nApod1x,
-  nApodNx,
-  nHires1x,
-  nHiresNx,
-} from "../store/narrowing.js";
+import { narrowingActive, resetNarrowing, nApod1x, nApodNx, nHires1x, nHiresNx } from "../store/narrowing.js";
+import { narrowingError } from "../store/narrowpersist.js";
 import { notesVisible } from "../store/prefs.js";
 import { closeExcept } from "./narrowbar/popover.js";
 import { NarrowFacets } from "./narrowbar/Facets.js";

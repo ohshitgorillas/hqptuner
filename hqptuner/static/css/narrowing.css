@@ -168,6 +168,20 @@
   padding-top: var(--sp-1);
   border-top: 1px solid var(--surface-raised);
 }
+/* The AND/OR combine switch closing a multi-select popover (genre, focus): the
+   segment spans the popover and splits it evenly, so the two halves read as one
+   two-way choice rather than as another option row. Scaled down off the
+   segment's own defaults to the checkbox rows' type and padding — a control this
+   wide at --fs-body-lg would outweigh the list it modifies. */
+.multi-mode .segment {
+  display: flex;
+  flex: 1;
+}
+.multi-mode .seg {
+  flex: 1;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-body);
+}
 
 /* Per-stage apodizing / hi-res switch block under the facet row (NarrowBar.js):
    the binding two-column split (1fr 1px 1fr + .col-rule on the card centre

@@ -7,7 +7,7 @@ import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
 import { metadata } from "../../store/signals.js";
 import { Segment } from "../controls/index.js";
-import { previewCount } from "../../store/narrowing.js";
+import { previewCount } from "../../store/narrowmatch.js";
 import { notesVisible } from "../../store/prefs.js";
 
 /**

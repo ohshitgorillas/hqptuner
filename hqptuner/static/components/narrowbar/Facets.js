@@ -7,8 +7,39 @@ import { GENRES, QUALITY, FOCUS, PHASES, LENGTHS, RATIOS } from "./facet-data.js
 import { genreOpen, qualityOpen, focusOpen, phaseOpen, lengthOpen, ratioOpen } from "./popover.js";
 import { focusLabel, genreLabel, ratioLabel, oneLabel, toggleVal } from "./labels.js";
 import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
-import { nGenre, nQuality, nFocus, nPhase, nLength, nRatio, nUpsampleOnly } from "../../store/narrowing.js";
+import { Segment } from "../controls/index.js";
+import {
+  nGenre,
+  nGenreMode,
+  nQuality,
+  nFocus,
+  nFocusMode,
+  nPhase,
+  nLength,
+  nRatio,
+  nUpsampleOnly,
+} from "../../store/narrowing.js";
 import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
+
+// How a multi-select facet's picks combine, as the last row of its own popover:
+// the checkbox rows above are WHICH tags, this is HOW they join. A segment
+// rather than a checkbox because both halves are real answers — neither "and"
+// nor "or" is the off position — and it spans the popover so the two halves read
+// as one two-way choice, not as another option row.
+const MODE_SEGS = [
+  { value: "and", label: "AND" },
+  { value: "or", label: "OR" },
+];
+
+/**
+ * Renders one multi-select facet's AND/OR combine switch, bound to `sig`.
+ * @param {{ sig: { value: string } }} props
+ */
+function ModeSwitch({ sig }) {
+  return html`<div class="multi-extra multi-mode">
+    <${Segment} value=${sig.value} options=${MODE_SEGS} onChange=${(/** @type {string} */ v) => (sig.value = v)} />
+  </div>`;
+}
 
 /**
  * Renders the facet row: the genre, quality, focus, phase, length and ratio
@@ -26,6 +57,7 @@ export function NarrowFacets() {
         sig=${nGenre}
         active=${!!nGenre.value.length}
         count=${(/** @type {string} */ v) => ({ genre: toggleVal(nGenre.value, v) })}
+        extra=${html`<${ModeSwitch} sig=${nGenreMode} />`}
       />
       <${SingleSelect}
         open=${qualityOpen}
@@ -45,6 +77,7 @@ export function NarrowFacets() {
         sig=${nFocus}
         active=${!!nFocus.value.length}
         count=${(/** @type {string} */ v) => ({ focus: toggleVal(nFocus.value, v) })}
+        extra=${html`<${ModeSwitch} sig=${nFocusMode} />`}
       />
       <${SingleSelect}
         open=${phaseOpen}
