@@ -36,19 +36,25 @@ export function toggleIn(sig, v) {
 // setting that is doing nothing.
 const withMode = (/** @type {string} */ text, /** @type {string} */ mode) => `${text} · ${mode.toUpperCase()}`;
 
-/** Summary label for the focus dropdown's button: "Any focus", the one picked focus, or "N focuses" with its mode. */
+/**
+ * Summary label for the focus dropdown's button: "Any focus", the one picked focus, or "N focuses" with its mode.
+ * @returns {string}
+ */
 export function focusLabel() {
   const sel = nFocus.value;
   if (!sel.length) return "Any focus";
-  if (sel.length === 1) return (FOCUS.find(([v]) => v === sel[0]) || [])[1];
+  if (sel.length === 1) return String(oneLabel(FOCUS, sel[0], String(sel[0])));
   return withMode(`${sel.length} focuses`, nFocusMode.value);
 }
 
-/** Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres" with its mode. */
+/**
+ * Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres" with its mode.
+ * @returns {string}
+ */
 export function genreLabel() {
   const sel = nGenre.value;
   if (!sel.length) return "Any genre";
-  if (sel.length === 1) return oneLabel(GENRES, sel[0], sel[0]);
+  if (sel.length === 1) return String(oneLabel(GENRES, sel[0], String(sel[0])));
   return withMode(`${sel.length} genres`, nGenreMode.value);
 }
 
