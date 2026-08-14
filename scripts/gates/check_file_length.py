@@ -52,7 +52,6 @@ ALLOWANCE: dict[str, int] = {
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/components/LiveView.js": 468,
     "hqptuner/static/lib/xfeed.js": 462,
-    "hqptuner/static/store/narrowing.js": 449,
     "scripts/eqlab/search.js": 442,
     "scripts/eqlab/render.js": 441,
     "hqptuner/static/css/cards.css": 437,
