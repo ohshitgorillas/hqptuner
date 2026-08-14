@@ -1,7 +1,7 @@
 """Narrow-bar facets — which filters the four filter dropdowns offer, kept for the install rather than for one browser.
 
 The narrow bar is HQPTuner's own feature: there is no daemon field behind it, so the install is the only place the
-facets can live. Stored as one JSON file beside the favorites, and for the same reasons — eleven short values, so a
+facets can live. Stored as one JSON file beside the favorites, and for the same reasons — a dozen-odd short values, so a
 file per facet would be all overhead — with ``favoritestore``'s conventions: a schema stamp that refuses a store newer
 than this HQPTuner understands, an unstamped file adopted on its next write, lazy creation so an install that never
 narrows anything reads as defaults.
@@ -42,8 +42,10 @@ _GENRES = frozenset({"pop", "rock", "jazz", "blues", "classical", "electronic", 
 _FOCUS = frozenset({"transients", "timbre", "space"})
 _PHASES = frozenset({"", "linear", "minimum", "intermediate"})
 _LENGTHS = frozenset({"", "short", "medium", "long", "xlong"})
-_RATIOS = frozenset({"", "integer", "2x", "1:1"})
 _QUALITIES = frozenset({0, 3, 4, 5})
+# The two rate-change class hides are tri-state: "auto" follows the DAC (the frontend resolves it against the live
+# rates enumeration), "on"/"off" are the user's explicit override.
+_RATE_RULES = frozenset({"auto", "on", "off"})
 _APOD = frozenset({"only", "half", "all"})
 _HIRES_1X = frozenset({"hide", "show"})
 _HIRES_NX = frozenset({"all", "only"})
@@ -90,7 +92,9 @@ def _flag(value: Any) -> bool:
 
 
 # Every facet the store holds: its default and the check its value must pass. The frontend's signal names map to these
-# keys in the obvious way (nUpsampleOnly <-> upsample_only, nApod1x <-> apod_1x).
+# keys in the obvious way (nHide2x <-> hide_2x, nApod1x <-> apod_1x). A file written before the rate-change facets
+# replaced the ratio pick may still carry `ratio` / `upsample_only`; read() only looks up the keys named here, so those
+# entries are ignored and the next write drops them.
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
     "genre_mode": ("and", _one_of(_MODES)),
@@ -99,8 +103,9 @@ _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "focus_mode": ("or", _one_of(_MODES)),
     "phase": ("", _one_of(_PHASES)),
     "length": ("", _one_of(_LENGTHS)),
-    "ratio": ("", _one_of(_RATIOS)),
-    "upsample_only": (False, _flag),
+    "hide_2x": ("auto", _one_of(_RATE_RULES)),
+    "hide_int": ("auto", _one_of(_RATE_RULES)),
+    "downsafe_only": (False, _flag),
     "apod_1x": ("only", _one_of(_APOD)),
     "apod_nx": ("all", _one_of(_APOD)),
     "hires_1x": ("hide", _one_of(_HIRES_1X)),

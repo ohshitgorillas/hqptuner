@@ -156,8 +156,22 @@
   color: var(--fg);
   white-space: nowrap;
 }
-/* orthogonal extra in a multi-select popover (ratio → upsample-only): divided
-   off the class rows above it, same row chrome */
+/* rate-change popover (Facets.js RateFacet): the three hide-rule rows plus
+   explanatory prose. Wide enough for the prose to read as short paragraphs —
+   the row chrome is nowrap, so the popover needs its own measure. */
+.rate-pop {
+  width: 24rem;
+}
+/* explainer / hint prose under the rule rows: caption voice, wraps, divided
+   off the rows above it the way .multi-extra is. */
+.rate-note {
+  white-space: normal;
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--surface-raised);
+}
+
+/* orthogonal extra in a multi-select popover (genre/focus → AND/OR switch):
+   divided off the rows above it, same row chrome */
 .multi-extra {
   display: flex;
   align-items: center;

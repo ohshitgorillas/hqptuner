@@ -15,7 +15,7 @@ export const genreOpen = signal(false);
 export const qualityOpen = signal(false);
 export const phaseOpen = signal(false);
 export const lengthOpen = signal(false);
-export const ratioOpen = signal(false);
+export const rateOpen = signal(false);
 
 // Every popover, keyed by the `data-multi` its wrapper carries. A pointerdown
 // anywhere on the page closes each one whose own wrapper wasn't the target —
@@ -26,7 +26,7 @@ const POPOVERS = {
   focus: focusOpen,
   phase: phaseOpen,
   length: lengthOpen,
-  ratio: ratioOpen,
+  rate: rateOpen,
 };
 
 /**

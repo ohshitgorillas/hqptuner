@@ -5,14 +5,14 @@
 // the facet assembly.
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { nGenre, nGenreMode, nFocus, nFocusMode, nRatio, nUpsampleOnly } from "../../store/narrowing.js";
-import { previewCount } from "../../store/narrowmatch.js";
-import { GENRES, FOCUS, RATIOS } from "./facet-data.js";
+import { nGenre, nGenreMode, nFocus, nFocusMode, nDownsafeOnly } from "../../store/narrowing.js";
+import { previewCount, effHide2x, effHideInt } from "../../store/narrowmatch.js";
+import { GENRES, FOCUS } from "./facet-data.js";
 
 /**
  * @typedef {{ genre?: string[], genreMode?: string, quality?: number, focus?: string[], focusMode?: string,
  *             phase?: string, length?: string,
- *             ratio?: string, upsampleOnly?: boolean, apod?: boolean, half?: boolean,
+ *             hide2x?: boolean, hideInt?: boolean, downsafeOnly?: boolean, apod?: boolean, half?: boolean,
  *             hideHires?: boolean, hiresOnly?: boolean }} NarrowOverrides
  *   A partial facet selection laid over the live one — what a candidate pick
  *   would produce, which is what the count chips are counted against
@@ -59,17 +59,20 @@ export function genreLabel() {
 }
 
 /**
- * Summary label for the ratio dropdown's button, which also reports the
- * upsample-only extra: "Any ratio", "Integer", "upsample-only", or the picked
- * ratio and "upsample-only" joined with " + ".
+ * Summary label for the rate-change dropdown's button. Idle it names the facet
+ * ("Rate change") and claims nothing — the unnarrowed list is NOT all-capable.
+ * One engaged rule reads as that rule; more read as a count. Reads the
+ * EFFECTIVE rules, so an auto-engaged hide is named here even though only an
+ * explicit override highlights the button.
  */
-export function ratioLabel() {
-  const sel = nRatio.value;
+export function rateLabel() {
   const parts = [];
-  if (sel) parts.push(oneLabel(RATIOS, sel, sel));
-  if (nUpsampleOnly.value) parts.push("upsample-only");
-  if (!parts.length) return "Any ratio";
-  return parts.join(" + ");
+  if (nDownsafeOnly.value) parts.push("Downsample-safe");
+  if (effHide2x.value) parts.push("No 2x-only");
+  if (effHideInt.value) parts.push("No integer-only");
+  if (!parts.length) return "Rate change";
+  if (parts.length === 1) return parts[0];
+  return `Rate: ${parts.length} rules`;
 }
 
 /** Looks a value up in a facet's option table and returns its label, or `fallback` if no row matches. */
