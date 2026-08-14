@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-08-14
+
 ### Added
 
 - **The genre and focus narrowing dropdowns now combine their picks by AND or OR.** A switch at the foot of each popover chooses whether a filter must carry every picked tag or just one of them. Genre starts on AND, focus on OR, and the choice is stored for the install alongside the rest of the narrowing.
