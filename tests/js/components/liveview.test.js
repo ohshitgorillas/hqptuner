@@ -181,10 +181,11 @@ test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
 // In `[source]` the engine accepts no rate on the wire at all (protocol.md §6),
 // so both rate columns come off the store grayed and carrying a reason
 // (store/liverateauto.test.js pins the sentence itself). What is pinned here is
-// where the user MEETS that sentence: on hover, as the field's own title, in
-// place of the manual tooltip the field would otherwise carry — and nowhere as a
-// caption underneath, which is what the old gray had and what reflows the row on
-// every mode change.
+// where the user MEETS that sentence: on hover, as the field's own title — and
+// nowhere as a caption underneath, which is what the old gray had and what
+// reflows the row on every mode change. The rate columns are addressed by no
+// catalog key of their own, so the title is the reason or it is empty; there is
+// no tooltip for it to compete with.
 //
 // The anchors are what a user reads: the rate columns are labelled `PCM` and
 // `SDM`, and the field root is the single smallest element enclosing that label,
@@ -199,10 +200,6 @@ test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
 const LIMITS = { defaults_samplerate: "384000", defaults_bitrate: "49152000" };
 const AUTO = { state: "0", name: "[source]", file: { mode: "auto", ...LIMITS } };
 const EXPLICIT_PCM = { state: "1", name: "PCM", file: { mode: "pcm", ...LIMITS } };
-
-// The manual tooltip the rate fields carry when nothing is refusing them —
-// settings.json's own prose, as METADATA above serves it.
-const RATE_TOOLTIP = "Output sample rate request, or upper limit.";
 
 // The sentence the store hands a grayed column in auto.
 const AUTO_REASON = "The engine selects the rate in Auto mode.";
@@ -251,18 +248,12 @@ test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_tit
   assert.equal(hoverTitle(page(), "SDM"), AUTO_REASON);
 });
 
-test("test_the_grayed_pcm_rate_fields_hover_title_drops_the_manual_tooltip", async () => {
-  // The reason stands IN PLACE OF the tooltip: a title carrying both tells the
-  // user how to set a rate in the same breath as saying they cannot.
-  await inOutputMode(AUTO);
-  assert.equal(hoverTitle(page(), "PCM").includes(RATE_TOOLTIP), false);
-});
-
-test("test_a_live_rate_field_with_no_reason_still_carries_its_manual_tooltip", async () => {
-  // Under an explicit mode the column carries no reason at all, so the hover
-  // title is the field's own prose, exactly as it was before.
+test("test_a_live_rate_field_with_no_reason_carries_no_hover_title_at_all", async () => {
+  // The rate columns are addressed by no catalog key of their own, so there is
+  // no prose for a title to fall back to: under an explicit mode, where the
+  // column carries no reason either, the field's title is empty.
   await inOutputMode(EXPLICIT_PCM);
-  assert.equal(hoverTitle(page(), "PCM"), RATE_TOOLTIP);
+  assert.equal(hoverTitle(page(), "PCM"), "");
 });
 
 // The caption is gone in BOTH modes: in auto because the reason now rides on the
