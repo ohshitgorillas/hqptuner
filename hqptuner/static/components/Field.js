@@ -164,6 +164,20 @@ function controlValue(entry, key) {
   return entry.bool ? (truthy(v) ? "1" : "0") : v;
 }
 
+/**
+ * The width and span opt-ins a schema entry asks for, as classes.
+ *
+ * Exported because the LIVE page renders the same entries through its own field
+ * component, and a compact-less combobox is content-sized — its trigger changes
+ * width as the selection changes (combobox.css).
+ *
+ * @param {FieldEntry} entry
+ * @returns {string}
+ */
+export function widthClasses(entry) {
+  return `${entry.wide ? "wide" : ""} ${entry.compact ? `compact compact-${entry.compact}` : ""} ${entry.span ? "span" : ""}`;
+}
+
 // Widget kind + the layout opt-ins + the dirty highlight, in that order.
 /**
  * @param {FieldEntry} entry
@@ -172,7 +186,7 @@ function controlValue(entry, key) {
  * @returns {string}
  */
 function fieldClasses(entry, key, label) {
-  return `field field-${entry.widget} ${label ? "" : "field-nolabel"} ${entry.wide ? "wide" : ""} ${entry.compact ? `compact compact-${entry.compact}` : ""} ${entry.span ? "span" : ""} ${isDirty(key) ? "dirty" : ""}`;
+  return `field field-${entry.widget} ${label ? "" : "field-nolabel"} ${widthClasses(entry)} ${isDirty(key) ? "dirty" : ""}`;
 }
 
 // Option source: the schema's own list or the daemon form's, then the two
