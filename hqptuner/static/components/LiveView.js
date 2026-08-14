@@ -38,7 +38,7 @@ import {
 import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
-import { widgetFor, tipsFor, favFor, FavoriteError } from "./Field.js";
+import { widgetFor, widthClasses, tipsFor, favFor, FavoriteError } from "./Field.js";
 import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { PlaybackVolumeBody } from "./PlaybackVolume.js";
@@ -139,7 +139,7 @@ function LiveField({ control, widget }) {
   const badge = control.badge;
   const { fav, onFav } = favFor(entry) || {};
   return html`
-    <div class="field" title=${hoverTitle(entry, meta)}>
+    <div class="field ${widthClasses(entry)}" title=${hoverTitle(entry, meta)}>
       <${LiveLabel} entry=${entry} meta=${meta} badge=${badge} />
       <div class="control">
         <${W}

@@ -49,11 +49,15 @@ async function onDelete(name) {
 // Daemon identity. Transport state is not printed here — the signal path's chips
 // already show whether the engine is running.
 function daemonIdentity() {
-  const info = (health.value && health.value.info) || {};
+  const h = health.value || {};
+  const info = h.info || {};
+  // The RELEASE, not GetInfo's `engine`: the DSP engine carries its own number
+  // (6.0.4 against release 6.0.2) and reading the engine's here puts a version
+  // beside the daemon's name that matches nothing the user can look up.
   return html`
     <div class="daemon">
       <span>${info.name || "hqplayerd"}</span>
-      <span class="muted">${info.engine ? `v${info.engine}` : ""}</span>
+      <span class="muted">${h.release ? `v${h.release}` : ""}</span>
     </div>
   `;
 }
