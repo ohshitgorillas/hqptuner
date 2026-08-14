@@ -184,6 +184,8 @@ function liveWire({
       return ok({ data: lists });
     }
     if (path === "/api/config") return ok({ data: { fields: [], file: overlay, active: "", profiles: null } });
+    // Pending answers RAW — the store mirrors it with the raw unwrapper.
+    if (path === "/api/config/pending") return ok({ live: {}, http: {} });
     return ok({});
   };
   return w;

@@ -187,6 +187,8 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
     if (path === "/api/enumerations") return ok({ data: fresh || ENUMS() });
     if (path === "/api/config")
       return ok({ data: { fields: [], file: refreshed || file, active: "", profiles: null } });
+    // Pending answers RAW — the store mirrors it with the raw unwrapper.
+    if (path === "/api/config/pending") return ok({ live: {}, http: {} });
     return ok({});
   };
   return w;

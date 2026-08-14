@@ -273,6 +273,8 @@ function liveWire({ state, lists, file }) {
     if (path === "/api/state") return ok({ data: state });
     if (path === "/api/enumerations") return ok({ data: lists });
     if (path === "/api/config") return ok({ data: { fields: [], file, active: "", profiles: null } });
+    // Pending answers RAW — the store mirrors it with the raw unwrapper.
+    if (path === "/api/config/pending") return ok({ live: {}, http: {} });
     return ok({});
   };
   return w;
