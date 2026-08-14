@@ -22,7 +22,7 @@
 // (`ratio: "1:1"`, `ratio_pcm`/`ratio_sdm`, `upsample_only`); on a mode-split
 // record the flat flag reads per chain — PCM yes, SDM never. The
 // output mode and the rates list ride the payloads that really carry them:
-// the /config form's `output_mode` field and the enumeration's `rates` items,
+// the /config form's `mode` field and the enumeration's `rates` items,
 // the way liverate.test.js and the shaperfit fixtures seed them.
 //
 // Persistence rides the same GET/PUT /api/narrowing pair as every other facet,
@@ -119,8 +119,11 @@ function reset(filters, overlay = {}, extras = [], engine = {}) {
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
   };
   config.value = {
-    fields: [{ name: "output_mode", value: mode }],
-    file: { output_mode: mode },
+    // The output-mode setting's /config form row and file-truth key are both
+    // named `mode` on the wire (the `output_mode` spelling is the schema's
+    // field id, not the wire key).
+    fields: [{ name: "mode", value: mode }],
+    file: { mode: mode },
     active: "",
     profiles: null,
   };
