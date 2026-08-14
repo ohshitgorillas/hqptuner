@@ -17,8 +17,8 @@ import {
   nFocus,
   nPhase,
   nLength,
-  nHide2x,
-  nHideInt,
+  nHideLimited,
+  nOddRateOnly,
   nDownsafeOnly,
   nApod1x,
   nApodNx,
@@ -44,10 +44,11 @@ const FACETS = [
   ["focus", nFocus, []],
   ["phase", nPhase, ""],
   ["length", nLength, ""],
-  // Legacy stores may still carry `ratio` / `upsample_only`; hydrate only reads
-  // the keys named here, so stale values are ignored rather than migrated.
-  ["hide_2x", nHide2x, RATE_RULE_DEFAULT],
-  ["hide_int", nHideInt, RATE_RULE_DEFAULT],
+  // Legacy stores may still carry `ratio` / `upsample_only` / `hide_2x` /
+  // `hide_int`; hydrate only reads the keys named here, so stale values are
+  // ignored rather than migrated.
+  ["hide_limited", nHideLimited, RATE_RULE_DEFAULT],
+  ["odd_rate_only", nOddRateOnly, false],
   ["downsafe_only", nDownsafeOnly, false],
   ["apod_1x", nApod1x, APOD_1X_DEFAULT],
   ["apod_nx", nApodNx, APOD_NX_DEFAULT],

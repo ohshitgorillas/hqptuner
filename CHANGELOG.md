@@ -10,7 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The Ratio narrowing dropdown is now Rate change: hide rules instead of ratio classes.** The old show-only-class pick is gone; the popover offers "hide 2x-only", "hide integer-only" and "show only downsampling-safe", explains what each limitation costs, and when the output is SDM on a DAC without 48 kHz-family DSD rates it hides 2x- and integer-only filters automatically without marking the facet as changed.
+- **The Ratio narrowing dropdown is now Rate change: scenario rules instead of ratio classes.** The old show-only-class pick is gone; the popover offers hiding output rate-limited filters, showing only downsampling-capable filters, and showing only filters that can resample uncommon source rates such as 32kHz, with a hint explaining what rate-limited means. When the output is SDM on a DAC without 48kHz-family DSD rates, rate-limited filters hide automatically without marking the facet as changed.
 - **The header prints the installed HQPlayer release, not the DSP engine build.**
 - **Several dropdowns narrow to widths that fit their options.**
 - **On LIVE, the rate pair explains its Auto graying on hover rather than in a caption under the card.** The caption is gone and the Mode switch beside it keeps one size in every mode.

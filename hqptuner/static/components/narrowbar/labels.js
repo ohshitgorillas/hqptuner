@@ -5,14 +5,14 @@
 // the facet assembly.
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { nGenre, nGenreMode, nFocus, nFocusMode, nDownsafeOnly } from "../../store/narrowing.js";
-import { previewCount, effHide2x, effHideInt } from "../../store/narrowmatch.js";
+import { nGenre, nGenreMode, nFocus, nFocusMode, nOddRateOnly, nDownsafeOnly } from "../../store/narrowing.js";
+import { previewCount, effHideLimited } from "../../store/narrowmatch.js";
 import { GENRES, FOCUS } from "./facet-data.js";
 
 /**
  * @typedef {{ genre?: string[], genreMode?: string, quality?: number, focus?: string[], focusMode?: string,
  *             phase?: string, length?: string,
- *             hide2x?: boolean, hideInt?: boolean, downsafeOnly?: boolean, apod?: boolean, half?: boolean,
+ *             hideLimited?: boolean, oddOnly?: boolean, downsafeOnly?: boolean, apod?: boolean, half?: boolean,
  *             hideHires?: boolean, hiresOnly?: boolean }} NarrowOverrides
  *   A partial facet selection laid over the live one — what a candidate pick
  *   would produce, which is what the count chips are counted against
@@ -67,9 +67,9 @@ export function genreLabel() {
  */
 export function rateLabel() {
   const parts = [];
-  if (nDownsafeOnly.value) parts.push("Downsample-safe");
-  if (effHide2x.value) parts.push("No 2x-only");
-  if (effHideInt.value) parts.push("No integer-only");
+  if (effHideLimited.value) parts.push("No rate-limited");
+  if (nDownsafeOnly.value) parts.push("Downsampling");
+  if (nOddRateOnly.value) parts.push("Uncommon rates");
   if (!parts.length) return "Rate change";
   if (parts.length === 1) return parts[0];
   return `Rate: ${parts.length} rules`;

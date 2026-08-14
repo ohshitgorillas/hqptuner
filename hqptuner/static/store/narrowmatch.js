@@ -10,8 +10,8 @@ import {
   nFocusMode,
   nPhase,
   nLength,
-  nHide2x,
-  nHideInt,
+  nHideLimited,
+  nOddRateOnly,
   nDownsafeOnly,
   nApod1x,
   nApodNx,
@@ -38,8 +38,8 @@ import { effective } from "./resolve.js";
  * @property {string} focusMode "and" | "or" — how the focus picks combine
  * @property {string} phase
  * @property {string} length
- * @property {boolean} hide2x
- * @property {boolean} hideInt
+ * @property {boolean} hideLimited
+ * @property {boolean} oddOnly
  * @property {boolean} downsafeOnly
  * @property {boolean} favOnly
  * @property {string|null} family which side of a mode-split ratio to test; null off-chain
@@ -114,9 +114,11 @@ const FACET_CHECKS = [
   (f, s) => !s.phase || f.phase === s.phase,
   (f, s) => !s.length || f.length === s.length,
   // The rate-change rules hide only what they can positively exclude: a filter
-  // whose ratio class is unknown (null) is never hidden by them.
-  (f, s) => !s.hide2x || ratioOf(f, s.family) !== "2x",
-  (f, s) => !s.hideInt || ratioOf(f, s.family) !== "integer",
+  // whose ratio class is unknown (null) is never hidden by them. The odd-rate
+  // rule hides just the 2x class — integer filters can still reach HQPTuner's
+  // tiers from an uncommon source rate (3x48k from 32 kHz), 2x-only ones can't.
+  (f, s) => !s.hideLimited || (ratioOf(f, s.family) !== "2x" && ratioOf(f, s.family) !== "integer"),
+  (f, s) => !s.oddOnly || ratioOf(f, s.family) !== "2x",
   (f, s) => !s.downsafeOnly || !upsampleOf(f, s.family),
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
   // hide-hires (1x): drop the strict *-hires-* set — the mqa/mp3 filters stay,
@@ -142,17 +144,10 @@ export const rateAutoHide = computed(() => {
   });
 });
 
-/**
- * Resolve one tri-state class-hide rule to the boolean the checks run on.
- * @param {string} v "auto" | "on" | "off"
- * @returns {boolean}
- */
-const ruleOn = (v) => v === "on" || (v === "auto" && rateAutoHide.value);
-
-/** Effective "hide 2x-only" rule — the user's override, or the auto default. */
-export const effHide2x = computed(() => ruleOn(nHide2x.value));
-/** Effective "hide integer-only" rule — the user's override, or the auto default. */
-export const effHideInt = computed(() => ruleOn(nHideInt.value));
+/** Effective rate-limited hide — the user's override, or the auto default. */
+export const effHideLimited = computed(
+  () => nHideLimited.value === "on" || (nHideLimited.value === "auto" && rateAutoHide.value),
+);
 
 // Upsample-only is chain-dependent for the same mode-split pair: the manual's
 // "up" rides their PCM row ("Integer up") while their SDM row reads plain
@@ -198,8 +193,8 @@ function buildSel(stage, field) {
     focusMode: nFocusMode.value,
     phase: nPhase.value,
     length: nLength.value,
-    hide2x: effHide2x.value,
-    hideInt: effHideInt.value,
+    hideLimited: effHideLimited.value,
+    oddOnly: nOddRateOnly.value,
     downsafeOnly: nDownsafeOnly.value,
     favOnly: nFavOnly.value,
     family: family(field),
@@ -217,8 +212,8 @@ const SCALAR_FACETS = [
   "quality",
   "phase",
   "length",
-  "hide2x",
-  "hideInt",
+  "hideLimited",
+  "oddOnly",
   "downsafeOnly",
   "favOnly",
   "apod",

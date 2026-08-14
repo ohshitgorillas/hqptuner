@@ -43,8 +43,8 @@ _FOCUS = frozenset({"transients", "timbre", "space"})
 _PHASES = frozenset({"", "linear", "minimum", "intermediate"})
 _LENGTHS = frozenset({"", "short", "medium", "long", "xlong"})
 _QUALITIES = frozenset({0, 3, 4, 5})
-# The two rate-change class hides are tri-state: "auto" follows the DAC (the frontend resolves it against the live
-# rates enumeration), "on"/"off" are the user's explicit override.
+# The rate-limited hide is tri-state: "auto" follows the DAC (the frontend resolves it against the live rates
+# enumeration), "on"/"off" are the user's explicit override.
 _RATE_RULES = frozenset({"auto", "on", "off"})
 _APOD = frozenset({"only", "half", "all"})
 _HIRES_1X = frozenset({"hide", "show"})
@@ -92,9 +92,9 @@ def _flag(value: Any) -> bool:
 
 
 # Every facet the store holds: its default and the check its value must pass. The frontend's signal names map to these
-# keys in the obvious way (nHide2x <-> hide_2x, nApod1x <-> apod_1x). A file written before the rate-change facets
-# replaced the ratio pick may still carry `ratio` / `upsample_only`; read() only looks up the keys named here, so those
-# entries are ignored and the next write drops them.
+# keys in the obvious way (nHideLimited <-> hide_limited, nApod1x <-> apod_1x). A file written before the rate-change
+# facets settled may still carry `ratio` / `upsample_only` / `hide_2x` / `hide_int`; read() only looks up the keys
+# named here, so those entries are ignored and the next write drops them.
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
     "genre_mode": ("and", _one_of(_MODES)),
@@ -103,8 +103,8 @@ _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "focus_mode": ("or", _one_of(_MODES)),
     "phase": ("", _one_of(_PHASES)),
     "length": ("", _one_of(_LENGTHS)),
-    "hide_2x": ("auto", _one_of(_RATE_RULES)),
-    "hide_int": ("auto", _one_of(_RATE_RULES)),
+    "hide_limited": ("auto", _one_of(_RATE_RULES)),
+    "odd_rate_only": (False, _flag),
     "downsafe_only": (False, _flag),
     "apod_1x": ("only", _one_of(_APOD)),
     "apod_nx": ("all", _one_of(_APOD)),
