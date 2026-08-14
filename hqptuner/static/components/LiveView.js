@@ -93,8 +93,15 @@ function LiveProse({ control, meta }) {
 // Hover carries the overall feature description for the controls that render a
 // per-selection one instead, for the ones whose note is hover-only, and for
 // everyone when the notes are toggled off — the same rule Field applies.
-const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ meta) =>
-  entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "";
+//
+// A gray reason outranks all of that and replaces the tooltip outright, which is
+// where this parts company with Field's own rule (Field.js hoverTitle: on a
+// hoverNote field the tooltip wins and the reason only fills an empty hover).
+// This page has one grayed control and it is disabled — what the setting does
+// matters less than why it will not take an edit, and appending both puts the
+// answer at the end of a paragraph.
+const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ meta, /** @type {string} */ reason) =>
+  reason || (entry.desc || entry.hoverNote || !notesVisible.value ? meta.tooltip : "");
 
 // One live control: the widget, its prose, why it is grayed
 // if it is, and the reason the last write was refused. Disabled while its OWN
@@ -110,13 +117,11 @@ const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ me
 // loads (lanes/livemap.unpinnable_rate). Nothing here is ever disabled for
 // playing (CLAUDE.md).
 //
-// A grayed control ALWAYS carries its reason, never quietly — `quietGray` is the
-// tabs' answer to a caption that reflows the row as the mode changes, and this
-// page's one gray reason is fixed text shown in one mode only. It is not
-// rendered HERE, though: the rate pair grays as a PAIR, both columns carrying
-// the identical sentence, so the caption belongs to the card that holds them
-// both and `HeroRow` prints it once. A control that ever grays on its own would
-// need its own render; none does today.
+// The reason rides the hover title and prints nowhere on the page, the same way
+// the tabs' rate pair grays (`quietGray`, store/schema.js). A visible caption
+// appears in one mode only, so the Rate card is a line taller in auto than under
+// an explicit mode and the Mode switch beside it stretches to match — the hero
+// row sizes its cards together. Hover costs the page nothing in any mode.
 /** @param {{ entry: FieldEntry, meta: FieldMeta, badge: NarrowBadge | null | undefined }} props */
 function LiveLabel({ entry, meta, badge }) {
   return html`
@@ -139,7 +144,7 @@ function LiveField({ control, widget }) {
   const badge = control.badge;
   const { fav, onFav } = favFor(entry) || {};
   return html`
-    <div class="field ${widthClasses(entry)}" title=${hoverTitle(entry, meta)}>
+    <div class="field ${widthClasses(entry)}" title=${hoverTitle(entry, meta, control.reason || "")}>
       <${LiveLabel} entry=${entry} meta=${meta} badge=${badge} />
       <div class="control">
         <${W}
@@ -244,14 +249,9 @@ function HeroRow() {
       <//>
       <${Card} title="Rate" center=${true}>
         <div class="rate-stack">
-          <${LiveField} control=${pcmRate} quietReason=${true} />
-          <${LiveField} control=${sdmRate} quietReason=${true} />
+          <${LiveField} control=${pcmRate} />
+          <${LiveField} control=${sdmRate} />
         </div>
-        ${
-          pcmRate.reason || sdmRate.reason
-            ? html`<div class="field-gray-reason rate-gray">${pcmRate.reason || sdmRate.reason}</div>`
-            : null
-        }
       <//>
     </div>
   `;
