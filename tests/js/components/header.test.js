@@ -82,9 +82,8 @@ function head(o = {}) {
 // Re-render without resetting, for the cases that ask a question first.
 const again = () => decode(render(html`<${Header} />`));
 
-// The two identity spans, in render order.
+// The identity spans, in render order.
 const NAME = 0;
-const VERSION = 1;
 
 /** @param {string} out */
 const daemon = (out) => out.split('<div class="daemon">')[1].split("</div>")[0];
@@ -118,14 +117,9 @@ test("test_the_reported_daemon_name_is_shown", () => {
   assert.equal(idents(out)[NAME], "hqplayerd6");
 });
 
-test("test_the_engine_version_is_shown_with_a_v_prefix", () => {
-  const out = head({ health: { reachable: true, info: { engine: "5.10.0" } } });
-  assert.equal(idents(out)[VERSION], "v5.10.0");
-});
-
-test("test_a_daemon_reporting_no_engine_version_shows_none", () => {
-  assert.equal(idents(head())[VERSION], "");
-});
+// Which version string the identity line prints — the installed release, never
+// the separately-numbered DSP engine build — is asserted in
+// tests/js/components/header-release.test.js.
 
 // --- play state -------------------------------------------------------------
 
