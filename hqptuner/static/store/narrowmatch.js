@@ -1,5 +1,5 @@
 // Does a filter pass the narrow bar, and how many would — the matching half of
-// narrowing, split out from the state it reads. Everything here is a pure read
+// narrowing, sitting above the state it reads. Everything here is a pure read
 // of the facet signals: one pass answers whether an option survives, the counts
 // answer how many would under the live selection or a hypothetical one.
 import {
