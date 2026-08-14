@@ -40,6 +40,8 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
+import { attrOf, grayReason } from "../support/field-harness.js";
+import { classes, elements, enclosing, labelled, text } from "../support/markup.js";
 
 const ENUMS = {
   filters: [
@@ -80,9 +82,12 @@ const METADATA = {
   shapers: { pcm_dithers: { none: { description: "No dither." } }, sdm_modulators: {} },
 };
 
-/** @param {string} chain */
-const STATE = (chain) => ({
-  mode: "1",
+/**
+ * @param {string} chain
+ * @param {string} [mode]
+ */
+const STATE = (chain, mode = "1") => ({
+  mode,
   filter1x: "0",
   filterNx: "1",
   shaper: "0",
@@ -169,4 +174,108 @@ test("test_the_live_page_carries_the_engine_health_card", async () => {
 test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
   await reset();
   assert.equal(page().includes("poll-quick"), false);
+});
+
+// --- what a rate column's reason looks like on the page -------------------------
+//
+// In `[source]` the engine accepts no rate on the wire at all (protocol.md §6),
+// so both rate columns come off the store grayed and carrying a reason
+// (store/liverateauto.test.js pins the sentence itself). What is pinned here is
+// where the user MEETS that sentence: on hover, as the field's own title, in
+// place of the manual tooltip the field would otherwise carry — and nowhere as a
+// caption underneath, which is what the old gray had and what reflows the row on
+// every mode change.
+//
+// The anchors are what a user reads: the rate columns are labelled `PCM` and
+// `SDM`, and the field root is the single smallest element enclosing that label,
+// which is the element a pointer hovers. Everything between is left alone, so a
+// restructured card that says the same things still measures.
+
+// The two output modes the reason turns on, each set coherently across the three
+// sources the page reads: State's numeric mode, the enumeration the engine is
+// serving, and the configured mode in the running configuration. The two limits
+// are what a grayed column shows in auto, so a column that renders at all has a
+// value to render.
+const LIMITS = { defaults_samplerate: "384000", defaults_bitrate: "49152000" };
+const AUTO = { state: "0", name: "[source]", file: { mode: "auto", ...LIMITS } };
+const EXPLICIT_PCM = { state: "1", name: "PCM", file: { mode: "pcm", ...LIMITS } };
+
+// The manual tooltip the rate fields carry when nothing is refusing them —
+// settings.json's own prose, as METADATA above serves it.
+const RATE_TOOLTIP = "Output sample rate request, or upper limit.";
+
+// The sentence the store hands a grayed column in auto.
+const AUTO_REASON = "The engine selects the rate in Auto mode.";
+
+/** @param {{ state: string, name: string, file: Record<string, string> }} mode */
+async function inOutputMode(mode) {
+  await reset();
+  engineState.value = STATE("pcm", mode.state);
+  enums.value = { ...ENUMS, mode: { name: mode.name } };
+  config.value = { fields: [{ name: "upnp_freewheel", value: "0" }], file: mode.file, active: "", profiles: null };
+}
+
+// SSR escapes entities; the contract is the text a user reads on hover, not its
+// encoding.
+/** @param {string} raw */
+const decode = (raw) => raw.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+
+// The hover title of the field a rate column is rendered in. A miss throws
+// rather than quietly comparing `undefined`: a column that has lost its label
+// must fail loudly.
+/**
+ * @param {string} out
+ * @param {string} label
+ * @returns {string}
+ */
+const hoverTitle = (out, label) => decode(attrOf(enclosing(out, labelled(out, label)).attrs, "title") || "");
+
+// The whole Rate card — the smallest element enclosing its head, so a caption
+// anywhere in it counts, whether it sits on a field or beside the pair. A miss
+// throws rather than handing back an empty fragment: a question about what a
+// card does NOT carry must never be answered by markup that simply moved.
+/** @param {string} out */
+function rateCard(out) {
+  const hit = elements(out).find((el) => classes(el).includes("card-head") && text(el) === "Rate");
+  if (!hit) throw new Error('no card headed "Rate" in the rendered page');
+  return enclosing(out, hit).html;
+}
+
+test("test_the_grayed_pcm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
+  await inOutputMode(AUTO);
+  assert.equal(hoverTitle(page(), "PCM"), AUTO_REASON);
+});
+
+test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
+  await inOutputMode(AUTO);
+  assert.equal(hoverTitle(page(), "SDM"), AUTO_REASON);
+});
+
+test("test_the_grayed_pcm_rate_fields_hover_title_drops_the_manual_tooltip", async () => {
+  // The reason stands IN PLACE OF the tooltip: a title carrying both tells the
+  // user how to set a rate in the same breath as saying they cannot.
+  await inOutputMode(AUTO);
+  assert.equal(hoverTitle(page(), "PCM").includes(RATE_TOOLTIP), false);
+});
+
+test("test_a_live_rate_field_with_no_reason_still_carries_its_manual_tooltip", async () => {
+  // Under an explicit mode the column carries no reason at all, so the hover
+  // title is the field's own prose, exactly as it was before.
+  await inOutputMode(EXPLICIT_PCM);
+  assert.equal(hoverTitle(page(), "PCM"), RATE_TOOLTIP);
+});
+
+// The caption is gone in BOTH modes: in auto because the reason now rides on the
+// hover, and under an explicit mode because there is no reason to show at all. A
+// page that merely stopped setting the reason would pass the second and fail the
+// first.
+
+test("test_the_live_rate_card_shows_no_gray_reason_caption_in_auto", async () => {
+  await inOutputMode(AUTO);
+  assert.equal(grayReason(rateCard(page())), null);
+});
+
+test("test_the_live_rate_card_shows_no_gray_reason_caption_under_an_explicit_mode", async () => {
+  await inOutputMode(EXPLICIT_PCM);
+  assert.equal(grayReason(rateCard(page())), null);
 });

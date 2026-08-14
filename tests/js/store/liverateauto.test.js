@@ -7,10 +7,10 @@
 // slot nor the actual output, `result="OK"` both times). What governs the
 // output rate there is the config limit — `defaults_samplerate` for PCM,
 // `defaults_bitrate` for SDM — and the Control API has no command for it, so
-// changing it is a config write and a daemon restart. That restart is why the
-// LIVE page cannot offer the setting, and architecture.md §5 makes the gray
-// carry a caption naming the restart and pointing at the Output tab: a control
-// the user cannot use must say why.
+// the LIVE page cannot offer the setting at all. A control the user cannot use
+// must still say why, so both columns carry a reason, and that reason says the
+// one thing that is true of the mode itself: in auto the engine picks the rate.
+// It names no restart and no other tab.
 //
 // Two conflations this suite exists to catch, both named in architecture.md §5:
 //
@@ -290,12 +290,14 @@ const SDM_MODE_PLAYING = () => ({
 
 // --- reading the model --------------------------------------------------------
 
-// A column's caption, normalised for matching. The exact sentence is the
-// product's to word; what is pinned is what it has to SAY (architecture.md §5:
-// names the restart, points at the Output tab), so these match on meaning and
-// nothing more.
+// A column's caption, normalised for the cases that ask what the sentence does
+// NOT contain — those are meaning-level questions and must not turn on casing.
+// The sentence itself is fixed text and is asserted raw, below.
 /** @param {Column} column */
 const reasonOf = (column) => String(column.reason || "").toLowerCase();
+
+// The one sentence a grayed rate column says in auto.
+const AUTO_REASON = "The engine selects the rate in Auto mode.";
 
 // A chain control by its form field. A miss throws rather than quietly
 // measuring nothing: a chain that has lost a control must fail loudly.
@@ -336,32 +338,35 @@ test("test_the_grayed_sdm_rate_column_carries_a_reason", () => {
   assert.ok(reasonOf(liveModel.value.sdmRate).length > 0, "the grayed SDM rate column carries no reason at all");
 });
 
-test("test_the_pcm_rate_reason_names_the_restart_the_change_would_cost", () => {
-  // The rate limit is a config write, and the daemon self-restarts on it — the
-  // whole reason the LIVE page will not offer the setting.
+// The sentence is fixed text shown in one mode only, so it is pinned verbatim
+// rather than by meaning: it is what the user reads on hover, and a column that
+// worded it its own way would say something the page never agreed to say.
+
+test("test_the_grayed_pcm_rate_column_says_the_engine_selects_the_rate_in_auto", () => {
+  reset(AUTO_IDLE());
+  assert.equal(liveModel.value.pcmRate.reason, AUTO_REASON);
+});
+
+test("test_the_grayed_sdm_rate_column_says_the_engine_selects_the_rate_in_auto", () => {
+  reset(AUTO_IDLE());
+  assert.equal(liveModel.value.sdmRate.reason, AUTO_REASON);
+});
+
+// The two things the sentence must NOT say. Both are what the caption used to
+// carry, and either one back in the text is the old caption returning by the
+// back door — the reason is about what auto IS, not about what changing it
+// would cost or where else to go.
+
+test("test_the_grayed_pcm_rate_reason_names_no_restart", () => {
   reset(AUTO_IDLE());
   const said = reasonOf(liveModel.value.pcmRate);
-  assert.ok(said.includes("restart"), `the PCM rate reason does not name the restart: ${JSON.stringify(said)}`);
+  assert.equal(said.includes("restart"), false, `the PCM rate reason still names a restart: ${JSON.stringify(said)}`);
 });
 
-test("test_the_sdm_rate_reason_names_the_restart_the_change_would_cost", () => {
-  reset(AUTO_IDLE());
-  const said = reasonOf(liveModel.value.sdmRate);
-  assert.ok(said.includes("restart"), `the SDM rate reason does not name the restart: ${JSON.stringify(said)}`);
-});
-
-test("test_the_pcm_rate_reason_sends_the_user_to_the_output_tab", () => {
-  // Naming the restart alone leaves the user stuck; the setting does exist, on
-  // the tab that writes config and applies with a restart.
+test("test_the_grayed_pcm_rate_reason_names_no_destination_tab", () => {
   reset(AUTO_IDLE());
   const said = reasonOf(liveModel.value.pcmRate);
-  assert.ok(said.includes("output tab"), `the PCM rate reason names no destination: ${JSON.stringify(said)}`);
-});
-
-test("test_the_sdm_rate_reason_sends_the_user_to_the_output_tab", () => {
-  reset(AUTO_IDLE());
-  const said = reasonOf(liveModel.value.sdmRate);
-  assert.ok(said.includes("output tab"), `the SDM rate reason names no destination: ${JSON.stringify(said)}`);
+  assert.equal(said.includes("tab"), false, `the PCM rate reason still names a tab: ${JSON.stringify(said)}`);
 });
 
 // --- the gray is the configured mode's, never the loaded chain's --------------
