@@ -14,7 +14,7 @@
 // test on a clock (rule 7), so every case that sends drives the write through
 // `flushNarrowing()`, the way descriptions.test.js drives `flushDescriptions`.
 //
-// `reset()` puts every piece of module state a case touches back: the eleven
+// `reset()` puts every piece of module state a case touches back: the thirteen
 // facet signals, the error line, and the private "changed since the last write"
 // mark, which it clears the only way a caller can — one flush against a
 // throwaway wire, sent BEFORE the case's own wire is installed so that drain
@@ -30,8 +30,10 @@ import { ok, bad } from "../support/wire.js";
 import { settle } from "../support/livepresetwire.js";
 import {
   nGenre,
+  nGenreMode,
   nQuality,
   nFocus,
+  nFocusMode,
   nPhase,
   nLength,
   nRatio,
@@ -70,12 +72,14 @@ const env = globalThis;
  * }} NarrowingWire
  */
 
-/** The eleven facets at their documented defaults — the contract table. */
+/** The thirteen facets at their documented defaults — the contract table. */
 /** @type {Facets} */
 const DEFAULTS = {
   genre: [],
+  genre_mode: "and",
   quality: 0,
   focus: [],
+  focus_mode: "or",
   phase: "",
   length: "",
   ratio: "",
@@ -90,8 +94,10 @@ const DEFAULTS = {
 /** @type {Facets} */
 const SET = {
   genre: ["rock"],
+  genre_mode: "or",
   quality: 4,
   focus: ["timbre"],
+  focus_mode: "and",
   phase: "linear",
   length: "long",
   ratio: "2x",
@@ -106,8 +112,10 @@ const SET = {
 /** @type {Record<string, { value: unknown }>} */
 const SIGNALS = {
   genre: nGenre,
+  genre_mode: nGenreMode,
   quality: nQuality,
   focus: nFocus,
+  focus_mode: nFocusMode,
   phase: nPhase,
   length: nLength,
   ratio: nRatio,
@@ -261,7 +269,7 @@ test("test_one_changed_facet_flushes_as_exactly_one_put", async () => {
   assert.equal(puts(w).length, 1);
 });
 
-test("test_a_flush_sends_all_eleven_facets", async () => {
+test("test_a_flush_sends_all_thirteen_facets", async () => {
   const w = await reset();
   await hydrateNarrowing();
   nPhase.value = "minimum";

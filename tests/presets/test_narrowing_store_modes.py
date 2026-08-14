@@ -39,7 +39,7 @@ WRONG_TYPE: list[object] = [1, True, None, ["and"], {"mode": "and"}]
 #: One in-domain value per facet, each the opposite of that facet's default, so
 #: a case that watches a facet return to its default cannot be reading a value
 #: that was never moved.
-NON_DEFAULT: dict[str, str] = {"genre_mode": "or", "focus_mode": "and"}
+NON_DEFAULT: dict[str, object] = {"genre_mode": "or", "focus_mode": "and"}
 
 
 def store_at(tmp_path: Path) -> NarrowingStore:
