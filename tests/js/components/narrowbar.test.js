@@ -43,7 +43,13 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
 import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { resetNarrowing, nFocus } from "../../../hqptuner/static/store/narrowing.js";
+import {
+  resetNarrowing,
+  nFocus,
+  nHideLimited,
+  nOddRateOnly,
+  nDownsafeOnly,
+} from "../../../hqptuner/static/store/narrowing.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 
@@ -246,6 +252,15 @@ const nxCount = (text) => Number(text.split("/")[1]);
 /** @param {string} block */
 const rowLabels = (block) => rows(block).map((r) => r.label);
 
+// The labels of the rows whose input renders checked — read off the input tag
+// itself, the same seam `rows()` reads, so the binding of row to switch is the
+// rendered fact and not the label list's ordering.
+/** @param {string} block */
+const checkedRows = (block) =>
+  [...block.matchAll(/<input([^>]*)>\s*<span class="opt-label">([\s\S]*?)<\/span>/g)]
+    .filter((m) => /\bchecked\b/.test(m[1]))
+    .map((m) => m[2]);
+
 /** @param {string} block */
 const rowKinds = (block) => [...new Set(rows(block).map((r) => r.type))].sort();
 
@@ -274,6 +289,30 @@ test("test_the_rate_popover_offers_exactly_the_three_switches_as_checkbox_rows",
     rows(open("rate")),
     RATE_ROWS.map((label) => ({ type: "checkbox", label })),
   );
+});
+
+// Each row is bound to ITS switch: engaging one signal marks exactly the row
+// under that switch's wording checked and no other — swapped wiring between
+// two rows would leave the label list intact and fail here.
+
+test("test_the_hide_limited_switch_checks_the_rate_limited_row_alone", async () => {
+  await reset();
+  nHideLimited.value = "on";
+  assert.deepEqual(checkedRows(open("rate")), ["Hide output rate-limited filters"]);
+});
+
+test("test_the_odd_rate_switch_checks_the_uncommon_source_rates_row_alone", async () => {
+  await reset();
+  nOddRateOnly.value = true;
+  assert.deepEqual(checkedRows(open("rate")), [
+    "Show only filters that support resampling uncommon source rates (e.g., 32kHz)",
+  ]);
+});
+
+test("test_the_downsample_safe_switch_checks_the_downsampling_row_alone", async () => {
+  await reset();
+  nDownsafeOnly.value = true;
+  assert.deepEqual(checkedRows(open("rate")), ["Show only filters that support downsampling"]);
 });
 
 // --- the row that gives the facet back ------------------------------------------

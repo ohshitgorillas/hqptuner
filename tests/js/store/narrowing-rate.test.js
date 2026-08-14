@@ -525,3 +525,26 @@ test("test_hydrating_a_legacy_rate_record_narrows_nothing", async () => {
   await hydrateNarrowing();
   assert.deepEqual(labels(options), ALL_CLASSES);
 });
+
+// Nor does any legacy key migrate into a new switch: after hydrating the old
+// record every rate switch still sits at its default. Pinned per switch — the
+// narrows-nothing case above cannot see, say, `upsample_only:true` mapped onto
+// the downsample-safe switch when the fixture holds no upsample-only filter.
+
+test("test_a_legacy_record_leaves_hide_limited_at_auto", async () => {
+  await persistReset({ facets: LEGACY });
+  await hydrateNarrowing();
+  assert.equal(nHideLimited.value, "auto");
+});
+
+test("test_a_legacy_record_leaves_the_odd_rate_switch_off", async () => {
+  await persistReset({ facets: LEGACY });
+  await hydrateNarrowing();
+  assert.equal(nOddRateOnly.value, false);
+});
+
+test("test_a_legacy_record_leaves_the_downsample_safe_switch_off", async () => {
+  await persistReset({ facets: LEGACY });
+  await hydrateNarrowing();
+  assert.equal(nDownsafeOnly.value, false);
+});
