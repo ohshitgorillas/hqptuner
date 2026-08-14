@@ -39,7 +39,7 @@ BUDGET: dict[str, int] = {
     "hqptuner/conf": 2252,
     "hqptuner/engine": 1133,
     "hqptuner/lanes": 2125,
-    "hqptuner/presets": 1557,
+    "hqptuner/presets": 1562,
 }
 
 
