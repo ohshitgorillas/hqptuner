@@ -130,8 +130,7 @@ function reset(filters, overlay = {}, extras = [], engine = {}) {
 }
 
 /** @param {NarrowOption[]} options */
-const labels = (options, stage = STAGE, field = PCM_FIELD) =>
-  narrowOptions(options, stage, field).map((o) => o.label);
+const labels = (options, stage = STAGE, field = PCM_FIELD) => narrowOptions(options, stage, field).map((o) => o.label);
 
 // --- fixtures ----------------------------------------------------------------
 

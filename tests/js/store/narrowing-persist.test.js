@@ -266,10 +266,7 @@ test("test_a_reset_flushes_every_facet_of_the_contract_table_at_its_default", as
   resetNarrowing();
   await flushNarrowing();
   const sent = puts(w).at(-1) || {};
-  assert.deepEqual(
-    Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, sent[k]])),
-    DEFAULTS,
-  );
+  assert.deepEqual(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, sent[k]])), DEFAULTS);
 });
 
 // --- a write the server refused -----------------------------------------------------
