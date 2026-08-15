@@ -98,7 +98,7 @@ def _flag(value: Any) -> bool:
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
     "genre_mode": ("and", _one_of(_MODES)),
-    "quality": (0, _quality),
+    "quality": (3, _quality),
     "focus": ([], _list_of(_FOCUS)),
     "focus_mode": ("or", _one_of(_MODES)),
     "phase": ("", _one_of(_PHASES)),

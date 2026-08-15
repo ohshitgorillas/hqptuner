@@ -26,6 +26,7 @@ import {
   nHiresNx,
   nGenreMode,
   nFocusMode,
+  QUALITY_DEFAULT,
   RATE_RULE_DEFAULT,
   APOD_1X_DEFAULT,
   APOD_NX_DEFAULT,
@@ -40,7 +41,7 @@ import {
 /** @type {[string, { value: any }, any][]} */
 const FACETS = [
   ["genre", nGenre, []],
-  ["quality", nQuality, 0],
+  ["quality", nQuality, QUALITY_DEFAULT],
   ["focus", nFocus, []],
   ["phase", nPhase, ""],
   ["length", nLength, ""],

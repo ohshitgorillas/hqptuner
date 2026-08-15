@@ -173,11 +173,21 @@ function upsampleOf(f, fam) {
   return fam === "sdm" ? false : f.upsampleOnly;
 }
 
+// The pass-through survives every facet. Its facets describe an ABSENCE of
+// resampling rather than a poor one: the engine rates it 1/5 and marks it
+// non-apodizing, both of which answer a question that does not apply to the
+// option that converts nothing. Ranked as a resampler it falls below the
+// quality floor and outside the 1x apodizing default, so the one way to ask for
+// no conversion would leave the menu — the same escape hatch genre's "any" tag
+// gets in FACET_CHECKS, one level up. PCM-only: the SDM filter enum has no such
+// entry, because there is no passing through into DSD.
+const PASS_THROUGH = "none";
+
 // A filter with no facet record passes untouched — narrowing hides only what it
 // can positively exclude (an option not in the active-mode enum nor the static
 // overlay carries no facets).
-const facetPass = (/** @type {FilterFacet} */ f, /** @type {Sel} */ sel) =>
-  !f || FACET_CHECKS.every((check) => check(f, sel));
+const facetPass = (/** @type {string} */ label, /** @type {FilterFacet} */ f, /** @type {Sel} */ sel) =>
+  label === PASS_THROUGH || !f || FACET_CHECKS.every((check) => check(f, sel));
 
 // Favorites are NOT a facet check: a facet-less option passes facetPass
 // untouched, but favorites-only must still hide it. Keyed by option label —
@@ -253,7 +263,7 @@ export function narrowOptions(options, stage, field) {
   const sel = buildSel(stage, field);
   if (!anyEngaged(sel)) return options;
   const facets = filterFacets.value;
-  return options.filter((o) => favPass(o.label, sel) && facetPass(facets[o.label], sel));
+  return options.filter((o) => favPass(o.label, sel) && facetPass(o.label, facets[o.label], sel));
 }
 
 // ---- result counts (narrowing UI) -----------------------------------------
@@ -268,7 +278,7 @@ export function narrowOptions(options, stage, field) {
 function countPass(options, sel) {
   if (!anyEngaged(sel)) return options.length;
   const facets = filterFacets.value;
-  return options.reduce((n, o) => (favPass(o.label, sel) && facetPass(facets[o.label], sel) ? n + 1 : n), 0);
+  return options.reduce((n, o) => (favPass(o.label, sel) && facetPass(o.label, facets[o.label], sel) ? n + 1 : n), 0);
 }
 
 // Live badge for one filter dropdown: { n, total } against the ACTIVE facets.

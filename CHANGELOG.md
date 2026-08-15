@@ -8,6 +8,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The oversampling chain controls carry one-line role glosses under their labels.** The 1x and Nx filter slots say which content each covers (CD quality and 48 kHz versus hi-res ≥88.2 kHz), and the sigma-delta modulator, dither, DSD source controls and DAC bits each state their role in the chain.
 
+### Changed
+
+- **The Quality narrowing facet starts at a minimum of 3/5 and names its steps with the denominator.** The dropdown reads Any quality, Quality: ≥ 3/5, Quality: ≥ 4/5 and Quality: 5/5; clearing the narrow bar returns to the 3/5 floor, and picking Any quality counts as a narrowing choice.
+
+### Fixed
+
+- **The pass-through filter now stays in the 1x and Nx menus whatever the narrowing.** Its 1/5 rating and non-apodizing flag describe the absence of resampling rather than poor resampling, and the apodizing default had been dropping it from the 1x menu.
+
 ## [1.7.0] — 2026-08-14
 
 ### Added
