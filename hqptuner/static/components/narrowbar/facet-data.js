@@ -23,9 +23,9 @@ export const GENRES = [
 ];
 export const QUALITY = [
   [0, "Any quality"],
-  [3, "Quality ≥ 3"],
-  [4, "Quality ≥ 4"],
-  [5, "Quality 5"],
+  [3, "Quality: ≥ 3/5"],
+  [4, "Quality: ≥ 4/5"],
+  [5, "Quality: 5/5"],
 ];
 export const FOCUS = [
   ["transients", "Transients"],

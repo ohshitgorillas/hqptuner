@@ -19,6 +19,7 @@ import {
   nHideLimited,
   nOddRateOnly,
   nDownsafeOnly,
+  QUALITY_DEFAULT,
   RATE_RULE_DEFAULT,
 } from "../../store/narrowing.js";
 import { effHideLimited } from "../../store/narrowmatch.js";
@@ -69,7 +70,7 @@ export function NarrowFacets() {
         value=${nQuality.value}
         items=${QUALITY}
         onPick=${(/** @type {string | number} */ v) => (nQuality.value = Number(v))}
-        active=${Number(nQuality.value) > 0}
+        active=${Number(nQuality.value) !== QUALITY_DEFAULT}
         count=${(/** @type {string | number} */ v) => ({ quality: Number(v) })}
       />
       <${MultiSelect}
