@@ -58,7 +58,6 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "phase": "minimum",
       "description": "This is analog-sounding filter, especially suitable for recordings containing strong transients, long post-ringing is a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing, but has a long post-ringing. Small amount of pass-band ripple is also present. Medium attenuation. IIR filter is applied in time domain."
     },
     "IIR2": {
@@ -67,7 +66,6 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "phase": "minimum",
       "description": "This is analog-sounding filter, especially suitable for recordings containing strong transients, long post-ringing is a side effect (not usually audible due to masking). A steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing, but has a long post-ringing. Medium attenuation. No passband ripple. IIR filter is applied in time domain."
     },
     "FIR": {
@@ -85,7 +83,6 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "phase": "intermediate",
       "description": "Asymmetric FIR, good for jazz/blues and other music containing transients recorded in a real-world acoustic environment. Otherwise same as FIR, but with shorter pre-ringing and longer post-ringing. Modifies phase response, but not as much as minimum phase FIR."
     },
     "minphaseFIR": {
