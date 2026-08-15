@@ -74,7 +74,6 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "integer",
-      "phase": "linear",
       "description": "Typical \"oversampling\" digital filter, generally suitable for most uses (slight pre- and post-ringing), but best on classical music recorded in a real world acoustic environment such as concert hall. This is the most ordinary filter type, usually present in hardware. This filter is applied in time-domain. It has average amount of pre- and post-ringing."
     },
     "asymFIR": {
@@ -100,7 +99,6 @@
       "focus": [],
       "apodizing": "full",
       "ratio": "2x",
-      "phase": "linear",
       "description": "Technically good steep \"brickwall\" filter, but might have some side effects (pre-ringing) on material containing strong transients. This filter is similar to FIR, but it is applied in frequency-domain and is quite efficient from performance point of view while having rather long impulse response. Length of this filter can be configured separately in the FFT filter length setting."
     },
     "poly-sinc-lp": {
