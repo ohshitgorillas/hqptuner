@@ -172,8 +172,6 @@ test("test_a_static_only_filter_name_token_beats_its_overlay_phase", () => {
 const DATA = JSON.parse(readFileSync(new URL("../../../hqptuner/data/filters.json", import.meta.url), "utf8"));
 
 const LINEAR_NAMES = [
-  "FIR",
-  "FFT",
   "poly-sinc-ext",
   "poly-sinc-ext2",
   "poly-sinc-ext2-short",
@@ -238,6 +236,8 @@ test("test_shipped_phase_less_entries_carry_no_phase_key", () => {
     "asymFIR",
     "IIR",
     "IIR2",
+    "FIR",
+    "FFT",
   ].filter((n) => "phase" in (DATA.filters[n] ?? {}));
   assert.deepEqual(offenders, []);
 });
