@@ -10,7 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
-- **The Phase narrowing facet now classifies every filter the manual characterises, not just names carrying a phase token.** Token-less families such as poly-sinc-ext2, gauss and sinc count as linear phase per the manual, minphaseFIR as minimum, and minringFIR-lp is no longer misfiled under minimum phase. Filters the manual gives no phase for, such as IIR, asymFIR, the polynomial interpolators and the closed-form family, stay unclassified.
+- **The Phase narrowing facet now classifies every filter the manual characterises, not just names carrying a phase token.** Token-less families such as poly-sinc-ext2, gauss and sinc count as linear phase per the manual, minphaseFIR as minimum, and minringFIR-lp is no longer misfiled under minimum phase.
 
 ## [1.6.0] — 2026-08-14
 
