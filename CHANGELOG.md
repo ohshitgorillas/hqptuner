@@ -8,6 +8,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The alert strip warns when Roon is the source and Engine idle time is at Default.** At default idle time Roon stops and restarts the whole playback engine between tracks; the warning recommends 10 seconds or longer and clears once a non-default idle time is applied or Roon stops playing.
 
+### Fixed
+
+- **The Phase narrowing facet now classifies every filter the manual characterises, not just names carrying a phase token.** Token-less families such as poly-sinc-ext2, gauss and sinc count as linear phase per the manual, IIR and minphaseFIR as minimum, asymFIR as intermediate, and minringFIR-lp is no longer misfiled under minimum phase. Filters the taxonomy does not fit, such as the polynomial interpolators and closed-form family, stay unclassified.
+
 ## [1.6.0] — 2026-08-14
 
 ### Added

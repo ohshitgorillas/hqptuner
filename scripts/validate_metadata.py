@@ -7,13 +7,15 @@ Checks:
   2. Every engine-reported filter resolves through the join rules
      (exact -> alias -> strip '-2s' suffix).
   3. Every settings.json control has non-empty tooltip and source.
-  4. No filter entry duplicates a live facet (quality/focus/ratio/apodizing/phase).
+  4. No filter entry duplicates a live facet (quality/focus/ratio/apodizing;
+     phase only where the name already carries a -lp/-mp/-ip token).
 
 Engine lists come from engine-enums.json (reference snapshot). PCM-mode lists
 are validated only if captured; a gap note is printed otherwise.
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -103,10 +105,15 @@ for section in ("output", "dsp", "volume", "system"):
             if not entry.get(field)
         )
 
-# 4. No live-facet duplication in filters.json
-LIVE_FACETS = {"quality", "focus", "ratio", "apodizing", "phase"}
+# 4. No live-facet duplication in filters.json. `phase` is allowed only where
+# the name carries no -lp/-mp/-ip token: the token is live authority, the key
+# is the manual-derived fallback for token-less names.
+LIVE_FACETS = {"quality", "focus", "ratio", "apodizing"}
+PHASE_TOKEN = re.compile(r"-(?:lp|mp|ip)\b")
 for name, entry in fdb.items():
     dup = LIVE_FACETS & set(entry)
+    if "phase" in entry and PHASE_TOKEN.search(name):
+        dup = dup | {"phase"}
     if dup:
         errors.append(f"filters.json: {name!r} ships live facet(s) {sorted(dup)}")
 
