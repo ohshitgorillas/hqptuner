@@ -8,12 +8,12 @@
 // latch, no history, the row simply exists while a Roon track is loaded and
 // the effective idle_time is still default.
 //
-// Reads the pending picture (`effective`, staged over loaded) like the
-// shaperfit alerts do, so staging a non-default idle time clears the row
-// before apply.
+// Reads the RUNNING value (`runningValue`, never staged edits or preset
+// preview): the engine keeps restarting between tracks until the change is
+// actually applied, so the row stays up until then.
 import { computed } from "@preact/signals";
 import { engineStatus } from "./signals.js";
-import { effective } from "./resolve.js";
+import { runningValue } from "./resolve.js";
 
 const TEXT =
   "Recommend setting Engine idle time (System tab) to 10 or longer; " +
@@ -23,6 +23,6 @@ const TEXT =
 export const roonIdleAlert = computed(() => {
   const meta = (engineStatus.value || {}).metadata;
   if (!meta || meta.song !== "Roon") return null;
-  if (String(effective("idle_time") ?? "0") !== "0") return null;
+  if (String(runningValue("idle_time") ?? "0") !== "0") return null;
   return { sev: "warn", text: TEXT };
 });

@@ -5,14 +5,14 @@
 // wasteful under Roon's track-by-track feeding. The daemon's Status frame
 // carries a metadata child only while a track is loaded (protocol.md §6), and
 // during Roon playback that child says song="Roon" — so the advisory fires
-// exactly when Roon is playing AND the EFFECTIVE idle_time (staged over loaded,
-// the same pending picture the shaper alerts read) is "0" or unset.
+// exactly when Roon is playing AND the RUNNING daemon's idle_time — the loaded
+// config value, staged edits ignored — is "0" or unset.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire — the staged half of "effective" is driven through the real
-// /api/config/stage path via a staging server, never by poking store internals.
-// Every simulated frame is a FRESH object (writing the same reference to a
-// signal does not notify).
+// the wire — the staged edits the advisory must IGNORE are driven through the
+// real /api/config/stage path via a staging server, never by poking store
+// internals. Every simulated frame is a FRESH object (writing the same
+// reference to a signal does not notify).
 //
 // Ordering matters and is deliberate: the store's staged buffer is
 // module-private with no reset export, so the cases that stage an edit run
@@ -116,25 +116,27 @@ test("test_metadata_without_a_song_stays_silent_at_default_idle_time", () => {
   assert.equal(roonIdleAlert.value, null);
 });
 
-// --- staged edits count: the computed reads the pending picture -----------------
-// An advisory that waited for Apply would keep nagging about the exact edit the
-// user has already made. These cases run through the real staging wire and sit
-// after every empty-buffer case above.
+// --- staged edits do NOT count: the advisory tracks the running daemon ---------
+// The engine keeps restarting between tracks until an edit is APPLIED, so a
+// staged-but-pending idle_time changes nothing on the daemon and must change
+// nothing here — the advisory reads the loaded config value alone, and clears
+// only when apply refetches a config whose own value is non-"0". These cases
+// run through the real staging wire and sit after every empty-buffer case above.
 
-test("test_staging_a_nonzero_idle_time_clears_the_advisory_before_apply", async () => {
+test("test_staging_a_nonzero_idle_time_does_not_clear_the_advisory_before_apply", async () => {
   scene("0", { song: "Roon" });
   const w = stagingWire();
   await edit("idle_time", "10000");
   await quiesce(w);
-  assert.equal(roonIdleAlert.value, null);
+  assert.deepEqual(roonIdleAlert.value, ROON_ROW);
 });
 
-test("test_a_staged_default_over_a_loaded_nonzero_raises_the_advisory", async () => {
+test("test_a_staged_default_over_a_loaded_nonzero_does_not_raise_the_advisory", async () => {
   scene("30000", { song: "Roon" });
   const w = stagingWire();
   await edit("idle_time", "0");
   await quiesce(w);
-  assert.deepEqual(roonIdleAlert.value, ROON_ROW);
+  assert.equal(roonIdleAlert.value, null);
 });
 
 // --- the strip renders it -------------------------------------------------------
