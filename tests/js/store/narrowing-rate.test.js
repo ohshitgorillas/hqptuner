@@ -200,7 +200,7 @@ const UPSAMPLE_OVERLAY = {
 // flag that holds on PCM fields and never on SDM fields — that per-chain
 // reading is resolution-time, not a pair of overlay keys.
 const SPLIT = {
-  "poly-sinc-mqa/mp3-lp": { ratio_pcm: "integer", ratio_sdm: "any", upsample_only: true },
+  "poly-sinc-mqa/mp3-lp": { ratio_pcm: "integer", ratio_sdm: "any", upsample_only: true, quality: 4 },
 };
 
 const split = () => reset([], SPLIT, ["poly-sinc-mqa/mp3-lp"]);

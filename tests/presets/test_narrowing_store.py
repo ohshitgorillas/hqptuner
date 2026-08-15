@@ -40,7 +40,7 @@ from hqptuner.presets.narrowingstore import NarrowingError, NarrowingSchemaError
 DEFAULTS: dict[str, object] = {
     "genre": [],
     "genre_mode": "and",
-    "quality": 0,
+    "quality": 3,
     "focus": [],
     "focus_mode": "or",
     "phase": "",
