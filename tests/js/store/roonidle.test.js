@@ -172,6 +172,13 @@ test("test_the_roon_idle_row_renders_at_warning_severity", async () => {
   assert.ok(strip().includes('class="alert alert-warn"'));
 });
 
+test("test_the_strip_omits_the_roon_row_when_the_song_is_not_roon", async () => {
+  // same harness, alert condition broken on the song side: a strip rendering
+  // the row unconditionally fails here
+  await reset({ ...NEITHER, status: frame({ song: "Some Local Track" }) });
+  assert.ok(!strip().includes(ROON_TEXT));
+});
+
 test("test_the_roon_row_does_not_displace_a_health_alert", async () => {
   const status = frame({ song: "Roon" });
   status.status.clips = "13";
