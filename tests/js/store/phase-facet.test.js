@@ -189,10 +189,6 @@ const LINEAR_NAMES = [
   "poly-sinc-hb-s",
   "poly-sinc-hb-m",
   "poly-sinc-hb-l",
-  "closed-form",
-  "closed-form-fast",
-  "closed-form-M",
-  "closed-form-16M",
   "sinc-S",
   "sinc-M",
   "sinc-Mx",
@@ -224,7 +220,16 @@ test("test_shipped_asymFIR_carries_phase_intermediate", () => {
 });
 
 test("test_shipped_phase_less_entries_carry_no_phase_key", () => {
-  const offenders = ["none", "ASRC", "polynomial-1", "polynomial-2"].filter((n) => "phase" in (DATA.filters[n] ?? {}));
+  const offenders = [
+    "none",
+    "ASRC",
+    "polynomial-1",
+    "polynomial-2",
+    "closed-form",
+    "closed-form-fast",
+    "closed-form-M",
+    "closed-form-16M",
+  ].filter((n) => "phase" in (DATA.filters[n] ?? {}));
   assert.deepEqual(offenders, []);
 });
 
