@@ -14,11 +14,13 @@
 import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
 import { shaperAlerts } from "../store/shaperfit.js";
+import { roonIdleAlert } from "../store/roonidle.js";
 import { junkAdvice } from "../store/junkadvice.js";
 
 /** Warning row of engine-health and rate/shaper alerts plus the junk-filter advice chip; renders nothing when all are empty. */
 export function AlertStrip() {
-  const alerts = [...engineAlerts.value, ...shaperAlerts.value];
+  const roon = roonIdleAlert.value;
+  const alerts = [...engineAlerts.value, ...shaperAlerts.value, ...(roon ? [roon] : [])];
   const advice = junkAdvice.value;
   if (!alerts.length && !advice) return null;
   return html`
