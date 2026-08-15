@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-08-14
+
 ### Added
 
 - **The alert strip warns when Roon is the source and Engine idle time is at Default.** At default idle time Roon stops and restarts the whole playback engine between tracks; the warning recommends 10 seconds or longer and clears once a non-default idle time is applied or Roon stops playing.
