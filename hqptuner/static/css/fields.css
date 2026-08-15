@@ -63,11 +63,11 @@
   color: var(--fg);
   font-size: var(--fs-body);
 }
-/* secondary line under a control's label — HQPlayer's own name for a control
-   HQPTuner renames for clarity, so anyone cross-referencing the daemon's page
-   or the manual still lands on the same setting. Prose weight (matches
-   .field-note), never label weight, so it reads as a gloss and not a second
-   control. */
+/* secondary line under a control's label — either HQPlayer's own name for a
+   control HQPTuner renames for clarity (so cross-referencing the daemon's page
+   or the manual still lands on the same setting), or a one-line role gloss for
+   a chain control. Prose weight (matches .field-note), never label weight, so
+   it reads as a gloss and not a second control. */
 .label-alt {
   display: block;
 }

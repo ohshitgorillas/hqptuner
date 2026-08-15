@@ -202,7 +202,7 @@ test("test_the_pcm_chain_carries_the_pcm_nx_filter", async () => {
 
 test("test_the_pcm_chain_ends_in_the_dither", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), PCM), FROM_PCM).includes("<label>Dither</label>"));
+  assert.ok(subsection(section(tab(), PCM), FROM_PCM).includes("<label>Dither<"));
 });
 
 test("test_the_sdm_chain_carries_the_sdm_1x_filter", async () => {
@@ -217,22 +217,22 @@ test("test_the_sdm_chain_carries_the_sdm_nx_filter", async () => {
 
 test("test_the_sdm_chain_ends_in_the_modulator", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), SDM), FROM_PCM).includes("<label>Sigma-delta modulator</label>"));
+  assert.ok(subsection(section(tab(), SDM), FROM_PCM).includes("<label>Sigma-delta modulator<"));
 });
 
 test("test_dsd_source_handling_for_pcm_output_carries_the_noise_filter", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Noise filter</label>"));
+  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Noise filter<"));
 });
 
 test("test_dsd_source_handling_for_pcm_output_carries_the_sdm_to_pcm_conversion", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>SDM → PCM</label>"));
+  assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>SDM → PCM<"));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_the_integrator", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Integrator</label>"));
+  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Integrator<"));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {

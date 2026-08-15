@@ -318,8 +318,8 @@ function fieldProse(entry, key, meta, { reason, options }) {
 function FieldLabel({ entry, label, badge }) {
   return html`
     <label>
-      ${label}${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
-      ${badge ? html`<span class="narrow-count">${badge.n}/${badge.total}</span>` : null}
+      ${label}${badge ? html`<span class="narrow-count">${badge.n}/${badge.total}</span>` : null}
+      ${entry.sublabel ? html`<span class="label-alt">${entry.sublabel}</span>` : null}
     </label>
   `;
 }

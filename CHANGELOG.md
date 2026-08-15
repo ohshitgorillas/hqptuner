@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **The oversampling chain controls carry one-line role glosses under their labels.** The 1x and Nx filter slots say which content each covers (CD quality and 48 kHz versus hi-res ≥88.2 kHz), and the sigma-delta modulator, dither, DSD source controls and DAC bits each state their role in the chain.
+
 ## [1.7.0] — 2026-08-14
 
 ### Added

@@ -403,6 +403,7 @@ export const schema = {
   },
   alsa_bits: {
     label: "DAC bits",
+    sublabel: "Noise-shaping target depth",
     group: "output",
     note: "dac_bits",
     widget: "number",
@@ -464,6 +465,7 @@ export const schema = {
   },
   net_bits: {
     label: "DAC bits",
+    sublabel: "Noise-shaping target depth",
     group: "output",
     note: "dac_bits",
     widget: "number",
@@ -530,6 +532,7 @@ export const schema = {
   // changed. The pending bar reads this to count them as live changes.
   pcm_filter_1x: {
     label: "1x filter",
+    sublabel: "CD quality and 48 kHz",
     group: "dsp",
     note: "filter_1x",
     widget: "dropdown",
@@ -545,6 +548,7 @@ export const schema = {
   },
   pcm_filter_nx: {
     label: "Nx filter",
+    sublabel: "Hi-res content (≥88.2 kHz)",
     group: "dsp",
     note: "filter_nx",
     widget: "dropdown",
@@ -558,6 +562,7 @@ export const schema = {
   },
   pcm_dither: {
     label: "Dither",
+    sublabel: "Low-level noise treatment",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -574,6 +579,7 @@ export const schema = {
   },
   sdm_filter_1x: {
     label: "1x filter",
+    sublabel: "CD quality and 48 kHz",
     group: "dsp",
     note: "filter_1x",
     widget: "dropdown",
@@ -587,6 +593,7 @@ export const schema = {
   },
   sdm_filter_nx: {
     label: "Nx filter",
+    sublabel: "Hi-res content (≥88.2 kHz)",
     group: "dsp",
     note: "filter_nx",
     widget: "dropdown",
@@ -600,6 +607,7 @@ export const schema = {
   },
   sdm_modulator: {
     label: "Sigma-delta modulator",
+    sublabel: "Builds the 1-bit stream",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -653,6 +661,7 @@ export const schema = {
   },
   sdm_integrator: {
     label: "Integrator",
+    sublabel: "Sigma-delta remodulation",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -663,6 +672,7 @@ export const schema = {
   },
   sdm_conversion: {
     label: "SDM → SDM",
+    sublabel: "Rate change algorithm",
     group: "dsp",
     widget: "dropdown",
     lane: "http",
@@ -673,6 +683,7 @@ export const schema = {
   },
   noise_filter: {
     label: "Noise filter",
+    sublabel: "Removes ultrasonic noise",
     group: "dsp",
     note: "pdm_filter",
     widget: "dropdown",
@@ -684,6 +695,7 @@ export const schema = {
   },
   pcm_conversion: {
     label: "SDM → PCM",
+    sublabel: "Conversion algorithm",
     group: "dsp",
     note: "pdm_conversion",
     widget: "dropdown",
