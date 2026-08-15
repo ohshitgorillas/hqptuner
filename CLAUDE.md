@@ -18,6 +18,10 @@ Probing the running engine is fine where what you're after is standard mathemati
 
 Running engine = sole authority for enumeration names/IDs/ordering; static `data/*.json` joins by name (architecture §2).
 
+### User-facing text is owner-approved, verbatim (hard rule)
+
+Every piece of user-facing text — labels, popover prose, hints, tooltips, captions, button summaries, error copy — ships only with the owner's explicit approval, verbatim. Agent-drafted copy is a proposal until the owner signs it off; owner-drafted copy is the spec, character for character, and gets no additions, trims, appended clarifications, or "improvements". Factual errors in owner copy are flagged in discussion and the corrected wording approved before it ships. Em dashes are forbidden in user-facing text, enforced by gate. Rewording during a bug fix or refactor is still a copy change and still requires approval.
+
 ## Agent conduct (project deltas)
 
 - **Do work in order user gave it.** Stated sequence part of instruction, not suggestion to optimise around.

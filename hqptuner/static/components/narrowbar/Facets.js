@@ -21,7 +21,7 @@ import {
   nDownsafeOnly,
   RATE_RULE_DEFAULT,
 } from "../../store/narrowing.js";
-import { rateAutoHide, effHideLimited } from "../../store/narrowmatch.js";
+import { effHideLimited } from "../../store/narrowmatch.js";
 import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
 
 // How a multi-select facet's picks combine, as the last row of its own popover:
@@ -129,7 +129,6 @@ function RateRule({ on, label, onToggle, count }) {
 // limitation X" pick. The favorites toggle closes the row: it needs a starred
 // filter to be reachable.
 function RatePop() {
-  const autoEngaged = rateAutoHide.value && nHideLimited.value === RATE_RULE_DEFAULT;
   return html`<div class="multi-pop rate-pop">
     <div class="multi-head t-label">1x / Nx</div>
     <${RateRule}
@@ -150,14 +149,6 @@ function RatePop() {
       label="Show only filters that support resampling uncommon source rates (e.g., 32kHz)"
       count=${{ oddOnly: !nOddRateOnly.value }}
     />
-    ${
-      autoEngaged
-        ? html`<div class="rate-note t-caption">
-            Auto: this output's DSD rates setting is 44.1kHz only, so rate-limited filters are hidden by default.
-            Toggling the rule overrides the automatic choice.
-          </div>`
-        : null
-    }
     <div class="rate-note t-caption">
       <strong>HQPTuner Hints:</strong> Rate-limited filters are only capable of output rates that are whole-number
       or factor-of-two multiples of the source rate. For example, given a 48kHz source file, such filters cannot
