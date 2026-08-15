@@ -497,7 +497,6 @@
       "apodizing": "none",
       "ratio": "2x",
       "upsample_only": true,
-      "phase": "linear",
       "description": "Closed form interpolation with a high number of taps."
     },
     "closed-form-fast": {
@@ -507,7 +506,6 @@
       "apodizing": "none",
       "ratio": "2x",
       "upsample_only": true,
-      "phase": "linear",
       "description": "Closed form interpolation with lower CPU load, but also lower precision. Output precision tuned to match about 24-bit PCM."
     },
     "closed-form-M": {
@@ -517,7 +515,6 @@
       "apodizing": "none",
       "ratio": "2x",
       "upsample_only": true,
-      "phase": "linear",
       "description": "Closed form interpolation with one million taps."
     },
     "closed-form-16M": {
@@ -527,7 +524,6 @@
       "apodizing": "none",
       "ratio": "2x",
       "upsample_only": true,
-      "phase": "linear",
       "description": "Closed form interpolation with 16 million taps."
     },
     "sinc-S": {
