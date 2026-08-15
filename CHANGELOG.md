@@ -16,7 +16,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The Ratio narrowing dropdown is now Rate change: scenario rules instead of ratio classes.** The popover offers hiding output rate-limited filters, showing only downsampling-capable filters, and showing only filters that can resample uncommon source rates such as 32kHz. When the output is SDM on a DAC without 48kHz-family DSD rates, rate-limited filters hide automatically without marking the facet as changed.
+- **The Ratio narrowing dropdown is now Rate change: scenario rules instead of ratio classes.** The popover offers hiding output rate-limited filters, showing only downsampling-capable filters, and showing only filters that can resample uncommon source rates such as 32kHz. When the output is SDM and the active backend's DSD rates setting is 44.1kHz only, rate-limited filters hide automatically without marking the facet as changed.
 - **On LIVE, the rate pair explains its Auto graying on hover rather than in a caption under the card.** The caption is gone and the Mode switch beside it keeps one size in every mode.
 
 ### Fixed

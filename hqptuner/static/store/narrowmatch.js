@@ -21,7 +21,6 @@ import {
 import { computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 import { favoriteFilters, nFavOnly } from "./favorites.js";
-import { enums } from "./signals.js";
 import { effective } from "./resolve.js";
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
@@ -129,19 +128,31 @@ const FACET_CHECKS = [
   (f, s) => !s.hiresOnly || f.hiresFamily === true,
 ];
 
-// The "auto" state of the two class hides, resolved against the DAC: with the
-// output mode SDM and no 48 kHz-family DSD rate in the live rates enum (no
-// listed rate is a positive multiple of 48000 — the rate-0 row is the auto-rate
-// sentinel, not a rate), a 2x-/integer-only filter cannot produce output from
-// 48 kHz-family sources, so auto reads as hidden. Anywhere else auto reads as
-// not hidden.
+// The "auto" state of the rate-limited hide, resolved against the daemon's own
+// 48 kHz-DSD switch: each backend carries an `any_dsd` attribute (readme
+// §1.3.2-1.3.5, surfaced as the "DSD rates: 44.1kHz only / +48kHz family"
+// control) — 0 pins DSD output to the 44.1 kHz base, where a rate-limited
+// filter can produce nothing from 48 kHz-family sources. Auto engages ONLY on
+// that positive evidence, for the ACTIVE backend, in SDM output mode. Combo
+// backends carry per-sub-element flags this config surface doesn't expose, so
+// they never engage auto. The rates enumeration is deliberately not consulted:
+// with the rate on Auto it lists only the rate-0 sentinel, and reading that
+// absence as "no 48k support" mis-fired on DACs with +48kHz enabled.
+/**
+ * @param {string} key "alsa_anydsd" | "net_anydsd"
+ * @returns {boolean} true when the backend is pinned to the 44.1 kHz base
+ */
+function dsd441Only(key) {
+  const v = effective(key);
+  return v === false || String(v) === "0";
+}
+
 export const rateAutoHide = computed(() => {
   if (effective("output_mode") !== "sdm") return false;
-  const rates = (enums.value && enums.value.rates) || [];
-  return !rates.some((/** @type {{ rate?: string }} */ r) => {
-    const hz = Number(r.rate);
-    return hz > 0 && hz % 48000 === 0;
-  });
+  const backend = effective("backend");
+  if (backend === "alsa") return dsd441Only("alsa_anydsd");
+  if (backend === "network") return dsd441Only("net_anydsd");
+  return false;
 });
 
 /** Effective rate-limited hide — the user's override, or the auto default. */
