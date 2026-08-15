@@ -11,8 +11,9 @@
 // `static` row is its base filter's entry and supplies the base's phase.
 //
 // The regression this suite exists for: `minringFIR-lp` carries the `-lp`
-// token and is linear phase, but a substring scan that finds `mp` inside
-// `minringFIR` misreads it as minimum.
+// token and is linear phase, but the old classifier's minimum-phase
+// alternation matched `min` inside `minringFIR` before the `-lp` check ran,
+// misreading it as minimum.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no
 // snapshots. Live enum items are hand-built in the engine's own shape
@@ -91,9 +92,8 @@ for (const [name, expected] of [
   });
 }
 
-// The regression: `minringFIR` contains the letters `mp` as a plain substring
-// (`...mFIR` does not, but `minringFIR-lp` holds `-lp` while a loose scan can
-// still land on other token letters) — the `-lp` token must win.
+// The regression: the old classifier's /min/i alternation matched `minring`
+// before the `-lp` token was consulted — the token must win.
 
 test("test_minringFIR_lp_is_linear_phase", () => {
   seed([item("minringFIR-lp", 0)]);
@@ -106,6 +106,10 @@ test("test_minringFIR_mp_is_minimum_phase", () => {
 });
 
 // --- token-less live filters fall back to the merged static row --------------
+// The first two rows mirror phases the shipped overlay carries. The IIR and
+// asymFIR rows are synthetic fixtures — the shipped overlay leaves both
+// unclassified — pinning that a static "minimum" or "intermediate" value is
+// honored wherever a row carries one.
 
 for (const [name, expected] of [
   ["poly-sinc-ext2", "linear"],
@@ -210,13 +214,15 @@ test("test_every_shipped_tokenless_linear_filter_carries_phase_linear", () => {
   assert.deepEqual(offenders, []);
 });
 
-test("test_shipped_iir_and_minphase_filters_carry_phase_minimum", () => {
-  const offenders = ["IIR", "IIR2", "minphaseFIR"].filter((n) => DATA.filters[n]?.phase !== "minimum");
-  assert.deepEqual(offenders, []);
+test("test_shipped_minphaseFIR_carries_phase_minimum", () => {
+  assert.equal(DATA.filters["minphaseFIR"]?.phase, "minimum");
 });
 
-test("test_shipped_asymFIR_carries_phase_intermediate", () => {
-  assert.equal(DATA.filters["asymFIR"]?.phase, "intermediate");
+// The manual states no phase for asymFIR, IIR or IIR2, so nothing shipped is
+// classified intermediate at all.
+test("test_no_shipped_entry_carries_phase_intermediate", () => {
+  const offenders = Object.keys(DATA.filters).filter((n) => DATA.filters[n].phase === "intermediate");
+  assert.deepEqual(offenders, []);
 });
 
 test("test_shipped_phase_less_entries_carry_no_phase_key", () => {
@@ -229,6 +235,9 @@ test("test_shipped_phase_less_entries_carry_no_phase_key", () => {
     "closed-form-fast",
     "closed-form-M",
     "closed-form-16M",
+    "asymFIR",
+    "IIR",
+    "IIR2",
   ].filter((n) => "phase" in (DATA.filters[n] ?? {}));
   assert.deepEqual(offenders, []);
 });
