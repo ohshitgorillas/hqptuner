@@ -7,11 +7,17 @@
 //   nOddRateOnly  boolean — hide the "2x" ratio filters only
 //   nDownsafeOnly boolean — hide the upsample-only filters
 //
-// "auto" follows the engine: the limited-class hide engages on its own exactly
-// when the effective output mode is SDM and the live rates enumeration offers
-// no rate that is a positive multiple of 48000 (the `rate:"0"` row is a
-// sentinel, not a rate — protocol.md §6). `rateAutoHide` is that condition and
-// `effHideLimited` the effective boolean after the "on"/"off" overrides.
+// "auto" follows the engine on positive evidence only: the limited-class hide
+// engages on its own exactly when the effective output mode is SDM and the
+// ACTIVE backend's own DSD-rate-family flag says 44.1k-family only — backend
+// "alsa" with `alsa_anydsd` at "0"/false, or backend "network" with
+// `net_anydsd` at "0"/false. A "1"/true flag means 48k-family DSD is
+// supported, backend "combo" (or anything else) never engages it whatever the
+// flags say, and the live rates enumeration is NOT consulted at all: with the
+// rate on Auto the daemon enumerates only the `rate:"0"` sentinel row, and an
+// empty list is no information, not evidence of missing 48k support.
+// `rateAutoHide` is that condition and `effHideLimited` the effective boolean
+// after the "on"/"off" overrides.
 //
 // Facet data is driven the way narrowing.test.js drives it — `enums.filters`
 // carries the engine's own `<GetFilters/>` items (protocol.md:226) with the
@@ -20,10 +26,12 @@
 // /api/metadata. The 1:1 class, the mode-split ratio pair and the flat
 // upsample flag live in the overlay, the shape data/filters.json ships
 // (`ratio: "1:1"`, `ratio_pcm`/`ratio_sdm`, `upsample_only`); on a mode-split
-// record the flat flag reads per chain — PCM yes, SDM never. The output mode
-// and the rates list ride the payloads that really carry them: the /config
-// form's `mode` field and the enumeration's `rates` items, the way
-// liverate.test.js and the shaperfit fixtures seed them.
+// record the flat flag reads per chain — PCM yes, SDM never. The output mode,
+// backend and anydsd flags ride the payload that really carries them — the
+// /config form's `mode`, `backend`, `alsa_anydsd` and `net_anydsd` rows (the
+// wire keys; `output_mode` is the schema spelling of `mode`) — and the
+// enumeration's `rates` items are seeded only for the fixture's shape, never
+// read by auto.
 //
 // Persistence rides the same GET/PUT /api/narrowing pair as every other facet,
 // driven through the shared fetch fake (tests/js/support/narrowingwire.js).
@@ -83,28 +91,44 @@ const item = (/** @type {string} */ name, /** @type {string} */ description, /**
 // The engine's rates enumeration, sentinel row first (liverate.test.js).
 const rateRows = (/** @type {string[]} */ ...hz) => ["0", ...hz].map((rate, i) => ({ index: String(i), rate }));
 
-// The 44.1k-family DSD rates — no positive multiple of 48000 among them — and
-// the same family with one 48k-family rate added.
-const DSD_44K = ["2822400", "5644800"];
-const DSD_MIXED = ["2822400", "3072000"];
+// A pair of DSD rates for the enumeration's fixture shape. No auto case may
+// read anything off this list — auto is driven by the backend flags alone.
+const DSD_RATES = ["2822400", "5644800"];
 
 /**
- * Reassign every source a case reads — filters, overlay, output mode, rates —
- * and reset every switch, then hand back the options of a dropdown offering
- * the live filters plus any `extras`: names the overlay (or nothing at all)
- * describes, the way a dropdown offers filters of the inactive mode.
+ * The engine knobs a case may seed. `alsa_anydsd` / `net_anydsd` are the
+ * backends' 48k-family DSD flags — "0"/false means 44.1k-family only.
+ *
+ * @typedef {{
+ *   mode?: string,
+ *   backend?: string,
+ *   alsa_anydsd?: string | boolean,
+ *   net_anydsd?: string | boolean,
+ *   rates?: string[],
+ * }} Engine
+ */
+
+/**
+ * Reassign every source a case reads — filters, overlay, output mode,
+ * backend, anydsd flags, rates — and reset every switch, then hand back the
+ * options of a dropdown offering the live filters plus any `extras`: names
+ * the overlay (or nothing at all) describes, the way a dropdown offers
+ * filters of the inactive mode.
  *
  * @param {FilterTuple[]} filters
  * @param {Record<string, Record<string, unknown>>} [overlay]
  * @param {string[]} [extras]
- * @param {{ mode?: string, rates?: string[] }} [engine]
+ * @param {Engine} [engine]
  * @returns {NarrowOption[]}
  */
 function reset(filters, overlay = {}, extras = [], engine = {}) {
   const mode = engine.mode || "pcm";
+  const backend = engine.backend || "network";
+  const alsaAnydsd = engine.alsa_anydsd ?? "1";
+  const netAnydsd = engine.net_anydsd ?? "1";
   enums.value = {
     filters: filters.map(([name, desc], i) => item(name, desc, i)),
-    rates: rateRows(...(engine.rates || DSD_MIXED)),
+    rates: rateRows(...(engine.rates || DSD_RATES)),
   };
   metadata.value = {
     settings: {},
@@ -112,11 +136,16 @@ function reset(filters, overlay = {}, extras = [], engine = {}) {
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
   };
   config.value = {
-    // The output-mode setting's /config form row and file-truth key are both
-    // named `mode` on the wire (the `output_mode` spelling is the schema's
-    // field id, not the wire key).
-    fields: [{ name: "mode", value: mode }],
-    file: { mode: mode },
+    // These settings' /config form rows and file-truth keys carry the wire
+    // spellings — `mode`, `backend`, `alsa_anydsd`, `net_anydsd` (the
+    // `output_mode` spelling is the schema's field id, not the wire key).
+    fields: [
+      { name: "mode", value: mode },
+      { name: "backend", value: backend },
+      { name: "alsa_anydsd", value: alsaAnydsd },
+      { name: "net_anydsd", value: netAnydsd },
+    ],
+    file: { mode: mode, backend: backend, alsa_anydsd: alsaAnydsd, net_anydsd: netAnydsd },
     active: "",
     profiles: null,
   };
@@ -144,8 +173,12 @@ const ALL_CLASSES = ["rat-two", "rat-int", "rat-any", "none"];
 
 const ONE_TO_ONE = { none: { ratio: "1:1" } };
 
-/** @param {{ mode?: string, rates?: string[] }} [engine] */
+/** @param {Engine} [engine] */
 const classes = (engine = {}) => reset(CLASSES, ONE_TO_ONE, ["none"], engine);
+
+// The state that engages auto: SDM out on a network backend whose anydsd flag
+// says 44.1k-family only.
+const SDM_44_NET = { mode: "sdm", backend: "network", net_anydsd: "0" };
 
 // Two filters alike in ratio class — both 2x — differing only in the overlay's
 // upsample-only flag, so the downsample-safe switch alone moves the answer and
@@ -188,7 +221,7 @@ test("test_hide_limited_on_excludes_the_2x_and_integer_filters", () => {
 });
 
 test("test_hide_limited_off_passes_the_limited_classes_auto_would_hide", () => {
-  const options = classes({ mode: "sdm", rates: DSD_44K });
+  const options = classes(SDM_44_NET);
   nHideLimited.value = "off";
   assert.deepEqual(labels(options), ALL_CLASSES);
 });
@@ -204,62 +237,98 @@ test("test_putting_hide_limited_back_to_auto_narrows_by_ratio_not_at_all", () =>
 });
 
 // --- auto follows the engine ----------------------------------------------------
+// Positive evidence only: the active backend's anydsd flag drives auto, the
+// rates enumeration never does.
 
-test("test_auto_hides_both_limited_classes_in_sdm_with_no_48k_family_rate", () => {
-  const options = classes({ mode: "sdm", rates: DSD_44K });
+test("test_auto_hides_both_limited_classes_on_a_44_1_only_network_backend", () => {
+  const options = classes(SDM_44_NET);
   assert.deepEqual(labels(options), ["rat-any", "none"]);
 });
 
-test("test_auto_hides_nothing_when_a_48k_multiple_rate_is_offered", () => {
-  const options = classes({ mode: "sdm", rates: DSD_MIXED });
-  assert.deepEqual(labels(options), ALL_CLASSES);
-});
-
-test("test_auto_hides_nothing_outside_sdm_output_whatever_the_rates", () => {
-  const options = classes({ mode: "pcm", rates: DSD_44K });
-  assert.deepEqual(labels(options), ALL_CLASSES);
-});
-
-test("test_rate_auto_hide_engages_in_sdm_with_no_48k_family_rate", () => {
-  classes({ mode: "sdm", rates: DSD_44K });
+test("test_rate_auto_hide_engages_in_sdm_on_a_44_1_only_network_backend", () => {
+  classes(SDM_44_NET);
   assert.equal(rateAutoHide.value, true);
 });
 
-test("test_rate_auto_hide_stays_off_when_a_48k_multiple_rate_is_offered", () => {
-  classes({ mode: "sdm", rates: DSD_MIXED });
+// THE reported bug: this exact state — SDM out, network backend, net_anydsd
+// saying 48k-family DSD is supported — fired the hide before the fix.
+test("test_rate_auto_hide_stays_off_when_the_network_backend_supports_48k_dsd", () => {
+  classes({ mode: "sdm", backend: "network", net_anydsd: "1" });
+  assert.equal(rateAutoHide.value, false);
+});
+
+test("test_rate_auto_hide_engages_in_sdm_on_a_44_1_only_alsa_backend", () => {
+  classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "0" });
+  assert.equal(rateAutoHide.value, true);
+});
+
+test("test_rate_auto_hide_stays_off_when_the_alsa_backend_supports_48k_dsd", () => {
+  classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "1" });
+  assert.equal(rateAutoHide.value, false);
+});
+
+// Only the ACTIVE backend's flag counts: the other backend being 44.1k-only
+// is not evidence about the chain in use.
+
+test("test_the_inactive_network_flag_does_not_engage_auto_on_an_alsa_backend", () => {
+  classes({ mode: "sdm", backend: "alsa", alsa_anydsd: "1", net_anydsd: "0" });
+  assert.equal(rateAutoHide.value, false);
+});
+
+test("test_the_inactive_alsa_flag_does_not_engage_auto_on_a_network_backend", () => {
+  classes({ mode: "sdm", backend: "network", net_anydsd: "1", alsa_anydsd: "0" });
+  assert.equal(rateAutoHide.value, false);
+});
+
+test("test_rate_auto_hide_stays_off_on_the_combo_backend_whatever_the_flags", () => {
+  classes({ mode: "sdm", backend: "combo", alsa_anydsd: "0", net_anydsd: "0" });
   assert.equal(rateAutoHide.value, false);
 });
 
 test("test_rate_auto_hide_stays_off_outside_sdm_output", () => {
-  classes({ mode: "pcm", rates: DSD_44K });
+  classes({ mode: "pcm", backend: "network", net_anydsd: "0" });
   assert.equal(rateAutoHide.value, false);
 });
 
-// The `rate:"0"` row is a sentinel, not an offered rate — a rates list holding
-// only it offers nothing 48k-family, so auto engages.
-test("test_the_zero_rate_sentinel_row_is_not_a_48k_family_rate", () => {
-  classes({ mode: "sdm", rates: [] });
+// The regression pin proper: with the rate on Auto the daemon enumerates only
+// the `rate:"0"` sentinel row, and that empty list is no information — the
+// backend flag saying 48k DSD is supported keeps auto off regardless.
+test("test_a_sentinel_only_rates_list_does_not_engage_auto", () => {
+  classes({ mode: "sdm", backend: "network", net_anydsd: "1", rates: [] });
+  assert.equal(rateAutoHide.value, false);
+});
+
+// The flags arrive in either encoding: "0"/false is 44.1k-family only,
+// "1"/true is 48k-family support.
+
+test("test_a_boolean_false_anydsd_flag_engages_auto", () => {
+  classes({ mode: "sdm", backend: "network", net_anydsd: false });
   assert.equal(rateAutoHide.value, true);
 });
 
+test("test_a_boolean_true_anydsd_flag_keeps_auto_off", () => {
+  classes({ mode: "sdm", backend: "network", net_anydsd: true });
+  assert.equal(rateAutoHide.value, false);
+});
+
 test("test_eff_hide_limited_is_true_when_the_switch_is_on_and_auto_is_not", () => {
-  classes({ mode: "pcm", rates: DSD_MIXED });
+  classes({ mode: "pcm" });
   nHideLimited.value = "on";
   assert.equal(effHideLimited.value, true);
 });
 
 test("test_eff_hide_limited_is_true_on_auto_while_auto_engages", () => {
-  classes({ mode: "sdm", rates: DSD_44K });
+  classes(SDM_44_NET);
   assert.equal(effHideLimited.value, true);
 });
 
 test("test_eff_hide_limited_is_false_on_auto_while_auto_does_not_engage", () => {
-  classes({ mode: "pcm", rates: DSD_MIXED });
+  classes({ mode: "pcm" });
   assert.equal(effHideLimited.value, false);
 });
 
 test("test_eff_hide_limited_is_false_when_auto_engages_but_the_switch_is_off", () => {
-  classes({ mode: "sdm", rates: DSD_44K });
+  classes(SDM_44_NET);
   nHideLimited.value = "off";
   assert.equal(effHideLimited.value, false);
 });
@@ -303,7 +372,7 @@ for (const [hideLimited, oddRate, downsafe] of [
 }
 
 test("test_the_one_to_one_filter_survives_the_auto_engaged_hide", () => {
-  const options = classes({ mode: "sdm", rates: DSD_44K });
+  const options = classes(SDM_44_NET);
   nOddRateOnly.value = true;
   nDownsafeOnly.value = true;
   assert.equal(labels(options).includes("none"), true);
@@ -320,7 +389,7 @@ test("test_a_filter_with_no_facet_record_survives_every_switch_engaged", () => {
 });
 
 test("test_a_filter_with_no_facet_record_survives_the_auto_engaged_hide", () => {
-  const options = reset([], {}, ["mystery"], { mode: "sdm", rates: DSD_44K });
+  const options = reset([], {}, ["mystery"], SDM_44_NET);
   assert.deepEqual(labels(options), ["mystery"]);
 });
 
@@ -369,7 +438,7 @@ test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", () => {
 // reads as active narrowing. Any EXPLICIT setting — "on" or "off" alike — does.
 
 test("test_auto_engaged_hides_are_not_active_narrowing", () => {
-  classes({ mode: "sdm", rates: DSD_44K });
+  classes(SDM_44_NET);
   assert.equal(narrowingActive.value, false);
 });
 
