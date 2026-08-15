@@ -153,7 +153,7 @@ function RatePop() {
     ${
       autoEngaged
         ? html`<div class="rate-note t-caption">
-            Auto: this device exposes no 48kHz-family DSD rates, so rate-limited filters are hidden by default.
+            Auto: this output's DSD rates setting is 44.1kHz only, so rate-limited filters are hidden by default.
             Toggling the rule overrides the automatic choice.
           </div>`
         : null
