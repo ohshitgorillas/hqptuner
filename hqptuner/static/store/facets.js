@@ -20,6 +20,7 @@ import { enums, metadata } from "./signals.js";
  * @property {number} [quality]
  * @property {string[]} [focus]
  * @property {string} [apodizing] "full" | "half" | anything else = none
+ * @property {string} [phase] manual-derived fallback for token-less names
  * @property {string} [ratio]
  * @property {string} [ratio_pcm] mode-split ratio: mqa/mp3 only
  * @property {string} [ratio_sdm]
@@ -148,16 +149,21 @@ function ratioFacet(liveDesc, s) {
   return { ratio: r, ratioPcm: null, ratioSdm: null };
 }
 
+// Phase: the name token is authority where the engine encodes one (-lp/-mp/-ip);
+// token-less names fall back to the static overlay's manual-derived `phase`, and
+// filters where the taxonomy doesn't apply (polynomial, none, ASRC) stay "".
+// Token check runs first so `minringFIR-lp` reads as linear, not "min…" minimum.
 /**
  * @param {string} name
+ * @param {StaticFilterEntry} [s]
  * @returns {string}
  */
-function phase(name) {
+function phase(name, s) {
   const n = name || "";
   if (/-ip\b/.test(n)) return "intermediate";
-  if (/-mp\b|-mp$|min/i.test(n)) return "minimum";
+  if (/-mp\b/.test(n)) return "minimum";
   if (/-lp\b/.test(n)) return "linear";
-  return "";
+  return (s && s.phase) || "";
 }
 
 // "hi-res" filters, detected by NAME — the same authority phase/length read
@@ -268,7 +274,7 @@ function liveFacet(it, s) {
     genre: (it.static && it.static.genre) || (s && s.genre) || [],
     quality: quality(it.description),
     focus: focus(it.description),
-    phase: phase(it.name),
+    phase: phase(it.name, it.static || s),
     length: length(it.name),
     hires: isHires(it.name),
     hiresFamily: isHiresFamily(it.name),
@@ -280,7 +286,8 @@ function liveFacet(it, s) {
 }
 
 // A static-only entry (a filter absent from the live enum — the inactive mode's
-// exclusive set). All facets from the manual overlay; phase/length from name.
+// exclusive set). All facets from the manual overlay; length from name, phase
+// from name token with overlay fallback.
 /**
  * @param {string} name
  * @param {StaticFilterEntry} s
@@ -292,7 +299,7 @@ function staticFacet(name, s) {
     genre: s.genre || [],
     quality: s.quality ?? null,
     focus: s.focus || [],
-    phase: phase(name),
+    phase: phase(name, s),
     length: length(name),
     hires: isHires(name),
     hiresFamily: isHiresFamily(name),
