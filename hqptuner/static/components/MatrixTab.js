@@ -171,7 +171,7 @@ function HeadphoneEqCard() {
     if (open) clearLibrarySelection(); // collapsing drops selection + preview — no residue
   };
   return html`
-    <${Card} title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }} headClass="mtx-eq-head">
+    <${Card} title="Headphone Auto EQ" collapse=${{ open, onToggle: toggle }}>
       <${ImportPanel} rows=${effectivePipelines.value} />
     <//>
   `;
@@ -284,7 +284,6 @@ function PipelinesCard() {
     <${Card}
       title=${html`Pipelines <span class="mtx-count">${rows.length} / ${MAX_CH}</span>`}
       collapse=${{ open, onToggle: () => (pipelinesCardOpen.value = !open) }}
-      headClass="mtx-eq-head"
     >
       ${body}
     <//>

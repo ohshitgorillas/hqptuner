@@ -45,17 +45,15 @@
 }
 /* Reset lives in the card head, top right — off the control rows entirely, so
    its appearing/disappearing never changes the facet dropdowns' widths. The
-   head flexes only on this card; the button inherits the head's uppercase. */
-.card.narrow-card > .card-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-}
+   head is a flex row (cards.css), so a push to the right edge is all it needs.
+   It takes the head's own type and no padding: the head is a fixed height and
+   this must fit inside it. */
 .card-head .narrow-reset {
   margin-left: auto;
 }
 .narrow-reset {
-  font-size: var(--fs-body);
+  padding: 0;
+  font-size: var(--fs-head);
   font-weight: var(--fw-semibold);
   color: var(--accent);
   background: none;
