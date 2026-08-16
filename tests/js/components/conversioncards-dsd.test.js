@@ -54,7 +54,9 @@ const [FROM_PCM, FROM_DSD] = SUBHEADS;
 const PCM = "PCM Chain";
 const SDM = "SDM Chain";
 
-// One control from each chain's DSD half, as that half renders it.
+// One control from each chain's DSD half, as that half renders it, keyed by the
+// title in the card's head.
+/** @type {Record<string, string>} */
 const MARK = {
   [PCM]: "<label>Noise filter<",
   [SDM]: "<label>Direct SDM</label>",
