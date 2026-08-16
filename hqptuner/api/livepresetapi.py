@@ -1,7 +1,6 @@
 """Live-preset REST surface — the LIVE view's named setting combos.
 
-Split out of ``app`` by the file-length gate, the same way ``matrixapi`` is: a
-self-contained feature surface mounted alongside it. Nothing here touches the
+A self-contained feature surface mounted alongside ``app``. Nothing here touches the
 8088 lane, the pending store, or ``presetstore`` — a live preset is applied by
 the Phase-2 live lane and so can never restart the daemon.
 """

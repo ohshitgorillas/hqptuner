@@ -1,6 +1,6 @@
 /* sliders — the range primitive, the slidernum (range + number box + sub
-   figure), the shared thumb body and the tick marks. Split out of controls.css;
-   loads after combobox.css and before ask.css. Order is fixed by the <link>
+   figure), the shared thumb body and the tick marks.
+   Loads after combobox.css and before ask.css. Order is fixed by the <link>
    sequence in hqptuner/static/index.html — do not reorder. */
 
 .slider {

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The read-only Bash allowlist — verification and investigation.
 
-Split out of change-budget.py, which owns the accounting; this owns the one
+change-budget.py owns the accounting; this owns the one
 question "is this shell command purely read-only?". The parser is most of the
 hook by volume and none of it by policy, and keeping it here is what puts the
 budget's own file back under the repo's 500-line gate.

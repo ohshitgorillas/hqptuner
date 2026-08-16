@@ -1,7 +1,7 @@
 // Installation-side surface of the structural crossfeed block: the settings it
 // cannot coexist with, what it carries in from the rows it replaces, and the
-// named control points offered for it. Split from binaural.js for the
-// file-length gate; binaural.js holds the maths, this file the install surface,
+// named control points offered for it.
+// binaural.js holds the maths, this file the install surface,
 // and callers import from whichever they need.
 //
 // Like binaural.js, this module imports NOTHING — that is what lets the

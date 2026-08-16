@@ -1,5 +1,5 @@
 /* matrix-panels — Matrix tab — profile card, AutoEq/REW import, profile library, trace hues.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* ── Matrix tab step 5: profile card ─────────────────────────────────────── */

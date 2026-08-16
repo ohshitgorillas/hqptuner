@@ -1,5 +1,5 @@
 /* hero — hero boxes (MODE / BACKEND / RATE), segment boxes.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* Hero boxes — MODE · BACKEND · RATE. A real grid: N boxes each fill 1/N of the

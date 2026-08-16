@@ -9,11 +9,22 @@ This gate blocks the phrasing that reliably marks such narration:
 
 - ISO dates in prose (``2026-07-28``) — a dated remark describes a moment,
   not an invariant;
-- ``used to`` and ``earlier draft/version/design`` — past-behaviour narration;
-- ``extracted from`` / ``split out from`` / ``moved here from`` / ``reorg`` —
-  refactor archaeology;
+- ``used to``, ``earlier draft/version/design`` and ``as it always was`` —
+  past-behaviour narration;
+- ``extracted``/``split``/``moved``/``pulled``/``lifted``/``carved`` followed by
+  ``of`` or ``from``, and ``reorg`` — refactor archaeology. Both prepositions,
+  because a rule bound to one of them is a rule you clear by writing the other;
+- ``this/that/which replaced`` — replacement narration;
+- a past-tense verb sharing a sentence with a literal length (``the bar was
+  45.5px``, ``put 48px between two packs``) — measurement archaeology, a number
+  describing a layout that is gone. A live measurement is present tense and
+  passes;
 - conventional-commit citations (``fix(live): …``) — git already holds these;
 - ``withdrawn`` / ``was reversed`` / ``process note`` — process archaeology.
+
+What no pattern can catch is narration carrying neither a keyword nor a number
+("the bar shipped four heights at once"). The list narrows the failure modes; it
+does not decide the question for you.
 
 Scope is shipped code and tooling comments. ``tests/`` is deliberately out of
 scope — a regression test legitimately names the bug it pins, in whatever tense
@@ -37,6 +48,12 @@ from pathlib import Path
 
 PRAGMA = "history-ok:"
 
+#: a literal length, and the past-tense verbs that turn one into a remark about
+#: a layout that is gone. A live measurement takes the present tense ("the
+#: shared text-input rule IS 28rem") and so is not matched.
+_LENGTH = r"\d+(?:\.\d+)?(?:px|rem|em|ch|%)"
+_PAST = r"(?:was|were|used|put|added|made|grew|shipped|jumped|sat|stood|became)"
+
 PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b20[0-9]{2}-[01][0-9]-[0-3][0-9]\b"), "dated narration"),
     (re.compile(r"\bused to\b", re.IGNORECASE), "past-behaviour narration"),
@@ -45,10 +62,21 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "prior-iteration narration",
     ),
     (
-        re.compile(r"\b(?:extracted|split out|moved here) from\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:extracted|split|moved|pulled|lifted|carved|broken)\s+(?:out\s+|here\s+)?(?:of|from)\b",
+            re.IGNORECASE,
+        ),
         "refactor archaeology",
     ),
     (re.compile(r"\breorg\b", re.IGNORECASE), "refactor archaeology"),
+    (
+        re.compile(r"\b(?:this|that|which)\s+replaced\b", re.IGNORECASE),
+        "replacement narration",
+    ),
+    (
+        re.compile(r"\bas (?:it )?always (?:was|has been|did)\b", re.IGNORECASE),
+        "past-behaviour narration",
+    ),
     (
         re.compile(r"\b(?:feat|fix|docs|test|chore|refactor)\([a-z0-9-]+\):"),
         "commit citation",
@@ -56,6 +84,10 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"\b(?:withdrawn|was reversed|process note)\b", re.IGNORECASE),
         "process archaeology",
+    ),
+    (
+        re.compile(rf"\b{_PAST}\b[^.;]{{0,60}}{_LENGTH}|{_LENGTH}[^.;]{{0,60}}\b{_PAST}\b", re.IGNORECASE),
+        "measurement archaeology",
     ),
 )
 

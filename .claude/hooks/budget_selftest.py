@@ -2,7 +2,7 @@
 """Self-test for change-budget.py — `python3 .claude/hooks/budget_selftest.py`,
 or `change-budget.py --self-test`, which delegates here.
 
-Split out of the hook for the reason free_bash.py was: the budget's own file
+The budget's own file
 has to stay under the repo's 500-line gate, and the fixtures are the part with
 no policy in them.
 """

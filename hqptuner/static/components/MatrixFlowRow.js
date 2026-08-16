@@ -3,8 +3,8 @@
 // the raw comma-string chain mode. The row's `{ }` toggle flips the chain half
 // between chip view and an editable raw string, two-way synced on
 // matrixspec.js's byte-identical round-trip; invalid raw input is committed
-// verbatim and flagged — never dropped, never rewritten. Split out of
-// MatrixTab.js verbatim; `rawRows` and `dragFrom` are private to this module.
+// verbatim and flagged — never dropped, never rewritten. `rawRows` and
+// `dragFrom` are private to this module.
 import { signal } from "@preact/signals";
 import { html, wheelGuard } from "../lib/dom.js";
 import { parseProcess, serializeProcess, stageLabel, validateStage, newStage, editedStage } from "../lib/matrixspec.js";

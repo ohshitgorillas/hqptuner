@@ -1,6 +1,5 @@
 /* ask — the app's one prompt/confirm affordance (components/Ask.js), inline
-   and top-layer. Split out of controls.css; last of the four control modules,
-   so it keeps the slot the tail of that file had. Order is fixed by the <link>
+   and top-layer. Order is fixed by the <link>
    sequence in hqptuner/static/index.html — do not reorder. */
 
 /* Replaces the native prompt()/confirm(): styled with the app, always

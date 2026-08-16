@@ -1,6 +1,6 @@
 /* Volume tab, everything that is not the Range bar: the playback knob panel and
-   the Fixed volume card. Split out of volume.css when that file outgrew the
-   500-line gate — the Range bar is one coordinate system with its own vertical
+   the Fixed volume card.
+   The Range bar is one coordinate system with its own vertical
    band budget, and these two cards share nothing with it but the tab. */
 
 /* ── Playback volume panel + large knob ───────────────────────────────────

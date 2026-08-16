@@ -1,6 +1,6 @@
 """Matrix-tab REST surface (matrix-spec): the /matrix read model, profile operations, and convolution filter uploads.
 
-Split out of ``api`` by the file-length gate — a self-contained feature surface mounted alongside it.
+A self-contained feature surface mounted alongside ``api``.
 """
 
 import json

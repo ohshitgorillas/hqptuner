@@ -82,9 +82,8 @@
   /* Consecutive packs in one card are separate two-track groups (each draws its
      own centred rule) and want the same inter-field rhythm between them that
      stacked rows get inside a pack. That is --rhythm-field, which .card-body
-     already spends as its gap — so there is no rule here. The margin-top this
-     replaced added to that gap instead of setting it, and put 48px between two
-     packs against the 24px it named. */
+     already spends as its gap — so there is no rule here. A margin here would
+     add to that gap rather than set it. */
   /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
      with the secondary controls in the right track, instead of splitting the
      chain across columns by raw source order. The split lives in the MARKUP

@@ -84,7 +84,7 @@ def parse_config_form(html: str) -> dict[str, Any]:
 
     ``fields`` is every value-bearing input and select across the page's POST forms, each with its current value,
     its number constraints and the ``<h2>``/``<h3>`` section+label it sits under; submit, button and hidden inputs
-    are dropped. ``profiles`` is the preset ``profile`` select lifted out of that list (the /config/profile/* CRUD
+    are dropped. ``profiles`` is the preset ``profile`` select held apart from that list (the /config/profile/* CRUD
     form), or None on a page that carries no such select.
     """
     soup = BeautifulSoup(html, "html.parser")
