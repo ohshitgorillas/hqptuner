@@ -13,7 +13,7 @@ import { GENRES, FOCUS } from "./facet-data.js";
  * @typedef {{ genre?: string[], genreMode?: string, quality?: number, focus?: string[], focusMode?: string,
  *             phase?: string, length?: string,
  *             hideLimited?: boolean, oddOnly?: boolean, downsafeOnly?: boolean, apod?: boolean, half?: boolean,
- *             hideHires?: boolean, hiresOnly?: boolean }} NarrowOverrides
+ *             lossy?: string }} NarrowOverrides
  *   A partial facet selection laid over the live one — what a candidate pick
  *   would produce, which is what the count chips are counted against
  *   (store/narrowing.js buildSel names the full set).
@@ -100,7 +100,7 @@ export const toggleVal = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== 
 // unless the output mode is SDM. The two numbers are that chain's 1x / Nx list
 // sizes for the selection CLICKING THAT ROW WOULD PRODUCE — so with Transients
 // already on, the Space row reads how many filters carry both. Reads each
-// dropdown's own field key so the preview honours that chain's apod / hi-res
+// dropdown's own field key so the preview honours that chain's apod / lossy
 // toggles too.
 /**
  * Counts how many filters the active chain's 1x and Nx lists would hold under

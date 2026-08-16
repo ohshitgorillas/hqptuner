@@ -57,36 +57,31 @@ export const nHideLimited = signal(RATE_RULE_DEFAULT); // hide 2x- and integer-c
 export const nOddRateOnly = signal(false); // show only filters that resample uncommon source rates (hide 2x class)
 export const nDownsafeOnly = signal(false); // show only downsampling-capable (hide upsample-only)
 
-// Apodizing and hi-res narrowing are PER-STAGE, not per-chain (user decision):
-// one state each for 1x and Nx, shared by PCM and SDM, driven by the segmented
-// switches on the narrow bar. Apodizing values: "all" (no narrowing), "only"
-// (full-apodizing filters only), "half" ("only" plus the ½-apodizing set). 1x
-// defaults to "only" — the unfiltered 1x list is 60-77 entries and apodizing is
-// the sane starting point; Nx defaults to "all" so its list starts untouched.
-export const APOD_1X_DEFAULT = "only";
+// Apodizing narrowing is PER-STAGE, not per-chain (user decision): one state
+// each for 1x and Nx, shared by PCM and SDM, driven by the segmented switches
+// on the narrow bar. Values: "all" (no narrowing), "only" (full-apodizing
+// filters only), "half" ("only" plus the ½-apodizing set). Both stages default
+// to "all" so neither list starts narrowed.
+export const APOD_1X_DEFAULT = "all";
 export const APOD_NX_DEFAULT = "all";
 export const nApod1x = signal(APOD_1X_DEFAULT);
 export const nApodNx = signal(APOD_NX_DEFAULT);
 
-// Hi-res narrowing splits by stage: the 1x switch HIDES hi-res filters
-// ("hide" | "show", default "hide" — 1x covers base rates where the
-// hi-res/lossy-tuned filters are off-topic), the Nx switch does the inverse and
-// restricts to the hi-res family ("all" | "only", default "all").
-export const HIRES_1X_DEFAULT = "hide";
-export const HIRES_NX_DEFAULT = "all";
-export const nHires1x = signal(HIRES_1X_DEFAULT);
-export const nHiresNx = signal(HIRES_NX_DEFAULT);
+// Lossy narrowing is 1x ONLY. The filters it groups on reduce ultrasonic noise
+// where the source has any: at 1x that is lossy material, since a 44.1/48 kHz
+// lossless source carries nothing above its own Nyquist for them to act on. At
+// Nx every source has an ultrasonic band, so the manual's Ratio "Any" applies
+// and there is no narrowing advice to give — the Nx list is never narrowed on
+// this axis. Values: "both" (no narrowing), "lossless" (drop the family),
+// "lossy" (keep only the family).
+export const LOSSY_1X_DEFAULT = "both";
+export const nLossy1x = signal(LOSSY_1X_DEFAULT);
 
 // "narrowing is on" = the facets differ from their defaults, not merely that
-// some facet is set — each stage switch reads as narrowing only when it departs
-// from its own default (1x apod defaults "only", 1x hi-res defaults "hide").
+// some facet is set. Every stage switch now defaults to its own neutral value,
+// so a fresh bar narrows nothing and reads as inactive.
 function stageTogglesEngaged() {
-  return (
-    nApod1x.value !== APOD_1X_DEFAULT ||
-    nApodNx.value !== APOD_NX_DEFAULT ||
-    nHires1x.value !== HIRES_1X_DEFAULT ||
-    nHiresNx.value !== HIRES_NX_DEFAULT
-  );
+  return nApod1x.value !== APOD_1X_DEFAULT || nApodNx.value !== APOD_NX_DEFAULT || nLossy1x.value !== LOSSY_1X_DEFAULT;
 }
 
 export const narrowingActive = computed(
@@ -118,8 +113,7 @@ export function resetNarrowing() {
   nFavOnly.value = false; // the switch only — reset clears narrowing, never the stars
   nApod1x.value = APOD_1X_DEFAULT; // back to per-stage defaults, not a bare clear
   nApodNx.value = APOD_NX_DEFAULT;
-  nHires1x.value = HIRES_1X_DEFAULT; // 1x hi-res back to "hide", not cleared
-  nHiresNx.value = HIRES_NX_DEFAULT;
+  nLossy1x.value = LOSSY_1X_DEFAULT;
   nGenreMode.value = GENRE_MODE_DEFAULT; // back to per-facet defaults, which differ
   nFocusMode.value = FOCUS_MODE_DEFAULT;
 }
