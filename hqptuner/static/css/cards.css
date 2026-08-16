@@ -67,7 +67,8 @@ button.card-head {
   color: var(--muted);
 }
 /* Taller than the title beside it; the head's own gap and centring place it. */
-.card-head .tri {
+.card-head .tri,
+.subhead .tri {
   color: var(--accent);
   font-size: var(--fs-glyph);
   line-height: 1;
@@ -302,6 +303,23 @@ button.card-head {
   letter-spacing: var(--track-caps);
   color: var(--muted);
   padding-left: var(--sp-2);
+}
+/* a collapsible subsection's subhead IS its toggle, so it is a <button> and
+   needs the button chrome reset away — the same trade button.card-head makes,
+   and for the same reason: everything else about it is the subhead above. */
+button.subhead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 /* section-level informational note (not tied to one field) — same voice as
    .field-gray-reason but for a whole subsection (e.g. a mode-mismatch note

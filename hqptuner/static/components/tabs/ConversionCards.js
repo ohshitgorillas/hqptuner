@@ -4,6 +4,12 @@
 // output) and a "DSD Sources" subsection (how a DSD/SDM source is handled) —
 // with a mode-mismatch note at the top when the current output mode doesn't
 // use the card.
+//
+// The DSD Sources half is collapsible and starts shut: most libraries are
+// entirely PCM, so its three controls are dead weight for most users. The narrow
+// bar's "Source format" switch is its auto driver, one control opening the
+// subsection in BOTH cards at once — which is the whole reason it is a narrow-bar
+// facet rather than a second copy of the subhead button.
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
@@ -11,6 +17,7 @@ import { ChainPack } from "../ChainPack.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
 import { Card, collapseFrom } from "../common.js";
+import { nSrcFormat } from "../../store/narrowing.js";
 
 // DSP chain cards auto-open by mode (auto shows both). PCM chain is irrelevant
 // in pure SDM mode and vice-versa; DSD-source decoding is irrelevant in PCM.
@@ -38,6 +45,41 @@ effect(() => {
   pcmOverride.value = null;
   sdmOverride.value = null;
 });
+
+// The DSD Sources subsections. One auto driver — the narrow bar's source-format
+// switch — and an override PER CARD: a user who shuts PCM Chain's copy is saying
+// something about that card, not about SDM Chain's. Both overrides drop whenever
+// the switch moves, so flipping to "+DSD" re-opens a section the user once shut,
+// the same re-assertion the mode change does for the chain cards above.
+const dsdOpen = computed(() => nSrcFormat.value === "both");
+const pcmDsdOverride = signal(null);
+const sdmDsdOverride = signal(null);
+
+/** @type {string | undefined} */
+let prevSrcFormat;
+effect(() => {
+  const fmt = nSrcFormat.value;
+  if (fmt === prevSrcFormat) return;
+  prevSrcFormat = fmt;
+  pcmDsdOverride.value = null;
+  sdmDsdOverride.value = null;
+});
+
+// A subhead that is its own toggle, the way a collapsible card's head is. Not a
+// Card: a card nested in a card body is the wrong frame for a subsection, and
+// .subhead already carries the type this heading wants.
+/**
+ * Renders the "DSD Sources" subhead as a toggle, with its body only when open.
+ * @param {{ collapse: import("../common.js").CollapseHandle, children?: unknown }} props
+ */
+function DsdSection({ collapse, children }) {
+  return html`
+    <button type="button" class="subhead" onClick=${collapse.onToggle}>
+      <span class="tri">${collapse.open ? "▾" : "▸"}</span> DSD Sources
+    </button>
+    ${collapse.open ? children : null}
+  `;
+}
 
 // FFT filter length configures the FFT-based resampling filters only (readme
 // §1.2 fft_size), so the card follows the selection instead of sitting open
@@ -84,11 +126,12 @@ export const PcmChainCard = () =>
       <${Field} k="pcm_filter_nx" />
       <${Field} k="pcm_dither" />
     <//>
-    <div class="subhead">DSD Sources</div>
-    <${ChainPack}>
-      <${Field} k="noise_filter" />
-      <${Field} k="pcm_conversion" />
-      <${Field} k="dsd_gain_6db" />
+    <${DsdSection} collapse=${collapseFrom(dsdOpen, pcmDsdOverride)}>
+      <${ChainPack}>
+        <${Field} k="noise_filter" />
+        <${Field} k="pcm_conversion" />
+        <${Field} k="dsd_gain_6db" />
+      <//>
     <//>
   <//>`;
 
@@ -102,11 +145,12 @@ export const SdmChainCard = () =>
       <${Field} k="sdm_filter_nx" />
       <${Field} k="sdm_modulator" />
     <//>
-    <div class="subhead">DSD Sources</div>
-    <${ChainPack}>
-      <${Field} k="sdm_integrator" />
-      <${Field} k="sdm_conversion" />
-      <${Field} k="direct_sdm" />
+    <${DsdSection} collapse=${collapseFrom(dsdOpen, sdmDsdOverride)}>
+      <${ChainPack}>
+        <${Field} k="sdm_integrator" />
+        <${Field} k="sdm_conversion" />
+        <${Field} k="direct_sdm" />
+      <//>
     <//>
   <//>`;
 

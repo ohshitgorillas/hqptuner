@@ -23,6 +23,7 @@ import {
   nApod1x,
   nApodNx,
   nLossy1x,
+  nSrcFormat,
   nGenreMode,
   nFocusMode,
   QUALITY_DEFAULT,
@@ -30,6 +31,7 @@ import {
   APOD_1X_DEFAULT,
   APOD_NX_DEFAULT,
   LOSSY_1X_DEFAULT,
+  SRC_FORMAT_DEFAULT,
   GENRE_MODE_DEFAULT,
   FOCUS_MODE_DEFAULT,
 } from "./narrowing.js";
@@ -52,6 +54,7 @@ const FACETS = [
   ["apod_1x", nApod1x, APOD_1X_DEFAULT],
   ["apod_nx", nApodNx, APOD_NX_DEFAULT],
   ["lossy_1x", nLossy1x, LOSSY_1X_DEFAULT],
+  ["src_format", nSrcFormat, SRC_FORMAT_DEFAULT],
   ["genre_mode", nGenreMode, GENRE_MODE_DEFAULT],
   ["focus_mode", nFocusMode, FOCUS_MODE_DEFAULT],
 ];

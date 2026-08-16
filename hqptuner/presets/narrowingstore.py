@@ -11,9 +11,9 @@ client is HQPTuner's own frontend and a facet it cannot name is a bug worth surf
 content: an entry that is unknown, wrong-typed or out of domain falls back to that facet's default, so a file damaged
 by hand or left behind by an older layout costs the user their narrowing rather than their narrow bar.
 
-The defaults here are the frontend's defaults and must stay in step with them (``static/store/narrowing.js``): 1x
-apodizing starts at ``only`` and 1x hi-res at ``hide``, because the unfiltered 1x list runs to 60-77 entries; every
-other facet starts unnarrowed.
+The defaults here are the frontend's defaults and must stay in step with them (``static/store/narrowing.js``). Every
+facet starts unnarrowed: the minimum-quality floor of 3 is the one default that is not simply "any", and it is the
+frontend's too.
 """
 
 from __future__ import annotations
@@ -48,6 +48,9 @@ _QUALITIES = frozenset({0, 3, 4, 5})
 _RATE_RULES = frozenset({"auto", "on", "off"})
 _APOD = frozenset({"only", "half", "all"})
 _LOSSY_1X = frozenset({"both", "lossless", "lossy"})
+# Source format discloses the chain cards' DSD Sources subsections; it narrows no dropdown. Stored here because it is
+# a narrow-bar control and shares the bar's reset.
+_SRC_FORMAT = frozenset({"pcm", "both"})
 # How each multi-select facet combines its picks. The defaults differ by facet and are the frontend's
 # (``static/store/narrowing.js``): genre ``and``, focus ``or``.
 _MODES = frozenset({"and", "or"})
@@ -108,6 +111,7 @@ _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "apod_1x": ("all", _one_of(_APOD)),
     "apod_nx": ("all", _one_of(_APOD)),
     "lossy_1x": ("both", _one_of(_LOSSY_1X)),
+    "src_format": ("pcm", _one_of(_SRC_FORMAT)),
 }
 
 

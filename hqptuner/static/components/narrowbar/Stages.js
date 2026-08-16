@@ -31,6 +31,15 @@ export const LOSSY_SEGS = [
   { value: "lossy", label: "Lossy", ov: { lossy: "lossy" } },
 ];
 
+// Source format carries no `ov`: it narrows no dropdown, so there is no
+// selection to preview and no count to show. It discloses the chain cards' DSD
+// Sources subsections instead (components/tabs/ConversionCards.js), which is why
+// its row is a bare Segment rather than a StageSeg.
+export const SRC_FORMAT_SEGS = [
+  { value: "pcm", label: "PCM only" },
+  { value: "both", label: "+DSD" },
+];
+
 // The manual's apodizing explainer (data/settings.json dsp.apodizing tooltip) —
 // a caption under the switch row, following the feature-description master like
 // every other static note: hidden when it is off, hover tip instead.
@@ -42,8 +51,13 @@ export function apodTip() {
 }
 
 export const LOSSY_TIP =
-  'This feature determines whether to show or hide filters capable of reducing ultrasonic noise when it exists in the source ("hires" or "mp3/mqa" in the filter name). ' +
-  "At 1x, that means lossy material like MP3 and MQA; lossless material contains no such noise, so these filters offer no benefit at 1x otherwise.";
+  'This feature determines whether to show or hide filters capable of reducing ultrasonic noise (containing "hires" or "mp3/mqa" in the name) in the 1x filter dropdowns. ' +
+  "At 1x rates, this only benefits lossy material like MP3 and MQA; lossless material contains no ultrasonic content to attenuate. " +
+  'Selecting "Lossless" hides these filters; "Lossy" shows them only.';
+
+export const SRC_FORMAT_TIP =
+  "The vast majority of music is packaged as PCM: if you're using streaming services only, leave this setting alone. " +
+  'If you have a personal library with DSD files (*.DSF and *.DFF), select "+DSD" to show the chain settings for these sources as well.';
 
 // One stage's switch row: muted stage micro-label, the segment, then preview
 // counts trailing the switch in button order — how many filters in that stage's

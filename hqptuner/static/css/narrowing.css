@@ -223,6 +223,16 @@
     align-items: start;
   }
 }
+/* The right column holds two groups, so the two-column grid keeps its three
+   children (group, rule, stack) instead of wrapping a fourth onto a new row.
+   The gap matches the grid's own, so the stacked pair reads at the same rhythm
+   as the two stage rows facing it in the left column. */
+.narrow-groupstack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
 .narrow-group {
   display: flex;
   align-items: flex-start;

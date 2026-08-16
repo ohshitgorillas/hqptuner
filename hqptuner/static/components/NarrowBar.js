@@ -1,8 +1,10 @@
 // Filter narrowing bar — a card ABOVE the PCM/SDM filter cards, holding the
 // genre / quality / focus / phase / length / ratio facets (all multi- or
-// single-select popovers) on one row, and the apodizing and lossy segmented
-// switches on a second row (global across PCM and SDM; apodizing is per stage,
-// lossy is 1x only — user decision). Presentational only.
+// single-select popovers) on one row, and the apodizing, lossy and source-format
+// segmented switches on a second row (global across PCM and SDM; apodizing is
+// per stage, lossy is 1x only — user decision). Presentational only: source
+// format is the one switch that discloses rather than narrows, opening the chain
+// cards' DSD Sources subsections instead of filtering a dropdown.
 //
 // It is a real `Card`, not a panel of its own: painting the card frame itself —
 // card surface, card radius, a hand-rolled heading — under its own class name
@@ -17,12 +19,22 @@
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
-import { narrowingActive, resetNarrowing, nApod1x, nApodNx, nLossy1x } from "../store/narrowing.js";
+import { narrowingActive, resetNarrowing, nApod1x, nApodNx, nLossy1x, nSrcFormat } from "../store/narrowing.js";
 import { narrowingError } from "../store/narrowpersist.js";
 import { notesVisible } from "../store/prefs.js";
 import { closeExcept } from "./narrowbar/popover.js";
 import { NarrowFacets } from "./narrowbar/Facets.js";
-import { APOD_SEGS, LOSSY_SEGS, LOSSY_TIP, StageSeg, SwitchGroup, apodTip } from "./narrowbar/Stages.js";
+import { Segment } from "./controls/index.js";
+import {
+  APOD_SEGS,
+  LOSSY_SEGS,
+  LOSSY_TIP,
+  SRC_FORMAT_SEGS,
+  SRC_FORMAT_TIP,
+  StageSeg,
+  SwitchGroup,
+  apodTip,
+} from "./narrowbar/Stages.js";
 
 /**
  * Renders the narrowing card above the filter cards: the facet dropdown row and
@@ -62,9 +74,18 @@ export function NarrowBar() {
           <${StageSeg} stage="nx" sig=${nApodNx} options=${APOD_SEGS} />
         <//>
         <span class="col-rule"></span>
-        <${SwitchGroup} title="1x sources" desc=${LOSSY_TIP}>
-          <${StageSeg} stage="1x" sig=${nLossy1x} options=${LOSSY_SEGS} showStage=${false} />
-        <//>
+        <div class="narrow-groupstack">
+          <${SwitchGroup} title="1x sources" desc=${LOSSY_TIP}>
+            <${StageSeg} stage="1x" sig=${nLossy1x} options=${LOSSY_SEGS} showStage=${false} />
+          <//>
+          <${SwitchGroup} title="Source format" desc=${SRC_FORMAT_TIP}>
+            <${Segment}
+              value=${nSrcFormat.value}
+              options=${SRC_FORMAT_SEGS}
+              onChange=${(/** @type {string} */ v) => (nSrcFormat.value = v)}
+            />
+          <//>
+        </div>
       </div>
       ${narrowingError.value ? html`<div class="field-error">${narrowingError.value}</div>` : null}
     <//>
