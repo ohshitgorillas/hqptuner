@@ -77,11 +77,28 @@ export const nApodNx = signal(APOD_NX_DEFAULT);
 export const LOSSY_1X_DEFAULT = "both";
 export const nLossy1x = signal(LOSSY_1X_DEFAULT);
 
+// Source format is the one facet that narrows no dropdown: it discloses the DSD
+// Sources subsections of the two chain cards rather than filtering options.
+// Those subsections carry no facet data — only the four filter dropdowns do
+// (store/schema.js `narrow:`) — so this never reaches narrowmatch. It lives here
+// anyway because it is a narrow-bar control: it belongs to the same reset, the
+// same active state and the same store as the facets beside it. Values: "pcm"
+// (the DSD sections stay shut) and "both".
+export const SRC_FORMAT_DEFAULT = "pcm";
+export const nSrcFormat = signal(SRC_FORMAT_DEFAULT);
+
 // "narrowing is on" = the facets differ from their defaults, not merely that
-// some facet is set. Every stage switch now defaults to its own neutral value,
-// so a fresh bar narrows nothing and reads as inactive.
-function stageTogglesEngaged() {
-  return nApod1x.value !== APOD_1X_DEFAULT || nApodNx.value !== APOD_NX_DEFAULT || nLossy1x.value !== LOSSY_1X_DEFAULT;
+// some facet is set. Every switch defaults to its own neutral value, so a fresh
+// bar narrows nothing and reads as inactive. The whole switch row answers here
+// rather than term by term in narrowingActive, which keeps that predicate under
+// the complexity gate as the row grows.
+function switchesEngaged() {
+  return (
+    nApod1x.value !== APOD_1X_DEFAULT ||
+    nApodNx.value !== APOD_NX_DEFAULT ||
+    nLossy1x.value !== LOSSY_1X_DEFAULT ||
+    nSrcFormat.value !== SRC_FORMAT_DEFAULT
+  );
 }
 
 export const narrowingActive = computed(
@@ -96,7 +113,7 @@ export const narrowingActive = computed(
       nOddRateOnly.value ||
       nDownsafeOnly.value ||
       nFavOnly.value ||
-      stageTogglesEngaged()
+      switchesEngaged()
     ),
 );
 
@@ -114,6 +131,8 @@ export function resetNarrowing() {
   nApod1x.value = APOD_1X_DEFAULT; // back to per-stage defaults, not a bare clear
   nApodNx.value = APOD_NX_DEFAULT;
   nLossy1x.value = LOSSY_1X_DEFAULT;
+  nSrcFormat.value = SRC_FORMAT_DEFAULT; // shuts the DSD Sources sections again
+
   nGenreMode.value = GENRE_MODE_DEFAULT; // back to per-facet defaults, which differ
   nFocusMode.value = FOCUS_MODE_DEFAULT;
 }
