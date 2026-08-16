@@ -264,17 +264,25 @@ do_merge() {
   flock 9
 
   say "[3/6] rebase onto dev"
-  local dev_tip
+  # "Moved" means moved UNDER these branches, which is ancestry, not the
+  # recorded base — the same reason tree_files measures from a merge-base. A
+  # pair opened while another session's chain was landing sits on a dev tip
+  # ahead of its own base file, with nothing to rebase; measured against the
+  # base it reads as moved, and the combine guard below then refuses a rebase
+  # that was never needed, with no hand step able to clear it.
+  local dev_tip spec_point impl_point
   dev_tip=$(git rev-parse dev)
-  if [ "$dev_tip" = "$base" ]; then
-    echo "  dev has not moved since $SLUG was opened"
+  spec_point=$(git -C "$SPEC_DIR" merge-base dev HEAD)
+  impl_point=$(git -C "$IMPL_DIR" merge-base dev HEAD)
+  if [ "$dev_tip" = "$spec_point" ] && [ "$dev_tip" = "$impl_point" ]; then
+    echo "  dev has not moved under $SLUG"
   else
-    echo "  dev moved $(git rev-list --count "$base".."$dev_tip") commit(s) since branch point — rebasing both branches"
+    echo "  dev moved $(git rev-list --count "$spec_point".."$dev_tip") commit(s) under $SLUG — rebasing both branches"
     # A re-run after a red gate reaches here with step 4's combine already on
     # the spec branch. A plain rebase drops merge commits and replays their
     # side, so it would flatten that combine and duplicate the implementation
     # commits the impl rebase is about to rewrite. Stop instead of corrupting.
-    if [ -n "$(git -C "$SPEC_DIR" rev-list --merges "$base"..HEAD)" ]; then
+    if [ -n "$(git -C "$SPEC_DIR" rev-list --merges "$spec_point"..HEAD)" ]; then
       die "dev moved after $SLUG was already combined; rebasing $SPEC_BR would flatten that merge and duplicate $IMPL_BR's commits. Rebase it by hand in $SPEC_DIR, keeping the combine, and rerun."
     fi
     git -C "$IMPL_DIR" rebase --quiet dev || die "$IMPL_BR does not rebase onto dev cleanly — resolve it in $IMPL_DIR and rerun."
