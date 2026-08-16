@@ -50,8 +50,14 @@ export async function resetBar(filters, { notes = true } = {}) {
   await discardAll();
 }
 
-/** @returns {string} */
-export const renderBar = () => render(html`<${NarrowBar} />`);
+/**
+ * The bar as a caller mounts it. Props are passed through, so a caller that
+ * mounts it with `srcFormat` off is rendered here the same way the page does.
+ *
+ * @param {Record<string, unknown>} [props]
+ * @returns {string}
+ */
+export const renderBar = (props = {}) => render(html`<${NarrowBar} ...${props} />`);
 
 /**
  * The characters a reader sees, with the entities the renderer emits put back.
@@ -103,6 +109,20 @@ export const attr = (el, name) => {
 };
 
 /**
+ * Every element of the bar that both reads a title and encloses a segmented
+ * switch — the candidates a switch group is picked from.
+ *
+ * @param {string} out
+ * @param {string} title
+ * @returns {MarkupElement[]}
+ */
+function groupCandidates(out, title) {
+  const all = elements(out);
+  const segments = all.filter(isSegment);
+  return all.filter((el) => seen(el).includes(title) && segments.some((s) => encloses(el, s)));
+}
+
+/**
  * The switch group a title names: the smallest element of the bar that both
  * reads that title and encloses a segmented switch.
  *
@@ -111,12 +131,19 @@ export const attr = (el, name) => {
  * @returns {MarkupElement}
  */
 export function group(out, title) {
-  const all = elements(out);
-  const segments = all.filter(isSegment);
-  const hits = all.filter((el) => seen(el).includes(title) && segments.some((s) => encloses(el, s)));
+  const hits = groupCandidates(out, title);
   if (hits.length === 0) throw new Error(`no "${title}" switch group in the rendered bar`);
   return hits.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
+
+/**
+ * Whether a rendered bar offers the switch group a title names.
+ *
+ * @param {string} out
+ * @param {string} title
+ * @returns {boolean}
+ */
+export const hasGroup = (out, title) => groupCandidates(out, title).length > 0;
 
 /**
  * The segmented switches inside one group, outermost first.
