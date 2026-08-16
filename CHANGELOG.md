@@ -6,27 +6,25 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- **The Output tab's chain cards fold their DSD Sources sections, and a Source format switch on the narrow bar opens both at once.** The sections start closed, since most libraries hold no DSD files. The switch reads PCM only and +DSD; folding one card's section by hand leaves the other card alone until the switch moves again. Live mode has no such sections, so its narrow bar omits the switch.
+- **The Output tab's chain cards fold their DSD Sources sections, and a Source format switch on the narrow bar opens both at once.** The sections start closed, since most libraries hold no DSD files. The switch reads PCM only and +DSD, and folding one card's section by hand moves only that card until the switch moves again.
 
 - **The oversampling chain controls carry one-line role glosses under their labels.** The 1x and Nx filter slots say which content each covers (CD quality and 48 kHz versus hi-res ≥88.2 kHz), and the sigma-delta modulator, dither, DSD source controls and DAC bits each state their role in the chain.
 
 ### Changed
 
-- **Engine idle time reads in seconds, and its tooltip quotes the manual.** The dropdown lists bare numbers, so the unit now sits beside it.
+- **Engine idle time reads in seconds.** The dropdown lists bare numbers, so the unit now sits beside it, and the hover tip describes what idle time controls.
 
-- **Live mode's Narrow filters, Playback, Engine health and Matrix profile cards fold away.** Each starts open and remembers its state, so a page cut down to the output mode switch and the matrix profile picker keeps that shape across reloads.
+- **LIVE's Narrow filters, Playback, Engine health and Matrix profile cards and the Output tab's DAC correction card fold away.** Each starts open and remembers its state, so a page cut down to the output mode switch and the matrix profile picker keeps that shape across reloads.
 
-- **Every card title bar is the same height.** A disclosure triangle, the narrow bar's Reset button and a hero card's larger heading each sit inside the bar rather than setting its height, so the four heights that shipped across the tabs are now one.
+- **Every card title bar is one height.** A disclosure triangle, the narrow bar's Reset button and a hero card's larger heading each sit inside the bar rather than setting its height.
 
-- **The DAC correction card is collapsible and stands open until it is folded.** It matches the other cards on the Output tab, which already fold.
-
-- **The hi-res narrowing switches are replaced by one 1x control reading Both, Lossless and Lossy.** It groups the filters that reduce ultrasonic noise, which at 1x only lossy sources carry; the Nx list is no longer narrowed on that axis. Both 1x switches now default to their neutral setting, so a fresh narrow bar starts unnarrowed and the 1x apodizing default no longer hides the non-apodizing filters.
+- **The hi-res narrowing switches are replaced by one 1x control reading Both, Lossless and Lossy.** It groups the filters that reduce ultrasonic noise, which at 1x only lossy sources carry; the Nx list is no longer narrowed on that axis.
 
 - **The Quality narrowing facet starts at a minimum of 3/5 and names its steps with the denominator.** The dropdown reads Any quality, Quality: ≥ 3/5, Quality: ≥ 4/5 and Quality: 5/5; clearing the narrow bar returns to the 3/5 floor, and picking Any quality counts as a narrowing choice.
 
 ### Fixed
 
-- **The pass-through filter now stays in the 1x and Nx menus whatever the narrowing.** Its 1/5 rating and non-apodizing flag describe the absence of resampling rather than poor resampling, and the apodizing default had been dropping it from the 1x menu.
+- **The pass-through filter now stays in the 1x and Nx menus whatever the narrowing.** Its 1/5 rating and non-apodizing flag describe the absence of resampling rather than poor resampling, and the 1x apodizing default had been dropping it from the menu. Both 1x switches now start neutral, so a fresh narrow bar is unnarrowed.
 
 ## [1.7.0] — 2026-08-14
 
