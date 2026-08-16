@@ -196,20 +196,27 @@ def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
     return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
 
 
-#: A `FiltersItem` carries a `description` as well, and it is the only
-#: enumeration that does (protocol.md §GetFilters): the engine's own facet
-#: string, `"<quality>/5 [focus] <glyph> <ratio>"`. Every filter the daemon
-#: enumerates carries one, so a filter served without it is narrowed out of the
-#: dropdowns by the quality facet. The pass-through's is the engine's own; the
-#: resamplers carry a rating that clears the facet's default floor, no case here
-#: being about quality.
+#: A `FiltersItem` carries `arg` and `description` as well, and it is the only
+#: enumeration that carries either (protocol.md §GetFilters). `description` is
+#: the engine's own facet string, `"<quality>/5 [focus] <glyph> <ratio>"`, and
+#: every filter the daemon enumerates carries one — so a filter served without
+#: it is narrowed out of the dropdowns by the quality facet. `arg` is a flags
+#: bitfield whose bit 0 (`0x00000001`) is the apodizing flag.
+#:
+#: The pass-through's description is the engine's own, and its `arg` is 0: it
+#: resamples nothing, so it apodizes nothing. The resamplers carry a rating that
+#: clears the quality facet's default floor and the apodizing bit set, no case
+#: here being about either facet.
 _FILTER_DESCRIPTIONS = {"none": "1/5 ⥮ 1:1"}
 _DEFAULT_FILTER_DESCRIPTION = "4/5 ⥮ Any"
+_FILTER_ARGS = {"none": "0"}
+_DEFAULT_FILTER_ARG = "1"
 
 
 def _filter_items(rows: tuple[tuple[str, str, str], ...]) -> str:
     return "".join(
         f'<FiltersItem index="{i}" name="{n}" value="{v}" '
+        f'arg="{_FILTER_ARGS.get(n, _DEFAULT_FILTER_ARG)}" '
         f'description="{_FILTER_DESCRIPTIONS.get(n, _DEFAULT_FILTER_DESCRIPTION)}"/>'
         for i, n, v in rows
     )

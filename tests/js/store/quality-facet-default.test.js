@@ -63,11 +63,6 @@ test("test_a_freshly_loaded_store_leaves_quality_at_3", () => {
   assert.equal(nQuality.value, 3);
 });
 
-test("test_the_exported_quality_default_is_3", async () => {
-  const mod = await import("../../../hqptuner/static/store/narrowing.js");
-  assert.equal(mod.QUALITY_DEFAULT, 3);
-});
-
 // --- the dropdown's rows, character for character ------------------------------
 
 test("test_the_quality_dropdown_offers_exactly_the_four_rows_verbatim", () => {
@@ -81,10 +76,13 @@ for (const [value, label] of ROWS) {
 }
 
 // --- fixtures for matching and the narrowed indicator ---------------------------
-// One filter per rating band plus one carrying no rating at all. Names carry no
-// phase, length or hires marker, and `arg` stays 0, so nothing narrows by a
-// facet these cases did not pick; every case reads the Nx stage, whose other
-// switches default to "all".
+// One filter per rating band. Every filter the daemon enumerates carries its
+// rating at the head of the description (protocol.md:228), so a live item
+// without one is a frame the wire never carries; the genuinely unrated filter
+// is the overlay-only one the live enumeration omits (architecture.md:27), and
+// it gets its own fixture below. Names carry no phase, length or hires marker,
+// and `arg` stays 0, so nothing narrows by a facet these cases did not pick;
+// every case reads the Nx stage, whose other switches default to "all".
 
 /** @type {[string, string][]} */
 const RATED = [
@@ -92,17 +90,26 @@ const RATED = [
   ["gauss-three", "3/5 ⥮ Any"],
   ["gauss-four", "4/5 ⥮ Any"],
   ["gauss-five", "5/5 ⥮ Any"],
-  ["gauss-unrated", "⥮ Any"],
 ];
+
+// A filter of the inactive mode: the live enumeration omits it, so its facets
+// come from the static overlay alone — and that row carries no `quality` key,
+// which is the only way a filter reaches the matcher with no rating at all.
+const UNRATED_NAME = "sinc-overlay-only";
+const UNRATED_OVERLAY = { [UNRATED_NAME]: { phase: "linear" } };
 
 /**
  * Reseed both source signals and reset every facet — module-level signals
- * outlive a test, so each case starts from a full reset.
+ * outlive a test, so each case starts from a full reset. `extras` are names a
+ * dropdown offers that the live enumeration does not carry, the way it offers
+ * the inactive mode's filters.
  *
  * @param {[string, string][]} filters
+ * @param {Record<string, Record<string, unknown>>} [overlay]
+ * @param {string[]} [extras]
  * @returns {{ value: string, label: string }[]}
  */
-function seed(filters) {
+function seed(filters, overlay = {}, extras = []) {
   enums.value = {
     filters: filters.map(([name, description], i) => ({
       index: String(i),
@@ -115,24 +122,24 @@ function seed(filters) {
   };
   metadata.value = {
     settings: {},
-    filters: { filters: {}, aliases: {} },
+    filters: { filters: overlay, aliases: {} },
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
   };
   resetNarrowing();
   favoriteFilters.value = new Set();
   nFavOnly.value = false;
-  return filters.map(([name], i) => ({ label: name, value: String(i) }));
+  const live = filters.map(([name], i) => ({ label: name, value: String(i) }));
+  return live.concat(extras.map((name, i) => ({ label: name, value: String(filters.length + i) })));
 }
 
 /** @param {{ value: string, label: string }[]} options */
 const labels = (options) => narrowOptions(options, STAGE, FIELD).map((o) => o.label);
 
 // --- matching is unchanged ------------------------------------------------------
-// 0 matches everything, rated or not; n keeps only ratings of n or higher and
-// rejects the unrated filter along with anything rated below n.
+// 0 matches everything, rated or not; n keeps only ratings of n or higher.
 
 for (const [selection, expected] of [
-  [0, ["gauss-two", "gauss-three", "gauss-four", "gauss-five", "gauss-unrated"]],
+  [0, ["gauss-two", "gauss-three", "gauss-four", "gauss-five"]],
   [3, ["gauss-three", "gauss-four", "gauss-five"]],
   [4, ["gauss-four", "gauss-five"]],
   [5, ["gauss-five"]],
@@ -144,10 +151,19 @@ for (const [selection, expected] of [
   });
 }
 
-test("test_a_nonzero_quality_selection_rejects_a_filter_carrying_no_rating", () => {
-  const options = seed(RATED);
+// A filter with no rating anywhere — no live description, no `quality` in its
+// overlay row — is rejected by any floor and accepted only by "any quality".
+
+test("test_a_quality_floor_rejects_a_filter_whose_overlay_row_carries_no_rating", () => {
+  const options = seed(RATED, UNRATED_OVERLAY, [UNRATED_NAME]);
   nQuality.value = 3;
-  assert.equal(labels(options).includes("gauss-unrated"), false);
+  assert.equal(labels(options).includes(UNRATED_NAME), false);
+});
+
+test("test_any_quality_accepts_a_filter_whose_overlay_row_carries_no_rating", () => {
+  const options = seed(RATED, UNRATED_OVERLAY, [UNRATED_NAME]);
+  nQuality.value = 0;
+  assert.equal(labels(options).includes(UNRATED_NAME), true);
 });
 
 // --- what counts as "narrowed" ---------------------------------------------------
@@ -182,10 +198,21 @@ test("test_reset_returns_quality_to_its_default_of_3", () => {
 // throwaway wire drains the private "changed" mark before the case's own fake
 // fetch is installed.
 
+// Quality is moved OFF both the default and whatever the case's payload says
+// before the hydration runs, so neither case can be satisfied by the state the
+// reset left behind: only a hydration that reads its payload — and falls back
+// to the default where the payload is silent — lands on the asserted value.
+//
+// The move happens BEFORE the draining flush, not after. A facet the user has
+// touched since the last write is theirs and a hydration will not overwrite it
+// (narrowing-persist.test.js, "a facet changed while the hydration was in
+// flight survives it"), so a write made after the flush would leave every case
+// here asserting that hydration declined to act.
 /** @param {Record<string, unknown>} facets */
 async function hydrateFrom(facets) {
   narrowingWire();
   resetNarrowing();
+  nQuality.value = 5;
   await flushNarrowing();
   env.fetch = async (/** @type {string} */ path) => (path === PATH ? ok({ facets }) : ok({}));
   await hydrateNarrowing();
@@ -223,13 +250,14 @@ for (const floor of [3, 4, 5]) {
   });
 }
 
-// The count is a separate entry point from the filtering and could disagree
-// with it: with the floor at 5 the exemption is the only thing keeping `none`
-// in, so a count blind to it answers 1 where the list shows 2.
-test("test_the_reported_count_agrees_with_the_options_shown_under_a_quality_floor", () => {
+// The count is a separate entry point from the filtering, so it is asserted
+// against the contract rather than against the list: of the two fixture
+// filters, the 5/5 one passes a floor of 5 on its rating and the pass-through
+// passes on the exemption alone, so a count blind to the exemption answers 1.
+test("test_the_reported_count_includes_the_exempt_pass_through", () => {
   const options = seed(PASSTHROUGH);
   nQuality.value = 5;
-  assert.equal(narrowCount(options, STAGE, FIELD).n, labels(options).length);
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 2);
 });
 
 // The apodizing stage switch is a descriptive facet too, and the 1x stage
@@ -249,9 +277,13 @@ for (const setting of ["only", "half"]) {
 // Favourites-only is not a description of the filter but a membership choice
 // the user made, so the escape hatch does not reach it. Another filter is
 // starred so the case is "not among the favourites", never "there are no
-// favourites at all".
+// favourites at all", and quality is opened to "any" so favourites-only is the
+// only facet that can drop the row — otherwise the 1/5 rating would drop it
+// under an implementation with no exemption at all, which is what this case
+// exists to catch.
 test("test_the_pass_through_is_not_offered_when_favourites_only_is_on_and_it_is_not_starred", () => {
   const options = seed(PASSTHROUGH);
+  nQuality.value = 0;
   favoriteFilters.value = new Set(["gauss-five"]);
   nFavOnly.value = true;
   assert.equal(labels(options).includes("none"), false);
