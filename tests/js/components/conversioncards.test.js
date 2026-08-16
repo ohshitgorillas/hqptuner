@@ -28,9 +28,10 @@ import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
 import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
+import { SUBHEADS, subsection } from "../support/chainsubsections.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -54,23 +55,10 @@ async function reset({ cfg = {}, mode = "auto" } = {}) {
 
 const tab = () => render(html`<${Output} />`);
 
-// One SOURCE-type subsection of a card: from its subhead to the next one.
-/**
- * @param {string} chunk
- * @param {string} name
- */
-const subsection = (chunk, name) => {
-  const at = chunk.indexOf(`<div class="subhead">${name}</div>`);
-  if (at < 0) return "";
-  const next = chunk.indexOf('<div class="subhead">', at + 1);
-  return next < 0 ? chunk.slice(at) : chunk.slice(at, next);
-};
-
 const PCM = "PCM Chain";
 const SDM = "SDM Chain";
 const LENGTH = "Filter length";
-const FROM_PCM = "PCM Sources";
-const FROM_DSD = "DSD Sources";
+const [FROM_PCM, FROM_DSD] = SUBHEADS;
 
 // Option sets with per-field names, so a chain can be shown to carry ITS OWN
 // filter list rather than merely "a filter list". Values are the form's enum
@@ -162,25 +150,28 @@ test("test_a_closed_card_hides_its_filter_chain", async () => {
 });
 
 // --- how each card is split ---------------------------------------------------
+// Both subheads stand whatever the DSD half's disclosure is doing: which element
+// carries each one, and whether the DSD body is on screen, belong to
+// conversioncards-dsd.test.js.
 
 test("test_the_pcm_card_splits_out_its_pcm_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), PCM).includes(`<div class="subhead">${FROM_PCM}</div>`));
+  assert.ok(section(tab(), PCM).includes(FROM_PCM));
 });
 
 test("test_the_pcm_card_splits_out_its_dsd_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), PCM).includes(`<div class="subhead">${FROM_DSD}</div>`));
+  assert.ok(section(tab(), PCM).includes(FROM_DSD));
 });
 
 test("test_the_sdm_card_splits_out_its_pcm_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), SDM).includes(`<div class="subhead">${FROM_PCM}</div>`));
+  assert.ok(section(tab(), SDM).includes(FROM_PCM));
 });
 
 test("test_the_sdm_card_splits_out_its_dsd_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), SDM).includes(`<div class="subhead">${FROM_DSD}</div>`));
+  assert.ok(section(tab(), SDM).includes(FROM_DSD));
 });
 
 // --- which control sits in which chain ----------------------------------------
@@ -215,23 +206,31 @@ test("test_the_sdm_chain_ends_in_the_modulator", async () => {
   assert.ok(subsection(section(tab(), SDM), FROM_PCM).includes("<label>Sigma-delta modulator<"));
 });
 
+// The DSD half of each chain is disclosed by the narrow bar's source-format
+// facet and starts closed, so a case about what it CONTAINS says the library
+// holds DSD first — the same thing a user says by picking "+DSD".
+
 test("test_dsd_source_handling_for_pcm_output_carries_the_noise_filter", async () => {
   await reset({ cfg: CHAINS });
+  nSrcFormat.value = "both";
   assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>Noise filter<"));
 });
 
 test("test_dsd_source_handling_for_pcm_output_carries_the_sdm_to_pcm_conversion", async () => {
   await reset({ cfg: CHAINS });
+  nSrcFormat.value = "both";
   assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>SDM → PCM<"));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_the_integrator", async () => {
   await reset({ cfg: CHAINS });
+  nSrcFormat.value = "both";
   assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Integrator<"));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
   await reset({ cfg: CHAINS });
+  nSrcFormat.value = "both";
   assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Direct SDM</label>"));
 });
 

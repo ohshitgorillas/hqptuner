@@ -54,6 +54,7 @@ DEFAULTS: dict[str, object] = {
     "apod_1x": "all",
     "apod_nx": "all",
     "lossy_1x": "both",
+    "src_format": "pcm",
 }
 
 #: One in-domain value per facet, each different from that facet's default.
@@ -71,6 +72,7 @@ SET: dict[str, object] = {
     "apod_1x": "only",
     "apod_nx": "only",
     "lossy_1x": "lossless",
+    "src_format": "both",
 }
 
 #: Well-typed tokens outside each facet's domain.
@@ -84,6 +86,7 @@ OUT_OF_DOMAIN: dict[str, object] = {
     "apod_1x": "some",
     "apod_nx": "some",
     "lossy_1x": "maybe",
+    "src_format": "dsd",
 }
 
 #: A value of the wrong type for each facet.
@@ -101,6 +104,7 @@ WRONG_TYPE: dict[str, object] = {
     "apod_1x": 0,
     "apod_nx": None,
     "lossy_1x": ["both"],
+    "src_format": 2,
 }
 
 #: A stamp no released HQPTuner can claim to understand.

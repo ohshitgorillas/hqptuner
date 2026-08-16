@@ -43,6 +43,7 @@ import {
   nApod1x,
   nApodNx,
   nLossy1x,
+  nSrcFormat,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
 import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
@@ -74,6 +75,7 @@ const SET = {
   apod_1x: "only",
   apod_nx: "only",
   lossy_1x: "lossless",
+  src_format: "both",
 };
 
 /** The wire key of each facet, against the signal that carries it. */
@@ -89,6 +91,7 @@ const SIGNALS = {
   apod_1x: nApod1x,
   apod_nx: nApodNx,
   lossy_1x: nLossy1x,
+  src_format: nSrcFormat,
 };
 
 /**
@@ -215,6 +218,17 @@ test("test_a_flush_sends_the_lossy_facet_as_the_user_set_it", async () => {
   nLossy1x.value = "lossless";
   await flushNarrowing();
   assert.equal((puts(w).at(-1) || {}).lossy_1x, "lossless");
+});
+
+// The source-format control rides the same put BY VALUE, not merely by key: a
+// client that always sent the key at its default would keep the whole table
+// intact while the bar silently failed to survive a reload.
+test("test_a_flush_sends_the_src_format_facet_as_the_user_set_it", async () => {
+  const w = await reset();
+  await hydrateNarrowing();
+  nSrcFormat.value = "both";
+  await flushNarrowing();
+  assert.equal((puts(w).at(-1) || {}).src_format, "both");
 });
 
 test("test_a_flush_sends_a_facet_the_user_did_not_touch_at_the_value_it_holds", async () => {

@@ -35,7 +35,8 @@ const env = globalThis;
  * booleans `odd_rate_only` and `downsafe_only`, wire keys pinned by name. The
  * 1x half is the apodizing tri-state, now neutral at `all`, and the three-state
  * lossy-source control `lossy_1x`, neutral at `both`; the retired `hires_1x` /
- * `hires_nx` pair is no longer part of the record.
+ * `hires_nx` pair is no longer part of the record. `src_format` is the source
+ * format the user's library is in, `pcm` or `both`, neutral at `pcm`.
  */
 /** @type {Facets} */
 export const NARROWING_DEFAULTS = {
@@ -52,6 +53,7 @@ export const NARROWING_DEFAULTS = {
   apod_1x: "all",
   apod_nx: "all",
   lossy_1x: "both",
+  src_format: "pcm",
 };
 
 /**

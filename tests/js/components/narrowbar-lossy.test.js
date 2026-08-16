@@ -28,23 +28,27 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../hqptuner/static/lib/dom.js";
-import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
-import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
-import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "../support/wire.js";
-import { elements, classes, text, enclosing } from "../support/markup.js";
+import { elements, enclosing } from "../support/markup.js";
+import {
+  resetBar,
+  renderBar,
+  decode,
+  seen,
+  isSegment,
+  encloses,
+  attr,
+  group,
+  switchesIn,
+  segmentLabels,
+} from "../support/narrowbarview.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
 // The owner-approved explainer, character for character: straight double quotes
 // around the two name fragments, no em dash anywhere.
 const EXPLAINER =
-  'This feature determines whether to show or hide filters capable of reducing ultrasonic noise when it exists in the source ("hires" or "mp3/mqa" in the filter name). At 1x, that means lossy material like MP3 and MQA; lossless material contains no such noise, so these filters offer no benefit at 1x otherwise.';
+  'This feature determines whether to show or hide filters capable of reducing ultrasonic noise (containing "hires" or "mp3/mqa" in the name) in the 1x filter dropdowns. At 1x rates, this only benefits lossy material like MP3 and MQA; lossless material contains no ultrasonic content to attenuate. Selecting "Lossless" hides these filters; "Lossy" shows them only.';
 
 const TITLE = "1x sources";
 
@@ -58,101 +62,7 @@ const FILTERS = [
  * @param {{ notes?: boolean }} [prefs]
  * @returns {Promise<void>}
  */
-async function reset({ notes = true } = {}) {
-  staticWire();
-  engineState.value = {};
-  enums.value = { filters: FILTERS };
-  metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
-  config.value = { fields: [], file: {}, active: "", profiles: null };
-  matrixConfig.value = { fields: [] };
-  resetNarrowing();
-  // Held ON in both states: the split under test follows the master pref, not
-  // the option-descriptions one.
-  keepOptionDescriptions.value = true;
-  showDescriptions.value = notes;
-  await discardAll();
-}
-
-/** @returns {string} */
-const renderBar = () => render(html`<${NarrowBar} />`);
-
-/**
- * The characters a reader sees, with the entities the renderer emits put back.
- *
- * @param {string} s
- * @returns {string}
- */
-const decode = (s) =>
-  s
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
-
-/** @param {MarkupElement} el */
-const seen = (el) => decode(text(el));
-
-/** @param {MarkupElement} el */
-const isSegment = (el) => classes(el).includes("segment");
-
-/**
- * @param {MarkupElement} el
- * @param {string} name
- * @returns {string | undefined}
- */
-const attr = (el, name) => {
-  const m = new RegExp(`(^|\\s)${name}="([^"]*)"`).exec(el.attrs);
-  return m ? decode(m[2]) : undefined;
-};
-
-/** @param {MarkupElement} el */
-const encloses = (el, /** @type {MarkupElement} */ inner) =>
-  inner.start >= el.start && inner.start + inner.html.length <= el.start + el.html.length;
-
-/**
- * The switch group a title names: the smallest element of the bar that both
- * reads that title and encloses a segmented switch.
- *
- * @param {string} out
- * @param {string} title
- * @returns {MarkupElement}
- */
-function group(out, title) {
-  const all = elements(out);
-  const segments = all.filter(isSegment);
-  const hits = all.filter((el) => seen(el).includes(title) && segments.some((s) => encloses(el, s)));
-  if (hits.length === 0) throw new Error(`no "${title}" switch group in the rendered bar`);
-  return hits.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
-}
-
-/**
- * The segmented switches inside one group, outermost first.
- *
- * @param {MarkupElement} region
- * @returns {MarkupElement[]}
- */
-const switchesIn = (region) =>
-  elements(region.html)
-    .filter(isSegment)
-    .sort((a, b) => a.start - b.start);
-
-/**
- * The wording on each segment of a group's switch, in order.
- *
- * @param {MarkupElement} region
- * @returns {string[]}
- */
-function segmentLabels(region) {
-  const [strip] = switchesIn(region);
-  if (!strip) throw new Error("no segmented switch in this group");
-  return [...strip.html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => decode(m[1].trim()));
-}
+const reset = (prefs) => resetBar(FILTERS, prefs);
 
 /**
  * The stage micro-labels of a region — elements reading exactly "1x" or "Nx" —
