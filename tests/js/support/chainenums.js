@@ -7,14 +7,21 @@
  * One filter/shaper/junk-filter enum entry the engine reports: enum ID differs
  * from list index throughout.
  *
- * @typedef {{ index: string, value: string, name: string }} EnumItem
+ * @typedef {{ index: string, value: string, name: string, description?: string }} EnumItem
  */
+
+// Every filter the engine enumerates carries a quality rating at the head of
+// its description (protocol.md:228), and the quality facet hides anything rated
+// below its floor — so a filter fixture with no description is narrowed out of
+// every dropdown that quotes it. The pass-through's description is the engine's
+// own, `1/5 ⥮ 1:1`; the two resamplers carry a rating that clears the default
+// floor, because no case here is about quality.
 
 /** @type {EnumItem[]} */
 export const PCM_FILTERS = [
-  { index: "0", value: "0", name: "none" },
-  { index: "1", value: "40", name: "poly-sinc-gauss-long" },
-  { index: "2", value: "25", name: "sinc-M" },
+  { index: "0", value: "0", name: "none", description: "1/5 ⥮ 1:1" },
+  { index: "1", value: "40", name: "poly-sinc-gauss-long", description: "4/5 ⥮ Any" },
+  { index: "2", value: "25", name: "sinc-M", description: "4/5 ⥮ Any" },
 ];
 
 /** @type {EnumItem[]} */
@@ -25,8 +32,8 @@ export const PCM_SHAPERS = [
 
 /** @type {EnumItem[]} */
 export const SDM_FILTERS = [
-  { index: "0", value: "38", name: "poly-sinc-gauss-long" },
-  { index: "1", value: "23", name: "sinc-M" },
+  { index: "0", value: "38", name: "poly-sinc-gauss-long", description: "4/5 ⥮ Any" },
+  { index: "1", value: "23", name: "sinc-M", description: "4/5 ⥮ Any" },
 ];
 
 /** @type {EnumItem[]} */

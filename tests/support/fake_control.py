@@ -196,6 +196,25 @@ def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
     return "".join(f'<{tag} index="{i}" name="{n}" value="{v}"/>' for i, n, v in rows)
 
 
+#: A `FiltersItem` carries a `description` as well, and it is the only
+#: enumeration that does (protocol.md §GetFilters): the engine's own facet
+#: string, `"<quality>/5 [focus] <glyph> <ratio>"`. Every filter the daemon
+#: enumerates carries one, so a filter served without it is narrowed out of the
+#: dropdowns by the quality facet. The pass-through's is the engine's own; the
+#: resamplers carry a rating that clears the facet's default floor, no case here
+#: being about quality.
+_FILTER_DESCRIPTIONS = {"none": "1/5 ⥮ 1:1"}
+_DEFAULT_FILTER_DESCRIPTION = "4/5 ⥮ Any"
+
+
+def _filter_items(rows: tuple[tuple[str, str, str], ...]) -> str:
+    return "".join(
+        f'<FiltersItem index="{i}" name="{n}" value="{v}" '
+        f'description="{_FILTER_DESCRIPTIONS.get(n, _DEFAULT_FILTER_DESCRIPTION)}"/>'
+        for i, n, v in rows
+    )
+
+
 def _rate_items(rows: tuple[tuple[str, str], ...]) -> str:
     return "".join(f'<RatesItem index="{i}" rate="{r}"/>' for i, r in rows)
 
@@ -271,7 +290,7 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
     if name == "GetModes":
         return f"<GetModes>{_items('ModesItem', _modes(state))}</GetModes>"
     if name == "GetFilters":
-        return f"<GetFilters>{_items('FiltersItem', _SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
+        return f"<GetFilters>{_filter_items(_SDM_FILTERS if sdm else _PCM_FILTERS)}</GetFilters>"
     if name == "GetShapers":
         return f"<GetShapers>{_items('ShapersItem', _SDM_SHAPERS if sdm else _PCM_SHAPERS)}</GetShapers>"
     if name == "GetRates":

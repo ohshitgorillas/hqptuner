@@ -36,7 +36,7 @@ import { reset } from "../support/field-harness.js";
 import { staticWire, stagingWire, quiesce } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/favorites.js";
-import { nApod1x } from "../../../hqptuner/static/store/narrowing.js";
+import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrowing.js";
 
 const FILTER_FIELDS = [
   {
@@ -82,12 +82,14 @@ async function start(fields) {
 }
 
 // The FILTER fixture, which the 1x stage narrows: its apodizing switch defaults
-// to apodizing-only and spares no option, the selected one included, so a case
-// wanting both filter rows listed opens the switch first. The dither fixture is
-// not narrowed at all and starts through `start` alone.
+// to apodizing-only and the quality facet to a 3/5 floor, and neither spares any
+// option, the selected one included — so a case wanting both filter rows listed
+// opens both first. The dither fixture is not narrowed at all and starts
+// through `start` alone.
 async function startFilters() {
   await start(FILTER_FIELDS);
   nApod1x.value = "all";
+  nQuality.value = 0;
 }
 
 // One render of a Field, with every vnode preact builds along the way.

@@ -208,6 +208,14 @@ test("test_a_matrix_sourced_dropdown_offers_the_matrix_forms_options", async () 
   assert.deepEqual(optionLabels(field("matrix_engine")), ["IIR", "FIR"]);
 });
 
+// Every filter the engine enumerates carries a quality rating at the head of
+// its description (protocol.md:228), and the quality facet's 3/5 default hides
+// anything rated below it — including an item that carries no rating at all.
+// These two cases are about the PHASE facet, so each item gets a rating that
+// clears the floor and leaves phase the only thing dropping anything.
+/** @param {string} name */
+const PASSES_QUALITY = (name) => ({ name, description: "4/5 ⥮ Any" });
+
 test("test_narrowing_drops_an_option_the_active_facets_exclude", async () => {
   await reset({
     fields: [
@@ -221,7 +229,7 @@ test("test_narrowing_drops_an_option_the_active_facets_exclude", async () => {
       },
     ],
   });
-  enums.value = { filters: [{ name: "poly-sinc-mp" }, { name: "sinc-Lm" }] };
+  enums.value = { filters: [PASSES_QUALITY("poly-sinc-mp"), PASSES_QUALITY("sinc-Lm")] };
   nApod1x.value = "all";
   nPhase.value = "minimum";
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["poly-sinc-mp"]);
@@ -243,7 +251,7 @@ test("test_narrowing_hides_the_selected_option_when_it_fails_the_facets", async 
       },
     ],
   });
-  enums.value = { filters: [{ name: "poly-sinc-mp" }, { name: "sinc-Lm" }] };
+  enums.value = { filters: [PASSES_QUALITY("poly-sinc-mp"), PASSES_QUALITY("sinc-Lm")] };
   nApod1x.value = "all";
   nPhase.value = "minimum";
   assert.equal(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"), false);
