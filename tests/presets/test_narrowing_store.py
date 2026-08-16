@@ -11,8 +11,11 @@ The facets and their defaults are the contract this file is written against;
 `DEFAULTS` below is that table, not a snapshot of anything. The rate half is
 the tri-state ``hide_limited`` (``auto``/``on``/``off``, default ``auto``) and
 the two real booleans ``odd_rate_only`` and ``downsafe_only`` (default False,
-truthy strings refused); the retired ``hide_2x``, ``hide_int``, ``ratio`` and
-``upsample_only`` keys are refused on write and never surfaced on read.
+truthy strings refused); the retired ``hide_2x``, ``hide_int``, ``ratio``,
+``upsample_only``, ``hires_1x`` and ``hires_nx`` keys are refused on write and
+never surfaced on read. The 1x lossy-source control that replaced the hi-res
+pair is ``lossy_1x``, and its own domain lives in
+tests/presets/test_narrowing_lossy.py.
 
 On-disk layout: the file carries a schema stamp under ``schema``, the way
 `favoritestore` stamps its own file. Where the facets themselves sit inside that
@@ -48,10 +51,9 @@ DEFAULTS: dict[str, object] = {
     "hide_limited": "auto",
     "odd_rate_only": False,
     "downsafe_only": False,
-    "apod_1x": "only",
+    "apod_1x": "all",
     "apod_nx": "all",
-    "hires_1x": "hide",
-    "hires_nx": "all",
+    "lossy_1x": "both",
 }
 
 #: One in-domain value per facet, each different from that facet's default.
@@ -66,10 +68,9 @@ SET: dict[str, object] = {
     "hide_limited": "on",
     "odd_rate_only": True,
     "downsafe_only": True,
-    "apod_1x": "all",
+    "apod_1x": "only",
     "apod_nx": "only",
-    "hires_1x": "show",
-    "hires_nx": "only",
+    "lossy_1x": "lossless",
 }
 
 #: Well-typed tokens outside each facet's domain.
@@ -82,8 +83,7 @@ OUT_OF_DOMAIN: dict[str, object] = {
     "hide_limited": "yes",
     "apod_1x": "some",
     "apod_nx": "some",
-    "hires_1x": "maybe",
-    "hires_nx": "hide",
+    "lossy_1x": "maybe",
 }
 
 #: A value of the wrong type for each facet.
@@ -100,8 +100,7 @@ WRONG_TYPE: dict[str, object] = {
     "downsafe_only": "true",
     "apod_1x": 0,
     "apod_nx": None,
-    "hires_1x": ["show"],
-    "hires_nx": 2,
+    "lossy_1x": ["both"],
 }
 
 #: A stamp no released HQPTuner can claim to understand.

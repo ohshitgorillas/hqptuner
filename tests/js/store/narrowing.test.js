@@ -27,9 +27,10 @@
 // case: module-level signals outlive a test, and a partial reset makes tests
 // pass alone and fail in sequence.
 //
-// Every case reads the Nx stage, whose apodizing and hi-res switches default to
-// "all" — the 1x stage defaults to apodizing-only and hi-res-hidden, which is a
-// narrowing of its own and would be riding along under every assertion here.
+// Every case reads the Nx stage. Neither stage starts narrowed on a per-stage
+// control any more — apodizing is "all" at both stages and the 1x lossy-source
+// control starts at "both" — and the per-stage controls are
+// tests/js/store/narrowing-lossy.test.js's subject.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrowing.test.js
 
@@ -42,8 +43,6 @@ import {
   nLength,
   nApod1x,
   nApodNx,
-  nHires1x,
-  nHiresNx,
   narrowingActive,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
@@ -139,9 +138,9 @@ const LENGTHS = [
   ["gauss-long", "4/5 ⥮ Any"],
 ];
 
-// For the per-stage switches: `arg` bit 0 is the apodizing flag, and a filter is
-// hi-res when its NAME carries `hires`. The 1x stage defaults to apodizing-only
-// and hi-res-hidden, the Nx stage to all of both.
+// For the per-stage switches: `arg` bit 0 is the apodizing flag, and a filter
+// counts as lossy-source when its NAME carries `hires`, `mqa` or `mp3`. Neither
+// stage starts narrowed on either control.
 /** @type {FilterTuple[]} */
 const STAGES = [
   ["gauss-plain", "4/5 ⥮ Any", 0],
@@ -239,15 +238,15 @@ test("test_reset_returns_length_to_not_narrowed", () => {
   assert.equal(nLength.value, "");
 });
 
-// The per-stage switches reset to their OWN defaults, not to a bare clear: the
-// 1x pair is what tells the two apart — cleared would leave 1x apodizing at
-// "all" and 1x hi-res at "show".
+// The per-stage apodizing switches reset to their own default at both stages;
+// the 1x lossy-source control's reset is pinned in
+// tests/js/store/narrowing-lossy.test.js.
 
-test("test_reset_returns_the_1x_apodizing_switch_to_apodizing_only", () => {
+test("test_reset_returns_the_1x_apodizing_switch_to_all", () => {
   reset(STAGES);
-  nApod1x.value = "all";
+  nApod1x.value = "only";
   resetNarrowing();
-  assert.equal(nApod1x.value, "only");
+  assert.equal(nApod1x.value, "all");
 });
 
 test("test_reset_returns_the_nx_apodizing_switch_to_all", () => {
@@ -255,20 +254,6 @@ test("test_reset_returns_the_nx_apodizing_switch_to_all", () => {
   nApodNx.value = "only";
   resetNarrowing();
   assert.equal(nApodNx.value, "all");
-});
-
-test("test_reset_returns_the_1x_hires_switch_to_hidden", () => {
-  reset(STAGES);
-  nHires1x.value = "show";
-  resetNarrowing();
-  assert.equal(nHires1x.value, "hide");
-});
-
-test("test_reset_returns_the_nx_hires_switch_to_all", () => {
-  reset(STAGES);
-  nHiresNx.value = "only";
-  resetNarrowing();
-  assert.equal(nHiresNx.value, "all");
 });
 
 test("test_reset_leaves_narrowing_inactive", () => {
@@ -295,7 +280,7 @@ test("test_the_nx_stage_defaults_leave_every_filter_offered", () => {
   assert.deepEqual(labels(options), ["gauss-plain", "gauss-apod", "gauss-hires-apod"]);
 });
 
-test("test_the_1x_stage_defaults_drop_the_non_apodizing_and_the_hires_filters", () => {
+test("test_the_1x_stage_defaults_leave_every_filter_offered", () => {
   const options = reset(STAGES);
-  assert.deepEqual(labels(options, "1x", "pcm_filter_1x"), ["gauss-apod"]);
+  assert.deepEqual(labels(options, "1x", "pcm_filter_1x"), ["gauss-plain", "gauss-apod", "gauss-hires-apod"]);
 });

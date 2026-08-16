@@ -22,9 +22,9 @@
 // because every fixture here is read through a PCM field. No count comes from a
 // shipped data file.
 //
-// Every case reads the Nx stage, whose apodizing and hi-res switches default to
-// "all"; the 1x stage defaults are a narrowing of their own and would ride along
-// under every assertion here.
+// Every case reads the Nx stage. The per-stage controls start neutral at both
+// stages now — apodizing "all", and the 1x lossy-source control "both" — and are
+// tests/js/store/narrowing-lossy.test.js's subject.
 //
 // `reset()` reassigns BOTH source signals and calls resetNarrowing() on every
 // case: module-level signals outlive a test, and a partial reset makes cases

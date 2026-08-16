@@ -23,9 +23,10 @@
 // case: module-level signals outlive a test, and a partial reset makes tests
 // pass alone and fail in sequence.
 //
-// Every case reads the Nx stage, whose apodizing and hi-res switches default to
-// "all" — the 1x stage defaults to apodizing-only and hi-res-hidden, which is a
-// narrowing of its own and would ride along under every assertion here.
+// Every case reads the Nx stage. No per-stage control starts narrowed at either
+// stage now — apodizing is "all" at both and the 1x lossy-source control starts
+// at "both" — and those controls are tests/js/store/narrowing-lossy.test.js's
+// subject.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrowing-mode.test.js
 

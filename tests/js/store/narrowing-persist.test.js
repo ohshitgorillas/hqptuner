@@ -42,8 +42,7 @@ import {
   nLength,
   nApod1x,
   nApodNx,
-  nHires1x,
-  nHiresNx,
+  nLossy1x,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
 import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
@@ -72,10 +71,9 @@ const SET = {
   focus_mode: "and",
   phase: "linear",
   length: "long",
-  apod_1x: "all",
+  apod_1x: "only",
   apod_nx: "only",
-  hires_1x: "show",
-  hires_nx: "only",
+  lossy_1x: "lossless",
 };
 
 /** The wire key of each facet, against the signal that carries it. */
@@ -90,8 +88,7 @@ const SIGNALS = {
   length: nLength,
   apod_1x: nApod1x,
   apod_nx: nApodNx,
-  hires_1x: nHires1x,
-  hires_nx: nHiresNx,
+  lossy_1x: nLossy1x,
 };
 
 /**

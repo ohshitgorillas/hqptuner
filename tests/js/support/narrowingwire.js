@@ -32,7 +32,10 @@ const env = globalThis;
  * The persisted facets at their documented defaults — the contract table. The
  * rate half is the three switches that replaced the retired single-select
  * `ratio` and `upsample_only` facets: the tri-state `hide_limited` and the two
- * booleans `odd_rate_only` and `downsafe_only`, wire keys pinned by name.
+ * booleans `odd_rate_only` and `downsafe_only`, wire keys pinned by name. The
+ * 1x half is the apodizing tri-state, now neutral at `all`, and the three-state
+ * lossy-source control `lossy_1x`, neutral at `both`; the retired `hires_1x` /
+ * `hires_nx` pair is no longer part of the record.
  */
 /** @type {Facets} */
 export const NARROWING_DEFAULTS = {
@@ -46,10 +49,9 @@ export const NARROWING_DEFAULTS = {
   hide_limited: "auto",
   odd_rate_only: false,
   downsafe_only: false,
-  apod_1x: "only",
+  apod_1x: "all",
   apod_nx: "all",
-  hires_1x: "hide",
-  hires_nx: "all",
+  lossy_1x: "both",
 };
 
 /**
