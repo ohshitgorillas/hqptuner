@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-08-16
+
 ### Added
 
 - **The Output tab's chain cards fold their DSD Sources sections, and a Source format switch on the narrow bar opens both at once.** The sections start closed, since most libraries hold no DSD files. The switch reads PCM only and +DSD, and folding one card's section by hand moves only that card until the switch moves again.
