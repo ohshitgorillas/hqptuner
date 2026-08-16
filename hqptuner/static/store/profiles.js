@@ -1,5 +1,5 @@
-// Saved matrix profiles (matrix-spec.md "Probe findings — saved"). Split out of the store core at
-// the file-length gate; nothing here reaches into its private signals — it
+// Saved matrix profiles (matrix-spec.md "Probe findings — saved"). Nothing here
+// reaches into the store core's private signals — it
 // stages through `edit` and reads staged values through `effective`, the same
 // public seams every other store module uses.
 //

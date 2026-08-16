@@ -1,5 +1,5 @@
 /* plots — response plot (SVG, log-freq axis), accent picker swatches.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* ── Response plot (client-side SVG, log-freq axis) ───────────────────── */

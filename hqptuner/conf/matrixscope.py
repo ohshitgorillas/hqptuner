@@ -1,6 +1,6 @@
 """Locating and scoping a matrix context inside a config snapshot.
 
-Split out of ``matrixconf`` at the file-length gate, and a clean seam: everything
+A clean seam: everything
 here answers "which bytes are the matrix in question", nothing here knows what a
 pipeline row or a saved profile *is*. Depends on ``xmledit`` alone, so
 ``matrixconf`` imports it and never the other way round.

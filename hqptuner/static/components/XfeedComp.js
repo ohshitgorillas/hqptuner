@@ -198,7 +198,7 @@ export function XfeedBadge() {
 }
 
 // The strip's primary action. An installed block offers Turn off (plus Rebuild
-// once the crossfeed settings have moved out from under it); an uninstalled one
+// once the crossfeed settings no longer match the installed block); an uninstalled one
 // offers Turn on, grayed with the reason when the stereo pair is not eligible.
 /**
  * @param {PipelineRow[]} rows

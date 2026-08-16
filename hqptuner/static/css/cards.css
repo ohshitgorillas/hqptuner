@@ -1,6 +1,6 @@
 /* cards — cards and card grids, about/backup/logging/log-tail, radios. The
    two-track .pack layout is packs.css, loaded straight after this file.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* non-collapsible grouping card — mirrors the Output backend-section look */
@@ -73,9 +73,9 @@ button.card-head {
   line-height: 1;
 }
 /* Inter-child rhythm comes from the container, for the same reason .tab-body
-   carries its own gap: the rule this replaced (`.card-body > .field + .field`,
-   in fields.css) needed the PREVIOUS sibling to be a .field, so a field sitting
-   after a .pack — Blocks / cycle on System — got no separation at all. */
+   carries its own gap: a sibling rule (`.card-body > .field + .field`) needs the
+   PREVIOUS sibling to be a .field, so a field sitting after a .pack — Blocks /
+   cycle on System — gets no separation at all. */
 .card-body {
   flex: 1;
   display: flex;

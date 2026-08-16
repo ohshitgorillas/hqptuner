@@ -7,8 +7,7 @@
 //   shapers.json    name (architecture §2: enumerations are the sole authority
 //                   for names, static data joins by name)
 //
-// This module was lifted out of components/Field.js when the LIVE page needed
-// the same words for the same controls. Two pages rendering one control from two
+// Two pages rendering one control from two
 // different strings is how a UI ends up disagreeing with itself, so both read
 // from here and neither writes prose of its own.
 

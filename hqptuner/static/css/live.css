@@ -1,7 +1,7 @@
 /* live — the LIVE page. Deliberately small: its controls reuse .card / .pack /
    .field and its prose takes the shared text roles, so the only rules here are
    for the one thing LIVE has that no other page does — a refused write.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* Why the last write was refused, under its own control (grid col 2). Warn

@@ -9,10 +9,10 @@ gate keeps it that way.
 It also holds the rhythm tokens to one mechanism, which is a different kind of
 rule: not "which value" but "which property may spend it". Space between
 siblings has two mechanisms in CSS — the container's `gap` and the child's
-margin — and when both are used they do not override, they add. `.top-row`
-carried `margin-bottom: var(--sp-4)` under a `.tab-body` already spending an
-8px gap, so the space under the hero cards was 32px against every other card
-pair's 8px; `.card-grid`'s `margin-top` did the same at 16px. Nothing about
+margin — and when both are used they do not override, they add. A
+`margin-bottom: var(--sp-4)` on `.top-row`, under a `.tab-body` already
+spending an 8px gap, puts 32px under the hero cards against every other card
+pair's 8px; a `margin-top` on `.card-grid` does the same at 16px. Nothing about
 either rule looks wrong on its own — both are tokenised, both name a step on
 the scale. It is not catchable by reading one rule, so it is a gate:
 

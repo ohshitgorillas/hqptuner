@@ -1,6 +1,6 @@
 """Refresh of the three polled 8088 forms — /config, /matrix and /speakers.
 
-Split out of ``manager`` on size alone; the behaviour is unchanged. It sits with
+It sits with
 the lanes because it is the same shape as they are: a function over the manager
 that owns one slice of the daemon conversation, here the read side of the HTTP
 lane the manager polls on every tick.

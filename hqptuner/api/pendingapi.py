@@ -1,7 +1,6 @@
 """Pending/staging REST surface — the server-side staged-changes buffer.
 
-Split out of ``app`` by the file-length gate, the same way ``matrixapi`` and
-``livepresetapi`` are: a self-contained feature surface mounted alongside it.
+A self-contained feature surface mounted alongside ``app``.
 The apply route stays in ``app`` and reads the buffer through ``_pending``.
 """
 

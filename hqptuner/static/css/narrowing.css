@@ -1,5 +1,5 @@
 /* narrowing — DSP filter narrowing panel, facet selects, multi-select dropdown, field notes and hints.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* DSP filter narrowing — the facet row inside the "Narrow filters" card. The

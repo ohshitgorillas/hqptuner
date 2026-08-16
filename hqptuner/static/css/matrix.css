@@ -1,5 +1,5 @@
 /* matrix — Matrix tab — read-only view, editable pipeline rows, stage editor.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* ── Matrix tab (read-only phase) ─────────────────────────────────────────

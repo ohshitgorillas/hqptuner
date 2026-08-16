@@ -1,6 +1,6 @@
 // The docked inline stage editor — step 4 of the delivery order (matrix-spec
 // §8). Selecting a stage chip outlines it and docks this panel under its row (no
-// modal). Split out of MatrixTab.js verbatim; `convDraft` and `uploadNote` are
+// modal). `convDraft` and `uploadNote` are
 // private to this module, and `setSelected` lives here because clearing the
 // draft is exactly what it is for.
 import { signal } from "@preact/signals";

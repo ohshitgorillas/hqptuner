@@ -1,5 +1,5 @@
 /* crossfeed — crossfeed compensation (M/S), structural crossfeed, speaker diagram.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* ── Crossfeed compensation (M/S) ────────────────────────────────────────

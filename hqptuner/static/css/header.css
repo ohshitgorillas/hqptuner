@@ -1,5 +1,5 @@
 /* header — chrome header — brand, daemon status, preset controls, status pills.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* header */

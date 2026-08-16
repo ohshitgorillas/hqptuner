@@ -1,5 +1,5 @@
 /* volume — volume range bar (Min / Startup / Max) and the playback volume panel.
-   Split out of app.css; cascade order is fixed by the <link> sequence in
+   Cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
 /* ── Volume range bar: Min / Startup / Max on one shared dBFS axis ────────
@@ -17,7 +17,7 @@
      68px+    tick labels
 
    The tick row sits clear of the bar band rather than against it: the strongest
-   line is 14px and the labels are set in --fs-micro, so a shorter gap put the
+   line is 14px and the labels are set in --fs-micro, so a shorter gap runs the
    0 line through its own number. */
 .vr-card .card-body {
   display: flex;

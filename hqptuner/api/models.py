@@ -1,7 +1,6 @@
 """Pydantic request bodies for the main API surface (``app``/``pendingapi``).
 
-Split out of ``app`` by the file-length gate. Sibling surfaces
-(``livepresetapi``, ``matrixapi``) keep their own bodies.
+Sibling surfaces (``livepresetapi``, ``matrixapi``) keep their own bodies.
 """
 
 from pydantic import BaseModel
