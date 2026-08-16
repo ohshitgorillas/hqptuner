@@ -50,7 +50,6 @@ ALLOWANCE: dict[str, int] = {
     "hqptuner/core/manager.py": 485,
     "hqptuner/static/components/Crossfeed.js": 483,
     "scripts/budget/budget_miner.py": 470,
-    "hqptuner/static/components/LiveView.js": 468,
     "hqptuner/static/lib/xfeed.js": 462,
     "scripts/eqlab/search.js": 442,
     "scripts/eqlab/render.js": 441,

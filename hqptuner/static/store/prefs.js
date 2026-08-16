@@ -123,6 +123,44 @@ export function setLiveMode(on) {
   persist(K_LIVE, liveMode.value);
 }
 
+// LIVE page card disclosure. Four cards on that page collapse so the page can be
+// cut down to the controls in use: with Narrow filters, Playback and Engine
+// health folded away, the output mode switch and the matrix profile picker sit
+// on one screen and switching between them costs no scrolling. Open by default —
+// a first visit shows the whole page — and persisted per card, because a
+// cut-down page that reverts on reload is not cut down.
+const K_LIVE_CARD = {
+  narrow: "hqptuner.liveCollapse.narrow",
+  playback: "hqptuner.liveCollapse.playback",
+  health: "hqptuner.liveCollapse.health",
+  matrix: "hqptuner.liveCollapse.matrix",
+};
+
+export const liveNarrowOpen = signal(loadBool(K_LIVE_CARD.narrow, true));
+export const livePlaybackOpen = signal(loadBool(K_LIVE_CARD.playback, true));
+export const liveHealthOpen = signal(loadBool(K_LIVE_CARD.health, true));
+export const liveMatrixOpen = signal(loadBool(K_LIVE_CARD.matrix, true));
+
+const LIVE_CARD_SIGNAL = {
+  narrow: liveNarrowOpen,
+  playback: livePlaybackOpen,
+  health: liveHealthOpen,
+  matrix: liveMatrixOpen,
+};
+
+/**
+ * Set one LIVE card's disclosure and persist it.
+ *
+ * @param {"narrow" | "playback" | "health" | "matrix"} card
+ * @param {boolean} open
+ * @returns {void}
+ */
+export function setLiveCardOpen(card, open) {
+  const sig = LIVE_CARD_SIGNAL[card];
+  sig.value = !!open;
+  persist(K_LIVE_CARD[card], sig.value);
+}
+
 // Static feature notes follow the master only.
 export const notesVisible = computed(() => showDescriptions.value);
 // Per-selection option descriptions survive a hidden master when kept.

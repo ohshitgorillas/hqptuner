@@ -44,14 +44,36 @@ import {
   apodTip,
 } from "./narrowbar/Stages.js";
 
+// Reset sits in the card head, and on LIVE that head is the collapse toggle
+// (components/common.js) — so the click has to stop where it lands. Without
+// that, clearing the narrowing would also fold the card the user is narrowing
+// in.
+function ResetButton() {
+  return html`<button
+    type="button"
+    class="narrow-reset"
+    onClick=${(/** @type {Event} */ e) => {
+      e.stopPropagation();
+      resetNarrowing();
+    }}
+  >
+    Reset
+  </button>`;
+}
+
 /**
  * Renders the narrowing card above the filter cards: the facet dropdown row and
  * the two stage switch groups, plus the page-wide pointerdown listener that
  * retracts an open facet popover. `srcFormat` false drops the Source format
  * group, for a caller whose cards have no DSD Sources subsection to disclose.
- * @param {{ srcFormat?: boolean }} props
+ *
+ * `collapse` is optional and goes straight to the Card. The Resampling tab
+ * passes nothing: the bar is that tab's first control and folding it there hides
+ * what the page is for. LIVE passes a handle, where the bar is one of four cards
+ * folded away to get the mode switch and the matrix picker onto one screen.
+ * @param {{ srcFormat?: boolean, collapse?: import("./common.js").CollapseHandle }} props
  */
-export function NarrowBar({ srcFormat = true }) {
+export function NarrowBar({ srcFormat = true, collapse }) {
   const engaged = srcFormat ? narrowingActive.value : filterNarrowingActive.value;
   useEffect(() => {
     const onDown = (/** @type {Event} */ e) => closeExcept(/** @type {Element | null} */ (e.target));
@@ -60,10 +82,9 @@ export function NarrowBar({ srcFormat = true }) {
   }, []);
   return html`
     <${Card}
-      title=${html`Narrow filters${
-        engaged ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>` : null
-      }`}
+      title=${html`Narrow filters${engaged ? html`<${ResetButton} />` : null}`}
       cardClass="narrow-card"
+      collapse=${collapse}
     >
       ${
         notesVisible.value
