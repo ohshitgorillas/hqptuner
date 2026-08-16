@@ -95,3 +95,7 @@ mutants/
 # throwaway node scratch scripts (EQ tuning sessions and the like) — never
 # shipped, and eslint skips them for the same reason
 *.mjs
+
+# LaTeX user guide, sources and build alike — it documents the wizard feature
+# and lands when that does
+docs/guide/
