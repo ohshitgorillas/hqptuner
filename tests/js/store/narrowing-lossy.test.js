@@ -22,10 +22,12 @@
 // `"<q>/5 [focus, ...] <glyph> <ratio>"`, with the PCM glyph `⥮` and the
 // engine's abbreviated ratio tail. No count comes from a shipped data file.
 //
-// Every fixture filter is apodizing (`arg` bit 0) and rated 4/5 with ratio
-// "Any", so no facet other than the one under test can move a list: whatever
-// the apodizing, quality and rate controls are set to, the whole fixture
-// survives them.
+// Every fixture filter is rated 4/5 with ratio "Any", and all but one are
+// apodizing (`arg` bit 0), so at the bar's defaults no facet other than the one
+// under test moves a list. The single non-apodizing member exists so a case can
+// engage a SECOND facet alongside this one: a control that replaced the 1x list
+// with its lossy/lossless partition, instead of intersecting that partition
+// with what the other facets left, keeps that filter and fails those cases.
 //
 // `reset()` reassigns BOTH source signals and calls resetNarrowing() on every
 // case: module-level signals outlive a test, and a partial reset makes cases
@@ -38,9 +40,8 @@ import assert from "node:assert/strict";
 
 import {
   nLossy1x,
-  LOSSY_1X_DEFAULT,
-  APOD_1X_DEFAULT,
   nApod1x,
+  nQuality,
   narrowingActive,
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrowing.js";
@@ -48,9 +49,10 @@ import { narrowOptions } from "../../../hqptuner/static/store/narrowmatch.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 /**
- * A fixture row: filter name and its facet description.
+ * A fixture row: filter name, its facet description, and its flags bitfield
+ * (bit 0 = apodizing, protocol.md:226).
  *
- * @typedef {[string, string]} FilterTuple
+ * @typedef {[string, string, number]} FilterTuple
  */
 
 /**
@@ -59,23 +61,38 @@ import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
  * @typedef {{ value: string | number | undefined, label: string }} NarrowOption
  */
 
-// The names are the engine's own, `poly-sinc-mqa/mp3-*` literal slash included.
-// Three carry a lossy-source marker in the name and three carry none.
+// The names are the engine's own where the engine has one, `poly-sinc-mqa/mp3-*`
+// literal slash included. Each of the three markers also appears ALONE on a
+// name of its own, so a control reading only one or two of the three words
+// fails rather than riding along on a name carrying several. `gauss-short` is
+// the one non-apodizing member, and carries no marker.
 /** @type {FilterTuple[]} */
 const FILTERS = [
-  ["poly-sinc-gauss-lp", "4/5 ⥮ Any"],
-  ["poly-sinc-ext2-hires-lp", "4/5 ⥮ Any"],
-  ["sinc-M", "4/5 ⥮ Any"],
-  ["poly-sinc-gauss-hires-mp", "4/5 ⥮ Any"],
-  ["poly-sinc-mqa/mp3-lp", "4/5 ⥮ Any"],
-  ["poly-sinc-ext2-mp", "4/5 ⥮ Any"],
+  ["poly-sinc-gauss-lp", "4/5 ⥮ Any", 1],
+  ["poly-sinc-ext2-hires-lp", "4/5 ⥮ Any", 1],
+  ["sinc-M", "4/5 ⥮ Any", 1],
+  ["poly-sinc-gauss-hires-mp", "4/5 ⥮ Any", 1],
+  ["poly-sinc-mqa/mp3-lp", "4/5 ⥮ Any", 1],
+  ["poly-sinc-ext2-mp", "4/5 ⥮ Any", 1],
+  ["poly-sinc-mqa-lp", "4/5 ⥮ Any", 1],
+  ["poly-sinc-mp3-mp", "4/5 ⥮ Any", 1],
+  ["gauss-short", "4/5 ⥮ Any", 0],
 ];
 
-/** The three fixture names carrying no `hires`, `mqa` or `mp3`. */
-const LOSSLESS = ["poly-sinc-gauss-lp", "sinc-M", "poly-sinc-ext2-mp"];
+/** The fixture names carrying no `hires`, `mqa` or `mp3`. */
+const LOSSLESS = ["poly-sinc-gauss-lp", "sinc-M", "poly-sinc-ext2-mp", "gauss-short"];
 
-/** The three fixture names carrying one. */
-const LOSSY = ["poly-sinc-ext2-hires-lp", "poly-sinc-gauss-hires-mp", "poly-sinc-mqa/mp3-lp"];
+/** The fixture names carrying at least one. */
+const LOSSY = [
+  "poly-sinc-ext2-hires-lp",
+  "poly-sinc-gauss-hires-mp",
+  "poly-sinc-mqa/mp3-lp",
+  "poly-sinc-mqa-lp",
+  "poly-sinc-mp3-mp",
+];
+
+/** The one lossless-named fixture the apodizing-only switch drops. */
+const NON_APODIZING = "gauss-short";
 
 /** Every fixture name, in enumeration order. */
 const ALL = FILTERS.map(([name]) => name);
@@ -83,13 +100,13 @@ const ALL = FILTERS.map(([name]) => name);
 /** @returns {NarrowOption[]} */
 function reset() {
   enums.value = {
-    filters: FILTERS.map(([name, description], index) => ({
+    filters: FILTERS.map(([name, description, arg], index) => ({
       index: String(index),
       name,
       value: String(index),
-      arg: 1,
+      arg,
       description,
-      apodizing: true,
+      apodizing: Boolean(arg & 1),
     })),
   };
   metadata.value = {
@@ -117,10 +134,6 @@ const atNx = (options) => narrowOptions(options, "nx", "pcm_filter_nx").map((o) 
 
 // --- the control's default ------------------------------------------------------
 
-test("test_the_lossy_control_defaults_to_both", () => {
-  assert.equal(LOSSY_1X_DEFAULT, "both");
-});
-
 test("test_a_fresh_bar_holds_the_lossy_control_at_both", () => {
   reset();
   assert.equal(nLossy1x.value, "both");
@@ -128,10 +141,6 @@ test("test_a_fresh_bar_holds_the_lossy_control_at_both", () => {
 
 // The apodizing control is the other 1x control this change moves: it no longer
 // starts narrowed either, so a fresh bar offers the whole 1x list.
-test("test_the_1x_apodizing_control_defaults_to_all", () => {
-  assert.equal(APOD_1X_DEFAULT, "all");
-});
-
 test("test_a_fresh_bar_holds_the_1x_apodizing_control_at_all", () => {
   reset();
   assert.equal(nApod1x.value, "all");
@@ -162,7 +171,8 @@ test("test_lossy_keeps_only_the_filters_named_hires_mqa_or_mp3_in_the_1x_list", 
   assert.deepEqual(at1x(options), LOSSY);
 });
 
-// Each marker on its own, so a control reading only one of the three words
+// One name at a time. `hires`, `mqa` and `mp3` each appear on a name of their
+// own in the fixture, so a control reading only one or two of the three words
 // fails here rather than passing on the list cases above.
 
 for (const name of LOSSY) {
@@ -178,6 +188,35 @@ for (const name of LOSSY) {
     assert.equal(at1x(options).includes(name), true);
   });
 }
+
+// --- the control narrows ALONGSIDE the other facets, never instead of them ------------
+//
+// Each case here engages a second facet whose reach this control does not cover:
+// apodizing-only drops `gauss-short` (flags bit 0 clear, no marker in its name),
+// and a quality floor of 5 drops every fixture, all rated 4/5. A control that
+// REPLACED the 1x list with its lossless partition, instead of intersecting that
+// partition with what the other facets left, offers those filters anyway.
+
+test("test_lossless_with_apodizing_only_still_drops_a_lossless_named_non_apodizing_filter", () => {
+  const options = reset();
+  nApod1x.value = "only";
+  nLossy1x.value = "lossless";
+  assert.equal(at1x(options).includes(NON_APODIZING), false);
+});
+
+test("test_lossless_with_apodizing_only_keeps_a_lossless_named_apodizing_filter", () => {
+  const options = reset();
+  nApod1x.value = "only";
+  nLossy1x.value = "lossless";
+  assert.equal(at1x(options).includes("sinc-M"), true);
+});
+
+test("test_lossless_with_a_quality_floor_of_5_still_drops_a_lossless_named_4_of_5_filter", () => {
+  const options = reset();
+  nQuality.value = 5;
+  nLossy1x.value = "lossless";
+  assert.equal(at1x(options).includes("sinc-M"), false);
+});
 
 // --- the Nx list is never narrowed on this axis --------------------------------------
 

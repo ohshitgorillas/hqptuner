@@ -485,10 +485,9 @@ test("test_removing_a_favorite_that_is_not_the_last_keeps_favorites_only_on", as
 });
 
 // --- one set of favorites, shared by name across all four filter dropdowns ------
-// The fixture filters are apodizing (arg bit 0) and carry no hires marker, so
-// they survive the 1x stage's apodizing-only / hires-hidden defaults and the
-// only narrowing left in play is the favorite itself — toggled ONCE, never per
-// field.
+// Both 1x controls start at their neutral value — apodizing "all", sources
+// "both" — so a fresh bar narrows nothing at all and the only narrowing in play
+// is the favorite itself, toggled ONCE, never per field.
 
 /** @type {FixtureRow[]} */
 const SHARED = [
