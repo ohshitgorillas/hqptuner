@@ -23,26 +23,25 @@ import { liveModel } from "../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../store/live/state.js";
 import { writeLive } from "../store/live/write.js";
 import { describe, selectionDescription, selectedLabel } from "../store/prose.js";
-import { notesVisible, descVisible } from "../store/prefs.js";
+import {
+  notesVisible,
+  descVisible,
+  liveNarrowOpen,
+  livePlaybackOpen,
+  liveHealthOpen,
+  liveMatrixOpen,
+  setLiveCardOpen,
+} from "../store/prefs.js";
 import { refreshConfig } from "../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
 import { descriptionFor } from "../store/descriptions.js";
-import {
-  livePresets,
-  livePresetsBusy,
-  livePresetError,
-  applyLivePreset,
-  saveLivePreset,
-  deleteLivePreset,
-} from "../store/livepresets.js";
-import { askName, askConfirm } from "../store/ask.js";
-import { Ask } from "./Ask.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { widgetFor, widthClasses, tipsFor, favFor, FavoriteError } from "./Field.js";
 import { ChainPack } from "./ChainPack.js";
 import { NarrowBar } from "./NarrowBar.js";
 import { PlaybackVolumeBody } from "./PlaybackVolume.js";
 import { EngineHealth } from "./EngineHealth.js";
+import { LiveModeCard } from "./LivePresets.js";
 import { Section, Card, collapseFrom } from "./common.js";
 
 /**
@@ -61,9 +60,6 @@ import { Section, Card, collapseFrom } from "./common.js";
  *   field, the catalog entry it borrows its words from, the engine's current
  *   value, and the list it was chosen out of. The rate columns add `disabled`
  *   and `reason`; the enumeration-backed ones add `enumBacked`.
- * @typedef {{ name: string }} LivePreset
- *   One saved live preset. /api/livepresets serves more per record (chain,
- *   fields, names, compatible) — this page only ever reads the name.
  */
 
 const CHAIN_LABEL = { pcm: "PCM", sdm: "SDM" };
@@ -196,6 +192,22 @@ effect(() => {
   sdmOverride.value = null;
 });
 
+// The four cards that are neither Mode, Rate nor a chain fold away, and their
+// disclosure is a stored preference rather than an override over an automatic
+// one: nothing about the engine says whether the narrowing bar or the health
+// readout should be on screen, only the user does. A folded card leaves its head
+// behind, so the page keeps its shape while losing its height — which is what
+// puts the output mode switch and the matrix profile picker on one screen.
+/**
+ * @param {"narrow" | "playback" | "health" | "matrix"} card
+ * @param {{ value: boolean }} open
+ * @returns {import("./common.js").CollapseHandle}
+ */
+const cardCollapse = (card, open) => ({
+  open: open.value,
+  onToggle: () => setLiveCardOpen(card, !open.value),
+});
+
 // What the card for a chain that is not loaded says: the edit is real, it is
 // simply not what is playing yet.
 /**
@@ -224,7 +236,7 @@ function ChainBody({ chain, loaded, controls }) {
 function ChainCards() {
   const { chain, pcmChain, sdmChain } = liveModel.value;
   return html`
-    <${NarrowBar} srcFormat=${false} />
+    <${NarrowBar} srcFormat=${false} collapse=${cardCollapse("narrow", liveNarrowOpen)} />
     <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
       <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
     <//>
@@ -268,7 +280,7 @@ function HeroRow() {
 function PlaybackCard() {
   const { junk, adaptive } = liveModel.value;
   return html`
-    <${Card} title="Playback">
+    <${Card} title="Playback" collapse=${cardCollapse("playback", livePlaybackOpen)}>
       <div class="playback-cols">
         <div class="pack">
           <${LiveField} control=${adaptive} widget=${Checkbox} />
@@ -326,7 +338,7 @@ function MatrixProfileCard() {
   // the user's own words from ours.
   const described = descriptionFor(active);
   return html`
-    <${Card} title="Matrix profile">
+    <${Card} title="Matrix profile" collapse=${cardCollapse("matrix", liveMatrixOpen)}>
       <div class="field">
         <label>Profile</label>
         <div class="control">
@@ -349,103 +361,6 @@ function MatrixProfileCard() {
   `;
 }
 
-// --- live presets ------------------------------------------------------------
-// Named combos of the settings on this page, saved by HQPTuner rather than by
-// the daemon (store/livepresets.js). Picking one applies it on the spot, like
-// every other control here — there is no Apply on this page for it to wait for.
-//
-// The picker deliberately sits beside the page's lede rather than under it: both
-// are about what LIVE is, and a preset is the fastest way to say "put the engine
-// back the way I had it", which is the first thing a returning user wants.
-const PRESET_OWNER = "livepresets";
-const selectedPreset = signal("");
-
-// Every preset is pickable whatever the engine is running. A preset carries its
-// own output mode, so one taken on the other chain applies by switching to it —
-// which is the point of saving it.
-/** @param {LivePreset[]} presets */
-function presetOptions(presets) {
-  return [
-    { value: "", label: presets.length ? "Select a preset…" : "No live presets saved" },
-    ...presets.map((p) => ({ value: p.name, label: p.name })),
-  ];
-}
-
-/** @param {string} name */
-async function pickPreset(name) {
-  selectedPreset.value = name;
-  if (name) await applyLivePreset(name);
-}
-
-// Both questions are asked INLINE in the card (store/ask.js). Backing out of
-// either — Escape, Cancel, or an empty name — writes nothing.
-/** @param {LivePreset[]} presets */
-async function onSavePreset(presets) {
-  // askName resolves whatever the prompt collected (store/ask.js types that
-  // `unknown`); a name prompt only ever settles a typed string or the cancel null.
-  const name = /** @type {string | null} */ (
-    await askName(PRESET_OWNER, "Save the engine's current live settings as:")
-  );
-  if (!name) return;
-  const exists = presets.some((p) => p.name === name);
-  if (exists && !(await askConfirm(PRESET_OWNER, `Live preset "${name}" already exists. Overwrite it?`))) return;
-  await saveLivePreset(name);
-  selectedPreset.value = name;
-}
-
-/** @param {string} name */
-async function onDeletePreset(name) {
-  if (!(await askConfirm(PRESET_OWNER, `Delete live preset "${name}"? This cannot be undone.`))) return;
-  await deleteLivePreset(name);
-  selectedPreset.value = "";
-}
-
-function LivePresetPicker() {
-  const presets = livePresets.value || [];
-  const busy = !!livePresetsBusy.value;
-  const name = selectedPreset.value;
-  return html`
-    <div class="field live-presets">
-      <label>Live preset</label>
-      <div class="control">
-        <${Dropdown} value=${name} options=${presetOptions(presets)} disabled=${busy} onChange=${pickPreset} />
-      </div>
-      <div class="live-preset-actions">
-        <button type="button" onClick=${() => onSavePreset(presets)} disabled=${busy}>Save…</button>
-        <button type="button" onClick=${() => onDeletePreset(name)} disabled=${busy || !name}>Delete</button>
-      </div>
-      <${Ask} owner=${PRESET_OWNER} />
-      <div class="field-note">
-        Live presets store everything on this page (except filter narrowing settings) for fast switching.
-      </div>
-      ${livePresetError.value ? html`<div class="live-error">${livePresetError.value}</div>` : null}
-    </div>
-  `;
-}
-
-// The page's lede and its presets, in one frame. Bare text floating above the
-// page reads as a stray caption rather than as the thing that explains the
-// whole page.
-function LiveModeCard() {
-  return html`
-    <${Card} title="LIVE MODE">
-      <div class="live-mode-cols">
-        <${LivePresetPicker} />
-        <span class="col-rule" aria-hidden="true"></span>
-        <div class="live-mode-lede">
-          <div class="t-caption">
-            Every control on this page writes to the engine when you select it — no staging, no Apply. Music may be
-            interrupted briefly while the engine reorients itself.
-          </div>
-          <div class="t-caption">
-            Note that changing output mode and another setting too quickly may cause the engine to reset itself.
-          </div>
-        </div>
-      </div>
-    <//>
-  `;
-}
-
 /** LIVE page: mode card, hero row, engine-health card, chain cards, playback card and matrix-profile card. */
 export function LiveView() {
   return html`
@@ -457,7 +372,7 @@ export function LiveView() {
            filter and the needle is what tells you the engine took it. This
            card drops its "quick updates" checkbox here — LIVE polls at 1 s
            unconditionally (store/ui.js). -->
-      <${Card} title="Engine health">
+      <${Card} title="Engine health" collapse=${cardCollapse("health", liveHealthOpen)}>
         <${EngineHealth} showQuick=${false} />
       <//>
       <${ChainCards} />

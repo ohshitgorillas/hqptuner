@@ -18,6 +18,13 @@
 .card.narrow-card > .card-head {
   border-radius: var(--r-lg) var(--r-lg) 0 0;
 }
+/* Folded (LIVE), the head IS the whole card, and the same missing clip that
+   costs the top corners costs the bottom two: it takes the full radius, and
+   drops the divider that has nothing left to divide. */
+.card.narrow-card.closed > .card-head {
+  border-radius: var(--r-lg);
+  border-bottom: none;
+}
 .narrow-controls {
   display: flex;
   align-items: center;
