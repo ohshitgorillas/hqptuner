@@ -19,7 +19,15 @@
 import { useEffect } from "preact/hooks";
 import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
-import { narrowingActive, resetNarrowing, nApod1x, nApodNx, nLossy1x, nSrcFormat } from "../store/narrowing.js";
+import {
+  narrowingActive,
+  filterNarrowingActive,
+  resetNarrowing,
+  nApod1x,
+  nApodNx,
+  nLossy1x,
+  nSrcFormat,
+} from "../store/narrowing.js";
 import { narrowingError } from "../store/narrowpersist.js";
 import { notesVisible } from "../store/prefs.js";
 import { closeExcept } from "./narrowbar/popover.js";
@@ -39,9 +47,12 @@ import {
 /**
  * Renders the narrowing card above the filter cards: the facet dropdown row and
  * the two stage switch groups, plus the page-wide pointerdown listener that
- * retracts an open facet popover.
+ * retracts an open facet popover. `srcFormat` false drops the Source format
+ * group, for a caller whose cards have no DSD Sources subsection to disclose.
+ * @param {{ srcFormat?: boolean }} props
  */
-export function NarrowBar() {
+export function NarrowBar({ srcFormat = true }) {
+  const engaged = srcFormat ? narrowingActive.value : filterNarrowingActive.value;
   useEffect(() => {
     const onDown = (/** @type {Event} */ e) => closeExcept(/** @type {Element | null} */ (e.target));
     document.addEventListener("pointerdown", onDown);
@@ -50,9 +61,7 @@ export function NarrowBar() {
   return html`
     <${Card}
       title=${html`Narrow filters${
-        narrowingActive.value
-          ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>`
-          : null
+        engaged ? html`<button type="button" class="narrow-reset" onClick=${resetNarrowing}>Reset</button>` : null
       }`}
       cardClass="narrow-card"
     >
@@ -78,13 +87,17 @@ export function NarrowBar() {
           <${SwitchGroup} title="1x sources" desc=${LOSSY_TIP}>
             <${StageSeg} stage="1x" sig=${nLossy1x} options=${LOSSY_SEGS} showStage=${false} />
           <//>
-          <${SwitchGroup} title="Source format" desc=${SRC_FORMAT_TIP}>
-            <${Segment}
-              value=${nSrcFormat.value}
-              options=${SRC_FORMAT_SEGS}
-              onChange=${(/** @type {string} */ v) => (nSrcFormat.value = v)}
-            />
-          <//>
+          ${
+            srcFormat
+              ? html`<${SwitchGroup} title="Source format" desc=${SRC_FORMAT_TIP}>
+                  <${Segment}
+                    value=${nSrcFormat.value}
+                    options=${SRC_FORMAT_SEGS}
+                    onChange=${(/** @type {string} */ v) => (nSrcFormat.value = v)}
+                  />
+                <//>`
+              : null
+          }
         </div>
       </div>
       ${narrowingError.value ? html`<div class="field-error">${narrowingError.value}</div>` : null}

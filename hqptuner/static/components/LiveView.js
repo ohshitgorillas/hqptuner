@@ -165,7 +165,7 @@ function LiveField({ control, widget }) {
   `;
 }
 
-// Both chains, as the Resampling tab's own pair of collapsibles: the card for
+// Both chains, as the Output tab's own pair of collapsibles: the card for
 // the mode in use opens, the other collapses, and auto opens both because in
 // auto both are reachable. A card the user toggles by hand wins until the mode
 // changes, at which point the auto disclosure re-asserts — else a card closed in
@@ -219,12 +219,12 @@ function ChainBody({ chain, loaded, controls }) {
   `;
 }
 
-// The narrow bar sits above the cards it narrows, exactly as it does over the
-// Resampling tab's filter cards.
+// The narrow bar sits above the cards it narrows, as over the Output tab's filter
+// cards. Source format is dropped: it opens a DSD Sources subsection these lack.
 function ChainCards() {
   const { chain, pcmChain, sdmChain } = liveModel.value;
   return html`
-    <${NarrowBar} />
+    <${NarrowBar} srcFormat=${false} />
     <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
       <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
     <//>

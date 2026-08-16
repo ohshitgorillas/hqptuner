@@ -90,18 +90,14 @@ export const nSrcFormat = signal(SRC_FORMAT_DEFAULT);
 // "narrowing is on" = the facets differ from their defaults, not merely that
 // some facet is set. Every switch defaults to its own neutral value, so a fresh
 // bar narrows nothing and reads as inactive. The whole switch row answers here
-// rather than term by term in narrowingActive, which keeps that predicate under
-// the complexity gate as the row grows.
+// rather than term by term below, which keeps that predicate under the
+// complexity gate as the row grows.
 function switchesEngaged() {
-  return (
-    nApod1x.value !== APOD_1X_DEFAULT ||
-    nApodNx.value !== APOD_NX_DEFAULT ||
-    nLossy1x.value !== LOSSY_1X_DEFAULT ||
-    nSrcFormat.value !== SRC_FORMAT_DEFAULT
-  );
+  return nApod1x.value !== APOD_1X_DEFAULT || nApodNx.value !== APOD_NX_DEFAULT || nLossy1x.value !== LOSSY_1X_DEFAULT;
 }
 
-export const narrowingActive = computed(
+/** Whether any facet that actually narrows a dropdown differs from its default. */
+export const filterNarrowingActive = computed(
   () =>
     !!(
       nGenre.value.length ||
@@ -116,6 +112,15 @@ export const narrowingActive = computed(
       switchesEngaged()
     ),
 );
+
+// Two predicates, because the bar renders in two places and source format only
+// means something in one of them. The Live view's chain cards have no DSD
+// Sources subsection for it to open (components/LiveView.js ChainBody), so its
+// bar drops the control and reads filterNarrowingActive — otherwise a facet set
+// on the Output tab would raise a Reset button in Live with nothing on the page
+// to explain it. Every other facet narrows dropdowns both bars render, so the
+// split stops here.
+export const narrowingActive = computed(() => filterNarrowingActive.value || nSrcFormat.value !== SRC_FORMAT_DEFAULT);
 
 /** Clear every narrow-bar facet, putting the per-stage switches back to their defaults rather than blank. */
 export function resetNarrowing() {
