@@ -15,8 +15,7 @@ import {
   nDownsafeOnly,
   nApod1x,
   nApodNx,
-  nHires1x,
-  nHiresNx,
+  nLossy1x,
 } from "./narrowing.js";
 import { computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
@@ -44,8 +43,7 @@ import { effective } from "./resolve.js";
  * @property {string|null} family which side of a mode-split ratio to test; null off-chain
  * @property {boolean} apod
  * @property {boolean} half
- * @property {boolean} hideHires
- * @property {boolean} hiresOnly
+ * @property {string} lossy which side of the lossy split to keep at 1x; "" off
  *
  * @typedef {object} NarrowOption
  *   The two members of a dropdown option this module reads. Deliberately looser
@@ -120,12 +118,11 @@ const FACET_CHECKS = [
   (f, s) => !s.oddOnly || ratioOf(f, s.family) !== "2x",
   (f, s) => !s.downsafeOnly || !upsampleOf(f, s.family),
   (f, s) => !s.apod || f.apodizing || (s.half && f.apodizingHalf),
-  // hide-hires (1x): drop the strict *-hires-* set — the mqa/mp3 filters stay,
-  // they belong at 1x for lossy sources. show-only-hires (Nx): keep the whole
-  // hi-res family, mqa/mp3 included. Each engages only when its flag is set, so
-  // an untouched stage excludes nothing.
-  (f, s) => !s.hideHires || !f.hires,
-  (f, s) => !s.hiresOnly || f.hiresFamily === true,
+  // Lossy narrowing (1x only): "lossless" drops the whole hi-res family, whose
+  // members all owe their 1x rationale to lossy material; "lossy" keeps only
+  // that family. Empty means "both" and excludes nothing, which is also what
+  // every Nx list gets — buildSel never sets this off the 1x stage.
+  (f, s) => !s.lossy || (s.lossy === "lossy" ? f.hiresFamily === true : f.hiresFamily !== true),
 ];
 
 // The "auto" state of the rate-limited hide, resolved against the daemon's own
@@ -197,7 +194,7 @@ const favPass = (/** @type {string} */ label, /** @type {Sel} */ sel) =>
 
 // The active selection snapshot. Number() on quality — the raw signal in
 // narrowingActive and this can disagree: a non-numeric value reads as active in
-// the bar but narrows nothing. Apod and hi-res read the dropdown's STAGE
+// the bar but narrows nothing. Apod and lossy read the dropdown's STAGE
 // switch; `field` only selects the ratio family (pcm vs sdm).
 /**
  * @param {string} stage "1x" | "nx"
@@ -221,8 +218,7 @@ function buildSel(stage, field) {
     family: family(field),
     apod: apod !== "all",
     half: apod === "half",
-    hideHires: stage === "1x" && nHires1x.value === "hide",
-    hiresOnly: stage === "nx" && nHiresNx.value === "only",
+    lossy: stage === "1x" && nLossy1x.value !== "both" ? nLossy1x.value : "",
   };
 }
 
@@ -238,8 +234,7 @@ const SCALAR_FACETS = [
   "downsafeOnly",
   "favOnly",
   "apod",
-  "hideHires",
-  "hiresOnly",
+  "lossy",
 ];
 /**
  * @param {Sel} s

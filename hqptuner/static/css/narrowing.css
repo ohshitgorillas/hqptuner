@@ -250,14 +250,6 @@
 .narrow-stage-row .t-label {
   min-width: 1.5rem;
 }
-/* Hi-res group only (user call — apodizing side untouched): its two switches
-   carry different words (Show|Hide vs All|Only), so a shared minimum button
-   width keeps both rows' right edges flush. Wide enough to swallow the widest
-   word ("Show") — every button then sits at exactly this width. */
-.narrow-hires .segment .seg {
-  min-width: 6rem;
-}
-
 /* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of
    the unit label, not stacked under the control */
 .field-hint {

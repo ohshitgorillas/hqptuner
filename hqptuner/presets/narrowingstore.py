@@ -47,8 +47,7 @@ _QUALITIES = frozenset({0, 3, 4, 5})
 # enumeration), "on"/"off" are the user's explicit override.
 _RATE_RULES = frozenset({"auto", "on", "off"})
 _APOD = frozenset({"only", "half", "all"})
-_HIRES_1X = frozenset({"hide", "show"})
-_HIRES_NX = frozenset({"all", "only"})
+_LOSSY_1X = frozenset({"both", "lossless", "lossy"})
 # How each multi-select facet combines its picks. The defaults differ by facet and are the frontend's
 # (``static/store/narrowing.js``): genre ``and``, focus ``or``.
 _MODES = frozenset({"and", "or"})
@@ -93,8 +92,8 @@ def _flag(value: Any) -> bool:
 
 # Every facet the store holds: its default and the check its value must pass. The frontend's signal names map to these
 # keys in the obvious way (nHideLimited <-> hide_limited, nApod1x <-> apod_1x). A file written before the rate-change
-# facets settled may still carry `ratio` / `upsample_only` / `hide_2x` / `hide_int`; read() only looks up the keys
-# named here, so those entries are ignored and the next write drops them.
+# facets settled may still carry `ratio` / `upsample_only` / `hide_2x` / `hide_int` / `hires_1x` / `hires_nx`;
+# read() only looks up the keys named here, so those entries are ignored and the next write drops them.
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
     "genre_mode": ("and", _one_of(_MODES)),
@@ -106,10 +105,9 @@ _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "hide_limited": ("auto", _one_of(_RATE_RULES)),
     "odd_rate_only": (False, _flag),
     "downsafe_only": (False, _flag),
-    "apod_1x": ("only", _one_of(_APOD)),
+    "apod_1x": ("all", _one_of(_APOD)),
     "apod_nx": ("all", _one_of(_APOD)),
-    "hires_1x": ("hide", _one_of(_HIRES_1X)),
-    "hires_nx": ("all", _one_of(_HIRES_NX)),
+    "lossy_1x": ("both", _one_of(_LOSSY_1X)),
 }
 
 

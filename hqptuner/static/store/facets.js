@@ -48,7 +48,6 @@ import { enums, metadata } from "./signals.js";
  * @property {string[]} focus
  * @property {string} phase "" when the name carries no phase token
  * @property {string} length short | medium | long | xlong
- * @property {boolean} hires
  * @property {boolean} hiresFamily
  * @property {boolean} apodizing
  * @property {boolean} apodizingHalf
@@ -166,21 +165,11 @@ function phase(name, s) {
   return (s && s.phase) || "";
 }
 
-// "hi-res" filters, detected by NAME — the same authority phase/length read
+// The hi-res family, detected by NAME — the same authority phase/length read
 // from: the class is baked into the engine's own naming, not a manual editorial
-// bit, so it survives on both the live-enum and static-overlay paths. Two tiers
-// (store/narrowing.js): `hires` is the strict *-hires-* set the 1x hide toggle
-// drops — the mqa/mp3 filters stay out of it because they are exactly right at
-// 1x for lossy sources (manual §4.6). `hiresFamily` adds mqa/mp3 back and is
-// what the Nx "hi-res only" toggle keeps ("for HiRes content … also suitable
-// for lossy compression such as MP3 or MQA").
-/**
- * @param {string} name
- * @returns {boolean}
- */
-function isHires(name) {
-  return /hires/i.test(name || "");
-}
+// bit, so it survives on both the live-enum and static-overlay paths.
+// `hiresFamily` matches hires, mqa or mp3 in the name, and is the set the 1x
+// lossy switch groups on.
 /**
  * @param {string} name
  * @returns {boolean}
@@ -276,7 +265,6 @@ function liveFacet(it, s) {
     focus: focus(it.description),
     phase: phase(it.name, it.static || s),
     length: length(it.name),
-    hires: isHires(it.name),
     hiresFamily: isHiresFamily(it.name),
     apodizing: !!it.apodizing,
     apodizingHalf: (Number(it.arg) & 2) === 2,
@@ -301,7 +289,6 @@ function staticFacet(name, s) {
     focus: s.focus || [],
     phase: phase(name, s),
     length: length(name),
-    hires: isHires(name),
     hiresFamily: isHiresFamily(name),
     apodizing: apod.apodizing,
     apodizingHalf: apod.apodizingHalf,
