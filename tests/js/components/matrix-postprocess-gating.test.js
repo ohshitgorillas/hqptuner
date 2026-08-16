@@ -94,6 +94,9 @@ import { plottedRows, previewEq } from "../../../hqptuner/static/components/Matr
 import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
 import { field, grayReason, titleOf } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
+// One card's fragment, picked by the head that titles it — whatever element
+// carries that head, so a card gaining a disclosure stays findable.
+import { cardTitled } from "../support/tabform.js";
 
 const NOTE = "Matrix engine is bypassed. These settings have no effect.";
 const ENGAGE_NOTE = "Matrix engine is bypassed. Engage it to use this feature.";
@@ -318,17 +321,6 @@ const isDisabled = (out) => controlTags(out).some((tag) => /\sdisabled\b/.test(t
 const reasonOf = (key) => grayReason(field(key));
 /** @param {string | null | undefined} reason */
 const namesMatrix = (reason) => /matrix/i.test(String(reason ?? ""));
-
-// One card's fragment, picked by the head that titles it. Cards carry no nested
-// <section>, so the first close after the head is the card's own.
-/**
- * @param {string} out
- * @param {string} title
- */
-const cardTitled = (out, title) => {
-  const head = out.indexOf(`<div class="card-head">${title}</div>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
 
 // Which of the two sentences a card SHOWS — named rather than asked about one at
 // a time, so a single assertion pins the presence of the sentence that belongs

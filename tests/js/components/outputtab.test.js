@@ -39,7 +39,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
-import { formFields, section, stateOf } from "../support/tabform.js";
+import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 
 /** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
 
@@ -65,16 +65,11 @@ async function reset({ cfg = {}, mtx = {}, file = { mode: "auto" } } = {}) {
 
 const tab = () => render(html`<${Output} />`);
 
-// One card's fragment, from its head to its close. Cards on this tab carry no
-// nested <section>, so the first close after the head is the card's own.
-/**
- * @param {string} out
- * @param {string} title
- */
-const card = (out, title) => {
-  const head = out.indexOf(`<div class="card-head">${title}</div>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
+// One card's fragment, and where a card's head starts, both keyed by the title
+// in that head and both blind to which element carries it (`cardTitled` /
+// `cardHeadAt`, tests/js/support/tabform.js). Whether a card is a disclosure is
+// its own behaviour — daccorrection-collapse.test.js, common.test.js — so the
+// cases here neither assume it nor break on it.
 
 // The dsp-body wrapper's full extent: from its opening tag to its matching
 // close, tracked by <div>/</div> depth so nested row divs stay inside. Empty
@@ -261,7 +256,7 @@ const MOVED_FORM = {
 
 test("test_no_card_is_titled_general_any_more", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT, ...MOVED_FORM } });
-  assert.equal(tab().includes('<div class="card-head">General</div>'), false);
+  assert.equal(cardHeadAt(tab(), "General"), -1);
 });
 
 for (const [key, label] of Object.entries(MOVED_AWAY)) {
@@ -277,7 +272,7 @@ for (const [key, label] of Object.entries(MOVED_AWAY)) {
 // fails.
 test("test_the_correction_profile_sits_in_a_body_below_the_gate_strip", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
-  const frag = card(tab(), "DAC correction");
+  const frag = cardTitled(tab(), "DAC correction");
   const gate = frag.indexOf('<span class="segment">');
   assert.ok(
     gate >= 0 && gate < frag.indexOf('<div class="dsp-body') && dspBody(frag).includes("<label>DAC model</label>"),
@@ -289,24 +284,24 @@ test("test_the_correction_profile_sits_in_a_body_below_the_gate_strip", async ()
 // would dim nothing.
 test("test_the_correction_profile_is_dimmed_while_dac_correction_is_off", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
-  const body = dspBody(card(tab(), "DAC correction"));
+  const body = dspBody(cardTitled(tab(), "DAC correction"));
   assert.ok(body.startsWith('<div class="dsp-body off">') && body.includes("<label>DAC model</label>"));
 });
 
 test("test_the_correction_profile_is_live_once_dac_correction_is_on", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
-  assert.equal(card(tab(), "DAC correction").includes('<div class="dsp-body off">'), false);
+  assert.equal(cardTitled(tab(), "DAC correction").includes('<div class="dsp-body off">'), false);
 });
 
 // The old indented layout is gone from this card entirely.
 test("test_the_dac_correction_card_has_no_indented_layout", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
-  assert.equal(card(tab(), "DAC correction").includes('<div class="indent'), false);
+  assert.equal(cardTitled(tab(), "DAC correction").includes('<div class="indent'), false);
 });
 
 test("test_the_dac_correction_card_carries_the_correction_profile", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
-  assert.ok(card(tab(), "DAC correction").includes("<label>DAC model</label>"));
+  assert.ok(cardTitled(tab(), "DAC correction").includes("<label>DAC model</label>"));
 });
 
 // --- the merged tab ------------------------------------------------------------
@@ -363,24 +358,27 @@ test("test_a_stale_resampling_tab_id_renders_the_output_tab_body", async () => {
 
 // Top to bottom: the Backend/Mode/Rate top row, then the moved Conversion cards,
 // then the cards that were already Output's. Each landmark is the card's own
-// head (a disclosure head for the collapsibles, the plain card head otherwise),
-// present whether the card is open or closed, so the ORDER is what this pins.
+// head, found by its title whatever element carries it, so the ORDER is what
+// this pins and a card changing its disclosure does not move it. The narrowing
+// bar is no card and has no head, so it is the one landmark located by its text.
 const CARD_ORDER = [
-  '<div class="card-head center">Backend</div>',
-  '<div class="card-head">Pre-process</div>',
-  "Narrow filters",
-  "</span> PCM Chain</button>",
-  "</span> SDM Chain</button>",
-  "</span> Filter length</button>",
-  '<div class="card-head">DAC correction</div>',
-  "</span> ALSA Backend</button>",
-  "</span> Network Backend</button>",
+  { head: "Backend" },
+  { head: "Pre-process" },
+  { text: "Narrow filters" },
+  { head: "PCM Chain" },
+  { head: "SDM Chain" },
+  { head: "Filter length" },
+  { head: "DAC correction" },
+  { head: "ALSA Backend" },
+  { head: "Network Backend" },
 ];
 
 test("test_the_merged_cards_stand_in_order_from_the_top_row_to_the_backends", async () => {
   await reset({ cfg: FULL });
   const out = tab();
-  const at = CARD_ORDER.map((mark) => out.indexOf(mark));
+  const at = CARD_ORDER.map((mark) =>
+    mark.head === undefined ? out.indexOf(String(mark.text)) : cardHeadAt(out, mark.head),
+  );
   assert.ok(
     at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1])),
     `landmarks out of order: ${at}`,
