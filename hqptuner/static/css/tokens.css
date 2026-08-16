@@ -129,7 +129,7 @@
   --w-select-lg: 18rem; /* filter-name dropdowns: "poly-sinc-gauss-halfband-s" */
   --w-select-wide: 30rem; /* long strings: endpoint, filter name */
   --w-name: 14rem; /* inline ask field (preset name in the pending bar) */
-  --h-card-head: 2.125rem; /* every card's title bar, whatever it holds */
+  --h-card-head: 3.0333rem; /* every card's title bar, whatever it holds */
   --measure: 68ch; /* one caption/description measure everywhere */
   --w-app: 1200px; /* container cap */
   /* page gutter — the inset from --w-app to the content lane. EVERY chrome row
