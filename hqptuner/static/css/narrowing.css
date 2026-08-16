@@ -249,6 +249,13 @@
 .narrow-group-title {
   flex: none;
 }
+/* A switch sitting straight in the group body, with no stage row around it to
+   shrink-wrap it. .segment is inline-flex, but a flex item is blockified, so
+   without this it stretches the whole column and paints an empty trough out to
+   the card edge. */
+.narrow-group-body > .segment {
+  align-self: flex-start;
+}
 .narrow-group-body {
   display: flex;
   flex-direction: column;

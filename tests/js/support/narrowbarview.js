@@ -146,6 +146,27 @@ export function group(out, title) {
 export const hasGroup = (out, title) => groupCandidates(out, title).length > 0;
 
 /**
+ * Whether anything rendered reads a wording at all, segmented switch or not.
+ * The companion `hasGroup` asks about the group's SHAPE, so on its own it also
+ * answers false for a control that is still on screen and has merely stopped
+ * being a segmented switch; an absence case asks both.
+ *
+ * @param {string} out
+ * @param {string} title
+ * @returns {boolean}
+ */
+export const mentions = (out, title) => elements(out).some((el) => seen(el).includes(title));
+
+/**
+ * How many Reset buttons a rendering offers, named by the word a reader
+ * presses rather than by the class the button carries.
+ *
+ * @param {string} out
+ * @returns {number}
+ */
+export const resets = (out) => elements(out).filter((el) => el.name === "button" && seen(el) === "Reset").length;
+
+/**
  * The segmented switches inside one group, outermost first.
  *
  * @param {MarkupElement} region

@@ -311,7 +311,13 @@ button.subhead {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  /* Three ways, because one is not enough: inline-flex is blockified to flex
+     when .card-body makes this a flex item, so align-self is what shrink-wraps
+     it there, and width keeps it wrapped anywhere else. Without them a heading
+     button spans the card and takes the focus ring across the whole row. */
   align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
   text-align: left;
   background: none;
   border: none;

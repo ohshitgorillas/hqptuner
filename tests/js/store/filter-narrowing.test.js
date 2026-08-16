@@ -30,8 +30,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nSrcFormat, nPhase, filterNarrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import {
+  nSrcFormat,
+  narrowingActive,
+  filterNarrowingActive,
+  resetNarrowing,
+} from "../../../hqptuner/static/store/narrowing.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
+import { MOVED_FACETS } from "../support/narrowfacets.js";
 
 // Rated 4/5 with ratio "Any" and apodizing set, so no facet at its default
 // trims the list and a predicate reading a shortened list rather than a moved
@@ -69,10 +75,25 @@ test("test_the_source_format_control_at_both_is_not_active_filter_narrowing", ()
   assert.equal(filterNarrowingActive.value, false);
 });
 
-// --- a facet that does narrow a dropdown -------------------------------------------
+// --- every facet that does narrow a dropdown -----------------------------------------
+//
+// The whole facet list, not one representative: this predicate is an OR, and a
+// split that dropped any single term would leave a bar whose Reset never
+// appears for that facet while every other case here still passed.
+//
+// Each case asserts the two predicates TOGETHER, both true. That is the
+// contract in the round — `filterNarrowingActive` keeps every term
+// `narrowingActive` has except source format — and it keeps a case from
+// passing on a facet that turned out to narrow nothing, which would read as
+// `any: false` rather than as a quiet green.
+//
+// Which facets the list holds and which it deliberately leaves out is stated
+// once, in tests/js/support/narrowfacets.js.
 
-test("test_a_moved_dropdown_facet_is_active_filter_narrowing", () => {
-  reset();
-  nPhase.value = "minimum";
-  assert.equal(filterNarrowingActive.value, true);
-});
+for (const [name, facet, moved] of MOVED_FACETS) {
+  test(`test_a_moved_${name}_facet_is_active_filter_narrowing`, () => {
+    reset();
+    facet.value = moved;
+    assert.deepEqual({ filter: filterNarrowingActive.value, any: narrowingActive.value }, { filter: true, any: true });
+  });
+}

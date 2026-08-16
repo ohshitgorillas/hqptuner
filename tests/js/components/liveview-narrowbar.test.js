@@ -33,9 +33,9 @@ import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
 import { health, engineState, enums, config, matrixConfig, metadata } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
 import { staticWire } from "../support/wire.js";
-import { hasGroup } from "../support/narrowbarview.js";
+import { hasGroup, mentions, resets } from "../support/narrowbarview.js";
 
 // The engine's own `<GetFilters/>` enumeration (protocol.md:226), rated so that
 // no facet at its default trims the list, plus the smallest `<State/>` the page
@@ -55,8 +55,15 @@ const ENGINE = {
 };
 
 // Module-level signals outlive a test, so every signal this page reads to draw
-// its chain cards is put back, not just the ones a case cares about.
-async function openLivePage() {
+// its chain cards is put back, not just the ones a case cares about. `srcFormat`
+// is applied AFTER resetNarrowing(), which is what a user moving the control
+// does: every other facet stays at its default, so anything the page shows is
+// that one facet's doing.
+/**
+ * @param {{ srcFormat?: string }} [facets]
+ * @returns {Promise<string>}
+ */
+async function openLivePage({ srcFormat = "pcm" } = {}) {
   staticWire({ live: {}, http: {} });
   health.value = { reachable: true, info: {} };
   engineState.value = ENGINE.state;
@@ -70,14 +77,31 @@ async function openLivePage() {
   matrixConfig.value = { fields: [] };
   liveMode.value = true;
   resetNarrowing();
+  nSrcFormat.value = srcFormat;
   await discardAll();
   return render(html`<${LiveView} />`);
 }
 
-test("test_the_live_page_offers_the_1x_sources_group_above_its_chain_cards", async () => {
+const SOURCE_FORMAT = "Source format";
+
+test("test_the_live_page_offers_the_1x_sources_group", async () => {
   assert.equal(hasGroup(await openLivePage(), "1x sources"), true);
 });
 
+// Both readings together: the group's shape AND its wording. Either alone would
+// also answer no for a control that is still on screen and has merely stopped
+// being a segmented switch.
+
 test("test_the_live_page_offers_no_source_format_group", async () => {
-  assert.equal(hasGroup(await openLivePage(), "Source format"), false);
+  const out = await openLivePage();
+  const seen = { group: hasGroup(out, SOURCE_FORMAT), wording: mentions(out, SOURCE_FORMAT) };
+  assert.deepEqual(seen, { group: false, wording: false });
+});
+
+// The group's absence and the Reset button's are separate promises: a page that
+// suppressed the control by some other route would keep the case above green
+// while its Reset still answered to a facet the user cannot see.
+
+test("test_the_live_page_offers_no_reset_for_source_format_alone", async () => {
+  assert.equal(resets(await openLivePage({ srcFormat: "both" })), 0);
 });

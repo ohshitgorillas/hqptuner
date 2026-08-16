@@ -24,9 +24,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { elements } from "../support/markup.js";
-import { nSrcFormat, nPhase } from "../../../hqptuner/static/store/narrowing.js";
-import { resetBar, renderBar, seen, hasGroup } from "../support/narrowbarview.js";
+import { nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
+import { resetBar, renderBar, hasGroup, mentions, resets } from "../support/narrowbarview.js";
+import { MOVED_FACETS } from "../support/narrowfacets.js";
 
 const TITLE = "Source format";
 
@@ -42,14 +42,6 @@ const CATALOG = [
 /** @returns {Promise<void>} */
 const reset = () => resetBar(CATALOG);
 
-/**
- * The Reset buttons a rendered bar offers, named by the word a reader presses.
- *
- * @param {string} out
- * @returns {number}
- */
-const resets = (out) => elements(out).filter((el) => el.name === "button" && seen(el) === "Reset").length;
-
 // --- whether the group renders -----------------------------------------------------
 
 test("test_a_bar_mounted_with_no_src_format_prop_offers_the_source_format_group", async () => {
@@ -57,10 +49,18 @@ test("test_a_bar_mounted_with_no_src_format_prop_offers_the_source_format_group"
   assert.equal(hasGroup(renderBar(), TITLE), true);
 });
 
+// The absence asks about the WORDING as well as the group's shape: `hasGroup`
+// alone also answers false for a control that is still on screen and has merely
+// stopped being a segmented switch. The stage group is the anchor, so a bar that
+// rendered nothing cannot pass.
+
 test("test_a_bar_mounted_with_src_format_off_offers_no_source_format_group", async () => {
   await reset();
   const out = renderBar({ srcFormat: false });
-  assert.deepEqual({ source: hasGroup(out, TITLE), stages: hasGroup(out, SIBLING) }, { source: false, stages: true });
+  assert.deepEqual(
+    { source: hasGroup(out, TITLE), wording: mentions(out, TITLE), stages: hasGroup(out, SIBLING) },
+    { source: false, wording: false, stages: true },
+  );
 });
 
 // --- which predicate Reset follows ---------------------------------------------------
@@ -71,11 +71,16 @@ test("test_a_bar_with_src_format_off_offers_no_reset_for_source_format_alone", a
   assert.equal(resets(renderBar({ srcFormat: false })), 0);
 });
 
-test("test_a_bar_with_src_format_off_offers_reset_once_a_dropdown_facet_moves", async () => {
-  await reset();
-  nPhase.value = "minimum";
-  assert.equal(resets(renderBar({ srcFormat: false })), 1);
-});
+// The whole facet list, not one representative: a Reset wired to a predicate
+// missing any single term would go missing for that facet alone.
+
+for (const [name, facet, moved] of MOVED_FACETS) {
+  test(`test_a_bar_with_src_format_off_offers_reset_once_the_${name}_facet_moves`, async () => {
+    await reset();
+    facet.value = moved;
+    assert.equal(resets(renderBar({ srcFormat: false })), 1);
+  });
+}
 
 test("test_a_bar_with_src_format_on_offers_reset_for_source_format_alone", async () => {
   await reset();
