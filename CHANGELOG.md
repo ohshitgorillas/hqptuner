@@ -10,6 +10,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Every card title bar is the same height.** A disclosure triangle, the narrow bar's Reset button and a hero card's larger heading each sit inside the bar rather than setting its height, so the four heights that shipped across the tabs are now one.
+
+- **The DAC correction card is collapsible and stands open until it is folded.** It matches the other cards on the Output tab, which already fold.
+
 - **The hi-res narrowing switches are replaced by one 1x control reading Both, Lossless and Lossy.** It groups the filters that reduce ultrasonic noise, which at 1x only lossy sources carry; the Nx list is no longer narrowed on that axis. Both 1x switches now default to their neutral setting, so a fresh narrow bar starts unnarrowed and the 1x apodizing default no longer hides the non-apodizing filters.
 
 - **The Quality narrowing facet starts at a minimum of 3/5 and names its steps with the denominator.** The dropdown reads Any quality, Quality: ≥ 3/5, Quality: ≥ 4/5 and Quality: 5/5; clearing the narrow bar returns to the 3/5 floor, and picking Any quality counts as a narrowing choice.

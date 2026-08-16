@@ -24,7 +24,7 @@
    the tighter padding a packed card wants. Head bottom to body top is the one
    gap between the title and the control it names. */
 .top-row .card-head {
-  padding: var(--sp-3);
+  padding: 0 var(--sp-3);
 }
 .top-row .card-body {
   padding: 0 var(--sp-3) var(--sp-3);

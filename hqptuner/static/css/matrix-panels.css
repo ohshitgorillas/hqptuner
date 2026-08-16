@@ -188,24 +188,6 @@
   border-color: var(--accent);
 }
 
-/* ── Headphone AutoEQ card ───────────────────────────────────────────────
-   Standing collapsible card (default collapsed) — the card-head doubles as
-   the toggle button, tri glyph in accent like the FFT collapsible. */
-.mtx-eq-head {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: none;
-  cursor: pointer;
-}
-.mtx-eq-head .tri {
-  color: var(--accent);
-  margin-right: var(--sp-2);
-  font-size: var(--fs-glyph); /* match .collapsible-head .tri */
-  line-height: 1;
-  vertical-align: -0.2em;
-}
-
 /* ── AutoEq profile library (Import-EQ panel) ────────────────────────────── */
 .mtx-lib {
   display: flex;

@@ -1,4 +1,5 @@
-/* cards — cards and card grids, the two-track .pack layout, about/backup/logging/log-tail, radios.
+/* cards — cards and card grids, about/backup/logging/log-tail, radios. The
+   two-track .pack layout is packs.css, loaded straight after this file.
    Split out of app.css; cascade order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
@@ -18,7 +19,15 @@
      carries a background too */
   background: var(--surface-raised);
   border-bottom: 1px solid var(--line);
-  padding: var(--sp-2) var(--sp-3);
+  /* One height for every title bar, whatever it holds: the token sets it and
+     the content is centred in it, so an oversized child (triangle, Reset
+     button) sits inside the bar instead of growing it. No vertical padding —
+     it would add to the height rather than set it. */
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--h-card-head);
+  padding: 0 var(--sp-3);
   font-size: var(--fs-head);
   font-weight: var(--fw-semibold);
   text-transform: uppercase;
@@ -33,36 +42,35 @@
   display: block;
 }
 /* A centred head names a card whose body is one control across the whole frame
-   (the Output hero row), where a left-pinned title would read as a caption on
+   (the Output hero row), where a left-pinned title reads as a caption on
    whatever sits under its left edge. It drops the raised bar with the
-   alignment: behind a title that no longer starts at the edge, the strip reads
-   as an empty row of its own rather than as a header, so the head sits on the
-   card's own surface and carries the row's larger heading size instead. */
+   alignment — behind a centred title the strip reads as an empty row rather
+   than a header — and carries the row's larger heading size instead. */
 .card-head.center {
   background: var(--surface-card);
   border-bottom: none;
-  text-align: center;
+  justify-content: center;
   font-size: var(--fs-title);
 }
 /* a collapsible card's head IS the toggle, so it is a <button> and needs the
-   button chrome reset away. Everything else about it — surface, padding, type,
-   tracking — is the card head above, because it is the same head. */
+   button chrome reset away. Everything else — surface, size, type, tracking —
+   is the card head above, because it is the same head. */
 button.card-head {
   width: 100%;
   text-align: left;
   border: none;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
+  cursor: pointer;
 }
 .card.closed > .card-head {
   color: var(--muted);
 }
+/* Taller than the title beside it; the head's own gap and centring place it. */
 .card-head .tri {
   color: var(--accent);
-  margin-right: var(--sp-2);
   font-size: var(--fs-glyph);
   line-height: 1;
-  vertical-align: -0.2em;
 }
 /* Inter-child rhythm comes from the container, for the same reason .tab-body
    carries its own gap: the rule this replaced (`.card-body > .field + .field`,
@@ -116,122 +124,6 @@ button.card-head {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--sp-3);
-}
-/* two-col packing (item 3) — short rows (numeric / checkbox / narrow select)
-   pack two-up above the breakpoint so the right half stops being dead air;
-   wide rows (long endpoint / filter strings, marked .field.wide or .span) keep
-   a full row. Below 1100px viewport it collapses to one column — the old
-   single-column form is the untouched fallback. */
-.pack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rhythm-field);
-  position: relative; /* anchors the centred two-column rule (see media query) */
-}
-/* A chain pack's two column wrappers (ChainPack.js) dissolve below the
-   breakpoint so their fields join the pack's own single-column stack and take
-   its rhythm, exactly like every other pack. */
-.pack.chain > .chain-col {
-  display: contents;
-}
-@media (min-width: 1100px) {
-  .pack {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-3) var(--sp-4);
-    align-items: start;
-  }
-  /* grid items default to min-width:auto and won't shrink below their content —
-     that let wide selects / long captions overflow the track and clip. min-width:0
-     lets the track do the constraining. */
-  .pack > * {
-    min-width: 0;
-  }
-  /* spanning is opt-in — only the long-string rows (device dropdown, log path)
-     carry .span; everything else packs two-up. A packed control fills its half
-     column; the 28/30rem width tokens are legal only in a full-span row, so here
-     the column itself is the cap (label + gap + control always fits the track). */
-  .pack > .span {
-    grid-column: 1 / -1;
-  }
-  /* a "split" pack draws a hairline between its two tracks (crossfeed
-     Enable | Preset) so the pair reads as two distinct controls. The border is
-     pulled back into the MIDDLE of the column gap: at a column edge it would sit
-     gap/2 off-centre and so miss the card centre line that every other in-card
-     rule uses (see the two-column divider rule in CLAUDE.md). Content is unmoved
-     — the negative margin and the padding cancel. */
-  .pack.split > .field + .field {
-    border-left: 1px solid var(--line);
-    margin-left: calc(var(--sp-4) / -2);
-    padding-left: calc(var(--sp-4) / 2);
-  }
-  /* Every two-track pack carries the centred hairline too (CLAUDE.md rule): one
-     full-height rule on the container's centre line, so it covers however many
-     rows the pack happens to have. .split is excluded — it already draws its own
-     centred border on the second field, and two rules would double up. */
-  .pack::before {
-    content: "";
-    position: absolute;
-    left: calc(50% - 0.5px);
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--line);
-    pointer-events: none;
-  }
-  .pack.split::before {
-    content: none;
-  }
-  /* A full-span row is one control across both tracks — the rule must not strike
-     through it, so the row masks the line over its own height by painting its own
-     surface. Two surfaces exist: a card body and the bare page. There is only
-     one card-like container left to name — a collapsible IS a .card now — so
-     this selector no longer has a list that a new container can fall off. */
-  .pack > .span {
-    position: relative;
-    background: var(--surface-page);
-  }
-  .card .pack > .span {
-    background: var(--surface-card);
-  }
-  /* Consecutive packs in one card are separate two-track groups (each draws its
-     own centred rule) and want the same inter-field rhythm between them that
-     stacked rows get inside a pack. That is --rhythm-field, which .card-body
-     already spends as its gap — so there is no rule here. The margin-top this
-     replaced added to that gap instead of setting it, and put 48px between two
-     packs against the 24px it named. */
-  /* a "chain" pack keeps a sequential control chain stacked in the LEFT track
-     with the secondary controls in the right track, instead of splitting the
-     chain across columns by raw source order. The split lives in the MARKUP
-     (ChainPack.js wraps the leading pair and the rest in two .chain-col
-     stacks): grid rows share height and leave slack under the shorter field,
-     and multicol needs a forced column break Firefox never implemented
-     (Bugzilla 549114) — it balances instead, so the split drifted with content
-     height. Each .chain-col is its own stack: the fields in a column keep one
-     rhythm regardless of what sits alongside, and the split point is fixed
-     where content cannot move it. */
-  .pack.chain > .chain-col {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-3);
-    min-width: 0;
-  }
-  /* .compact opts out: its control is content-sized (combobox.css), and filling
-     the pack column is the thing it exists to avoid. */
-  .pack .field:not(.span):not(.compact) select,
-  .pack .field:not(.span):not(.compact) .dd-box,
-  .pack .field:not(.span):not(.compact) input[type="text"] {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-  .pack .span select,
-  .pack .span .dd-box,
-  .pack .span input[type="text"] {
-    width: 100%;
-    max-width: var(--w-select-wide);
-    min-width: 0;
-  }
 }
 /* System · About — read-only key/value list */
 .about {

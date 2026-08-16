@@ -54,7 +54,6 @@ ALLOWANCE: dict[str, int] = {
     "hqptuner/static/lib/xfeed.js": 462,
     "scripts/eqlab/search.js": 442,
     "scripts/eqlab/render.js": 441,
-    "hqptuner/static/css/cards.css": 437,
     "hqptuner/conf/httpconf.py": 431,
     "scripts/probes/probe_absent_plugin.py": 430,
     ".claude/hooks/change-budget.py": 426,

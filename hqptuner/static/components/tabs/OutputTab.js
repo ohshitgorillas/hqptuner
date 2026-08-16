@@ -27,6 +27,10 @@ const netOpen = computed(() => ["network", "combo"].includes(backend()));
 const alsaOverride = signal(null);
 const netOverride = signal(null);
 
+// DAC correction applies in every mode and on every backend, so there is no
+// automatic disclosure for it to follow: it stands open until the user folds it.
+const dacOpen = signal(true);
+
 // A device dropdown is "missing" when its selected value is blank, or points at
 // an endpoint no longer in the form's option set — the silent empty entry the
 // daemon leaves when a preset's output device (e.g. a powered-off NAA) is absent.
@@ -106,7 +110,11 @@ export const Output = () => {
     <${PcmChainCard} />
     <${SdmChainCard} />
     <${FilterLengthCard} />
-    <${Card} title="DAC correction" subtitle=${noteFor("dac_correction_enabled")}>
+    <${Card}
+      title="DAC correction"
+      subtitle=${noteFor("dac_correction_enabled")}
+      collapse=${{ open: dacOpen.value, onToggle: () => (dacOpen.value = !dacOpen.value) }}
+    >
       <div class="dsp-card">
         <${BypassNote} on=${dacOn} />
         <${Field} k="dac_correction_enabled" />
