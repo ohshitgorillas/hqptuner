@@ -30,7 +30,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
-import { formFields, section, stateOf } from "../support/tabform.js";
+import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -105,14 +105,6 @@ test("test_the_narrowing_bar_stands_on_the_output_tab", async () => {
 // carrying exactly the high-frequency filter and the metering order — pinned as
 // the card's whole <label> sequence, in order.
 
-/**
- * @param {string} out
- * @param {string} title
- */
-const card = (out, title) => {
-  const head = out.indexOf(`<div class="card-head">${title}</div>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
 /** @param {string} frag */
 const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
 const PREP = { junk_filter: "0", pre_before_meter: false };
@@ -126,7 +118,10 @@ test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", asyn
 
 test("test_the_pre_process_card_carries_exactly_its_two_controls_in_order", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
-  assert.deepEqual(labelsOf(card(tab(), "Pre-process")), ["High-frequency filter", "Pre-process before metering"]);
+  assert.deepEqual(labelsOf(cardTitled(tab(), "Pre-process")), [
+    "High-frequency filter",
+    "Pre-process before metering",
+  ]);
 });
 
 // --- which card opens ---------------------------------------------------------

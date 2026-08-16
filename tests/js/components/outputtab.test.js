@@ -39,6 +39,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
+import { classes, elements } from "../support/markup.js";
 import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 
 /** @typedef {import("../support/tabform.js").FieldSpec} FieldSpec */
@@ -86,6 +87,15 @@ const dspBody = (frag) => {
     if (depth === 0) return frag.slice(start, m.index + m[0].length);
   }
   return frag.slice(start);
+};
+
+// The class list the dsp-body wrapper carries, or null when the fragment
+// renders no dsp-body at all — so "the card rendered no body" cannot read as
+// "the body is not dimmed".
+/** @param {string} frag */
+const bodyClasses = (frag) => {
+  const body = elements(frag).find((el) => classes(el).includes("dsp-body"));
+  return body ? classes(body) : null;
 };
 
 const ALSA = "ALSA Backend";
@@ -288,15 +298,24 @@ test("test_the_correction_profile_is_dimmed_while_dac_correction_is_off", async 
   assert.ok(body.startsWith('<div class="dsp-body off">') && body.includes("<label>DAC model</label>"));
 });
 
+// On state: the body wrapper is rendered AND carries no dimming mark. A card
+// that renders no body at all is a regression, not a pass, so the live case
+// pins the wrapper's presence rather than the absence of a substring.
 test("test_the_correction_profile_is_live_once_dac_correction_is_on", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: true } });
-  assert.equal(cardTitled(tab(), "DAC correction").includes('<div class="dsp-body off">'), false);
+  const cls = bodyClasses(cardTitled(tab(), "DAC correction"));
+  assert.ok(cls !== null && !cls.includes("off"));
 });
 
-// The old indented layout is gone from this card entirely.
+// The old indented layout is gone from this card entirely. The card must be
+// FOUND for that to mean anything: `cardTitled` answers "" for a card that never
+// rendered, and "" carries no indent either.
 test("test_the_dac_correction_card_has_no_indented_layout", async () => {
   await reset({ cfg: { backend: "alsa", ...PRESENT }, mtx: { post_correction_enabled: false } });
-  assert.equal(cardTitled(tab(), "DAC correction").includes('<div class="indent'), false);
+  const out = tab();
+  assert.ok(
+    cardHeadAt(out, "DAC correction") >= 0 && !cardTitled(out, "DAC correction").includes('<div class="indent'),
+  );
 });
 
 test("test_the_dac_correction_card_carries_the_correction_profile", async () => {

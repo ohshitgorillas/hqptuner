@@ -123,9 +123,13 @@ function ensure(title, want) {
 
 // --- the card is a disclosure --------------------------------------------------
 
+// The head is the card's own head element, a button, with the disclosure
+// triangle ahead of the title — whichever way the triangle points.
+const HEAD = new RegExp(`<button type="button" class="card-head"><span class="tri">[^<]*</span> ${DAC}</button>`);
+
 test("test_the_dac_correction_head_is_a_disclosure_button", async () => {
   await reset();
-  assert.ok(tab().includes(`</span> ${DAC}</button>`));
+  assert.match(tab(), HEAD);
 });
 
 // --- how it stands before anyone touches it ------------------------------------
@@ -182,7 +186,8 @@ test("test_a_dac_correction_card_closed_by_hand_survives_an_unrelated_staged_edi
 test("test_closing_dac_correction_leaves_the_filter_length_cards_disclosure_alone", async () => {
   await reset();
   ensure(DAC, "open");
-  const before = stateOf(tab(), LENGTH);
   clickHead(DAC);
-  assert.equal(stateOf(tab(), LENGTH), before);
+  // Literal, not a before/after comparison read off the same helper: a Filter
+  // length card that vanished with the click would read "" on both sides.
+  assert.equal(stateOf(tab(), LENGTH), "closed");
 });
