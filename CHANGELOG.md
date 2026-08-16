@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- **The chain cards fold their DSD Sources sections, and a Source format switch on the narrow bar opens both at once.** The sections start closed, since most libraries hold no DSD files. The switch reads PCM only and +DSD; folding one card's section by hand leaves the other card alone until the switch moves again.
+- **The Output tab's chain cards fold their DSD Sources sections, and a Source format switch on the narrow bar opens both at once.** The sections start closed, since most libraries hold no DSD files. The switch reads PCM only and +DSD; folding one card's section by hand leaves the other card alone until the switch moves again. Live mode has no such sections, so its narrow bar omits the switch.
 
 - **The oversampling chain controls carry one-line role glosses under their labels.** The 1x and Nx filter slots say which content each covers (CD quality and 48 kHz versus hi-res ≥88.2 kHz), and the sigma-delta modulator, dither, DSD source controls and DAC bits each state their role in the chain.
 
