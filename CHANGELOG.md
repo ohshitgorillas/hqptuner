@@ -12,6 +12,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Engine idle time reads in seconds, and its tooltip quotes the manual.** The dropdown lists bare numbers, so the unit now sits beside it.
+
 - **Live mode's Narrow filters, Playback, Engine health and Matrix profile cards fold away.** Each starts open and remembers its state, so a page cut down to the output mode switch and the matrix profile picker keeps that shape across reloads.
 
 - **Every card title bar is the same height.** A disclosure triangle, the narrow bar's Reset button and a hero card's larger heading each sit inside the bar rather than setting its height, so the four heights that shipped across the tabs are now one.

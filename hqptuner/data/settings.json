@@ -73,7 +73,7 @@
     },
     "idle_time": {
       "label": "Idle time",
-      "tooltip": "Defines amount of time the engine is left idling after playback of current content has ended, in milliseconds. This allows faster playback restart within the idle period.",
+      "tooltip": "Defines amount of time the engine is left idling after playback of current content has ended. This allows faster playback restart within the idle period.",
       "source": "manual §4.7, readme §1.2 (idle_time)"
     },
     "upnp_freewheel": {

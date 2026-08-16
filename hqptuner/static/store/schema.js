@@ -280,6 +280,7 @@ export const schema = {
     field: "idle_time",
     optionsFrom: "config",
     compact: "sm",
+    unit: "seconds",
   },
   upnp_freewheel: {
     label: "UPnP freewheel",
