@@ -1,0 +1,188 @@
+// Behavioral suite for the DAC correction card's disclosure on the Output tab —
+// that it is a collapsible card at all, that it stands open until the user says
+// otherwise, that its head toggles it both ways, and that the user's choice
+// survives unrelated activity without disturbing another card's disclosure.
+//
+// Policy (docs/testing.md): public API only, one assertion per test, fakes at
+// the wire. There is no exported collapse API and there is no DOM here, so the
+// card is toggled the way a caller toggles one: by invoking the onClick its head
+// element carries, collected through preact's own `options.vnode` hook — the
+// renderer's public seam, third-party surface, not ours, reached through the
+// shared `renderWith` harness. The state is read back off the card section's
+// class list, as the browser shows it.
+//
+// The card's body is witnessed by its own gate control, the `dac_correction_enabled`
+// segmented switch, whose two choices read ENGAGE / BYPASS (card-gates.test.js).
+// A closed card renders none of it.
+//
+// Kept apart from outputtab.test.js deliberately: the override a click writes is
+// module-level state that outlives a test, and each test FILE runs in its own
+// process, so the automatic-disclosure suites never see this one's clicks. Setup
+// here never assumes a clean slate either: `ensure()` reads the card's current
+// disclosure and clicks only when it differs from what the case needs. The two
+// default-disclosure cases below are the exception and are placed FIRST in the
+// file on purpose, before any click has happened.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/daccorrection-collapse.test.js
+
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { html } from "../../../hqptuner/static/lib/dom.js";
+import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
+import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
+import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
+import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
+import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { stagingWire } from "../support/wire.js";
+import { formFields, section, stateOf } from "../support/tabform.js";
+import { renderWith } from "../support/wheel.js";
+
+/** @typedef {import("../support/wheel.js").VNode} VNode */
+
+const DAC = "DAC correction";
+const LENGTH = "Filter length";
+// The gate control of the DAC correction card — the `dac_correction_enabled`
+// field, rendered as a two-choice segmented switch.
+const GATE = "ENGAGE";
+
+/**
+ * @param {string} value
+ * @param {string} label
+ */
+const opt = (value, label) => ({ value, options: [{ value, label }] });
+
+// A working Output tab: a backend with a device that is present, the four chain
+// slots the conversion cards read, and a /matrix form whose engine is engaged so
+// the post-process gate is live rather than grayed for the matrix's own sake.
+const FORM = {
+  backend: "alsa",
+  alsa_device: opt("hw:0", "Topping DAC"),
+  net_device: opt("naa:1", "Living room NAA"),
+  filter1x: opt("1", "poly-sinc-gauss-long"),
+  filter: opt("2", "poly-sinc-xtr-mp"),
+  oversampling1x: opt("3", "poly-sinc-short-mp"),
+  oversampling: opt("4", "closed-form-M"),
+};
+const MATRIX = { enabled: "1", post_correction_enabled: true };
+
+async function reset() {
+  stagingWire();
+  engineState.value = {};
+  enums.value = null;
+  metadata.value = null;
+  showDescriptions.value = true;
+  keepOptionDescriptions.value = true;
+  resetNarrowing();
+  matrixConfig.value = { fields: formFields(MATRIX) };
+  config.value = { fields: formFields(FORM), file: { mode: "auto" }, active: "", profiles: null };
+  await discardAll();
+}
+
+// --- rendering, clicking, reading ---------------------------------------------
+
+const renderTab = () => renderWith(html`<${Output} />`);
+const tab = () => renderTab().out;
+
+/**
+ * @param {unknown} node
+ * @returns {string}
+ */
+function text(node) {
+  if (node === null || node === undefined || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(text).join("");
+  const props = /** @type {VNode} */ (node).props;
+  return text(props && props.children);
+}
+
+// The head of the named card, as the button a pointer would land on. Anything
+// other than exactly one match throws rather than clicking something else.
+/** @param {string} title */
+function clickHead(title) {
+  const heads = renderTab().seen.filter(
+    (v) => v && v.type === "button" && v.props && typeof v.props.onClick === "function" && text(v).includes(title),
+  );
+  if (heads.length !== 1) throw new Error(`expected one clickable head for "${title}", found ${heads.length}`);
+  const onClick = /** @type {(event: object) => void} */ (heads[0].props.onClick);
+  onClick({ preventDefault() {}, stopPropagation() {} });
+}
+
+// Bring a card to the disclosure a case starts from, by clicking its head when
+// what is on screen is not it — the only route a user has.
+/**
+ * @param {string} title
+ * @param {string} want
+ */
+function ensure(title, want) {
+  if (stateOf(tab(), title) === want) return;
+  clickHead(title);
+  const now = stateOf(tab(), title);
+  if (now !== want) throw new Error(`"${title}" would not go ${want}: it is ${now}`);
+}
+
+// --- the card is a disclosure --------------------------------------------------
+
+test("test_the_dac_correction_head_is_a_disclosure_button", async () => {
+  await reset();
+  assert.ok(tab().includes(`</span> ${DAC}</button>`));
+});
+
+// --- how it stands before anyone touches it ------------------------------------
+// First render of the tab, ahead of every click this file makes.
+
+test("test_the_dac_correction_card_stands_open_before_anyone_touches_it", async () => {
+  await reset();
+  assert.equal(stateOf(tab(), DAC), "open");
+});
+
+test("test_an_untouched_dac_correction_card_shows_its_gate", async () => {
+  await reset();
+  assert.ok(section(tab(), DAC).includes(GATE));
+});
+
+// --- the toggle ----------------------------------------------------------------
+
+test("test_clicking_the_open_dac_correction_head_closes_the_card", async () => {
+  await reset();
+  ensure(DAC, "open");
+  clickHead(DAC);
+  assert.equal(stateOf(tab(), DAC), "closed");
+});
+
+test("test_a_closed_dac_correction_card_hides_its_gate", async () => {
+  await reset();
+  ensure(DAC, "closed");
+  assert.equal(section(tab(), DAC).includes(GATE), false);
+});
+
+test("test_clicking_the_closed_dac_correction_head_opens_the_card_again", async () => {
+  await reset();
+  ensure(DAC, "closed");
+  clickHead(DAC);
+  assert.equal(stateOf(tab(), DAC), "open");
+});
+
+test("test_a_reopened_dac_correction_card_shows_its_gate_again", async () => {
+  await reset();
+  ensure(DAC, "closed");
+  clickHead(DAC);
+  assert.ok(section(tab(), DAC).includes(GATE));
+});
+
+// --- the user's choice sticks ---------------------------------------------------
+
+test("test_a_dac_correction_card_closed_by_hand_survives_an_unrelated_staged_edit", async () => {
+  await reset();
+  ensure(DAC, "closed");
+  await edit("gain_comp", "-0.5");
+  assert.equal(stateOf(tab(), DAC), "closed");
+});
+
+test("test_closing_dac_correction_leaves_the_filter_length_cards_disclosure_alone", async () => {
+  await reset();
+  ensure(DAC, "open");
+  const before = stateOf(tab(), LENGTH);
+  clickHead(DAC);
+  assert.equal(stateOf(tab(), LENGTH), before);
+});
