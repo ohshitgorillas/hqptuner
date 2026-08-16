@@ -141,6 +141,10 @@ function toggleDsd(card) {
  * change is what drops one, so moving the facet and moving it back clears
  * whatever a previous case pressed.
  *
+ * What that leaves on screen is deliberately NOT checked here — it is the
+ * subject of the cases below, and a harness that guaranteed it would leave them
+ * asserting something they could not fail.
+ *
  * @param {{ srcFormat?: string }} [start]
  */
 async function reset({ srcFormat = "pcm" } = {}) {
@@ -157,11 +161,6 @@ async function reset({ srcFormat = "pcm" } = {}) {
   nSrcFormat.value = "both";
   nSrcFormat.value = "pcm";
   nSrcFormat.value = srcFormat;
-  const out = tab();
-  const want = srcFormat === "both";
-  for (const card of [PCM, SDM]) {
-    if (dsdOpen(out, card) !== want) throw new Error(`the ${card} card's DSD half did not follow the facet`);
-  }
 }
 
 /** @param {string} card */
@@ -233,4 +232,15 @@ test("test_the_source_format_facet_at_both_reopens_a_dsd_half_the_user_collapsed
   nSrcFormat.value = "pcm";
   nSrcFormat.value = "both";
   assert.equal(dsdOpen(tab(), PCM), true);
+});
+
+// The mirror, and the direction that tells a driver from a one-way opener: an
+// override the user set at "pcm" is dropped by the round trip just the same, so
+// the half they opened by hand is shut again by the facet that never wanted it.
+test("test_the_source_format_facet_back_at_pcm_recloses_a_dsd_half_the_user_opened", async () => {
+  await reset();
+  toggleDsd(PCM);
+  nSrcFormat.value = "both";
+  nSrcFormat.value = "pcm";
+  assert.equal(dsdOpen(tab(), PCM), false);
 });

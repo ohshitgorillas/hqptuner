@@ -308,10 +308,10 @@ button.card-head {
    needs the button chrome reset away — the same trade button.card-head makes,
    and for the same reason: everything else about it is the subhead above. */
 button.subhead {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  width: 100%;
+  align-self: flex-start;
   text-align: left;
   background: none;
   border: none;

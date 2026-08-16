@@ -57,6 +57,9 @@ const FILTERS = [
   ["gauss-short", "4/5 ⥮ Any", 0],
 ];
 
+/** Every fixture name, in enumeration order — the whole list, narrowed by nothing. */
+const ALL = FILTERS.map(([name]) => name);
+
 /** The four filter dropdowns a chain card offers, against the stage each sits at. */
 /** @type {[string, string][]} */
 const FIELDS = [
@@ -138,12 +141,15 @@ test("test_reset_returns_the_source_format_control_to_pcm", () => {
 // The facet says which chain settings are worth showing, never which filters are
 // worth offering: every one of the four filter dropdowns offers the same list at
 // "both" as it does at "pcm".
+//
+// Both readings are asserted together, so the case cannot pass on two empty
+// lists: at either value of the facet the dropdown offers the whole fixture.
 
 for (const [field, stage] of FIELDS) {
   test(`test_the_${field}_list_is_the_same_at_both_as_at_pcm`, () => {
     const options = reset();
     const atPcm = listed(options, stage, field);
     nSrcFormat.value = "both";
-    assert.deepEqual(listed(options, stage, field), atPcm);
+    assert.deepEqual({ pcm: atPcm, both: listed(options, stage, field) }, { pcm: ALL, both: ALL });
   });
 }

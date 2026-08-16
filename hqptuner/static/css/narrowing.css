@@ -204,12 +204,12 @@
   font-size: var(--fs-body);
 }
 
-/* Per-stage apodizing / hi-res switch block under the facet row (NarrowBar.js):
-   the binding two-column split (1fr 1px 1fr + .col-rule on the card centre
-   line, design-system §Rules). Left column Apodizing, right Hi-res; each group
-   is a title beside its stacked 1x / Nx switch rows with the description under
-   them. Below the 1100px breakpoint the groups stack and the rule hides
-   (.col-rule's default in knobs.css). */
+/* The switch block under the facet row (NarrowBar.js): the binding two-column
+   split (1fr 1px 1fr + .col-rule on the card centre line, design-system §Rules).
+   Left column Apodizing filters, right column 1x sources over Source format;
+   each group is a title beside its switch rows with the description under them.
+   Below the 1100px breakpoint the groups stack and the rule hides (.col-rule's
+   default in knobs.css). */
 .narrow-switchcols {
   display: flex;
   flex-direction: column;
@@ -232,6 +232,13 @@
   flex-direction: column;
   gap: var(--sp-4);
   min-width: 0;
+}
+/* "1x sources" and "Source format" set different widths, so without a shared
+   minimum the two switches in this column start 22px apart. Same reason
+   .narrow-stage-row .t-label carries one: a column of controls shares a left
+   edge, and the title beside them is what decides it. */
+.narrow-groupstack .narrow-group-title {
+  min-width: 6rem;
 }
 .narrow-group {
   display: flex;

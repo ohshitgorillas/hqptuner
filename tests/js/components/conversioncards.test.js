@@ -31,7 +31,7 @@ import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/stat
 import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
 import { stagingWire } from "../support/wire.js";
 import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
-import { SUBHEADS, subsection } from "../support/chainsubsections.js";
+import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js";
 
 // The /config form is keyed by FORM FIELD name: the PCM chain is filter1x /
 // filter / dither, the SDM chain oversampling1x / oversampling / modulator.
@@ -150,28 +150,30 @@ test("test_a_closed_card_hides_its_filter_chain", async () => {
 });
 
 // --- how each card is split ---------------------------------------------------
-// Both subheads stand whatever the DSD half's disclosure is doing: which element
-// carries each one, and whether the DSD body is on screen, belong to
+// Each card carries one heading per source type — an element whose wording is
+// that type's, not merely the words appearing somewhere under the card. Both
+// stand whatever the DSD half's disclosure is doing: which element carries each
+// one, and whether the DSD body is on screen, belong to
 // conversioncards-dsd.test.js.
 
 test("test_the_pcm_card_splits_out_its_pcm_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), PCM).includes(FROM_PCM));
+  assert.equal(subheadsIn(tab(), PCM, FROM_PCM).length, 1);
 });
 
 test("test_the_pcm_card_splits_out_its_dsd_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), PCM).includes(FROM_DSD));
+  assert.equal(subheadsIn(tab(), PCM, FROM_DSD).length, 1);
 });
 
 test("test_the_sdm_card_splits_out_its_pcm_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), SDM).includes(FROM_PCM));
+  assert.equal(subheadsIn(tab(), SDM, FROM_PCM).length, 1);
 });
 
 test("test_the_sdm_card_splits_out_its_dsd_sources", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(section(tab(), SDM).includes(FROM_DSD));
+  assert.equal(subheadsIn(tab(), SDM, FROM_DSD).length, 1);
 });
 
 // --- which control sits in which chain ----------------------------------------

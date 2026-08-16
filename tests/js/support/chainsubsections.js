@@ -40,22 +40,37 @@ export const subsection = (chunk, name) => {
 };
 
 /**
- * The buttons inside one card whose wording ends in `name` — how a case asks
- * whether a subhead is something a reader can press.
+ * The elements of one card that ARE a subhead reading `name`: their wording ends
+ * in it — a collapsible's subhead carries a disclosure triangle ahead of the
+ * words — and they carry no other subhead, which is what tells a subhead from
+ * the region that merely ends with one.
  *
  * @param {string} out
  * @param {string} card
  * @param {string} name
  * @returns {import("./markup.js").MarkupElement[]}
  */
-export function subheadButtons(out, card, name) {
+export function subheadsIn(out, card, name) {
   const start = cardHeadAt(out, card);
   if (start < 0) throw new Error(`no card titled "${card}" in the rendered tab`);
   const end = start + cardTitled(out, card).length;
+  const others = SUBHEADS.filter((n) => n !== name);
   return elements(out).filter(
-    (el) => el.name === "button" && el.start >= start && el.start < end && text(el).endsWith(name),
+    (el) =>
+      el.start >= start && el.start < end && text(el).endsWith(name) && others.every((n) => !text(el).includes(n)),
   );
 }
+
+/**
+ * The subheads of one card a reader can press — how a case asks whether a
+ * subhead is a disclosure rather than a plain heading.
+ *
+ * @param {string} out
+ * @param {string} card
+ * @param {string} name
+ * @returns {import("./markup.js").MarkupElement[]}
+ */
+export const subheadButtons = (out, card, name) => subheadsIn(out, card, name).filter((el) => el.name === "button");
 
 /**
  * What a reader sees inside a vnode: its children, flattened.

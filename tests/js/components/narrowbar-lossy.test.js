@@ -29,6 +29,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { LOSSY_TIP } from "../../../hqptuner/static/components/narrowbar/Stages.js";
 import { elements, enclosing } from "../support/markup.js";
 import {
   resetBar,
@@ -45,10 +46,11 @@ import {
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
-// The owner-approved explainer, character for character: straight double quotes
-// around the two name fragments, no em dash anywhere.
-const EXPLAINER =
-  'This feature determines whether to show or hide filters capable of reducing ultrasonic noise (containing "hires" or "mp3/mqa" in the name) in the 1x filter dropdowns. At 1x rates, this only benefits lossy material like MP3 and MQA; lossless material contains no ultrasonic content to attenuate. Selecting "Lossless" hides these filters; "Lossy" shows them only.';
+// The owner-approved explainer. Its wording is pinned character for character in
+// exactly one place, tests/js/components/narrowbar-tips.test.js; these cases are
+// about WHERE the bar puts it, so they take it as the bar's own export rather
+// than repeating 400 characters a reword would have to be chased through twice.
+const EXPLAINER = LOSSY_TIP;
 
 const TITLE = "1x sources";
 
