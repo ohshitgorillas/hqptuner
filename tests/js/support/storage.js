@@ -38,3 +38,26 @@ export function useStorage() {
 export function dropStorage() {
   delete env.localStorage;
 }
+
+// A storage that is PRESENT and refuses every operation — what a browser with
+// storage blocked by policy, or a full quota, hands over: the member exists and
+// throws on use. Distinct from having no localStorage at all, which `dropStorage`
+// leaves behind.
+export function useThrowingStorage() {
+  const storage = {
+    /** @param {string} k */
+    getItem(k) {
+      throw new Error(`storage is unavailable (getItem ${k})`);
+    },
+    /** @param {string} k @param {string} v */
+    setItem(k, v) {
+      throw new Error(`storage is unavailable (setItem ${k}=${v})`);
+    },
+    /** @param {string} k */
+    removeItem(k) {
+      throw new Error(`storage is unavailable (removeItem ${k})`);
+    },
+  };
+  env.localStorage = storage;
+  return storage;
+}

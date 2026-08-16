@@ -34,9 +34,12 @@
 // writing the same object reference to a signal does not notify, and the
 // notification is the whole point (docs/testing.md, harness facts).
 //
-// Disclosure is persisted through store/prefs.js, whose keys are the module's
-// own business: the two storage cases read the fake localStorage for the VALUES
-// a toggle writes, never for a key name.
+// Disclosure is persisted through store/prefs.js: the storage cases here read
+// the fake localStorage for what a TOGGLE writes, under the card's own key. What
+// a stored value does at LOAD — and what an unusable storage does — is
+// tests/js/store/livecollapse-prefs.test.js and
+// tests/js/store/livecollapse-prefs-broken.test.js, which each need the module
+// imported into an environment their own case has already staged.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/livecards-collapse.test.js
 
@@ -61,8 +64,14 @@ import {
 } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
-import { liveMode, showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing, narrowingActive, nLength } from "../../../hqptuner/static/store/narrowing.js";
+import {
+  liveMode,
+  showDescriptions,
+  keepOptionDescriptions,
+  setLiveCardOpen,
+} from "../../../hqptuner/static/store/prefs.js";
+import { resetNarrowing, narrowingActive, nFocus } from "../../../hqptuner/static/store/narrowing.js";
+import { narrowOptions } from "../../../hqptuner/static/store/narrowmatch.js";
 import { staticWire } from "../support/wire.js";
 import { classes, elements, text } from "../support/markup.js";
 import { useStorage, dropStorage } from "../support/storage.js";
@@ -74,11 +83,20 @@ import { useStorage, dropStorage } from "../support/storage.js";
 
 // The engine's own `<GetFilters/>` enumeration (protocol.md:226): rated so no
 // narrowing facet at its default trims the list, and carrying the facet prose
-// the narrow bar builds its switch groups from.
+// the narrow bar builds its switch groups from. The two REAL filters carry
+// different focus sets, so a focus pick demonstrably trims this fixture — which
+// is what the Reset cases below need to be about anything
+// (`test_the_focus_facet_trims_…`). `none` is the engine's no-filter entry and
+// survives every narrowing, so it is not one of the two.
 const FILTERS = [
   { index: "0", value: "0", name: "none", arg: 1, description: "5/5 timbre ⥮ Any" },
-  { index: "1", value: "40", name: "poly-sinc-gauss-long", arg: 1, description: "5/5 timbre ⥮ Any" },
+  { index: "1", value: "40", name: "poly-sinc-gauss-long", arg: 1, description: "5/5 transients ⥮ Any" },
+  { index: "2", value: "25", name: "sinc-M", arg: 1, description: "5/5 timbre ⥮ Any" },
 ];
+
+// The filter dropdown's options, as the page builds them from that enumeration:
+// the pair `narrowOptions` filters, labelled by filter name.
+const FILTER_OPTIONS = () => FILTERS.map((f) => ({ value: f.value, label: f.name }));
 const ENUMS = () => ({
   filters: FILTERS,
   shapers: [{ index: "0", value: "0", name: "none" }],
@@ -308,9 +326,12 @@ function poll() {
   page(); // the browser re-renders on a signal change; SSR has to be told to
 }
 
-// Total reset of everything the page reads, less the disclosure state itself,
-// which each case brings to its own starting point by pressing heads.
+// Total reset of everything the page reads, disclosure included: the four cards
+// are put back OPEN through the store's own setter, so a case asking about the
+// default asserts the default rather than inheriting whatever its predecessor
+// left behind (module-level signals outlive a test).
 async function reset() {
+  for (const card of CARDS) setLiveCardOpen(card.key, true);
   staticWire({ live: {}, http: {} });
   metadata.value = METADATA();
   liveErrors.value = {};
@@ -338,7 +359,14 @@ function ensure(title, want) {
   if (now !== want) throw new Error(`"${title}" would not go ${want}: it is ${now}`);
 }
 
-const CARDS = ["Narrow filters", "Playback", "Engine health", "Matrix profile"];
+// The four cards, each with the name the store's setter addresses it by.
+/** @type {{ title: string, key: "narrow" | "playback" | "health" | "matrix" }[]} */
+const CARDS = [
+  { title: "Narrow filters", key: "narrow" },
+  { title: "Playback", key: "playback" },
+  { title: "Engine health", key: "health" },
+  { title: "Matrix profile", key: "matrix" },
+];
 
 /** @param {string} title */
 const slug = (title) => title.toLowerCase().replace(/\W+/g, "_");
@@ -347,7 +375,7 @@ afterEach(dropStorage);
 
 // --- every card offers a head to press ----------------------------------------
 
-for (const title of CARDS) {
+for (const { title } of CARDS) {
   test(`test_the_${slug(title)}_card_head_is_a_button`, async () => {
     await reset();
     assert.equal(headOf(page(), title).name, "button");
@@ -355,10 +383,8 @@ for (const title of CARDS) {
 }
 
 // --- and starts open ----------------------------------------------------------
-// Nothing has been pressed and this process has no localStorage, which is the
-// absent-key case: the card comes up open.
 
-for (const title of CARDS) {
+for (const { title } of CARDS) {
   test(`test_the_${slug(title)}_card_starts_open`, async () => {
     await reset();
     assert.equal(disclosure(page(), title), "open");
@@ -366,40 +392,57 @@ for (const title of CARDS) {
 }
 
 // --- pressing a head closes the card, body and all ------------------------------
+// The class and the body are separate promises: a card that carried `closed`
+// while still rendering its body would pass the first and fail the second.
 
-for (const title of CARDS) {
-  test(`test_pressing_the_${slug(title)}_head_closes_the_card_and_drops_its_body`, async () => {
+for (const { title } of CARDS) {
+  test(`test_pressing_the_${slug(title)}_head_closes_the_card`, async () => {
     await reset();
     ensure(title, "open");
     clickHead(title);
-    const out = page();
-    assert.deepEqual({ state: disclosure(out, title), body: hasBody(out, title) }, { state: "closed", body: false });
+    assert.equal(disclosure(page(), title), "closed");
+  });
+}
+
+for (const { title } of CARDS) {
+  test(`test_a_closed_${slug(title)}_card_renders_no_body`, async () => {
+    await reset();
+    ensure(title, "closed");
+    assert.equal(hasBody(page(), title), false);
   });
 }
 
 // --- pressing it again brings the body back --------------------------------------
 
-for (const title of CARDS) {
-  test(`test_pressing_the_${slug(title)}_head_again_reopens_the_card_with_its_body`, async () => {
+for (const { title } of CARDS) {
+  test(`test_pressing_the_${slug(title)}_head_again_reopens_the_card`, async () => {
     await reset();
     ensure(title, "closed");
     clickHead(title);
-    const out = page();
-    assert.deepEqual({ state: disclosure(out, title), body: hasBody(out, title) }, { state: "open", body: true });
+    assert.equal(disclosure(page(), title), "open");
+  });
+}
+
+for (const { title } of CARDS) {
+  test(`test_a_reopened_${slug(title)}_card_renders_its_body`, async () => {
+    await reset();
+    ensure(title, "closed");
+    clickHead(title);
+    assert.equal(hasBody(page(), title), true);
   });
 }
 
 // --- one card's disclosure is its own ---------------------------------------------
 
-for (const title of CARDS) {
+for (const { title } of CARDS) {
   test(`test_closing_the_${slug(title)}_card_leaves_the_other_three_open`, async () => {
     await reset();
-    for (const other of CARDS) ensure(other, "open");
+    for (const other of CARDS) ensure(other.title, "open");
     clickHead(title);
     const out = page();
-    const others = CARDS.filter((t) => t !== title);
+    const others = CARDS.filter((c) => c.title !== title);
     assert.deepEqual(
-      others.map((t) => disclosure(out, t)),
+      others.map((c) => disclosure(out, c.title)),
       others.map(() => "open"),
     );
   });
@@ -410,7 +453,7 @@ for (const title of CARDS) {
 // re-fetches twice a second, and a poll bringing back the SAME engine state must
 // not snap a hand-toggled card back.
 
-for (const title of CARDS) {
+for (const { title } of CARDS) {
   test(`test_a_hand_closed_${slug(title)}_card_survives_a_poll_of_unchanged_state`, async () => {
     await reset();
     ensure(title, "closed");
@@ -446,9 +489,28 @@ function pressReset() {
   if (!stopped) /** @type {(event: object) => void} */ (headButton("Narrow filters").props.onClick)(event);
 }
 
+// The narrowed starting point the two Reset cases press from: one focus pick,
+// which the fixture above demonstrably trims on (the case below). A press with
+// nothing narrowed would clear nothing and pass for free, so the precondition is
+// checked here and raises rather than being pressed through.
+/** @returns {void} */
+function narrowTheFilters() {
+  nFocus.value = ["transients"];
+  if (!narrowingActive.value) throw new Error("the focus pick left the page unnarrowed");
+}
+
+test("test_the_focus_facet_trims_the_pages_filter_list", async () => {
+  await reset();
+  nFocus.value = ["transients"];
+  assert.deepEqual(
+    narrowOptions(FILTER_OPTIONS(), "nx", "pcm_filter_nx").map((o) => o.label),
+    ["none", "poly-sinc-gauss-long"],
+  );
+});
+
 test("test_the_narrowing_reset_clears_the_narrowing", async () => {
   await reset();
-  nLength.value = "short";
+  narrowTheFilters();
   ensure("Narrow filters", "open");
   pressReset();
   assert.equal(narrowingActive.value, false);
@@ -456,52 +518,88 @@ test("test_the_narrowing_reset_clears_the_narrowing", async () => {
 
 test("test_the_narrowing_reset_leaves_its_card_open", async () => {
   await reset();
-  nLength.value = "short";
+  narrowTheFilters();
   ensure("Narrow filters", "open");
   pressReset();
   assert.equal(disclosure(page(), "Narrow filters"), "open");
 });
 
 // --- what a toggle writes to storage ------------------------------------------------
-// The keys are prefs.js's own business; what a caller can see is that closing a
-// card persists an off flag and opening it persists an on flag, in the "1"/"0"
-// spelling that module stores every preference in.
+// Each card is persisted under its OWN key (store/prefs.js), so a shared key or a
+// collision fails these rather than passing on "something was written".
 
-test("test_closing_a_card_persists_an_off_flag", async () => {
+const KEY = "hqptuner.liveCollapse.playback";
+
+test("test_closing_a_card_persists_a_zero_under_its_own_key", async () => {
   await reset();
   ensure("Playback", "open");
   const storage = useStorage();
   clickHead("Playback");
-  assert.deepEqual([...new Set(storage.map.values())], ["0"]);
+  assert.equal(storage.getItem(KEY), "0");
 });
 
-test("test_reopening_a_card_persists_an_on_flag", async () => {
+test("test_reopening_a_card_persists_a_one_under_its_own_key", async () => {
   await reset();
   ensure("Playback", "closed");
   const storage = useStorage();
   clickHead("Playback");
-  assert.deepEqual([...new Set(storage.map.values())], ["1"]);
+  assert.equal(storage.getItem(KEY), "1");
+});
+
+test("test_toggling_one_card_writes_no_other_cards_key", async () => {
+  await reset();
+  ensure("Playback", "open");
+  const storage = useStorage();
+  clickHead("Playback");
+  assert.deepEqual([...storage.map.keys()], [KEY]);
 });
 
 // --- the Output tab's copy is no disclosure -------------------------------------------
-// NarrowBar is shared, so these two say the change is the LIVE page's alone.
+// NarrowBar is shared, so these three say the change is the LIVE page's alone.
+// The LIVE copy is CLOSED throughout: a bar wired to the LIVE disclosure signal
+// would take the Output tab's body down with it, which is the defect the body
+// case exists to catch and which an open LIVE card would hide.
 
 async function outputReset() {
-  staticWire({ live: {}, http: {} });
-  engineState.value = STATE();
-  enums.value = ENUMS();
-  metadata.value = METADATA();
-  config.value = CONFIG();
-  matrixConfig.value = MATRIX();
-  showDescriptions.value = true;
-  keepOptionDescriptions.value = true;
-  resetNarrowing();
-  await discardAll();
+  await reset();
+  ensure("Narrow filters", "closed");
+}
+
+// Every vnode the Output tab builds for its own narrowing head.
+/** @returns {VNode[]} */
+function outputHeads() {
+  /** @type {VNode[]} */
+  const seen = [];
+  const previous = options.vnode;
+  options.vnode = (/** @type {VNode} */ vnode) => {
+    seen.push(vnode);
+    if (previous) previous(vnode);
+  };
+  try {
+    render(html`<${Output} />`);
+  } finally {
+    options.vnode = previous;
+  }
+  const hits = seen.filter(
+    (v) =>
+      typeof v.type === "string" &&
+      String(v.props.class || v.props.className || "").includes("card-head") &&
+      vnodeText(v).startsWith("Narrow filters"),
+  );
+  if (hits.length !== 1) throw new Error(`expected one Output narrowing head, found ${hits.length}`);
+  return hits;
 }
 
 test("test_the_output_tabs_narrow_filters_head_is_no_button", async () => {
   await outputReset();
   assert.notEqual(headOf(outputTab(), "Narrow filters").name, "button");
+});
+
+// The tag alone is not the promise: a `<div>` head carrying a toggle handler is
+// a disclosure a pointer can work, whatever it is built from.
+test("test_the_output_tabs_narrow_filters_head_takes_no_press", async () => {
+  await outputReset();
+  assert.equal(typeof outputHeads()[0].props.onClick, "undefined");
 });
 
 test("test_the_output_tabs_narrow_filters_card_renders_its_body", async () => {
