@@ -32,15 +32,15 @@ docs/eq-assistant/*.pdf
 # EQ Assistant working checklist — churns every session, local for now
 docs/eq-assistant/todo.md
 
-# scratch plan docs — working notes for a change in flight, superseded by the
-# commit that lands it. Kept local so they can't dirty the tree at release time.
+# scratch working docs — plans for a change in flight, one-off audit reports and
+# handover briefs written for the agent that picks the work up. All of them are
+# superseded by the commit that lands the change, and all of them are kept local
+# so they can't dirty the tree at release time. The whole directory is scratch,
+# so nothing inside it needs a pattern of its own. The three root patterns stay
+# for a doc written beside the real docs before anyone files it.
+docs/plans/
 docs/*plan.md
-
-# scratch audit reports — one-off review output, same lifetime as a plan doc.
 docs/*audit.md
-
-# scratch handover briefs — a task written up for the agent that picks it up,
-# dead once that agent lands the work.
 docs/*brief.md
 
 # EQ Assistant session dirs — measurement images, raw digitizations, and per-turn
