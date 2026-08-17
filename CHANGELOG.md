@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.8.1] — 2026-08-16
+
 ### Changed
 
 - **The genre facet pairs off into "Jazz & blues" and "Pop & rock".** No filter carried either word without its partner, so the separate checkboxes narrowed to the same set.
