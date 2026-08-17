@@ -44,7 +44,7 @@ def store_src_format(tmp_path: Path, value: object) -> Path:
     means rather than where it sits.
     """
     path = tmp_path / "narrowing.json"
-    store_at(tmp_path).write({"phase": "linear"})
+    store_at(tmp_path).write({"phase": ["linear"]})
     doc = json.loads(path.read_text())
     inner = doc.get("facets")
     facets = inner if isinstance(inner, dict) else doc
@@ -102,4 +102,4 @@ def test_an_out_of_domain_stored_source_format_reads_as_pcm(tmp_path: Path, valu
 
 def test_an_out_of_domain_stored_source_format_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     store_src_format(tmp_path, "dsd")
-    assert store_at(tmp_path).read()["phase"] == "linear"
+    assert store_at(tmp_path).read()["phase"] == ["linear"]

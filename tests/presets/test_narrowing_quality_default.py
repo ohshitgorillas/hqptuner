@@ -79,7 +79,7 @@ def test_a_never_written_store_reads_quality_at_3(tmp_path: Path) -> None:
 
 
 def test_a_file_with_no_quality_entry_reads_quality_at_3(tmp_path: Path) -> None:
-    path = stored(tmp_path, {"phase": "linear"})
+    path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, drop("quality"))
     assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT
 
@@ -88,7 +88,7 @@ def test_a_file_with_no_quality_entry_reads_quality_at_3(tmp_path: Path) -> None
 
 
 def test_a_stored_quality_of_0_survives_a_read(tmp_path: Path) -> None:
-    path = stored(tmp_path, {"phase": "linear"})
+    path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, set_to("quality", 0))
     assert store_at(tmp_path).read()["quality"] == 0
 
@@ -111,6 +111,6 @@ def test_an_invalid_quality_write_is_refused(tmp_path: Path, value: object) -> N
 
 @pytest.mark.parametrize("value", INVALID, ids=repr)
 def test_an_invalid_stored_quality_reads_as_the_default_of_3(tmp_path: Path, value: object) -> None:
-    path = stored(tmp_path, {"phase": "linear"})
+    path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, set_to("quality", value))
     assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT

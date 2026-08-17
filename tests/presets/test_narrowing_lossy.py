@@ -51,7 +51,7 @@ def seeded_with(tmp_path: Path, legacy: str) -> Path:
     rather than where it sits.
     """
     path = tmp_path / "narrowing.json"
-    store_at(tmp_path).write({"phase": "linear"})
+    store_at(tmp_path).write({"phase": ["linear"]})
     doc = json.loads(path.read_text())
     inner = doc.get("facets")
     facets = inner if isinstance(inner, dict) else doc
