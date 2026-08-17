@@ -38,7 +38,7 @@ _MAX_LIST = 32
 # The facet token sets, transcribed from the manual's filter tables the same way the frontend's facet-data tables are
 # (architecture, "Static facet fallback"). "" is the "not narrowed by this facet at all" row, distinct from the
 # manual's own "any" genre/ratio class, which is a real facet value meaning "this filter suits all of them".
-_GENRES = frozenset({"pop", "rock", "jazz", "blues", "classical", "electronic", "any"})
+_GENRES = frozenset({"pop", "rock", "jazz", "classical", "electronic", "any"})
 _FOCUS = frozenset({"transients", "timbre", "space"})
 _PHASES = frozenset({"", "linear", "minimum", "intermediate"})
 _LENGTHS = frozenset({"", "short", "medium", "long", "xlong"})

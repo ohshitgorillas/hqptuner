@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **The genre facet's Jazz and Blues options merge into one "Jazz & blues" pick.** No filter carried one without the other, so the separate checkboxes narrowed to the same set.
+
 ## [1.8.0] — 2026-08-16
 
 ### Added

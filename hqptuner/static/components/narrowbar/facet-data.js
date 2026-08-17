@@ -12,8 +12,7 @@
 export const GENRES = [
   ["pop", "Pop"],
   ["rock", "Rock"],
-  ["jazz", "Jazz"],
-  ["blues", "Blues"],
+  ["jazz", "Jazz & blues"],
   ["classical", "Classical"],
   ["electronic", "Electronic"],
   // the manual's genre-agnostic tag — a real facet value ("this filter suits

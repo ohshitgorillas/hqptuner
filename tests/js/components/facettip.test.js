@@ -200,7 +200,7 @@ test("test_a_live_integer_ratio_renders_an_integer_ratio_row", () => {
 
 test("test_a_multi_genre_list_joins_with_comma_space", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }], { "gauss-plain": { genre: ["jazz", "classical"] } });
-  assert.ok(...rowValueIs(row("gauss-plain", "Genre"), "jazz, classical"));
+  assert.ok(...rowValueIs(row("gauss-plain", "Genre"), "jazz & blues, classical"));
 });
 
 test("test_a_multi_focus_list_joins_with_comma_space", () => {

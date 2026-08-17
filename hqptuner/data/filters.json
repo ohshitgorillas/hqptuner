@@ -53,7 +53,7 @@
       "description": "No sample rate conversion happens. Only sample depth is changed as needed."
     },
     "IIR": {
-      "genre": ["pop", "rock", "jazz", "blues"],
+      "genre": ["pop", "rock", "jazz"],
       "quality": 2,
       "focus": [],
       "apodizing": "full",
@@ -61,7 +61,7 @@
       "description": "This is analog-sounding filter, especially suitable for recordings containing strong transients, long post-ringing is a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing, but has a long post-ringing. Small amount of pass-band ripple is also present. Medium attenuation. IIR filter is applied in time domain."
     },
     "IIR2": {
-      "genre": ["pop", "rock", "jazz", "blues"],
+      "genre": ["pop", "rock", "jazz"],
       "quality": 4,
       "focus": [],
       "apodizing": "full",
@@ -77,7 +77,7 @@
       "description": "Typical \"oversampling\" digital filter, generally suitable for most uses (slight pre- and post-ringing), but best on classical music recorded in a real world acoustic environment such as concert hall. This is the most ordinary filter type, usually present in hardware. This filter is applied in time-domain. It has average amount of pre- and post-ringing."
     },
     "asymFIR": {
-      "genre": ["jazz", "blues"],
+      "genre": ["jazz"],
       "quality": 3,
       "focus": [],
       "apodizing": "full",
@@ -110,7 +110,7 @@
       "description": "Linear phase polyphase sinc filter. Very high quality linear phase resampling filter, can perform most of the typical conversion ratios. Good phase response, but has some amount of pre-ringing. See \"FIR\" for further details."
     },
     "poly-sinc-mp": {
-      "genre": ["jazz", "blues"],
+      "genre": ["jazz"],
       "quality": 4,
       "focus": ["transients"],
       "apodizing": "half",
@@ -118,7 +118,7 @@
       "description": "Minimum phase polyphase sinc filter, otherwise similar to poly-sinc. Altered phase response, but no pre-ringing. See minphaseFIR for further details."
     },
     "poly-sinc-short-lp": {
-      "genre": ["jazz", "blues", "electronic"],
+      "genre": ["jazz", "electronic"],
       "quality": 3,
       "focus": ["space", "transients"],
       "apodizing": "half",
@@ -142,7 +142,7 @@
       "description": "Otherwise similar to poly-sinc, but longer pre- and post-ringing with improved filtering quality (faster roll-off)."
     },
     "poly-sinc-long-ip": {
-      "genre": ["jazz", "blues", "electronic"],
+      "genre": ["jazz", "electronic"],
       "quality": 4,
       "focus": ["space", "transients"],
       "apodizing": "full",
@@ -198,7 +198,7 @@
       "notes": "Only suitable for highest technical quality source materials."
     },
     "poly-sinc-hb-l": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": [],
       "apodizing": "none",
@@ -297,7 +297,7 @@
       "description": "Minimum-phase polyphase sinc filter for HiRes content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
     "poly-sinc-mqa/mp3-lp": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": ["transients"],
       "apodizing": "full",
@@ -325,7 +325,7 @@
       "description": "Linear phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-mp": {
-      "genre": ["jazz", "blues"],
+      "genre": ["jazz"],
       "quality": 5,
       "focus": ["timbre"],
       "apodizing": "half",
@@ -333,7 +333,7 @@
       "description": "Minimum phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-short-lp": {
-      "genre": ["electronic", "jazz", "blues", "pop", "rock"],
+      "genre": ["electronic", "jazz", "pop", "rock"],
       "quality": 5,
       "focus": ["timbre", "transients"],
       "apodizing": "full",
@@ -349,7 +349,7 @@
       "description": "Short minimum phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-gauss-short": {
-      "genre": ["electronic", "jazz", "blues", "pop", "rock"],
+      "genre": ["electronic", "jazz", "pop", "rock"],
       "quality": 3,
       "focus": ["transients"],
       "apodizing": "half",
@@ -377,7 +377,7 @@
       "description": "Long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response. For SDM outputs, processing is two stages with minimum 16x intermediate rate."
     },
     "poly-sinc-gauss-xla": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 5,
       "focus": ["transients", "timbre", "space"],
       "apodizing": "full",
@@ -386,7 +386,7 @@
       "description": "Apodizing extra long Gaussian polyphase sinc filter with extremely high attenuation. Optimal time-frequency response. For SDM outputs, processing is two stages with minimum 16x intermediate rate."
     },
     "poly-sinc-gauss-xl": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 5,
       "focus": ["transients", "timbre", "space"],
       "apodizing": "none",
@@ -532,7 +532,7 @@
       "description": "sinc-filter with adaptive number of taps. Number of taps is 4096 x conversion ratio. Very sharp roll-off and high attenuation. Variant of poly-sinc-ext2-xla."
     },
     "sinc-M": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": ["space", "timbre"],
       "apodizing": "full",
@@ -542,7 +542,7 @@
       "description": "sinc-filter with one million taps. Very sharp roll-off and high attenuation. Variant of poly-sinc-ext2-xla."
     },
     "sinc-Mx": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": ["space", "timbre"],
       "apodizing": "full",
@@ -552,7 +552,7 @@
       "description": "Constant time version of sinc-M. Filter length is constant in time, with million taps at 16x PCM output rates. Variant of poly-sinc-ext2-xla. (65536 x conversion ratio)"
     },
     "sinc-MG": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": ["transients", "timbre", "space"],
       "apodizing": "none",
@@ -562,7 +562,7 @@
       "description": "Gaussian constant time filter with million taps at 16x PCM output rates. Extremely high attenuation. Variant of poly-sinc-gauss-xl. (65536 x conversion ratio)"
     },
     "sinc-MGa": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": ["transients", "timbre", "space"],
       "apodizing": "full",
@@ -592,7 +592,7 @@
       "description": "Average attenuation sinc-filter with adaptive number of taps (4096 x conversion ratio)."
     },
     "sinc-Lm": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 2,
       "focus": [],
       "apodizing": "none",
@@ -612,7 +612,7 @@
       "description": "Average attenuation sinc-filter with adaptive number of taps (65536 x conversion ratio)."
     },
     "sinc-Lh": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": [],
       "apodizing": "none",
@@ -631,7 +631,7 @@
       "description": "Short average attenuation sinc-filter with adaptive number of taps. For SDM outputs, processing is two stages with minimum 16x intermediate rate."
     },
     "sinc-medium": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 2,
       "focus": [],
       "apodizing": "none",
@@ -649,7 +649,7 @@
       "description": "Long average attenuation sinc-filter with adaptive number of taps. For SDM outputs, processing is two stages with minimum 16x intermediate rate."
     },
     "sinc-long-h": {
-      "genre": ["classical", "jazz", "blues"],
+      "genre": ["classical", "jazz"],
       "quality": 4,
       "focus": [],
       "apodizing": "none",
