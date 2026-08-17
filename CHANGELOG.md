@@ -14,6 +14,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The phase and length facets take several picks at once.**
 
+- **A greyed playback volume dial reads against the configured volume range.** The engine reports a range of its own while it holds the control, which placed the dial at an arbitrary fraction of it. Under a bypassed volume control (min and max both 0) the dial reads full up.
+
 ## [1.8.0] — 2026-08-16
 
 ### Added
