@@ -1,5 +1,5 @@
 // Behavioral suite for which options an engaged facet leaves a filter dropdown
-// offering (store/narrowing.js `narrowOptions`), and what the counts beside it
+// offering (store/narrow/state.js `narrowOptions`), and what the counts beside it
 // say while it does.
 //
 // The rule pinned here: narrowing answers ONE question per option — does this
@@ -35,8 +35,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nFocus, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrowmatch.js";
+import { nFocus, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 const STAGE = "nx";

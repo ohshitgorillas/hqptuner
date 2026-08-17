@@ -84,7 +84,7 @@ import { ProfileCard } from "../../../hqptuner/static/components/MatrixProfileCa
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { stageProfileSave } from "../../../hqptuner/static/store/profiles.js";
+import { stageProfileSave } from "../../../hqptuner/static/store/matrix/profiles.js";
 import { stagingWire } from "../support/wire.js";
 
 const NOTE = "Restart the engine (Apply) to finalize the save.";

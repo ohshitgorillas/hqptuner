@@ -16,11 +16,11 @@ import {
   nApod1x,
   nApodNx,
   nLossy1x,
-} from "./narrowing.js";
+} from "./state.js";
 import { computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
 import { favoriteFilters, nFavOnly } from "./favorites.js";
-import { effective } from "./resolve.js";
+import { effective } from "../resolve.js";
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
 // mode-split ratio (mqa/mp3) to test; null for non-chain callers.

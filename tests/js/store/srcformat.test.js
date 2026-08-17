@@ -1,5 +1,5 @@
 // Behavioral suite for the narrow bar's SOURCE FORMAT facet
-// (store/narrowing.js): the two-state control that says whether the user's
+// (store/narrow/state.js): the two-state control that says whether the user's
 // library carries DSD files at all. It defaults to "pcm", it reads as active
 // narrowing at "both", and it narrows no dropdown — it drives the disclosure of
 // the chain cards' "DSD Sources" subsections instead
@@ -28,8 +28,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nSrcFormat, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions } from "../../../hqptuner/static/store/narrowmatch.js";
+import { nSrcFormat, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 /**

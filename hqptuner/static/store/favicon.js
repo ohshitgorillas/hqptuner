@@ -4,7 +4,7 @@
 // Rendered as an inline SVG-text data URI, so no icon files are shipped;
 // index.html's static link answers /favicon.ico.
 import { effect } from "@preact/signals";
-import { matrixMode } from "./matrixmode.js";
+import { matrixMode } from "./matrix/mode.js";
 
 const svg = (/** @type {string} */ emoji) =>
   "data:image/svg+xml," +

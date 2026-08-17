@@ -35,8 +35,8 @@ import { Field } from "../../../hqptuner/static/components/Field.js";
 import { reset } from "../support/field-harness.js";
 import { staticWire, stagingWire, quiesce } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
-import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/favorites.js";
-import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrowing.js";
+import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/narrow/favorites.js";
+import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 
 const FILTER_FIELDS = [
   {

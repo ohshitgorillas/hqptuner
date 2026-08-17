@@ -22,7 +22,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
-import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";

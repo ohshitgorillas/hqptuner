@@ -318,7 +318,7 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   usePopPlacement({ open, hl, tipKey, byKey, btnRef, popRef, tipRef });
 
   // A narrowed dropdown can drop the current selection off its own list
-  // (store/narrowing.js); the closed control still has to name that selection,
+  // (store/narrow/state.js); the closed control still has to name that selection,
   // so the caller passes the label the option list no longer carries.
   const label = selIdx >= 0 ? opts[selIdx].label : valueLabel || s(value);
   const row = { open, hl, selIdx, id, fav, onFav, byKey, setHl, commit };

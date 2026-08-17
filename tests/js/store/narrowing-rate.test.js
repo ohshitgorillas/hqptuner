@@ -1,5 +1,5 @@
-// Behavioral suite for the RATE half of filter narrowing (store/narrowing.js +
-// store/narrowmatch.js): the three switches that narrow by what a filter can
+// Behavioral suite for the RATE half of filter narrowing (store/narrow/state.js +
+// store/narrow/match.js): the three switches that narrow by what a filter can
 // do with the engine's rates —
 //
 //   nHideLimited  "auto" | "on" | "off" — hide filters whose ratio class is
@@ -55,9 +55,9 @@ import {
   nDownsafeOnly,
   narrowingActive,
   resetNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions, rateAutoHide, effHideLimited } from "../../../hqptuner/static/store/narrowmatch.js";
-import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions, rateAutoHide, effHideLimited } from "../../../hqptuner/static/store/narrow/match.js";
+import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrow/persist.js";
 import { enums, metadata, config } from "../../../hqptuner/static/store/signals.js";
 
 const STAGE = "nx";

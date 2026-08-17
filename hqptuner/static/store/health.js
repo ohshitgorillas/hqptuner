@@ -9,7 +9,7 @@
 // firing (and clear instantly on recovery).
 import { signal, computed, effect } from "@preact/signals";
 import { engineStatus } from "./signals.js";
-import { filterFacets } from "./facets.js";
+import { filterFacets } from "./narrow/facets.js";
 
 const PLAYING = 2;
 // 1.05× is the danger floor for sustained DSP throughput (below it, transient

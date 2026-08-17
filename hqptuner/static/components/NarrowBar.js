@@ -27,8 +27,8 @@ import {
   nApodNx,
   nLossy1x,
   nSrcFormat,
-} from "../store/narrowing.js";
-import { narrowingError } from "../store/narrowpersist.js";
+} from "../store/narrow/state.js";
+import { narrowingError } from "../store/narrow/persist.js";
 import { notesVisible } from "../store/prefs.js";
 import { closeExcept } from "./narrowbar/popover.js";
 import { NarrowFacets } from "./narrowbar/Facets.js";

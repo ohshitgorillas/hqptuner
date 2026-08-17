@@ -20,7 +20,7 @@
 // takes it. The Pipelines card takes it unconditionally — the pipeline rows are
 // the matrix, there is no separate switch to be off. The Crossfeed card reads its
 // own engagement as `crossfeed_enabled` in the Bauer view and an installed
-// structural block in the Structural view (store/xfmode.js) — structural
+// structural block in the Structural view (store/xfeed/mode.js) — structural
 // crossfeed is sixteen compiled pipeline rows and Bauer crossfeed is a
 // post_process plugin, so a bypassed engine runs neither. The Matrix response
 // card takes the alternate sentence below and only when its plot has something on

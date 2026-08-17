@@ -1,5 +1,5 @@
 // Behavioral suite for the per-facet AND/OR combine mode on the two multi-select
-// narrowing facets (store/narrowing.js for the signals, store/narrowmatch.js for
+// narrowing facets (store/narrow/state.js for the signals, store/narrow/match.js for
 // the matching, components/narrowbar/labels.js for the button wording).
 //
 // Genre and focus are both SETS a filter carries, and each now decides for
@@ -40,8 +40,8 @@ import {
   nFocusMode,
   narrowingActive,
   resetNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrow/match.js";
 import { genreLabel, focusLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 

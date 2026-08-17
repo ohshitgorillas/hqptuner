@@ -1,5 +1,5 @@
 // Behavioral suite for the Matrix tab's speakers/headphones choice belonging to
-// the PRESET rather than to the browser (store/matrixmode.js).
+// the PRESET rather than to the browser (store/matrix/mode.js).
 //
 // A preset is a whole hqplayerd config, so which transducer it is for is a
 // property of that preset. hqplayerd re-serializes its config from its own model
@@ -87,7 +87,7 @@ const W = stagingWire({
   },
 });
 
-const { matrixMode, setMatrixMode } = await import("../../../hqptuner/static/store/matrixmode.js");
+const { matrixMode, setMatrixMode } = await import("../../../hqptuner/static/store/matrix/mode.js");
 
 /**
  * Put the module back to a stated starting state: the config naming the applied
@@ -314,7 +314,7 @@ async function loadCopy(tag, fetchImpl) {
   const env = /** @type {{ fetch?: unknown }} */ (globalThis);
   const saved = env.fetch;
   env.fetch = fetchImpl;
-  const copy = new URL(`../../../hqptuner/static/store/matrixmode.fresh-${tag}.js`, import.meta.url).href;
+  const copy = new URL(`../../../hqptuner/static/store/matrix/mode.fresh-${tag}.js`, import.meta.url).href;
   const loaded = await import(copy);
   await quiesce(W);
   env.fetch = saved;

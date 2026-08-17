@@ -1,4 +1,4 @@
-// Shared harness for the store/devicecaps.js suites — devicecaps.test.js
+// Shared harness for the store/narrow/devicecaps.js suites — devicecaps.test.js
 // (graying the rate menus and the mode segment against the selected device's
 // announced capability) and devicecaps-fallback.test.js (correcting a setting
 // that already sits on something the device cannot reach).

@@ -12,8 +12,8 @@
 // preview): the engine keeps restarting between tracks until the change is
 // actually applied, so the row stays up until then.
 import { computed } from "@preact/signals";
-import { engineStatus } from "./signals.js";
-import { runningValue } from "./resolve.js";
+import { engineStatus } from "../signals.js";
+import { runningValue } from "../resolve.js";
 
 const TEXT =
   "Recommend setting Engine idle time (System tab) to 10 or longer; " +

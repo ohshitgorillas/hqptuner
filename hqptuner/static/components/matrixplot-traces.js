@@ -6,8 +6,8 @@
 import { parseProcess, serializeProcess } from "../lib/matrixspec.js";
 import { chainResponse } from "../lib/dsp/chain.js";
 import { bandFreqs } from "../lib/dsp/curves.js";
-import { xfeedBlock } from "../store/xfeedblock.js";
-import { structuralBlock } from "../store/xfmode.js";
+import { xfeedBlock } from "../store/xfeed/block.js";
+import { structuralBlock } from "../store/xfeed/mode.js";
 import { withDrag, dragEq } from "./BandStrip.js";
 
 /**
@@ -26,7 +26,7 @@ import { withDrag, dragEq } from "./BandStrip.js";
  *   An applied-baseline curve: a PlotTrace flagged for the muted dashed style.
  * @typedef {{ eqProcess: { left: string, right: string } }} StructuralRec
  *   The part of a recognized structural crossfeed block these traces read: the
- *   per-ear EQ chain it was built from (store/xfmode.js).
+ *   per-ear EQ chain it was built from (store/xfeed/mode.js).
  */
 
 // Same fixed audio-band reference rate as the loudness plot: the digital-biquad

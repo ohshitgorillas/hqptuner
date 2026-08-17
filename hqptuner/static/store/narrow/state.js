@@ -50,7 +50,7 @@ export const nLength = signal([]); // multi-select: short | medium | long | xlon
 // The rate-limited rule is TRI-STATE: "auto" (default) follows the DAC — when
 // the output mode is SDM and the device exposes no 48 kHz-family DSD rate,
 // rate-limited filters cannot produce output from 48 kHz-family sources, so
-// "auto" hides them (narrowmatch.js resolves it against the live rates enum).
+// "auto" hides them (match.js resolves it against the live rates enum).
 // "on"/"off" are the user's explicit override either way. Only an explicit
 // value reads as engaged — the auto default is not a changed field.
 export const RATE_RULE_DEFAULT = "auto";

@@ -30,9 +30,9 @@ import {
   nDownsafeOnly,
   QUALITY_DEFAULT,
   RATE_RULE_DEFAULT,
-} from "../../store/narrowing.js";
-import { effHideLimited } from "../../store/narrowmatch.js";
-import { favoriteFilters, nFavOnly } from "../../store/favorites.js";
+} from "../../store/narrow/state.js";
+import { effHideLimited } from "../../store/narrow/match.js";
+import { favoriteFilters, nFavOnly } from "../../store/narrow/favorites.js";
 
 // How a multi-select facet's picks combine, as the last row of its own popover:
 // the checkbox rows above are WHICH tags, this is HOW they join. A segment

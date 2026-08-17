@@ -69,12 +69,12 @@ import {
   health,
   pendingPreset,
 } from "../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../hqptuner/static/store/speakers.js";
-import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
+import { speakers } from "../../../hqptuner/static/store/matrix/speakers.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfmode.js";
+import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfeed/mode.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { cancel } from "../../../hqptuner/static/store/ask.js";

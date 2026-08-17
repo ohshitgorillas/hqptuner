@@ -34,7 +34,7 @@ export const PHASES = [
   ["minimum", "Minimum"],
   ["intermediate", "Intermediate"],
   ["linear", "Linear"],
-  // the filters the phase taxonomy does not reach (store/facets.js `phase`) —
+  // the filters the phase taxonomy does not reach (store/narrow/facets.js `phase`) —
   // a real facet value, distinct from the empty selection the button calls
   // "Any phase", which means "not narrowed by phase at all"
   ["", "No phase"],

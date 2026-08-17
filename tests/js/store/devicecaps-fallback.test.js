@@ -1,4 +1,4 @@
-// Behavioral suite for store/devicecaps.js — the half of the contract that
+// Behavioral suite for store/narrow/devicecaps.js — the half of the contract that
 // MOVES a setting rather than graying one.
 //
 // Graying an option the user cannot click is only half the job: the setting may
@@ -31,7 +31,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { edit } from "../../../hqptuner/static/store/actions.js";
-import { grayRatesByDevice, grayModesByDevice } from "../../../hqptuner/static/store/devicecaps.js";
+import { grayRatesByDevice, grayModesByDevice } from "../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
   MODE_OPTIONS,
   NET_DEVICE,

@@ -1,4 +1,4 @@
-// Behavioral suite for the favorites error caption (store/favorites.js
+// Behavioral suite for the favorites error caption (store/narrow/favorites.js
 // `favoritesError`, rendered by components/Field.js): when a star could not be
 // saved to the server, the sentence the server sent is shown to the user, under
 // the dropdowns that carry stars and nowhere else.
@@ -24,7 +24,7 @@ import assert from "node:assert/strict";
 import { reset, field } from "../support/field-harness.js";
 import { staticWire } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
-import { favoriteFilters, favoritesError } from "../../../hqptuner/static/store/favorites.js";
+import { favoriteFilters, favoritesError } from "../../../hqptuner/static/store/narrow/favorites.js";
 
 // A sentence in the shape FastAPI's `detail` carries, with no characters SSR
 // would re-encode.

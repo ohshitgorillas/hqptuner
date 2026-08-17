@@ -1,6 +1,6 @@
 // Behavioral suite for the DSP tab's SPEAKERS half: the mode switcher
-// (store/matrixmode.js), the speaker card's rendered contract
-// (components/SpeakersCard.js), and the apply lane (store/speakers.js).
+// (store/matrix/mode.js), the speaker card's rendered contract
+// (components/SpeakersCard.js), and the apply lane (store/matrix/speakers.js).
 //
 // Policy (docs/testing.md): public API only, one assertion per test. The card's
 // sub-components (ChannelRow, Body) are private and stay that way — every case
@@ -24,8 +24,8 @@ import {
   speakersError,
   applySpeakers,
   loadSpeakers,
-} from "../../../hqptuner/static/store/speakers.js";
-import { matrixMode, setMatrixMode } from "../../../hqptuner/static/store/matrixmode.js";
+} from "../../../hqptuner/static/store/matrix/speakers.js";
+import { matrixMode, setMatrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actions.js";
@@ -33,7 +33,7 @@ import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { msCompile, msRecognize, fitComp, BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
-import { structuralBlock } from "../../../hqptuner/static/store/xfmode.js";
+import { structuralBlock } from "../../../hqptuner/static/store/xfeed/mode.js";
 import { ok, bad, stagingWire } from "../support/wire.js";
 
 /** @typedef {import("../support/wire.js").FakeResponse} FakeResponse */

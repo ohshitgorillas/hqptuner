@@ -28,7 +28,7 @@ import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
+import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
 import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js";

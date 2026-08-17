@@ -1,4 +1,4 @@
-// Behavioral suite for filter narrowing (store/narrowing.js): which filters a
+// Behavioral suite for filter narrowing (store/narrow/state.js): which filters a
 // dropdown still offers once the user has picked facets, and what the counts
 // beside it say.
 //
@@ -56,8 +56,8 @@ import {
   nApodNx,
   narrowingActive,
   resetNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 const STAGE = "nx";
@@ -72,7 +72,7 @@ const FIELD = "pcm_filter_nx";
 
 /**
  * The two members `narrowOptions` and friends read off a dropdown option —
- * matches store/narrowing.js's own `NarrowOption`.
+ * matches store/narrow/state.js's own `NarrowOption`.
  *
  * @typedef {{ value: string | number | undefined, label: string }} NarrowOption
  */

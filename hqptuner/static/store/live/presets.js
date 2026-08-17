@@ -12,11 +12,11 @@
 // The store is small and changes only when this card changes it, so it is not on
 // the poll: it is read when LIVE opens and re-read after each save or delete.
 import { signal, effect } from "@preact/signals";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
-import { reportError } from "./live/state.js";
-import { remirrorLive } from "./live/write.js";
-import { liveMode } from "./prefs.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
+import { reportError } from "./state.js";
+import { remirrorLive } from "./write.js";
+import { liveMode } from "../prefs.js";
 
 // Every saved preset, as /api/livepresets serves it: {name, chain, fields,
 // names, compatible}. Null until the first read — "not looked yet" and "none
@@ -99,7 +99,7 @@ export async function applyLivePreset(name) {
   await run(
     name,
     () => api.applyLivePreset(name),
-    async (/** @type {import("./live/state.js").LiveReport} */ report) => {
+    async (/** @type {import("./state.js").LiveReport} */ report) => {
       await remirrorLive(fields, report);
       livePresetError.value = reportError(report);
     },

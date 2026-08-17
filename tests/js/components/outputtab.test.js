@@ -37,7 +37,7 @@ import { activeTab } from "../../../hqptuner/static/store/ui.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
 import { classes, elements } from "../support/markup.js";
 import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";

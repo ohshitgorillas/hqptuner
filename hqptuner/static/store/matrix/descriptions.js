@@ -21,8 +21,8 @@
 // Nothing polls. A tab picks up another tab's edits on reload, like favorites.
 // Module load stays node-safe: the hydrate is guarded on `fetch` existing.
 import { signal } from "@preact/signals";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
 
 // How long the typist has to pause before the queue drains on its own.
 const QUIET_MS = 800;

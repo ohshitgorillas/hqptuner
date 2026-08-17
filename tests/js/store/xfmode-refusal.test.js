@@ -1,5 +1,5 @@
 // Behavioral suite for the structural crossfeed install's parse-or-refuse
-// contract (store/xfmode.js stageStructural + lib/binaural-setup.js pairInfo).
+// contract (store/xfeed/mode.js stageStructural + lib/binaural-setup.js pairInfo).
 //
 // The install compiles a 16-row matrix block over pipeline rows 0..1 — the
 // stereo EQ pair, one row per ear — and keeps later rows after it. The contract
@@ -15,7 +15,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { stageStructural, removeStructural, structuralBlock } from "../../../hqptuner/static/store/xfmode.js";
+import { stageStructural, removeStructural, structuralBlock } from "../../../hqptuner/static/store/xfeed/mode.js";
 import { pairInfo } from "../../../hqptuner/static/lib/binaural-setup.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";

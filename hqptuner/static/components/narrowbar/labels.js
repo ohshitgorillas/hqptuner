@@ -14,8 +14,8 @@ import {
   nLength,
   nOddRateOnly,
   nDownsafeOnly,
-} from "../../store/narrowing.js";
-import { previewCount, effHideLimited } from "../../store/narrowmatch.js";
+} from "../../store/narrow/state.js";
+import { previewCount, effHideLimited } from "../../store/narrow/match.js";
 import { GENRES, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
 
 /**
@@ -25,7 +25,7 @@ import { GENRES, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
  *             lossy?: string }} NarrowOverrides
  *   A partial facet selection laid over the live one — what a candidate pick
  *   would produce, which is what the count chips are counted against
- *   (store/narrowing.js buildSel names the full set).
+ *   (store/narrow/state.js buildSel names the full set).
  * @typedef {{ value: (string | number)[] }} MultiSignal
  */
 
@@ -56,7 +56,7 @@ export function focusLabel() {
   return withMode(`${sel.length} focuses`, nFocusMode.value);
 }
 
-// Genre's "any" tag outranks the combine mode (store/narrowmatch.js): a filter
+// Genre's "any" tag outranks the combine mode (store/narrow/match.js): a filter
 // the manual marks as suiting every genre survives the selection whatever else
 // is picked. Under AND that makes every other pick inert — the result is the
 // "any" filters and nothing else, whether or not Classical is also ticked.

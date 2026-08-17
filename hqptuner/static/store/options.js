@@ -53,7 +53,7 @@ export function grayShapersByRate(options, kind) {
  * @returns {OptionItem[]}
  */
 export function enumOptions(name) {
-  /** @type {import("./facets.js").EnumItem[]} */
+  /** @type {import("./narrow/facets.js").EnumItem[]} */
   const list = (enums.value && enums.value[name]) || [];
   return list.map((o) => ({ value: o.index, label: o.name, disabled: false, reason: "" }));
 }

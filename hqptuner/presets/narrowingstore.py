@@ -11,7 +11,7 @@ client is HQPTuner's own frontend and a facet it cannot name is a bug worth surf
 content: an entry that is unknown, wrong-typed or out of domain falls back to that facet's default, so a file damaged
 by hand or left behind by an older layout costs the user their narrowing rather than their narrow bar.
 
-The defaults here are the frontend's defaults and must stay in step with them (``static/store/narrowing.js``). Every
+The defaults here are the frontend's defaults and must stay in step with them (``static/store/narrow/state.js``). Every
 facet starts unnarrowed: the minimum-quality floor of 3 is the one default that is not simply "any", and it is the
 frontend's too.
 """
@@ -52,7 +52,7 @@ _LOSSY_1X = frozenset({"both", "lossless", "lossy"})
 # a narrow-bar control and shares the bar's reset.
 _SRC_FORMAT = frozenset({"pcm", "both"})
 # How each multi-select facet combines its picks. The defaults differ by facet and are the frontend's
-# (``static/store/narrowing.js``): genre ``or``, focus ``and``.
+# (``static/store/narrow/state.js``): genre ``or``, focus ``and``.
 _MODES = frozenset({"and", "or"})
 
 

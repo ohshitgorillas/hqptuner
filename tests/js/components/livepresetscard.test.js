@@ -41,7 +41,7 @@ import {
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
-import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/livepresets.js";
+import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwire.js";
 
 const REAL_FETCH = globalThis.fetch;

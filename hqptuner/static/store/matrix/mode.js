@@ -34,12 +34,12 @@
 // accounts for. Only the hand-driven switcher suppresses and restores.
 import { signal, computed, effect } from "@preact/signals";
 
-import { effective, effectivePipelines, canonPipelines, activePreset } from "./resolve.js";
-import { stagePipelines, edit } from "./actions.js";
-import { structuralBlock, removeStructural, disableBauer } from "./xfmode.js";
-import { pendingPreset } from "./signals.js";
-import { truthy } from "../lib/coerce.js";
-import { api } from "../lib/api.js";
+import { effective, effectivePipelines, canonPipelines, activePreset } from "../resolve.js";
+import { stagePipelines, edit } from "../actions.js";
+import { structuralBlock, removeStructural, disableBauer } from "../xfeed/mode.js";
+import { pendingPreset } from "../signals.js";
+import { truthy } from "../../lib/coerce.js";
+import { api } from "../../lib/api.js";
 
 // DELIBERATELY still says dspMode, and must stay that way. This module, its
 // signal and its setter were renamed dspMode -> matrixMode when the DSP tab
@@ -76,9 +76,9 @@ let snapshot = loadSnapshot();
  * @typedef {object} Suppressed
  *   What the trip to the speaker side took away — the guard for putting exactly
  *   that back, and nothing else.
- * @property {import("./resolve.js").PipelineRow[]} rows the pipelines as they stood
+ * @property {import("../resolve.js").PipelineRow[]} rows the pipelines as they stood
  * @property {string | number | boolean | undefined} crossfeed the Bauer flag as it stood
- * @property {import("./resolve.js").PipelineRow[]} after what the suppression left behind
+ * @property {import("../resolve.js").PipelineRow[]} after what the suppression left behind
  */
 
 /**

@@ -17,7 +17,7 @@
 // module's, and it is client-only and unpersisted, which is why it carries no
 // wire key here.
 
-import { nFavOnly } from "../../../hqptuner/static/store/favorites.js";
+import { nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import {
   nGenre,
   nQuality,
@@ -30,7 +30,7 @@ import {
   nApod1x,
   nApodNx,
   nLossy1x,
-} from "../../../hqptuner/static/store/narrowing.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
 
 /**
  * One row: the facet's name as a failure should read it, the signal carrying

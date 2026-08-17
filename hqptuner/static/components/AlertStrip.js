@@ -3,19 +3,19 @@
 // bar's omit-disabled-stages principle). Conditions and wording live in
 // store/health.js; this just renders the list.
 //
-// The junk-filter advice chip (store/junkadvice.js) rides the same strip: it is
+// The junk-filter advice chip (store/alerts/junkadvice.js) rides the same strip: it is
 // the same "the engine has something to tell you" surface, but advisory rather
 // than a fault, so it carries its own tone. Text only — no controls; it clears
 // itself when the track changes or the engaged settings treat the junk.
-// Rate/shaper conflicts (store/shaperfit.js) ride the strip between the two:
+// Rate/shaper conflicts (store/alerts/shaperfit.js) ride the strip between the two:
 // they are faults like the health alerts rather than advice, but they are a
 // property of the settings rather than of playback, so unlike the health alerts
 // they show with the engine stopped.
 import { html } from "../lib/dom.js";
 import { engineAlerts } from "../store/health.js";
-import { shaperAlerts } from "../store/shaperfit.js";
-import { roonIdleAlert } from "../store/roonidle.js";
-import { junkAdvice } from "../store/junkadvice.js";
+import { shaperAlerts } from "../store/alerts/shaperfit.js";
+import { roonIdleAlert } from "../store/alerts/roonidle.js";
+import { junkAdvice } from "../store/alerts/junkadvice.js";
 
 /** Warning row of engine-health and rate/shaper alerts plus the junk-filter advice chip; renders nothing when all are empty. */
 export function AlertStrip() {

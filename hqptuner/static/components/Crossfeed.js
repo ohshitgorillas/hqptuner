@@ -38,11 +38,11 @@ import {
   remember,
   liveParams,
   pipelinesDirty,
-} from "../store/xfmode.js";
+} from "../store/xfeed/mode.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
 import { XfeedStrip, CompMiniPlot, lensOn, lensShown, xfeedLensAvailable } from "./XfeedComp.js";
-import { xfeedBlock } from "../store/xfeedblock.js";
+import { xfeedBlock } from "../store/xfeed/block.js";
 import { uncompensatedRows } from "../lib/xfeed.js";
 import { Segment, SliderNumber } from "./controls/index.js";
 import { CrossfeedPlot, PlotFrame } from "./plots.js";
@@ -54,7 +54,7 @@ import { db, dbOffset } from "../lib/units.js";
  * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {{ lambda: number, angle: number, headRadius: number }} StructParams
  *   The three physical controls the structural block compiles from
- *   (store/xfmode.js DEFAULTS names the same trio).
+ *   (store/xfeed/mode.js DEFAULTS names the same trio).
  * @typedef {{ alphaNear: number, alphaFar: number, itd: number, cornerHz: number,
  *             groupDelayNear: number, groupDelayFar: number }} PathParams
  *   What lib/binaural/geometry.js pathParams() derives from that geometry.

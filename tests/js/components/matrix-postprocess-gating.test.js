@@ -36,7 +36,7 @@
 // signals carrying the daemon's own /config and /matrix forms (`enabled` is the
 // daemon field behind the `matrix_enabled` schema key; the post-process fields
 // are `post_bauer_*`, `post_correction_*`, `post_loudness_*`), by the exported
-// crossfeed view signal (`xfMode`, store/xfmode.js), and by `edit()` over the
+// crossfeed view signal (`xfMode`, store/xfeed/mode.js), and by `edit()` over the
 // staging wire fake on the real REST paths (tests/js/support/wire.js). Nothing is
 // stubbed and no module private is touched.
 //
@@ -82,14 +82,14 @@ import {
   volume,
   volumeRange,
 } from "../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../hqptuner/static/store/speakers.js";
-import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
+import { speakers } from "../../../hqptuner/static/store/matrix/speakers.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
-import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfmode.js";
+import { xfMode, liveParams, remember } from "../../../hqptuner/static/store/xfeed/mode.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
+import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
 import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
 import { field, grayReason, titleOf } from "../support/field-harness.js";

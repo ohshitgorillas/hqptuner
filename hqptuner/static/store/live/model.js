@@ -10,7 +10,7 @@
 // because there was only one module. Now a consumer that takes liveModel alone
 // would never load state.js, and stale per-field errors would survive a
 // reconnect. Both current entry points are safe — LiveView.js also takes
-// liveBusy/liveErrors/writeLive, and store/livepresets.js takes
+// liveBusy/liveErrors/writeLive, and store/live/presets.js takes
 // remirrorLive/reportError — so nothing is wrong today. A future reader-only
 // consumer must import from ./state.js as well.
 
@@ -18,7 +18,7 @@ import { computed } from "@preact/signals";
 import { engineState } from "../signals.js";
 import { schema } from "../schema.js";
 import { enumOptions } from "../options.js";
-import { grayModesByDevice } from "../devicecaps.js";
+import { grayModesByDevice } from "../narrow/devicecaps.js";
 import { catalog, modeValue, stateOf } from "./derive.js";
 import { rateColumn } from "./rates.js";
 import { chainControls } from "./chains.js";

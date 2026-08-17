@@ -1,4 +1,4 @@
-// Behavioral suite for store/profiles.js — the profile-staging fan-out
+// Behavioral suite for store/matrix/profiles.js — the profile-staging fan-out
 // payloads: what stageProfileSave / stageProfileDelete actually put on the
 // wire when a presets list is (or is not) supplied, that a targeted delete's
 // name is still honoured by savedProfiles, and the presetProfiles read model.
@@ -23,7 +23,7 @@ import {
   presetProfiles,
   stageProfileSave,
   stageProfileDelete,
-} from "../../../hqptuner/static/store/profiles.js";
+} from "../../../hqptuner/static/store/matrix/profiles.js";
 import { ROW, PROF, reset } from "../support/profile-fixtures.js";
 
 const REAL_FETCH = globalThis.fetch;

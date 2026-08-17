@@ -1,4 +1,4 @@
-// Behavioral suite for profile descriptions on the client (store/descriptions.js):
+// Behavioral suite for profile descriptions on the client (store/matrix/descriptions.js):
 // the prose a user attaches to a saved matrix profile, kept on the SERVER so
 // every browser sees the same note, and keyed by profile NAME — the stable join
 // key (docs/architecture.md §2), which is also all `<matrix_profile>` carries
@@ -32,7 +32,7 @@ import {
   descriptionFor,
   queueDescription,
   flushDescriptions,
-} from "../../../hqptuner/static/store/descriptions.js";
+} from "../../../hqptuner/static/store/matrix/descriptions.js";
 
 const PATH = "/api/descriptions";
 const NAME = "Living Room";

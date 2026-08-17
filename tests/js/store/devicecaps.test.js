@@ -1,4 +1,4 @@
-// Behavioral suite for store/devicecaps.js — graying the rate menus and the
+// Behavioral suite for store/narrow/devicecaps.js — graying the rate menus and the
 // mode segment against what the SELECTED OUTPUT DEVICE can actually carry.
 //
 // The other half of the contract, correcting a setting that already SITS on
@@ -40,7 +40,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { DSD_RATES } from "../../../hqptuner/static/store/schema.js";
-import { grayRatesByDevice, grayModesByDevice } from "../../../hqptuner/static/store/devicecaps.js";
+import { grayRatesByDevice, grayModesByDevice } from "../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
   ALSA_DEVICE,
   DSD64,

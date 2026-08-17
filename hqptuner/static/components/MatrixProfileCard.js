@@ -30,8 +30,8 @@ import {
   stageProfileSave,
   stageProfileDelete,
   profileSavePending,
-} from "../store/profiles.js";
-import { descriptionFor, descriptionError, queueDescription, flushDescriptions } from "../store/descriptions.js";
+} from "../store/matrix/profiles.js";
+import { descriptionFor, descriptionError, queueDescription, flushDescriptions } from "../store/matrix/descriptions.js";
 import { askChoices } from "../store/ask.js";
 import { notesVisible } from "../store/prefs.js";
 import { Ask } from "./Ask.js";

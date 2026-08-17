@@ -1,4 +1,4 @@
-// Behavioral suite for `filterNarrowingActive` (store/narrowing.js): the
+// Behavioral suite for `filterNarrowingActive` (store/narrow/state.js): the
 // predicate that says whether any facet which actually NARROWS A DROPDOWN has
 // moved off its default. It is `narrowingActive` minus the source-format term,
 // because source format narrows no dropdown — it discloses the chain cards' "DSD
@@ -35,7 +35,7 @@ import {
   narrowingActive,
   filterNarrowingActive,
   resetNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 import { MOVED_FACETS } from "../support/narrowfacets.js";
 

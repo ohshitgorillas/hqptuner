@@ -33,8 +33,8 @@ import {
   setLiveCardOpen,
 } from "../store/prefs.js";
 import { refreshConfig } from "../store/sync.js";
-import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/profiles.js";
-import { descriptionFor } from "../store/descriptions.js";
+import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/matrix/profiles.js";
+import { descriptionFor } from "../store/matrix/descriptions.js";
 import { Segment, Dropdown, Checkbox } from "./controls/index.js";
 import { widgetFor, widthClasses, tipsFor, favFor, FavoriteError } from "./Field.js";
 import { ChainPack } from "./ChainPack.js";

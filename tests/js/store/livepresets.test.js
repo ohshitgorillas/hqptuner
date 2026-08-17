@@ -1,4 +1,4 @@
-// Behavioral suite for store/livepresets.js — the LIVE page's own presets: the
+// Behavioral suite for store/live/presets.js — the LIVE page's own presets: the
 // saved list and the four verbs (read / apply / save / delete). The LIVE MODE
 // card LiveView renders from them is covered in livepresetscard.test.js; the
 // wire fake and the records it serves live in livepresetwire.js.
@@ -29,10 +29,10 @@ import {
   applyLivePreset,
   saveLivePreset,
   deleteLivePreset,
-} from "../../../hqptuner/static/store/livepresets.js";
+} from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, presetWire, settle } from "../support/livepresetwire.js";
 
-/** @typedef {import("../../../hqptuner/static/store/livepresets.js").LivePreset} LivePreset */
+/** @typedef {import("../../../hqptuner/static/store/live/presets.js").LivePreset} LivePreset */
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {

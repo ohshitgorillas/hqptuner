@@ -51,7 +51,7 @@
 // after stripping the query, and keeps only the LAST entry recorded for that
 // path — so the load-only instance's near-zero coverage silently overwrote
 // the real, thoroughly-exercised instance's numbers. Measured on
-// store/favorites.js: the real instance recorded `toggleFavorite` count 39,
+// store/narrow/favorites.js: the real instance recorded `toggleFavorite` count 39,
 // the `?nofetch2` instance recorded 0, and the coverage report printed 0.00%
 // functions for the whole file despite it being well tested.
 //

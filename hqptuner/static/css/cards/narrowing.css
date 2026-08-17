@@ -380,7 +380,7 @@
 }
 
 /* A star that would not stick — the favorites write was refused, and the set
-   went back the way it was (store/favorites.js). Placed under the dropdown it
+   went back the way it was (store/narrow/favorites.js). Placed under the dropdown it
    belongs to, in the field's grid col 2, same as a gray reason; warn colour
    rather than the caption grey, for the same reason .live-error takes it — a
    caption is prose the user may read, this is a failure they have to act on. */

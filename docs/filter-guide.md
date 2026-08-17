@@ -39,7 +39,7 @@ No counts in the header itself: they would go stale against the live enum, which
 | 3 | Ringing | not a chip — vocabulary of the per-filter description rendered inline for the current selection, `hqptuner/static/store/prose.js:48-65` | pre-ringing, post-ringing, passband ripple, stop-band attenuation, roll-off speed, impulse-response length |
 | 4 | Taps | not a chip — the unit Length is classified on, `facets.js:90-128`; the manual quotes counts per filter | no values; a count, usually relative to conversion ratio |
 | 5 | Cut | not a chip — card vocabulary. HQPlayer's word for its steepness is "roll-off", in the per-filter description at `prose.js:48-65` | no values; a shape with three parts |
-| 6 | Phase | narrow bar, `hqptuner/static/components/NarrowBar.js:51-56`; parsed from `-lp`/`-mp`/`-ip` suffixes, `hqptuner/static/store/facets.js:83-89` | Linear / Minimum / Intermediate |
+| 6 | Phase | narrow bar, `hqptuner/static/components/NarrowBar.js:51-56`; parsed from `-lp`/`-mp`/`-ip` suffixes, `hqptuner/static/store/narrow/facets.js:83-89` | Linear / Minimum / Intermediate |
 | 7 | Length | narrow bar, `NarrowBar.js:57-62`; tap-count classification `facets.js:104-128` | Short / Medium / Long / Extra long |
 | 8 | Apodizing | per-chain 1x narrowing control, `hqptuner/static/components/ApodNarrow.js`; live arg bit 0 = apodizing, bit 1 = half | manual's Apod column carries three values, Y / ½ / N; the card explains Y and N and stays silent on ½ |
 

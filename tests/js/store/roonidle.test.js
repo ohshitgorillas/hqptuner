@@ -1,4 +1,4 @@
-// Behavioral suite for store/roonidle.js — the Roon idle-time advisory.
+// Behavioral suite for store/alerts/roonidle.js — the Roon idle-time advisory.
 //
 // hqplayerd restarts the engine between tracks when `idle_time` is at its
 // default ("0" on the wire = Default, settings-classification.md:31), which is
@@ -26,7 +26,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { roonIdleAlert } from "../../../hqptuner/static/store/roonidle.js";
+import { roonIdleAlert } from "../../../hqptuner/static/store/alerts/roonidle.js";
 import { AlertStrip } from "../../../hqptuner/static/components/AlertStrip.js";
 import { engineStatus, config } from "../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";

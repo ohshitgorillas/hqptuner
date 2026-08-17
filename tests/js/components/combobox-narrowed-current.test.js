@@ -8,7 +8,7 @@
 // (value !== label for filter options), the description line under the control
 // still describes the selection, and no option row claims to be the selected one.
 //
-// The facet engaged here is favorites-only (store/favorites.js `nFavOnly`),
+// The facet engaged here is favorites-only (store/narrow/favorites.js `nFavOnly`),
 // because it narrows on the filter NAME alone and so needs no enumeration
 // fixture; the store-level rule it exercises is the same one every other facet
 // obeys (tests/js/store/narrow-drops-current.test.js).
@@ -36,8 +36,8 @@ import { Combobox } from "../../../hqptuner/static/components/controls/Combobox.
 import { reset, field, line, optionLabels } from "../support/field-harness.js";
 import { staticWire } from "../support/wire.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
-import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/favorites.js";
-import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrowing.js";
+import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
+import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 
 // The 1x filter dropdown, with a selection (sinc-M) the harness's metadata
 // describes and a second filter the user has starred.

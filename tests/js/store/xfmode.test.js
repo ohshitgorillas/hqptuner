@@ -1,4 +1,4 @@
-// Behavioral suite for the crossfeed MODE segment (store/xfmode.js): which of the
+// Behavioral suite for the crossfeed MODE segment (store/xfeed/mode.js): which of the
 // two implementations the user is looking at, and what selecting one does to the
 // other.
 //
@@ -27,7 +27,7 @@ import {
   removeStructural,
   stageStructural,
   pipelinesDirty,
-} from "../../../hqptuner/static/store/xfmode.js";
+} from "../../../hqptuner/static/store/xfeed/mode.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines, isDirty } from "../../../hqptuner/static/store/resolve.js";
 import { stagePipelines, discardAll, edit } from "../../../hqptuner/static/store/actions.js";

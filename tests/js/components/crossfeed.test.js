@@ -4,7 +4,7 @@
 //
 // Inputs are the exported store signals the exemplar suites drive: the config
 // baseline carries the pipeline rows (`effectivePipelines`), `matrixConfig`
-// carries the /matrix form fields, `xfMode`/`liveParams`/`remember` (store/xfmode.js)
+// carries the /matrix form fields, `xfMode`/`liveParams`/`remember` (store/xfeed/mode.js)
 // carry the view choice and the structural controls' memory — all public, all
 // reset every test. Blocks are built with the real compiler, never hand-typed.
 //
@@ -41,7 +41,7 @@ import {
   stageStructural,
   removeStructural,
   structuralBlock,
-} from "../../../hqptuner/static/store/xfmode.js";
+} from "../../../hqptuner/static/store/xfeed/mode.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { staticWire, stagingWire } from "../support/wire.js";

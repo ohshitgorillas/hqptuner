@@ -1,4 +1,4 @@
-// The fetch fake for the server-backed favorites store (store/favorites.js).
+// The fetch fake for the server-backed favorites store (store/narrow/favorites.js).
 //
 // Favorites are filter NAMES kept in HQPTuner's own state dir and served by one
 // REST pair — GET /api/favorites -> {filters: [...]} and

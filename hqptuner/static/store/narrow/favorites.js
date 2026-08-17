@@ -25,8 +25,8 @@
 // existing and swallows its own failure, so importing this in the SSR harness
 // neither throws nor leaves a rejected promise behind.
 import { signal } from "@preact/signals";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
 
 // The pre-server store. Read exactly once, by the migration below, so stars set
 // before favorites moved to the server survive the move.

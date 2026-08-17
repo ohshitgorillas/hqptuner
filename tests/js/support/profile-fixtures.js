@@ -1,4 +1,4 @@
-// Fixtures the two store/profiles suites drive their trees from: the pipeline
+// Fixtures the two store/matrix/profiles suites drive their trees from: the pipeline
 // row and stored-profile shapes the matrix config carries, and the full reset
 // each case starts from. Module-level signals outlive a test, so the reset
 // reassigns every tree and clears the staged buffer via discardAll().

@@ -1,5 +1,5 @@
-// Behavioral suite for favorite filters (store/favorites.js) and their
-// integration with narrowing (store/narrowing.js `nFavOnly`): a filter NAME the
+// Behavioral suite for favorite filters (store/narrow/favorites.js) and their
+// integration with narrowing (store/narrow/state.js `nFavOnly`): a filter NAME the
 // user has starred — now kept on the SERVER, so every browser sees the same
 // stars — and an optional favorites-only facet that ANDs with the ordinary
 // narrowing facets.
@@ -43,12 +43,12 @@ import {
   isFavorite,
   toggleFavorite,
   hydrateFavorites,
-} from "../../../hqptuner/static/store/favorites.js";
-import { nFocus, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
+} from "../../../hqptuner/static/store/narrow/favorites.js";
+import { nFocus, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
-const FAVORITES_MODULE = "../../../hqptuner/static/store/favorites.js";
+const FAVORITES_MODULE = "../../../hqptuner/static/store/narrow/favorites.js";
 const LEGACY_KEY = "hqptuner.favoriteFilters";
 
 const favOnlyAtLoad = nFavOnly.value;

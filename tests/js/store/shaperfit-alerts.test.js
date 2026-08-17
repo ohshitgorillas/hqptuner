@@ -1,4 +1,4 @@
-// Behavioral suite for store/shaperfit.js's `shaperAlerts` — the rate/shaper
+// Behavioral suite for store/alerts/shaperfit.js's `shaperAlerts` — the rate/shaper
 // conflicts the alert strip reports as rows.
 //
 // Two families, two severities, drawn by product decision rather than by
@@ -26,7 +26,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { shaperAlerts } from "../../../hqptuner/static/store/shaperfit.js";
+import { shaperAlerts } from "../../../hqptuner/static/store/alerts/shaperfit.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
 import { stagingWire, quiesce } from "../support/wire.js";
 import {

@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
+import { nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { resetBar, renderBar, hasGroup, mentions, resets } from "../support/narrowbarview.js";
 import { MOVED_FACETS } from "../support/narrowfacets.js";
 

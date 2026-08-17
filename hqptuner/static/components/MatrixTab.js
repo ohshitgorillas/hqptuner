@@ -15,7 +15,7 @@ import { notesVisible } from "../store/prefs.js";
 import { MatrixPlot, plottedRows } from "./MatrixPlot.js";
 import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
 import { XfeedBadge } from "./XfeedComp.js";
-import { xfeedBlock } from "../store/xfeedblock.js";
+import { xfeedBlock } from "../store/xfeed/block.js";
 import { CrossfeedCard } from "./Crossfeed.js";
 import { StructuralBadge } from "./StructuralXfeed.js";
 import { ProfileCard } from "./MatrixProfileCard.js";
@@ -23,8 +23,8 @@ import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./MatrixFlowRow.js";
 import { setSelected } from "./MatrixStageEditor.js";
 import { SpeakersCard } from "./SpeakersCard.js";
 import { Segment } from "./controls/index.js";
-import { matrixMode, setMatrixMode } from "../store/matrixmode.js";
-import { structuralBlock } from "../store/xfmode.js";
+import { matrixMode, setMatrixMode } from "../store/matrix/mode.js";
+import { structuralBlock } from "../store/xfeed/mode.js";
 import { Section, Card } from "./common.js";
 import { BypassNote } from "./MatrixBypassNote.js";
 
@@ -327,7 +327,7 @@ function HeadphoneGlyph() {
 }
 
 // The mode switcher. A VIEW selector: it decides which listening setup's
-// controls are on screen and never turns processing on (store/matrixmode.js). The
+// controls are on screen and never turns processing on (store/matrix/mode.js). The
 // matrix, the pipelines and the response plot are common to both and stay put
 // below it — they are the signal path itself, not a headphone feature.
 function DspSwitcher() {

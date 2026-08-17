@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { loadProfile } from "../../../hqptuner/static/components/MatrixProfileCard.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { profilePost, profileRows, stageProfileSave } from "../../../hqptuner/static/store/profiles.js";
+import { profilePost, profileRows, stageProfileSave } from "../../../hqptuner/static/store/matrix/profiles.js";
 import { stagingWire, ok } from "../support/wire.js";
 
 /**

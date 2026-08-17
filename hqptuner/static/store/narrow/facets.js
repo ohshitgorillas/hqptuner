@@ -10,7 +10,7 @@
 // HQPlayer that renames/adds filters is still covered live for the active mode,
 // and a stale static entry simply never matches. (architecture §2 volatility.)
 import { computed } from "@preact/signals";
-import { enums, metadata } from "./signals.js";
+import { enums, metadata } from "../signals.js";
 
 /**
  * @typedef {object} StaticFilterEntry

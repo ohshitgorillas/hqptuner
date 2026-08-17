@@ -27,7 +27,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nFocus, nHideLimited, nOddRateOnly, nDownsafeOnly } from "../../../hqptuner/static/store/narrowing.js";
+import { nFocus, nHideLimited, nOddRateOnly, nDownsafeOnly } from "../../../hqptuner/static/store/narrow/state.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import {
   resetNarrowBar,

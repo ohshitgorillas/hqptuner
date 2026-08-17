@@ -1,4 +1,4 @@
-// Behavioral suite for the filter phase facet (store/facets.js): where a
+// Behavioral suite for the filter phase facet (store/narrow/facets.js): where a
 // filter's `phase` comes from and which source wins.
 //
 // Two sources, one precedence rule. A `-lp`/`-mp`/`-ip` token in the filter's
@@ -29,7 +29,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { filterFacets } from "../../../hqptuner/static/store/facets.js";
+import { filterFacets } from "../../../hqptuner/static/store/narrow/facets.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 /**

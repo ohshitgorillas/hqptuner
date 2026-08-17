@@ -13,7 +13,7 @@ import { engineState, enums, modeName } from "../signals.js";
 import { schema, TIER } from "../schema.js";
 
 /**
- * @typedef {import("../facets.js").EnumItem} EnumItem
+ * @typedef {import("../narrow/facets.js").EnumItem} EnumItem
  *
  * @typedef {object} MenuOption
  *   One option as this page's menus carry them. Looser than OptionItem: the

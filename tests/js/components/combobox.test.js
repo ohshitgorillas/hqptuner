@@ -17,7 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field, controlRow, attrOf } from "../support/field-harness.js";
-import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrowing.js";
+import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 
 // Opening tag of the first element in `out` whose attributes match `needle`.
 /**

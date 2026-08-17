@@ -11,9 +11,9 @@ import { edit, setLive, autosave } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
 import { describe, selectionDescription, optionDescription, selectedLabel } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
-import { grayRatesByDevice, grayModesByDevice } from "../store/devicecaps.js";
-import { narrowOptions, narrowCount } from "../store/narrowmatch.js";
-import { isFavorite, toggleFavorite, favoritesError } from "../store/favorites.js";
+import { grayRatesByDevice, grayModesByDevice } from "../store/narrow/devicecaps.js";
+import { narrowOptions, narrowCount } from "../store/narrow/match.js";
+import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
@@ -81,7 +81,7 @@ export const tipsFor = (entry, meta) =>
     : undefined;
 /**
  * Builds the favorite-star wiring for the filter dropdowns (`narrow`-carrying
- * entries), keyed by option label = filter name (store/favorites.js); undefined
+ * entries), keyed by option label = filter name (store/narrow/favorites.js); undefined
  * everywhere else, so dither/modulator comboboxes render starless. Shared with
  * the LIVE page's binder, same as widgetFor/tipsFor.
  */
@@ -193,7 +193,7 @@ function fieldClasses(entry, key, label) {
 // client-side transforms — filter selects narrow their (large) option list by
 // the active facets; shaper selects gray what the output rate can't reach.
 // The field key threads into narrowOptions so a 1x dropdown reads its OWN
-// apodizing state (per-chain, store/narrowing.js).
+// apodizing state (per-chain, store/narrow/state.js).
 /**
  * @param {FieldEntry} entry
  * @returns {FieldOptions}
@@ -217,7 +217,7 @@ function fieldOptions(entry, key, raw) {
   if (entry.narrow) options = narrowOptions(options, entry.narrow, key);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
   // Last, because it is about the hardware rather than the settings: what the
-  // selected output device announced it can carry (store/devicecaps.js).
+  // selected output device announced it can carry (store/narrow/devicecaps.js).
   if (entry.deviceGray === "mode") options = grayModesByDevice(options);
   else if (entry.deviceGray) options = grayRatesByDevice(options, entry.deviceGray);
   return options;

@@ -46,7 +46,7 @@ def test_unknown_name_returns_none(static: StaticMetadata) -> None:
 
 # --- facet coverage (the narrowing overlay: quality/focus/apodizing/ratio) ---
 # Every filter must carry the manual-transcribed facets, or the client's
-# live-first/static-fallback facet map (store/facets.js) leaves the inactive
+# live-first/static-fallback facet map (store/narrow/facets.js) leaves the inactive
 # output mode's filters un-narrowable. These guard the transcription.
 
 FOCUS_TOKENS = {"transients", "timbre", "space"}

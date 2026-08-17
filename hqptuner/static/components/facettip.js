@@ -1,12 +1,12 @@
 // Facet rows and chips for the filter combobox's hover tip — the same
-// narrowing facts the narrow bar filters on (store/facets.js), addressed by
+// narrowing facts the narrow bar filters on (store/narrow/facets.js), addressed by
 // one filter name and rendered with the narrow bar's own labels so the tip
 // and the chips never disagree on a spelling.
-import { filterFacets } from "../store/facets.js";
+import { filterFacets } from "../store/narrow/facets.js";
 import { GENRES, FOCUS, PHASES, LENGTHS, RATIOS } from "./narrowbar/facet-data.js";
 import { oneLabel } from "./narrowbar/labels.js";
 
-/** @typedef {import("../store/facets.js").FilterFacet} FilterFacet */
+/** @typedef {import("../store/narrow/facets.js").FilterFacet} FilterFacet */
 
 // oneLabel's return is as wide as its option tables (string | number | null);
 // every value this module looks up labels as a string.

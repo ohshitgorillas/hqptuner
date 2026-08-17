@@ -4,7 +4,7 @@
 // The constraint file records a `min_rate_hz` for several dithers, and every one
 // of them is manufacturer wording ("optimized for") about a setting that still
 // PLAYS below its floor — so the row stays pickable and the advice is reported
-// as an alert instead (store/shaperfit.js). The hard half of the same file, the
+// as an alert instead (store/alerts/shaperfit.js). The hard half of the same file, the
 // SDM modulator floors, still grays: a modulator below its floor produces no
 // output at all. That case is pinned in field.test.js and combobox.test.js; the
 // one case of it here is the SECOND floor, which shows the reason naming the

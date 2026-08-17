@@ -1,5 +1,5 @@
 // Behavioral suite for the PERSISTENCE half of filter narrowing
-// (store/narrowing.js): the facets the narrow bar is set to, kept on the SERVER
+// (store/narrow/state.js): the facets the narrow bar is set to, kept on the SERVER
 // so a reload finds the bar the way the user left it. Which filters a facet
 // then hides is narrowing.test.js's subject, not this file's. The three
 // rate-narrowing switches that replaced the ratio pick live in
@@ -45,8 +45,8 @@ import {
   nLossy1x,
   nSrcFormat,
   resetNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
-import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrow/persist.js";
 
 const PATH = "/api/narrowing";
 

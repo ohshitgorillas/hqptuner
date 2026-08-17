@@ -19,7 +19,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nGenre } from "../../../hqptuner/static/store/narrowing.js";
+import { nGenre } from "../../../hqptuner/static/store/narrow/state.js";
 import { resetNarrowBar, openFacet, popoverRows, checkedRows } from "../support/genrepopover.js";
 
 const MERGED_CAPTION = "Pop & rock";

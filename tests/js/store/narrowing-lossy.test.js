@@ -1,5 +1,5 @@
-// Behavioral suite for the 1x LOSSY-SOURCE control (store/narrowing.js for the
-// signal, store/narrowmatch.js for the matching).
+// Behavioral suite for the 1x LOSSY-SOURCE control (store/narrow/state.js for the
+// signal, store/narrow/match.js for the matching).
 //
 // The 1x stage no longer carries a show/hide switch over hi-res-named filters.
 // It carries a three-state control over SOURCE CLASS instead: "lossless",
@@ -44,8 +44,8 @@ import {
   nQuality,
   narrowingActive,
   resetNarrowing,
-} from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions } from "../../../hqptuner/static/store/narrowmatch.js";
+} from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 /**

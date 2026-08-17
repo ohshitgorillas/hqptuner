@@ -33,7 +33,7 @@ import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
 import { health, engineState, enums, config, matrixConfig, metadata } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrowing.js";
+import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { staticWire } from "../support/wire.js";
 import { hasGroup, mentions, resets } from "../support/narrowbarview.js";
 

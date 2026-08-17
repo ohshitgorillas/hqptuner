@@ -7,8 +7,8 @@
 // directly, rather than pretending to be part of the pending-changes bar.
 import { signal } from "@preact/signals";
 
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
 
 export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
 export const speakersStale = signal(false);

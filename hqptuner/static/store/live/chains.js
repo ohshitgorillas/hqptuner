@@ -6,7 +6,7 @@
 
 import { runningValue } from "../resolve.js";
 import { optionsFor, grayShapersByRate } from "../options.js";
-import { narrowOptions, narrowCount } from "../narrowmatch.js";
+import { narrowOptions, narrowCount } from "../narrow/match.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
 
 /**
@@ -37,7 +37,7 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
 // than growing two — and it is what closes the modulator-first order into a
 // rate/shaper conflict. The rate-first order is not closed by graying rates,
 // which would lock the user into the higher rate; it is reported in words
-// (store/shaperfit.js). A selected option below the floor grays but stays
+// (store/alerts/shaperfit.js). A selected option below the floor grays but stays
 // listed and stays selected — grayShapersByRate marks, it never drops.
 /**
  * @param {ChainControl} c

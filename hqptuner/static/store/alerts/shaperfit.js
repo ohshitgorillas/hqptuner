@@ -19,11 +19,11 @@
 // would be noise, not a fault report.
 
 import { computed } from "@preact/signals";
-import { metadata } from "./signals.js";
-import { effective } from "./resolve.js";
-import { optionsFor } from "./options.js";
-import { schema, DSD_RATES, PCM_RATES, TIER } from "./schema.js";
-import { loadedChain } from "./live/rates.js";
+import { metadata } from "../signals.js";
+import { effective } from "../resolve.js";
+import { optionsFor } from "../options.js";
+import { schema, DSD_RATES, PCM_RATES, TIER } from "../schema.js";
+import { loadedChain } from "../live/rates.js";
 
 /**
  * @typedef {{ value: string, label: string }} RateTier

@@ -49,7 +49,7 @@
 // renders the exported `MatrixTab` or the exported `SpeakersCard`, driven by the
 // exported store signals carrying the daemon's own /matrix form (`enabled` is
 // the daemon field behind the `matrix_enabled` schema key), by the exported
-// crossfeed view signal (`xfMode`, store/xfmode.js) and by `edit()` over the
+// crossfeed view signal (`xfMode`, store/xfeed/mode.js) and by `edit()` over the
 // staging wire fake on the real REST paths (tests/js/support/wire.js). Nothing
 // is stubbed and no module private is touched.
 //
@@ -79,9 +79,9 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
 import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../hqptuner/static/store/speakers.js";
-import { matrixMode } from "../../../hqptuner/static/store/matrixmode.js";
-import { xfMode } from "../../../hqptuner/static/store/xfmode.js";
+import { speakers } from "../../../hqptuner/static/store/matrix/speakers.js";
+import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
+import { xfMode } from "../../../hqptuner/static/store/xfeed/mode.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";

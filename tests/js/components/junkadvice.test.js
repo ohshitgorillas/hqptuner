@@ -1,4 +1,4 @@
-// Behavioral suite for the junk-filter advice chip: store/junkadvice.js's
+// Behavioral suite for the junk-filter advice chip: store/alerts/junkadvice.js's
 // `junkAdvice` computed plus its rendering inside components/AlertStrip.js.
 //
 // The /api/status payload's `data` object carries a `junk` key — null, or an
@@ -21,7 +21,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { AlertStrip } from "../../../hqptuner/static/components/AlertStrip.js";
-import { junkAdvice } from "../../../hqptuner/static/store/junkadvice.js";
+import { junkAdvice } from "../../../hqptuner/static/store/alerts/junkadvice.js";
 import { engineStatus } from "../../../hqptuner/static/store/signals.js";
 
 // An idle engine: health derives no alerts from a non-playing state, so the

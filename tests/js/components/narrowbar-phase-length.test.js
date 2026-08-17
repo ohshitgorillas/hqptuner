@@ -25,7 +25,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nPhase, nLength } from "../../../hqptuner/static/store/narrowing.js";
+import { nPhase, nLength } from "../../../hqptuner/static/store/narrow/state.js";
 import { phaseLabel, lengthLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import {
   resetNarrowBar,

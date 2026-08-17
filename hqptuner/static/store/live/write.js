@@ -27,7 +27,7 @@ import { wireRate } from "./rates.js";
 /** @typedef {import("./state.js").LiveReport} LiveReport */
 
 // Re-read what a live write moved. Takes the batch's fields rather than one
-// name because a live preset applies several at once (store/livepresets.js) and
+// name because a live preset applies several at once (store/live/presets.js) and
 // must re-mirror by exactly the rules a hand-made write already follows —
 // deciding that twice is how the two paths drift.
 /**

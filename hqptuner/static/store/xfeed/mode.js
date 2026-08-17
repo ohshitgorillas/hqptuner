@@ -30,18 +30,18 @@
 
 import { signal } from "@preact/signals";
 
-import { compileRows } from "../lib/binaural/compile.js";
-import { SPEAKER_ANGLE, HEAD_RADIUS } from "../lib/binaural/geometry.js";
-import { recognizeRows } from "../lib/binaural/recognize.js";
-import { blockConflicts, pairInfo, REFUSAL } from "../lib/binaural-setup.js";
-import { effective, effectivePipelines, pipelineBaseline } from "./resolve.js";
-import { stagePipelines, edit } from "./actions.js";
-import { xfeedBlock, removeBlock as removeCompBlock } from "./xfeedblock.js";
-import { truthy } from "../lib/coerce.js";
+import { compileRows } from "../../lib/binaural/compile.js";
+import { SPEAKER_ANGLE, HEAD_RADIUS } from "../../lib/binaural/geometry.js";
+import { recognizeRows } from "../../lib/binaural/recognize.js";
+import { blockConflicts, pairInfo, REFUSAL } from "../../lib/binaural-setup.js";
+import { effective, effectivePipelines, pipelineBaseline } from "../resolve.js";
+import { stagePipelines, edit } from "../actions.js";
+import { xfeedBlock, removeBlock as removeCompBlock } from "./block.js";
+import { truthy } from "../../lib/coerce.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/binaural/recognize.js").StructuralRecognition} StructuralRecognition
  * @typedef {{ lambda?: number, angle?: number, headRadius?: number }} StructuralParams
  *   The three controls the block compiles from, each optional so a partial
  *   remember() or an in-flight drag can carry only what moved.

@@ -5,19 +5,19 @@
 // components/XfeedComp.js still owns the strip, the badge
 // and the lens traces. None of the three functions here renders anything — they
 // read the resolved config and stage rows — and leaving them in a component
-// meant store/xfmode.js had to reach up into components/ to ask whether a block
+// meant store/xfeed/mode.js had to reach up into components/ to ask whether a block
 // was installed. That was the last upward edge in the frontend import graph.
 //
 // Bauer preset internals are not surfaced by the daemon (probe finding), so
 // preset -> (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
-import { effective } from "./resolve.js";
-import { stagePipelines, edit } from "./actions.js";
-import { BAUER_PRESETS, msRecognize } from "../lib/xfeed.js";
-import { truthy } from "../lib/coerce.js";
+import { effective } from "../resolve.js";
+import { stagePipelines, edit } from "../actions.js";
+import { BAUER_PRESETS, msRecognize } from "../../lib/xfeed.js";
+import { truthy } from "../../lib/coerce.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../lib/xfeed.js").MsRecognition} MsRecognition
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/xfeed.js").MsRecognition} MsRecognition
  * @typedef {{ enabled: boolean, fc: number, feed: number }} BauerSettings
  *   The running Bauer crossfeed the correction is fitted against: its on/off
  *   flag and the (corner, feed) pair the preset or the two knobs resolve to.
@@ -50,7 +50,7 @@ export function xfeedBlock(rows) {
 }
 
 // Public because leaving Bauer takes its rows with it, not just its enable flag:
-// the mode segment (store/xfmode.js) and the DSP tab's Speakers switch both call
+// the mode segment (store/xfeed/mode.js) and the DSP tab's Speakers switch both call
 // this, and a correction left behind would run against a crossfeed that is off.
 /**
  * Stage the pipelines with the eight compensation rows replaced by a plain two-channel

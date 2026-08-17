@@ -1,4 +1,4 @@
-// Behavioral suite for store/profiles.js — the saved-matrix-profile read model:
+// Behavioral suite for store/matrix/profiles.js — the saved-matrix-profile read model:
 // savedProfiles' merge of staged save/delete over the config's <matrix_profile>
 // elements and the daemon's startup list, profileRows' staged-vs-file
 // resolution, isLiveProfile's reachability rule, and the active-name fallbacks.
@@ -23,7 +23,7 @@ import {
   matrixActiveProfile,
   stageProfileSave,
   stageProfileDelete,
-} from "../../../hqptuner/static/store/profiles.js";
+} from "../../../hqptuner/static/store/matrix/profiles.js";
 import { ROW, PROF, reset } from "../support/profile-fixtures.js";
 
 const REAL_FETCH = globalThis.fetch;

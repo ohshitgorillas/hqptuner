@@ -9,8 +9,8 @@
 // two browsers racing is last-write-wins. The favorites-only switch is NOT part
 // of that store: it lives in favorites.js and stays session state.
 import { signal, effect, batch } from "@preact/signals";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
 import {
   nGenre,
   nQuality,
@@ -34,7 +34,7 @@ import {
   SRC_FORMAT_DEFAULT,
   GENRE_MODE_DEFAULT,
   FOCUS_MODE_DEFAULT,
-} from "./narrowing.js";
+} from "./state.js";
 
 // Every facet the store holds, as [wire key, signal, default]. The wire keys are
 // snake_case because the store is Python's; the mapping is mechanical.

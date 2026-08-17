@@ -29,14 +29,14 @@ import {
   speakersStale,
   loadSpeakers,
   applySpeakers,
-} from "../store/speakers.js";
+} from "../store/matrix/speakers.js";
 import { SpeakersDiagram } from "./SpeakersDiagram.js";
 import { truthy } from "../lib/coerce.js";
 
 /**
  * @typedef {import("./SpeakersDiagram.js").SpeakerChannel} SpeakerChannel
  * @typedef {{ enabled: boolean, channels: SpeakerChannel[] }} SpeakersData
- *   The /speakers form as store/speakers.js holds it (conf/httpconf.py
+ *   The /speakers form as store/matrix/speakers.js holds it (conf/httpconf.py
  *   parse_speakers_form): the master switch and the daemon's eight slots.
  * @typedef {{ level?: string, distance?: string }} ChannelEdit
  *   One channel's pending edits — exactly the partial overlay the POST takes.

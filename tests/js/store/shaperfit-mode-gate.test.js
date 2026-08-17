@@ -35,7 +35,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { shaperAlerts } from "../../../hqptuner/static/store/shaperfit.js";
+import { shaperAlerts } from "../../../hqptuner/static/store/alerts/shaperfit.js";
 import { previewConfig, pendingPreset } from "../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
 import { stagingWire, quiesce } from "../support/wire.js";

@@ -1,6 +1,6 @@
 // The LIVE page's lede card: the page's one piece of its own prose, and beside
 // it the live presets — named combos of the settings on that page, saved by
-// HQPTuner rather than by the daemon (store/livepresets.js). Picking one applies
+// HQPTuner rather than by the daemon (store/live/presets.js). Picking one applies
 // it on the spot, like every other control there; there is no Apply on that page
 // for it to wait for.
 //
@@ -19,7 +19,7 @@ import {
   applyLivePreset,
   saveLivePreset,
   deleteLivePreset,
-} from "../store/livepresets.js";
+} from "../store/live/presets.js";
 import { askName, askConfirm } from "../store/ask.js";
 import { Ask } from "./Ask.js";
 import { Dropdown } from "./controls/index.js";

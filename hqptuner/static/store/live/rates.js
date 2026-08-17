@@ -16,7 +16,7 @@
 import { engineState, engineStatus } from "../signals.js";
 import { schema, TWIN_44K } from "../schema.js";
 import { runningValue } from "../resolve.js";
-import { grayRatesByDevice } from "../devicecaps.js";
+import { grayRatesByDevice } from "../narrow/devicecaps.js";
 import { items, modeValue, rateValue } from "./derive.js";
 
 /** @typedef {import("./derive.js").MenuOption} MenuOption */
@@ -142,7 +142,7 @@ function rateOptions(key) {
 
 // The chain the engine has LOADED, "" for none — the one family question the
 // engine alone can answer, and the only one a caller reading the mode from
-// elsewhere still has to ask it (store/shaperfit.js).
+// elsewhere still has to ask it (store/alerts/shaperfit.js).
 /** The family of the chain the engine has loaded, "" when it has none. */
 export function loadedChain() {
   return (engineState.value || {}).active_chain || "";

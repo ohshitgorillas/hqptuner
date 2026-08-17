@@ -20,7 +20,7 @@
 //                other output mode: the user may want them right BEFORE
 //                switching, so graying them forces a stage/unstage dance
 //   deviceGray   'pcm' | 'sdm' | 'mode': narrow this control's options against
-//                what the selected output device announced (store/devicecaps.js)
+//                what the selected output device announced (store/narrow/devicecaps.js)
 //   quietGray    suppress the visible gray caption (hover title only) — for
 //                controls whose graying is already explained by context (the
 //                rate pair, dimmed post-process card bodies)
@@ -435,7 +435,7 @@ export const schema = {
     field: "alsa_dop",
     // NOT grayed in PCM, unlike its neighbours. On a device with no native DSD
     // path this switch is the only thing that makes SDM reachable at all, and
-    // SDM grays until it is on (store/devicecaps.js) — graying it in PCM too
+    // SDM grays until it is on (store/narrow/devicecaps.js) — graying it in PCM too
     // locks the user out of DSD entirely, with both controls pointing at each
     // other. Same reasoning as volume min/max under a bypassed volume: never
     // gray the one control that escapes the state.
@@ -574,7 +574,7 @@ export const schema = {
     // No rateGray. The PCM dither floors are the manual's recommendations, not
     // faults: a ditherer below its floor still dithers and the engine still
     // produces output, so every dither stays selectable at every rate and the
-    // mismatch is reported in words instead (store/shaperfit.js). `rateGray`
+    // mismatch is reported in words instead (store/alerts/shaperfit.js). `rateGray`
     // stays on sdm_modulator, where the floor really does stop output.
     desc: "dither",
   },

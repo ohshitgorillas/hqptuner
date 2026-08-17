@@ -14,7 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { enums } from "../../../hqptuner/static/store/signals.js";
-import { nPhase, nApod1x } from "../../../hqptuner/static/store/narrowing.js";
+import { nPhase, nApod1x } from "../../../hqptuner/static/store/narrow/state.js";
 import {
   reset,
   stageEdit,

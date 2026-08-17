@@ -70,8 +70,8 @@ import {
   keepOptionDescriptions,
   setLiveCardOpen,
 } from "../../../hqptuner/static/store/prefs.js";
-import { resetNarrowing, narrowingActive, nFocus } from "../../../hqptuner/static/store/narrowing.js";
-import { narrowOptions } from "../../../hqptuner/static/store/narrowmatch.js";
+import { resetNarrowing, narrowingActive, nFocus } from "../../../hqptuner/static/store/narrow/state.js";
+import { narrowOptions } from "../../../hqptuner/static/store/narrow/match.js";
 import { staticWire } from "../support/wire.js";
 import { classes, elements, text } from "../support/markup.js";
 import { useStorage, dropStorage } from "../support/storage.js";

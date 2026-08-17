@@ -1,5 +1,5 @@
 // Behavioral suite for the Quality facet's option table and its new default
-// (store/narrowing.js, components/narrowbar/facet-data.js): the dropdown's four
+// (store/narrow/state.js, components/narrowbar/facet-data.js): the dropdown's four
 // rows verbatim, the facet starting at "minimum 3" instead of "any quality",
 // and what that default means for reset, the narrowed indicator, matching and
 // hydration.
@@ -25,13 +25,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nQuality, nApod1x, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrowing.js";
-import { favoriteFilters, nFavOnly } from "../../../hqptuner/static/store/favorites.js";
+import { nQuality, nApod1x, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { favoriteFilters, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { QUALITY } from "../../../hqptuner/static/components/narrowbar/facet-data.js";
 import { oneLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
-import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrowmatch.js";
+import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
-import { hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrowpersist.js";
+import { hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrow/persist.js";
 import { ok } from "../support/wire.js";
 import { narrowingWire } from "../support/narrowingwire.js";
 

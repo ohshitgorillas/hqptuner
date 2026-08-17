@@ -15,9 +15,9 @@
 // plus a name staged but not yet applied — which exists as far as the user is
 // concerned, and is the one case a load cannot switch live.
 import { computed } from "@preact/signals";
-import { matrixConfig } from "./signals.js";
-import { effective, isDirty } from "./resolve.js";
-import { edit } from "./actions.js";
+import { matrixConfig } from "../signals.js";
+import { effective, isDirty } from "../resolve.js";
+import { edit } from "../actions.js";
 
 const SAVE = "matrix_profile_save";
 const DELETE = "matrix_profile_delete";
@@ -88,7 +88,7 @@ const fileProfile = (/** @type {string} */ name) => fileProfiles.value[name] || 
  * daemon knows the name.
  *
  * @param {string} name
- * @returns {import("./resolve.js").PipelineRow[] | null}
+ * @returns {import("../resolve.js").PipelineRow[] | null}
  */
 export function profileRows(name) {
   const staging = stagedSave();
@@ -122,7 +122,7 @@ export function profilePost(name) {
 /** Stage a profile save carrying the given rows, and the stored presets it fans out to. */
 export const stageProfileSave = (
   /** @type {string} */ name,
-  /** @type {import("./resolve.js").PipelineRow[]} */ rows,
+  /** @type {import("../resolve.js").PipelineRow[]} */ rows,
   /** @type {string[]} */ presets = [],
 ) => edit(SAVE, JSON.stringify(presets.length ? { name, rows, presets } : { name, rows }));
 /** Stage a profile delete, and the stored presets it fans out to. */
