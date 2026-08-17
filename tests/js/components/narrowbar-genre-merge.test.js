@@ -73,9 +73,14 @@ test("test_the_genre_popover_offers_one_row_mentioning_rock_and_it_reads_pop_and
   );
 });
 
-test("test_the_genre_popover_offers_no_row_captioned_pop_alone", async () => {
+// The absence is read against the captions the popover actually offers: a
+// popover rendering no rows at all also offers no "Pop" row, and would pass an
+// unanchored absence.
+
+test("test_the_genre_popover_offers_rows_and_none_of_them_reads_pop_alone", async () => {
   await reset();
-  assert.equal(genreCaptions().includes("Pop"), false);
+  const captions = genreCaptions();
+  assert.deepEqual({ offered: captions.length > 0, pop: captions.includes("Pop") }, { offered: true, pop: false });
 });
 
 // --- the merged row keeps the value `pop` ------------------------------------------
@@ -88,8 +93,12 @@ test("test_picking_the_pop_genre_checks_the_merged_row", async () => {
 
 // --- the value `rock` is gone, so it can check nothing --------------------------------
 
-test("test_the_retired_rock_genre_value_checks_no_row", async () => {
+test("test_the_retired_rock_genre_value_checks_none_of_the_rows_offered", async () => {
   await reset();
   nGenre.value = ["rock"];
-  assert.deepEqual(checkedRows(openFacet("genre")), []);
+  const block = openFacet("genre");
+  assert.deepEqual(
+    { offered: popoverRows(block).length > 0, checked: checkedRows(block) },
+    { offered: true, checked: [] },
+  );
 });

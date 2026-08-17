@@ -34,9 +34,9 @@ import {
   resetNarrowBar,
   openFacet,
   checkedRows,
+  popoverRows,
   rowIsDisabled,
   rowIsMarkedOff,
-  disabledRowCount,
 } from "../support/genrepopover.js";
 
 // Filters in the engine's own description format, `"<q>/5 [focus, ...] <glyph>
@@ -106,6 +106,20 @@ test("test_with_any_picked_and_the_and_mode_the_classical_row_is_marked_off", as
   assert.equal(rowIsMarkedOff(await genrePopover(["any"], "and"), classical), true);
 });
 
+// The rule reads "the selection INCLUDES any", so a selection carrying another
+// genre alongside it marks the rest inert just the same, whichever end of the
+// array the escape hatch sits at.
+
+test("test_with_any_picked_before_another_genre_and_the_and_mode_the_classical_row_is_disabled", async () => {
+  const classical = await captionFor("classical");
+  assert.equal(rowIsDisabled(await genrePopover(["any", "jazz"], "and"), classical), true);
+});
+
+test("test_with_any_picked_after_another_genre_and_the_and_mode_the_classical_row_is_disabled", async () => {
+  const classical = await captionFor("classical");
+  assert.equal(rowIsDisabled(await genrePopover(["jazz", "any"], "and"), classical), true);
+});
+
 // --- the "any" row itself stays live, so the user can give the escape hatch back ---
 
 test("test_with_any_picked_and_the_and_mode_the_any_row_is_not_disabled", async () => {
@@ -152,7 +166,16 @@ test("test_with_no_genre_picked_and_the_and_mode_the_classical_row_is_not_marked
 
 // --- the bar's other multi-select carries no inertness rule -----------------------
 
-test("test_the_focus_popover_disables_no_row", async () => {
+// Read against the rows the popover actually offers: a facet that rendered
+// nothing at all would also disable nothing, so the row list is proven non-empty
+// in the same breath.
+
+test("test_the_focus_popover_marks_none_of_the_rows_it_offers_unavailable", async () => {
   await reset();
-  assert.equal(disabledRowCount(openFacet("focus")), 0);
+  const block = openFacet("focus");
+  const offered = popoverRows(block).map((r) => r.label);
+  assert.deepEqual(
+    { offered: offered.length > 0, disabled: offered.filter((label) => rowIsDisabled(block, label)) },
+    { offered: true, disabled: [] },
+  );
 });

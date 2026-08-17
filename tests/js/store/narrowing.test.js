@@ -277,6 +277,7 @@ test("test_reset_leaves_narrowing_inactive", () => {
 // ignored its overrides could not answer 3.
 test("test_a_preview_counts_its_own_overrides_not_the_live_selection", () => {
   const options = reset(FOCUS);
+  nFocusMode.value = "and";
   nFocus.value = ["timbre", "transients"];
   assert.equal(previewCount(options, STAGE, FIELD, { focus: ["timbre"] }), 3);
 });

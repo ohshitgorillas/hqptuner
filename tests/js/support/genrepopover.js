@@ -229,11 +229,3 @@ export function rowIsMarkedOff(block, label) {
   const names = (/class="([^"]*)"/.exec(tag[0]) || ["", ""])[1].split(/\s+/);
   return names.includes("off");
 }
-
-/**
- * How many rows of an open popover render an unavailable checkbox.
- *
- * @param {string} block
- * @returns {number}
- */
-export const disabledRowCount = (block) => popoverRows(block).filter((r) => rowIsDisabled(block, r.label)).length;

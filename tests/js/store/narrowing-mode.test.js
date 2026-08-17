@@ -40,8 +40,6 @@ import {
   nFocusMode,
   narrowingActive,
   resetNarrowing,
-  GENRE_MODE_DEFAULT,
-  FOCUS_MODE_DEFAULT,
 } from "../../../hqptuner/static/store/narrowing.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
 import { genreLabel, focusLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
@@ -238,30 +236,21 @@ test("test_a_focus_mode_alone_is_not_active_narrowing", () => {
 
 // --- reset returns each mode to its OWN default ------------------------------------
 // Not to empty, and not to one shared value: the pair is what tells them apart.
-// The two reset cases are about "back to the default", so they read the default
-// off the store's own exported constant; the value each constant carries is
-// pinned literally just below, so a silent flip is caught in exactly one place.
+// Each case names the value it expects literally, so it answers what a user gets
+// back rather than restating whatever the store exports.
 
-test("test_reset_returns_the_genre_mode_to_its_default", () => {
+test("test_reset_returns_the_genre_mode_to_or", () => {
   reset(PLAIN, GENRES);
   nGenreMode.value = "and";
   resetNarrowing();
-  assert.equal(nGenreMode.value, GENRE_MODE_DEFAULT);
+  assert.equal(nGenreMode.value, "or");
 });
 
-test("test_reset_returns_the_focus_mode_to_its_default", () => {
+test("test_reset_returns_the_focus_mode_to_and", () => {
   reset(FOCUS);
   nFocusMode.value = "or";
   resetNarrowing();
-  assert.equal(nFocusMode.value, FOCUS_MODE_DEFAULT);
-});
-
-test("test_the_genre_combine_mode_defaults_to_or", () => {
-  assert.equal(GENRE_MODE_DEFAULT, "or");
-});
-
-test("test_the_focus_combine_mode_defaults_to_and", () => {
-  assert.equal(FOCUS_MODE_DEFAULT, "and");
+  assert.equal(nFocusMode.value, "and");
 });
 
 // --- the count beside a dropdown follows the mode -----------------------------------
