@@ -1,4 +1,4 @@
-"""Speaker-processing apply (readme §1.9, /speakers form lane) — the logic behind ``manager.apply_speakers``.
+"""Speaker-processing apply (readme §1.9, /speakers form lane) — the lane behind ``POST /api/speakers``.
 
 The overlay + checkbox-safe write + range validation live in
 ``httpconf.apply_speakers``; here we ride out the ~3 s engine reload the form POST

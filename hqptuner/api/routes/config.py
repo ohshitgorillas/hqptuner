@@ -171,7 +171,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
             # in front of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
     try:
-        await manager.restore_config(data)
+        await manager.require_http().restore(data)
     except (ControlError, httpx.HTTPError) as exc:
         raise HTTPException(status_code=502, detail=f"restore failed: {exc}") from exc
     return {"restored": True, "bytes": len(data)}

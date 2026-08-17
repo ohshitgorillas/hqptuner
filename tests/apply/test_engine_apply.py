@@ -46,5 +46,5 @@ async def test_apply_engine_rejects_non_integer_device_id(http_manager: Connecti
 
 
 async def test_restored_archive_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
-    await http_manager.restore_config(_archive_with_nblocks("4"))
+    await http_manager.require_http().restore(_archive_with_nblocks("4"))
     assert (await http_manager.read_engine())["nblocks"] == "4"

@@ -437,13 +437,6 @@ class ConnectionManager:
             return {"path": path, "enabled": enabled, "available": False, "reason": str(exc), "lines": []}
         return {"path": path, "enabled": enabled, "available": True, "lines": logtail.tail_text(text, lines)}
 
-    async def restore_config(self, data: bytes, scope: str = "system") -> None:
-        """Restore a user-supplied settings archive as-is (the System-tab restore action).
-
-        The daemon self-restarts, interrupting playback if any.
-        """
-        await self.require_http().restore(data, scope=scope)
-
     @property
     def control(self) -> ControlClient | None:
         """The live 4321 client, for the extracted lanes (None while unreachable)."""

@@ -1,9 +1,12 @@
 """Apply/dispatch operations (``manager.applyops``).
 
-The staged-config apply, the engine-attribute apply, the speaker-processing
-apply, the live matrix-profile switch, and the live volume write form one
-self-contained collaborator. Each delegates to its lane with the manager —
-this class owns the dispatch, not a second wire lane.
+The staged-config apply, the engine-attribute apply, and the live volume write
+form one self-contained collaborator. Each delegates to its lane with the
+manager — this class owns the dispatch, not a second wire lane.
+
+Operations that had nothing to add over their lane are not here: the matrix
+profile switch and the speaker apply were one-line pass-throughs, so their
+routes call ``lanes.matrixlane`` and ``lanes.speakerlane`` directly.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -12,7 +15,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import enginelane, httplane, matrixlane, speakerlane
+from hqptuner.lanes import enginelane, httplane
 from hqptuner.lanes.live import lane
 from hqptuner.lanes.writer import apply_live
 from hqptuner.presets import presetlane
@@ -22,7 +25,7 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 
 class ApplyOps:
-    """Dispatch the manager's five write operations to their lanes."""
+    """Dispatch the manager's three write operations to their lanes."""
 
     def __init__(self, mgr: "ConnectionManager") -> None:
         """Bind the operations to the manager whose clients, caches and lanes they write through."""
@@ -126,23 +129,3 @@ class ApplyOps:
         if engine:
             mgr.engine = engine
         return result
-
-    # --- matrix profiles (matrixlane, matrix-spec.md "Profiles") -----------
-    # Only the live switch lives here. Saving and deleting a profile are staged
-    # <matrix_profile> edits on the persistent lane (conf/matrixconf.py, round 5).
-
-    async def matrix_switch_profile(self, name: str) -> dict[str, Any]:
-        """Switch the engine's active matrix profile live and return the name read back from State.
-
-        The empty name selects ``[Default]``. No staging, no restore — the 4321 setter takes effect at once.
-        """
-        return await matrixlane.switch_profile(self._mgr, name)
-
-    # --- speaker processing (readme §1.9, speakerlane) ---------------------
-
-    async def apply_speakers(self, channels: dict[str, dict[str, str]], *, enabled: bool) -> dict[str, Any]:
-        """Write the per-channel speaker levels and distances and the processing flag, then verify the readback.
-
-        The form POST reloads the engine and interrupts playback; nothing gates on that — the user decides when.
-        """
-        return await speakerlane.apply(self._mgr, channels, enabled=enabled)

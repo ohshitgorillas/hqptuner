@@ -16,6 +16,7 @@ from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr, Mgr
 from hqptuner.conf.matrixconf import MATRIX_PROFILES
 from hqptuner.engine.control import ControlError
+from hqptuner.lanes import matrixlane, speakerlane
 from hqptuner.presets import presetlane
 
 router = APIRouter(prefix="/api")
@@ -108,7 +109,7 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> dict[str, Any
     if body.action != "switch":
         raise HTTPException(status_code=404, detail=f"unknown matrix profile action: {body.action}")
     try:
-        return await manager.applyops.matrix_switch_profile(body.name)
+        return await matrixlane.switch_profile(manager, body.name)
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=_switch_refusal(str(exc))) from exc
 
@@ -139,7 +140,7 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
     range-validated in ``httpconf.apply_speakers``.
     """
     try:
-        report = await manager.applyops.apply_speakers(body.channels, enabled=body.enabled)
+        report = await speakerlane.apply(manager, body.channels, enabled=body.enabled)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

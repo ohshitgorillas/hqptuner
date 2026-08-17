@@ -31,6 +31,7 @@ from fake_http import state
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes import matrixlane
 
 #: Night's stored matrix: one row at a gain no live matrix here has, and a
 #: bauer stage at a frequency no live chain here has.
@@ -125,7 +126,7 @@ async def test_a_preset_switch_apply_keeps_the_presets_own_pipeline_rows(
     plain_manager: ConnectionManager,
 ) -> None:
     plain_manager.presetops.store.save("Base", cfg_xml(night_cfg()))
-    await plain_manager.applyops.matrix_switch_profile("Night")
+    await matrixlane.switch_profile(plain_manager, "Night")
     await plain_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
     # exactly the preset's own rows: nothing of Night's appended, prepended or merged
     assert await rows(plain_manager) == OWN_ROWS_READBACK
@@ -137,7 +138,7 @@ async def test_a_preset_switch_apply_does_not_install_the_profiles_chain(
     # the preset's own live chain sits at 850, Night's stored bauer at 300; only
     # the preset's value may be running after the switch
     plain_manager.presetops.store.save("Base", cfg_xml(night_cfg()))
-    await plain_manager.applyops.matrix_switch_profile("Night")
+    await matrixlane.switch_profile(plain_manager, "Night")
     await plain_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
     assert (await plain_manager.load_file_config()).get("post_bauer_frequency") == "850"
 
@@ -148,7 +149,7 @@ async def test_a_preset_switch_apply_does_not_install_the_profiles_chain(
 async def test_a_plain_apply_still_installs_the_active_profiles_rows(
     night_manager: ConnectionManager,
 ) -> None:
-    await night_manager.applyops.matrix_switch_profile("Night")
+    await matrixlane.switch_profile(night_manager, "Night")
     await night_manager.applyops.apply({}, {"title": "Renamed"})
     # exactly Night's rows: installed means replaced wholesale, not present somewhere
     assert await rows(night_manager) == NIGHT_ROWS_READBACK

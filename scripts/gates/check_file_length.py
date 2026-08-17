@@ -47,7 +47,7 @@ WATCH_LINE = 400
 #: this table exists to refuse.
 ALLOWANCE: dict[str, int] = {
     "hqptuner/conf/matrixconf.py": 497,
-    "hqptuner/core/manager.py": 486,
+    "hqptuner/core/manager.py": 479,
     "hqptuner/static/components/xfeed/Card.js": 483,
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/lib/xfeed.js": 462,
