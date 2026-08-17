@@ -70,8 +70,8 @@ const SET = {
   quality: 4,
   focus: ["timbre"],
   focus_mode: "or",
-  phase: "linear",
-  length: "long",
+  phase: ["linear"],
+  length: ["long"],
   apod_1x: "only",
   apod_nx: "only",
   lossy_1x: "lossless",
@@ -125,7 +125,7 @@ test("test_hydration_leaves_a_facet_the_server_omits_at_its_default", async () =
   await reset();
   env.fetch = async (/** @type {string} */ path) => (path === PATH ? ok({ facets: { quality: 4 } }) : ok({}));
   await hydrateNarrowing();
-  assert.equal(nPhase.value, "");
+  assert.deepEqual(nPhase.value, []);
 });
 
 test("test_hydration_fills_the_facet_the_server_did_send_when_it_omits_the_rest", async () => {
@@ -147,9 +147,9 @@ test("test_hydration_writes_nothing_back", async () => {
 // apart from "wiped back to the defaults" — after `reset()` both look alike.
 test("test_a_failed_hydration_leaves_a_facet_at_the_value_it_already_held", async () => {
   await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await hydrateNarrowing();
-  assert.equal(nPhase.value, "minimum");
+  assert.deepEqual(nPhase.value, ["minimum"]);
 });
 
 test("test_a_failed_hydration_reports_the_sentence_the_server_sent", async () => {
@@ -181,7 +181,7 @@ test("test_a_facet_changed_while_the_hydration_was_in_flight_survives_it", async
 test("test_one_changed_facet_flushes_as_exactly_one_put", async () => {
   const w = await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   assert.equal(puts(w).length, 1);
 });
@@ -192,7 +192,7 @@ test("test_one_changed_facet_flushes_as_exactly_one_put", async () => {
 test("test_a_flush_sends_every_facet_of_the_contract_table", async () => {
   const w = await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   const sent = puts(w).at(-1) || {};
   assert.deepEqual(
@@ -204,9 +204,9 @@ test("test_a_flush_sends_every_facet_of_the_contract_table", async () => {
 test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
   const w = await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
-  assert.equal((puts(w).at(-1) || {}).phase, "minimum");
+  assert.deepEqual((puts(w).at(-1) || {}).phase, ["minimum"]);
 });
 
 // The lossy control rides the same put BY VALUE, not merely by key: a client
@@ -234,16 +234,16 @@ test("test_a_flush_sends_the_src_format_facet_as_the_user_set_it", async () => {
 test("test_a_flush_sends_a_facet_the_user_did_not_touch_at_the_value_it_holds", async () => {
   const w = await reset({ facets: SET });
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
-  assert.equal((puts(w).at(-1) || {}).length, "long");
+  assert.deepEqual((puts(w).at(-1) || {}).length, ["long"]);
 });
 
 test("test_three_changed_facets_coalesce_into_one_put", async () => {
   const w = await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
-  nLength.value = "short";
+  nPhase.value = ["minimum"];
+  nLength.value = ["short"];
   nQuality.value = 5;
   await flushNarrowing();
   assert.equal(puts(w).length, 1);
@@ -259,7 +259,7 @@ test("test_a_flush_with_nothing_changed_sends_nothing", async () => {
 test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async () => {
   const w = await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   await flushNarrowing();
   assert.equal(puts(w).length, 1);
@@ -272,7 +272,7 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
 test("test_the_put_carries_no_favorites_only_key", async () => {
   const w = await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   const sent = puts(w).at(-1) || { no_put_was_sent: true };
   assert.deepEqual(
@@ -284,7 +284,7 @@ test("test_the_put_carries_no_favorites_only_key", async () => {
 test("test_a_reset_flushes_every_facet_of_the_contract_table_at_its_default", async () => {
   const w = await reset({ facets: SET });
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   resetNarrowing();
   await flushNarrowing();
   const sent = puts(w).at(-1) || {};
@@ -298,15 +298,15 @@ test("test_a_reset_flushes_every_facet_of_the_contract_table_at_its_default", as
 test("test_a_failed_write_keeps_the_facet_the_user_set", async () => {
   await reset({ putStatus: 500, putDetail: "State directory is read-only." });
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
-  assert.equal(nPhase.value, "minimum");
+  assert.deepEqual(nPhase.value, ["minimum"]);
 });
 
 test("test_a_failed_write_reports_the_sentence_the_server_sent", async () => {
   await reset({ putStatus: 500, putDetail: "State directory is read-only." });
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   assert.equal(narrowingError.value, "State directory is read-only.");
 });
@@ -314,10 +314,10 @@ test("test_a_failed_write_reports_the_sentence_the_server_sent", async () => {
 test("test_a_write_that_succeeds_after_a_failed_one_clears_the_error", async () => {
   await reset({ putStatus: 500, putDetail: "State directory is read-only." });
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   narrowingWire();
-  nLength.value = "short";
+  nLength.value = ["short"];
   await flushNarrowing();
   assert.equal(narrowingError.value, "");
 });
@@ -325,7 +325,7 @@ test("test_a_write_that_succeeds_after_a_failed_one_clears_the_error", async () 
 test("test_a_successful_write_leaves_no_error", async () => {
   await reset();
   await hydrateNarrowing();
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   await flushNarrowing();
   assert.equal(narrowingError.value, "");
 });

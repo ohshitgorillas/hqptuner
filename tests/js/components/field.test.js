@@ -231,7 +231,7 @@ test("test_narrowing_drops_an_option_the_active_facets_exclude", async () => {
   });
   enums.value = { filters: [PASSES_QUALITY("poly-sinc-mp"), PASSES_QUALITY("sinc-Lm")] };
   nApod1x.value = "all";
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["poly-sinc-mp"]);
 });
 
@@ -253,7 +253,7 @@ test("test_narrowing_hides_the_selected_option_when_it_fails_the_facets", async 
   });
   enums.value = { filters: [PASSES_QUALITY("poly-sinc-mp"), PASSES_QUALITY("sinc-Lm")] };
   nApod1x.value = "all";
-  nPhase.value = "minimum";
+  nPhase.value = ["minimum"];
   assert.equal(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"), false);
 });
 

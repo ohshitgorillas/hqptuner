@@ -176,6 +176,54 @@ export function openFacet(name) {
 }
 
 /**
+ * The count chip beside one named row. Its text is the active chain's pair of
+ * counts, "<1x>/<Nx>", so a caller reads the half it means rather than the
+ * whole string.
+ *
+ * @param {string} block
+ * @param {string} label
+ * @returns {string}
+ */
+export function countChip(block, label) {
+  const m = new RegExp(`<span class="opt-label">${label}</span><span class="opt-count[^"]*">([^<]*)</span>`).exec(
+    block,
+  );
+  if (!m) throw new Error(`no count chip on the ${label} row`);
+  return m[1];
+}
+
+/**
+ * The Nx half of a count chip's "<1x>/<Nx>" text.
+ *
+ * @param {string} text
+ * @returns {number}
+ */
+export const nxOf = (text) => Number(text.split("/")[1]);
+
+/**
+ * The visible caption of every button inside one facet's block, tags stripped
+ * and whitespace squeezed: the facet's own toggle, plus whatever controls the
+ * open popover offers as buttons.
+ *
+ * @param {string} block
+ * @returns {string[]}
+ */
+export const buttonCaptions = (block) =>
+  block
+    .split("<button")
+    .slice(1)
+    .map((part) => {
+      const inner = part.slice(part.indexOf(">") + 1);
+      const end = inner.indexOf("</button>");
+      const caption = end < 0 ? inner : inner.slice(0, end);
+      return caption
+        .split(">")
+        .map((piece) => piece.split("<")[0])
+        .join("")
+        .trim();
+    });
+
+/**
  * The captions of the rows whose input renders checked.
  *
  * @param {string} block

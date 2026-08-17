@@ -1,9 +1,9 @@
 // Behavioral suite for the narrowing bar's rendered controls
-// (components/NarrowBar.js). Length is a facet a filter carries exactly ONE
-// of, so its popover offers its values as a single choice — radio rows, not
-// the checkbox rows the set-valued facets (genre, focus) use — plus a row that
-// clears the facet again. Last, the count chip on a row previews the click
-// that row would perform, which on a value already picked is an UNPICK.
+// (components/NarrowBar.js): the rate popover's three switches, the count chip
+// on a row previewing the click that row would perform (which on a value
+// already picked is an UNPICK), and the intro caption's pref. The phase and
+// length popovers are multi-select like genre and focus and are pinned in
+// tests/js/components/narrowbar-phase-length.test.js.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no store
 // function stubbed. State is driven by assigning the exported source signals the
@@ -13,9 +13,9 @@
 //
 // A popover renders nothing until it is open, and it opens on its button's
 // click handler; preact-render-to-string never fires one and there is no DOM
-// here. Resetting the bar, opening a facet and reading its rows back off the
-// emitted HTML all live in tests/js/support/genrepopover.js, which states what
-// that route couples to; only the count chip, read here alone, stays local.
+// here. Resetting the bar, opening a facet and reading its rows and count chips
+// back off the emitted HTML all live in tests/js/support/genrepopover.js, which
+// states what that route couples to.
 //
 // NOT covered here: which row is marked checked, and what clicking a row does to
 // the facet signals — the store suite (tests/js/store/narrowing.test.js) pins the
@@ -35,6 +35,8 @@ import {
   openFacet as open,
   popoverRows as rows,
   checkedRows,
+  countChip as chip,
+  nxOf as nxCount,
 } from "../support/genrepopover.js";
 
 /**
@@ -91,39 +93,6 @@ const chainFields = (filters) => {
  */
 const reset = ({ filters = FILTERS, fields = [] } = {}) => resetNarrowBar(filters, { overlay: OVERLAY, fields });
 
-// --- reading the rows -----------------------------------------------------------
-
-// The count chip on one named row. Its text is the active chain's pair of
-// counts, "<1x>/<Nx>", so a case reads the half it means rather than the string.
-/**
- * @param {string} block
- * @param {string} label
- * @returns {string}
- */
-function chip(block, label) {
-  const m = new RegExp(`<span class="opt-label">${label}</span><span class="opt-count[^"]*">([^<]*)</span>`).exec(
-    block,
-  );
-  if (!m) throw new Error(`no count chip on the ${label} row`);
-  return m[1];
-}
-
-/** @param {string} text */
-const nxCount = (text) => Number(text.split("/")[1]);
-
-/** @param {string} block */
-const rowLabels = (block) => rows(block).map((r) => r.label);
-
-/** @param {string} block */
-const rowKinds = (block) => [...new Set(rows(block).map((r) => r.type))].sort();
-
-// --- single choice --------------------------------------------------------------
-
-test("test_the_length_facet_offers_its_values_as_radio_rows", async () => {
-  await reset();
-  assert.deepEqual(rowKinds(open("length")), ["radio"]);
-});
-
 // --- the rate popover ----------------------------------------------------------
 // The single-select ratio popover and its upsample-only checkbox are gone —
 // the rate facet offers the three narrowing switches
@@ -166,15 +135,6 @@ test("test_the_downsample_safe_switch_checks_the_downsampling_row_alone", async 
   await reset();
   nDownsafeOnly.value = true;
   assert.deepEqual(checkedRows(open("rate")), ["Show only filters that support downsampling"]);
-});
-
-// --- the row that gives the facet back ------------------------------------------
-// A shut popover has no rows at all, so the row is read from the OPEN one; the
-// button's own "Any length" wording sits outside `rows()`.
-
-test("test_the_length_popover_offers_a_row_that_clears_the_facet", async () => {
-  await reset();
-  assert.ok(rowLabels(open("length")).includes("Any length"));
 });
 
 // --- a row's count previews the click it would perform ----------------------------

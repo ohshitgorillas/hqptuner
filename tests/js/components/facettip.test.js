@@ -232,11 +232,19 @@ test("test_a_filter_without_focus_renders_no_focus_row", () => {
   assert.equal(rowKeys("gauss-plain").includes("Focus"), false);
 });
 
-// Length is not an empty-able facet: every filter carries a length class, and
-// a name with no length token classifies as medium — so the row always shows.
-test("test_a_name_without_length_tokens_renders_a_medium_length_row", () => {
+// Length is an empty-able facet like the rest: tap count is a filter
+// specification, so a name the classifier cannot place carries NO length rather
+// than a guessed medium, and a facet with no value produces no row.
+test("test_a_name_without_length_tokens_renders_no_length_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("gauss-plain", "Length"), ["Length", "Medium"]);
+  assert.equal(rowKeys("gauss-plain").includes("Length"), false);
+});
+
+// The regression guard on that fix: the fallback used to cover a name that says
+// medium by accident, and removing it must not cost such a name its own value.
+test("test_a_name_that_says_medium_renders_a_medium_length_row", () => {
+  seed([{ name: "gauss-medium", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("gauss-medium", "Length"), ["Length", "Medium"]);
 });
 
 test("test_a_filter_without_ratio_renders_no_ratio_row", () => {

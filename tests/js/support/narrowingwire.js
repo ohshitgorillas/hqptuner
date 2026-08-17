@@ -36,7 +36,9 @@ const env = globalThis;
  * 1x half is the apodizing tri-state, now neutral at `all`, and the three-state
  * lossy-source control `lossy_1x`, neutral at `both`; the retired `hires_1x` /
  * `hires_nx` pair is no longer part of the record. `src_format` is the source
- * format the user's library is in, `pcm` or `both`, neutral at `pcm`.
+ * format the user's library is in, `pcm` or `both`, neutral at `pcm`. `phase`
+ * and `length` are multi-select like genre and focus: a JSON list of picked
+ * tokens, empty meaning "any".
  */
 /** @type {Facets} */
 export const NARROWING_DEFAULTS = {
@@ -45,8 +47,8 @@ export const NARROWING_DEFAULTS = {
   quality: 3,
   focus: [],
   focus_mode: "and",
-  phase: "",
-  length: "",
+  phase: [],
+  length: [],
   hide_limited: "auto",
   odd_rate_only: false,
   downsafe_only: false,

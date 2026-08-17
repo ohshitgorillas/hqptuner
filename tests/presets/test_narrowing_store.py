@@ -46,8 +46,8 @@ DEFAULTS: dict[str, object] = {
     "quality": 3,
     "focus": [],
     "focus_mode": "and",
-    "phase": "",
-    "length": "",
+    "phase": [],
+    "length": [],
     "hide_limited": "auto",
     "odd_rate_only": False,
     "downsafe_only": False,
@@ -64,8 +64,8 @@ SET: dict[str, object] = {
     "quality": 4,
     "focus": ["timbre"],
     "focus_mode": "or",
-    "phase": "linear",
-    "length": "long",
+    "phase": ["linear"],
+    "length": ["long"],
     "hide_limited": "on",
     "odd_rate_only": True,
     "downsafe_only": True,
@@ -80,8 +80,8 @@ OUT_OF_DOMAIN: dict[str, object] = {
     "genre": ["banana"],
     "quality": 7,
     "focus": ["loudness"],
-    "phase": "banana",
-    "length": "enormous",
+    "phase": ["banana"],
+    "length": ["enormous"],
     "hide_limited": "yes",
     "apod_1x": "some",
     "apod_nx": "some",
@@ -94,8 +94,10 @@ WRONG_TYPE: dict[str, object] = {
     "genre": 3,
     "quality": "4",
     "focus": "timbre",
-    "phase": 1,
-    "length": ["long"],
+    # The scalar shape an older HQPTuner stored is no longer storable: a bare
+    # string is the wrong type now that the facet is a list.
+    "phase": "linear",
+    "length": "long",
     "hide_limited": True,
     # The two switches are real booleans: a truthy string is refused, never
     # coerced.
@@ -278,13 +280,13 @@ def test_a_partial_write_stores_the_facets_it_omits_at_their_defaults(tmp_path: 
 def test_a_file_holding_only_some_facets_reads_those_facets_as_stored(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, keep_only({"phase", "quality"}))
-    assert store_at(tmp_path).read()["phase"] == "linear"
+    assert store_at(tmp_path).read()["phase"] == ["linear"]
 
 
 def test_a_file_holding_only_some_facets_reads_the_rest_at_their_defaults(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, keep_only({"phase", "quality"}))
-    assert store_at(tmp_path).read()["length"] == ""
+    assert store_at(tmp_path).read()["length"] == []
 
 
 def test_a_key_that_is_not_a_facet_is_ignored_on_read(tmp_path: Path) -> None:
@@ -303,7 +305,7 @@ def test_a_wrong_typed_stored_facet_reads_as_its_default(tmp_path: Path, facet: 
 def test_a_wrong_typed_stored_facet_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("quality", "4"))
-    assert store_at(tmp_path).read()["phase"] == "linear"
+    assert store_at(tmp_path).read()["phase"] == ["linear"]
 
 
 @pytest.mark.parametrize("facet", sorted(OUT_OF_DOMAIN))
@@ -324,8 +326,8 @@ def test_a_stored_retired_rock_genre_reads_as_the_genre_default(tmp_path: Path) 
 
 def test_an_out_of_domain_stored_facet_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
-    edit_facets(path, set_to("phase", "banana"))
-    assert store_at(tmp_path).read()["length"] == "long"
+    edit_facets(path, set_to("phase", ["banana"]))
+    assert store_at(tmp_path).read()["length"] == ["long"]
 
 
 @pytest.mark.parametrize("content", UNREADABLE)
@@ -418,19 +420,84 @@ def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path
     assert {"hide_limited", "odd_rate_only", "downsafe_only"} <= answered.keys()
 
 
+# --- the multi-select facets --------------------------------------------------
+# Phase and length are lists like genre and focus: the empty list is what "not
+# narrowed" means, so the empty-string token that used to carry that meaning is
+# out of the domain, and the scalar an older HQPTuner stored is no longer
+# storable at all (its read-side degradation rides the WRONG_TYPE table above).
+
+#: One in-domain token per list-valued facet.
+LIST_FACETS: dict[str, str] = {
+    "genre": "classical",
+    "focus": "timbre",
+    "phase": "linear",
+    "length": "long",
+}
+
+
+@pytest.mark.parametrize("facet", ["phase", "length"])
+def test_a_write_of_the_old_scalar_shape_is_refused_naming_the_facet(tmp_path: Path, facet: str) -> None:
+    with pytest.raises(NarrowingError, match=facet):
+        store_at(tmp_path).write({facet: LIST_FACETS[facet]})
+
+
+# The two domains differ on the empty string, deliberately. Phase carries it as
+# a real value — the filters the phase taxonomy does not reach, which the bar
+# offers as its own pick — while length has no such pick, so an empty token in a
+# length list is a token outside the domain like any other.
+
+
+def test_a_write_of_the_no_phase_token_is_stored_and_read_back(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write({"phase": [""]})
+    assert store.read()["phase"] == [""]
+
+
+def test_a_write_of_the_no_phase_token_beside_a_named_phase_reads_back_whole(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write({"phase": ["linear", ""]})
+    assert store.read()["phase"] == ["linear", ""]
+
+
+def test_a_length_write_holding_the_empty_token_is_refused_naming_the_facet(tmp_path: Path) -> None:
+    with pytest.raises(NarrowingError, match="length"):
+        store_at(tmp_path).write({"length": [""]})
+
+
+@pytest.mark.parametrize("facet", ["phase", "length"])
+def test_a_stored_bare_string_reads_as_the_empty_selection(tmp_path: Path, facet: str) -> None:
+    path = stored(tmp_path, SET)
+    edit_facets(path, set_to(facet, LIST_FACETS[facet]))
+    assert store_at(tmp_path).read()[facet] == []
+
+
+@pytest.mark.parametrize("facet", ["phase", "length"])
+def test_a_file_holding_no_entry_for_the_facet_reads_as_the_empty_selection(tmp_path: Path, facet: str) -> None:
+    path = stored(tmp_path, SET)
+    edit_facets(path, keep_only({"quality"}))
+    assert store_at(tmp_path).read()[facet] == []
+
+
+@pytest.mark.parametrize("facet", ["phase", "length"])
+def test_a_two_entry_write_reads_back_whole(tmp_path: Path, facet: str) -> None:
+    picks = ["linear", "minimum"] if facet == "phase" else ["short", "xlong"]
+    store = store_at(tmp_path)
+    store.write({facet: picks})
+    assert store.read()[facet] == picks
+
+
 # The cap is on the list's length exactly as given: the store does not
 # deduplicate before counting, so a list of one repeated in-domain token is
 # accepted at 32 entries and refused at 33.
-@pytest.mark.parametrize("facet", ["genre", "focus"])
+@pytest.mark.parametrize("facet", sorted(LIST_FACETS))
 def test_a_write_of_more_than_32_entries_is_refused(tmp_path: Path, facet: str) -> None:
-    value = "classical" if facet == "genre" else "timbre"
     with pytest.raises(NarrowingError):
-        store_at(tmp_path).write({facet: [value] * 33})
+        store_at(tmp_path).write({facet: [LIST_FACETS[facet]] * 33})
 
 
-@pytest.mark.parametrize("facet", ["genre", "focus"])
+@pytest.mark.parametrize("facet", sorted(LIST_FACETS))
 def test_a_write_of_exactly_32_entries_reads_back_whole(tmp_path: Path, facet: str) -> None:
-    value = "classical" if facet == "genre" else "timbre"
+    value = LIST_FACETS[facet]
     store = store_at(tmp_path)
     store.write({facet: [value] * 32})
     assert store.read()[facet] == [value] * 32
@@ -470,7 +537,7 @@ def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp
 
 def test_an_unstamped_file_is_read_rather_than_refused(tmp_path: Path) -> None:
     unstamp(stored(tmp_path, SET))
-    assert store_at(tmp_path).read()["phase"] == "linear"
+    assert store_at(tmp_path).read()["phase"] == ["linear"]
 
 
 # Any stamp at all is not enough: the number a write puts on the file has to be
@@ -485,8 +552,8 @@ def test_an_unstamped_file_carries_a_stamp_after_the_next_write(tmp_path: Path) 
     stamp = json.loads(path.read_text())["schema"]
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    restamp(stored(elsewhere, {"phase": "minimum"}), stamp)
-    assert store_at(elsewhere).read()["phase"] == "minimum"
+    restamp(stored(elsewhere, {"phase": ["minimum"]}), stamp)
+    assert store_at(elsewhere).read()["phase"] == ["minimum"]
 
 
 # --- the REST pair -----------------------------------------------------------

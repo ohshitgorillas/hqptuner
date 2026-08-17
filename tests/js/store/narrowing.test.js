@@ -8,9 +8,16 @@
 // added; OR means any one is enough, so the list only grows. A case here that
 // picks more than one value SETS the mode it is about rather than leaning on a
 // default, so a flipped default moves nothing in this file; which mode each
-// facet starts at belongs to tests/js/store/narrowing-mode.test.js. Length is
-// single-valued: a filter is short or it is long, and picking one asks for that
-// one. The manual's escape hatch ("any" genre) sits outside both and survives
+// facet starts at belongs to tests/js/store/narrowing-mode.test.js. Phase and
+// length are sets of picks too, but over a facet a filter carries exactly ONE
+// of, so an AND across two picks would be empty by construction: they carry no
+// mode and their picks always UNION, a second pick widening the list. Neither
+// taxonomy reaches every filter, and the two answer that differently: phase
+// offers the empty string as a real VALUE, so the filters it does not classify
+// can be asked for, while length offers no such pick and its unclassified
+// filters are reachable by none. Neither is the empty SELECTION, which is what
+// "not narrowed by this facet" means for both. The
+// manual's escape hatch ("any" genre) sits outside all of them and survives
 // every selection. The rate-narrowing switches — hide-2x, hide-integer,
 // downsample-safe-only — are tests/js/store/narrowing-rate.test.js's subject.
 //
@@ -43,6 +50,7 @@ import {
   nGenreMode,
   nFocus,
   nFocusMode,
+  nPhase,
   nLength,
   nApod1x,
   nApodNx,
@@ -141,6 +149,26 @@ const LENGTHS = [
   ["gauss-long", "4/5 ⥮ Any"],
 ];
 
+// The phase facet reads a `-lp`/`-mp`/`-ip` token off the NAME
+// (tests/js/store/phase-facet.test.js); `gauss-plain` carries none, and is what
+// the empty-string pick asks for.
+/** @type {FilterTuple[]} */
+const PHASES = [
+  ["gauss-lp", "4/5 ⥮ Any"],
+  ["gauss-mp", "4/5 ⥮ Any"],
+  ["gauss-ip", "4/5 ⥮ Any"],
+  ["gauss-plain", "4/5 ⥮ Any"],
+];
+
+// The length taxonomy does not reach every filter either, but it has no pick
+// for the ones it misses: `gauss-plain` carries no length and no length pick
+// can ask for it. `gauss-medium` says medium in its own name.
+/** @type {FilterTuple[]} */
+const MEDIUMS = [
+  ["gauss-medium", "4/5 ⥮ Any"],
+  ["gauss-plain", "4/5 ⥮ Any"],
+];
+
 // For the per-stage switches: `arg` bit 0 is the apodizing flag, and a filter
 // counts as lossy-source when its NAME carries `hires`, `mqa` or `mp3`. Neither
 // stage starts narrowed on either control.
@@ -205,25 +233,103 @@ test("test_an_empty_genre_selection_excludes_nothing", () => {
   assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d"]);
 });
 
-// --- single-valued facets ------------------------------------------------------
+// --- phase and length: picks over a one-of facet, so they union ------------------
 
-test("test_narrowing_by_length_keeps_only_the_filters_of_that_length", () => {
+test("test_narrowing_by_one_length_keeps_only_the_filters_of_that_length", () => {
   const options = reset(LENGTHS);
-  nLength.value = "short";
+  nLength.value = ["short"];
   assert.deepEqual(labels(options), ["gauss-short"]);
+});
+
+test("test_narrowing_by_one_phase_keeps_only_the_filters_of_that_phase", () => {
+  const options = reset(PHASES);
+  nPhase.value = ["minimum"];
+  assert.deepEqual(labels(options), ["gauss-mp"]);
+});
+
+// A second pick WIDENS: a filter carries one phase, so an intersection would
+// answer nothing at all and only a union can answer two.
+
+test("test_two_picked_phases_keep_the_filters_carrying_either", () => {
+  const options = reset(PHASES);
+  nPhase.value = ["linear", "intermediate"];
+  assert.deepEqual(labels(options), ["gauss-lp", "gauss-ip"]);
+});
+
+test("test_two_picked_lengths_keep_the_filters_carrying_either", () => {
+  const options = reset(LENGTHS);
+  nLength.value = ["short", "long"];
+  assert.deepEqual(labels(options), ["gauss-short", "gauss-long"]);
 });
 
 // The ratio-class and downsample-safety switches that replaced the single
 // ratio pick are pinned in tests/js/store/narrowing-rate.test.js.
 
-// Setting the facet back to "" gives the whole list back — the narrowing is
-// undone, not merely never applied, so each case narrows for real first.
+// Emptying the selection gives the whole list back — the narrowing is undone,
+// not merely never applied, so each case narrows for real first.
 
-test("test_putting_length_back_to_empty_narrows_by_length_not_at_all", () => {
+test("test_an_empty_length_selection_excludes_nothing", () => {
   const options = reset(LENGTHS);
-  nLength.value = "short";
-  nLength.value = "";
+  nLength.value = ["short"];
+  nLength.value = [];
   assert.deepEqual(labels(options), ["gauss-short", "gauss-plain", "gauss-long"]);
+});
+
+test("test_an_empty_phase_selection_excludes_nothing", () => {
+  const options = reset(PHASES);
+  nPhase.value = ["minimum"];
+  nPhase.value = [];
+  assert.deepEqual(labels(options), ["gauss-lp", "gauss-mp", "gauss-ip", "gauss-plain"]);
+});
+
+// --- the phase the taxonomy does not reach ----------------------------------------
+// The empty string is a phase VALUE, meaning "no phase classification", and it
+// is picked like any other. It is not the empty SELECTION: the empty selection
+// narrows by phase not at all, and is pinned just above.
+
+test("test_picking_no_phase_keeps_only_the_filters_the_taxonomy_does_not_reach", () => {
+  const options = reset(PHASES);
+  nPhase.value = [""];
+  assert.deepEqual(labels(options), ["gauss-plain"]);
+});
+
+test("test_no_phase_unions_with_a_picked_phase_like_any_other_value", () => {
+  const options = reset(PHASES);
+  nPhase.value = ["linear", ""];
+  assert.deepEqual(labels(options), ["gauss-lp", "gauss-plain"]);
+});
+
+// The other side of the same rule: a filter the taxonomy does not reach is out
+// of every pick that does not name it, so a selection of linear alone drops it.
+test("test_a_filter_with_no_phase_is_dropped_by_a_phase_pick_that_does_not_name_it", () => {
+  const options = reset(PHASES);
+  nPhase.value = ["linear"];
+  assert.equal(labels(options).includes("gauss-plain"), false);
+});
+
+// --- the length the taxonomy does not reach -----------------------------------------
+// A filter the length classifier cannot place carries NO length rather than a
+// guessed medium, so no length pick surfaces it — medium included.
+
+test("test_a_filter_the_length_taxonomy_does_not_reach_is_dropped_by_a_medium_pick", () => {
+  const options = reset(MEDIUMS);
+  nLength.value = ["medium"];
+  assert.equal(labels(options).includes("gauss-plain"), false);
+});
+
+test("test_a_name_that_says_medium_still_classifies_as_medium", () => {
+  const options = reset(MEDIUMS);
+  nLength.value = ["medium"];
+  assert.deepEqual(labels(options), ["gauss-medium"]);
+});
+
+// Narrowing hides only what it can positively exclude, so a dropdown option the
+// enumeration knows nothing about survives a phase pick that every filter it
+// does know fails.
+test("test_an_option_with_no_facet_record_survives_a_phase_pick", () => {
+  const options = [...reset(PHASES), { label: "stranger", value: "9" }];
+  nPhase.value = ["minimum"];
+  assert.deepEqual(labels(options), ["gauss-mp", "stranger"]);
 });
 
 // --- selection state ------------------------------------------------------------
@@ -235,15 +341,42 @@ test("test_nothing_picked_is_not_active_narrowing", () => {
 
 test("test_a_picked_length_is_active_narrowing", () => {
   reset(LENGTHS);
-  nLength.value = "long";
+  nLength.value = ["long"];
   assert.equal(narrowingActive.value, true);
+});
+
+test("test_a_picked_phase_is_active_narrowing", () => {
+  reset(PHASES);
+  nPhase.value = ["minimum"];
+  assert.equal(narrowingActive.value, true);
+});
+
+test("test_an_empty_phase_selection_is_not_active_narrowing", () => {
+  reset(PHASES);
+  nPhase.value = ["minimum"];
+  nPhase.value = [];
+  assert.equal(narrowingActive.value, false);
+});
+
+test("test_an_empty_length_selection_is_not_active_narrowing", () => {
+  reset(LENGTHS);
+  nLength.value = ["long"];
+  nLength.value = [];
+  assert.equal(narrowingActive.value, false);
 });
 
 test("test_reset_returns_length_to_not_narrowed", () => {
   reset(LENGTHS);
-  nLength.value = "long";
+  nLength.value = ["long"];
   resetNarrowing();
-  assert.equal(nLength.value, "");
+  assert.deepEqual(nLength.value, []);
+});
+
+test("test_reset_returns_phase_to_not_narrowed", () => {
+  reset(PHASES);
+  nPhase.value = ["minimum", "linear"];
+  resetNarrowing();
+  assert.deepEqual(nPhase.value, []);
 });
 
 // The per-stage apodizing switches reset to their own default at both stages;
@@ -266,7 +399,7 @@ test("test_reset_returns_the_nx_apodizing_switch_to_all", () => {
 
 test("test_reset_leaves_narrowing_inactive", () => {
   reset(LENGTHS);
-  nLength.value = "long";
+  nLength.value = ["long"];
   resetNarrowing();
   assert.equal(narrowingActive.value, false);
 });
