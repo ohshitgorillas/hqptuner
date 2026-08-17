@@ -35,6 +35,11 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      - id: nesting
+        name: no function nests more than 4 blocks deep
+        entry: .venv/bin/python scripts/gates/check_nesting.py
+        language: system
+        types: [python]
       - id: file-length
         name: max 500 source / 800 test lines, watched files only shrink
         entry: .venv/bin/python scripts/gates/check_file_length.py

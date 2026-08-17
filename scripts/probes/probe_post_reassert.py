@@ -124,7 +124,22 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
     print(f"  POST /matrix -> HTTP {resp.status_code}")
 
 
-async def main() -> int:  # noqa: C901 — probe: one linear script, read top to bottom
+async def _poll_correction(http: HttpConfigClient, was: dict[str, object]) -> dict[str, object]:
+    """Poll the matrix form until the correction plugin moves off ``was``, giving up after 20 passes.
+
+    The reload takes ~6.5 s (matrix-spec.md:95) and /config keeps serving through
+    it, so the form is read repeatedly rather than once.
+    """
+    current = was
+    for _ in range(20):
+        current = _correction((await _rpc(http.get_matrix))["fields"])
+        if current != was:
+            return current
+        await asyncio.sleep(1.0)
+    return current
+
+
+async def main() -> int:
     """Establish whether a POST /matrix re-asserts post-process wiped by a profile switch, and whether it persists."""
     user, password = os.environ.get("HQPTUNER_HQP_USERNAME"), os.environ.get("HQPTUNER_HQP_PASSWORD")
     if not user or not password:
@@ -165,14 +180,7 @@ async def main() -> int:  # noqa: C901 — probe: one linear script, read top to
                 print(f"correction at rest: {start}")
                 await _post_matrix(raw, {"post_correction_enabled": "0"})
                 await _settle(http)
-                # the reload takes ~6.5 s (matrix-spec.md:95) and /config keeps
-                # serving through it, so poll the form rather than read once
-                off = start
-                for _ in range(20):
-                    off = _correction((await _rpc(http.get_matrix))["fields"])
-                    if off != start:
-                        break
-                    await asyncio.sleep(1.0)
+                off = await _poll_correction(http, start)
                 in_file = re.search(rb'<plugin[^>]*type="correction"/>', await _working(http, active))
                 found = in_file.group(0) if in_file else None
                 print(f"correction in the config file after the POST: {found!r}")
@@ -191,12 +199,7 @@ async def main() -> int:  # noqa: C901 — probe: one linear script, read top to
         await _settle(http)
 
         # Q4 — is the correction plugin running again? Poll past the reload.
-        restored = cleared
-        for _ in range(20):
-            restored = _correction((await _rpc(http.get_matrix))["fields"])
-            if restored != cleared:
-                break
-            await asyncio.sleep(1.0)
+        restored = await _poll_correction(http, cleared)
         print(f"correction after the re-assert POST: {restored}")
         print(f"Q4 POST /matrix restores the wiped post-process: {restored != cleared}")
 
