@@ -13,19 +13,9 @@
 //
 // A popover renders nothing until it is open, and it opens on its button's
 // click handler; preact-render-to-string never fires one and there is no DOM
-// here, so a facet is opened the way a caller opens one: by invoking the onClick
-// the button carries, collected through preact's own `options.vnode` creation
-// hook (the renderer's public seam, third-party surface — nothing of HQPTuner's
-// is stubbed or widened). The result is read back off the re-rendered HTML, as
-// the browser shows it.
-//
-// That route, and reading the rows back out of the emitted HTML, couples these
-// cases to the bar's element structure — the `data-multi` block a facet lives
-// in, the button inside it, and the `opt-label` / `opt-count` spans beside each
-// input. Accepted: SSR is the house pattern for component suites and there is no
-// browser harness on this host. A markup change will fail these cases for a
-// reason that is not a regression; check the shape before reading the failure as
-// one.
+// here. Resetting the bar, opening a facet and reading its rows back off the
+// emitted HTML all live in tests/js/support/genrepopover.js, which states what
+// that route couples to; only the count chip, read here alone, stays local.
 //
 // NOT covered here: which row is marked checked, and what clicking a row does to
 // the facet signals — the store suite (tests/js/store/narrowing.test.js) pins the
@@ -36,24 +26,16 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { options } from "preact";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../hqptuner/static/lib/dom.js";
-import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
-import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
-import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import {
-  resetNarrowing,
-  nFocus,
-  nHideLimited,
-  nOddRateOnly,
-  nDownsafeOnly,
-} from "../../../hqptuner/static/store/narrowing.js";
+import { nFocus, nHideLimited, nOddRateOnly, nDownsafeOnly } from "../../../hqptuner/static/store/narrowing.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { staticWire } from "../support/wire.js";
-
-/** @typedef {import("../support/wheel.js").VNode} VNode */
+import {
+  resetNarrowBar,
+  renderNarrowBar,
+  openFacet as open,
+  popoverRows as rows,
+  checkedRows,
+} from "../support/genrepopover.js";
 
 /**
  * One filter as the engine's own `<GetFilters/>` enumeration reports it
@@ -67,15 +49,6 @@ import { staticWire } from "../support/wire.js";
  *   description: string,
  *   apodizing: boolean,
  * }} EngineFilter
- */
-
-/**
- * A vnode whose props carry a click handler, as `buttonsIn` selects for.
- *
- * @typedef {{
- *   type: string | Function,
- *   props: import("../support/wheel.js").VNodeProps & { onClick: (event: unknown) => void },
- * }} ClickableVNode
  */
 
 // A handful of filters in the engine's own description format,
@@ -116,120 +89,9 @@ const chainFields = (filters) => {
  * @param {{ filters?: EngineFilter[], fields?: Record<string, unknown>[] }} [scenario]
  * @returns {Promise<void>}
  */
-async function reset({ filters = FILTERS, fields = [] } = {}) {
-  staticWire();
-  engineState.value = {};
-  enums.value = { filters };
-  metadata.value = {
-    settings: {},
-    filters: { filters: OVERLAY, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
-  config.value = { fields, file: {}, active: "", profiles: null };
-  matrixConfig.value = { fields: [] };
-  resetNarrowing();
-  await discardAll();
-}
+const reset = ({ filters = FILTERS, fields = [] } = {}) => resetNarrowBar(filters, { overlay: OVERLAY, fields });
 
-// --- rendering, clicking, reading ---------------------------------------------
-
-// One render, with every vnode preact builds along the way. `options.vnode` is
-// preact's own creation hook; it is restored even if the render throws, so no
-// case can poison the next.
-/** @returns {{ out: string, seen: VNode[] }} */
-function renderBar() {
-  /** @type {VNode[]} */
-  const seen = [];
-  const previous = options.vnode;
-  options.vnode = (/** @type {VNode} */ vnode) => {
-    seen.push(vnode);
-    if (previous) previous(vnode);
-  };
-  try {
-    return { out: render(html`<${NarrowBar} />`), seen };
-  } finally {
-    options.vnode = previous;
-  }
-}
-
-// Every button inside one vnode, in document order.
-/**
- * @param {unknown} node
- * @param {ClickableVNode[]} [found]
- * @returns {ClickableVNode[]}
- */
-function buttonsIn(node, found = []) {
-  if (Array.isArray(node)) {
-    for (const kid of node) buttonsIn(kid, found);
-    return found;
-  }
-  if (!node || typeof node !== "object") return found;
-  const v = /** @type {VNode} */ (node);
-  if (v.type === "button" && v.props && typeof v.props.onClick === "function")
-    found.push(/** @type {ClickableVNode} */ (node));
-  return buttonsIn(v.props && v.props.children, found);
-}
-
-// One click on the given facet's own button, as a pointer would land on it. The
-// facet is found by its block rather than by the button's wording, which is the
-// current selection and changes as cases pick values. Anything other than
-// exactly one match throws rather than clicking something else: a restructured
-// bar must fail loudly, not open the wrong facet.
-/**
- * @param {string} name
- * @returns {void}
- */
-function clickFacet(name) {
-  const blocks = renderBar().seen.filter((v) => v && v.props && v.props["data-multi"] === name);
-  if (blocks.length !== 1) throw new Error(`expected one ${name} facet, found ${blocks.length}`);
-  const buttons = buttonsIn(blocks[0]);
-  if (buttons.length !== 1) throw new Error(`expected one button for ${name}, found ${buttons.length}`);
-  buttons[0].props.onClick({ preventDefault() {}, stopPropagation() {} });
-}
-
-// The named facet's own block, with its popover open. Which facet is open is a
-// module private that outlives a test and resetNarrowing() does not touch, so
-// the click is a TOGGLE: a case that finds the popover shut after clicking is
-// looking at one its predecessor left open, and clicks again. Same discipline as
-// the LiveView collapse suite — the starting state is read off the screen, never
-// assumed.
-/**
- * @param {string} name
- * @returns {string}
- */
-function open(name) {
-  clickFacet(name);
-  const block = () => facet(renderBar().out, name);
-  if (rows(block()).length === 0) clickFacet(name);
-  return block();
-}
-
-// One facet's own block, so nothing is read off the rest of the bar — the facet
-// BUTTON carries the same "Any length" wording as the row that clears it, and
-// every other facet has rows of its own.
-/**
- * @param {string} out
- * @param {string} name
- * @returns {string}
- */
-function facet(out, name) {
-  const start = out.indexOf(`data-multi="${name}"`);
-  if (start < 0) throw new Error(`no facet block for ${name} in the rendered bar`);
-  const rest = out.slice(start + 1);
-  // The block ends where the next facet begins, or where the facet row itself
-  // ends and the switch columns start.
-  const ends = ["data-multi=", "narrow-switchcols"].map((m) => rest.indexOf(m)).filter((i) => i >= 0);
-  return ends.length ? rest.slice(0, Math.min(...ends)) : rest;
-}
-
-// The choice rows of one facet's popover: an input and the label beside it. A
-// shut popover renders none.
-/** @param {string} block */
-const rows = (block) =>
-  [...block.matchAll(/<input[^>]*\btype="([^"]*)"[^>]*>\s*<span class="opt-label">([\s\S]*?)<\/span>/g)].map((m) => ({
-    type: m[1],
-    label: m[2],
-  }));
+// --- reading the rows -----------------------------------------------------------
 
 // The count chip on one named row. Its text is the active chain's pair of
 // counts, "<1x>/<Nx>", so a case reads the half it means rather than the string.
@@ -251,15 +113,6 @@ const nxCount = (text) => Number(text.split("/")[1]);
 
 /** @param {string} block */
 const rowLabels = (block) => rows(block).map((r) => r.label);
-
-// The labels of the rows whose input renders checked — read off the input tag
-// itself, the same seam `rows()` reads, so the binding of row to switch is the
-// rendered fact and not the label list's ordering.
-/** @param {string} block */
-const checkedRows = (block) =>
-  [...block.matchAll(/<input([^>]*)>\s*<span class="opt-label">([\s\S]*?)<\/span>/g)]
-    .filter((m) => /\bchecked\b/.test(m[1]))
-    .map((m) => m[2]);
 
 /** @param {string} block */
 const rowKinds = (block) => [...new Set(rows(block).map((r) => r.type))].sort();
@@ -350,12 +203,12 @@ test("test_the_intro_caption_renders_while_the_descriptions_pref_is_on", async (
   await reset();
   showDescriptions.value = true;
   keepOptionDescriptions.value = false;
-  assert.ok(render(html`<${NarrowBar} />`).includes(CAPTION));
+  assert.ok(renderNarrowBar().includes(CAPTION));
 });
 
 test("test_the_intro_caption_is_absent_with_the_master_pref_off_even_with_keep_option_on", async () => {
   await reset();
   showDescriptions.value = false;
   keepOptionDescriptions.value = true;
-  assert.equal(render(html`<${NarrowBar} />`).includes(CAPTION), false);
+  assert.equal(renderNarrowBar().includes(CAPTION), false);
 });

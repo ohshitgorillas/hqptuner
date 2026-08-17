@@ -56,7 +56,7 @@ const OVERLAY = {
 };
 
 /** @returns {Promise<void>} */
-const reset = () => resetNarrowBar(FILTERS, OVERLAY);
+const reset = () => resetNarrowBar(FILTERS, { overlay: OVERLAY });
 
 // The caption a genre value wears, discovered rather than hard-coded: the value
 // is picked under the OR mode (which marks nothing inert), and the row that

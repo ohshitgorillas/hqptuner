@@ -39,7 +39,7 @@ const OVERLAY = {
 };
 
 /** @returns {Promise<void>} */
-const reset = () => resetNarrowBar(FILTERS, OVERLAY);
+const reset = () => resetNarrowBar(FILTERS, { overlay: OVERLAY });
 
 /**
  * The characters a reader sees, with the entities the renderer emits put back.

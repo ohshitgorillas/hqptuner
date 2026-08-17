@@ -2,7 +2,8 @@
 // them: one reset that puts the bar's source signals back to a stated starting
 // state, one way to open a facet, and the row readers.
 //
-// Shared by tests/js/components/narrowbar-genre-any.test.js and
+// Shared by tests/js/components/narrowbar.test.js,
+// tests/js/components/narrowbar-genre-any.test.js and
 // tests/js/components/narrowbar-genre-merge.test.js. Fakes sit at the wire and
 // nothing of HQPTuner's is stubbed (docs/testing.md rule 4): state is driven by
 // assigning the exported source signals the real payloads carry — the engine's
@@ -48,13 +49,14 @@ import { staticWire } from "./wire.js";
 
 /**
  * Put the bar back to a stated starting state: the given engine enumeration,
- * the given static genre overlay, and every narrowing facet at its default.
+ * the given static genre overlay, the given /config form fields (the dropdowns
+ * a row's count chip counts), and every narrowing facet at its default.
  *
  * @param {Record<string, unknown>[]} filters
- * @param {Record<string, { genre?: string[] }>} [overlay]
+ * @param {{ overlay?: Record<string, { genre?: string[] }>, fields?: Record<string, unknown>[] }} [scenario]
  * @returns {Promise<void>}
  */
-export async function resetNarrowBar(filters, overlay = {}) {
+export async function resetNarrowBar(filters, { overlay = {}, fields = [] } = {}) {
   staticWire();
   engineState.value = {};
   enums.value = { filters };
@@ -63,7 +65,7 @@ export async function resetNarrowBar(filters, overlay = {}) {
     filters: { filters: overlay, aliases: {} },
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
   };
-  config.value = { fields: [], file: {}, active: "", profiles: null };
+  config.value = { fields, file: {}, active: "", profiles: null };
   matrixConfig.value = { fields: [] };
   resetNarrowing();
   await discardAll();
@@ -89,6 +91,13 @@ function renderBar() {
     options.vnode = previous;
   }
 }
+
+/**
+ * The bar as a caller mounts it, as HTML.
+ *
+ * @returns {string}
+ */
+export const renderNarrowBar = () => renderBar().out;
 
 /**
  * Every button inside one vnode, in document order.
