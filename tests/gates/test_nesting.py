@@ -111,6 +111,22 @@ def line_naming(out: str, needle: str) -> str:
     return ""
 
 
+def problem_lines(out: str) -> list[str]:
+    """The report lines a failing run prints, without the trailing summary.
+
+    A failing gate prints one line per problem, then a blank line, then a summary
+    whose wording is not part of the contract — so a case that is about the
+    problem lines reads the block ahead of that blank line and stops there.
+    """
+    lines = out.splitlines()
+    body: list[str] = []
+    for line in lines:
+        if not line.strip():
+            break
+        body.append(line)
+    return body
+
+
 def names(source: str) -> list[str]:
     """Every qualified function name ``depths`` finds, in the order it reports them."""
     return [name for name, _line, _depth in DEPTHS(source)]
@@ -314,7 +330,7 @@ def test_a_function_over_the_limit_is_reported_with_its_name_line_and_depth(
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 5))
     CHECK([path], {})
-    assert capsys.readouterr().out.strip() == "hqptuner/core/deep.py:1: f() nests 5 deep (max 4)"
+    assert problem_lines(capsys.readouterr().out) == ["hqptuner/core/deep.py:1: f() nests 5 deep (max 4)"]
 
 
 def test_the_limit_the_gate_enforces_is_four() -> None:
@@ -498,7 +514,7 @@ def test_a_stale_exemption_reports_on_one_line(tmp_path: Path, monkeypatch: Any,
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 4))
     CHECK([path], {f"{path}::f": "the parser walks a nested document"})
-    assert len(capsys.readouterr().out.strip().splitlines()) == 1
+    assert len(problem_lines(capsys.readouterr().out)) == 1
 
 
 def test_a_stale_exemption_for_a_file_not_passed_on_argv_still_fails(tmp_path: Path, monkeypatch: Any) -> None:
@@ -537,7 +553,7 @@ def test_several_violations_are_printed_one_line_each(tmp_path: Path, monkeypatc
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/deep.py", THREE_VIOLATIONS)
     CHECK([path], {})
-    assert len(capsys.readouterr().out.strip().splitlines()) == 3
+    assert len(problem_lines(capsys.readouterr().out)) == 3
 
 
 def test_a_violation_in_a_later_file_fails_the_run(tmp_path: Path, monkeypatch: Any) -> None:
