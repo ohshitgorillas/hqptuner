@@ -239,7 +239,7 @@ def css_classes(paths: list[Path]) -> set[str]:
 
 def main() -> int:
     """Refuse a class name written in JS that no stylesheet in static/css/ defines a rule for."""
-    styled = css_classes(sorted((STATIC / "css").glob("*.css")))
+    styled = css_classes(sorted((STATIC / "css").rglob("*.css")))
     sources = sorted(p for p in STATIC.rglob("*.js") if "vendor" not in p.parts)
     problems = []
     for path in sources:

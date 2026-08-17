@@ -102,7 +102,7 @@ def animated_names(paths: list[Path]) -> set[str]:
 
 def sources() -> tuple[list[Path], list[Path]]:
     """(stylesheets, every file that may consume what they declare)."""
-    styles = sorted((STATIC / "css").glob("*.css"))
+    styles = sorted((STATIC / "css").rglob("*.css"))
     scripts = sorted(p for p in STATIC.rglob("*.js") if "vendor" not in p.parts)
     return styles, styles + scripts
 

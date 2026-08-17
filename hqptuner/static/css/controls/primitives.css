@@ -1,7 +1,7 @@
-/* controls-fields — the native form primitives: segmented switch, select,
+/* primitives — the native form primitives: segmented switch, select,
    text/number input, checkbox. Was the head and the checkbox block of
    controls.css, which outgrew the length gate and was split by control family
-   (controls-fields, combobox, sliders, ask) — they load consecutively in that
+   (primitives, combobox, sliders, ask) — they load consecutively in that
    order, so the cascade is the one the single file had. Order is fixed by the
    <link> sequence in hqptuner/static/index.html — do not reorder. */
 

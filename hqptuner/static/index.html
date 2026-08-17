@@ -8,36 +8,36 @@
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%9A%EF%B8%8F%3C/text%3E%3C/svg%3E" />
     <!-- CSS is split by concern; THIS ORDER IS THE CASCADE ORDER. It is the
          source order of the former single app.css and must not be reordered. -->
-    <link rel="stylesheet" href="/css/tokens.css" />
-    <link rel="stylesheet" href="/css/header.css" />
-    <link rel="stylesheet" href="/css/signal-path.css" />
-    <link rel="stylesheet" href="/css/chrome.css" />
-    <link rel="stylesheet" href="/css/fields.css" />
-    <link rel="stylesheet" href="/css/hero.css" />
+    <link rel="stylesheet" href="/css/base/tokens.css" />
+    <link rel="stylesheet" href="/css/base/header.css" />
+    <link rel="stylesheet" href="/css/base/signal-path.css" />
+    <link rel="stylesheet" href="/css/base/chrome.css" />
+    <link rel="stylesheet" href="/css/base/fields.css" />
+    <link rel="stylesheet" href="/css/base/hero.css" />
     <!-- the four control modules were one controls.css; they load consecutively
          and in this order so the cascade is the one that file had. -->
-    <link rel="stylesheet" href="/css/controls-fields.css" />
-    <link rel="stylesheet" href="/css/combobox.css" />
-    <link rel="stylesheet" href="/css/sliders.css" />
-    <link rel="stylesheet" href="/css/ask.css" />
-    <link rel="stylesheet" href="/css/cards.css" />
-    <link rel="stylesheet" href="/css/packs.css" />
-    <link rel="stylesheet" href="/css/pending-bar.css" />
-    <link rel="stylesheet" href="/css/narrowing.css" />
-    <link rel="stylesheet" href="/css/knobs.css" />
-    <link rel="stylesheet" href="/css/plots.css" />
-    <link rel="stylesheet" href="/css/aesthetic.css" />
-    <link rel="stylesheet" href="/css/volume.css" />
-    <link rel="stylesheet" href="/css/volume-panels.css" />
-    <link rel="stylesheet" href="/css/matrix.css" />
-    <link rel="stylesheet" href="/css/matrix-panels.css" />
-    <link rel="stylesheet" href="/css/crossfeed.css" />
-    <link rel="stylesheet" href="/css/speakers.css" />
-    <link rel="stylesheet" href="/css/live.css" />
+    <link rel="stylesheet" href="/css/controls/primitives.css" />
+    <link rel="stylesheet" href="/css/controls/combobox.css" />
+    <link rel="stylesheet" href="/css/controls/sliders.css" />
+    <link rel="stylesheet" href="/css/controls/ask.css" />
+    <link rel="stylesheet" href="/css/cards/cards.css" />
+    <link rel="stylesheet" href="/css/cards/packs.css" />
+    <link rel="stylesheet" href="/css/base/pending-bar.css" />
+    <link rel="stylesheet" href="/css/cards/narrowing.css" />
+    <link rel="stylesheet" href="/css/controls/knobs.css" />
+    <link rel="stylesheet" href="/css/cards/plots.css" />
+    <link rel="stylesheet" href="/css/base/aesthetic.css" />
+    <link rel="stylesheet" href="/css/features/volume.css" />
+    <link rel="stylesheet" href="/css/features/volume-panels.css" />
+    <link rel="stylesheet" href="/css/features/matrix.css" />
+    <link rel="stylesheet" href="/css/features/matrix-panels.css" />
+    <link rel="stylesheet" href="/css/features/crossfeed.css" />
+    <link rel="stylesheet" href="/css/features/speakers.css" />
+    <link rel="stylesheet" href="/css/features/live.css" />
     <!-- typography.css is deliberately LAST: it owns the size + colour of every
          text role and must win over the per-module declarations it replaced.
          This is the only module whose slot is "the end"; see its header. -->
-    <link rel="stylesheet" href="/css/typography.css" />
+    <link rel="stylesheet" href="/css/base/typography.css" />
     <!-- No-build ES modules. The importmap resolves every bare specifier to a
          vendored file so preact, its hooks, and signals all share ONE preact
          instance (required for signals' auto-subscribe). All local — CSP-clean. -->

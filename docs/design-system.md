@@ -2,9 +2,9 @@
 
 All visual work conforms or flags deviation. Never hardcode layout px — use tokens.
 
-**CSS split by concern** under `hqptuner/static/css/`, none over 500-line gate. `<link>` order in `hqptuner/static/index.html` **is** cascade order. Never reorder. Add new module at position its rules need, not at end.
+**CSS split by concern** under `hqptuner/static/css/`, none over 500-line gate. Four concern directories: `base/` (tokens, type, app shell), `controls/` (the input primitives), `cards/` (card frames and what sits in them), `features/` (one tab's own rules). `<link>` order in `hqptuner/static/index.html` **is** cascade order. Never reorder. Add new module at position its rules need, not at end.
 
-**Tokens (`hqptuner/static/css/tokens.css` `:root`):**
+**Tokens (`hqptuner/static/css/base/tokens.css` `:root`):**
 - Spacing scale `--sp-1..5` = 4/8/12/24/32. Every intra-row / inter-row gap references these.
 - Widths: `--w-label` (12rem, shared label column), `--w-num` (short numerics + knob readouts), `--w-select` (28rem), `--w-select-wide` (30rem, long strings), `--w-path`.
 - `--measure` (68ch) = single caption/description measure. `--w-app` (~1200px) = container cap.

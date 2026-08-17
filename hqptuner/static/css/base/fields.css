@@ -31,7 +31,7 @@
   border-color: var(--accent);
 }
 /* The three widgets with nothing of their own to recolour keep the row ring:
-   a checkbox already paints its border accent when CHECKED (controls-fields.css), so
+   a checkbox already paints its border accent when CHECKED (primitives.css), so
    recolouring it would say nothing about staging, and knob and slidernum are
    canvas/range primitives with no border at all. The ring is honest for all
    three because their control never covers the row's edges — the failure above

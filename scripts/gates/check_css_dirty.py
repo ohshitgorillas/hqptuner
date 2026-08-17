@@ -49,7 +49,7 @@ PRAGMA = "dirty-mark-exempt:"
 ROOT = Path(__file__).resolve().parent.parent.parent
 STYLESHEETS = ROOT / "hqptuner" / "static" / "css"
 #: where the split itself is written, so a complaint points at the rules
-DEFINITION_SITE = "hqptuner/static/css/fields.css"
+DEFINITION_SITE = "hqptuner/static/css/base/fields.css"
 
 #: widget kind -> the selector for the control's own border. The class the row
 #: carries is `field-<widget>` (components/Field.js), so a rule may scope by
@@ -75,8 +75,12 @@ Block = tuple[str, int, int, list[str]]
 
 
 def stylesheets() -> list[Path]:
-    """Every stylesheet, in name order — the cascade order does not matter here."""
-    return sorted(STYLESHEETS.glob("*.css"))
+    """Every stylesheet, in path order — the cascade order does not matter here.
+
+    Recursive: the stylesheets sit in concern directories under css/, and a
+    non-recursive glob would pass this gate by finding nothing to check.
+    """
+    return sorted(STYLESHEETS.rglob("*.css"))
 
 
 def blocks_with_source() -> list[tuple[Path, list[str], Block]]:

@@ -1,6 +1,6 @@
 /* combobox — the desc-carrying dropdown (controls/Combobox.js): trigger, pop,
    option rows, favourite star and the hover tip.
-   Loads immediately after controls-fields.css, which is where the native select
+   Loads immediately after primitives.css, which is where the native select
    it impersonates is dressed. Order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
 
