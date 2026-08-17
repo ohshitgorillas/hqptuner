@@ -1,0 +1,1747 @@
+{
+  "components": {
+    "schemas": {
+      "ApplyBody": {
+        "description": "Carry the optional preset instructions for ``POST /api/config/apply`` \u2014 both fields absent applies the buffer.",
+        "properties": {
+          "save": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SaveTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "switch_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Switch To"
+          }
+        },
+        "title": "ApplyBody",
+        "type": "object"
+      },
+      "AutosaveBody": {
+        "description": "Carry the on/off flag ``POST /api/autosave`` sets on the preset store.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AutosaveBody",
+        "type": "object"
+      },
+      "Body_matrix_filter_api_matrix_filter_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_matrix_filter_api_matrix_filter_post",
+        "type": "object"
+      },
+      "Body_restore_api_restore_post": {
+        "properties": {
+          "cfgfile": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Cfgfile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cfgfile"
+        ],
+        "title": "Body_restore_api_restore_post",
+        "type": "object"
+      },
+      "DescriptionBody": {
+        "description": "One profile's description for ``PUT /api/descriptions``.\n\nA sibling surface keeps its own body (``models`` is the main surface's). Empty text is a legal body and means the\nuser cleared the description \u2014 the store turns that into a removal.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "text"
+        ],
+        "title": "DescriptionBody",
+        "type": "object"
+      },
+      "DropBody": {
+        "description": "Entries to REMOVE from the staged buffer, named rather than valued.\n\nThe client sends these for edits that have returned to their baseline: the value is no longer a change, so it must\nnot ride along on the next apply and restart the daemon for nothing. `live` names arguments within a live key;\n`http` names whole fields.",
+        "properties": {
+          "http": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Http",
+            "type": "array"
+          },
+          "live": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "default": {},
+            "title": "Live",
+            "type": "object"
+          }
+        },
+        "title": "DropBody",
+        "type": "object"
+      },
+      "EngineBody": {
+        "description": "Carry the hardware-accel attribute overrides for ``POST /api/engine``.\n\n``all_presets`` writes them into every snapshot in the backup archive instead of only the active preset's.",
+        "properties": {
+          "all_presets": {
+            "default": false,
+            "title": "All Presets",
+            "type": "boolean"
+          },
+          "overrides": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Overrides",
+            "type": "object"
+          }
+        },
+        "title": "EngineBody",
+        "type": "object"
+      },
+      "FavoritesBody": {
+        "description": "The whole set of starred filter names for ``PUT /api/favorites``.\n\nA sibling surface keeps its own body (``models`` is the main surface's), and this one is a single field: the\nclient sends the set it wants stored, not a diff against the set it last read.",
+        "properties": {
+          "filters": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Filters",
+            "type": "array"
+          }
+        },
+        "required": [
+          "filters"
+        ],
+        "title": "FavoritesBody",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LiveBody": {
+        "description": "Carry the live config-form field/value pairs ``POST /api/config/live`` writes immediately.",
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Fields",
+            "type": "object"
+          }
+        },
+        "title": "LiveBody",
+        "type": "object"
+      },
+      "MatrixModeBody": {
+        "description": "One preset's Matrix-tab mode for ``PUT /api/matrixmodes``.\n\nA sibling surface keeps its own body (``models`` is the main surface's). The mode is validated by the store rather\nthan by the type, so an unknown value answers 422 naming what is storable instead of a schema complaint.",
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "mode"
+        ],
+        "title": "MatrixModeBody",
+        "type": "object"
+      },
+      "MatrixProfileBody": {
+        "description": "Carry the verb and profile name for ``POST /api/matrix/profile``, the live matrix-profile switch.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "MatrixProfileBody",
+        "type": "object"
+      },
+      "NarrowingBody": {
+        "description": "The whole facet set for ``PUT /api/narrowing``.\n\nDeliberately untyped per facet: the store owns the domains, so a bad token comes back as its sentence naming the\nfacet rather than as pydantic's shape complaint about a dict.",
+        "properties": {
+          "facets": {
+            "additionalProperties": true,
+            "title": "Facets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "facets"
+        ],
+        "title": "NarrowingBody",
+        "type": "object"
+      },
+      "ProfileBody": {
+        "description": "Carry the preset name ``POST /api/profile/{action}`` loads, saves, or deletes.",
+        "properties": {
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "title": "ProfileBody",
+        "type": "object"
+      },
+      "SaveTarget": {
+        "description": "Name the preset a successful apply persists into \u2014 nested under ``ApplyBody.save``.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SaveTarget",
+        "type": "object"
+      },
+      "SpeakersBody": {
+        "description": "Carry the speaker-processing switch and per-channel level/distance values for ``POST /api/speakers``.",
+        "properties": {
+          "channels": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "default": {},
+            "title": "Channels",
+            "type": "object"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "SpeakersBody",
+        "type": "object"
+      },
+      "StageBody": {
+        "description": "Carry one staging request's additions and removals for ``POST /api/config/stage``.\n\n``live`` and ``http`` merge into the buffer; ``drop`` is applied afterwards, so one request can both re-stage a\nfield and report another clean.",
+        "properties": {
+          "drop": {
+            "$ref": "#/components/schemas/DropBody",
+            "default": {
+              "http": [],
+              "live": {}
+            }
+          },
+          "http": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Http",
+            "type": "object"
+          },
+          "live": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "default": {},
+            "title": "Live",
+            "type": "object"
+          }
+        },
+        "title": "StageBody",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VolumeBody": {
+        "description": "Carry the playback-volume level ``POST /api/volume`` writes to the live lane.",
+        "properties": {
+          "level": {
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "VolumeBody",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "HQPTuner",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/audit": {
+      "get": {
+        "description": "Return the last ``limit`` audit records, newest last, read straight off the log file.",
+        "operationId": "records_api_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Records Api Audit Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Records"
+      }
+    },
+    "/api/autoeq": {
+      "get": {
+        "description": "Vendored AutoEq parametric-EQ library (built by scripts/build_autoeq_db.py, upstream MIT).\n\nPre-gzipped on disk and served with Content-Encoding so the browser's fetch decompresses transparently;\nlazy-loaded on first picker open.",
+        "operationId": "autoeq_db_api_autoeq_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Autoeq Db"
+      }
+    },
+    "/api/autosave": {
+      "post": {
+        "description": "Toggle auto-save: every successful apply/live write is folded back into the active preset's store file.\n\nPure store flag \u2014 no daemon touch.",
+        "operationId": "set_autosave_api_autosave_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutosaveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Set Autosave Api Autosave Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Autosave"
+      }
+    },
+    "/api/backup": {
+      "get": {
+        "description": "Return the daemon's settings archive as a zip download, carrying HQPTuner's profile descriptions.\n\nThe descriptions ride as one extra member (``presetzip.DESCRIPTIONS_MEMBER``) so the download is the whole of\nwhat the user has here, not the daemon's half of it; every daemon member is copied byte-for-byte, so the archive\nstill restores anywhere. A store with nothing in it adds no member.",
+        "operationId": "backup_api_backup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Backup"
+      }
+    },
+    "/api/config": {
+      "get": {
+        "description": "Return the /config form joined with HQPTuner's preset list, the running config, and the output device's caps.\n\nNeeds credentials \u2014 without them the 8088 lane does not exist and the route 503s.",
+        "operationId": "config_api_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Config Api Config Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Config"
+      }
+    },
+    "/api/config/apply": {
+      "post": {
+        "description": "Write everything staged to the daemon, then persist and clear the buffer only if all of it took.\n\n400 when nothing is staged and no preset switch was asked for. A soft failure returns the report with the buffer\nintact so the user can retry; the persistent lane restarts the daemon and interrupts playback, never gated on.",
+        "operationId": "apply_api_config_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApplyBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Api Config Apply Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply"
+      }
+    },
+    "/api/config/live": {
+      "post": {
+        "description": "Apply live-lane config-form fields immediately, readback-verified.\n\nThis is the LIVE view's whole write path. Never staged and never persistent, so it cannot restart the daemon and\ncannot flush what the tabs view has staged.\n\nRouted through the lane rather than a manager method because the LIVE lane's\nonly caller is this route, and `/state` already reads `livemap`\ndirectly for the same reason.",
+        "operationId": "config_live_api_config_live_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Config Live Api Config Live Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Config Live"
+      }
+    },
+    "/api/config/pending": {
+      "delete": {
+        "description": "Throw away everything staged, recording it first, and release the filter uploads parked for it.\n\nTouches the daemon not at all \u2014 the discarded edits were never written to it.",
+        "operationId": "discard_api_config_pending_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Discard Api Config Pending Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Discard"
+      },
+      "get": {
+        "description": "Return the staged buffer as it stands, so a reloaded browser recovers what it had staged.",
+        "operationId": "pending_api_config_pending_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Pending Api Config Pending Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pending"
+      }
+    },
+    "/api/config/refresh": {
+      "post": {
+        "description": "Re-scan output devices on the daemon and refetch the config forms.\n\nA device that was absent (a powered-off NAA endpoint) appears in the dropdown afterwards.",
+        "operationId": "config_refresh_api_config_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Config Refresh Api Config Refresh Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Config Refresh"
+      }
+    },
+    "/api/config/stage": {
+      "post": {
+        "description": "Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.\n\n422 when a live key is not a known live setting \u2014 the daemon would have no setter to call for it. Nothing is\nwritten to the daemon here; apply is a separate call.",
+        "operationId": "stage_api_config_stage_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StageBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Stage Api Config Stage Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stage"
+      }
+    },
+    "/api/descriptions": {
+      "get": {
+        "description": "Every stored profile description, keyed by profile name.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 an empty map would be a lie about a file\nthat is there and full.",
+        "operationId": "descriptions_api_descriptions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response Descriptions Api Descriptions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Descriptions"
+      },
+      "put": {
+        "description": "Store one profile's description and answer with the whole map.\n\nOne profile per write rather than the whole map, unlike favorites: a description is long, two browsers editing\ndifferent profiles is ordinary, and a whole-map replace would make one of them lose the other's paragraph.",
+        "operationId": "save_description_api_descriptions_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response Save Description Api Descriptions Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Description"
+      }
+    },
+    "/api/engine": {
+      "get": {
+        "description": "Return the hardware-acceleration attributes, read out of a fresh backup, and the active preset snapshot's name.\n\nThey are not on any form, so this costs a backup fetch \u2014 read on demand, never per poll.",
+        "operationId": "engine_get_api_engine_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Engine Get Api Engine Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Engine Get"
+      },
+      "post": {
+        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.\n\n400 with no overrides, 422 when one is not a valid engine attribute. The restore restarts the daemon and\ninterrupts playback \u2014 the user's call, never refused for it.",
+        "operationId": "engine_apply_api_engine_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngineBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Engine Apply Api Engine Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Engine Apply"
+      }
+    },
+    "/api/enumerations": {
+      "get": {
+        "description": "Return the engine's enumerations merged with the static ``data/*.json`` overlay, plus the current output mode.\n\nThe running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.",
+        "operationId": "enumerations_api_enumerations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Enumerations Api Enumerations Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Enumerations"
+      }
+    },
+    "/api/favorites": {
+      "get": {
+        "description": "Every starred filter name, sorted.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 an empty list would be a lie about a file\nthat is there and full.",
+        "operationId": "favorites_api_favorites_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Favorites Api Favorites Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Favorites"
+      },
+      "put": {
+        "description": "Replace the whole set of stars with the names given, and answer with what was stored.\n\nWhole-set replace: unstarring is a write without the name, so the client never needs a second route and two\nbrowsers racing is last-write-wins rather than a merge nobody asked for.",
+        "operationId": "save_favorites_api_favorites_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoritesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Save Favorites Api Favorites Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Favorites"
+      }
+    },
+    "/api/health": {
+      "get": {
+        "description": "Return daemon reachability, the current connection's age, alarm/info/license, and HQPTuner's own version.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/livepresets": {
+      "get": {
+        "description": "Every saved live preset.\n\nFlat: a preset carries its own output mode, so applying one taken on the other chain switches the engine to it\nrather than conflicting with what is loaded \u2014 there is nothing here to gate on.",
+        "operationId": "live_presets_api_livepresets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Live Presets Api Livepresets Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live Presets"
+      }
+    },
+    "/api/livepresets/{name}": {
+      "delete": {
+        "description": "Remove a saved live preset from the store, leaving the running engine untouched.\n\n404 when no preset is saved under the name.",
+        "operationId": "delete_live_preset_api_livepresets__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Live Preset Api Livepresets  Name  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Live Preset"
+      },
+      "put": {
+        "description": "Snapshot what the engine is playing right now under this name, overwriting any preset already saved under it.\n\n409 when the loaded chain is unknowable \u2014 the record would claim a chain it never captured.",
+        "operationId": "save_live_preset_api_livepresets__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Save Live Preset Api Livepresets  Name  Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Live Preset"
+      }
+    },
+    "/api/livepresets/{name}/apply": {
+      "post": {
+        "description": "Apply a saved preset, readback-verified.\n\nIts output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),\nso a preset taken on the other chain applies by switching to it.\n\nThe live lane's all-or-nothing 409 carries over unchanged: a stored ID the\nrunning enumerations no longer offer refuses the whole preset, naming the\nfield.",
+        "operationId": "apply_live_preset_api_livepresets__name__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Apply Live Preset Api Livepresets  Name  Apply Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Live Preset"
+      }
+    },
+    "/api/log": {
+      "get": {
+        "description": "Return a static tail of the daemon's log file (System-tab live view).\n\nRead-only, no daemon socket \u2014 reads the file the running config points at.",
+        "operationId": "log_tail_api_log_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lines",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Lines",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Log Tail Api Log Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Log Tail"
+      }
+    },
+    "/api/matrix": {
+      "get": {
+        "description": "Return the Matrix tab's read model: the /matrix form plus the live, file-saved, and per-preset profile lists.\n\nServed from the last-loaded form snapshot, stale-flagged when the daemon is unreachable \u2014 never a socket wait.",
+        "operationId": "matrix_api_matrix_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Matrix Api Matrix Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Matrix"
+      }
+    },
+    "/api/matrix/filter": {
+      "post": {
+        "description": "Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.\n\nReturns the daemon-side absolute path the pipeline process string should reference (matrix-spec.md\n\"Filter upload\").",
+        "operationId": "matrix_filter_api_matrix_filter_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_matrix_filter_api_matrix_filter_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Matrix Filter Api Matrix Filter Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Matrix Filter"
+      }
+    },
+    "/api/matrix/profile": {
+      "post": {
+        "description": "Load a saved matrix profile into the running matrix (matrix-spec.md \"Profiles\", amended round 5).\n\n4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no\ncredentials \u2014 the Control API lane is unauthenticated.\n\nSaving and deleting a profile are NOT here: they are staged\n``<matrix_profile>`` config edits and ride ``/api/config/stage`` +\n``/api/config/apply`` like every other persistent setting, because the daemon\ndoes not persist profiles itself (round 5). The client stages the loaded\nprofile's rows alongside this call, so a load is live AND persists.",
+        "operationId": "matrix_profile_api_matrix_profile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrixProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Matrix Profile Api Matrix Profile Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Matrix Profile"
+      }
+    },
+    "/api/matrixmodes": {
+      "get": {
+        "description": "Every stored Matrix-tab mode, keyed by preset name.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 an empty map would be a lie about a file\nthat is there and full, and would put the user on the wrong half of the tab.",
+        "operationId": "matrix_modes_api_matrixmodes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response Matrix Modes Api Matrixmodes Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Matrix Modes"
+      },
+      "put": {
+        "description": "Store one preset's Matrix-tab mode and answer with the whole map.\n\nOne preset per write rather than the whole map: two browsers looking at different presets is ordinary, and a\nwhole-map replace would make one of them undo the other's choice.",
+        "operationId": "save_matrix_mode_api_matrixmodes_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrixModeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response Save Matrix Mode Api Matrixmodes Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Matrix Mode"
+      }
+    },
+    "/api/metadata": {
+      "get": {
+        "description": "Return the whole static ``data/*.json`` overlay \u2014 filters, shapers, and settings prose \u2014 unjoined.\n\nLoaded once at startup and never daemon-dependent, so this answers the same whether or not hqplayerd is up.",
+        "operationId": "metadata_api_metadata_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Metadata Api Metadata Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metadata"
+      }
+    },
+    "/api/narrowing": {
+      "get": {
+        "description": "Every narrow-bar facet, stored value or default.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 answering with defaults would be a lie\nabout a file that is there and full.",
+        "operationId": "narrowing_api_narrowing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Narrowing Api Narrowing Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Narrowing"
+      },
+      "put": {
+        "description": "Replace the whole facet set with the facets given, and answer with what was stored.\n\nWhole-set replace: a facet left out is stored at its default, so the client never needs a second route and two\nbrowsers racing is last-write-wins rather than a merge nobody asked for.",
+        "operationId": "save_narrowing_api_narrowing_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NarrowingBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Save Narrowing Api Narrowing Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Narrowing"
+      }
+    },
+    "/api/preset/{name}": {
+      "delete": {
+        "description": "Delete a preset from the store and remove its daemon mirror.\n\nBacks the Delete button on the preset picker.",
+        "operationId": "delete_preset_api_preset__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Preset Api Preset  Name  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Preset"
+      },
+      "get": {
+        "description": "Read a preset's saved settings from its snapshot without loading it.\n\nThe editor previews these when the user picks a preset, before any apply. The empty name is \"(no preset)\" and\npreviews the running config.",
+        "operationId": "preset_api_preset__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Preset Api Preset  Name  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preset"
+      }
+    },
+    "/api/profile/{action}": {
+      "post": {
+        "description": "Load, save, or delete a named preset, dispatching on the path segment.\n\n404 on an action outside those three or a name the store does not hold, 422 on an empty name.",
+        "operationId": "profile_api_profile__action__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "title": "Action",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Profile Api Profile  Action  Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Profile"
+      }
+    },
+    "/api/restore": {
+      "post": {
+        "description": "Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.\n\nThe daemon self-restarts on it, interrupting playback. The one thing taken out of the archive first is\nHQPTuner's own descriptions member, which ``GET /api/backup`` put there: it is folded into this install's store\nand never handed to hqplayerd, which did not write it and has no idea what it is. Everything else \u2014 including a\nbare XML upload, which is not an archive at all \u2014 reaches the daemon exactly as the user sent it.",
+        "operationId": "restore_api_restore_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_restore_api_restore_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Restore Api Restore Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore"
+      }
+    },
+    "/api/speakers": {
+      "get": {
+        "description": "Speaker-processing read model (readme \u00a71.9): enabled + per-channel level (dBFS) / distance (cm).\n\nServed from the last-loaded form snapshot, stale-flagged when the daemon is unreachable \u2014 never a socket wait\n(fail-fast, see deps).",
+        "operationId": "speakers_api_speakers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Speakers Api Speakers Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Speakers"
+      },
+      "post": {
+        "description": "Apply speaker processing via the /speakers form lane (readme \u00a71.9).\n\nReloads the engine (~3 s), interrupting playback \u2014 never refused for it. The write is checkbox-safe and\nrange-validated in ``httpconf.apply_speakers``.",
+        "operationId": "speakers_apply_api_speakers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Speakers Apply Api Speakers Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speakers Apply"
+      }
+    },
+    "/api/state": {
+      "get": {
+        "description": "Return the daemon's last State frame with the engine's active filter/shaper chain folded in.\n\nStale-flagged from the last-loaded copy while the daemon is unreachable; 503 until the first frame has landed.",
+        "operationId": "state_api_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response State Api State Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "State"
+      }
+    },
+    "/api/status": {
+      "get": {
+        "description": "Return the daemon's Status frame with its track metadata and the junk-filter advisor's recommendation.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.",
+        "operationId": "status_api_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Status Api Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status"
+      }
+    },
+    "/api/volume": {
+      "get": {
+        "description": "Live volume + its live bounds/enabled (VolumeRange).\n\nSeparate from the staged-config surface \u2014 this is the runtime playback-volume lane.",
+        "operationId": "volume_get_api_volume_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Volume Get Api Volume Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Volume Get"
+      },
+      "post": {
+        "description": "Immediate live-volume write \u2014 never staged, never restarts.\n\n503 when volume control is disabled (the slider grays on that state, so this is the race backstop).",
+        "operationId": "volume_set_api_volume_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Volume Set Api Volume Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Volume Set"
+      }
+    }
+  }
+}
