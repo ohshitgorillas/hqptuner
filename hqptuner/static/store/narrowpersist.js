@@ -43,8 +43,8 @@ const FACETS = [
   ["genre", nGenre, []],
   ["quality", nQuality, QUALITY_DEFAULT],
   ["focus", nFocus, []],
-  ["phase", nPhase, ""],
-  ["length", nLength, ""],
+  ["phase", nPhase, []],
+  ["length", nLength, []],
   // Legacy stores may still carry `ratio` / `upsample_only` / `hide_2x` /
   // `hide_int`; hydrate only reads the keys named here, so stale values are
   // ignored rather than migrated.

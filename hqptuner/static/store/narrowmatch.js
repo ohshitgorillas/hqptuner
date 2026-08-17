@@ -34,8 +34,8 @@ import { effective } from "./resolve.js";
  * @property {number} quality
  * @property {string[]} focus
  * @property {string} focusMode "and" | "or" — how the focus picks combine
- * @property {string} phase
- * @property {string} length
+ * @property {string[]} phase
+ * @property {string[]} length
  * @property {boolean} hideLimited
  * @property {boolean} oddOnly
  * @property {boolean} downsafeOnly
@@ -108,8 +108,11 @@ const FACET_CHECKS = [
   (f, s) => !s.quality || (f.quality != null && f.quality >= s.quality),
   // Focus has no "any" tag in the manual — an untagged filter fails a focus pick.
   (f, s) => !s.focus.length || multiPass(s.focus, f.focus, s.focusMode),
-  (f, s) => !s.phase || f.phase === s.phase,
-  (f, s) => !s.length || f.length === s.length,
+  // Phase and length union rather than intersect, and carry no mode switch to
+  // say otherwise: a filter holds exactly one of each, so a second pick can
+  // only widen.
+  (f, s) => !s.phase.length || s.phase.includes(f.phase),
+  (f, s) => !s.length.length || s.length.includes(f.length),
   // The rate-change rules hide only what they can positively exclude: a filter
   // whose ratio class is unknown (null) is never hidden by them. The odd-rate
   // rule hides just the 2x class — integer filters can still reach HQPTuner's
@@ -224,25 +227,19 @@ function buildSel(stage, field) {
 
 // Any facet actually narrowing? An unset facet excludes nothing, so an
 // all-default snapshot returns the option list untouched (same object).
+// Split by SHAPE, not by facet: an empty array is truthy, so a multi-select
+// read through the scalar test would report engaged with nothing picked and
+// every short-circuit below would stop working.
 /** @type {(keyof Sel)[]} */
-const SCALAR_FACETS = [
-  "quality",
-  "phase",
-  "length",
-  "hideLimited",
-  "oddOnly",
-  "downsafeOnly",
-  "favOnly",
-  "apod",
-  "lossy",
-];
+const LIST_FACETS = ["genre", "focus", "phase", "length"];
+/** @type {(keyof Sel)[]} */
+const SCALAR_FACETS = ["quality", "hideLimited", "oddOnly", "downsafeOnly", "favOnly", "apod", "lossy"];
 /**
  * @param {Sel} s
- * @returns {number | boolean} truthy when any facet narrows; the two array
- *   facets answer with their length, which is what the `||` chain returns
+ * @returns {boolean} whether any facet narrows
  */
 function anyEngaged(s) {
-  return s.genre.length || s.focus.length || SCALAR_FACETS.some((k) => s[k]);
+  return LIST_FACETS.some((k) => /** @type {string[]} */ (s[k]).length > 0) || SCALAR_FACETS.some((k) => !!s[k]);
 }
 
 /**

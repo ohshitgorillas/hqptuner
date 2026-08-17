@@ -5,7 +5,16 @@
 import { html } from "../../lib/dom.js";
 import { GENRES, QUALITY, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
 import { genreOpen, qualityOpen, focusOpen, phaseOpen, lengthOpen, rateOpen } from "./popover.js";
-import { focusLabel, genreLabel, genreRowOff, rateLabel, oneLabel, toggleVal } from "./labels.js";
+import {
+  focusLabel,
+  genreLabel,
+  genreRowOff,
+  phaseLabel,
+  lengthLabel,
+  rateLabel,
+  oneLabel,
+  toggleVal,
+} from "./labels.js";
 import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
 import { Segment } from "../controls/index.js";
 import {
@@ -84,25 +93,23 @@ export function NarrowFacets() {
         count=${(/** @type {string} */ v) => ({ focus: toggleVal(nFocus.value, v) })}
         extra=${html`<${ModeSwitch} sig=${nFocusMode} />`}
       />
-      <${SingleSelect}
+      <${MultiSelect}
         open=${phaseOpen}
         name="phase"
-        label=${oneLabel(PHASES, nPhase.value, "Any phase")}
-        value=${nPhase.value}
+        label=${phaseLabel()}
         items=${PHASES}
-        onPick=${(/** @type {string} */ v) => (nPhase.value = v)}
-        active=${!!nPhase.value}
-        count=${(/** @type {string} */ v) => ({ phase: v })}
+        sig=${nPhase}
+        active=${!!nPhase.value.length}
+        count=${(/** @type {string} */ v) => ({ phase: toggleVal(nPhase.value, v) })}
       />
-      <${SingleSelect}
+      <${MultiSelect}
         open=${lengthOpen}
         name="length"
-        label=${oneLabel(LENGTHS, nLength.value, "Any length")}
-        value=${nLength.value}
+        label=${lengthLabel()}
         items=${LENGTHS}
-        onPick=${(/** @type {string} */ v) => (nLength.value = v)}
-        active=${!!nLength.value}
-        count=${(/** @type {string} */ v) => ({ length: v })}
+        sig=${nLength}
+        active=${!!nLength.value.length}
+        count=${(/** @type {string} */ v) => ({ length: toggleVal(nLength.value, v) })}
       />
       <${RateFacet} />
     </div>

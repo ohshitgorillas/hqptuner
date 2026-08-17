@@ -31,17 +31,18 @@ if TYPE_CHECKING:
 # refused rather than guessed at. An unstamped file predates the stamp and is adopted as schema 1 on its next write.
 _SCHEMA = 1
 
-# Ceiling on a multi-select facet. Both lists draw from a closed set of seven and three tokens, so this is an abuse
-# guard against a client sending the same token ten thousand times, nothing more.
+# Ceiling on a multi-select facet. Every one of them draws from a closed set of a handful of tokens, so this is an
+# abuse guard against a client sending the same token ten thousand times, nothing more.
 _MAX_LIST = 32
 
 # The facet token sets, transcribed from the manual's filter tables the same way the frontend's facet-data tables are
-# (architecture, "Static facet fallback"). "" is the "not narrowed by this facet at all" row, distinct from the
-# manual's own "any" genre/ratio class, which is a real facet value meaning "this filter suits all of them".
+# (architecture, "Static facet fallback"). All four are multi-selects: the empty LIST means "not narrowed at all".
+# Phase's "" token is a real value meaning something else — the filters the taxonomy does not reach — the way the
+# manual's own "any" genre class is a real value meaning "this filter suits all of them".
 _GENRES = frozenset({"pop", "jazz", "classical", "electronic", "any"})
 _FOCUS = frozenset({"transients", "timbre", "space"})
 _PHASES = frozenset({"", "linear", "minimum", "intermediate"})
-_LENGTHS = frozenset({"", "short", "medium", "long", "xlong"})
+_LENGTHS = frozenset({"short", "medium", "long", "xlong"})
 _QUALITIES = frozenset({0, 3, 4, 5})
 # The rate-limited hide is tri-state: "auto" follows the DAC (the frontend resolves it against the live rates
 # enumeration), "on"/"off" are the user's explicit override.
@@ -103,8 +104,8 @@ _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "quality": (3, _quality),
     "focus": ([], _list_of(_FOCUS)),
     "focus_mode": ("and", _one_of(_MODES)),
-    "phase": ("", _one_of(_PHASES)),
-    "length": ("", _one_of(_LENGTHS)),
+    "phase": ([], _list_of(_PHASES)),
+    "length": ([], _list_of(_LENGTHS)),
     "hide_limited": ("auto", _one_of(_RATE_RULES)),
     "odd_rate_only": (False, _flag),
     "downsafe_only": (False, _flag),

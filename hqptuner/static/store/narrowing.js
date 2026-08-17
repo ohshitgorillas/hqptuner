@@ -28,11 +28,13 @@ export const GENRE_MODE_DEFAULT = "or";
 export const FOCUS_MODE_DEFAULT = "and";
 export const nGenreMode = signal(GENRE_MODE_DEFAULT);
 export const nFocusMode = signal(FOCUS_MODE_DEFAULT);
-export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)
-// Length is SINGLE-select, unlike genre and focus: a filter carries exactly
-// one length, so an intersection of two picks is empty by construction and a
-// multi-select would offer a choice it cannot honour. "" = any.
-export const nLength = signal("");
+// Phase and length are multi-select like genre and focus, but they carry no
+// combine mode: a filter holds exactly one phase and exactly one length, so AND
+// across two picks is empty by construction and OR is the only reading a second
+// pick can have. Their picks therefore always union, and each further pick
+// widens the list. [] = any.
+export const nPhase = signal([]); // multi-select: linear | minimum | intermediate
+export const nLength = signal([]); // multi-select: short | medium | long | xlong
 // Rate-change narrowing. The manual's ratio column names LIMITATIONS (2x-only,
 // integer-only, upsample-only), and nobody shops FOR a limitation — the user's
 // scenario decides which limitation would bite, so the control is three
@@ -102,8 +104,8 @@ export const filterNarrowingActive = computed(
       nGenre.value.length ||
       nQuality.value !== QUALITY_DEFAULT ||
       nFocus.value.length ||
-      nPhase.value ||
-      nLength.value ||
+      nPhase.value.length ||
+      nLength.value.length ||
       nHideLimited.value !== RATE_RULE_DEFAULT ||
       nOddRateOnly.value ||
       nDownsafeOnly.value ||
@@ -126,8 +128,8 @@ export function resetNarrowing() {
   nGenre.value = [];
   nQuality.value = QUALITY_DEFAULT; // back to the 3/5 floor, not to "any"
   nFocus.value = [];
-  nPhase.value = "";
-  nLength.value = "";
+  nPhase.value = [];
+  nLength.value = [];
   nHideLimited.value = RATE_RULE_DEFAULT;
   nOddRateOnly.value = false;
   nDownsafeOnly.value = false;

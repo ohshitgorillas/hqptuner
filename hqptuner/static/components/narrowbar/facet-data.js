@@ -31,13 +31,15 @@ export const FOCUS = [
   ["space", "Space"],
 ];
 export const PHASES = [
-  ["", "Any phase"],
   ["linear", "Linear"],
   ["minimum", "Minimum"],
   ["intermediate", "Intermediate"],
+  // the filters the phase taxonomy does not reach (store/facets.js `phase`) —
+  // a real facet value, distinct from the empty selection the button calls
+  // "Any phase", which means "not narrowed by phase at all"
+  ["", "No phase"],
 ];
 export const LENGTHS = [
-  ["", "Any length"],
   ["short", "Short"],
   ["medium", "Medium"],
   ["long", "Long"],

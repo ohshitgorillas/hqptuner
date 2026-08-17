@@ -12,6 +12,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Picking "All genres" under AND greys the other genre rows out and the button reads "All genres".** A filter tagged for every genre passes whatever else is ticked, so those picks could not change the result or the count. Switching the facet to OR makes them live again.
 
+- **The phase and length facets take several picks at once.**
+
 ## [1.8.0] — 2026-08-16
 
 ### Added
