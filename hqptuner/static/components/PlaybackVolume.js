@@ -18,7 +18,7 @@ import { effective, runningValue } from "../store/resolve.js";
 import { setVolume } from "../store/actions.js";
 import { Knob } from "./Knob.js";
 import { Card } from "./common.js";
-import { truthy } from "../lib/coerce.js";
+import { truthy, num } from "../lib/coerce.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
 // *why*. Name the actual cause from the RUNNING config — the engine is what is
@@ -45,18 +45,50 @@ function disabledReason() {
   return "No active stream — volume adjusts live during playback.";
 }
 
-// The engine-reported VolumeRange, normalized into what the knob needs. The
-// enabled test is deliberately NARROWER than the module's truthy() above:
-// VolumeRange reports the flag as 1 / "1" / true and nothing else, and widening
-// it here would let an unrelated string un-gray a knob the engine is holding.
-// Defaults are the daemon's own (-60..0 dBFS) for a range it did not report.
+// The axis a grayed dial is drawn on. While the engine holds the volume control
+// it still reports a VolumeRange, but that range is the engine's own and not the
+// configured one (measured under fixed volume: enabled="0" min="-12" max="0"
+// against a config of volume_min=-60 / volume_max=-3), so a dial drawn on it
+// sits at an arbitrary fraction of a range the user never set. The running
+// config's own range is what the reported level means something against.
+//
+// Returns null when the running config has no usable range — no credentials, no
+// /config form — so the caller keeps the engine's report rather than inventing
+// an axis.
+/** @returns {{ min: number, max: number, pin: number | null } | null} */
+function configRange() {
+  const rmin = runningValue("volume_min");
+  const rmax = runningValue("volume_max");
+  if (rmin == null || rmax == null || rmin === "" || rmax === "") return null;
+  const min = num(rmin, NaN);
+  const max = num(rmax, NaN);
+  if (Number.isNaN(min) || Number.isNaN(max)) return null;
+  // min = max = 0 bypasses the volume control completely (manual §4.2), and a
+  // degenerate axis has no position to draw on at all. Nothing is being
+  // attenuated, so the dial reads full up on a normal axis rather than parking
+  // at the midpoint an empty range would produce.
+  if (min >= max) return { min: -60, max: 0, pin: 0 };
+  return { min, max, pin: null };
+}
+
+// The range the knob is drawn on. The enabled test is deliberately NARROWER than
+// the module's truthy() above: VolumeRange reports the flag as 1 / "1" / true
+// and nothing else, and widening it here would let an unrelated string un-gray a
+// knob the engine is holding. Defaults are the daemon's own (-60..0 dBFS) for a
+// range it did not report.
+//
+// `pin`, when set, is the level the dial shows instead of the engine's report.
 function knobRange() {
   const vr = volumeRange.value || {};
-  return {
-    enabled: vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true,
+  const enabled = vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true;
+  const engine = {
     min: Number(vr.min != null ? vr.min : -60),
     max: Number(vr.max != null ? vr.max : 0),
+    pin: /** @type {number | null} */ (null),
   };
+  // While the engine owns the control its report IS the axis the writes land on
+  if (enabled) return { enabled, ...engine };
+  return { enabled, ...(configRange() || engine) };
 }
 
 // throttle: send the first move immediately, then at most once per 100 ms, with
@@ -98,9 +130,11 @@ function throttleSend(v) {
 // other controls asks for it.
 /** Renders the volume dial and, when the engine holds the control, the grayed-out reason. */
 export function PlaybackVolumeBody({ showName = false }) {
-  const { enabled, min, max } = knobRange();
+  const { enabled, min, max, pin } = knobRange();
   const engine = volume.value != null ? Number(volume.value) : min;
-  const val = volumeDrag.value != null ? volumeDrag.value : engine;
+  // a pinned level owns the dial: under bypass there is no reported level that
+  // means anything on this axis
+  const val = pin != null ? pin : volumeDrag.value != null ? volumeDrag.value : engine;
 
   const onLive = (/** @type {string | number} */ v) => {
     volumeDrag.value = Number(v);
