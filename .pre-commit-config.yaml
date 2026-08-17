@@ -250,3 +250,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(hqptuner/api/|docs/openapi\.json$)
+
+      # Reads the config module and the Dockerfile together: a new Path field and
+      # an ENV block that forgot it are the same defect seen from two files.
+      - id: container-env
+        name: container env pinning gate
+        entry: .venv/bin/python scripts/gates/check_container_env.py
+        language: system
+        pass_filenames: false
+        files: ^(hqptuner/config\.py|Dockerfile)$
