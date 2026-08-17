@@ -16,7 +16,8 @@ from hqptuner.api import deps
 from hqptuner.api.deps import HttpMgr, Mgr
 from hqptuner.conf.matrixconf import MATRIX_PROFILES
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import matrixlane, speakerlane
+from hqptuner.lanes import matrixlane
+from hqptuner.lanes.http import speakerprocessing
 from hqptuner.presets import presetlane
 
 router = APIRouter(prefix="/api")
@@ -140,7 +141,7 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> dict[str, Any]
     range-validated in ``httpconf.apply_speakers``.
     """
     try:
-        report = await speakerlane.apply(manager, body.channels, enabled=body.enabled)
+        report = await speakerprocessing.apply(manager, body.channels, enabled=body.enabled)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved

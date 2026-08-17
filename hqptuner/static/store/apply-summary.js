@@ -26,7 +26,7 @@
  * @property {boolean} [active] whether the daemon reports it loaded afterwards
  *
  * @typedef {object} PersistentResult
- *   The config lane's outcome (httplane).
+ *   The config lane's outcome (http.restore).
  * @property {boolean} [submitted]
  * @property {boolean} [applied]
  * @property {string} [reason] unconverged | unavailable

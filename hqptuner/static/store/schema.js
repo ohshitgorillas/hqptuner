@@ -345,7 +345,7 @@ export const schema = {
   //
   // A config write has no source to take a family from, so writing that slot
   // would send 44.1k material out at a 48k base rate — which is the user's call
-  // to make via alsa_anydsd/net_anydsd, never HQPTuner's. httplane.FORCED_CONFIG
+  // to make via alsa_anydsd/net_anydsd, never HQPTuner's. http.restore.FORCED_CONFIG
   // therefore pins it to 0 on every write and this menu never goes near it.
   // store/live/rates.js writes it live, where the playing source IS known and the tier
   // resolves to that source's own family member.

@@ -34,7 +34,8 @@ from hqptuner.config import Config
 from hqptuner.core.applyops import ApplyOps
 from hqptuner.engine import devicecaps, logtail, release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
-from hqptuner.lanes import httpforms, rescan, settle
+from hqptuner.lanes import rescan, settle
+from hqptuner.lanes.http import forms
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets.presetops import PresetOps
 from hqptuner.presets.store.presets import PresetError
@@ -314,14 +315,14 @@ class ConnectionManager:
         self.state, self.enums = state, enums
 
     async def refresh_http_forms(self) -> None:
-        """Refresh the three polled 8088 form snapshots (lanes/httpforms) and the device capability.
+        """Refresh the three polled 8088 form snapshots (lanes/http/forms) and the device capability.
 
         The capability hangs off those forms: it is read for whichever device the config form says
         is selected, so it belongs wherever that form is refreshed — the poll loop, connect, and the
         rescan route alike — rather than at the poll loop alone, which leaves every other path
         serving a stale answer or none.
         """
-        await httpforms.refresh(self)
+        await forms.refresh(self)
         await self.refresh_device_caps()
 
     # --- accessors for the extracted write lanes --------------------------

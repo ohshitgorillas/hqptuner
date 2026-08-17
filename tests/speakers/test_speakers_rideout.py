@@ -1,4 +1,4 @@
-"""The speaker-processing apply's ride-out (``speakerlane.apply``): the form
+"""The speaker-processing apply's ride-out (``speakerprocessing.apply``): the form
 POST reloads the engine and the /speakers lane 502s for a window, so the verify
 polls past the transient on the virtual clock and confirms what landed — or gives
 up honestly at the alarm deadline when the daemon never comes back.
@@ -19,7 +19,7 @@ import pytest
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import speakerlane
+from hqptuner.lanes.http import speakerprocessing
 
 _CHANNELS = ("Left", "Right")
 
@@ -118,7 +118,7 @@ async def test_apply_rides_out_the_reload_window_and_confirms(
     speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
 ) -> None:
     manager = speakers_manager(reloading_daemon)
-    result = await speakerlane.apply(manager, {"0": {"level": "-3"}}, enabled=True)
+    result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert result["applied"] is True
 
 
@@ -126,7 +126,7 @@ async def test_the_applied_level_lands_on_the_daemon(
     speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
 ) -> None:
     manager = speakers_manager(reloading_daemon)
-    await speakerlane.apply(manager, {"0": {"level": "-3"}}, enabled=True)
+    await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert reloading_daemon["level_0"] == "-3"
 
 
@@ -134,7 +134,7 @@ async def test_a_confirmed_apply_reports_the_refreshed_form(
     speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
 ) -> None:
     manager = speakers_manager(reloading_daemon)
-    result = await speakerlane.apply(manager, {"0": {"level": "-3"}}, enabled=True)
+    result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert result["speakers"]["enabled"] is True
 
 
@@ -143,5 +143,5 @@ async def test_apply_gives_up_honestly_when_the_daemon_never_returns(
 ) -> None:
     # the deadline passes with only 502s: report unconfirmed, never claim success
     manager = speakers_manager(dead_after_write_daemon, alarm_threshold=2.0)
-    result = await speakerlane.apply(manager, {"0": {"level": "-3"}}, enabled=True)
+    result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert result["applied"] is False

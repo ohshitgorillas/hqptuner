@@ -6,7 +6,7 @@ manager — this class owns the dispatch, not a second wire lane.
 
 Operations that had nothing to add over their lane are not here: the matrix
 profile switch and the speaker apply were one-line pass-throughs, so their
-routes call ``lanes.matrixlane`` and ``lanes.speakerlane`` directly.
+routes call ``lanes.matrixlane`` and ``lanes.http.speakerprocessing`` directly.
 """
 
 from typing import TYPE_CHECKING, Any
@@ -15,7 +15,7 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import enginelane, httplane
+from hqptuner.lanes.http import engineattrs, restore
 from hqptuner.lanes.live import lane
 from hqptuner.lanes.writer import apply_live
 from hqptuner.presets import presetlane
@@ -81,7 +81,7 @@ class ApplyOps:
             live_report = live_report + await apply_live(client, live_edits, mgr.audit)
             await lane.refresh_after_live(mgr, client, live_edits)
             lane.remember_routed(mgr, live_report, staged)
-        persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
+        persistent = await restore.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
         if persistent is not None and persistent.get("applied"):
             # the restore restarted the daemon, so every live reading we hold belongs
             # to the process it replaced — and the auto-save that follows this apply
@@ -108,7 +108,7 @@ class ApplyOps:
         return {"live": live_report, "persistent": persistent, "switched": switched}
 
     async def apply_engine(self, overrides: dict[str, str], *, all_presets: bool = False) -> dict[str, Any]:
-        """Apply hardware-acceleration engine attributes via the config-file-only lane (`enginelane`).
+        """Apply hardware-acceleration engine attributes via the config-file-only lane (`http.engineattrs`).
 
         The restore restarts the daemon and interrupts playback; nothing gates on that — the user
         decides when.
@@ -120,7 +120,7 @@ class ApplyOps:
         try:
             backup = await mgr.presetops.backup_or_cached()
             mgr.presetops.persist_backup(backup)
-            result = await enginelane.apply(mgr, backup, overrides, mgr.active_config, all_presets=all_presets)
+            result = await engineattrs.apply(mgr, backup, overrides, mgr.active_config, all_presets=all_presets)
         except httpx.HTTPError as exc:
             return {"submitted": False, "error": str(exc)}
         # same restart, same stale readings as the staged-apply path above

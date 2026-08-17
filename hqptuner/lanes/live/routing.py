@@ -1,6 +1,6 @@
 """Live routing for config-form fields the Control API can set directly.
 
-The persistent lane (``httplane``) writes the config XML and pushes it with
+The persistent lane (``http.restore``) writes the config XML and pushes it with
 ``POST /restore``, on which the daemon self-restarts (~5.6 s). Seven of its
 fields have exact Control API equivalents that apply instantly with no restart,
 so ``manager.apply`` peels those off and hands them to ``writer.apply_live``
@@ -45,7 +45,7 @@ class LiveField(NamedTuple):
 
 # The seven form fields with an exact live equivalent. Deliberately NOT here:
 # defaults_samplerate / defaults_bitrate. Those are a per-family *ceiling* under
-# forced auto-family (httplane.FORCED_CONFIG), while SetRate forces a fixed
+# forced auto-family (http.restore.FORCED_CONFIG), while SetRate forces a fixed
 # output rate — different settings, and equating them would break auto-family.
 ROUTABLE: dict[str, LiveField] = {
     "filter1x": LiveField("filter", "value1x", "filters", PCM, "filter1x"),
@@ -240,7 +240,7 @@ _LIVE_ONLY: dict[str, LiveField] = {
     # target rate `SetRate` writes. LIVE carries the target slot itself, as an
     # actual rate in Hz ("0" = auto) — and `RatesItem` has no `value` attribute
     # (`<RatesItem index rate/>`, protocol.md §6), so this one joins on `rate`.
-    # A live-set rate is ephemeral by design: httplane.FORCED_CONFIG re-forces
+    # A live-set rate is ephemeral by design: http.restore.FORCED_CONFIG re-forces
     # samplerate=0 on every persistent apply, so LIVE experiments never reach the
     # config file.
     "rate": LiveField("rate", "value", "rates", None, "rate"),

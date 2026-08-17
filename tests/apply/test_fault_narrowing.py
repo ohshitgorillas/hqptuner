@@ -33,7 +33,7 @@ from narrow import present
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import httpforms
+from hqptuner.lanes.http import forms
 
 #: The three pages the 8088 web UI is read from in one pass, each with the field
 #: of its parsed form that is non-empty on any real daemon — so "this form was
@@ -63,7 +63,7 @@ async def test_a_refusing_form_route_records_that_forms_error(
     http_manager: ConnectionManager, http_daemon: dict[str, Any], form: str
 ) -> None:
     http_daemon["_fail_paths"] = [f"/{form}"]
-    await httpforms.refresh(http_manager)
+    await forms.refresh(http_manager)
     assert getattr(http_manager, f"{form}_error") is not None
 
 
@@ -72,7 +72,7 @@ async def test_a_refusing_form_route_still_refreshes_the_other_forms(
     http_manager: ConnectionManager, http_daemon: dict[str, Any], broken: str, intact: str
 ) -> None:
     http_daemon["_fail_paths"] = [f"/{broken}"]
-    await httpforms.refresh(http_manager)
+    await forms.refresh(http_manager)
     assert FORMS[intact](present(getattr(http_manager, f"{intact}_form")))
 
 
@@ -81,10 +81,10 @@ async def test_a_refusing_form_route_leaves_the_last_good_snapshot_in_place(
 ) -> None:
     # a good pass first, then the route refuses while the daemon's own state
     # moves: the stale-but-real snapshot must survive, not be cleared
-    await httpforms.refresh(http_manager)
+    await forms.refresh(http_manager)
     http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
     http_daemon["_fail_paths"] = ["/matrix"]
-    await httpforms.refresh(http_manager)
+    await forms.refresh(http_manager)
     assert present(http_manager.matrix_form)["active"] == "[Default]"
 
 
@@ -150,7 +150,7 @@ async def test_a_healthy_pass_records_no_error_for_any_form(
     http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], form: str
 ) -> None:
     manager = http_manager_factory(http_daemon)
-    await httpforms.refresh(manager)
+    await forms.refresh(manager)
     assert getattr(manager, f"{form}_error") is None
 
 
@@ -209,7 +209,7 @@ async def test_an_unexpected_fault_propagates_out_of_the_form_refresh(
 ) -> None:
     manager, _client = faulting_matrix
     with pytest.raises(TypeError):
-        await httpforms.refresh(manager)
+        await forms.refresh(manager)
 
 
 async def test_an_unexpected_fault_is_not_recorded_as_that_forms_error(
@@ -219,7 +219,7 @@ async def test_an_unexpected_fault_is_not_recorded_as_that_forms_error(
     # message that reads like the daemon refusing
     manager, _client = faulting_matrix
     with contextlib.suppress(TypeError):
-        await httpforms.refresh(manager)
+        await forms.refresh(manager)
     assert manager.matrix_error is None
 
 
