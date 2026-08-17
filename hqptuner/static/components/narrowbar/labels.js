@@ -93,11 +93,23 @@ const countLabel = (items, sel, idle, plural) => {
   return `${sel.length} ${plural}`;
 };
 
+// Phase counts NAMED phases only. "No phase" is a pick about the absence of a
+// classification rather than one more phase, so folding it into the count would
+// report a number of phases that includes a filter having none. It reads as its
+// own trailing clause instead, and the named half keeps the ordinary rule: one
+// named phase shows its own label, more show a count.
 /**
- * Summary label for the phase dropdown's button: "Any phase", the one picked phase, or "N phases".
+ * Summary label for the phase dropdown's button. Counts named phases only; a
+ * picked "No phase" adds a trailing " + no phase" clause.
  * @returns {string}
  */
-export const phaseLabel = () => countLabel(PHASES, nPhase.value, "Any phase", "phases");
+export function phaseLabel() {
+  const sel = nPhase.value;
+  const named = sel.filter((/** @type {string | number} */ v) => v !== "");
+  if (named.length === sel.length) return countLabel(PHASES, named, "Any phase", "phases");
+  if (!named.length) return "No phase";
+  return `${countLabel(PHASES, named, "Any phase", "phases")} + no phase`;
+}
 
 /**
  * Summary label for the length dropdown's button: "Any length", the one picked length, or "N lengths".
