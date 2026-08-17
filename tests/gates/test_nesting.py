@@ -30,6 +30,7 @@ import importlib.util
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -55,7 +56,8 @@ def _load_gate_module() -> ModuleType:
 
 GATE = _load_gate_module()
 CHECK = GATE.check
-DEPTHS = GATE.depths
+DEPTHS: Callable[[str], list[tuple[str, int, int]]] = GATE.depths
+SHIPPED_EXEMPT: dict[str, str] = GATE.EXEMPT
 
 #: Each block-opening construct as (opening lines, how far its body is indented
 #: past the opener, lines that close it off). ``match`` opens with a ``case``
@@ -151,7 +153,7 @@ def satisfy_shipped_exemptions(root: Path) -> None:
     whatever tree it is pointed at, so a throwaway tree has to honour it before any
     other verdict the run reaches is about the case under test.
     """
-    for key in GATE.EXEMPT:
+    for key in SHIPPED_EXEMPT:
         relpath = key.split("::")[0]
         target = root / relpath
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -160,7 +162,7 @@ def satisfy_shipped_exemptions(root: Path) -> None:
 
 def a_shipped_key() -> str:
     """One key out of the shipped mapping, skipping the case when it has nothing in it."""
-    shipped = dict(GATE.EXEMPT)
+    shipped = dict(SHIPPED_EXEMPT)
     if not shipped:
         pytest.skip("the shipped EXEMPT mapping is empty, so no entry can discriminate on it")
     return min(shipped)
