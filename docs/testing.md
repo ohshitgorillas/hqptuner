@@ -64,6 +64,7 @@ Seven core rules are language-independent, bind JS suite identically. Runner is 
 - **SSR escapes HTML entities** (`"` becomes `&quot;`, `&` becomes `&amp;`) and emits empty-string attribute **bare** — empty `title` renders as ` title`, never empty quoted pair. Decode before asserting on user-visible text.
 - **Substring-matching a class name needs delimiter** — `class="vr-tick-label"` matches naive `vr-tick` needle.
 - **`node --test` rejects bare directory argument** here; pass explicit file list.
+- **Cache-busting query suffix silently destroys a file's coverage.** Node keys coverage by URL, then groups by path with the query stripped and keeps the last entry per path. Test reaching second module instance through `?v=2`-style suffix therefore overwrites real instance's coverage with load-only one's, and file reports near-zero functions however well tested. Use `<name>.fresh-<tag>.js` convention `tests/js/support/vendor-resolve.js` provides instead.
 - Uncontrolled inputs (`NumberBox`, `TextBox`) sync by ref in `useEffect`, which never runs under SSR, so their *value* not observable server-side. Their `min`/`max`/`step` are.
 
 ### Branches that cannot be reached
