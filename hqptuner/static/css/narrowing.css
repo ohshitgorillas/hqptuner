@@ -161,6 +161,13 @@
   color: var(--fg);
   white-space: nowrap;
 }
+/* a row the live selection has made inert: the genre facet's other rows once
+   "any" is picked under AND, where no further pick can change the result. Its
+   checkbox is disabled, so this is the visible half of that. */
+.multi-pop label.off {
+  opacity: var(--o-disabled);
+  cursor: default;
+}
 /* rate-change popover (Facets.js RateFacet): the three hide-rule rows plus
    explanatory prose. Wide enough for the prose to read as short paragraphs —
    the row chrome is nowrap, so the popover needs its own measure. Anchored to

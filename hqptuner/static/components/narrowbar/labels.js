@@ -58,6 +58,19 @@ export function genreLabel() {
   return withMode(`${sel.length} genres`, nGenreMode.value);
 }
 
+// Genre's "any" tag outranks the combine mode (store/narrowmatch.js): a filter
+// the manual marks as suiting every genre survives the selection whatever else
+// is picked. Under AND that makes every other pick inert — the result is the
+// "any" filters and nothing else, whether or not Rock is also ticked. Under OR
+// the picks still widen the list, so nothing is inert there.
+/**
+ * Whether a genre row is inert under the live selection — an AND selection
+ * carrying "any" renders every other row unable to change the result.
+ * @param {string | number} v
+ * @returns {boolean}
+ */
+export const genreRowOff = (v) => v !== "any" && nGenreMode.value === "and" && nGenre.value.includes("any");
+
 /**
  * Summary label for the rate-change dropdown's button. Idle it names the facet
  * ("Rate change") and claims nothing — the unnarrowed list is NOT all-capable.

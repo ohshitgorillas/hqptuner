@@ -5,7 +5,7 @@
 import { html } from "../../lib/dom.js";
 import { GENRES, QUALITY, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
 import { genreOpen, qualityOpen, focusOpen, phaseOpen, lengthOpen, rateOpen } from "./popover.js";
-import { focusLabel, genreLabel, rateLabel, oneLabel, toggleVal } from "./labels.js";
+import { focusLabel, genreLabel, genreRowOff, rateLabel, oneLabel, toggleVal } from "./labels.js";
 import { CountChip, SingleSelect, MultiSelect } from "./Select.js";
 import { Segment } from "../controls/index.js";
 import {
@@ -61,6 +61,7 @@ export function NarrowFacets() {
         sig=${nGenre}
         active=${!!nGenre.value.length}
         count=${(/** @type {string} */ v) => ({ genre: toggleVal(nGenre.value, v) })}
+        off=${genreRowOff}
         extra=${html`<${ModeSwitch} sig=${nGenreMode} />`}
       />
       <${SingleSelect}

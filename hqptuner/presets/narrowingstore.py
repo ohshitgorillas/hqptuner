@@ -52,7 +52,7 @@ _LOSSY_1X = frozenset({"both", "lossless", "lossy"})
 # a narrow-bar control and shares the bar's reset.
 _SRC_FORMAT = frozenset({"pcm", "both"})
 # How each multi-select facet combines its picks. The defaults differ by facet and are the frontend's
-# (``static/store/narrowing.js``): genre ``and``, focus ``or``.
+# (``static/store/narrowing.js``): genre ``or``, focus ``and``.
 _MODES = frozenset({"and", "or"})
 
 
@@ -99,10 +99,10 @@ def _flag(value: Any) -> bool:
 # read() only looks up the keys named here, so those entries are ignored and the next write drops them.
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
-    "genre_mode": ("and", _one_of(_MODES)),
+    "genre_mode": ("or", _one_of(_MODES)),
     "quality": (3, _quality),
     "focus": ([], _list_of(_FOCUS)),
-    "focus_mode": ("or", _one_of(_MODES)),
+    "focus_mode": ("and", _one_of(_MODES)),
     "phase": ("", _one_of(_PHASES)),
     "length": ("", _one_of(_LENGTHS)),
     "hide_limited": ("auto", _one_of(_RATE_RULES)),
