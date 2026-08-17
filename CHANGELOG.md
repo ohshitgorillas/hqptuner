@@ -8,13 +8,15 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The genre facet pairs off into "Jazz & blues" and "Pop & rock".** No filter carried either word without its partner, so the separate checkboxes narrowed to the same set.
 
-- **The genre facet now combines picks with OR by default and the focus facet with AND.** Two genres read as either one suiting, two focus tags as both wanted. Either switch still flips per facet.
+- **The genre facet combines picks with OR by default, the focus facet with AND.** Two genres read as either one suiting, two focus tags as both wanted. Either switch still flips per facet.
 
-- **Picking "All genres" under AND greys the other genre rows out and the button reads "All genres".** A filter tagged for every genre passes whatever else is ticked, so those picks could not change the result or the count. Switching the facet to OR makes them live again.
+- **Picking "All genres" under AND grays the other genre rows and reads "All genres" on the button.** Those picks could not change the result or the count. Switching the facet to OR makes them live again.
 
 - **The phase and length facets take several picks at once.**
 
-- **A greyed playback volume dial reads against the configured volume range.** The engine reports a range of its own while it holds the control, which placed the dial at an arbitrary fraction of it. Under a bypassed volume control (min and max both 0) the dial reads full up.
+### Fixed
+
+- **A grayed playback volume dial reads against the configured volume range.** It had sat at a position matching no setting on screen, drawn against a range the engine reports for itself. Under a bypassed volume control the dial reads full up.
 
 ## [1.8.0] — 2026-08-16
 
