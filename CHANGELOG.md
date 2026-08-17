@@ -10,7 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The genre facet now combines picks with OR by default and the focus facet with AND.** Two genres read as either one suiting, two focus tags as both wanted. Either switch still flips per facet.
 
-- **Picking "All genres" under AND greys the other genre rows out.** A filter tagged for every genre passes whatever else is ticked, so those picks could not change the result. Switching the facet to OR makes them live again.
+- **Picking "All genres" under AND greys the other genre rows out and the button reads "All genres".** A filter tagged for every genre passes whatever else is ticked, so those picks could not change the result or the count. Switching the facet to OR makes them live again.
 
 ## [1.8.0] — 2026-08-16
 

@@ -47,6 +47,13 @@ export function focusLabel() {
   return withMode(`${sel.length} focuses`, nFocusMode.value);
 }
 
+// Genre's "any" tag outranks the combine mode (store/narrowmatch.js): a filter
+// the manual marks as suiting every genre survives the selection whatever else
+// is picked. Under AND that makes every other pick inert — the result is the
+// "any" filters and nothing else, whether or not Classical is also ticked.
+// Under OR the picks still widen the list, so nothing is inert there.
+const anyGenreDominates = () => nGenreMode.value === "and" && nGenre.value.includes("any");
+
 /**
  * Summary label for the genre dropdown's button: "Any genre", the one picked genre, or "N genres" with its mode.
  * @returns {string}
@@ -54,22 +61,20 @@ export function focusLabel() {
 export function genreLabel() {
   const sel = nGenre.value;
   if (!sel.length) return "Any genre";
+  // The inert picks are not counted: the button reports what is actually
+  // narrowing, which under a dominating "any" is that pick alone.
+  if (anyGenreDominates()) return String(oneLabel(GENRES, "any", "any"));
   if (sel.length === 1) return String(oneLabel(GENRES, sel[0], String(sel[0])));
   return withMode(`${sel.length} genres`, nGenreMode.value);
 }
 
-// Genre's "any" tag outranks the combine mode (store/narrowmatch.js): a filter
-// the manual marks as suiting every genre survives the selection whatever else
-// is picked. Under AND that makes every other pick inert — the result is the
-// "any" filters and nothing else, whether or not Rock is also ticked. Under OR
-// the picks still widen the list, so nothing is inert there.
 /**
  * Whether a genre row is inert under the live selection — an AND selection
  * carrying "any" renders every other row unable to change the result.
  * @param {string | number} v
  * @returns {boolean}
  */
-export const genreRowOff = (v) => v !== "any" && nGenreMode.value === "and" && nGenre.value.includes("any");
+export const genreRowOff = (v) => v !== "any" && anyGenreDominates();
 
 /**
  * Summary label for the rate-change dropdown's button. Idle it names the facet
