@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 from hqptuner.api.deps import HttpMgr, Mgr
 from hqptuner.api.models import ProfileBody
 from hqptuner.engine.control import ControlError
-from hqptuner.presets.presetstore import PresetError
+from hqptuner.presets.store.presets import PresetError
 
 router = APIRouter(prefix="/api")
 

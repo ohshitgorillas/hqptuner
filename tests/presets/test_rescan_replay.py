@@ -42,7 +42,7 @@ from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 #: What the engine holds before the rescan: PCM loaded, both filter slots at
 #: index 1 (poly-sinc-gauss-long), the NS9 shaper, adaptive volume on, the rate

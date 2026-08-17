@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 
 def _autosave_on_with_active(client: TestClient, name: str = "Kept") -> None:

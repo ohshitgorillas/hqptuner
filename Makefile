@@ -110,7 +110,7 @@ manual:
 # takes hours, so scope it while working:
 #
 #     make mutate                                    # everything under hqptuner/
-#     make mutate MUTATE='hqptuner.presetstore.*'    # one module
+#     make mutate MUTATE='hqptuner.presets.store.presets.*'    # one module
 #
 # MUTATE is an fnmatch pattern over mutant names (module dotted path, function,
 # counter), so the trailing `.*` is load-bearing: a bare module name matches no

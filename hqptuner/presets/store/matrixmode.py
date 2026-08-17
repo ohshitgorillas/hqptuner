@@ -7,10 +7,10 @@ looking at the same preset and must land on the same half.
 
 There is nowhere in hqplayerd's config XML to put it. The daemon re-serializes configuration from its own model, so an
 attribute of ours would not survive a reload — the same reasoning that put matrix-profile descriptions in a file of
-their own (``descriptionstore``). So this is one JSON file beside the descriptions and the favorites, keyed by preset
+their own (``descriptions``). So this is one JSON file beside the descriptions and the favorites, keyed by preset
 NAME: names are the stable join key (architecture §2), and the name is what the preset store itself is keyed by.
 
-Layout follows ``descriptionstore``' conventions — a schema stamp that refuses a store newer than this HQPTuner
+Layout follows ``descriptions``' conventions — a schema stamp that refuses a store newer than this HQPTuner
 understands, an unstamped file adopted on its next write, lazy creation so an install that never chose reads as empty.
 An empty read is what leaves the tab where the user last had it: nothing here migrates existing presets, because a
 preset with no recorded mode is one nobody has said anything about, not one that is for speakers.

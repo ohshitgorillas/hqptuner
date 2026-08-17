@@ -36,7 +36,7 @@ from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.live import lane
 from hqptuner.presets import presetlane
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 #: What the 4321 fake is moved to when the restore lands: the engine that comes
 #: back after the restart. SDM loaded, its chain enumerated, its own filter slot

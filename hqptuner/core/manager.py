@@ -37,7 +37,7 @@ from hqptuner.engine.control import CommandError, ControlClient, ControlError
 from hqptuner.lanes import httpforms, rescan, settle
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets.presetops import PresetOps
-from hqptuner.presets.presetstore import PresetError
+from hqptuner.presets.store.presets import PresetError
 
 if TYPE_CHECKING:
     from hqptuner.engine.metering import MeteringReader

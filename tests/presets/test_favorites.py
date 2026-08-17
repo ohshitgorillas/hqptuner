@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets.favoritestore import FavoriteError, FavoriteSchemaError, FavoriteStore
+from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "filters": ["gauss-long"]}

@@ -41,7 +41,7 @@ from fastapi.testclient import TestClient
 from hqptuner.api.factory import create_app
 from hqptuner.conf.presetzip import DESCRIPTIONS_MEMBER, embed_descriptions, take_descriptions
 from hqptuner.config import Config
-from hqptuner.presets.descriptionstore import DescriptionError, DescriptionStore
+from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}

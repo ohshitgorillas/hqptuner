@@ -5,7 +5,7 @@ A description is keyed by profile NAME, never by any id the daemon hands out: na
 nowhere in the config XML for this text to live. It is HQPTuner's own record, the way favorites are.
 
 Stored as one JSON file beside the live presets and the favorites, and for the same reason: a few hundred short
-paragraphs, so a file per profile would be all overhead. Layout follows ``favoritestore``' conventions — a schema
+paragraphs, so a file per profile would be all overhead. Layout follows ``favorites``' conventions — a schema
 stamp that refuses a store newer than this HQPTuner understands, an unstamped file adopted on its next write, lazy
 creation so an install that never describes anything reads as empty.
 

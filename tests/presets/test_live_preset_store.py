@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 
 from hqptuner import __version__
-from hqptuner.presets.livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
+from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore
 
 RECORD = {"filter": 12, "shaper": 3}
 OTHER_RECORD = {"filter": 7, "shaper": 1}

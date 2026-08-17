@@ -18,7 +18,7 @@
 // configuration is listened through is a property of that configuration — a
 // preset built around crossfeed and a headphone EQ profile is a headphone preset
 // whatever machine opens it — so the choice is stored for the install, keyed by
-// preset name (presets/matrixmodestore.py, GET/PUT /api/matrixmodes). hqplayerd's
+// preset name (presets/store/matrixmode.py, GET/PUT /api/matrixmodes). hqplayerd's
 // config has nowhere to carry it: the daemon re-serializes configuration from its
 // own model, so an attribute of ours would not survive.
 //

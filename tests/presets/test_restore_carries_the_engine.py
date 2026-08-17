@@ -33,7 +33,7 @@ from fastapi.testclient import TestClient
 from hqptuner.api.factory import create_app
 from hqptuner.conf import presetconf
 from hqptuner.config import Config
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 
 @pytest.fixture

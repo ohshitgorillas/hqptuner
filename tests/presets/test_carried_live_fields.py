@@ -39,7 +39,7 @@ from hqptuner.conf import presetconf
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.presetfields import carried_live_fields
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 #: Build a manager on a control fake started with the given State overrides.
 EngineManager = Callable[..., Coroutine[Any, Any, ConnectionManager]]

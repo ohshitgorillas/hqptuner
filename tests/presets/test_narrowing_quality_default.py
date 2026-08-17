@@ -28,7 +28,7 @@ from typing import Any
 
 import pytest
 
-from hqptuner.presets.narrowingstore import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
 
 #: The default quality reads at, and the facet's unchanged domain.
 QUALITY_DEFAULT = 3

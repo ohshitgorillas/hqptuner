@@ -198,7 +198,17 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["hqptuner", "hqptuner.api", "hqptuner.conf", "hqptuner.core", "hqptuner.engine", "hqptuner.lanes", "hqptuner.presets"]
+packages = [
+  "hqptuner",
+  "hqptuner.api",
+  "hqptuner.conf",
+  "hqptuner.core",
+  "hqptuner.engine",
+  "hqptuner.lanes",
+  "hqptuner.lanes.live",
+  "hqptuner.presets",
+  "hqptuner.presets.store",
+]
 
 [tool.setuptools.package-data]
 # The SPA and its vendored assets, plus the static metadata JSON. Without these

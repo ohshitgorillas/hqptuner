@@ -18,7 +18,7 @@ pair is ``lossy_1x``, and its own domain lives in
 tests/presets/test_narrowing_lossy.py.
 
 On-disk layout: the file carries a schema stamp under ``schema``, the way
-`favoritestore` stamps its own file. Where the facets themselves sit inside that
+`store.favorites` stamps its own file. Where the facets themselves sit inside that
 file the spec does not say, so every case that has to reach into a stored file
 goes through `edit_facets`, which accepts either a nested ``facets`` member or
 the facets at the top level beside the stamp. A hand-written file is used only
@@ -37,7 +37,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets.narrowingstore import NarrowingError, NarrowingSchemaError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
 
 #: Every facet at its default — the table the feature is specified by.
 DEFAULTS: dict[str, object] = {

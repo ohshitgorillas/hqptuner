@@ -4,7 +4,7 @@ A favorite is a filter NAME, never an enum id: the running engine owns ids and o
 (architecture §2), so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives re-enumeration.
 
 Stored as one JSON file beside the live presets, and for the same reason: the whole store is a couple of hundred short
-strings, so a file per star would be all overhead. Layout follows ``livepresets``' conventions — a schema stamp that
+strings, so a file per star would be all overhead. Layout follows ``store.live``'s conventions — a schema stamp that
 refuses a store newer than this HQPTuner understands, an unstamped file adopted on its next write, lazy creation so an
 install that never stars anything reads as empty.
 

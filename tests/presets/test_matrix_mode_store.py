@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.presets.matrixmodestore import (
+from hqptuner.presets.store.matrixmode import (
     MatrixModeError,
     MatrixModeSchemaError,
     MatrixModeStore,

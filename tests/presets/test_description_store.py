@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.presets.descriptionstore import (
+from hqptuner.presets.store.descriptions import (
     DescriptionError,
     DescriptionSchemaError,
     DescriptionStore,

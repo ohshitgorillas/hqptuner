@@ -11,7 +11,7 @@ all, and a path segment would make the route's shape depend on what they called 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from hqptuner.presets.descriptionstore import DescriptionError, DescriptionSchemaError, DescriptionStore
+from hqptuner.presets.store.descriptions import DescriptionError, DescriptionSchemaError, DescriptionStore
 
 router = APIRouter(prefix="/api")
 

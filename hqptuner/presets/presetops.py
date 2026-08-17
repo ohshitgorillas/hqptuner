@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 from hqptuner.conf import engineconf, matrixconf, presetconf, xmledit
 from hqptuner.presets import presetlane
-from hqptuner.presets.filterpark import FilterPark
-from hqptuner.presets.presetstore import PresetError, PresetStore
+from hqptuner.presets.store.filterpark import FilterPark
+from hqptuner.presets.store.presets import PresetError, PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.config import Config
@@ -31,7 +31,7 @@ class PresetOps:
         """Open the store and filter park from ``cfg``'s directories, with no migration run and no cached backup."""
         self._cfg = cfg
         self._mgr = mgr
-        # HQPTuner-owned preset store (presetstore) — the source of truth for
+        # HQPTuner-owned preset store (store.presets) — the source of truth for
         # presets. hqplayerd's own named-profile subsystem is unreliable, so we
         # drive it only through restore-onto-[default] and keep data/cfgs mirrored.
         self.store = PresetStore(cfg.preset_dir, mgr.audit)
@@ -39,7 +39,7 @@ class PresetOps:
         self._migrated = False
         self.last_healthy_backup: bytes | None = None  # workaround for the profile-load backup bug
 
-    # --- convolution uploads (filterpark, matrix-spec.md "Filter upload") --
+    # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
 
     def park_filter(self, name: str, data: bytes) -> dict[str, str]:
         """Park one uploaded filter, returning its stored name and the daemon-side path a process string should use."""

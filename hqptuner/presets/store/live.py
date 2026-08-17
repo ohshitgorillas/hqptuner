@@ -1,6 +1,6 @@
 """Live presets — named combos of the settings the engine can change right now.
 
-A live preset is not a config snapshot. The tabs view's presets (``presetstore``)
+A live preset is not a config snapshot. The tabs view's presets (``store.presets``)
 are whole ``hqplayerd.xml`` files applied by restarting the daemon; a live preset
 is a handful of enum IDs applied by ``POST /api/config/live``, which never writes
 the config file and never restarts anything. The two stores are deliberately
@@ -9,7 +9,7 @@ separate: a live preset must stay applicable in one batch, so it holds only what
 
 The daemon never sees these — they are HQPTuner's own record, stored as one JSON
 file (a preset is a few short strings, so a file per preset would be all
-overhead). Layout matches ``presetstore``'s conventions: the same name regex, a
+overhead). Layout matches ``store.presets``'s conventions: the same name regex, a
 schema stamp that refuses a store newer than this HQPTuner understands, and an
 unstamped file adopted on its next write.
 

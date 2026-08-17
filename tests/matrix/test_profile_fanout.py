@@ -22,7 +22,7 @@ from fake_http import state
 from fastapi.testclient import TestClient
 
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}

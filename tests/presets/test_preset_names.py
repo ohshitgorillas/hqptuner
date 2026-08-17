@@ -21,8 +21,8 @@ from typing import Any
 
 import pytest
 
-from hqptuner.presets.livepresets import LivePresetError, LivePresetStore
-from hqptuner.presets.presetstore import PresetError, PresetStore
+from hqptuner.presets.store.live import LivePresetError, LivePresetStore
+from hqptuner.presets.store.presets import PresetError, PresetStore
 
 PAYLOAD = b"<hqplayerd/>"
 

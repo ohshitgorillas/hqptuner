@@ -11,7 +11,7 @@ typed, slashes and all, and a path segment would make the route's shape depend o
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from hqptuner.presets.matrixmodestore import MatrixModeError, MatrixModeSchemaError, MatrixModeStore
+from hqptuner.presets.store.matrixmode import MatrixModeError, MatrixModeSchemaError, MatrixModeStore
 
 router = APIRouter(prefix="/api")
 

@@ -1,7 +1,7 @@
 """Live-preset REST surface — the LIVE view's named setting combos.
 
 A self-contained feature surface mounted alongside ``app``. Nothing here touches the
-8088 lane, the pending store, or ``presetstore`` — a live preset is applied by
+8088 lane, the pending store, or ``store.presets`` — a live preset is applied by
 the Phase-2 live lane and so can never restart the daemon.
 """
 
@@ -13,7 +13,7 @@ from hqptuner.api.deps import Mgr
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import chain, lane, routing, snapshot
 from hqptuner.presets import presetlane
-from hqptuner.presets.livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
+from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore
 
 router = APIRouter(prefix="/api")
 

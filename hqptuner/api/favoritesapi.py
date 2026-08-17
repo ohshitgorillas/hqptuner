@@ -8,7 +8,7 @@ is a set and a partial answer would leave it guessing.
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from hqptuner.presets.favoritestore import FavoriteError, FavoriteSchemaError, FavoriteStore
+from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 
 router = APIRouter(prefix="/api")
 

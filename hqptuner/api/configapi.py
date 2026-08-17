@@ -17,8 +17,8 @@ from hqptuner.conf import presetzip
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import presetlane
-from hqptuner.presets.descriptionstore import DescriptionError, DescriptionStore
-from hqptuner.presets.presetstore import PresetError
+from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
+from hqptuner.presets.store.presets import PresetError
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
 # `GET /api/preset/` was falling past this route into the SPA mount and coming
 # back as a bare 404 — the read lane has always handled the empty name, it was
 # just unreachable over HTTP. A name with a slash in it still 404s, from
-# presetstore's own validation, which is where that check belongs.
+# store.presets' own validation, which is where that check belongs.
 @router.get("/preset/{name:path}")
 async def preset(name: str, manager: HttpMgr) -> dict[str, Any]:
     """Read a preset's saved settings from its snapshot without loading it.

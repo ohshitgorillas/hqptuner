@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.presets.narrowingstore import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
 
 #: The two states of the source-format control.
 STATES = ["pcm", "both"]

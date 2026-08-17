@@ -26,11 +26,11 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
-from hqptuner.presets.descriptionstore import DescriptionStore
-from hqptuner.presets.favoritestore import FavoriteStore
-from hqptuner.presets.livepresets import LivePresetStore
-from hqptuner.presets.matrixmodestore import MatrixModeStore
-from hqptuner.presets.narrowingstore import NarrowingStore
+from hqptuner.presets.store.descriptions import DescriptionStore
+from hqptuner.presets.store.favorites import FavoriteStore
+from hqptuner.presets.store.live import LivePresetStore
+from hqptuner.presets.store.matrixmode import MatrixModeStore
+from hqptuner.presets.store.narrowing import NarrowingStore
 
 log = logging.getLogger(__name__)
 

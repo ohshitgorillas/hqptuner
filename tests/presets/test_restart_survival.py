@@ -29,7 +29,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from hqptuner.conf import presetconf
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 # What the fake daemon's config file carries before anything is applied
 # (tests/support/fake_config_xml.py). Every stored value below differs from it,

@@ -29,7 +29,7 @@ from typing import Any
 
 import pytest
 
-from hqptuner.presets.narrowingstore import NarrowingError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
 
 #: The two new facets and the default each reads at.
 MODE_DEFAULTS: dict[str, str] = {"genre_mode": "or", "focus_mode": "and"}

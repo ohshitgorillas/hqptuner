@@ -2,7 +2,7 @@
 
 The narrow bar is HQPTuner's own feature: there is no daemon field behind it, so the install is the only place the
 facets can live. Stored as one JSON file beside the favorites, and for the same reasons — a dozen-odd short values, so a
-file per facet would be all overhead — with ``favoritestore``'s conventions: a schema stamp that refuses a store newer
+file per facet would be all overhead — with ``favorites``'s conventions: a schema stamp that refuses a store newer
 than this HQPTuner understands, an unstamped file adopted on its next write, lazy creation so an install that never
 narrows anything reads as defaults.
 

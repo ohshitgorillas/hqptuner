@@ -42,7 +42,7 @@ Periodic health check on the suite itself. **Not part of `make check`, not in pr
 
 ```
 make mutate                              # whole package, hours
-make mutate MUTATE=hqptuner.presetstore  # one module, minutes
+make mutate MUTATE=hqptuner.presets.store.presets  # one module, minutes
 ```
 
 Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.

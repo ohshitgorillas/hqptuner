@@ -55,12 +55,12 @@ class Config:
     backup_dir: Path = field(
         default_factory=lambda: Path(_env("BACKUP_DIR", str(Path(__file__).resolve().parent.parent / "backups")))
     )
-    # HQPTuner-owned preset store (see presetstore) — full-config XML snapshots we
+    # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we
     # manage ourselves instead of hqplayerd's unreliable named-profile subsystem.
     preset_dir: Path = field(
         default_factory=lambda: Path(_env("PRESET_DIR", str(Path(__file__).resolve().parent.parent / "presets")))
     )
-    # The LIVE view's named live presets (see livepresets) — one JSON file, not a
+    # The LIVE view's named live presets (see presets/store/live.py) — one JSON file, not a
     # directory, because a live preset is a handful of enum IDs rather than a
     # config snapshot. Defaults beside the dev container's bind-mounted state dir
     # so a host run and the dev container read the same presets.
@@ -69,7 +69,7 @@ class Config:
             _env("LIVE_PRESET_FILE", str(Path(__file__).resolve().parent.parent / "state" / "live-presets.json"))
         )
     )
-    # Starred filter names (see favoritestore) — one JSON file beside the live
+    # Starred filter names (see presets/store/favorites.py) — one JSON file beside the live
     # presets, in the same bind-mounted state dir, because favorites belong to
     # the install rather than to whichever browser starred them.
     favorites_file: Path = field(
@@ -77,7 +77,7 @@ class Config:
             _env("FAVORITES_FILE", str(Path(__file__).resolve().parent.parent / "state" / "favorites.json"))
         )
     )
-    # Narrow-bar facets (see narrowingstore) — one JSON file beside the
+    # Narrow-bar facets (see presets/store/narrowing.py) — one JSON file beside the
     # favorites, in the same bind-mounted state dir. The narrow bar is
     # presentational and has no daemon field behind it, so the install is the
     # only place it can live; a browser that reloads picks the facets back up.
@@ -86,7 +86,7 @@ class Config:
             _env("NARROWING_FILE", str(Path(__file__).resolve().parent.parent / "state" / "narrowing.json"))
         )
     )
-    # Matrix-profile descriptions (see descriptionstore) — one JSON file beside
+    # Matrix-profile descriptions (see presets/store/descriptions.py) — one JSON file beside
     # the favorites, in the same bind-mounted state dir. A description belongs to
     # the install for the same reason a favorite does, and there is nowhere in
     # hqplayerd's config for it: <matrix_profile> carries only `name`.
@@ -95,7 +95,7 @@ class Config:
             _env("DESCRIPTION_FILE", str(Path(__file__).resolve().parent.parent / "state" / "descriptions.json"))
         )
     )
-    # Per-preset Matrix-tab modes (see matrixmodestore) — one JSON file beside
+    # Per-preset Matrix-tab modes (see presets/store/matrixmode.py) — one JSON file beside
     # the descriptions, in the same bind-mounted state dir. Which half of the
     # Matrix tab a preset is listened through belongs to the preset, so it has to
     # outlive the browser that chose it, and hqplayerd's config has nowhere to

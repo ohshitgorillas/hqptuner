@@ -28,7 +28,7 @@ from fastapi.testclient import TestClient
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets.presetstore import PresetStore
+from hqptuner.presets.store.presets import PresetStore
 
 #: The daemon credential the app is built with — distinctive enough that finding
 #: it anywhere in the log is unambiguous.

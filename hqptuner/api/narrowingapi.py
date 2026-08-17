@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from hqptuner.presets.narrowingstore import NarrowingError, NarrowingSchemaError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
 
 router = APIRouter(prefix="/api")
 

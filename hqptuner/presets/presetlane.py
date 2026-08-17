@@ -1,6 +1,6 @@
-"""HQPTuner-owned preset lane (``presetstore`` + the daemon's restore primitive).
+"""HQPTuner-owned preset lane (``store.presets`` + the daemon's restore primitive).
 
-Presets live in a store HQPTuner owns (``presetstore``); the daemon
+Presets live in a store HQPTuner owns (``store.presets``); the daemon
 is driven only through ``POST /restore`` onto ``[default]`` with a ``data/cfgs``
 mirror — never ``profile/load``/``profile/save``, which are unreliable
 (docs/protocol.md §3.6). ``profile/delete`` is the one profile route kept, for
@@ -25,7 +25,7 @@ from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
-from hqptuner.presets.presetstore import PresetError
+from hqptuner.presets.store.presets import PresetError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
