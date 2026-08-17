@@ -38,8 +38,33 @@
 // document the directory form.
 //
 // This file is not itself a test and is excluded by the *.test.js glob.
+//
+// SECOND HOOK: fresh module instances that don't alias coverage
+// ---------------------------------------------------------------
+// A few suites need a second, independently-loaded instance of a store module
+// (to observe load-time behaviour: what a module does on its own import, not
+// after another test has already mutated its live signals). Node caches a
+// module per URL, so getting a second instance means importing under a URL
+// that differs from the one the suite's main import used. The old approach
+// was a cache-busting query string (`favorites.js?nofetch2`). That works for
+// loading, but `--experimental-test-coverage` groups coverage by file path
+// after stripping the query, and keeps only the LAST entry recorded for that
+// path — so the load-only instance's near-zero coverage silently overwrote
+// the real, thoroughly-exercised instance's numbers. Measured on
+// store/favorites.js: the real instance recorded `toggleFavorite` count 39,
+// the `?nofetch2` instance recorded 0, and the coverage report printed 0.00%
+// functions for the whole file despite it being well tested.
+//
+// The fix: resolve `<name>.fresh-<tag>.js` to a URL that exists nowhere on
+// disk, and load it with the source of `<name>.js`. The URL sits in the same
+// directory as the real module, so relative imports inside the loaded source
+// (e.g. `../lib/api.js`) still resolve correctly. Because the URL differs
+// from the real module's path, node cannot alias its coverage onto it; and
+// because no file backs that URL, node omits it from the coverage report
+// entirely, so no coverage-exclude glob is needed for it.
 
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { registerHooks } from "node:module";
 
 // Repo layout: <repo>/tests/js/vendor-resolve.js -> <repo>/hqptuner/static/
@@ -76,6 +101,29 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     const mapped = MAPPING.get(specifier);
     return mapped ? { url: mapped, format: "module", shortCircuit: true } : nextResolve(specifier, context);
+  },
+});
+
+// Matches `<name>.fresh-<tag>.js`, capturing `<name>` (without its `.js`) so
+// the real module's source can be loaded under the fresh URL. `<tag>` may not
+// contain `/` or `.`, which is enough to keep it from spilling into the next
+// path segment or extension.
+const FRESH = /^(.*)\.fresh-[^/.]+\.js$/;
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (!FRESH.test(specifier)) return nextResolve(specifier, context);
+    const url = new URL(specifier, context.parentURL).href;
+    return { url, format: "module", shortCircuit: true };
+  },
+  load(url, context, nextLoad) {
+    const match = FRESH.exec(url);
+    if (!match) return nextLoad(url, context);
+    return {
+      format: "module",
+      source: readFileSync(fileURLToPath(`${match[1]}.js`), "utf8"),
+      shortCircuit: true,
+    };
   },
 });
 

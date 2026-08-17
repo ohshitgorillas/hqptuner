@@ -352,10 +352,12 @@ test("test_hydration_with_an_empty_legacy_key_puts_nothing", async () => {
 });
 
 // --- loading the module ---------------------------------------------------------
-// A fresh instance comes from a cache-busting dynamic import, because node
-// caches a module per URL; the specifier is built rather than literal so the
-// query suffix — a cache-buster, not a real path — never has to resolve against
-// a module on disk.
+// A fresh instance comes from a dynamic import under a `.fresh-<tag>.js`
+// specifier, resolved by tests/js/support/vendor-resolve.js to the real
+// module's source under a URL node has not cached (and that does not alias
+// its coverage onto the real instance's); the specifier is built rather than
+// literal because it names a file that is not on disk, which `tsc -p
+// jsconfig.json` refuses as a literal (TS2307).
 
 test("test_favorites_only_defaults_off", () => {
   assert.equal(favOnlyAtLoad, false);
@@ -367,13 +369,13 @@ test("test_favorites_only_is_not_persisted_across_a_fresh_load", async () => {
   useStorage();
   await toggleFavorite("gauss-a");
   nFavOnly.value = true;
-  const fresh = await import(`${FAVORITES_MODULE}?favonly`);
+  const fresh = await import(`${FAVORITES_MODULE.replace(/\.js$/, ".fresh-favonly.js")}`);
   assert.equal(fresh.nFavOnly.value, false);
 });
 
 test("test_loading_the_module_without_fetch_does_not_throw", async () => {
   delete env.fetch;
-  await assert.doesNotReject(() => import(`${FAVORITES_MODULE}?nofetch`));
+  await assert.doesNotReject(() => import(`${FAVORITES_MODULE.replace(/\.js$/, ".fresh-nofetch.js")}`));
 });
 
 test("test_loading_the_module_without_fetch_leaves_no_rejected_promise", async () => {
@@ -383,7 +385,7 @@ test("test_loading_the_module_without_fetch_leaves_no_rejected_promise", async (
   const onUnhandled = (reason) => unhandled.push(reason);
   process.on("unhandledRejection", onUnhandled);
   delete env.fetch;
-  await import(`${FAVORITES_MODULE}?nofetch2`).catch(() => {});
+  await import(`${FAVORITES_MODULE.replace(/\.js$/, ".fresh-nofetch2.js")}`).catch(() => {});
   await settle();
   await new Promise((resolve) => setImmediate(resolve));
   process.off("unhandledRejection", onUnhandled);

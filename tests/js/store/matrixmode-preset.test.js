@@ -300,9 +300,11 @@ test("test_the_map_is_read_once_and_not_again_as_presets_come_and_go", async () 
  * load-time read settle before handing it back.
  *
  * The specifier is assembled at runtime rather than written as a literal: a
- * literal one carrying a query string is not statically resolvable and
- * `tsc -p jsconfig.json` refuses it (TS2307). The query is what makes it a fresh
- * instance — without it the module is already in the loader's cache.
+ * literal one naming a `.fresh-<tag>.js` file is not on disk and
+ * `tsc -p jsconfig.json` refuses it (TS2307). The `.fresh-<tag>.js` suffix is
+ * what makes it a fresh instance — tests/js/support/vendor-resolve.js resolves
+ * it to a URL node has not cached, and loads the real module's source under
+ * that URL.
  *
  * @param {string} tag
  * @param {() => Promise<unknown>} fetchImpl
@@ -312,7 +314,7 @@ async function loadCopy(tag, fetchImpl) {
   const env = /** @type {{ fetch?: unknown }} */ (globalThis);
   const saved = env.fetch;
   env.fetch = fetchImpl;
-  const copy = `${new URL("../../../hqptuner/static/store/matrixmode.js", import.meta.url).href}?${tag}`;
+  const copy = new URL(`../../../hqptuner/static/store/matrixmode.fresh-${tag}.js`, import.meta.url).href;
   const loaded = await import(copy);
   await quiesce(W);
   env.fetch = saved;
