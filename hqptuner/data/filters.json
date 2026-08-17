@@ -53,7 +53,7 @@
       "description": "No sample rate conversion happens. Only sample depth is changed as needed."
     },
     "IIR": {
-      "genre": ["pop", "rock", "jazz"],
+      "genre": ["pop", "jazz"],
       "quality": 2,
       "focus": [],
       "apodizing": "full",
@@ -61,7 +61,7 @@
       "description": "This is analog-sounding filter, especially suitable for recordings containing strong transients, long post-ringing is a side effect (not usually audible due to masking). A really steep IIR filter is used. This filter type is similar to analog filters and has no pre-ringing, but has a long post-ringing. Small amount of pass-band ripple is also present. Medium attenuation. IIR filter is applied in time domain."
     },
     "IIR2": {
-      "genre": ["pop", "rock", "jazz"],
+      "genre": ["pop", "jazz"],
       "quality": 4,
       "focus": [],
       "apodizing": "full",
@@ -85,7 +85,7 @@
       "description": "Asymmetric FIR, good for jazz/blues and other music containing transients recorded in a real-world acoustic environment. Otherwise same as FIR, but with shorter pre-ringing and longer post-ringing. Modifies phase response, but not as much as minimum phase FIR."
     },
     "minphaseFIR": {
-      "genre": ["pop", "rock", "electronic"],
+      "genre": ["pop", "electronic"],
       "quality": 3,
       "focus": [],
       "apodizing": "full",
@@ -126,7 +126,7 @@
       "description": "Otherwise similar to poly-sinc, but shorter pre- and post-ringing at the expense of filtering quality (not as sharp roll-off)."
     },
     "poly-sinc-short-mp": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 3,
       "focus": ["transients"],
       "apodizing": "half",
@@ -150,7 +150,7 @@
       "description": "Intermediate phase version of poly-sinc-long, with small pre-ringing and longer post-ringing, with improved filtering quality (faster roll-off)."
     },
     "poly-sinc-long-mp": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 4,
       "focus": ["transients"],
       "apodizing": "full",
@@ -168,7 +168,7 @@
       "notes": "Only suitable for highest technical quality source materials."
     },
     "poly-sinc-hb-xs": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 2,
       "focus": [],
       "apodizing": "none",
@@ -178,7 +178,7 @@
       "notes": "Only suitable for highest technical quality source materials."
     },
     "poly-sinc-hb-s": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 3,
       "focus": [],
       "apodizing": "none",
@@ -226,7 +226,7 @@
       "description": "Linear phase polyphase sinc filter with sharp roll-off and high stop-band attenuation for extended frequency response while completely cutting off by the Nyquist frequency. Optimal frequency response and harmonic structure. For SDM outputs, processing is two stages with minimum 16x intermediate rate."
     },
     "poly-sinc-ext2-short": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 4,
       "focus": ["timbre"],
       "apodizing": "half",
@@ -307,7 +307,7 @@
       "description": "Linear phase polyphase sinc filter optimized for playing back MQA or MP3 encoded content in order to clean up high frequency noise added by the MQA or MP3 encoding. Also suitable for upsampling PCM sources of 88.2 kHz or higher sampling rate, especially for hires PCM recordings of 176.4 kHz or higher sampling rate. Very short ringing. Early slow roll-off."
     },
     "poly-sinc-mqa/mp3-mp": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 4,
       "focus": ["transients"],
       "apodizing": "full",
@@ -333,7 +333,7 @@
       "description": "Minimum phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-short-lp": {
-      "genre": ["electronic", "jazz", "pop", "rock"],
+      "genre": ["electronic", "jazz", "pop"],
       "quality": 5,
       "focus": ["timbre", "transients"],
       "apodizing": "full",
@@ -341,7 +341,7 @@
       "description": "Short linear phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-xtr-short-mp": {
-      "genre": ["pop", "rock"],
+      "genre": ["pop"],
       "quality": 5,
       "focus": ["timbre", "transients"],
       "apodizing": "full",
@@ -349,7 +349,7 @@
       "description": "Short minimum phase polyphase sinc filter with extreme roll-off and attenuation."
     },
     "poly-sinc-gauss-short": {
-      "genre": ["electronic", "jazz", "pop", "rock"],
+      "genre": ["electronic", "jazz", "pop"],
       "quality": 3,
       "focus": ["transients"],
       "apodizing": "half",

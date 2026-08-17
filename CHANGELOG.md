@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
-- **The genre facet's Jazz and Blues options merge into one "Jazz & blues" pick.** No filter carried one without the other, so the separate checkboxes narrowed to the same set.
+- **The genre facet pairs off into "Jazz & blues" and "Pop & rock".** No filter carried either word without its partner, so the separate checkboxes narrowed to the same set.
 
 - **The genre facet now combines picks with OR by default and the focus facet with AND.** Two genres read as either one suiting, two focus tags as both wanted. Either switch still flips per facet.
 

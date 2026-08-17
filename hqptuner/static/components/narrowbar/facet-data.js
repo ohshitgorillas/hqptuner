@@ -10,8 +10,7 @@
  */
 
 export const GENRES = [
-  ["pop", "Pop"],
-  ["rock", "Rock"],
+  ["pop", "Pop & rock"],
   ["jazz", "Jazz & blues"],
   ["classical", "Classical"],
   ["electronic", "Electronic"],
