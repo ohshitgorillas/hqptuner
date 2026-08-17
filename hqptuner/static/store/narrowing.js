@@ -20,13 +20,12 @@ export const nFocus = signal([]); // multi-select: transients | timbre | space
 
 // How the two multi-select facets combine their picks: "and" keeps only filters
 // carrying every pick, "or" keeps filters carrying at least one. The defaults
-// differ by facet (user decision) because the tag data does. 28 of 68 filters
-// carry exactly one genre, so genre AND is the discriminating read of two picks;
-// focus tags are sparser still and 21 filters carry exactly one, so focus AND on
-// two picks answers with a near-empty list — focus reads OR. A mode narrows
-// nothing on its own: with that facet unpicked it is inert.
-export const GENRE_MODE_DEFAULT = "and";
-export const FOCUS_MODE_DEFAULT = "or";
+// differ by facet (user decision). Two genres read as "either suits me", so
+// genre defaults OR; two focuses read as "I want both qualities", so focus
+// defaults AND. A mode narrows nothing on its own: with that facet unpicked it
+// is inert.
+export const GENRE_MODE_DEFAULT = "or";
+export const FOCUS_MODE_DEFAULT = "and";
 export const nGenreMode = signal(GENRE_MODE_DEFAULT);
 export const nFocusMode = signal(FOCUS_MODE_DEFAULT);
 export const nPhase = signal(""); // "" = any (linear | minimum | intermediate)

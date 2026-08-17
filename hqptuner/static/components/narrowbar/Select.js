@@ -75,15 +75,19 @@ export function SingleSelect({ open, name, label, value, items, onPick, active, 
 // showing the summary label, a popover of checkboxes toggling `sig`'s array.
 // `extra` is an optional element appended below the item rows, divided off —
 // genre and focus use it for their AND/OR combine switch.
+//
+// `off` marks a row the current selection has made inert — a pick that cannot
+// change the result, so it is disabled and dimmed rather than left to look
+// live. The facet supplies the rule; this widget only draws it.
 /**
  * Renders a facet button and a popover of checkbox rows, each toggling its
  * value in `sig`'s array; the popover stays open across picks.
  * @param {{ open: import("./popover.js").OpenSignal, name: string, label: string,
  *           items: import("./facet-data.js").FacetItems, sig: import("./labels.js").MultiSignal,
- *           extra?: unknown, active: boolean,
+ *           extra?: unknown, active: boolean, off?: (v: string | number) => boolean,
  *           count?: (v: string | number) => import("./labels.js").NarrowOverrides }} props
  */
-export function MultiSelect({ open, name, label, items, sig, extra, active, count }) {
+export function MultiSelect({ open, name, label, items, sig, extra, active, count, off }) {
   return html`
     <div class="multi" data-multi=${name}>
       <button type="button" class="multi-btn ${active ? "active" : ""}" onClick=${() => (open.value = !open.value)}>
@@ -93,15 +97,21 @@ export function MultiSelect({ open, name, label, items, sig, extra, active, coun
         open.value
           ? html`<div class="multi-pop">
               ${count ? html`<${CountHead} />` : null}
-              ${items.map(
-                ([v, l]) => html`
-                  <label>
-                    <input type="checkbox" checked=${sig.value.includes(v)} onChange=${() => toggleIn(sig, v)} />
+              ${items.map(([v, l]) => {
+                const inert = !!off && off(v);
+                return html`
+                  <label class=${inert ? "off" : ""}>
+                    <input
+                      type="checkbox"
+                      checked=${sig.value.includes(v)}
+                      disabled=${inert}
+                      onChange=${() => toggleIn(sig, v)}
+                    />
                     <span class="opt-label">${l}</span>
                     ${count ? html`<${CountChip} overrides=${count(v)} />` : null}
                   </label>
-                `,
-              )}
+                `;
+              })}
               ${extra || null}
             </div>`
           : null
