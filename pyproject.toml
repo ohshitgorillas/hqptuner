@@ -164,7 +164,7 @@ ignore_missing_imports = true
 #
 # `presets` is not a layer the architecture doc names. The graph puts it between
 # core and lanes: core drives it (core/manager.py, core/applyops.py) and it
-# drives the lanes (presets/presetlane.py reaching liveoverrides and settle).
+# drives the lanes (presets/presetlane.py reaching overrides and settle).
 #
 # `exclude_type_checking_imports` is set because a layers contract constrains
 # runtime dependencies, and an `if TYPE_CHECKING:` import is not one — every

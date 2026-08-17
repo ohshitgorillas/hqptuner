@@ -15,7 +15,7 @@ from hqptuner.api.deps import HttpMgr
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import liveoverrides
+from hqptuner.lanes.live import overrides
 from hqptuner.presets import presetlane
 from hqptuner.presets.descriptionstore import DescriptionError, DescriptionStore
 from hqptuner.presets.presetstore import PresetError
@@ -37,7 +37,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
     # restore-only model always reports [default].
     #
     # `file` is the RUNNING configuration, which is the XML overlaid with whatever
-    # the live lane has changed since it was written (lanes/livemap.py): a
+    # the live lane has changed since it was written (lanes/live/routing.py): a
     # live-routed filter/dither/mode edit never touches the file, so the file alone
     # would report a setting the engine stopped using. The frontend grounds the
     # affected controls here, so a dropdown shows what is actually playing and
@@ -50,7 +50,7 @@ def config(manager: HttpMgr) -> dict[str, Any]:
             "profiles": {"value": presets["value"], "options": presets["options"]},
             "active": presets["active"],
             "autosave": presets["autosave"],
-            "file": {**(manager.file_config or {}), **liveoverrides.live_overrides(manager)},
+            "file": {**(manager.file_config or {}), **overrides.live_overrides(manager)},
             # What the selected output device announced it can carry, or null when
             # nothing is known about it (core/manager.refresh_device_caps). The rate
             # menus gray against this; null grays nothing.

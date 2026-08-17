@@ -282,7 +282,7 @@ def _active_rate(state: dict[str, str]) -> str:
 
     Carried because it is the only thing on the Status frame that tells ``[source]``
     mode which chain is loaded, ``active_mode`` having declined to
-    (``livemap._chain_from_status``). Nothing loaded is nothing running: no
+    (``routing._chain_from_status``). Nothing loaded is nothing running: no
     configured family and no source family means no rate, which is what says
     "unknowable" rather than guessing PCM.
     """

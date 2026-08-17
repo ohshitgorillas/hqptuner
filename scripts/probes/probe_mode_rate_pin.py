@@ -41,7 +41,7 @@ IDLE = "0"
 SETTLE_S = 2.0
 
 # config-form family -> the ModesItem name to match. Matched by name, not by a
-# hardcoded index: the modes enum is device-dependent (livemap._MODE_NAMES).
+# hardcoded index: the modes enum is device-dependent (routing._MODE_NAMES).
 MODE_NAMES = {"pcm": "PCM", "sdm": "SDM"}
 
 

@@ -155,7 +155,7 @@ const RE_ENUMS = () => ({ ...ENUMS(), filters: [{ index: "0", value: "3", name: 
 // §4.6) — SDM mode enumerates DSD rates — and the daemon holds ONE rate pin
 // that SetMode clears, so State can only ever answer for the running family.
 // The dormant family's rate reaches the frontend the other way, through
-// config.file (livemap.live_overrides), which is what these fixtures separate.
+// config.file (overrides.live_overrides), which is what these fixtures separate.
 const SDM_RATES = [
   { index: "0", rate: "0" },
   { index: "1", rate: "12288000" },

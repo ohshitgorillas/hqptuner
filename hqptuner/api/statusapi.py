@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from hqptuner import __version__
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
-from hqptuner.lanes import livechain
+from hqptuner.lanes.live import chain
 from hqptuner.metadata import StaticMetadata, merge_enumerations
 
 router = APIRouter(prefix="/api")
@@ -49,12 +49,12 @@ def state(manager: Mgr) -> dict[str, Any]:
     Stale-flagged from the last-loaded copy while the daemon is unreachable; 503 until the first frame has landed.
     """
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
-    # engine currently has loaded (livechain.active_chain — the configured mode when
+    # engine currently has loaded (chain.active_chain — the configured mode when
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
     # here so the frontend knows which chain's controls are live-adjustable
     # without duplicating that State/Status fallback in JS.
     live = manager.state
-    data = None if live is None else {**live, "active_chain": livechain.active_chain(manager)}
+    data = None if live is None else {**live, "active_chain": chain.active_chain(manager)}
     return deps.snapshot(manager, data)
 
 

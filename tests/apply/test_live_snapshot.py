@@ -22,7 +22,7 @@ from conftest import LiveManager
 from narrow import present
 
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes.livesnapshot import live_snapshot
+from hqptuner.lanes.live.snapshot import live_snapshot
 
 
 def _snapshot(manager: ConnectionManager) -> dict[str, dict[str, str]]:

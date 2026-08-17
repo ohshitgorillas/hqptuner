@@ -1,4 +1,4 @@
-"""Live state expressed back as config-form fields — the save side of ``livemap``.
+"""Live state expressed back as config-form fields — the save side of ``routing``.
 
 A live-routed edit never touched the config file, so the file is stale the moment
 one lands. Saving a preset off that file would store settings the user is not
@@ -6,7 +6,7 @@ hearing, so ``presetlane.save`` folds these overrides into the working XML first
 and ``GET /api/config`` overlays them so every tab reads what is playing rather
 than what was last written to disk.
 
-The translation is the mirror of ``livemap``'s apply side: State's list index ->
+The translation is the mirror of ``routing``'s apply side: State's list index ->
 the enumeration item at that index -> its enum ID, which is what the file holds.
 """
 
@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.lanes.livechain import PCM, SDM, EnumItems, active_chain, rate_family
-from hqptuner.lanes.livemap import DIRECT, ROUTABLE, mode_form_value
+from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain, rate_family
+from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, mode_form_value
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -87,7 +87,7 @@ def _rate_overrides(mgr: ConnectionManager, state: dict[str, str]) -> dict[str, 
     ``State`` carries one ``rate``, and ``SetMode`` clears the pin outright
     (probe-verified on 6.0.4, ``scripts/probes/probe_mode_rate_pin.py``), so the engine can
     only ever answer for the family it is running and only until the next mode
-    switch. ``mgr.live.rates`` is what LIVE pinned per family, which ``livelane``
+    switch. ``mgr.live.rates`` is what LIVE pinned per family, which ``lane``
     puts back on the engine when that family comes round again — so reporting both
     here says what the engine is set to rather than what it happens to report.
 
@@ -125,7 +125,7 @@ def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
 
     The engine answers for the ACTIVE chain only — State reports one
     filter/shaper pair — so the dormant chain is reported from ``mgr.live.chain``
-    instead, which is what LIVE set on it and what ``livelane`` puts back when it
+    instead, which is what LIVE set on it and what ``lane`` puts back when it
     loads. Reading the engine's pair for both chains would be the one thing that
     is never right: the two chains number their enum IDs differently, so it would
     overwrite the dormant chain's settings with a translation of the other one's.

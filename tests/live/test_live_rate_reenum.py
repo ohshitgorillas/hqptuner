@@ -28,7 +28,7 @@ from conftest import LiveManager, _live_app, spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog
 from fastapi.testclient import TestClient
 
-from hqptuner.lanes import livelane
+from hqptuner.lanes.live import lane
 
 #: The PCM rates the fake enumerates once a case has moved it: auto, then 352800
 #: at index 1 and 44100 at index 2. The order is deliberate — 352800 is index 2
@@ -81,7 +81,7 @@ async def test_a_rate_the_engine_offers_now_is_applied_though_the_held_list_lack
     # tells HQPTuner the copy it took is out of date.
     manager, _, state = await live_manager(mode="1", _rates="0")
     state["_rates"] = DEVICE_RATES
-    report = await livelane.apply_now(manager, {"rate": "352800"})
+    report = await lane.apply_now(manager, {"rate": "352800"})
     assert [r["ok"] for r in report["live"] if r["setting"] == "rate"] == [True]
 
 
@@ -93,7 +93,7 @@ async def test_an_applied_rate_leaves_the_engine_pinned_at_the_fresh_lists_index
     # "1" is proof of the join AND of the index rather than the Hz going out.
     manager, _, state = await live_manager(mode="1", _rates="0")
     state["_rates"] = DEVICE_RATES
-    await livelane.apply_now(manager, {"rate": "352800"})
+    await lane.apply_now(manager, {"rate": "352800"})
     assert state["rate"] == "1"
 
 
@@ -105,7 +105,7 @@ async def test_a_rate_the_engine_accepts_but_does_not_pin_is_reported_failed(
     # list buys nothing without the readback, so the report must still say no.
     manager, _, state = await live_manager(mode="1", _rates="0", _deaf="SetRate")
     state["_rates"] = DEVICE_RATES
-    report = await livelane.apply_now(manager, {"rate": "352800"})
+    report = await lane.apply_now(manager, {"rate": "352800"})
     assert [r["ok"] for r in report["live"] if r["setting"] == "rate"] == [False]
 
 
@@ -124,5 +124,5 @@ async def test_applying_a_batch_with_no_rate_puts_no_getrates_on_the_wire(live_m
     # edit resolves against a list of its own.
     manager, log, _ = await live_manager(mode="1")
     log.clear()
-    await livelane.apply_now(manager, {"junk_filter": "1"})
+    await lane.apply_now(manager, {"junk_filter": "1"})
     assert _enumerations(log) == []

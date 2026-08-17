@@ -52,7 +52,7 @@ def unpinnable_rate(mgr: ConnectionManager, hz: str) -> bool:
     So it is held rather than refused, exactly as an edit to the dormant chain's
     card is (``resolve_live``): setting up the SDM side while PCM plays, or the
     whole output before leaving auto, is an ordinary thing to do on the LIVE page.
-    ``livelane._reassert_rate`` puts it on the engine when that family becomes
+    ``lane._reassert_rate`` puts it on the engine when that family becomes
     pinnable — which is also what makes it survive the switch it was made for,
     since the engine keeps ONE pin and ``SetMode`` clears it outright.
 

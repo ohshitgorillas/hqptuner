@@ -15,7 +15,7 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
  * @typedef {object} ChainControl
  *   One chain control's static half — its wire field plus the catalog entry
  *   whose words it borrows from the tab twin.
- * @property {string} field live form field (livemap.ROUTABLE)
+ * @property {string} field live form field (routing.ROUTABLE)
  * @property {string} key schema key
  * @property {SchemaField} entry
  * @property {string} enumKey which enumeration its options come from
@@ -67,7 +67,7 @@ function chainBadge(c, raw) {
 // LOADED chain only. It reads the running configuration instead — the daemon's
 // own /config form for the options, and the config's live overlay for the value,
 // which already carries what LIVE set on this chain while it was dormant
-// (livemap.live_overrides). Both are the enum-ID domain the live lists use, so
+// (routing.live_overrides). Both are the enum-ID domain the live lists use, so
 // the two sides of the card are the same kind of number and an edit made here
 // means the same thing when the chain loads and it is finally sent.
 /**

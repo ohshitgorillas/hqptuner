@@ -304,7 +304,7 @@ test("test_a_write_that_rebuilds_nothing_still_adopts_the_engines_new_state", as
 
 // --- a write the backend HELD --------------------------------------------------
 // The edit was for the chain the engine has not loaded, so the daemon stored it
-// instead of applying it (`stored` in the report, lanes/livemap.py). Nothing
+// instead of applying it (`stored` in the report, lanes/live/routing.py). Nothing
 // reached the engine, so no enumeration on it was rebuilt — but the held value
 // reaches the frontend through the running configuration's live overlay and
 // through no other lane, so that configuration is re-read. The lists come back

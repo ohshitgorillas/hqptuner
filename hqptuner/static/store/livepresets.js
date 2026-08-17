@@ -30,7 +30,7 @@ export const livePresetError = signal("");
 
 // Nothing here judges a preset against the chain the engine has loaded. A preset
 // carries its own output mode, so one taken on the other chain applies by
-// switching the engine to it (lanes/livelane.apply_preset) — there is no
+// switching the engine to it (lanes/live/lane.apply_preset) — there is no
 // mismatch to gray, and graying it would have hidden the very thing it is for.
 
 // Read the list. Private: every caller is in this module — nothing outside it

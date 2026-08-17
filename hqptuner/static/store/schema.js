@@ -358,7 +358,7 @@ export const schema = {
     lane: "http",
     field: "defaults_samplerate",
     // Grounds on `file`, which is the config XML overlaid with the engine's live
-    // settings (livemap.live_overrides): a rate pinned in LIVE shows up here as
+    // settings (routing.live_overrides): a rate pinned in LIVE shows up here as
     // its tier, so switching LIVE off leaves this control agreeing with it and
     // Apply unlit — the same treatment the filter/shaper entries get below.
     fileTruth: true,
@@ -528,7 +528,7 @@ export const schema = {
   // not per-field grayWhen. desc drives the inline manual description line.
   // appliesLive: the write path routes these through the Control API's own
   // setters instead of the restore lane, so they take effect immediately and the
-  // daemon never restarts for them (lanes/livemap.py). They stay lane 'http'
+  // daemon never restarts for them (lanes/live/routing.py). They stay lane 'http'
   // because their VALUE domain is still the form's enum id — only the delivery
   // changed. The pending bar reads this to count them as live changes.
   pcm_filter_1x: {

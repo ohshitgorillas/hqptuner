@@ -25,7 +25,7 @@ Three measurements separate them:
   C  restore           original mode and rate back, verified by State readback.
 
 Also records `Status.active_mode` at every step: HQPTuner reads it to decide
-which filter chain is loaded (`livemap._chain_from_status`), and in `[source]`
+which filter chain is loaded (`routing._chain_from_status`), and in `[source]`
 it appears to echo `[source]` rather than resolving to PCM/SDM.
 
 **Writes only live settings** — mode and the rate pin, both memory-only. No

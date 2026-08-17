@@ -4,7 +4,7 @@
 // POST /api/config/live, readback-verified by the backend before it answers.
 // Nothing here stages. The pending buffer belongs to the tabs view and Apply
 // flushes all of it, so a LIVE control that touched it would apply edits the
-// user never asked for (lanes/livelane.py says the same from the other side).
+// user never asked for (lanes/live/lane.py says the same from the other side).
 //
 // Two mirrors follow a write. `engineState` always: a live edit never reaches the
 // config file, so /api/state is the only place its new value shows up. `enums`
@@ -40,7 +40,7 @@ import { wireRate } from "./rates.js";
 export async function remirrorLive(fields, report) {
   const state = await api.state();
   // An edit to the chain the engine has not loaded is HELD, not applied
-  // (lanes/livemap.resolve_live) — so State cannot show it and no engine list
+  // (lanes/live/routing.resolve_live) — so State cannot show it and no engine list
   // moved. The running config's live overlay is where a held edit appears, and
   // that overlay is what the dormant chain's card reads back.
   const held = !!(report && report.stored && Object.keys(report.stored).length);
@@ -53,7 +53,7 @@ export async function remirrorLive(fields, report) {
   engineState.value = state.data;
   if (fresh) enums.value = fresh.data;
   // A rate or mode write moves what the running config reports for BOTH rate
-  // limits (livemap.live_overrides), and that overlay is what the dormant rate
+  // limits (routing.live_overrides), and that overlay is what the dormant rate
   // column reads. Its own poll is on the slow cadence, so pull it here rather
   // than leave the column showing the pre-switch tier for a few seconds.
   if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();

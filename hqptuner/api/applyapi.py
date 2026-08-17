@@ -13,7 +13,7 @@ from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.pendingapi import _apply_succeeded, _pending
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import livelane, livemap
+from hqptuner.lanes.live import lane, routing
 from hqptuner.presets import presetlane
 
 router = APIRouter(prefix="/api")
@@ -77,21 +77,21 @@ async def config_live(body: LiveBody, manager: Mgr) -> dict[str, Any]:
     cannot flush what the tabs view has staged.
 
     Routed through the lane rather than a manager method because the LIVE lane's
-    only caller is this route, and `/state` already reads `livemap`
+    only caller is this route, and `/state` already reads `routing`
     directly for the same reason.
     """
     if not body.fields:
         raise HTTPException(status_code=422, detail="no live fields given")
-    unknown = sorted(set(body.fields) - set(livemap.live_fields()))
+    unknown = sorted(set(body.fields) - set(routing.live_fields()))
     if unknown:
         raise HTTPException(status_code=422, detail=f"unknown live fields: {unknown}")
     try:
-        report = await livelane.apply_now(manager, body.fields)
+        report = await lane.apply_now(manager, body.fields)
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved
         return report
-    except livemap.LiveRouteError as exc:
+    except routing.LiveRouteError as exc:
         # 409, not 422: every field is a real live control and its value was a
         # real option — the engine's current chain or lists are what refuse it,
         # so the reasons are per field and the batch applied nothing.

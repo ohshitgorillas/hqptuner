@@ -66,7 +66,7 @@ export function idValue(key, attr) {
 /** A catalog key paired with its schema entry — the words a live control shares with its tab twin. */
 export const catalog = (/** @type {string} */ key) => ({ key, entry: schema[key] });
 
-// The two chains' form fields, in signal order. Mirrors livemap.ROUTABLE, which
+// The two chains' form fields, in signal order. Mirrors routing.ROUTABLE, which
 // is what accepts these names back.
 /** @type {Record<string, import("./chains.js").ChainControl[]>} */
 export const CHAINS = {
@@ -85,7 +85,7 @@ export const CHAINS = {
 // Mode is the one live field whose value is a name rather than a number. The
 // modes enumeration is device-dependent — it drops SDM on a device that cannot
 // do DSD — so the form value is matched from the item's NAME, exactly as
-// livemap._mode_form_value does on the other side.
+// routing._mode_form_value does on the other side.
 /** The mode form value the engine's reported mode name matches, "" when it matches none. */
 export function modeValue() {
   const name = modeName.value.toUpperCase();

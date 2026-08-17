@@ -28,7 +28,7 @@ from narrow import present
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import livelane, liveoverrides
+from hqptuner.lanes.live import lane, overrides
 
 #: A manager whose daemon connections a test can cut with the listener left up.
 SeverableManager = tuple[ConnectionManager, Callable[[], Awaitable[None]]]
@@ -98,8 +98,8 @@ def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
     daemons: list[Iterator[int]] = []
     apps: list[Iterator[TestClient]] = []
 
-    def build(**overrides: str) -> TestClient:
-        daemon = spawn_threaded_daemon(overrides)
+    def build(**values: str) -> TestClient:
+        daemon = spawn_threaded_daemon(values)
         daemons.append(daemon)
         app = _live_app(next(daemon), tmp_path)
         apps.append(app)
@@ -204,8 +204,8 @@ async def test_a_held_edit_is_reported_as_a_config_setting(live_manager: LiveMan
     # The rest of the app reads the engine's live settings as config-form fields,
     # so what LIVE set on the dormant chain has to reach it the same way.
     manager, _, _ = await live_manager()
-    await livelane.apply_now(manager, {"oversampling": "23"})
-    assert liveoverrides.live_overrides(manager)["oversampling"] == "23"
+    await lane.apply_now(manager, {"oversampling": "23"})
+    assert overrides.live_overrides(manager)["oversampling"] == "23"
 
 
 async def test_the_engines_own_filter_outranks_a_held_one(live_manager: LiveManager) -> None:
@@ -213,11 +213,11 @@ async def test_the_engines_own_filter_outranks_a_held_one(live_manager: LiveMana
     # made from OUTSIDE HQPTuner — a `SetFilter` no LIVE write issued — so the
     # engine reports index 1 (enum 40) while nothing told the memory anything.
     manager, _, _ = await live_manager(poll_interval=0.02, mode="2")
-    await livelane.apply_now(manager, {"filter": "25"})  # held: PCM chain is dormant
-    await livelane.apply_now(manager, {"mode": "pcm"})  # 25 goes on the wire here
+    await lane.apply_now(manager, {"filter": "25"})  # held: PCM chain is dormant
+    await lane.apply_now(manager, {"mode": "pcm"})  # 25 goes on the wire here
     await present(manager.control).set_command("SetFilter", value="1")
     await eventually(lambda: present(manager.state).get("filterNx") == "1")  # the poll has seen it
-    assert liveoverrides.live_overrides(manager)["filter"] == "40"
+    assert overrides.live_overrides(manager)["filter"] == "40"
 
 
 # --- putting the held edit back when its chain loads --------------------------
@@ -228,9 +228,9 @@ async def test_entering_a_chain_writes_the_held_filter_at_the_entered_chains_ind
     # offered BEFORE the switch carries `sinc-M` at index 2 under a different
     # enum ID, so an index resolved against it lands on a different filter.
     manager, log, _ = await live_manager()
-    await livelane.apply_now(manager, {"oversampling": "23"})
+    await lane.apply_now(manager, {"oversampling": "23"})
     log.clear()
-    await livelane.apply_now(manager, {"mode": "sdm"})
+    await lane.apply_now(manager, {"mode": "sdm"})
     assert _filter_writes(log) == ["1"]
 
 
@@ -238,9 +238,9 @@ async def test_entering_a_chain_writes_the_held_shaper_at_the_entered_chains_ind
     # The shaper half of the same fact: enum 3 is `ASDM7EC` at index 1 of the SDM
     # list and appears nowhere in the PCM one.
     manager, log, _ = await live_manager()
-    await livelane.apply_now(manager, {"modulator": "3"})
+    await lane.apply_now(manager, {"modulator": "3"})
     log.clear()
-    await livelane.apply_now(manager, {"mode": "sdm"})
+    await lane.apply_now(manager, {"mode": "sdm"})
     assert _shaper_writes(log) == ["1"]
 
 
@@ -249,9 +249,9 @@ async def test_a_held_value_the_entered_chain_lacks_is_never_written(live_manage
     # that filter 38. Writing the nearest thing would be a filter the user never
     # picked, so nothing goes out at all.
     manager, log, _ = await live_manager()
-    await livelane.apply_now(manager, {"oversampling": "40"})
+    await lane.apply_now(manager, {"oversampling": "40"})
     log.clear()
-    await livelane.apply_now(manager, {"mode": "sdm"})
+    await lane.apply_now(manager, {"mode": "sdm"})
     assert _filter_writes(log) == []
 
 
@@ -260,8 +260,8 @@ async def test_a_held_value_is_reported_until_its_chain_comes_round(live_manager
     # chain is dormant, enum 40 is held and reported however unplaceable it will
     # turn out to be — nothing can know that until the chain loads.
     manager, _, _ = await live_manager()
-    await livelane.apply_now(manager, {"oversampling": "40"})
-    assert liveoverrides.live_overrides(manager)["oversampling"] == "40"
+    await lane.apply_now(manager, {"oversampling": "40"})
+    assert overrides.live_overrides(manager)["oversampling"] == "40"
 
 
 async def test_a_held_value_the_entered_chain_lacks_is_forgotten(live_manager: LiveManager) -> None:
@@ -269,10 +269,10 @@ async def test_a_held_value_the_entered_chain_lacks_is_forgotten(live_manager: L
     # — the config side must stop being told about it when the chain goes dormant
     # again, or the page would keep showing an edit the engine refused.
     manager, _, _ = await live_manager()
-    await livelane.apply_now(manager, {"oversampling": "40"})
-    await livelane.apply_now(manager, {"mode": "sdm"})
-    await livelane.apply_now(manager, {"mode": "pcm"})
-    assert "oversampling" not in liveoverrides.live_overrides(manager)
+    await lane.apply_now(manager, {"oversampling": "40"})
+    await lane.apply_now(manager, {"mode": "sdm"})
+    await lane.apply_now(manager, {"mode": "pcm"})
+    assert "oversampling" not in overrides.live_overrides(manager)
 
 
 async def test_a_held_edit_does_not_survive_the_connection_being_remade(
@@ -282,7 +282,7 @@ async def test_a_held_edit_does_not_survive_the_connection_being_remade(
     # back has none of it, so holding an edit for it would be describing a
     # machine that no longer exists.
     manager, sever = severable_manager
-    await livelane.apply_now(manager, {"oversampling": "23"})
+    await lane.apply_now(manager, {"oversampling": "23"})
     before = manager.loaded_at
     await sever()
     # Waits on `loaded_at`, not on the reachable flag, because the flag is not
@@ -292,7 +292,7 @@ async def test_a_held_edit_does_not_survive_the_connection_being_remade(
     # passing locally. `loaded_at` is stamped once per handshake and never reverts,
     # so it is the same event with no race in reading it.
     await eventually(lambda: manager.loaded_at != before)
-    assert "oversampling" not in liveoverrides.live_overrides(manager)
+    assert "oversampling" not in overrides.live_overrides(manager)
 
 
 # --- the chain changing under a mode that never moved -------------------------
@@ -327,7 +327,7 @@ async def test_a_source_change_writes_the_edit_held_for_the_chain_it_loaded(live
     # and index 2's `sinc-M` on the PCM list the engine was enumerating when the
     # edit was made.
     manager, log, state = await live_manager(poll_interval=0.02, mode="0", _active_mode="PCM")
-    await livelane.apply_now(manager, {"oversampling": "23"})
+    await lane.apply_now(manager, {"oversampling": "23"})
     log.clear()
     state["_active_mode"] = "SDM (DSD)"
     await eventually(lambda: _filter_writes(log) == ["1"])

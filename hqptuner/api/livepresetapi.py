@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from hqptuner.api.deps import Mgr
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import livechain, livelane, livemap, livesnapshot
+from hqptuner.lanes.live import chain, lane, routing, snapshot
 from hqptuner.presets import presetlane
 from hqptuner.presets.livepresets import LivePresetError, LivePresetSchemaError, LivePresetStore
 
@@ -47,16 +47,16 @@ def save_live_preset(name: str, request: Request, manager: Mgr) -> dict[str, Any
 
     409 when the loaded chain is unknowable — the record would claim a chain it never captured.
     """
-    snapshot = livesnapshot.live_snapshot(manager)
-    if snapshot is None:
+    taken = snapshot.live_snapshot(manager)
+    if taken is None:
         raise HTTPException(
             status_code=409,
             detail={"chain": "the engine's active chain is unknown, so there is no live state to snapshot"},
         )
     record = {
-        "chain": livechain.active_chain(manager),
-        "fields": {field: item["value"] for field, item in snapshot.items()},
-        "names": {field: item["name"] for field, item in snapshot.items()},
+        "chain": chain.active_chain(manager),
+        "fields": {field: item["value"] for field, item in taken.items()},
+        "names": {field: item["name"] for field, item in taken.items()},
     }
     try:
         _store(request).save(name, record)
@@ -85,12 +85,12 @@ async def apply_live_preset(name: str, request: Request, manager: Mgr) -> dict[s
     except LivePresetError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     try:
-        report = await livelane.apply_preset(manager, record.get("fields") or {})
+        report = await lane.apply_preset(manager, record.get("fields") or {})
         autosaved = await presetlane.autosave(manager)
         if autosaved is not None:
             report["autosaved"] = autosaved
         return report
-    except livemap.LiveRouteError as exc:
+    except routing.LiveRouteError as exc:
         raise HTTPException(status_code=409, detail=exc.reasons) from exc
     except ControlError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

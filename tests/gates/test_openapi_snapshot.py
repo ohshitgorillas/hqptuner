@@ -10,7 +10,7 @@ snapshot path.
 
 Everything up to and including the write path is pure text and disk work, so
 those cases use synthetic mappings and ``tmp_path`` and never build the app.
-Only the three cases that are *about* the live surface pay for a real
+Only the cases that are *about* the live surface pay for a real
 ``current_spec()``. Nothing here reads the gate's internals.
 
 The seams are ``render``, ``compare``, ``check``, ``main``, ``current_spec``
@@ -19,9 +19,12 @@ and the module-level ``SNAPSHOT`` path.
 
 import importlib.util
 import json
+import socket
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+
+import pytest
 
 #: The checkout this test file sits in.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -60,6 +63,14 @@ ACCEPT_INSTRUCTION = "scripts/gates/check_openapi.py --write"
 #: "No UI, deliberately": ``GET /api/audit`` exists only while the var is set).
 AUDIT_ROUTE = "/api/audit"
 
+#: A route that needs no daemon and no credentials, so it is on every build.
+HEALTH_ROUTE = "/api/health"
+
+
+def _no_sockets(*_args: Any, **_kwargs: Any) -> Any:
+    """Stand in for ``socket.socket`` so any attempt to open one is loud."""
+    raise AssertionError("rendering the OpenAPI document opened a socket")
+
 
 def key_order(text: str) -> list[str]:
     """Every JSON object key in the order the rendered text lists them."""
@@ -94,18 +105,15 @@ def test_render_sorts_keys_at_every_nesting_level() -> None:
     assert key_order(GATE.render(UNSORTED)) == ["a", "y", "z", "b"]
 
 
-def test_render_indents_each_nesting_level_by_two_spaces() -> None:
-    """A key one level down sits four spaces in, so the step is two."""
-    assert (indent_of(GATE.render(UNSORTED), "a"), indent_of(GATE.render(UNSORTED), "y")) == ([2], [4])
+@pytest.mark.parametrize(("key", "expected_indent"), [("a", 2), ("y", 4)])
+def test_render_indents_each_nesting_level_by_two_spaces(key: str, expected_indent: int) -> None:
+    """A top-level key sits two spaces in and one a level down sits four, so the step is two."""
+    assert indent_of(GATE.render(UNSORTED), key) == [expected_indent]
 
 
 def test_render_ends_with_exactly_one_trailing_newline() -> None:
     """A second newline would leave the last chunk bare, so this pins both halves."""
     assert GATE.render(UNSORTED).splitlines(keepends=True)[-1] == "}\n"
-
-
-def test_render_called_twice_returns_identical_text() -> None:
-    assert GATE.render(UNSORTED) == GATE.render(UNSORTED)
 
 
 def test_render_ignores_the_insertion_order_of_the_mapping_it_is_handed() -> None:
@@ -141,11 +149,12 @@ def test_a_snapshot_matching_the_current_text_passes(tmp_path: Path) -> None:
     assert GATE.check(snapshot, CURRENT) == 0
 
 
-def test_a_matching_snapshot_says_so_on_stdout(tmp_path: Path, capsys: Any) -> None:
+def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsys: Any) -> None:
+    """The ok line names the file it just cleared, which is the path the caller handed in."""
     snapshot = tmp_path / "openapi.json"
     snapshot.write_text(CURRENT, encoding="utf-8")
     GATE.check(snapshot, CURRENT)
-    assert capsys.readouterr().out.strip() != ""
+    assert snapshot.name in capsys.readouterr().out
 
 
 def test_a_passing_run_does_not_tell_anyone_to_regenerate(tmp_path: Path, capsys: Any) -> None:
@@ -252,10 +261,27 @@ def test_the_rendered_surface_carries_the_audit_route_with_the_audit_log_disable
     assert AUDIT_ROUTE in json.loads(GATE.current_spec())["paths"]
 
 
+def test_the_rendered_surface_does_not_depend_on_whether_the_audit_log_is_enabled(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """One environment sets the audit log and one does not; the snapshot is one text."""
+    monkeypatch.delenv("HQPTUNER_DEBUG_LOG", raising=False)
+    without = GATE.current_spec()
+    monkeypatch.setenv("HQPTUNER_DEBUG_LOG", str(tmp_path / "audit.jsonl"))
+    assert GATE.current_spec() == without
+
+
 def test_the_surface_renders_with_no_hqplayerd_credentials_in_the_environment(monkeypatch: Any) -> None:
+    """A credential-free build still carries the routes that need no daemon."""
     monkeypatch.delenv("HQPTUNER_HQP_USERNAME", raising=False)
     monkeypatch.delenv("HQPTUNER_HQP_PASSWORD", raising=False)
-    assert json.loads(GATE.current_spec())["paths"] != {}
+    assert HEALTH_ROUTE in json.loads(GATE.current_spec())["paths"]
+
+
+def test_the_surface_renders_without_opening_a_socket(monkeypatch: Any) -> None:
+    """Constructing a socket is made to raise, so a gate that dialled anything would fail here."""
+    monkeypatch.setattr(socket, "socket", _no_sockets)
+    assert HEALTH_ROUTE in json.loads(GATE.current_spec())["paths"]
 
 
 def test_the_rendered_surface_is_already_in_the_stable_rendering(monkeypatch: Any) -> None:

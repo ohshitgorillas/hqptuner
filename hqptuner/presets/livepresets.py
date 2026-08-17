@@ -5,7 +5,7 @@ are whole ``hqplayerd.xml`` files applied by restarting the daemon; a live prese
 is a handful of enum IDs applied by ``POST /api/config/live``, which never writes
 the config file and never restarts anything. The two stores are deliberately
 separate: a live preset must stay applicable in one batch, so it holds only what
-``lanes/livemap.resolve_live`` accepts back.
+``lanes/live/routing.resolve_live`` accepts back.
 
 The daemon never sees these — they are HQPTuner's own record, stored as one JSON
 file (a preset is a few short strings, so a file per preset would be all
@@ -21,7 +21,7 @@ A record is::
 
 ``fields`` is what the live lane takes, output mode included — a preset that could
 not say which mode to run could not put the engine back the way it was found. The
-mode is why applying one is ``livelane.apply_preset`` rather than a single batch:
+mode is why applying one is ``lane.apply_preset`` rather than a single batch:
 ``SetMode`` swaps the enumerations the rest resolves against, so it goes first and
 alone. ``chain`` records which chain the snapshot was taken on, which is what the
 stored filter and shaper IDs index. ``names`` is display only:

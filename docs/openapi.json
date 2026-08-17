@@ -567,7 +567,7 @@
     },
     "/api/config/live": {
       "post": {
-        "description": "Apply live-lane config-form fields immediately, readback-verified.\n\nThis is the LIVE view's whole write path. Never staged and never persistent, so it cannot restart the daemon and\ncannot flush what the tabs view has staged.\n\nRouted through the lane rather than a manager method because the LIVE lane's\nonly caller is this route, and `/state` already reads `livemap`\ndirectly for the same reason.",
+        "description": "Apply live-lane config-form fields immediately, readback-verified.\n\nThis is the LIVE view's whole write path. Never staged and never persistent, so it cannot restart the daemon and\ncannot flush what the tabs view has staged.\n\nRouted through the lane rather than a manager method because the LIVE lane's\nonly caller is this route, and `/state` already reads `routing`\ndirectly for the same reason.",
         "operationId": "config_live_api_config_live_post",
         "requestBody": {
           "content": {

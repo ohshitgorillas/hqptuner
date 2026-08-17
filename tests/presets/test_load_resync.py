@@ -34,7 +34,7 @@ from hqptuner.conf import presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes import livelane
+from hqptuner.lanes.live import lane
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetstore import PresetStore
 
@@ -145,7 +145,7 @@ async def _stored_preset(manager: ConnectionManager) -> None:
 
 async def test_a_preset_load_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
     manager, _state = await dual_lane()
-    await livelane.apply_now(manager, {"rate": "352800"})  # remembered under pcm
+    await lane.apply_now(manager, {"rate": "352800"})  # remembered under pcm
     _pinned(manager)
     await _stored_preset(manager)
     await presetlane.load(manager, "Stored")
@@ -156,7 +156,7 @@ async def test_a_preset_load_clears_the_held_chain_edit(dual_lane: DualLane) -> 
     # enum 23 is `sinc-M` on the SDM chain, which is dormant under the PCM
     # engine the manager connected to, so the edit is held rather than written
     manager, _state = await dual_lane()
-    await livelane.apply_now(manager, {"oversampling": "23"})
+    await lane.apply_now(manager, {"oversampling": "23"})
     _held(manager)
     await _stored_preset(manager)
     await presetlane.load(manager, "Stored")
@@ -309,7 +309,7 @@ async def test_an_autosave_after_a_load_does_not_store_the_pre_load_engine_mode(
 
 async def test_a_staged_apply_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
     manager, _state = await dual_lane()
-    await livelane.apply_now(manager, {"rate": "352800"})
+    await lane.apply_now(manager, {"rate": "352800"})
     _pinned(manager)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
     assert manager.live.rates == {}
@@ -317,7 +317,7 @@ async def test_a_staged_apply_clears_the_remembered_rate_pin(dual_lane: DualLane
 
 async def test_a_staged_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
     manager, _state = await dual_lane()
-    await livelane.apply_now(manager, {"oversampling": "23"})
+    await lane.apply_now(manager, {"oversampling": "23"})
     _held(manager)
     _applied(dict(await manager.applyops.apply({}, {"title": "Renamed"})))
     assert manager.live.chain == {}
@@ -334,7 +334,7 @@ async def test_a_staged_apply_leaves_the_post_restore_state_in_the_picture(
 
 async def test_an_engine_apply_clears_the_remembered_rate_pin(dual_lane: DualLane) -> None:
     manager, _state = await dual_lane()
-    await livelane.apply_now(manager, {"rate": "352800"})
+    await lane.apply_now(manager, {"rate": "352800"})
     _pinned(manager)
     _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
     assert manager.live.rates == {}
@@ -342,7 +342,7 @@ async def test_an_engine_apply_clears_the_remembered_rate_pin(dual_lane: DualLan
 
 async def test_an_engine_apply_clears_the_held_chain_edit(dual_lane: DualLane) -> None:
     manager, _state = await dual_lane()
-    await livelane.apply_now(manager, {"oversampling": "23"})
+    await lane.apply_now(manager, {"oversampling": "23"})
     _held(manager)
     _submitted(dict(await manager.applyops.apply_engine({"cuda": "0"})))
     assert manager.live.chain == {}

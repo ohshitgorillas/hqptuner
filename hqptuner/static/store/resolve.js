@@ -335,7 +335,7 @@ export const split = computed(() => {
     // http-lane field the write path CAN route to a Control API setter (schema
     // appliesLive) only goes live when the whole staged batch does: one
     // restart-required field sends the entire batch down the restore lane
-    // (lanes/livemap.split_live), so it restarts with the rest.
+    // (lanes/live/routing.split_live), so it restarts with the rest.
     if (schema[k].lane === "live") live += 1;
     else if (schema[k].appliesLive) routable += 1;
     else restart += 1;

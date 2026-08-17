@@ -34,7 +34,8 @@ from hqptuner.config import Config
 from hqptuner.core.applyops import ApplyOps
 from hqptuner.engine import devicecaps, logtail, release
 from hqptuner.engine.control import CommandError, ControlClient, ControlError
-from hqptuner.lanes import httpforms, livechain, livelane, rescan, settle
+from hqptuner.lanes import httpforms, rescan, settle
+from hqptuner.lanes.live import chain, lane
 from hqptuner.presets.presetops import PresetOps
 from hqptuner.presets.presetstore import PresetError
 
@@ -91,8 +92,8 @@ class ConnectionManager:
         self.active_config: str | None = None
         self.enums: dict[str, list[dict[str, str]]] | None = None
         # What LIVE set that the engine cannot hold on to by itself — the dormant
-        # family's rate pin and the dormant chain's filters (`lanes/livelane`).
-        self.live = livelane.LiveMemory()
+        # family's rate pin and the dormant chain's filters (`lanes/live/lane`).
+        self.live = lane.LiveMemory()
         # The 4322 metering reader (junk-filter advisor). Owned and started by
         # the app lifespan; held here so the status route can ask for advice.
         self.metering: MeteringReader | None = None
@@ -274,9 +275,9 @@ class ConnectionManager:
             log.info("engine moved (mode %s, state %s), re-enumerating", state.get("mode"), state.get("state"))
             self.enums = await client.get_all_enumerations()
         status, meta = await client.get_status()
-        before = livechain.active_chain(self)
+        before = chain.active_chain(self)
         self.state, self.status, self.status_metadata = state, status, meta
-        await livelane.chain_entered(self, client, before, reenumerated=moved)
+        await lane.chain_entered(self, client, before, reenumerated=moved)
         self.volume_range = await client.get_volume_range()
         with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
             self.matrix_profiles = await client.get_matrix_profiles()
@@ -291,7 +292,7 @@ class ConnectionManager:
 
         ``state``, ``enums`` and ``live`` all describe a daemon process that is gone the moment a restore
         restarts it, and only the poll loop refreshes them — a second later. Anything reading in between
-        (``liveoverrides.live_overrides``, and so every save and auto-save) reports the settings of the
+        (``overrides.live_overrides``, and so every save and auto-save) reports the settings of the
         engine that was running BEFORE the restart and writes them into the preset that just replaced it.
 
         Invalidated first and refilled second on purpose: the fetch can fail, and a reader that lands on

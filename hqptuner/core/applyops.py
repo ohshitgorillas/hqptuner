@@ -12,7 +12,8 @@ import httpx
 
 from hqptuner.conf import engineconf
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import enginelane, httplane, livelane, matrixlane, speakerlane
+from hqptuner.lanes import enginelane, httplane, matrixlane, speakerlane
+from hqptuner.lanes.live import lane
 from hqptuner.lanes.writer import apply_live
 from hqptuner.presets import presetlane
 
@@ -62,21 +63,21 @@ class ApplyOps:
             switched = await presetlane.switch(mgr, switch_to)
         # A fully routable batch routes live through the Control API and never
         # restarts — a staged mode goes first as its own batch
-        # (livelane.mode_then_split); one restore-lane field sends the whole
-        # batch to the restore lane instead (livemap.split_live). Skipped on a
+        # (lane.mode_then_split); one restore-lane field sends the whole
+        # batch to the restore lane instead (routing.split_live). Skipped on a
         # LOAD, which reloads anyway; an unload does not, so its staged edits
         # still split.
         staged = dict(http_fields)
         live_report: list[dict[str, Any]] = []
         if not switch_to:
-            live_report, live_edits, http_fields = await livelane.mode_then_split(mgr, http_fields, live_edits)
+            live_report, live_edits, http_fields = await lane.mode_then_split(mgr, http_fields, live_edits)
         if live_edits:
             client = mgr.control
             if client is None:
                 raise ControlError("daemon not connected")
             live_report = live_report + await apply_live(client, live_edits, mgr.audit)
-            await livelane.refresh_after_live(mgr, client, live_edits)
-            livelane.remember_routed(mgr, live_report, staged)
+            await lane.refresh_after_live(mgr, client, live_edits)
+            lane.remember_routed(mgr, live_report, staged)
         persistent = await httplane.apply(mgr, http_fields, switched=switch_to is not None) if http_fields else None
         if persistent is not None and persistent.get("applied"):
             # the restore restarted the daemon, so every live reading we hold belongs

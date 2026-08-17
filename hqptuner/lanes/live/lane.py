@@ -22,7 +22,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.engine.control import ENUM_COMMANDS, ControlClient, ControlError
-from hqptuner.lanes import livechain, livemap
+from hqptuner.lanes.live import routing
+from hqptuner.lanes.live.chain import active_chain, pin_family, rate_family, rate_index_for, split_unpinnable_rate
 from hqptuner.lanes.writer import apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -45,7 +46,7 @@ class LiveMemory:
     the pin outright (probe-verified on 6.0.4, `scripts/probes/probe_mode_rate_pin.py`), so
     the moment the output family or the loaded chain changes there is nothing left
     on the engine to say what LIVE set for the other one. This is that record, and
-    it is what `liveoverrides.live_overrides` reports for whichever is dormant.
+    it is what `overrides.live_overrides` reports for whichever is dormant.
 
     `rates` is per family, in Hz. `chain` is per chain, config-form field -> enum
     ID — IDs rather than list indices because an index is only meaningful while
@@ -82,7 +83,7 @@ def _remember_rate(mgr: ConnectionManager, hz: str) -> None:
     if hz == "0":
         mgr.live.rates.clear()
         return
-    mgr.live.rates[livechain.rate_family(hz)] = hz
+    mgr.live.rates[rate_family(hz)] = hz
 
 
 async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[dict[str, Any]]:
@@ -101,11 +102,11 @@ async def _reassert_rate(mgr: ConnectionManager, client: ControlClient) -> list[
     pinning the nearest rate the engine does offer would be a rate the user never
     picked.
     """
-    family = livechain.pin_family(mgr)
+    family = pin_family(mgr)
     hz = mgr.live.rates.get(family or "")
     if hz is None:
         return []
-    index = livechain.rate_index_for(mgr, hz)
+    index = rate_index_for(mgr, hz)
     if index is None:
         del mgr.live.rates[family or ""]
         return []
@@ -137,7 +138,7 @@ def _held_fields(stored: dict[str, dict[str, str]], held_rate: str | None) -> di
 
     The chains' fields and the off-family rate alike. Held is held: the frontend
     re-reads the running config on any of it, which is where a held value shows
-    up (`liveoverrides.live_overrides`).
+    up (`overrides.live_overrides`).
     """
     held = {field: value for chain_held in stored.values() for field, value in chain_held.items()}
     return held if held_rate is None else {**held, "rate": held_rate}
@@ -159,22 +160,22 @@ def _applied_chain_fields(report: list[dict[str, Any]], fields: dict[str, str]) 
     return {
         field: value
         for field, value in fields.items()
-        if field in livemap.ROUTABLE
-        and livemap.ROUTABLE[field].chain is not None
-        and _applied(report, livemap.ROUTABLE[field].setting)
+        if field in routing.ROUTABLE
+        and routing.ROUTABLE[field].chain is not None
+        and _applied(report, routing.ROUTABLE[field].setting)
     }
 
 
 def remember_routed(mgr: ConnectionManager, report: list[dict[str, Any]], fields: dict[str, str]) -> None:
     """Record a staged apply's live-routed chain fields, the same bookkeeping ``apply_now`` does for LIVE's.
 
-    The staged lane routes chain fields live too (``livemap.split_live``), and a
+    The staged lane routes chain fields live too (``routing.split_live``), and a
     value the record never learns is a value the next chain entry cannot re-assert
     and the next auto-save on the other chain cannot report — it falls back to the
-    config file's stale copy instead (``liveoverrides.live_overrides``), quietly
+    config file's stale copy instead (``overrides.live_overrides``), quietly
     reverting the setting the user just applied.
     """
-    chain = livechain.active_chain(mgr)
+    chain = active_chain(mgr)
     if chain is not None:
         _remember_chain(mgr, chain, _applied_chain_fields(report, fields))
 
@@ -184,18 +185,18 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
 
     `GetFilters`/`GetShapers` answer for the loaded chain only, so an edit made to
     the other card on the LIVE page could not reach the engine when it was made
-    and was held instead (`livemap.resolve_live`). This is where it lands. Values
+    and was held instead (`routing.resolve_live`). This is where it lands. Values
     the entered chain turns out not to carry are forgotten rather than
     approximated, and the memory itself is kept: it is what
-    `liveoverrides.live_overrides` reports for the chain that is dormant next.
+    `overrides.live_overrides` reports for the chain that is dormant next.
 
     Resolves against `mgr.enums` as it stands, so the caller must re-enumerate
     first — these are the lists the chain change just swapped.
     """
-    chain = livechain.active_chain(mgr)
+    chain = active_chain(mgr)
     if chain is None:
         return []
-    edits, dropped = livemap.resolve_chain(mgr, chain)
+    edits, dropped = routing.resolve_chain(mgr, chain)
     for field in dropped:
         del mgr.live.chain[chain][field]
     return await apply_live(client, edits, mgr.audit) if edits else []
@@ -215,7 +216,7 @@ async def chain_entered(
     the whole of the next track. `reenumerated` says the caller already pulled
     fresh lists for a mode change, so this does not pull them twice.
     """
-    after = livechain.active_chain(mgr)
+    after = active_chain(mgr)
     if after is None or after == before:
         return
     log.info("chain changed (%s -> %s)", before or "unknown", after)
@@ -251,7 +252,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     LIVE shows both chains at once — and come back under `stored` so the caller
     knows the value it sent is real but not yet playing. A rate the engine will not
     pin — the other family's, or any at all while the mode is `[source]` — is held
-    on the same terms and for the same reason (`livechain.unpinnable_rate`), but into
+    on the same terms and for the same reason (`chain.unpinnable_rate`), but into
     its own memory: the engine's rate pin is one slot the mode switch clears, not a
     per-chain list, so it is `LiveMemory.rates` that holds it and `_reassert_rate`
     that lands it.
@@ -267,8 +268,8 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
     if client is None:
         raise ControlError("daemon not connected")
     await _refresh_rates(mgr, client, fields)
-    fields, held_rate = livechain.split_unpinnable_rate(mgr, fields)
-    edits, stored = livemap.resolve_live(mgr, fields)
+    fields, held_rate = split_unpinnable_rate(mgr, fields)
+    edits, stored = routing.resolve_live(mgr, fields)
     report = await apply_live(client, edits, mgr.audit)
     try:
         await refresh_after_live(mgr, client, edits)
@@ -280,7 +281,7 @@ async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str,
         _remember_rate(mgr, held_rate)
     for chain, held in stored.items():
         _remember_chain(mgr, chain, held)
-    loaded = livechain.active_chain(mgr)
+    loaded = active_chain(mgr)
     if loaded is not None:
         _remember_chain(mgr, loaded, _applied_chain_fields(report, fields))
     if _applied(report, "mode"):
@@ -306,7 +307,7 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
     index = (mgr.state or {}).get("mode")
     if index is None:
         return False
-    return livemap.mode_form_value((mgr.enums or {}).get("modes") or [], index) == want
+    return routing.mode_form_value((mgr.enums or {}).get("modes") or [], index) == want
 
 
 async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, Any]:
@@ -340,7 +341,7 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
     the lists every later value resolves against, so it has to go through the
     re-enumerating path (``apply_now``) — beside other routable fields because
     those fields resolve against the lists it swapped
-    (``livemap._mode_blocks_batch``), and ALONE because the batch after it does.
+    (``routing._mode_blocks_batch``), and ALONE because the batch after it does.
     A mode routed as an ordinary edit left the enumerations stale and the poll
     loop blind to the switch it watches for, so the next apply's filter resolved
     against the departed mode's list and the engine took a different filter than
@@ -351,7 +352,7 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
     its config file, so the mode belongs in that file with the rest of the batch,
     not on a live setter the restore would immediately overwrite.
     """
-    if any(field not in livemap.ROUTABLE for field in http_fields):
+    if any(field not in routing.ROUTABLE for field in http_fields):
         return None
     return http_fields.get("mode")
 
@@ -365,7 +366,7 @@ async def mode_then_split(
 
     Without a re-enumeration between ``SetMode`` and the rest, a staged mode
     beside other routable fields sends the whole batch to the restore lane
-    (``livemap._mode_blocks_batch``) — one daemon restart, playback
+    (``routing._mode_blocks_batch``) — one daemon restart, playback
     interrupted. ``apply_now`` is that re-enumeration (plus the rate-pin and chain
     re-asserts a verified mode write always needs), so the mode goes through it
     alone and the remainder splits against the lists the switch produced. A mode
@@ -383,14 +384,14 @@ async def mode_then_split(
     """
     mode = _mode_apart(http_fields)
     if mode is None:
-        edits, remainder = livemap.split_live(mgr, http_fields, live_edits)
+        edits, remainder = routing.split_live(mgr, http_fields, live_edits)
         return [], edits, remainder
     if mode_already_running(mgr, mode):
         report: list[dict[str, Any]] = []
     else:
         try:
             report = (await apply_now(mgr, {"mode": mode}))["live"]
-        except (livemap.LiveRouteError, ControlError) as exc:
+        except (routing.LiveRouteError, ControlError) as exc:
             log.warning("mode-first batch fell back to the restore lane: %s", exc)
             return [], live_edits, dict(http_fields)
         # A mode the daemon answered OK and did not take comes back unverified in
@@ -399,7 +400,7 @@ async def mode_then_split(
         # restarts the daemon; escalating to the restore lane here would restart
         # it anyway, on a batch the user was promised would not.
     rest = {field: value for field, value in http_fields.items() if field != "mode"}
-    edits, remainder = livemap.split_live(mgr, rest, live_edits)
+    edits, remainder = routing.split_live(mgr, rest, live_edits)
     if remainder:
         # the rest fell back to the restore lane, whose restart boots the daemon
         # from its config file — the mode just applied live rides along or the

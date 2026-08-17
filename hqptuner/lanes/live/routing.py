@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from hqptuner.lanes.livechain import PCM, SDM, EnumItems, active_chain, index_for_rate
+from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain, index_for_rate
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -96,7 +96,7 @@ def mode_form_value(items: EnumItems, index: str) -> str | None:
     """Return the config-form mode value (auto|pcm|sdm) a ModesItem index denotes.
 
     The inverse of ``_index_for_mode``, and public because two other lanes need
-    it: ``liveoverrides`` to report the running mode and ``livesnapshot`` to store
+    it: ``overrides`` to report the running mode and ``snapshot`` to store
     it in a live preset. Matched by NAME for the same reason the forward join is —
     the modes enumeration is device-dependent, so positions are not stable.
     """
@@ -214,7 +214,7 @@ def split_live(
 # --- LIVE lane: the LIVE view's immediate, unstaged writes --------------------
 # The LIVE view writes each control the moment it changes, so its batches resolve
 # against the running enumerations exactly like the apply lane's live half above
-# — plus two controls that lane never routes. `lanes/livelane.py` applies what
+# — plus two controls that lane never routes. `lanes/live/lane.py` applies what
 # this resolves.
 
 
@@ -330,7 +330,7 @@ def resolve_live(
     A field for the chain the engine has not loaded is held rather than refused.
     LIVE shows both chains' cards at once, so editing the dormant one is an
     ordinary thing to do there; the edit is real and simply lands when that chain
-    does (``livelane._reassert_chain``).
+    does (``lane._reassert_chain``).
     """
     # The whole batch, not just the ROUTABLE part `split_live` guards: the rate
     # list is mode-dependent too (manual §4.6), so a mode change invalidates every

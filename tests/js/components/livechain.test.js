@@ -13,7 +13,7 @@
 // apart, because a control reading the wrong one is exactly the defect:
 //   - `engineState` + `enums` — the LOADED chain, and nothing else;
 //   - `config.file` — the running configuration WITH what LIVE is holding
-//     overlaid on it (liveoverrides.live_overrides), which is the only lane a
+//     overlaid on it (overrides.live_overrides), which is the only lane a
 //     held edit reaches the frontend by;
 //   - `config.fields` — the daemon's raw /config form, which carries each
 //     chain's own option list.

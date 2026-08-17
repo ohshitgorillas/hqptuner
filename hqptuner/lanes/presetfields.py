@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from hqptuner.conf import engineconf, presetconf, xmledit
-from hqptuner.lanes import liveoverrides
+from hqptuner.lanes.live import overrides
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
@@ -24,14 +24,14 @@ def _stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
     if not name or not mgr.presetops.store.exists(name):
         return {}
     stored = presetconf.read_config(mgr.presetops.store.read(name))
-    return {field: value for field, value in stored.items() if field in liveoverrides.LIVE_DOMAIN}
+    return {field: value for field, value in stored.items() if field in overrides.LIVE_DOMAIN}
 
 
 def carried_live_fields(mgr: ConnectionManager) -> dict[str, str]:
     """Return what a restore must carry for the settings a live edit never writes to the config file.
 
     Those settings are output mode, both chains' filters and shapers, adaptive
-    volume, the per-family rate limits (``liveoverrides.LIVE_DOMAIN``).
+    volume, the per-family rate limits (``overrides.LIVE_DOMAIN``).
 
     hqplayerd boots from its config file and a live edit reaches only the running
     engine, so a restore-shaped write that carries nothing from here boots the
@@ -49,7 +49,7 @@ def carried_live_fields(mgr: ConnectionManager) -> dict[str, str]:
     Deliberately NOT gated on the auto-save flag: auto-save decides whether the
     store is UPDATED, never whether it is honoured.
     """
-    return {**_stored_live_fields(mgr), **liveoverrides.live_overrides(mgr)}
+    return {**_stored_live_fields(mgr), **overrides.live_overrides(mgr)}
 
 
 def _mirrored_preset(mgr: ConnectionManager) -> str | None:
@@ -81,6 +81,6 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     if intended_xml is None:
         return {member: mgr.presetops.store.read(name)}
     try:
-        return {member: presetconf.apply_edits(intended_xml, liveoverrides.live_overrides(mgr))}
+        return {member: presetconf.apply_edits(intended_xml, overrides.live_overrides(mgr))}
     except xmledit.GroundingError:
         return {member: mgr.presetops.store.read(name)}

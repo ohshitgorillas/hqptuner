@@ -1,12 +1,12 @@
 """The engine's current live settings, as a saveable record.
 
 A live preset (``livepresets.py``) is a snapshot of what the engine is playing
-right now, taken in the same domain ``livemap.resolve_live`` accepts back — so
+right now, taken in the same domain ``routing.resolve_live`` accepts back — so
 applying a preset is the same batch the LIVE view would have sent. The display
 name rides along because the enumerations are engine-built and can shift under a
 preset; the value is what applies, the name is only what the card shows.
 
-``livemap`` turns form fields into setter args; this module reads the result
+``routing`` turns form fields into setter args; this module reads the result
 back out.
 """
 
@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.lanes.livechain import EnumItems, active_chain
-from hqptuner.lanes.livemap import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
+from hqptuner.lanes.live.chain import EnumItems, active_chain
+from hqptuner.lanes.live.routing import _LIVE_ONLY, DIRECT, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -28,7 +28,7 @@ _SNAPSHOT_VALUE = {"junk_filter": "index", "rate": "rate"}
 # Mode included. A single batch cannot carry it — `_mode_blocks_batch` refuses a
 # mode change beside anything else, because `SetMode` swaps the enumerations the
 # rest was resolved against — but a preset is not obliged to be one batch:
-# `livelane.apply_preset` writes the mode, re-enumerates, then applies the rest
+# `lane.apply_preset` writes the mode, re-enumerates, then applies the rest
 # against the lists the switch produced. Leaving mode out made a preset unable to
 # say "run SDM like this", which is most of what a preset is for.
 _SNAPSHOT_FIELDS = (*ROUTABLE, *_LIVE_ONLY)
@@ -59,7 +59,7 @@ def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:
     Mode is the one field whose stored value is not an enum ID: the live lane
     takes the config-form strings auto/pcm/sdm and matches them to the running
     enumeration by NAME, because the modes list is device-dependent and its
-    positions are not stable (``livemap.MODE_NAMES``).
+    positions are not stable (``routing.MODE_NAMES``).
     """
     items = (mgr.enums or {}).get("modes") or []
     form = mode_form_value(items, index)

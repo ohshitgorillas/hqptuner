@@ -110,7 +110,7 @@ const hoverTitle = (/** @type {FieldEntry} */ entry, /** @type {FieldMeta} */ me
 // all, which is the rate pair in auto and nothing else (`AUTO_RATE_REASON`). Both chain
 // cards and, under an explicit mode, both rate columns take edits whichever
 // family is running, the dormant side's being held and landing when that family
-// loads (lanes/livemap.unpinnable_rate). Nothing here is ever disabled for
+// loads (lanes/live/routing.unpinnable_rate). Nothing here is ever disabled for
 // playing (CLAUDE.md).
 //
 // The reason rides the hover title and prints nowhere on the page, the same way
@@ -168,7 +168,7 @@ function LiveField({ control, widget }) {
 // auto would stay shut after switching to the mode that needs it.
 //
 // The dormant card is NOT disabled. Its edits are held per chain and applied the
-// moment that chain loads (lanes/livemap.resolve_live, manager.reassert_chain),
+// moment that chain loads (lanes/live/routing.resolve_live, manager.reassert_chain),
 // so setting up the SDM chain while PCM is playing is an ordinary thing to do
 // here. This is also what makes auto mode work: neither chain is loaded before
 // playback starts, and rather than hiding the controls behind a note until it

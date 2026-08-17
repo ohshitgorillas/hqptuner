@@ -23,7 +23,8 @@ import httpx
 
 from hqptuner.conf import engineconf, presetconf, presetzip, xmledit
 from hqptuner.engine.control import ControlError
-from hqptuner.lanes import liveoverrides, settle
+from hqptuner.lanes import settle
+from hqptuner.lanes.live import overrides
 from hqptuner.presets.presetstore import PresetError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -141,7 +142,7 @@ async def save(mgr: ConnectionManager, name: str) -> dict[str, Any]:
         # file, so the working config is stale for exactly those settings. Fold
         # the engine's current values in first — a save stores what the user is
         # hearing, not what happens to be on disk.
-        working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
+        working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
         mgr.presetops.store.save(name, working, trigger="save")
         mgr.presetops.store.set_active(name)
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
@@ -170,7 +171,7 @@ async def autosave(mgr: ConnectionManager) -> dict[str, Any] | None:
         working = engineconf.base_config_xml(backup, mgr.active_config)
         if not working:
             raise ControlError("no running config to auto-save")
-        working = presetconf.apply_edits(working, liveoverrides.live_overrides(mgr))
+        working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
         mgr.presetops.store.save(name, working, trigger="autosave")
     except (ControlError, PresetError, httpx.HTTPError, xmledit.GroundingError) as exc:
         log.warning("auto-save into preset %r failed: %s", name, exc)

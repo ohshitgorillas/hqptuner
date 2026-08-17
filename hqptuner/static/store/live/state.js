@@ -15,7 +15,7 @@ export const liveBusy = signal("");
 export const liveErrors = signal({});
 
 // Writes whose own success invalidates an enumeration, in config-form terms.
-// Mirrors livelane._REENUMERATES, which names the same three by setter key.
+// Mirrors lane._REENUMERATES, which names the same three by setter key.
 export const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"]);
 // True while a write that invalidates the lists is in flight. Every control
 // whose options come from an enumeration is unsafe for that whole window: its

@@ -73,7 +73,7 @@ const offeredRates = () => new Set(items("rates").map((o) => String(o.rate)));
 // engine lists. A device doing DSD in one base family only enumerates one member
 // of every DSD tier, and judging the tier by the member we would have PREFERRED
 // grayed tiers that device plays perfectly well (and, on the write path, held a
-// pin the engine had no index for: livechain.rate_index_for).
+// pin the engine had no index for: chain.rate_index_for).
 /**
  * @param {string} tier
  * @param {Set<string>} offered
@@ -186,7 +186,7 @@ const AUTO_RATE_REASON = "The engine selects the rate in Auto mode.";
 // (probe-verified on 6.0.4, scripts/probes/probe_mode_rate_pin.py). What survives the switch is the
 // backend's own per-family memory of what LIVE pinned, which it re-asserts on the
 // engine when that family comes round again and reports in BOTH limit fields of
-// the running config (livemap.live_overrides). runningValue reads exactly that
+// the running config (routing.live_overrides). runningValue reads exactly that
 // overlay, so the dormant column here and the Output tab's column are one number
 // from one source rather than two guesses that drift apart.
 /**
@@ -214,7 +214,7 @@ export function rateColumn(family) {
     // cards beside this one stay editable. Under an explicit mode NEITHER column
     // is disabled, on the same terms as the dormant chain card
     // (components/LiveView.js): a rate for the family the engine is not running
-    // is held and lands when that family loads (lanes/livemap.unpinnable_rate),
+    // is held and lands when that family loads (lanes/live/routing.unpinnable_rate),
     // so setting up the SDM side while PCM plays is an ordinary thing to do here.
     disabled: auto,
     reason: auto ? AUTO_RATE_REASON : "",
@@ -224,7 +224,7 @@ export function rateColumn(family) {
     enumBacked: true,
     // The engine's own pin when it is reporting one for this family, the running
     // config's limit otherwise — which already carries the remembered pin, held
-    // or applied (livemap.live_overrides). With no pin at all the limit is what
+    // or applied (routing.live_overrides). With no pin at all the limit is what
     // the engine selects, so a column nothing has touched names the same tier the
     // Output tab does instead of reporting the empty slot as "Auto".
     value: mine ? tier : configured,

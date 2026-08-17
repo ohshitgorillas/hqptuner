@@ -3,7 +3,7 @@
 fakes speak the wire protocol).
 
 Output mode, both chains' filters and shapers, adaptive volume and the
-per-family rate limits (``liveoverrides.LIVE_DOMAIN``) are applied over the 4321
+per-family rate limits (``overrides.LIVE_DOMAIN``) are applied over the 4321
 control lane and never reach hqplayerd's config file. A restore restarts the
 daemon onto that file, so those settings have to be carried into the pushed
 config from somewhere. ``carried_live_fields`` answers where from: the RUNNING
