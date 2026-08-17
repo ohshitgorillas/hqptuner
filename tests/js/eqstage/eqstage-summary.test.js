@@ -222,12 +222,15 @@ test("test_a_run_that_did_not_reach_the_buffer_omits_the_apply_line", () => {
 // --- runJob preamp validation ----------------------------------------------------
 
 test("test_a_preamp_that_is_neither_a_number_nor_auto_is_rejected_naming_the_value_given", async () => {
-  /** @type {Job} */
-  const job = /** @type {Job} */ ({
-    url: URL_BASE,
-    eq: { bands: [{ type: "peak", f: 5000, q: 2, g: -4 }] },
-    rows: [0],
-    preamp_db: "loud",
-  });
+  // The value under test is by construction outside Job's declared type, which
+  // is the whole point of the case, so it reaches runJob through the double cast.
+  const job = /** @type {Job} */ (
+    /** @type {unknown} */ ({
+      url: URL_BASE,
+      eq: { bands: [{ type: "peak", f: 5000, q: 2, g: -4 }] },
+      rows: [0],
+      preamp_db: "loud",
+    })
+  );
   await assert.rejects(() => runJob(job, { fetch: baselineFetch }), /loud/);
 });
