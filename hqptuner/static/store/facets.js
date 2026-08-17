@@ -47,7 +47,7 @@ import { enums, metadata } from "./signals.js";
  * @property {number|null} quality null when the description carries no "n/5"
  * @property {string[]} focus
  * @property {string} phase "" when the name carries no phase token
- * @property {string} length short | medium | long | xlong
+ * @property {string} length short | medium | long | xlong, "" when nothing classifies it
  * @property {boolean} hiresFamily
  * @property {boolean} apodizing
  * @property {boolean} apodizingHalf
@@ -183,11 +183,19 @@ function isHiresFamily(name) {
 // filters.json tap counts: the sinc letter series (S=4096×ratio, M/Mx/MG/MGa =
 // million taps and "variants of poly-sinc-ext2-xla / gauss-xl(a)" → xlong,
 // L=131070×, Ls=4096×, Lm/Lh=16384×, Ll=65536×), the million-tap closed-forms
-// (xlong), gauss-halfband-s ("Short … Gaussian"), the polynomial interpolators
+// (xlong), gauss-halfband-s ("Short … Gaussian"), hb-m ("Medium … half-band",
+// the one length the manual states in prose without a name token), the
+// polynomial interpolators
 // and minringFIR ("ringing between polynomial and poly-sinc-short"). Everything
 // else classifies by name token — xl/xla ("8-times-longer" variants) are xlong;
-// short / long / hb-s / hb-xs / hb-l as written — with the -2s two-stage suffix
-// stripped first; unmarked names read as medium.
+// short / long / medium / hb-s / hb-xs / hb-l as written — with the -2s
+// two-stage suffix stripped first.
+//
+// A name the table and the tokens both miss reads "", the same answer `phase`
+// gives: tap count is a filter SPECIFICATION and is not ours to guess, so a
+// filter the length taxonomy doesn't reach carries no length rather than a
+// plausible one. Reading it as medium put roughly a third of the menu in a
+// bucket the manual never put it in, and the Length facet answered with them.
 /** @type {Record<string, string>} */
 const LENGTH_OVERRIDES = {
   "sinc-S": "short",
@@ -203,6 +211,7 @@ const LENGTH_OVERRIDES = {
   "closed-form-M": "xlong",
   "closed-form-16M": "xlong",
   "poly-sinc-gauss-halfband-s": "short",
+  "poly-sinc-hb-m": "medium",
   "polynomial-1": "short",
   "polynomial-2": "short",
   "minringFIR-lp": "short",
@@ -219,7 +228,8 @@ function length(name) {
   if (/short|shrt|-hb-xs$|-hb-s$/.test(base)) return "short";
   if (/-xla?$/.test(base)) return "xlong";
   if (/(?:long)|(?:-hb-l$)/.test(base)) return "long";
-  return "medium";
+  if (/medium/.test(base)) return "medium";
+  return "";
 }
 
 // Y / ½ / N from the manual → the same shape the live arg bits produce: full sets

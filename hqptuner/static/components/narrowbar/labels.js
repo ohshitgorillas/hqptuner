@@ -5,13 +5,22 @@
 // the facet assembly.
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { nGenre, nGenreMode, nFocus, nFocusMode, nOddRateOnly, nDownsafeOnly } from "../../store/narrowing.js";
+import {
+  nGenre,
+  nGenreMode,
+  nFocus,
+  nFocusMode,
+  nPhase,
+  nLength,
+  nOddRateOnly,
+  nDownsafeOnly,
+} from "../../store/narrowing.js";
 import { previewCount, effHideLimited } from "../../store/narrowmatch.js";
-import { GENRES, FOCUS } from "./facet-data.js";
+import { GENRES, FOCUS, PHASES, LENGTHS } from "./facet-data.js";
 
 /**
  * @typedef {{ genre?: string[], genreMode?: string, quality?: number, focus?: string[], focusMode?: string,
- *             phase?: string, length?: string,
+ *             phase?: string[], length?: string[],
  *             hideLimited?: boolean, oddOnly?: boolean, downsafeOnly?: boolean, apod?: boolean, half?: boolean,
  *             lossy?: string }} NarrowOverrides
  *   A partial facet selection laid over the live one — what a candidate pick
@@ -67,6 +76,34 @@ export function genreLabel() {
   if (sel.length === 1) return String(oneLabel(GENRES, sel[0], String(sel[0])));
   return withMode(`${sel.length} genres`, nGenreMode.value);
 }
+
+// Summary label for a multi-select carrying no combine mode. Genre and focus
+// cannot share it: theirs name the mode once a second pick makes it bite, and
+// phase and length have no mode to name.
+/**
+ * @param {import("./facet-data.js").FacetItems} items the facet's option table
+ * @param {(string | number)[]} sel its picked values
+ * @param {string} idle what an empty selection reads as
+ * @param {string} plural the noun a count is reported in
+ * @returns {string}
+ */
+const countLabel = (items, sel, idle, plural) => {
+  if (!sel.length) return idle;
+  if (sel.length === 1) return String(oneLabel(items, sel[0], String(sel[0])));
+  return `${sel.length} ${plural}`;
+};
+
+/**
+ * Summary label for the phase dropdown's button: "Any phase", the one picked phase, or "N phases".
+ * @returns {string}
+ */
+export const phaseLabel = () => countLabel(PHASES, nPhase.value, "Any phase", "phases");
+
+/**
+ * Summary label for the length dropdown's button: "Any length", the one picked length, or "N lengths".
+ * @returns {string}
+ */
+export const lengthLabel = () => countLabel(LENGTHS, nLength.value, "Any length", "lengths");
 
 /**
  * Whether a genre row is inert under the live selection — an AND selection

@@ -26,9 +26,9 @@ export function CountChip({ overrides }) {
 
 // single-select twin of MultiSelect — same button + popover chrome so every
 // facet renders as one identical control (no native <select> chrome mixed in).
-// Picking a value closes the popover. Quality, phase and length use it: each
-// is a facet a filter carries exactly one of, so two picks could only
-// intersect to nothing. `extra` matches MultiSelect's.
+// Picking a value closes the popover. Quality alone uses it: its rows are a
+// floor rather than a tag, so two picks would name two different floors and
+// only the lower could hold. `extra` matches MultiSelect's.
 /**
  * Renders a facet button and a popover of radio rows; picking a value calls
  * `onPick` and closes the popover.
