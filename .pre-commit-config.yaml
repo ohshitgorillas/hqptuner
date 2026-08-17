@@ -240,3 +240,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(hqptuner/config\.py|tests/e2e/support/stack\.py)$
+
+      # The snapshot is of the whole served surface, so the gate builds the app
+      # rather than reading the staged files: it triggers on any router move and
+      # on the snapshot itself, which must never be edited by hand.
+      - id: openapi-snapshot
+        name: OpenAPI surface snapshot gate
+        entry: .venv/bin/python scripts/gates/check_openapi.py
+        language: system
+        pass_filenames: false
+        files: ^(hqptuner/api/|docs/openapi\.json$)
