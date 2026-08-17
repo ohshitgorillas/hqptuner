@@ -112,7 +112,9 @@ test("test_the_length_facet_offers_its_values_as_checkbox_rows", async () => {
 // and is NOT a clear row: clearing is unticking everything. Length has no
 // counterpart; its unclassified filters are reachable by no pick at all.
 
-test("test_the_phase_popover_offers_exactly_the_four_phases_and_no_clear_row", async () => {
+// The name states the order; the same assertion also carries the no-clear-row
+// half, which is what the exactness of the list says.
+test("test_the_phase_popover_offers_minimum_intermediate_linear_then_no_phase_in_that_order", async () => {
   await reset();
   assert.deepEqual(rowLabels(open("phase")), ["Minimum", "Intermediate", "Linear", "No phase"]);
 });
@@ -179,10 +181,12 @@ test("test_the_phase_button_with_nothing_picked_reads_any_phase", async () => {
   assert.equal(phaseLabel(), "Any phase");
 });
 
+// Linear is not the first row, so this separates "the picked phase's own label"
+// from "whatever label row zero carries".
 test("test_the_phase_button_with_one_pick_reads_that_phases_own_label", async () => {
   await reset();
-  nPhase.value = ["minimum"];
-  assert.equal(phaseLabel(), "Minimum");
+  nPhase.value = ["linear"];
+  assert.equal(phaseLabel(), "Linear");
 });
 
 test("test_the_phase_button_with_two_named_picks_reads_the_count", async () => {
@@ -226,6 +230,29 @@ test("test_the_phase_button_with_every_row_picked_counts_the_three_named_phases"
   await reset();
   nPhase.value = ["", "linear", "minimum", "intermediate"];
   assert.equal(phaseLabel(), "3 phases + no phase");
+});
+
+/**
+ * The summary a facet's own toggle puts on screen: its caption, less the
+ * disclosure triangle every dropdown button in the app carries (pinned as
+ * shared chrome in tests/js/components/common.test.js). Removing a glyph cannot
+ * turn one summary into another, so the reading stays exact.
+ *
+ * @param {string} block
+ * @returns {string}
+ */
+const facetButtonSummary = (block) => buttonCaptions(block)[0].replace("▾", "").trim();
+
+// The anchor under the table above. Every other label case reads the helper,
+// which is only worth anything if the button the user reads is what the helper
+// answers — a caption formatted inline in the component would leave the whole
+// table green and the button wrong. The facet's own toggle is the first button
+// in its block. The selection is every row, so the two readings differ: a count
+// over the whole selection puts "4 phases" on screen.
+test("test_the_rendered_phase_button_reads_the_summary_label", async () => {
+  await reset();
+  nPhase.value = ["", "linear", "minimum", "intermediate"];
+  assert.equal(facetButtonSummary(open("phase")), "3 phases + no phase");
 });
 
 test("test_the_length_button_with_nothing_picked_reads_any_length", async () => {
