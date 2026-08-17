@@ -65,7 +65,7 @@ const env = globalThis;
 /** One in-domain value per facet, each different from that facet's default. */
 /** @type {Facets} */
 const SET = {
-  genre: ["rock"],
+  genre: ["classical"],
   genre_mode: "and",
   quality: 4,
   focus: ["timbre"],

@@ -41,7 +41,7 @@ import {
 
 /** @type {MovedFacet[]} */
 export const MOVED_FACETS = /** @type {MovedFacet[]} */ ([
-  ["genre", nGenre, ["rock"]],
+  ["genre", nGenre, ["classical"]],
   ["quality", nQuality, 4],
   ["focus", nFocus, ["timbre"]],
   ["phase", nPhase, "linear"],

@@ -59,7 +59,7 @@ DEFAULTS: dict[str, object] = {
 
 #: One in-domain value per facet, each different from that facet's default.
 SET: dict[str, object] = {
-    "genre": ["rock"],
+    "genre": ["classical"],
     "genre_mode": "and",
     "quality": 4,
     "focus": ["timbre"],
@@ -241,8 +241,8 @@ def test_a_written_facet_reads_back_as_written(tmp_path: Path, facet: str) -> No
 # pinned is that neither entry is dropped.
 def test_both_entries_of_a_two_genre_write_read_back(tmp_path: Path) -> None:
     store = store_at(tmp_path)
-    store.write({"genre": ["rock", "jazz"]})
-    assert store.read()["genre"] in (["rock", "jazz"], ["jazz", "rock"])
+    store.write({"genre": ["classical", "jazz"]})
+    assert store.read()["genre"] in (["classical", "jazz"], ["jazz", "classical"])
 
 
 def test_write_answers_with_what_a_following_read_answers(tmp_path: Path) -> None:
@@ -313,6 +313,15 @@ def test_an_out_of_domain_stored_facet_reads_as_its_default(tmp_path: Path, face
     assert store_at(tmp_path).read()[facet] == DEFAULTS[facet]
 
 
+# The retired half of a merged genre option: pop and rock became one option
+# carrying the value `pop`, so `rock` is now an unknown token like any other and
+# a stored one costs the genre facet.
+def test_a_stored_retired_rock_genre_reads_as_the_genre_default(tmp_path: Path) -> None:
+    path = stored(tmp_path, SET)
+    edit_facets(path, set_to("genre", ["rock"]))
+    assert store_at(tmp_path).read()["genre"] == DEFAULTS["genre"]
+
+
 def test_an_out_of_domain_stored_facet_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("phase", "banana"))
@@ -332,6 +341,18 @@ def test_a_file_that_is_not_our_record_reads_as_every_facet_at_its_default(tmp_p
 def test_an_out_of_domain_write_is_refused_naming_the_facet(tmp_path: Path, facet: str) -> None:
     with pytest.raises(NarrowingError, match=facet):
         store_at(tmp_path).write({facet: OUT_OF_DOMAIN[facet]})
+
+
+def test_a_write_carrying_the_retired_rock_genre_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(NarrowingError, match="genre"):
+        store_at(tmp_path).write({"genre": ["rock"]})
+
+
+# The surviving half of the same merge is a genre like any other.
+def test_the_merged_pop_genre_is_written_and_read_back(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.write({"genre": ["pop"]})
+    assert store.read()["genre"] == ["pop"]
 
 
 @pytest.mark.parametrize("facet", sorted(WRONG_TYPE))
@@ -402,14 +423,14 @@ def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path
 # accepted at 32 entries and refused at 33.
 @pytest.mark.parametrize("facet", ["genre", "focus"])
 def test_a_write_of_more_than_32_entries_is_refused(tmp_path: Path, facet: str) -> None:
-    value = "rock" if facet == "genre" else "timbre"
+    value = "classical" if facet == "genre" else "timbre"
     with pytest.raises(NarrowingError):
         store_at(tmp_path).write({facet: [value] * 33})
 
 
 @pytest.mark.parametrize("facet", ["genre", "focus"])
 def test_a_write_of_exactly_32_entries_reads_back_whole(tmp_path: Path, facet: str) -> None:
-    value = "rock" if facet == "genre" else "timbre"
+    value = "classical" if facet == "genre" else "timbre"
     store = store_at(tmp_path)
     store.write({facet: [value] * 32})
     assert store.read()[facet] == [value] * 32
