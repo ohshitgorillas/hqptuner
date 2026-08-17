@@ -151,15 +151,13 @@ export async function runJob(job, deps = {}) {
   return report;
 }
 
-// --- CLI --------------------------------------------------------------------
-
 /**
  * The human-facing summary: what each row gained, and what to do next.
  *
  * @param {Report} report
  * @returns {string}
  */
-function table(report) {
+export function table(report) {
   const lines = [`baseline: ${report.baseline_source}`, `eq: ${report.eq.band_count} bands  ${report.eq.process}`];
   for (const row of report.rows) {
     const mark = row.selected ? "*" : " ";
@@ -171,6 +169,12 @@ function table(report) {
   if (report.posted) lines.push("pending buffer armed — the user clicks Apply; this tool never does.");
   return lines.join("\n");
 }
+
+// --- CLI --------------------------------------------------------------------
+// Everything below runs only under `node scripts/eqstage/eqstage.js`, so it is
+// out of reach of the unit suite and shows as uncovered. Coverage is a global
+// threshold here, not a per-file floor, so the lines are left where they are
+// rather than moved behind a shim.
 
 async function readStdin() {
   const chunks = [];
