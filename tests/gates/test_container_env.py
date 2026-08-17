@@ -83,6 +83,25 @@ class Config:
     debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
 '''
 
+#: A ``Config`` a real image could be clean against: two writable path fields to
+#: pin, plus a field for every suffix the shipped ``EXEMPT`` table names, so no
+#: shipped exemption reads as stale.
+SHIPPED_EXEMPT_CONFIG_SOURCE = '''
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+@dataclass
+class Config:
+    """Runtime knobs."""
+
+    backup_dir: Path = field(default_factory=lambda: Path(_env("BACKUP_DIR", "./backups")))
+    preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", "./presets")))
+    data_dir: Path = field(default_factory=lambda: Path(_env("DATA_DIR", "./data")))
+    debug_log: Path | None = field(default_factory=lambda: _optional_path("DEBUG_LOG"))
+    host: str = field(default_factory=lambda: _env("HOST", "127.0.0.1"))
+'''
+
 #: A Dockerfile pinning both writable fields of ``CONFIG_SOURCE`` under ``/state``.
 CLEAN_DOCKERFILE = """
 FROM python:3.13-slim
@@ -290,11 +309,11 @@ def test_a_violating_pair_of_source_files_names_the_unpinned_field_on_stdout(tmp
 
 
 def test_a_clean_pair_of_source_files_exits_zero(tmp_path: Path) -> None:
-    assert MAIN(write_pair(tmp_path, CONFIG_SOURCE, CLEAN_DOCKERFILE)) == 0
+    assert MAIN(write_pair(tmp_path, SHIPPED_EXEMPT_CONFIG_SOURCE, CLEAN_DOCKERFILE)) == 0
 
 
 def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: Any) -> None:
-    MAIN(write_pair(tmp_path, CONFIG_SOURCE, CLEAN_DOCKERFILE))
+    MAIN(write_pair(tmp_path, SHIPPED_EXEMPT_CONFIG_SOURCE, CLEAN_DOCKERFILE))
     assert "backup_dir" not in capsys.readouterr().out
 
 
