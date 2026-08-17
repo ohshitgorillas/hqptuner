@@ -24,7 +24,7 @@ Original report:
 
 `hqptuner/static/lib/xfmode.js:129`
 
-`pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`Crossfeed.js:172` → `actions.js:20`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`MatrixTab.js:179`) or a Matrix-mode restore (`matrixmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
+`pipelinesDirty()` checks `isDirty("pipelines")` — the DSP-pipelines row-count dropdown — while `stageStructural` actually stages content under `matrix_pipelines`. Two failure directions: dragging Speaker angle restages all 16 rows under `matrix_pipelines` (`xfeed/Card.js:172` → `actions.js:20`) with row count unchanged, so the `.xfs-gate` renders clean while an edit is pending; conversely, changing the "DSP pipelines" count field on the Matrix tab (`matrix/Tab.js:179`) or a Matrix-mode restore (`matrixmode.js:90`) lights the crossfeed Structural gate dirty with no crossfeed change staged.
 
 ## 3. Stale-enumeration window after a mode write, with no surfacing left — FIXED 2026-08-01
 
@@ -40,7 +40,7 @@ Original report:
 
 `hqptuner/static/store/live.js:94`
 
-Removing the `liveReloading` signal leaves the re-enumeration window with zero surfacing. On a REENUMERATES write (e.g. output mode flip), `liveBusy` disables only the field being written (`LiveView.js:100`), while `live.js:81` installs the new `active_chain` before the enum refetch at `live.js:94` — so the new chain card renders live against the pre-switch enum lists. Picking a filter during that seconds-long window posts an enum ID from the old list: a refused write, or a silently different filter than the name clicked. The deleted "Reloading the engine's lists…" note was the only surfacing, and the two tests touching `liveBusy` were deleted with it, so dropping `busy` from the disabled expression would still pass the suite green.
+Removing the `liveReloading` signal leaves the re-enumeration window with zero surfacing. On a REENUMERATES write (e.g. output mode flip), `liveBusy` disables only the field being written (`live/View.js:100`), while `live.js:81` installs the new `active_chain` before the enum refetch at `live.js:94` — so the new chain card renders live against the pre-switch enum lists. Picking a filter during that seconds-long window posts an enum ID from the old list: a refused write, or a silently different filter than the name clicked. The deleted "Reloading the engine's lists…" note was the only surfacing, and the two tests touching `liveBusy` were deleted with it, so dropping `busy` from the disabled expression would still pass the suite green.
 
 ## 4. Log-scale loudness frequency knobs break on missing min/max — FIXED 2026-07-31
 
@@ -56,7 +56,7 @@ Original report:
 
 Mirroring is per lane now (`docs/matrix-spec.md`, "AutoEq / REW import"). `doImport` takes `mirror` from its caller instead of reading the checkbox, so the library lane passes `true` outright — a headphone profile is one curve for a model and has no one-ear form — while the `.txt` and per-row lanes, both of which sit in the card holding the checkbox, pass its value. The checkbox is per DSP mode: on for headphones, off for speakers, each mode keeping its own value, since speaker correction is per channel. `doImport` returns its note rather than assigning one, and each lane writes its own signal: `libraryNote` renders in the Headphone Auto EQ card, `importNote` in the Pipelines card.
 
-The report understated one half. `HeadphoneEqCard` mounts only in headphones mode (`MatrixTab.js:279`) and was the sole renderer of `importNote`, so in speakers mode a `.txt` load or row import had nowhere at all to report — a file with no parseable filters returned `"no filters found"` (`eqimport.js:174-179`) into a signal nothing rendered, and the button read as dead. Splitting the notes closes that: the Pipelines card is mounted in both modes. The `.txt` lane no longer force-opens the headphone card either; it did so only to reveal the note that now renders beside it.
+The report understated one half. `HeadphoneEqCard` mounts only in headphones mode (`matrix/Tab.js:279`) and was the sole renderer of `importNote`, so in speakers mode a `.txt` load or row import had nowhere at all to report — a file with no parseable filters returned `"no filters found"` (`eqimport.js:174-179`) into a signal nothing rendered, and the button read as dead. Splitting the notes closes that: the Pipelines card is mounted in both modes. The `.txt` lane no longer force-opens the headphone card either; it did so only to reveal the note that now renders beside it.
 
 `eqimport.js` is unchanged — the planner was already right and already covered (6 mirror cases, `tests/js/lib/eqimport.test.js:111-138`). The defect was entirely in which lane passed what.
 
@@ -64,6 +64,6 @@ Covered by 4 tests in `tests/js/components/matrixtab-mirror.test.js`. One bites 
 
 Original report:
 
-`hqptuner/static/components/MatrixTab.js:203`
+`hqptuner/static/components/matrix/Tab.js:203`
 
-The mirror-to-stereo-pair checkbox moved into the collapsible Pipelines card, but ImportPanel's library-load lane in the Headphone Auto EQ card still obeys it: applying a library profile reads `importMirror.value` (`MatrixTab.js:74`, default true), so a mono profile silently mirrors onto both channels with no visible control in the acting card — and no visible control anywhere when the Pipelines card is collapsed (`pipelinesCardOpen` is not persisted). Additionally, `importNote` errors render only inside ImportPanel, so a failed load fired from the Pipelines card writes its error into the other card. No test references `importMirror`, `LoadEqButton`, or the library lane.
+The mirror-to-stereo-pair checkbox moved into the collapsible Pipelines card, but ImportPanel's library-load lane in the Headphone Auto EQ card still obeys it: applying a library profile reads `importMirror.value` (`matrix/Tab.js:74`, default true), so a mono profile silently mirrors onto both channels with no visible control in the acting card — and no visible control anywhere when the Pipelines card is collapsed (`pipelinesCardOpen` is not persisted). Additionally, `importNote` errors render only inside ImportPanel, so a failed load fired from the Pipelines card writes its error into the other card. No test references `importMirror`, `LoadEqButton`, or the library lane.

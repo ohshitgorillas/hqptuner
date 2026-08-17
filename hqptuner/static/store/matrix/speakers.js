@@ -18,7 +18,7 @@ export const speakersBusy = signal(false);
 /**
  * @typedef {{ level?: string, distance?: string }} ChannelEdit
  *   One channel's pending edit. Both fields are strings — the card writes what
- *   the input holds (SpeakersCard.js editCh), and a field the user cleared is
+ *   the input holds (speakers/Card.js editCh), and a field the user cleared is
  *   DELETED rather than set empty, so "absent" means "leave the daemon's value".
  */
 

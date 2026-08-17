@@ -1,6 +1,6 @@
 // Behavioral suite for the DSP tab's SPEAKERS half: the mode switcher
 // (store/matrix/mode.js), the speaker card's rendered contract
-// (components/SpeakersCard.js), and the apply lane (store/matrix/speakers.js).
+// (components/speakers/Card.js), and the apply lane (store/matrix/speakers.js).
 //
 // Policy (docs/testing.md): public API only, one assertion per test. The card's
 // sub-components (ChannelRow, Body) are private and stay that way — every case
@@ -16,8 +16,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
-import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
+import { MatrixTab } from "../../../hqptuner/static/components/matrix/Tab.js";
+import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/speakers/Card.js";
 import {
   speakers,
   speakersStale,

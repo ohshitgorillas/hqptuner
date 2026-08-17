@@ -53,12 +53,12 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Field } from "../../../hqptuner/static/components/Field.js";
 import { Knob } from "../../../hqptuner/static/components/Knob.js";
-import { VolumeRangeBar } from "../../../hqptuner/static/components/VolumeRangeBar.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
-import { StageEditor, setSelected } from "../../../hqptuner/static/components/MatrixStageEditor.js";
-import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
+import { VolumeRangeBar } from "../../../hqptuner/static/components/volume/RangeBar.js";
+import { MatrixTab } from "../../../hqptuner/static/components/matrix/Tab.js";
+import { StageEditor, setSelected } from "../../../hqptuner/static/components/matrix/StageEditor.js";
+import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/speakers/Card.js";
 import { Header } from "../../../hqptuner/static/components/Header.js";
-import { CrossfeedCard } from "../../../hqptuner/static/components/Crossfeed.js";
+import { CrossfeedCard } from "../../../hqptuner/static/components/xfeed/Card.js";
 import { parseProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 import {
   config,

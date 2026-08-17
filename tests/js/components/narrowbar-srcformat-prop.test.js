@@ -1,5 +1,5 @@
 // Behavioral suite for the narrow bar's `srcFormat` prop
-// (components/NarrowBar.js): the switch that decides whether the bar offers a
+// (components/narrowbar/Bar.js): the switch that decides whether the bar offers a
 // "Source format" group at all, and which of the two narrowing predicates its
 // Reset button follows.
 //

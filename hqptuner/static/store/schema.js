@@ -51,7 +51,7 @@ const isPcm = (/** @type {GrayCtx} */ ctx) => (inMode(ctx, "pcm") ? "Only releva
 // DirectSDM "will disable volume control and set PCM volume to fixed -3 dBFS
 // value" (manual §4.5). Every persistent control that sets a volume level is
 // therefore inert while it's on — the daemon accepts and stores the setting but
-// nothing reaches the output stage, so the UI has to say so. PlaybackVolume.js
+// nothing reaches the output stage, so the UI has to say so. volume/Playback.js
 // already grays the live slider for the same reason.
 const directSdm = (/** @type {GrayCtx} */ ctx) =>
   truthy(ctx.effective("direct_sdm"))

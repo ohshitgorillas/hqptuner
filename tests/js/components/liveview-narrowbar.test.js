@@ -1,5 +1,5 @@
 // Behavioral suite for the narrow bar as the LIVE page mounts it
-// (components/LiveView.js): the page's chain cards have no "DSD Sources"
+// (components/live/View.js): the page's chain cards have no "DSD Sources"
 // subsection, so the bar's "Source format" group has nothing to disclose there
 // and the page offers it no more.
 //
@@ -29,7 +29,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import { health, engineState, enums, config, matrixConfig, metadata } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";

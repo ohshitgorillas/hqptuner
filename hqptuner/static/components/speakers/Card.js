@@ -18,10 +18,10 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
-import { html, wheelGuard } from "../lib/dom.js";
-import { NumberBox, Segment } from "./controls/index.js";
-import { effective } from "../store/resolve.js";
-import { notesVisible } from "../store/prefs.js";
+import { html, wheelGuard } from "../../lib/dom.js";
+import { NumberBox, Segment } from "../controls/index.js";
+import { effective } from "../../store/resolve.js";
+import { notesVisible } from "../../store/prefs.js";
 import {
   speakers,
   speakersBusy,
@@ -29,12 +29,12 @@ import {
   speakersStale,
   loadSpeakers,
   applySpeakers,
-} from "../store/matrix/speakers.js";
-import { SpeakersDiagram } from "./SpeakersDiagram.js";
-import { truthy } from "../lib/coerce.js";
+} from "../../store/matrix/speakers.js";
+import { SpeakersDiagram } from "./Diagram.js";
+import { truthy } from "../../lib/coerce.js";
 
 /**
- * @typedef {import("./SpeakersDiagram.js").SpeakerChannel} SpeakerChannel
+ * @typedef {import("./Diagram.js").SpeakerChannel} SpeakerChannel
  * @typedef {{ enabled: boolean, channels: SpeakerChannel[] }} SpeakersData
  *   The /speakers form as store/matrix/speakers.js holds it (conf/httpconf.py
  *   parse_speakers_form): the master switch and the daemon's eight slots.

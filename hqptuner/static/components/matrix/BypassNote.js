@@ -39,10 +39,10 @@
 // The note informs; the graying is the schema's (store/schema.js matrixBypassed,
 // on every post_process field). The pipeline TABLE stays editable — a user may
 // build a profile against a bypassed engine and engage it afterwards.
-import { html } from "../lib/dom.js";
-import { effective } from "../store/resolve.js";
-import { MATRIX_BYPASS_REASON } from "../store/schema.js";
-import { truthy } from "../lib/coerce.js";
+import { html } from "../../lib/dom.js";
+import { effective } from "../../store/resolve.js";
+import { MATRIX_BYPASS_REASON } from "../../store/schema.js";
+import { truthy } from "../../lib/coerce.js";
 
 // What a card says when its own feature is switched off: nothing the user has set
 // is being ignored, so the note points at the switch instead of at the settings.

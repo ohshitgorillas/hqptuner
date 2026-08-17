@@ -52,7 +52,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { VolumeRangeBar } from "../../../hqptuner/static/components/VolumeRangeBar.js";
+import { VolumeRangeBar } from "../../../hqptuner/static/components/volume/RangeBar.js";
 import {
   volume,
   volumeDrag,

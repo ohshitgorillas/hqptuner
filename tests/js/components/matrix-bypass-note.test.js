@@ -76,8 +76,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
-import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
+import { MatrixTab } from "../../../hqptuner/static/components/matrix/Tab.js";
+import { SpeakersCard, chooseSet } from "../../../hqptuner/static/components/speakers/Card.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../hqptuner/static/store/matrix/speakers.js";
 import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
@@ -87,8 +87,8 @@ import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaura
 import { BAUER_PRESETS } from "../../../hqptuner/static/lib/xfeed.js";
 import { edit, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
-import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
+import { plottedRows, previewEq } from "../../../hqptuner/static/components/matrix/Plot.js";
+import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 
 const NOTE = "Matrix engine is bypassed. These settings have no effect.";

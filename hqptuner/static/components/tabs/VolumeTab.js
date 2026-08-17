@@ -2,10 +2,10 @@
 // fixed-volume and adjustments cards, and Loudness (volume-adaptive by definition).
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
-import { BypassNote } from "../MatrixBypassNote.js";
+import { BypassNote } from "../matrix/BypassNote.js";
 import { Segment } from "../controls/index.js";
-import { PlaybackVolume } from "../PlaybackVolume.js";
-import { VolumeRangeBar } from "../VolumeRangeBar.js";
+import { PlaybackVolume } from "../volume/Playback.js";
+import { VolumeRangeBar } from "../volume/RangeBar.js";
 import { effective, isDirty } from "../../store/resolve.js";
 import { loudnessSide } from "../../store/ui.js";
 import { grayReason } from "../../store/graying.js";

@@ -213,7 +213,7 @@ export function rateColumn(family) {
     // the whole time and takes filter and shaper edits live, which is why the
     // cards beside this one stay editable. Under an explicit mode NEITHER column
     // is disabled, on the same terms as the dormant chain card
-    // (components/LiveView.js): a rate for the family the engine is not running
+    // (components/live/View.js): a rate for the family the engine is not running
     // is held and lands when that family loads (lanes/live/routing.unpinnable_rate),
     // so setting up the SDM side while PCM plays is an ordinary thing to do here.
     disabled: auto,

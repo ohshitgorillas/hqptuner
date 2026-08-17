@@ -21,13 +21,13 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
+import { MatrixTab } from "../../../hqptuner/static/components/matrix/Tab.js";
 import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { plottedRows } from "../../../hqptuner/static/components/MatrixPlot.js";
-import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
+import { plottedRows } from "../../../hqptuner/static/components/matrix/Plot.js";
+import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 
 /** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */

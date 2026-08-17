@@ -1,5 +1,5 @@
 // Behavioral suite for the LIVE page's two chain cards — store/live/chains.js's
-// `pcmChain` / `sdmChain` and the cards components/LiveView.js renders from
+// `pcmChain` / `sdmChain` and the cards components/live/View.js renders from
 // them.
 //
 // The engine can only be asked about the chain it has LOADED: GetFilters and
@@ -29,7 +29,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import {
   health,
   engineState,

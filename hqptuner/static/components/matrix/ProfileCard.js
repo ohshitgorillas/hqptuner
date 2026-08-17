@@ -13,13 +13,13 @@
 // playback state.
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
-import { html, wheelGuard } from "../lib/dom.js";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
-import { config } from "../store/signals.js";
-import { effectivePipelines } from "../store/resolve.js";
-import { stagePipelines } from "../store/actions.js";
-import { refreshConfig } from "../store/sync.js";
+import { html, wheelGuard } from "../../lib/dom.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
+import { config } from "../../store/signals.js";
+import { effectivePipelines } from "../../store/resolve.js";
+import { stagePipelines } from "../../store/actions.js";
+import { refreshConfig } from "../../store/sync.js";
 import {
   savedProfiles,
   matrixActiveProfile,
@@ -30,12 +30,17 @@ import {
   stageProfileSave,
   stageProfileDelete,
   profileSavePending,
-} from "../store/matrix/profiles.js";
-import { descriptionFor, descriptionError, queueDescription, flushDescriptions } from "../store/matrix/descriptions.js";
-import { askChoices } from "../store/ask.js";
-import { notesVisible } from "../store/prefs.js";
-import { Ask } from "./Ask.js";
-import { Card } from "./common.js";
+} from "../../store/matrix/profiles.js";
+import {
+  descriptionFor,
+  descriptionError,
+  queueDescription,
+  flushDescriptions,
+} from "../../store/matrix/descriptions.js";
+import { askChoices } from "../../store/ask.js";
+import { notesVisible } from "../../store/prefs.js";
+import { Ask } from "../Ask.js";
+import { Card } from "../common.js";
 
 const OWNER = "matrix-profile";
 

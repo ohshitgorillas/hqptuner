@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import {
   health,
   engineState,

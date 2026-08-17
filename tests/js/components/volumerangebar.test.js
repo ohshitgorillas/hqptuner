@@ -1,4 +1,4 @@
-// Behavioral suite for components/VolumeRangeBar.js — the Min / Startup / Max
+// Behavioral suite for components/volume/RangeBar.js — the Min / Startup / Max
 // range card. Written BEFORE the complexity refactor of VolumeRangeBar (11) and
 // the extraction of its clamp policy into lib/volume.js; not one case may change
 // when either lands.
@@ -27,7 +27,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { VolumeRangeBar } from "../../../hqptuner/static/components/VolumeRangeBar.js";
+import { VolumeRangeBar } from "../../../hqptuner/static/components/volume/RangeBar.js";
 import { config, enums, engineState, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../support/wire.js";

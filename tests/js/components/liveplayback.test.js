@@ -1,6 +1,6 @@
 // Behavioral suite for the LIVE page's consolidated "Playback" card —
-// components/LiveView.js placing Adaptive volume and the High-frequency filter
-// beside the volume dial rendered by components/PlaybackVolume.js's
+// components/live/View.js placing Adaptive volume and the High-frequency filter
+// beside the volume dial rendered by components/volume/Playback.js's
 // `PlaybackVolumeBody`, and the Volume tab's own card being untouched by it.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
@@ -30,8 +30,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
-import { PlaybackVolume } from "../../../hqptuner/static/components/PlaybackVolume.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
+import { PlaybackVolume } from "../../../hqptuner/static/components/volume/Playback.js";
 import {
   health,
   engineState,

@@ -1,7 +1,7 @@
 // Behavioral suite for lib/volume.js — the Min / Startup / Max clamp policy.
 //
 // WHY THIS FILE EXISTS: the clamping used to be a module-private `clamp` inside
-// components/VolumeRangeBar.js, reachable only through the range handles'
+// components/volume/RangeBar.js, reachable only through the range handles'
 // onInput / onChange callbacks. Server-side rendering never fires those, so not
 // one of its rules could be asserted by a policy-compliant test. Moving the
 // policy out of the component is what makes it testable at all; these cases are

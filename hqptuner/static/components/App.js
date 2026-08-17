@@ -12,7 +12,7 @@ import { Header } from "./Header.js";
 import { SignalPath } from "./SignalPath.js";
 import { AlertStrip } from "./AlertStrip.js";
 import { TabBar, TabBody } from "./tabs/index.js";
-import { LiveView } from "./LiveView.js";
+import { LiveView } from "./live/View.js";
 import { PendingBar } from "./PendingBar.js";
 import { reachable } from "../store/signals.js";
 import { liveMode } from "../store/prefs.js";

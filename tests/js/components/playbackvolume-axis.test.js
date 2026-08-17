@@ -27,7 +27,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { PlaybackVolumeBody } from "../../../hqptuner/static/components/PlaybackVolume.js";
+import { PlaybackVolumeBody } from "../../../hqptuner/static/components/volume/Playback.js";
 import {
   volume,
   volumeDrag,

@@ -7,11 +7,11 @@
 // by construction. Sources are never merged: every hit shows its measurement
 // source, with oratory1990 preferred in ranking on equal match quality.
 import { signal } from "@preact/signals";
-import { api } from "../lib/api.js";
-import { html } from "../lib/dom.js";
-import { errText } from "../lib/errtext.js";
-import { parseEqText } from "../lib/eqimport.js";
-import { previewEq } from "./MatrixPlot.js";
+import { api } from "../../lib/api.js";
+import { html } from "../../lib/dom.js";
+import { errText } from "../../lib/errtext.js";
+import { parseEqText } from "../../lib/eqimport.js";
+import { previewEq } from "./Plot.js";
 
 const db = signal(null); // { meta, profiles } once fetched
 const dbState = signal(""); // "" | "loading…" | error text

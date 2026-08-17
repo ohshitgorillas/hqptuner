@@ -218,7 +218,7 @@
   font-size: var(--fs-body);
 }
 
-/* The switch block under the facet row (NarrowBar.js): the binding two-column
+/* The switch block under the facet row (narrowbar/Bar.js): the binding two-column
    split (1fr 1px 1fr + .col-rule on the card centre line, design-system §Rules).
    Left column Apodizing filters, right column 1x sources over Source format;
    each group is a title beside its switch rows with the description under them.

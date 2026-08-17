@@ -1,5 +1,5 @@
 // Behavioral suite for the narrow bar's favorites-only toggle
-// (components/NarrowBar.js): a button on the facet row that engages the
+// (components/narrowbar/Bar.js): a button on the facet row that engages the
 // favorites-only narrowing, disabled while the user has no favorites at all —
 // there is nothing an empty favorites set could narrow to.
 //
@@ -23,7 +23,7 @@ import { options } from "preact";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { NarrowBar } from "../../../hqptuner/static/components/NarrowBar.js";
+import { NarrowBar } from "../../../hqptuner/static/components/narrowbar/Bar.js";
 import { config, matrixConfig, enums, metadata, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";

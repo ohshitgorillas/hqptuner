@@ -1,4 +1,4 @@
-// Behavioral suite for components/MatrixTab.js — the pipeline editor's rendered
+// Behavioral suite for components/matrix/Tab.js — the pipeline editor's rendered
 // contract. Written BEFORE the complexity refactor of FlowRow (14) and
 // ProfileCard (11); not one case may change when those are decomposed.
 //
@@ -6,7 +6,7 @@
 // and `ProfileCard` are private components and stay that way — every case here
 // goes through the exported `MatrixTab`, driven by exported store signals
 // (`config`, `matrixConfig`, `showDescriptions`, `stagePipelines`) and the
-// exported plot/selection signals in MatrixPlot.js. The refactor's whole purpose
+// exported plot/selection signals in matrix/Plot.js. The refactor's whole purpose
 // is to create private sub-components; covering them only through the tab is
 // what makes these tests survive it.
 //
@@ -24,12 +24,12 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
+import { MatrixTab } from "../../../hqptuner/static/components/matrix/Tab.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { stagePipelines, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
-import { plottedRows, togglePlotted } from "../../../hqptuner/static/components/MatrixPlot.js";
-import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
+import { plottedRows, togglePlotted } from "../../../hqptuner/static/components/matrix/Plot.js";
+import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
 
 function wire() {

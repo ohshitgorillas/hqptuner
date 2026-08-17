@@ -14,7 +14,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. The cards are read through the exported `liveModel`, the same
-// surface components/LiveView.js renders from.
+// surface components/live/View.js renders from.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/shaperfit-graying.test.js
 

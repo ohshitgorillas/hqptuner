@@ -212,11 +212,13 @@ export default [
     rules: noUp([ABOVE.app, ...ABOVE.components], LAYER_MSG),
   },
   {
-    // Controls sit under the components that compose them. `../*.js` is a
-    // sibling of components/, one level up from here; `../../lib/…` is deeper
-    // and unaffected.
+    // Controls sit under the components that compose them. `../*.js` is a flat
+    // sibling of components/, one level up from here, and `../*/*.js` is one
+    // inside a concern directory (matrix/, xfeed/, live/, …) — both are
+    // components. `../../lib/…` is deeper and unaffected, and `*` does not
+    // match a `/`, so neither pattern reaches it.
     files: ["hqptuner/static/components/controls/**/*.js"],
-    rules: noUp([ABOVE.app, ...ABOVE.tabs, "../*.js"], LAYER_MSG),
+    rules: noUp([ABOVE.app, ...ABOVE.tabs, "../*.js", "../*/*.js"], LAYER_MSG),
   },
   {
     files: ["hqptuner/static/components/**/*.js"],

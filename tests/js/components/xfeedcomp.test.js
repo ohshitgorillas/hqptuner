@@ -1,4 +1,4 @@
-// Behavioral suite for components/XfeedComp.js — the crossfeed-compensation
+// Behavioral suite for components/xfeed/Comp.js — the crossfeed-compensation
 // control strip. Written BEFORE the complexity refactor of XfeedStrip (13) and
 // the private pairInfo (11).
 //
@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { XfeedStrip, xfeedLensTraces, lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
+import { XfeedStrip, xfeedLensTraces, lensOn } from "../../../hqptuner/static/components/xfeed/Comp.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { setShowDescriptions } from "../../../hqptuner/static/store/prefs.js";

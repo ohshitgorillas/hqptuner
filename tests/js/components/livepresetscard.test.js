@@ -1,4 +1,4 @@
-// Behavioral suite for the LIVE MODE card components/LiveView.js renders from
+// Behavioral suite for the LIVE MODE card components/live/View.js renders from
 // the saved live presets. The store itself — the list and the four verbs — is
 // covered in livepresets.test.js; the wire fake and fixtures both suites use
 // live in livepresetwire.js.
@@ -26,7 +26,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import {
   health,
   engineState,

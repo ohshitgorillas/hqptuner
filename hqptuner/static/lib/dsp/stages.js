@@ -33,7 +33,7 @@ import { convResponse } from "./impulse.js";
  *   convResponse(stage.file) without ever reading `args`. Declaring it required
  *   made every parseProcess() result (lib/matrixspec.js, which has always had it
  *   optional) unassignable to Stage, which is what stood behind the errors in
- *   matrixplot-traces.js, XfeedComp.js and StructuralXfeed.js.
+ *   matrix/plot-traces.js, xfeed/Comp.js and xfeed/Structural.js.
  */
 
 // The two sides of that optionality, read one way. `args` belongs to the plugin

@@ -2,7 +2,7 @@
 // whether a compensation block is installed against those settings, and the
 // staging that takes one back out.
 //
-// components/XfeedComp.js still owns the strip, the badge
+// components/xfeed/Comp.js still owns the strip, the badge
 // and the lens traces. None of the three functions here renders anything — they
 // read the resolved config and stage rows — and leaving them in a component
 // meant store/xfeed/mode.js had to reach up into components/ to ask whether a block

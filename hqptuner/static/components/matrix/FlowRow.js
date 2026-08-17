@@ -6,16 +6,23 @@
 // verbatim and flagged — never dropped, never rewritten. `rawRows` and
 // `dragFrom` are private to this module.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
-import { parseProcess, serializeProcess, stageLabel, validateStage, newStage, editedStage } from "../lib/matrixspec.js";
-import { rowToRewText } from "../lib/eqexport.js";
-import { isPlotted, togglePlotted } from "./MatrixPlot.js";
+import { html, wheelGuard } from "../../lib/dom.js";
+import {
+  parseProcess,
+  serializeProcess,
+  stageLabel,
+  validateStage,
+  newStage,
+  editedStage,
+} from "../../lib/matrixspec.js";
+import { rowToRewText } from "../../lib/eqexport.js";
+import { isPlotted, togglePlotted } from "./Plot.js";
 import { selectedStage } from "./BandStrip.js";
-import { StageEditor, setSelected } from "./MatrixStageEditor.js";
+import { StageEditor, setSelected } from "./StageEditor.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/matrixspec.js").MatrixStage} Stage
  * @typedef {(patch: Partial<PipelineRow>) => void} RowWriter
  *   Stages a partial edit of one pipeline row.
  * @typedef {(stages: Stage[]) => void} StageWriter

@@ -1,5 +1,5 @@
 // Behavioral suite for the narrow bar's SOURCE FORMAT control as it renders
-// (components/NarrowBar.js): the switch group titled "Source format", its two
+// (components/narrowbar/Bar.js): the switch group titled "Source format", its two
 // segments, and the preview count chip it does NOT carry — the facet changes no
 // dropdown, so there is no count for a chip to preview.
 //

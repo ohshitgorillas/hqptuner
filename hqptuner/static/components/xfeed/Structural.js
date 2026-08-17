@@ -7,18 +7,18 @@
 // have to pick an ear and would be wrong for the other. The EQ is already
 // visible as the pipeline rows' own curves, so the crossfeed is plotted alone —
 // which is also the thing the three controls actually move.
-import { html } from "../lib/dom.js";
-import { effectivePipelines } from "../store/resolve.js";
-import { bandFreqs } from "../lib/dsp/curves.js";
-import { chainResponse } from "../lib/dsp/chain.js";
-import { parseProcess } from "../lib/matrixspec.js";
-import { midSideResponse, magDb } from "../lib/binaural/response.js";
+import { html } from "../../lib/dom.js";
+import { effectivePipelines } from "../../store/resolve.js";
+import { bandFreqs } from "../../lib/dsp/curves.js";
+import { chainResponse } from "../../lib/dsp/chain.js";
+import { parseProcess } from "../../lib/matrixspec.js";
+import { midSideResponse, magDb } from "../../lib/binaural/response.js";
 // One toggle over both crossfeeds: the button is on the RESPONSE card and the
 // state it writes lives with the compensation lens, so the two gate together.
-import { lensShown } from "./XfeedComp.js";
+import { lensShown } from "./Comp.js";
 
 const FS = 48000;
-import { structuralBlock, structuralParams } from "../store/xfeed/mode.js";
+import { structuralBlock, structuralParams } from "../../store/xfeed/mode.js";
 
 // What centered sound and the sides actually get, EQ included.
 //
@@ -28,7 +28,7 @@ import { structuralBlock, structuralParams } from "../store/xfeed/mode.js";
 // compensation lens does, and why it works — the center shift shows as the gap
 // between the EQ alone and the EQ heard through the crossfeed.
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
  */
 
 /**

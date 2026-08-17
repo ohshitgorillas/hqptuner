@@ -17,8 +17,8 @@
 // Select.js (the popover widgets), Facets.js (the dropdown row), Stages.js (the
 // switch rows).
 import { useEffect } from "preact/hooks";
-import { html } from "../lib/dom.js";
-import { Card } from "./common.js";
+import { html } from "../../lib/dom.js";
+import { Card } from "../common.js";
 import {
   narrowingActive,
   filterNarrowingActive,
@@ -27,12 +27,12 @@ import {
   nApodNx,
   nLossy1x,
   nSrcFormat,
-} from "../store/narrow/state.js";
-import { narrowingError } from "../store/narrow/persist.js";
-import { notesVisible } from "../store/prefs.js";
-import { closeExcept } from "./narrowbar/popover.js";
-import { NarrowFacets } from "./narrowbar/Facets.js";
-import { Segment } from "./controls/index.js";
+} from "../../store/narrow/state.js";
+import { narrowingError } from "../../store/narrow/persist.js";
+import { notesVisible } from "../../store/prefs.js";
+import { closeExcept } from "./popover.js";
+import { NarrowFacets } from "./Facets.js";
+import { Segment } from "../controls/index.js";
 import {
   APOD_SEGS,
   LOSSY_SEGS,
@@ -42,7 +42,7 @@ import {
   StageSeg,
   SwitchGroup,
   apodTip,
-} from "./narrowbar/Stages.js";
+} from "./Stages.js";
 
 // Reset sits in the card head, and on LIVE that head is the collapse toggle
 // (components/common.js) — so the click has to stop where it lands. Without
@@ -71,7 +71,7 @@ function ResetButton() {
  * passes nothing: the bar is that tab's first control and folding it there hides
  * what the page is for. LIVE passes a handle, where the bar is one of four cards
  * folded away to get the mode switch and the matrix picker onto one screen.
- * @param {{ srcFormat?: boolean, collapse?: import("./common.js").CollapseHandle }} props
+ * @param {{ srcFormat?: boolean, collapse?: import("../common.js").CollapseHandle }} props
  */
 export function NarrowBar({ srcFormat = true, collapse }) {
   const engaged = srcFormat ? narrowingActive.value : filterNarrowingActive.value;

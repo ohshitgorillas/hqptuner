@@ -6,7 +6,7 @@ import { html } from "../../lib/dom.js";
 import { Output } from "./OutputTab.js";
 import { Volume } from "./VolumeTab.js";
 import { System } from "./SystemTab.js";
-import { MatrixTab } from "../MatrixTab.js";
+import { MatrixTab } from "../matrix/Tab.js";
 import { activeTab as active } from "../../store/ui.js";
 import { dirtyTabs } from "../../store/tabmap.js";
 

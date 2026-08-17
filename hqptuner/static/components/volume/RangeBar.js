@@ -14,14 +14,14 @@
 // the number boxes they replace: same dirty highlight, same Apply, same
 // restart. Nothing here writes to the daemon directly.
 import { signal } from "@preact/signals";
-import { html, wheelGuard, userEdit } from "../lib/dom.js";
-import { AXIS_MIN, AXIS_MAX, num, clampVolume, clampLoudness } from "../lib/volume.js";
-import { volumeShown, volumeRange } from "../store/signals.js";
-import { effective, isDirty } from "../store/resolve.js";
-import { edit } from "../store/actions.js";
-import { grayReason } from "../store/graying.js";
-import { NumberBox } from "./controls/index.js";
-import { Card } from "./common.js";
+import { html, wheelGuard, userEdit } from "../../lib/dom.js";
+import { AXIS_MIN, AXIS_MAX, num, clampVolume, clampLoudness } from "../../lib/volume.js";
+import { volumeShown, volumeRange } from "../../store/signals.js";
+import { effective, isDirty } from "../../store/resolve.js";
+import { edit } from "../../store/actions.js";
+import { grayReason } from "../../store/graying.js";
+import { NumberBox } from "../controls/index.js";
+import { Card } from "../common.js";
 
 /**
  * @typedef {{ which: string, db: number }} ActiveHandle
@@ -115,7 +115,7 @@ const loudnessOn = () => !grayReason("loudness_range_low");
 // from the live signals rather than through effective() and it never stages.
 //
 // Both halves of the engine's report have to be usable for the needle to mean
-// anything. The enabled test is deliberately the narrow one PlaybackVolume.js
+// anything. The enabled test is deliberately the narrow one Playback.js
 // uses — VolumeRange reports the flag as 1 / "1" / true and nothing else
 // (protocol §6), and widening it here would draw a needle over a control the
 // engine is holding. An unusable level is the same thing to a reader as no

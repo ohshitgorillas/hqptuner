@@ -9,23 +9,23 @@
 // Recognizing the block and taking it back out is STATE, not rendering, and
 // lives in store/xfeed/block.js — see the note there.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
-import { effectivePipelines } from "../store/resolve.js";
-import { stagePipelines, edit } from "../store/actions.js";
-import { notesVisible } from "../store/prefs.js";
-import { bauerSettings, xfeedBlock, removeBlock } from "../store/xfeed/block.js";
-import { parseProcess } from "../lib/matrixspec.js";
-import { chainResponse } from "../lib/dsp/chain.js";
-import { bandFreqs } from "../lib/dsp/curves.js";
-import { PlotFrame } from "./plots.js";
-import { SliderNumber } from "./controls/index.js";
-import { centerMagDb, sideMagDb, centerTiltDb, fitComp, compProcess, msCompile } from "../lib/xfeed.js";
-import { db, hz } from "../lib/units.js";
+import { html } from "../../lib/dom.js";
+import { effectivePipelines } from "../../store/resolve.js";
+import { stagePipelines, edit } from "../../store/actions.js";
+import { notesVisible } from "../../store/prefs.js";
+import { bauerSettings, xfeedBlock, removeBlock } from "../../store/xfeed/block.js";
+import { parseProcess } from "../../lib/matrixspec.js";
+import { chainResponse } from "../../lib/dsp/chain.js";
+import { bandFreqs } from "../../lib/dsp/curves.js";
+import { PlotFrame } from "../plots.js";
+import { SliderNumber } from "../controls/index.js";
+import { centerMagDb, sideMagDb, centerTiltDb, fitComp, compProcess, msCompile } from "../../lib/xfeed.js";
+import { db, hz } from "../../lib/units.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
- * @typedef {import("../lib/xfeed.js").MsRecognition} MsRecognition
- * @typedef {import("../store/xfeed/block.js").BauerSettings} BauerSettings
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/xfeed.js").MsRecognition} MsRecognition
+ * @typedef {import("../../store/xfeed/block.js").BauerSettings} BauerSettings
  * @typedef {{ issue?: string, eq?: string, gain?: number }} PairInfo
  *   Rows 1+2 read as a symmetric stereo EQ pair — either the reason they are
  *   not one, or the chain and preamp a block can be built from.

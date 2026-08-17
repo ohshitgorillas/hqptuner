@@ -1,5 +1,5 @@
 // Behavioral suite for the filter hover tip's facet block: filterTipFacets
-// (components/facettip.js) — the rows and boolean chips one filter's tip
+// (components/narrowbar/facettip.js) — the rows and boolean chips one filter's tip
 // carries — and the changed tipsFor (components/Field.js), whose resolver now
 // returns { text, rows, chips } instead of bare prose.
 //
@@ -31,7 +31,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { filterTipFacets } from "../../../hqptuner/static/components/facettip.js";
+import { filterTipFacets } from "../../../hqptuner/static/components/narrowbar/facettip.js";
 import { tipsFor } from "../../../hqptuner/static/components/Field.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";

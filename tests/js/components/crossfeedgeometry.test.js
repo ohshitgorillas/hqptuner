@@ -1,4 +1,4 @@
-// Behavioral suite for components/CrossfeedGeometry.js — the top-down speaker
+// Behavioral suite for components/xfeed/Geometry.js — the top-down speaker
 // diagram on the structural crossfeed card.
 //
 // The component is a pure function of its two props ({angle, headRadius}) with
@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { CrossfeedGeometry } from "../../../hqptuner/static/components/CrossfeedGeometry.js";
+import { CrossfeedGeometry } from "../../../hqptuner/static/components/xfeed/Geometry.js";
 
 const draw = (angle = 30, headRadius = 0.0875) =>
   render(html`<${CrossfeedGeometry} angle=${angle} headRadius=${headRadius} />`);

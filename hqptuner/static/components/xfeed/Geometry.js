@@ -6,8 +6,8 @@
 // listener, not parallel. Solid lines are each ear's near path, dashed are the
 // far paths — the ones crossfeed synthesizes and headphones otherwise omit. The
 // ±30° reference ticks mark the stereo standard.
-import { html } from "../lib/dom.js";
-import { polarAround } from "../lib/geometry.js";
+import { html } from "../../lib/dom.js";
+import { polarAround } from "../../lib/geometry.js";
 
 const W = 340;
 const H = 200;

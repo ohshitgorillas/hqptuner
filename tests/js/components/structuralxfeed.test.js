@@ -1,4 +1,4 @@
-// Behavioral suite for components/StructuralXfeed.js — the RESPONSE-card lens
+// Behavioral suite for components/xfeed/Structural.js — the RESPONSE-card lens
 // traces and the Pipelines-card badge for the structural crossfeed block.
 //
 // Both surfaces are exported and derive everything from the pipeline rows, so
@@ -13,8 +13,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { structuralLensTraces, StructuralBadge } from "../../../hqptuner/static/components/StructuralXfeed.js";
-import { lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
+import { structuralLensTraces, StructuralBadge } from "../../../hqptuner/static/components/xfeed/Structural.js";
+import { lensOn } from "../../../hqptuner/static/components/xfeed/Comp.js";
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
@@ -55,7 +55,7 @@ const near = (actual, expected, tol) => [
 // --- the lens traces ------------------------------------------------------------
 //
 // The builder's contract gained a second gate by product decision: the shared
-// "what you hear" toggle (`lensOn`, components/XfeedComp.js), off by default.
+// "what you hear" toggle (`lensOn`, components/xfeed/Comp.js), off by default.
 // The cases below were right about the old behaviour and say the same thing
 // about the new one — they just turn the lens on first, including the one that
 // asserts NO traces, which pins the block RECOGNIZER and would otherwise pass

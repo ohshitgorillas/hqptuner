@@ -45,7 +45,7 @@ interface SchemaOption {
 // One option in an `askChoices` prompt (store/ask.js).
 //
 // Distinct from OptionItem despite the overlap: a choice is CHECKABLE and has
-// no `reason`. Producer is MatrixProfileCard.js buildPresetOptions(), the sole
+// no `reason`. Producer is matrix/ProfileCard.js buildPresetOptions(), the sole
 // call site, which builds all four fields from preset names — hence `value:
 // string` rather than the OptionItem union.
 interface ChoiceOption {

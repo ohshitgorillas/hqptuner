@@ -1,5 +1,5 @@
 // Behavioral suite for the LIVE page's RE-ENUMERATION WINDOW as it renders —
-// which controls components/LiveView.js grays out while a write that rebuilds
+// which controls components/live/View.js grays out while a write that rebuilds
 // the engine's menus is in flight, and which it leaves alone.
 //
 // A write to `mode`, `filter1x`, `filter`, `oversampling1x`, `oversampling` or
@@ -33,7 +33,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import {
   health,
   engineState,

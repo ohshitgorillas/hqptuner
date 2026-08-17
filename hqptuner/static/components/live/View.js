@@ -16,13 +16,13 @@
 // reported back after the write, and its only state is "writing" or "this is why
 // it was refused".
 import { signal, computed, effect } from "@preact/signals";
-import { html } from "../lib/dom.js";
-import { errText } from "../lib/errtext.js";
-import { api } from "../lib/api.js";
-import { liveModel } from "../store/live/model.js";
-import { liveBusy, liveEnumBusy, liveErrors } from "../store/live/state.js";
-import { writeLive } from "../store/live/write.js";
-import { describe, selectionDescription, selectedLabel } from "../store/prose.js";
+import { html } from "../../lib/dom.js";
+import { errText } from "../../lib/errtext.js";
+import { api } from "../../lib/api.js";
+import { liveModel } from "../../store/live/model.js";
+import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
+import { writeLive } from "../../store/live/write.js";
+import { describe, selectionDescription, selectedLabel } from "../../store/prose.js";
 import {
   notesVisible,
   descVisible,
@@ -31,23 +31,23 @@ import {
   liveHealthOpen,
   liveMatrixOpen,
   setLiveCardOpen,
-} from "../store/prefs.js";
-import { refreshConfig } from "../store/sync.js";
-import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../store/matrix/profiles.js";
-import { descriptionFor } from "../store/matrix/descriptions.js";
-import { Segment, Dropdown, Checkbox } from "./controls/index.js";
-import { widgetFor, widthClasses, tipsFor, favFor, FavoriteError } from "./Field.js";
-import { ChainPack } from "./ChainPack.js";
-import { NarrowBar } from "./NarrowBar.js";
-import { PlaybackVolumeBody } from "./PlaybackVolume.js";
-import { EngineHealth } from "./EngineHealth.js";
-import { LiveModeCard } from "./LivePresets.js";
-import { Section, Card, collapseFrom } from "./common.js";
+} from "../../store/prefs.js";
+import { refreshConfig } from "../../store/sync.js";
+import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../../store/matrix/profiles.js";
+import { descriptionFor } from "../../store/matrix/descriptions.js";
+import { Segment, Dropdown, Checkbox } from "../controls/index.js";
+import { widgetFor, widthClasses, tipsFor, favFor, FavoriteError } from "../Field.js";
+import { ChainPack } from "../ChainPack.js";
+import { NarrowBar } from "../narrowbar/Bar.js";
+import { PlaybackVolumeBody } from "../volume/Playback.js";
+import { EngineHealth } from "../EngineHealth.js";
+import { LiveModeCard } from "./Presets.js";
+import { Section, Card, collapseFrom } from "../common.js";
 
 /**
- * @typedef {import("./Field.js").FieldEntry} FieldEntry
- * @typedef {import("./Field.js").FieldMeta} FieldMeta
- * @typedef {import("./Field.js").NarrowBadge} NarrowBadge
+ * @typedef {import("../Field.js").FieldEntry} FieldEntry
+ * @typedef {import("../Field.js").FieldMeta} FieldMeta
+ * @typedef {import("../Field.js").NarrowBadge} NarrowBadge
  * @typedef {ReturnType<typeof widgetFor>} Widget
  *   Whatever Field.js's own widget pick resolves to — the LIVE page renders the
  *   identical control, so it takes the identical type.
@@ -201,7 +201,7 @@ effect(() => {
 /**
  * @param {"narrow" | "playback" | "health" | "matrix"} card
  * @param {{ value: boolean }} open
- * @returns {import("./common.js").CollapseHandle}
+ * @returns {import("../common.js").CollapseHandle}
  */
 const cardCollapse = (card, open) => ({
   open: open.value,

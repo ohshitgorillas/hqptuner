@@ -1,4 +1,4 @@
-// The assembled view model — the one thing components/LiveView.js reads. Its own
+// The assembled view model — the one thing components/live/View.js reads. Its own
 // module because it is the top of the lane: it names every part and nothing names
 // it, so keeping it apart is what stops the parts reaching sideways for each
 // other.
@@ -9,7 +9,7 @@
 // out of store/live.js, importing ANY live-lane name registered that effect,
 // because there was only one module. Now a consumer that takes liveModel alone
 // would never load state.js, and stale per-field errors would survive a
-// reconnect. Both current entry points are safe — LiveView.js also takes
+// reconnect. Both current entry points are safe — live/View.js also takes
 // liveBusy/liveErrors/writeLive, and store/live/presets.js takes
 // remirrorLive/reportError — so nothing is wrong today. A future reader-only
 // consumer must import from ./state.js as well.

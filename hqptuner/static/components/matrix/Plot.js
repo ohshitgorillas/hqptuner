@@ -8,24 +8,24 @@
 // pipeline signals — no server round-trip. Convolution stages plot only when
 // their IR was uploaded this session (registerIr); otherwise marked partial.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
-import { effectivePipelines, pipelineBaseline } from "../store/resolve.js";
-import { parseProcess, stageArgs } from "../lib/matrixspec.js";
-import { PlotFrame } from "./plots.js";
-import { xfeedLensTraces } from "./XfeedComp.js";
-import { xfeedBlock } from "../store/xfeed/block.js";
-import { structuralBlock } from "../store/xfeed/mode.js";
-import { structuralLensTraces } from "./StructuralXfeed.js";
-import { Card } from "./common.js";
-import { BypassNote } from "./MatrixBypassNote.js";
+import { html } from "../../lib/dom.js";
+import { effectivePipelines, pipelineBaseline } from "../../store/resolve.js";
+import { parseProcess, stageArgs } from "../../lib/matrixspec.js";
+import { PlotFrame } from "../plots.js";
+import { xfeedLensTraces } from "../xfeed/Comp.js";
+import { xfeedBlock } from "../../store/xfeed/block.js";
+import { structuralBlock } from "../../store/xfeed/mode.js";
+import { structuralLensTraces } from "../xfeed/Structural.js";
+import { Card } from "../common.js";
+import { BypassNote } from "./BypassNote.js";
 import { BandStrip, selectedStage, dragEq, withDrag, keyAt, commitStage, BAND_ARGS, r1 } from "./BandStrip.js";
-import { rowTraces, eqOverviewTrace, editedAway, appliedTraces, previewTrace, HUES } from "./matrixplot-traces.js";
+import { rowTraces, eqOverviewTrace, editedAway, appliedTraces, previewTrace, HUES } from "./plot-traces.js";
 
 /**
  * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
  *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
  *   string, because the config XML and the /matrix form both carry text.
- * @typedef {import("../lib/matrixspec.js").MatrixStage} Stage
+ * @typedef {import("../../lib/matrixspec.js").MatrixStage} Stage
  *   One parsed `process` stage: a plugin spec with `args`, or a convolution
  *   stage carrying `file`.
  * @typedef {{
@@ -157,7 +157,7 @@ function rowHandles(rows, plotted) {
 }
 
 // The lens toggle that gates the traces below lives on the CROSSFEED card
-// (components/Crossfeed.js), next to the crossfeed it describes — not here. This
+// (components/xfeed/Card.js), next to the crossfeed it describes — not here. This
 // card only draws what the toggle asks for.
 /**
  * The RESPONSE card: overlaid magnitude and phase curves for the plotted pipelines,

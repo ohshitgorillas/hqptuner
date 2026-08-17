@@ -22,7 +22,7 @@ import { db as fmtLevel, dbOffset } from "../lib/units.js";
  * @typedef {PlotTrace & { ghost?: boolean }} FrameTrace
  *   A plotted curve. `ghost` marks a reference curve the autoColor hue cycle
  *   skips; it is not on the ambient PlotTrace (see the note in this file's
- *   header block for matrixplot-traces.js, which produces it).
+ *   header block for matrix/plot-traces.js, which produces it).
  * @typedef {PlotHandle & { label?: string, dbMin?: number, dbMax?: number, onSelect?: () => void,
  *                          onDrag: (f: number, db: number) => void,
  *                          onEnd: (f: number, db: number) => void }} FrameHandle

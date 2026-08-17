@@ -1,6 +1,6 @@
 // Behavioral suite for the width class a dropdown field carries — the schema's
 // `compact` property, rendered as the class pair `compact compact-<size>` on the
-// field element, on the LIVE page (components/LiveView.js).
+// field element, on the LIVE page (components/live/View.js).
 //
 // Without the class a combobox trigger is content-sized, so its width changes
 // with the selection and the control moves under the cursor. The sizes below are
@@ -28,7 +28,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import {
   health,
   engineState,

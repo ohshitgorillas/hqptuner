@@ -22,7 +22,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { loadProfile } from "../../../hqptuner/static/components/MatrixProfileCard.js";
+import { loadProfile } from "../../../hqptuner/static/components/matrix/ProfileCard.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { profilePost, profileRows, stageProfileSave } from "../../../hqptuner/static/store/matrix/profiles.js";

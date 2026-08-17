@@ -12,13 +12,13 @@
 // poll doesn't snap the dial back. Double-click resets to a moderate -20 dB (a
 // deliberate safe default, not a daemon value, so a reset never jumps to full
 // volume).
-import { html } from "../lib/dom.js";
-import { volume, volumeRange, volumeDrag } from "../store/signals.js";
-import { effective, runningValue } from "../store/resolve.js";
-import { setVolume } from "../store/actions.js";
-import { Knob } from "./Knob.js";
-import { Card } from "./common.js";
-import { truthy, num } from "../lib/coerce.js";
+import { html } from "../../lib/dom.js";
+import { volume, volumeRange, volumeDrag } from "../../store/signals.js";
+import { effective, runningValue } from "../../store/resolve.js";
+import { setVolume } from "../../store/actions.js";
+import { Knob } from "../Knob.js";
+import { Card } from "../common.js";
+import { truthy, num } from "../../lib/coerce.js";
 
 // The engine reports volume control disabled (VolumeRange enabled=0), but not
 // *why*. Name the actual cause from the RUNNING config — the engine is what is

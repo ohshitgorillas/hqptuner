@@ -1,5 +1,5 @@
 // Behavioral suite for the narrow bar's 1x SOURCES control as it renders
-// (components/NarrowBar.js): the switch group titled "1x sources", its three
+// (components/narrowbar/Bar.js): the switch group titled "1x sources", its three
 // segments, the stage micro-labels it does and does not carry, and the split
 // between an explainer shown as a caption and the same explainer offered as a
 // hover title.

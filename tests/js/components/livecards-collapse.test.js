@@ -1,6 +1,6 @@
 // Behavioral suite for the LIVE page's four non-chain cards becoming
 // collapsible — "Narrow filters", "Playback", "Engine health" and "Matrix
-// profile" (components/LiveView.js): that each offers a head a pointer can
+// profile" (components/live/View.js): that each offers a head a pointer can
 // press, that each starts open, that pressing one closes it and takes its body
 // off the page, that pressing it again brings the body back, that one card's
 // disclosure is its own, and that a poll bringing back identical engine state
@@ -49,7 +49,7 @@ import { options } from "preact";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
 import {
   health,

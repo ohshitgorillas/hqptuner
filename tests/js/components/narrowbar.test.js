@@ -1,5 +1,5 @@
 // Behavioral suite for the narrowing bar's rendered controls
-// (components/NarrowBar.js): the rate popover's three switches, the count chip
+// (components/narrowbar/Bar.js): the rate popover's three switches, the count chip
 // on a row previewing the click that row would perform (which on a value
 // already picked is an UNPICK), and the intro caption's pref. The phase and
 // length popovers are multi-select like genre and focus and are pinned in

@@ -27,7 +27,7 @@
 // Two readings taken where the spec left room, both reported in the hand-back:
 //
 //   * "pressing the button" is driven through the exported `lensOn` signal
-//     (components/XfeedComp.js), the same public seam the trace-builder suites
+//     (components/xfeed/Comp.js), the same public seam the trace-builder suites
 //     use. SSR fires no onClick, so the click itself belongs to the playwright
 //     hand-back protocol; what is pinned here is the toggle's observable effect
 //     on the response plot, which is the behaviour the button exists for. The
@@ -54,10 +54,10 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { MatrixTab } from "../../../hqptuner/static/components/MatrixTab.js";
-import { lensOn } from "../../../hqptuner/static/components/XfeedComp.js";
-import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
-import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
+import { MatrixTab } from "../../../hqptuner/static/components/matrix/Tab.js";
+import { lensOn } from "../../../hqptuner/static/components/xfeed/Comp.js";
+import { plottedRows, previewEq } from "../../../hqptuner/static/components/matrix/Plot.js";
+import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { matrixMode } from "../../../hqptuner/static/store/matrix/mode.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";

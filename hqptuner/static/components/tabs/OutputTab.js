@@ -6,11 +6,11 @@
 import { signal, computed } from "@preact/signals";
 import { html } from "../../lib/dom.js";
 import { Field } from "../Field.js";
-import { BypassNote } from "../MatrixBypassNote.js";
+import { BypassNote } from "../matrix/BypassNote.js";
 import { noteFor } from "../../store/prose.js";
 import { effective } from "../../store/resolve.js";
 import { optionsFor } from "../../store/options.js";
-import { NarrowBar } from "../NarrowBar.js";
+import { NarrowBar } from "../narrowbar/Bar.js";
 import { Section, Card, collapseFrom } from "../common.js";
 import { truthy } from "../../lib/coerce.js";
 import { PreProcessCard, PcmChainCard, SdmChainCard, FilterLengthCard } from "./ConversionCards.js";

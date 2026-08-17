@@ -1,4 +1,4 @@
-// Behavioral suite for components/LiveView.js and the LIVE switch in
+// Behavioral suite for components/live/View.js and the LIVE switch in
 // components/App.js — the mode's rendered contract: what the switch replaces,
 // which chain's controls the page offers, and how a write in flight or refused
 // reads on its control.
@@ -24,7 +24,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { App } from "../../../hqptuner/static/components/App.js";
-import { LiveView } from "../../../hqptuner/static/components/LiveView.js";
+import { LiveView } from "../../../hqptuner/static/components/live/View.js";
 import {
   health,
   engineState,

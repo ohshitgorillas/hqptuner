@@ -35,7 +35,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { PlaybackVolume } from "../../../hqptuner/static/components/PlaybackVolume.js";
+import { PlaybackVolume } from "../../../hqptuner/static/components/volume/Playback.js";
 import {
   volume,
   volumeDrag,

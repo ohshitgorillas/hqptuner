@@ -4,17 +4,17 @@
 // private to this module, and `setSelected` lives here because clearing the
 // draft is exactly what it is for.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
-import { registerIr } from "../lib/dsp/impulse.js";
-import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage, stageArgs } from "../lib/matrixspec.js";
+import { html, wheelGuard } from "../../lib/dom.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
+import { registerIr } from "../../lib/dsp/impulse.js";
+import { IIR_TYPES, DELAY_ARGS, validateStage, newStage, editedStage, stageArgs } from "../../lib/matrixspec.js";
 import { selectedStage } from "./BandStrip.js";
-import { hz } from "../lib/units.js";
+import { hz } from "../../lib/units.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").MatrixStage} MatrixStage
- * @typedef {import("../lib/matrixspec.js").IirSchema} IirSchema
+ * @typedef {import("../../lib/matrixspec.js").MatrixStage} MatrixStage
+ * @typedef {import("../../lib/matrixspec.js").IirSchema} IirSchema
  * @typedef {{ row: number, stage: number }} StageRef
  *   Which stage the editor is docked under: pipeline row, then index within
  *   that row's parsed chain.

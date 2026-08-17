@@ -2,16 +2,16 @@
 // narrowing facts the narrow bar filters on (store/narrow/facets.js), addressed by
 // one filter name and rendered with the narrow bar's own labels so the tip
 // and the chips never disagree on a spelling.
-import { filterFacets } from "../store/narrow/facets.js";
-import { GENRES, FOCUS, PHASES, LENGTHS, RATIOS } from "./narrowbar/facet-data.js";
-import { oneLabel } from "./narrowbar/labels.js";
+import { filterFacets } from "../../store/narrow/facets.js";
+import { GENRES, FOCUS, PHASES, LENGTHS, RATIOS } from "./facet-data.js";
+import { oneLabel } from "./labels.js";
 
-/** @typedef {import("../store/narrow/facets.js").FilterFacet} FilterFacet */
+/** @typedef {import("../../store/narrow/facets.js").FilterFacet} FilterFacet */
 
 // oneLabel's return is as wide as its option tables (string | number | null);
 // every value this module looks up labels as a string.
 /**
- * @param {import("./narrowbar/facet-data.js").FacetItems} items
+ * @param {import("./facet-data.js").FacetItems} items
  * @param {string} v
  * @returns {string}
  */

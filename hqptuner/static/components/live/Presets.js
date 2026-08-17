@@ -8,10 +8,10 @@
 // is, and a preset is the fastest way to say "put the engine back the way I had
 // it", which is the first thing a returning user wants.
 //
-// Filed apart from LiveView.js because none of it touches the live write path —
+// Filed apart from View.js because none of it touches the live write path —
 // the presets lane speaks to /api/livepresets and to nothing on the page.
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html } from "../../lib/dom.js";
 import {
   livePresets,
   livePresetsBusy,
@@ -19,11 +19,11 @@ import {
   applyLivePreset,
   saveLivePreset,
   deleteLivePreset,
-} from "../store/live/presets.js";
-import { askName, askConfirm } from "../store/ask.js";
-import { Ask } from "./Ask.js";
-import { Dropdown } from "./controls/index.js";
-import { Card } from "./common.js";
+} from "../../store/live/presets.js";
+import { askName, askConfirm } from "../../store/ask.js";
+import { Ask } from "../Ask.js";
+import { Dropdown } from "../controls/index.js";
+import { Card } from "../common.js";
 
 /**
  * @typedef {{ name: string }} LivePreset

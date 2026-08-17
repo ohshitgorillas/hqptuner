@@ -80,7 +80,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { ProfileCard } from "../../../hqptuner/static/components/MatrixProfileCard.js";
+import { ProfileCard } from "../../../hqptuner/static/components/matrix/ProfileCard.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";

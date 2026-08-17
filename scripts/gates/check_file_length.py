@@ -48,7 +48,7 @@ WATCH_LINE = 400
 ALLOWANCE: dict[str, int] = {
     "hqptuner/conf/matrixconf.py": 497,
     "hqptuner/core/manager.py": 486,
-    "hqptuner/static/components/Crossfeed.js": 483,
+    "hqptuner/static/components/xfeed/Card.js": 483,
     "scripts/budget/budget_miner.py": 470,
     "hqptuner/static/lib/xfeed.js": 462,
     "scripts/eqlab/search.js": 442,

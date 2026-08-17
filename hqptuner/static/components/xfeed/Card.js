@@ -18,15 +18,15 @@
 // the pending bar counts it, Discard undoes it, nothing reaches the daemon
 // until Apply.
 import { signal } from "@preact/signals";
-import { html, wheelGuard } from "../lib/dom.js";
-import { Field } from "./Field.js";
-import { effective, effectivePipelines, isDirty } from "../store/resolve.js";
-import { edit } from "../store/actions.js";
-import { notesVisible } from "../store/prefs.js";
-import { noteFor } from "../store/prose.js";
-import { pathParams } from "../lib/binaural/geometry.js";
-import { midSideResponse, magDb } from "../lib/binaural/response.js";
-import { PRESETS, matchPreset } from "../lib/binaural-setup.js";
+import { html, wheelGuard } from "../../lib/dom.js";
+import { Field } from "../Field.js";
+import { effective, effectivePipelines, isDirty } from "../../store/resolve.js";
+import { edit } from "../../store/actions.js";
+import { notesVisible } from "../../store/prefs.js";
+import { noteFor } from "../../store/prose.js";
+import { pathParams } from "../../lib/binaural/geometry.js";
+import { midSideResponse, magDb } from "../../lib/binaural/response.js";
+import { PRESETS, matchPreset } from "../../lib/binaural-setup.js";
 import {
   activeMode,
   setXfMode,
@@ -38,20 +38,20 @@ import {
   remember,
   liveParams,
   pipelinesDirty,
-} from "../store/xfeed/mode.js";
-import { BypassNote } from "./MatrixBypassNote.js";
-import { CrossfeedGeometry } from "./CrossfeedGeometry.js";
-import { XfeedStrip, CompMiniPlot, lensOn, lensShown, xfeedLensAvailable } from "./XfeedComp.js";
-import { xfeedBlock } from "../store/xfeed/block.js";
-import { uncompensatedRows } from "../lib/xfeed.js";
-import { Segment, SliderNumber } from "./controls/index.js";
-import { CrossfeedPlot, PlotFrame } from "./plots.js";
-import { bandFreqs } from "../lib/dsp/curves.js";
-import { truthy } from "../lib/coerce.js";
-import { db, dbOffset } from "../lib/units.js";
+} from "../../store/xfeed/mode.js";
+import { BypassNote } from "../matrix/BypassNote.js";
+import { CrossfeedGeometry } from "./Geometry.js";
+import { XfeedStrip, CompMiniPlot, lensOn, lensShown, xfeedLensAvailable } from "./Comp.js";
+import { xfeedBlock } from "../../store/xfeed/block.js";
+import { uncompensatedRows } from "../../lib/xfeed.js";
+import { Segment, SliderNumber } from "../controls/index.js";
+import { CrossfeedPlot, PlotFrame } from "../plots.js";
+import { bandFreqs } from "../../lib/dsp/curves.js";
+import { truthy } from "../../lib/coerce.js";
+import { db, dbOffset } from "../../lib/units.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {{ lambda: number, angle: number, headRadius: number }} StructParams
  *   The three physical controls the structural block compiles from
  *   (store/xfeed/mode.js DEFAULTS names the same trio).

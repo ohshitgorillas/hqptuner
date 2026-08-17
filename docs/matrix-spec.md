@@ -246,7 +246,7 @@ Stereo pair (rows for channels i, i+1) compiles to 8 pipelines, `k = 10^(preamp_
 
 (Out i = M′+S, out i+1 = M′−S; comp on M rows only.) **Literal rows, badged**: Pipelines card shows real 8 rows with "crossfeed comp s %" badge; slider regenerates block as one staged op. Recognition is structural (row pattern + Lin gain magnitudes + shared EQ prefix + comp suffix on M rows); hand-edit breaking pattern drops badge and slider, rows stand as ordinary pipelines — never blocked, never rewritten. Pair detection accepts either row order (live configs arrive In 2-first); compile always emits canonical In 1-first. Multichannel out of scope.
 
-Implementation: `static/lib/xfeed.js` (params, M/S responses, cascade fit, `compProcess`, `msCompile`/`msRecognize`), `components/XfeedComp.js` (control strip and badge). Validated node-vs-python against independent reference, 48/48 golden anchors.
+Implementation: `static/lib/xfeed.js` (params, M/S responses, cascade fit, `compProcess`, `msCompile`/`msRecognize`), `components/xfeed/Comp.js` (control strip and badge). Validated node-vs-python against independent reference, 48/48 golden anchors.
 
 ## UI
 

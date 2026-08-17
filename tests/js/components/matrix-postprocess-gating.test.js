@@ -69,8 +69,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { CrossfeedCard } from "../../../hqptuner/static/components/Crossfeed.js";
-import { chooseSet } from "../../../hqptuner/static/components/SpeakersCard.js";
+import { CrossfeedCard } from "../../../hqptuner/static/components/xfeed/Card.js";
+import { chooseSet } from "../../../hqptuner/static/components/speakers/Card.js";
 import { Output } from "../../../hqptuner/static/components/tabs/OutputTab.js";
 import { Volume } from "../../../hqptuner/static/components/tabs/VolumeTab.js";
 import {
@@ -90,8 +90,8 @@ import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaura
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
-import { plottedRows, previewEq } from "../../../hqptuner/static/components/MatrixPlot.js";
-import { selectedStage } from "../../../hqptuner/static/components/BandStrip.js";
+import { plottedRows, previewEq } from "../../../hqptuner/static/components/matrix/Plot.js";
+import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { field, grayReason, titleOf } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
 // One card's fragment, picked by the head that titles it — whatever element

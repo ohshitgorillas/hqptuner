@@ -1,4 +1,4 @@
-// Behavioral suite for components/MatrixStageEditor.js — the docked inline
+// Behavioral suite for components/matrix/StageEditor.js — the docked inline
 // stage editor (matrix-spec.md "Stage editor"): kind picker, per-kind argument editors,
 // validation line and raw spec readout.
 //
@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { StageEditor, setSelected } from "../../../hqptuner/static/components/MatrixStageEditor.js";
+import { StageEditor, setSelected } from "../../../hqptuner/static/components/matrix/StageEditor.js";
 import { parseProcess } from "../../../hqptuner/static/lib/matrixspec.js";
 
 // Render the editor docked on one stage of a process chain. Selection state is

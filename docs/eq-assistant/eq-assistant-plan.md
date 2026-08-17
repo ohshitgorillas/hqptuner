@@ -298,7 +298,7 @@ Because a model's priors will supply the folk belief here, this is an **eval cas
 
 ### F3 · AutoEq bands are in scope — amend before append
 
-There is no provenance metadata in the wire format. `doImport()` (`components/MatrixTab.js:492`) appends parsed stages onto the row's `process` string and maps the `Preamp:` line onto the row `gain`; `parseEqText` → `editedStage` produces ordinary stages indistinguishable from hand-typed ones.
+There is no provenance metadata in the wire format. `doImport()` (`components/matrix/Tab.js:492`) appends parsed stages onto the row's `process` string and maps the `Preamp:` line onto the row `gain`; `parseEqText` → `editedStage` produces ordinary stages indistinguishable from hand-typed ones.
 
 **Bands are not partitioned by provenance, and an exclusively-owned appended segment would produce the failure it was meant to prevent:** an AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band in its region already. Amending that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside it makes the net response the sum of two overlapping filters, and a few turns of that is unreasonable. This was established empirically in a manual tuning session before the feature was specified.
 

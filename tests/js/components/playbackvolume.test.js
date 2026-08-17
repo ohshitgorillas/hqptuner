@@ -1,4 +1,4 @@
-// Behavioral suite for components/PlaybackVolume.js — the live volume knob.
+// Behavioral suite for components/volume/Playback.js — the live volume knob.
 // Written BEFORE the complexity refactor of PlaybackVolume (11); not one case
 // may change when it is split.
 //
@@ -28,7 +28,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { PlaybackVolume } from "../../../hqptuner/static/components/PlaybackVolume.js";
+import { PlaybackVolume } from "../../../hqptuner/static/components/volume/Playback.js";
 import { volume, volumeRange, config, engineState, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../support/wire.js";

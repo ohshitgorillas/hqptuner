@@ -1,35 +1,35 @@
 // Matrix tab — the tab shell: the global matrix card, the pipeline list, and
 // the Headphone Auto EQ card (steps 3+6 of the delivery order, matrix-spec §8).
-// The pipeline row itself lives in MatrixFlowRow.js and the docked stage editor
-// in MatrixStageEditor.js; the profile card (step 5) in MatrixProfileCard.js.
+// The pipeline row itself lives in FlowRow.js and the docked stage editor
+// in StageEditor.js; the profile card (step 5) in ProfileCard.js.
 // Plots stay reserved (step 7).
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
-import { Field } from "./Field.js";
-import { noteFor } from "../store/prose.js";
-import { pipelineBaseline, effectivePipelines, canonPipelines } from "../store/resolve.js";
-import { stagePipelines } from "../store/actions.js";
-import { planEqImport } from "../lib/eqimport.js";
-import { pipelinesToRewText } from "../lib/eqexport.js";
-import { notesVisible } from "../store/prefs.js";
-import { MatrixPlot, plottedRows } from "./MatrixPlot.js";
-import { LibraryPicker, clearLibrarySelection } from "./MatrixLibrary.js";
-import { XfeedBadge } from "./XfeedComp.js";
-import { xfeedBlock } from "../store/xfeed/block.js";
-import { CrossfeedCard } from "./Crossfeed.js";
-import { StructuralBadge } from "./StructuralXfeed.js";
-import { ProfileCard } from "./MatrixProfileCard.js";
-import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./MatrixFlowRow.js";
-import { setSelected } from "./MatrixStageEditor.js";
-import { SpeakersCard } from "./SpeakersCard.js";
-import { Segment } from "./controls/index.js";
-import { matrixMode, setMatrixMode } from "../store/matrix/mode.js";
-import { structuralBlock } from "../store/xfeed/mode.js";
-import { Section, Card } from "./common.js";
-import { BypassNote } from "./MatrixBypassNote.js";
+import { html } from "../../lib/dom.js";
+import { Field } from "../Field.js";
+import { noteFor } from "../../store/prose.js";
+import { pipelineBaseline, effectivePipelines, canonPipelines } from "../../store/resolve.js";
+import { stagePipelines } from "../../store/actions.js";
+import { planEqImport } from "../../lib/eqimport.js";
+import { pipelinesToRewText } from "../../lib/eqexport.js";
+import { notesVisible } from "../../store/prefs.js";
+import { MatrixPlot, plottedRows } from "./Plot.js";
+import { LibraryPicker, clearLibrarySelection } from "./Library.js";
+import { XfeedBadge } from "../xfeed/Comp.js";
+import { xfeedBlock } from "../../store/xfeed/block.js";
+import { CrossfeedCard } from "../xfeed/Card.js";
+import { StructuralBadge } from "../xfeed/Structural.js";
+import { ProfileCard } from "./ProfileCard.js";
+import { FlowRow, MAX_CH, CH_OPTIONS, downloadText } from "./FlowRow.js";
+import { setSelected } from "./StageEditor.js";
+import { SpeakersCard } from "../speakers/Card.js";
+import { Segment } from "../controls/index.js";
+import { matrixMode, setMatrixMode } from "../../store/matrix/mode.js";
+import { structuralBlock } from "../../store/xfeed/mode.js";
+import { Section, Card } from "../common.js";
+import { BypassNote } from "./BypassNote.js";
 
 /**
- * @typedef {import("../lib/matrixspec.js").PipelineRow} PipelineRow
+ * @typedef {import("../../lib/matrixspec.js").PipelineRow} PipelineRow
  */
 
 const pipelinesCardOpen = signal(true);

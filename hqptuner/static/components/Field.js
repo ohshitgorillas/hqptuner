@@ -19,7 +19,7 @@ import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Combobox } from "./controls/Combobox.js";
-import { filterTipFacets } from "./facettip.js";
+import { filterTipFacets } from "./narrowbar/facettip.js";
 import { Knob } from "./Knob.js";
 import { Ask } from "./Ask.js";
 

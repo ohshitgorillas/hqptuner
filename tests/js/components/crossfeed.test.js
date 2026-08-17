@@ -1,4 +1,4 @@
-// Behavioral suite for components/Crossfeed.js — the one crossfeed card: the
+// Behavioral suite for components/xfeed/Card.js — the one crossfeed card: the
 // Bauer/Structural view segment, the Bauer half (fields + compensation strip),
 // the structural half (controls, geometry, readouts), and the conflict note.
 //
@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { CrossfeedCard } from "../../../hqptuner/static/components/Crossfeed.js";
+import { CrossfeedCard } from "../../../hqptuner/static/components/xfeed/Card.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit, stagePipelines } from "../../../hqptuner/static/store/actions.js";
 import { setShowDescriptions } from "../../../hqptuner/static/store/prefs.js";
