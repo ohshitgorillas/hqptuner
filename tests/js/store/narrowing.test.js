@@ -4,10 +4,11 @@
 //
 // Two shapes of facet, and the difference is the whole point. Genre and focus
 // are SETS a filter carries, and each combines picked values by its own mode —
-// genre by AND (every picked genre must hold, so the list only shrinks as values
-// are added), focus by OR (any one is enough, so the list only grows). Those are
-// the defaults this file reads at; the modes themselves, and the other setting
-// of each, belong to tests/js/store/narrowing-mode.test.js. Length is
+// AND means every picked value must hold, so the list only shrinks as values are
+// added; OR means any one is enough, so the list only grows. A case here that
+// picks more than one value SETS the mode it is about rather than leaning on a
+// default, so a flipped default moves nothing in this file; which mode each
+// facet starts at belongs to tests/js/store/narrowing-mode.test.js. Length is
 // single-valued: a filter is short or it is long, and picking one asks for that
 // one. The manual's escape hatch ("any" genre) sits outside both and survives
 // every selection. The rate-narrowing switches — hide-2x, hide-integer,
@@ -39,7 +40,9 @@ import assert from "node:assert/strict";
 
 import {
   nGenre,
+  nGenreMode,
   nFocus,
+  nFocusMode,
   nLength,
   nApod1x,
   nApodNx,
@@ -148,39 +151,44 @@ const STAGES = [
   ["gauss-hires-apod", "4/5 ⥮ Any", 1],
 ];
 
-// --- set-valued facets combine by their own default mode -------------------------
-// Focus at its default: a filter passes on ANY one picked value. `gauss-b` is
-// the discriminator — it carries timbre alone, so the union of space and
-// transients leaves it out while the other three stay.
+// --- set-valued facets combine by the mode the case sets -------------------------
+// Focus in OR: a filter passes on ANY one picked value. `gauss-b` is the
+// discriminator — it carries timbre alone, so the union of space and transients
+// leaves it out while the other three stay.
 
-test("test_two_focus_values_keep_every_filter_carrying_either", () => {
+test("test_two_focus_values_in_or_keep_every_filter_carrying_either", () => {
   const options = reset(FOCUS);
+  nFocusMode.value = "or";
   nFocus.value = ["space", "transients"];
   assert.deepEqual(labels(options), ["gauss-a", "gauss-c", "gauss-d"]);
 });
 
-test("test_the_count_for_two_focus_values_is_the_number_carrying_either", () => {
+test("test_the_count_for_two_focus_values_in_or_is_the_number_carrying_either", () => {
   const options = reset(FOCUS);
+  nFocusMode.value = "or";
   nFocus.value = ["space", "transients"];
   assert.equal(narrowCount(options, STAGE, FIELD).n, 3);
 });
 
-test("test_adding_a_second_focus_value_never_shrinks_the_surviving_set", () => {
+test("test_adding_a_second_focus_value_in_or_never_shrinks_the_surviving_set", () => {
   const options = reset(FOCUS);
+  nFocusMode.value = "or";
   nFocus.value = ["space"];
   const one = narrowCount(options, STAGE, FIELD).n;
   nFocus.value = ["space", "transients"];
   assert.deepEqual([one, narrowCount(options, STAGE, FIELD).n], [1, 3]);
 });
 
-test("test_two_genres_keep_only_the_filters_tagged_with_both", () => {
+test("test_two_genres_in_and_keep_only_the_filters_tagged_with_both", () => {
   const options = reset(PLAIN, { ...GENRES, "gauss-c": { genre: ["pop"] } });
+  nGenreMode.value = "and";
   nGenre.value = ["jazz", "classical"];
   assert.deepEqual(labels(options), ["gauss-a", "gauss-d"]);
 });
 
-test("test_a_genre_agnostic_filter_survives_every_genre_picked", () => {
+test("test_a_genre_agnostic_filter_survives_every_genre_picked_in_and", () => {
   const options = reset(PLAIN, GENRES);
+  nGenreMode.value = "and";
   nGenre.value = ["jazz", "classical", "pop"];
   assert.deepEqual(labels(options), ["gauss-c"]);
 });
@@ -265,7 +273,7 @@ test("test_reset_leaves_narrowing_inactive", () => {
 
 // --- previews answer for the selection they are handed ---------------------------
 
-// The live selection leaves 4 and the override leaves 3, so a preview that
+// The live selection leaves 2 and the override leaves 3, so a preview that
 // ignored its overrides could not answer 3.
 test("test_a_preview_counts_its_own_overrides_not_the_live_selection", () => {
   const options = reset(FOCUS);

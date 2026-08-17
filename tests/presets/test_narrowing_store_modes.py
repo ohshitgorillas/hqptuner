@@ -2,7 +2,7 @@
 
 `genre_mode` and `focus_mode` join the facet set `NarrowingStore` keeps in
 `state/narrowing.json`. Each takes `"and"` or `"or"` and nothing else, and each
-has its own default: genre combines with AND, focus with OR. Narrowing is
+has its own default: genre combines with OR, focus with AND. Narrowing is
 purely presentational and has no daemon field behind it (docs/architecture.md,
 "Filter narrowing"), so nothing here reaches hqplayerd and every store file
 lands under pytest's ``tmp_path``.
@@ -32,7 +32,7 @@ import pytest
 from hqptuner.presets.narrowingstore import NarrowingError, NarrowingStore
 
 #: The two new facets and the default each reads at.
-MODE_DEFAULTS: dict[str, str] = {"genre_mode": "and", "focus_mode": "or"}
+MODE_DEFAULTS: dict[str, str] = {"genre_mode": "or", "focus_mode": "and"}
 
 #: Well-typed tokens outside the domain, and values of the wrong type.
 OUT_OF_DOMAIN = ["both", "AND", "any", "", "xor"]
@@ -41,7 +41,7 @@ WRONG_TYPE: list[object] = [1, True, None, ["and"], {"mode": "and"}]
 #: One in-domain value per facet, each the opposite of that facet's default, so
 #: a case that watches a facet return to its default cannot be reading a value
 #: that was never moved.
-NON_DEFAULT: dict[str, object] = {"genre_mode": "or", "focus_mode": "and"}
+NON_DEFAULT: dict[str, object] = {"genre_mode": "and", "focus_mode": "or"}
 
 
 def store_at(tmp_path: Path) -> NarrowingStore:
@@ -125,4 +125,4 @@ def test_a_wrong_typed_stored_combine_mode_reads_as_its_default(tmp_path: Path, 
 def test_a_damaged_genre_mode_leaves_the_focus_mode_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, NON_DEFAULT)
     edit_facets(path, set_to("genre_mode", "both"))
-    assert store_at(tmp_path).read()["focus_mode"] == "and"
+    assert store_at(tmp_path).read()["focus_mode"] == "or"

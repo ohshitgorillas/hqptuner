@@ -42,10 +42,10 @@ from hqptuner.presets.narrowingstore import NarrowingError, NarrowingSchemaError
 #: Every facet at its default — the table the feature is specified by.
 DEFAULTS: dict[str, object] = {
     "genre": [],
-    "genre_mode": "and",
+    "genre_mode": "or",
     "quality": 3,
     "focus": [],
-    "focus_mode": "or",
+    "focus_mode": "and",
     "phase": "",
     "length": "",
     "hide_limited": "auto",
@@ -60,10 +60,10 @@ DEFAULTS: dict[str, object] = {
 #: One in-domain value per facet, each different from that facet's default.
 SET: dict[str, object] = {
     "genre": ["rock"],
-    "genre_mode": "or",
+    "genre_mode": "and",
     "quality": 4,
     "focus": ["timbre"],
-    "focus_mode": "and",
+    "focus_mode": "or",
     "phase": "linear",
     "length": "long",
     "hide_limited": "on",

@@ -66,10 +66,10 @@ const env = globalThis;
 /** @type {Facets} */
 const SET = {
   genre: ["rock"],
-  genre_mode: "or",
+  genre_mode: "and",
   quality: 4,
   focus: ["timbre"],
-  focus_mode: "and",
+  focus_mode: "or",
   phase: "linear",
   length: "long",
   apod_1x: "only",

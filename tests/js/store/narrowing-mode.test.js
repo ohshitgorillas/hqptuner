@@ -3,9 +3,9 @@
 // the matching, components/narrowbar/labels.js for the button wording).
 //
 // Genre and focus are both SETS a filter carries, and each now decides for
-// itself how a multi-value pick combines: genre defaults to `and` (every picked
-// genre must be carried), focus defaults to `or` (any one picked focus is
-// enough). The two escape hatches differ too — the manual's `any` genre suits
+// itself how a multi-value pick combines: genre defaults to `or` (any one picked
+// genre is enough), focus defaults to `and` (every picked focus must be
+// carried). The two escape hatches differ too — the manual's `any` genre suits
 // every genre selection whichever mode is set, while focus has no such token, so
 // a filter carrying no focus at all fails every non-empty focus pick.
 //
@@ -40,6 +40,8 @@ import {
   nFocusMode,
   narrowingActive,
   resetNarrowing,
+  GENRE_MODE_DEFAULT,
+  FOCUS_MODE_DEFAULT,
 } from "../../../hqptuner/static/store/narrowing.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrowmatch.js";
 import { genreLabel, focusLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
@@ -140,17 +142,17 @@ const GENRES = {
 
 // --- genre combines by its own mode -------------------------------------------
 
-test("test_two_genres_in_the_default_mode_keep_only_the_filters_tagged_with_both", () => {
+test("test_two_genres_in_and_mode_keep_only_the_filters_tagged_with_both", () => {
   const options = reset(PLAIN, GENRES);
+  nGenreMode.value = "and";
   nGenre.value = ["jazz", "classical"];
   assert.deepEqual(labels(options), ["gauss-a", "gauss-c"]);
 });
 
 // `gauss-e` is the discriminator: pop is neither picked genre, so an OR still
 // leaves it out and a genre facet ignored in or mode would answer five.
-test("test_two_genres_in_or_mode_keep_every_filter_tagged_with_either_and_no_other", () => {
+test("test_two_genres_in_the_default_mode_keep_every_filter_tagged_with_either_and_no_other", () => {
   const options = reset(PLAIN, GENRES);
-  nGenreMode.value = "or";
   nGenre.value = ["jazz", "classical"];
   assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d"]);
 });
@@ -175,15 +177,15 @@ test("test_a_genre_agnostic_filter_survives_a_genre_no_filter_carries_in_or_mode
 
 // --- focus combines by its own mode ---------------------------------------------
 
-test("test_two_focus_values_in_the_default_mode_keep_every_filter_carrying_either", () => {
+test("test_two_focus_values_in_or_mode_keep_every_filter_carrying_either", () => {
   const options = reset(FOCUS);
+  nFocusMode.value = "or";
   nFocus.value = ["timbre", "transients"];
   assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c"]);
 });
 
-test("test_two_focus_values_in_and_mode_keep_only_the_filters_carrying_both", () => {
+test("test_two_focus_values_in_the_default_mode_keep_only_the_filters_carrying_both", () => {
   const options = reset(FOCUS);
-  nFocusMode.value = "and";
   nFocus.value = ["timbre", "transients"];
   assert.deepEqual(labels(options), ["gauss-a"]);
 });
@@ -194,8 +196,9 @@ test("test_two_focus_values_in_and_mode_keep_only_the_filters_carrying_both", ()
 // filter and one untagged, and the tagged one passes in both modes: the only
 // thing either assertion can be reading is the untagged filter's exclusion.
 
-test("test_a_filter_with_no_focus_fails_a_focus_pick_in_the_default_mode", () => {
+test("test_a_filter_with_no_focus_fails_a_focus_pick_in_or_mode", () => {
   const options = reset(FOCUS_UNTAGGED);
+  nFocusMode.value = "or";
   nFocus.value = ["timbre", "transients"];
   assert.deepEqual(labels(options), ["gauss-tagged"]);
 });
@@ -211,43 +214,54 @@ test("test_a_filter_with_no_focus_fails_a_focus_pick_in_and_mode", () => {
 
 test("test_a_genre_mode_with_no_genre_picked_narrows_nothing", () => {
   const options = reset(PLAIN, GENRES);
-  nGenreMode.value = "or";
+  nGenreMode.value = "and";
   assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d", "gauss-e"]);
 });
 
 test("test_a_focus_mode_with_no_focus_picked_narrows_nothing", () => {
   const options = reset(FOCUS);
-  nFocusMode.value = "and";
+  nFocusMode.value = "or";
   assert.deepEqual(labels(options), ["gauss-a", "gauss-b", "gauss-c", "gauss-d"]);
 });
 
 test("test_a_genre_mode_alone_is_not_active_narrowing", () => {
   reset(PLAIN, GENRES);
-  nGenreMode.value = "or";
+  nGenreMode.value = "and";
   assert.equal(narrowingActive.value, false);
 });
 
 test("test_a_focus_mode_alone_is_not_active_narrowing", () => {
   reset(FOCUS);
-  nFocusMode.value = "and";
+  nFocusMode.value = "or";
   assert.equal(narrowingActive.value, false);
 });
 
 // --- reset returns each mode to its OWN default ------------------------------------
 // Not to empty, and not to one shared value: the pair is what tells them apart.
+// The two reset cases are about "back to the default", so they read the default
+// off the store's own exported constant; the value each constant carries is
+// pinned literally just below, so a silent flip is caught in exactly one place.
 
-test("test_reset_returns_the_genre_mode_to_and", () => {
+test("test_reset_returns_the_genre_mode_to_its_default", () => {
   reset(PLAIN, GENRES);
-  nGenreMode.value = "or";
+  nGenreMode.value = "and";
   resetNarrowing();
-  assert.equal(nGenreMode.value, "and");
+  assert.equal(nGenreMode.value, GENRE_MODE_DEFAULT);
 });
 
-test("test_reset_returns_the_focus_mode_to_or", () => {
+test("test_reset_returns_the_focus_mode_to_its_default", () => {
   reset(FOCUS);
-  nFocusMode.value = "and";
+  nFocusMode.value = "or";
   resetNarrowing();
-  assert.equal(nFocusMode.value, "or");
+  assert.equal(nFocusMode.value, FOCUS_MODE_DEFAULT);
+});
+
+test("test_the_genre_combine_mode_defaults_to_or", () => {
+  assert.equal(GENRE_MODE_DEFAULT, "or");
+});
+
+test("test_the_focus_combine_mode_defaults_to_and", () => {
+  assert.equal(FOCUS_MODE_DEFAULT, "and");
 });
 
 // --- the count beside a dropdown follows the mode -----------------------------------
@@ -256,18 +270,18 @@ test("test_reset_returns_the_focus_mode_to_or", () => {
 // about, and neither expected number is the fixture's total, so a count taken
 // under the default mode or with the facet dropped answers something else.
 
-test("test_the_count_under_a_non_default_genre_mode_is_the_number_tagged_with_either", () => {
+test("test_the_count_under_a_non_default_genre_mode_is_the_number_tagged_with_both", () => {
   const options = reset(PLAIN, GENRES);
-  nGenreMode.value = "or";
+  nGenreMode.value = "and";
   nGenre.value = ["jazz", "classical"];
-  assert.equal(narrowCount(options, STAGE, FIELD).n, 4);
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 2);
 });
 
-test("test_the_count_under_a_non_default_focus_mode_is_the_number_carrying_both", () => {
+test("test_the_count_under_a_non_default_focus_mode_is_the_number_carrying_either", () => {
   const options = reset(FOCUS);
-  nFocusMode.value = "and";
+  nFocusMode.value = "or";
   nFocus.value = ["timbre", "transients"];
-  assert.equal(narrowCount(options, STAGE, FIELD).n, 1);
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 3);
 });
 
 // --- a preview counts under the mode it is handed -------------------------------
@@ -281,13 +295,13 @@ test("test_the_count_under_a_non_default_focus_mode_is_the_number_carrying_both"
 test("test_a_preview_counts_genres_under_the_mode_in_its_overrides", () => {
   const options = reset(PLAIN, GENRES);
   nGenre.value = ["jazz", "classical"];
-  assert.equal(previewCount(options, STAGE, FIELD, { genreMode: "or" }), 4);
+  assert.equal(previewCount(options, STAGE, FIELD, { genreMode: "and" }), 2);
 });
 
 test("test_a_preview_counts_focus_under_the_mode_in_its_overrides", () => {
   const options = reset(FOCUS);
   nFocus.value = ["timbre", "transients"];
-  assert.equal(previewCount(options, STAGE, FIELD, { focusMode: "and" }), 1);
+  assert.equal(previewCount(options, STAGE, FIELD, { focusMode: "or" }), 3);
 });
 
 // --- the button label carries the mode only where it can matter ---------------------
@@ -321,25 +335,25 @@ test("test_the_focus_button_with_one_pick_carries_no_mode", () => {
 test("test_the_genre_button_with_two_picks_ends_with_its_default_mode", () => {
   reset(PLAIN, GENRES);
   nGenre.value = ["jazz", "classical"];
-  assert.match(genreLabel(), /\band$/i);
+  assert.match(genreLabel(), /\bor$/i);
 });
 
-test("test_the_genre_button_with_two_picks_ends_with_or_once_that_mode_is_set", () => {
+test("test_the_genre_button_with_two_picks_ends_with_and_once_that_mode_is_set", () => {
   reset(PLAIN, GENRES);
-  nGenreMode.value = "or";
+  nGenreMode.value = "and";
   nGenre.value = ["jazz", "classical"];
-  assert.match(genreLabel(), /\bor$/i);
+  assert.match(genreLabel(), /\band$/i);
 });
 
 test("test_the_focus_button_with_two_picks_ends_with_its_default_mode", () => {
   reset(FOCUS);
   nFocus.value = ["timbre", "transients"];
-  assert.match(focusLabel(), /\bor$/i);
+  assert.match(focusLabel(), /\band$/i);
 });
 
-test("test_the_focus_button_with_two_picks_ends_with_and_once_that_mode_is_set", () => {
+test("test_the_focus_button_with_two_picks_ends_with_or_once_that_mode_is_set", () => {
   reset(FOCUS);
-  nFocusMode.value = "and";
+  nFocusMode.value = "or";
   nFocus.value = ["timbre", "transients"];
-  assert.match(focusLabel(), /\band$/i);
+  assert.match(focusLabel(), /\bor$/i);
 });

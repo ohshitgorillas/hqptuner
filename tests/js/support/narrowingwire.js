@@ -41,10 +41,10 @@ const env = globalThis;
 /** @type {Facets} */
 export const NARROWING_DEFAULTS = {
   genre: [],
-  genre_mode: "and",
+  genre_mode: "or",
   quality: 3,
   focus: [],
-  focus_mode: "or",
+  focus_mode: "and",
   phase: "",
   length: "",
   hide_limited: "auto",
