@@ -114,7 +114,7 @@ test("test_the_length_facet_offers_its_values_as_checkbox_rows", async () => {
 
 test("test_the_phase_popover_offers_exactly_the_four_phases_and_no_clear_row", async () => {
   await reset();
-  assert.deepEqual(rowLabels(open("phase")), ["Linear", "Minimum", "Intermediate", "No phase"]);
+  assert.deepEqual(rowLabels(open("phase")), ["Minimum", "Intermediate", "Linear", "No phase"]);
 });
 
 // The empty string is a falsy value carrying a real meaning, so the row it
@@ -168,6 +168,11 @@ test("test_the_length_popover_carries_no_and_or_combine_switch", async () => {
 // Owner-approved copy, verbatim: "Any phase" / "Any length" with nothing picked,
 // the picked value's own label with exactly one, and "<N> phases" / "<N>
 // lengths" past that. No combine-mode suffix, unlike genre and focus.
+//
+// Phase counts NAMED phases only. "No phase" never adds to the count; picking it
+// appends the trailing clause " + no phase", lower-case as the owner wrote it.
+// So there is no reading of "1 phase": one named phase shows its own label,
+// clause or no clause.
 
 test("test_the_phase_button_with_nothing_picked_reads_any_phase", async () => {
   await reset();
@@ -180,15 +185,22 @@ test("test_the_phase_button_with_one_pick_reads_that_phases_own_label", async ()
   assert.equal(phaseLabel(), "Minimum");
 });
 
-test("test_the_phase_button_with_two_picks_reads_the_count", async () => {
+test("test_the_phase_button_with_two_named_picks_reads_the_count", async () => {
   await reset();
   nPhase.value = ["linear", "minimum"];
   assert.equal(phaseLabel(), "2 phases");
 });
 
-// The empty-string pick is a value like any other on the button too: alone it
-// shows its own label, and beside another it just counts. "Any phase" stays the
-// wording for the empty SELECTION, which is a different state.
+test("test_the_phase_button_with_three_named_picks_reads_the_count", async () => {
+  await reset();
+  nPhase.value = ["linear", "minimum", "intermediate"];
+  assert.equal(phaseLabel(), "3 phases");
+});
+
+// The empty-string pick is a value like any other where it stands alone, and
+// "Any phase" stays the wording for the empty SELECTION, a different state.
+// Beside named picks it stops being a value and becomes a clause: it is outside
+// the count and trails the rest of the label.
 
 test("test_the_phase_button_with_the_no_phase_pick_alone_reads_no_phase", async () => {
   await reset();
@@ -196,10 +208,24 @@ test("test_the_phase_button_with_the_no_phase_pick_alone_reads_no_phase", async 
   assert.equal(phaseLabel(), "No phase");
 });
 
-test("test_the_phase_button_with_the_no_phase_pick_and_one_other_reads_the_count", async () => {
+test("test_the_phase_button_with_one_named_pick_and_no_phase_reads_that_label_and_the_clause", async () => {
   await reset();
-  nPhase.value = ["", "minimum"];
-  assert.equal(phaseLabel(), "2 phases");
+  nPhase.value = ["", "linear"];
+  assert.equal(phaseLabel(), "Linear + no phase");
+});
+
+test("test_the_phase_button_with_two_named_picks_and_no_phase_counts_only_the_named_two", async () => {
+  await reset();
+  nPhase.value = ["", "linear", "minimum"];
+  assert.equal(phaseLabel(), "2 phases + no phase");
+});
+
+// Every row picked. The count still answers three, so a count taken over the
+// whole selection reads "4 phases" here and fails.
+test("test_the_phase_button_with_every_row_picked_counts_the_three_named_phases", async () => {
+  await reset();
+  nPhase.value = ["", "linear", "minimum", "intermediate"];
+  assert.equal(phaseLabel(), "3 phases + no phase");
 });
 
 test("test_the_length_button_with_nothing_picked_reads_any_length", async () => {
