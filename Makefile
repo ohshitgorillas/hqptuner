@@ -75,8 +75,19 @@ test-e2e:
 # loads. Without it any module importing them fails to resolve.
 # Explicit file list, not `tests/js/`: node's test runner rejects a bare
 # directory argument here (ERR_UNSUPPORTED_DIR_IMPORT), hook or no hook.
+#
+# Coverage thresholds are global — node has no per-file peer to the Python
+# suite's check_coverage_floor.py. The tests/ and vendor/ exclusions leave the
+# tree we actually own: our own suites are not code under test, and the vendored
+# preact/htm bundles are not ours to cover.
 test-js:
-	node --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js
+	node --experimental-test-coverage \
+	  --test-coverage-exclude='tests/**' \
+	  --test-coverage-exclude='**/vendor/**' \
+	  --test-coverage-lines=95 \
+	  --test-coverage-branches=90 \
+	  --test-coverage-functions=85 \
+	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js
 
 check: lint lint-js test test-js
 
