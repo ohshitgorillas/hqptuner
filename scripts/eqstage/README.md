@@ -1,6 +1,6 @@
 # eqstage — agent operating manual
 
-Puts an EQ into HQPTuner's **pending buffer**, where the user can see it and Apply it. eqlab designs and measures; eqstage stages. The buffer is server-side (`hqptuner/api/pendingapi.py`), so a staged change appears in the user's open browser tab within a poll tick and arms the Apply button — no page interaction by the agent.
+Puts an EQ into HQPTuner's **pending buffer**, where the user can see it and Apply it. eqlab designs and measures; eqstage stages. The buffer is server-side (`hqptuner/api/routes/pending.py`), so a staged change appears in the user's open browser tab within a poll tick and arms the Apply button — no page interaction by the agent.
 
 ```
 node scripts/eqstage/eqstage.js < job.json    # JSON on stdout, table on stderr

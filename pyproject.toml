@@ -201,6 +201,7 @@ build-backend = "setuptools.build_meta"
 packages = [
   "hqptuner",
   "hqptuner.api",
+  "hqptuner.api.routes",
   "hqptuner.conf",
   "hqptuner.core",
   "hqptuner.engine",

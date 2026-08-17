@@ -35,7 +35,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 #: Package directory to the total lines permitted across the .py files directly
 #: in it. Raise an entry for a feature; never raise one for a refactor.
 BUDGET: dict[str, int] = {
-    "hqptuner/api": 1473,
+    "hqptuner/api": 321,
+    "hqptuner/api/routes": 1153,
     "hqptuner/conf": 2252,
     "hqptuner/engine": 1133,
     "hqptuner/lanes": 949,

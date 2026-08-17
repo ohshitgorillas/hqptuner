@@ -157,7 +157,7 @@ function statusLine(n, sp, { busy, reach }, { result, switchName }) {
   const pend = n > 0 || !!switchName;
   if (!pend) return result ? resultLine(result) : html`<span class="muted">No pending changes</span>`;
   if (!reach) return html`<span class="note warn">${HELD}</span>`;
-  // A failed apply KEEPS the staging (api/app.py), so "still pending" and "the
+  // A failed apply KEEPS the staging (api/routes/apply.py), so "still pending" and "the
   // last apply failed" are true at once — and the pending line alone reads as if
   // nothing was ever tried. The failure is the reason the changes are still here,
   // so it leads; `edit()` clears it the moment the user stages something new.

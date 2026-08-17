@@ -2,7 +2,7 @@
 //
 //   node scripts/eqstage/eqstage.js < job.json    # JSON on stdout, table on stderr
 //
-// The buffer is server-side (api/pendingapi.py), so anything staged here shows
+// The buffer is server-side (api/routes/pending.py), so anything staged here shows
 // up in the user's open browser tab within a poll tick and arms Apply. Nothing
 // reaches the daemon until the user clicks it — this tool never applies.
 //

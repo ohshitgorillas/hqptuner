@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from hqptuner.api.deps import Mgr
 from hqptuner.api.models import ApplyBody, LiveBody
-from hqptuner.api.pendingapi import _apply_succeeded, _pending
+from hqptuner.api.routes.pending import _apply_succeeded, _pending
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlError
 from hqptuner.lanes.live import lane, routing

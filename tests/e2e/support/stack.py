@@ -151,7 +151,7 @@ def _wait_for_ready(base_url: str, proc: "subprocess.Popen[bytes]", log_path: Pa
     """Poll until the app serves daemon-derived state, or fail loudly with the app's output.
 
     `/api/health` alone is not readiness. It reports on the connection manager
-    and answers 200 before any lane has loaded anything (api/statusapi.py), while
+    and answers 200 before any lane has loaded anything (api/routes/status.py), while
     `/api/config` 503s `not yet loaded from daemon` until the first 8088 poll
     lands (api/deps.py). A stack yielded between those two moments hands the
     session its first fixture call in that window, and every test in the run

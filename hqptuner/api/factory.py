@@ -4,23 +4,23 @@ import logging
 
 from fastapi import FastAPI
 
-from hqptuner.api import (
-    applyapi,
-    configapi,
-    descriptionsapi,
-    favoritesapi,
-    livepresetapi,
-    matrixapi,
-    matrixmodesapi,
-    narrowingapi,
-    pendingapi,
-    presetapi,
-    statusapi,
-    volumeapi,
-)
-from hqptuner.api.auditapi import audit_router
 from hqptuner.api.lifespan import make_lifespan
-from hqptuner.api.pendingapi import PendingStore
+from hqptuner.api.routes import (
+    apply,
+    config,
+    descriptions,
+    favorites,
+    livepreset,
+    matrix,
+    matrixmodes,
+    narrowing,
+    pending,
+    preset,
+    status,
+    volume,
+)
+from hqptuner.api.routes.audit import audit_router
+from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
@@ -62,20 +62,20 @@ def create_app(cfg: Config | None = None) -> FastAPI:
     app.state.descriptions = DescriptionStore(cfg.description_file)
     app.state.narrowing = NarrowingStore(cfg.narrowing_file)
     app.state.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
-    # Registration order is load-bearing: configapi's `GET /preset/{name:path}`
-    # must stay ahead of presetapi's `DELETE /preset/{name}`, as it was when both
+    # Registration order is load-bearing: config's `GET /preset/{name:path}`
+    # must stay ahead of preset's `DELETE /preset/{name}`, as it was when both
     # lived on one router.
-    app.include_router(statusapi.router)
-    app.include_router(configapi.router)
-    app.include_router(applyapi.router)
-    app.include_router(volumeapi.router)
-    app.include_router(presetapi.router)
-    app.include_router(pendingapi.router)
-    app.include_router(matrixapi.router)
-    app.include_router(livepresetapi.router)
-    app.include_router(favoritesapi.router)
-    app.include_router(descriptionsapi.router)
-    app.include_router(narrowingapi.router)
-    app.include_router(matrixmodesapi.router)
+    app.include_router(status.router)
+    app.include_router(config.router)
+    app.include_router(apply.router)
+    app.include_router(volume.router)
+    app.include_router(preset.router)
+    app.include_router(pending.router)
+    app.include_router(matrix.router)
+    app.include_router(livepreset.router)
+    app.include_router(favorites.router)
+    app.include_router(descriptions.router)
+    app.include_router(narrowing.router)
+    app.include_router(matrixmodes.router)
     mount_spa(app)
     return app

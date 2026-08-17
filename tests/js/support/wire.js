@@ -51,7 +51,7 @@ export const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 // response that is not our JSON at all, which `json()` rejects on.
 /**
  * A 409's `detail` is a per-field object where a 502's is a sentence —
- * `livepresetapi.py:28` answers `str(exc)`, `:52` and `:90` answer a mapping.
+ * `routes/livepreset.py` answers `str(exc)` for one, a mapping for the other.
  * The fake carries both because the wire does.
  *
  * @param {number} status
@@ -88,7 +88,7 @@ export const bad = (status, detail) => ({
 // http: [fieldName, …]}` — and the server merges the request's own values first,
 // THEN removes the named entries: one request both re-stages a field and reports
 // it clean when an edit lands back on its baseline, and the drop is the later
-// word (hqptuner/api/pendingapi.py). The bodies the fake was handed are
+// word (hqptuner/api/routes/pending.py). The bodies the fake was handed are
 // recorded in `w.stages`, in arrival order, so a suite can assert on what the
 // client asked for as well as on what the buffer became.
 

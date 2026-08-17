@@ -20,7 +20,10 @@ from hqptuner.presets import presetlane
 
 router = APIRouter(prefix="/api")
 
-_AUTOEQ_BLOB = Path(__file__).resolve().parent.parent / "static" / "vendor" / "autoeq.json.gz"
+# parents[2] is the hqptuner package: this file sits at hqptuner/api/routes/. A
+# module that moves between directories takes this count with it, and nothing
+# static catches the drift — only the route's own tests do.
+_AUTOEQ_BLOB = Path(__file__).resolve().parents[2] / "static" / "vendor" / "autoeq.json.gz"
 
 
 @router.get("/autoeq")
