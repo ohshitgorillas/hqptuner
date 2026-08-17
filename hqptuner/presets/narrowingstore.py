@@ -36,9 +36,8 @@ _SCHEMA = 1
 _MAX_LIST = 32
 
 # The facet token sets, transcribed from the manual's filter tables the same way the frontend's facet-data tables are
-# (architecture, "Static facet fallback"). All four are multi-selects: the empty LIST means "not narrowed at all".
-# Phase's "" token is a real value meaning something else — the filters the taxonomy does not reach — the way the
-# manual's own "any" genre class is a real value meaning "this filter suits all of them".
+# (architecture, "Static facet fallback"). All four are multi-selects, so the empty LIST means "not narrowed at all".
+# Phase's "" is a real value on top of that — the filters the taxonomy does not reach — as genre's "any" is.
 _GENRES = frozenset({"pop", "jazz", "classical", "electronic", "any"})
 _FOCUS = frozenset({"transients", "timbre", "space"})
 _PHASES = frozenset({"", "linear", "minimum", "intermediate"})
