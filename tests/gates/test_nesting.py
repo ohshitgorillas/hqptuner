@@ -112,11 +112,11 @@ def line_naming(out: str, needle: str) -> str:
 
 
 def problem_lines(out: str) -> list[str]:
-    """The report lines a failing run prints, without the trailing summary.
+    """The per-problem report lines a failing run prints, ahead of the summary.
 
     A failing gate prints one line per problem, then a blank line, then a summary
-    whose wording is not part of the contract — so a case that is about the
-    problem lines reads the block ahead of that blank line and stops there.
+    line naming how many problems there were. A case about the per-problem lines
+    reads the block ahead of that blank line; the summary has cases of its own.
     """
     lines = out.splitlines()
     body: list[str] = []
@@ -125,6 +125,13 @@ def problem_lines(out: str) -> list[str]:
             break
         body.append(line)
     return body
+
+
+def summary_line(out: str) -> str:
+    """The trailing summary line of a failing run, or ``""`` when there is none."""
+    tail = out.splitlines()[len(problem_lines(out)) :]
+    written = [line for line in tail if line.strip()]
+    return written[0] if written else ""
 
 
 def names(source: str) -> list[str]:
@@ -176,12 +183,10 @@ def satisfy_shipped_exemptions(root: Path) -> None:
         shutil.copy(REPO_ROOT / relpath, target)
 
 
-def a_shipped_key() -> str:
-    """One key out of the shipped mapping, skipping the case when it has nothing in it."""
-    shipped = dict(SHIPPED_EXEMPT)
-    if not shipped:
-        pytest.skip("the shipped EXEMPT mapping is empty, so no entry can discriminate on it")
-    return min(shipped)
+#: A module whose only function is over the limit and whose ``def`` sits well
+#: down the file, so the reported line has to be computed rather than assumed.
+LATE_DEF_LINE = 13
+LATE_DEF = "".join(f"# padding line {n}\n" for n in range(1, LATE_DEF_LINE)) + function("if", 5)
 
 
 #: A method over the limit, so the name it is reported under carries its class.
@@ -328,13 +333,34 @@ def test_a_function_over_the_limit_is_reported_with_its_name_line_and_depth(
 ) -> None:
     """One line, and the line of the ``def`` rather than of the deepest block."""
     monkeypatch.chdir(tmp_path)
-    path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 5))
+    path = write_source(tmp_path, "hqptuner/core/deep.py", LATE_DEF)
     CHECK([path], {})
-    assert problem_lines(capsys.readouterr().out) == ["hqptuner/core/deep.py:1: f() nests 5 deep (max 4)"]
+    assert problem_lines(capsys.readouterr().out) == [
+        f"hqptuner/core/deep.py:{LATE_DEF_LINE}: f() nests 5 deep (max 4)"
+    ]
 
 
-def test_the_limit_the_gate_enforces_is_four() -> None:
-    assert GATE.MAX_DEPTH == 4
+def test_a_failing_run_summarises_how_many_problems_it_found(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
+    """The trailing line tells the reader how much there is to fix."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/deep.py", THREE_VIOLATIONS)
+    CHECK([path], {})
+    assert "3" in summary_line(capsys.readouterr().out)
+
+
+def test_the_summary_of_a_two_problem_run_differs_from_a_one_problem_run(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    """The count is read off the problems rather than being fixed text."""
+    monkeypatch.chdir(tmp_path)
+    one = write_source(tmp_path, "hqptuner/core/one.py", function("if", 5, name="f"))
+    two = write_source(
+        tmp_path, "hqptuner/core/two.py", function("if", 5, name="f") + "\n" + function("while", 5, name="g")
+    )
+    CHECK([one], {})
+    first = summary_line(capsys.readouterr().out)
+    CHECK([two], {})
+    assert summary_line(capsys.readouterr().out) != first
 
 
 # --- what counts as a level ----------------------------------------------------
@@ -425,7 +451,7 @@ def test_depths_reports_the_deepest_nesting_a_function_reaches() -> None:
 
 
 def test_depths_reports_the_line_of_the_def_rather_than_of_the_deepest_block() -> None:
-    assert def_line_of(function("if", 5), "f") == 1
+    assert def_line_of(LATE_DEF, "f") == LATE_DEF_LINE
 
 
 def test_depths_reports_a_method_under_its_dotted_name() -> None:
@@ -494,6 +520,15 @@ def test_an_exemption_whose_file_is_not_on_disk_names_the_key_on_stdout(
     assert "hqptuner/core/deleted.py::f" in capsys.readouterr().out
 
 
+def test_an_exemption_whose_file_is_not_on_disk_reports_on_one_line(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/flat.py", FLAT)
+    CHECK([path], {"hqptuner/core/deleted.py::f": "excused for a forgotten reason"})
+    assert len(problem_lines(capsys.readouterr().out)) == 1
+
+
 def test_an_exemption_naming_a_function_now_within_the_limit_fails_as_stale(tmp_path: Path, monkeypatch: Any) -> None:
     """The function is still there and shallow now, so the excuse has nothing left to excuse."""
     monkeypatch.chdir(tmp_path)
@@ -508,6 +543,16 @@ def test_an_exemption_naming_a_function_now_within_the_limit_names_the_key_on_st
     path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 4))
     CHECK([path], {f"{path}::f": "the parser walks a nested document"})
     assert f"{path}::f" in capsys.readouterr().out
+
+
+def test_an_exemption_naming_a_function_now_within_the_limit_says_to_drop_the_entry(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    """The line tells the reader what to do about it, not only that it is stale."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 4))
+    CHECK([path], {f"{path}::f": "the parser walks a nested document"})
+    assert "drop" in line_naming(capsys.readouterr().out, f"{path}::f").lower()
 
 
 def test_a_stale_exemption_reports_on_one_line(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
@@ -533,11 +578,20 @@ def test_a_live_exemption_for_a_file_not_passed_on_argv_passes(tmp_path: Path, m
     assert CHECK([committed], {f"{untouched}::f": "the parser walks a nested document"}) == 0
 
 
-def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
+def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path, monkeypatch: Any) -> None:
     """A caller who passes no mapping gets the module's own, so a shipped excuse is honoured."""
-    monkeypatch.chdir(REPO_ROOT)
-    path = a_shipped_key().split("::")[0]
-    assert (CHECK([path]), CHECK([path], {})) == (0, 1)
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 5))
+    monkeypatch.setattr(GATE, "EXEMPT", {f"{path}::f": "the parser walks a nested document"})
+    assert CHECK([path]) == 0
+
+
+def test_the_shipped_mapping_is_only_the_fallback(tmp_path: Path, monkeypatch: Any) -> None:
+    """An explicit mapping replaces the shipped one rather than adding to it."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 5))
+    monkeypatch.setattr(GATE, "EXEMPT", {f"{path}::f": "the parser walks a nested document"})
+    assert CHECK([path], {}) == 1
 
 
 # --- whole-tree ----------------------------------------------------------------
@@ -554,6 +608,19 @@ def test_several_violations_are_printed_one_line_each(tmp_path: Path, monkeypatc
     path = write_source(tmp_path, "hqptuner/core/deep.py", THREE_VIOLATIONS)
     CHECK([path], {})
     assert len(problem_lines(capsys.readouterr().out)) == 3
+
+
+def test_several_violations_each_name_their_own_function(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
+    """Three lines about the same function would be three lines and one violation."""
+    monkeypatch.chdir(tmp_path)
+    path = write_source(tmp_path, "hqptuner/core/deep.py", THREE_VIOLATIONS)
+    CHECK([path], {})
+    lines = problem_lines(capsys.readouterr().out)
+    assert [named for named in ("one()", "two()", "three()") if any(named in line for line in lines)] == [
+        "one()",
+        "two()",
+        "three()",
+    ]
 
 
 def test_a_violation_in_a_later_file_fails_the_run(tmp_path: Path, monkeypatch: Any) -> None:
