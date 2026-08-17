@@ -97,16 +97,6 @@ export const onlyWhenPresent = (present, absent, needle) => [
 ];
 
 /**
- * @param {string} shorter
- * @param {string} longer
- * @returns {[boolean, string]}
- */
-export const isShorter = (shorter, longer) => [
-  count(shorter) < count(longer),
-  `expected fewer lines than ${count(longer)}, got ${count(shorter)}`,
-];
-
-/**
  * A section is gone, not merely empty: the first entry costs more lines than
  * the second, which is only true if the scaffolding arrived with it.
  *
@@ -128,22 +118,30 @@ export const sectionOmitted = (none, one, two) => [
 export const differ = (a, b) => [a !== b, `expected the two renderings to differ, both were:\n${a}`];
 
 /**
- * The cell under a named column of a fixed-width table: locate the header row
- * by the column name, the body row by its leading label, and read the same
- * whitespace-separated index out of each.
+ * The row of a fixed-width table that carries a given label in its first
+ * column, found without knowing any column heading.
  *
  * @param {string} text
  * @param {string} label
- * @param {string} column
  * @returns {string}
  */
-export const cellUnder = (text, label, column) => {
-  const head = lines(text).find((l) => tokens(l).includes(column)) ?? "";
-  const row = lines(text).find((l) => tokens(l)[0] === label) ?? "";
-  return tokens(row)[tokens(head).indexOf(column)] ?? "";
-};
+export const rowLabelled = (text, label) => lines(text).find((l) => tokens(l)[0] === label) ?? "";
 
 // --- fixture values -----------------------------------------------------------
+
+/**
+ * Deep-freeze a literal fixture. A module-level object is handed by reference
+ * into every report a suite builds, so a mutation anywhere would couple the
+ * tests and make them order-dependent.
+ *
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */
+const frozen = (value) => {
+  if (value && typeof value === "object") Object.values(value).forEach(frozen);
+  return Object.freeze(value);
+};
 
 export const FS = 48000;
 export const STAGES = 17;
@@ -155,18 +153,18 @@ export const SNAP_NAME = "zzsnapname";
 export const SAVED_AT = "2026-08-16T12:34:56Z";
 export const PROCESS_A = "iir:type=peak;f=777;q=1;g=6";
 const PROCESS_B = "iir:type=lp1;f=666";
-const CHANGES = { amend: [{ select: 1234, g: 9.5 }] };
+const CHANGES = frozen({ amend: [{ select: 1234, g: 9.5 }] });
 // The objective expression deliberately names no metric that appears in a
 // table: a needle looking for a metric row must not land on the objective line.
-export const OBJECTIVE = { direction: "maximize", expr: "zzobja - zzobjb" };
-export const FIT = { rmse: 0.4, maxdev: 1.5, hz: 2500, range: [25, 19000] };
-export const NOTE_DB = { midi: 69, name: "A4", hz: 440, harmonics: [{ n: 1, hz: 440, db: 6.5 }] };
-export const NOTE_DELTA = {
+export const OBJECTIVE = frozen({ direction: "maximize", expr: "zzobja - zzobjb" });
+export const FIT = frozen({ rmse: 0.4, maxdev: 1.5, hz: 2500, range: [25, 19000] });
+export const NOTE_DB = frozen({ midi: 69, name: "A4", hz: 440, harmonics: [{ n: 1, hz: 440, db: 6.5 }] });
+export const NOTE_DELTA = frozen({
   midi: 69,
   name: "A4",
   hz: 440,
   harmonics: [{ n: 1, hz: 440, before: 1.5, after: 6.5, delta: 5.0 }],
-};
+});
 
 /** @param {Record<string, unknown>} [over] */
 export const daemonSrc = (over = {}) => ({

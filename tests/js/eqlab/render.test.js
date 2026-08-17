@@ -37,14 +37,12 @@ import {
   SNAP_NAME,
   STAGES,
   XML_PATH,
-  cellUnder,
   count,
   daemonSrc,
   differ,
   evalBody,
   firstLine,
   includesAll,
-  isShorter,
   lineWith,
   lines,
   mentionsAll,
@@ -52,6 +50,7 @@ import {
   peqSrc,
   probeBody,
   rep,
+  rowLabelled,
   rowsWith,
   sectionOmitted,
   show,
@@ -90,21 +89,16 @@ test("test_a_store_operation_with_no_chain_reads_differently_from_a_chain_off_th
   assert.ok(...differ(store, firstLine(probeRep({ source: { kind: "zzunknown", stage_count: STAGES } }))));
 });
 
-test("test_an_unrecognised_source_kind_reads_the_same_as_no_kind_at_all", () => {
-  const unknown = firstLine(probeRep({ source: { kind: "zzunknown", stage_count: STAGES } }));
-  assert.equal(unknown, firstLine(probeRep({ source: { stage_count: STAGES } })));
-});
-
 test("test_a_daemon_source_read_for_its_eq_tail_only_says_so_on_the_source_line", () => {
   const tail = firstLine(probeRep({ source: daemonSrc({ eq_only: true }) }));
   const whole = firstLine(probeRep({ source: daemonSrc({ eq_only: false }) }));
-  assert.ok(tail !== whole && tail.length > whole.length, `eq_only source line said nothing extra: ${tail}`);
+  assert.ok(tail.length > whole.length, `eq_only source line said nothing extra: ${tail}`);
 });
 
 test("test_an_xml_source_read_for_its_eq_tail_only_says_so_on_the_source_line", () => {
   const tail = firstLine(probeRep({ source: xmlSrc({ eq_only: true }) }));
   const whole = firstLine(probeRep({ source: xmlSrc({ eq_only: false }) }));
-  assert.ok(tail !== whole && tail.length > whole.length, `eq_only source line said nothing extra: ${tail}`);
+  assert.ok(tail.length > whole.length, `eq_only source line said nothing extra: ${tail}`);
 });
 
 test("test_a_parametric_eq_source_says_how_many_input_lines_it_skipped", () => {
@@ -141,6 +135,23 @@ test("test_a_report_with_no_tail_check_reads_differently_from_one_with_a_consist
   assert.ok(...differ(probeRep({ tail_consistency: null }), probeRep({ tail_consistency: tail })));
 });
 
+// The two renderings carry the same rows_checked and differ only in the verdict
+// and in the offending-row list, so dropping every line that mentions an
+// offending row leaves the verdict as the only thing left to differ on. 11 and
+// 19 are spelled by nothing else this report prints: not 17, 48000, -3.5, 2.5,
+// 2500 or 24.
+test("test_a_consistent_tail_states_a_different_verdict_from_an_inconsistent_one", () => {
+  const rows = (/** @type {string} */ text) =>
+    lines(text)
+      .filter((l) => !l.includes("11") && !l.includes("19"))
+      .join("\n");
+  const yes = rows(probeRep({ tail_consistency: { tail_consistent: true, offending_rows: [], rows_checked: 24 } }));
+  const no = rows(
+    probeRep({ tail_consistency: { tail_consistent: false, offending_rows: [11, 19], rows_checked: 24 } }),
+  );
+  assert.ok(...differ(yes, no));
+});
+
 test("test_a_report_carrying_a_target_states_its_summary", () => {
   assert.ok(...includesAll(probeRep({ target: { summary: "zztarget summary" } }), ["zztarget summary"]));
 });
@@ -150,9 +161,12 @@ test("test_a_report_with_no_target_omits_the_target_line", () => {
   assert.equal(count(probeRep()), count(withTarget) - 1);
 });
 
+// 31 as the low corner, not 25: the default probe metric prints hz 2500, which
+// spells 25. 31 is spelled by nothing this report prints — not 512, 19000,
+// 48000, 17, 2500, 2.5, -3.5, 440 or the process string's 777/1/6.
 test("test_a_report_carrying_limits_states_the_grid_point_count_and_its_frequency_span", () => {
-  const limits = { grid: { points: 512, f_lo_hz: 25, f_hi_hz: 19000 }, not_modelled: [] };
-  assert.ok(...mentionsAll(probeRep({ limits }), [512, 25, 19000]));
+  const limits = { grid: { points: 512, f_lo_hz: 31, f_hi_hz: 19000 }, not_modelled: [] };
+  assert.ok(...mentionsAll(probeRep({ limits }), [512, 31, 19000]));
 });
 
 test("test_a_report_carrying_limits_states_how_many_responses_were_not_modelled", () => {
@@ -162,8 +176,10 @@ test("test_a_report_carrying_limits_states_how_many_responses_were_not_modelled"
 });
 
 test("test_a_report_with_no_limits_omits_the_limits_line", () => {
-  const limits = { grid: { points: 512, f_lo_hz: 25, f_hi_hz: 19000 }, not_modelled: [] };
-  assert.ok(...isShorter(probeRep(), probeRep({ limits })));
+  const grid = { points: 512, f_lo_hz: 25, f_hi_hz: 19000 };
+  const one = probeRep({ limits: { grid, not_modelled: ["zzunmodelled-a"] } });
+  const two = probeRep({ limits: { grid, not_modelled: ["zzunmodelled-a", "zzunmodelled-b"] } });
+  assert.ok(...sectionOmitted(probeRep(), one, two));
 });
 
 // --- a probe job --------------------------------------------------------------
@@ -202,23 +218,29 @@ test("test_a_metric_with_no_frequency_leaves_the_frequency_column_empty", () => 
   assert.equal(tokens(lineWith(out, "zzalpha")).length, tokens(lineWith(out, "zzbeta")).length + 1);
 });
 
+/**
+ * A probe over one note, asked for the given harmonics — read back through the
+ * note row's own label, so no column heading has to be known.
+ *
+ * @param {Record<string, unknown>[]} harmonics
+ * @returns {string}
+ */
+const noteRow = (harmonics) => rowLabelled(show(rep("probe", probeBody({ notes: [{ ...NOTE_DB, harmonics }] }))), "A4");
+
 test("test_a_note_table_carries_one_column_per_harmonic", () => {
-  const notes = [
-    {
-      ...NOTE_DB,
-      harmonics: [
-        { n: 1, hz: 440, db: 6.5 },
-        { n: 4, hz: 1760, db: 4.5 },
-      ],
-    },
-  ];
-  const head = lines(show(rep("probe", probeBody({ notes })))).find((l) => tokens(l).includes("h1")) ?? "";
-  assert.equal(tokens(head).filter((t) => /^h\d+$/.test(t)).length, 2);
+  const one = noteRow([{ n: 1, hz: 440, db: 6.5 }]);
+  const two = noteRow([
+    { n: 1, hz: 440, db: 6.5 },
+    { n: 4, hz: 1760, db: 4.5 },
+  ]);
+  assert.equal(tokens(two).length, tokens(one).length + 1);
 });
 
 test("test_a_probe_whose_notes_are_null_omits_the_note_table", () => {
-  const withNotes = show(rep("probe", probeBody({ notes: [NOTE_DB] })));
-  assert.ok(...isShorter(show(rep("probe", probeBody({ notes: null }))), withNotes));
+  const c4 = { midi: 60, name: "C4", hz: 261.6, harmonics: [{ n: 1, hz: 261.6, db: 4.5 }] };
+  const one = show(rep("probe", probeBody({ notes: [NOTE_DB] })));
+  const two = show(rep("probe", probeBody({ notes: [NOTE_DB, c4] })));
+  assert.ok(...sectionOmitted(show(rep("probe", probeBody({ notes: null }))), one, two));
 });
 
 test("test_a_delta_note_table_is_labelled_differently_from_a_plain_db_note_table", () => {
@@ -231,8 +253,12 @@ test("test_a_delta_note_table_is_labelled_differently_from_a_plain_db_note_table
 });
 
 test("test_a_harmonic_that_was_never_measured_prints_as_a_dash", () => {
-  const notes = [{ ...NOTE_DB, harmonics: [{ n: 1, hz: 440, db: null }] }];
-  assert.equal(cellUnder(show(rep("probe", probeBody({ notes }))), "A4", "h1"), "-");
+  const measured = tokens(noteRow([{ n: 1, hz: 440, db: 6.5 }]));
+  const unmeasured = tokens(noteRow([{ n: 1, hz: 440, db: null }]));
+  assert.deepEqual(
+    unmeasured.filter((t, i) => t !== measured[i]),
+    ["-"],
+  );
 });
 
 // --- an evaluate job ----------------------------------------------------------

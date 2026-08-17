@@ -22,10 +22,11 @@ import {
   SNAP_PATH,
   diffBody,
   includesAll,
-  isShorter,
   lineWith,
   mentionsAll,
   rep,
+  rowsWith,
+  sectionOmitted,
   show,
 } from "../support/render-fixtures.js";
 
@@ -52,10 +53,13 @@ test("test_a_matched_band_row_lists_its_non_zero_deltas", () => {
   assert.ok(...includesAll(lineWith(show(rep("diff", diffBody({ bands }))), "444"), ["zzalpha", "2.5"]));
 });
 
+// lineWith returns "" when nothing matches, so the row has to be shown to
+// exist before its lack of a delta means anything: a band that vanished
+// entirely would otherwise pass this.
 test("test_a_matched_band_whose_deltas_are_all_zero_lists_none_of_them", () => {
   const bands = { matched: [{ f: 444, deltas: { zzalpha: 0 } }], only_a: [], only_b: [] };
   const row = lineWith(show(rep("diff", diffBody({ bands }))), "444");
-  assert.ok(!row.includes("zzalpha"), `an all-zero band still listed a delta: ${row}`);
+  assert.ok(row !== "" && !row.includes("zzalpha"), `expected a band row naming no delta, got: ${row}`);
 });
 
 test("test_a_diff_lists_the_bands_present_only_in_a_and_those_present_only_in_b", () => {
@@ -64,11 +68,13 @@ test("test_a_diff_lists_the_bands_present_only_in_a_and_those_present_only_in_b"
 });
 
 test("test_a_diff_side_with_no_bands_of_its_own_omits_that_section", () => {
-  const both = { matched: [], only_a: [{ f: 333, g: 1.5 }], only_b: [{ f: 888, g: 2.5 }] };
-  const oneSide = { matched: [], only_a: [], only_b: [{ f: 888, g: 2.5 }] };
-  assert.ok(
-    ...isShorter(show(rep("diff", diffBody({ bands: oneSide }))), show(rep("diff", diffBody({ bands: both })))),
-  );
+  const onlyA = [
+    { f: 333, g: 1.5 },
+    { f: 222, g: 3.5 },
+  ];
+  const sides = (/** @type {number} */ n) => ({ matched: [], only_a: onlyA.slice(0, n), only_b: [{ f: 888, g: 2.5 }] });
+  const rendered = (/** @type {number} */ n) => show(rep("diff", diffBody({ bands: sides(n) })));
+  assert.ok(...sectionOmitted(rendered(0), rendered(1), rendered(2)));
 });
 
 test("test_a_diff_carrying_note_deltas_prints_the_note_delta_table", () => {
@@ -89,16 +95,16 @@ test("test_a_saved_snapshot_prints_the_process_string_that_was_saved", () => {
 
 const STORE_DIR = "/srv/fixtures/zzsnapshots";
 const STORED = [
-  { name: "zzsnapone", saved_at: SAVED_AT, band_count: 7, preamp_db: -3.5 },
-  { name: "zzsnaptwo", saved_at: "2026-08-15T01:02:03Z", band_count: 9, preamp_db: -8.5 },
+  { name: "zzstoredone", saved_at: SAVED_AT, band_count: 7, preamp_db: -3.5 },
+  { name: "zzstoredtwo", saved_at: "2026-08-15T01:02:03Z", band_count: 9, preamp_db: -8.5 },
 ];
 
 test("test_a_snapshot_listing_prints_one_row_per_stored_snapshot", () => {
-  assert.ok(...includesAll(show(rep("snapshot", { dir: STORE_DIR, snapshots: STORED })), ["zzsnapone", "zzsnaptwo"]));
+  assert.equal(rowsWith(show(rep("snapshot", { dir: STORE_DIR, snapshots: STORED })), "zzstored"), 2);
 });
 
 test("test_a_stored_snapshot_row_carries_when_it_was_saved_its_band_count_and_its_preamp", () => {
-  const row = lineWith(show(rep("snapshot", { dir: STORE_DIR, snapshots: STORED })), "zzsnapone");
+  const row = lineWith(show(rep("snapshot", { dir: STORE_DIR, snapshots: STORED })), "zzstoredone");
   assert.ok(...includesAll(row, [SAVED_AT, "7", "-3.5"]));
 });
 
@@ -134,8 +140,9 @@ test("test_an_export_lists_the_entries_it_skipped", () => {
 });
 
 test("test_an_export_that_skipped_nothing_omits_the_skipped_section", () => {
-  const withSkips = show(rep("export", exportBody({ skipped: ["zzskipone"] })));
-  assert.ok(...isShorter(show(rep("export", exportBody())), withSkips));
+  const one = show(rep("export", exportBody({ skipped: ["zzskipone"] })));
+  const two = show(rep("export", exportBody({ skipped: ["zzskipone", "zzskiptwo"] })));
+  assert.ok(...sectionOmitted(show(rep("export", exportBody())), one, two));
 });
 
 // --- a plot job ---------------------------------------------------------------

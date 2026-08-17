@@ -26,12 +26,13 @@ import {
   count,
   differ,
   includesAll,
-  isShorter,
   lineWith,
   mentionsAll,
   onlyWhenPresent,
   rep,
+  rowsWith,
   searchBody,
+  sectionOmitted,
   show,
   survivor,
 } from "../support/render-fixtures.js";
@@ -44,9 +45,13 @@ test("test_a_scalar_search_reports_the_objective_direction_and_expression", () =
   assert.ok(...includesAll(show(rep("search", searchBody())), ["maximize", "zzobja - zzobjb"]));
 });
 
+// Returned is 42, not 3: every survivor row prints the preamp -3.5, which
+// spells 3. Nothing this report prints spells 42, 210 or 55 — not 48000, not
+// the changes' 1234 or 9.5, not the process string's 777/1/6, not 17, and not
+// any survivor score, which run 90 down to 69.5 in half-dB steps.
 test("test_a_scalar_search_reports_how_many_candidates_were_considered_survived_and_returned", () => {
-  const top = [survivor(), survivor({ score: 6.5 }), survivor({ score: 4.5 })];
-  assert.ok(...mentionsAll(show(rep("search", searchBody({ top }))), [210, 55, 3]));
+  const top = Array.from({ length: 42 }, (_, i) => survivor({ score: 90 - i * 0.5 }));
+  assert.ok(...mentionsAll(show(rep("search", searchBody({ top, returned: 42 }))), [210, 55, 42]));
 });
 
 test("test_a_scalar_search_states_the_margin_to_the_runner_up", () => {
@@ -58,9 +63,12 @@ test("test_a_scalar_search_names_the_margin_only_when_it_has_one", () => {
   assert.ok(...onlyWhenPresent(withMargin, show(rep("search", searchBody({ margin: null }))), "0.5"));
 });
 
+// Counts 47 and 58, not 12 and 34: the survivor's changes print select 1234,
+// which spells both of those. Nothing in this report spells 47 or 58 — not
+// 1234, 9.5, 210, 55, 8.5, 2.5, -3.5, 17, 48000 or the process string.
 test("test_a_scalar_search_summarises_each_rejection_reason_with_its_count", () => {
-  const rejected_by = { zzhot: 12, zzmud: 34 };
-  assert.ok(...includesAll(show(rep("search", searchBody({ rejected_by }))), ["zzhot", "12", "zzmud", "34"]));
+  const rejected_by = { zzhot: 47, zzmud: 58 };
+  assert.ok(...includesAll(show(rep("search", searchBody({ rejected_by }))), ["zzhot", "47", "zzmud", "58"]));
 });
 
 test("test_a_scalar_search_that_rejected_nothing_names_no_rejection_reason", () => {
@@ -70,7 +78,7 @@ test("test_a_scalar_search_that_rejected_nothing_names_no_rejection_reason", () 
 
 test("test_a_scalar_search_prints_one_table_row_per_survivor", () => {
   const top = [survivor(), survivor({ score: 6.5 }), survivor({ score: 4.5 })];
-  assert.ok(...mentionsAll(show(rep("search", searchBody({ top }))), [8.5, 6.5, 4.5]));
+  assert.equal(rowsWith(show(rep("search", searchBody({ top }))), "1234"), 3);
 });
 
 test("test_a_survivor_row_carries_its_metrics_preamp_and_changes", () => {
@@ -112,10 +120,34 @@ test("test_a_refined_survivor_whose_grid_point_was_kept_reads_differently_from_o
   assert.ok(...differ(yes, no));
 });
 
+const REFINEMENT = { from_score: 4.5, score: 8.5, evals: 96, converged: true, improved: true };
+
+/**
+ * A top of three survivors of which the first `n` were refined, so the refined
+ * section is the only thing that varies between renderings.
+ *
+ * @param {number} n
+ * @returns {string}
+ */
+const refinedTop = (n) => {
+  const top = [8.5, 6.5, 4.5].map((score, i) => survivor({ score, ...(i < n ? { refined: REFINEMENT } : {}) }));
+  return show(rep("search", searchBody({ top })));
+};
+
 test("test_a_search_whose_survivors_were_not_refined_omits_the_refined_section", () => {
-  const refined = { from_score: 4.5, score: 8.5, evals: 96, converged: true, improved: true };
-  const withRefined = show(rep("search", searchBody({ top: [survivor({ refined })] })));
-  assert.ok(...isShorter(show(rep("search", searchBody())), withRefined));
+  assert.ok(...sectionOmitted(refinedTop(0), refinedTop(1), refinedTop(2)));
+});
+
+// Which survivor was refined is reported: the two renderings differ only in
+// WHICH of three otherwise identical-shaped rows carries the same refinement,
+// so a report that named no position would render the two the same. The
+// numbering itself (0- or 1-based) is copy this suite does not know.
+test("test_the_refined_section_identifies_which_survivor_was_refined", () => {
+  const refinedAt = (/** @type {number} */ i) => {
+    const top = [8.5, 8.5, 8.5].map((score, j) => survivor({ score, ...(i === j ? { refined: REFINEMENT } : {}) }));
+    return show(rep("search", searchBody({ top })));
+  };
+  assert.ok(...differ(refinedAt(0), refinedAt(1)));
 });
 
 // The gain of the first entry is a value no other number on either sensitivity
@@ -136,8 +168,9 @@ test("test_a_sensitivity_entry_names_its_gain_only_when_it_has_one", () => {
 });
 
 test("test_a_search_with_no_sensitivity_analysis_omits_that_section", () => {
-  const withSens = show(rep("search", searchBody({ sensitivity: SENSITIVITY })));
-  assert.ok(...isShorter(show(rep("search", searchBody())), withSens));
+  const one = show(rep("search", searchBody({ sensitivity: [SENSITIVITY[0]] })));
+  const two = show(rep("search", searchBody({ sensitivity: SENSITIVITY })));
+  assert.ok(...sectionOmitted(show(rep("search", searchBody())), one, two));
 });
 
 const REJECTED_TOP = [
@@ -146,16 +179,22 @@ const REJECTED_TOP = [
     changes: { amend: [{ select: 4321, g: 2.5 }] },
     reasons: [{ metric: "zzrej", bound: "zzbound", limit: 1.5, by: 0.75 }],
   },
+  {
+    score: 3.5,
+    changes: { amend: [{ select: 5678, g: 2.5 }] },
+    reasons: [{ metric: "zzrej", bound: "zzbound", limit: 1.5, by: 1.75 }],
+  },
 ];
 
 test("test_a_rejected_candidate_row_carries_its_score_the_bounds_it_failed_and_its_changes", () => {
-  const out = show(rep("search", searchBody({ rejected_top: REJECTED_TOP })));
+  const out = show(rep("search", searchBody({ rejected_top: [REJECTED_TOP[0]] })));
   assert.ok(...includesAll(out, ["4.5", "zzrej", "zzbound", "0.75", "4321"]));
 });
 
 test("test_a_search_with_no_rejected_candidates_omits_that_table", () => {
-  const withRejects = show(rep("search", searchBody({ rejected_top: REJECTED_TOP })));
-  assert.ok(...isShorter(show(rep("search", searchBody())), withRejects));
+  const one = show(rep("search", searchBody({ rejected_top: [REJECTED_TOP[0]] })));
+  const two = show(rep("search", searchBody({ rejected_top: REJECTED_TOP })));
+  assert.ok(...sectionOmitted(show(rep("search", searchBody())), one, two));
 });
 
 // --- a pareto search ----------------------------------------------------------
@@ -165,15 +204,20 @@ const PARETO_OBJECTIVES = [OBJECTIVE, { direction: "minimize", expr: "zzobjc" }]
 /** @param {number} n @returns {Record<string, unknown>} */
 const frontMember = (n) => survivor({ score: undefined, scores: { "zzobja - zzobjb": 8.5 - n, zzobjc: 6.5 - n } });
 
+// A front of 26, not 7: the rows print 7.5 as an objective score and the
+// process string carries f=777, both of which spell 7. Nothing this report
+// prints spells 26, 210 or 55 — not the changes' 1234 or 9.5, not 2.5 or -3.5,
+// not 17 or 48000, and not any objective score, which run 8.5 down to -18.5 in
+// whole steps.
 /** @param {Record<string, unknown>} [over] */
 const paretoBody = (over = {}) => ({
   considered: 210,
   survived: 55,
-  returned: 7,
+  returned: 26,
   rejected_by: {},
   pareto: { objectives: PARETO_OBJECTIVES },
-  front: Array.from({ length: 7 }, (_, i) => frontMember(i)),
-  front_size: 7,
+  front: Array.from({ length: 26 }, (_, i) => frontMember(i)),
+  front_size: 26,
   ...over,
 });
 
@@ -183,7 +227,7 @@ test("test_a_pareto_search_reports_each_objectives_direction_and_expression", ()
 });
 
 test("test_a_pareto_search_reports_the_counts_considered_survived_and_the_front_size", () => {
-  assert.ok(...mentionsAll(show(rep("search", paretoBody())), [210, 55, 7]));
+  assert.ok(...mentionsAll(show(rep("search", paretoBody())), [210, 55, 26]));
 });
 
 test("test_a_pareto_front_row_carries_each_objective_score_the_metrics_the_preamp_and_the_changes", () => {
@@ -225,8 +269,10 @@ test("test_a_refine_lists_each_violation_with_its_metric_bound_and_by_how_much_i
 });
 
 test("test_a_refine_whose_best_carries_no_violations_key_omits_the_violations_section", () => {
-  const violations = [{ metric: "zzviol", bound: "zzbound", limit: 1.5, by: 0.75 }];
-  assert.ok(...isShorter(show(rep("refine", refineBody())), show(rep("refine", refineBody({ violations })))));
+  const first = { metric: "zzviol", bound: "zzbound", limit: 1.5, by: 0.75 };
+  const one = show(rep("refine", refineBody({ violations: [first] })));
+  const two = show(rep("refine", refineBody({ violations: [first, { ...first, metric: "zzviol2" }] })));
+  assert.ok(...sectionOmitted(show(rep("refine", refineBody())), one, two));
 });
 
 test("test_a_refine_prints_the_best_candidates_changes", () => {

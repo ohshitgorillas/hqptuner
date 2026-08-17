@@ -115,14 +115,12 @@ const baselineFetch = /** @type {FetchImpl} */ (
 
 // --- which baseline the rows came from -------------------------------------------
 
-test("test_a_config_baseline_summary_names_the_config_source", () => {
-  const summary = table(report({ baseline_source: "config", staged: { live: {}, http: {} } }));
-  assert.equal(summary.includes("config"), true);
-});
-
-test("test_a_matrix_baseline_summary_names_the_matrix_source", () => {
-  const summary = table(report({ baseline_source: "matrix", staged: { live: {}, http: { filter: "sinc-L" } } }));
-  assert.equal(summary.includes("matrix"), true);
+// A bare substring check would pass on fixed prose that mentions both words, so
+// the two sources are pinned against each other: same report, one field apart.
+test("test_a_config_baseline_summary_reads_differently_from_a_matrix_baseline_one", () => {
+  const fromConfig = table(report({ baseline_source: "config" }));
+  const fromMatrix = table(report({ baseline_source: "matrix" }));
+  assert.notEqual(fromConfig, fromMatrix);
 });
 
 // --- what the eq carries ---------------------------------------------------------
@@ -233,4 +231,27 @@ test("test_a_preamp_that_is_neither_a_number_nor_auto_is_rejected_naming_the_val
     })
   );
   await assert.rejects(() => runJob(job, { fetch: baselineFetch }), /loud/);
+});
+
+// The accepting side of the same rule: two of the three declared forms get past
+// validation. Dry runs, so the narrow baseline fake is never asked to serve a
+// stage POST; what preamp comes out the far side is another behaviour's business.
+/**
+ * @param {Job["preamp_db"]} preamp
+ * @returns {Job}
+ */
+const preampJob = (preamp) => ({
+  url: URL_BASE,
+  eq: { bands: [{ type: "peak", f: 5000, q: 2, g: -4 }] },
+  rows: [0],
+  preamp_db: preamp,
+  dry_run: true,
+});
+
+test("test_an_auto_preamp_is_accepted_rather_than_rejected", async () => {
+  await assert.doesNotReject(() => runJob(preampJob("auto"), { fetch: baselineFetch }));
+});
+
+test("test_a_null_preamp_is_accepted_rather_than_rejected", async () => {
+  await assert.doesNotReject(() => runJob(preampJob(null), { fetch: baselineFetch }));
 });
