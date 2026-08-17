@@ -123,6 +123,37 @@ ENV HQPTUNER_BACKUP_DIR=/state/backups
 CMD ["python", "-m", "hqptuner"]
 """
 
+#: An ``ENV`` block whose first line sets a name that is nothing to do with
+#: HQPTuner, continued into a real pin. Both are in the image; only one is a pin.
+MIXED_ENV_DOCKERFILE = """
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 \\
+    HQPTUNER_BACKUP_DIR=/state/backups
+
+CMD ["python", "-m", "hqptuner"]
+"""
+
+#: A ``config.py`` no image could be clean against: one path field, never pinned.
+DECOY_CONFIG_SOURCE = '''
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+@dataclass
+class Config:
+    """Runtime knobs."""
+
+    preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", "./presets")))
+'''
+
+#: A ``Dockerfile`` pinning nothing at all, to pair with the decoy config.
+DECOY_DOCKERFILE = """
+FROM python:3.13-slim
+
+CMD ["python", "-m", "hqptuner"]
+"""
+
 
 def field_source(name: str, annotation: str, suffix: str) -> str:
     """A one-field ``Config`` module, so a case can name the annotation it is about."""
@@ -202,8 +233,14 @@ def test_a_commented_env_line_pins_nothing() -> None:
     assert PINNED(dockerfile) == {}
 
 
-def test_a_dockerfile_with_no_env_instruction_pins_nothing() -> None:
-    assert PINNED("FROM python:3.13-slim\nWORKDIR /app\n") == {}
+def test_a_non_hqptuner_name_in_the_env_block_is_not_a_pin() -> None:
+    """The gate speaks about ``HQPTUNER_*`` only; an image's other environment is not its business."""
+    assert "PYTHONUNBUFFERED" not in PINNED(MIXED_ENV_DOCKERFILE)
+
+
+def test_a_hqptuner_name_continued_after_a_foreign_one_is_still_a_pin() -> None:
+    """A foreign first line does not cost the rest of the continued instruction its pins."""
+    assert PINNED(MIXED_ENV_DOCKERFILE)["BACKUP_DIR"] == "/state/backups"
 
 
 # --- failures ---------------------------------------------------------------
@@ -246,6 +283,12 @@ def test_a_path_field_pinned_outside_state_is_shown_the_offending_value() -> Non
     assert "/app/backups" in line_naming(reported, "BACKUP_DIR")
 
 
+@pytest.mark.parametrize("value", ["/statefoo/backups", "/state-old/presets"])
+def test_a_path_field_pinned_to_a_sibling_of_state_is_one_failure(value: str) -> None:
+    """Sharing the first six characters is not being under the mount: neither path is writable."""
+    assert len(FAILURES({"backup_dir": "BACKUP_DIR"}, {"BACKUP_DIR": value}, {})) == 1
+
+
 def test_a_path_field_pinned_only_in_a_commented_line_still_fails() -> None:
     """Parsed end to end: the comment pins nothing, so the field is unpinned."""
     dockerfile = "FROM python:3.13-slim\n# ENV HQPTUNER_BACKUP_DIR=/state/backups\n"
@@ -283,17 +326,22 @@ def test_several_violations_are_all_counted_not_only_the_first() -> None:
     assert len(FAILURES(fields, {"BACKUP_DIR": "/app/backups"}, {"GONE_DIR": "why"})) == 4
 
 
-@pytest.mark.parametrize("expected", ["backup_dir", "preset_dir", "log_dir", "GONE_DIR"])
-def test_every_violation_is_reported_on_its_own_line(expected: str) -> None:
+def test_every_violation_is_reported_on_its_own_line() -> None:
+    """Four violations, four distinct lines: no line doubles up and none is missing."""
     fields = {"backup_dir": "BACKUP_DIR", "preset_dir": "PRESET_DIR", "log_dir": "LOG_DIR"}
     reported = FAILURES(fields, {"BACKUP_DIR": "/app/backups"}, {"GONE_DIR": "why"})
-    assert line_naming(reported, expected) != ""
+    named = {line_naming(reported, needle) for needle in ("backup_dir", "preset_dir", "log_dir", "GONE_DIR")}
+    assert len(named - {""}) == 4
 
 
-def test_omitting_the_exemption_table_falls_back_to_the_shipped_one() -> None:
-    """A caller who passes none gets the module's own table, so its entries are the ones honoured."""
-    fields = PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE)
-    assert (FAILURES(fields, {}), len(FAILURES(fields, {}, {}))) == ([], 2)
+def test_omitting_the_exemption_table_honours_the_shipped_exemptions() -> None:
+    """A caller who passes none gets the module's own table, so its entries excuse their fields."""
+    assert FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}) == []
+
+
+def test_passing_an_empty_exemption_table_excuses_nothing() -> None:
+    """An explicit empty table is the caller's own, so the shipped entries do not apply."""
+    assert len(FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}, {})) == 2
 
 
 # --- main -------------------------------------------------------------------
@@ -313,8 +361,9 @@ def test_a_clean_pair_of_source_files_exits_zero(tmp_path: Path) -> None:
 
 
 def test_a_clean_pair_of_source_files_prints_no_failure(tmp_path: Path, capsys: Any) -> None:
+    """The same field a violating run names on stdout goes unmentioned when it is pinned."""
     MAIN(write_pair(tmp_path, SHIPPED_EXEMPT_CONFIG_SOURCE, CLEAN_DOCKERFILE))
-    assert "backup_dir" not in capsys.readouterr().out
+    assert "preset_dir" not in capsys.readouterr().out
 
 
 def test_the_shipped_config_and_dockerfile_pass() -> None:
@@ -322,7 +371,12 @@ def test_the_shipped_config_and_dockerfile_pass() -> None:
     assert MAIN([str(REPO_ROOT / "hqptuner" / "config.py"), str(REPO_ROOT / "Dockerfile")]) == 0
 
 
-def test_an_empty_argv_checks_the_repos_own_config_and_dockerfile(monkeypatch: Any) -> None:
-    """Run with no arguments, the way the Makefile runs it, the gate finds its own two files."""
-    monkeypatch.chdir(REPO_ROOT)
+def test_an_empty_argv_checks_the_repos_own_config_and_dockerfile(tmp_path: Path, monkeypatch: Any) -> None:
+    """Run with no arguments, the way the Makefile runs it, the gate finds its own two files.
+
+    The working directory holds a decoy pair that would fail, so a green result
+    is only reachable by reading the checkout's own ``config.py`` and ``Dockerfile``.
+    """
+    write_pair(tmp_path, DECOY_CONFIG_SOURCE, DECOY_DOCKERFILE)
+    monkeypatch.chdir(tmp_path)
     assert MAIN([]) == 0
