@@ -94,10 +94,11 @@ WRONG_TYPE: dict[str, object] = {
     "genre": 3,
     "quality": "4",
     "focus": "timbre",
-    # The scalar shape an older HQPTuner stored is no longer storable: a bare
-    # string is the wrong type now that the facet is a list.
-    "phase": "linear",
-    "length": "long",
+    # Phase and length are deliberately absent. Their wrong-typed value is the
+    # scalar an older HQPTuner stored, and both sides of it are pinned by name
+    # further down — `test_a_write_of_the_old_scalar_shape_is_refused_naming_the_facet`
+    # and `test_a_stored_bare_string_reads_as_the_empty_selection` — so putting
+    # them in this table too would only make one regression fail four tests.
     "hide_limited": True,
     # The two switches are real booleans: a truthy string is refused, never
     # coerced.
@@ -421,10 +422,16 @@ def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path
 
 
 # --- the multi-select facets --------------------------------------------------
-# Phase and length are lists like genre and focus: the empty list is what "not
-# narrowed" means, so the empty-string token that used to carry that meaning is
-# out of the domain, and the scalar an older HQPTuner stored is no longer
-# storable at all (its read-side degradation rides the WRONG_TYPE table above).
+# Phase and length are lists like genre and focus: the empty LIST is what "not
+# narrowed" means, and the scalar an older HQPTuner stored is no longer storable
+# at all (its read-side degradation rides the WRONG_TYPE table above).
+#
+# The two domains part company on the empty STRING, deliberately. Neither
+# taxonomy reaches every filter, and only phase offers a way to ask for the ones
+# it misses: `""` is a real phase VALUE meaning "the filters the phase taxonomy
+# does not reach", so a phase list may carry it. Length has no such value —
+# tap count is a filter specification and the classifier does not guess one — so
+# `""` in a length list is a token outside the domain like any other.
 
 #: One in-domain token per list-valued facet.
 LIST_FACETS: dict[str, str] = {
@@ -490,8 +497,8 @@ def test_a_two_entry_write_reads_back_whole(tmp_path: Path, facet: str) -> None:
 # deduplicate before counting, so a list of one repeated in-domain token is
 # accepted at 32 entries and refused at 33.
 @pytest.mark.parametrize("facet", sorted(LIST_FACETS))
-def test_a_write_of_more_than_32_entries_is_refused(tmp_path: Path, facet: str) -> None:
-    with pytest.raises(NarrowingError):
+def test_a_write_of_more_than_32_entries_is_refused_naming_the_facet(tmp_path: Path, facet: str) -> None:
+    with pytest.raises(NarrowingError, match=facet):
         store_at(tmp_path).write({facet: [LIST_FACETS[facet]] * 33})
 
 
@@ -538,6 +545,33 @@ def test_the_schema_refusal_is_caught_by_a_caller_catching_the_general_error(tmp
 def test_an_unstamped_file_is_read_rather_than_refused(tmp_path: Path) -> None:
     unstamp(stored(tmp_path, SET))
     assert store_at(tmp_path).read()["phase"] == ["linear"]
+
+
+# The stamp is the one number here that is not free to move. Every narrowing
+# file a released HQPTuner has written carries `RELEASED_SCHEMA`, and the
+# multi-select change deliberately does not bump it: the two facets that changed
+# shape degrade on read like any other damaged entry, which costs the user their
+# narrowing and never the bar. A build that bumped the stamp would refuse every
+# file already on disk, and the cases below are the only thing standing between
+# that and a green suite — they are pinned against the literal number rather
+# than against whatever this build happens to write, which is what
+# `test_an_unstamped_file_carries_a_stamp_after_the_next_write` reads.
+RELEASED_SCHEMA = 1
+
+
+def test_a_file_stamped_by_the_released_hqptuner_still_reads_its_facets(tmp_path: Path) -> None:
+    restamp(stored(tmp_path, SET), RELEASED_SCHEMA)
+    assert store_at(tmp_path).read()["quality"] == SET["quality"]
+
+
+# The real shape of such a file: stamped by the release, holding the scalar
+# phase that release stored. It loads, and the entry the new domain cannot take
+# falls back to the empty selection.
+def test_a_released_file_holding_the_old_scalar_phase_still_loads(tmp_path: Path) -> None:
+    path = stored(tmp_path, SET)
+    edit_facets(path, set_to("phase", "linear"))
+    restamp(path, RELEASED_SCHEMA)
+    assert store_at(tmp_path).read()["phase"] == []
 
 
 # Any stamp at all is not enough: the number a write puts on the file has to be
@@ -588,6 +622,26 @@ def test_a_put_of_an_out_of_domain_facet_answers_422(nar_client: TestClient, fac
 
 def test_a_put_carrying_a_key_that_is_not_a_facet_answers_422(nar_client: TestClient) -> None:
     assert nar_client.put("/api/narrowing", json={"facets": {"wombat": "yes"}}).status_code == 422
+
+
+# The empty-string asymmetry where a client actually meets it. The frontend
+# sends the "No phase" pick as `""` inside the phase list and never sends
+# anything of the sort for length, so the route has to take the one and refuse
+# the other; a route that took both would store a length nothing can match, and
+# one that refused both would break the phase row.
+
+
+def test_a_put_of_the_no_phase_token_answers_200(nar_client: TestClient) -> None:
+    assert nar_client.put("/api/narrowing", json={"facets": {"phase": [""]}}).status_code == 200
+
+
+def test_a_put_of_the_no_phase_token_stores_it(nar_client: TestClient) -> None:
+    nar_client.put("/api/narrowing", json={"facets": {"phase": [""]}})
+    assert nar_client.get("/api/narrowing").json()["facets"]["phase"] == [""]
+
+
+def test_a_put_of_an_empty_token_in_the_length_list_answers_422(nar_client: TestClient) -> None:
+    assert nar_client.put("/api/narrowing", json={"facets": {"length": [""]}}).status_code == 422
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(

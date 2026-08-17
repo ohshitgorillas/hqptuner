@@ -75,6 +75,10 @@ const FOCUS_FILTERS = [
   { index: "0", name: "gauss-a", value: "0", arg: 1, description: "5/5 timbre, transients ⥮ Any", apodizing: true },
   { index: "1", name: "gauss-b", value: "1", arg: 1, description: "5/5 timbre ⥮ Any", apodizing: true },
   { index: "2", name: "gauss-c", value: "2", arg: 1, description: "5/5 transients ⥮ Any", apodizing: true },
+  // Rated below the quality facet's floor of 3, so it is out of every count the
+  // bar takes: it carries the picked focus, which makes it the filter that
+  // tells a chip applying the whole selection apart from one applying none.
+  { index: "3", name: "gauss-faint", value: "3", arg: 1, description: "2/5 timbre, transients ⥮ Any", apodizing: true },
 ];
 
 /** @param {EngineFilter[]} filters */
@@ -141,14 +145,20 @@ test("test_the_downsample_safe_switch_checks_the_downsampling_row_alone", async 
 //
 // The chip beside a row says what the dropdowns would offer if that row were
 // clicked, so on a row already picked it must answer for the selection WITHOUT
-// it — clicking a picked value unpicks it. Focus at ["timbre"] leaves two of the
-// three fixture filters (gauss-a, gauss-b); unpicking it leaves all three, so
-// the two readings are different numbers and only the unpick preview is 3.
+// it — clicking a picked value unpicks it.
+//
+// TWO values are picked, so the previewed state is a real selection rather than
+// the empty one, and four readings of this fixture are four different numbers:
+// 4 is the total, which a chip narrowing by nothing gives; 3 is the facet
+// dropped altogether, which a chip ignoring the focus selection gives; 1 is the
+// live selection under the default AND mode (gauss-a alone carries both), which
+// a chip ignoring the preview gives; 2 is the unpick, and the below-floor
+// gauss-faint is what separates 4 from 3.
 
 test("test_the_count_on_a_picked_facet_row_previews_unpicking_it", async () => {
   await reset({ filters: FOCUS_FILTERS, fields: chainFields(FOCUS_FILTERS) });
-  nFocus.value = ["timbre"];
-  assert.equal(nxCount(chip(open("focus"), "Timbre")), 3);
+  nFocus.value = ["timbre", "transients"];
+  assert.equal(nxCount(chip(open("focus"), "Timbre")), 2);
 });
 
 // --- the intro caption follows the setting-descriptions pref ----------------------

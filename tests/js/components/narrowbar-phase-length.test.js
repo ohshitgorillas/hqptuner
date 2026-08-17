@@ -31,32 +31,45 @@ import {
   resetNarrowBar,
   openFacet as open,
   popoverRows as rows,
+  checkedRows,
   countChip,
   nxOf,
   buttonCaptions,
 } from "../support/genrepopover.js";
 
 /**
- * A fixture filter, rated above the quality floor and ratio-agnostic so that
- * nothing at its default trims it: only the name carries a phase or length.
+ * A fixture filter, ratio-agnostic so that nothing but the quality floor and
+ * the name's own phase or length can trim it. The rating rides in the
+ * description the way the engine spells it, `"<q>/5 [focus, ...] <glyph>
+ * <ratio>"`, and defaults above the quality facet's own floor of 3.
  *
  * @param {string} name
  * @param {number} index
+ * @param {number} [rating]
  */
-const item = (name, index) => ({
+const item = (name, index, rating = 4) => ({
   index: String(index),
   name,
   value: String(index),
   arg: 1,
-  description: "4/5 timbre ⥮ Any",
+  description: `${rating}/5 timbre ⥮ Any`,
   apodizing: true,
 });
 
-// One linear-phase filter, one minimum-phase, one carrying no phase token.
-const PHASES = ["gauss-lp", "gauss-mp", "gauss-plain"].map(item);
+// One linear-phase filter, one minimum-phase, one carrying no phase token —
+// and a fourth, linear too, rated BELOW the quality floor. That last one is
+// what makes a count chip's reading mean something: it is out of every count
+// the bar takes, so a chip answering the fixture's total is a chip that applied
+// no narrowing at all.
+const PHASES = ["gauss-lp", "gauss-mp", "gauss-plain", "gauss-faint-lp"].map((name, i) =>
+  item(name, i, name === "gauss-faint-lp" ? 2 : 4),
+);
 
-// One of each of three length classes: the token-less name classifies medium.
-const LENGTHS = ["gauss-short", "gauss-plain", "gauss-long"].map(item);
+// The same shape for length: one short, one the taxonomy does not reach, one
+// long, and a fourth short one below the quality floor.
+const LENGTHS = ["gauss-short", "gauss-plain", "gauss-long", "gauss-faint-short"].map((name, i) =>
+  item(name, i, name === "gauss-faint-short" ? 2 : 4),
+);
 
 /**
  * Put the bar back to its defaults over one fixture set. A count chip counts a
@@ -104,6 +117,16 @@ test("test_the_phase_popover_offers_exactly_the_four_phases_and_no_clear_row", a
   assert.deepEqual(rowLabels(open("phase")), ["Linear", "Minimum", "Intermediate", "No phase"]);
 });
 
+// The empty string is a falsy value carrying a real meaning, so the row it
+// stands for has to render ticked from the selection like any other: a
+// membership test that guards on the value being truthy leaves the user
+// clicking "No phase" and watching nothing happen while the store holds it.
+test("test_the_no_phase_row_renders_checked_when_it_is_the_picked_phase", async () => {
+  await reset();
+  nPhase.value = [""];
+  assert.deepEqual(checkedRows(open("phase")), ["No phase"]);
+});
+
 test("test_the_length_popover_offers_exactly_the_four_lengths_and_no_clear_row", async () => {
   await reset();
   assert.deepEqual(rowLabels(open("length")), ["Short", "Medium", "Long", "Extra long"]);
@@ -116,6 +139,14 @@ test("test_the_length_popover_offers_exactly_the_four_lengths_and_no_clear_row",
 // popovers with, read here by its own user-facing wording.
 
 const MODE_CAPTION = /^(and|or)$/i;
+
+// The control on the two negatives below. They say a reader found no and/or
+// caption; this says the same reader finds one on a facet that HAS a switch, so
+// their empty answer is a fact about the popover rather than about the reader.
+test("test_the_same_reader_finds_the_combine_switch_on_a_facet_that_carries_one", async () => {
+  await reset();
+  assert.ok(buttonCaptions(open("genre")).some((c) => MODE_CAPTION.test(c)));
+});
 
 test("test_the_phase_popover_carries_no_and_or_combine_switch", async () => {
   await reset();
@@ -192,18 +223,24 @@ test("test_the_length_button_with_two_picks_reads_the_count", async () => {
 //
 // The chip beside a row says what the dropdowns would offer if that row were
 // clicked, so on a value already picked it must answer for the selection
-// WITHOUT it — clicking a ticked row unticks it. Phase at ["linear"] leaves one
-// of the three fixture filters; unpicking it leaves all three, so the two
-// readings are different numbers and only the unpick preview is 3.
+// WITHOUT it — clicking a ticked row unticks it.
+//
+// TWO values are picked, so the previewed state is a real selection rather than
+// the empty one, and four readings of this fixture are four different numbers:
+// 4 is the total, which a chip narrowing by nothing answers; 3 is the facet
+// dropped altogether, which a chip ignoring the phase selection answers; 2 is
+// the live selection, which a chip ignoring the preview answers; 1 is the
+// unpick, and nothing else in the fixture can produce it. The fourth filter,
+// linear but rated below the quality floor, is what separates 4 from 3.
 
 test("test_the_count_on_a_picked_phase_row_previews_unpicking_it", async () => {
   await reset();
-  nPhase.value = ["linear"];
-  assert.equal(nxOf(countChip(open("phase"), "Linear")), 3);
+  nPhase.value = ["linear", "minimum"];
+  assert.equal(nxOf(countChip(open("phase"), "Linear")), 1);
 });
 
 test("test_the_count_on_a_picked_length_row_previews_unpicking_it", async () => {
   await reset(LENGTHS);
-  nLength.value = ["short"];
-  assert.equal(nxOf(countChip(open("length"), "Short")), 3);
+  nLength.value = ["short", "long"];
+  assert.equal(nxOf(countChip(open("length"), "Short")), 1);
 });

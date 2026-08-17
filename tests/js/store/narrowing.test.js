@@ -332,6 +332,15 @@ test("test_an_option_with_no_facet_record_survives_a_phase_pick", () => {
   assert.deepEqual(labels(options), ["gauss-mp", "stranger"]);
 });
 
+// The same for length, and it is its own case rather than a second reading of
+// the one above: the two facets no longer share a classifier fallback, so phase
+// surviving is no evidence about length.
+test("test_an_option_with_no_facet_record_survives_a_length_pick", () => {
+  const options = [...reset(LENGTHS), { label: "stranger", value: "9" }];
+  nLength.value = ["short"];
+  assert.deepEqual(labels(options), ["gauss-short", "stranger"]);
+});
+
 // --- selection state ------------------------------------------------------------
 
 test("test_nothing_picked_is_not_active_narrowing", () => {

@@ -121,11 +121,35 @@ for (const key of Object.keys(SIGNALS)) {
   });
 }
 
-test("test_hydration_leaves_a_facet_the_server_omits_at_its_default", async () => {
-  await reset();
+// The facet holds a value before the hydrate under test, so this tells "put
+// back to the default" apart from "left exactly as it was": after `reset()`
+// alone the two look alike and an implementation that ignored an omitted facet
+// would pass either way.
+//
+// That starting value arrives from a FIRST hydrate rather than from an
+// assignment. Writing the signal is how the user ticking a box looks from here,
+// and a facet the user has moved is deliberately left alone by a later hydrate
+// (pinned just below) — so seeding by assignment would test that guard instead
+// of the omitted facet, and never reach the branch these two are named for.
+async function hydratedThenOmitted() {
+  await hydrateNarrowing();
   env.fetch = async (/** @type {string} */ path) => (path === PATH ? ok({ facets: { quality: 4 } }) : ok({}));
   await hydrateNarrowing();
+}
+
+test("test_hydration_leaves_a_facet_the_server_omits_at_its_default", async () => {
+  await reset({ facets: SET });
+  await hydratedThenOmitted();
   assert.deepEqual(nPhase.value, []);
+});
+
+// Its own case rather than a second reading of the one above: phase and length
+// no longer share a classifier fallback and are hydrated as two facets, so one
+// coming back empty says nothing about the other.
+test("test_hydration_leaves_the_length_facet_the_server_omits_at_its_default", async () => {
+  await reset({ facets: SET });
+  await hydratedThenOmitted();
+  assert.deepEqual(nLength.value, []);
 });
 
 test("test_hydration_fills_the_facet_the_server_did_send_when_it_omits_the_rest", async () => {
@@ -156,11 +180,6 @@ test("test_a_failed_hydration_reports_the_sentence_the_server_sent", async () =>
   await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
   await hydrateNarrowing();
   assert.equal(narrowingError.value, "Narrowing is unavailable.");
-});
-
-test("test_a_failed_hydration_does_not_throw", async () => {
-  await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
-  await assert.doesNotReject(() => hydrateNarrowing());
 });
 
 // A facet the user has already touched is theirs: the answer that was in flight
