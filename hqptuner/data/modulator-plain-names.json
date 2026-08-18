@@ -28,8 +28,8 @@
     "ASDM5": {
       "family": "Adaptive",
       "variant": "Fifth order",
-      "leaf": "Standard",
-      "short": "Adaptive · 5th order · Standard"
+      "leaf": "Base",
+      "short": "Adaptive · 5th order · Base"
     },
     "ASDM5EC": {
       "family": "Adaptive",
@@ -100,8 +100,8 @@
     "DSD7": {
       "family": "Fixed",
       "variant": "Seventh order",
-      "leaf": "Standard",
-      "short": "Fixed · 7th order · Standard"
+      "leaf": "Base",
+      "short": "Fixed · 7th order · Base"
     },
     "DSD7 256+fs": {
       "family": "Fixed",
@@ -112,8 +112,8 @@
     "ASDM7": {
       "family": "Adaptive",
       "variant": "Seventh order",
-      "leaf": "Standard",
-      "short": "Adaptive · 7th order · Standard"
+      "leaf": "Base",
+      "short": "Adaptive · 7th order · Base"
     },
     "ASDM7EC": {
       "family": "Adaptive",
@@ -184,8 +184,8 @@
     "AMSDM7 512+fs": {
       "family": "Pseudo multi-bit",
       "variant": "Seventh order",
-      "leaf": "Standard, DSD512+",
-      "short": "Pseudo multi-bit · 7th order · Standard, DSD512+"
+      "leaf": "Base, DSD512+",
+      "short": "Pseudo multi-bit · 7th order · Base, DSD512+"
     },
     "AMSDM7EC 512+fs": {
       "family": "Pseudo multi-bit",
