@@ -63,6 +63,18 @@ function ResetButton() {
   </button>`;
 }
 
+// Global rendering preference, not a narrowing facet — it rides in this card
+// because the switch columns are where the chain-wide toggles live.
+function OptionStyleGroup() {
+  return html`<${SwitchGroup} title="Option style" desc=${OPTION_STYLE_TIP}>
+    <${Segment}
+      value=${plainNames.value ? "simplified" : "standard"}
+      options=${OPTION_STYLE_SEGS}
+      onChange=${(/** @type {string} */ v) => setPlainNames(v === "simplified")}
+    />
+  <//>`;
+}
+
 /**
  * Renders the narrowing card above the filter cards: the facet dropdown row and
  * the two stage switch groups, plus the page-wide pointerdown listener that
@@ -101,10 +113,13 @@ export function NarrowBar({ srcFormat = true, collapse }) {
         <${NarrowFacets} />
       </div>
       <div class="narrow-switchcols">
-        <${SwitchGroup} title="Apodizing filters" desc=${apodTip()}>
-          <${StageSeg} stage="1x" sig=${nApod1x} options=${APOD_SEGS} />
-          <${StageSeg} stage="nx" sig=${nApodNx} options=${APOD_SEGS} />
-        <//>
+        <div class="narrow-groupstack">
+          <${SwitchGroup} title="Apodizing filters" desc=${apodTip()}>
+            <${StageSeg} stage="1x" sig=${nApod1x} options=${APOD_SEGS} />
+            <${StageSeg} stage="nx" sig=${nApodNx} options=${APOD_SEGS} />
+          <//>
+          <${OptionStyleGroup} />
+        </div>
         <span class="col-rule"></span>
         <div class="narrow-groupstack">
           <${SwitchGroup} title="1x sources" desc=${LOSSY_TIP}>
@@ -122,14 +137,6 @@ export function NarrowBar({ srcFormat = true, collapse }) {
               : null
           }
         </div>
-        <span class="col-rule"></span>
-        <${SwitchGroup} title="Option style" desc=${OPTION_STYLE_TIP}>
-          <${Segment}
-            value=${plainNames.value ? "simplified" : "standard"}
-            options=${OPTION_STYLE_SEGS}
-            onChange=${(/** @type {string} */ v) => setPlainNames(v === "simplified")}
-          />
-        <//>
       </div>
       ${narrowingError.value ? html`<div class="field-error">${narrowingError.value}</div>` : null}
     <//>
