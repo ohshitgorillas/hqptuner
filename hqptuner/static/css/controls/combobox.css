@@ -188,14 +188,11 @@
   gap: var(--sp-2);
 }
 /* Raw engine name heading the tip — only rendered while Simplified display
-   hides that name from the row itself (components/Field.js tipsFor). Mono like
-   .t-value: the raw name is an engine token, not prose. Caption size and
-   semibold so it reads as the card's title above the description. */
+   hides that name from the row itself (components/binder.js tipsFor). Same
+   voice as the tip prose under it — size and color inherit from .dd-tip;
+   only the weight marks it as the card's title. */
 .dd-tip-name {
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);
-  color: var(--fg);
 }
 /* Facet block under the prose: label/value rows in the narrow bar's own terms,
    then boolean chips. The hairline belongs to the boundary with the prose, so
