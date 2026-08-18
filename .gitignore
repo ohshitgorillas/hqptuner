@@ -99,3 +99,7 @@ mutants/
 # LaTeX user guide, sources and build alike — it documents the wizard feature
 # and lands when that does
 docs/guide/
+
+# local working data — EQ Lab saves and naming drafts, not repo content
+# (the shipped static data lives in hqptuner/data/)
+/data/
