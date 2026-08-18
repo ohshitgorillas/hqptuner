@@ -7,6 +7,7 @@
 import { runningValue } from "../resolve.js";
 import { optionsFor, grayShapersByRate } from "../options.js";
 import { narrowOptions, narrowCount } from "../narrow/match.js";
+import { decorateOptions } from "../plainnames.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
 
 /**
@@ -46,7 +47,10 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
  */
 function chainOptions(c, raw) {
   const options = c.entry.rateGray ? grayShapersByRate(raw, c.entry.rateGray) : raw;
-  return c.entry.narrow ? narrowOptions(options, c.entry.narrow, c.key) : options;
+  const narrowed = c.entry.narrow ? narrowOptions(options, c.entry.narrow, c.key) : options;
+  // Decoration runs last of all: narrowing and graying join by raw label
+  // (store/plainnames.js) and must never see the transform.
+  return c.entry.plainNames ? decorateOptions(narrowed, c.entry.plainNames) : narrowed;
 }
 
 // The tab's "n/total" label badge, counted off the same RAW (pre-narrow) list

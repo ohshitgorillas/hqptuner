@@ -29,7 +29,7 @@ import {
   nSrcFormat,
 } from "../../store/narrow/state.js";
 import { narrowingError } from "../../store/narrow/persist.js";
-import { notesVisible } from "../../store/prefs.js";
+import { notesVisible, plainNames, setPlainNames } from "../../store/prefs.js";
 import { closeExcept } from "./popover.js";
 import { NarrowFacets } from "./Facets.js";
 import { Segment } from "../controls/index.js";
@@ -37,6 +37,8 @@ import {
   APOD_SEGS,
   LOSSY_SEGS,
   LOSSY_TIP,
+  OPTION_STYLE_SEGS,
+  OPTION_STYLE_TIP,
   SRC_FORMAT_SEGS,
   SRC_FORMAT_TIP,
   StageSeg,
@@ -120,6 +122,14 @@ export function NarrowBar({ srcFormat = true, collapse }) {
               : null
           }
         </div>
+        <span class="col-rule"></span>
+        <${SwitchGroup} title="Option style" desc=${OPTION_STYLE_TIP}>
+          <${Segment}
+            value=${plainNames.value ? "simplified" : "standard"}
+            options=${OPTION_STYLE_SEGS}
+            onChange=${(/** @type {string} */ v) => setPlainNames(v === "simplified")}
+          />
+        <//>
       </div>
       ${narrowingError.value ? html`<div class="field-error">${narrowingError.value}</div>` : null}
     <//>

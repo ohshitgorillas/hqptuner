@@ -130,7 +130,7 @@
     },
     "apodizing": {
       "label": "Apodizing",
-      "tooltip": "For PCM source content, HQPlayer can detect need for an apodizing filter. This is based on detected errors that originate from the recording ADC or mastering tools. Every time such occasion is detected in source content, the counter is incremented. When such content is detected, especially with higher counts, use of apodizing filter is recommended. Apodizing filter should be used at least when \"Apod\" counter increments to higher than 10 during any single track. This detection is not absolute, but can be used as guidance to decide when non-apodizing filter shouldn't be used. There is no harm in using apodizing filter for content that doesn't need one. But there is harm using non-apodizing filter for content that would need one.",
+      "tooltip": "The need for an apodizing filter is based on detected errors that originate from the recording ADC or mastering tools. Apodizing filter should be used at least when \"Apod\" counter increments to higher than 10 during any single track. There is no harm in using apodizing filter for content that doesn't need one. But there is harm using non-apodizing filter for content that would need one.",
       "source": "manual §2.6"
     },
     "channels": {

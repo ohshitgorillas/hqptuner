@@ -93,6 +93,19 @@
   white-space: nowrap;
   cursor: pointer;
 }
+/* Plain-names group headers (Simplified option style): presentation-only rows
+   the component never highlights and keyboard navigation skips. Text size and
+   colour come from the t-label / t-caption role classes (typography.css);
+   these rules carry only the row box — a family head clears its group with
+   top padding, a variant subhead steps one indent in. */
+.dd-hdr {
+  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+  white-space: nowrap;
+}
+.dd-subhdr {
+  padding-top: var(--sp-1);
+  padding-left: var(--sp-3);
+}
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */
 .dd-fav {

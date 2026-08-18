@@ -217,4 +217,4 @@ packages = [
 # a wheel install has no frontend to serve and no filter/shaper prose to join
 # against the live enumerations. Dev-only members of data/ (engine-enums.json,
 # the capture reference) are excluded by the glob.
-hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json"]
+hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json"]

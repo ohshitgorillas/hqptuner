@@ -13,6 +13,7 @@ import { describe, selectionDescription, optionDescription, selectedLabel } from
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/narrow/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrow/match.js";
+import { decorateOptions, plainClosedLabel } from "../store/plainnames.js";
 import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
@@ -220,6 +221,9 @@ function fieldOptions(entry, key, raw) {
   // selected output device announced it can carry (store/narrow/devicecaps.js).
   if (entry.deviceGray === "mode") options = grayModesByDevice(options);
   else if (entry.deviceGray) options = grayRatesByDevice(options, entry.deviceGray);
+  // Decoration runs last of all: narrowing and graying join by raw label
+  // (store/plainnames.js) and must never see the transform.
+  if (entry.plainNames) options = decorateOptions(options, entry.plainNames);
   return options;
 }
 
@@ -241,11 +245,15 @@ function narrowBadge(entry, key, raw) {
 // the current selection off the list the widget renders, and the control still
 // has to name what is selected rather than fall back to the raw value.
 /**
+ * @param {FieldEntry} entry
  * @param {string} key
  * @param {FieldOptions} raw
  * @returns {string}
  */
-const valueLabel = (key, raw) => selectedLabel(raw, effective(key));
+function valueLabel(entry, key, raw) {
+  const label = selectedLabel(raw, effective(key));
+  return entry.plainNames ? plainClosedLabel(entry.plainNames, label) : label;
+}
 
 // A grayed control names WHY, visibly — the reason renders as a caption
 // appended after the manual note (user decision; hover-only reasons
@@ -369,7 +377,7 @@ export function Field({ k }) {
         <${W}
           value=${controlValue(entry, k)}
           options=${options}
-          valueLabel=${valueLabel(k, raw)}
+          valueLabel=${valueLabel(entry, k, raw)}
           tips=${tipsFor(entry, meta)}
           fav=${fav}
           onFav=${onFav}

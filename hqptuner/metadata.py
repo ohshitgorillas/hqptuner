@@ -14,13 +14,17 @@ class StaticMetadata:
     """The hand-written prose about filters, shapers and settings that the engine does not report."""
 
     def __init__(self, data_dir: Path):
-        """Load ``filters.json``, ``shapers.json`` and ``settings.json`` from ``data_dir`` and hold them in memory.
+        """Load the metadata JSON — filters, shapers, settings, plain names — from ``data_dir`` and hold it in memory.
 
         Read once at startup: the files ship with the application and never change under a running process.
         """
         self._filters_db: dict[str, Any] = json.loads((data_dir / "filters.json").read_text())
         self._shapers_db: dict[str, Any] = json.loads((data_dir / "shapers.json").read_text())
         self._settings_db: dict[str, Any] = json.loads((data_dir / "settings.json").read_text())
+        self._plain_names: dict[str, Any] = {
+            key: json.loads((data_dir / f"{stem}-plain-names.json").read_text())[key]
+            for key, stem in (("filters", "filter"), ("dithers", "dither"), ("modulators", "modulator"))
+        }
 
     @property
     def raw(self) -> dict[str, Any]:
@@ -32,6 +36,7 @@ class StaticMetadata:
             "filters": self._filters_db,
             "shapers": self._shapers_db,
             "settings": self._settings_db,
+            "plain_names": self._plain_names,
         }
 
     def filter_entry(self, name: str) -> dict[str, Any] | None:
