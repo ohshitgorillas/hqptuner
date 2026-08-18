@@ -135,6 +135,13 @@
   font-weight: var(--fw-semibold);
   color: var(--fg);
 }
+/* Group blurb: one caption line under a family header or variant subheader
+   (t-caption role, typography.css). Not sticky — it introduces the group and
+   scrolls away under the header once the list moves. */
+.dd-blurb {
+  padding: 0 var(--sp-2) var(--sp-1);
+  max-width: var(--measure);
+}
 /* One indentation step per level: bare rows and variant containers step in
    under their family header, option rows step in again under their variant.
    Horizontal margins, so the sticky subheader's paint starts at its own

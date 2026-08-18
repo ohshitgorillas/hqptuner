@@ -4,6 +4,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Simplified filter dropdowns caption every family and variant.** A one-line blurb under each header says what the group means in plain words, so picking Gaussian or Half-band no longer requires knowing the terms; wording drawn from HQPlayer's own filter descriptions.
+
+### Changed
+
+- **The "Adaptive taps" wording in Simplified filter names now reads "Adaptive length".**
+
 ## [1.9.0] — 2026-08-18
 
 ### Added

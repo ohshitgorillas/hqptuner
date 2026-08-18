@@ -21,10 +21,14 @@ class StaticMetadata:
         self._filters_db: dict[str, Any] = json.loads((data_dir / "filters.json").read_text())
         self._shapers_db: dict[str, Any] = json.loads((data_dir / "shapers.json").read_text())
         self._settings_db: dict[str, Any] = json.loads((data_dir / "settings.json").read_text())
-        self._plain_names: dict[str, Any] = {
-            key: json.loads((data_dir / f"{stem}-plain-names.json").read_text())[key]
-            for key, stem in (("filters", "filter"), ("dithers", "dither"), ("modulators", "modulator"))
-        }
+        self._plain_names: dict[str, Any] = {}
+        for key, stem in (("filters", "filter"), ("dithers", "dither"), ("modulators", "modulator")):
+            doc = json.loads((data_dir / f"{stem}-plain-names.json").read_text())
+            self._plain_names[key] = {
+                "entries": doc[key],
+                "families": doc.get("families", {}),
+                "variants": doc.get("variants", {}),
+            }
 
     @property
     def raw(self) -> dict[str, Any]:

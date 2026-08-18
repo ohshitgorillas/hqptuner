@@ -9,25 +9,28 @@ import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
 
 /**
  * @typedef {SchemaOption & { disabled?: boolean, reason?: string, display?: string,
- *   closedLabel?: string, group?: string, subgroup?: string | null }} RenderOption
+ *   closedLabel?: string, group?: string, subgroup?: string | null,
+ *   groupBlurb?: string, subgroupBlurb?: string }} RenderOption
  *   One row as it reaches this widget. Wider than either shared type: Field.js
  *   forwards a schema literal's SchemaOption list unchanged when the entry
  *   carries `options`, and an OptionItem from the option stores when it carries
  *   `optionsFrom` — so disabled/reason are present on one path only. The
  *   display/closedLabel/group/subgroup fields ride in from the plain-names
  *   decoration (store/plainnames.js) and are absent in Standard mode.
- * @typedef {{ o: RenderOption, oi: number } | { header: string, sub: boolean }} ListRow
+ * @typedef {{ o: RenderOption, oi: number } | { header: string, sub: boolean, blurb?: string }} ListRow
  *   One rendered row of the open pop: an option (with its index in `options`),
- *   or a family/variant header. Headers are presentation only — never
- *   selectable, never committable, skipped by keyboard navigation.
+ *   or a family/variant header with its optional blurb caption. Headers are
+ *   presentation only — never selectable, never committable, skipped by
+ *   keyboard navigation.
  * @typedef {{ r: { o: RenderOption, oi: number }, i: number }} Slot
  *   One option row with its index in the flat row list — the index domain hl,
  *   selIdx and the aria ids live in, whatever the DOM nesting.
- * @typedef {{ head: string, items: Slot[] }} VGroup
- *   A variant's subheader and its option rows, one nested container.
- * @typedef {{ head: string, kids: (Slot | VGroup)[] }} FGroup
- *   A family's header, its bare option rows and its variant groups, one nested
- *   container.
+ * @typedef {{ head: string, blurb?: string, items: Slot[] }} VGroup
+ *   A variant's subheader, its optional blurb caption and its option rows, one
+ *   nested container.
+ * @typedef {{ head: string, blurb?: string, kids: (Slot | VGroup)[] }} FGroup
+ *   A family's header, its optional blurb caption, its bare option rows and
+ *   its variant groups, one nested container.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {{ name: string, text: string, rows: [string, string][], chips: string[] }} TipContent
@@ -70,11 +73,11 @@ function buildRows(opts) {
   opts.forEach((o, oi) => {
     if (o.group != null) {
       if (o.group !== g) {
-        rows.push({ header: o.group, sub: false });
+        rows.push({ header: o.group, sub: false, blurb: o.groupBlurb });
         g = o.group;
         sg = null;
       }
-      if (o.subgroup != null && o.subgroup !== sg) rows.push({ header: o.subgroup, sub: true });
+      if (o.subgroup != null && o.subgroup !== sg) rows.push({ header: o.subgroup, sub: true, blurb: o.subgroupBlurb });
       sg = o.subgroup == null ? null : o.subgroup;
     } else {
       g = null;
@@ -110,10 +113,10 @@ function nestRows(rows) {
   rows.forEach((r, i) => {
     if (!("o" in r)) {
       if (r.sub && g) {
-        v = { head: r.header, items: [] };
+        v = { head: r.header, blurb: r.blurb, items: [] };
         g.kids.push(v);
       } else if (!r.sub) {
-        g = { head: r.header, kids: [] };
+        g = { head: r.header, blurb: r.blurb, kids: [] };
         v = null;
         top.push(g);
       }
@@ -251,6 +254,7 @@ function renderKid(k, row) {
   if (!("items" in k)) return html`<${OptionRow} o=${k.r.o} i=${k.i} row=${row} />`;
   return html`<div class="dd-vgrp">
     <div class="dd-hdr dd-subhdr" role="presentation">${k.head}</div>
+    ${k.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${k.blurb}</div>` : null}
     ${k.items.map((it) => renderKid(it, row))}
   </div>`;
 }
@@ -269,6 +273,7 @@ function renderRows(rows, row) {
     "kids" in n
       ? html`<div class="dd-grp">
           <div class="dd-hdr t-head" role="presentation">${n.head} family</div>
+          ${n.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${n.blurb}</div>` : null}
           ${n.kids.map((k) => renderKid(k, row))}
         </div>`
       : renderKid(n, row),
