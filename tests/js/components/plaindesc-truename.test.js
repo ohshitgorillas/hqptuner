@@ -2,17 +2,21 @@
 // name (spec plain-desc-truename): with the pref ON and a selection the
 // plain-names overlay knows, the field's `.field-desc` line carries a child
 // element classed `field-desc-name` reading the raw engine name ahead of the
-// description prose, and a known option's tip markup carries the raw name in a
-// `dd-tip-name` element ahead of its `.dd-tip-desc` prose. Standard mode and
-// overlay-unknown names render neither element.
+// description prose, and a known option's tip carries the raw name. Standard
+// mode and overlay-unknown names surface neither.
 //
 // Fixtures ride the field harness the plain-names suites use
 // (tests/js/components/combobox-plainnames.test.js): the overlay arrives on the
 // /api/metadata payload (`plain_names`), the pref is the exported signal, and
-// everything is read off the SSR-rendered Field. The spec's "tip markup" is
-// read off that same rendered output; if an implementation renders tips only in
-// the pointer-opened popup, these cases cannot see them — a reachability
-// question for the orchestrator, noted rather than papered over.
+// the field-desc block is read off the SSR-rendered Field. The TIP is pinned
+// through the public resolver instead — tipsFor(entry, meta)'s TipContent now
+// leads with `name`, the raw engine name for a Simplified overlay-known option
+// and "" otherwise — because the tip markup (.dd-tip-name/.dd-tip-desc) mounts
+// only while the pop is open with a highlighted option, which SSR of a closed
+// field never reaches (docs/testing.md "Branches that cannot be reached").
+// Deliberate gap, adjudicated: the DOM ordering of .dd-tip-name before
+// .dd-tip-desc is unreachable here and is left to the browser hand-back
+// protocol.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. Elements are found by class token via the shared markup scanner;
@@ -23,6 +27,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { schema } from "../../../hqptuner/static/store/schema.js";
 import { reset, field, META } from "../support/field-harness.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
@@ -105,25 +110,44 @@ test("test_simplified_on_the_name_precedes_the_description_prose_in_the_field_de
   assert.equal(oneByClass(desc, "field-desc-name").start < prose, true);
 });
 
-// --- simplified ON, a known option's tip --------------------------------------
+// --- the option tip, through the public resolver ------------------------------
 
-test("test_simplified_on_a_known_options_tip_name_reads_the_raw_engine_name", async () => {
-  assert.equal(text(oneByClass(await oneOptionField(), "dd-tip-name")), "sinc-M");
+// tipsFor lives in components/binder.js (the file-length extraction out of
+// Field.js); the specifier is built rather than literal because a checkout
+// that predates the extraction has no such file on disk, which `tsc -p
+// jsconfig.json` refuses as a literal (TS2307) — same convention as the
+// plain-names suite's fresh-instance specifiers.
+const BINDER = new URL("../../../hqptuner/static/components/binder.js", import.meta.url).href;
+
+/**
+ * One filter option's TipContent under a seeded overlay and pref — the same
+ * resolver route the facet-tip suite drives, throwing (not asserting) when the
+ * entry yields no resolver so the one assert stays at the call site.
+ *
+ * @param {{ plain?: boolean, label?: string }} [state]
+ * @returns {Promise<{ name: string }>}
+ */
+async function filterTip({ plain = true, label = "sinc-M" } = {}) {
+  const { tipsFor } = await import(`${BINDER}`);
+  await reset({ meta: META_PLAIN });
+  plainNames.value = plain;
+  const tip = tipsFor(schema.pcm_filter_1x, META.settings.dsp.filter_1x);
+  if (!tip) throw new Error("expected a tip resolver for the 1x filter entry");
+  return tip({ value: "0", label });
+}
+
+test("test_simplified_on_a_known_options_tip_name_is_the_raw_engine_name", async () => {
+  assert.equal((await filterTip()).name, "sinc-M");
 });
 
-test("test_simplified_on_the_tip_name_precedes_the_tip_desc_prose_element", async () => {
-  const out = await oneOptionField();
-  assert.equal(oneByClass(out, "dd-tip-name").start < oneByClass(out, "dd-tip-desc").start, true);
-});
-
-// --- standard mode: neither element renders anywhere --------------------------
+// --- standard mode: neither surface carries the name --------------------------
 
 test("test_standard_mode_renders_no_field_desc_name_element", async () => {
   assert.deepEqual(byClass(await oneOptionField({ plain: false }), "field-desc-name"), []);
 });
 
-test("test_standard_mode_renders_no_dd_tip_name_element", async () => {
-  assert.deepEqual(byClass(await oneOptionField({ plain: false }), "dd-tip-name"), []);
+test("test_standard_mode_a_known_options_tip_name_is_empty", async () => {
+  assert.equal((await filterTip({ plain: false })).name, "");
 });
 
 // --- simplified ON, selection the overlay does not know -----------------------
@@ -132,6 +156,6 @@ test("test_simplified_on_an_unknown_selection_renders_no_field_desc_name_element
   assert.deepEqual(byClass(await oneOptionField({ label: "poly-sinc-xtr-mp" }), "field-desc-name"), []);
 });
 
-test("test_simplified_on_an_unknown_options_tip_renders_no_dd_tip_name_element", async () => {
-  assert.deepEqual(byClass(await oneOptionField({ label: "poly-sinc-xtr-mp" }), "dd-tip-name"), []);
+test("test_simplified_on_an_unknown_options_tip_name_is_empty", async () => {
+  assert.equal((await filterTip({ label: "poly-sinc-xtr-mp" })).name, "");
 });

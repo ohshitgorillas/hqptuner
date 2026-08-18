@@ -32,7 +32,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { filterTipFacets } from "../../../hqptuner/static/components/narrowbar/facettip.js";
-import { tipsFor } from "../../../hqptuner/static/components/Field.js";
+import { tipsFor } from "../../../hqptuner/static/components/binder.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 import { reset, META } from "../support/field-harness.js";
@@ -427,19 +427,24 @@ test("test_a_filter_absent_from_the_facet_map_keeps_its_manual_prose_text", asyn
 test("test_a_dither_option_tip_is_prose_only", async () => {
   await reset();
   const tip = resolver(schema.pcm_dither, SHAPER_META);
-  assert.deepEqual(tip({ value: "0", label: "TPDF" }), { text: "Triangular dither.", rows: [], chips: [] });
+  assert.deepEqual(tip({ value: "0", label: "TPDF" }), { name: "", text: "Triangular dither.", rows: [], chips: [] });
 });
 
 test("test_a_modulator_option_tip_is_prose_only", async () => {
   await reset();
   const tip = resolver(schema.sdm_modulator, SHAPER_META);
-  assert.deepEqual(tip({ value: "0", label: "ASDM7" }), { text: "Seventh order modulator.", rows: [], chips: [] });
+  assert.deepEqual(tip({ value: "0", label: "ASDM7" }), {
+    name: "",
+    text: "Seventh order modulator.",
+    rows: [],
+    chips: [],
+  });
 });
 
 test("test_a_config_desc_option_tip_is_prose_only", async () => {
   await reset();
   const tip = resolver(schema.sdm_integrator, INTEGRATOR_META);
-  assert.deepEqual(tip({ value: "1", label: "Slow" }), { text: "Slow integrator.", rows: [], chips: [] });
+  assert.deepEqual(tip({ value: "1", label: "Slow" }), { name: "", text: "Slow integrator.", rows: [], chips: [] });
 });
 
 // ============================================================================
