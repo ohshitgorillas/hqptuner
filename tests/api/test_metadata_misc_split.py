@@ -113,7 +113,12 @@ def test_no_entry_of_an_unvarianted_family_carries_a_variant(api_client: TestCli
 
 @pytest.mark.parametrize("family", NEW_FAMILIES)
 def test_a_new_family_contributes_no_variant_blurb(api_client: TestClient, family: str) -> None:
-    assert [pair for pair in _filter_variant_blurbs(api_client) if pair.split("|")[0] == family] == []
+    # A family serving no entries at all would pass this vacuously — the blurb
+    # is absent because the family is — so its absence is itself a violation.
+    served = [entry for entry in _filter_entries(api_client).values() if entry["family"] == family]
+    violations = [pair for pair in _filter_variant_blurbs(api_client) if pair.split("|")[0] == family]
+    violations += [] if served else [f"{family} serves no entries"]
+    assert violations == []
 
 
 # --- ordering and uniqueness -------------------------------------------------
@@ -131,3 +136,11 @@ def test_the_filter_families_first_appear_in_the_approved_order(api_client: Test
 def test_every_filter_short_title_is_unique(api_client: TestClient) -> None:
     shorts = [entry["short"] for entry in _filter_entries(api_client).values()]
     assert sorted(set(cast("list[str]", shorts))) == sorted(cast("list[str]", shorts))
+
+
+def test_the_analog_style_family_serves_steep_before_very_steep(api_client: TestClient) -> None:
+    # Within a family the gentler row comes first, the same shape the length
+    # groups ascend in: IIR2 reads "Steep", IIR reads "Very steep".
+    wanted = ["IIR2", "IIR"]
+    served = [name for name in _filter_entries(api_client) if name in wanted]
+    assert served == wanted
