@@ -197,7 +197,10 @@ const between = (out, a, b) => elements(out).filter((el) => el.start >= endOf(a)
 test("test_a_family_blurb_renders_between_the_family_header_and_its_first_content", async () => {
   const out = await filterField();
   const cap = readingExactly(out, GAUSS_BLURB);
-  assert.equal(readingExactly(out, "Gauss family").start < cap.start && cap.start < readingExactly(out, "Zed tap").start, true);
+  assert.equal(
+    readingExactly(out, "Gauss family").start < cap.start && cap.start < readingExactly(out, "Zed tap").start,
+    true,
+  );
 });
 
 // Sinc holds a single null-variant option; its blurb still renders between the
@@ -205,13 +208,19 @@ test("test_a_family_blurb_renders_between_the_family_header_and_its_first_conten
 test("test_a_null_variant_familys_blurb_renders_before_its_first_option_row", async () => {
   const out = await filterField();
   const cap = readingExactly(out, SINC_BLURB);
-  assert.equal(readingExactly(out, "Sinc family").start < cap.start && cap.start < rowIncluding(out, "Classic M").start, true);
+  assert.equal(
+    readingExactly(out, "Sinc family").start < cap.start && cap.start < rowIncluding(out, "Classic M").start,
+    true,
+  );
 });
 
 test("test_a_variant_blurb_renders_between_the_subheader_and_the_variants_first_row", async () => {
   const out = await filterField();
   const cap = readingExactly(out, ZED_BLURB);
-  assert.equal(readingExactly(out, "Zed tap").start < cap.start && cap.start < rowIncluding(out, "Zeta pick").start, true);
+  assert.equal(
+    readingExactly(out, "Zed tap").start < cap.start && cap.start < rowIncluding(out, "Zeta pick").start,
+    true,
+  );
 });
 
 test("test_a_family_blurb_caption_is_not_an_option_row", async () => {
