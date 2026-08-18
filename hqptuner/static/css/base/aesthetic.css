@@ -57,7 +57,11 @@ input,
    .multi-pop is absent for a different reason: it already spends box-shadow on
    --shadow-pop, and this rule loads after narrowing.css, so it would replace
    the popover's lift instead of adding to it. Its edge light is written into
-   that rule itself, where both shadows can sit in one value. */
+   that rule itself, where both shadows can sit in one value.
+
+   .dd-hdr is absent for a third reason: a sticky dropdown header repaints the
+   pop's OWN surface so rows scroll under it — occlusion, not elevation. It is
+   not raised above the pop, and a lit top lip mid-list would read as a seam. */
 .card-head,
 .btn,
 .chip,

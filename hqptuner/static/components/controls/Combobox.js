@@ -3,8 +3,9 @@
 // knowledge, value/options in, onChange(value) out on commit only. Optional
 // fav(o)/onFav(o) pair adds a per-row favorite star (filter dropdowns); star
 // clicks toggle only, never commit.
-import { useRef, useState, useEffect, useLayoutEffect } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { html } from "../../lib/dom.js";
+import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
 
 /**
  * @typedef {SchemaOption & { disabled?: boolean, reason?: string, display?: string,
@@ -19,6 +20,14 @@ import { html } from "../../lib/dom.js";
  *   One rendered row of the open pop: an option (with its index in `options`),
  *   or a family/variant header. Headers are presentation only — never
  *   selectable, never committable, skipped by keyboard navigation.
+ * @typedef {{ r: { o: RenderOption, oi: number }, i: number }} Slot
+ *   One option row with its index in the flat row list — the index domain hl,
+ *   selIdx and the aria ids live in, whatever the DOM nesting.
+ * @typedef {{ head: string, items: Slot[] }} VGroup
+ *   A variant's subheader and its option rows, one nested container.
+ * @typedef {{ head: string, kids: (Slot | VGroup)[] }} FGroup
+ *   A family's header, its bare option rows and its variant groups, one nested
+ *   container.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {{ text: string, rows: [string, string][], chips: string[] }} TipContent
@@ -80,6 +89,45 @@ function buildRows(opts) {
  */
 const rowOption = (row) => (row && "o" in row ? row.o : undefined);
 
+// Fold the flat row list into nested family/variant containers for display —
+// a family header owns its group, a variant subheader its subgroup, so each
+// can stick to the pop's top while its own rows scroll under it. Indices stay
+// in the flat row domain; only the DOM nests. Unknown and Standard-mode rows
+// (no group) stay at the top level.
+/**
+ * @param {ListRow[]} rows
+ * @returns {(Slot | FGroup)[]}
+ */
+function nestRows(rows) {
+  /** @type {(Slot | FGroup)[]} */
+  const top = [];
+  /** @type {FGroup | null} */
+  let g = null;
+  /** @type {VGroup | null} */
+  let v = null;
+  rows.forEach((r, i) => {
+    if (!("o" in r)) {
+      if (r.sub && g) {
+        v = { head: r.header, items: [] };
+        g.kids.push(v);
+      } else if (!r.sub) {
+        g = { head: r.header, kids: [] };
+        v = null;
+        top.push(g);
+      }
+      return;
+    }
+    if (r.o.group == null) {
+      g = null;
+      v = null;
+    } else if (r.o.subgroup == null) {
+      v = null; // a bare-family row after a variant group leaves the subgroup
+    }
+    (v ? v.items : g ? g.kids : top).push({ r, i });
+  });
+  return top;
+}
+
 // An option row's visible text: the plain-names display when the option
 // carries one, else the raw label; a disabled row appends its reason.
 /**
@@ -87,61 +135,6 @@ const rowOption = (row) => (row && "o" in row ? row.o : undefined);
  * @returns {string}
  */
 const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}`;
-
-// Fixed-position placement, all coordinates from getBoundingClientRect. Flip
-// above the button only when below can't fit the natural height AND above is
-// roomier; cap to the chosen side minus an 8px viewport margin.
-/**
- * @param {HTMLElement} b the trigger button
- * @param {HTMLElement} p the pop
- */
-function placePop(b, p) {
-  const br = b.getBoundingClientRect();
-  p.style.minWidth = `${br.width}px`;
-  p.style.maxHeight = ""; // natural height first, then cap for the chosen side
-  const natural = p.offsetHeight;
-  const below = window.innerHeight - br.bottom - 4;
-  const above = br.top - 4;
-  const up = natural > below - 8 && above > below;
-  const maxH = Math.min(natural, (up ? above : below) - 8);
-  p.style.maxHeight = `${maxH}px`;
-  p.style.top = `${up ? br.top - 4 - maxH : br.bottom + 4}px`;
-  const left = Math.min(br.left, window.innerWidth - 8 - p.getBoundingClientRect().width);
-  p.style.left = `${Math.max(8, left)}px`;
-}
-
-// Keep the highlighted row inside the pop's own scrollport by writing
-// scrollTop directly. Never scrollIntoView: Safari honours it by scrolling
-// every scrollable ancestor — the document included — which shifts the page
-// under a fixed-position pop and detaches it from its button.
-/**
- * @param {HTMLElement} p the pop
- * @param {Element} row the highlighted row
- */
-function revealRow(p, row) {
-  // Rect deltas, not offsetTop arithmetic — offset coordinates and
-  // clientHeight disagree by the pop's padding and the row ends up clipped.
-  const pr = p.getBoundingClientRect();
-  const rr = row.getBoundingClientRect();
-  if (rr.top < pr.top) p.scrollTop += rr.top - pr.top;
-  else if (rr.bottom > pr.bottom) p.scrollTop += rr.bottom - pr.bottom;
-}
-
-// Tip sits beside the highlighted row: right of the pop, or left when the
-// right edge would leave the viewport; bottom clamped inside the viewport.
-/**
- * @param {HTMLElement} t the tip
- * @param {HTMLElement} p the pop
- * @param {Element} row the highlighted row
- */
-function placeTip(t, p, row) {
-  const pr = p.getBoundingClientRect();
-  const tr = t.getBoundingClientRect();
-  const tl = pr.right + 8 + tr.width > window.innerWidth - 8 ? pr.left - tr.width - 8 : pr.right + 8;
-  t.style.left = `${tl}px`;
-  t.style.top = `${Math.min(row.getBoundingClientRect().top, window.innerHeight - 8 - tr.height)}px`;
-  t.style.visibility = "visible";
-}
 
 // The pop is hidden-not-unmounted: SSR and tests render the closed state, and
 // effects never run there, so nothing in render may touch window/document.
@@ -201,64 +194,6 @@ function comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit }
   };
 }
 
-// Close on outside pointerdown (not blur — a click in the pop must survive), on
-// any scroll outside the pop, and on resize. Listeners exist only while open;
-// scroll is capture-phase since scroll events don't bubble.
-/**
- * @param {{ open: boolean, setOpen: (v: boolean) => void, btnRef: ElRef, popRef: ElRef }} ctx
- */
-function useDismissOnOutside({ open, setOpen, btnRef, popRef }) {
-  useEffect(() => {
-    if (!open) return undefined;
-    /** @param {Node} t */
-    const inside = (t) =>
-      (btnRef.current && btnRef.current.contains(t)) || (popRef.current && popRef.current.contains(t));
-    // `target` is the element the gesture landed on — a Node, though the DOM
-    // lib types it as the wider EventTarget.
-    /** @param {Event} e */
-    const down = (e) => !inside(/** @type {Node} */ (e.target)) && setOpen(false);
-    /** @param {Event} e */
-    const scroll = (e) =>
-      !(popRef.current && popRef.current.contains(/** @type {Node} */ (e.target))) && setOpen(false);
-    const resize = () => setOpen(false);
-    document.addEventListener("pointerdown", down, true);
-    window.addEventListener("scroll", scroll, true);
-    window.addEventListener("resize", resize);
-    return () => {
-      document.removeEventListener("pointerdown", down, true);
-      window.removeEventListener("scroll", scroll, true);
-      window.removeEventListener("resize", resize);
-    };
-  }, [open]);
-}
-
-// Placement work, split by what it depends on. The pop is measured and placed on
-// OPEN only: re-running placement on highlight changes destroys the user's
-// scroll position, since the maxHeight reset for re-measurement clamps scrollTop
-// and warps the list back to the selection on every hover. Per-highlight work
-// reveals the row only for keyboard moves — a hovered row is already visible —
-// and places the tip. Layout effects, so both land before the frame paints; they
-// do not run under SSR.
-/**
- * @param {{ open: boolean, hl: number, tipKey: string, byKey: { current: boolean },
- *   btnRef: ElRef, popRef: ElRef, tipRef: ElRef }} ctx
- */
-function usePopPlacement({ open, hl, tipKey, byKey, btnRef, popRef, tipRef }) {
-  useLayoutEffect(() => {
-    if (!open) return;
-    if (btnRef.current && popRef.current) placePop(btnRef.current, popRef.current);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    const p = popRef.current;
-    const row = p && p.children[hl];
-    if (!row) return;
-    if (byKey.current) revealRow(p, row);
-    if (tipRef.current) placeTip(tipRef.current, p, row);
-  }, [open, hl, tipKey]);
-}
-
 // One option in the pop. `row` is the shared context the whole list draws from:
 // which index is highlighted and which is selected, the id prefix the button's
 // aria-activedescendant points at, the favorite wiring, and the two writers.
@@ -301,6 +236,41 @@ function OptionRow({ o, i, row }) {
       }
     </div>
   `;
+}
+
+// One node of the nested pop body: an option row, or a variant container —
+// subheader plus its rows.
+/**
+ * @param {Slot | VGroup} k
+ * @param {RowCtx} row
+ * @returns {ReturnType<typeof html>}
+ */
+function renderKid(k, row) {
+  if (!("items" in k)) return html`<${OptionRow} o=${k.r.o} i=${k.i} row=${row} />`;
+  return html`<div class="dd-vgrp">
+    <div class="dd-hdr dd-subhdr t-value" role="presentation">${k.head}</div>
+    ${k.items.map((it) => renderKid(it, row))}
+  </div>`;
+}
+
+// The pop's body: family containers holding their headers, bare rows and
+// variant containers in Simplified mode; a flat option list otherwise. The
+// family header appends the word "family" (uppercased by CSS, so it reads
+// e.g. CLOSED FORM FAMILY).
+/**
+ * @param {ListRow[]} rows
+ * @param {RowCtx} row
+ * @returns {ReturnType<typeof html>[]}
+ */
+function renderRows(rows, row) {
+  return nestRows(rows).map((n) =>
+    "kids" in n
+      ? html`<div class="dd-grp">
+          <div class="dd-hdr t-head" role="presentation">${n.head} family</div>
+          ${n.kids.map((k) => renderKid(k, row))}
+        </div>`
+      : renderKid(n, row),
+  );
 }
 
 // The highlighted option's tip, or null when the pop is closed, the widget has
@@ -390,7 +360,7 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   const onKey = comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit });
   useDismissOnOutside({ open, setOpen, btnRef, popRef });
 
-  usePopPlacement({ open, hl, tipKey, byKey, btnRef, popRef, tipRef });
+  usePopPlacement({ open, hl, id, tipKey, byKey, btnRef, popRef, tipRef });
 
   // A narrowed dropdown can drop the current selection off its own list
   // (store/narrow/state.js); the closed control still has to name that selection,
@@ -414,11 +384,7 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
       ${label}
     </button>
     <div class="dd-pop" role="listbox" hidden=${!open} ref=${popRef} title="">
-      ${rows.map((r, i) =>
-        "o" in r
-          ? html`<${OptionRow} o=${r.o} i=${i} row=${row} />`
-          : html`<div class=${r.sub ? "dd-hdr dd-subhdr t-caption" : "dd-hdr t-label"} role="presentation">${r.header}</div>`,
-      )}
+      ${renderRows(rows, row)}
     </div>
     ${tip ? html`<${TipPop} tip=${tip} tipRef=${tipRef} />` : null}
   `;

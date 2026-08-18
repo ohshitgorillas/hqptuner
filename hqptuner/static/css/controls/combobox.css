@@ -104,18 +104,43 @@
   white-space: nowrap;
   cursor: pointer;
 }
-/* Plain-names group headers (Simplified option style): presentation-only rows
-   the component never highlights and keyboard navigation skips. Text size and
-   colour come from the t-label / t-caption role classes (typography.css);
-   these rules carry only the row box — a family head clears its group with
-   top padding, a variant subhead steps one indent in. */
+/* Plain-names group containers and headers (Simplified option style): a family
+   container (.dd-grp) wraps its header, bare rows and variant containers; a
+   variant container (.dd-vgrp) wraps its subheader and its rows. Headers are
+   presentation-only rows the component never highlights and keyboard
+   navigation skips. Both stick to the pop's top edge while their own rows
+   scroll under — family header topmost, variant subheader right below it — so
+   a long list always names the group you are in. Text roles come from
+   typography.css (family = t-head, variant = t-value); the shared fixed height
+   makes the subheader's sticky offset exactly one header. The sticky repaint
+   of --surface-raised is occlusion of the pop's own surface, not elevation, so
+   it carries no edge light (see aesthetic.css). */
 .dd-hdr {
-  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+  display: flex;
+  align-items: center;
+  height: var(--sp-5);
+  padding: 0 var(--sp-2);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
 }
 .dd-subhdr {
-  padding-top: var(--sp-1);
-  padding-left: var(--sp-3);
+  top: var(--sp-5);
+  z-index: 1;
+  font-weight: var(--fw-semibold);
+}
+/* One indentation step per level: bare rows and variant containers step in
+   under their family header, option rows step in again under their variant.
+   Horizontal margins, so the sticky subheader's paint starts at its own
+   indent and the rows visibly nest inside it. */
+.dd-grp > .dd-opt,
+.dd-vgrp {
+  margin-left: var(--sp-3);
+}
+.dd-vgrp .dd-opt {
+  margin-left: var(--sp-3);
 }
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */
