@@ -187,13 +187,14 @@
   opacity: 1;
 }
 
-/* Where the block lands on release. The stack holds still through the whole
-   drag, so this line is the only thing that moves and the only thing that has
-   to be read — a rail the width of the column, in the accent that marks every
-   other live target on the page. */
+/* Where the block lands on release. The blocks keep their order through the
+   whole drag, so this rail is the only thing that moves and the only thing that
+   has to be read, in the accent that marks every other live target on the page.
+   It is a flex item like the blocks are, so it takes one slot of the stack's own
+   gap: the blocks below the target shift by that much while a drag is running,
+   which is a constant, not the thrash of a list reordering under the pointer. */
 .live-drop-line {
   height: 2px;
-  margin: calc(var(--sp-1) * -1) 0;
   background: var(--accent);
 }
 
