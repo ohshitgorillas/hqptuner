@@ -58,6 +58,13 @@
 .field.compact-lg .dd-box {
   width: var(--w-select-lg);
 }
+/* Simplified option style: plain closed labels run to ~55 characters, far past
+   what the compact widths were sized for, so a plain-annotated field takes the
+   full form width while the pref is on. Must sit after the compact rules —
+   equal specificity, source order decides. */
+.field.plain .dd-box {
+  width: var(--w-select);
+}
 .dd-pop {
   /* fixed from the stylesheet, never from script: the first open frame must
      not spend a single layout in the flow — a 700px block popping in-flow

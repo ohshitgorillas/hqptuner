@@ -17,7 +17,7 @@ import { decorateOptions, plainClosedLabel } from "../store/plainnames.js";
 import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
-import { notesVisible, descVisible } from "../store/prefs.js";
+import { notesVisible, descVisible, plainNames } from "../store/prefs.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Combobox } from "./controls/Combobox.js";
 import { filterTipFacets } from "./narrowbar/facettip.js";
@@ -176,7 +176,8 @@ function controlValue(entry, key) {
  * @returns {string}
  */
 export function widthClasses(entry) {
-  return `${entry.wide ? "wide" : ""} ${entry.compact ? `compact compact-${entry.compact}` : ""} ${entry.span ? "span" : ""}`;
+  const plain = entry.plainNames && plainNames.value ? "plain" : "";
+  return `${entry.wide ? "wide" : ""} ${entry.compact ? `compact compact-${entry.compact}` : ""} ${entry.span ? "span" : ""} ${plain}`;
 }
 
 // Widget kind + the layout opt-ins + the dirty highlight, in that order.
