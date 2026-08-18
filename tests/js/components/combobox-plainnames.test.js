@@ -52,26 +52,29 @@ import { elements, classes, text } from "../support/markup.js";
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
 // --- the plain-names data -----------------------------------------------------
-// Data order deliberately DISAGREES with the option input order, so the family
-// regrouping is observable: families first appear here as Sinc, Gauss, Ext, and
-// within Gauss the "Long tap" variant before "Short tap". WITHIN the Long tap
-// group the data lists Hires LP before Regular while the input order has
-// Regular first, so a sort keeping relative input order instead of the data's
-// own entry order visibly reverses the pair.
+// Data order deliberately DISAGREES with the option input order AND with
+// alphabetical order, so only the data's own entry order can pass: families
+// first appear here as Sinc, Gauss, Ext; within Gauss the "Zed tap" variant is
+// introduced before "Alpha tap" (anti-alphabetical, and the input serves an
+// Alpha tap row first); WITHIN the Zed tap group the data lists leaf
+// "Zeta pick" (raw poly-sinc-gauss-zeta) before "Alpha pick" (raw
+// poly-sinc-gauss-long) while the input serves poly-sinc-gauss-long first — so
+// data order disagrees with relative input order and with alphabetical order
+// of both leaf and raw name, and an alphabetical sort visibly fails.
 
 const PLAIN_FILTERS = {
   "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M", apod: false },
-  "poly-sinc-gauss-hires-lp": {
+  "poly-sinc-gauss-zeta": {
     family: "Gauss",
-    variant: "Long tap",
-    leaf: "Hires LP",
-    short: "Gauss Hires",
+    variant: "Zed tap",
+    leaf: "Zeta pick",
+    short: "Gauss Zeta",
     apod: false,
   },
-  "poly-sinc-gauss-long": { family: "Gauss", variant: "Long tap", leaf: "Regular", short: "Gauss Reg", apod: false },
+  "poly-sinc-gauss-long": { family: "Gauss", variant: "Zed tap", leaf: "Alpha pick", short: "Gauss Reg", apod: false },
   "poly-sinc-gauss-short": {
     family: "Gauss",
-    variant: "Short tap",
+    variant: "Alpha tap",
     leaf: "Shorter",
     short: "Gauss Short",
     apod: false,
@@ -92,15 +95,17 @@ const META_PLAIN = {
 };
 
 // Input order interleaves the families and the two unknown names, so grouping
-// and the unknown tail are both observable against it.
+// and the unknown tail are both observable against it; it first serves the
+// "Alpha tap" variant (poly-sinc-gauss-short) before any "Zed tap" row, so the
+// variant order the rows keep can only come from the data.
 const RAW_ORDER = [
-  "poly-sinc-gauss-long",
-  "unknown-b",
   "poly-sinc-gauss-short",
+  "unknown-b",
+  "poly-sinc-gauss-long",
   "sinc-M",
   "poly-sinc-ext2",
   "unknown-a",
-  "poly-sinc-gauss-hires-lp",
+  "poly-sinc-gauss-zeta",
 ];
 
 /** @param {string} value */
@@ -112,7 +117,7 @@ const filterFields = (value) => [
   },
 ];
 
-const PLAIN_ORDER = ["Classic M", "Hires LP", "Regular", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
+const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
 
 /**
  * The 1x filter field with both default facets opened (the stage narrows to
@@ -197,7 +202,7 @@ test("test_pref_off_renders_no_family_header_row", async () => {
 });
 
 test("test_pref_off_the_closed_control_shows_the_raw_label", async () => {
-  assert.equal(boxText(await filterField({ plain: false })), "poly-sinc-gauss-long");
+  assert.equal(boxText(await filterField({ plain: false })), "poly-sinc-gauss-short");
 });
 
 // --- pref on: plain leaves, grouped and ordered by the data ---------------------
@@ -214,23 +219,24 @@ test("test_unknown_options_keep_raw_labels_after_all_known_groups_in_input_order
   assert.deepEqual(optionLabels(await filterField()).slice(-2), ["unknown-b", "unknown-a"]);
 });
 
-// The data lists Hires LP before Regular within the Long tap group while the
-// input order has Regular first; the rows keep the DATA order, Hires LP first.
+// The data lists Zeta pick before Alpha pick within the Zed tap group while the
+// input order (and the alphabetical order of both leaf and raw name) has the
+// Alpha row first; the rows keep the DATA order, Zeta pick first.
 test("test_within_one_group_rows_keep_data_order_not_relative_input_order", async () => {
   const labels = optionLabels(await filterField());
-  assert.equal(labels.indexOf("Hires LP") < labels.indexOf("Regular"), true);
+  assert.equal(labels.indexOf("Zeta pick") < labels.indexOf("Alpha pick"), true);
 });
 
 // --- pref on: the header rows ---------------------------------------------------
 
 test("test_pref_on_a_family_header_precedes_the_familys_first_option", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Gauss").start < rowIncluding(out, "Regular").start, true);
+  assert.equal(readingExactly(out, "Gauss").start < rowIncluding(out, "Zeta pick").start, true);
 });
 
 test("test_pref_on_a_variant_subheader_precedes_the_variants_first_option", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Short tap").start < rowIncluding(out, "Shorter").start, true);
+  assert.equal(readingExactly(out, "Alpha tap").start < rowIncluding(out, "Shorter").start, true);
 });
 
 test("test_a_family_header_row_is_not_an_option_row", async () => {
@@ -238,7 +244,7 @@ test("test_a_family_header_row_is_not_an_option_row", async () => {
 });
 
 test("test_a_variant_subheader_row_is_not_an_option_row", async () => {
-  assert.equal(classes(readingExactly(await filterField(), "Short tap")).includes("dd-opt"), false);
+  assert.equal(classes(readingExactly(await filterField(), "Alpha tap")).includes("dd-opt"), false);
 });
 
 // Ext holds a single option; its family header still renders before that row.
@@ -260,7 +266,7 @@ test("test_a_null_variant_renders_no_subheader_row", async () => {
 // --- pref on: the closed control ------------------------------------------------
 
 test("test_pref_on_the_closed_control_shows_the_selections_short", async () => {
-  assert.equal(boxText(await filterField()), "Gauss Reg");
+  assert.equal(boxText(await filterField()), "Gauss Short");
 });
 
 test("test_pref_on_an_unknown_selection_keeps_its_raw_label_on_the_closed_control", async () => {
@@ -278,7 +284,7 @@ test("test_pref_on_favorites_narrowing_still_hides_the_same_options", async () =
   favoritesError.value = "";
   nFavOnly.value = true;
   plainNames.value = true;
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Regular"]);
+  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Alpha pick"]);
 });
 
 // An engaged FACET narrows the same way favorites do: apodizing-only (the 1x
@@ -305,7 +311,7 @@ test("test_pref_on_an_engaged_apodizing_facet_still_hides_non_apodizing_rows", a
 });
 
 test("test_pref_on_keeps_the_favorite_star_affordance_on_a_named_row", async () => {
-  assert.equal(/\bdd-fav\b/.test(rowIncluding(await filterField(), "Regular").html), true);
+  assert.equal(/\bdd-fav\b/.test(rowIncluding(await filterField(), "Alpha pick").html), true);
 });
 
 // A DSD512 rate leaves ASDM7EC below its 40.96 MHz floor, so its row is
@@ -350,4 +356,17 @@ test("test_pref_on_a_dither_row_reads_its_plain_leaf_and_an_unknown_keeps_its_ra
   });
   plainNames.value = true;
   assert.deepEqual(optionLabels(field("pcm_dither")), ["Triangular", "NS9"]);
+});
+
+// --- the overlay missing entirely -------------------------------------------------
+// A metadata payload with no `plain_names` key at all (older backend, or the
+// static data absent): the pref being ON must not reorder or relabel anything —
+// every row keeps its raw label in the input order, identity with pref off.
+
+test("test_pref_on_without_plain_names_data_rows_keep_raw_labels_in_input_order", async () => {
+  await reset({ fields: filterFields("0"), meta: META });
+  nApod1x.value = "all";
+  nQuality.value = 0;
+  plainNames.value = true;
+  assert.deepEqual(optionLabels(field("pcm_filter_1x")), RAW_ORDER);
 });

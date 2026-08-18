@@ -76,13 +76,72 @@ def test_every_filter_entry_classifies_apodizing(api_client: TestClient) -> None
     assert [name for name, entry in entries.items() if "apod" not in entry] == []
 
 
-def test_ext2_hires_phase_variants_serve_in_minimum_intermediate_linear_order(
+def test_every_phase_variant_group_serves_minimum_intermediate_linear_order(
     api_client: TestClient,
 ) -> None:
     # Within one family+variant group the overlay's own entry order is the
-    # display order, and phase variants order minimum, intermediate, linear —
-    # so the "Polyphase sinc" / "Extended frequency response 2" hi-res trio
-    # must appear mp, ip, lp when iterating the served filters overlay.
-    wanted = ["poly-sinc-ext2-hires-mp", "poly-sinc-ext2-hires-ip", "poly-sinc-ext2-hires-lp"]
+    # display order, and phase variants order minimum, intermediate, linear.
+    # The groups are derived from the served keys themselves: every base name
+    # serving all three of -mp/-ip/-lp is a trio (mp before ip before lp), and
+    # every base serving only -mp/-lp is a pair (mp before lp). The derivation
+    # must find at least one trio — the overlay ships phase families — so an
+    # empty sweep is itself a violation rather than a vacuous pass.
+    order = {name: i for i, name in enumerate(_plain_names(api_client)["filters"])}
+    trios = [b for b in (n[:-3] for n in order if n.endswith("-mp")) if f"{b}-ip" in order]
+    pairs = [b for b in (n[:-3] for n in order if n.endswith("-mp")) if f"{b}-ip" not in order and f"{b}-lp" in order]
+    violations = [b for b in trios if not order[f"{b}-mp"] < order[f"{b}-ip"] < order[f"{b}-lp"]]
+    violations += [b for b in pairs if not order[f"{b}-mp"] < order[f"{b}-lp"]]
+    violations += [] if trios else ["no -mp/-ip/-lp trio derived from the served keys"]
+    assert violations == []
+
+
+def test_no_filter_or_modulator_wording_still_says_standard(api_client: TestClient) -> None:
+    # The "Standard" leaf/variant/short wording was renamed "Base" throughout
+    # the filters and modulators overlays; no served display string may still
+    # carry the old word.
+    sections = _plain_names(api_client)
+    offenders = [
+        (section, name, field)
+        for section in ("filters", "modulators")
+        for name, entry in sections[section].items()
+        for field in ("leaf", "variant", "short")
+        if "Standard" in str(entry.get(field) or "")
+    ]
+    assert offenders == []
+
+
+def test_every_two_stage_filter_serves_after_its_single_stage_peer(api_client: TestClient) -> None:
+    # Two-stage rows follow their non-two-stage peer: wherever both the "-2s"
+    # key and the key with "-2s" removed are served, the "-2s" key iterates
+    # later.
+    order = {name: i for i, name in enumerate(_plain_names(api_client)["filters"])}
+    violations = [
+        name
+        for name in order
+        if "-2s" in name and name.replace("-2s", "") in order and order[name] < order[name.replace("-2s", "")]
+    ]
+    assert violations == []
+
+
+def test_half_band_serves_bare_row_first_then_lengths_ascending(api_client: TestClient) -> None:
+    # Within a family/variant group the bare/default row comes first and the
+    # length variants ascend — pinned on the Half-band group.
+    wanted = ["poly-sinc-hb", "poly-sinc-hb-xs", "poly-sinc-hb-s", "poly-sinc-hb-m", "poly-sinc-hb-l"]
     served = [name for name in _plain_names(api_client)["filters"] if name in wanted]
     assert served == wanted
+
+
+def test_an_apodizing_row_serves_after_its_non_apodizing_peer(api_client: TestClient) -> None:
+    wanted = ["poly-sinc-gauss-xl", "poly-sinc-gauss-xla"]
+    served = [name for name in _plain_names(api_client)["filters"] if name in wanted]
+    assert served == wanted
+
+
+def test_the_misc_family_serves_after_every_other_family(api_client: TestClient) -> None:
+    # Misc is the catch-all and iterates last: no "Misc" entry may precede any
+    # entry of another family.
+    entries = _plain_names(api_client)["filters"]
+    names = list(entries)
+    last_other = max(i for i, name in enumerate(names) if entries[name]["family"] != "Misc")
+    violations = [name for i, name in enumerate(names) if entries[name]["family"] == "Misc" and i < last_other]
+    assert violations == []
