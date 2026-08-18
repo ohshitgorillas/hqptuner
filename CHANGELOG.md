@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-08-18
+
 ### Added
 
 - **The LIVE page's blocks rearrange to taste.** An "Edit layout" toggle in the LIVE MODE card head opens a mode where Mode and Rate, Engine health, the narrowing and chain group, Playback and Matrix profile drag into any order; LIVE MODE stays pinned at the top. The arrangement is stored per browser and written on leaving the mode. Reordering has no keyboard path.
