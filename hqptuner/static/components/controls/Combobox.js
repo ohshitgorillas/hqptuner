@@ -248,7 +248,7 @@ function OptionRow({ o, i, row }) {
 function renderKid(k, row) {
   if (!("items" in k)) return html`<${OptionRow} o=${k.r.o} i=${k.i} row=${row} />`;
   return html`<div class="dd-vgrp">
-    <div class="dd-hdr dd-subhdr t-value" role="presentation">${k.head}</div>
+    <div class="dd-hdr dd-subhdr" role="presentation">${k.head}</div>
     ${k.items.map((it) => renderKid(it, row))}
   </div>`;
 }

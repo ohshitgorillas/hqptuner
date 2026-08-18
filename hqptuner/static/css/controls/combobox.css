@@ -110,8 +110,10 @@
    presentation-only rows the component never highlights and keyboard
    navigation skips. Both stick to the pop's top edge while their own rows
    scroll under — family header topmost, variant subheader right below it — so
-   a long list always names the group you are in. Text roles come from
-   typography.css (family = t-head, variant = t-value); the shared fixed height
+   a long list always names the group you are in. The family header takes the
+   t-head role (typography.css); the variant subheader is control text — body
+   size, primary colour, semibold — set here because no text role names a
+   primary sans label. The shared fixed height
    makes the subheader's sticky offset exactly one header. The sticky repaint
    of --surface-raised is occlusion of the pop's own surface, not elevation, so
    it carries no edge light (see aesthetic.css). */
@@ -129,7 +131,9 @@
 .dd-subhdr {
   top: var(--sp-5);
   z-index: 1;
+  font-size: var(--fs-body);
   font-weight: var(--fw-semibold);
+  color: var(--fg);
 }
 /* One indentation step per level: bare rows and variant containers step in
    under their family header, option rows step in again under their variant.
