@@ -43,6 +43,7 @@ import { staticWire } from "../support/wire.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
+import { enums } from "../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { elements, classes, text } from "../support/markup.js";
 
@@ -51,11 +52,13 @@ import { elements, classes, text } from "../support/markup.js";
 // --- the plain-names data -----------------------------------------------------
 // Data order deliberately DISAGREES with the option input order, so the family
 // regrouping is observable: families first appear here as Sinc, Gauss, Ext, and
-// within Gauss the "Long tap" variant before "Short tap".
+// within Gauss the "Long tap" variant before "Short tap". WITHIN the Long tap
+// group the data lists Hires LP before Regular while the input order has
+// Regular first, so a sort keeping data order instead of relative input order
+// visibly reverses the pair.
 
 const PLAIN_FILTERS = {
   "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M", apod: false },
-  "poly-sinc-gauss-long": { family: "Gauss", variant: "Long tap", leaf: "Regular", short: "Gauss Reg", apod: false },
   "poly-sinc-gauss-hires-lp": {
     family: "Gauss",
     variant: "Long tap",
@@ -63,6 +66,7 @@ const PLAIN_FILTERS = {
     short: "Gauss Hires",
     apod: false,
   },
+  "poly-sinc-gauss-long": { family: "Gauss", variant: "Long tap", leaf: "Regular", short: "Gauss Reg", apod: false },
   "poly-sinc-gauss-short": {
     family: "Gauss",
     variant: "Short tap",
@@ -208,6 +212,13 @@ test("test_unknown_options_keep_raw_labels_after_all_known_groups_in_input_order
   assert.deepEqual(optionLabels(await filterField()).slice(-2), ["unknown-b", "unknown-a"]);
 });
 
+// The data lists Hires LP before Regular within the Long tap group; the rows
+// keep the INPUT order, Regular first.
+test("test_within_one_group_rows_keep_relative_input_order_not_data_order", async () => {
+  const labels = optionLabels(await filterField());
+  assert.equal(labels.indexOf("Regular") < labels.indexOf("Hires LP"), true);
+});
+
 // --- pref on: the header rows ---------------------------------------------------
 
 test("test_pref_on_a_family_header_precedes_the_familys_first_option", async () => {
@@ -224,6 +235,26 @@ test("test_a_family_header_row_is_not_an_option_row", async () => {
   assert.equal(classes(readingExactly(await filterField(), "Gauss")).includes("dd-opt"), false);
 });
 
+test("test_a_variant_subheader_row_is_not_an_option_row", async () => {
+  assert.equal(classes(readingExactly(await filterField(), "Short tap")).includes("dd-opt"), false);
+});
+
+// Ext holds a single option; its family header still renders before that row.
+test("test_a_single_option_family_still_gets_its_family_header", async () => {
+  const out = await filterField();
+  assert.equal(readingExactly(out, "Ext").start < rowIncluding(out, "Ext Two").start, true);
+});
+
+// Sinc's and Ext's variants are null: no subheader renders for them, so no
+// element stringifies the missing variant into wording a reader would see.
+test("test_a_null_variant_renders_no_subheader_row", async () => {
+  const out = await filterField();
+  assert.deepEqual(
+    elements(out).filter((el) => text(el) === "null" || text(el) === "undefined"),
+    [],
+  );
+});
+
 // --- pref on: the closed control ------------------------------------------------
 
 test("test_pref_on_the_closed_control_shows_the_selections_short", async () => {
@@ -236,7 +267,7 @@ test("test_pref_on_an_unknown_selection_keeps_its_raw_label_on_the_closed_contro
 
 // --- the pref changes nothing else ----------------------------------------------
 
-test("test_pref_on_narrowing_still_hides_the_same_options", async () => {
+test("test_pref_on_favorites_narrowing_still_hides_the_same_options", async () => {
   await reset({ fields: filterFields("0"), meta: META_PLAIN });
   nApod1x.value = "all";
   nQuality.value = 0;
@@ -248,8 +279,31 @@ test("test_pref_on_narrowing_still_hides_the_same_options", async () => {
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Regular"]);
 });
 
-test("test_pref_on_keeps_the_favorite_star_affordance_on_the_rows", async () => {
-  assert.equal(/\bdd-fav\b/.test(await filterField()), true);
+// An engaged FACET narrows the same way favorites do: apodizing-only (the 1x
+// stage's own default) keeps only the one apodizing filter of the enumeration,
+// and its row reads its plain leaf. Classification rides the live enumeration
+// (`arg` bit 0 = apodizing, protocol.md), same seam field.test.js narrows on.
+test("test_pref_on_an_engaged_apodizing_facet_still_hides_non_apodizing_rows", async () => {
+  await reset({ fields: filterFields("0"), meta: META_PLAIN });
+  enums.value = {
+    filters: RAW_ORDER.map((name, i) => ({
+      index: String(i),
+      name,
+      value: String(i),
+      arg: name === "poly-sinc-ext2" ? 1 : 0,
+      description: "5/5 ⥮ Any",
+      apodizing: name === "poly-sinc-ext2",
+    })),
+  };
+  nApod1x.value = "only";
+  nQuality.value = 0;
+  nFavOnly.value = false;
+  plainNames.value = true;
+  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Ext Two"]);
+});
+
+test("test_pref_on_keeps_the_favorite_star_affordance_on_a_named_row", async () => {
+  assert.equal(/\bdd-fav\b/.test(rowIncluding(await filterField(), "Regular").html), true);
 });
 
 // A DSD512 rate leaves ASDM7EC below its 40.96 MHz floor, so its row is

@@ -23,9 +23,17 @@ import { setPlainNames } from "../../../hqptuner/static/store/prefs.js";
 /** @typedef {import("../../../hqptuner/static/components/Field.js").FieldEntry} FieldEntry */
 
 // Minimal schema entries: one that participates in the simplified style, one
-// that does not.
+// that does not, and one that both participates AND earns width tokens of its
+// own (the wide/span shape tests/js/components/field.test.js pins on log_file),
+// so additivity is checked against a non-empty token list.
 const PLAIN_ENTRY = /** @type {FieldEntry} */ ({ widget: "select", plainNames: "filters" });
 const OTHER_ENTRY = /** @type {FieldEntry} */ ({ widget: "select" });
+const WIDE_PLAIN_ENTRY = /** @type {FieldEntry} */ ({
+  widget: "select",
+  wide: true,
+  span: true,
+  plainNames: "filters",
+});
 
 /**
  * The class string as the tokens a class attribute means.
@@ -55,12 +63,22 @@ test("test_an_entry_without_plain_names_never_gets_the_class_in_standard_mode", 
   assert.equal(tokens(OTHER_ENTRY).includes("plain"), false);
 });
 
+// The companion pin below proves this fixture EARNS tokens in standard mode, so
+// this case cannot pass by comparing empty to empty; token order is a class
+// string's non-fact, so both sides are sorted.
 test("test_the_plain_class_is_additive_other_width_tokens_survive_the_toggle", () => {
   setPlainNames(false);
-  const standard = tokens(PLAIN_ENTRY);
+  const standard = tokens(WIDE_PLAIN_ENTRY).sort();
   setPlainNames(true);
   assert.deepEqual(
-    tokens(PLAIN_ENTRY).filter((t) => t !== "plain"),
+    tokens(WIDE_PLAIN_ENTRY)
+      .filter((t) => t !== "plain")
+      .sort(),
     standard,
   );
+});
+
+test("test_the_additivity_fixture_earns_wide_and_span_in_standard_mode", () => {
+  setPlainNames(false);
+  assert.deepEqual(tokens(WIDE_PLAIN_ENTRY).sort(), ["span", "wide"]);
 });

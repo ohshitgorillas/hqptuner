@@ -37,8 +37,27 @@ def test_a_known_engine_filter_name_is_annotated(api_client: TestClient) -> None
     assert "poly-sinc-gauss-long" in _plain_names(api_client)["filters"]
 
 
-def test_the_two_stage_filter_names_are_annotated(api_client: TestClient) -> None:
-    assert [name for name in _plain_names(api_client)["filters"] if name.endswith("-2s")] != []
+def test_all_sixteen_two_stage_filter_names_are_annotated(api_client: TestClient) -> None:
+    assert len([name for name in _plain_names(api_client)["filters"] if name.endswith("-2s")]) == 16
+
+
+@pytest.mark.parametrize(
+    ("section", "name", "field", "wording"),
+    [
+        ("filters", "poly-sinc-gauss-long", "family", "Polyphase sinc"),
+        ("filters", "poly-sinc-gauss-long", "variant", "Gaussian"),
+        ("filters", "poly-sinc-gauss-long", "leaf", "Long length"),
+        ("filters", "poly-sinc-gauss-long", "short", "Poly-sinc · Gauss · Long length"),
+        ("dithers", "TPDF", "leaf", "Triangular, any rate"),
+        ("dithers", "TPDF", "short", "Additive · Triangular, any rate"),
+        ("modulators", "ASDM5", "leaf", "Standard"),
+        ("modulators", "ASDM5", "short", "Adaptive · 5th order · Standard"),
+    ],
+)
+def test_a_known_entry_serves_its_exact_display_wording(
+    api_client: TestClient, section: str, name: str, field: str, wording: str
+) -> None:
+    assert _plain_names(api_client)[section][name][field] == wording
 
 
 @pytest.mark.parametrize("section", ["filters", "dithers", "modulators"])
