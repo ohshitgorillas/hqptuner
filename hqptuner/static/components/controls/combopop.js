@@ -47,8 +47,8 @@ function revealRow(p, row) {
   else if (rr.bottom > pr.bottom) p.scrollTop += rr.bottom - pr.bottom;
 }
 
-// Tip sits beside the highlighted row: right of the pop, or left when the
-// right edge would leave the viewport; bottom clamped inside the viewport.
+// Tip sits beside the highlighted row: left of the pop, or right when the
+// left edge would leave the viewport; bottom clamped inside the viewport.
 /**
  * @param {HTMLElement} t the tip
  * @param {HTMLElement} p the pop
@@ -57,7 +57,7 @@ function revealRow(p, row) {
 function placeTip(t, p, row) {
   const pr = p.getBoundingClientRect();
   const tr = t.getBoundingClientRect();
-  const tl = pr.right + 8 + tr.width > window.innerWidth - 8 ? pr.left - tr.width - 8 : pr.right + 8;
+  const tl = pr.left - 8 - tr.width < 8 ? pr.right + 8 : pr.left - tr.width - 8;
   t.style.left = `${tl}px`;
   t.style.top = `${Math.min(row.getBoundingClientRect().top, window.innerHeight - 8 - tr.height)}px`;
   t.style.visibility = "visible";
