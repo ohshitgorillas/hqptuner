@@ -179,9 +179,22 @@
   opacity: var(--o-dim);
   cursor: grab;
 }
+/* The block in hand reads solid against the dashed ones, and at full strength:
+   it is the one thing on the page the pointer is actually holding. */
 .live-block.dragging {
+  outline-style: solid;
   cursor: grabbing;
   opacity: 1;
+}
+
+/* Where the block lands on release. The stack holds still through the whole
+   drag, so this line is the only thing that moves and the only thing that has
+   to be read — a rail the width of the column, in the accent that marks every
+   other live target on the page. */
+.live-drop-line {
+  height: 2px;
+  margin: calc(var(--sp-1) * -1) 0;
+  background: var(--accent);
 }
 
 /* The layout toggle in the LIVE MODE head, right-aligned off the control rows
