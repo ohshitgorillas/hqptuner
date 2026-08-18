@@ -30,9 +30,11 @@ import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
  *   container.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
- * @typedef {{ text: string, rows: [string, string][], chips: string[] }} TipContent
- *   One option's hover tip: the manual prose, plus label/value facet rows and
- *   boolean facet chips (both empty outside the filter dropdowns).
+ * @typedef {{ name: string, text: string, rows: [string, string][], chips: string[] }} TipContent
+ *   One option's hover tip: the raw engine name (non-empty only when Simplified
+ *   display has replaced it in the row), the manual prose, plus label/value
+ *   facet rows and boolean facet chips (both empty outside the filter
+ *   dropdowns).
  * @typedef {{ open: boolean, hl: number, selIdx: number, id: string,
  *   fav?: (o: RenderOption) => boolean, onFav?: (o: RenderOption) => void,
  *   byKey: { current: boolean }, setHl: (i: number) => void,
@@ -284,7 +286,7 @@ function renderRows(rows, row) {
 function tipFor(open, tips, o) {
   if (!open || !tips || !o) return null;
   const t = tips(o);
-  return t.text || t.rows.length || t.chips.length ? t : null;
+  return t.name || t.text || t.rows.length || t.chips.length ? t : null;
 }
 
 // The tip beside the highlighted row: the manual prose, then the facet rows
@@ -296,6 +298,7 @@ function tipFor(open, tips, o) {
 function TipPop({ tip, tipRef }) {
   return html`
     <div class="dd-tip" ref=${tipRef} style="position:fixed;max-width:340px;visibility:hidden">
+      ${tip.name ? html`<div class="dd-tip-name">${tip.name}</div>` : null}
       ${tip.text ? html`<div class="dd-tip-desc">${tip.text}</div>` : null}
       ${
         tip.rows.length

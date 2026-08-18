@@ -9,103 +9,23 @@ import { schema, MATRIX_BYPASS_REASON } from "../store/schema.js";
 import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolve.js";
 import { edit, setLive, autosave } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
-import { describe, selectionDescription, optionDescription, selectedLabel } from "../store/prose.js";
+import { describe, selectedLabel } from "../store/prose.js";
 import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/narrow/devicecaps.js";
 import { narrowOptions, narrowCount } from "../store/narrow/match.js";
 import { decorateOptions, plainClosedLabel } from "../store/plainnames.js";
-import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible, plainNames } from "../store/prefs.js";
-import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
-import { Combobox } from "./controls/Combobox.js";
-import { filterTipFacets } from "./narrowbar/facettip.js";
-import { Knob } from "./Knob.js";
+import { widgetFor, tipsFor, favFor, FavoriteError, DescBlock } from "./binder.js";
 import { Ask } from "./Ask.js";
 
 /**
- * @typedef {SchemaField & { narrow?: string, slider?: boolean }} FieldEntry
- *   One schema catalog entry. `narrow` (which facet family a filter dropdown
- *   narrows on) and `slider` (knob variant switch) are on the catalog entries in
- *   store/schema.js but not on the ambient `SchemaField`, so they are added here.
- *   Two more fields on that declaration disagree with the catalog and are NOT
- *   patched here, because a local override would stop a FieldEntry being a
- *   SchemaField everywhere the stores ask for one: `scale` and `rateGray` are
- *   declared number and boolean while store/schema.js writes "log" and
- *   "pcm"/"sdm". Those belong in types/shared.d.ts.
- * @typedef {{ label: string, tooltip: string }} FieldMeta
- *   What store/prose.js describe() resolves for a key: the manual's name for the
- *   control and its prose.
- * @typedef {import("./controls/Combobox.js").TipContent} TipContent
+ * @typedef {import("./binder.js").FieldEntry} FieldEntry
+ * @typedef {import("./binder.js").FieldMeta} FieldMeta
+ * @typedef {import("./binder.js").FieldOptions} FieldOptions
  * @typedef {{ n: number, total: number }} NarrowBadge
- * @typedef {OptionItem[] | SchemaOption[] | undefined} FieldOptions
- *   A control's option list — the stores' enriched form, the schema's bare
- *   value+label form, or nothing at all for the non-list widgets.
  */
-
-const WIDGETS = {
-  segment: Segment,
-  dropdown: Dropdown,
-  number: NumberBox,
-  text: TextBox,
-  checkbox: Checkbox,
-  slider: Slider,
-  slidernum: SliderNumber,
-  radio: RadioGroup,
-  knob: Knob,
-};
-
-// A desc-carrying dropdown renders the custom combobox instead of a native
-// <select>: macOS never surfaces option tooltips, so per-option prose needs
-// rows the page owns. Every other dropdown keeps the native control. Exported
-// so the LIVE page's hand-rolled binder makes the identical pick — this
-// decision exists here and nowhere else.
-const tipped = (/** @type {FieldEntry} */ entry) => entry.desc && entry.widget === "dropdown";
-/** Picks the widget component a schema entry renders through: Combobox for a desc-carrying dropdown, else the entry's `widget` kind. */
-export const widgetFor = (/** @type {FieldEntry} */ entry) =>
-  tipped(entry) ? Combobox : WIDGETS[/** @type {keyof typeof WIDGETS} */ (entry.widget)];
-/**
- * Builds the combobox's per-row tip resolver for a desc-carrying dropdown;
- * undefined for every native widget. Filter dropdowns carry the facet rows and
- * chips beside the prose; every other desc source ships text alone. The
- * resolver asks value+label only, so it takes the bare SchemaOption shape —
- * a schema literal's rows reach the combobox unenriched.
- * @type {(entry: FieldEntry, meta: FieldMeta) => ((o: SchemaOption) => TipContent) | undefined}
- */
-export const tipsFor = (entry, meta) =>
-  tipped(entry)
-    ? (/** @type {SchemaOption} */ o) => ({
-        text: optionDescription(entry, o, meta),
-        ...(entry.desc === "filter" ? filterTipFacets(o.label) : { rows: [], chips: [] }),
-      })
-    : undefined;
-/**
- * Builds the favorite-star wiring for the filter dropdowns (`narrow`-carrying
- * entries), keyed by option label = filter name (store/narrow/favorites.js); undefined
- * everywhere else, so dither/modulator comboboxes render starless. Shared with
- * the LIVE page's binder, same as widgetFor/tipsFor.
- */
-export const favFor = (/** @type {FieldEntry} */ entry) =>
-  entry.narrow
-    ? {
-        fav: (/** @type {OptionItem} */ o) => isFavorite(o.label),
-        onFav: (/** @type {OptionItem} */ o) => toggleFavorite(o.label),
-      }
-    : undefined;
-
-/**
- * A refused favorites write, under the dropdown whose star did not stick. Only
- * the star-carrying (`narrow`) dropdowns render it, for the same reason only
- * they render stars — there is one set and one error, and repeating it under a
- * dither combobox would put it beside a control that cannot cause it. Shared
- * with the LIVE page's binder, same as widgetFor/tipsFor/favFor.
- * @param {{ entry: FieldEntry }} props
- */
-export function FavoriteError({ entry }) {
-  if (!entry.narrow || !favoritesError.value) return null;
-  return html`<div class="field-error">${favoritesError.value}</div>`;
-}
 
 // http-lane number fields carry min/max/step parsed from the live GET /config
 // form (the daemon is the authority for its own bounds). A schema entry may
@@ -310,7 +230,7 @@ function fieldProse(entry, key, meta, { reason, options }) {
   const showDesc = entry.desc && descVisible.value;
   const showNote = !entry.desc && !entry.hoverNote && meta.tooltip && notesVisible.value;
   return html`
-    ${showDesc ? html`<div class="field-desc">${selectionDescription(entry, effective(key), options, meta)}</div>` : null}
+    ${showDesc ? html`<${DescBlock} entry=${entry} value=${effective(key)} options=${options} meta=${meta} />` : null}
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
     ${entry.rescan && autosave.value ? html`<div class="field-rescan-cost">${RESCAN_COST}</div>` : null}
     ${stackedCaption(entry, reason) ? html`<div class="field-gray-reason">${reason}</div>` : null}

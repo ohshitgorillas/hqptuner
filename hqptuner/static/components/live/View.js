@@ -22,7 +22,7 @@ import { api } from "../../lib/api.js";
 import { liveModel } from "../../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
 import { writeLive } from "../../store/live/write.js";
-import { describe, selectionDescription, selectedLabel } from "../../store/prose.js";
+import { describe, selectedLabel } from "../../store/prose.js";
 import { plainClosedLabel } from "../../store/plainnames.js";
 import {
   notesVisible,
@@ -37,7 +37,8 @@ import { refreshConfig } from "../../store/sync.js";
 import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../../store/matrix/profiles.js";
 import { descriptionFor } from "../../store/matrix/descriptions.js";
 import { Segment, Dropdown, Checkbox } from "../controls/index.js";
-import { widgetFor, widthClasses, tipsFor, favFor, FavoriteError } from "../Field.js";
+import { widthClasses } from "../Field.js";
+import { widgetFor, tipsFor, favFor, FavoriteError, DescBlock } from "../binder.js";
 import { ChainPack } from "../ChainPack.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
@@ -78,9 +79,12 @@ function LiveProse({ control, meta }) {
   return html`
     ${
       showDesc
-        ? html`<div class="field-desc">
-          ${selectionDescription(entry, control.value, control.optionsRaw || control.options, meta)}
-        </div>`
+        ? html`<${DescBlock}
+          entry=${entry}
+          value=${control.value}
+          options=${control.optionsRaw || control.options}
+          meta=${meta}
+        />`
         : null
     }
     ${showNote ? html`<div class="field-note">${meta.tooltip}</div>` : null}
