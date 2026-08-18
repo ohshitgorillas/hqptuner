@@ -255,56 +255,56 @@
     },
     "poly-sinc-xtr-mp": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Minimum phase",
       "short": "Poly-sinc · Xtr · Minimum",
       "apod": "half"
     },
     "poly-sinc-xtr-lp": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Linear phase",
       "short": "Poly-sinc · Xtr · Linear",
       "apod": "half"
     },
     "poly-sinc-xtr-short-mp": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Short minimum phase",
       "short": "Poly-sinc · Xtr · Short minimum",
       "apod": "full"
     },
     "poly-sinc-xtr-short-lp": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Short linear phase",
       "short": "Poly-sinc · Xtr · Short linear",
       "apod": "full"
     },
     "poly-sinc-xtr-mp-2s": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Minimum phase, two-stage",
       "short": "Poly-sinc · Xtr · Minimum, 2-stage",
       "apod": "half"
     },
     "poly-sinc-xtr-lp-2s": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Linear phase, two-stage",
       "short": "Poly-sinc · Xtr · Linear, 2-stage",
       "apod": "half"
     },
     "poly-sinc-xtr-short-mp-2s": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Short minimum phase, two-stage",
       "short": "Poly-sinc · Xtr · Short minimum, 2-stage",
       "apod": "full"
     },
     "poly-sinc-xtr-short-lp-2s": {
       "family": "Polyphase sinc",
-      "variant": "Extreme roll-off",
+      "variant": "Extreme roll-off and attenuation",
       "leaf": "Short linear phase, two-stage",
       "short": "Poly-sinc · Xtr · Short linear, 2-stage",
       "apod": "full"
