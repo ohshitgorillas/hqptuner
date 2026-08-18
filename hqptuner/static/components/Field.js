@@ -176,8 +176,7 @@ function controlValue(entry, key) {
  * @returns {string}
  */
 export function widthClasses(entry) {
-  const plain = entry.plainNames && plainNames.value ? "plain" : "";
-  return `${entry.wide ? "wide" : ""} ${entry.compact ? `compact compact-${entry.compact}` : ""} ${entry.span ? "span" : ""} ${plain}`;
+  return `${entry.wide ? "wide" : ""} ${entry.compact ? `compact compact-${entry.compact}` : ""} ${entry.span ? "span" : ""} ${entry.plainNames && plainNames.value ? "plain" : ""}`;
 }
 
 // Widget kind + the layout opt-ins + the dirty highlight, in that order.
