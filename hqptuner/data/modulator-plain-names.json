@@ -185,13 +185,13 @@
       "family": "Pseudo multi-bit",
       "variant": "Seventh order",
       "leaf": "Standard, DSD512+",
-      "short": "Multi-bit · 7th order · Standard, DSD512+"
+      "short": "Pseudo multi-bit · 7th order · Standard, DSD512+"
     },
     "AMSDM7EC 512+fs": {
       "family": "Pseudo multi-bit",
       "variant": "Seventh order",
       "leaf": "Extended compensation, DSD512+",
-      "short": "Multi-bit · 7th order · EC, DSD512+"
+      "short": "Pseudo multi-bit · 7th order · EC, DSD512+"
     },
     "AHM5EC5L": {
       "family": "Hybrid",

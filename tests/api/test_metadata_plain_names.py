@@ -46,8 +46,8 @@ def test_all_sixteen_two_stage_filter_names_are_annotated(api_client: TestClient
     [
         ("filters", "poly-sinc-gauss-long", "family", "Polyphase sinc"),
         ("filters", "poly-sinc-gauss-long", "variant", "Gaussian"),
-        ("filters", "poly-sinc-gauss-long", "leaf", "Long length"),
-        ("filters", "poly-sinc-gauss-long", "short", "Poly-sinc · Gauss · Long length"),
+        ("filters", "poly-sinc-gauss-long", "leaf", "Long"),
+        ("filters", "poly-sinc-gauss-long", "short", "Poly-sinc · Gauss · Long"),
         ("dithers", "TPDF", "leaf", "Triangular, any rate"),
         ("dithers", "TPDF", "short", "Additive · Triangular, any rate"),
         ("modulators", "ASDM5", "leaf", "Standard"),

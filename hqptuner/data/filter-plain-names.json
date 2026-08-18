@@ -193,29 +193,29 @@
     "poly-sinc-hb-xs": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Extra-short length",
-      "short": "Poly-sinc · Half-band · X-short length",
+      "leaf": "Extra-short",
+      "short": "Poly-sinc · Half-band · X-short",
       "apod": "none"
     },
     "poly-sinc-hb-s": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Short length",
-      "short": "Poly-sinc · Half-band · Short length",
+      "leaf": "Short",
+      "short": "Poly-sinc · Half-band · Short",
       "apod": "none"
     },
     "poly-sinc-hb-m": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Medium length",
-      "short": "Poly-sinc · Half-band · Medium length",
+      "leaf": "Medium",
+      "short": "Poly-sinc · Half-band · Medium",
       "apod": "none"
     },
     "poly-sinc-hb-l": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Long length",
-      "short": "Poly-sinc · Half-band · Long length",
+      "leaf": "Long",
+      "short": "Poly-sinc · Half-band · Long",
       "apod": "none"
     },
     "poly-sinc-hb-2s": {
@@ -228,29 +228,29 @@
     "poly-sinc-hb-xs-2s": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Extra-short length, two-stage",
-      "short": "Poly-sinc · Half-band · X-short length, 2-stage",
+      "leaf": "Extra-short, two-stage",
+      "short": "Poly-sinc · Half-band · X-short, 2-stage",
       "apod": "none"
     },
     "poly-sinc-hb-s-2s": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Short length, two-stage",
-      "short": "Poly-sinc · Half-band · Short length, 2-stage",
+      "leaf": "Short, two-stage",
+      "short": "Poly-sinc · Half-band · Short, 2-stage",
       "apod": "none"
     },
     "poly-sinc-hb-m-2s": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Medium length, two-stage",
-      "short": "Poly-sinc · Half-band · Medium length, 2-stage",
+      "leaf": "Medium, two-stage",
+      "short": "Poly-sinc · Half-band · Medium, 2-stage",
       "apod": "none"
     },
     "poly-sinc-hb-l-2s": {
       "family": "Polyphase sinc",
       "variant": "Half-band",
-      "leaf": "Long length, two-stage",
-      "short": "Poly-sinc · Half-band · Long length, 2-stage",
+      "leaf": "Long, two-stage",
+      "short": "Poly-sinc · Half-band · Long, 2-stage",
       "apod": "none"
     },
     "poly-sinc-ext": {
@@ -270,56 +270,56 @@
     "poly-sinc-ext2-short": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Short length",
-      "short": "Poly-sinc · Ext2 · Short length",
+      "leaf": "Short",
+      "short": "Poly-sinc · Ext2 · Short",
       "apod": "half"
     },
     "poly-sinc-ext2-medium": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Medium length",
-      "short": "Poly-sinc · Ext2 · Medium length",
+      "leaf": "Medium",
+      "short": "Poly-sinc · Ext2 · Medium",
       "apod": "full"
     },
     "poly-sinc-ext2-long": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Long length",
-      "short": "Poly-sinc · Ext2 · Long length",
+      "leaf": "Long",
+      "short": "Poly-sinc · Ext2 · Long",
       "apod": "full"
     },
     "poly-sinc-ext2-xl": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Extra-long length",
-      "short": "Poly-sinc · Ext2 · X-long length",
+      "leaf": "Extra-long",
+      "short": "Poly-sinc · Ext2 · X-long",
       "apod": "none"
     },
     "poly-sinc-ext2-xla": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Extra-long length, apodizing",
-      "short": "Poly-sinc · Ext2 · X-long length, apod",
+      "leaf": "Extra-long, apodizing",
+      "short": "Poly-sinc · Ext2 · X-long, apod",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-lp": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Linear phase, hi-res optimized",
+      "leaf": "Linear phase, hi-res",
       "short": "Poly-sinc · Ext2 · Hi-res linear",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-ip": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Intermediate phase, hi-res optimized",
+      "leaf": "Intermediate phase, hi-res",
       "short": "Poly-sinc · Ext2 · Hi-res intermediate",
       "apod": "full"
     },
     "poly-sinc-ext2-hires-mp": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Minimum phase, hi-res optimized",
+      "leaf": "Minimum phase, hi-res",
       "short": "Poly-sinc · Ext2 · Hi-res minimum",
       "apod": "full"
     },
@@ -396,36 +396,36 @@
     "poly-sinc-gauss-short": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Short length",
-      "short": "Poly-sinc · Gauss · Short length",
+      "leaf": "Short",
+      "short": "Poly-sinc · Gauss · Short",
       "apod": "half"
     },
     "poly-sinc-gauss-medium": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Medium length",
-      "short": "Poly-sinc · Gauss · Medium length",
+      "leaf": "Medium",
+      "short": "Poly-sinc · Gauss · Medium",
       "apod": "full"
     },
     "poly-sinc-gauss-long": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Long length",
-      "short": "Poly-sinc · Gauss · Long length",
+      "leaf": "Long",
+      "short": "Poly-sinc · Gauss · Long",
       "apod": "full"
     },
     "poly-sinc-gauss-xl": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Extra-long length",
-      "short": "Poly-sinc · Gauss · X-long length",
+      "leaf": "Extra-long",
+      "short": "Poly-sinc · Gauss · X-long",
       "apod": "none"
     },
     "poly-sinc-gauss-xla": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Extra-long length, apodizing",
-      "short": "Poly-sinc · Gauss · X-long length, apod",
+      "leaf": "Extra-long, apodizing",
+      "short": "Poly-sinc · Gauss · X-long, apod",
       "apod": "full"
     },
     "poly-sinc-gauss-halfband": {
@@ -438,50 +438,50 @@
     "poly-sinc-gauss-halfband-s": {
       "family": "Polyphase sinc",
       "variant": "Gaussian half-band",
-      "leaf": "Short length",
-      "short": "Poly-sinc · Gauss half-band · Short length",
+      "leaf": "Short",
+      "short": "Poly-sinc · Gauss half-band · Short",
       "apod": "none"
     },
     "poly-sinc-gauss-hires-lp": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Linear phase, hi-res optimized",
+      "leaf": "Linear phase, hi-res",
       "short": "Poly-sinc · Gauss · Hi-res linear",
       "apod": "full"
     },
     "poly-sinc-gauss-hires-ip": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Intermediate phase, hi-res optimized",
+      "leaf": "Intermediate phase, hi-res",
       "short": "Poly-sinc · Gauss · Hi-res intermediate",
       "apod": "full"
     },
     "poly-sinc-gauss-hires-mp": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Minimum phase, hi-res optimized",
+      "leaf": "Minimum phase, hi-res",
       "short": "Poly-sinc · Gauss · Hi-res minimum",
       "apod": "full"
     },
     "sinc-short": {
       "family": "Pure sinc",
       "variant": "Standard",
-      "leaf": "Short length",
-      "short": "Sinc · Short length",
+      "leaf": "Short",
+      "short": "Sinc · Short",
       "apod": "none"
     },
     "sinc-medium": {
       "family": "Pure sinc",
       "variant": "Standard",
-      "leaf": "Medium length",
-      "short": "Sinc · Medium length",
+      "leaf": "Medium",
+      "short": "Sinc · Medium",
       "apod": "none"
     },
     "sinc-long": {
       "family": "Pure sinc",
       "variant": "Standard",
-      "leaf": "Long length",
-      "short": "Sinc · Long length",
+      "leaf": "Long",
+      "short": "Sinc · Long",
       "apod": "none"
     },
     "sinc-long-h": {
@@ -494,15 +494,15 @@
     "sinc-Ls": {
       "family": "Pure sinc",
       "variant": "Adaptive taps",
-      "leaf": "Short length",
-      "short": "Sinc · Adaptive taps · Short length",
+      "leaf": "Short",
+      "short": "Sinc · Adaptive taps · Short",
       "apod": "none"
     },
     "sinc-Lm": {
       "family": "Pure sinc",
       "variant": "Adaptive taps",
-      "leaf": "Medium length",
-      "short": "Sinc · Adaptive taps · Medium length",
+      "leaf": "Medium",
+      "short": "Sinc · Adaptive taps · Medium",
       "apod": "none"
     },
     "sinc-Lh": {
@@ -515,15 +515,15 @@
     "sinc-Ll": {
       "family": "Pure sinc",
       "variant": "Adaptive taps",
-      "leaf": "Long length",
-      "short": "Sinc · Adaptive taps · Long length",
+      "leaf": "Long",
+      "short": "Sinc · Adaptive taps · Long",
       "apod": "none"
     },
     "sinc-L": {
       "family": "Pure sinc",
       "variant": "Adaptive taps",
-      "leaf": "Extra-long length",
-      "short": "Sinc · Adaptive taps · X-long length",
+      "leaf": "Extra-long",
+      "short": "Sinc · Adaptive taps · X-long",
       "apod": "none"
     },
     "sinc-S": {
