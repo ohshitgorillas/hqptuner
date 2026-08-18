@@ -60,7 +60,6 @@ ALLOWANCE: dict[str, int] = {
     ".claude/hooks/change-budget.py": 426,
     "hqptuner/lanes/live/lane.py": 409,
     "hqptuner/static/components/Field.js": 408,
-    "hqptuner/static/components/controls/Combobox.js": 425,
     "hqptuner/static/css/features/volume.css": 407,
     "hqptuner/static/store/actions.js": 406,
     "scripts/eqlab/chain.js": 405,
