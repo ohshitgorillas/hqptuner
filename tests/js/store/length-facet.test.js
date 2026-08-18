@@ -3,20 +3,24 @@
 // at all.
 //
 // Four buckets — "short", "medium", "long", "xlong" — plus "", meaning no
-// length is known. A filter's length is whatever HQPlayer's own description of
-// that filter states. Where the description states no length, the answer is ""
-// and not a plausible guess: a tap count ("4096 x conversion ratio",
-// "131070 x conversion ratio", a stated number of taps) is a filter
-// SPECIFICATION, never converted into a length bucket. That is what separates
-// `sinc-M` (description names an xl/xla ancestor, so "xlong") from `sinc-L`
-// (description states a tap multiplier only, so "").
+// length is known. The classifier takes a NAME and reads nothing else; HQPlayer's
+// own descriptions are the rationale for which names carry which bucket, not a
+// runtime input. Where the description states no length, the bucket is "" and
+// not a plausible guess: a tap count ("4096 x conversion ratio", "131070 x
+// conversion ratio", a stated number of taps) is a filter SPECIFICATION, never
+// converted into a length bucket. That is what separates `sinc-M` (its
+// description names an xl/xla ancestor, so "xlong") from `sinc-L` (a tap
+// multiplier only, so "").
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no
 // snapshots. Live enum items are hand-built in the engine's own shape
-// (`{index, name, value, arg, description, apodizing}`), the way the
-// `<GetFilters/>` enumeration serves them (protocol.md); the engine is the sole
-// authority for which names exist (architecture.md §2). The classifier takes a
-// name and returns a bucket, so these cases seed the name and nothing else.
+// (`{index, name, value, arg, description, apodizing, static}`), the way the
+// `<GetFilters/>` enumeration serves them (protocol.md) once the backend has
+// merged the static overlay row; the engine is the sole authority for which
+// names exist (architecture.md §2). Every name below is one the engine
+// enumerates, with one deliberate exception: `gauss-plain` in the
+// nothing-matched case is synthetic, standing for any name no length rule
+// reaches.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/length-facet.test.js
 
@@ -27,19 +31,28 @@ import { filterFacets } from "../../../hqptuner/static/store/narrow/facets.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 /**
+ * A static overlay row as filters.json ships it.
+ *
+ * @typedef {{ genre?: string[], quality?: number, focus?: string[], phase?: string, description?: string }} OverlayRow
+ */
+
+/**
  * One `<FiltersItem/>` as the backend serves it: the engine's enumeration
- * fields, with no static overlay row merged in.
+ * fields plus the backend-merged overlay row under `static` (undefined on an
+ * overlay miss, which is what these length cases seed).
  *
  * @param {string} name
  * @param {number} index
+ * @param {OverlayRow} [staticRow]
  */
-const item = (name, index) => ({
+const item = (name, index, staticRow) => ({
   index: String(index),
   name,
   value: String(index),
   arg: 0,
   description: "3/5 ⥮ Any",
   apodizing: false,
+  static: staticRow,
 });
 
 /**
@@ -49,7 +62,7 @@ const item = (name, index) => ({
  * @param {string[]} names
  */
 function seed(names) {
-  enums.value = { filters: names.map(item) };
+  enums.value = { filters: names.map((name, i) => item(name, i)) };
   metadata.value = {
     settings: {},
     filters: { filters: {}, aliases: {} },
@@ -60,58 +73,54 @@ function seed(names) {
 /** @param {string} name */
 const lengthOf = (name) => filterFacets.value[name].length;
 
-/** The buckets a user can actually pick in the Length facet. */
-const BUCKETS = ["short", "medium", "long", "xlong"];
-
-// --- letter-coded names whose description names an extra-long ancestor --------
+// --- letter-coded names with an extra-long ancestor --------------------------
 // `sinc-S` is "Variant of poly-sinc-ext2-xla"; the sinc-M family each name an
-// xl or xla ancestor. The name itself carries no length token, so the ancestor
-// in the description is the whole of what is known.
+// xl or xla ancestor. The names themselves carry no length token.
 
 for (const name of ["sinc-S", "sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
-  test(`test_${name.replace(/-/g, "_")}_is_xlong_from_its_extra_long_ancestor`, () => {
+  test(`test_${name.replace(/-/g, "_")}_classifies_as_xlong`, () => {
     seed([name]);
     assert.equal(lengthOf(name), "xlong");
   });
 }
 
-// --- names whose description states a tap count and no length ----------------
-// The sinc-L family states a tap multiplier, the closed-form pair a tap count.
-// Taps are a filter specification: they are never converted into a bucket.
+// --- names documented by tap count only --------------------------------------
+// The sinc-L family is documented by a tap multiplier, the closed-form pair by
+// a tap count. Taps are a filter specification: never a bucket.
 
 for (const name of ["sinc-L", "sinc-Ls", "sinc-Lm", "sinc-Ll", "sinc-Lh"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length_because_its_description_states_only_taps`, () => {
+  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
     seed([name]);
     assert.equal(lengthOf(name), "");
   });
 }
 
 for (const name of ["closed-form-M", "closed-form-16M"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length_because_its_description_states_only_a_tap_count`, () => {
+  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
     seed([name]);
     assert.equal(lengthOf(name), "");
   });
 }
 
-// --- names whose description states no length at all -------------------------
+// --- names with no documented length at all ----------------------------------
 // The polynomial pair states none; the minringFIR pair compares ringing to
 // other filters and states none.
 
 for (const name of ["polynomial-1", "polynomial-2", "minringFIR-lp", "minringFIR-mp"]) {
-  test(`test_${name.replace(/-/g, "_")}_has_no_length_because_its_description_states_none`, () => {
+  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
     seed([name]);
     assert.equal(lengthOf(name), "");
   });
 }
 
-// --- descriptions that open with a length word -------------------------------
+// --- halfband names documented with a length word ----------------------------
 
-test("test_poly_sinc_gauss_halfband_s_is_short_from_its_short_description", () => {
+test("test_poly_sinc_gauss_halfband_s_classifies_as_short", () => {
   seed(["poly-sinc-gauss-halfband-s"]);
   assert.equal(lengthOf("poly-sinc-gauss-halfband-s"), "short");
 });
 
-test("test_poly_sinc_hb_m_is_medium_from_its_medium_description", () => {
+test("test_poly_sinc_hb_m_classifies_as_medium", () => {
   seed(["poly-sinc-hb-m"]);
   assert.equal(lengthOf("poly-sinc-hb-m"), "medium");
 });
@@ -132,7 +141,7 @@ for (const [name, expected] of [
 // --- xl / xla suffixes -------------------------------------------------------
 
 for (const name of ["poly-sinc-gauss-xl", "poly-sinc-gauss-xla"]) {
-  test(`test_${name.replace(/-/g, "_")}_is_xlong_from_its_suffix`, () => {
+  test(`test_${name.replace(/-/g, "_")}_classifies_as_xlong`, () => {
     seed([name]);
     assert.equal(lengthOf(name), "xlong");
   });
@@ -152,10 +161,13 @@ for (const [name, expected] of [
 }
 
 // --- the two-stage suffix is stripped before classifying ---------------------
+// The subject's bucket is reachable only after the strip: `-l-2s` ends in the
+// two-stage suffix, so an implementation that never strips sees no halfband
+// length suffix at all.
 
 test("test_a_trailing_2s_suffix_is_stripped_before_classifying", () => {
-  seed(["poly-sinc-short-2s"]);
-  assert.equal(lengthOf("poly-sinc-short-2s"), "short");
+  seed(["poly-sinc-hb-l-2s"]);
+  assert.equal(lengthOf("poly-sinc-hb-l-2s"), "long");
 });
 
 // --- nothing matched ---------------------------------------------------------
@@ -163,31 +175,4 @@ test("test_a_trailing_2s_suffix_is_stripped_before_classifying", () => {
 test("test_a_name_matching_no_length_rule_has_no_length", () => {
   seed(["gauss-plain"]);
   assert.equal(lengthOf("gauss-plain"), "");
-});
-
-// --- a length-less filter is not reachable by any Length pick ----------------
-// Every name the taxonomy does not reach must carry none of the four pickable
-// buckets, so no Length selection can surface it. Reported as an offender list
-// so one failure names every leak at once — still one condition.
-
-test("test_no_length_less_filter_carries_a_pickable_length_bucket", () => {
-  const names = [
-    "sinc-L",
-    "sinc-Ls",
-    "sinc-Lm",
-    "sinc-Ll",
-    "sinc-Lh",
-    "closed-form-M",
-    "closed-form-16M",
-    "polynomial-1",
-    "polynomial-2",
-    "minringFIR-lp",
-    "minringFIR-mp",
-    "gauss-plain",
-  ];
-  seed(names);
-  assert.deepEqual(
-    names.filter((n) => BUCKETS.includes(lengthOf(n))),
-    [],
-  );
 });
