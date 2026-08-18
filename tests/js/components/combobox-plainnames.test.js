@@ -85,11 +85,19 @@ const PLAIN_FILTERS = {
 const META_PLAIN = {
   ...META,
   plain_names: {
-    filters: PLAIN_FILTERS,
-    dithers: { TPDF: { family: "Dither", variant: null, leaf: "Triangular", short: "TPDF plain" } },
+    filters: { entries: PLAIN_FILTERS, families: {}, variants: {} },
+    dithers: {
+      entries: { TPDF: { family: "Dither", variant: null, leaf: "Triangular", short: "TPDF plain" } },
+      families: {},
+      variants: {},
+    },
     modulators: {
-      ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7" },
-      ASDM7EC: { family: "ASDM", variant: null, leaf: "Seventh EC", short: "ASDM 7EC" },
+      entries: {
+        ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7" },
+        ASDM7EC: { family: "ASDM", variant: null, leaf: "Seventh EC", short: "ASDM 7EC" },
+      },
+      families: {},
+      variants: {},
     },
   },
 };

@@ -29,9 +29,21 @@ const plainnames = await import(`${MOD}`);
 const META_PLAIN = {
   ...META,
   plain_names: {
-    filters: { "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M" } },
-    dithers: { TPDF: { family: "Dither", variant: null, leaf: "Triangular", short: "TPDF plain" } },
-    modulators: { ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7" } },
+    filters: {
+      entries: { "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M" } },
+      families: {},
+      variants: {},
+    },
+    dithers: {
+      entries: { TPDF: { family: "Dither", variant: null, leaf: "Triangular", short: "TPDF plain" } },
+      families: {},
+      variants: {},
+    },
+    modulators: {
+      entries: { ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7" } },
+      families: {},
+      variants: {},
+    },
   },
 };
 

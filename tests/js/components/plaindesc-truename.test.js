@@ -42,9 +42,13 @@ import { elements, classes, text } from "../support/markup.js";
 const META_PLAIN = {
   ...META,
   plain_names: {
-    filters: { "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M" } },
-    dithers: {},
-    modulators: {},
+    filters: {
+      entries: { "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M" } },
+      families: {},
+      variants: {},
+    },
+    dithers: { entries: {}, families: {}, variants: {} },
+    modulators: { entries: {}, families: {}, variants: {} },
   },
 };
 
