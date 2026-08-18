@@ -183,3 +183,69 @@ export function setLiveCardOpen(card, open) {
 export const notesVisible = computed(() => showDescriptions.value);
 // Per-selection option descriptions survive a hidden master when kept.
 export const descVisible = computed(() => showDescriptions.value || keepOptionDescriptions.value);
+
+// The LIVE page's block order. The page is six stacked blocks; the first, LIVE
+// MODE, is locked, and the other five are the user's to arrange. Stored as a
+// JSON list of block keys rather than an index per block so that a release
+// which adds or drops a block reconciles rather than strands: an unknown key is
+// dropped and a missing one is appended in default order, both on load and on
+// every set, so the stored list can never render a block off the page.
+const K_LIVE_ORDER = "hqptuner.liveOrder";
+
+/** Default top-to-bottom order of the five movable LIVE blocks. */
+export const LIVE_BLOCK_ORDER = ["hero", "health", "chains", "playback", "matrix"];
+
+/**
+ * @param {string[]} keys
+ * @returns {string[]}
+ */
+function reconcileOrder(keys) {
+  const known = keys.filter((k) => LIVE_BLOCK_ORDER.includes(k));
+  return [...known, ...LIVE_BLOCK_ORDER.filter((k) => !known.includes(k))];
+}
+
+/** @returns {string[]} */
+function loadOrder() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(K_LIVE_ORDER);
+  } catch {
+    warnStorage("read");
+    return [...LIVE_BLOCK_ORDER];
+  }
+  if (raw == null) return [...LIVE_BLOCK_ORDER];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [...LIVE_BLOCK_ORDER];
+    return reconcileOrder(parsed.filter((/** @type {unknown} */ k) => typeof k === "string"));
+  } catch {
+    // A junk value reads as unset, the same way a junk boolean does.
+    return [...LIVE_BLOCK_ORDER];
+  }
+}
+
+export const liveOrder = signal(loadOrder());
+
+/**
+ * Set the LIVE block order, reconciled against the default. Does not persist —
+ * the order is written once, when the user leaves layout-edit mode.
+ *
+ * @param {string[]} keys
+ * @returns {void}
+ */
+export function setLiveOrder(keys) {
+  liveOrder.value = reconcileOrder(keys.filter((k) => typeof k === "string"));
+}
+
+/**
+ * Persist the current LIVE block order.
+ *
+ * @returns {void}
+ */
+export function commitLiveOrder() {
+  try {
+    localStorage.setItem(K_LIVE_ORDER, JSON.stringify(liveOrder.value));
+  } catch {
+    warnStorage("written");
+  }
+}

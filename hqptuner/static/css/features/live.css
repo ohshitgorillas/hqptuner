@@ -141,3 +141,65 @@
   flex-basis: 100%;
 }
 
+/* The page as a stack of blocks. This div now sits between .tab-body and the
+   cards, so it carries the card-to-card rhythm the tab body used to give them
+   directly (chrome.css .tab-body) — same token, same role. */
+.live-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-stack);
+}
+
+/* One block. Nothing of its own until the page is in layout-edit mode: a block
+   holding a single card must look exactly like that card. */
+.live-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-stack);
+}
+
+/* Narrowing and the two chain cards move as one thing: narrowing is global
+   across PCM and SDM, and its effect reads as the n/total badge inside the
+   chain cards, so separating them would put a cause and its effect in
+   different places on the page. */
+.live-chain-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-stack);
+}
+
+/* Edit mode outlines the BLOCK, not the cards inside it. Two cards under one
+   outline is what makes them read as a single movable thing; dimmed card frames
+   alone read as two. The blocks are inert while this is on, so the grab cursor
+   is the whole affordance — there is no grip and no reserved gutter. */
+.live-block.editing {
+  outline: 1px dashed var(--accent);
+  outline-offset: var(--sp-1);
+  border-radius: var(--r-lg);
+  opacity: var(--o-dim);
+  cursor: grab;
+}
+.live-block.dragging {
+  cursor: grabbing;
+  opacity: 1;
+}
+
+/* The layout toggle in the LIVE MODE head, right-aligned off the control rows
+   the same way narrowing's Reset is (narrowing.css). Pressed, it takes the
+   head's own colour, so the page reads as being in a mode rather than as having
+   a button lit. */
+.card-head .live-edit-toggle {
+  margin-left: auto;
+  padding: 0;
+  font-size: var(--fs-head);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.card-head .live-edit-toggle[aria-pressed="true"] {
+  color: var(--fg);
+  text-decoration: underline;
+}
+

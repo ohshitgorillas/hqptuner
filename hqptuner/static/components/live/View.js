@@ -17,26 +17,13 @@
 // it was refused".
 import { signal, computed, effect } from "@preact/signals";
 import { html } from "../../lib/dom.js";
-import { errText } from "../../lib/errtext.js";
-import { api } from "../../lib/api.js";
 import { liveModel } from "../../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
 import { writeLive } from "../../store/live/write.js";
 import { describe, selectedLabel } from "../../store/prose.js";
 import { plainClosedLabel } from "../../store/plainnames.js";
-import {
-  notesVisible,
-  descVisible,
-  liveNarrowOpen,
-  livePlaybackOpen,
-  liveHealthOpen,
-  liveMatrixOpen,
-  setLiveCardOpen,
-} from "../../store/prefs.js";
-import { refreshConfig } from "../../store/sync.js";
-import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../../store/matrix/profiles.js";
-import { descriptionFor } from "../../store/matrix/descriptions.js";
-import { Segment, Dropdown, Checkbox } from "../controls/index.js";
+import { notesVisible, descVisible, liveNarrowOpen, livePlaybackOpen, liveHealthOpen } from "../../store/prefs.js";
+import { Segment, Checkbox } from "../controls/index.js";
 import { widthClasses } from "../Field.js";
 import { widgetFor, tipsFor, favFor, FavoriteError, DescBlock } from "../binder.js";
 import { ChainPack } from "../ChainPack.js";
@@ -44,6 +31,9 @@ import { NarrowBar } from "../narrowbar/Bar.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
 import { EngineHealth } from "../EngineHealth.js";
 import { LiveModeCard } from "./Presets.js";
+import { LiveBlocks } from "./Layout.js";
+import { MatrixProfileCard } from "./MatrixProfile.js";
+import { cardCollapse } from "./collapse.js";
 import { Section, Card, collapseFrom } from "../common.js";
 
 /**
@@ -206,22 +196,6 @@ effect(() => {
   sdmOverride.value = null;
 });
 
-// The four cards that are neither Mode, Rate nor a chain fold away, and their
-// disclosure is a stored preference rather than an override over an automatic
-// one: nothing about the engine says whether the narrowing bar or the health
-// readout should be on screen, only the user does. A folded card leaves its head
-// behind, so the page keeps its shape while losing its height — which is what
-// puts the output mode switch and the matrix profile picker on one screen.
-/**
- * @param {"narrow" | "playback" | "health" | "matrix"} card
- * @param {{ value: boolean }} open
- * @returns {import("../common.js").CollapseHandle}
- */
-const cardCollapse = (card, open) => ({
-  open: open.value,
-  onToggle: () => setLiveCardOpen(card, !open.value),
-});
-
 // What the card for a chain that is not loaded says: the edit is real, it is
 // simply not what is playing yet.
 /**
@@ -250,13 +224,15 @@ function ChainBody({ chain, loaded, controls }) {
 function ChainCards() {
   const { chain, pcmChain, sdmChain } = liveModel.value;
   return html`
-    <${NarrowBar} srcFormat=${false} collapse=${cardCollapse("narrow", liveNarrowOpen)} />
-    <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
-      <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
-    <//>
-    <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
-      <${ChainBody} chain="sdm" loaded=${chain} controls=${sdmChain} />
-    <//>
+    <div class="live-chain-group">
+      <${NarrowBar} srcFormat=${false} collapse=${cardCollapse("narrow", liveNarrowOpen)} />
+      <${Card} title="PCM Chain" collapse=${collapseFrom(pcmOpen, pcmOverride)}>
+        <${ChainBody} chain="pcm" loaded=${chain} controls=${pcmChain} />
+      <//>
+      <${Card} title="SDM Chain" collapse=${collapseFrom(sdmOpen, sdmOverride)}>
+        <${ChainBody} chain="sdm" loaded=${chain} controls=${sdmChain} />
+      <//>
+    </div>
   `;
 }
 
@@ -307,91 +283,37 @@ function PlaybackCard() {
   `;
 }
 
-// The matrix profile picker is its own lane: MatrixSetProfile is a live 4321
-// switch, not a config field, so it never goes through POST /api/config/live. It
-// also never stages here — the tabs view's card is where a profile is saved to
-// the configuration; this one only switches the running matrix. A profile saved
-// in this session and not applied yet is therefore unreachable: the daemon knows
-// only the profiles it read at startup.
-const profileBusy = signal(false);
-const profileError = signal("");
-
-/** @param {string} name */
-async function switchProfile(name) {
-  profileBusy.value = true;
-  profileError.value = "";
-  try {
-    await api.matrixProfile("switch", name);
-    await refreshConfig();
-  } catch (e) {
-    profileError.value = errText(e);
-  } finally {
-    profileBusy.value = false;
-  }
-}
-
-/** @param {string[]} saved */
-function profileOptions(saved) {
-  return [
-    { value: "", label: "[Default]" },
-    ...saved.map((n) => ({
-      value: n,
-      label: n,
-      disabled: !isLiveProfile(n),
-      reason: isLiveProfile(n) ? "" : "not loaded by the engine",
-    })),
-  ];
-}
-
-function MatrixProfileCard() {
-  const active = matrixActiveProfile.value;
-  // What the user wrote about the profile that is running, if they wrote
-  // anything. No box and no empty state: LIVE is a status page, and an empty
-  // frame here would be a control that does nothing. The description reads in
-  // the content grey against the muted caption below it, which is what separates
-  // the user's own words from ours.
-  const described = descriptionFor(active);
+// The same card the System tab carries, high on the page because on LIVE it is
+// the instrument you judge a write by: change the rate or the filter and the
+// needle is what tells you the engine took it. This card drops its "quick
+// updates" checkbox here — LIVE polls at 1 s unconditionally (store/ui.js).
+function HealthCard() {
   return html`
-    <${Card} title="Matrix profile" collapse=${cardCollapse("matrix", liveMatrixOpen)}>
-      <div class="field">
-        <label>Profile</label>
-        <div class="control">
-          <${Dropdown}
-            value=${active === "[Default]" ? "" : active}
-            options=${profileOptions(savedProfiles.value)}
-            disabled=${profileBusy.value}
-            onChange=${switchProfile}
-          />
-        </div>
-        ${described ? html`<div class="live-desc">${described.text}</div>` : null}
-        <div class="field-note">
-          Switches the running matrix immediately — no engine reload, and your crossfeed, DAC correction and loudness
-          settings are left alone. A live switch alone is dropped at the next daemon restart; save it from the Matrix tab
-          to keep it.
-        </div>
-        ${profileError.value ? html`<div class="live-error">${profileError.value}</div>` : null}
-      </div>
+    <${Card} title="Engine health" collapse=${cardCollapse("health", liveHealthOpen)}>
+      <${EngineHealth} showQuick=${false} />
     <//>
   `;
 }
 
-/** LIVE page: mode card, hero row, engine-health card, chain cards, playback card and matrix-profile card. */
+/**
+ * LIVE page: the locked LIVE MODE card, then the five movable blocks in the
+ * user's own order (components/live/Layout.js). The keys are the stored order's
+ * vocabulary — a key added here needs the same key in `LIVE_BLOCK_ORDER`
+ * (store/prefs.js), which is what keeps a stored order from stranding a block.
+ */
 export function LiveView() {
   return html`
     <${Section}>
-      <${LiveModeCard} />
-      <${HeroRow} />
-      <!-- The same card the System tab carries, second on the page because on
-           LIVE it is the instrument you judge a write by: change the rate or the
-           filter and the needle is what tells you the engine took it. This
-           card drops its "quick updates" checkbox here — LIVE polls at 1 s
-           unconditionally (store/ui.js). -->
-      <${Card} title="Engine health" collapse=${cardCollapse("health", liveHealthOpen)}>
-        <${EngineHealth} showQuick=${false} />
-      <//>
-      <${ChainCards} />
-      <${PlaybackCard} />
-      <${MatrixProfileCard} />
+      <${LiveBlocks}
+        locked=${html`<${LiveModeCard} />`}
+        blocks=${{
+          hero: html`<${HeroRow} />`,
+          health: html`<${HealthCard} />`,
+          chains: html`<${ChainCards} />`,
+          playback: html`<${PlaybackCard} />`,
+          matrix: html`<${MatrixProfileCard} />`,
+        }}
+      />
     <//>
   `;
 }
