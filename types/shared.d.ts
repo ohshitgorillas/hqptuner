@@ -151,6 +151,9 @@ interface SchemaField {
   // A DISCRIMINATOR, not a flag: "pcm" | "sdm", handed to grayShapersByRate() as
   // its `kind` argument (schema.js:526,565 -> Field.js:159).
   rateGray?: string;
+  // A DISCRIMINATOR, not a flag: "filters" | "dithers" | "modulators", handed to
+  // store/plainnames.js decorateOptions()/plainClosedLabel() as its `kind` argument.
+  plainNames?: string;
 
   // numeric widgets
   def?: string | number | boolean;

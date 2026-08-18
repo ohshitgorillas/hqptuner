@@ -1,0 +1,221 @@
+{
+  "_scope": "data/engine-enums.json shapers_sdm (36 SDM modulators), in engine order. PCM dithers (shapers_pcm) deliberately out of scope. Raw name -> family label, variant label, leaf label. Family is architecture, variant is modulator order, leaf is the rest. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Vendor qualifiers 'ultralight', 'light' and 'super' are kept verbatim and left unglossed, since no HQPlayer doc defines them. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "modulators": {
+    "DSD5": {
+      "family": "Fixed",
+      "variant": "Fifth order",
+      "leaf": "Rate adaptive",
+      "short": "Fixed · 5th order · Rate adaptive"
+    },
+    "DSD5v2": {
+      "family": "Fixed",
+      "variant": "Fifth order",
+      "leaf": "Revised",
+      "short": "Fixed · 5th order · Revised"
+    },
+    "DSD5v2 256+fs": {
+      "family": "Fixed",
+      "variant": "Fifth order",
+      "leaf": "Revised, DSD256+",
+      "short": "Fixed · 5th order · Revised, DSD256+"
+    },
+    "DSD5EC": {
+      "family": "Fixed",
+      "variant": "Fifth order",
+      "leaf": "Rate adaptive, extended compensation",
+      "short": "Fixed · 5th order · Rate adaptive, EC"
+    },
+    "ASDM5": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Standard",
+      "short": "Adaptive · 5th order · Standard"
+    },
+    "ASDM5EC": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Extended compensation",
+      "short": "Adaptive · 5th order · EC"
+    },
+    "ASDM5ECv2": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "v2, extended compensation",
+      "short": "Adaptive · 5th order · v2, EC"
+    },
+    "ASDM5ECv3": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "v3, extended compensation",
+      "short": "Adaptive · 5th order · v3, EC"
+    },
+    "ASDM5EC-ul": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Ultralight, extended compensation",
+      "short": "Adaptive · 5th order · Ultralight, EC"
+    },
+    "ASDM5EC-light": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Light, extended compensation",
+      "short": "Adaptive · 5th order · Light, EC"
+    },
+    "ASDM5EC-fast": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Transient optimized, extended compensation",
+      "short": "Adaptive · 5th order · Transient optimized, EC"
+    },
+    "ASDM5EC-super": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Super, extended compensation",
+      "short": "Adaptive · 5th order · Super, EC"
+    },
+    "ASDM5EC-ul 512+fs": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Ultralight, extended compensation, DSD512+",
+      "short": "Adaptive · 5th order · Ultralight, EC, DSD512+"
+    },
+    "ASDM5EC-light 512+fs": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Light, extended compensation, DSD512+",
+      "short": "Adaptive · 5th order · Light, EC, DSD512+"
+    },
+    "ASDM5EC-fast 512+fs": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Transient optimized, extended compensation, DSD512+",
+      "short": "Adaptive · 5th order · Transient optimized, EC, DSD512+"
+    },
+    "ASDM5EC-super 512+fs": {
+      "family": "Adaptive",
+      "variant": "Fifth order",
+      "leaf": "Super, extended compensation, DSD512+",
+      "short": "Adaptive · 5th order · Super, EC, DSD512+"
+    },
+    "DSD7": {
+      "family": "Fixed",
+      "variant": "Seventh order",
+      "leaf": "Standard",
+      "short": "Fixed · 7th order · Standard"
+    },
+    "DSD7 256+fs": {
+      "family": "Fixed",
+      "variant": "Seventh order",
+      "leaf": "DSD256+",
+      "short": "Fixed · 7th order · DSD256+"
+    },
+    "ASDM7": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Standard",
+      "short": "Adaptive · 7th order · Standard"
+    },
+    "ASDM7EC": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Extended compensation",
+      "short": "Adaptive · 7th order · EC"
+    },
+    "ASDM7ECv2": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "v2, extended compensation",
+      "short": "Adaptive · 7th order · v2, EC"
+    },
+    "ASDM7ECv3": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "v3, extended compensation",
+      "short": "Adaptive · 7th order · v3, EC"
+    },
+    "ASDM7EC-ul": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Ultralight, extended compensation",
+      "short": "Adaptive · 7th order · Ultralight, EC"
+    },
+    "ASDM7EC-light": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Light, extended compensation",
+      "short": "Adaptive · 7th order · Light, EC"
+    },
+    "ASDM7EC-fast": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Transient optimized, extended compensation",
+      "short": "Adaptive · 7th order · Transient optimized, EC"
+    },
+    "ASDM7EC-super": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Super, extended compensation",
+      "short": "Adaptive · 7th order · Super, EC"
+    },
+    "ASDM7EC-ul 512+fs": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Ultralight, extended compensation, DSD512+",
+      "short": "Adaptive · 7th order · Ultralight, EC, DSD512+"
+    },
+    "ASDM7EC-light 512+fs": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Light, extended compensation, DSD512+",
+      "short": "Adaptive · 7th order · Light, EC, DSD512+"
+    },
+    "ASDM7EC-fast 512+fs": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Transient optimized, extended compensation, DSD512+",
+      "short": "Adaptive · 7th order · Transient optimized, EC, DSD512+"
+    },
+    "ASDM7EC-super 512+fs": {
+      "family": "Adaptive",
+      "variant": "Seventh order",
+      "leaf": "Super, extended compensation, DSD512+",
+      "short": "Adaptive · 7th order · Super, EC, DSD512+"
+    },
+    "AMSDM7 512+fs": {
+      "family": "Pseudo multi-bit",
+      "variant": "Seventh order",
+      "leaf": "Standard, DSD512+",
+      "short": "Multi-bit · 7th order · Standard, DSD512+"
+    },
+    "AMSDM7EC 512+fs": {
+      "family": "Pseudo multi-bit",
+      "variant": "Seventh order",
+      "leaf": "Extended compensation, DSD512+",
+      "short": "Multi-bit · 7th order · EC, DSD512+"
+    },
+    "AHM5EC5L": {
+      "family": "Hybrid",
+      "variant": "Fifth order",
+      "leaf": "Five level, DSD1024+",
+      "short": "Hybrid · 5th order · Five level, DSD1024+"
+    },
+    "AHM7EC5L": {
+      "family": "Hybrid",
+      "variant": "Seventh order",
+      "leaf": "Five level, DSD1024+",
+      "short": "Hybrid · 7th order · Five level, DSD1024+"
+    },
+    "AHM5EC8B": {
+      "family": "Hybrid",
+      "variant": "Fifth order",
+      "leaf": "8-bit, DSD1024+",
+      "short": "Hybrid · 5th order · 8-bit, DSD1024+"
+    },
+    "AHM7EC8B": {
+      "family": "Hybrid",
+      "variant": "Seventh order",
+      "leaf": "8-bit, DSD1024+",
+      "short": "Hybrid · 7th order · 8-bit, DSD1024+"
+    }
+  }
+}

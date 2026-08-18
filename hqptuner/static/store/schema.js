@@ -546,6 +546,7 @@ export const schema = {
     compact: "lg",
     narrow: "1x",
     desc: "filter",
+    plainNames: "filters",
   },
   pcm_filter_nx: {
     label: "Nx filter",
@@ -560,6 +561,7 @@ export const schema = {
     compact: "lg",
     narrow: "nx",
     desc: "filter",
+    plainNames: "filters",
   },
   pcm_dither: {
     label: "Dither",
@@ -577,6 +579,7 @@ export const schema = {
     // mismatch is reported in words instead (store/alerts/shaperfit.js). `rateGray`
     // stays on sdm_modulator, where the floor really does stop output.
     desc: "dither",
+    plainNames: "dithers",
   },
   sdm_filter_1x: {
     label: "1x filter",
@@ -591,6 +594,7 @@ export const schema = {
     compact: "lg",
     narrow: "1x",
     desc: "filter",
+    plainNames: "filters",
   },
   sdm_filter_nx: {
     label: "Nx filter",
@@ -605,6 +609,7 @@ export const schema = {
     compact: "lg",
     narrow: "nx",
     desc: "filter",
+    plainNames: "filters",
   },
   sdm_modulator: {
     label: "Sigma-delta modulator",
@@ -618,6 +623,7 @@ export const schema = {
     compact: "md",
     rateGray: "sdm",
     desc: "modulator",
+    plainNames: "modulators",
   },
 
   // --- DSP: generic processing ---

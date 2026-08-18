@@ -7,11 +7,18 @@ import { useRef, useState, useEffect, useLayoutEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 
 /**
- * @typedef {SchemaOption & { disabled?: boolean, reason?: string }} RenderOption
+ * @typedef {SchemaOption & { disabled?: boolean, reason?: string, display?: string,
+ *   closedLabel?: string, group?: string, subgroup?: string | null }} RenderOption
  *   One row as it reaches this widget. Wider than either shared type: Field.js
  *   forwards a schema literal's SchemaOption list unchanged when the entry
  *   carries `options`, and an OptionItem from the option stores when it carries
- *   `optionsFrom` — so disabled/reason are present on one path only.
+ *   `optionsFrom` — so disabled/reason are present on one path only. The
+ *   display/closedLabel/group/subgroup fields ride in from the plain-names
+ *   decoration (store/plainnames.js) and are absent in Standard mode.
+ * @typedef {{ o: RenderOption, oi: number } | { header: string, sub: boolean }} ListRow
+ *   One rendered row of the open pop: an option (with its index in `options`),
+ *   or a family/variant header. Headers are presentation only — never
+ *   selectable, never committable, skipped by keyboard navigation.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {{ text: string, rows: [string, string][], chips: string[] }} TipContent
@@ -21,7 +28,9 @@ import { html } from "../../lib/dom.js";
  *   fav?: (o: RenderOption) => boolean, onFav?: (o: RenderOption) => void,
  *   byKey: { current: boolean }, setHl: (i: number) => void,
  *   commit: (o: RenderOption) => void }} RowCtx
- *   The shared context every option row draws from — see OptionRow.
+ *   The shared context every option row draws from — see OptionRow. `hl` and
+ *   `selIdx` are indexes into the pop's row list (headers included), not into
+ *   the options array.
  */
 
 /**
@@ -30,6 +39,54 @@ import { html } from "../../lib/dom.js";
  */
 const s = (v) => (v == null ? "" : String(v));
 let uid = 0;
+
+// The open pop's row list: options 1:1 in Standard mode, and with a family
+// header before each family's first option and a variant subheader before each
+// non-null variant's first option when the options carry plain-names groups.
+// Group runs are contiguous by construction (store/plainnames.js sorts them),
+// so a boundary check per option is enough.
+/**
+ * @param {RenderOption[]} opts
+ * @returns {ListRow[]}
+ */
+function buildRows(opts) {
+  /** @type {ListRow[]} */
+  const rows = [];
+  /** @type {string | null} */
+  let g = null;
+  /** @type {string | null} */
+  let sg = null;
+  opts.forEach((o, oi) => {
+    if (o.group != null) {
+      if (o.group !== g) {
+        rows.push({ header: o.group, sub: false });
+        g = o.group;
+        sg = null;
+      }
+      if (o.subgroup != null && o.subgroup !== sg) rows.push({ header: o.subgroup, sub: true });
+      sg = o.subgroup == null ? null : o.subgroup;
+    } else {
+      g = null;
+      sg = null;
+    }
+    rows.push({ o, oi });
+  });
+  return rows;
+}
+
+/**
+ * @param {ListRow | undefined} row
+ * @returns {RenderOption | undefined}
+ */
+const rowOption = (row) => (row && "o" in row ? row.o : undefined);
+
+// An option row's visible text: the plain-names display when the option
+// carries one, else the raw label; a disabled row appends its reason.
+/**
+ * @param {RenderOption} o
+ * @returns {string}
+ */
+const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}`;
 
 // Fixed-position placement, all coordinates from getBoundingClientRect. Flip
 // above the button only when below can't fit the natural height AND above is
@@ -97,12 +154,25 @@ function placeTip(t, p, row) {
 // user meant as browsing. Open, the arrows move the highlight, Enter commits it,
 // Escape closes, Tab closes and lets focus move on.
 /**
- * @param {{ open: boolean, setOpen: (v: boolean) => void, opts: RenderOption[], hl: number,
+ * @param {{ open: boolean, setOpen: (v: boolean) => void, rows: ListRow[], hl: number,
  *   setHl: (i: number) => void, byKey: { current: boolean }, show: () => void,
- *   commit: (o: RenderOption) => void }} ctx
+ *   commit: (o: RenderOption | undefined) => void }} ctx
  * @returns {(e: KeyboardEvent) => void}
  */
-function comboKeyHandler({ open, setOpen, opts, hl, setHl, byKey, show, commit }) {
+function comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit }) {
+  // Arrow moves land on option rows only: from `from`, the nearest option row
+  // in `dir`, or `from` itself when none is left in that direction.
+  /**
+   * @param {number} from
+   * @param {number} dir
+   * @returns {number}
+   */
+  const nextOption = (from, dir) => {
+    for (let j = from + dir; j >= 0 && j < rows.length; j += dir) {
+      if (rowOption(rows[j])) return j;
+    }
+    return from;
+  };
   return (e) => {
     if (!open) {
       if (["ArrowDown", "ArrowUp", " ", "Enter"].includes(e.key)) {
@@ -115,15 +185,15 @@ function comboKeyHandler({ open, setOpen, opts, hl, setHl, byKey, show, commit }
     const move = (i) => {
       e.preventDefault();
       byKey.current = true;
-      setHl(Math.max(0, Math.min(opts.length - 1, i)));
+      setHl(i);
     };
-    if (e.key === "ArrowDown") move(hl + 1);
-    else if (e.key === "ArrowUp") move(hl - 1);
-    else if (e.key === "Home") move(0);
-    else if (e.key === "End") move(opts.length - 1);
+    if (e.key === "ArrowDown") move(nextOption(hl, 1));
+    else if (e.key === "ArrowUp") move(nextOption(hl, -1));
+    else if (e.key === "Home") move(nextOption(-1, 1));
+    else if (e.key === "End") move(nextOption(rows.length, -1));
     else if (e.key === "Enter") {
       e.preventDefault();
-      commit(opts[hl]); // disabled row: no commit, stays open with tip showing
+      commit(rowOption(rows[hl])); // disabled row: no commit, stays open with tip showing
     } else if (e.key === "Escape") {
       e.preventDefault();
       setOpen(false);
@@ -210,7 +280,7 @@ function OptionRow({ o, i, row }) {
       }}
       onClick=${() => commit(o)}
     >
-      ${o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}
+      ${rowText(o)}
       ${
         fav
           ? html`<button
@@ -284,6 +354,7 @@ function TipPop({ tip, tipRef }) {
  */
 export function Combobox({ value, options, valueLabel, tips, fav, onFav, disabled, onChange }) {
   const opts = options || [];
+  const rows = buildRows(opts);
   const [open, setOpen] = useState(false);
   const [hl, setHl] = useState(0);
   const id = useRef(`cbx-${++uid}`).current;
@@ -295,24 +366,28 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   // on hover warps the list out from under the user's wheel.
   const byKey = useRef(false);
 
-  const selIdx = opts.findIndex((o) => s(o.value) === s(value));
-  const tip = tipFor(open, tips, opts[hl]);
+  // Row index of the selection — headers are rows too, so every index the
+  // widget holds (hl, selIdx, the aria ids) is in the row domain.
+  const selIdx = rows.findIndex((r) => "o" in r && s(r.o.value) === s(value));
+  const hlOpt = rowOption(rows[hl]);
+  const tip = tipFor(open, tips, hlOpt);
   // Placement keys on the highlighted option, not the tip object — `tips` builds
   // a fresh object every render, and an identity dep would re-place per render.
-  const tipKey = tip ? s(opts[hl].value) : "";
+  const tipKey = tip && hlOpt ? s(hlOpt.value) : "";
 
   const show = () => {
     byKey.current = true; // opening reveals the selection, same as a key move
-    setHl(selIdx >= 0 ? selIdx : 0);
+    const first = rows.findIndex((r) => "o" in r);
+    setHl(selIdx >= 0 ? selIdx : Math.max(0, first));
     setOpen(true);
   };
-  /** @param {RenderOption} o */
+  /** @param {RenderOption | undefined} o */
   const commit = (o) => {
     if (!o || o.disabled) return;
     onChange(o.value);
     setOpen(false);
   };
-  const onKey = comboKeyHandler({ open, setOpen, opts, hl, setHl, byKey, show, commit });
+  const onKey = comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit });
   useDismissOnOutside({ open, setOpen, btnRef, popRef });
 
   usePopPlacement({ open, hl, tipKey, byKey, btnRef, popRef, tipRef });
@@ -320,7 +395,8 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   // A narrowed dropdown can drop the current selection off its own list
   // (store/narrow/state.js); the closed control still has to name that selection,
   // so the caller passes the label the option list no longer carries.
-  const label = selIdx >= 0 ? opts[selIdx].label : valueLabel || s(value);
+  const sel = rowOption(rows[selIdx]);
+  const label = sel ? sel.closedLabel || sel.label : valueLabel || s(value);
   const row = { open, hl, selIdx, id, fav, onFav, byKey, setHl, commit };
   return html`
     <button
@@ -338,7 +414,11 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
       ${label}
     </button>
     <div class="dd-pop" role="listbox" hidden=${!open} ref=${popRef} title="">
-      ${opts.map((o, i) => html`<${OptionRow} o=${o} i=${i} row=${row} />`)}
+      ${rows.map((r, i) =>
+        "o" in r
+          ? html`<${OptionRow} o=${r.o} i=${i} row=${row} />`
+          : html`<div class=${r.sub ? "dd-hdr dd-subhdr t-caption" : "dd-hdr t-label"} role="presentation">${r.header}</div>`,
+      )}
     </div>
     ${tip ? html`<${TipPop} tip=${tip} tipRef=${tipRef} />` : null}
   `;

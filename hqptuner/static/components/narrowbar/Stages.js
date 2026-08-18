@@ -55,6 +55,18 @@ export const LOSSY_TIP =
   "At 1x rates, this only benefits lossy material like MP3 and MQA; lossless material contains no ultrasonic content to attenuate. " +
   'Selecting "Lossless" hides these filters; "Lossy" shows them only.';
 
+// The "Option style" switch (store/prefs.js plainNames): Simplified re-renders
+// the six chain dropdowns with the plain-names overlay's grouped plain-English
+// text; Standard is the raw engine names, untouched.
+export const OPTION_STYLE_SEGS = [
+  { value: "standard", label: "Standard" },
+  { value: "simplified", label: "Simplified" },
+];
+
+export const OPTION_STYLE_TIP =
+  "This feature reduces the mental load required to parse the filter, dither, and modulator lists by stating each selection's properties in plain English. " +
+  "Items are categorized into families, optionally into variants, and listed by their distinguishing properties.";
+
 export const SRC_FORMAT_TIP =
   "The vast majority of music is packaged as PCM: if you're using streaming services only, leave this setting alone. " +
   'If you have a personal library with DSD files (*.DSF and *.DFF), select "+DSD" to show the chain settings for these sources as well.';

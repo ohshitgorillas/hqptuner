@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **An "Option style" switch on the narrowing bar renders the filter, dither and modulator dropdowns in plain English.** Simplified groups each list under family and variant headers with each entry's distinguishing properties; Standard keeps the raw engine names. The choice persists in the browser and touches nothing else: narrowing, favorites and rate graying still read the engine names.
+
 ### Fixed
 
 - **The length facet drops the lengths HQPlayer never stated.** The sinc-S, sinc-M, sinc-Mx, sinc-MG and sinc-MGa filters read as extra long.

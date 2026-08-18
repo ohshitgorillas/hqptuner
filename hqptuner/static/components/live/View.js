@@ -23,6 +23,7 @@ import { liveModel } from "../../store/live/model.js";
 import { liveBusy, liveEnumBusy, liveErrors } from "../../store/live/state.js";
 import { writeLive } from "../../store/live/write.js";
 import { describe, selectionDescription, selectedLabel } from "../../store/prose.js";
+import { plainClosedLabel } from "../../store/plainnames.js";
 import {
   notesVisible,
   descVisible,
@@ -128,6 +129,15 @@ function LiveLabel({ entry, meta, badge }) {
   `;
 }
 
+// The label the closed control wears, read off the pre-narrow list the same way
+// the tabs read theirs (Field.js valueLabel), routed through the simplified
+// short name when the entry carries `plainNames`.
+/** @param {LiveControl} control */
+function closedLabel(control) {
+  const label = selectedLabel(control.optionsRaw || control.options, control.value);
+  return control.entry.plainNames ? plainClosedLabel(control.entry.plainNames, label) : label;
+}
+
 /** @param {{ control: LiveControl, widget?: Widget }} props */
 function LiveField({ control, widget }) {
   const { entry } = control;
@@ -146,7 +156,7 @@ function LiveField({ control, widget }) {
         <${W}
           value=${control.value}
           options=${control.options}
-          valueLabel=${selectedLabel(control.optionsRaw || control.options, control.value)}
+          valueLabel=${closedLabel(control)}
           tips=${tipsFor(entry, meta)}
           fav=${fav}
           onFav=${onFav}

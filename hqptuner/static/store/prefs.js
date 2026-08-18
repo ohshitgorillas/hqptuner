@@ -15,6 +15,7 @@ import { signal, computed } from "@preact/signals";
 const K_DESC = "hqptuner.showDescriptions";
 const K_KEEP = "hqptuner.keepOptionDescriptions";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
+const K_SIMPLE = "hqptuner.plainNames";
 const K_LIVE = "hqptuner.liveMode";
 
 // A dead store is worth exactly one line of console noise: silence hides the
@@ -89,6 +90,23 @@ export function setShowDescriptions(on) {
 export function setKeepOptionDescriptions(on) {
   keepOptionDescriptions.value = !!on;
   persist(K_KEEP, keepOptionDescriptions.value);
+}
+
+// The "Option style" switch: Simplified re-renders the six chain dropdowns
+// (filters, dither, modulator) with the plain-English names from the
+// plain-names overlay (store/plainnames.js). Standard — the raw engine names —
+// is the default and what an unset or unavailable storage reads as.
+export const plainNames = signal(loadBool(K_SIMPLE, false));
+
+/**
+ * Set the "Option style" pref (true = Simplified) and persist it.
+ *
+ * @param {boolean} on
+ * @returns {void}
+ */
+export function setPlainNames(on) {
+  plainNames.value = !!on;
+  persist(K_SIMPLE, plainNames.value);
 }
 
 // The System page's faster-poll opt-in. Off by default (the 2 s default is fine
