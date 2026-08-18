@@ -347,6 +347,14 @@
   grid-column: 2;
   min-height: 2.1rem; /* reserve space so selection changes don't reflow the card */
 }
+/* Raw engine name above the description — only rendered while Simplified
+   display hides that name from the control itself (components/Field.js
+   descName). Mono like .t-value: the raw name is an engine token, not prose.
+   Inherits the caption size from the .field-desc it sits in. */
+.field-desc-name {
+  font-family: var(--font-mono);
+  color: var(--fg);
+}
 
 /* static per-control note (settings.json manual/readme prose) — same voice as
    .field-desc but the text never changes, so no reflow-reserve min-height. Sits
