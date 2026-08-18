@@ -184,37 +184,37 @@
     "AMSDM7 512+fs": {
       "family": "Pseudo multi-bit",
       "variant": "Seventh order",
-      "leaf": "Base, DSD512+",
+      "leaf": "Adaptive, DSD512+",
       "short": "Pseudo multi-bit · 7th order · Base, DSD512+"
     },
     "AMSDM7EC 512+fs": {
       "family": "Pseudo multi-bit",
       "variant": "Seventh order",
-      "leaf": "Extended compensation, DSD512+",
+      "leaf": "Adaptive, extended compensation, DSD512+",
       "short": "Pseudo multi-bit · 7th order · EC, DSD512+"
     },
     "AHM5EC5L": {
       "family": "Hybrid",
       "variant": "Fifth order",
-      "leaf": "Five level, DSD1024+",
+      "leaf": "Adaptive, five level, DSD1024+",
       "short": "Hybrid · 5th order · Five level, DSD1024+"
     },
     "AHM7EC5L": {
       "family": "Hybrid",
       "variant": "Seventh order",
-      "leaf": "Five level, DSD1024+",
+      "leaf": "Adaptive, five level, DSD1024+",
       "short": "Hybrid · 7th order · Five level, DSD1024+"
     },
     "AHM5EC8B": {
       "family": "Hybrid",
       "variant": "Fifth order",
-      "leaf": "8-bit, DSD1024+",
+      "leaf": "Adaptive, 8-bit, DSD1024+",
       "short": "Hybrid · 5th order · 8-bit, DSD1024+"
     },
     "AHM7EC8B": {
       "family": "Hybrid",
       "variant": "Seventh order",
-      "leaf": "8-bit, DSD1024+",
+      "leaf": "Adaptive, 8-bit, DSD1024+",
       "short": "Hybrid · 7th order · 8-bit, DSD1024+"
     }
   }
