@@ -59,11 +59,15 @@
   width: var(--w-select-lg);
 }
 /* Simplified option style: plain closed labels run to ~55 characters, far past
-   what the compact widths were sized for, so a plain-annotated field takes the
-   full form width while the pref is on. Must sit after the compact rules —
-   equal specificity, source order decides. */
+   what the compact widths were sized for, so a plain-annotated field fills its
+   column up to the full form width while the pref is on. Fill-then-cap like
+   .wide, never a fixed width: a fixed 28rem contributes its full size to the
+   pack column's intrinsic track and pushes the card past the viewport. Must sit
+   after the compact rules — equal specificity, source order decides. */
 .field.plain .dd-box {
-  width: var(--w-select);
+  width: 100%;
+  max-width: var(--w-select);
+  min-width: 0;
 }
 .dd-pop {
   /* fixed from the stylesheet, never from script: the first open frame must
