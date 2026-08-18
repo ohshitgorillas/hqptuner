@@ -47,8 +47,11 @@ function revealRow(p, row) {
   else if (rr.bottom > pr.bottom) p.scrollTop += rr.bottom - pr.bottom;
 }
 
-// Tip sits beside the highlighted row: left of the pop, or right when the
-// left edge would leave the viewport; bottom clamped inside the viewport.
+// Tip sits beside the highlighted row: left of the pop, narrowing itself into
+// the gap when the full width would not fit, and right only when even the
+// narrowed tip cannot; bottom clamped inside the viewport. The 340px cap is
+// the one the markup opens with (Combobox.js TipPop), re-applied here because
+// a narrowed tip must widen back when the same widget reopens with more room.
 /**
  * @param {HTMLElement} t the tip
  * @param {HTMLElement} p the pop
@@ -56,8 +59,10 @@ function revealRow(p, row) {
  */
 function placeTip(t, p, row) {
   const pr = p.getBoundingClientRect();
+  const avail = pr.left - 16; // 8px to the pop, 8px viewport margin
+  t.style.maxWidth = `${avail >= 240 ? Math.min(340, avail) : 340}px`;
   const tr = t.getBoundingClientRect();
-  const tl = pr.left - 8 - tr.width < 8 ? pr.right + 8 : pr.left - tr.width - 8;
+  const tl = avail >= 240 ? pr.left - tr.width - 8 : pr.right + 8;
   t.style.left = `${tl}px`;
   t.style.top = `${Math.min(row.getBoundingClientRect().top, window.innerHeight - 8 - tr.height)}px`;
   t.style.visibility = "visible";
