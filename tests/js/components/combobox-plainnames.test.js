@@ -180,11 +180,19 @@ function rowIncluding(out, needle) {
 
 // --- the default -----------------------------------------------------------------
 // This process has no localStorage at all (plain node), which IS the
-// storage-unset case: registered FIRST, before any case below writes the
-// signal, so the value read here is the one the module loaded with.
+// storage-unset case. The value the module loads with is read off a FRESH
+// instance imported under a `.fresh-<tag>.js` specifier (resolved by
+// tests/js/support/vendor-resolve.js to the real module's source under a URL
+// node has not cached), so the case holds wherever it runs in the file — no
+// dependence on being registered before any case writes the live signal. The
+// specifier is built rather than literal because it names a file that is not
+// on disk, which `tsc -p jsconfig.json` refuses as a literal (TS2307).
 
-test("test_an_unset_storage_reads_as_standard", () => {
-  assert.equal(plainNames.value, false);
+const PREFS_MODULE = new URL("../../../hqptuner/static/store/prefs.js", import.meta.url).href;
+
+test("test_an_unset_storage_reads_as_standard", async () => {
+  const fresh = await import(`${PREFS_MODULE.replace(/\.js$/, ".fresh-unset.js")}`);
+  assert.equal(fresh.plainNames.value, false);
 });
 
 // --- pref off: exactly as before ----------------------------------------------
@@ -201,18 +209,27 @@ test("test_pref_off_renders_no_family_header_row", async () => {
   );
 });
 
+// The pref-ON header wording is "Gauss family" (pinned below), so a leaked
+// header would as likely read that as the bare family name — pref OFF renders
+// neither.
+test("test_pref_off_renders_no_family_header_wording", async () => {
+  const out = await filterField({ plain: false });
+  assert.deepEqual(
+    elements(out).filter((el) => text(el) === "Gauss family"),
+    [],
+  );
+});
+
 test("test_pref_off_the_closed_control_shows_the_raw_label", async () => {
   assert.equal(boxText(await filterField({ plain: false })), "poly-sinc-gauss-short");
 });
 
 // --- pref on: plain leaves, grouped and ordered by the data ---------------------
 
+// The equality also pins that no row reads a known raw name (every known raw
+// name is replaced by its leaf; only the unknown tail keeps raw labels).
 test("test_pref_on_option_rows_read_plain_leaves_grouped_by_family_then_variant", async () => {
   assert.deepEqual(optionLabels(await filterField()), PLAIN_ORDER);
-});
-
-test("test_pref_on_no_option_row_reads_a_known_raw_name", async () => {
-  assert.equal(optionLabels(await filterField()).includes("sinc-M"), false);
 });
 
 test("test_unknown_options_keep_raw_labels_after_all_known_groups_in_input_order", async () => {
@@ -253,9 +270,11 @@ test("test_a_single_option_family_still_gets_its_family_header", async () => {
   assert.equal(readingExactly(out, "Ext family").start < rowIncluding(out, "Ext Two").start, true);
 });
 
-// Sinc's and Ext's variants are null: no subheader renders for them, so no
-// element stringifies the missing variant into wording a reader would see.
-test("test_a_null_variant_renders_no_subheader_row", async () => {
+// Sinc's and Ext's variants are null: no element stringifies the missing
+// variant into wording a reader would see. (That their rows also skip the
+// variant SUBCONTAINER is pinned structurally below, in the nested-grouping
+// section.)
+test("test_a_null_variant_stringifies_no_placeholder_wording", async () => {
   const out = await filterField();
   assert.deepEqual(
     elements(out).filter((el) => text(el) === "null" || text(el) === "undefined"),
@@ -423,6 +442,10 @@ test("test_a_family_header_row_carries_no_option_role", async () => {
   assert.equal(/\brole="option"/.test(readingExactly(await filterField(), "Gauss family").attrs), false);
 });
 
+test("test_a_variant_subheader_row_carries_no_option_role", async () => {
+  assert.equal(/\brole="option"/.test(readingExactly(await filterField(), "Alpha tap").attrs), false);
+});
+
 test("test_a_variant_subheader_reads_the_variant_name_without_a_family_suffix", async () => {
   assert.deepEqual(
     elements(await filterField()).filter((el) => text(el) === "Zed tap family" || text(el) === "Alpha tap family"),
@@ -454,9 +477,37 @@ test("test_a_variants_rows_sit_in_a_subcontainer_that_excludes_the_other_variant
   assert.equal(encloses(vgrp, rowIncluding(out, "Shorter")), false);
 });
 
+// The container classes are the one place the spec anchors a class, because
+// the pref-OFF absence below has no ancestry to read. These two ground the
+// tokens: the containers the ancestry tests above find are the dd-grp/dd-vgrp
+// elements, so the OFF test's class filter looks for the same containers the
+// ON state actually renders.
+test("test_the_family_container_found_by_ancestry_carries_class_dd_grp", async () => {
+  const out = await filterField();
+  const grp = commonContainer(out, readingExactly(out, "Gauss family"), rowIncluding(out, "Zeta pick"));
+  assert.equal(classes(grp).includes("dd-grp"), true);
+});
+
+test("test_the_variant_subcontainer_found_by_ancestry_carries_class_dd_vgrp", async () => {
+  const out = await filterField();
+  const vgrp = commonContainer(out, readingExactly(out, "Zed tap"), rowIncluding(out, "Zeta pick"));
+  assert.equal(classes(vgrp).includes("dd-vgrp"), true);
+});
+
+// A null-variant family's rows sit directly in the family group: nothing
+// carrying the (grounded) variant-subcontainer class encloses Sinc's row.
+test("test_a_null_variant_rows_sit_in_no_variant_subcontainer", async () => {
+  const out = await filterField();
+  const row = rowIncluding(out, "Classic M");
+  assert.deepEqual(
+    elements(out).filter((el) => classes(el).includes("dd-vgrp") && encloses(el, row)),
+    [],
+  );
+});
+
 // Pref OFF stays a flat option list: no family or variant group container
-// renders at all (the container classes are the one place the spec anchors a
-// class, because an absence has no ancestry to read).
+// renders at all (the container classes grounded just above, because an
+// absence has no ancestry to read).
 test("test_pref_off_renders_no_group_container_element", async () => {
   assert.deepEqual(
     elements(await filterField({ plain: false })).filter(
