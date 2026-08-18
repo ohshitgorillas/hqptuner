@@ -141,9 +141,9 @@
   flex-basis: 100%;
 }
 
-/* The page as a stack of blocks. This div now sits between .tab-body and the
-   cards, so it carries the card-to-card rhythm the tab body used to give them
-   directly (chrome.css .tab-body) — same token, same role. */
+/* The page as a stack of blocks. This div sits between .tab-body and the cards,
+   which makes it the tab body's only child, so it owns the card-to-card rhythm
+   for everything inside it (chrome.css .tab-body) — same token, same role. */
 .live-blocks {
   display: flex;
   flex-direction: column;
