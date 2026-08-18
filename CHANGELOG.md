@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The Simplified dropdowns' Misc catch-all splits into named families.** Analog-style, Classic oversampling, Polynomial and Minimum ringing each become a family with its own blurb, and their entries lose the prefix the header now carries. Misc keeps the three filters that belong nowhere else: no resampling, the frequency-domain brickwall and the asynchronous converter.
+
 - **The "Adaptive taps" wording in Simplified filter names now reads "Adaptive length".**
 
 ## [1.9.0] — 2026-08-18

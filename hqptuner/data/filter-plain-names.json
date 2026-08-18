@@ -1,9 +1,13 @@
 {
-  "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (67 PCM, 77 SDM, 84 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null = Misc), leaf label. Leaf labels unique within their variant; composed family+variant+leaf unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (67 PCM, 77 SDM, 84 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null where the family has no variants), leaf label. Leaf labels unique within their variant; composed family+variant+leaf unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
   "families": {
     "Polyphase sinc": "The most variety and flexibility",
     "Pure sinc": "Very long brute force filters",
     "Closed form": "Direct interpolation maintains original samples",
+    "Analog-style": "Analog-like behavior; no pre-ringing, long post-ringing",
+    "Classic oversampling": "The filter type found in most DACs",
+    "Polynomial": "Almost no ringing, but weak suppression of ultrasonic content",
+    "Minimum ringing": "Less ringing and better response/suppression than Polynomial",
     "Misc": "Miscellaneous filters"
   },
   "variants": {
@@ -525,47 +529,75 @@
       "short": "Closed-form · 16M taps",
       "apod": "none"
     },
+    "IIR": {
+      "family": "Analog-style",
+      "variant": null,
+      "leaf": "Very steep",
+      "short": "Analog-style · Very steep",
+      "apod": "full"
+    },
+    "IIR2": {
+      "family": "Analog-style",
+      "variant": null,
+      "leaf": "Steep",
+      "short": "Analog-style · Steep",
+      "apod": "full"
+    },
+    "FIR": {
+      "family": "Classic oversampling",
+      "variant": null,
+      "leaf": "Base",
+      "short": "Classic FIR · Base",
+      "apod": "full"
+    },
+    "asymFIR": {
+      "family": "Classic oversampling",
+      "variant": null,
+      "leaf": "Asymmetric",
+      "short": "Classic FIR · Asymmetric",
+      "apod": "full"
+    },
+    "minphaseFIR": {
+      "family": "Classic oversampling",
+      "variant": null,
+      "leaf": "Minimum phase",
+      "short": "Classic FIR · Minimum",
+      "apod": "full"
+    },
+    "polynomial-1": {
+      "family": "Polynomial",
+      "variant": null,
+      "leaf": "No ringing",
+      "short": "Polynomial · No ringing",
+      "apod": "none"
+    },
+    "polynomial-2": {
+      "family": "Polynomial",
+      "variant": null,
+      "leaf": "One ringing cycle",
+      "short": "Polynomial · One cycle",
+      "apod": "none"
+    },
+    "minringFIR-mp": {
+      "family": "Minimum ringing",
+      "variant": null,
+      "leaf": "Minimum phase",
+      "short": "Minimum ringing · Minimum",
+      "apod": "none"
+    },
+    "minringFIR-lp": {
+      "family": "Minimum ringing",
+      "variant": null,
+      "leaf": "Linear phase",
+      "short": "Minimum ringing · Linear",
+      "apod": "none"
+    },
     "none": {
       "family": "Misc",
       "variant": null,
       "leaf": "No resampling",
       "short": "No resampling",
       "apod": "none"
-    },
-    "IIR": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Analog-style, very steep",
-      "short": "Analog-style, very steep",
-      "apod": "full"
-    },
-    "IIR2": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Analog-style, steep",
-      "short": "Analog-style, steep",
-      "apod": "full"
-    },
-    "FIR": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Classic oversampling",
-      "short": "Classic oversampling",
-      "apod": "full"
-    },
-    "asymFIR": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Classic oversampling, asymmetric",
-      "short": "Classic oversampling, asymmetric",
-      "apod": "full"
-    },
-    "minphaseFIR": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Classic oversampling, minimum phase",
-      "short": "Classic oversampling, minimum",
-      "apod": "full"
     },
     "FFT": {
       "family": "Misc",
@@ -579,34 +611,6 @@
       "variant": null,
       "leaf": "Asynchronous, any rate",
       "short": "Asynchronous, any rate",
-      "apod": "none"
-    },
-    "polynomial-1": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Polynomial, no ringing",
-      "short": "Polynomial, no ringing",
-      "apod": "none"
-    },
-    "polynomial-2": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Polynomial, one ringing cycle",
-      "short": "Polynomial, one ringing cycle",
-      "apod": "none"
-    },
-    "minringFIR-mp": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Minimum ringing, minimum phase",
-      "short": "Minimum ringing, minimum",
-      "apod": "none"
-    },
-    "minringFIR-lp": {
-      "family": "Misc",
-      "variant": null,
-      "leaf": "Minimum ringing, linear phase",
-      "short": "Minimum ringing, linear",
       "apod": "none"
     }
   }
