@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The length facet drops the lengths HQPlayer never stated.** The sinc-S, sinc-M, sinc-Mx, sinc-MG and sinc-MGa filters read as extra long.
+
 ## [1.8.1] — 2026-08-16
 
 ### Changed

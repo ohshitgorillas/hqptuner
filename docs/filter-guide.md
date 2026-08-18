@@ -40,7 +40,7 @@ No counts in the header itself: they would go stale against the live enum, which
 | 4 | Taps | not a chip — the unit Length is classified on, `facets.js:90-128`; the manual quotes counts per filter | no values; a count, usually relative to conversion ratio |
 | 5 | Cut | not a chip — card vocabulary. HQPlayer's word for its steepness is "roll-off", in the per-filter description at `prose.js:48-65` | no values; a shape with three parts |
 | 6 | Phase | narrow bar, `hqptuner/static/components/narrowbar/Bar.js:51-56`; parsed from `-lp`/`-mp`/`-ip` suffixes, `hqptuner/static/store/narrow/facets.js:83-89` | Linear / Minimum / Intermediate |
-| 7 | Length | narrow bar, `narrowbar/Bar.js:57-62`; tap-count classification `facets.js:104-128` | Short / Medium / Long / Extra long |
+| 7 | Length | narrow bar, `narrowbar/Bar.js:57-62`; classification `facets.js:181-219` | Short / Medium / Long / Extra long |
 | 8 | Apodizing | per-chain 1x narrowing control, `hqptuner/static/components/ApodNarrow.js`; live arg bit 0 = apodizing, bit 1 = half | manual's Apod column carries three values, Y / ½ / N; the card explains Y and N and stays silent on ½ |
 
 "Cut" and "Attack" are this document's words, not HQPlayer's. Both glosses name the manual's word alongside, so the reader meets the on-screen vocabulary too.
@@ -100,7 +100,7 @@ The gloss describes the oversampling filter specifically — the only filter thi
 |---|---|---|---|
 | **Tap counts are usually ratio-relative, not absolute** | `basic` | `[sourced]` | "Number of taps is 4096 x conversion ratio." — `04-06:407-408` |
 | Ratio-scaling holds the filter's time span constant across rates | `basic` | `[structural]` | Arithmetic on the row above: 4096×ratio taps at ratio× the output rate span the same stretch of time at every ratio — the count scales precisely so the behaviour does not |
-| The tap count is what HQPTuner's Length classification is built on | `basic` | `[sourced]` | `facets.js:90-128` — `LENGTH_OVERRIDES` and its comment carry the per-filter tap counts (S=4096×ratio, L=131070×, Lm/Lh=16384×, Ll=65536×), because letter-coded names carry no readable length token |
+| A tap count is not a length HQPTuner will classify from | `basic` | `[sourced]` | `facets.js:181-219` — a filter takes its Length from a length word in its name or description, or from the extra-long ancestor its description names; a description stating only a tap multiplier yields no length at all |
 | Taps and duration are the same quantity in different units | `basic` | `[sourced]` | "for length \(N\) FIR filters, the duration of the transient response is \(N-1\) samples." — Smith §5.7 `[V]` |
 | A tap is one term of the weighted sum | `basic` | `[structural]` | Definition of FIR convolution (see §1) |
 | Where the delay comes from, in the symmetric case | `adv` | `[sourced]` | "\[h(n) = h(N-1-n), \quad n=0,1,2,\ldots, N-1.\]" — Smith, *Introduction to Digital Filters* §11.4 `[V]`: a symmetric filter's delay is half its tap count |

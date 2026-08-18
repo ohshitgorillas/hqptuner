@@ -178,44 +178,30 @@ function isHiresFamily(name) {
   return /hires|mqa|mp3/i.test(name || "");
 }
 
-// length — short / medium / long / xlong. Letter-coded names don't carry a
-// readable token, so they get explicit entries grounded in the manual /
-// filters.json tap counts: the sinc letter series (S=4096×ratio, M/Mx/MG/MGa =
-// million taps and "variants of poly-sinc-ext2-xla / gauss-xl(a)" → xlong,
-// L=131070×, Ls=4096×, Lm/Lh=16384×, Ll=65536×), the million-tap closed-forms
-// (xlong), gauss-halfband-s ("Short … Gaussian"), hb-m ("Medium … half-band",
-// the one length the manual states in prose without a name token), the
-// polynomial interpolators
-// and minringFIR ("ringing between polynomial and poly-sinc-short"). Everything
-// else classifies by name token — xl/xla ("8-times-longer" variants) are xlong;
-// short / long / medium / hb-s / hb-xs / hb-l as written — with the -2s
-// two-stage suffix stripped first.
+// length — short / medium / long / xlong. Most names carry a readable token and
+// classify by it: short / medium / long, the xl/xla extra-long variants, the
+// hb-xs / hb-s / hb-l halfbands, with the -2s two-stage suffix stripped first.
 //
-// A name the table and the tokens both miss reads "", the same answer `phase`
-// gives: tap count is a filter SPECIFICATION and is not ours to guess, so a
-// filter the length taxonomy doesn't reach carries no length rather than a
-// plausible one. Reading it as medium put roughly a third of the menu in a
-// bucket the manual never put it in, and the Length facet answered with them.
+// A letter-coded name carries no token, so it gets an explicit entry only where
+// the filter's own description states a length in words. Two say it outright —
+// gauss-halfband-s ("Short … Gaussian"), hb-m ("Medium … half-band"). Five name
+// an extra-long ancestor: sinc-S / sinc-M / sinc-Mx are each a "Variant of
+// poly-sinc-ext2-xla", sinc-MG of poly-sinc-gauss-xl, sinc-MGa of
+// poly-sinc-gauss-xla.
+//
+// Everything else reads "", the same answer `phase` gives. Tap count is a
+// filter SPECIFICATION, so a description stating only a tap multiplier
+// (the sinc-L series, the closed-forms) or nothing at all (the polynomial
+// interpolators, minringFIR) yields no length rather than a plausible one.
 /** @type {Record<string, string>} */
 const LENGTH_OVERRIDES = {
-  "sinc-S": "short",
+  "sinc-S": "xlong",
   "sinc-M": "xlong",
   "sinc-Mx": "xlong",
   "sinc-MG": "xlong",
   "sinc-MGa": "xlong",
-  "sinc-L": "long",
-  "sinc-Ls": "short",
-  "sinc-Lm": "medium",
-  "sinc-Ll": "long",
-  "sinc-Lh": "medium",
-  "closed-form-M": "xlong",
-  "closed-form-16M": "xlong",
   "poly-sinc-gauss-halfband-s": "short",
   "poly-sinc-hb-m": "medium",
-  "polynomial-1": "short",
-  "polynomial-2": "short",
-  "minringFIR-lp": "short",
-  "minringFIR-mp": "short",
 };
 /**
  * @param {string} name
