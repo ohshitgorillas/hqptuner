@@ -57,7 +57,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode, setLiveOrder, LIVE_BLOCK_ORDER } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
-import { classes, elements, hasAttr, text } from "../support/markup.js";
+import { classes, elements, hasAttr, headTitle } from "../support/markup.js";
 
 const ENUMS = {
   filters: [
@@ -162,38 +162,14 @@ const CHAIN_CARDS = ["Narrow filters", "PCM Chain", "SDM Chain"];
 /** @param {string} out @returns {import("../support/markup.js").MarkupElement[]} */
 const inOrder = (out) => elements(out).sort((a, b) => a.start - b.start);
 
-// A control a head may carry beside its title. Whole subtrees, so the label
-// inside one never reaches the title.
-const CONTROL_TAGS = new Set(["a", "button", "input", "select", "textarea"]);
-
-// The disclosure triangle a collapsible head carries before its title, by the
-// class it wears. Removed as a whole element, so a title that legitimately opens
-// with a digit or a symbol keeps it.
-const TRIANGLE = "tri";
-
-// A card head's title: the head's own words, with the disclosure triangle a
-// collapsible head carries stripped and any control the head carries beside the
-// title removed. The title is the contract; the triangle and the controls are
-// the card's own business. Removal is by whole element, never by trimming the
-// title's own text, so a head titled "LIVE MODE PRO" still reads as "LIVE MODE
-// PRO" and a renamed head still reads as its new name.
-/** @param {import("../support/markup.js").MarkupElement} el */
-const title = (el) => {
-  const bare = elements(el.html)
-    .filter(
-      (e) =>
-        (CONTROL_TAGS.has(e.name) || classes(e).includes(TRIANGLE)) &&
-        !(e.start === 0 && e.html.length === el.html.length),
-    )
-    .reduce((markup, e) => markup.replace(e.html, " "), el.html);
-  return text({ ...el, html: bare });
-};
-
+// A card head's title comes from tests/js/support/markup.js's `headTitle`: the
+// head's own words, with the disclosure triangle and any control the head
+// carries beside the title removed.
 /** @param {string} fragment @returns {string[]} */
 const headsIn = (fragment) =>
   inOrder(fragment)
     .filter((el) => classes(el).includes("card-head"))
-    .map(title);
+    .map(headTitle);
 
 /** @param {string} fragment @param {string} token @returns {boolean} */
 const carries = (fragment, token) => inOrder(fragment).some((el) => classes(el).includes(token));
@@ -283,14 +259,18 @@ test("test_the_chain_group_encloses_the_narrow_filters_and_both_chain_cards", as
 
 // --- layout-edit mode -------------------------------------------------------------
 
+// "No block carries the mark" is stated as one explicit `false` per block, not
+// as an empty filtered list: a page that rendered no blocks at all would answer
+// an empty list too, and would pass a question it never faced.
+const UNMARKED_BLOCKS = [LOCKED, ...MOVABLE].map(() => false);
+const UNMARKED_MOVABLE = MOVABLE.map(() => false);
+
 test("test_no_block_is_marked_editing_with_layout_edit_off", async () => {
   await reset();
   const out = page();
   assert.deepEqual(
-    blocks(out)
-      .filter((el) => classes(el).includes("editing"))
-      .map(nameOf),
-    [],
+    blocks(out).map((el) => classes(el).includes("editing")),
+    UNMARKED_BLOCKS,
   );
 });
 
@@ -326,6 +306,27 @@ test("test_every_movable_block_is_inert_with_layout_edit_on", async () => {
       .map(nameOf),
     MOVABLE,
   );
+});
+
+// The mirror of the case above, and the one that says `inert` is the EDIT
+// MODE's doing: a page that inerted the movable blocks unconditionally would
+// leave every LIVE block permanently untouchable and satisfy the case above.
+test("test_no_movable_block_is_inert_with_layout_edit_off", async () => {
+  await reset();
+  const out = page();
+  assert.deepEqual(
+    movable(out).map((el) => hasAttr(el, "inert")),
+    UNMARKED_MOVABLE,
+  );
+});
+
+// LIVE MODE is the one block edit mode does not take away: inerting it would
+// freeze the LIVE mode toggle itself for as long as the user has the layout
+// open.
+test("test_the_live_mode_block_is_not_inert_with_layout_edit_on", async () => {
+  await reset();
+  setLiveEditing(true);
+  assert.equal(hasAttr(lockedBlock(page()), "inert"), false);
 });
 
 // --- dragging a block: where it would land ----------------------------------------
@@ -395,10 +396,13 @@ const withDropLine = (out) =>
     .filter((el) => classes(el).includes("live-block") || classes(el).includes(LINE))
     .map((el) => (classes(el).includes(LINE) ? MARK : nameOf(el)));
 
+// Stated as the whole stack with no indicator standing anywhere in it, rather
+// than as an empty list of indicators: a page rendering no blocks at all shows
+// no indicator either, and would pass the emptier question.
 test("test_with_no_drag_in_progress_the_page_shows_no_drop_indicator", async () => {
   await reset();
   setLiveEditing(true);
-  assert.deepEqual(dropLines(page()), []);
+  assert.deepEqual(withDropLine(page()), [LOCKED, ...MOVABLE]);
 });
 
 test("test_a_drag_in_progress_shows_exactly_one_drop_indicator", async () => {
@@ -461,4 +465,17 @@ test("test_ending_a_drag_takes_the_drop_indicator_away", async () => {
   setDrag("hero", 3);
   endDrag();
   assert.deepEqual(dropLines(page()), []);
+});
+
+// The block that was lifted is put back down: a block still marked `dragging`
+// after the drop stays visibly lifted and faded for good.
+test("test_ending_a_drag_leaves_no_block_marked_as_dragging", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("hero", 3);
+  endDrag();
+  assert.deepEqual(
+    blocks(page()).map((el) => classes(el).includes("dragging")),
+    UNMARKED_BLOCKS,
+  );
 });

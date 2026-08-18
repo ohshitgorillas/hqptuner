@@ -57,9 +57,14 @@ const layout = await import("../../../hqptuner/static/components/live/Layout.js"
 const AT_LOAD = [...prefs.liveOrder.value];
 const DEFAULT = [...prefs.LIVE_BLOCK_ORDER];
 
-/** @param {string} tag @param {string} junk */
-async function loadedWith(tag, junk) {
-  storage.setItem(KEY, junk);
+// A second instance of the module, loaded against a storage in the state the
+// case names. `null` means the key is ABSENT while the storage itself is
+// present and working — the state a browser that has never saved a layout is
+// in, distinct from having no localStorage at all.
+/** @param {string} tag @param {string | null} stored */
+async function loadedWith(tag, stored) {
+  if (stored === null) storage.removeItem(KEY);
+  else storage.setItem(KEY, stored);
   const fresh = await import(`${PREFS_MODULE.replace(/\.js$/, `.fresh-${tag}.js`)}`);
   return [...fresh.liveOrder.value];
 }
@@ -70,6 +75,10 @@ const ORDER = ["matrix", "hero", "health", "chains", "playback"];
 
 test("test_an_order_stored_in_the_browser_is_the_order_the_page_loads_with", () => {
   assert.deepEqual(AT_LOAD, STORED);
+});
+
+test("test_a_browser_that_has_stored_no_order_loads_the_default_order", async () => {
+  assert.deepEqual(await loadedWith("nothing", null), DEFAULT);
 });
 
 test("test_a_stored_value_that_is_not_json_loads_the_default_order", async () => {
@@ -97,5 +106,19 @@ test("test_entering_layout_edit_mode_stores_nothing", () => {
   prefs.setLiveOrder(ORDER);
   storage.removeItem(KEY);
   layout.setLiveEditing(true);
+  assert.equal(storage.getItem(KEY), null);
+});
+
+// The rest of "never during it": a user who rearranges the blocks and then
+// closes the tab without leaving edit mode keeps the order they had. Entry
+// alone does not settle it — a writer that persisted on every reorder AND on
+// the way out passes both the entry case and the leave case, and is red only
+// here.
+test("test_a_reorder_made_during_layout_edit_mode_stores_nothing", () => {
+  prefs.setLiveOrder(ORDER);
+  layout.setLiveEditing(true);
+  storage.removeItem(KEY);
+  layout.setDrag("hero", 3);
+  layout.endDrag();
   assert.equal(storage.getItem(KEY), null);
 });

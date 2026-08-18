@@ -43,6 +43,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwire.js";
+import { classes, elements, headTitle } from "../support/markup.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
@@ -80,18 +81,28 @@ async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } 
 const page = () => render(html`<${LiveView} />`);
 
 const MARK = "<section";
-// A control a head may carry beside its title, by tag — the same set
-// tests/js/components/liveblocks.test.js reads a head's title against.
-const CONTROLS = "a|button|input|select|textarea";
-/** @param {string} title */
-// The title has to be the head's FIRST content, and has to end where the head
-// ends or where one of those controls begins — a head may carry trailing
-// buttons, but nothing else counts as an end, so a head whose title merely
-// STARTS with `title` and continues into a nested span or div misses.
-const head = (title) =>
-  new RegExp(
-    `class="card-head[^"]*">(<span class="tri">.</span> )?${title}\\s*(</(div|button)>|<(${CONTROLS})[\\s/>])`,
-  );
+
+// The card heads of a rendered page whose title is exactly `title`, earliest
+// first. Scanned as elements, by the class the head wears and by the words a
+// reader sees in it (tests/js/support/markup.js) — never against the raw
+// attribute text, so the order of a head's classes, and whatever else the
+// component writes into the tag, are the component's own business.
+/**
+ * @param {string} out
+ * @param {string} title
+ * @returns {import("../support/markup.js").MarkupElement[]}
+ */
+const heads = (out, title) =>
+  elements(out)
+    .filter((el) => classes(el).includes("card-head") && headTitle(el) === title)
+    .sort((a, b) => a.start - b.start);
+
+/**
+ * @param {string} out
+ * @param {string} title
+ * @returns {boolean}
+ */
+const hasHead = (out, title) => heads(out, title).length > 0;
 
 // One named card's own markup: from its section tag up to the next section. A
 // miss throws rather than quietly measuring the whole page — a renamed head must
@@ -101,8 +112,9 @@ const head = (title) =>
  * @param {string} title
  */
 function card(out, title) {
-  const at = out.search(head(title));
-  if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
+  const [hit] = heads(out, title);
+  if (!hit) throw new Error(`no card headed "${title}" in the rendered page`);
+  const at = hit.start;
   const from = out.lastIndexOf(MARK, at);
   if (from < 0) throw new Error(`the card headed "${title}" is not inside a section`);
   const next = out.indexOf(MARK, at);
@@ -133,7 +145,7 @@ const NAMED = (frag) => options(frag).filter((o) => BOTH().some((p) => o.text.in
 
 test("test_the_live_page_carries_a_live_mode_card", async () => {
   await resetPage();
-  assert.ok(head("LIVE MODE").test(page()));
+  assert.ok(hasHead(page(), "LIVE MODE"));
 });
 
 test("test_the_live_mode_card_carries_the_pages_lede", async () => {
