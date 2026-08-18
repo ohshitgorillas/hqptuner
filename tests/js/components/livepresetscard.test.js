@@ -80,12 +80,18 @@ async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } 
 const page = () => render(html`<${LiveView} />`);
 
 const MARK = "<section";
+// A control a head may carry beside its title, by tag — the same set
+// tests/js/components/liveblocks.test.js reads a head's title against.
+const CONTROLS = "a|button|input|select|textarea";
 /** @param {string} title */
 // The title has to be the head's FIRST content, and has to end where the head
-// ends or where a nested control begins — a head may carry trailing buttons, but
-// a renamed or longer-titled head still misses.
+// ends or where one of those controls begins — a head may carry trailing
+// buttons, but nothing else counts as an end, so a head whose title merely
+// STARTS with `title` and continues into a nested span or div misses.
 const head = (title) =>
-  new RegExp(`class="card-head[^"]*">(<span class="tri">.</span> )?${title}\\s*(</(div|button)>|<)`);
+  new RegExp(
+    `class="card-head[^"]*">(<span class="tri">.</span> )?${title}\\s*(</(div|button)>|<(${CONTROLS})[\\s/>])`,
+  );
 
 // One named card's own markup: from its section tag up to the next section. A
 // miss throws rather than quietly measuring the whole page — a renamed head must

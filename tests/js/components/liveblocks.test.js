@@ -5,11 +5,14 @@
 // The page renders six blocks top to bottom. The first, LIVE MODE, is locked in
 // place; the other five ("hero", "health", "chains", "playback", "matrix") are
 // the user's to reorder, and their order lives in store/prefs.js's `liveOrder`.
-// The gesture that reorders them is a pointer drag, which SSR never fires and
-// which is therefore not reachable here (docs/testing.md, "branches that cannot
-// be reached"): what IS observable is the rendered stack for a given store
-// state, which is what every case below asks about. The drag itself belongs to
-// the playwright hand-back protocol.
+// The gesture that reorders them is a pointer drag. The POINTER half of it —
+// pointerdown, the moves, the release — is not reachable here: SSR never fires
+// an event handler (docs/testing.md, "branches that cannot be reached"), and it
+// belongs to the playwright hand-back protocol. What IS reachable is the drag's
+// own public surface, `setDrag` / `endDrag` and the two pure functions the
+// handlers do their arithmetic with, plus the rendered page for a given drag
+// state: where the drop indicator lands, which block is marked as being dragged,
+// and that the stack does NOT move until the drop.
 //
 // A block is identified by what a reader finds inside it, never by position or
 // by an index the component hands out: the card it heads ("LIVE MODE", "Rate",
@@ -30,7 +33,15 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { LiveView } from "../../../hqptuner/static/components/live/View.js";
-import { liveEditing } from "../../../hqptuner/static/components/live/Layout.js";
+import {
+  setLiveEditing,
+  dragKey,
+  dropAt,
+  setDrag,
+  endDrag,
+  dropIndex,
+  reorder,
+} from "../../../hqptuner/static/components/live/Layout.js";
 import {
   health,
   engineState,
@@ -97,7 +108,13 @@ const STATE = {
 // Total reset: module-level signals outlive a test, so a partial one makes cases
 // pass alone and fail in sequence. `staged` is private — it is mirrored from
 // whatever the faked /api/config/pending answers, via discardAll().
-async function reset() {
+// `order: false` leaves the block order alone, for the one case that asks what a
+// browser with nothing stored stacks: touching `setLiveOrder` there would answer
+// the question with the answer. That case is declared FIRST in this file for the
+// same reason — module state outlives a test, so once any case has set an order
+// the untouched-load state is gone for good.
+/** @param {{ order?: boolean }} [opts] */
+async function reset({ order = true } = {}) {
   staticWire({ live: {}, http: {} });
   health.value = { reachable: true, info: {} };
   engineState.value = { ...STATE };
@@ -111,14 +128,21 @@ async function reset() {
   liveErrors.value = {};
   liveBusy.value = "";
   liveMode.value = false;
-  liveEditing.value = false;
-  setLiveOrder([...LIVE_BLOCK_ORDER]);
+  setLiveEditing(false);
+  dragKey.value = null;
+  dropAt.value = null;
+  if (order) setLiveOrder([...LIVE_BLOCK_ORDER]);
   await discardAll();
 }
 
 const page = () => render(html`<${LiveView} />`);
 
 const LOCKED = "LIVE MODE";
+
+// The five blocks the user may move, in the order a browser with nothing stored
+// stacks them. Spelled out rather than read from `LIVE_BLOCK_ORDER`, so the
+// default is pinned here instead of being re-asserted from the store's own copy.
+const MOVABLE = ["hero", "health", "chains", "playback", "matrix"];
 
 // The name a block goes by here, over the anchor a reader finds inside it. The
 // keys are the store's own block keys, so a stack read off the page is directly
@@ -142,6 +166,11 @@ const inOrder = (out) => elements(out).sort((a, b) => a.start - b.start);
 // inside one never reaches the title.
 const CONTROL_TAGS = new Set(["a", "button", "input", "select", "textarea"]);
 
+// The disclosure triangle a collapsible head carries before its title, by the
+// class it wears. Removed as a whole element, so a title that legitimately opens
+// with a digit or a symbol keeps it.
+const TRIANGLE = "tri";
+
 // A card head's title: the head's own words, with the disclosure triangle a
 // collapsible head carries stripped and any control the head carries beside the
 // title removed. The title is the contract; the triangle and the controls are
@@ -151,9 +180,13 @@ const CONTROL_TAGS = new Set(["a", "button", "input", "select", "textarea"]);
 /** @param {import("../support/markup.js").MarkupElement} el */
 const title = (el) => {
   const bare = elements(el.html)
-    .filter((e) => CONTROL_TAGS.has(e.name) && !(e.start === 0 && e.html.length === el.html.length))
+    .filter(
+      (e) =>
+        (CONTROL_TAGS.has(e.name) || classes(e).includes(TRIANGLE)) &&
+        !(e.start === 0 && e.html.length === el.html.length),
+    )
     .reduce((markup, e) => markup.replace(e.html, " "), el.html);
-  return text({ ...el, html: bare }).replace(/^[^A-Za-z]+/, "");
+  return text({ ...el, html: bare });
 };
 
 /** @param {string} fragment @returns {string[]} */
@@ -203,9 +236,12 @@ function chainGroup(out) {
 
 // --- the order the blocks stack in ------------------------------------------------
 
+// FIRST, and the only case that does not set an order: this file installs no
+// storage, so the module's load-time state IS the no-stored-order state, and it
+// survives only until something writes it.
 test("test_a_browser_with_no_stored_order_stacks_the_blocks_in_the_default_order", async () => {
-  await reset();
-  assert.deepEqual(stack(page()), [LOCKED, "hero", "health", "chains", "playback", "matrix"]);
+  await reset({ order: false });
+  assert.deepEqual(stack(page()), [LOCKED, ...MOVABLE]);
 });
 
 test("test_a_stored_order_stacks_the_movable_blocks_in_that_order", async () => {
@@ -214,9 +250,11 @@ test("test_a_stored_order_stacks_the_movable_blocks_in_that_order", async () => 
   assert.deepEqual(stack(page()), [LOCKED, "matrix", "playback", "chains", "health", "hero"]);
 });
 
-test("test_live_mode_stands_first_even_when_the_stored_order_names_it", async () => {
+// Against the default order reversed, so the stored order is as hostile to LIVE
+// MODE standing first as a stored order can be.
+test("test_live_mode_stands_first_whatever_the_stored_order", async () => {
   await reset();
-  setLiveOrder(["locked", "matrix", "hero", "health", "chains", "playback"]);
+  setLiveOrder([...MOVABLE].reverse());
   assert.equal(stack(page())[0], LOCKED);
 });
 
@@ -256,32 +294,171 @@ test("test_no_block_is_marked_editing_with_layout_edit_off", async () => {
   );
 });
 
+// Stated positively — "the marked ones are ALL FIVE of them" — so a page that
+// rendered no movable blocks at all fails here instead of passing on an empty
+// list. Edit mode is entered through `setLiveEditing`, the verb the button
+// calls, so a `setLiveEditing` that never turns edit mode on is red here.
 test("test_every_movable_block_is_marked_editing_with_layout_edit_on", async () => {
   await reset();
-  liveEditing.value = true;
+  setLiveEditing(true);
   const out = page();
   assert.deepEqual(
     movable(out)
-      .filter((el) => !classes(el).includes("editing"))
+      .filter((el) => classes(el).includes("editing"))
       .map(nameOf),
-    [],
+    MOVABLE,
   );
 });
 
 test("test_the_live_mode_block_is_not_marked_editing_with_layout_edit_on", async () => {
   await reset();
-  liveEditing.value = true;
+  setLiveEditing(true);
   assert.equal(classes(lockedBlock(page())).includes("editing"), false);
 });
 
 test("test_every_movable_block_is_inert_with_layout_edit_on", async () => {
   await reset();
-  liveEditing.value = true;
+  setLiveEditing(true);
   const out = page();
   assert.deepEqual(
     movable(out)
-      .filter((el) => !hasAttr(el, "inert"))
+      .filter((el) => hasAttr(el, "inert"))
       .map(nameOf),
-    [],
+    MOVABLE,
   );
+});
+
+// --- dragging a block: where it would land ----------------------------------------
+// The pointer half is out of reach (see the header); the arithmetic it does is
+// not. `dropIndex` turns a pointer Y into a target index against the OTHER
+// blocks' midpoints, and `reorder` turns that index into the new order. Both are
+// pure, so they are asked directly.
+
+// Three blocks' midpoints, 100 apart: any Y below reads unambiguously as "above
+// all of them", any Y above as "below all of them".
+const MIDS = [100, 200, 300];
+
+test("test_a_pointer_above_every_block_drops_at_the_top", () => {
+  assert.equal(dropIndex(MIDS, 40), 0);
+});
+
+test("test_a_pointer_drops_after_the_blocks_whose_midpoints_it_has_passed", () => {
+  assert.equal(dropIndex(MIDS, 250), 2);
+});
+
+test("test_a_pointer_below_every_block_drops_at_the_end", () => {
+  assert.equal(dropIndex(MIDS, 900), 3);
+});
+
+test("test_a_pointer_over_a_page_with_no_other_blocks_drops_at_the_top", () => {
+  assert.equal(dropIndex([], 900), 0);
+});
+
+test("test_reorder_moves_a_block_further_down_the_list", () => {
+  assert.deepEqual(reorder([...MOVABLE], "hero", 2), ["health", "chains", "hero", "playback", "matrix"]);
+});
+
+test("test_reorder_moves_a_block_further_up_the_list", () => {
+  assert.deepEqual(reorder([...MOVABLE], "matrix", 1), ["hero", "matrix", "health", "chains", "playback"]);
+});
+
+test("test_reorder_onto_a_blocks_own_place_leaves_the_order_alone", () => {
+  assert.deepEqual(reorder([...MOVABLE], "health", 1), MOVABLE);
+});
+
+test("test_reorder_of_a_block_the_order_does_not_carry_leaves_the_order_alone", () => {
+  assert.deepEqual(reorder([...MOVABLE], "zznosuchblock", 1), MOVABLE);
+});
+
+test("test_reorder_at_the_end_of_the_shortened_list_puts_the_block_last", () => {
+  assert.deepEqual(reorder([...MOVABLE], "hero", 4), ["health", "chains", "playback", "matrix", "hero"]);
+});
+
+// --- dragging a block: what the page shows -----------------------------------------
+// The layout is frozen for the duration: the pointer only picks a target, an
+// indicator marks it, and the order is applied on release. So the questions here
+// are how many indicators there are, where the one is, which block is marked as
+// being dragged, and what the stack does — which is nothing, until the drop.
+
+const LINE = "live-drop-line";
+
+/** @param {string} out */
+const dropLines = (out) => inOrder(out).filter((el) => classes(el).includes(LINE));
+
+// The blocks top to bottom with the drop indicator standing where it renders
+// among them, so "immediately before the third block" is one readable sequence
+// rather than a pair of indices.
+const MARK = "<drop indicator>";
+/** @param {string} out @returns {string[]} */
+const withDropLine = (out) =>
+  inOrder(out)
+    .filter((el) => classes(el).includes("live-block") || classes(el).includes(LINE))
+    .map((el) => (classes(el).includes(LINE) ? MARK : nameOf(el)));
+
+test("test_with_no_drag_in_progress_the_page_shows_no_drop_indicator", async () => {
+  await reset();
+  setLiveEditing(true);
+  assert.deepEqual(dropLines(page()), []);
+});
+
+test("test_a_drag_in_progress_shows_exactly_one_drop_indicator", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("chains", 2);
+  assert.equal(dropLines(page()).length, 1);
+});
+
+// The LAST block is the one dragged, so the target index counts the same blocks
+// whether or not the dragged one is counted: index 1 is before "health" either
+// way, and the case pins the placement rather than the counting convention.
+test("test_the_drop_indicator_stands_immediately_before_the_block_at_the_target", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("matrix", 1);
+  assert.deepEqual(withDropLine(page()), [LOCKED, "hero", MARK, "health", "chains", "playback", "matrix"]);
+});
+
+// Four is the length of the list with the dragged block lifted out of it: the
+// end.
+test("test_a_drag_targeting_the_end_stands_the_drop_indicator_after_the_last_block", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("hero", 4);
+  assert.deepEqual(withDropLine(page()), [LOCKED, ...MOVABLE, MARK]);
+});
+
+test("test_the_block_being_dragged_is_the_one_marked_as_dragging", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("chains", 0);
+  assert.deepEqual(
+    blocks(page())
+      .filter((el) => classes(el).includes("dragging"))
+      .map(nameOf),
+    ["chains"],
+  );
+});
+
+test("test_the_blocks_keep_their_stored_order_while_a_drag_is_in_progress", async () => {
+  await reset();
+  setLiveOrder(["matrix", "playback", "chains", "health", "hero"]);
+  setLiveEditing(true);
+  setDrag("matrix", 3);
+  assert.deepEqual(stack(page()), [LOCKED, "matrix", "playback", "chains", "health", "hero"]);
+});
+
+test("test_ending_a_drag_stacks_the_dragged_block_at_the_target", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("hero", 3);
+  endDrag();
+  assert.deepEqual(stack(page()), [LOCKED, "health", "chains", "playback", "hero", "matrix"]);
+});
+
+test("test_ending_a_drag_takes_the_drop_indicator_away", async () => {
+  await reset();
+  setLiveEditing(true);
+  setDrag("hero", 3);
+  endDrag();
+  assert.deepEqual(dropLines(page()), []);
 });
