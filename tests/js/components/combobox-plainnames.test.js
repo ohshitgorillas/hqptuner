@@ -10,9 +10,11 @@
 //   precedes each family's first option and a variant subheader precedes each
 //   non-null variant's first option, and a header row is not an option row;
 //   options order by family first-appearance then variant first-appearance in
-//   the plain-names data, keeping relative input order within one group; an
+//   the plain-names data; an
 //   option with no plain-names entry keeps its raw label and sorts after all
-//   known groups; the closed control reads the selection's SHORT, falling back
+//   known groups; within one family+variant group the rows follow the data's
+//   own entry order, not the input order; the closed control reads the
+//   selection's SHORT, falling back
 //   to the raw label for a selection the data does not know. Toggling the pref
 //   changes none of narrowing, favorites, or rate-graying.
 //
@@ -54,8 +56,8 @@ import { elements, classes, text } from "../support/markup.js";
 // regrouping is observable: families first appear here as Sinc, Gauss, Ext, and
 // within Gauss the "Long tap" variant before "Short tap". WITHIN the Long tap
 // group the data lists Hires LP before Regular while the input order has
-// Regular first, so a sort keeping data order instead of relative input order
-// visibly reverses the pair.
+// Regular first, so a sort keeping relative input order instead of the data's
+// own entry order visibly reverses the pair.
 
 const PLAIN_FILTERS = {
   "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M", apod: false },
@@ -110,7 +112,7 @@ const filterFields = (value) => [
   },
 ];
 
-const PLAIN_ORDER = ["Classic M", "Regular", "Hires LP", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
+const PLAIN_ORDER = ["Classic M", "Hires LP", "Regular", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
 
 /**
  * The 1x filter field with both default facets opened (the stage narrows to
@@ -212,11 +214,11 @@ test("test_unknown_options_keep_raw_labels_after_all_known_groups_in_input_order
   assert.deepEqual(optionLabels(await filterField()).slice(-2), ["unknown-b", "unknown-a"]);
 });
 
-// The data lists Hires LP before Regular within the Long tap group; the rows
-// keep the INPUT order, Regular first.
-test("test_within_one_group_rows_keep_relative_input_order_not_data_order", async () => {
+// The data lists Hires LP before Regular within the Long tap group while the
+// input order has Regular first; the rows keep the DATA order, Hires LP first.
+test("test_within_one_group_rows_keep_data_order_not_relative_input_order", async () => {
   const labels = optionLabels(await filterField());
-  assert.equal(labels.indexOf("Regular") < labels.indexOf("Hires LP"), true);
+  assert.equal(labels.indexOf("Hires LP") < labels.indexOf("Regular"), true);
 });
 
 // --- pref on: the header rows ---------------------------------------------------

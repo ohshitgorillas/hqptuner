@@ -50,8 +50,8 @@ def test_all_sixteen_two_stage_filter_names_are_annotated(api_client: TestClient
         ("filters", "poly-sinc-gauss-long", "short", "Poly-sinc · Gauss · Long"),
         ("dithers", "TPDF", "leaf", "Triangular, any rate"),
         ("dithers", "TPDF", "short", "Additive · Triangular, any rate"),
-        ("modulators", "ASDM5", "leaf", "Standard"),
-        ("modulators", "ASDM5", "short", "Adaptive · 5th order · Standard"),
+        ("modulators", "ASDM5", "leaf", "Base"),
+        ("modulators", "ASDM5", "short", "Adaptive · 5th order · Base"),
     ],
 )
 def test_a_known_entry_serves_its_exact_display_wording(
@@ -74,3 +74,15 @@ def test_the_shaper_sections_are_not_empty(api_client: TestClient, section: str)
 def test_every_filter_entry_classifies_apodizing(api_client: TestClient) -> None:
     entries = _plain_names(api_client)["filters"]
     assert [name for name, entry in entries.items() if "apod" not in entry] == []
+
+
+def test_ext2_hires_phase_variants_serve_in_minimum_intermediate_linear_order(
+    api_client: TestClient,
+) -> None:
+    # Within one family+variant group the overlay's own entry order is the
+    # display order, and phase variants order minimum, intermediate, linear —
+    # so the "Polyphase sinc" / "Extended frequency response 2" hi-res trio
+    # must appear mp, ip, lp when iterating the served filters overlay.
+    wanted = ["poly-sinc-ext2-hires-mp", "poly-sinc-ext2-hires-ip", "poly-sinc-ext2-hires-lp"]
+    served = [name for name in _plain_names(api_client)["filters"] if name in wanted]
+    assert served == wanted
