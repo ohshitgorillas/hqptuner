@@ -23,6 +23,7 @@ import {
 import { askName, askConfirm } from "../../store/ask.js";
 import { Ask } from "../Ask.js";
 import { Dropdown } from "../controls/index.js";
+import { liveEditing, setLiveEditing } from "./Layout.js";
 import { Card } from "../common.js";
 
 /**
@@ -103,8 +104,24 @@ function LivePresetPicker() {
  * whole page.
  */
 export function LiveModeCard() {
+  const editing = liveEditing.value;
+  // The layout toggle rides the head of the card that is locked to the top of
+  // the page, which is the one place on LIVE that is always in the same spot.
+  // `title` takes markup (components/common.js), so it costs the card no row
+  // and no height.
+  const title = html`
+    LIVE MODE
+    <button
+      type="button"
+      class="live-edit-toggle"
+      aria-pressed=${editing ? "true" : "false"}
+      onClick=${() => setLiveEditing(!editing)}
+    >
+      Edit layout
+    </button>
+  `;
   return html`
-    <${Card} title="LIVE MODE">
+    <${Card} title=${title}>
       <div class="live-mode-cols">
         <${LivePresetPicker} />
         <span class="col-rule" aria-hidden="true"></span>
