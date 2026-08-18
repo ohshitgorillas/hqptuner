@@ -529,18 +529,18 @@
       "short": "Closed-form · 16M taps",
       "apod": "none"
     },
-    "IIR": {
-      "family": "Analog-style",
-      "variant": null,
-      "leaf": "Very steep",
-      "short": "Analog-style · Very steep",
-      "apod": "full"
-    },
     "IIR2": {
       "family": "Analog-style",
       "variant": null,
       "leaf": "Steep",
       "short": "Analog-style · Steep",
+      "apod": "full"
+    },
+    "IIR": {
+      "family": "Analog-style",
+      "variant": null,
+      "leaf": "Very steep",
+      "short": "Analog-style · Very steep",
       "apod": "full"
     },
     "FIR": {
