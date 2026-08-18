@@ -126,10 +126,17 @@ def test_a_sinc_l_entry_carries_the_adaptive_length_variant(api_client: TestClie
     assert _filter_entries(api_client)[name]["variant"] == "Adaptive length"
 
 
-@pytest.mark.parametrize("name", ADAPTIVE_LENGTH_NAMES)
-def test_a_sinc_l_short_reads_sinc_adaptive_length_then_its_leaf(api_client: TestClient, name: str) -> None:
+# sinc-L's closed-title tail abbreviates its "Extra-long" leaf to "X-long", per
+# the data contract's short-wording scope; the other four compose verbatim.
+@pytest.mark.parametrize(
+    ("name", "tail"),
+    [("sinc-Ls", None), ("sinc-Lm", None), ("sinc-Lh", None), ("sinc-Ll", None), ("sinc-L", "X-long")],
+)
+def test_a_sinc_l_short_reads_sinc_adaptive_length_then_its_leaf(
+    api_client: TestClient, name: str, tail: str | None
+) -> None:
     entry = _filter_entries(api_client)[name]
-    assert entry["short"] == f"Sinc · Adaptive length · {entry['leaf']}"
+    assert entry["short"] == f"Sinc · Adaptive length · {tail or entry['leaf']}"
 
 
 @pytest.mark.parametrize(
