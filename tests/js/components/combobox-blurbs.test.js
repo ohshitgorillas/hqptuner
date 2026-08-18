@@ -26,69 +26,67 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { reset, field, optionLabels, optionByLabel, attrOf, META } from "../support/field-harness.js";
-import { staticWire } from "../support/wire.js";
-import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
-import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
-import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
-import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { elements, classes, text } from "../support/markup.js";
+import { plainNames } from "../../../hqptuner/static/store/prefs.js";
+import { reset, field, optionLabels, optionByLabel, attrOf, META } from "../support/field-harness.js";
+import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
+import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
+import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
+import { staticWire } from "../support/wire.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
 // --- the plain-names data -----------------------------------------------------
-// Same entries fixture combobox-plainnames.test.js groups by, wrapped in the
-// three-key shape and given blurbs for SOME of its groups: families Gauss and
-// Sinc carry a blurb while Ext does not, and of Gauss's two variants only
-// "Zed tap" carries one — so both the present-blurb and the absent-blurb
-// renders are observable in one fragment. Blurb strings are invented test data
-// (the shipped wording is pinned server-side, tests/api/test_metadata_blurbs.py).
-
-const PLAIN_FILTERS = {
-  "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M", apod: false },
-  "poly-sinc-gauss-zeta": {
-    family: "Gauss",
-    variant: "Zed tap",
-    leaf: "Zeta pick",
-    short: "Gauss Zeta",
-    apod: false,
-  },
-  "poly-sinc-gauss-long": { family: "Gauss", variant: "Zed tap", leaf: "Alpha pick", short: "Gauss Reg", apod: false },
-  "poly-sinc-gauss-short": {
-    family: "Gauss",
-    variant: "Alpha tap",
-    leaf: "Shorter",
-    short: "Gauss Short",
-    apod: false,
-  },
-  "poly-sinc-ext2": { family: "Ext", variant: null, leaf: "Ext Two", short: "Ext 2", apod: true },
-};
+// Same entries combobox-plainnames.test.js groups by (built here rather than
+// spelled out, the shape being that suite's business), wrapped in the three-key
+// shape and given blurbs for SOME of its groups: families Gauss and Sinc carry
+// a blurb while Ext does not, and of Gauss's two variants only "Zed tap"
+// carries one — so both the present-blurb and the absent-blurb renders are
+// observable in one fragment. Blurb strings are invented test data (the
+// shipped wording is pinned server-side, tests/api/test_metadata_blurbs.py).
 
 const GAUSS_BLURB = "Bells of every width";
 const SINC_BLURB = "One long ess";
 const ZED_BLURB = "Taps counted from zed";
 
+/**
+ * One plain-names entry.
+ *
+ * @param {string} family
+ * @param {string | null} variant
+ * @param {string} leaf
+ * @param {string} short
+ */
+const entry = (family, variant, leaf, short) => ({ family, variant, leaf, short, apod: false });
+
+/**
+ * One three-key plain-names section, blurb maps empty unless given.
+ *
+ * @param {Record<string, object>} entries
+ * @param {Record<string, string>} [families]
+ * @param {Record<string, string>} [variants]
+ */
+const section = (entries, families = {}, variants = {}) => ({ entries, families, variants });
+
 const META_BLURBS = {
   ...META,
   plain_names: {
-    filters: {
-      entries: PLAIN_FILTERS,
-      families: { Gauss: GAUSS_BLURB, Sinc: SINC_BLURB },
-      variants: { "Gauss|Zed tap": ZED_BLURB },
-    },
-    dithers: {
-      entries: { TPDF: { family: "Dither", variant: null, leaf: "Triangular", short: "TPDF plain" } },
-      families: {},
-      variants: {},
-    },
-    modulators: {
-      entries: {
-        ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7" },
-        ASDM7EC: { family: "ASDM", variant: null, leaf: "Seventh EC", short: "ASDM 7EC" },
+    filters: section(
+      {
+        "sinc-M": entry("Sinc", null, "Classic M", "Sinc M"),
+        "poly-sinc-gauss-zeta": entry("Gauss", "Zed tap", "Zeta pick", "Gauss Zeta"),
+        "poly-sinc-gauss-long": entry("Gauss", "Zed tap", "Alpha pick", "Gauss Reg"),
+        "poly-sinc-gauss-short": entry("Gauss", "Alpha tap", "Shorter", "Gauss Short"),
+        "poly-sinc-ext2": { ...entry("Ext", null, "Ext Two", "Ext 2"), apod: true },
       },
-      families: {},
-      variants: {},
-    },
+      { Gauss: GAUSS_BLURB, Sinc: SINC_BLURB },
+      { "Gauss|Zed tap": ZED_BLURB },
+    ),
+    dithers: section({ TPDF: entry("Dither", null, "Triangular", "TPDF plain") }),
+    modulators: section({
+      ASDM7: entry("ASDM", null, "Seventh", "ASDM 7"),
+      ASDM7EC: entry("ASDM", null, "Seventh EC", "ASDM 7EC"),
+    }),
   },
 };
 
@@ -102,16 +100,12 @@ const RAW_ORDER = [
   "poly-sinc-gauss-zeta",
 ];
 
+const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
+
 /** @param {string} value */
 const filterFields = (value) => [
-  {
-    name: "filter1x",
-    value,
-    options: RAW_ORDER.map((label, i) => ({ value: String(i), label })),
-  },
+  { name: "filter1x", value, options: RAW_ORDER.map((label, i) => ({ value: `${i}`, label })) },
 ];
-
-const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
 
 /**
  * The 1x filter field with both default facets opened (these cases are about
@@ -122,9 +116,9 @@ const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two
  */
 async function filterField({ plain = true, value = "0" } = {}) {
   await reset({ fields: filterFields(value), meta: META_BLURBS });
-  nApod1x.value = "all";
-  nQuality.value = 0;
   plainNames.value = plain;
+  nQuality.value = 0;
+  nApod1x.value = "all";
   return field("pcm_filter_1x");
 }
 
@@ -132,16 +126,16 @@ async function filterField({ plain = true, value = "0" } = {}) {
 
 /**
  * Text a user reads off the closed combobox button (the dd-box element's own
- * content, tags stripped) — same reader combobox-plainnames.test.js pins the
- * closed-control contract with.
+ * content, tags stripped) — same contract combobox-plainnames.test.js pins the
+ * closed control with.
  *
  * @param {string} out
  * @returns {string}
  */
 function boxText(out) {
-  const m = /<button\b[^<>]*\bclass="[^"]*\bdd-box\b[^"]*"[^<>]*>([\s\S]*?)<\/button>/.exec(out || "");
-  if (!m) throw new Error("no closed combobox button in the rendered output");
-  return m[1].replace(/<[^<>]*>/g, "").trim();
+  const box = elements(out).find((el) => classes(el).includes("dd-box"));
+  if (!box) throw new Error("no closed combobox button in the rendered output");
+  return text(box);
 }
 
 /**
@@ -154,9 +148,14 @@ function boxText(out) {
  * @returns {MarkupElement}
  */
 function readingExactly(out, wording) {
-  const hits = elements(out).filter((el) => text(el) === wording);
-  if (hits.length === 0) throw new Error(`nothing rendered reads exactly "${wording}"`);
-  return hits.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
+  /** @type {MarkupElement | undefined} */
+  let best;
+  for (const el of elements(out)) {
+    if (text(el) !== wording) continue;
+    if (!best || el.html.length < best.html.length) best = el;
+  }
+  if (!best) throw new Error(`nothing rendered reads exactly "${wording}"`);
+  return best;
 }
 
 /**
@@ -168,9 +167,10 @@ function readingExactly(out, wording) {
  * @returns {MarkupElement}
  */
 function rowIncluding(out, needle) {
-  const hit = elements(out).find((el) => classes(el).includes("dd-opt") && text(el).includes(needle));
-  if (!hit) throw new Error(`no option row reads "${needle}"`);
-  return hit;
+  for (const el of elements(out)) {
+    if (classes(el).includes("dd-opt") && text(el).includes(needle)) return el;
+  }
+  throw new Error(`no option row reads "${needle}"`);
 }
 
 /**
@@ -276,13 +276,13 @@ test("test_the_closed_control_still_reads_the_selections_short_with_blurb_data",
 
 test("test_favorites_narrowing_still_joins_by_raw_label_with_blurb_data", async () => {
   await reset({ fields: filterFields("0"), meta: META_BLURBS });
-  nApod1x.value = "all";
-  nQuality.value = 0;
   staticWire({ live: {}, http: {} }, favoritesRoutes(favoritesState()));
-  favoriteFilters.value = new Set(["poly-sinc-gauss-long"]);
-  favoritesError.value = "";
-  nFavOnly.value = true;
   plainNames.value = true;
+  nFavOnly.value = true;
+  nQuality.value = 0;
+  nApod1x.value = "all";
+  favoritesError.value = "";
+  favoriteFilters.value = new Set(["poly-sinc-gauss-long"]);
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Alpha pick"]);
 });
 
@@ -290,17 +290,11 @@ test("test_favorites_narrowing_still_joins_by_raw_label_with_blurb_data", async 
 // combobox.test.js's rate-gray cases); the join grays the same row with the
 // three-key shape carrying empty blurb maps.
 test("test_a_rate_grayed_modulator_row_stays_disabled_with_blurb_data", async () => {
+  const options = ["ASDM7", "ASDM7EC"].map((label, i) => ({ value: `${i}`, label }));
   await reset({
     fields: [
       { name: "defaults_bitrate", value: "24576000" },
-      {
-        name: "modulator",
-        value: "0",
-        options: [
-          { value: "0", label: "ASDM7" },
-          { value: "1", label: "ASDM7EC" },
-        ],
-      },
+      { name: "modulator", value: "0", options },
     ],
     meta: META_BLURBS,
   });
