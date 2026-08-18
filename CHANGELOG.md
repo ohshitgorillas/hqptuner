@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- **Simplified filter dropdowns caption every family and variant.** A one-line blurb under each header says what the group means in plain words, so picking Gaussian or Half-band no longer requires knowing the terms; wording drawn from HQPlayer's own filter descriptions.
+- **Simplified filter dropdowns caption every family and variant.** A one-line blurb under each header says what the group covers, so picking Gaussian or Half-band no longer requires knowing the terms.
 
 ### Changed
 
