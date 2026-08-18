@@ -8,11 +8,11 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The LIVE page's blocks rearrange to taste.** An "Edit layout" toggle in the LIVE MODE card head opens a mode where Mode and Rate, Engine health, the narrowing and chain group, Playback and Matrix profile drag into any order; LIVE MODE stays pinned at the top. The arrangement is stored per browser and written on leaving the mode. Reordering has no keyboard path.
 
-- **An "Option style" switch on the narrowing bar renders the filter, dither and modulator dropdowns in plain English.** Simplified groups each list under family and variant headers with each entry's distinguishing properties; Standard keeps the raw engine names. The choice persists in the browser and touches nothing else: narrowing, favorites and rate graying still read the engine names.
+- **An "Option style" switch on the narrowing bar renders the filter, dither and modulator dropdowns in plain English.** Simplified groups each list under family and variant headers with each entry's distinguishing properties; Standard keeps the raw engine names. The choice persists in the browser; narrowing, favorites and rate graying keep reading the engine names.
 
 ### Fixed
 
-- **The length facet drops the lengths HQPlayer never stated.** The sinc-S, sinc-M, sinc-Mx, sinc-MG and sinc-MGa filters read as extra long.
+- **The length facet drops the lengths HQPlayer never stated.** Filters whose descriptions give no length in words, among them the sinc-L series and the polynomial interpolators, had been guessed into buckets and now carry none; sinc-S reads as extra long alongside the rest of the sinc letter series rather than short.
 
 ## [1.8.1] — 2026-08-16
 
