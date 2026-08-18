@@ -12,6 +12,8 @@ Served by the static loader, so the guard-only `api_client` (no daemon behind
 it) is enough — same as tests/api/test_metadata_genres.py.
 """
 
+from typing import cast
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -19,7 +21,8 @@ DISPLAY_FIELDS = {"family", "variant", "leaf", "short"}
 
 
 def _plain_names(client: TestClient) -> dict[str, dict[str, dict[str, object]]]:
-    return client.get("/api/metadata").json()["plain_names"]
+    payload = client.get("/api/metadata").json()
+    return cast("dict[str, dict[str, dict[str, object]]]", payload["plain_names"])
 
 
 def test_metadata_serves_a_plain_names_section_per_dropdown_kind(api_client: TestClient) -> None:
