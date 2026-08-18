@@ -26,8 +26,11 @@ function placePop(b, p) {
   const maxH = Math.min(natural, (up ? above : below) - 8);
   p.style.maxHeight = `${maxH}px`;
   p.style.top = `${up ? br.top - 4 - maxH : br.bottom + 4}px`;
-  const left = Math.min(br.left, window.innerWidth - 8 - p.getBoundingClientRect().width);
-  p.style.left = `${Math.max(8, left)}px`;
+  // Right edges flush with the trigger: a pop wider than its button (the
+  // grouped Simplified lists) grows leftward into the card, never rightward
+  // off it. minWidth above keeps the pop at least trigger-wide, so the
+  // narrow case stays exactly the old left-aligned placement.
+  p.style.left = `${Math.max(8, br.right - p.getBoundingClientRect().width)}px`;
 }
 
 // Keep the highlighted row inside the pop's own scrollport by writing
