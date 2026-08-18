@@ -126,6 +126,10 @@ def test_a_sinc_l_entry_carries_the_adaptive_length_variant(api_client: TestClie
     assert _filter_entries(api_client)[name]["variant"] == "Adaptive length"
 
 
+def test_sinc_l_serves_the_extra_long_leaf(api_client: TestClient) -> None:
+    assert _filter_entries(api_client)["sinc-L"]["leaf"] == "Extra-long"
+
+
 # sinc-L's closed-title tail abbreviates its "Extra-long" leaf to "X-long", per
 # the data contract's short-wording scope; the other four compose verbatim.
 @pytest.mark.parametrize(

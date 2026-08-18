@@ -265,7 +265,7 @@ test("test_standard_mode_rows_keep_raw_labels_in_source_order_with_blurb_data", 
 test("test_standard_mode_renders_no_blurb_wording", async () => {
   const out = await filterField({ plain: false });
   assert.deepEqual(
-    elements(out).filter((el) => text(el) === GAUSS_BLURB || el.html.includes(ZED_BLURB)),
+    [GAUSS_BLURB, SINC_BLURB, ZED_BLURB].filter((blurb) => out.includes(blurb)),
     [],
   );
 });
