@@ -231,7 +231,7 @@ test("test_within_one_group_rows_keep_data_order_not_relative_input_order", asyn
 
 test("test_pref_on_a_family_header_precedes_the_familys_first_option", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Gauss").start < rowIncluding(out, "Zeta pick").start, true);
+  assert.equal(readingExactly(out, "Gauss family").start < rowIncluding(out, "Zeta pick").start, true);
 });
 
 test("test_pref_on_a_variant_subheader_precedes_the_variants_first_option", async () => {
@@ -240,7 +240,7 @@ test("test_pref_on_a_variant_subheader_precedes_the_variants_first_option", asyn
 });
 
 test("test_a_family_header_row_is_not_an_option_row", async () => {
-  assert.equal(classes(readingExactly(await filterField(), "Gauss")).includes("dd-opt"), false);
+  assert.equal(classes(readingExactly(await filterField(), "Gauss family")).includes("dd-opt"), false);
 });
 
 test("test_a_variant_subheader_row_is_not_an_option_row", async () => {
@@ -250,7 +250,7 @@ test("test_a_variant_subheader_row_is_not_an_option_row", async () => {
 // Ext holds a single option; its family header still renders before that row.
 test("test_a_single_option_family_still_gets_its_family_header", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Ext").start < rowIncluding(out, "Ext Two").start, true);
+  assert.equal(readingExactly(out, "Ext family").start < rowIncluding(out, "Ext Two").start, true);
 });
 
 // Sinc's and Ext's variants are null: no subheader renders for them, so no
@@ -369,4 +369,99 @@ test("test_pref_on_without_plain_names_data_rows_keep_raw_labels_in_input_order"
   nQuality.value = 0;
   plainNames.value = true;
   assert.deepEqual(optionLabels(field("pcm_filter_1x")), RAW_ORDER);
+});
+
+// --- header wording and nested grouping (spec plain-dd-structure) -----------------
+// A family header's DOM text is the family name followed by the word "family" —
+// lowercase in the DOM, any uppercasing being CSS presentation — while a variant
+// subheader still reads the variant name alone. The rows NEST rather than
+// flatten: every option row is a descendant of the container its family's
+// header starts, and each variant's rows sit in that variant's own
+// subcontainer. Ancestry is read off the rendered fragment by offsets (which
+// element encloses which), never by class.
+
+/**
+ * @param {MarkupElement} el
+ * @returns {number}
+ */
+const endOf = (el) => el.start + el.html.length;
+
+/**
+ * Whether `a` encloses `b` in the fragment (and is not `b` itself).
+ *
+ * @param {MarkupElement} a
+ * @param {MarkupElement} b
+ * @returns {boolean}
+ */
+const encloses = (a, b) =>
+  a.start <= b.start && endOf(a) >= endOf(b) && !(a.start === b.start && a.html.length === b.html.length);
+
+/**
+ * The smallest element enclosing both `a` and `b` — the group container two
+ * pieces of one family (or of one variant) share. Throws when nothing encloses
+ * both, so a missing container fails loudly.
+ *
+ * @param {string} out
+ * @param {MarkupElement} a
+ * @param {MarkupElement} b
+ * @returns {MarkupElement}
+ */
+function commonContainer(out, a, b) {
+  const around = elements(out).filter((el) => encloses(el, a) && encloses(el, b));
+  if (around.length === 0) throw new Error("nothing in the fragment encloses both elements");
+  return around.reduce((x, y) => (x.html.length <= y.html.length ? x : y));
+}
+
+test("test_pref_on_a_family_header_reads_the_family_name_plus_lowercase_family", async () => {
+  assert.equal(
+    elements(await filterField()).some((el) => text(el) === "Gauss family"),
+    true,
+  );
+});
+
+test("test_a_family_header_row_carries_no_option_role", async () => {
+  assert.equal(/\brole="option"/.test(readingExactly(await filterField(), "Gauss family").attrs), false);
+});
+
+test("test_a_variant_subheader_reads_the_variant_name_without_a_family_suffix", async () => {
+  assert.deepEqual(
+    elements(await filterField()).filter((el) => text(el) === "Zed tap family" || text(el) === "Alpha tap family"),
+    [],
+  );
+});
+
+// The container the Gauss header shares with a Gauss row holds none of Sinc's
+// rows: families are grouped, not a flat sibling list.
+test("test_a_familys_rows_share_a_container_that_excludes_other_families_rows", async () => {
+  const out = await filterField();
+  const grp = commonContainer(out, readingExactly(out, "Gauss family"), rowIncluding(out, "Zeta pick"));
+  assert.equal(encloses(grp, rowIncluding(out, "Classic M")), false);
+});
+
+// That same family container holds BOTH of Gauss's variants ("Shorter" is the
+// Alpha tap row): the variant split happens inside the family group.
+test("test_a_family_container_holds_the_rows_of_all_of_that_familys_variants", async () => {
+  const out = await filterField();
+  const grp = commonContainer(out, readingExactly(out, "Gauss family"), rowIncluding(out, "Zeta pick"));
+  assert.equal(encloses(grp, rowIncluding(out, "Shorter")), true);
+});
+
+// The container the Zed tap subheader shares with its own row excludes the
+// sibling variant's row: each variant nests in its own subcontainer.
+test("test_a_variants_rows_sit_in_a_subcontainer_that_excludes_the_other_variants_rows", async () => {
+  const out = await filterField();
+  const vgrp = commonContainer(out, readingExactly(out, "Zed tap"), rowIncluding(out, "Zeta pick"));
+  assert.equal(encloses(vgrp, rowIncluding(out, "Shorter")), false);
+});
+
+// Pref OFF stays a flat option list: no family or variant group container
+// renders at all (the container classes are the one place the spec anchors a
+// class, because an absence has no ancestry to read).
+test("test_pref_off_renders_no_group_container_element", async () => {
+  assert.deepEqual(
+    elements(await filterField({ plain: false })).filter(
+      (el) => classes(el).includes("dd-grp") || classes(el).includes("dd-vgrp"),
+    ),
+    [],
+  );
 });
