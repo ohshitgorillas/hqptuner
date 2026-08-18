@@ -138,10 +138,23 @@ const CHAIN_CARDS = ["Narrow filters", "PCM Chain", "SDM Chain"];
 /** @param {string} out @returns {import("../support/markup.js").MarkupElement[]} */
 const inOrder = (out) => elements(out).sort((a, b) => a.start - b.start);
 
-// A card head's title, with the disclosure triangle a collapsible head carries
-// stripped: the title is the contract, the triangle is the card's own business.
+// A control a head may carry beside its title. Whole subtrees, so the label
+// inside one never reaches the title.
+const CONTROL_TAGS = new Set(["a", "button", "input", "select", "textarea"]);
+
+// A card head's title: the head's own words, with the disclosure triangle a
+// collapsible head carries stripped and any control the head carries beside the
+// title removed. The title is the contract; the triangle and the controls are
+// the card's own business. Removal is by whole element, never by trimming the
+// title's own text, so a head titled "LIVE MODE PRO" still reads as "LIVE MODE
+// PRO" and a renamed head still reads as its new name.
 /** @param {import("../support/markup.js").MarkupElement} el */
-const title = (el) => text(el).replace(/^[^A-Za-z]+/, "");
+const title = (el) => {
+  const bare = elements(el.html)
+    .filter((e) => CONTROL_TAGS.has(e.name) && !(e.start === 0 && e.html.length === el.html.length))
+    .reduce((markup, e) => markup.replace(e.html, " "), el.html);
+  return text({ ...el, html: bare }).replace(/^[^A-Za-z]+/, "");
+};
 
 /** @param {string} fragment @returns {string[]} */
 const headsIn = (fragment) =>
