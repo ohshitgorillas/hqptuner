@@ -24,6 +24,10 @@ FAMILY_BLURBS = {
     "Pure sinc": "Very long brute force filters",
     "Closed form": "Direct interpolation maintains original samples",
     "Misc": "Miscellaneous filters",
+    "Analog-style": "Analog-like behavior; no pre-ringing, long post-ringing",
+    "Classic oversampling": "The filter type found in most DACs",
+    "Polynomial": "Almost no ringing, but weak suppression of ultrasonic content",
+    "Minimum ringing": "Less ringing and better response/suppression than Polynomial",
 }
 
 _GAUSS = "Best balance of time and frequency accuracy, gentler transients"
@@ -78,7 +82,7 @@ def test_the_shaper_sections_serve_empty_blurb_maps(api_client: TestClient, kind
 # --- the family blurbs -------------------------------------------------------
 
 
-def test_the_filter_families_map_carries_exactly_the_four_approved_keys(api_client: TestClient) -> None:
+def test_the_filter_families_map_carries_exactly_the_eight_approved_keys(api_client: TestClient) -> None:
     assert set(_filter_blurbs(api_client, "families")) == set(FAMILY_BLURBS)
 
 
