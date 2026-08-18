@@ -81,7 +81,11 @@ const page = () => render(html`<${LiveView} />`);
 
 const MARK = "<section";
 /** @param {string} title */
-const head = (title) => new RegExp(`class="card-head[^"]*">(<span class="tri">.</span> )?${title}</(div|button)>`);
+// The title has to be the head's FIRST content, and has to end where the head
+// ends or where a nested control begins — a head may carry trailing buttons, but
+// a renamed or longer-titled head still misses.
+const head = (title) =>
+  new RegExp(`class="card-head[^"]*">(<span class="tri">.</span> )?${title}\\s*(</(div|button)>|<)`);
 
 // One named card's own markup: from its section tag up to the next section. A
 // miss throws rather than quietly measuring the whole page — a renamed head must
