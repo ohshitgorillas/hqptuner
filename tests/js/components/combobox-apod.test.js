@@ -117,6 +117,44 @@ const META_SIM = {
   },
 };
 
+// Non-filter entries CARRYING an apodizing class, served the same way the
+// filter fixtures serve theirs — the overlay's `apodizing` fact plus the
+// Simplified entry's own `apod` — so the badge's absence in the non-filter
+// tests below pins the dropdown-type rule, not a classless fixture.
+const META_SIM_APOD_NONFILTER = {
+  ...META_SIM,
+  shapers: {
+    ...META.shapers,
+    pcm_dithers: {
+      ...META.shapers.pcm_dithers,
+      TPDF: { description: "Triangular dither.", apodizing: "full" },
+    },
+    sdm_modulators: {
+      ...META.shapers.sdm_modulators,
+      ASDM7: { description: "Seventh order modulator.", apodizing: "full" },
+    },
+  },
+  plain_names: {
+    ...META_SIM.plain_names,
+    dithers: {
+      entries: {
+        TPDF: { family: "TPDF", variant: null, leaf: "TPDF", short: "TPDF", apod: "full" },
+        NS9: { family: "NS", variant: null, leaf: "Ninth", short: "NS 9", apod: "none" },
+      },
+      families: {},
+      variants: {},
+    },
+    modulators: {
+      entries: {
+        ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7", apod: "full" },
+        ASDM7EC: { family: "ASDM", variant: null, leaf: "Seventh EC", short: "ASDM 7EC", apod: "none" },
+      },
+      families: {},
+      variants: {},
+    },
+  },
+};
+
 /** @param {boolean} plain */
 async function filterField(plain) {
   const rows = plain ? SIM : STD;
@@ -135,6 +173,9 @@ const simplifiedField = () => filterField(true);
 
 /** @param {MarkupElement} el */
 const ariaOf = (el) => (/aria-label="([^"]*)"/.exec(el.attrs) || [])[1];
+
+/** @param {MarkupElement} el */
+const roleOf = (el) => (/(?:^|\s)role="([^"]*)"/.exec(el.attrs) || [])[1];
 
 /** @param {MarkupElement} el */
 const isBadge = (el) => ariaOf(el) === "Apodizing" || ariaOf(el) === "Half apodizing";
@@ -196,6 +237,15 @@ function onlyBadgeIn(out, box) {
 const paths = (el) => elements(el.html).filter((p) => p.name === "path");
 
 /**
+ * Whether an <svg> of the badge encloses the path — both scanned from the
+ * badge's own html, so their offsets share one origin.
+ *
+ * @param {MarkupElement} badge
+ * @param {MarkupElement} p
+ */
+const svgEncloses = (badge, p) => elements(badge.html).some((el) => el.name === "svg" && encloses(el, p));
+
+/**
  * The one <path> of a badge's vector glyph; anything but exactly one throws.
  *
  * @param {MarkupElement} badge
@@ -208,6 +258,23 @@ function glyphPathOf(badge) {
 
 /** @param {MarkupElement} el */
 const pathData = (el) => (/(?:^|\s)d="([^"]*)"/.exec(el.attrs) || [])[1];
+
+/**
+ * Offset of `needle` where it renders as VISIBLE TEXT of the row — a match
+ * inside a tag's attribute run (between a "<" and its ">") is skipped, so an
+ * aria-label or title carrying the label never anchors the position. Throws
+ * when the row shows no such text.
+ *
+ * @param {string} out
+ * @param {MarkupElement} row
+ * @param {string} needle
+ */
+function visibleTextAt(out, row, needle) {
+  for (let at = out.indexOf(needle, row.start); at >= 0 && at < endOf(row); at = out.indexOf(needle, at + 1)) {
+    if (out.lastIndexOf(">", at) > out.lastIndexOf("<", at)) return at;
+  }
+  throw new Error(`"${needle}" is not visible text of the row`);
+}
 
 /**
  * The favorite star of a row, by the dd-fav marking combobox-fav.test.js pins.
@@ -232,9 +299,18 @@ test("test_a_full_apodizing_row_carries_a_badge_labelled_apodizing", async () =>
   assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "Apodizing");
 });
 
-test("test_the_badge_glyph_is_exactly_one_vector_path", async () => {
+test("test_the_badge_glyph_is_exactly_one_vector_path_inside_an_svg", async () => {
   const out = await simplifiedField();
-  assert.equal(paths(onlyBadgeIn(out, rowIncluding(out, "U One"))).length, 1);
+  const badge = onlyBadgeIn(out, rowIncluding(out, "U One"));
+  assert.deepEqual(
+    paths(badge).map((p) => svgEncloses(badge, p)),
+    [true],
+  );
+});
+
+test("test_the_full_badge_renders_role_img", async () => {
+  const out = await simplifiedField();
+  assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "img");
 });
 
 test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async () => {
@@ -245,6 +321,11 @@ test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async 
 test("test_the_half_badge_glyph_is_exactly_one_vector_path", async () => {
   const out = await simplifiedField();
   assert.equal(paths(onlyBadgeIn(out, rowIncluding(out, "MH One"))).length, 1);
+});
+
+test("test_the_half_badge_renders_role_img", async () => {
+  const out = await simplifiedField();
+  assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "img");
 });
 
 test("test_the_badge_contains_no_text_element", async () => {
@@ -288,9 +369,7 @@ test("test_the_badge_carries_no_click_handler", async () => {
 test("test_the_badge_renders_after_the_rows_own_text", async () => {
   const out = await simplifiedField();
   const row = rowIncluding(out, "U One");
-  const at = out.indexOf("U One", row.start);
-  if (at < 0) throw new Error("the row's own text is not in the fragment");
-  assert.equal(onlyBadgeIn(out, row).start > at, true);
+  assert.equal(onlyBadgeIn(out, row).start > visibleTextAt(out, row, "U One"), true);
 });
 
 test("test_the_badge_precedes_the_favorite_star_in_document_order", async () => {
@@ -314,6 +393,10 @@ test("test_standard_style_keeps_the_raw_flat_list", async () => {
 });
 
 // --- non-filter comboboxes carry no badge ---------------------------------------
+// Simplified on and the entries' apodizing class fully served (overlay fact
+// plus the Simplified entry's apod), so a badge's absence is the dropdown-type
+// rule at work: dither and modulator dropdowns never badge, whatever class
+// their entries carry.
 
 test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
   await reset({
@@ -328,9 +411,9 @@ test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
         ],
       },
     ],
-    meta: META_STD,
+    meta: META_SIM_APOD_NONFILTER,
   });
-  plainNames.value = false;
+  plainNames.value = true;
   assert.equal(badges(field("pcm_dither")).length, 0);
 });
 
@@ -347,7 +430,7 @@ test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
         ],
       },
     ],
-    meta: META_SIM,
+    meta: META_SIM_APOD_NONFILTER,
   });
   plainNames.value = true;
   assert.equal(badges(field("sdm_modulator")).length, 0);
