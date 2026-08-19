@@ -200,6 +200,12 @@ button.dd-hdr[aria-expanded="false"]::before {
      the letter below the circle's centre; a 1:1 line box centres it */
   line-height: 1;
 }
+/* The vulgar-fraction glyph's ink sits high and left of its em box, so the
+   centred box still reads off-centre; the padding is an optical nudge sized to
+   the glyph itself. */
+.dd-apod-half {
+  padding: 0.1em 0 0 0.1em; /* token-exempt: optical centering that tracks the fraction glyph's own size */
+}
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */
 .dd-fav {

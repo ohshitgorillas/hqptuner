@@ -66,7 +66,9 @@ const APOD_GLYPH = { full: "A", half: "½" };
  */
 function Apod({ kind }) {
   if (!kind) return null;
-  return html`<span class="dd-apod" role="img" aria-label=${APOD_LABEL[kind]}>${APOD_GLYPH[kind]}</span>`;
+  // the half class carries the fraction glyph's optical-centering nudge
+  const cls = kind === "half" ? "dd-apod dd-apod-half" : "dd-apod";
+  return html`<span class=${cls} role="img" aria-label=${APOD_LABEL[kind]}>${APOD_GLYPH[kind]}</span>`;
 }
 
 // The pop is hidden-not-unmounted: SSR and tests render the closed state, and
