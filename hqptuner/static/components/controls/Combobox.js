@@ -2,14 +2,14 @@
 // show a per-option tip. Presentational like the rest of controls/ — no store
 // knowledge, value/options in, onChange(value) out on commit only. Optional
 // fav(o)/onFav(o) pair adds a per-row favorite star (filter dropdowns); star
-// clicks toggle only, never commit. Optional badge(o) marks apodizing rows,
-// hoisted onto a group header when every row under it carries the same class;
-// optional collapse wiring folds the grouped (Simplified) family and variant
-// containers, with the state owned by the caller so it can persist.
+// clicks toggle only, never commit. Optional badge(o) marks each apodizing
+// row beside its own name — rows only, never a group header; optional collapse
+// wiring folds the grouped (Simplified) family and variant containers, with
+// the state owned by the caller so it can persist.
 import { useRef, useState } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
-import { buildRows, rowOption, nestRows, groupSlots, uniformApod, visibleOption } from "./comborows.js";
+import { buildRows, rowOption, nestRows, visibleOption } from "./comborows.js";
 
 /**
  * @typedef {import("./comborows.js").RenderOption} RenderOption
@@ -180,44 +180,41 @@ function OptionRow({ o, i, apod, row }) {
 // A family or variant header: a plain presentation row without collapse
 // wiring, a disclosure toggle with it. The toggle is a real button so it takes
 // activation without inventing key handling — the pop's focus model stays on
-// the trigger, same arrangement as the favorite star.
+// the trigger, same arrangement as the favorite star. Headers never carry an
+// apodizing badge — the mark belongs to the rows alone.
 /**
- * @param {{ cls: string, text: string, apod: ApodClass, ckey: string, row: RowCtx }} props
+ * @param {{ cls: string, text: string, ckey: string, row: RowCtx }} props
  */
-function GroupHead({ cls, text, apod, ckey, row }) {
+function GroupHead({ cls, text, ckey, row }) {
   const { collapse, toggle } = row;
   if (!collapse) {
-    return html`<div class=${cls} role="presentation">${text}<${Apod} kind=${apod} /></div>`;
+    return html`<div class=${cls} role="presentation">${text}</div>`;
   }
   const folded = collapse.collapsed(ckey);
   // The disclosure caret is CSS (::before off aria-expanded), so the header's
-  // children stay text plus badge in both header forms.
+  // children stay its text in both header forms.
   return html`<button type="button" class=${cls} aria-expanded=${!folded} onClick=${() => toggle(ckey)}>
-    ${text}<${Apod} kind=${apod} />
+    ${text}
   </button>`;
 }
 
 // One node of the nested pop body: an option row, or a variant container —
 // subheader plus its rows, folded down to the subheader alone when collapsed.
-// `hoisted` means an enclosing header already carries the apodizing badge, so
-// nothing under it repeats the mark.
 /**
  * @param {Slot | VGroup} k
  * @param {RowCtx} row
- * @param {boolean} hoisted
  * @returns {ReturnType<typeof html>}
  */
-function renderKid(k, row, hoisted) {
+function renderKid(k, row) {
   if (!("items" in k)) {
-    const apod = row.badge && !hoisted ? row.badge(k.r.o) : null;
+    const apod = row.badge ? row.badge(k.r.o) : null;
     return html`<${OptionRow} o=${k.r.o} i=${k.i} apod=${apod} row=${row} />`;
   }
-  const vApod = row.badge && !hoisted ? uniformApod(k.items, row.badge) : null;
   const folded = row.collapse ? row.collapse.collapsed(k.key) : false;
   return html`<div class="dd-vgrp">
-    <${GroupHead} cls="dd-hdr dd-subhdr" text=${k.head} apod=${vApod} ckey=${k.key} row=${row} />
+    <${GroupHead} cls="dd-hdr dd-subhdr" text=${k.head} ckey=${k.key} row=${row} />
     ${!folded && k.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${k.blurb}</div>` : null}
-    ${folded ? null : k.items.map((it) => renderKid(it, row, hoisted || vApod != null))}
+    ${folded ? null : k.items.map((it) => renderKid(it, row))}
   </div>`;
 }
 
@@ -232,13 +229,12 @@ function renderKid(k, row, hoisted) {
  */
 function renderRows(rows, row) {
   return nestRows(rows).map((n) => {
-    if (!("kids" in n)) return renderKid(n, row, false);
-    const gApod = row.badge ? uniformApod(groupSlots(n.kids), row.badge) : null;
+    if (!("kids" in n)) return renderKid(n, row);
     const folded = row.collapse ? row.collapse.collapsed(n.key) : false;
     return html`<div class="dd-grp">
-      <${GroupHead} cls="dd-hdr t-head" text=${`${n.head} family`} apod=${gApod} ckey=${n.key} row=${row} />
+      <${GroupHead} cls="dd-hdr t-head" text=${`${n.head} family`} ckey=${n.key} row=${row} />
       ${!folded && n.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${n.blurb}</div>` : null}
-      ${folded ? null : n.kids.map((k) => renderKid(k, row, gApod != null))}
+      ${folded ? null : n.kids.map((k) => renderKid(k, row))}
     </div>`;
   });
 }

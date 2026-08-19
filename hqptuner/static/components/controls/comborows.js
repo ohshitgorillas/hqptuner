@@ -1,8 +1,7 @@
 // The combobox pop's row model (Combobox.js, its only caller): the flat row
 // list keyboard indexes live in, the nested family/variant containers the DOM
-// renders, and the pure queries over both — visibility under a collapsed
-// group and the uniform-apodizing test that hoists a badge onto a header.
-// Pure data in, data out; nothing here touches preact or the DOM.
+// renders, and visibility under a collapsed group. Pure data in, data out;
+// nothing here touches preact or the DOM.
 
 /**
  * @typedef {SchemaOption & { disabled?: boolean, reason?: string, display?: string,
@@ -113,32 +112,6 @@ export function nestRows(rows) {
     (v ? v.items : g ? g.kids : top).push({ r, i });
   });
   return top;
-}
-
-/**
- * Every option slot under one family, its variant containers flattened away.
- * @param {(Slot | VGroup)[]} kids
- * @returns {Slot[]}
- */
-export const groupSlots = (kids) => kids.flatMap((k) => ("items" in k ? k.items : [k]));
-
-/**
- * The one apodizing class shared by every option in `slots`, or null when the
- * classes mix or any row carries none — the hoisting rule: a uniform group
- * badges its header once instead of every row.
- * @param {Slot[]} slots
- * @param {(o: RenderOption) => ApodClass} badge
- * @returns {ApodClass}
- */
-export function uniformApod(slots, badge) {
-  /** @type {ApodClass} */
-  let kind = null;
-  for (const slot of slots) {
-    const b = badge(slot.r.o);
-    if (!b || (kind && b !== kind)) return null;
-    kind = b;
-  }
-  return kind;
 }
 
 /**
