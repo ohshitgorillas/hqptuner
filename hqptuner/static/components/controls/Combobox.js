@@ -62,19 +62,19 @@ const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
 // mapping — different in every environment, so no anchor held everywhere.
 // Outlines are Inter 400's own "A" and "onehalf" (fonts/inter-400.woff2,
 // extracted with fontTools), each ink bounding box centered on the circle at
-// (10,10) in viewBox units and scaled to a per-glyph ink height — 10 for the
-// A, 11.5 for the fraction, whose small digits go illegible at a shared size.
+// (10,10) in viewBox units, per-glyph ink height 10 (A) and 10.75 (the
+// fraction's digits go illegible smaller; any bigger crowds the circle).
 const APOD_PATH = {
   full:
     "M5.61 15.00 9.24 5.00H10.71L14.39 15.00H13.05L10.93 9.07Q10.73 8.52 10.48 7.69Q10.22 6.87 " +
     "9.85 5.60H10.09Q9.73 6.89 9.46 7.72Q9.20 8.56 9.02 9.07L6.96 15.00ZM7.43 12.21V11.09H12.57V12.21Z",
   half:
-    "M6.77 4.25V10.52H5.53V5.30H5.46L3.97 6.45V5.21L5.23 4.25ZM4.85 15.75 12.75 4.25H14.06L6.15 " +
-    "15.75ZM11.79 15.75V14.92L13.89 12.64Q14.30 12.20 14.52 11.87Q14.75 11.54 14.75 11.19Q14.75 " +
-    "10.83 14.46 10.63Q14.17 10.42 13.81 10.42Q13.42 10.42 13.18 10.63Q12.93 10.84 12.93 " +
-    "11.22H11.73Q11.73 10.38 12.35 9.90Q12.96 9.41 13.85 9.41Q14.79 9.41 15.37 9.92Q15.95 10.43 " +
-    "15.95 11.15Q15.95 11.44 15.82 11.75Q15.70 12.06 15.35 12.52Q15.01 12.99 14.33 13.73L13.52 " +
-    "14.63V14.71H16.03V15.75Z",
+    "M6.98 4.62V10.48H5.82V5.61H5.75L4.36 6.68V5.53L5.54 4.62ZM5.18 15.38 12.57 4.62H13.79L6.40 " +
+    "15.38ZM11.67 15.38V14.60L13.63 12.47Q14.02 12.06 14.23 11.75Q14.44 11.44 14.44 11.11Q14.44 " +
+    "10.77 14.17 10.58Q13.90 10.40 13.56 10.40Q13.20 10.40 12.97 10.59Q12.74 10.79 12.74 " +
+    "11.14H11.62Q11.62 10.35 12.19 9.90Q12.77 9.45 13.60 9.45Q14.48 9.45 15.02 9.93Q15.56 10.40 " +
+    "15.56 11.07Q15.56 11.34 15.44 11.63Q15.33 11.93 15.00 12.36Q14.68 12.79 14.05 13.48L13.29 " +
+    "14.33V14.40H15.64V15.38Z",
 };
 
 // The circled apodizing mark beside an option row's name. Inert: it is part
