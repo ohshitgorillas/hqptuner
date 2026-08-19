@@ -2,35 +2,25 @@
 // show a per-option tip. Presentational like the rest of controls/ — no store
 // knowledge, value/options in, onChange(value) out on commit only. Optional
 // fav(o)/onFav(o) pair adds a per-row favorite star (filter dropdowns); star
-// clicks toggle only, never commit.
+// clicks toggle only, never commit. Optional badge(o) marks apodizing rows,
+// hoisted onto a group header when every row under it carries the same class;
+// optional collapse wiring folds the grouped (Simplified) family and variant
+// containers, with the state owned by the caller so it can persist.
 import { useRef, useState } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
+import { buildRows, rowOption, nestRows, groupSlots, uniformApod, visibleOption } from "./comborows.js";
 
 /**
- * @typedef {SchemaOption & { disabled?: boolean, reason?: string, display?: string,
- *   closedLabel?: string, group?: string, subgroup?: string | null,
- *   groupBlurb?: string, subgroupBlurb?: string }} RenderOption
- *   One row as it reaches this widget. Wider than either shared type: Field.js
- *   forwards a schema literal's SchemaOption list unchanged when the entry
- *   carries `options`, and an OptionItem from the option stores when it carries
- *   `optionsFrom` — so disabled/reason are present on one path only. The
- *   display/closedLabel/group/subgroup fields ride in from the plain-names
- *   decoration (store/plainnames.js) and are absent in Standard mode.
- * @typedef {{ o: RenderOption, oi: number } | { header: string, sub: boolean, blurb?: string }} ListRow
- *   One rendered row of the open pop: an option (with its index in `options`),
- *   or a family/variant header with its optional blurb caption. Headers are
- *   presentation only — never selectable, never committable, skipped by
- *   keyboard navigation.
- * @typedef {{ r: { o: RenderOption, oi: number }, i: number }} Slot
- *   One option row with its index in the flat row list — the index domain hl,
- *   selIdx and the aria ids live in, whatever the DOM nesting.
- * @typedef {{ head: string, blurb?: string, items: Slot[] }} VGroup
- *   A variant's subheader, its optional blurb caption and its option rows, one
- *   nested container.
- * @typedef {{ head: string, blurb?: string, kids: (Slot | VGroup)[] }} FGroup
- *   A family's header, its optional blurb caption, its bare option rows and
- *   its variant groups, one nested container.
+ * @typedef {import("./comborows.js").RenderOption} RenderOption
+ * @typedef {import("./comborows.js").ListRow} ListRow
+ * @typedef {import("./comborows.js").Slot} Slot
+ * @typedef {import("./comborows.js").VGroup} VGroup
+ * @typedef {import("./comborows.js").ApodClass} ApodClass
+ * @typedef {import("./comborows.js").CollapseCtl} CollapseCtl
+ *   The row model — flat list, nested containers, visibility and badge
+ *   hoisting — lives in comborows.js; this module owns the markup, focus and
+ *   placement behaviour around it.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {{ name: string, text: string, rows: [string, string][], chips: string[] }} TipContent
@@ -40,11 +30,14 @@ import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
  *   dropdowns).
  * @typedef {{ open: boolean, hl: number, selIdx: number, id: string,
  *   fav?: (o: RenderOption) => boolean, onFav?: (o: RenderOption) => void,
+ *   badge?: (o: RenderOption) => ApodClass, collapse?: CollapseCtl,
+ *   toggle: (key: string) => void,
  *   byKey: { current: boolean }, setHl: (i: number) => void,
  *   commit: (o: RenderOption) => void }} RowCtx
  *   The shared context every option row draws from — see OptionRow. `hl` and
  *   `selIdx` are indexes into the pop's row list (headers included), not into
- *   the options array.
+ *   the options array. `toggle` wraps collapse.onToggle so a fold that hides
+ *   the highlighted row can also move the highlight somewhere visible.
  */
 
 /**
@@ -54,85 +47,6 @@ import { useDismissOnOutside, usePopPlacement } from "./combopop.js";
 const s = (v) => (v == null ? "" : String(v));
 let uid = 0;
 
-// The open pop's row list: options 1:1 in Standard mode, and with a family
-// header before each family's first option and a variant subheader before each
-// non-null variant's first option when the options carry plain-names groups.
-// Group runs are contiguous by construction (store/plainnames.js sorts them),
-// so a boundary check per option is enough.
-/**
- * @param {RenderOption[]} opts
- * @returns {ListRow[]}
- */
-function buildRows(opts) {
-  /** @type {ListRow[]} */
-  const rows = [];
-  /** @type {string | null} */
-  let g = null;
-  /** @type {string | null} */
-  let sg = null;
-  opts.forEach((o, oi) => {
-    if (o.group != null) {
-      if (o.group !== g) {
-        rows.push({ header: o.group, sub: false, blurb: o.groupBlurb });
-        g = o.group;
-        sg = null;
-      }
-      if (o.subgroup != null && o.subgroup !== sg) rows.push({ header: o.subgroup, sub: true, blurb: o.subgroupBlurb });
-      sg = o.subgroup == null ? null : o.subgroup;
-    } else {
-      g = null;
-      sg = null;
-    }
-    rows.push({ o, oi });
-  });
-  return rows;
-}
-
-/**
- * @param {ListRow | undefined} row
- * @returns {RenderOption | undefined}
- */
-const rowOption = (row) => (row && "o" in row ? row.o : undefined);
-
-// Fold the flat row list into nested family/variant containers for display —
-// a family header owns its group, a variant subheader its subgroup, so each
-// can stick to the pop's top while its own rows scroll under it. Indices stay
-// in the flat row domain; only the DOM nests. Unknown and Standard-mode rows
-// (no group) stay at the top level.
-/**
- * @param {ListRow[]} rows
- * @returns {(Slot | FGroup)[]}
- */
-function nestRows(rows) {
-  /** @type {(Slot | FGroup)[]} */
-  const top = [];
-  /** @type {FGroup | null} */
-  let g = null;
-  /** @type {VGroup | null} */
-  let v = null;
-  rows.forEach((r, i) => {
-    if (!("o" in r)) {
-      if (r.sub && g) {
-        v = { head: r.header, blurb: r.blurb, items: [] };
-        g.kids.push(v);
-      } else if (!r.sub) {
-        g = { head: r.header, blurb: r.blurb, kids: [] };
-        v = null;
-        top.push(g);
-      }
-      return;
-    }
-    if (r.o.group == null) {
-      g = null;
-      v = null;
-    } else if (r.o.subgroup == null) {
-      v = null; // a bare-family row after a variant group leaves the subgroup
-    }
-    (v ? v.items : g ? g.kids : top).push({ r, i });
-  });
-  return top;
-}
-
 // An option row's visible text: the plain-names display when the option
 // carries one, else the raw label; a disabled row appends its reason.
 /**
@@ -140,6 +54,20 @@ function nestRows(rows) {
  * @returns {string}
  */
 const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}`;
+
+const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
+const APOD_GLYPH = { full: "A", half: "½" };
+
+// The circled apodizing mark, on a row or hoisted onto a group header. Inert:
+// it is part of the name it sits beside, not a control, so it never commits,
+// never toggles, and reads out through its label alone.
+/**
+ * @param {{ kind: ApodClass | undefined }} props
+ */
+function Apod({ kind }) {
+  if (!kind) return null;
+  return html`<span class="dd-apod" role="img" aria-label=${APOD_LABEL[kind]}>${APOD_GLYPH[kind]}</span>`;
+}
 
 // The pop is hidden-not-unmounted: SSR and tests render the closed state, and
 // effects never run there, so nothing in render may touch window/document.
@@ -153,13 +81,15 @@ const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — 
 // Escape closes, Tab closes and lets focus move on.
 /**
  * @param {{ open: boolean, setOpen: (v: boolean) => void, rows: ListRow[], hl: number,
+ *   visible: (row: ListRow | undefined) => boolean,
  *   setHl: (i: number) => void, byKey: { current: boolean }, show: () => void,
  *   commit: (o: RenderOption | undefined) => void }} ctx
  * @returns {(e: KeyboardEvent) => void}
  */
-function comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit }) {
-  // Arrow moves land on option rows only: from `from`, the nearest option row
-  // in `dir`, or `from` itself when none is left in that direction.
+function comboKeyHandler({ open, setOpen, rows, hl, visible, setHl, byKey, show, commit }) {
+  // Arrow moves land on visible option rows only: from `from`, the nearest one
+  // in `dir`, or `from` itself when none is left in that direction. Rows folded
+  // under a collapsed group are skipped the same way headers are.
   /**
    * @param {number} from
    * @param {number} dir
@@ -167,7 +97,7 @@ function comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit }
    */
   const nextOption = (from, dir) => {
     for (let j = from + dir; j >= 0 && j < rows.length; j += dir) {
-      if (rowOption(rows[j])) return j;
+      if (visible(rows[j])) return j;
     }
     return from;
   };
@@ -202,10 +132,11 @@ function comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit }
 // One option in the pop. `row` is the shared context the whole list draws from:
 // which index is highlighted and which is selected, the id prefix the button's
 // aria-activedescendant points at, the favorite wiring, and the two writers.
+// `apod` is the row's own badge, already null where a group header carries it.
 /**
- * @param {{ o: RenderOption, i: number, row: RowCtx }} props
+ * @param {{ o: RenderOption, i: number, apod: ApodClass, row: RowCtx }} props
  */
-function OptionRow({ o, i, row }) {
+function OptionRow({ o, i, apod, row }) {
   const { open, hl, selIdx, id, fav, onFav, byKey, setHl, commit } = row;
   return html`
     <div
@@ -221,6 +152,7 @@ function OptionRow({ o, i, row }) {
       onClick=${() => commit(o)}
     >
       ${rowText(o)}
+      <${Apod} kind=${apod} />
       ${
         fav
           ? html`<button
@@ -243,41 +175,70 @@ function OptionRow({ o, i, row }) {
   `;
 }
 
+// A family or variant header: a plain presentation row without collapse
+// wiring, a disclosure toggle with it. The toggle is a real button so it takes
+// activation without inventing key handling — the pop's focus model stays on
+// the trigger, same arrangement as the favorite star.
+/**
+ * @param {{ cls: string, text: string, apod: ApodClass, ckey: string, row: RowCtx }} props
+ */
+function GroupHead({ cls, text, apod, ckey, row }) {
+  const { collapse, toggle } = row;
+  if (!collapse) {
+    return html`<div class=${cls} role="presentation">${text}<${Apod} kind=${apod} /></div>`;
+  }
+  const folded = collapse.collapsed(ckey);
+  // The disclosure caret is CSS (::before off aria-expanded), so the header's
+  // children stay text plus badge in both header forms.
+  return html`<button type="button" class=${cls} aria-expanded=${!folded} onClick=${() => toggle(ckey)}>
+    ${text}<${Apod} kind=${apod} />
+  </button>`;
+}
+
 // One node of the nested pop body: an option row, or a variant container —
-// subheader plus its rows.
+// subheader plus its rows, folded down to the subheader alone when collapsed.
+// `hoisted` means an enclosing header already carries the apodizing badge, so
+// nothing under it repeats the mark.
 /**
  * @param {Slot | VGroup} k
  * @param {RowCtx} row
+ * @param {boolean} hoisted
  * @returns {ReturnType<typeof html>}
  */
-function renderKid(k, row) {
-  if (!("items" in k)) return html`<${OptionRow} o=${k.r.o} i=${k.i} row=${row} />`;
+function renderKid(k, row, hoisted) {
+  if (!("items" in k)) {
+    const apod = row.badge && !hoisted ? row.badge(k.r.o) : null;
+    return html`<${OptionRow} o=${k.r.o} i=${k.i} apod=${apod} row=${row} />`;
+  }
+  const vApod = row.badge && !hoisted ? uniformApod(k.items, row.badge) : null;
+  const folded = row.collapse ? row.collapse.collapsed(k.key) : false;
   return html`<div class="dd-vgrp">
-    <div class="dd-hdr dd-subhdr" role="presentation">${k.head}</div>
-    ${k.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${k.blurb}</div>` : null}
-    ${k.items.map((it) => renderKid(it, row))}
+    <${GroupHead} cls="dd-hdr dd-subhdr" text=${k.head} apod=${vApod} ckey=${k.key} row=${row} />
+    ${!folded && k.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${k.blurb}</div>` : null}
+    ${folded ? null : k.items.map((it) => renderKid(it, row, hoisted || vApod != null))}
   </div>`;
 }
 
 // The pop's body: family containers holding their headers, bare rows and
 // variant containers in Simplified mode; a flat option list otherwise. The
 // family header appends the word "family" (uppercased by CSS, so it reads
-// e.g. CLOSED FORM FAMILY).
+// e.g. CLOSED FORM FAMILY). A collapsed family keeps only its header row.
 /**
  * @param {ListRow[]} rows
  * @param {RowCtx} row
  * @returns {ReturnType<typeof html>[]}
  */
 function renderRows(rows, row) {
-  return nestRows(rows).map((n) =>
-    "kids" in n
-      ? html`<div class="dd-grp">
-          <div class="dd-hdr t-head" role="presentation">${n.head} family</div>
-          ${n.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${n.blurb}</div>` : null}
-          ${n.kids.map((k) => renderKid(k, row))}
-        </div>`
-      : renderKid(n, row),
-  );
+  return nestRows(rows).map((n) => {
+    if (!("kids" in n)) return renderKid(n, row, false);
+    const gApod = row.badge ? uniformApod(groupSlots(n.kids), row.badge) : null;
+    const folded = row.collapse ? row.collapse.collapsed(n.key) : false;
+    return html`<div class="dd-grp">
+      <${GroupHead} cls="dd-hdr t-head" text=${`${n.head} family`} apod=${gApod} ckey=${n.key} row=${row} />
+      ${!folded && n.blurb ? html`<div class="dd-blurb t-caption" role="presentation">${n.blurb}</div>` : null}
+      ${folded ? null : n.kids.map((k) => renderKid(k, row, gApod != null))}
+    </div>`;
+  });
 }
 
 // The highlighted option's tip, or null when the pop is closed, the widget has
@@ -324,13 +285,15 @@ function TipPop({ tip, tipRef }) {
 /**
  * Renders a dropdown as a button and an owned listbox popover, so each option
  * row can show its own tip from `tips` and, where `fav` is passed, a favorite
- * star. Reports a value on commit only.
+ * star; `badge` marks apodizing rows and `collapse` folds the grouped lists.
+ * Reports a value on commit only.
  * @param {{ value: string | number | undefined, options: RenderOption[] | undefined,
  *   valueLabel?: string, tips?: (o: RenderOption) => TipContent, fav?: (o: RenderOption) => boolean,
- *   onFav?: (o: RenderOption) => void, disabled?: boolean,
+ *   onFav?: (o: RenderOption) => void, badge?: (o: RenderOption) => ApodClass,
+ *   collapse?: CollapseCtl, disabled?: boolean,
  *   onChange: (v: string | number) => void }} props
  */
-export function Combobox({ value, options, valueLabel, tips, fav, onFav, disabled, onChange }) {
+export function Combobox({ value, options, valueLabel, tips, fav, onFav, badge, collapse, disabled, onChange }) {
   const opts = options || [];
   const rows = buildRows(opts);
   const [open, setOpen] = useState(false);
@@ -353,10 +316,15 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   // a fresh object every render, and an identity dep would re-place per render.
   const tipKey = tip && hlOpt ? s(hlOpt.value) : "";
 
+  // Rows under a collapsed group are unmounted, so the highlight and the arrow
+  // keys must never land on them.
+  const visible = visibleOption(collapse);
   const show = () => {
     byKey.current = true; // opening reveals the selection, same as a key move
-    const first = rows.findIndex((r) => "o" in r);
-    setHl(selIdx >= 0 ? selIdx : Math.max(0, first));
+    const first = rows.findIndex(visible);
+    // A selection folded under a collapsed group stays folded — the user chose
+    // the fold — so the highlight opens on the first row still visible.
+    setHl(selIdx >= 0 && visible(rows[selIdx]) ? selIdx : Math.max(0, first));
     setOpen(true);
   };
   /** @param {RenderOption | undefined} o */
@@ -365,7 +333,18 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
     onChange(o.value);
     setOpen(false);
   };
-  const onKey = comboKeyHandler({ open, setOpen, rows, hl, setHl, byKey, show, commit });
+  // Folding the group that holds the highlighted row would strand the
+  // highlight on an unmounted node; the caller's state updates synchronously,
+  // so re-checking right after the toggle sees the new fold.
+  /** @param {string} key */
+  const toggle = (key) => {
+    collapse?.onToggle(key);
+    if (!visible(rows[hl])) {
+      const first = rows.findIndex(visible);
+      if (first >= 0) setHl(first);
+    }
+  };
+  const onKey = comboKeyHandler({ open, setOpen, rows, hl, visible, setHl, byKey, show, commit });
   useDismissOnOutside({ open, setOpen, btnRef, popRef });
 
   usePopPlacement({ open, hl, id, tipKey, byKey, btnRef, popRef, tipRef });
@@ -375,7 +354,7 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, disable
   // so the caller passes the label the option list no longer carries.
   const sel = rowOption(rows[selIdx]);
   const label = sel ? sel.closedLabel || sel.label : valueLabel || s(value);
-  const row = { open, hl, selIdx, id, fav, onFav, byKey, setHl, commit };
+  const row = { open, hl, selIdx, id, fav, onFav, badge, collapse, toggle, byKey, setHl, commit };
   return html`
     <button
       type="button"

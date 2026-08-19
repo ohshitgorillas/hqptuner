@@ -92,11 +92,11 @@
     var(--shadow-pop);
 }
 .dd-opt {
-  /* flex so the star pins right; the label + optional " — reason" are
-     contiguous text runs, which merge into one anonymous flex item */
+  /* flex so the star pins right (its own auto margin); the label + optional
+     " — reason" are contiguous text runs, which merge into one anonymous flex
+     item, and the apodizing badge sits right after them */
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-sm);
@@ -120,6 +120,7 @@
 .dd-hdr {
   display: flex;
   align-items: center;
+  gap: var(--sp-1);
   height: var(--sp-5);
   padding: 0 var(--sp-2);
   white-space: nowrap;
@@ -127,6 +128,28 @@
   top: 0;
   z-index: 2;
   background: var(--surface-raised);
+}
+/* Collapse-wired headers render as buttons (Combobox.js GroupHead): same
+   sticky surface as the presentation form, plus the button-face reset every
+   custom button here needs. Typography stays with the header's text role
+   (t-head / .dd-subhdr), so only the face and cursor change. The disclosure
+   caret is drawn here off aria-expanded, keeping the header's children to
+   its text and badge. */
+button.dd-hdr {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+button.dd-hdr::before {
+  content: "▾";
+  color: var(--muted);
+}
+button.dd-hdr[aria-expanded="false"]::before {
+  content: "▸";
 }
 .dd-subhdr {
   top: var(--sp-5);
@@ -155,9 +178,26 @@
 .dd-vgrp .dd-opt {
   margin-left: var(--sp-3);
 }
+/* Apodizing badge (filter dropdowns): circled A for full, ½ for half, on a
+   row or hoisted onto a uniform group's header. Accent by owner's spec — the
+   one marker in this pop that borrows the accent for something other than a
+   staged edit. */
+.dd-apod {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.5em;
+  height: 1.5em;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-circle);
+  color: var(--accent);
+  font-size: var(--fs-micro);
+}
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */
 .dd-fav {
+  margin-left: auto;
   background: none;
   border: none;
   padding: 0;

@@ -249,3 +249,55 @@ export function commitLiveOrder() {
     warnStorage("written");
   }
 }
+
+// Collapsed dropdown groups (Simplified option style). One JSON list of
+// "<kind>|<family>" and "<kind>|<family>|<variant>" keys; a key's absence
+// means expanded, so a fresh profile opens every group. Keyed per kind, not
+// per control, so the PCM and SDM filter dropdowns share one fold.
+const K_DD_COLLAPSED = "hqptuner.collapsedGroups";
+
+/** @returns {Record<string, true>} */
+function loadCollapsed() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(K_DD_COLLAPSED);
+  } catch {
+    warnStorage("read");
+    return {};
+  }
+  if (raw == null) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return {};
+    /** @type {Record<string, true>} */
+    const map = {};
+    for (const k of parsed) {
+      if (typeof k === "string") map[k] = true;
+    }
+    return map;
+  } catch {
+    // A junk value reads as unset, the same way a junk boolean does.
+    return {};
+  }
+}
+
+export const collapsedGroups = signal(loadCollapsed());
+
+/**
+ * Toggle one dropdown group's disclosure and persist the collapsed set.
+ *
+ * @param {string} key "<kind>|<family>" or "<kind>|<family>|<variant>"
+ * @returns {void}
+ */
+export function toggleCollapsedGroup(key) {
+  /** @type {Record<string, true>} */
+  const next = { ...collapsedGroups.value };
+  if (next[key]) delete next[key];
+  else next[key] = true;
+  collapsedGroups.value = next;
+  try {
+    localStorage.setItem(K_DD_COLLAPSED, JSON.stringify(Object.keys(next)));
+  } catch {
+    warnStorage("written");
+  }
+}
