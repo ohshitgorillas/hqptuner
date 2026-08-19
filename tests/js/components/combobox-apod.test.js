@@ -1,8 +1,9 @@
 // Behavioral suite for the apodizing badges on the chain filter dropdowns
 // (controls/Combobox.js `badge`, wired by binder.js for the `narrow`-carrying
 // entries): a filter's class — full-apodizing, half-apodizing, or neither —
-// renders as a non-interactive badge, glyph "A" labelled "Apodizing" for full
-// and glyph "½" labelled "Half apodizing" for half, and nothing for neither.
+// renders as a non-interactive badge labelled "Apodizing" for full and "Half
+// apodizing" for half, and nothing for neither. The glyph is baked vector
+// geometry — one <path> per badge, distinct per class, never font text.
 // The badges are a SIMPLIFIED-STYLE feature (owner decision): with the pref
 // on, every apodizing option row wears its own badge — including when a whole
 // family or variant shares one class — and no family header or variant
@@ -191,6 +192,23 @@ function onlyBadgeIn(out, box) {
   return found[0];
 }
 
+/** @param {MarkupElement} el */
+const paths = (el) => elements(el.html).filter((p) => p.name === "path");
+
+/**
+ * The one <path> of a badge's vector glyph; anything but exactly one throws.
+ *
+ * @param {MarkupElement} badge
+ */
+function glyphPathOf(badge) {
+  const found = paths(badge);
+  if (found.length !== 1) throw new Error(`expected one path in the badge, found ${found.length}`);
+  return found[0];
+}
+
+/** @param {MarkupElement} el */
+const pathData = (el) => (/(?:^|\s)d="([^"]*)"/.exec(el.attrs) || [])[1];
+
 /**
  * The favorite star of a row, by the dd-fav marking combobox-fav.test.js pins.
  *
@@ -214,9 +232,9 @@ test("test_a_full_apodizing_row_carries_a_badge_labelled_apodizing", async () =>
   assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "Apodizing");
 });
 
-test("test_the_apodizing_badge_glyph_reads_a", async () => {
+test("test_the_badge_glyph_is_exactly_one_vector_path", async () => {
   const out = await simplifiedField();
-  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, "U One"))), "A");
+  assert.equal(paths(onlyBadgeIn(out, rowIncluding(out, "U One"))).length, 1);
 });
 
 test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async () => {
@@ -224,9 +242,30 @@ test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async 
   assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "Half apodizing");
 });
 
-test("test_the_half_apodizing_badge_glyph_reads_the_half_sign", async () => {
+test("test_the_half_badge_glyph_is_exactly_one_vector_path", async () => {
   const out = await simplifiedField();
-  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "½");
+  assert.equal(paths(onlyBadgeIn(out, rowIncluding(out, "MH One"))).length, 1);
+});
+
+test("test_the_badge_contains_no_text_element", async () => {
+  const out = await simplifiedField();
+  assert.equal(
+    elements(onlyBadgeIn(out, rowIncluding(out, "U One")).html).filter((el) => el.name === "text").length,
+    0,
+  );
+});
+
+test("test_the_badge_shows_no_text_content", async () => {
+  const out = await simplifiedField();
+  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, "U One"))), "");
+});
+
+test("test_the_full_and_half_badges_draw_distinct_glyphs", async () => {
+  const out = await simplifiedField();
+  assert.notEqual(
+    pathData(glyphPathOf(onlyBadgeIn(out, rowIncluding(out, "U One")))),
+    pathData(glyphPathOf(onlyBadgeIn(out, rowIncluding(out, "MH One")))),
+  );
 });
 
 test("test_a_row_of_neither_class_carries_no_badge", async () => {
