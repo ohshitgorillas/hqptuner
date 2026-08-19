@@ -419,7 +419,7 @@ test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
   });
   plainNames.value = true;
   const out = field("pcm_dither");
-  rowIncluding(out, "TPDF"); // throws when the rows never rendered
+  rowIncluding(out, "Ninth"); // Simplified-distinct leaf: throws unless the rows rendered IN SIMPLIFIED STYLE
   assert.equal(badges(out).length, 0);
 });
 
