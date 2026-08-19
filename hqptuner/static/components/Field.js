@@ -17,7 +17,7 @@ import { decorateOptions, plainClosedLabel } from "../store/plainnames.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible, plainNames } from "../store/prefs.js";
-import { widgetFor, tipsFor, favFor, FavoriteError, DescBlock } from "./binder.js";
+import { widgetFor, tipsFor, favFor, badgeFor, collapseFor, FavoriteError, DescBlock } from "./binder.js";
 import { Ask } from "./Ask.js";
 
 /**
@@ -301,6 +301,8 @@ export function Field({ k }) {
           tips=${tipsFor(entry, meta)}
           fav=${fav}
           onFav=${onFav}
+          badge=${badgeFor(entry)}
+          collapse=${collapseFor(entry)}
           min=${cfgConstraint(entry, "min")}
           max=${cfgConstraint(entry, "max")}
           step=${cfgConstraint(entry, "step")}

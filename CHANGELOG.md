@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Filter dropdowns badge apodizing and fold their groups.** Apodizing filters carry a circled accent A, half-apodizing a circled ½, hoisted onto the family or variant header when the whole group qualifies; the three Simplified names that spelled out apodizing rely on the badge instead. Simplified family and variant groups now collapse and expand from their headers, and the folds persist across reloads.
+
 ### Fixed
 
 - **Simplified filter names state linear phase where HQPlayer documents it.** The half-band, Ext2, Gaussian and Gaussian half-band poly-sinc families read as linear phase in their Simplified entries, matching the phase already shown for the lp/ip/mp variants.

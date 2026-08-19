@@ -6,6 +6,8 @@
 import { html } from "../lib/dom.js";
 import { optionDescription, selectionDescription, selectedLabel } from "../store/prose.js";
 import { plainTrueName } from "../store/plainnames.js";
+import { collapsedGroups, toggleCollapsedGroup } from "../store/prefs.js";
+import { filterFacets } from "../store/narrow/facets.js";
 import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Combobox } from "./controls/Combobox.js";
@@ -80,6 +82,37 @@ export const favFor = (/** @type {FieldEntry} */ entry) =>
         onFav: (/** @type {OptionItem} */ o) => toggleFavorite(o.label),
       }
     : undefined;
+
+/**
+ * Builds the apodizing-badge resolver for the filter dropdowns (`narrow`-carrying
+ * entries), keyed by option label = filter name — the same join the tip facets
+ * use; undefined everywhere else, so dither and modulator comboboxes render
+ * badge-free rows.
+ * @type {(entry: FieldEntry) => ((o: SchemaOption) => "full" | "half" | null) | undefined}
+ */
+export const badgeFor = (entry) =>
+  entry.narrow
+    ? (/** @type {SchemaOption} */ o) => {
+        const f = filterFacets.value[o.label];
+        if (!f) return null;
+        return f.apodizingHalf ? "half" : f.apodizing ? "full" : null;
+      }
+    : undefined;
+
+/**
+ * Builds the group-disclosure wiring for the plain-names dropdowns: collapse
+ * state lives in prefs, persisted, keyed per kind so the two chains' filter
+ * dropdowns share one fold. Undefined for dropdowns with no grouped mode.
+ * @type {(entry: FieldEntry) => import("./controls/Combobox.js").CollapseCtl | undefined}
+ */
+export const collapseFor = (entry) => {
+  const kind = entry.plainNames;
+  if (!kind) return undefined;
+  return {
+    collapsed: (/** @type {string} */ key) => !!collapsedGroups.value[`${kind}|${key}`],
+    onToggle: (/** @type {string} */ key) => toggleCollapsedGroup(`${kind}|${key}`),
+  };
+};
 
 /**
  * A refused favorites write, under the dropdown whose star did not stick. Only

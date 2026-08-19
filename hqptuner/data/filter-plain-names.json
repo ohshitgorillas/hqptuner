@@ -1,5 +1,5 @@
 {
-  "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (67 PCM, 77 SDM, 84 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null where the family has no variants), leaf label. Leaf labels unique within their variant; composed family+variant+leaf unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (67 PCM, 77 SDM, 84 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null where the family has no variants), leaf label. Leaf labels unique within their variant except that an apodizing filter may share its non-apodizing peer's leaf, distinguished by `apod`; composed family+variant+leaf+apod unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
   "families": {
     "Polyphase sinc": "The most variety and flexibility",
     "Pure sinc": "Very long brute force filters",
@@ -238,7 +238,7 @@
     "poly-sinc-ext2-xla": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response 2",
-      "leaf": "Extra-long linear phase, apodizing",
+      "leaf": "Extra-long linear phase",
       "short": "Poly-sinc · Ext2 · X-long linear, apod",
       "apod": "full"
     },
@@ -364,7 +364,7 @@
     "poly-sinc-gauss-xla": {
       "family": "Polyphase sinc",
       "variant": "Gaussian",
-      "leaf": "Extra-long linear phase, apodizing",
+      "leaf": "Extra-long linear phase",
       "short": "Poly-sinc · Gauss · X-long linear, apod",
       "apod": "full"
     },
@@ -497,7 +497,7 @@
     "sinc-MGa": {
       "family": "Pure sinc",
       "variant": "Gaussian",
-      "leaf": "Constant time, apodizing",
+      "leaf": "Constant time",
       "short": "Sinc · Gauss · Constant time, apod",
       "apod": "full"
     },
