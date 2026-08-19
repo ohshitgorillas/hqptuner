@@ -318,9 +318,13 @@ test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async 
   assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "Half apodizing");
 });
 
-test("test_the_half_badge_glyph_is_exactly_one_vector_path", async () => {
+test("test_the_half_badge_glyph_is_exactly_one_vector_path_inside_an_svg", async () => {
   const out = await simplifiedField();
-  assert.equal(paths(onlyBadgeIn(out, rowIncluding(out, "MH One"))).length, 1);
+  const badge = onlyBadgeIn(out, rowIncluding(out, "MH One"));
+  assert.deepEqual(
+    paths(badge).map((p) => svgEncloses(badge, p)),
+    [true],
+  );
 });
 
 test("test_the_half_badge_renders_role_img", async () => {
@@ -414,7 +418,9 @@ test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
     meta: META_SIM_APOD_NONFILTER,
   });
   plainNames.value = true;
-  assert.equal(badges(field("pcm_dither")).length, 0);
+  const out = field("pcm_dither");
+  rowIncluding(out, "TPDF"); // throws when the rows never rendered
+  assert.equal(badges(out).length, 0);
 });
 
 test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
@@ -433,7 +439,9 @@ test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
     meta: META_SIM_APOD_NONFILTER,
   });
   plainNames.value = true;
-  assert.equal(badges(field("sdm_modulator")).length, 0);
+  const out = field("sdm_modulator");
+  rowIncluding(out, "Seventh"); // throws when the rows never rendered
+  assert.equal(badges(out).length, 0);
 });
 
 // --- Simplified style: badges stay on the rows, never on headers ------------------
