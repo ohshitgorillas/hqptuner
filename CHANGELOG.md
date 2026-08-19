@@ -6,7 +6,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- **Filter dropdowns badge apodizing and fold their groups.** Every apodizing filter row carries a circled accent A, half-apodizing a circled ½, beside its name; the three Simplified names that spelled out apodizing rely on the badge instead. Simplified family and variant groups now collapse and expand from their headers, and the folds persist across reloads.
+- **Simplified filter dropdowns badge apodizing and fold their groups.** With the Simplified option style, every apodizing filter row carries a circled accent A, half-apodizing a circled ½, beside its name; the three Simplified names that spelled out apodizing rely on the badge instead. Family and variant groups collapse and expand from their headers, and the folds persist across reloads.
 
 ### Fixed
 
