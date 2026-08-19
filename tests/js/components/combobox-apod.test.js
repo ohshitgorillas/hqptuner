@@ -3,11 +3,11 @@
 // entries): a filter's class — full-apodizing, half-apodizing, or neither —
 // renders as a non-interactive badge, glyph "A" labelled "Apodizing" for full
 // and glyph "½" labelled "Half apodizing" for half, and nothing for neither.
-// In Standard option style every apodizing row wears its own badge; in
-// Simplified style a group that is uniformly one class lifts the badge to its
-// family header (or, inside a non-uniform family, to its variant subheader),
-// and a mixed group badges each apodizing row alone with nothing on its
-// headers. A non-filter combobox — dither, modulator — renders no badge.
+// Every apodizing option row wears its own badge, in Standard and Simplified
+// option style alike — including when a whole family or variant shares one
+// class — and no family header or variant subheader ever carries one (badge
+// hoisting is withdrawn, owner decision). A non-filter combobox — dither,
+// modulator — renders no badge.
 //
 // The class joins by raw engine filter name: the live enumeration's `arg`
 // bitfield (bit 0 apodizing, bit 1 half-apodizing; the live daemon serves it
@@ -16,9 +16,7 @@
 // the fixtures serve BOTH, consistent, the way the real wire does, and the
 // Simplified entries carry the same class as their `apod` field. A badge is
 // found by its ACCESSIBLE LABEL (aria-label "Apodizing" / "Half apodizing"),
-// never by a class the component happens to use; group containers are
-// anchored on the dd-grp / dd-vgrp classes combobox-plainnames.test.js
-// grounded.
+// never by a class the component happens to use.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire; rendering through preact-render-to-string reads the closed
@@ -181,20 +179,6 @@ function rowIncluding(out, needle) {
 }
 
 /**
- * The smallest element carrying class `cls` that encloses `el` — the family
- * (dd-grp) or variant (dd-vgrp) container a row sits in. Throws when none does.
- *
- * @param {string} out
- * @param {string} cls
- * @param {MarkupElement} el
- */
-function containerOf(out, cls, el) {
-  const around = elements(out).filter((e) => classes(e).includes(cls) && encloses(e, el));
-  if (around.length === 0) throw new Error(`no ${cls} container encloses the element`);
-  return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
-}
-
-/**
  * The one badge of a region; anything but exactly one match throws.
  *
  * @param {string} out
@@ -319,69 +303,40 @@ test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
   assert.equal(badges(field("sdm_modulator")).length, 0);
 });
 
-// --- Simplified style: a uniform family lifts the badge to its header ------------
-// "On the header" is read off the fragment by offsets: the family group
-// (dd-grp) holds exactly one badge, it sits before the variant subcontainer
-// (dd-vgrp), and nothing inside the subcontainer — subheader and rows alike —
-// carries one.
+// --- Simplified style: badges stay on the rows, never on headers ------------------
+// Badge hoisting is withdrawn (owner decision): a family or variant that is
+// uniformly one class still badges each of its own rows, exactly as Standard
+// style does. Row order is the plain-names data order the plainnames suite
+// pins: U One, U Two, MF One, MF Two, MH One, MM One, MM Two.
 
-test("test_a_uniform_family_renders_one_badge_in_its_group", async () => {
-  const out = await simplifiedField();
-  assert.equal(badgesIn(out, containerOf(out, "dd-grp", rowIncluding(out, "U One"))).length, 1);
-});
-
-test("test_a_uniform_familys_badge_reads_its_class", async () => {
-  const out = await simplifiedField();
-  assert.equal(ariaOf(onlyBadgeIn(out, containerOf(out, "dd-grp", rowIncluding(out, "U One")))), "Apodizing");
-});
-
-test("test_a_uniform_familys_badge_precedes_its_variant_container", async () => {
-  const out = await simplifiedField();
-  const row = rowIncluding(out, "U One");
-  const badge = onlyBadgeIn(out, containerOf(out, "dd-grp", row));
-  assert.equal(badge.start < containerOf(out, "dd-vgrp", row).start, true);
-});
-
-test("test_a_uniform_familys_rows_and_subheader_carry_no_badge", async () => {
-  const out = await simplifiedField();
-  assert.equal(badgesIn(out, containerOf(out, "dd-vgrp", rowIncluding(out, "U One"))).length, 0);
-});
-
-// --- a uniform variant inside a non-uniform family badges its subheader ----------
-
-test("test_a_uniform_variant_renders_one_badge_in_its_subcontainer", async () => {
-  const out = await simplifiedField();
-  assert.equal(badgesIn(out, containerOf(out, "dd-vgrp", rowIncluding(out, "MF One"))).length, 1);
-});
-
-test("test_a_uniform_variants_badge_precedes_its_rows", async () => {
-  const out = await simplifiedField();
-  const row = rowIncluding(out, "MF One");
-  assert.equal(onlyBadgeIn(out, containerOf(out, "dd-vgrp", row)).start < row.start, true);
-});
-
-test("test_a_uniform_variants_rows_carry_no_badge", async () => {
+test("test_simplified_style_badges_every_apodizing_row_individually", async () => {
   const out = await simplifiedField();
   assert.deepEqual(
-    [rowIncluding(out, "MF One"), rowIncluding(out, "MF Two")].map((r) => badgesIn(out, r).length),
-    [0, 0],
+    rows(out).map((r) => badgesIn(out, r).length),
+    [1, 1, 1, 1, 1, 1, 0],
   );
 });
 
-test("test_a_uniformly_half_variants_badge_reads_half_apodizing", async () => {
+test("test_a_uniform_familys_rows_each_carry_their_own_badge", async () => {
   const out = await simplifiedField();
-  assert.equal(ariaOf(onlyBadgeIn(out, containerOf(out, "dd-vgrp", rowIncluding(out, "MH One")))), "Half apodizing");
+  assert.deepEqual(
+    [rowIncluding(out, "U One"), rowIncluding(out, "U Two")].map((r) => badgesIn(out, r).length),
+    [1, 1],
+  );
 });
 
-test("test_a_non_uniform_family_header_carries_no_badge", async () => {
+test("test_a_uniform_variants_rows_each_carry_their_own_badge", async () => {
   const out = await simplifiedField();
-  const row = rowIncluding(out, "MF One");
-  const grp = containerOf(out, "dd-grp", row);
-  const firstVariant = containerOf(out, "dd-vgrp", row);
-  assert.equal(badgesIn(out, grp).filter((b) => b.start < firstVariant.start).length, 0);
+  assert.deepEqual(
+    [rowIncluding(out, "MF One"), rowIncluding(out, "MF Two")].map((r) => badgesIn(out, r).length),
+    [1, 1],
+  );
 });
 
-// --- a mixed variant badges each apodizing row alone ------------------------------
+test("test_a_half_apodizing_rows_badge_reads_half_apodizing_in_simplified_style", async () => {
+  const out = await simplifiedField();
+  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "Half apodizing");
+});
 
 test("test_a_mixed_variant_badges_each_apodizing_row_individually", async () => {
   const out = await simplifiedField();
@@ -391,9 +346,15 @@ test("test_a_mixed_variant_badges_each_apodizing_row_individually", async () => 
   );
 });
 
-test("test_a_mixed_variants_subheader_carries_no_badge", async () => {
+// A badge no option row encloses would be a header's, a subheader's or a
+// blurb's — family headers and variant subheaders never carry one, so every
+// badge of the fragment must sit inside a row. Uniform groups included: the
+// fixture's Uni family and Vfull/Vhalf variants are exactly the groups a
+// leftover hoist would badge.
+test("test_no_badge_renders_outside_an_option_row", async () => {
   const out = await simplifiedField();
-  const row = rowIncluding(out, "MM One");
-  const vgrp = containerOf(out, "dd-vgrp", row);
-  assert.equal(badgesIn(out, vgrp).filter((b) => b.start < row.start).length, 0);
+  assert.deepEqual(
+    badges(out).filter((b) => !rows(out).some((r) => encloses(r, b))),
+    [],
+  );
 });
