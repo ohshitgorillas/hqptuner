@@ -61,19 +61,20 @@ const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
 // weight (a selected row is semibold) and the engine's dominant-baseline
 // mapping — different in every environment, so no anchor held everywhere.
 // Outlines are Inter 400's own "A" and "onehalf" (fonts/inter-400.woff2,
-// extracted with fontTools at an 11-unit em), each ink bounding box centered
-// on the circle at (10,10) in viewBox units.
+// extracted with fontTools), each ink bounding box centered on the circle at
+// (10,10) in viewBox units and scaled to a per-glyph ink height — 10 for the
+// A, 11.5 for the fraction, whose small digits go illegible at a shared size.
 const APOD_PATH = {
   full:
-    "M6.48 14.00 9.39 6.00H10.57L13.52 14.00H12.44L10.74 9.25Q10.59 8.81 10.38 8.16Q10.17 7.50 9.88 " +
-    "6.48H10.07Q9.78 7.51 9.57 8.18Q9.36 8.85 9.22 9.25L7.57 14.00ZM7.95 11.77V10.88H12.05V11.77Z",
+    "M5.61 15.00 9.24 5.00H10.71L14.39 15.00H13.05L10.93 9.07Q10.73 8.52 10.48 7.69Q10.22 6.87 " +
+    "9.85 5.60H10.09Q9.73 6.89 9.46 7.72Q9.20 8.56 9.02 9.07L6.96 15.00ZM7.43 12.21V11.09H12.57V12.21Z",
   half:
-    "M7.75 6.00V10.36H6.89V6.73H6.84L5.80 7.53V6.67L6.68 6.00ZM6.41 14.00 11.91 6.00H12.82L7.32 " +
-    "14.00ZM11.24 14.00V13.42L12.70 11.84Q12.99 11.53 13.15 11.30Q13.31 11.07 13.31 10.83Q13.31 " +
-    "10.57 13.10 10.44Q12.90 10.30 12.65 10.30Q12.38 10.30 12.21 10.44Q12.04 10.59 12.04 " +
-    "10.85H11.21Q11.21 10.26 11.63 9.93Q12.06 9.59 12.68 9.59Q13.33 9.59 13.74 9.95Q14.14 10.30 " +
-    "14.14 10.80Q14.14 11.00 14.05 11.22Q13.97 11.43 13.72 11.76Q13.48 12.08 13.02 12.59L12.45 " +
-    "13.22V13.28H14.20V14.00Z",
+    "M6.77 4.25V10.52H5.53V5.30H5.46L3.97 6.45V5.21L5.23 4.25ZM4.85 15.75 12.75 4.25H14.06L6.15 " +
+    "15.75ZM11.79 15.75V14.92L13.89 12.64Q14.30 12.20 14.52 11.87Q14.75 11.54 14.75 11.19Q14.75 " +
+    "10.83 14.46 10.63Q14.17 10.42 13.81 10.42Q13.42 10.42 13.18 10.63Q12.93 10.84 12.93 " +
+    "11.22H11.73Q11.73 10.38 12.35 9.90Q12.96 9.41 13.85 9.41Q14.79 9.41 15.37 9.92Q15.95 10.43 " +
+    "15.95 11.15Q15.95 11.44 15.82 11.75Q15.70 12.06 15.35 12.52Q15.01 12.99 14.33 13.73L13.52 " +
+    "14.63V14.71H16.03V15.75Z",
 };
 
 // The circled apodizing mark beside an option row's name. Inert: it is part
