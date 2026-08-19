@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Simplified filter names state linear phase where HQPlayer documents it.** The half-band, Ext2, Gaussian and Gaussian half-band poly-sinc families read as linear phase in their Simplified entries, matching the phase already shown for the lp/ip/mp variants.
+
 ## [1.10.0] — 2026-08-18
 
 ### Added
