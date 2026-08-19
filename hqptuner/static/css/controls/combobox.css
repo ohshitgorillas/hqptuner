@@ -187,24 +187,26 @@ button.dd-hdr[aria-expanded="false"]::before {
    staged edit. */
 .dd-apod {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
-  width: 1.5em;
-  height: 1.5em;
-  border: 1px solid var(--accent);
-  border-radius: var(--r-circle);
+  width: calc(var(--fs-micro) * 1.5);
+  height: calc(var(--fs-micro) * 1.5);
   color: var(--accent);
-  font-size: var(--fs-micro);
-  /* the glyph's inherited line box is taller than its cap height, which drags
-     the letter below the circle's centre; a 1:1 line box centres it */
-  line-height: 1;
 }
-/* The vulgar-fraction glyph's ink sits high and left of its em box, so the
-   centred box still reads off-centre; the padding is an optical nudge sized to
-   the glyph itself. */
-.dd-apod-half {
-  padding: 0.1em 0 0 0.1em; /* token-exempt: optical centering that tracks the fraction glyph's own size */
+.dd-apod svg {
+  width: 100%;
+  height: 100%;
+}
+/* Stroke and glyph both take the badge's currentColor; sizes are viewBox user
+   units (the SVG scales as one picture), not the page's type scale. */
+.dd-apod circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+.dd-apod text {
+  fill: currentColor;
+  font-size: 11px; /* token-exempt: viewBox user units, scaled by the badge box, not page type */
+  font-family: inherit;
 }
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */

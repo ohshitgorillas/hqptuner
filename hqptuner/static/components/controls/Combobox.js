@@ -60,15 +60,26 @@ const APOD_GLYPH = { full: "A", half: "½" };
 
 // The circled apodizing mark beside an option row's name. Inert: it is part
 // of the name it sits beside, not a control, so it never commits, never
-// toggles, and reads out through its label alone.
+// toggles, and reads out through its label alone. Circle and glyph are one
+// SVG: drawn as separate elements (border + text) they rasterize at different
+// subpixel phases, so the letter sat visibly off-centre by a different amount
+// on every row; one shared coordinate system keeps them locked together. The
+// geometry below is in viewBox units — the fraction glyph's ink sits high and
+// left of its em box, hence its own anchor point.
 /**
  * @param {{ kind: ApodClass | undefined }} props
  */
 function Apod({ kind }) {
   if (!kind) return null;
-  // the half class carries the fraction glyph's optical-centering nudge
-  const cls = kind === "half" ? "dd-apod dd-apod-half" : "dd-apod";
-  return html`<span class=${cls} role="img" aria-label=${APOD_LABEL[kind]}>${APOD_GLYPH[kind]}</span>`;
+  const half = kind === "half";
+  return html`<span class="dd-apod" role="img" aria-label=${APOD_LABEL[kind]}>
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="9.3" />
+      <text x="10" y=${half ? "10.5" : "10"} text-anchor="middle" dominant-baseline="central">
+        ${APOD_GLYPH[kind]}
+      </text>
+    </svg>
+  </span>`;
 }
 
 // The pop is hidden-not-unmounted: SSR and tests render the closed state, and

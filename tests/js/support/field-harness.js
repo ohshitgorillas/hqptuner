@@ -309,6 +309,35 @@ export const span = (out, cls) => {
  */
 export const attrOf = (fragment, name) => (new RegExp(`\\b${name}="([^"]*)"`).exec(fragment || "") || [])[1];
 
+// The apodizing badge of a row, removed WHOLE — nested children included, the
+// badge being free to wrap an inline SVG — by its accessible label, the way
+// combobox-apod.test.js finds it, never by a class. Matching goes in two
+// steps, the grayReason pattern: a linear scan of opening tags with one
+// attribute test each (a single pattern asking for "attributes containing this
+// literal somewhere" backtracks super-linearly), then the matching close
+// counted by tag name, so a badge is excised however deep its own markup goes.
+/**
+ * @param {string} inner
+ * @returns {string}
+ */
+function stripApodBadges(inner) {
+  const open = /<(\w+)(?=[\s/>])((?:[^>"]|"[^"]*")*)>/g;
+  let out = inner;
+  let m;
+  while ((m = open.exec(out)) !== null) {
+    if (!/aria-label="(?:Half apodizing|Apodizing)"/.test(m[2])) continue;
+    const tags = new RegExp(`<(/?)${m[1]}(?=[\\s/>])(?:[^>"]|"[^"]*")*>`, "g");
+    tags.lastIndex = open.lastIndex;
+    let depth = 1;
+    let t;
+    while (depth > 0 && (t = tags.exec(out)) !== null) depth += t[1] ? -1 : 1;
+    if (depth > 0) throw new Error("an apodizing badge is never closed in the row");
+    out = out.slice(0, m.index) + out.slice(tags.lastIndex);
+    open.lastIndex = m.index;
+  }
+  return out;
+}
+
 // Options come in two markups: native <option> tags, and the combobox's
 // .dd-opt rows (desc-carrying dropdowns, controls/Combobox.js). Both expose
 // the same {a, label} shape — a grayed row's aria-disabled satisfies the same
@@ -320,19 +349,10 @@ export const attrOf = (fragment, name) => (new RegExp(`\\b${name}="([^"]*)"`).ex
 const opts = (out) => [
   ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] })),
   // the favorite-star button is a row affordance and the apodizing badge a row
-  // marking, not label text; the badge is matched by its accessible label, the
-  // way combobox-apod.test.js finds it, never by a class. Matching goes in two
-  // steps — a leaf element's whole span, then its aria-label — the way
-  // grayReason above does, because one pattern asking for "attributes
-  // containing this literal somewhere" backtracks super-linearly.
+  // marking, not label text
   ...[...out.matchAll(/<div([^>]*\bclass="dd-opt[^"]*"[^>]*)>([\s\S]*?)<\/div>/g)].map((m) => ({
     a: m[1],
-    label: m[2]
-      .replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "")
-      .replace(/<(\w+)(?=[\s/>])((?:[^>"]|"[^"]*")*)>[^<]*<\/\1>/g, (whole, _tag, attrs) =>
-        /aria-label="(?:Half apodizing|Apodizing)"/.test(attrs) ? "" : whole,
-      )
-      .trim(),
+    label: stripApodBadges(m[2].replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "")).trim(),
   })),
 ];
 /**
