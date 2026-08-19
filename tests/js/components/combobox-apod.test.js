@@ -1,0 +1,399 @@
+// Behavioral suite for the apodizing badges on the chain filter dropdowns
+// (controls/Combobox.js `badge`, wired by binder.js for the `narrow`-carrying
+// entries): a filter's class — full-apodizing, half-apodizing, or neither —
+// renders as a non-interactive badge, glyph "A" labelled "Apodizing" for full
+// and glyph "½" labelled "Half apodizing" for half, and nothing for neither.
+// In Standard option style every apodizing row wears its own badge; in
+// Simplified style a group that is uniformly one class lifts the badge to its
+// family header (or, inside a non-uniform family, to its variant subheader),
+// and a mixed group badges each apodizing row alone with nothing on its
+// headers. A non-filter combobox — dither, modulator — renders no badge.
+//
+// The class joins by raw engine filter name: the live enumeration's `arg`
+// bitfield (bit 0 apodizing, bit 1 half-apodizing; the live daemon serves it
+// as a string, full "1", half "2", neither "0") unioned with the static
+// overlay's `apodizing` fact ("full" | "half" | "none", data/filters.json) —
+// the fixtures serve BOTH, consistent, the way the real wire does, and the
+// Simplified entries carry the same class as their `apod` field. A badge is
+// found by its ACCESSIBLE LABEL (aria-label "Apodizing" / "Half apodizing"),
+// never by a class the component happens to use; group containers are
+// anchored on the dd-grp / dd-vgrp classes combobox-plainnames.test.js
+// grounded.
+//
+// Policy (docs/testing.md): public API only, one assertion per test, fakes at
+// the wire; rendering through preact-render-to-string reads the closed
+// control, whose pop is hidden rather than unmounted. Non-interactivity is
+// read off the renderer's own vnode seam (no onClick), the way
+// combobox-fav.test.js reads the star's.
+//
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/combobox-apod.test.js
+
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { reset, field, META } from "../support/field-harness.js";
+import { renderField } from "../support/vnodeseam.js";
+import { elements, classes, text } from "../support/markup.js";
+import { enums } from "../../../hqptuner/static/store/signals.js";
+import { plainNames } from "../../../hqptuner/static/store/prefs.js";
+import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
+
+/** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
+
+// --- the fixtures ---------------------------------------------------------
+// One filter of each class for the Standard cases; for the Simplified cases a
+// family that is uniformly full ("Uni", one variant, so its subheader is
+// observable too) and a family that is not ("Mixed"): one uniformly full
+// variant, one uniformly half variant, and one mixed variant.
+
+/** @type {[string, string, string][]} name, enum arg, overlay class */
+const STD = [
+  ["full-a", "1", "full"],
+  ["half-a", "2", "half"],
+  ["plain-a", "0", "none"],
+];
+
+/** @type {[string, string, string, string, string | null, string][]} name, arg, class, family, variant, leaf */
+const SIM = [
+  ["uni-a", "1", "full", "Uni", "UV", "U One"],
+  ["uni-b", "1", "full", "Uni", "UV", "U Two"],
+  ["mix-f1", "1", "full", "Mixed", "Vfull", "MF One"],
+  ["mix-f2", "1", "full", "Mixed", "Vfull", "MF Two"],
+  ["mix-h1", "2", "half", "Mixed", "Vhalf", "MH One"],
+  ["mix-m1", "1", "full", "Mixed", "Vmix", "MM One"],
+  ["mix-m2", "0", "none", "Mixed", "Vmix", "MM Two"],
+];
+
+/** @param {string[]} names */
+const filterFields = (names) => [
+  { name: "filter1x", value: "0", options: names.map((label, i) => ({ value: String(i), label })) },
+];
+
+// The live enumeration's own shape: `arg` a string bitfield, `apodizing` the
+// decoded bit 0, every row rated above the quality facet's floor.
+/** @param {[string, string][]} pairs */
+const filterEnums = (pairs) => ({
+  filters: pairs.map(([name, arg], i) => ({
+    index: String(i),
+    name,
+    value: String(i),
+    arg,
+    description: "5/5 ⥮ Any",
+    apodizing: arg === "1",
+  })),
+});
+
+// The static overlay's half of the facet union, alongside META's own entries.
+/** @param {[string, string][]} pairs name, class */
+const overlayMeta = (pairs) => ({
+  ...META,
+  filters: {
+    ...META.filters,
+    filters: { ...META.filters.filters, ...Object.fromEntries(pairs.map(([n, c]) => [n, { apodizing: c }])) },
+  },
+});
+
+const META_STD = overlayMeta(STD.map(([n, , c]) => [n, c]));
+
+const META_SIM = {
+  ...overlayMeta(SIM.map(([n, , c]) => [n, c])),
+  plain_names: {
+    filters: {
+      entries: Object.fromEntries(
+        SIM.map(([n, , c, family, variant, leaf]) => [n, { family, variant, leaf, short: leaf, apod: c }]),
+      ),
+      families: {},
+      variants: {},
+    },
+    dithers: { entries: {}, families: {}, variants: {} },
+    modulators: {
+      entries: {
+        ASDM7: { family: "ASDM", variant: null, leaf: "Seventh", short: "ASDM 7", apod: "none" },
+        ASDM7EC: { family: "ASDM", variant: null, leaf: "Seventh EC", short: "ASDM 7EC", apod: "none" },
+      },
+      families: {},
+      variants: {},
+    },
+  },
+};
+
+/** @param {boolean} plain */
+async function filterField(plain) {
+  const rows = plain ? SIM : STD;
+  await reset({ fields: filterFields(rows.map(([n]) => n)), meta: plain ? META_SIM : META_STD });
+  enums.value = filterEnums(rows.map(([n, arg]) => [n, arg]));
+  nApod1x.value = "all";
+  nQuality.value = 0;
+  plainNames.value = plain;
+  return field("pcm_filter_1x");
+}
+
+const standardField = () => filterField(false);
+const simplifiedField = () => filterField(true);
+
+// --- markup readers ---------------------------------------------------------
+
+/** @param {MarkupElement} el */
+const ariaOf = (el) => (/aria-label="([^"]*)"/.exec(el.attrs) || [])[1];
+
+/** @param {MarkupElement} el */
+const isBadge = (el) => ariaOf(el) === "Apodizing" || ariaOf(el) === "Half apodizing";
+
+/** @param {string} out */
+const badges = (out) => elements(out).filter(isBadge);
+
+/** @param {MarkupElement} el */
+const endOf = (el) => el.start + el.html.length;
+
+/**
+ * Whether `a` encloses `b` in the fragment (and is not `b` itself).
+ *
+ * @param {MarkupElement} a
+ * @param {MarkupElement} b
+ */
+const encloses = (a, b) =>
+  a.start <= b.start && endOf(a) >= endOf(b) && !(a.start === b.start && a.html.length === b.html.length);
+
+/**
+ * @param {string} out
+ * @param {MarkupElement} box
+ */
+const badgesIn = (out, box) => badges(out).filter((b) => encloses(box, b));
+
+/** The dd-opt rows of a render, in document order. */
+/** @param {string} out */
+const rows = (out) =>
+  elements(out)
+    .filter((el) => classes(el).includes("dd-opt"))
+    .sort((a, b) => a.start - b.start);
+
+/**
+ * The option row whose text includes `needle`. Throws when no row does, so an
+ * absence fails loudly instead of comparing against nothing.
+ *
+ * @param {string} out
+ * @param {string} needle
+ */
+function rowIncluding(out, needle) {
+  const hit = rows(out).find((el) => text(el).includes(needle));
+  if (!hit) throw new Error(`no option row reads "${needle}"`);
+  return hit;
+}
+
+/**
+ * The smallest element carrying class `cls` that encloses `el` — the family
+ * (dd-grp) or variant (dd-vgrp) container a row sits in. Throws when none does.
+ *
+ * @param {string} out
+ * @param {string} cls
+ * @param {MarkupElement} el
+ */
+function containerOf(out, cls, el) {
+  const around = elements(out).filter((e) => classes(e).includes(cls) && encloses(e, el));
+  if (around.length === 0) throw new Error(`no ${cls} container encloses the element`);
+  return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
+}
+
+/**
+ * The one badge of a region; anything but exactly one match throws.
+ *
+ * @param {string} out
+ * @param {MarkupElement} box
+ */
+function onlyBadgeIn(out, box) {
+  const found = badgesIn(out, box);
+  if (found.length !== 1) throw new Error(`expected one badge, found ${found.length}`);
+  return found[0];
+}
+
+/**
+ * The favorite star of a row, by the dd-fav marking combobox-fav.test.js pins.
+ *
+ * @param {string} out
+ * @param {MarkupElement} row
+ */
+function starOf(out, row) {
+  const hit = elements(out).find((el) => classes(el).includes("dd-fav") && encloses(row, el));
+  if (!hit) throw new Error("no favorite star inside the row");
+  return hit;
+}
+
+// --- Standard style: each row wears its own class -----------------------------
+
+test("test_a_full_apodizing_row_carries_a_badge_labelled_apodizing", async () => {
+  const out = await standardField();
+  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "full-a"))), "Apodizing");
+});
+
+test("test_the_apodizing_badge_glyph_reads_a", async () => {
+  const out = await standardField();
+  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, "full-a"))), "A");
+});
+
+test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async () => {
+  const out = await standardField();
+  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "half-a"))), "Half apodizing");
+});
+
+test("test_the_half_apodizing_badge_glyph_reads_the_half_sign", async () => {
+  const out = await standardField();
+  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, "half-a"))), "½");
+});
+
+test("test_a_row_of_neither_class_carries_no_badge", async () => {
+  const out = await standardField();
+  assert.equal(badgesIn(out, rowIncluding(out, "plain-a")).length, 0);
+});
+
+test("test_standard_style_badges_every_apodizing_row_individually", async () => {
+  const out = await standardField();
+  assert.deepEqual(
+    rows(out).map((r) => badgesIn(out, r).length),
+    [1, 1, 0],
+  );
+});
+
+// --- the badge is a marking, not an affordance ---------------------------------
+
+test("test_the_badge_carries_no_click_handler", async () => {
+  await standardField();
+  const { seen } = renderField("pcm_filter_1x");
+  const badge = seen.find((v) => v && v.props && v.props["aria-label"] === "Apodizing");
+  if (!badge) throw new Error("no vnode carries the Apodizing label");
+  assert.equal(typeof badge.props.onClick === "function", false);
+});
+
+// --- the badge sits between the row's text and the star ---------------------------
+
+test("test_the_badge_renders_after_the_rows_own_text", async () => {
+  const out = await standardField();
+  const row = rowIncluding(out, "full-a");
+  const at = out.indexOf("full-a", row.start);
+  if (at < 0) throw new Error("the row's own text is not in the fragment");
+  assert.equal(onlyBadgeIn(out, row).start > at, true);
+});
+
+test("test_the_badge_precedes_the_favorite_star_in_document_order", async () => {
+  const out = await standardField();
+  const row = rowIncluding(out, "full-a");
+  assert.equal(onlyBadgeIn(out, row).start < starOf(out, row).start, true);
+});
+
+// --- non-filter comboboxes carry no badge ---------------------------------------
+
+test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
+  await reset({
+    fields: [
+      { name: "defaults_samplerate", value: "384000" },
+      {
+        name: "dither",
+        value: "0",
+        options: [
+          { value: "0", label: "TPDF" },
+          { value: "1", label: "NS9" },
+        ],
+      },
+    ],
+    meta: META_STD,
+  });
+  plainNames.value = false;
+  assert.equal(badges(field("pcm_dither")).length, 0);
+});
+
+test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
+  await reset({
+    fields: [
+      { name: "defaults_bitrate", value: "49152000" },
+      {
+        name: "modulator",
+        value: "0",
+        options: [
+          { value: "0", label: "ASDM7" },
+          { value: "1", label: "ASDM7EC" },
+        ],
+      },
+    ],
+    meta: META_SIM,
+  });
+  plainNames.value = true;
+  assert.equal(badges(field("sdm_modulator")).length, 0);
+});
+
+// --- Simplified style: a uniform family lifts the badge to its header ------------
+// "On the header" is read off the fragment by offsets: the family group
+// (dd-grp) holds exactly one badge, it sits before the variant subcontainer
+// (dd-vgrp), and nothing inside the subcontainer — subheader and rows alike —
+// carries one.
+
+test("test_a_uniform_family_renders_one_badge_in_its_group", async () => {
+  const out = await simplifiedField();
+  assert.equal(badgesIn(out, containerOf(out, "dd-grp", rowIncluding(out, "U One"))).length, 1);
+});
+
+test("test_a_uniform_familys_badge_reads_its_class", async () => {
+  const out = await simplifiedField();
+  assert.equal(ariaOf(onlyBadgeIn(out, containerOf(out, "dd-grp", rowIncluding(out, "U One")))), "Apodizing");
+});
+
+test("test_a_uniform_familys_badge_precedes_its_variant_container", async () => {
+  const out = await simplifiedField();
+  const row = rowIncluding(out, "U One");
+  const badge = onlyBadgeIn(out, containerOf(out, "dd-grp", row));
+  assert.equal(badge.start < containerOf(out, "dd-vgrp", row).start, true);
+});
+
+test("test_a_uniform_familys_rows_and_subheader_carry_no_badge", async () => {
+  const out = await simplifiedField();
+  assert.equal(badgesIn(out, containerOf(out, "dd-vgrp", rowIncluding(out, "U One"))).length, 0);
+});
+
+// --- a uniform variant inside a non-uniform family badges its subheader ----------
+
+test("test_a_uniform_variant_renders_one_badge_in_its_subcontainer", async () => {
+  const out = await simplifiedField();
+  assert.equal(badgesIn(out, containerOf(out, "dd-vgrp", rowIncluding(out, "MF One"))).length, 1);
+});
+
+test("test_a_uniform_variants_badge_precedes_its_rows", async () => {
+  const out = await simplifiedField();
+  const row = rowIncluding(out, "MF One");
+  assert.equal(onlyBadgeIn(out, containerOf(out, "dd-vgrp", row)).start < row.start, true);
+});
+
+test("test_a_uniform_variants_rows_carry_no_badge", async () => {
+  const out = await simplifiedField();
+  assert.deepEqual(
+    [rowIncluding(out, "MF One"), rowIncluding(out, "MF Two")].map((r) => badgesIn(out, r).length),
+    [0, 0],
+  );
+});
+
+test("test_a_uniformly_half_variants_badge_reads_half_apodizing", async () => {
+  const out = await simplifiedField();
+  assert.equal(ariaOf(onlyBadgeIn(out, containerOf(out, "dd-vgrp", rowIncluding(out, "MH One")))), "Half apodizing");
+});
+
+test("test_a_non_uniform_family_header_carries_no_badge", async () => {
+  const out = await simplifiedField();
+  const row = rowIncluding(out, "MF One");
+  const grp = containerOf(out, "dd-grp", row);
+  const firstVariant = containerOf(out, "dd-vgrp", row);
+  assert.equal(badgesIn(out, grp).filter((b) => b.start < firstVariant.start).length, 0);
+});
+
+// --- a mixed variant badges each apodizing row alone ------------------------------
+
+test("test_a_mixed_variant_badges_each_apodizing_row_individually", async () => {
+  const out = await simplifiedField();
+  assert.deepEqual(
+    [rowIncluding(out, "MM One"), rowIncluding(out, "MM Two")].map((r) => badgesIn(out, r).length),
+    [1, 0],
+  );
+});
+
+test("test_a_mixed_variants_subheader_carries_no_badge", async () => {
+  const out = await simplifiedField();
+  const row = rowIncluding(out, "MM One");
+  const vgrp = containerOf(out, "dd-vgrp", row);
+  assert.equal(badgesIn(out, vgrp).filter((b) => b.start < row.start).length, 0);
+});

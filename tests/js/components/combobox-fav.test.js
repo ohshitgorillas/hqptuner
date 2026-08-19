@@ -27,12 +27,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { options } from "preact";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Field } from "../../../hqptuner/static/components/Field.js";
 import { reset } from "../support/field-harness.js";
+import { renderField, textOf } from "../support/vnodeseam.js";
 import { staticWire, stagingWire, quiesce } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/narrow/favorites.js";
@@ -92,24 +89,6 @@ async function startFilters() {
   nQuality.value = 0;
 }
 
-// One render of a Field, with every vnode preact builds along the way.
-// `options.vnode` is restored even if the render throws.
-/** @param {string} k */
-function renderField(k) {
-  /** @type {VNode[]} */
-  const seen = [];
-  const previous = options.vnode;
-  options.vnode = (/** @type {VNode} */ vnode) => {
-    seen.push(vnode);
-    if (previous) previous(vnode);
-  };
-  try {
-    return { out: render(html`<${Field} k=${k} />`), seen };
-  } finally {
-    options.vnode = previous;
-  }
-}
-
 /** @param {VNode} vnode */
 const classTokens = (vnode) => {
   const cls = (vnode.props && (vnode.props.class || vnode.props.className)) || "";
@@ -119,20 +98,6 @@ const classTokens = (vnode) => {
 // The dd-opt rows of one rendered field, in document order.
 /** @param {VNode[]} seen */
 const rowsOf = (seen) => seen.filter((v) => v && v.props && classTokens(v).includes("dd-opt"));
-
-// Concatenated text of a vnode subtree.
-/**
- * @param {unknown} node
- * @returns {string}
- */
-function textOf(node) {
-  if (node === false || node == null) return "";
-  if (Array.isArray(node)) return node.map(textOf).join("");
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (typeof node !== "object" || node === null) return "";
-  const props = /** @type {VNode} */ (node).props;
-  return props ? textOf(props.children) : "";
-}
 
 // Every clickable vnode strictly inside a subtree (never the subtree root).
 /**
