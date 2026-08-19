@@ -203,10 +203,8 @@ button.dd-hdr[aria-expanded="false"]::before {
   stroke: currentColor;
   stroke-width: 1.2;
 }
-.dd-apod text {
+.dd-apod path {
   fill: currentColor;
-  font-size: 11px; /* token-exempt: viewBox user units, scaled by the badge box, not page type */
-  font-family: inherit;
 }
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */

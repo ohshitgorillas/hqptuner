@@ -56,28 +56,40 @@ let uid = 0;
 const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — ${o.reason}` : ""}`;
 
 const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
-const APOD_GLYPH = { full: "A", half: "½" };
+// The glyphs as baked outlines, not font text: where the glyph was a <text>
+// node its position depended on which font the viewer's browser resolved, its
+// weight (a selected row is semibold) and the engine's dominant-baseline
+// mapping — different in every environment, so no anchor held everywhere.
+// Outlines are Inter 400's own "A" and "onehalf" (fonts/inter-400.woff2,
+// extracted with fontTools at an 11-unit em), each ink bounding box centered
+// on the circle at (10,10) in viewBox units.
+const APOD_PATH = {
+  full:
+    "M6.48 14.00 9.39 6.00H10.57L13.52 14.00H12.44L10.74 9.25Q10.59 8.81 10.38 8.16Q10.17 7.50 9.88 " +
+    "6.48H10.07Q9.78 7.51 9.57 8.18Q9.36 8.85 9.22 9.25L7.57 14.00ZM7.95 11.77V10.88H12.05V11.77Z",
+  half:
+    "M7.75 6.00V10.36H6.89V6.73H6.84L5.80 7.53V6.67L6.68 6.00ZM6.41 14.00 11.91 6.00H12.82L7.32 " +
+    "14.00ZM11.24 14.00V13.42L12.70 11.84Q12.99 11.53 13.15 11.30Q13.31 11.07 13.31 10.83Q13.31 " +
+    "10.57 13.10 10.44Q12.90 10.30 12.65 10.30Q12.38 10.30 12.21 10.44Q12.04 10.59 12.04 " +
+    "10.85H11.21Q11.21 10.26 11.63 9.93Q12.06 9.59 12.68 9.59Q13.33 9.59 13.74 9.95Q14.14 10.30 " +
+    "14.14 10.80Q14.14 11.00 14.05 11.22Q13.97 11.43 13.72 11.76Q13.48 12.08 13.02 12.59L12.45 " +
+    "13.22V13.28H14.20V14.00Z",
+};
 
 // The circled apodizing mark beside an option row's name. Inert: it is part
 // of the name it sits beside, not a control, so it never commits, never
 // toggles, and reads out through its label alone. Circle and glyph are one
-// SVG: drawn as separate elements (border + text) they rasterize at different
-// subpixel phases, so the letter sat visibly off-centre by a different amount
-// on every row; one shared coordinate system keeps them locked together. The
-// geometry below is in viewBox units — the fraction glyph's ink sits high and
-// left of its em box, hence its own anchor point.
+// SVG sharing one coordinate system, and both are pure geometry, so they
+// rasterize together whatever the page's fonts do.
 /**
  * @param {{ kind: ApodClass | undefined }} props
  */
 function Apod({ kind }) {
   if (!kind) return null;
-  const half = kind === "half";
   return html`<span class="dd-apod" role="img" aria-label=${APOD_LABEL[kind]}>
     <svg viewBox="0 0 20 20" aria-hidden="true">
       <circle cx="10" cy="10" r="9.3" />
-      <text x="10" y=${half ? "10.5" : "10"} text-anchor="middle" dominant-baseline="central">
-        ${APOD_GLYPH[kind]}
-      </text>
+      <path d=${APOD_PATH[kind]} />
     </svg>
   </span>`;
 }
