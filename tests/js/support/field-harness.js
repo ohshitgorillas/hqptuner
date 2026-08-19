@@ -319,10 +319,20 @@ export const attrOf = (fragment, name) => (new RegExp(`\\b${name}="([^"]*)"`).ex
  */
 const opts = (out) => [
   ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] })),
-  // the favorite-star button is a row affordance, not label text
+  // the favorite-star button is a row affordance and the apodizing badge a row
+  // marking, not label text; the badge is matched by its accessible label, the
+  // way combobox-apod.test.js finds it, never by a class. Matching goes in two
+  // steps — a leaf element's whole span, then its aria-label — the way
+  // grayReason above does, because one pattern asking for "attributes
+  // containing this literal somewhere" backtracks super-linearly.
   ...[...out.matchAll(/<div([^>]*\bclass="dd-opt[^"]*"[^>]*)>([\s\S]*?)<\/div>/g)].map((m) => ({
     a: m[1],
-    label: m[2].replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "").trim(),
+    label: m[2]
+      .replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "")
+      .replace(/<(\w+)(?=[\s/>])((?:[^>"]|"[^"]*")*)>[^<]*<\/\1>/g, (whole, _tag, attrs) =>
+        /aria-label="(?:Half apodizing|Apodizing)"/.test(attrs) ? "" : whole,
+      )
+      .trim(),
   })),
 ];
 /**
