@@ -147,6 +147,9 @@ button.dd-hdr {
 button.dd-hdr::before {
   content: "▾";
   color: var(--muted);
+  /* disclosure triangle role size, same as .card-head .tri (cards.css) */
+  font-size: var(--fs-glyph);
+  line-height: 1;
 }
 button.dd-hdr[aria-expanded="false"]::before {
   content: "▸";
@@ -193,6 +196,9 @@ button.dd-hdr[aria-expanded="false"]::before {
   border-radius: var(--r-circle);
   color: var(--accent);
   font-size: var(--fs-micro);
+  /* the glyph's inherited line box is taller than its cap height, which drags
+     the letter below the circle's centre; a 1:1 line box centres it */
+  line-height: 1;
 }
 /* Per-row favorite star (filter dropdowns only). Muted until starred or
    hovered — never the accent, which means staged edit and nothing else. */
