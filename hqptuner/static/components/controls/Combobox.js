@@ -18,9 +18,9 @@ import { buildRows, rowOption, nestRows, visibleOption } from "./comborows.js";
  * @typedef {import("./comborows.js").VGroup} VGroup
  * @typedef {import("./comborows.js").ApodClass} ApodClass
  * @typedef {import("./comborows.js").CollapseCtl} CollapseCtl
- *   The row model — flat list, nested containers, visibility and badge
- *   hoisting — lives in comborows.js; this module owns the markup, focus and
- *   placement behaviour around it.
+ *   The row model — flat list, nested containers, visibility under a fold —
+ *   lives in comborows.js; this module owns the markup, focus and placement
+ *   behaviour around it.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {{ name: string, text: string, rows: [string, string][], chips: string[] }} TipContent
@@ -58,9 +58,9 @@ const rowText = (o) => `${o.display || o.label}${o.disabled && o.reason ? ` — 
 const APOD_LABEL = { full: "Apodizing", half: "Half apodizing" };
 const APOD_GLYPH = { full: "A", half: "½" };
 
-// The circled apodizing mark, on a row or hoisted onto a group header. Inert:
-// it is part of the name it sits beside, not a control, so it never commits,
-// never toggles, and reads out through its label alone.
+// The circled apodizing mark beside an option row's name. Inert: it is part
+// of the name it sits beside, not a control, so it never commits, never
+// toggles, and reads out through its label alone.
 /**
  * @param {{ kind: ApodClass | undefined }} props
  */
@@ -134,7 +134,7 @@ function comboKeyHandler({ open, setOpen, rows, hl, visible, setHl, byKey, show,
 // One option in the pop. `row` is the shared context the whole list draws from:
 // which index is highlighted and which is selected, the id prefix the button's
 // aria-activedescendant points at, the favorite wiring, and the two writers.
-// `apod` is the row's own badge, already null where a group header carries it.
+// `apod` is the row's own badge, null for a row that is not apodizing.
 /**
  * @param {{ o: RenderOption, i: number, apod: ApodClass, row: RowCtx }} props
  */
