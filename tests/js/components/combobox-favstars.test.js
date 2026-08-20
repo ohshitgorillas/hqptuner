@@ -62,12 +62,17 @@ const dropdown = (name, labels) => ({
 
 // A desc-carrying dropdown Field does NOT hand the fav/stars wiring: a dither.
 // The rate sits above NS9's 352.8k floor so no row is rate-grayed, and no
-// favorites wire is needed — an unwired dropdown fetches nothing of it. The
-// option-style pref is put back to Standard (the signal outlives a test), so
-// the span's absence here is the wiring rule, not the Simplified gate.
+// favorites wire is needed — an unwired dropdown fetches nothing of it.
+// Simplified display stays ON and the enumeration serves a rated entry whose
+// name matches a dither label, so the span's absence here is the wiring rule
+// at work — a dropdown wrongly handed the accessor would render stars on the
+// TPDF row and fail.
 async function startDither() {
   await reset({ fields: [{ name: "defaults_samplerate", value: "384000" }, dropdown("dither", ["TPDF", "NS9"])] });
-  plainNames.value = false;
+  enums.value = {
+    filters: [{ index: "0", name: "TPDF", value: "0", arg: "0", description: "5/5 timbre ⥮ Any", apodizing: false }],
+  };
+  plainNames.value = true;
 }
 
 // The filter field with the live enumeration serving the ratings, the
@@ -199,13 +204,18 @@ test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
 });
 
 // Standard display: the same fully rated fixture, the pref off — the stars are
-// gated on Simplified display the way the apodizing badge is.
-test("test_standard_display_renders_no_stars_span_on_a_rated_row", async () => {
+// gated on Simplified display the way the apodizing badge is, and the spec
+// says no span renders ANYWHERE, so the whole render is scanned. The row
+// lookup is a guard, not the subject: it throws unless the rated rows exist.
+test("test_standard_display_renders_no_stars_span_anywhere", async () => {
   const out = await startFilters(false);
-  assert.equal(starsSpans(rowReading(out, "rated-five").html).length, 0);
+  rowReading(out, "rated-five"); // throws when the rows never rendered
+  assert.equal(starsSpans(out).length, 0);
 });
 
 test("test_a_dropdown_without_stars_wiring_renders_no_stars_span", async () => {
   await startDither();
-  assert.equal(starsSpans(field("pcm_dither")).length, 0);
+  const out = field("pcm_dither");
+  rowReading(out, "TPDF"); // throws when the rows never rendered
+  assert.equal(starsSpans(out).length, 0);
 });
