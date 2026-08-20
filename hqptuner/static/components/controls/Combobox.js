@@ -181,7 +181,7 @@ function OptionRow({ o, i, apod, row }) {
     >
       ${rowText(o)}
       <${Apod} kind=${apod} />
-      ${q == null ? null : html`<span class="dd-stars">${"★".repeat(q)}${"☆".repeat(5 - q)}</span>`}
+      ${q == null ? null : html`<span class="dd-stars">${"★".repeat(q)}</span>`}
       ${
         fav
           ? html`<button
