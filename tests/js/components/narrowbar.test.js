@@ -27,7 +27,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nFocus, nHideLimited, nOddRateOnly, nDownsafeOnly } from "../../../hqptuner/static/store/narrow/state.js";
+import { nFocus, nQuality, nHideLimited, nOddRateOnly, nDownsafeOnly } from "../../../hqptuner/static/store/narrow/state.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import {
   resetNarrowBar,
@@ -75,9 +75,11 @@ const FOCUS_FILTERS = [
   { index: "0", name: "gauss-a", value: "0", arg: 1, description: "5/5 timbre, transients ⥮ Any", apodizing: true },
   { index: "1", name: "gauss-b", value: "1", arg: 1, description: "5/5 timbre ⥮ Any", apodizing: true },
   { index: "2", name: "gauss-c", value: "2", arg: 1, description: "5/5 transients ⥮ Any", apodizing: true },
-  // Rated below the quality facet's floor of 3, so it is out of every count the
-  // bar takes: it carries the picked focus, which makes it the filter that
-  // tells a chip applying the whole selection apart from one applying none.
+  // Rated below the quality floor the count case picks explicitly (the facet's
+  // default is 0, "Any quality", so a floor is a pick now), which puts it out
+  // of every count that case takes: it carries the picked focus, which makes
+  // it the filter that tells a chip applying the whole selection apart from
+  // one applying none.
   { index: "3", name: "gauss-faint", value: "3", arg: 1, description: "2/5 timbre, transients ⥮ Any", apodizing: true },
 ];
 
@@ -147,16 +149,19 @@ test("test_the_downsample_safe_switch_checks_the_downsampling_row_alone", async 
 // clicked, so on a row already picked it must answer for the selection WITHOUT
 // it — clicking a picked value unpicks it.
 //
-// TWO values are picked, so the previewed state is a real selection rather than
-// the empty one, and four readings of this fixture are four different numbers:
-// 4 is the total, which a chip narrowing by nothing gives; 3 is the facet
-// dropped altogether, which a chip ignoring the focus selection gives; 1 is the
-// live selection under the default AND mode (gauss-a alone carries both), which
-// a chip ignoring the preview gives; 2 is the unpick, and the below-floor
-// gauss-faint is what separates 4 from 3.
+// TWO values are picked, and a quality floor of 3 is picked alongside them
+// (the default is 0 per the quality-default-any spec delta, so the floor here
+// is an explicit facet pick the preview must keep applying), and four readings
+// of this fixture are four different numbers: 4 is the total, which a chip
+// narrowing by nothing gives; 3 is the focus facet dropped altogether with the
+// floor still on, which a chip ignoring the focus selection gives; 1 is the
+// live selection under the default AND mode (gauss-a alone carries both and
+// passes the floor), which a chip ignoring the preview gives; 2 is the unpick,
+// and the below-floor gauss-faint is what separates 4 from 3.
 
 test("test_the_count_on_a_picked_facet_row_previews_unpicking_it", async () => {
   await reset({ filters: FOCUS_FILTERS, fields: chainFields(FOCUS_FILTERS) });
+  nQuality.value = 3;
   nFocus.value = ["timbre", "transients"];
   assert.equal(nxCount(chip(open("focus"), "Timbre")), 2);
 });

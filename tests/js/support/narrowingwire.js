@@ -44,7 +44,7 @@ const env = globalThis;
 export const NARROWING_DEFAULTS = {
   genre: [],
   genre_mode: "or",
-  quality: 3,
+  quality: 0,
   focus: [],
   focus_mode: "and",
   phase: [],

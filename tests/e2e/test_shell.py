@@ -177,9 +177,13 @@ def staged_count(page: Page) -> int:
 
 
 def option_names(page: Page, label: str) -> list[str]:
-    """A combobox's option labels, with the favourite star stripped off each."""
+    """A combobox's option labels, with the row marks stripped off each.
+
+    A row carries its favorite heart (filled or empty) and, on rated rows, the
+    quality-stars run; both are marks beside the name, not the name.
+    """
     rows = field(page, label).locator(".dd-opt").all_text_contents()
-    return [row.replace("☆", "").replace("★", "").strip() for row in rows]
+    return [row.replace("☆", "").replace("★", "").replace("♥", "").replace("♡", "").strip() for row in rows]
 
 
 def test_the_index_page_renders_the_app_shell(page: Page, stack: Stack) -> None:
