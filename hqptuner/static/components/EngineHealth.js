@@ -12,8 +12,9 @@
 import { html } from "../lib/dom.js";
 import { engineStatus } from "../store/signals.js";
 import { trackCounters, outputBufferApplies } from "../store/health.js";
-import { quickSystemUpdates, setQuickSystemUpdates } from "../store/prefs.js";
-import { Checkbox } from "./controls/index.js";
+import { apodStripVisible, apodVisibleBins } from "../store/apodhistory.js";
+import { quickSystemUpdates, setQuickSystemUpdates, apodWindow, setApodWindow } from "../store/prefs.js";
+import { Checkbox, Dropdown } from "./controls/index.js";
 
 /**
  * @typedef {string | number | null | undefined} StatusValue
@@ -111,6 +112,97 @@ const Counter = ({ label, delta, total, alert }) => html`
   </div>
 `;
 
+// The apodizing-events strip: a chart recorder for how thickly apodizing events
+// fall over recent playback, newest at the right edge. It answers a question the
+// counter beside it cannot — a track can log thousands of events in its opening
+// bars and ten across everything after, and one running total renders those two
+// tracks identically.
+//
+// The x axis is milliseconds, not bin index. Bins are recorded at whatever poll
+// cadence was in force (store/apodhistory.js), so a run that spans a change of
+// cadence would draw its slower bins too narrow if each got an equal slot. A
+// viewBox measured in milliseconds sizes every bar by the interval it actually
+// observed, and right-aligning against the window's own width means a
+// half-filled window fills from the right rather than stretching three bins
+// across the card.
+//
+// Height is logarithmic and saturates at SAT: a single event has to stay visible
+// against a neighbour carrying a thousand, and above a hundred per interval the
+// distinction stops meaning anything to a listener. Fixed reference, so a bar's
+// height never changes retroactively when a louder passage arrives later.
+const SAT = 100;
+const LOG_SPAN = Math.log10(SAT + 1);
+
+/** @param {number} n @returns {number} 0..1 */
+const barHeight = (n) => Math.min(1, Math.log10(n + 1) / LOG_SPAN);
+
+const WINDOW_OPTIONS = [
+  { value: "30", label: "30 s" },
+  { value: "60", label: "1 min" },
+  { value: "120", label: "2 min" },
+  { value: "300", label: "5 min" },
+  { value: "all", label: "All" },
+];
+
+/**
+ * @typedef {{ x: number, w: number, y: number, h: number, sat: boolean }} Bar
+ */
+
+/**
+ * How much time a run of bins covers, in milliseconds.
+ * @param {{ ms: number, n: number }[]} bins
+ * @returns {number}
+ */
+const spanOf = (bins) => bins.reduce((sum, b) => sum + b.ms, 0);
+
+// Lay the visible bins out along the window, oldest first, and drop the silent
+// ones — a bar of zero height is not a shorter bar, it is no reading at all.
+/**
+ * @param {{ ms: number, n: number }[]} bins
+ * @param {number} span total window width, in milliseconds
+ * @returns {Bar[]}
+ */
+function layout(bins, span) {
+  /** @type {Bar[]} */
+  const bars = [];
+  let x = span - spanOf(bins);
+  for (const b of bins) {
+    if (b.n > 0) {
+      const h = barHeight(b.n);
+      bars.push({ x, w: b.ms, y: 100 - h * 100, h: h * 100, sat: h >= 1 });
+    }
+    x += b.ms;
+  }
+  return bars;
+}
+
+// Draws nothing until the current track has logged an event, and keeps drawing
+// for the rest of playback once it has. The rule lives here rather than at the
+// call site because it is the strip's own affair: what the card holds is one
+// section that either has something to report or does not.
+/** Apodizing-event density over the chosen window, scrolling right to left. */
+const ApodStrip = () => {
+  if (!apodStripVisible.value) return null;
+  const bins = apodVisibleBins.value;
+  const window = apodWindow.value;
+  const span = window === "all" ? spanOf(bins) : Number(window) * 1000;
+  return html`
+    <div class="eh-strip">
+      <div class="eh-strip-head">
+        <div class="subhead">Apodizing Events</div>
+        <${Dropdown} value=${window} options=${WINDOW_OPTIONS} onChange=${setApodWindow} />
+      </div>
+      <div class="eh-strip-trough">
+        <svg viewBox=${`0 0 ${span} 100`} preserveAspectRatio="none" role="img" aria-label="Apodizing Events">
+          ${layout(bins, span).map(
+            (b) => html`<rect class=${b.sat ? "eh-bar sat" : "eh-bar"} x=${b.x} y=${b.y} width=${b.w} height=${b.h} />`,
+          )}
+        </svg>
+      </div>
+    </div>
+  `;
+};
+
 // `showQuick` is the opt-in checkbox, on by default. LIVE renders this card with
 // it off: that page already polls at 1 s unconditionally (store/ui.js), so an
 // unticked box promising faster updates would be describing something the page
@@ -146,9 +238,10 @@ export function EngineHealth({ showQuick = true }) {
       </div>
       <div class="eh-counters">
         <${Counter} label="Clips" delta=${clips} total=${n(st.clips)} alert=${!!clips} />
-        <${Counter} label="Apodizing events" delta=${apod} total=${n(st.apod)} alert=${false} />
+        <${Counter} label="Apodizing counter" delta=${apod} total=${n(st.apod)} alert=${false} />
       </div>
     </div>
+    <${ApodStrip} />
     ${
       showQuick
         ? html`
