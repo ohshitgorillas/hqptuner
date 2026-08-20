@@ -265,3 +265,52 @@
   font-size: var(--fs-caption);
   color: var(--fg-2);
 }
+
+/* apodizing-events strip — the chart-recorder band under the meter cluster, its
+   own section in the card: subhead, window selector, and a recessed trough the
+   bars are drawn into. Absent from the DOM entirely while the track has produced
+   no events (store/apodhistory.js), so a clean track costs nothing. The rule
+   above it sits --sp-3 off the subhead and the card body's own --rhythm-field
+   below the cluster, so it reads as introducing this section rather than
+   floating between two. */
+.eh-strip {
+  display: grid;
+  gap: var(--sp-2);
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-3);
+}
+.eh-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.eh-strip-head select {
+  width: var(--w-select-sm);
+}
+/* Recessed, like the meter troughs, so it is one of the edge light's two
+   by-definition exclusions — a cut-in surface is lit from the wrong side. The
+   right border is the recorder's pen marking now; it is CSS rather than an SVG
+   rect because the viewBox scales non-uniformly and would stretch it. */
+.eh-strip-trough {
+  height: 2.5rem;
+  background: var(--surface-well);
+  border: 1px solid var(--line);
+  border-right-color: var(--accent);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.eh-strip-trough svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Deliberately untransitioned: --sweep eases a readout toward a value it polls
+   for, and on a strip that scrolls it would smear one interval's count into its
+   neighbour's. Bars land hard, because each one is a finished observation. */
+.eh-bar {
+  fill: var(--accent);
+}
+.eh-bar.sat {
+  fill: var(--accent-glow);
+}
