@@ -15,14 +15,14 @@
     "Polyphase sinc|Extended frequency response": "Keeps response wide while fully cutting off at the limit",
     "Polyphase sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
     "Polyphase sinc|Extreme roll-off and attenuation": "Steepest cutoff and strongest suppression",
-    "Polyphase sinc|Gaussian": "Best balance of time and frequency accuracy, gentler transients",
-    "Polyphase sinc|Gaussian half-band": "Gaussian smoothness with a slightly leaky response reaching the cutoff",
+    "Polyphase sinc|Gaussian": "Best balance of time and frequency accuracy, cleanest transients",
+    "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response reaching the cutoff",
     "Polyphase sinc|Half-band": "Response reaches close to the cutoff; for clean, well-mastered sources",
     "Polyphase sinc|MQA and MP3": "Tailored for lossy sources",
     "Pure sinc|Adaptive length": "Filter length adapts to the conversion for consistency",
     "Pure sinc|Base": "The family's base form",
     "Pure sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
-    "Pure sinc|Gaussian": "Best balance of time and frequency accuracy, gentler transients"
+    "Pure sinc|Gaussian": "Best balance of time and frequency accuracy, cleanest transients"
   },
   "filters": {
     "poly-sinc-mp": {
