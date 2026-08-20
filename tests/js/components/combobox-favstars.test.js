@@ -3,9 +3,10 @@
 // a heart — ♥ while the filter is a favorite, ♡ while it is not — where it
 // used to show ★/☆, and the stars now mean quality instead: an optional
 // `stars` accessor (wired the way `fav`/`badge` are, a function of the option)
-// renders a span of class "dd-stars" reading q filled ★ followed by (5-q)
-// empty ☆ for a row rated q, no span at all for a row the accessor rates null,
-// and no span anywhere in a dropdown given no accessor.
+// renders a span of class "dd-stars" reading exactly q filled ★ and nothing
+// else for a row rated q — quality is the run length alone, no empty ☆ pad —
+// no span at all for a row the accessor rates null, and no span anywhere in a
+// dropdown given no accessor.
 //
 // Wiring, per the clarified spec line: the accessor is wired for filter
 // dropdowns only when Simplified display is on (plainNames true), the same
@@ -183,17 +184,17 @@ test("test_no_rows_favorite_toggle_shows_a_star_glyph_in_either_state", async ()
 
 // --- the quality stars ----------------------------------------------------------
 
-test("test_a_three_rated_rows_stars_span_reads_three_filled_then_two_empty", async () => {
+test("test_a_three_rated_rows_stars_span_reads_exactly_three_filled_stars", async () => {
   const out = await startFilters();
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★☆☆");
+  assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★");
 });
 
-test("test_a_one_rated_rows_stars_span_reads_one_filled_then_four_empty", async () => {
+test("test_a_one_rated_rows_stars_span_reads_exactly_one_filled_star", async () => {
   const out = await startFilters();
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-one"))), "★☆☆☆☆");
+  assert.equal(text(onlyStarsOf(rowReading(out, "rated-one"))), "★");
 });
 
-test("test_a_five_rated_rows_stars_span_reads_five_filled_stars", async () => {
+test("test_a_five_rated_rows_stars_span_reads_exactly_five_filled_stars", async () => {
   const out = await startFilters();
   assert.equal(text(onlyStarsOf(rowReading(out, "rated-five"))), "★★★★★");
 });
