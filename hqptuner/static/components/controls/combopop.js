@@ -24,6 +24,11 @@ function placePop(b, p) {
   const above = br.top - 4;
   const up = natural > below - 8 && above > below;
   const maxH = Math.min(natural, (up ? above : below) - 8);
+  // The pop sizes shrink-to-fit, so a classic scrollbar would take its width
+  // out of the rows and clip the right-pinned marks. Reserve the gutter only
+  // when the cap makes the list scroll — an unconditional reserve reads as
+  // dead space beside the marks whenever the list fits.
+  p.style.scrollbarGutter = natural > maxH ? "stable" : "auto";
   p.style.maxHeight = `${maxH}px`;
   p.style.top = `${up ? br.top - 4 - maxH : br.bottom + 4}px`;
   // Right edges flush with the trigger: a pop wider than its button (the
