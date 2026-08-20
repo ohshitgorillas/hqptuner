@@ -4,12 +4,13 @@
 // renders as a non-interactive badge labelled "Apodizing" for full and "Half
 // apodizing" for half, and nothing for neither. The glyph is baked vector
 // geometry — one <path> per badge, distinct per class, never font text.
-// The badges are a SIMPLIFIED-STYLE feature (owner decision): with the pref
+// The badges render in BOTH option styles (owner decision): with the pref
 // on, every apodizing option row wears its own badge — including when a whole
 // family or variant shares one class — and no family header or variant
 // subheader ever carries one. Standard option style shows the raw engine
-// names with no badge at all. A non-filter combobox — dither, modulator —
-// renders no badge in either style.
+// names, each apodizing row carrying the same badge after its name.
+// A non-filter combobox — dither, modulator — renders no badge in either
+// style.
 //
 // The class joins by raw engine filter name: the live enumeration's `arg`
 // bitfield (bit 0 apodizing, bit 1 half-apodizing; the live daemon serves it
@@ -382,13 +383,30 @@ test("test_the_badge_precedes_the_favorite_star_in_document_order", async () => 
   assert.equal(onlyBadgeIn(out, row).start < starOf(out, row).start, true);
 });
 
-// --- Standard style: raw names, no badges, ever ------------------------------------
+// --- Standard style: raw names, badges too ------------------------------------
 // The fixture's classes are fully known — enum arg bits and overlay facts both
-// served — yet none may render: the badge is Simplified-only.
+// served — and each apodizing row carries the same badge Simplified would give
+// it, after its raw name; a row of neither class stays badge-free.
 
-test("test_standard_style_renders_no_badge_on_any_row", async () => {
+test("test_standard_style_badges_a_full_apodizing_row_apodizing", async () => {
   const out = await standardField();
-  assert.equal(badges(out).length, 0);
+  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "full-a"))), "Apodizing");
+});
+
+test("test_standard_style_badges_a_half_apodizing_row_half_apodizing", async () => {
+  const out = await standardField();
+  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "half-a"))), "Half apodizing");
+});
+
+test("test_standard_style_leaves_a_row_of_neither_class_badge_free", async () => {
+  const out = await standardField();
+  assert.equal(badgesIn(out, rowIncluding(out, "plain-a")).length, 0);
+});
+
+test("test_standard_style_renders_the_badge_after_the_rows_raw_name", async () => {
+  const out = await standardField();
+  const row = rowIncluding(out, "full-a");
+  assert.equal(onlyBadgeIn(out, row).start > visibleTextAt(out, row, "full-a"), true);
 });
 
 test("test_standard_style_keeps_the_raw_flat_list", async () => {
