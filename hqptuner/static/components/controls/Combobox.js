@@ -30,7 +30,8 @@ import { buildRows, rowOption, nestRows, visibleOption } from "./comborows.js";
  *   dropdowns).
  * @typedef {{ open: boolean, hl: number, selIdx: number, id: string,
  *   fav?: (o: RenderOption) => boolean, onFav?: (o: RenderOption) => void,
- *   badge?: (o: RenderOption) => ApodClass, collapse?: CollapseCtl,
+ *   badge?: (o: RenderOption) => ApodClass, stars?: (o: RenderOption) => number | null,
+ *   collapse?: CollapseCtl,
  *   toggle: (key: string) => void,
  *   byKey: { current: boolean }, setHl: (i: number) => void,
  *   commit: (o: RenderOption) => void }} RowCtx
@@ -163,7 +164,8 @@ function comboKeyHandler({ open, setOpen, rows, hl, visible, setHl, byKey, show,
  * @param {{ o: RenderOption, i: number, apod: ApodClass, row: RowCtx }} props
  */
 function OptionRow({ o, i, apod, row }) {
-  const { open, hl, selIdx, id, fav, onFav, byKey, setHl, commit } = row;
+  const { open, hl, selIdx, id, fav, onFav, stars, byKey, setHl, commit } = row;
+  const q = stars ? stars(o) : null;
   return html`
     <div
       class=${open && i === hl ? "dd-opt hl" : "dd-opt"}
@@ -179,6 +181,7 @@ function OptionRow({ o, i, apod, row }) {
     >
       ${rowText(o)}
       <${Apod} kind=${apod} />
+      ${q == null ? null : html`<span class="dd-stars">${"★".repeat(q)}${"☆".repeat(5 - q)}</span>`}
       ${
         fav
           ? html`<button
@@ -193,7 +196,7 @@ function OptionRow({ o, i, apod, row }) {
                 onFav?.(o); // the star only renders with `fav`, and callers pass the pair
               }}
             >
-              ${fav(o) ? "★" : "☆"}
+              ${fav(o) ? "♥" : "♡"}
             </button>`
           : null
       }
@@ -312,10 +315,11 @@ function TipPop({ tip, tipRef }) {
  * @param {{ value: string | number | undefined, options: RenderOption[] | undefined,
  *   valueLabel?: string, tips?: (o: RenderOption) => TipContent, fav?: (o: RenderOption) => boolean,
  *   onFav?: (o: RenderOption) => void, badge?: (o: RenderOption) => ApodClass,
+ *   stars?: (o: RenderOption) => number | null,
  *   collapse?: CollapseCtl, disabled?: boolean,
  *   onChange: (v: string | number) => void }} props
  */
-export function Combobox({ value, options, valueLabel, tips, fav, onFav, badge, collapse, disabled, onChange }) {
+export function Combobox({ value, options, valueLabel, tips, fav, onFav, badge, stars, collapse, disabled, onChange }) {
   const opts = options || [];
   const rows = buildRows(opts);
   const [open, setOpen] = useState(false);
@@ -376,7 +380,7 @@ export function Combobox({ value, options, valueLabel, tips, fav, onFav, badge, 
   // so the caller passes the label the option list no longer carries.
   const sel = rowOption(rows[selIdx]);
   const label = sel ? sel.closedLabel || sel.label : valueLabel || s(value);
-  const row = { open, hl, selIdx, id, fav, onFav, badge, collapse, toggle, byKey, setHl, commit };
+  const row = { open, hl, selIdx, id, fav, onFav, badge, stars, collapse, toggle, byKey, setHl, commit };
   return html`
     <button
       type="button"
