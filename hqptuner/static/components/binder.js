@@ -101,6 +101,20 @@ export const badgeFor = (entry) =>
     : undefined;
 
 /**
+ * Builds the quality-stars resolver for the filter dropdowns — same
+ * `narrow`-entry and Simplified gates and the same name join as badgeFor.
+ * Null hides the span for a filter whose facet record carries no rating.
+ * @type {(entry: FieldEntry) => ((o: SchemaOption) => number | null) | undefined}
+ */
+export const starsFor = (entry) =>
+  entry.narrow && plainNames.value
+    ? (/** @type {SchemaOption} */ o) => {
+        const f = filterFacets.value[o.label];
+        return f && f.quality != null ? f.quality : null;
+      }
+    : undefined;
+
+/**
  * Builds the group-disclosure wiring for the plain-names dropdowns: collapse
  * state lives in prefs, persisted, keyed per kind so the two chains' filter
  * dropdowns share one fold. Undefined for dropdowns with no grouped mode.

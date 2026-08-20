@@ -206,7 +206,20 @@ button.dd-hdr[aria-expanded="false"]::before {
 .dd-apod path {
   fill: currentColor;
 }
-/* Per-row favorite star (filter dropdowns only). Muted until starred or
+/* Per-row quality stars (Simplified filter dropdowns): rating read, not a
+   control — always muted, pushed against the favorite heart's edge. */
+.dd-stars {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: var(--fs-label);
+  white-space: nowrap;
+}
+/* With stars in the row they take the auto margin; the heart falls back to
+   the row's own gap so the pair reads as one right-aligned cluster. */
+.dd-stars ~ .dd-fav {
+  margin-left: 0;
+}
+/* Per-row favorite heart (filter dropdowns only). Muted until favorited or
    hovered — never the accent, which means staged edit and nothing else. */
 .dd-fav {
   margin-left: auto;
