@@ -17,6 +17,7 @@ const K_KEEP = "hqptuner.keepOptionDescriptions";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_SIMPLE = "hqptuner.plainNames";
 const K_LIVE = "hqptuner.liveMode";
+const K_APOD_WINDOW = "hqptuner.apodWindow";
 
 // A dead store is worth exactly one line of console noise: silence hides the
 // "prefs never persist" case (notably node/SSR, where every read is a default),
@@ -124,6 +125,46 @@ export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
 export function setQuickSystemUpdates(on) {
   quickSystemUpdates.value = !!on;
   persist(K_QUICK_SYS, quickSystemUpdates.value);
+}
+
+// Time window of the Engine health card's apodizing-events density strip: how
+// much recent playback the strip covers, in seconds, or "all" for the whole
+// current track. An unset or junk value reads as the 60 s default.
+export const APOD_WINDOWS = ["30", "60", "120", "300", "all"];
+
+/**
+ * @param {string} key
+ * @param {string} dflt
+ * @returns {string}
+ */
+function loadApodWindow(key, dflt) {
+  try {
+    const v = localStorage.getItem(key);
+    return v != null && APOD_WINDOWS.includes(v) ? v : dflt;
+  } catch {
+    warnStorage("read");
+    return dflt;
+  }
+}
+
+export const apodWindow = signal(loadApodWindow(K_APOD_WINDOW, "60"));
+
+/**
+ * Set the apodizing-strip time window and persist it. A value outside
+ * APOD_WINDOWS is ignored: the signal and the stored value both stand.
+ *
+ * @param {string} value
+ * @returns {void}
+ */
+export function setApodWindow(value) {
+  if (!APOD_WINDOWS.includes(value)) return;
+  apodWindow.value = value;
+  try {
+    localStorage.setItem(K_APOD_WINDOW, value);
+  } catch {
+    // storage disabled (private mode) — keep the in-memory value
+    warnStorage("written");
+  }
 }
 
 // The LIVE switch. Persisted like every other pref, so a reload lands back on
