@@ -5,8 +5,9 @@
 // The seam is the same one store/health.js is driven through
 // (tests/js/store/health.test.js): a poll is a FRESH object written to
 // engineStatus, carrying the daemon's own Status fields (state, track_serial,
-// apod, remain_min, remain_sec; `state` values per docs/protocol.md — 0 stopped,
-// 1 paused, 2 playing, 3 stop requested). Nothing of HQPTuner's is stubbed — the
+// apod; `state` values per docs/protocol.md — 0 stopped, 1 paused, 2 playing,
+// 3 stop requested). remain_min/remain_sec appear only in the cases pinning that
+// they are NEVER read. Nothing of HQPTuner's is stubbed — the
 // poll cadence is moved by writing the signals the app itself writes (activeTab,
 // liveMode, quickSystemUpdates) and read back through store/ui.js's fastPollMs.
 //
@@ -47,32 +48,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineStatus } from "../../../hqptuner/static/store/signals.js";
-import { activeTab, fastPollMs } from "../../../hqptuner/static/store/ui.js";
-import { liveMode, quickSystemUpdates, setApodWindow } from "../../../hqptuner/static/store/prefs.js";
+import { liveMode, setApodWindow } from "../../../hqptuner/static/store/prefs.js";
 import {
   initApodHistory,
   apodBins,
   apodStripVisible,
   apodVisibleBins,
 } from "../../../hqptuner/static/store/apodhistory.js";
+import { STOPPED, PAUSED, readCadences, setApodCounter, poll, newTrack, append, feed } from "../support/apodpolls.js";
 
-const PLAYING = "2";
-const STOPPED = "0";
-const PAUSED = "1";
 const CAP = 3600;
 
 // The two cadences the app itself produces, read rather than assumed
-// (tests/js/store/polling.test.js pins where each comes from): LIVE is shown
-// with no opt-in of any kind, and the page underneath here has no fast rule and
-// no opt-in, so it polls at the store's default.
-activeTab.value = "output";
-quickSystemUpdates.value = false;
-
-liveMode.value = true;
-const LIVE_CADENCE = fastPollMs.value;
-liveMode.value = false;
-const CADENCE = fastPollMs.value;
+// (tests/js/store/polling.test.js pins where each comes from).
+const { live: LIVE_CADENCE, base: CADENCE } = readCadences();
 
 // The mixed-cadence case below can only tell cadence-aware slicing from
 // count-based slicing if the two cadences differ. Guard rather than assert, so a
@@ -82,54 +71,6 @@ if (LIVE_CADENCE === CADENCE) {
 }
 
 initApodHistory();
-
-let serial = 0;
-let counter = 0; // the daemon's own monotonic apodizing counter
-
-/**
- * One poll. Always a fresh object — see hazard 2.
- *
- * @param {Record<string, unknown>} [fields]
- */
-function poll(fields = {}) {
-  engineStatus.value = {
-    status: { state: PLAYING, track_serial: String(serial), apod: String(counter), ...fields },
-  };
-}
-
-/** @param {Record<string, unknown>} [fields] */
-function newTrack(fields = {}) {
-  serial += 1;
-  poll(fields);
-}
-
-/**
- * One poll per delta on the track already running — so `deltas` is exactly the
- * sequence of per-bin counts the store should have recorded, oldest first.
- *
- * @param {number[]} deltas
- * @param {Record<string, unknown>} [fields]
- * @returns {number[]}
- */
-function append(deltas, fields = {}) {
-  for (const d of deltas) {
-    counter += d;
-    poll(fields);
-  }
-  return deltas;
-}
-
-/**
- * A fresh track, then one poll per delta.
- *
- * @param {number[]} deltas
- * @param {Record<string, unknown>} [fields]
- * @returns {number[]}
- */
-function feed(deltas, fields = {}) {
-  newTrack(fields);
-  return append(deltas, fields);
-}
 
 /** @typedef {{ ms: number, n: number }} Bin */
 
@@ -203,9 +144,9 @@ test("test_each_poll_appends_one_bin_of_its_own", () => {
 
 test("test_a_counter_that_goes_backwards_records_zero", () => {
   liveMode.value = false;
-  counter = 500; // the baseline this track is established on
+  setApodCounter(500); // the baseline this track is established on
   newTrack();
-  counter = 480;
+  setApodCounter(480);
   poll();
   assert.deepEqual(counts(apodBins.value), [0]);
 });
@@ -234,16 +175,14 @@ test("test_a_track_change_rebaselines_the_counter", () => {
 test("test_a_stopped_poll_appends_no_bin_to_a_history_already_running", () => {
   liveMode.value = false;
   const deltas = feed([1, 2]);
-  counter += 20;
-  poll({ state: STOPPED });
+  append([20], { state: STOPPED });
   assert.deepEqual(counts(apodBins.value), deltas);
 });
 
 test("test_a_paused_poll_appends_no_bin_to_a_history_already_running", () => {
   liveMode.value = false;
   const deltas = feed([1, 2]);
-  counter += 20;
-  poll({ state: PAUSED });
+  append([20], { state: PAUSED });
   assert.deepEqual(counts(apodBins.value), deltas);
 });
 
@@ -298,7 +237,43 @@ test("test_the_strip_is_not_visible_once_the_engine_pauses", () => {
   assert.equal(apodStripVisible.value, false);
 });
 
-test("test_a_silent_track_that_played_out_to_the_end_hides_the_strip", () => {
+// What survives a track change is decided by the OUTGOING track's own bins and
+// by nothing else. The daemon's remain_min/remain_sec are never consulted: they
+// go negative on any stream of unknown length (a live capture reports
+// length "0.0" with remain_min "-55", remain_sec "-41"), so a rule reading them
+// would hide the strip at random on exactly the material that apodizes most.
+// The cases below therefore pin the counted-events rule, and pin that those two
+// fields move nothing whatever value they carry.
+
+test("test_a_track_change_from_a_silent_track_hides_the_strip", () => {
+  liveMode.value = false;
+  feed([3]);
+  feed([0, 0]);
+  newTrack();
+  assert.equal(apodStripVisible.value, false);
+});
+
+test("test_a_track_change_from_a_track_that_counted_events_early_keeps_the_strip", () => {
+  // the events came at the head of the outgoing track and nothing followed: it
+  // is whether the track counted ANY event that decides, not what its last bin
+  // happened to be
+  liveMode.value = false;
+  feed([3, 0, 0]);
+  newTrack();
+  assert.equal(apodStripVisible.value, true);
+});
+
+test("test_negative_remain_fields_leave_a_silent_track_hidden", () => {
+  // the shape a stream of unknown length reports, which a remain-based rule
+  // would read as "not finished" and wrongly keep on screen
+  liveMode.value = false;
+  feed([3]);
+  feed([0, 0], { remain_min: "-55", remain_sec: "-41" });
+  newTrack();
+  assert.equal(apodStripVisible.value, false);
+});
+
+test("test_remain_fields_reading_zero_leave_a_silent_track_hidden", () => {
   liveMode.value = false;
   feed([3]);
   feed([0, 0], { remain_min: "0", remain_sec: "0" });
@@ -306,28 +281,16 @@ test("test_a_silent_track_that_played_out_to_the_end_hides_the_strip", () => {
   assert.equal(apodStripVisible.value, false);
 });
 
-test("test_a_silent_track_left_with_seconds_to_go_keeps_the_strip", () => {
-  liveMode.value = false;
-  feed([3]);
-  feed([0, 0], { remain_min: "0", remain_sec: "30" });
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_a_silent_track_left_with_a_whole_minute_to_go_keeps_the_strip", () => {
-  // the one shape that separates the two fields: seconds are at zero and only
-  // remain_min says the track had not finished
-  liveMode.value = false;
-  feed([3]);
-  feed([0, 0], { remain_min: "1", remain_sec: "0" });
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_a_track_that_counted_events_and_played_out_to_the_end_keeps_the_strip", () => {
-  // running out is only grounds for hiding when the track was silent
+test("test_remain_fields_reading_zero_do_not_hide_a_track_that_counted_events", () => {
   liveMode.value = false;
   feed([2, 3], { remain_min: "0", remain_sec: "0" });
+  newTrack();
+  assert.equal(apodStripVisible.value, true);
+});
+
+test("test_junk_remain_fields_do_not_hide_a_track_that_counted_events", () => {
+  liveMode.value = false;
+  feed([2, 3], { remain_min: "nonsense", remain_sec: "" });
   newTrack();
   assert.equal(apodStripVisible.value, true);
 });
