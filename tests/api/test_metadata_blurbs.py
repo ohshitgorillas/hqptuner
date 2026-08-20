@@ -30,7 +30,7 @@ FAMILY_BLURBS = {
     "Minimum ringing": "Less ringing and better response/suppression than Polynomial",
 }
 
-_GAUSS = "Best balance of time and frequency accuracy, gentler transients"
+_GAUSS = "Best balance of time and frequency accuracy, cleanest transients"
 _EXT2 = "Sharper version of extended response, stronger suppression above the audio band"
 _BASE = "The family's base form"
 
@@ -38,7 +38,7 @@ VARIANT_BLURBS = {
     "Polyphase sinc|Gaussian": _GAUSS,
     "Pure sinc|Gaussian": _GAUSS,
     "Polyphase sinc|Half-band": "Response reaches close to the cutoff; for clean, well-mastered sources",
-    "Polyphase sinc|Gaussian half-band": "Gaussian smoothness with a slightly leaky response reaching the cutoff",
+    "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response reaching the cutoff",
     "Polyphase sinc|Extended frequency response": "Keeps response wide while fully cutting off at the limit",
     "Polyphase sinc|Extended frequency response 2": _EXT2,
     "Pure sinc|Extended frequency response 2": _EXT2,

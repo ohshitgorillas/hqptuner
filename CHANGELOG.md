@@ -20,6 +20,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Simplified filter names state linear phase where HQPlayer documents it.** The half-band, Ext2, Gaussian and Gaussian half-band poly-sinc families read as linear phase in their Simplified entries, matching the phase already shown for the lp/ip/mp variants.
 
+- **The Gaussian variant blurbs no longer suggest softened transients.** The Gaussian entries now read "cleanest transients", and the Gaussian half-band entry "Gaussian character", correcting wording that implied slower edges rather than the absence of transient artifacts.
+
 ## [1.10.0] — 2026-08-18
 
 ### Added
