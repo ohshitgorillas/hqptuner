@@ -199,6 +199,15 @@ test("test_a_five_rated_rows_stars_span_reads_exactly_five_filled_stars", async 
   assert.equal(text(onlyStarsOf(rowReading(out, "rated-five"))), "★★★★★");
 });
 
+// The whole row's text, not just the span interior: a pad of empty ☆ moved
+// into a sibling element outside dd-stars would slip past the exact-content
+// assertions above, and the contract says the empty glyph is gone from the
+// row entirely.
+test("test_a_rated_rows_whole_text_carries_no_empty_star_glyph", async () => {
+  const out = await startFilters();
+  assert.doesNotMatch(text(rowReading(out, "rated-three")), /☆/);
+});
+
 test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
   const out = await startFilters();
   assert.equal(starsSpans(rowReading(out, "unlisted").html).length, 0);
