@@ -184,12 +184,12 @@ function RateFacet() {
         disabled=${!favoriteFilters.value.size}
         title=${
           favoriteFilters.value.size
-            ? "Show only the filters you starred in the dropdowns below"
-            : "Star a filter in a dropdown below to enable"
+            ? "Show only the filters you favorited in the dropdowns below"
+            : "Favorite a filter below to enable"
         }
         onClick=${() => (nFavOnly.value = !nFavOnly.value)}
       >
-        ★ Favorites
+        ♥ Favorites
       </button>
   `;
 }
