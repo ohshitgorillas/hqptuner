@@ -414,11 +414,24 @@ test("test_standard_style_keeps_the_raw_flat_list", async () => {
   assert.deepEqual(optionLabels(out), ["full-a", "half-a", "plain-a"]);
 });
 
-// --- non-filter comboboxes carry no badge ---------------------------------------
-// Simplified on and the entries' apodizing class fully served (overlay fact
-// plus the Simplified entry's apod), so a badge's absence is the dropdown-type
-// rule at work: dither and modulator dropdowns never badge, whatever class
-// their entries carry.
+test("test_standard_style_draws_the_same_full_badge_glyph_as_simplified", async () => {
+  const std = await standardField();
+  const stdPath = pathData(glyphPathOf(onlyBadgeIn(std, rowIncluding(std, "full-a"))));
+  const sim = await simplifiedField();
+  assert.equal(stdPath, pathData(glyphPathOf(onlyBadgeIn(sim, rowIncluding(sim, "U One")))));
+});
+
+test("test_standard_style_badge_precedes_the_favorite_star_in_document_order", async () => {
+  const out = await standardField();
+  const row = rowIncluding(out, "full-a");
+  assert.equal(onlyBadgeIn(out, row).start < starOf(out, row).start, true);
+});
+
+// --- non-filter comboboxes carry no badge, in either style -----------------------
+// The entries' apodizing class fully served (overlay fact plus the Simplified
+// entry's apod), so a badge's absence is the dropdown-type rule at work:
+// dither and modulator dropdowns never badge, whatever class their entries
+// carry — with the pref on and with it off.
 
 test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
   await reset({
@@ -459,6 +472,48 @@ test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
   plainNames.value = true;
   const out = field("sdm_modulator");
   rowIncluding(out, "Seventh"); // throws when the rows never rendered
+  assert.equal(badges(out).length, 0);
+});
+
+test("test_a_dither_dropdown_renders_no_badge_in_standard_style", async () => {
+  await reset({
+    fields: [
+      { name: "defaults_samplerate", value: "384000" },
+      {
+        name: "dither",
+        value: "0",
+        options: [
+          { value: "0", label: "TPDF" },
+          { value: "1", label: "NS9" },
+        ],
+      },
+    ],
+    meta: META_SIM_APOD_NONFILTER,
+  });
+  plainNames.value = false;
+  const out = field("pcm_dither");
+  rowIncluding(out, "NS9"); // raw engine name: throws unless the rows rendered IN STANDARD STYLE
+  assert.equal(badges(out).length, 0);
+});
+
+test("test_a_modulator_dropdown_renders_no_badge_in_standard_style", async () => {
+  await reset({
+    fields: [
+      { name: "defaults_bitrate", value: "49152000" },
+      {
+        name: "modulator",
+        value: "0",
+        options: [
+          { value: "0", label: "ASDM7" },
+          { value: "1", label: "ASDM7EC" },
+        ],
+      },
+    ],
+    meta: META_SIM_APOD_NONFILTER,
+  });
+  plainNames.value = false;
+  const out = field("sdm_modulator");
+  rowIncluding(out, "ASDM7EC"); // raw engine name: throws unless the rows rendered IN STANDARD STYLE
   assert.equal(badges(out).length, 0);
 });
 
