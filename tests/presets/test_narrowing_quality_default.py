@@ -1,4 +1,4 @@
-"""The quality facet's server-side default, moved from 0 to 3.
+"""The quality facet's server-side default of 0, "Any quality".
 
 `NarrowingStore` keeps the narrow bar's facet set in `state/narrowing.json`;
 narrowing is purely presentational and has no daemon field behind it
@@ -6,12 +6,13 @@ narrowing is purely presentational and has no daemon field behind it
 and every store file lands under pytest's ``tmp_path``.
 
 The facet's domain is unchanged — ``0`` (no quality narrowing), ``3``, ``4``
-and ``5`` — but the default a read falls back to is now ``3``. The store's two
-asymmetries bind quality like every other facet: a **write** refuses an
-out-of-domain, bool or non-integer value, and a **read** degrades a damaged
-stored entry to the default rather than raising. An explicitly stored ``0`` is
-in-domain and survives a read: the default replaces only what is missing or
-damaged, never a value the user chose.
+and ``5`` — and the default a read falls back to is ``0`` (quality-default-any
+spec delta): a never-written store and a file with no or a damaged quality
+entry all read ``0``. The store's two asymmetries bind quality like every
+other facet: a **write** refuses an out-of-domain, bool or non-integer value,
+and a **read** degrades a damaged stored entry to the default rather than
+raising. An explicitly stored in-domain value survives a read: the default
+replaces only what is missing or damaged, never a value the user chose.
 
 Where the facets sit inside the file the spec does not say, so every case that
 reaches into a stored file goes through `edit_facets`, which accepts either a
@@ -31,7 +32,7 @@ import pytest
 from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
 
 #: The default quality reads at, and the facet's unchanged domain.
-QUALITY_DEFAULT = 3
+QUALITY_DEFAULT = 0
 QUALITY_DOMAIN = [0, 3, 4, 5]
 
 #: Integers outside the domain, bools, and non-integers — all refused on write
@@ -74,23 +75,26 @@ def drop(facet: str) -> Callable[[dict[str, Any]], None]:
 # --- the default ---------------------------------------------------------------
 
 
-def test_a_never_written_store_reads_quality_at_3(tmp_path: Path) -> None:
+def test_a_never_written_store_reads_quality_at_0(tmp_path: Path) -> None:
     assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT
 
 
-def test_a_file_with_no_quality_entry_reads_quality_at_3(tmp_path: Path) -> None:
+def test_a_file_with_no_quality_entry_reads_quality_at_0(tmp_path: Path) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, drop("quality"))
     assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT
 
 
-# --- an explicitly stored value survives, 0 included ------------------------------
+# --- an explicitly stored value survives ------------------------------------------
+# The direct-edit case uses 3, an in-domain value that is NOT the default, so a
+# read that ignored the file and answered the default would fail it; a stored 0
+# could not tell the two apart now that 0 IS the default.
 
 
-def test_a_stored_quality_of_0_survives_a_read(tmp_path: Path) -> None:
+def test_a_stored_quality_of_3_survives_a_read(tmp_path: Path) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
-    edit_facets(path, set_to("quality", 0))
-    assert store_at(tmp_path).read()["quality"] == 0
+    edit_facets(path, set_to("quality", 3))
+    assert store_at(tmp_path).read()["quality"] == 3
 
 
 @pytest.mark.parametrize("value", QUALITY_DOMAIN)
@@ -110,7 +114,7 @@ def test_an_invalid_quality_write_is_refused(tmp_path: Path, value: object) -> N
 
 
 @pytest.mark.parametrize("value", INVALID, ids=repr)
-def test_an_invalid_stored_quality_reads_as_the_default_of_3(tmp_path: Path, value: object) -> None:
+def test_an_invalid_stored_quality_reads_as_the_default_of_0(tmp_path: Path, value: object) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, set_to("quality", value))
     assert store_at(tmp_path).read()["quality"] == QUALITY_DEFAULT

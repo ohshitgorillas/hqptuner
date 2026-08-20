@@ -1,13 +1,14 @@
-// Behavioral suite for the Quality facet's option table and its new default
+// Behavioral suite for the Quality facet's option table and its default
 // (store/narrow/state.js, components/narrowbar/facet-data.js): the dropdown's four
-// rows verbatim, the facet starting at "minimum 3" instead of "any quality",
+// rows verbatim, the facet starting at 0 — "Any quality", no floor applied —
 // and what that default means for reset, the narrowed indicator, matching and
 // hydration.
 //
 // The facet's domain is unchanged — 0 means no quality narrowing, 3/4/5 mean
-// "hide anything rated below this" — but the default moved to 3, so "the bar is
-// narrowed" now means "quality DEVIATES from 3": an explicit 0 is a narrowing
-// choice of its own and reads as narrowed.
+// "hide anything rated below this" — and the default is 0 (quality-default-any
+// spec delta), so a fresh bar applies no quality floor and "the bar is
+// narrowed" means "quality deviates from 0": any explicit floor of 3, 4 or 5
+// reads as narrowed, a quality of 0 never does.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. Filter fixtures are hand-built in the engine's own `<FiltersItem/>`
@@ -59,8 +60,8 @@ const ROWS = [
 // --- the freshly loaded store -------------------------------------------------
 // Nothing has touched a signal yet: this read is the module's initial state.
 
-test("test_a_freshly_loaded_store_leaves_quality_at_3", () => {
-  assert.equal(nQuality.value, 3);
+test("test_a_freshly_loaded_store_leaves_quality_at_0", () => {
+  assert.equal(nQuality.value, 0);
 });
 
 // --- the dropdown's rows, character for character ------------------------------
@@ -167,16 +168,16 @@ test("test_any_quality_accepts_a_filter_whose_overlay_row_carries_no_rating", ()
 });
 
 // --- what counts as "narrowed" ---------------------------------------------------
-// Narrowed means DEVIATES from the default: 3 with everything else at its own
-// default is not narrowed, while an explicit 0 — any quality — is.
+// Narrowed means DEVIATES from the default: 0 with everything else at its own
+// default is not narrowed, while any explicit floor — 3, 4 or 5 — is.
 
-test("test_quality_at_its_default_of_3_is_not_active_narrowing", () => {
+test("test_quality_at_its_default_of_0_is_not_active_narrowing", () => {
   seed(RATED);
-  nQuality.value = 3;
+  nQuality.value = 0;
   assert.equal(narrowingActive.value, false);
 });
 
-for (const selection of [0, 4, 5]) {
+for (const selection of [3, 4, 5]) {
   test(`test_quality_at_${selection}_is_active_narrowing`, () => {
     seed(RATED);
     nQuality.value = selection;
@@ -184,13 +185,13 @@ for (const selection of [0, 4, 5]) {
   });
 }
 
-// --- reset returns quality to its default, not to blank ---------------------------
+// --- reset returns quality to its default ----------------------------------------
 
-test("test_reset_returns_quality_to_its_default_of_3", () => {
+test("test_reset_returns_quality_to_its_default_of_0", () => {
   seed(RATED);
-  nQuality.value = 0;
+  nQuality.value = 4;
   resetNarrowing();
-  assert.equal(nQuality.value, 3);
+  assert.equal(nQuality.value, 0);
 });
 
 // --- hydration takes the stored value, or the new default --------------------------
@@ -218,14 +219,14 @@ async function hydrateFrom(facets) {
   await hydrateNarrowing();
 }
 
-test("test_hydration_takes_a_stored_quality_of_0_over_the_default", async () => {
-  await hydrateFrom({ quality: 0 });
-  assert.equal(nQuality.value, 0);
+test("test_hydration_takes_a_stored_quality_of_3_over_the_default", async () => {
+  await hydrateFrom({ quality: 3 });
+  assert.equal(nQuality.value, 3);
 });
 
-test("test_hydration_leaves_a_quality_the_server_omits_at_the_default_of_3", async () => {
+test("test_hydration_leaves_a_quality_the_server_omits_at_the_default_of_0", async () => {
   await hydrateFrom({ phase: "linear" });
-  assert.equal(nQuality.value, 3);
+  assert.equal(nQuality.value, 0);
 });
 
 // --- the pass-through's escape hatch ------------------------------------------

@@ -8,10 +8,11 @@
 // no span at all for a row the accessor rates null, and no span anywhere in a
 // dropdown given no accessor.
 //
-// Wiring, per the clarified spec line: the accessor is wired for filter
-// dropdowns only when Simplified display is on (plainNames true), the same
-// gate as the apodizing badge; with Standard display no dd-stars span renders
-// anywhere. q is the filter's quality facet, the `<q>/5` head of the engine
+// Wiring, per the stars-in-standard spec delta: the accessor is wired for
+// every filter dropdown regardless of the Option style pref — a Standard
+// (raw-name) row renders its dd-stars span exactly as a Simplified row does,
+// and dropdowns without the wiring (dither etc.) render no dd-stars span in
+// either display mode. q is the filter's quality facet, the `<q>/5` head of the engine
 // enumeration's own description (protocol.md:228); a filter the live enum
 // never lists has no rating, so its accessor answer is the null case. The
 // fixture names are unknown to the plain-names data, so Simplified display
@@ -63,23 +64,24 @@ const dropdown = (name, labels) => ({
 
 // A desc-carrying dropdown Field does NOT hand the fav/stars wiring: a dither.
 // The rate sits above NS9's 352.8k floor so no row is rate-grayed, and no
-// favorites wire is needed — an unwired dropdown fetches nothing of it.
-// Simplified display stays ON and the enumeration serves a rated entry whose
-// name matches a dither label, so the span's absence here is the wiring rule
-// at work — a dropdown wrongly handed the accessor would render stars on the
-// TPDF row and fail.
-async function startDither() {
+// favorites wire is needed — an unwired dropdown fetches nothing of it. The
+// enumeration serves a rated entry whose name matches a dither label, so the
+// span's absence here is the wiring rule at work — a dropdown wrongly handed
+// the accessor would render stars on the TPDF row and fail. The Option style
+// pref is irrelevant to the wiring now, so the case runs under both.
+/** @param {boolean} plain */
+async function startDither(plain) {
   await reset({ fields: [{ name: "defaults_samplerate", value: "384000" }, dropdown("dither", ["TPDF", "NS9"])] });
   enums.value = {
     filters: [{ index: "0", name: "TPDF", value: "0", arg: "0", description: "5/5 timbre ⥮ Any", apodizing: false }],
   };
-  plainNames.value = true;
+  plainNames.value = plain;
 }
 
 // The filter field with the live enumeration serving the ratings, the
 // favorites endpoint routed into the harness wire, the favorites signals
 // re-assigned (module-level signals outlive a test), the option style set —
-// Simplified by default, the stars resolver's own display gate — and the
+// Simplified by default, though the stars no longer gate on it — and the
 // narrowing facets opened all the way (apodizing neutral, quality floor 0) so
 // every row renders, the unrated one included.
 /** @param {boolean} [plain] */
@@ -213,19 +215,33 @@ test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
   assert.equal(starsSpans(rowReading(out, "unlisted").html).length, 0);
 });
 
-// Standard display: the same fully rated fixture, the pref off — the stars are
-// gated on Simplified display the way the apodizing badge is, and the spec
-// says no span renders ANYWHERE, so the whole render is scanned. The row
-// lookup is a guard, not the subject: it throws unless the rated rows exist.
-test("test_standard_display_renders_no_stars_span_anywhere", async () => {
+// Standard display: the same fully rated fixture, the pref off — the stars
+// render regardless of the Option style pref now, so a Standard row shows the
+// same exact-content span a Simplified row does, and the null case stays the
+// null case.
+test("test_standard_display_renders_a_rated_rows_stars_exactly_as_simplified_does", async () => {
   const out = await startFilters(false);
-  rowReading(out, "rated-five"); // throws when the rows never rendered
-  assert.equal(starsSpans(out).length, 0);
+  assert.equal(text(onlyStarsOf(rowReading(out, "rated-five"))), "★★★★★");
 });
 
-test("test_a_dropdown_without_stars_wiring_renders_no_stars_span", async () => {
-  await startDither();
-  const out = field("pcm_dither");
-  rowReading(out, "TPDF"); // throws when the rows never rendered
-  assert.equal(starsSpans(out).length, 0);
+test("test_standard_display_carries_the_run_length_of_a_lower_rating_too", async () => {
+  const out = await startFilters(false);
+  assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★");
 });
+
+test("test_standard_display_renders_no_stars_span_for_a_row_the_accessor_cannot_rate", async () => {
+  const out = await startFilters(false);
+  assert.equal(starsSpans(rowReading(out, "unlisted").html).length, 0);
+});
+
+for (const [mode, plain] of /** @type {[string, boolean][]} */ ([
+  ["simplified", true],
+  ["standard", false],
+])) {
+  test(`test_a_dropdown_without_stars_wiring_renders_no_stars_span_under_${mode}_display`, async () => {
+    await startDither(plain);
+    const out = field("pcm_dither");
+    rowReading(out, "TPDF"); // throws when the rows never rendered
+    assert.equal(starsSpans(out).length, 0);
+  });
+}
