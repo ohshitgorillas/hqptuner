@@ -8,7 +8,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Filter rows show each filter's quality rating as stars.** Every row in the filter dropdowns, Simplified or Standard, carries the engine's relative quality rating as one to five filled stars beside its name. The favorite toggle becomes a heart so the two marks stay distinct, and the Favorites chip follows.
 
-- **Simplified filter dropdowns badge apodizing and fold their groups.** With the Simplified option style, every apodizing filter row carries a circled accent A, half-apodizing a circled ½, beside its name; the three Simplified names that spelled out apodizing rely on the badge instead. Family and variant groups collapse and expand from their headers, and the folds persist across reloads.
+- **Filter dropdowns badge apodizing; Simplified groups fold.** In both option styles, every apodizing filter row carries a circled accent A, half-apodizing a circled ½, beside its name; the three Simplified names that spelled out apodizing rely on the badge instead. Family and variant groups collapse and expand from their headers, and the folds persist across reloads.
 
 ### Changed
 
