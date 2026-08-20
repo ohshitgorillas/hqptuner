@@ -96,8 +96,20 @@ function feed(deltas, fields = {}) {
   return deltas;
 }
 
-/** @param {{ n: number }[]} bins */
+/** @typedef {{ ms: number, n: number }} Bin */
+
+/** @param {Bin[]} bins */
 const counts = (bins) => bins.map((b) => b.n);
+
+/** @param {Bin[]} bins */
+const cadences = (bins) => bins.map((b) => b.ms);
+
+/**
+ * @param {Bin[]} bins
+ * @param {number} n
+ * @returns {boolean}
+ */
+const anyBinCounting = (bins, n) => bins.some((b) => b.n === n);
 
 /**
  * @param {number} length
@@ -122,7 +134,8 @@ test("test_no_bin_is_appended_while_the_engine_is_not_playing", () => {
 });
 
 test("test_a_silent_poll_appends_a_zero_bin", () => {
-  assert.deepEqual(counts(feed([0])), [0]);
+  const deltas = feed([0]);
+  assert.deepEqual(counts(apodBins.value), deltas);
 });
 
 test("test_the_strip_is_not_visible_before_any_apodizing_event", () => {
@@ -133,11 +146,13 @@ test("test_the_strip_is_not_visible_before_any_apodizing_event", () => {
 // --- what a bin counts ---------------------------------------------------------
 
 test("test_a_bin_records_the_rise_in_the_apodizing_counter_since_the_previous_poll", () => {
-  assert.deepEqual(counts(feed([3])), [3]);
+  const deltas = feed([3]);
+  assert.deepEqual(counts(apodBins.value), deltas);
 });
 
 test("test_each_poll_appends_one_bin_of_its_own", () => {
-  assert.deepEqual(counts(feed([3, 0, 7])), [3, 0, 7]);
+  const deltas = feed([3, 0, 7]);
+  assert.deepEqual(counts(apodBins.value), deltas);
 });
 
 test("test_a_counter_that_goes_backwards_records_zero", () => {
@@ -169,10 +184,7 @@ test("test_a_track_change_rebaselines_the_counter", () => {
 test("test_a_bin_appended_in_live_mode_records_the_one_second_cadence", () => {
   liveMode.value = true;
   feed([1]);
-  assert.deepEqual(
-    apodBins.value.map((b) => b.ms),
-    [1000],
-  );
+  assert.deepEqual(cadences(apodBins.value), [1000]);
 });
 
 test("test_a_bin_keeps_the_cadence_it_was_appended_at_when_the_cadence_later_changes", () => {
@@ -187,10 +199,7 @@ test("test_a_bin_keeps_the_cadence_it_was_appended_at_when_the_cadence_later_cha
 test("test_a_bin_appended_off_the_fast_lane_records_the_cadence_then_in_force", () => {
   liveMode.value = false;
   feed([1]);
-  assert.deepEqual(
-    apodBins.value.map((b) => b.ms),
-    [CADENCE],
-  );
+  assert.deepEqual(cadences(apodBins.value), [CADENCE]);
 });
 
 // --- the auto-hide flag -----------------------------------------------------------
@@ -270,17 +279,15 @@ test("test_the_history_is_capped_at_thirty_six_hundred_bins", () => {
 test("test_the_oldest_bin_is_dropped_once_the_cap_is_passed", () => {
   // only the first bin of this track carries a 9; past the cap it is gone
   feed([9, ...series(CAP, () => 0)]);
-  assert.equal(
-    apodBins.value.some((b) => b.n === 9),
-    false,
-  );
+  assert.equal(anyBinCounting(apodBins.value, 9), false);
 });
 
 // --- registration -----------------------------------------------------------------------
 
 test("test_registering_the_history_twice_does_not_append_two_bins_per_poll", () => {
   initApodHistory();
-  assert.deepEqual(counts(feed([2])), [2]);
+  const deltas = feed([2]);
+  assert.deepEqual(counts(apodBins.value), deltas);
 });
 
 test("test_registering_the_history_twice_returns_the_same_disposer", () => {
