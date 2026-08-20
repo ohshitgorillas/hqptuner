@@ -6,7 +6,7 @@
 import { html } from "../lib/dom.js";
 import { optionDescription, selectionDescription, selectedLabel } from "../store/prose.js";
 import { plainTrueName } from "../store/plainnames.js";
-import { collapsedGroups, plainNames, toggleCollapsedGroup } from "../store/prefs.js";
+import { collapsedGroups, toggleCollapsedGroup } from "../store/prefs.js";
 import { filterFacets } from "../store/narrow/facets.js";
 import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
@@ -87,12 +87,12 @@ export const favFor = (/** @type {FieldEntry} */ entry) =>
  * Builds the apodizing-badge resolver for the filter dropdowns (`narrow`-carrying
  * entries), keyed by option label = filter name — the same join the tip facets
  * use; undefined everywhere else, so dither and modulator comboboxes render
- * badge-free rows. A Simplified-style feature: with the Option style pref on
- * Standard the raw-name lists stay bare and the resolver is not built.
+ * badge-free rows. Built in both display styles — a raw engine name says no
+ * more about apodizing than a plain one, so Standard rows wear the badge too.
  * @type {(entry: FieldEntry) => ((o: SchemaOption) => "full" | "half" | null) | undefined}
  */
 export const badgeFor = (entry) =>
-  entry.narrow && plainNames.value
+  entry.narrow
     ? (/** @type {SchemaOption} */ o) => {
         const f = filterFacets.value[o.label];
         if (!f) return null;
