@@ -7,13 +7,14 @@
 // empty ☆ for a row rated q, no span at all for a row the accessor rates null,
 // and no span anywhere in a dropdown given no accessor.
 //
-// Spec ambiguity, reading taken: the spec names the accessor's contract but
-// not its wiring's data source. The fav/badge parallel is read literally —
-// Field wires it for the filter dropdowns — and q is read as the filter's
-// quality facet, the `<q>/5` head of the engine enumeration's own description
-// (protocol.md:228); a filter the live enum never lists has no rating, so its
-// accessor answer is the null case. A failure here may be that reading, not
-// the glyph contract — adjudicate before treating it as one.
+// Wiring, per the clarified spec line: the accessor is wired for filter
+// dropdowns only when Simplified display is on (plainNames true), the same
+// gate as the apodizing badge; with Standard display no dd-stars span renders
+// anywhere. q is the filter's quality facet, the `<q>/5` head of the engine
+// enumeration's own description (protocol.md:228); a filter the live enum
+// never lists has no rating, so its accessor answer is the null case. The
+// fixture names are unknown to the plain-names data, so Simplified display
+// falls back to their raw labels (combobox-plainnames.test.js pins that).
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. State is driven through the field harness's reset (source signals
@@ -31,6 +32,7 @@ import { staticWire } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { enums } from "../../../hqptuner/static/store/signals.js";
+import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 import { elements, classes, text } from "../support/markup.js";
 
@@ -60,16 +62,22 @@ const dropdown = (name, labels) => ({
 
 // A desc-carrying dropdown Field does NOT hand the fav/stars wiring: a dither.
 // The rate sits above NS9's 352.8k floor so no row is rate-grayed, and no
-// favorites wire is needed — an unwired dropdown fetches nothing of it.
-const startDither = () =>
-  reset({ fields: [{ name: "defaults_samplerate", value: "384000" }, dropdown("dither", ["TPDF", "NS9"])] });
+// favorites wire is needed — an unwired dropdown fetches nothing of it. The
+// option-style pref is put back to Standard (the signal outlives a test), so
+// the span's absence here is the wiring rule, not the Simplified gate.
+async function startDither() {
+  await reset({ fields: [{ name: "defaults_samplerate", value: "384000" }, dropdown("dither", ["TPDF", "NS9"])] });
+  plainNames.value = false;
+}
 
 // The filter field with the live enumeration serving the ratings, the
 // favorites endpoint routed into the harness wire, the favorites signals
-// re-assigned (module-level signals outlive a test), and the narrowing facets
-// opened all the way (apodizing neutral, quality floor 0) so every row
-// renders, the unrated one included.
-async function startFilters() {
+// re-assigned (module-level signals outlive a test), the option style set —
+// Simplified by default, the stars resolver's own display gate — and the
+// narrowing facets opened all the way (apodizing neutral, quality floor 0) so
+// every row renders, the unrated one included.
+/** @param {boolean} [plain] */
+async function startFilters(plain = true) {
   await reset({
     fields: [
       dropdown(
@@ -93,6 +101,7 @@ async function startFilters() {
   };
   nApod1x.value = "all";
   nQuality.value = 0;
+  plainNames.value = plain;
   return field("pcm_filter_1x");
 }
 
@@ -187,6 +196,13 @@ test("test_a_five_rated_rows_stars_span_reads_five_filled_stars", async () => {
 test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
   const out = await startFilters();
   assert.equal(starsSpans(rowReading(out, "unlisted").html).length, 0);
+});
+
+// Standard display: the same fully rated fixture, the pref off — the stars are
+// gated on Simplified display the way the apodizing badge is.
+test("test_standard_display_renders_no_stars_span_on_a_rated_row", async () => {
+  const out = await startFilters(false);
+  assert.equal(starsSpans(rowReading(out, "rated-five").html).length, 0);
 });
 
 test("test_a_dropdown_without_stars_wiring_renders_no_stars_span", async () => {
