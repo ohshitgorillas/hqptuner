@@ -75,6 +75,10 @@
      shifts the page before the placement effect runs */
   position: fixed;
   overflow-y: auto;
+  /* The pop sizes shrink-to-fit before it knows it will scroll; a classic
+     scrollbar then takes its width out of the rows and clips the right-pinned
+     marks. Reserving the gutter puts the scrollbar in its own space. */
+  scrollbar-gutter: stable;
   /* wheel at the list's edge must not chain to the document — the page
      scrolling under an open fixed pop detaches it */
   overscroll-behavior: contain;
