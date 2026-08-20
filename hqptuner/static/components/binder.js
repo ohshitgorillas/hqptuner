@@ -101,13 +101,15 @@ export const badgeFor = (entry) =>
     : undefined;
 
 /**
- * Builds the quality-stars resolver for the filter dropdowns — same
- * `narrow`-entry and Simplified gates and the same name join as badgeFor.
- * Null hides the span for a filter whose facet record carries no rating.
+ * Builds the quality-stars resolver for the filter dropdowns (`narrow`-carrying
+ * entries), the same name join as badgeFor but in both display styles — a raw
+ * name says nothing about quality, so Standard rows need the stars as much as
+ * Simplified ones. Null hides the span for a filter whose facet record
+ * carries no rating.
  * @type {(entry: FieldEntry) => ((o: SchemaOption) => number | null) | undefined}
  */
 export const starsFor = (entry) =>
-  entry.narrow && plainNames.value
+  entry.narrow
     ? (/** @type {SchemaOption} */ o) => {
         const f = filterFacets.value[o.label];
         return f && f.quality != null ? f.quality : null;

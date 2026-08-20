@@ -12,8 +12,7 @@ content: an entry that is unknown, wrong-typed or out of domain falls back to th
 by hand or left behind by an older layout costs the user their narrowing rather than their narrow bar.
 
 The defaults here are the frontend's defaults and must stay in step with them (``static/store/narrow/state.js``). Every
-facet starts unnarrowed: the minimum-quality floor of 3 is the one default that is not simply "any", and it is the
-frontend's too.
+facet starts unnarrowed.
 """
 
 from __future__ import annotations
@@ -100,7 +99,7 @@ def _flag(value: Any) -> bool:
 _FACETS: dict[str, tuple[Any, Callable[[Any], bool]]] = {
     "genre": ([], _list_of(_GENRES)),
     "genre_mode": ("or", _one_of(_MODES)),
-    "quality": (3, _quality),
+    "quality": (0, _quality),
     "focus": ([], _list_of(_FOCUS)),
     "focus_mode": ("and", _one_of(_MODES)),
     "phase": ([], _list_of(_PHASES)),

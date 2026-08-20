@@ -10,11 +10,11 @@ import { signal, computed } from "@preact/signals";
 import { nFavOnly } from "./favorites.js";
 
 export const nGenre = signal([]); // multi-select: pop | rock | jazz | … ([] = any)
-// Minimum quality. 0 = any, else the floor (3 | 4 | 5). The default is a floor
-// rather than "any": 13 of the 68 rated filters sit below 3, and none of them is
-// what a first look at the menu should be offering. Like the stage switches, an
-// explicit "Any quality" reads as narrowing — the user asked for the wide list.
-export const QUALITY_DEFAULT = 3;
+// Minimum quality. 0 = any, else the floor (3 | 4 | 5). The default was a 3/5
+// floor while a row's rating was invisible; with every row carrying its stars
+// the menu explains itself at a glance, so the default is "any" like every
+// other facet and only an explicit floor narrows.
+export const QUALITY_DEFAULT = 0;
 export const nQuality = signal(QUALITY_DEFAULT);
 export const nFocus = signal([]); // multi-select: transients | timbre | space
 
@@ -126,7 +126,7 @@ export const narrowingActive = computed(() => filterNarrowingActive.value || nSr
 /** Clear every narrow-bar facet, putting the per-stage switches back to their defaults rather than blank. */
 export function resetNarrowing() {
   nGenre.value = [];
-  nQuality.value = QUALITY_DEFAULT; // back to the 3/5 floor, not to "any"
+  nQuality.value = QUALITY_DEFAULT;
   nFocus.value = [];
   nPhase.value = [];
   nLength.value = [];
