@@ -78,18 +78,35 @@ async function startDither(plain) {
   plainNames.value = plain;
 }
 
-// The filter field with the live enumeration serving the ratings, the
+// The four filter dropdowns in the contract's scope — "wired for every filter
+// dropdown" — as [daemon form name, field id]: the PCM chain's two slots and
+// the SDM chain's two (the daemon's /config form names the SDM filter slots
+// `oversampling1x` and `oversampling`). One live `filters` enumeration serves
+// all four.
+/** @type {[string, string][]} */
+const WIRED_FIELDS = [
+  ["filter1x", "pcm_filter_1x"],
+  ["filter", "pcm_filter_nx"],
+  ["oversampling1x", "sdm_filter_1x"],
+  ["oversampling", "sdm_filter_nx"],
+];
+
+// A filter field with the live enumeration serving the ratings, the
 // favorites endpoint routed into the harness wire, the favorites signals
 // re-assigned (module-level signals outlive a test), the option style set —
 // Simplified by default, though the stars no longer gate on it — and the
 // narrowing facets opened all the way (apodizing neutral, quality floor 0) so
-// every row renders, the unrated one included.
-/** @param {boolean} [plain] */
-async function startFilters(plain = true) {
+// every row renders, the unrated one included. The field defaults to the PCM
+// 1x slot; a case pinning another dropdown's wiring passes its pair.
+/**
+ * @param {boolean} [plain]
+ * @param {[string, string]} [wiredField]
+ */
+async function startFilters(plain = true, [formName, id] = WIRED_FIELDS[0]) {
   await reset({
     fields: [
       dropdown(
-        "filter1x",
+        formName,
         FILTERS.map(([label]) => label),
       ),
     ],
@@ -110,7 +127,7 @@ async function startFilters(plain = true) {
   nApod1x.value = "all";
   nQuality.value = 0;
   plainNames.value = plain;
-  return field("pcm_filter_1x");
+  return field(id);
 }
 
 /** The dd-opt rows of a render. */
@@ -209,6 +226,27 @@ test("test_a_rated_rows_whole_text_carries_no_empty_star_glyph", async () => {
   const out = await startFilters();
   assert.doesNotMatch(text(rowReading(out, "rated-three")), /☆/);
 });
+
+// The mirror for the filled glyph: with the dd-stars span's own reading taken
+// out of the row text once, no ★ remains — a star run leaked into the name
+// label itself (which a mark-stripping helper elsewhere would hide) leaves a
+// second run behind and fails here.
+test("test_a_rated_rows_text_outside_the_stars_span_carries_no_filled_star", async () => {
+  const out = await startFilters();
+  const row = rowReading(out, "rated-three");
+  assert.doesNotMatch(text(row).replace(text(onlyStarsOf(row)), ""), /★/);
+});
+
+// Every filter dropdown is wired, not just the PCM 1x slot the cases above
+// drive: the same rated fixture through the other three fields — PCM Nx and
+// the SDM chain's two — renders the same exact-content span. A wiring that
+// missed any one of them fails its case here.
+for (const wired of WIRED_FIELDS.slice(1)) {
+  test(`test_the_${wired[1]}_dropdowns_rated_row_shows_its_stars`, async () => {
+    const out = await startFilters(true, wired);
+    assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★");
+  });
+}
 
 test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
   const out = await startFilters();
