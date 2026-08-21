@@ -10,14 +10,24 @@ import { effective, isDirty, httpFieldMap, formFieldName } from "../store/resolv
 import { edit, setLive, autosave } from "../store/actions.js";
 import { refreshDevices } from "../store/sync.js";
 import { describe, selectedLabel } from "../store/prose.js";
-import { optionsFor, enumOptions, grayShapersByRate } from "../store/options.js";
+import { optionsFor, enumOptions, grayShapersByRate, stripRateSuffix } from "../store/options.js";
 import { grayRatesByDevice, grayModesByDevice } from "../store/narrow/devicecaps.js";
-import { narrowOptions, narrowCount } from "../store/narrow/match.js";
+import { narrowOptions, narrowCount, favOnlyModulators } from "../store/narrow/match.js";
 import { decorateOptions, plainClosedLabel } from "../store/plainnames.js";
 import { adviceNote, grayReason } from "../store/graying.js";
 import { truthy } from "../lib/coerce.js";
 import { notesVisible, descVisible, plainNames } from "../store/prefs.js";
-import { widgetFor, tipsFor, favFor, badgeFor, starsFor, collapseFor, FavoriteError, DescBlock } from "./binder.js";
+import {
+  widgetFor,
+  tipsFor,
+  favFor,
+  badgeFor,
+  starsFor,
+  tierFor,
+  collapseFor,
+  FavoriteError,
+  DescBlock,
+} from "./binder.js";
 import { Ask } from "./Ask.js";
 
 /**
@@ -136,7 +146,13 @@ function fieldOptions(entry, key, raw) {
   // below has anything to do to them.
   if (!options) return undefined;
   if (entry.narrow) options = narrowOptions(options, entry.narrow, key);
+  // The modulator dropdown's only narrowing: the favorites switch, against its
+  // own stars, and only when it has some (store/narrow/match.js).
+  if (entry.favKind === "modulators") options = favOnlyModulators(options);
   if (entry.rateGray) options = grayShapersByRate(options, entry.rateGray);
+  // The rate suffix in a modulator's name is what the row's tier badge says, so
+  // the row does not say it twice. Display only — `label` stays the raw name.
+  if (entry.rateGray === "sdm") options = stripRateSuffix(options);
   // Last, because it is about the hardware rather than the settings: what the
   // selected output device announced it can carry (store/narrow/devicecaps.js).
   if (entry.deviceGray === "mode") options = grayModesByDevice(options);
@@ -303,6 +319,7 @@ export function Field({ k }) {
           onFav=${onFav}
           badge=${badgeFor(entry)}
           stars=${starsFor(entry)}
+          tier=${tierFor(entry)}
           collapse=${collapseFor(entry)}
           min=${cfgConstraint(entry, "min")}
           max=${cfgConstraint(entry, "max")}

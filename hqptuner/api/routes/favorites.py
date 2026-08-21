@@ -14,13 +14,16 @@ router = APIRouter(prefix="/api")
 
 
 class FavoritesBody(BaseModel):
-    """The whole set of starred filter names for ``PUT /api/favorites``.
+    """The starred names for ``PUT /api/favorites`` — the filter set, the modulator set, or both.
 
-    A sibling surface keeps its own body (``models`` is the main surface's), and this one is a single field: the
-    client sends the set it wants stored, not a diff against the set it last read.
+    A sibling surface keeps its own body (``models`` is the main surface's). Each field the body carries is the whole
+    set the client wants stored for that kind, not a diff against the set it last read. A field the body omits is left
+    alone: absent means "not part of this write", never "empty it", so a client that knows only about filters cannot
+    wipe the modulator stars.
     """
 
-    filters: list[str]
+    filters: list[str] | None = None
+    modulators: list[str] | None = None
 
 
 def _store(request: Request) -> FavoriteStore:
@@ -30,26 +33,36 @@ def _store(request: Request) -> FavoriteStore:
 
 @router.get("/favorites")
 def favorites(request: Request) -> dict[str, list[str]]:
-    """Every starred filter name, sorted.
+    """Every starred filter and modulator name, each sorted.
 
     409 when the store on disk is stamped newer than this HQPTuner reads — an empty list would be a lie about a file
     that is there and full.
     """
+    store = _store(request)
     try:
-        return {"filters": _store(request).read()}
+        return {"filters": store.read(), "modulators": store.read_modulators()}
     except FavoriteSchemaError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.put("/favorites")
 def save_favorites(body: FavoritesBody, request: Request) -> dict[str, list[str]]:
-    """Replace the whole set of stars with the names given, and answer with what was stored.
+    """Replace the sets the body carries, and answer with both stored lists.
 
-    Whole-set replace: unstarring is a write without the name, so the client never needs a second route and two
-    browsers racing is last-write-wins rather than a merge nobody asked for.
+    Whole-set replace per kind: unstarring is a write without the name, so the client never needs a second route and
+    two browsers racing is last-write-wins rather than a merge nobody asked for. A kind the body omits is not written,
+    so the answer reports it as it already stood; a body naming neither kind is not a write at all and is refused
+    rather than answered with a silent no-op.
     """
+    store = _store(request)
+    if body.filters is None and body.modulators is None:
+        raise HTTPException(status_code=422, detail="favorites write names no set: send filters, modulators, or both")
     try:
-        return {"filters": _store(request).write(list(body.filters))}
+        if body.filters is not None:
+            store.write(list(body.filters))
+        if body.modulators is not None:
+            store.write_modulators(list(body.modulators))
+        return {"filters": store.read(), "modulators": store.read_modulators()}
     except FavoriteSchemaError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except FavoriteError as exc:

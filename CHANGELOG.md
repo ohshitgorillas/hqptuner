@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **The modulator dropdown gains favorites and rate-floor badges.** Modulator rows carry the same heart the filter rows do, on their own set of stars, and favorites-only narrowing reaches the modulator list only once a modulator is starred. A modulator that needs DSD256, DSD512 or DSD1024 and higher wears that tier in accent beside its name, and the name no longer repeats the rate.
+
 - **Filter rows show each filter's quality rating as stars.** Every row in the filter dropdowns, Simplified or Standard, carries the engine's relative quality rating as one to five filled stars beside its name. The favorite toggle becomes a heart so the two marks stay distinct, and the Favorites chip follows.
 
 - **Filter dropdowns badge apodizing; Simplified groups fold.** In both option styles, every apodizing filter row carries a circled accent A, half-apodizing a circled ½, beside its name; the three Simplified names that spelled out apodizing rely on the badge instead. Family and variant groups collapse and expand from their headers, and the folds persist across reloads.

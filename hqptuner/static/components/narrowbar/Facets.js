@@ -32,7 +32,7 @@ import {
   RATE_RULE_DEFAULT,
 } from "../../store/narrow/state.js";
 import { effHideLimited } from "../../store/narrow/match.js";
-import { favoriteFilters, nFavOnly } from "../../store/narrow/favorites.js";
+import { favoriteFilters, favoriteModulators, nFavOnly } from "../../store/narrow/favorites.js";
 
 // How a multi-select facet's picks combine, as the last row of its own popover:
 // the checkbox rows above are WHICH tags, this is HOW they join. A segment
@@ -181,11 +181,11 @@ function RateFacet() {
       <button
         type="button"
         class="multi-btn ${nFavOnly.value ? "active" : ""}"
-        disabled=${!favoriteFilters.value.size}
+        disabled=${!favoriteFilters.value.size && !favoriteModulators.value.size}
         title=${
-          favoriteFilters.value.size
-            ? "Show only the filters you favorited in the dropdowns below"
-            : "Favorite a filter below to enable"
+          favoriteFilters.value.size || favoriteModulators.value.size
+            ? "Show only the filters and modulators you favorited in the dropdowns below"
+            : "Favorite a filter or modulator below to enable"
         }
         onClick=${() => (nFavOnly.value = !nFavOnly.value)}
       >

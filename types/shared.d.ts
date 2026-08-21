@@ -185,6 +185,11 @@ interface SchemaField {
   // the `kind` argument of narrowOptions()/narrowCount() at Field.js:158,177 and
   // live.js:483,496 — which is why declaring it boolean broke live.js on its own.
   narrow?: string;
+  // Another DISCRIMINATOR: "filters" | "modulators", naming which favorites set
+  // this dropdown's stars write into. The four filter dropdowns share one set;
+  // the modulator dropdown has its own, and its list is narrowed by that set
+  // alone (binder.js favFor, Field.js/chains.js favOnlyModulators).
+  favKind?: string;
   // Render the number control as a slider (schema.js:685 and 7 more -> Field.js:302).
   slider?: boolean;
 

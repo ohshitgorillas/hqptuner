@@ -42,6 +42,47 @@ export function grayShapersByRate(options, kind) {
   });
 }
 
+// The DSD tier a modulator's rate floor names, as the row badge says it: "512+"
+// for a modulator that needs DSD512 or higher. Derived from the SAME
+// `min_rate_hz` the graying above reads rather than from the name, because four
+// modulators (AHM5EC5L, AHM7EC5L, AHM5EC8B, AHM7EC8B) carry a 40.96 MHz floor
+// and no rate in their name at all — a badge parsed out of the name would miss
+// exactly the 1024+ ones.
+//
+// The floors are not all exact multiples of a DSD base (20480000 is neither
+// 44.1k nor 48k times 512), so the tier is the nearest power of two to the
+// floor in DSD64 terms rather than an equality: 10.24 MHz reads 256+, 20.48 and
+// 22.5792 MHz read 512+, 40.96 MHz reads 1024+.
+const DSD_BASE_HZ = 44100;
+/**
+ * The tier text a modulator's rate floor names, or null for a modulator with no
+ * floor or no record in the shaper overlay.
+ * @param {string} name the raw engine name, the overlay's own join key
+ * @returns {string | null}
+ */
+export function modulatorTier(name) {
+  const shapers = metadata.value && metadata.value.shapers;
+  const entry = shapers && shapers.sdm_modulators && shapers.sdm_modulators[name];
+  const floor = entry && entry.min_rate_hz;
+  if (!floor) return null;
+  return `${2 ** Math.round(Math.log2(floor / DSD_BASE_HZ))}+`;
+}
+
+// The trailing rate in a modulator's engine name ("ASDM7EC-super 512+fs"), which
+// the row badge now says on its own. Stripped for DISPLAY only: `label` stays
+// the raw engine name, because every join in the app is by that name, and the
+// closed control keeps naming the selection in full.
+const RATE_SUFFIX = / \d+\+fs$/;
+/**
+ * Set each option's display text to its name without the trailing rate suffix.
+ * @template {{ label: string }} T
+ * @param {T[]} options
+ * @returns {(T | (T & { display: string }))[]}
+ */
+export function stripRateSuffix(options) {
+  return options.map((o) => (RATE_SUFFIX.test(o.label) ? { ...o, display: o.label.replace(RATE_SUFFIX, "") } : o));
+}
+
 // Live-enum option source (schema `optionsFrom: 'enum'` + `enumKey`), for the
 // 4321-lane controls that have no /config form field to take options from. The
 // running engine is the sole authority for names AND ordering (architecture §2), and

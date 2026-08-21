@@ -108,10 +108,12 @@ export const api = {
   saveLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "PUT"),
   applyLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}/apply`, "POST"),
   deleteLivePreset: (/** @type {string} */ name) => send(`/api/livepresets/${encodeURIComponent(name)}`, "DELETE"),
-  // Favorite filters — starred filter NAMES, stored for the install rather than
-  // for one browser. Whole-set replace: unstarring is a PUT without the name.
+  // Favorites — starred filter and modulator NAMES, stored for the install
+  // rather than for one browser. Whole-set replace per kind: unstarring is a PUT
+  // without the name, and a kind the body leaves out is left as it stands.
   favorites: () => getJSON("/api/favorites"),
-  saveFavorites: (/** @type {string[]} */ filters) => send("/api/favorites", "PUT", { filters }),
+  saveFavorites: (/** @type {{ filters?: string[], modulators?: string[] }} */ sets) =>
+    send("/api/favorites", "PUT", sets),
   // Narrow-bar facets — which filters the dropdowns offer, stored for the
   // install. Whole-bar replace: a facet left out comes back at its default.
   narrowing: () => getJSON("/api/narrowing"),

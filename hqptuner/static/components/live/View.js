@@ -25,7 +25,17 @@ import { plainClosedLabel } from "../../store/plainnames.js";
 import { notesVisible, descVisible, liveNarrowOpen, livePlaybackOpen, liveHealthOpen } from "../../store/prefs.js";
 import { Segment, Checkbox } from "../controls/index.js";
 import { widthClasses } from "../Field.js";
-import { widgetFor, tipsFor, favFor, badgeFor, starsFor, collapseFor, FavoriteError, DescBlock } from "../binder.js";
+import {
+  widgetFor,
+  tipsFor,
+  favFor,
+  badgeFor,
+  starsFor,
+  tierFor,
+  collapseFor,
+  FavoriteError,
+  DescBlock,
+} from "../binder.js";
 import { ChainPack } from "../ChainPack.js";
 import { NarrowBar } from "../narrowbar/Bar.js";
 import { PlaybackVolumeBody } from "../volume/Playback.js";
@@ -156,6 +166,7 @@ function LiveField({ control, widget }) {
           onFav=${onFav}
           badge=${badgeFor(entry)}
           stars=${starsFor(entry)}
+          tier=${tierFor(entry)}
           collapse=${collapseFor(entry)}
           disabled=${busy || !!control.disabled}
           onChange=${(/** @type {string} */ v) => writeLive(control.field, v)}

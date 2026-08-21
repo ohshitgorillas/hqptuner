@@ -19,7 +19,7 @@ import {
 } from "./state.js";
 import { computed } from "@preact/signals";
 import { filterFacets } from "./facets.js";
-import { favoriteFilters, nFavOnly } from "./favorites.js";
+import { favoriteFilters, favoriteModulators, nFavOnly } from "./favorites.js";
 import { effective } from "../resolve.js";
 
 // pcm_filter_1x / pcm_filter_nx → "pcm"; sdm_* → "sdm". Selects which side of a
@@ -193,7 +193,29 @@ const facetPass = (/** @type {string} */ label, /** @type {FilterFacet} */ f, /*
 // untouched, but favorites-only must still hide it. Keyed by option label —
 // the filter's name, the same key the facet overlay uses.
 const favPass = (/** @type {string} */ label, /** @type {Sel} */ sel) =>
-  !sel.favOnly || favoriteFilters.value.has(label);
+  !sel.favOnly || !favoriteFilters.value.size || favoriteFilters.value.has(label);
+
+/**
+ * The modulator options favorites-only narrowing keeps.
+ *
+ * A dropdown narrows against stars of its OWN kind, and a kind with nothing
+ * starred is not narrowed at all: with the switch engaged off modulator stars
+ * alone, the filter dropdowns stay whole (favPass above), and with it engaged
+ * off filter stars alone this list stays whole. An empty set would otherwise
+ * mean "keep nothing", which is a dropdown with no options in it — never what
+ * engaging a switch elsewhere on the page was asking for.
+ *
+ * Modulators carry no facets, so they never reach the facet checks; the star
+ * set is the whole of their narrowing.
+ * @template {NarrowOption} T
+ * @param {T[]} options
+ * @returns {T[]}
+ */
+export function favOnlyModulators(options) {
+  const stars = favoriteModulators.value;
+  if (!nFavOnly.value || !stars.size) return options;
+  return options.filter((o) => stars.has(o.label));
+}
 
 // The active selection snapshot. Number() on quality — the raw signal in
 // narrowingActive and this can disagree: a non-numeric value reads as active in
