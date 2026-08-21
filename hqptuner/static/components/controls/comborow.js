@@ -88,7 +88,7 @@ function Apod({ kind }) {
  * @param {{ o: RenderOption, i: number, apod: ApodClass, row: RowCtx }} props
  */
 function OptionRow({ o, i, apod, row }) {
-  const { open, hl, selIdx, id, stars, byKey, setHl, commit } = row;
+  const { open, hl, selIdx, id, fav, onFav, stars, byKey, setHl, commit } = row;
   const q = stars ? stars(o) : null;
   return html`
     <div
@@ -107,7 +107,24 @@ function OptionRow({ o, i, apod, row }) {
       <${Apod} kind=${apod} />
       <${Tier} o=${o} row=${row} />
       ${q == null ? null : html`<span class="dd-stars">${"★".repeat(q)}</span>`}
-      <${FavStar} o=${o} row=${row} />
+      ${
+        fav
+          ? html`<button
+              type="button"
+              class=${fav(o) ? "dd-fav on" : "dd-fav"}
+              aria-pressed=${!!fav(o)}
+              aria-label=${`${fav(o) ? "Unfavorite" : "Favorite"} ${o.label}`}
+              onClick=${(/** @type {Event} */ e) => {
+                // never reaches the row's own click — a star toggle must not
+                // commit the option or close the pop
+                if (e && e.stopPropagation) e.stopPropagation();
+                onFav?.(o); // the star only renders with `fav`, and callers pass the pair
+              }}
+            >
+              ${fav(o) ? "♥" : "♡"}
+            </button>`
+          : null
+      }
     </div>
   `;
 }
@@ -123,30 +140,6 @@ function Tier({ o, row }) {
   const t = row.tier ? row.tier(o) : null;
   if (t == null) return null;
   return html`<span class="dd-tier" role="img" aria-label=${`Needs DSD${t.slice(0, -1)} or higher`}>${t}</span>`;
-}
-
-// The favorite heart on an option row, for the dropdowns wired with the
-// fav/onFav pair. The click never reaches the row's own handler: a star toggle
-// must not commit the option or close the pop.
-/**
- * @param {{ o: RenderOption, row: RowCtx }} props
- */
-function FavStar({ o, row }) {
-  const { fav, onFav } = row;
-  if (!fav) return null;
-  const on = fav(o);
-  return html`<button
-    type="button"
-    class=${on ? "dd-fav on" : "dd-fav"}
-    aria-pressed=${!!on}
-    aria-label=${`${on ? "Unfavorite" : "Favorite"} ${o.label}`}
-    onClick=${(/** @type {Event} */ e) => {
-      if (e && e.stopPropagation) e.stopPropagation();
-      onFav?.(o); // the star only renders with `fav`, and callers pass the pair
-    }}
-  >
-    ${on ? "♥" : "♡"}
-  </button>`;
 }
 
 // A family or variant header: a plain presentation row without collapse
