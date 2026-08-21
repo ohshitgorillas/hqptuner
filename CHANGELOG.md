@@ -28,6 +28,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The favorite heart sits beside the stars rather than a wide gap away.** The five-star box holds one width whatever the rating, so a shorter run left the heart stranded past the empty remainder. The heart now sits in that space, and the badge column and star run hold the columns they had.
+
 - **Simplified dropdown rows line up under the group they belong to.** Header text, group blurb and option rows share one left edge per nesting level, with a single indent step between family and variant, and the apodizing badge, stars and heart hold fixed columns down the list instead of trailing labels of every length.
 
 - **The length facet no longer reads sinc-S and the sinc-M set as extra long.** Their descriptions name an ext2-xla or gauss-xl variant, which states the filter family rather than a length; sinc-S narrows as short, and sinc-M, sinc-Mx, sinc-MG and sinc-MGa carry no length, like the rest of the family documented by tap count alone.
