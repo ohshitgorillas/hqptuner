@@ -103,3 +103,6 @@ docs/guide/
 # local working data — EQ Lab saves and naming drafts, not repo content
 # (the shipped static data lives in hqptuner/data/)
 /data/
+
+# correspondence kept alongside the work it informs, never repo content
+/email*.txt
