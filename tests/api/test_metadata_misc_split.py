@@ -1,11 +1,13 @@
 """The catch-all filter family the filters overlay serves last.
 
-Three engine filter names — `none`, `FFT` and `ASRC` — share nothing beyond
-being unrelated to every resampling family, so the overlay files them together
-in one catch-all family and serves it after every other family: the entries
-dict's key order IS the dropdown display order. Every other family the overlay
-serves occupies its own contiguous run of that order, and the nine named
-resampling filters pinned here sit outside the catch-all.
+Two engine filter names — `none` and `ASRC` — share nothing beyond being
+unrelated to every resampling family, so the overlay files them together in one
+catch-all family and serves it after every other family: the entries dict's key
+order IS the dropdown display order. Nothing else is filed there; `FFT` in
+particular belongs to the FIR family (tests/api/test_metadata_conventional_family.py).
+Every other family the overlay serves occupies its own contiguous run of that
+order, and the ten named resampling filters pinned here sit outside the
+catch-all.
 
 The running engine stays the sole authority for the enumeration itself
 (docs/architecture.md §2) and the overlay joins to it by raw engine name, so
@@ -24,7 +26,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Raw engine names, not display copy.
-MISC_NAMES = ["none", "FFT", "ASRC"]
+MISC_NAMES = ["none", "ASRC"]
 
 NAMED_FAMILY_NAMES = [
     "IIR",
@@ -32,6 +34,7 @@ NAMED_FAMILY_NAMES = [
     "FIR",
     "asymFIR",
     "minphaseFIR",
+    "FFT",
     "polynomial-1",
     "polynomial-2",
     "minringFIR-mp",
@@ -55,12 +58,21 @@ def _families_in_served_order(entries: dict[str, dict[str, object]]) -> list[str
     return [_family_of(entries, name) for name in entries]
 
 
+def _family_members(entries: dict[str, dict[str, object]], anchor: str) -> set[str]:
+    """Every raw name the overlay files under the family the anchor is in."""
+    family = _family_of(entries, anchor)
+    return {name for name, entry in entries.items() if entry["family"] == family}
+
+
 # --- the catch-all family ----------------------------------------------------
 
 
-def test_the_three_unrelated_filters_share_one_family(api_client: TestClient) -> None:
+def test_the_catch_all_family_holds_exactly_its_two_unrelated_filters(api_client: TestClient) -> None:
+    # Membership is read off the payload rather than assumed from the two names,
+    # so a third row filed into the catch-all is a failure here and not an
+    # invisible extra.
     entries = _filter_entries(api_client)
-    assert len({_family_of(entries, name) for name in MISC_NAMES}) == 1
+    assert _family_members(entries, "none") == set(MISC_NAMES)
 
 
 def test_the_catch_all_family_serves_after_every_other_family(api_client: TestClient) -> None:

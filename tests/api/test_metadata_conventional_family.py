@@ -1,17 +1,21 @@
-"""The one FIR family the filters overlay splits into two variants.
+"""The one FIR family the filters overlay splits into three variants.
 
-Five engine filter names — `FIR`, `asymFIR`, `minphaseFIR`, `minringFIR-lp`
-and `minringFIR-mp` — are filed under a single family, split into exactly two
-variants: the first three share one, the last two share the other, and no other
-entry in the section carries either. Inside the family the three-filter variant
-serves ahead of the two-filter variant, `polynomial-1` and `polynomial-2` are
-filed elsewhere and serve after all five, and the section's family order runs
-`IIR`, this family, `poly-sinc-mp`, `sinc-L`, `closed-form`, `polynomial-1`,
-`none` — one anchor per family, seven distinct families. The entries dict's key
-order IS the dropdown display order, so ordering is read off that.
+Six engine filter names — `FIR`, `asymFIR`, `minphaseFIR`, `minringFIR-lp`,
+`minringFIR-mp` and `FFT` — are filed under a single family, split into exactly
+three variants: the first three share one, the next two share another, and
+`FFT` is the sole member of the third. No other entry in the section carries
+any of them. Inside the family the three-filter variant serves ahead of the
+two-filter variant; where the `FFT` variant falls among them is not pinned
+here, the spec does not fix it. `polynomial-1` and `polynomial-2` are filed
+elsewhere and serve after all six: they share a family with the four
+`closed-form*` names, and that merged family's membership and its two variants
+are pinned at the foot of this file. The section's family order runs `IIR`,
+this family, `poly-sinc-mp`, the closed-form family, `sinc-L`, `none` — one
+anchor per family, six distinct families. The entries dict's key order IS the
+dropdown display order, so ordering is read off that.
 
 Family and variant memberships are derived from the payload rather than from
-the five names above, so a sixth row filed into the family, or into either
+the six names above, so a seventh row filed into the family, or into any
 variant, is a failure here and not an invisible extra.
 
 That every family occupies one contiguous run of the order is pinned by
@@ -36,12 +40,15 @@ from fastapi.testclient import TestClient
 # Raw engine names, not display copy.
 CONVENTIONAL = ["FIR", "asymFIR", "minphaseFIR"]
 MIN_RINGING = ["minringFIR-mp", "minringFIR-lp"]
-FIR_NAMES = CONVENTIONAL + MIN_RINGING
+FFT_ONLY = ["FFT"]
+FIR_NAMES = CONVENTIONAL + MIN_RINGING + FFT_ONLY
 
+CLOSED_FORM = ["closed-form", "closed-form-fast", "closed-form-M", "closed-form-16M"]
 POLYNOMIALS = ["polynomial-1", "polynomial-2"]
+CLOSED_FORM_FAMILY = CLOSED_FORM + POLYNOMIALS
 
 # One raw name per family, in the order the overlay serves those families.
-FAMILY_ANCHORS = ["IIR", "FIR", "poly-sinc-mp", "sinc-L", "closed-form", "polynomial-1", "none"]
+FAMILY_ANCHORS = ["IIR", "FIR", "poly-sinc-mp", "closed-form", "sinc-L", "none"]
 
 
 def _entries(client: TestClient) -> dict[str, dict[str, object]]:
@@ -74,20 +81,25 @@ def _variant_members(entries: dict[str, dict[str, object]], anchor: str) -> set[
     return {name for name, entry in entries.items() if entry["variant"] == variant}
 
 
-# --- one family, two variants -------------------------------------------------
+# --- one family, three variants -----------------------------------------------
 
 
-def test_the_five_fir_filters_share_one_family(api_client: TestClient) -> None:
+def test_the_six_fir_filters_share_one_family(api_client: TestClient) -> None:
     entries = _entries(api_client)
     assert len({str(_family_of(entries, name)) for name in FIR_NAMES}) == 1
 
 
-def test_the_fir_family_carries_exactly_two_variants(api_client: TestClient) -> None:
+def test_the_fir_family_carries_exactly_three_variants(api_client: TestClient) -> None:
     # The family's membership is read off the payload, not assumed from the
-    # five names below: a sixth row filed into it under a third variant is a
+    # six names below: a seventh row filed into it under a fourth variant is a
     # violation this test has to see.
     entries = _entries(api_client)
-    assert len({str(_variant_of(entries, name)) for name in _family_members(entries, "FIR")}) == 2
+    assert len({str(_variant_of(entries, name)) for name in _family_members(entries, "FIR")}) == 3
+
+
+def test_the_fir_family_holds_exactly_its_six_filters(api_client: TestClient) -> None:
+    entries = _entries(api_client)
+    assert _family_members(entries, "FIR") == set(FIR_NAMES)
 
 
 def test_the_conventional_fir_variant_holds_exactly_its_three_filters(api_client: TestClient) -> None:
@@ -100,10 +112,15 @@ def test_the_minimum_ringing_fir_variant_holds_exactly_its_two_filters(api_clien
     assert _variant_members(entries, "minringFIR-mp") == set(MIN_RINGING)
 
 
+def test_the_fft_variant_holds_exactly_that_one_filter(api_client: TestClient) -> None:
+    entries = _entries(api_client)
+    assert _variant_members(entries, "FFT") == set(FFT_ONLY)
+
+
 @pytest.mark.parametrize("name", FIR_NAMES)
 def test_an_fir_filter_carries_a_variant(api_client: TestClient, name: str) -> None:
-    # Both variants of the family are real values, so no row of it falls back
-    # to the family-only (null-variant) shape.
+    # All three variants of the family are real values, so no row of it falls
+    # back to the family-only (null-variant) shape.
     assert _variant_of(_entries(api_client), name) is not None
 
 
@@ -112,7 +129,7 @@ def test_an_fir_filter_carries_a_variant(api_client: TestClient, name: str) -> N
 
 def test_every_conventional_fir_row_serves_before_every_minimum_ringing_row(api_client: TestClient) -> None:
     # Both variants' rows are derived from the payload, so a row filed into
-    # either variant out of place is caught, not just the five named ones.
+    # either variant out of place is caught, not just the six named ones.
     entries = _entries(api_client)
     order = _order(entries)
     assert max(order[n] for n in _variant_members(entries, "FIR")) < min(
@@ -120,7 +137,7 @@ def test_every_conventional_fir_row_serves_before_every_minimum_ringing_row(api_
     )
 
 
-# --- the polynomial filters sit elsewhere, and later --------------------------
+# --- the closed-form family, polynomials included -----------------------------
 
 
 @pytest.mark.parametrize("name", POLYNOMIALS)
@@ -135,6 +152,29 @@ def test_a_polynomial_filter_is_filed_outside_the_fir_family(api_client: TestCli
 def test_both_polynomial_filters_serve_after_every_fir_row(api_client: TestClient) -> None:
     order = _order(_entries(api_client))
     assert min(order[name] for name in POLYNOMIALS) > max(order[name] for name in FIR_NAMES)
+
+
+def test_the_closed_form_family_holds_exactly_its_six_filters(api_client: TestClient) -> None:
+    # Membership is read off the payload, so a seventh row filed in alongside
+    # the four closed-form names and the two polynomials is caught here.
+    entries = _entries(api_client)
+    assert _family_members(entries, "closed-form") == set(CLOSED_FORM_FAMILY)
+
+
+def test_the_closed_form_family_carries_exactly_two_variants(api_client: TestClient) -> None:
+    entries = _entries(api_client)
+    members = _family_members(entries, "closed-form")
+    assert len({str(_variant_of(entries, name)) for name in members}) == 2
+
+
+def test_the_closed_form_variant_holds_exactly_its_four_filters(api_client: TestClient) -> None:
+    entries = _entries(api_client)
+    assert _variant_members(entries, "closed-form") == set(CLOSED_FORM)
+
+
+def test_the_polynomial_variant_holds_exactly_its_two_filters(api_client: TestClient) -> None:
+    entries = _entries(api_client)
+    assert _variant_members(entries, "polynomial-1") == set(POLYNOMIALS)
 
 
 # --- family display order -----------------------------------------------------

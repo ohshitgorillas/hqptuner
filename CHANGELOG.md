@@ -4,6 +4,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **FFT joins the Conventional family as a Brickwall variant.** The frequency-domain filter leaves Misc, which now holds no resampling and asynchronous rate conversion alone, and the Conventional family caption and its Classic oversampling blurb are reworded.
+
+- **Closed form and Polynomial merge into one Interpolation family.** The two become variants of a single family captioned "Direct interpolation maintains the original samples", so the Simplified filter dropdowns list Analog-style, Conventional, Polyphase sinc, Interpolation, Pure sinc, then Misc.
+
 ## [1.11.0] — 2026-08-21
 
 ### Added
