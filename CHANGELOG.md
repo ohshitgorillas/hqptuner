@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.11.0] — 2026-08-21
+
 ### Added
 
 - **The modulator dropdown gains favorites and rate-floor badges.** Modulator rows carry the same heart the filter rows do, on their own set of stars, and favorites-only narrowing reaches the modulator list only once a modulator is starred. A modulator that needs DSD256, DSD512 or DSD1024 and higher wears that tier in accent beside its name, and the name no longer repeats the rate.
