@@ -30,19 +30,13 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
-- **The filter dropdown no longer carries dead space past the heart.** Pulling the heart in toward the stars left an equal empty margin at the row's right edge, widening the open list for nothing. The list is that much narrower now, with every label, badge, star and heart holding the position it had.
-
-- **The favorite heart sits beside the stars rather than a wide gap away.** The five-star box holds one width whatever the rating, so a shorter run left the heart stranded past the empty remainder. The heart now sits in that space, and the badge column and star run hold the columns they had.
-
 - **Simplified dropdown rows line up under the group they belong to.** Header text, group blurb and option rows share one left edge per nesting level, with a single indent step between family and variant, and the apodizing badge, stars and heart hold fixed columns down the list instead of trailing labels of every length.
 
 - **The length facet no longer reads sinc-S and the sinc-M set as extra long.** Their descriptions name an ext2-xla or gauss-xl variant, which states the filter family rather than a length; sinc-S narrows as short, and sinc-M, sinc-Mx, sinc-MG and sinc-MGa carry no length, like the rest of the family documented by tap count alone.
 
-- **The half-band blurb says the response reaches the cutoff.** It read "reaches close to the cutoff", understating where the corner actually sits.
-
 - **Simplified filter names state linear phase where HQPlayer documents it.** The half-band, Ext2, Gaussian and Gaussian half-band poly-sinc families read as linear phase in their Simplified entries, matching the phase already shown for the lp/ip/mp variants.
 
-- **The Gaussian variant blurbs no longer suggest softened transients.** The Gaussian entries now read "cleanest transients", and the Gaussian half-band entry "Gaussian character", correcting wording that implied slower edges rather than the absence of transient artifacts.
+- **The Simplified blurbs describe the half-band corner and the Gaussian character accurately.** The half-band entry read "reaches close to the cutoff", understating where the corner sits, and now says the response reaches it. The Gaussian entries read "cleanest transients" and the Gaussian half-band entry "Gaussian character", in place of wording that implied slower edges rather than the absence of transient artifacts.
 
 ## [1.10.0] — 2026-08-18
 
