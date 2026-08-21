@@ -15,11 +15,13 @@
 // feel broken far more often than the write actually fails. A failure puts the
 // set back and says so under the dropdown.
 //
-// The favorites-only narrowing switch lives HERE beside the set (narrowing.js
-// re-exports it): removing the last star must turn the switch off — the narrow
-// bar grays the toggle at zero favorites, and a grayed control must not hold an
-// engaged state — and keeping both in one module does that without an import
-// cycle. It is session state, never persisted anywhere.
+// The favorites-only narrowing switch lives HERE beside the sets (narrowing.js
+// re-exports it): removing the last star of BOTH kinds must turn the switch off
+// — the narrow bar grays the toggle when nothing at all is starred, and a
+// grayed control must not hold an engaged state — and keeping switch and sets
+// in one module does that without an import cycle. Emptying one kind while the
+// other still holds a star leaves the switch alone, because it still narrows
+// something. It is session state, never persisted anywhere.
 //
 // Module load stays node-safe like prefs.js: the hydrate is guarded on `fetch`
 // existing and swallows its own failure, so importing this in the SSR harness
@@ -33,6 +35,12 @@ import { errText } from "../../lib/errtext.js";
 const LEGACY_KEY = "hqptuner.favoriteFilters";
 
 export const favoriteFilters = signal(new Set());
+// The modulator stars, a second set on the same terms and in the same file
+// server-side. Separate rather than one pooled set of names because the
+// narrowing rule reads them separately: a dropdown narrows only against stars
+// of its own kind, so "is anything starred here" has to be answerable per kind
+// (store/narrow/match.js).
+export const favoriteModulators = signal(new Set());
 export const nFavOnly = signal(false);
 // The last failed write, as the server's own sentence. One error for the whole
 // feature, latest wins: there is one set, and a second toggle clears whatever
@@ -84,11 +92,14 @@ export async function hydrateFavorites() {
     const body = await api.favorites();
     const stored = body.filters || [];
     favoriteFilters.value = new Set(stored);
+    favoriteModulators.value = new Set(body.modulators || []);
     const legacy = legacyNames();
     // No legacy key is the steady state — every load after the first — and it
     // must not write, or every page open would PUT the list back unchanged.
     if (!legacy.length) return;
-    const saved = await api.saveFavorites([...new Set([...stored, ...legacy])]);
+    // Filters only: the legacy key predates modulator stars, so the migration
+    // names that one kind and leaves the modulator set untouched.
+    const saved = await api.saveFavorites({ filters: [...new Set([...stored, ...legacy])] });
     favoriteFilters.value = new Set(saved.filters || []);
     dropLegacy();
   } catch (e) {
@@ -113,18 +124,59 @@ export function isFavorite(name) {
  * @returns {Promise<void>}
  */
 export async function toggleFavorite(name) {
-  const before = favoriteFilters.value;
+  await toggleIn(favoriteFilters, "filters", name);
+}
+
+/**
+ * Whether a modulator name is starred.
+ * @param {string} name
+ * @returns {boolean}
+ */
+export function isFavoriteModulator(name) {
+  return favoriteModulators.value.has(name);
+}
+
+/**
+ * Star or unstar a modulator name, on the same terms as a filter star.
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
+export async function toggleFavoriteModulator(name) {
+  await toggleIn(favoriteModulators, "modulators", name);
+}
+
+// The favorites-only switch is one switch over both sets, so it goes off only
+// when NOTHING is starred anywhere: emptying the modulator stars while a filter
+// star remains leaves a switch that still narrows something, and turning it off
+// there would undo narrowing the user never asked to lose.
+/** @returns {void} */
+function syncFavOnly() {
+  if (!favoriteFilters.value.size && !favoriteModulators.value.size) nFavOnly.value = false;
+}
+
+/**
+ * Toggle one name in one of the two star sets and store the resulting set. A
+ * refused write puts that set back the way it was and leaves the server's
+ * sentence in `favoritesError`; the other set is never named in the write, so
+ * it cannot be disturbed by either outcome.
+ * @param {{ value: Set<string> }} set the star set's own signal
+ * @param {string} kind "filters" | "modulators" — the field the write names
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
+async function toggleIn(set, kind, name) {
+  const before = set.value;
   const next = new Set(before);
   if (next.has(name)) next.delete(name);
   else next.add(name);
-  favoriteFilters.value = next;
-  if (!next.size) nFavOnly.value = false;
+  set.value = next;
+  syncFavOnly();
   favoritesError.value = "";
   try {
-    await api.saveFavorites([...next]);
+    await api.saveFavorites({ [kind]: [...next] });
   } catch (e) {
-    favoriteFilters.value = before;
-    if (!before.size) nFavOnly.value = false;
+    set.value = before;
+    syncFavOnly();
     favoritesError.value = errText(e);
   }
 }

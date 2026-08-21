@@ -5,8 +5,8 @@
 // somewhere other than the enumerations.
 
 import { runningValue } from "../resolve.js";
-import { optionsFor, grayShapersByRate } from "../options.js";
-import { narrowOptions, narrowCount } from "../narrow/match.js";
+import { optionsFor, grayShapersByRate, stripRateSuffix } from "../options.js";
+import { narrowOptions, narrowCount, favOnlyModulators } from "../narrow/match.js";
 import { decorateOptions } from "../plainnames.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
 
@@ -46,7 +46,9 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
  * @returns {MenuOption[]}
  */
 function chainOptions(c, raw) {
-  const options = c.entry.rateGray ? grayShapersByRate(raw, c.entry.rateGray) : raw;
+  const starred = c.entry.favKind === "modulators" ? favOnlyModulators(raw) : raw;
+  const grayed = c.entry.rateGray ? grayShapersByRate(starred, c.entry.rateGray) : starred;
+  const options = c.entry.rateGray === "sdm" ? stripRateSuffix(grayed) : grayed;
   const narrowed = c.entry.narrow ? narrowOptions(options, c.entry.narrow, c.key) : options;
   // Decoration runs last of all: narrowing and graying join by raw label
   // (store/plainnames.js) and must never see the transform.

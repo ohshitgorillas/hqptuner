@@ -234,10 +234,27 @@ button.dd-hdr[aria-expanded="false"]::before {
   font-size: var(--fs-label);
   white-space: nowrap;
 }
+/* Per-row rate floor (modulator dropdown): the DSD tier a modulator needs,
+   read off the shaper overlay. A read like the stars beside it, not a control,
+   but accented rather than muted — it is the one thing on the row that can make
+   the option unselectable at the current output rate, and the gray-out it
+   predicts is the row's own state rather than a rating. Fixed box so the tiers
+   line up in a column whatever their width. */
+.dd-tier {
+  margin-left: auto;
+  min-width: calc(var(--fs-label) * 3);
+  color: var(--accent);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
 /* Only the leftmost member of the cluster takes the auto margin — a second
    one would split the leftover space and blow a gap through the middle. */
 .dd-apod ~ .dd-stars,
-.dd-apod ~ .dd-fav {
+.dd-apod ~ .dd-tier,
+.dd-apod ~ .dd-fav,
+.dd-tier ~ .dd-stars,
+.dd-tier ~ .dd-fav {
   margin-left: 0;
 }
 /* The star box is a five-star box whatever the rating, so a shorter run leaves

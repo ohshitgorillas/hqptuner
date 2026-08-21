@@ -63,7 +63,6 @@ ALLOWANCE: dict[str, int] = {
     "hqptuner/static/css/features/volume.css": 407,
     "hqptuner/static/store/actions.js": 406,
     "scripts/eqlab/chain.js": 405,
-    "hqptuner/static/components/controls/Combobox.js": 404,
 }
 
 

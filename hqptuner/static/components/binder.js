@@ -8,16 +8,24 @@ import { optionDescription, selectionDescription, selectedLabel } from "../store
 import { plainTrueName } from "../store/plainnames.js";
 import { collapsedGroups, toggleCollapsedGroup } from "../store/prefs.js";
 import { filterFacets } from "../store/narrow/facets.js";
-import { isFavorite, toggleFavorite, favoritesError } from "../store/narrow/favorites.js";
+import {
+  isFavorite,
+  toggleFavorite,
+  isFavoriteModulator,
+  toggleFavoriteModulator,
+  favoritesError,
+} from "../store/narrow/favorites.js";
+import { modulatorTier } from "../store/options.js";
 import { Segment, Dropdown, NumberBox, TextBox, Checkbox, Slider, SliderNumber, RadioGroup } from "./controls/index.js";
 import { Combobox } from "./controls/Combobox.js";
 import { filterTipFacets } from "./narrowbar/facettip.js";
 import { Knob } from "./Knob.js";
 
 /**
- * @typedef {SchemaField & { narrow?: string, slider?: boolean }} FieldEntry
+ * @typedef {SchemaField & { narrow?: string, favKind?: string, slider?: boolean }} FieldEntry
  *   One schema catalog entry. `narrow` (which facet family a filter dropdown
- *   narrows on) and `slider` (knob variant switch) are on the catalog entries in
+ *   narrows on), `favKind` (which favorites set this dropdown's stars write
+ *   into) and `slider` (knob variant switch) are on the catalog entries in
  *   store/schema.js but not on the ambient `SchemaField`, so they are added here.
  *   Two more fields on that declaration disagree with the catalog and are NOT
  *   patched here, because a local override would stop a FieldEntry being a
@@ -71,17 +79,36 @@ export const tipsFor = (entry, meta) =>
       })
     : undefined;
 /**
- * Builds the favorite-star wiring for the filter dropdowns (`narrow`-carrying
- * entries), keyed by option label = filter name (store/narrow/favorites.js); undefined
- * everywhere else, so dither/modulator comboboxes render starless.
+ * Builds the favorite-star wiring for the dropdowns that carry stars, keyed by
+ * option label = engine name (store/narrow/favorites.js). `favKind` names which
+ * set the star writes into — the filter dropdowns share one, the modulator
+ * dropdown has its own — and an entry without it renders starless, which is
+ * every other control including the dither combobox.
  */
-export const favFor = (/** @type {FieldEntry} */ entry) =>
-  entry.narrow
+export const favFor = (/** @type {FieldEntry} */ entry) => {
+  if (entry.favKind === "modulators") {
+    return {
+      fav: (/** @type {OptionItem} */ o) => isFavoriteModulator(o.label),
+      onFav: (/** @type {OptionItem} */ o) => toggleFavoriteModulator(o.label),
+    };
+  }
+  return entry.favKind === "filters"
     ? {
         fav: (/** @type {OptionItem} */ o) => isFavorite(o.label),
         onFav: (/** @type {OptionItem} */ o) => toggleFavorite(o.label),
       }
     : undefined;
+};
+
+/**
+ * Builds the rate-tier badge resolver for the modulator dropdown — the DSD tier
+ * a modulator's floor names, read off the shaper overlay by the same name join
+ * the graying uses (store/options.js). Undefined for every other control, so
+ * filter and dither rows carry no tier.
+ * @type {(entry: FieldEntry) => ((o: SchemaOption) => string | null) | undefined}
+ */
+export const tierFor = (/** @type {FieldEntry} */ entry) =>
+  entry.rateGray === "sdm" ? (/** @type {SchemaOption} */ o) => modulatorTier(o.label) : undefined;
 
 /**
  * Builds the apodizing-badge resolver for the filter dropdowns (`narrow`-carrying
@@ -133,13 +160,13 @@ export const collapseFor = (entry) => {
 
 /**
  * A refused favorites write, under the dropdown whose star did not stick. Only
- * the star-carrying (`narrow`) dropdowns render it, for the same reason only
- * they render stars — there is one set and one error, and repeating it under a
- * dither combobox would put it beside a control that cannot cause it.
+ * the star-carrying (`favKind`) dropdowns render it, for the same reason only
+ * they render stars — there is one error for the whole feature, and repeating
+ * it under a dither combobox would put it beside a control that cannot cause it.
  * @param {{ entry: FieldEntry }} props
  */
 export function FavoriteError({ entry }) {
-  if (!entry.narrow || !favoritesError.value) return null;
+  if (!entry.favKind || !favoritesError.value) return null;
   return html`<div class="field-error">${favoritesError.value}</div>`;
 }
 

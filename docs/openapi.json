@@ -137,19 +137,37 @@
         "type": "object"
       },
       "FavoritesBody": {
-        "description": "The whole set of starred filter names for ``PUT /api/favorites``.\n\nA sibling surface keeps its own body (``models`` is the main surface's), and this one is a single field: the\nclient sends the set it wants stored, not a diff against the set it last read.",
+        "description": "The starred names for ``PUT /api/favorites`` \u2014 the filter set, the modulator set, or both.\n\nA sibling surface keeps its own body (``models`` is the main surface's). Each field the body carries is the whole\nset the client wants stored for that kind, not a diff against the set it last read. A field the body omits is left\nalone: absent means \"not part of this write\", never \"empty it\", so a client that knows only about filters cannot\nwipe the modulator stars.",
         "properties": {
           "filters": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Filters",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters"
+          },
+          "modulators": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modulators"
           }
         },
-        "required": [
-          "filters"
-        ],
         "title": "FavoritesBody",
         "type": "object"
       },
@@ -867,7 +885,7 @@
     },
     "/api/favorites": {
       "get": {
-        "description": "Every starred filter name, sorted.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 an empty list would be a lie about a file\nthat is there and full.",
+        "description": "Every starred filter and modulator name, each sorted.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 an empty list would be a lie about a file\nthat is there and full.",
         "operationId": "favorites_api_favorites_get",
         "responses": {
           "200": {
@@ -891,7 +909,7 @@
         "summary": "Favorites"
       },
       "put": {
-        "description": "Replace the whole set of stars with the names given, and answer with what was stored.\n\nWhole-set replace: unstarring is a write without the name, so the client never needs a second route and two\nbrowsers racing is last-write-wins rather than a merge nobody asked for.",
+        "description": "Replace the sets the body carries, and answer with both stored lists.\n\nWhole-set replace per kind: unstarring is a write without the name, so the client never needs a second route and\ntwo browsers racing is last-write-wins rather than a merge nobody asked for. A kind the body omits is not written,\nso the answer reports it as it already stood; a body naming neither kind is not a write at all and is refused\nrather than answered with a silent no-op.",
         "operationId": "save_favorites_api_favorites_put",
         "requestBody": {
           "content": {

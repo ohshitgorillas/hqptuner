@@ -1,7 +1,8 @@
-"""Favorite filters — the stars the user put on filter names, kept for the install rather than for one browser.
+"""Favorites — the stars the user put on filter and modulator names, kept for the install rather than for one browser.
 
-A favorite is a filter NAME, never an enum id: the running engine owns ids and ordering, names are the stable join key
-(architecture §2), so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives re-enumeration.
+A favorite is a NAME, never an enum id: the running engine owns ids and ordering, names are the stable join key
+(architecture §2), so one list serves all four filter dropdowns (pcm/sdm x 1x/nx) and survives re-enumeration. The
+modulator set is a second list on the same terms, serving the one modulator dropdown wherever it is rendered.
 
 Stored as one JSON file beside the live presets, and for the same reason: the whole store is a couple of hundred short
 strings, so a file per star would be all overhead. Layout follows ``store.live``'s conventions — a schema stamp that
@@ -26,6 +27,13 @@ if TYPE_CHECKING:
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
 # refused rather than guessed at. An unstamped file predates the stamp and is adopted as schema 1 on its next write.
 _SCHEMA = 1
+
+# The two independent sets the file holds, each a list of engine-reported names. They live in one file because they
+# are one feature and one user gesture, and each write carries the other kind through untouched, so starring a
+# modulator never disturbs a filter star. Adding ``modulators`` did NOT move the stamp: ``filters`` still means what
+# it meant, so an older HQPTuner reading this file reads the filter stars correctly and simply cannot see the
+# modulator ones — better than refusing a store it can still understand.
+_KINDS = ("filters", "modulators")
 
 # Ceilings on what a client may store. Far past any real list (144 filters exist, none longer than 32 characters),
 # close enough to keep a misbehaving client from growing the file without bound.
@@ -90,21 +98,38 @@ class FavoriteStore:
             )
         return data
 
-    def read(self) -> list[str]:
-        """Every starred filter name, deduplicated and sorted. Empty when nothing is stored."""
-        stored = self._read_file().get("filters")
+    def _read_kind(self, kind: str) -> list[str]:
+        """Every starred name under ``kind``, deduplicated and sorted."""
+        stored = self._read_file().get(kind)
         if not isinstance(stored, list):
             return []
         return sorted({name for name in stored if isinstance(name, str) and name})
 
+    def _write_kind(self, kind: str, names: list[str]) -> list[str]:
+        """Replace the set under ``kind`` and return what was stored, carrying the other kind through untouched."""
+        stored = _validate(names)
+        data = self._read_file()
+        keep = {k: data.get(k) for k in _KINDS if k != kind and isinstance(data.get(k), list)}
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._path.write_text(json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2))
+        return stored
+
+    def read(self) -> list[str]:
+        """Every starred filter name, deduplicated and sorted. Empty when nothing is stored."""
+        return self._read_kind("filters")
+
     def write(self, names: list[str]) -> list[str]:
-        """Replace the whole set with ``names`` and return what was stored.
+        """Replace the whole filter set with ``names`` and return what was stored, leaving the modulators alone.
 
         Whole-set replace, because the client's state is a set: unstarring is a write without the name. Guards the
         schema first — a store we cannot read is not one we should be writing into.
         """
-        stored = _validate(names)
-        self._read_file()
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "filters": stored}, indent=2))
-        return stored
+        return self._write_kind("filters", names)
+
+    def read_modulators(self) -> list[str]:
+        """Every starred modulator name, deduplicated and sorted. Empty when nothing is stored."""
+        return self._read_kind("modulators")
+
+    def write_modulators(self, names: list[str]) -> list[str]:
+        """Replace the whole modulator set with ``names`` and return what was stored, leaving the filters alone."""
+        return self._write_kind("modulators", names)
