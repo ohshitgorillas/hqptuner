@@ -190,6 +190,18 @@ button.dd-hdr[aria-expanded="false"]::before {
 .dd-vgrp {
   margin-left: var(--sp-3);
 }
+/* Every row is as wide as the WIDEST row, not the pop, so the auto-margin
+   cluster on their right (badges, stars, heart) lands on one column: block rows
+   size to the pop's client width, which diverges from the widest row as soon as
+   an expanded group overflows. Nested containers repeat the column for their
+   indented rows. Open state only — the pop is hidden-not-unmounted and an
+   explicit `display` outranks the UA's `[hidden] { display: none }`. */
+.dd-pop:not([hidden]),
+.dd-grp,
+.dd-vgrp {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr);
+}
 .dd-grp .dd-opt {
   padding-left: calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
 }
@@ -242,9 +254,33 @@ button.dd-hdr[aria-expanded="false"]::before {
    line up in a column whatever their width. */
 .dd-tier {
   margin-left: auto;
-  min-width: calc(var(--fs-label) * 3);
+  /* boxed like the apodizing circle beside it, so the two row markings read as
+     one family: same 1px stroke in the same accent, lightly rounded rather than
+     round because the text inside is three or four characters wide. The fixed
+     box width is what lines the boxes up in a column whatever tier they name,
+     and the text centers in it. */
+  display: inline-flex;
+  flex: none;
+  /* both axes: the digits center between the side borders and between the top
+     and bottom ones. Without the vertical half the glyphs sit on the text
+     baseline the row set and the box looks hung slightly low. */
+  align-items: center;
+  justify-content: center;
+  /* Centers the badge's INK, not its box, in em so it holds at any type size.
+     Two Inter 600 offsets: a tier carries no descender, so its ink rides
+     0.082em above the line box centre, and its bearings are unequal (0.045em
+     before the leading digit, 0.078em after the plus), leaving the ink 0.041em
+     left of the advance centre. Top and left carry both; bottom and right give
+     them back. One correction serves every tier — each opens on a digit and
+     closes on the plus. The box then sits 0.396em off the ink on all four
+     sides, which is what makes the sides read the same as the top and bottom;
+     the side values differ from each other only by the bearings they absorb. */
+  padding: 0.362em 0.267em 0.198em 0.351em; /* token-exempt: glyph-metric centering of the badge's ink, not spacing between anything */
+  line-height: 1;
+  border: 1px solid currentColor;
+  border-radius: var(--r-sm);
   color: var(--accent);
-  font-size: var(--fs-label);
+  font-size: var(--fs-micro);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
