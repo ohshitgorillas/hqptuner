@@ -117,12 +117,18 @@
    makes the subheader's sticky offset exactly one header. The sticky repaint
    of --surface-raised is occlusion of the pop's own surface, not elevation, so
    it carries no edge light (see aesthetic.css). */
+/* Every row in a group — header, blurb, option — starts its text on one left
+   edge per nesting level: the header's own text edge, so its rows read as
+   belonging to it. The header's left padding holds a fixed caret gutter and
+   the caret sits in it absolutely, so the collapse-wired and presentation
+   header forms share that edge — an in-flow glyph shifts only the form that
+   has one. */
 .dd-hdr {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
   height: var(--sp-5);
-  padding: 0 var(--sp-2);
+  padding: 0 var(--sp-2) 0 calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
   white-space: nowrap;
   position: sticky;
   top: 0;
@@ -150,6 +156,10 @@ button.dd-hdr::before {
   /* disclosure triangle role size, same as .card-head .tri (cards.css) */
   font-size: var(--fs-glyph);
   line-height: 1;
+  position: absolute;
+  left: var(--sp-2);
+  top: 50%;
+  transform: translateY(-50%);
 }
 button.dd-hdr[aria-expanded="false"]::before {
   content: "▸";
@@ -167,19 +177,21 @@ button.dd-hdr[aria-expanded="false"]::before {
    intrinsic width so a long blurb wraps at the width the option rows set
    instead of widening the whole pop. */
 .dd-blurb {
-  padding: 0 var(--sp-2) var(--sp-1);
+  padding: 0 var(--sp-2) var(--sp-1) calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
   contain: inline-size;
 }
-/* One indentation step per level: bare rows and variant containers step in
-   under their family header, option rows step in again under their variant.
-   Horizontal margins, so the sticky subheader's paint starts at its own
-   indent and the rows visibly nest inside it. */
-.dd-grp > .dd-opt,
+/* One indentation step per level, and it is spent by the container alone: a
+   variant container steps in under its family header, so its subheader and
+   rows land one step right of the family's text edge. Rows themselves never
+   add a step — they take the header gutter as padding instead, which puts
+   their text on their own header's text edge rather than a fourth left edge
+   of their own. Horizontal margin on the container, so the sticky subheader's
+   paint starts at its own indent. */
 .dd-vgrp {
   margin-left: var(--sp-3);
 }
-.dd-vgrp .dd-opt {
-  margin-left: var(--sp-3);
+.dd-grp .dd-opt {
+  padding-left: calc(var(--sp-2) + var(--sp-3) + var(--sp-1));
 }
 /* Apodizing badge (filter dropdowns): circled A for full, ½ for half, on a
    row or hoisted onto a uniform group's header. Accent by owner's spec — the
@@ -188,6 +200,9 @@ button.dd-hdr[aria-expanded="false"]::before {
 .dd-apod {
   display: inline-flex;
   flex: none;
+  /* the badge anchors the row's right-hand cluster, so badges line up in a
+     column instead of trailing labels of every length */
+  margin-left: auto;
   width: calc(var(--fs-micro) * 1.5);
   height: calc(var(--fs-micro) * 1.5);
   color: var(--accent);
@@ -207,16 +222,28 @@ button.dd-hdr[aria-expanded="false"]::before {
   fill: currentColor;
 }
 /* Per-row quality stars (Simplified filter dropdowns): rating read, not a
-   control — always muted, pushed against the favorite heart's edge. */
+   control — always muted, sitting in the row's right-hand cluster. The box is
+   a fixed five-star width whatever the rating, so it is the same box on every
+   row: the badge column to its left and the heart to its right each hold one
+   x, and the run itself starts on one left edge. Width tracks the star's own
+   type size, not the spacing scale. */
 .dd-stars {
   margin-left: auto;
+  min-width: calc(var(--fs-label) * 6.5);
   color: var(--muted);
   font-size: var(--fs-label);
   white-space: nowrap;
 }
-/* With stars in the row they take the auto margin; the heart falls back to
-   the row's own gap so the pair reads as one right-aligned cluster. */
+/* Only the leftmost member of the cluster takes the auto margin — a second
+   one would split the leftover space and blow a gap through the middle. */
+.dd-apod ~ .dd-stars,
+.dd-apod ~ .dd-fav,
 .dd-stars ~ .dd-fav {
+  margin-left: 0;
+}
+/* A badge hoisted onto a uniform group's header names the header, so it stays
+   beside the text rather than flying to the row's right edge. */
+.dd-hdr .dd-apod {
   margin-left: 0;
 }
 /* Per-row favorite heart (filter dropdowns only). Muted until favorited or
@@ -226,6 +253,14 @@ button.dd-hdr[aria-expanded="false"]::before {
   background: none;
   border: none;
   padding: 0;
+  /* filled and hollow heart do not share an advance width, and the difference
+     travels back up the row: every column left of it shifts 2px between a
+     favorited row and its neighbor. Fixed box, glyph centered in it. Width
+     tracks the heart's own type size, not the spacing scale. */
+  display: inline-flex;
+  justify-content: center;
+  flex: none;
+  width: calc(var(--fs-body) * 1.4);
   cursor: pointer;
   color: var(--muted);
   font-size: var(--fs-body);
