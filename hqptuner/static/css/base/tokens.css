@@ -41,7 +41,7 @@
      NEVER referenced outside this file — every rule names a --surface-* role
      below, and check_css_tokens.py fails the build on a --bg* reference in any
      other module. Naming surfaces by shade is how one card ended up a different
-     colour from the card beside it. */
+     color from the card beside it. */
   --bg: #14161a;
   --bg-2: #1a1d23;
   --bg-3: #242833;
@@ -70,6 +70,38 @@
      stage), so "active" pops without repainting the stingy accent everywhere. */
   --accent: #4f9dde;
   --accent-glow: #74b6ec;
+  /* ── Density scale (binding, floor + 5 levels) ────────────────────────
+     The apodizing strip's colormap, and the ONE palette in this file that is
+     deliberately independent of --accent. A measurement scale must not change
+     color because the user picked a different UI accent: a column's color is
+     a reading, and a reading that restyles is not a reading. It also buys the
+     range one hue cannot — a single accent at varying opacity could not
+     separate 5 events from 25 on a dark ground, which is what sent this back
+     to the drawing board.
+     Dark to hot, RED at the top. Shaped like the magma/inferno ramps a
+     spectrogram uses — lightness climbing monotonically from a near-black floor,
+     hue turning indigo to violet to magenta to red — but stopping at red rather
+     than running on to pale yellow: in this app yellow reads as less severe than
+     red, because the VU gauge already spends --red on its danger zone and
+     --amber on its warning, and a scale whose hottest end looked cooler than its
+     middle would be fighting the card it sits in.
+     Monotone lightness is what makes it read as a field rather than confetti.
+     The earlier ramp jumped blue to green to yellow at roughly equal lightness,
+     so two neighboring intervals a few events apart swapped hue outright and
+     the eye saw categories where the data had a gradient.
+     These six are control points, not buckets: a column's color is mixed
+     between the two it falls between, so the scale reads continuously and two
+     nearby densities stay distinguishable. --spec-0 is the floor an interval
+     with no events lands on. It sits well clear of the trough's own #14161a
+     rather than fading into it: a floor that merely darkened toward the
+     background read as a hole punched in the field, which is the failure this
+     scale exists to avoid. */
+  --spec-0: #1e2a45;
+  --spec-1: #24365e;
+  --spec-2: #4b3f8c;
+  --spec-3: #8a3f86;
+  --spec-4: #bf4560;
+  --spec-5: #e8483a;
   --green: #3fa66a;
   --amber: #d1a13a;
   --red: #d4574e;
@@ -86,7 +118,7 @@
      per-component decision — a raised element catches light on its top lip and
      a card does not, which is the whole difference between "sitting on" and
      "cut into". Applied in one place (aesthetic.css); the border system is
-     untouched and no surface colour moves. Kept under 6% alpha deliberately:
+     untouched and no surface color moves. Kept under 6% alpha deliberately:
      at that strength it reads as edge geometry, and past it as a white line. */
   --edge-light: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   /* ── Layout system (aesthetics pass) ──────────────────────────────────
@@ -115,7 +147,7 @@
      under MODE/RATE/BACKEND 32px against every other card pair's 8px, and
      .card-grid's margin-top did the same at 16px. Neither is visible in the
      rule that causes it — `margin-bottom: var(--sp-4)` reads as correct and
-     tokenised until you know what the parent already spends — not catchable
+     tokenized until you know what the parent already spends — not catchable
      by reading one rule, which is why it is a gate
      (scripts/gates/check_css_tokens.py). */
   --rhythm-stack: var(--sp-2); /* card to card, down a tab body */
@@ -190,7 +222,7 @@
   --fs-label: 0.85rem; /* secondary labels, small buttons */
   --fs-body: 0.9rem; /* DEFAULT control text: inputs, selects, field labels */
   --fs-head: 0.95rem; /* card-head, subhead — section headings */
-  --fs-body-lg: 1rem; /* emphasised controls, tab buttons, h2 */
+  --fs-body-lg: 1rem; /* emphasized controls, tab buttons, h2 */
   --fs-title: 1.1rem; /* card-head.center — the largest heading in a card */
   --fs-brand: 1.25rem; /* the app wordmark. one use. */
   --fs-readout: 1.5rem; /* the big knob readout, the DSP mode switcher */

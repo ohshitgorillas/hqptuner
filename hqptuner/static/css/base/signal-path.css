@@ -288,12 +288,72 @@
 .eh-strip-head select {
   width: var(--w-select-sm);
 }
+.eh-strip-window {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* Time divisions, hung under the field rather than drawn into it: the viewBox
+   scales non-uniformly, so a vertical line inside the SVG would have its stroke
+   width squeezed by the x scale and vanish. Percentages off the same span the
+   columns are laid out against, so mark and column cannot drift apart. */
+.eh-strip-ticks {
+  position: relative;
+  height: var(--sp-1);
+}
+.eh-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+}
+/* The scale row under the field: how far back the left edge reaches, which end
+   is now, and what the colors mean. An axis nobody can read is decoration, and
+   this one carries two scales — time across, density in color — so both get
+   stated. */
+.eh-strip-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.eh-key {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+/* Each column carries its own interpolated fill inline, so this is the fallback
+   the rule exists for: a renderer that cannot parse color-mix drops the inline
+   declaration and lands here rather than on no fill at all. */
+.eh-bar {
+  fill: var(--spec-2);
+}
+/* The key is the ramp itself, painted from the same five stops the columns
+   interpolate between, so it cannot drift from the field it explains. */
+.eh-key-ramp {
+  width: 6rem;
+  height: var(--sp-2);
+  border-radius: var(--r-xs);
+  background: linear-gradient(
+    to right,
+    var(--spec-0),
+    var(--spec-1),
+    var(--spec-2),
+    var(--spec-3),
+    var(--spec-4),
+    var(--spec-5)
+  ); /* token-exempt: the density scale is a reading, not a surface, and must not follow the accent */
+}
+.eh-key-label {
+  padding-right: var(--sp-2);
+}
 /* Recessed, like the meter troughs, so it is one of the edge light's two
    by-definition exclusions — a cut-in surface is lit from the wrong side. The
    right border is the recorder's pen marking now; it is CSS rather than an SVG
    rect because the viewBox scales non-uniformly and would stretch it. */
 .eh-strip-trough {
-  height: 2.5rem;
+  height: 3.5rem;
   background: var(--surface-well);
   border: 1px solid var(--line);
   border-right-color: var(--accent);
@@ -307,10 +367,4 @@
 }
 /* Deliberately untransitioned: --sweep eases a readout toward a value it polls
    for, and on a strip that scrolls it would smear one interval's count into its
-   neighbour's. Bars land hard, because each one is a finished observation. */
-.eh-bar {
-  fill: var(--accent);
-}
-.eh-bar.sat {
-  fill: var(--accent-glow);
-}
+   neighbor's. Bars land hard, because each one is a finished observation. */

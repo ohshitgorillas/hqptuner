@@ -37,9 +37,13 @@
 // this file's subject; it is pinned in tests/js/store/apodwindow-*.test.js,
 // which do install the fake.
 //
-// No wall clock anywhere and no reliance on the daemon's position/length: the
-// window arithmetic below is computed from the cadences the store itself
-// reports, which are the same numbers a bin is specified to record.
+// No wall clock anywhere: the window arithmetic below is computed from the
+// cadences the store itself reports, which are the same numbers a bin is
+// specified to record. The daemon's `position` is read for two purposes and no
+// others: telling a frame the daemon handed over twice from an interval in
+// which nothing happened, and telling a track that ended on its own from one
+// still running. The fixture advances it on every poll; the stall() cases below
+// hold it still, and the restartPosition() cases send it backwards.
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 //
@@ -55,7 +59,19 @@ import {
   apodStripVisible,
   apodVisibleBins,
 } from "../../../hqptuner/static/store/apodhistory.js";
-import { STOPPED, PAUSED, readCadences, setApodCounter, poll, newTrack, append, feed } from "../support/apodpolls.js";
+import {
+  STOPPED,
+  PAUSED,
+  readCadences,
+  setApodCounter,
+  poll,
+  newTrack,
+  append,
+  stall,
+  restartPosition,
+  restartCounter,
+  feed,
+} from "../support/apodpolls.js";
 
 const CAP = 3600;
 
@@ -142,15 +158,6 @@ test("test_each_poll_appends_one_bin_of_its_own", () => {
   assert.deepEqual(counts(apodBins.value), deltas);
 });
 
-test("test_a_counter_that_goes_backwards_records_zero", () => {
-  liveMode.value = false;
-  setApodCounter(500); // the baseline this track is established on
-  newTrack();
-  setApodCounter(480);
-  poll();
-  assert.deepEqual(counts(apodBins.value), [0]);
-});
-
 test("test_a_track_change_clears_the_bins", () => {
   liveMode.value = false;
   feed([1, 2]);
@@ -166,6 +173,99 @@ test("test_a_track_change_rebaselines_the_counter", () => {
   newTrack();
   poll();
   assert.deepEqual(counts(apodBins.value), [0]);
+});
+
+// --- a track change the serial does not report --------------------------------
+// A track ended by hand starts a new stream and the serial says so. A track that
+// ends on its OWN hands the next track the same serial, and the only things that
+// mark the boundary are the two readings running backwards: the position back at
+// the head of the stream, and the apodizing counter back near zero because it
+// counts the current track and not the session. Either reading going backwards
+// under an unchanged serial is a track change, with the same consequences as one
+// the serial reported — the history is cleared and the frame that carried the
+// backwards reading is a baseline recording no bin.
+
+test("test_a_position_that_restarts_under_the_same_serial_clears_the_bins", () => {
+  liveMode.value = false;
+  feed([1, 2]);
+  restartPosition();
+  assert.deepEqual(apodBins.value, []);
+});
+
+test("test_a_position_that_restarts_under_the_same_serial_records_no_bin_for_its_own_frame", () => {
+  // the counter is untouched across this boundary, so a store that cleared but
+  // then recorded the frame anyway would leave a stray zero behind
+  liveMode.value = false;
+  feed([1, 2]);
+  restartPosition();
+  append([4]);
+  assert.deepEqual(counts(apodBins.value), [4]);
+});
+
+test("test_a_counter_that_restarts_under_the_same_serial_clears_the_bins", () => {
+  liveMode.value = false;
+  setApodCounter(580);
+  feed([4]); // the outgoing track's counter stands at 584
+  restartCounter(4);
+  assert.deepEqual(apodBins.value, []);
+});
+
+test("test_a_counter_that_restarts_under_the_same_serial_rebaselines_at_the_restarted_value", () => {
+  // 584 to 4 is the reset measured on the wire: the first bin of the incoming
+  // track counts from 4, never the 580 the outgoing track had run up
+  liveMode.value = false;
+  setApodCounter(580);
+  feed([4]);
+  restartCounter(4);
+  append([3]);
+  assert.deepEqual(counts(apodBins.value), [3]);
+});
+
+test("test_forward_progress_past_a_position_that_gains_a_digit_is_not_a_track_change", () => {
+  // `position` is a decimal string on the wire ("9.00000000000000000",
+  // "10.00000000000000000"), and the second sorts BEFORE the first as text. A
+  // rule that compared the strings would read this ordinary run as a boundary
+  // and throw the track's history away in the middle of it.
+  liveMode.value = false;
+  const deltas = feed(series(12, (i) => (i % 4) + 1));
+  assert.deepEqual(counts(apodBins.value), deltas);
+});
+
+test("test_a_counter_holding_level_while_the_position_advances_is_not_a_track_change", () => {
+  // the guard against overshoot: a quiet stretch is bins counting zero, and the
+  // history that came before it survives
+  liveMode.value = false;
+  const deltas = feed([2, 0, 0, 0]);
+  assert.deepEqual(counts(apodBins.value), deltas);
+});
+
+// --- a repeated frame is one observation, not an interval ------------------------
+// The page's poll clock and the daemon's own update clock both run near 2s and
+// drift against each other, so a poll sometimes returns the frame it already
+// returned. stall() builds those frames: the position stays where it was, which
+// is what tells a handed-over repeat from a quiet interval that really happened.
+
+test("test_a_frame_repeating_the_counter_and_the_position_appends_no_bin", () => {
+  liveMode.value = false;
+  const deltas = feed([1, 2]);
+  stall([0]); // the same observation handed over a second time
+  assert.deepEqual(counts(apodBins.value), deltas);
+});
+
+test("test_a_quiet_interval_whose_position_moved_appends_a_zero_bin", () => {
+  // The case the dedup must NOT swallow: nothing apodized, but the daemon says
+  // the track moved on, so an interval really did pass with nothing in it.
+  liveMode.value = false;
+  feed([1]);
+  append([0]);
+  assert.deepEqual(counts(apodBins.value), [1, 0]);
+});
+
+test("test_a_frame_whose_counter_moved_appends_its_bin_even_when_the_position_repeats", () => {
+  liveMode.value = false;
+  feed([1]);
+  stall([5]);
+  assert.deepEqual(counts(apodBins.value), [1, 5]);
 });
 
 // --- nothing is recorded unless the engine is playing --------------------------
@@ -288,10 +388,55 @@ test("test_remain_fields_reading_zero_do_not_hide_a_track_that_counted_events", 
   assert.equal(apodStripVisible.value, true);
 });
 
+test("test_junk_remain_fields_leave_a_silent_track_hidden", () => {
+  // the outgoing track counted nothing and its remain fields are unreadable —
+  // a rule that read them and treated the unreadable pair as "not finished"
+  // would keep the strip on screen here, which is the whole point of the case
+  liveMode.value = false;
+  feed([3]);
+  feed([0, 0], { remain_min: "nonsense", remain_sec: "" });
+  newTrack();
+  assert.equal(apodStripVisible.value, false);
+});
+
 test("test_junk_remain_fields_do_not_hide_a_track_that_counted_events", () => {
   liveMode.value = false;
   feed([2, 3], { remain_min: "nonsense", remain_sec: "" });
   newTrack();
+  assert.equal(apodStripVisible.value, true);
+});
+
+// The same rule answers to the wider definition of a track ending: a track that
+// counted nothing retires the strip when it ends, and "ends" includes a boundary
+// the serial never reported.
+
+test("test_a_position_restart_from_a_silent_track_hides_the_strip", () => {
+  liveMode.value = false;
+  feed([3]);
+  feed([0, 0]);
+  restartPosition();
+  assert.equal(apodStripVisible.value, false);
+});
+
+test("test_a_counter_restart_from_a_silent_track_hides_the_strip", () => {
+  liveMode.value = false;
+  feed([3]);
+  feed([0, 0]);
+  restartCounter(0);
+  assert.equal(apodStripVisible.value, false);
+});
+
+test("test_a_position_restart_from_a_track_that_counted_events_keeps_the_strip", () => {
+  liveMode.value = false;
+  feed([3, 0, 0]);
+  restartPosition();
+  assert.equal(apodStripVisible.value, true);
+});
+
+test("test_a_counter_restart_from_a_track_that_counted_events_keeps_the_strip", () => {
+  liveMode.value = false;
+  feed([3, 0, 0]);
+  restartCounter(0);
   assert.equal(apodStripVisible.value, true);
 });
 

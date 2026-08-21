@@ -1,19 +1,19 @@
 /* typography — the canonical text roles. Loaded LAST on purpose: it is the
-   single source of truth for the size + colour of every piece of text, and it
+   single source of truth for the size + color of every piece of text, and it
    has to win over any per-module declaration.
    (This is the one module whose position is "last"; see the note in
    index.html. Everything else keeps its concern-ordered slot.)
 
    WHY THIS FILE EXISTS
-   Before it, each caption-ish class set its own colour AND its own opacity:
+   Before it, each caption-ish class set its own color AND its own opacity:
    --fg-2 @0.8, --fg-2 @0.65, --muted @0.8, --muted @1, --fg-2 @1. Five
-   different greys for one role, because opacity multiplies the token instead
+   different grays for one role, because opacity multiplies the token instead
    of replacing it. New text picked a plausible pair and landed looking out of
-   place. Text greys are now the three tokens in tokens.css and nothing else —
+   place. Text grays are now the three tokens in tokens.css and nothing else —
    never dim text with `opacity`. Opacity is for whole-control states
-   (disabled, off, inactive), not for shading a colour.
+   (disabled, off, inactive), not for shading a color.
 
-   ADDING NEW TEXT? Use a role class below. Do not write font-size, colour or
+   ADDING NEW TEXT? Use a role class below. Do not write font-size, color or
    opacity at the call site. scripts/check_css_tokens.py enforces the first
    two; this comment is the rule for the third. */
 
@@ -37,13 +37,14 @@
 }
 
 /* ── label — text that names a thing. Secondary tier. ─────────────────── */
-.t-label {
+.t-label,
+.eh-strip-window {
   font-size: var(--fs-label);
   color: var(--fg-2);
 }
 
 /* ── caption — explanatory prose beside or under a control. Tertiary.
-   ONE grey, ONE size, capped at the shared measure, always wrapping.
+   ONE gray, ONE size, capped at the shared measure, always wrapping.
    Every note / desc / hint / gloss on the page is this. ───────────────── */
 .t-caption,
 .field-note,
@@ -65,10 +66,13 @@
 }
 
 /* ── micro — the smallest annotation: inline hints, credits, plot captions.
-   Same tertiary grey; smaller because it sits inside dense chrome. ────── */
+   Same tertiary gray; smaller because it sits inside dense chrome. ────── */
 .t-micro,
 .field-hint,
 .plot-caption,
+.eh-scale-end,
+.eh-key,
+.eh-key-label,
 .mtx-lib-credit,
 .mtx-lib-credit a {
   font-size: var(--fs-micro);
