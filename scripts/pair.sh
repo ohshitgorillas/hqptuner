@@ -256,7 +256,7 @@ do_merge() {
     return 0
   fi
 
-  # Steps 3-6 read and move the dev tip. Serialise them: a gate run against a
+  # Steps 3-6 read and move the dev tip. Serialize them: a gate run against a
   # stale tip proves nothing, and two sessions landing at once would race.
   mkdir -p "$WT"
   exec 9>"$LOCK"

@@ -18,7 +18,7 @@
 // by an index the component hands out: the card it heads ("LIVE MODE", "Rate",
 // "Engine health", "Playback", "Matrix profile") or, for the chain group, the
 // group element the contract names. A block matching no anchor, or more than
-// one, raises rather than being silently mislabelled — a stack measured against
+// one, raises rather than being silently mislabeled — a stack measured against
 // the wrong names would agree with any order at all.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, signals

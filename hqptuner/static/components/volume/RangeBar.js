@@ -75,7 +75,7 @@ function weightOf(db) {
   return LABELS.has(db) ? "major" : "minor";
 }
 
-// A label centred on a gridline at either end of the track hangs half its width
+// A label centered on a gridline at either end of the track hangs half its width
 // off that end (the axis floor lost its minus sign that way), so the end labels
 // anchor to the end instead and the span they describe stays inside the track.
 /**

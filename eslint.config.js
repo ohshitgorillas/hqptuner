@@ -63,7 +63,7 @@ const PLUGINS = { sonarjs };
 //
 // tests/js is exempt, matching the Python side's `tests/**` ignore: the
 // one-assertion rule and docs/testing.md already require a test's name to state
-// its behaviour in plain words, and a block above it restates the name.
+// its behavior in plain words, and a block above it restates the name.
 //
 // require-jsdoc takes `publicOnly`, which scopes it to the exported surface.
 // require-description has no such option and defaults to every function that

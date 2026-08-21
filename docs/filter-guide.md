@@ -56,7 +56,7 @@ No counts in the header itself: they would go stale against the live enum, which
 | Removing the images is band limiting, and band limiting has a cost in time | `basic` | `[structural]` | Restatement of the axis: the images sit above the passband, so removing them is a band limit, and the trade row prices it in time |
 | A filter has a duration, set by how many samples it reaches across | `basic` | `[sourced]` | "for length \(N\) FIR filters, the duration of the transient response is \(N-1\) samples." — Smith, *Introduction to Digital Filters* §5.7 `[V]` |
 | **What a filter that removes too little leaks** | `basic` | `[sourced]` | "Poor stop-band rejection and will thus leak fairly high amount of ultrasonic distortion." — `04-06:369-375` (polynomial-1) |
-| Each output sample is a weighted sum of neighbouring input samples | `basic` | `[structural]` | Definition of FIR convolution; the tap count *is* the number of terms in that sum (see §4) |
+| Each output sample is a weighted sum of neighboring input samples | `basic` | `[structural]` | Definition of FIR convolution; the tap count *is* the number of terms in that sum (see §4) |
 | The trade is a hard limit, not an engineering shortfall | `adv` | `[sourced]` | "If \(x(t)=0\) for \(\abs{t}\geq \Delta t/2\) , then \begin{equation}\Delta t\cdot\DW\geq \pi\end{equation}" — Smith, *SASP* `[V]`. An FIR is time-limited by construction, so it always sits on the constrained side |
 | Concrete instance of the inverse law | `adv` | `[sourced]` | "M ' 20, 40, and 200 . From Eq. 16-3, the transition bandwidths are: BW ' 0.2, 0.1, and 0.02" — dspguide ch. 16 `[V]` |
 
@@ -64,7 +64,7 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 2. Attack
 
-**Gloss draft.** An attack, or transient, is the sudden start of a sound — a drum hit, a plucked string, the leading edge of a note. It matters here because a filter's own behaviour in time shows most plainly when what it is fed changes abruptly. Feed it a steady tone and the filter's response settles and merges into the tone. Feed it an attack and the filter's response spreads out around it, which is what ringing is, and why ringing is described relative to an attack rather than on its own.
+**Gloss draft.** An attack, or transient, is the sudden start of a sound — a drum hit, a plucked string, the leading edge of a note. It matters here because a filter's own behavior in time shows most plainly when what it is fed changes abruptly. Feed it a steady tone and the filter's response settles and merges into the tone. Feed it an attack and the filter's response spreads out around it, which is what ringing is, and why ringing is described relative to an attack rather than on its own.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
@@ -94,12 +94,12 @@ The gloss describes the oversampling filter specifically — the only filter thi
 
 ## 4. Taps
 
-**Gloss draft.** A tap is one step of a filter's arithmetic: one nearby input sample, and one weight applied to it. The filter's output is the sum of all of them, so the number of taps is both how much work the filter does per output sample and how far it reaches, counted in samples. Tap counts are usually quoted relative to the conversion ratio — a filter quoted at 4096 taps per ratio uses 16384 when upsampling by four. Those taps run at four times the rate, so the filter spans the same stretch of time at every ratio; scaling the count is what holds its behaviour constant across rates.
+**Gloss draft.** A tap is one step of a filter's arithmetic: one nearby input sample, and one weight applied to it. The filter's output is the sum of all of them, so the number of taps is both how much work the filter does per output sample and how far it reaches, counted in samples. Tap counts are usually quoted relative to the conversion ratio — a filter quoted at 4096 taps per ratio uses 16384 when upsampling by four. Those taps run at four times the rate, so the filter spans the same stretch of time at every ratio; scaling the count is what holds its behavior constant across rates.
 
 | claim | tier | tag | citation |
 |---|---|---|---|
 | **Tap counts are usually ratio-relative, not absolute** | `basic` | `[sourced]` | "Number of taps is 4096 x conversion ratio." — `04-06:407-408` |
-| Ratio-scaling holds the filter's time span constant across rates | `basic` | `[structural]` | Arithmetic on the row above: 4096×ratio taps at ratio× the output rate span the same stretch of time at every ratio — the count scales precisely so the behaviour does not |
+| Ratio-scaling holds the filter's time span constant across rates | `basic` | `[structural]` | Arithmetic on the row above: 4096×ratio taps at ratio× the output rate span the same stretch of time at every ratio — the count scales precisely so the behavior does not |
 | A tap count is not a length HQPTuner will classify from | `basic` | `[sourced]` | `facets.js:181-219` — a filter takes its Length from a length word in its name or description, or from the extra-long ancestor its description names; a description stating only a tap multiplier yields no length at all |
 | Taps and duration are the same quantity in different units | `basic` | `[sourced]` | "for length \(N\) FIR filters, the duration of the transient response is \(N-1\) samples." — Smith §5.7 `[V]` |
 | A tap is one term of the weighted sum | `basic` | `[structural]` | Definition of FIR convolution (see §1) |
@@ -131,7 +131,7 @@ The gloss describes the oversampling filter specifically — the only filter thi
 | Linear phase's cost is stated by HQPlayer as pre-ringing | `basic` | `[sourced]` | "Good phase response, but has some amount of pre-ringing." — `04-06:102-103` |
 | Minimum phase's cost is stated by HQPlayer as an altered phase response | `basic` | `[sourced]` | "Altered phase response, but no pre-ringing." — `04-06:107-108` |
 | The axis, stated as a trade in one sentence | `basic` | `[structural]` | "linear phase puts ringing symmetrically around a transient so energy arrives before the attack; minimum phase moves it all after, at the cost of frequency-dependent group delay" — `eq-assistant/PRIMER.md:79`, quoted at `eq-assistant/PHASE.md:282` |
-| Minimum phase is the least-group-delay realisation of a given magnitude response | `adv` | `[sourced]` | "among all causal systems with the same frequency response magnitude, the minimum-phase one has the smallest group delay at all frequencies." — MIT OCW 6.341, via `eq-assistant/PHASE.md:32` `[VA]` |
+| Minimum phase is the least-group-delay realization of a given magnitude response | `adv` | `[sourced]` | "among all causal systems with the same frequency response magnitude, the minimum-phase one has the smallest group delay at all frequencies." — MIT OCW 6.341, via `eq-assistant/PHASE.md:32` `[VA]` |
 | A linear-phase FIR's impulse response is symmetric and its delay is half its length | `adv` | `[sourced]` | "the impulse response of every causal , linear-phase , FIR filter is symmetric: \[h(n) = h(N-1-n), \quad n=0,1,2,\ldots, N-1.\]" — Smith, *Introduction to Digital Filters* §11.4 `[V]` |
 | For a minimum-phase system, phase is not independently specifiable — it follows from magnitude | `adv` | `[sourced]` | "you cannot specify both magnitude and phase independently for a minimum-phase system." — MIT OCW 6.341, via `eq-assistant/PHASE.md:24` `[VA]` |
 
@@ -185,7 +185,7 @@ Mechanism only, no when-to-use guidance: the app already carries an automatic ap
 
 Capped at three figures for the entire advanced tab. Producing them is implementation, out of scope here.
 
-**Constraint, per `CLAUDE.md` "No reverse engineering of HQPlayer":** every figure illustrates filter theory using a filter of our own design, or reproduces a published figure. None may be a measurement of an HQPlayer filter — no impulse or sweep through the engine to plot what `poly-sinc-long` actually does. A figure labelled with an HQPlayer filter name would be exactly the forbidden thing; label them by property instead.
+**Constraint, per `CLAUDE.md` "No reverse engineering of HQPlayer":** every figure illustrates filter theory using a filter of our own design, or reproduces a published figure. None may be a measurement of an HQPlayer filter — no impulse or sweep through the engine to plot what `poly-sinc-long` actually does. A figure labeled with an HQPlayer filter name would be exactly the forbidden thing; label them by property instead.
 
 | # | figure | serves | does a reached source already have one? |
 |---|---|---|---|

@@ -21,7 +21,7 @@
 // test_staged_auto_mode_silences_the_dormant_familys_conflict and
 // test_with_nothing_staged_the_running_sdm_engines_modulator_conflict_still_raises
 // are green against the older "family = loaded chain" rule too, because in each
-// the loaded chain and the effective mode agree. They pin behaviour that must
+// the loaded chain and the effective mode agree. They pin behavior that must
 // not regress; they do not distinguish the two rules.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at

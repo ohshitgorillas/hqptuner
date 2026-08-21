@@ -2,7 +2,7 @@
 // carries the manual's genre-agnostic "any" tag. Under the AND mode a selection
 // including "any" makes every other pick inert (the popover already renders
 // those rows unavailable, tests/js/components/narrowbar-genre-any.test.js), so
-// the button summarises the selection by the "any" row's label alone: no count,
+// the button summarizes the selection by the "any" row's label alone: no count,
 // no mode suffix. Every other shape keeps the count-plus-mode wording.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of

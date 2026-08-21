@@ -405,7 +405,7 @@ def test_a_restore_with_no_carried_member_forwards_the_bytes_unchanged(
 
 
 # The daemon refuses an upload that is not a settings archive, and how the route
-# reports that refusal is pre-existing behaviour no part of this spec speaks to —
+# reports that refusal is pre-existing behavior no part of this spec speaks to —
 # hence the suppression. What is under test is that an upload HQPTuner cannot
 # read is still the user's upload: it reaches the daemon as it was sent, and it
 # does not disturb prose it never mentioned.

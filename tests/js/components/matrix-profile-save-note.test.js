@@ -1,4 +1,4 @@
-// Behavioural suite for the Matrix Profile card's save consequence line — the
+// Behavioral suite for the Matrix Profile card's save consequence line — the
 // sentence telling the user that saving a matrix profile does not survive until
 // the engine restarts:
 //
@@ -62,7 +62,7 @@
 // (tests/js/support/wire.js). Nothing is stubbed and no module private is touched
 // — in particular the staged state is set up and torn down through the store's own
 // public staging path and read back through the rendered sentence, never off
-// `profileSavePending`, which is a seam and not the behaviour.
+// `profileSavePending`, which is a seam and not the behavior.
 //
 // PLACEMENT is deliberately not asserted: which element carries the line and
 // which class it wears are free to change, so the cases ask only whether the

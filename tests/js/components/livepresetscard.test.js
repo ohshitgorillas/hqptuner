@@ -185,7 +185,7 @@ test("test_both_saved_presets_can_be_picked_while_the_engine_runs_sdm", async ()
 test("test_every_saved_preset_is_offered_by_name_alone", async () => {
   // No reason, no chain tag, no "(SDM)" — nothing beside the name, for either
   // preset, because neither is second-class now.
-  // Sorted on both sides: the picker's ORDER is not a spec'd behaviour, so it
+  // Sorted on both sides: the picker's ORDER is not a spec'd behavior, so it
   // is not what this case is here to pin.
   await resetPage({ presets: BOTH() });
   assert.deepEqual(

@@ -276,7 +276,7 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
 def _refresh_devices(st: dict[str, Any]) -> None:
     """GET /config/refresh — re-scan output devices. Endpoints that were powered
     off (staged in _hidden_endpoints) become bindable and join the offered set,
-    modelling a NAA that came back on since the last form read.
+    modeling a NAA that came back on since the last form read.
 
     The rescan also STOPS THE ENGINE (6.0.4, reported on Opal), so every
     live-only setting comes back at the config file's value. That side of it
@@ -313,7 +313,7 @@ def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
 # No POST /matrix or POST /matrix/{load,save,delete} here. HQPTuner writes the
 # matrix only through /restore now: profile save/delete are staged
 # <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile
-# (matrix-spec.md "Probe findings — saved"). Modelling routes nothing calls
+# (matrix-spec.md "Probe findings — saved"). Modeling routes nothing calls
 # would be scaffolding for a lane that is deliberately gone.
 
 
@@ -370,7 +370,7 @@ class _Server(ThreadingHTTPServer):
     `daemon_threads` keeps a parked handler from outliving the test, and
     `block_on_close=False` keeps `server_close()` from joining one.
 
-    Handlers now touch `st` concurrently, where before they were serialised, and
+    Handlers now touch `st` concurrently, where before they were serialized, and
     the test thread writes the same dict throughout. Neither lane is read-only:
     `_stale` counts down inside a `GET /backup/settings.zip`, and
     `GET /config/refresh` rewrites `_net_endpoints` and `_hidden_endpoints`

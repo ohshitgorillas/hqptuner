@@ -1,4 +1,4 @@
-// Behavioural suite for the "matrix bypassed" note — the line the Matrix tab
+// Behavioral suite for the "matrix bypassed" note — the line the Matrix tab
 // shows when HQPlayer's matrix engine is switched out of the signal path, so
 // that everything authored on the tab is inert.
 //
@@ -230,10 +230,10 @@ const says = (frag, text) => (frag === "" ? "that card was not rendered at all" 
 // expected name and fails.
 //
 // Text nodes only. Sentence A also appears under a bypassed matrix as the hover
-// TITLE of every grayed post-process control (a separate behaviour, pinned in
+// TITLE of every grayed post-process control (a separate behavior, pinned in
 // matrix-postprocess-gating.test.js), and an attribute value is not something the
 // user reads off the card. Every tag is replaced by a separator rather than
-// deleted, so neighbouring text nodes cannot fuse into a sentence that was never
+// deleted, so neighboring text nodes cannot fuse into a sentence that was never
 // shown; which element carries the note stays outside the contract.
 //
 // The tag pattern assumes no attribute value contains a raw ">": SSR escapes only

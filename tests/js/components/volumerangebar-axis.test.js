@@ -392,37 +392,37 @@ test("test_the_axis_floor_states_the_unit_once", async () => {
   assert.equal(labelAt(bar(), -120)?.text, "-120 dB");
 });
 
-test("test_the_gain_ceiling_is_labelled_plus_12", async () => {
+test("test_the_gain_ceiling_is_labeled_plus_12", async () => {
   await reset();
   assert.equal(labelAt(bar(), 12)?.text, "+12");
 });
 
-test("test_the_limiter_threshold_is_labelled_0", async () => {
+test("test_the_limiter_threshold_is_labeled_0", async () => {
   await reset();
   assert.equal(labelAt(bar(), 0)?.text, "0");
 });
 
-test("test_minus_90_is_labelled_as_a_bare_number", async () => {
+test("test_minus_90_is_labeled_as_a_bare_number", async () => {
   await reset();
   assert.equal(labelAt(bar(), -90)?.text, "-90");
 });
 
-test("test_minus_60_is_labelled_as_a_bare_number", async () => {
+test("test_minus_60_is_labeled_as_a_bare_number", async () => {
   await reset();
   assert.equal(labelAt(bar(), -60)?.text, "-60");
 });
 
-test("test_minus_30_is_labelled_as_a_bare_number", async () => {
+test("test_minus_30_is_labeled_as_a_bare_number", async () => {
   await reset();
   assert.equal(labelAt(bar(), -30)?.text, "-30");
 });
 
-test("test_the_resampling_ceiling_is_labelled_minus_3", async () => {
+test("test_the_resampling_ceiling_is_labeled_minus_3", async () => {
   await reset();
   assert.equal(labelAt(bar(), -3)?.text, "-3");
 });
 
-test("test_the_resampling_ceilings_label_stays_centred", async () => {
+test("test_the_resampling_ceilings_label_stays_centered", async () => {
   // -3 sits 2.3% from 0 on the track and still takes the ordinary interior
   // anchor: no special crowding rule applies to it
   await reset();
@@ -444,7 +444,7 @@ test("test_the_label_at_the_right_end_anchors_to_that_end", async () => {
   assert.equal(modifier(labelAt(bar(), 12), "vr-tick-label"), "edge-end");
 });
 
-test("test_a_label_away_from_either_end_stays_centred", async () => {
+test("test_a_label_away_from_either_end_stays_centered", async () => {
   await reset();
   assert.equal(modifier(labelAt(bar(), -60), "vr-tick-label"), "edge-mid");
 });
@@ -586,7 +586,7 @@ test("test_the_upper_bound_handle_reaches_the_gain_ceiling", async () => {
 // declares: a range input's thumb travels its own min..max across the element's
 // width, so a shorter span puts the handle beside the gridline it names. The
 // number boxes deliberately differ — Min stops at 0 dBFS and Startup rides
-// between its neighbours — and those are pinned in
+// between its neighbors — and those are pinned in
 // tests/js/components/volumerangebar.test.js.
 for (const word of VOLUME_HANDLES) {
   test(`test_the_${word.replace("vr-", "")}_handle_spans_the_whole_axis`, async () => {
@@ -616,12 +616,12 @@ test("test_the_band_ends_at_the_upper_bounds_track_position", async () => {
   assert.ok(near(lanes(bar())[0]?.right, BAND_RIGHT));
 });
 
-test("test_the_lower_bound_handle_is_labelled_for_assistive_technology", async () => {
+test("test_the_lower_bound_handle_is_labeled_for_assistive_technology", async () => {
   await reset(loud(PAIR));
   assert.equal(decode(attrOf(bound(bar(), LOW), "aria-label")), "Loudness lower bound");
 });
 
-test("test_the_upper_bound_handle_is_labelled_for_assistive_technology", async () => {
+test("test_the_upper_bound_handle_is_labeled_for_assistive_technology", async () => {
   await reset(loud(PAIR));
   assert.equal(decode(attrOf(bound(bar(), HIGH), "aria-label")), "Loudness upper bound");
 });
@@ -680,7 +680,7 @@ test("test_direct_sdm_draws_no_bound_handle", async () => {
   // Direct SDM bypasses the whole volume path, so an adaptive bound has nothing
   // left to adapt to and the marks come off the bar. The fixture is ungated in
   // every other respect — matrix engine engaged, loudness on — so Direct SDM is
-  // the sole cause and dropping it draws the handles again (see the neighbouring
+  // the sole cause and dropping it draws the handles again (see the neighboring
   // drawing cases).
   await reset(loud(PAIR), { ...FORM, direct_sdm: "1" });
   assert.equal(bounds(bar()).length, 0);

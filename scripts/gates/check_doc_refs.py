@@ -2,7 +2,7 @@
 """Gate: a citation into a design doc names a heading that still exists.
 
 Code comments across ``hqptuner/`` and ``tests/`` point at the design docs for
-the reasoning behind a piece of behaviour. A *positional* citation —
+the reasoning behind a piece of behavior. A *positional* citation —
 ``matrix-spec §8 step 3``, ``probe round 5``, ``protocol.md §9`` — is silently
 invalidated by any edit above it, and nothing else checks: a docs restructure
 strands them wholesale, unnoticed. The prose becomes load-bearing — sections

@@ -95,7 +95,7 @@ const FILTERS = [
 ];
 
 // The filter dropdown's options, as the page builds them from that enumeration:
-// the pair `narrowOptions` filters, labelled by filter name.
+// the pair `narrowOptions` filters, labeled by filter name.
 const FILTER_OPTIONS = () => FILTERS.map((f) => ({ value: f.value, label: f.name }));
 const ENUMS = () => ({
   filters: FILTERS,
@@ -219,7 +219,7 @@ const announces = (el, title) => headTitle(el).startsWith(title);
 
 // The head element of the named card, whatever tag carries it. Anything other
 // than exactly one match throws rather than measuring some other card: a
-// restructured head must fail loudly, not quietly answer about a neighbour.
+// restructured head must fail loudly, not quietly answer about a neighbor.
 /**
  * @param {string} out
  * @param {string} title

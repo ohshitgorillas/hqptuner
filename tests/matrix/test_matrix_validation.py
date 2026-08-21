@@ -1,6 +1,6 @@
 """Input validation on the matrix config-form fields.
 
-Characterization of behaviour that already exists: ``matrix_pipelines`` and
+Characterization of behavior that already exists: ``matrix_pipelines`` and
 ``matrix_profile_save`` arrive as JSON strings off a config form, and every
 malformed shape is refused with a ``GroundingError`` before any XML is written.
 The snapshots come from the fake daemon's own config renderer, so the validators

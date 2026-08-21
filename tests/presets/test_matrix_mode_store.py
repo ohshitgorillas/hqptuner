@@ -116,7 +116,7 @@ def test_the_map_a_write_answers_with_carries_the_mode_just_written(tmp_path: Pa
     "mode",
     [
         pytest.param("", id="empty"),
-        pytest.param("Speakers", id="capitalised"),
+        pytest.param("Speakers", id="capitalized"),
         pytest.param("speaker", id="singular"),
         pytest.param("headphone", id="singular-headphone"),
         pytest.param("stereo", id="unknown-word"),

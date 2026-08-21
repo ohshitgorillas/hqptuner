@@ -18,7 +18,7 @@
 // Whichever of those handlers the component actually mounts is fired; a gesture
 // that reached none at all throws instead of returning quietly, so a case
 // dispatching into nothing fails loudly rather than reporting that no callback
-// ran and calling that a behaviour. Which handler a component chooses is its
+// ran and calling that a behavior. Which handler a component chooses is its
 // own shape — the contract is what the gesture produces, so all of them are
 // offered and at least one must answer.
 //

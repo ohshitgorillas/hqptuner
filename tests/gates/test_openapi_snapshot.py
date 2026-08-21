@@ -279,7 +279,7 @@ def test_the_surface_renders_with_no_hqplayerd_credentials_in_the_environment(mo
 
 
 def test_the_surface_renders_without_opening_a_socket(monkeypatch: Any) -> None:
-    """Constructing a socket is made to raise, so a gate that dialled anything would fail here."""
+    """Constructing a socket is made to raise, so a gate that dialed anything would fail here."""
     monkeypatch.setattr(socket, "socket", _no_sockets)
     assert HEALTH_ROUTE in json.loads(GATE.current_spec())["paths"]
 

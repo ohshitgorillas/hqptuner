@@ -1,5 +1,5 @@
 // Row model for staging: read the baseline row set, edit selected rows, and
-// canonicalise the result byte-identically to the web UI's `canonPipelines`
+// canonicalize the result byte-identically to the web UI's `canonPipelines`
 // (static/store/resolve.js) so the pending bar's dirty-compare and the apply's
 // verify diff both reduce to string equality.
 //
@@ -19,7 +19,7 @@ import { bandToStage, eqTail, resolveChain } from "../eqlab/chain.js";
  * producers disagree and both are legitimate: `/api/config` hands back the
  * daemon's own `matrix_pipelines` JSON, where the five keys are strings, while
  * `/api/matrix` parses the management form and carries numeric `source`,
- * `mixdown` and a sort-only `index` that canonicalisation drops. `null` is in
+ * `mixdown` and a sort-only `index` that canonicalization drops. `null` is in
  * each union because JSON round-trips a missing value that way, which is what
  * the `??` defaults below exist to absorb.
  *
@@ -99,7 +99,7 @@ async function getJson(fetchImpl, url) {
 /**
  * The current row set, file truth first. `/api/config` carries the daemon's own
  * canonical JSON (credentials permitting); `/api/matrix` is the read-only-mode
- * fallback, parsed from the management form. Rows are never synthesised — a
+ * fallback, parsed from the management form. Rows are never synthesized — a
  * staged `matrix_pipelines` replaces the whole set, so the baseline is the only
  * safe starting point.
  *

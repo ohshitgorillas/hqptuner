@@ -279,7 +279,7 @@ test("test_the_count_under_a_non_default_focus_mode_is_the_number_carrying_eithe
 // one the store is on. Each case leaves the picked values live and overrides the
 // mode alone, and the two modes give different numbers — neither of them the
 // fixture's total, so a preview that dropped the facet on an override key it did
-// not recognise could not answer either.
+// not recognize could not answer either.
 
 test("test_a_preview_counts_genres_under_the_mode_in_its_overrides", () => {
   const options = reset(PLAIN, GENRES);

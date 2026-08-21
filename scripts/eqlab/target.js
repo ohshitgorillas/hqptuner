@@ -22,7 +22,7 @@
 //   interpolate_edges — straight line in (log f, dB) joining the curve's values
 //                       at the two range edges: "the curve without the peak".
 //   smooth            — the span replaced by its box-smoothed self (octaves,
-//                       default 1), neighbours included in the window.
+//                       default 1), neighbors included in the window.
 //   fit_trend         — least-squares line in (log2 f, dB) fitted over flanking
 //                       context (flank_octaves each side, default 1, span itself
 //                       excluded), evaluated across the span.

@@ -5,7 +5,7 @@
 //
 // Visual convention (see css design tokens): a DASHED, muted trace is the
 // *potential* (maximum / reference) response; a SOLID, accent trace is what is
-// *actually applied* now. Traces are labelled at the right edge so the language
+// *actually applied* now. Traces are labeled at the right edge so the language
 // is legible: crossfeed "direct" vs "cross-fed", loudness "max" vs "applied".
 
 import { signal } from "@preact/signals";
@@ -43,7 +43,7 @@ const PADT = 16; // top band carries the y-axis unit labels
 const PADB = 20;
 const LOGSPAN = Math.log(F1 / F0);
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-// A vertical at EVERY labelled frequency. Three decade lines under ten labels
+// A vertical at EVERY labeled frequency. Three decade lines under ten labels
 // left seven figures on the axis with nothing rising from them, so reading a
 // feature's frequency off the plot meant eyeballing the gap between decades.
 const FREQ_GRID = FREQ_LABELS;
@@ -66,8 +66,8 @@ const hueOf = (/** @type {number} */ i, /** @type {number} */ n) =>
 // covers it.
 const dragHud = signal(null);
 // The HUD keeps its own frequency and delta formatters rather than taking
-// lib/units.js's. It updates under the pointer, and its text is centre-anchored,
-// so a figure that loses a digit re-centres the whole line mid-drag — fixed
+// lib/units.js's. It updates under the pointer, and its text is center-anchored,
+// so a figure that loses a digit re-centers the whole line mid-drag — fixed
 // decimals hold the width still. `hz()` trims trailing zeros by design, which is
 // right for a chip you read once and wrong for a readout you watch move.
 const fmtF = (/** @type {number} */ f) => (f >= 1000 ? `${(f / 1000).toFixed(2)} kHz` : `${Math.round(f)} Hz`);
@@ -95,7 +95,7 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min =
   // draggable EQ handles: a dot at (f, db); a pointer drag streams (f, db) to
   // onDrag, then lands the release on onEnd. The drag is RELATIVE to the grab:
   // it baselines on the handle's own value and applies the pointer's axis-space
-  // delta, so grabbing a dot slightly off-centre never teleports it under the
+  // delta, so grabbing a dot slightly off-center never teleports it under the
   // cursor — the dot holds still until the pointer actually moves.
   const startDrag = dragStarter({ yMin, yMax, height, plotH });
   const poly = (/** @type {[number, number][]} */ pts, /** @type {Scale} */ sc) =>
@@ -238,7 +238,7 @@ function DragHud({ yOf }) {
 // Draggable EQ handles: a dot at (f, db); a pointer drag streams (f, db) to
 // onDrag, then lands the release on onEnd. The drag is RELATIVE to the grab: it
 // baselines on the handle's own value and applies the pointer's axis-space
-// delta, so grabbing a dot slightly off-centre never teleports it under the
+// delta, so grabbing a dot slightly off-center never teleports it under the
 // cursor — the dot holds still until the pointer actually moves.
 /**
  * @param {{ yMin: number, yMax: number, height: number, plotH: number }} frame

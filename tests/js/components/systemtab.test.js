@@ -26,7 +26,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions, quickSystemUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields } from "../support/tabform.js";
-import { elements, enclosing, hasAttr, hasLabel, labelled } from "../support/markup.js";
+import { elements, enclosing, hasAttr, hasLabel, labeled } from "../support/markup.js";
 
 // The quick-updates preference is a module-level signal and outlives a case
 // (docs/testing.md, harness facts), so the cases that write it are put back to
@@ -179,13 +179,13 @@ const KEEP = "Option descriptions";
  * @returns {import("../support/markup.js").MarkupElement}
  */
 function switchOf(out, label) {
-  let region = labelled(out, label);
+  let region = labeled(out, label);
   for (let step = 0; step < 3; step += 1) {
     const hit = elements(region.html).find((el) => el.name === "input");
     if (hit) return hit;
     region = enclosing(out, region);
   }
-  throw new Error(`no input near the control labelled "${label}"`);
+  throw new Error(`no input near the control labeled "${label}"`);
 }
 
 test("the master pref on forces the option descriptions switch checked", async () => {
@@ -238,17 +238,17 @@ test("a render under the master pref leaves the stored keep pref untouched", asy
   assert.equal(keepOptionDescriptions.value, false);
 });
 
-test("the master toggle is labelled setting descriptions", async () => {
+test("the master toggle is labeled setting descriptions", async () => {
   await reset();
   assert.ok(hasLabel(render(html`<${System} />`), MASTER));
 });
 
-test("no toggle is labelled feature descriptions any more", async () => {
+test("no toggle is labeled feature descriptions any more", async () => {
   await reset();
   assert.equal(hasLabel(render(html`<${System} />`), "Feature descriptions"), false);
 });
 
-test("the second toggle is labelled option descriptions", async () => {
+test("the second toggle is labeled option descriptions", async () => {
   await reset();
   assert.ok(hasLabel(render(html`<${System} />`), KEEP));
 });

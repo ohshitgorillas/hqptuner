@@ -47,7 +47,7 @@ function alphaOf(theta) {
 // in seconds. Negative = early (source on this side).
 /**
  * @param {number} theta interaural-polar angle in degrees
- * @param {number} [a] head radius in metres
+ * @param {number} [a] head radius in meters
  * @param {number} [c] speed of sound in m/s
  * @returns {number}
  */
@@ -59,7 +59,7 @@ function rayDelay(theta, a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
 
 // The lp1 corner: the pole sits at 2ω₀, so f = ω₀/π = c/(aπ).
 /**
- * @param {number} [a] head radius in metres
+ * @param {number} [a] head radius in meters
  * @param {number} [c] speed of sound in m/s
  * @returns {number}
  */
@@ -72,7 +72,7 @@ function shadowCornerHz(a = HEAD_RADIUS, c = SPEED_OF_SOUND) {
  * `itd` is the far ear's ray delay relative to the near ear's, so the near path
  * carries no delay stage and the far path carries all of it.
  * @param {number} [angle] speaker angle in degrees off center
- * @param {number} [a] head radius in metres
+ * @param {number} [a] head radius in meters
  * @param {number} [c] speed of sound in m/s
  * @returns {PathParams}
  */

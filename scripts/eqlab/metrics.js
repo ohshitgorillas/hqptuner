@@ -12,7 +12,7 @@ import { noteRange } from "./notes.js";
 /** @typedef {import("./curve.js").Curve} Curve */
 
 /**
- * One metric's answer. `hz` is present only where the metric localises to a
+ * One metric's answer. `hz` is present only where the metric localizes to a
  * frequency — a mean or an rmse has no single place it happened.
  *
  * @typedef {{ value: number, hz?: number }} MetricResult
@@ -214,7 +214,7 @@ function maxDev(curve, target, spec, signed) {
 // Peak height above local trend: the straight line in (log f, dB) joining the
 // curve's values at the range edges. Distinct from `max`, which conflates a
 // bump with the plateau under it — the plateau is what sets the preamp, the
-// prominence is what sets the colouration. The declared range IS the trend
+// prominence is what sets the coloration. The declared range IS the trend
 // width: widen it to measure against a broader baseline.
 /**
  * @param {CurveLike} curve

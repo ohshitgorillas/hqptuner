@@ -11,7 +11,7 @@
 //
 // NOT covered: what the checkbox actually does to an import. The import lanes
 // fire from click handlers, and this harness is `preact-render-to-string` with
-// no DOM and no event dispatch, so that behaviour belongs to the hand-back
+// no DOM and no event dispatch, so that behavior belongs to the hand-back
 // protocol rather than to a faked event.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/matrixtab-mirror.test.js

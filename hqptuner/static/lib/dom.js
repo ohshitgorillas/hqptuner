@@ -88,7 +88,7 @@ if (typeof document !== "undefined") {
   // A slider keystroke arms only the control that actually HOLDS focus. WebKit
   // converts a scroll over a slider-role element into trusted arrow keydowns
   // aimed at it without focusing it (see Knob.js onKeyDown); unqualified, that
-  // synthetic key hands the platform's own value change a licence to pass. Both
+  // synthetic key hands the platform's own value change a license to pass. Both
   // spellings are tracked because `focus`/`blur` do not bubble and only reach a
   // capture listener, while `focusin`/`focusout` do — engines differ in which
   // they deliver first, and either one means the same thing here.

@@ -56,7 +56,7 @@ const near = (actual, expected, tol) => [
 //
 // The builder's contract gained a second gate by product decision: the shared
 // "what you hear" toggle (`lensOn`, components/xfeed/Comp.js), off by default.
-// The cases below were right about the old behaviour and say the same thing
+// The cases below were right about the old behavior and say the same thing
 // about the new one — they just turn the lens on first, including the one that
 // asserts NO traces, which pins the block RECOGNIZER and would otherwise pass
 // for the wrong reason. The toggle's own contract lives in xfeedlens.test.js.

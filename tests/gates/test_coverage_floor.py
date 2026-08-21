@@ -1,7 +1,7 @@
 """The gate that holds every individual source file to a coverage floor.
 
 ``scripts/gates/check_coverage_floor.py`` reads a ``coverage.py`` JSON report —
-the artefact ``pytest --cov-report=json:<path>`` writes — and asks one question
+the artifact ``pytest --cov-report=json:<path>`` writes — and asks one question
 of every entry in its top-level ``files`` map: does this file's
 ``summary.percent_covered`` reach the floor? A file that does not is named on
 stdout unless an entry in the module's exemption mapping excuses it, and an

@@ -40,7 +40,7 @@ const atIndex = (/** @type {EnumItem[]} */ list, /** @type {string | number | un
   list.find((o) => String(o.index) === String(index));
 
 /**
- * One enumeration as menu options: valued by enum ID, labelled by the engine's name.
+ * One enumeration as menu options: valued by enum ID, labeled by the engine's name.
  * @returns {MenuOption[]}
  */
 export const idOptions = (/** @type {string} */ key) => items(key).map((o) => ({ value: o.value, label: o.name }));

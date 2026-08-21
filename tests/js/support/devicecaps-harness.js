@@ -184,7 +184,7 @@ export async function reset({
 // An entry by the tier it names, matched strictly against the string the menu
 // is required to carry. A miss throws rather than quietly measuring nothing: an
 // option list that has LOST an entry — or drifted to numeric values — must fail
-// loudly, since dropping what the device cannot reach is exactly the behaviour
+// loudly, since dropping what the device cannot reach is exactly the behavior
 // house policy forbids.
 /**
  * @param {MenuOption[]} options

@@ -2,7 +2,7 @@
 // resolution: `points` read from a measurement file, `despike` outlier
 // rejection, and the `difference` composer. Written blind from a spec block:
 // no eqlab source was read. Test numbers in comments refer to the spec
-// block's behaviour list.
+// block's behavior list.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/eqlab/eqlab-target-compose.test.js
 
@@ -209,9 +209,9 @@ test("test_despike_drops_a_spike_in_an_inline_points_list", async () => {
 });
 
 // 9 — on a gently sloped list the dropped point's frequency reads the value
-// interpolated from its neighbours (4.5 dB at 800 Hz, 5.5 dB at 1250 Hz;
+// interpolated from its neighbors (4.5 dB at 800 Hz, 5.5 dB at 1250 Hz;
 // 1000 Hz is their log midpoint), not the +20 dB spike and not zero.
-test("test_despike_leaves_a_dropped_spike_following_its_neighbours", async () => {
+test("test_despike_leaves_a_dropped_spike_following_its_neighbors", async () => {
   /** @type {TargetSpec} */
   const spec = {
     from: "points",
@@ -224,7 +224,7 @@ test("test_despike_leaves_a_dropped_spike_following_its_neighbours", async () =>
 });
 
 // 10 — three consecutive bad points (630/800/1000 Hz) all read -20. At the
-// default 7-wide window each bad point still sees four good neighbours, so all
+// default 7-wide window each bad point still sees four good neighbors, so all
 // three go; at a 5-wide window the middle one would see a bad majority and
 // survive, which is exactly what this case is here to catch.
 test("test_despike_drops_a_three_point_cluster_at_the_default_window", async () => {
@@ -259,7 +259,7 @@ test("test_despike_preserves_a_steep_but_clean_monotone_run", async () => {
 // the window median is 0 and its median absolute deviation is 5 dB, so three
 // robust sigma is about 22 dB. The point is 8 dB out — past the default 3 dB
 // threshold but nowhere near 22 — so it stays, reading its own +8 rather than
-// the 0 dB its neighbours would interpolate across a drop.
+// the 0 dB its neighbors would interpolate across a drop.
 const NOISY_DBS = [5, -10, 10, -5, -10, -5, 0, 8, 0, 5, 10, -5, 10, -10, 5];
 
 test("test_a_point_past_the_threshold_but_inside_three_sigma_survives", async () => {
@@ -280,7 +280,7 @@ test("test_a_point_past_three_sigma_but_inside_the_threshold_survives", async ()
   assert.ok(...above(valueAt(t.curve, 500), 1));
 });
 
-// 15/16 — the caller's threshold_db is honoured, not a hardcoded 3. The same
+// 15/16 — the caller's threshold_db is honored, not a hardcoded 3. The same
 // 8 dB bump goes at threshold_db 3 and stays at threshold_db 12.
 test("test_an_explicit_threshold_db_rejects_a_point_deviating_more_than_it", async () => {
   const points = pts(withSpike(FLAT_DBS, 7, 8));
@@ -299,7 +299,7 @@ test("test_an_explicit_threshold_db_keeps_a_point_deviating_less_than_it", async
   assert.ok(...above(valueAt(t.curve, 500), 6));
 });
 
-// 15 — the caller's window is honoured, and this is why the default is 7: with
+// 15 — the caller's window is honored, and this is why the default is 7: with
 // only five points in view the three bad ones are the majority, the window
 // median is -20 dB and the middle bad point no longer looks like an outlier.
 test("test_a_five_wide_window_keeps_the_middle_of_a_three_point_cluster", async () => {
@@ -311,7 +311,7 @@ test("test_a_five_wide_window_keeps_the_middle_of_a_three_point_cluster", async 
 });
 
 // 8 — despike drives file-backed points the same as inline ones: the -20 dB
-// dropout at 1000 Hz goes and the gap closes at its neighbours' 5 dB.
+// dropout at 1000 Hz goes and the gap closes at its neighbors' 5 dB.
 test("test_despike_drops_a_spike_read_from_an_fr_text_file", async () => {
   const path = fixture(
     pts(withSpike(SLOPED_DBS, 10, -20))
@@ -385,7 +385,7 @@ const MANY_BAD = (i) => i >= 3 && i <= 30 && i % 3 === 0;
 const MANY = Array.from({ length: 40 }, (_, i) => [1000 + 137 * i, MANY_BAD(i) ? -20 : 0]);
 const MANY_REJECTED = MANY.filter((_, i) => MANY_BAD(i)).map(([f]) => String(f));
 
-test("test_despike_detail_summarises_the_overflow_beyond_eight_frequencies", async () => {
+test("test_despike_detail_summarizes_the_overflow_beyond_eight_frequencies", async () => {
   const t = nonNull(await resolveTarget({ from: "points", points: MANY, despike: {}, align: "none" }, FLAT, FS));
   assert.match(t.meta.detail, /\+2 more/);
 });
@@ -455,7 +455,7 @@ test("test_difference_operands_default_to_no_alignment", async () => {
 
 // 19 — `a` is a flat 0 dB curve explicitly mean-aligned to the base, so it
 // sits at the base's mean; `b` stays at 0 dB and the difference reads it back.
-test("test_an_explicit_align_inside_an_operand_is_honoured", async () => {
+test("test_an_explicit_align_inside_an_operand_is_honored", async () => {
   /** @type {TargetSpec} */
   const spec = {
     from: "difference",

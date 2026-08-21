@@ -16,7 +16,7 @@
 // The prose asserted on is prose THIS FILE supplies through the /api/metadata
 // payload, never a string copied out of the shipped settings.json. Each gate's
 // entry is written into all three tab groups (dsp / volume / system) because
-// the group a given key is filed under is not part of the behaviour under test.
+// the group a given key is filed under is not part of the behavior under test.
 //
 // NOT covered, because preact-render-to-string never fires an event handler:
 // the click that a gate's segment performs. That the strip reports a change on
@@ -173,13 +173,13 @@ test("test_the_fixed_volume_enabled_gate_row_carries_a_fixed_level_label", async
 // ============================================================================
 
 for (const key of SIGNAL_PATH) {
-  test(`test_the_${key}_gate_is_labelled_engage_then_bypass`, async () => {
+  test(`test_the_${key}_gate_is_labeled_engage_then_bypass`, async () => {
     assert.deepEqual(segLabels(await gate(key)), ["ENGAGE", "BYPASS"]);
   });
 }
 
 for (const key of SWITCHES) {
-  test(`test_the_${key}_gate_is_labelled_on_then_off`, async () => {
+  test(`test_the_${key}_gate_is_labeled_on_then_off`, async () => {
     assert.deepEqual(segLabels(await gate(key)), ["ON", "OFF"]);
   });
 }

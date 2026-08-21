@@ -4,7 +4,7 @@
 // SSR reaches the CLOSED state only: the popup opens from a pointer/keyboard
 // handler, so the open state — and the per-option tip elements that exist only
 // while open — cannot be rendered here (docs/testing.md "Branches that cannot
-// be reached"). That gap is deliberate; open-state behaviour belongs to the
+// be reached"). That gap is deliberate; open-state behavior belongs to the
 // browser hand-back protocol, not this suite.
 //
 // Closed-state contract pinned here: button class "dd-box" role="combobox"
@@ -128,7 +128,7 @@ test("test_the_option_list_is_hidden_while_closed", async () => {
 // floor, and narrowing spares no option — not even the selected one. This case
 // is about the ROWS, so both facets are opened first and both fixture filters
 // stay listed.
-test("test_every_option_appears_as_a_row_labelled_by_its_option_label", async () => {
+test("test_every_option_appears_as_a_row_labeled_by_its_option_label", async () => {
   await reset({ fields: FILTER_FIELDS });
   nApod1x.value = "all";
   nQuality.value = 0;

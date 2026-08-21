@@ -1,4 +1,4 @@
-// Behavioural suite for the post-process controls under a BYPASSED matrix engine.
+// Behavioral suite for the post-process controls under a BYPASSED matrix engine.
 //
 // `<post_process>` nests inside `<matrix>` (hqplayerd-readme.txt §1.11.2), and
 // §1.11's `enabled` is the matrix processing switch — so a matrix switched out of
@@ -48,7 +48,7 @@
 //
 //   * caption ABSENCE is asserted as no gray-reason element at all: with every
 //     feature gate engaged no other reason exists, so an empty lookup is the
-//     whole behaviour and a caption in different words would still be the defect.
+//     whole behavior and a caption in different words would still be the defect.
 //
 //   * the hover title is asserted to contain the note verbatim — the spec quotes
 //     the sentence, so there (unlike own-gate reasons) wording IS the contract.
@@ -60,7 +60,7 @@
 //
 //   * `grayReason(key)` (store/graying.js) is not called directly: what a user
 //     meets is the rendered field, and the rendered field is where both halves of
-//     the behaviour — the disabling and the reason — are observable together.
+//     the behavior — the disabling and the reason — are observable together.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/matrix-postprocess-gating.test.js
 
@@ -162,7 +162,7 @@ const ownGateShut = (key) => ({
   loudness: OWN_GATE[key] === LOUDNESS_GATE ? "0" : "1",
 });
 
-// Of those, the ones behaviour 3's "a control WITH a gate of its own" is about:
+// Of those, the ones behavior 3's "a control WITH a gate of its own" is about:
 // the DAC correction dropdown has never grayed when its feature switch is off, so
 // it has no own-gate state for an engaged matrix to leave alone. It stays covered
 // by the matrix-gate cases like every other key.
@@ -329,9 +329,9 @@ const namesMatrix = (reason) => /matrix/i.test(String(reason ?? ""));
 // expected name and fails.
 //
 // Text nodes only. Sentence A also appears under a bypassed matrix as the hover
-// TITLE of every grayed sub-control — the separate, unchanged behaviour the cases
+// TITLE of every grayed sub-control — the separate, unchanged behavior the cases
 // above pin — and an attribute value is not something the user reads off the
-// card. Every tag is replaced by a separator rather than deleted, so neighbouring
+// card. Every tag is replaced by a separator rather than deleted, so neighboring
 // text nodes cannot fuse into a sentence that was never shown; which element
 // carries the note stays outside the contract.
 //
@@ -371,7 +371,7 @@ const buttonsOf = (out) =>
  * @param {string} out
  * @param {string} text
  */
-const buttonLabelled = (out, text) => buttonsOf(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
+const buttonLabeled = (out, text) => buttonsOf(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
 /** @param {string | undefined} b */
 const attrsOf = (b) => (b === undefined ? "" : b.slice(0, b.indexOf(">")));
 
@@ -487,7 +487,7 @@ for (const key of SUB_CONTROLS) {
 // The other half of "unchanged from today": engaging the matrix may not hand a
 // control back that its own feature gate is holding. These fields are quietGray,
 // so their reason is not a caption — it is the hover title (pinned as its own
-// behaviour in fielddesc.test.js); this suite loads no metadata, so any title such
+// behavior in fielddesc.test.js); this suite loads no metadata, so any title such
 // a field carries is that reason and nothing else.
 
 for (const key of OWN_GATED) {
@@ -538,7 +538,7 @@ for (const key of REPRESENTATIVE) {
 
 test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_bauer_view", async () => {
   await reset({ matrix: "0", view: "bauer" });
-  const engage = buttonLabelled(crossfeed(), "ENGAGE");
+  const engage = buttonLabeled(crossfeed(), "ENGAGE");
   assert.ok(
     engage !== undefined && /\sdisabled\b/.test(attrsOf(engage)),
     engage === undefined ? "no ENGAGE control was rendered in the Bauer view" : "ENGAGE rendered enabled",
@@ -547,7 +547,7 @@ test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_bauer_view", asy
 
 test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_structural_view", async () => {
   await reset({ matrix: "0", view: "structural" });
-  const engage = buttonLabelled(crossfeed(), "ENGAGE");
+  const engage = buttonLabeled(crossfeed(), "ENGAGE");
   assert.ok(
     engage !== undefined && /\sdisabled\b/.test(attrsOf(engage)),
     engage === undefined ? "no ENGAGE control was rendered in the Structural view" : "ENGAGE rendered enabled",

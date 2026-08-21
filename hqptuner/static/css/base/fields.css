@@ -30,9 +30,9 @@
 .field.dirty input[type="number"] {
   border-color: var(--accent);
 }
-/* The three widgets with nothing of their own to recolour keep the row ring:
+/* The three widgets with nothing of their own to recolor keep the row ring:
    a checkbox already paints its border accent when CHECKED (primitives.css), so
-   recolouring it would say nothing about staging, and knob and slidernum are
+   recoloring it would say nothing about staging, and knob and slidernum are
    canvas/range primitives with no border at all. The ring is honest for all
    three because their control never covers the row's edges — the failure above
    needs a control that fills its field. `scripts/check_css_dirty.py` holds the

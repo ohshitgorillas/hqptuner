@@ -16,10 +16,10 @@
 //      pointer-capture and geometry surface a drag handler reads.
 //
 // `knobDrag` performs exactly that: bubble, with events shaped as above. The
-// bubble is modelled rather than the mounting point indexed, for the same reason
+// bubble is modeled rather than the mounting point indexed, for the same reason
 // `wheelAt` models it — which element of a knob carries the handler is
 // implementation shape, and a listener moved to a wrapper of the same component
-// honours the same contract.
+// honors the same contract.
 //
 // Nothing of HQPTuner's is stubbed — the handlers invoked are the component's
 // real ones, reached through preact's own `options.vnode` creation hook (the
@@ -35,8 +35,8 @@
 // not itself render is not on the chain, and neither is a global installed at
 // module load. A fire with no recipient at all throws instead of returning
 // quietly: a case that dispatches into nothing must fail loudly, not report that
-// no callback ran and call that a behaviour. Read such a throw as a limit of the
-// dispatch, not as a verdict on the behaviour.
+// no callback ran and call that a behavior. Read such a throw as a limit of the
+// dispatch, not as a verdict on the behavior.
 //
 // `document` and `window` are environment seams a drag handler reads. They exist
 // in a browser and not under `node --test`, so they are installed for the
@@ -131,7 +131,7 @@ function findDial(seen) {
 // handler that focuses its own `currentTarget` is therefore telling the
 // component the same thing a click on it would. `onFocus` is how the rig below
 // performs that announcement; an element built without one focuses nothing,
-// which is the browser's behaviour for an element already focused.
+// which is the browser's behavior for an element already focused.
 /**
  * @param {string} [tag]
  * @param {() => void} [onFocus]
@@ -318,7 +318,7 @@ const keyFields = (key, shiftKey) => ({
 // can focus it, blur it and press a key against the same component instance.
 //
 // `document.activeElement` reports the BODY throughout, which is what it reports
-// on the engine this behaviour exists for: a scroll gesture over a `role=slider`
+// on the engine this behavior exists for: a scroll gesture over a `role=slider`
 // element arrives there as a trusted arrow keydown aimed at that element, with
 // focus never having moved. The seam is offered in that state deliberately —
 // a knob deciding on `activeElement` would answer the same either way, so the

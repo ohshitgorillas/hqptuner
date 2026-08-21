@@ -102,7 +102,7 @@ async def test_a_level_staged_alone_switches_fixed_volume_on(http_manager: Conne
 
 
 async def test_an_explicit_untick_beats_a_level_staged_beside_it(http_manager: ConnectionManager) -> None:
-    # "turn it off" must never be resurrected by the level travelling with it
+    # "turn it off" must never be resurrected by the level traveling with it
     await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
     assert (await http_manager.load_file_config())["fixed_volume_enabled"] == "0"
 

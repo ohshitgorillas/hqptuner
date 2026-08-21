@@ -95,7 +95,7 @@ class PresetStore:
 
         Guard first: a store we cannot read is not one we should be
         writing into. Stamping on write, not on construction, keeps an unconfigured
-        install from materialising a directory it never uses — and adopts a store
+        install from materializing a directory it never uses — and adopts a store
         that predates the stamp the moment anything writes to it.
         """
         self._meta()

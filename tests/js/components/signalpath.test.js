@@ -14,7 +14,7 @@
 // matrixConfig — on every call rather than only the ones a given case cares
 // about: module-level signals persist for the life of the process, so a partial
 // reset makes tests pass alone and fail in sequence. Any source signal this
-// suite never writes keeps whatever the store module initialised it to.
+// suite never writes keeps whatever the store module initialized it to.
 
 import test from "node:test";
 import assert from "node:assert/strict";

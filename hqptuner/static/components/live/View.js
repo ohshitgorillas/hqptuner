@@ -240,7 +240,7 @@ function ChainCards() {
 }
 
 // Mode and Rate lead this page as the same hero cards that lead the Output tab —
-// same frame, same centred title, same segment and rate-stack treatment, because
+// same frame, same centered title, same segment and rate-stack treatment, because
 // they are the same two masters. The tab's third box, Backend, has no live twin:
 // changing backend rebuilds the audio path, which is a restart rather than a
 // live write. .top-row divides itself between however many cards it holds, so

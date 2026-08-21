@@ -21,7 +21,7 @@
 // bundle the browser no longer loads. The point of these tests is to exercise
 // the ACTUAL SHIPPED BUNDLES, so the shipped mapping is the only source of truth.
 //
-// Scope/limits, deliberately: only "imports" is honoured (index.html has no
+// Scope/limits, deliberately: only "imports" is honored (index.html has no
 // "scopes"), and trailing-slash prefix mappings are not implemented because the
 // importmap has none — such an entry raises rather than resolving wrongly.
 //
@@ -42,7 +42,7 @@
 // SECOND HOOK: fresh module instances that don't alias coverage
 // ---------------------------------------------------------------
 // A few suites need a second, independently-loaded instance of a store module
-// (to observe load-time behaviour: what a module does on its own import, not
+// (to observe load-time behavior: what a module does on its own import, not
 // after another test has already mutated its live signals). Node caches a
 // module per URL, so getting a second instance means importing under a URL
 // that differs from the one the suite's main import used. The old approach

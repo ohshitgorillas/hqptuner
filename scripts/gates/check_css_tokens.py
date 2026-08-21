@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Gate: static CSS uses tokens, never literal type, colour, shape, space, or shading.
+"""Gate: static CSS uses tokens, never literal type, color, shape, space, or shading.
 
 Left ungated, the stylesheet drifts to free-chosen font-size values and a
-spread of effective text greys, and new text lands looking out of place
+spread of effective text grays, and new text lands looking out of place
 because nothing says which value to pick. tokens.css owns the ladder; this
 gate keeps it that way.
 
@@ -13,7 +13,7 @@ margin — and when both are used they do not override, they add. A
 `margin-bottom: var(--sp-4)` on `.top-row`, under a `.tab-body` already
 spending an 8px gap, puts 32px under the hero cards against every other card
 pair's 8px; a `margin-top` on `.card-grid` does the same at 16px. Nothing about
-either rule looks wrong on its own — both are tokenised, both name a step on
+either rule looks wrong on its own — both are tokenized, both name a step on
 the scale. It is not catchable by reading one rule, so it is a gate:
 
 - a `--rhythm-*` token is legal on `gap` / `row-gap` / `column-gap` and
@@ -23,7 +23,7 @@ the scale. It is not catchable by reading one rule, so it is a gate:
 
 A vertical margin may still be `0` or `auto`; a literal length was already
 rejected by the spacing rule above. Horizontal margins are untouched — they
-centre things and inset the chrome rows, and no gap competes with them.
+center things and inset the chrome rows, and no gap competes with them.
 
 Escape hatch: put `/* token-exempt: <reason> */` on the offending line. It
 must carry a reason — an exemption you cannot justify in a clause is a
@@ -83,7 +83,7 @@ OPACITY_TOKEN = re.compile(r"var\(\s*--o-")
 #: `0`, `auto`, and calc() arithmetic like `calc(var(--sp-3) * 1.1)` through: a
 #: multiplier carries no unit, so it is not a length.
 LENGTH = re.compile(r"[\d.]+(?:rem|em|px|ch|vh|vw|pt|%)")
-#: every token a fill may name: the four surface roles, plus the state colours
+#: every token a fill may name: the four surface roles, plus the state colors
 FILL_TOKEN = re.compile(
     r"var\(\s*--(?:surface-(?:page|card|raised|well)|accent(?:-glow)?|on-accent"
     r"|line|dirty|muted|fg|green|amber|red|warn|thumb-bg)\b"
@@ -184,7 +184,7 @@ def _declared_value_complaint(prop: str, value: str) -> str:
     if prop in TOKEN_PROPS and literal:
         return f"{prop}: {value} — use a var(--fs-*|--fw-*|--track-*) token"
     if COLOUR.search(value):
-        return f"{prop}: {value} — use a colour token from {DEFINITION_SITE}"
+        return f"{prop}: {value} — use a color token from {DEFINITION_SITE}"
     return ""
 
 

@@ -50,7 +50,7 @@
 }
 /* --- card --------------------------------------------------------------- */
 
-/* Two-column split: channel rows left, room plan right, with the centred rule
+/* Two-column split: channel rows left, room plan right, with the centered rule
    every two-column card carries (CLAUDE.md). Collapses below 1100px, where the
    rule hides — same breakpoint as the crossfeed card's split. */
 .spkr-cols {
@@ -63,9 +63,9 @@
     display: grid;
     grid-template-columns: 1fr 1px 1fr;
     gap: var(--sp-4);
-    /* centred, not top-aligned: a 2.0 set is two rows against the room plan, and
+    /* centered, not top-aligned: a 2.0 set is two rows against the room plan, and
        start-alignment parks all of that difference under the rows as one dead
-       block. Centred, the leftover splits and reads as composition. */
+       block. Centered, the leftover splits and reads as composition. */
     align-items: center;
   }
 }
@@ -83,7 +83,7 @@
   border-color: var(--accent);
 }
 
-/* The left half's contents: the centred channel block, and the SDM note under
+/* The left half's contents: the centered channel block, and the SDM note under
    it. The note keeps the standard measure and so is NOT inside .spkr-rows —
    a max-content block sized by a paragraph is sized by the paragraph. */
 .spkr-left {
@@ -93,10 +93,10 @@
   min-width: 0;
 }
 
-/* Centred in its half-track rather than flush left: the rows are the card's
+/* Centered in its half-track rather than flush left: the rows are the card's
    detail, and against the room plan opposite, a block hugging the card's left
    edge reads as one column pushed aside rather than as half of a pair. Sized to
-   its content (the row template is content-tracked below) so "centred" means the
+   its content (the row template is content-tracked below) so "centered" means the
    block, not text inside a full-width row. */
 .spkr-rows {
   display: flex;
@@ -111,7 +111,7 @@
    purpose: it is a channel identity ("Left rear"), not a control label, and at
    --w-label it would push both numbers off the half-track. */
 /* Content-tracked, not 1fr: the block's whole width has to be knowable for
-   .spkr-rows to size to max-content and centre. */
+   .spkr-rows to size to max-content and center. */
 .spkr-row {
   display: grid;
   grid-template-columns: 7rem auto auto;

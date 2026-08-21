@@ -1,4 +1,4 @@
-// Behavioural suite for the rescan caption on the output-device fields
+// Behavioral suite for the rescan caption on the output-device fields
 // (components/Field.js, schema flag `rescan`): the "Refresh devices" button
 // stops the engine, and with auto-save on HQPTuner puts the engine's live
 // settings back afterwards — every one of them except a matrix profile, which

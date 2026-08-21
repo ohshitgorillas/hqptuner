@@ -28,7 +28,7 @@
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/directsdmwarn.test.js
 //
 // Rule-8 exemption, stated rather than assumed: the two askWarn default-label
-// tests at the bottom of this file characterize behaviour that predates the
+// tests at the bottom of this file characterize behavior that predates the
 // Direct SDM guard, so they cannot fail against the pre-change tree. Every other
 // test here bites on the guard.
 
@@ -85,7 +85,7 @@ async function reset(volume) {
 // Put a real apply result in `lastApply` by applying for real over the wire, so
 // "untouched" is a claim about a value something actually wrote. Throws rather
 // than asserting: a seed that failed to seed makes the test that follows
-// vacuous, which is a broken fixture and not a broken behaviour.
+// vacuous, which is a broken fixture and not a broken behavior.
 /**
  * @param {import("../support/wire.js").StagingWire} w
  * @returns {Promise<unknown>}
@@ -222,7 +222,7 @@ test("confirming the direct sdm warning stages the edit", async () => {
 // "Stages nothing" means the pending set is UNCHANGED, not emptied: a safe
 // value of the same key is staged first, and after the cancel it must still be
 // there — neither overwritten by the dangerous value nor swept out with it.
-test("cancelling the direct sdm warning leaves the staged set unchanged", async () => {
+test("canceling the direct sdm warning leaves the staged set unchanged", async () => {
   const w = await reset(FREE_WITH_DIRECT_SDM_ON);
   const { held: pre } = await stage(w, "0");
   await pre;
@@ -236,7 +236,7 @@ test("cancelling the direct sdm warning leaves the staged set unchanged", async 
 // The apply comes first so `before` is a result the store itself wrote: against
 // an empty `lastApply` this reads null === null and passes on an implementation
 // that never touches the signal at all.
-test("a cancelled direct sdm warning leaves lastApply untouched", async () => {
+test("a canceled direct sdm warning leaves lastApply untouched", async () => {
   const w = await reset(FREE);
   const before = await seedApply(w);
   const { held } = await stage(w, "1");

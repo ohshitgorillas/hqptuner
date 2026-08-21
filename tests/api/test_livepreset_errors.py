@@ -1,7 +1,7 @@
 """Error contracts of the live-preset REST surface — the statuses and details the
 LIVE card keys its messaging off.
 
-Characterization of behaviour that already exists (docs/testing.md §8 exemption:
+Characterization of behavior that already exists (docs/testing.md §8 exemption:
 nothing here is new or changed). Every case is driven the way a caller reaches
 it — a store file this HQPTuner cannot read, a name the store refuses, a preset
 nobody saved, an engine whose loaded chain is unknowable, a daemon that drops the

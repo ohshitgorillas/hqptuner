@@ -334,7 +334,7 @@ def test_every_violation_is_reported_on_its_own_line() -> None:
     assert len(named - {""}) == 4
 
 
-def test_omitting_the_exemption_table_honours_the_shipped_exemptions() -> None:
+def test_omitting_the_exemption_table_honors_the_shipped_exemptions() -> None:
     """A caller who passes none gets the module's own table, so its entries excuse their fields."""
     assert FAILURES(PATH_FIELDS(EXEMPT_ONLY_CONFIG_SOURCE), {}) == []
 

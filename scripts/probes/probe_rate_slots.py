@@ -72,7 +72,7 @@ FAMILY_48K = {
 
 
 def _describe(hz: str) -> str:
-    """Return a rate in Hz as ``DSD512 (44.1k family)``, or bare Hz when unrecognised."""
+    """Return a rate in Hz as ``DSD512 (44.1k family)``, or bare Hz when unrecognized."""
     if hz in FAMILY_44K:
         return f"{FAMILY_44K[hz]} (44.1k family)"
     if hz in FAMILY_48K:

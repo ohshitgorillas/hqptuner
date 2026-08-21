@@ -45,7 +45,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { PCM_FILTERS, PCM_SHAPERS, JUNK, formField, FORM, LISTS } from "../support/chainenums.js";
-import { classes, elements, enclosing, labelled, text } from "../support/markup.js";
+import { classes, elements, enclosing, labeled, text } from "../support/markup.js";
 
 const PROSE = { label: "", tooltip: "prose." };
 const METADATA = {
@@ -148,7 +148,7 @@ const isCompact = (/** @type {string} */ c) => c === "compact" || c.startsWith("
  * @returns {string[]}
  */
 function compactOf(fragment, label) {
-  const root = enclosing(fragment, labelled(fragment, label));
+  const root = enclosing(fragment, labeled(fragment, label));
   return [...new Set(classes(root).filter(isCompact))].sort();
 }
 

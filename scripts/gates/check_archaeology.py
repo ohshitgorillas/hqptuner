@@ -10,7 +10,7 @@ This gate blocks the phrasing that reliably marks such narration:
 - ISO dates in prose (``2026-07-28``) — a dated remark describes a moment,
   not an invariant;
 - ``used to``, ``earlier draft/version/design`` and ``as it always was`` —
-  past-behaviour narration;
+  past-behavior narration;
 - ``extracted``/``split``/``moved``/``pulled``/``lifted``/``carved`` followed by
   ``of`` or ``from``, and ``reorg`` — refactor archaeology. Both prepositions,
   because a rule bound to one of them is a rule you clear by writing the other;
@@ -34,7 +34,7 @@ excluded by the file list in the Makefile.
 
 The fix is never to reword around the pattern: state the constraint that holds
 NOW, in present tense, or delete the remark. History that must stay — an
-upstream attribution, a pinned legacy behaviour — takes ``history-ok:
+upstream attribution, a pinned legacy behavior — takes ``history-ok:
 <reason>`` on the offending line, reason required, same contract as the token,
 class, card and dirty-mark gates.
 """
@@ -56,7 +56,7 @@ _PAST = r"(?:was|were|used|put|added|made|grew|shipped|jumped|sat|stood|became)"
 
 PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\b20[0-9]{2}-[01][0-9]-[0-3][0-9]\b"), "dated narration"),
-    (re.compile(r"\bused to\b", re.IGNORECASE), "past-behaviour narration"),
+    (re.compile(r"\bused to\b", re.IGNORECASE), "past-behavior narration"),
     (
         re.compile(r"\bearlier (?:draft|version|design)\b", re.IGNORECASE),
         "prior-iteration narration",
@@ -75,7 +75,7 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
     (
         re.compile(r"\bas (?:it )?always (?:was|has been|did)\b", re.IGNORECASE),
-        "past-behaviour narration",
+        "past-behavior narration",
     ),
     (
         re.compile(r"\b(?:feat|fix|docs|test|chore|refactor)\([a-z0-9-]+\):"),
@@ -102,7 +102,7 @@ REDIRECT = (
     "An archaeology comment narrates what the code was; a comment earns its\n"
     "keep by stating the live constraint. Rewrite it in present tense as the\n"
     "invariant that holds now, or delete the remark. History that must stay\n"
-    f"(upstream attribution, pinned legacy behaviour) takes `{PRAGMA} <reason>`\n"
+    f"(upstream attribution, pinned legacy behavior) takes `{PRAGMA} <reason>`\n"
     "on the offending line."
 )
 

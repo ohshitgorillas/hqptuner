@@ -32,7 +32,7 @@
 // NOT covered here, SSR reaching the closed state only (docs/testing.md
 // "Branches that cannot be reached"): that a header row is not selectable or
 // committable and that keyboard navigation skips it — pointer/keyboard
-// behaviour, browser hand-back protocol. The variant subheader's INDENTATION is
+// behavior, browser hand-back protocol. The variant subheader's INDENTATION is
 // presentation and is left to the visual hand-back too.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/combobox-plainnames.test.js

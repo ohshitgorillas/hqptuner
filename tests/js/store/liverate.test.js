@@ -420,7 +420,7 @@ const REACHABLE = [false, null];
 const markedCount = (control) => control.options.filter((o) => o.disabled || o.reason).length;
 
 // --- both columns stay editable -----------------------------------------------
-// HQPTuner honours every user action; an edit to the family the engine is not
+// HQPTuner honors every user action; an edit to the family the engine is not
 // running is remembered and asserted when that family loads, so there is
 // nothing to disable.
 
@@ -496,7 +496,7 @@ test("test_a_grayed_tier_gives_unavailable_as_its_reason", () => {
 });
 
 test("test_the_running_sdm_column_leaves_an_enumerated_tier_reachable", () => {
-  // The other half of the judgement: a column that grayed its whole menu would
+  // The other half of the judgment: a column that grayed its whole menu would
   // pass the case above and fail this one.
   reset(SDM_RUNNING());
   assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD256)), REACHABLE);

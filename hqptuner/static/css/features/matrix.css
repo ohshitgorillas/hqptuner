@@ -8,14 +8,14 @@
    border stays --line. A 16-pipeline headphone matrix draws ~50 stage chips,
    and hue on the outline made every one of them shout at the same volume, so
    the row had no focal point: the selected chip was one loud chip among fifty.
-   Colour on the text alone keeps the kinds readable and hands the outline back
+   Color on the text alone keeps the kinds readable and hands the outline back
    to the two states worth spotting across the page — hover and selection.
 
    The kind hues are also deliberately OFF the accent palette (blue / phosphor
    green / VU amber / plasma violet). Blue-amber-green is that palette
    exactly: under the amber theme a wall of IIR chips reads as accent, under the
    green theme the convolution chips do. Orchid and rose collide with no theme,
-   so a coloured chip never impersonates the accent. Endpoints are the one
+   so a colored chip never impersonates the accent. Endpoints are the one
    exception and take the accent on purpose — they anchor the row's two ends. */
 :root {
   --chip-ch: var(--accent);
@@ -186,7 +186,7 @@ select.mtx-ch {
   gap: var(--sp-2);
 }
 /* Load + Export sit together as the right-hand unit, so adding Export doesn't
-   let space-between fling Load to the centre of the row. */
+   let space-between fling Load to the center of the row. */
 .mtx-file-actions {
   display: flex;
   align-items: center;

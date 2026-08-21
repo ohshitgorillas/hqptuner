@@ -35,7 +35,7 @@ from hqptuner.config import Config
 
 #: /matrix names its four global controls bare; presetconf prefixes them
 #: ``matrix_*`` because /speakers has an ``enabled`` of its own. One field, two
-#: namespaces — normalise to presetconf's before comparing.
+#: namespaces — normalize to presetconf's before comparing.
 MATRIX_GLOBALS = frozenset({"enabled", "engine", "expand_hf", "iir2fir"})
 
 #: readme §1.9 — the daemon keeps eight channel slots regardless of speaker set

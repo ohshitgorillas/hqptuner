@@ -11,7 +11,7 @@
 // deletes things.
 //
 // The viewBox is measured from the artwork on every render, never fixed. A box
-// sized for the worst case (every speaker at six metres) leaves the drawing
+// sized for the worst case (every speaker at six meters) leaves the drawing
 // floating in empty bands at typical distances, and those bands are card height:
 // they padded the card top and bottom the moment the plan was enlarged. Fitting
 // the box to what is actually drawn means the plan fills its width at any
@@ -59,8 +59,8 @@ const polar = polarAround(CX, CY);
 
 // Distance -> radius, on an ABSOLUTE scale. Scaling relative to the largest
 // distance in the set made the drawing a lie: with one speaker at 3 cm and the
-// rest at 0, that 3 cm stretched to the full ring — a metre of displacement at
-// any believable room size. Six metres spans the ring instead, so a 3 cm trim
+// rest at 0, that 3 cm stretched to the full ring — a meter of displacement at
+// any believable room size. Six meters spans the ring instead, so a 3 cm trim
 // moves its speaker by half a pixel, which is what 3 cm deserves.
 const DIST_FULL = 600; // cm at the outermost radius
 /**
@@ -80,7 +80,7 @@ function radiusOf(index, distance) {
 const labelPos = (/** @type {number} */ index, /** @type {number} */ x) =>
   index === 3 ? { x: x - 13, anchor: "end", dy1: -4, dy2: 7 } : { x, anchor: "middle", dy1: 22, dy2: 33 };
 
-// How far a speaker's drawing reaches around its own centre — the rotated box,
+// How far a speaker's drawing reaches around its own center — the rotated box,
 // plus wherever its labels land. Feeds the measured viewBox.
 /**
  * The bounding box one speaker glyph plus its label text occupies at `(x, y)`, so
@@ -100,7 +100,7 @@ function extent(index, x, y) {
 
 /**
  * Renders the overhead plan view of the speaker set: each channel with a distance
- * placed at its layout angle around the listener, labelled with its channel name
+ * placed at its layout angle around the listener, labeled with its channel name
  * and level trim.
  *
  * @param {{ channels: SpeakerChannel[] | null, active: Set<number> }} props

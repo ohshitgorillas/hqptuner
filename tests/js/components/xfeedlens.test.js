@@ -1,4 +1,4 @@
-// Behavioural suite for the "∿ what you hear" lens toggle — the one control that
+// Behavioral suite for the "∿ what you hear" lens toggle — the one control that
 // turns the crossfeed lens curves on and off over the Matrix response plot.
 //
 // The binding product rule for this control is that THE UI MUST NOT SHIFT. The
@@ -30,7 +30,7 @@
 //     (components/xfeed/Comp.js), the same public seam the trace-builder suites
 //     use. SSR fires no onClick, so the click itself belongs to the playwright
 //     hand-back protocol; what is pinned here is the toggle's observable effect
-//     on the response plot, which is the behaviour the button exists for. The
+//     on the response plot, which is the behavior the button exists for. The
 //     product DEFAULT is read off the freshly imported module rather than
 //     written by a fixture and read back, which would assert nothing.
 //

@@ -214,7 +214,7 @@ def _pop_profile_edits(remaining: dict[str, str]) -> dict[str, str]:
     """Take the saved-profile verbs out of the edit set.
 
     Separate from applying them because they are applied LAST and the field loop refuses any key it does not
-    recognise — leaving them in place would raise "unknown config field".
+    recognize — leaving them in place would raise "unknown config field".
     """
     return {k: remaining.pop(k) for k in (MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE) if k in remaining}
 

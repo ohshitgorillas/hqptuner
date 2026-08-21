@@ -115,16 +115,16 @@
   cursor: pointer;
 }
 .swatch.blue {
-  background: #4f9dde; /* token-exempt: accent-picker swatch must show the theme colour, not the active one */
+  background: #4f9dde; /* token-exempt: accent-picker swatch must show the theme color, not the active one */
 }
 .swatch.green {
-  background: #3fe0a0; /* token-exempt: accent-picker swatch must show the theme colour, not the active one */
+  background: #3fe0a0; /* token-exempt: accent-picker swatch must show the theme color, not the active one */
 }
 .swatch.amber {
-  background: #e0a63a; /* token-exempt: accent-picker swatch must show the theme colour, not the active one */
+  background: #e0a63a; /* token-exempt: accent-picker swatch must show the theme color, not the active one */
 }
 .swatch.violet {
-  background: #a78bfa; /* token-exempt: accent-picker swatch must show the theme colour, not the active one */
+  background: #a78bfa; /* token-exempt: accent-picker swatch must show the theme color, not the active one */
 }
 .swatch:hover {
   border-color: var(--fg-2);

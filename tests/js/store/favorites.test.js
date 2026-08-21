@@ -248,7 +248,7 @@ test("test_hydration_fills_the_set_from_the_server", async () => {
   assert.deepEqual([...favoriteFilters.value].sort(), ["gauss-b", "gauss-d"]);
 });
 
-// The set is populated BEFORE the failing GET, because the behaviour that
+// The set is populated BEFORE the failing GET, because the behavior that
 // matters is a backend down at page load leaving the stars already on screen
 // alone: a hydration that clobbers the set on the way to failing passes any
 // check made against a set the reset just emptied.

@@ -28,8 +28,8 @@ export function num(v, dflt) {
 
 /**
  * Clamp one handle against the axis, its own documented bound, and its
- * neighbours, rounded to whole dB. Ordering is enforced here rather than by
- * refusing the input, so a handle dragged past its neighbour stops against it
+ * neighbors, rounded to whole dB. Ordering is enforced here rather than by
+ * refusing the input, so a handle dragged past its neighbor stops against it
  * instead of jumping.
  * @param {string} which one of "min", "max", "startup"
  * @param {string | number} v the dragged/typed value

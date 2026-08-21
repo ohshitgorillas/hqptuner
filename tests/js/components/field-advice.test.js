@@ -2,7 +2,7 @@
 //
 // Four per-backend settings — the two DAC bit depths (alsa_bits / net_bits) and
 // the two 48k DSD switches (alsa_anydsd / net_anydsd) — only bear on ONE output
-// mode each, but the daemon still honours a write to them in the other mode. So
+// mode each, but the daemon still honors a write to them in the other mode. So
 // they are NOT grayed: the control stays live and the field carries an advisory
 // note beside the widget saying which mode the setting is relevant to.
 //

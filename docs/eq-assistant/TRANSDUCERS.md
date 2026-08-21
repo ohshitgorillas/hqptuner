@@ -10,12 +10,12 @@ The operative consequence, stated up front: **a listening complaint is not alway
 
 | Tag | Meaning |
 |---|---|
-| `[V]` | Primary artefact read directly; numbers transcribed from it. |
-| `[VA]` | Read by a delegated research agent, which returned a verbatim quote and URL. Same artefact class as `[V]`; the difference is who read it. Treat quotes as accurate and re-fetch before relying on any single number in isolation. |
+| `[V]` | Primary artifact read directly; numbers transcribed from it. |
+| `[VA]` | Read by a delegated research agent, which returned a verbatim quote and URL. Same artifact class as `[V]`; the difference is who read it. Treat quotes as accurate and re-fetch before relying on any single number in isolation. |
 | `[S]` | Secondary only. Indicative; re-verify before relying on it. |
 | `[X]` | Could not reach. Listed for completeness; **no content attributed.** |
 
-Everything in this file is `[VA]` unless marked otherwise. Where a figure was computed rather than quoted, that is stated in place and the figure is labelled derived.
+Everything in this file is `[VA]` unless marked otherwise. Where a figure was computed rather than quoted, that is stated in place and the figure is labeled derived.
 
 ---
 
@@ -33,7 +33,7 @@ Two properties matter to the tuner. It is **position-dependent** (the peak chang
 
 Measured magnitudes on the HD 800 family `[VA]` (DIY-Audio-Heaven; publishes FR and CSD plots, **rig not stated on the page** — treat absolute dB accordingly): the HD 800 S's "6kHz peak is still 4dB too high (despite the absorber)", the absorber achieves "a reduction of about 5 dB" versus the HD 800, and "the 10kHz peak even sticks out 10dB above the rest." The same source notes the absorber "also reduced" ringing, which a magnitude-only EQ does not address.
 
-Manufacturers attack the diaphragm side of this with geometry — the ring radiator (a hole in the dome centre so "the phase interference simply disappears", Rin Choi `[VA]`) and Focal's beryllium "M"-shaped inverted dome, a rigidity play to push first break-up above the audio band. Neither touches the **cup-cavity** resonance, which is a geometry problem of the enclosure, not the diaphragm.
+Manufacturers attack the diaphragm side of this with geometry — the ring radiator (a hole in the dome center so "the phase interference simply disappears", Rin Choi `[VA]`) and Focal's beryllium "M"-shaped inverted dome, a rigidity play to push first break-up above the audio band. Neither touches the **cup-cavity** resonance, which is a geometry problem of the enclosure, not the diaphragm.
 
 **The non-headphone cause to rule out first.** A dynamic driver's impedance varies with frequency, so a non-negligible amplifier output impedance forms a voltage divider that audibly re-tilts the bass. Headphones.com `[VA]` (measurement-community tier, publishes measured impedance curves) gives the Sennheiser HD 550 as "roughly 170 Ω at 1 kHz, and 320 Ω at 70 Hz", and works the arithmetic: 2.40 V at 100 Hz against 1.71 V at 1 kHz →
 
@@ -41,7 +41,7 @@ Manufacturers attack the diaphragm side of this with geometry — the ring radia
 
 and "your headphone will be bassier than the manufacturer's design." **No AutoEq profile accounts for this**, because profiles are measured on a near-zero-impedance source. It is the single most common non-headphone cause of a "too boomy" complaint on a dynamic over-ear, and it does not apply to planars or electrostatics.
 
-*(The commonly circulated dB thresholds for the 1/8 rule — "below 1dB" at damping factor 8, "below 0.2dB" at 40 — were **not** confirmed in the artefact. `[S]`, do not cite.)*
+*(The commonly circulated dB thresholds for the 1/8 rule — "below 1dB" at damping factor 8, "below 0.2dB" at 40 — were **not** confirmed in the artifact. `[S]`, do not cite.)*
 
 ### 1.2 Planar magnetic
 
@@ -61,7 +61,7 @@ Dan Clark Audio's AMTS page `[VA]` names a checkable mechanism without numbers, 
 
 > "All headphones are subject to high-frequency standing waves which can make treble sound harsh, fatiguing, or synthetic." "It integrates waveguides, diffusion control, quarter-wave, and Helmholtz resonators into one compact structure."
 
-That is a manufacturer stating that the cup/pad cavity is a **standing-wave resonator problem in the treble**, addressed by narrow-Q notching plus broad shaping — direct support for treating "harsh/splashy" as a narrow resonance artefact rather than a broad tilt.
+That is a manufacturer stating that the cup/pad cavity is a **standing-wave resonator problem in the treble**, addressed by narrow-Q notching plus broad shaping — direct support for treating "harsh/splashy" as a narrow resonance artifact rather than a broad tilt.
 
 ### 1.3 Electrostatic
 
@@ -71,9 +71,9 @@ Thin section, honestly thin — electrostatics are a small share of the market a
 
 The 230 V "Normal" bias is **not** on Stax's page — `[S]` only, do not present as manufacturer-stated. Bias voltage sets sensitivity, not tonal balance: it is a compatibility fact, not a frequency-response fact, and no tonal complaint should be read against it. Warwick Acoustics / Sonoma's technology page returned **404** `[X]`.
 
-**On the famous "electrostatic bass rolloff": no source reached puts a number on it.** What is defensible from the verified construction is that excursion is bounded by the diaphragm-to-stator gap while diaphragm mass is negligible — so limited low-frequency output at high level is plausible, and the moving-coil break-up failure mode is not. **That is reasoning from construction, not a citation, and must be labelled as such wherever it is used.** A "bass light" complaint on an electrostat is *a priori* more plausible than on a planar, and low-shelf boost carries a headroom cost.
+**On the famous "electrostatic bass rolloff": no source reached puts a number on it.** What is defensible from the verified construction is that excursion is bounded by the diaphragm-to-stator gap while diaphragm mass is negligible — so limited low-frequency output at high level is plausible, and the moving-coil break-up failure mode is not. **That is reasoning from construction, not a citation, and must be labeled as such wherever it is used.** A "bass light" complaint on an electrostat is *a priori* more plausible than on a planar, and low-shelf boost carries a headroom cost.
 
-**Sector finding worth recording:** across this entire survey of headphone manufacturers, exactly one artefact contained a measurement-grade number, and it came from Brüel & Kjær — a *rig* maker, not a headphone maker.
+**Sector finding worth recording:** across this entire survey of headphone manufacturers, exactly one artifact contained a measurement-grade number, and it came from Brüel & Kjær — a *rig* maker, not a headphone maker.
 
 ---
 
@@ -105,7 +105,7 @@ The dynamic and BA units share one front chamber, and "the SPL of a hybrid earph
 
 > "After the optimized acoustic tube is used, the high-frequency response of the dynamic earphone does not exist. The BA earphone is responsible for the high-frequency response. The dynamic earphone improves the low-frequency response." … "the difference in the RMS value of the hybrid earphone became 4.60."
 
-**This paper does not use "phase" or "notch" language anywhere in the text** — its account of the shared-chamber interaction is SPL-summation and acoustic-tube filtering, not a BA-to-BA-style phase-cancellation notch (Knowles AN-030, §2.2). Do not stretch this citation into a phase-null claim it doesn't make; a DD-to-BA phase-notch analogue to AN-030 remains genuinely open (§7).
+**This paper does not use "phase" or "notch" language anywhere in the text** — its account of the shared-chamber interaction is SPL-summation and acoustic-tube filtering, not a BA-to-BA-style phase-cancellation notch (Knowles AN-030, §2.2). Do not stretch this citation into a phase-null claim it doesn't make; a DD-to-BA phase-notch analog to AN-030 remains genuinely open (§7).
 
 **Diaphragm breakup in small dynamic IEM diaphragms: no source found.** A cluster of general audio-transducer patents surfaced a breakup-frequency figure via search-engine synthesis only, unverified by direct fetch — **not cited**. Marked open, §7.
 
@@ -177,11 +177,11 @@ Crucially, the same source scopes this to over-ears: "Repositioning and averagin
 
 An IEM sits at the anti-node and removes a resonance an over-ear leaves intact. That is the acoustic reason the two target families differ, stated as a mechanism rather than as an observed offset.
 
-**The mechanism is real and listeners do not want it corrected — this is a tested negative, not an absence of evidence.** Olive 2025 `[V]` (`SOURCES.md` §2.2d) set out to answer exactly this question: whether a midband control at 3 kHz, aimed at the individual variation in the main ear-canal resonance, improves personalisation. The variation available to chase is large — he cites it as varying by two octaves and more than 10 dB between individuals. The control offered was generous: a 3 kHz peak/dip at Q 2, adjustable from +6 dB to −10 dB, on a baseline the same 36 listeners were freely re-balancing in bass and treble. **The mean adjustment was +0.1 dB, and only 5 of 36 listeners moved it as far as ± 2 dB.** He calls the result surprising and does not explain it away.
+**The mechanism is real and listeners do not want it corrected — this is a tested negative, not an absence of evidence.** Olive 2025 `[V]` (`SOURCES.md` §2.2d) set out to answer exactly this question: whether a midband control at 3 kHz, aimed at the individual variation in the main ear-canal resonance, improves personalization. The variation available to chase is large — he cites it as varying by two octaves and more than 10 dB between individuals. The control offered was generous: a 3 kHz peak/dip at Q 2, adjustable from +6 dB to −10 dB, on a baseline the same 36 listeners were freely re-balancing in bass and treble. **The mean adjustment was +0.1 dB, and only 5 of 36 listeners moved it as far as ± 2 dB.** He calls the result surprising and does not explain it away.
 
-Two independent findings in the same region point the same way: Ravizza et al.'s five most-preferred curves span **± 3.5 dB across an octave centred at 4 kHz**, and Olive's own earlier work found two IE targets **differing by 5 dB between 2 and 8 kHz** to be equally preferred. Listeners appear to tolerate several dB through this region rather than seeking a particular value in it.
+Two independent findings in the same region point the same way: Ravizza et al.'s five most-preferred curves span **± 3.5 dB across an octave centered at 4 kHz**, and Olive's own earlier work found two IE targets **differing by 5 dB between 2 and 8 kHz** to be equally preferred. Listeners appear to tolerate several dB through this region rather than seeking a particular value in it.
 
-**Carry the author's caveat with the finding.** The bass and treble filters were re-randomised on every trial while the midband filter was fixed at 0 dB, which he names as a possible cause of the small adjustments and proposes inverting in a future study. He also records that the raw data shows listeners did move the filter — the movements were simply negligible. So: strong enough to stop us building a canal-compensation control, not strong enough to assert that individual canal resonance is perceptually irrelevant.
+**Carry the author's caveat with the finding.** The bass and treble filters were re-randomized on every trial while the midband filter was fixed at 0 dB, which he names as a possible cause of the small adjustments and proposes inverting in a future study. He also records that the raw data shows listeners did move the filter — the movements were simply negligible. So: strong enough to stop us building a canal-compensation control, not strong enough to assert that individual canal resonance is perceptually irrelevant.
 
 **Consequence for the feature.** The inter-individual acoustic variance documented above is a reason the IE and OE target *families* differ. It is not a reason to offer the user a 3 kHz knob. See `PRIMER.md`, fourth must-be-told rule.
 
@@ -201,7 +201,7 @@ with the occlusion effect decreasing as insertion depth increases, via the "modi
 
 ## 4. Measurement rigs, and the ceiling on trust
 
-This section gates the tuner's treble behaviour. Four independently-read sources bound the same thing and agree.
+This section gates the tuner's treble behavior. Four independently-read sources bound the same thing and agree.
 
 **The 711 / IEC 60318-4 occluded-ear simulator.** COMSOL's implementation documentation `[VA]` — an FEA vendor implementing the IEC spec, with no stake in headphone outcomes, and the cleanest statement found anywhere:
 
@@ -209,17 +209,17 @@ This section gates the tuner's treble behaviour. Four independently-read sources
 
 Brüel & Kjær `[VA]`, on the same coupler, states it is "only qualified for frequencies up to 8 kHz", and that customers "were attempting to make measurements on their products using 711-based ear simulators in a frequency range where the acoustic impedance was not defined." Their Type 5128 required "extensive research (more than ten years) to be able to accurately define an average acoustic impedance to 20 kHz."
 
-audioXpress `[VA]` (Butterworth, 2018, trade press with own measurements) supplies the uncertainty figure and the reason the artefact is unstable:
+audioXpress `[VA]` (Butterworth, 2018, trade press with own measurements) supplies the uncertainty figure and the reason the artifact is unstable:
 
 > "Due to resonances in the acoustic transfer impedance of the occluded-ear simulator above 10 kHz, high measurement uncertainties, e.g., in the order of 10 dB, can occur in earphone responses." "Because the resonance of the ear simulator chamber is determined in part by the distance from the microphone diaphragm to the headphone under test, the frequency of the resonance drops when the headphone under test is further away from the mic diaphragm."
 
-and notes that irregularities in the real human ear canal prevent this artefact arising naturally. GRAS claims the RA040X reduces the 13.5 kHz resonance "by 14 dB without significantly affecting response below 10 kHz"; the reviewer measured "-7.9 dB" on a real device — roughly half the claim.
+and notes that irregularities in the real human ear canal prevent this artifact arising naturally. GRAS claims the RA040X reduces the 13.5 kHz resonance "by 14 dB without significantly affecting response below 10 kHz"; the reviewer measured "-7.9 dB" on a real device — roughly half the claim.
 
-**Where the artefact actually lands, and why it matters to `sibilant`.** A claim circulates that the resonance sits at 8–11 kHz for a real IEM because of the λ/2 distance to the microphone membrane. **That figure is not published anywhere reachable above forum tier and is not asserted here.** What stands instead is a labelled derivation, given so the reasoning can be judged rather than trusted: λ/2 of 12.5 mm gives 13.7 kHz, reproducing COMSOL's own 13.8 kHz and validating the model; audioXpress `[VA]` states the resonance drops as the source sits further from the diaphragm; an IEM nozzle plus tip adds roughly 3–9 mm, which would place it between 11.0 and 8.0 kHz. **This is a simple open-tube model with a changed boundary condition — a plausibility check, not a computed prediction.**
+**Where the artifact actually lands, and why it matters to `sibilant`.** A claim circulates that the resonance sits at 8–11 kHz for a real IEM because of the λ/2 distance to the microphone membrane. **That figure is not published anywhere reachable above forum tier and is not asserted here.** What stands instead is a labeled derivation, given so the reasoning can be judged rather than trusted: λ/2 of 12.5 mm gives 13.7 kHz, reproducing COMSOL's own 13.8 kHz and validating the model; audioXpress `[VA]` states the resonance drops as the source sits further from the diaphragm; an IEM nozzle plus tip adds roughly 3–9 mm, which would place it between 11.0 and 8.0 kHz. **This is a simple open-tube model with a changed boundary condition — a plausibility check, not a computed prediction.**
 
-It is corroborated behaviourally rather than analytically: Crinacle normalises insertion depth so that the coupler spike lands **at 8 kHz** `[VA]`. That has two consequences. The ~8 kHz feature in such a published curve is a rig resonance deliberately parked there, not an earphone property; and everything above roughly 6 kHz in that curve is contingent on the seating choice.
+It is corroborated behaviorally rather than analytically: Crinacle normalizes insertion depth so that the coupler spike lands **at 8 kHz** `[VA]`. That has two consequences. The ~8 kHz feature in such a published curve is a rig resonance deliberately parked there, not an earphone property; and everything above roughly 6 kHz in that curve is contingent on the seating choice.
 
-**Operational rule this supports:** treat **8 kHz as the qualified limit and 10 kHz as the hard confidence floor.** Above 10 kHz an IEM curve carries uncertainty on the order of the corrections the tuner would apply. Do not emit narrow high-Q bands above ~10 kHz, and do not read a feature at ~8 kHz as an earphone property. This is independently consistent with AutoEq's own optimiser capping at 10 kHz (`SOURCES.md` §1.1). In corrective mode this rule becomes a fitting constraint — `CORRECTIVE.md` §5 carries the operational form (moderated depth and Q above the ceiling, listening pass expected to trim, magnitudes never quoted at below-8 kHz precision).
+**Operational rule this supports:** treat **8 kHz as the qualified limit and 10 kHz as the hard confidence floor.** Above 10 kHz an IEM curve carries uncertainty on the order of the corrections the tuner would apply. Do not emit narrow high-Q bands above ~10 kHz, and do not read a feature at ~8 kHz as an earphone property. This is independently consistent with AutoEq's own optimizer capping at 10 kHz (`SOURCES.md` §1.1). In corrective mode this rule becomes a fitting constraint — `CORRECTIVE.md` §5 carries the operational form (moderated depth and Q above the ceiling, listening pass expected to trim, magnitudes never quoted at below-8 kHz precision).
 
 **SBAF / HPDB — a deliberate negative result.** Their published methodology `[VA]` (forum/measurement-community tier, on GitHub, which is a better citation than the forum) states the rig verbatim: "MiniDSP EARS with screws removed (better seal) with compensation 3.2", "Flat Plate Coupler (no pinna with foam and felt overlay)", compensation designed for "a straight line across as perceptive neutral", "1/6 octave smoothed", "normalized to the region between 500 to 1500Hz". Their own caveat notes the flat plate "does have not an ear, e.g. pinna, concha, etc."
 
@@ -248,9 +248,9 @@ This is a genuine limitation of the feature, not a defect to be engineered aroun
 | | **Dynamic / moving coil (over-ear)** | **Planar magnetic** | **Electrostatic** | **Balanced armature (IEM)** | **Dynamic / moving coil (IEM)** |
 |---|---|---|---|---|---|
 | Drive | Voice coil at one point | "uniform driving force _directly_ across the entire diaphragm" | Uniform E-field, push-pull between "two parallel-arranged fixed electrodes" | Maxwell force; armature between two magnets | Voice coil, one-point suspension (surround only, no spider); small sealed/vented chamber couples straight to the canal |
-| Impedance vs frequency | **Varies** — HD 550 "roughly 170 Ω at 1 kHz, and 320 Ω at 70 Hz" | "flat", "purely resistive load" | Own energiser; not a user variable | Rises with frequency (high inductance) | Not separately sourced — inherits §1.1's inductive-load mechanism, unconfirmed at IEM scale |
+| Impedance vs frequency | **Varies** — HD 550 "roughly 170 Ω at 1 kHz, and 320 Ω at 70 Hz" | "flat", "purely resistive load" | Own energizer; not a user variable | Rises with frequency (high inductance) | Not separately sourced — inherits §1.1's inductive-load mechanism, unconfirmed at IEM scale |
 | Signature FR defect | **Narrow high-Q peak ~4–8 kHz**, cup-cavity reflection + concha | Broad shaping; magnet diffraction in treble; **no** break-up spike | Excursion-limited LF *(inference from construction, not cited)* | **Non-flat by construction** — first and second peaks, damped acoustically | Vent geometry sets the LF corner (mechanism sourced 3 ways, no Hz number); **no cup resonance** the over-ear peak depends on *(inference, not a quote)* |
-| Rule out first | **Source output impedance → ~2.94 dB bass lift in the worked example** | — (flat impedance) | Bias/energiser mismatch = level, not tone | **Seal** — bass "disappears" without a sealed canal | Vent/pressure-relief trade-off before reading a bass complaint as target error; on hybrids, crossover-region FR deviation before EQ (§2.1) |
+| Rule out first | **Source output impedance → ~2.94 dB bass lift in the worked example** | — (flat impedance) | Bias/energizer mismatch = level, not tone | **Seal** — bass "disappears" without a sealed canal | Vent/pressure-relief trade-off before reading a bass complaint as target error; on hybrids, crossover-region FR deviation before EQ (§2.1) |
 
 **Cutting across all of them:**
 

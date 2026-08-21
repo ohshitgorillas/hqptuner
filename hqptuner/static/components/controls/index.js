@@ -330,7 +330,7 @@ export function SliderNumber(props) {
 }
 
 /**
- * Renders an option list as a group of labelled radio buttons, the one matching
+ * Renders an option list as a group of labeled radio buttons, the one matching
  * `value` checked.
  * @param {{ value: CtrlValue, options: RenderOption[] | undefined, disabled?: boolean, onChange: ValueSink }} props
  */

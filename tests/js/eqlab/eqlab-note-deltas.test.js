@@ -81,7 +81,7 @@ const cellUnder = (report, label, column) => {
   return row.trim().split(/\s+/)[header.trim().split(/\s+/).indexOf(column)];
 };
 
-// --- behaviour 1: an unmeasured harmonic has no delta -------------------------
+// --- behavior 1: an unmeasured harmonic has no delta -------------------------
 //
 // A4 is 440 Hz exactly, so its 4th harmonic is 1760 Hz exactly. `before` spans
 // 20 Hz .. 20000 Hz and covers it; `after` stops at 1000 Hz and does not. Both
@@ -115,7 +115,7 @@ test("test_a_harmonic_measured_on_after_but_not_on_before_has_no_delta", () => {
   assert.equal(harmonic(row, 1).delta, null);
 });
 
-// --- behaviour 2: a null delta renders as a dash ------------------------------
+// --- behavior 2: a null delta renders as a dash ------------------------------
 //
 // A real evaluate job over a real chain, asked for A4's 48th harmonic
 // (21120 Hz), which is off the top of both curves and so is unmeasured on each.

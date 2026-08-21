@@ -16,7 +16,7 @@ Policy notes (docs/testing.md):
 - No test waits on the wall clock. The clock cannot be virtualized across the
   subprocess boundary, so there are no fixed sleeps: every wait is a bounded
   poll on a condition (a selector, or a DOM predicate).
-- These are characterization tests for already-shipped behaviour, so the
+- These are characterization tests for already-shipped behavior, so the
   "new tests must bite" rule does not apply to them (rule 8's stated exemption).
 - The stack is session-scoped and its engine state persists between tests, so
   each case states the baseline it needs and asserts on the transition it
@@ -28,7 +28,7 @@ filter (`junk_filter`), which is a live-lane setting written with
 `SetJunkFilter` (docs/settings-classification.md), so one control exercises both
 the staging UI and the control wire. The Conversion tab is gone and its cards
 live on the Output tab, so the control sits on the landing tab: `open_app`
-reaching it with no tab switch is itself part of the pinned behaviour.
+reaching it with no tab switch is itself part of the pinned behavior.
 """
 
 import re
@@ -70,7 +70,7 @@ TAB_NAMES = ["Output", "Volume", "Matrix", "System"]
 #: as the control fake stores it: an index string, `"0"` being the `none` entry
 #: of the junk-filter enumeration. The stack is session-scoped, so without a
 #: known starting point a case could pick the value already in force, stage
-#: nothing, and fail as a timeout rather than as the behaviour it is about.
+#: nothing, and fail as a timeout rather than as the behavior it is about.
 JUNK_BASELINE_INDEX = "0"
 JUNK_BASELINE_NAME = "none"
 
@@ -170,7 +170,7 @@ def staged_count(page: Page) -> int:
     """How many changes the pending bar says are staged, read as a number.
 
     The bar's wording is copy and may change; the number in it is the
-    behaviour. An empty count reads as nothing staged.
+    behavior. An empty count reads as nothing staged.
     """
     digits = re.search(r"\d+", page.locator("footer.pending-bar .count").inner_text())
     return int(digits.group()) if digits else 0
@@ -203,7 +203,7 @@ def test_the_high_frequency_filter_is_reachable_without_switching_tabs(page: Pag
 
     Every other case leans on this through `open_app`, where a regression would
     surface as a timeout inside whichever test runs first; this one names the
-    behaviour. The page is loaded directly — deliberately not via `open_app` —
+    behavior. The page is loaded directly — deliberately not via `open_app` —
     and no tab-nav click happens before the assert.
     """
     page.goto(stack.base_url)

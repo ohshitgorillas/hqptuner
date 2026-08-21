@@ -132,7 +132,7 @@ const favMarked = (vnode) => {
 /** @param {VNode} row */
 const starsOf = (row) => clickablesIn(row.props.children).filter(favMarked);
 
-// The star of the row labelled `label`; anything but exactly one match throws
+// The star of the row labeled `label`; anything but exactly one match throws
 // rather than clicking something else.
 /**
  * @param {VNode[]} seen
@@ -140,7 +140,7 @@ const starsOf = (row) => clickablesIn(row.props.children).filter(favMarked);
  */
 function star(seen, label) {
   const row = rowsOf(seen).find((r) => textOf(r).includes(label));
-  if (!row) throw new Error(`no dd-opt row labelled ${label}`);
+  if (!row) throw new Error(`no dd-opt row labeled ${label}`);
   const stars = starsOf(row);
   if (stars.length !== 1) throw new Error(`expected one star on ${label}, found ${stars.length}`);
   return stars[0];

@@ -20,7 +20,7 @@
   background: var(--surface-raised);
   border-bottom: 1px solid var(--line);
   /* One height for every title bar, whatever it holds: the token sets it and
-     the content is centred in it, so an oversized child (triangle, Reset
+     the content is centered in it, so an oversized child (triangle, Reset
      button) sits inside the bar instead of growing it. No vertical padding —
      it would add to the height rather than set it. */
   display: flex;
@@ -35,16 +35,16 @@
   color: var(--fg);
 }
 /* The card's explanation, first child of the body — NOT of the head. Size and
-   colour belong to the .t-caption role and are spent in typography.css; all it
+   color belong to the .t-caption role and are spent in typography.css; all it
    needs here is to be a block, so it occupies a body row of its own and takes
    the body's own gap between itself and the first control. */
 .card-sub {
   display: block;
 }
-/* A centred head names a card whose body is one control across the whole frame
+/* A centered head names a card whose body is one control across the whole frame
    (the Output hero row), where a left-pinned title reads as a caption on
    whatever sits under its left edge. It drops the raised bar with the
-   alignment — behind a centred title the strip reads as an empty row rather
+   alignment — behind a centered title the strip reads as an empty row rather
    than a header — and carries the row's larger heading size instead. */
 .card-head.center {
   background: var(--surface-card);
@@ -66,7 +66,7 @@ button.card-head {
 .card.closed > .card-head {
   color: var(--muted);
 }
-/* Taller than the title beside it; the head's own gap and centring place it. */
+/* Taller than the title beside it; the head's own gap and centering place it. */
 .card-head .tri,
 .subhead .tri {
   color: var(--accent);
@@ -206,7 +206,7 @@ button.card-head {
   color: var(--fg-2);
 }
 /* hierarchical controls nested under a parent toggle. Inside a two-track .pack the
-   centred column rule is already the divider, so the nesting border would read as
+   centered column rule is already the divider, so the nesting border would read as
    a second line beside it (DAC correction) — there the indent is carried by the
    margin alone. */
 .pack .indent {

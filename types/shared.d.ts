@@ -188,7 +188,7 @@ interface SchemaField {
   // Render the number control as a slider (schema.js:685 and 7 more -> Field.js:302).
   slider?: boolean;
 
-  // behaviour flags
+  // behavior flags
   bool?: boolean;
   appliesLive?: boolean;
   fileTruth?: boolean;

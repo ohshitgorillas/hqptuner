@@ -131,7 +131,7 @@ ALLOWLIST_CASES = [
     ("scripts/pair.sh open eqfix", False),
     ("scripts/pair.sh merge eqfix", False),
     ("scripts/pair.sh abort eqfix", False),
-    ("bash scripts/pair.sh list", False),        # `bash` is not a recognised head
+    ("bash scripts/pair.sh list", False),        # `bash` is not a recognized head
     # unchanged: a shell loop is not parsed, so it still meters
     ("for f in a b; do diff -q $f x/$f; done", False),
 ]

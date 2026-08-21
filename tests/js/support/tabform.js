@@ -48,7 +48,7 @@ export const stateOf = (out, title) => {
 // Where the head titled `title` starts, whatever element carries it: a plain
 // `<div class="card-head">`, a hero's `card-head center`, or a collapsible's
 // `<button class="card-head">` with its disclosure triangle ahead of the title.
-// Which of those a card uses is a disclosure decision, not a behaviour, so a
+// Which of those a card uses is a disclosure decision, not a behavior, so a
 // card that gains or loses one stays findable. -1 when no such head is rendered.
 // (Same shape as the `head(title)` regexes in the live-view suites.) The title
 // must run to the head's own close, so "Backend" does not answer with the

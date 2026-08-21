@@ -4,7 +4,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no case
 // targets a private helper. The refactor's whole purpose is to create private
-// per-kind validators/labellers — they are covered exclusively through the two
+// per-kind validators/labelers — they are covered exclusively through the two
 // public functions, which is what makes these tests survive it.
 //
 // Assertion style, chosen deliberately:

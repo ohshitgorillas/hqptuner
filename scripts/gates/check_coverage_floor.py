@@ -29,7 +29,7 @@ FLOOR = 90
 
 #: Files excused from the floor, path to the reason.
 EXEMPT: dict[str, str] = {
-    "hqptuner/__main__.py": "uvicorn launch shim — no behaviour to assert, and running it starts a server",
+    "hqptuner/__main__.py": "uvicorn launch shim — no behavior to assert, and running it starts a server",
 }
 
 
@@ -77,7 +77,7 @@ def check(report: Path, floor: int, exempt: dict[str, str] | None = None) -> int
 
     if problems:
         print(f"\n{problems} problem(s). Every file covers at least {floor}%, or carries a")
-        print("reason in EXEMPT saying what about it has no behaviour to assert.")
+        print("reason in EXEMPT saying what about it has no behavior to assert.")
         return 1
     print(f"[ok] all {len(measured)} files cover at least {floor}%")
     return 0

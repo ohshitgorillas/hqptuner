@@ -188,7 +188,7 @@ const page = () => render(html`<${LiveView} />`);
 // without changing what it says still measures.
 
 // The chain card headed `title`, cut at whichever chain head comes next so a
-// collapsed card cannot silently lend its neighbour's controls to a lookup.
+// collapsed card cannot silently lend its neighbor's controls to a lookup.
 const CHAINS = ["PCM Chain", "SDM Chain"];
 /**
  * @param {string} out
@@ -201,7 +201,7 @@ function card(out, title) {
   return out.slice(at, after.length ? Math.min(...after) : undefined);
 }
 
-// The attributes of the form control a labelled field wraps. Anything between
+// The attributes of the form control a labeled field wraps. Anything between
 // the label and its control is skipped, and everything after the control is
 // ignored: a filter field also carries the narrowing tickboxes, which disable on
 // their own account.
@@ -211,9 +211,9 @@ function card(out, title) {
  */
 function widgetAttrs(out, label) {
   const at = out.search(new RegExp(`<label>${label}(<|</label>)`));
-  if (at < 0) throw new Error(`no field labelled "${label}" in the markup given`);
+  if (at < 0) throw new Error(`no field labeled "${label}" in the markup given`);
   const m = /<(select|input|button)\b([^>]*)>/.exec(out.slice(at));
-  if (!m) throw new Error(`the field labelled "${label}" wraps no form control`);
+  if (!m) throw new Error(`the field labeled "${label}" wraps no form control`);
   return m[2];
 }
 
@@ -234,7 +234,7 @@ const grayed = (out, label) => DISABLED.test(widgetAttrs(out, label));
  */
 function segmentGrayed(out, label) {
   const at = out.search(new RegExp(`<label>${label}</label>`));
-  if (at < 0) throw new Error(`no field labelled "${label}" in the rendered page`);
+  if (at < 0) throw new Error(`no field labeled "${label}" in the rendered page`);
   const rest = out.slice(at, out.indexOf("<label", at + 1));
   return [...rest.matchAll(/<button\b([^>]*)>/g)].some((m) => DISABLED.test(m[1]));
 }

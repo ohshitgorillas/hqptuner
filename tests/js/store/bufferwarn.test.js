@@ -121,7 +121,7 @@ for (const { key, value, staged } of DANGEROUS) {
 // at its safe value — neither overwritten by the dangerous value nor swept out
 // with it.
 for (const { key, value, safe } of DANGEROUS) {
-  test(`cancelling the ${key.replaceAll("_", " ")} warning leaves the staged set unchanged`, async () => {
+  test(`canceling the ${key.replaceAll("_", " ")} warning leaves the staged set unchanged`, async () => {
     const w = await reset();
     const { held: pre } = await stage(w, key, safe);
     await pre;
@@ -133,7 +133,7 @@ for (const { key, value, safe } of DANGEROUS) {
   });
 }
 
-test("a cancelled buffer warning leaves lastApply untouched", async () => {
+test("a canceled buffer warning leaves lastApply untouched", async () => {
   const w = await reset();
   const before = lastApply.value;
   const { held } = await stage(w, "short_buffer", "2");

@@ -203,7 +203,7 @@ class ControlClient:
         return await self._attrs("<GetInfo/>")
 
     async def get_license(self) -> dict[str, str]:
-        """Run `<GetLicense/>` for the static licence attributes: `valid` (0/1), `name` (licensee), `fingerprint`."""
+        """Run `<GetLicense/>` for the static license attributes: `valid` (0/1), `name` (licensee), `fingerprint`."""
         return await self._attrs("<GetLicense/>")
 
     async def get_active_config(self) -> str:

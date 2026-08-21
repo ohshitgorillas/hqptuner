@@ -49,7 +49,7 @@ import { canonPipelines, editRow, lintRow, readBaseline, resolveEq, selectRows }
  *
  * `posted` and `verified` are written after the POST rather than at construction
  * — a dry run returns with both still false — so they are plain booleans here
- * and not the `false` literal their initialiser would otherwise infer.
+ * and not the `false` literal their initializer would otherwise infer.
  *
  * @typedef {{
  *   baseline_source: "config" | "matrix",

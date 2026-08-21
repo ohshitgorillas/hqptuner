@@ -173,7 +173,7 @@ def satisfy_shipped_exemptions(root: Path) -> None:
     """Copy into ``root`` the real file behind every shipped exemption entry.
 
     A subprocess run of the script carries ``EXEMPT`` with it and audits it against
-    whatever tree it is pointed at, so a throwaway tree has to honour it before any
+    whatever tree it is pointed at, so a throwaway tree has to honor it before any
     other verdict the run reaches is about the case under test.
     """
     for key in SHIPPED_EXEMPT:
@@ -340,7 +340,7 @@ def test_a_function_over_the_limit_is_reported_with_its_name_line_and_depth(
     ]
 
 
-def test_a_failing_run_summarises_how_many_problems_it_found(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
+def test_a_failing_run_summarizes_how_many_problems_it_found(tmp_path: Path, monkeypatch: Any, capsys: Any) -> None:
     """The trailing line tells the reader how much there is to fix."""
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/deep.py", THREE_VIOLATIONS)
@@ -579,7 +579,7 @@ def test_a_live_exemption_for_a_file_not_passed_on_argv_passes(tmp_path: Path, m
 
 
 def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path, monkeypatch: Any) -> None:
-    """A caller who passes no mapping gets the module's own, so a shipped excuse is honoured."""
+    """A caller who passes no mapping gets the module's own, so a shipped excuse is honored."""
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/deep.py", function("if", 5))
     monkeypatch.setattr(GATE, "EXEMPT", {f"{path}::f": "the parser walks a nested document"})

@@ -6,7 +6,7 @@ file per facet would be all overhead — with ``favorites``'s conventions: a sch
 than this HQPTuner understands, an unstamped file adopted on its next write, lazy creation so an install that never
 narrows anything reads as defaults.
 
-Reading and writing are deliberately asymmetric. A **write** refuses anything it does not recognise, because the
+Reading and writing are deliberately asymmetric. A **write** refuses anything it does not recognize, because the
 client is HQPTuner's own frontend and a facet it cannot name is a bug worth surfacing. A **read** never raises over
 content: an entry that is unknown, wrong-typed or out of domain falls back to that facet's default, so a file damaged
 by hand or left behind by an older layout costs the user their narrowing rather than their narrow bar.

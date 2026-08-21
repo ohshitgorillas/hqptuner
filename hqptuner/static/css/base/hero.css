@@ -51,7 +51,7 @@
 }
 .seg-box .segment {
   flex-direction: row;
-  /* fill the card up to a cap and centre — a full-width Backend card keeps its
+  /* fill the card up to a cap and center — a full-width Backend card keeps its
      buttons button-sized instead of stretching them across the whole container. */
   width: 100%;
   max-width: 46rem;

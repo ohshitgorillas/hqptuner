@@ -50,7 +50,7 @@ test("test_a_zero_is_kept_rather_than_replaced_by_the_default", () => {
 // --- the min handle ----------------------------------------------------------
 
 test("test_min_is_capped_at_zero_dbfs", () => {
-  // only Max is documented as accepting positive gain. Both neighbours sit at or
+  // only Max is documented as accepting positive gain. Both neighbors sit at or
   // above 0 here so the 0 cap is what bites, not the cannot-cross rule.
   assert.equal(clampVolume("min", 5, { min: -60, startup: 0, max: 12 }), 0);
 });
@@ -67,7 +67,7 @@ test("test_min_stops_at_the_axis_floor", () => {
   assert.equal(clampVolume("min", -300, CUR), -120);
 });
 
-test("test_min_below_all_its_neighbours_is_kept", () => {
+test("test_min_below_all_its_neighbors_is_kept", () => {
   assert.equal(clampVolume("min", -70, CUR), -70);
 });
 
@@ -104,7 +104,7 @@ test("test_startup_between_the_two_is_kept", () => {
 });
 
 test("test_startup_may_take_positive_gain_when_max_allows_it", () => {
-  // the 0 dBFS cap belongs to Min alone; startup rides between its neighbours
+  // the 0 dBFS cap belongs to Min alone; startup rides between its neighbors
   assert.equal(clampVolume("startup", 6, { min: -60, startup: 0, max: 12 }), 6);
 });
 

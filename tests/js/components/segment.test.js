@@ -142,7 +142,7 @@ test("test_the_option_matching_the_value_is_the_active_button", () => {
 });
 
 // The selected button (index 1 here) is the subject of the test above; this one
-// owns the other side of behaviour 5 — everything else stays plain.
+// owns the other side of behavior 5 — everything else stays plain.
 test("test_the_unselected_options_render_as_plain_buttons", () => {
   assert.deepEqual(
     buttonClasses(out({ value: "b" })).filter((_, i) => i !== 1),

@@ -219,7 +219,7 @@
 }
 
 /* The switch block under the facet row (narrowbar/Bar.js): the binding two-column
-   split (1fr 1px 1fr + .col-rule on the card centre line, design-system §Rules).
+   split (1fr 1px 1fr + .col-rule on the card center line, design-system §Rules).
    Left column Apodizing filters, right column 1x sources over Source format;
    each group is a title beside its switch rows with the description under them.
    Below the 1100px breakpoint the groups stack and the rule hides (.col-rule's
@@ -292,7 +292,7 @@
   margin-left: var(--sp-2);
   white-space: nowrap;
 }
-/* CUDA device ids — two labelled number boxes on one row (DSP / convolution),
+/* CUDA device ids — two labeled number boxes on one row (DSP / convolution),
    each a caption above its input so the pair reads as one control group */
 .cuda-devs {
   display: flex;
@@ -350,7 +350,7 @@
 /* Raw engine name above the description — only rendered while Simplified
    display hides that name from the control itself (components/binder.js
    DescBlock). Same voice as the description it heads — it inherits the
-   caption size and grey from .field-desc; only the weight marks it as the
+   caption size and gray from .field-desc; only the weight marks it as the
    block's title. */
 .field-desc-name {
   font-weight: var(--fw-semibold);
@@ -389,8 +389,8 @@
 
 /* A star that would not stick — the favorites write was refused, and the set
    went back the way it was (store/narrow/favorites.js). Placed under the dropdown it
-   belongs to, in the field's grid col 2, same as a gray reason; warn colour
-   rather than the caption grey, for the same reason .live-error takes it — a
+   belongs to, in the field's grid col 2, same as a gray reason; warn color
+   rather than the caption gray, for the same reason .live-error takes it — a
    caption is prose the user may read, this is a failure they have to act on. */
 .field-error {
   grid-column: 2;

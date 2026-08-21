@@ -65,9 +65,9 @@
 .ask-warn .ask-pop .ask-msg {
   white-space: normal;
 }
-/* top-layer mode (Ask.js sets popover="manual"): the UA centres a popover with
+/* top-layer mode (Ask.js sets popover="manual"): the UA centers a popover with
    inset:0 + margin:auto and .multi-pop pins absolute under its anchor — both
-   wrong here. Neutralise both; Ask.js pins the viewport coords inline. The
+   wrong here. Neutralize both; Ask.js pins the viewport coords inline. The
    margin-top offset below the anchor row survives from .multi-pop. */
 .ask-pop[popover] {
   position: fixed;
@@ -93,7 +93,7 @@
 }
 /* the pinned option (the current preset) cannot be unchecked; its label reads
    as informational rather than operable. Two classes deep so it outweighs
-   narrowing.css's `.multi-pop label` colour whatever the module order. */
+   narrowing.css's `.multi-pop label` color whatever the module order. */
 .ask-pop .ask-choice-pinned {
   color: var(--muted);
 }

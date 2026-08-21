@@ -13,7 +13,7 @@
 // narrowing is HQPTuner's own presentational state (docs/architecture.md,
 // "Filter narrowing").
 //
-// Writing is coalesce-then-flush. The debounce window is not a behaviour to
+// Writing is coalesce-then-flush. The debounce window is not a behavior to
 // test on a clock (rule 7), so every case that sends drives the write through
 // `flushNarrowing()`, the way descriptions.test.js drives `flushDescriptions`.
 //

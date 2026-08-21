@@ -74,7 +74,7 @@ const withRow = (rows, index, patch) => rows.map((r, i) => (i === index ? { ...r
 
 // A baseline that is NOT already canonical: keys in a different order and
 // numbers left as numbers. The daemon's own config value is whatever was last
-// written to it, so the tool has to canonicalise rather than pass through.
+// written to it, so the tool has to canonicalize rather than pass through.
 const SCRAMBLED_BASELINE = JSON.stringify([
   { process: LP1_PLUS_PEAK, source: 0, mixdown: 0, gainunit: "dB", gain: 0 },
   { mixdown: 0, gain: 0, source: 1, process: "iir:type=peak;f=200;q=1;g=1", gainunit: "dB" },

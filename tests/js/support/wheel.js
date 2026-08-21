@@ -8,7 +8,7 @@
 //
 //   1. the event travels the ancestor chain from the control outwards, and
 //      every element carrying a wheel listener gets it;
-//   2. if nothing cancelled the event, the DEFAULT ACTION runs — a wheel over a
+//   2. if nothing canceled the event, the DEFAULT ACTION runs — a wheel over a
 //      focused number/range input steps its value, a wheel over a select moves
 //      its selection, and either fires the control's own input/change handlers.
 //
@@ -22,13 +22,13 @@
 // next render, the callback the component was handed, the requests the wire
 // fake was given. Never on whether an `onWheel` prop is present — that is
 // implementation shape, and a guard installed on a wrapper element instead
-// would satisfy the contract just as well, which is why the bubble is modelled.
+// would satisfy the contract just as well, which is why the bubble is modeled.
 //
 // LIMIT OF THE BUBBLE, stated rather than glossed: the chain is built from
 // `props.children`, so it links a control to the wrappers rendered by the SAME
 // component. It does not cross a component boundary — a wrapper emitted by a
 // PARENT component around a child component's control is not on the chain these
-// helpers walk. Moving the guard to such a wrapper preserves the behaviour in a
+// helpers walk. Moving the guard to such a wrapper preserves the behavior in a
 // browser and would still turn every case here red; read a failure of that shape
 // as a harness limit, not a regression.
 //

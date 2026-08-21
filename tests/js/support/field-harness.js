@@ -109,7 +109,7 @@ export const META = {
 
 // The matrix defaults to ENGAGED. A post-process field under a bypassed matrix is
 // grayed for that reason alone (store/schema.js matrixBypassed), which is a
-// different behaviour from the ones these suites pin — a case that wants the
+// different behavior from the ones these suites pin — a case that wants the
 // bypass passes its own `matrix`.
 const MATRIX_ENGAGED = [{ name: "enabled", value: "1" }];
 
@@ -195,7 +195,7 @@ export function line(out, cls) {
 // Locate the field's control row — the <div class="control">…</div> element the
 // spec names. The class attribute must carry `control` as a whole token, so
 // wrappers classed `field-control`, `control-row` or `controls` are not it.
-// Nested <div>s are honoured. Null when there is no control row.
+// Nested <div>s are honored. Null when there is no control row.
 /**
  * @param {string} out
  * @returns {{ outer: number, start: number, end: number, after: number } | null}

@@ -1,6 +1,6 @@
 """LivePresetStore's file handling through its public API (docs/testing.md).
 
-Characterization of behaviour that already exists (docs/testing.md rule 8
+Characterization of behavior that already exists (docs/testing.md rule 8
 exemption): every case here describes the store as it stands, not a change.
 
 Live presets are HQPTuner's own state — a handful of enum ids applied through

@@ -101,7 +101,7 @@
    Volume-adaptive compensation on the same bar, when it is switched on: the span
    between the bounds, drawn inside the bar rather than beside it. Same accent as
    the reachable range but at full strength against that range's wash, so the two
-   spans read as one axis at two depths rather than as two unrelated colours. */
+   spans read as one axis at two depths rather than as two unrelated colors. */
 /* Full bar height, square ends landing on each arc's tip. An arc is a bow and a
    band is a rectangle, so they meet exactly only at the tip; containment comes
    from the parentheses being tall enough that the band spans just the middle
@@ -133,7 +133,7 @@
   border: none;
 }
 /* A native range input insets its thumb by half the thumb's width at each end,
-   so a thumb's centre travels thumb-w/2 .. width-thumb-w/2 while the fill, the
+   so a thumb's center travels thumb-w/2 .. width-thumb-w/2 while the fill, the
    gridlines and the lane are positioned across the full track. Left uncorrected
    that offsets every handle from its own value by up to half a thumb, worst at
    the ends.
@@ -194,7 +194,7 @@
 }
 /* Startup: a hollow pin riding ABOVE the bar. Different shape, different fill,
    different row — so it stays readable and draggable at Min or Max. Its mark is
-   the pin's own centreline. */
+   the pin's own centerline. */
 .vr-startup {
   top: 0;
   height: 26px;
@@ -217,13 +217,13 @@
    The shape is a MASK, not a border, and that is load-bearing. A border-left
    never reaches its own box's top or bottom edge: at each corner the browser
    hands the ink to border-top / border-bottom, which are transparent here. On a
-   24px box the coloured arc ran roughly y=4..20 — exactly the bar's own 16px —
+   24px box the colored arc ran roughly y=4..20 — exactly the bar's own 16px —
    so the mark was flush with the bar at every width and radius, and no amount of
    resizing could change that. Masking an accent rectangle with a stroked path
    puts ink at y=0 and y=24, which is the whole point of the protrusion.
 
    The fill stays var(--accent) because the mask carries the shape and the
-   background carries the colour; an SVG background image would hardcode the hex
+   background carries the color; an SVG background image would hardcode the hex
    and stop following the token. */
 .vr-loud-low,
 .vr-loud-high {
@@ -238,7 +238,7 @@
   --thumb-border: none;
   --thumb-cursor: ew-resize;
 }
-/* the arc's stroke centreline at its bow — the value — sits 7px inside the box
+/* the arc's stroke centerline at its bow — the value — sits 7px inside the box
    edge the mark hangs on */
 .vr-loud-low {
   left: -7px;
@@ -262,7 +262,7 @@
 }
 /* Playback volume: a tuner needle, and the only mark on this bar that reports
    rather than sets. It is drawn in --fg, not --accent, because accent on this
-   card means "a setting you can change" — this one is state, and colouring it
+   card means "a setting you can change" — this one is state, and coloring it
    accent would invite a grab that does not exist. Not a dark ink either: the
    needle travels the whole axis, and outside the Min-Max span the track behind
    it is bare card, where anything near-black disappears.
@@ -303,7 +303,7 @@
 }
 .vr-boxes {
   display: flex;
-  justify-content: space-between; /* Min flush left, Max flush right, Startup centred */
+  justify-content: space-between; /* Min flush left, Max flush right, Startup centered */
   gap: var(--sp-4);
 }
 .vr-box {
@@ -388,7 +388,7 @@
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M3 1.5Q11 16 3 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 32'%3E%3Cpath d='M3 1.5Q11 16 3 30.5' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
 }
-/* the needle at legend size: same taper, same colour, so the swatch is the shape
+/* the needle at legend size: same taper, same color, so the swatch is the shape
    it names rather than an approximation of it. */
 .vr-key-needle {
   width: 7px;

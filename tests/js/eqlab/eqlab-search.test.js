@@ -3,7 +3,7 @@
 //
 // Search spaces are kept to single digits of candidates so that an ordering
 // assertion is readable, and score comes from an `at` metric on the band the
-// space moves — which depends on centre-frequency gain only, never on
+// space moves — which depends on center-frequency gain only, never on
 // HQPlayer's unverified peaking-Q convention (FILTER-MATH §7).
 //
 // One test re-reads a candidate's process string through the faked
@@ -220,7 +220,7 @@ test("test_a_result_entrys_metric_value_is_the_measured_number", () => {
   assert.ok(...near(OPEN.top[0].metrics.spot, 3, 0.1));
 });
 
-// Key presence only: the spec fixes the shape but no behaviour for these two.
+// Key presence only: the spec fixes the shape but no behavior for these two.
 test("test_a_result_entry_reports_whether_its_chain_was_only_partly_plottable", () => {
   assert.ok("partial" in OPEN.top[0], `expected a partial key, got ${Object.keys(OPEN.top[0])}`);
 });

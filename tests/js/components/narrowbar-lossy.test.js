@@ -121,7 +121,7 @@ test("test_the_1x_sources_group_offers_both_lossless_and_lossy_in_that_order", a
   assert.deepEqual(segmentLabels(group(renderBar(), TITLE)), ["Both", "Lossless", "Lossy"]);
 });
 
-// --- one row, no stage labelling, no Nx twin --------------------------------------
+// --- one row, no stage labeling, no Nx twin --------------------------------------
 // The axis exists at 1x only, so the group has nothing to tell two stages apart
 // and offers no second row to label.
 

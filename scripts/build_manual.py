@@ -189,7 +189,7 @@ def clean(lines: list[str]) -> list[str]:
 def locate(entries: list[Entry], body: list[str]) -> list[int]:
     """Index of each entry's heading in ``body``, matched in TOC order.
 
-    Order matters: "1. This written license agreement..." in the licence text
+    Order matters: "1. This written license agreement..." in the license text
     looks like a heading in isolation, and only the sequential scan keeps it
     from being mistaken for one.
     """

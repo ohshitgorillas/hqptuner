@@ -176,8 +176,8 @@ export function rawBiquad(args) {
 }
 
 /**
- * RBJ peaking-EQ coefficients at centre w0 from an explicit alpha, boosting or
- * cutting by the shelf amplitude A (= 10^(g/40), so ±g dB at the centre).
+ * RBJ peaking-EQ coefficients at center w0 from an explicit alpha, boosting or
+ * cutting by the shelf amplitude A (= 10^(g/40), so ±g dB at the center).
  * @param {number} w0
  * @param {number} alpha
  * @param {number} A

@@ -1,4 +1,4 @@
-"""AuditLog behaviour through its public API (docs/testing.md).
+"""AuditLog behavior through its public API (docs/testing.md).
 
 Pure filesystem: the log is a line-per-record JSON file under pytest's
 ``tmp_path``, so nothing here touches a daemon, a socket or the repo. Ordering

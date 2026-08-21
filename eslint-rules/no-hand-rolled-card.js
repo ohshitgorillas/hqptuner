@@ -4,7 +4,7 @@
 // be found and applied at every call site — the 0.9.1 shading bug was exactly
 // that, a collapsible head painting the card BODY shade because two idioms had
 // drifted. And cards.css's .span hairline mask has to enumerate every card-like
-// container class by hand, so a new container silently paints the page colour
+// container class by hand, so a new container silently paints the page color
 // over a card and reads as a dark band across the row.
 //
 // One component means one place to fix and one selector to mask. This rule

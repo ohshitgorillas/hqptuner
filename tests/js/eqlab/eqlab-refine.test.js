@@ -4,7 +4,7 @@
 // was read.
 //
 // Search spaces follow the search suites' trick: one peaking band at 1 kHz
-// and an `at` metric reading the curve right at its centre, so a candidate
+// and an `at` metric reading the curve right at its center, so a candidate
 // that sets the band to g dB scores spot ≈ g. The refined objective is the
 // expr metric spot², whose continuous minimum (g = 0) falls between the grid
 // points of a [-1, 1, 0.4] sweep — refinement must leave the grid to reach it.

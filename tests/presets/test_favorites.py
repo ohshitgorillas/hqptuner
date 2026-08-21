@@ -1,6 +1,6 @@
 """Favorite filter NAMES, stored server-side (docs/testing.md).
 
-Two surfaces, one behaviour: `FavoriteStore` over a JSON file, and the
+Two surfaces, one behavior: `FavoriteStore` over a JSON file, and the
 GET/PUT `/api/favorites` pair over that store. Neither touches hqplayerd —
 favorites are HQPTuner's own state, keyed by filter name rather than by the
 engine's enum ids (docs/architecture.md §2) — so every client here is built

@@ -363,7 +363,7 @@ test("test_response_delta_maxdev_is_b_minus_a", async () => {
   assert.ok(...near(report.response_delta.maxdev, 3, 0.3));
 });
 
-test("test_response_delta_locates_the_max_deviation_near_the_peaks_centre", async () => {
+test("test_response_delta_locates_the_max_deviation_near_the_peaks_center", async () => {
   const report = await diffJob({ against: { bands: [PEAK_3] } }, await ctxOf([]));
   assert.ok(...near(report.response_delta.hz, 1000, 100));
 });

@@ -41,7 +41,7 @@ def listing(mgr: ConnectionManager) -> dict[str, Any]:
     Shaped like the daemon profile field the frontend already renders: an empty "(no preset)" option, then every
     stored preset. ``active`` is the store's truth (the daemon is always ``[default]``).
 
-    The empty option is deliberately NOT labelled ``[default]``. hqplayerd's own UI
+    The empty option is deliberately NOT labeled ``[default]``. hqplayerd's own UI
     uses that word for its unnamed base config — which, under our restore-only
     model, the daemon runs whether a preset is active or not — so the same word one
     browser tab apart meant two different things. Here it means "no preset

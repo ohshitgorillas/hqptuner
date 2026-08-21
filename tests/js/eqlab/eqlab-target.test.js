@@ -1,7 +1,7 @@
 // Behavioral suite for scripts/eqlab/target.js — target-curve resolution:
 // sources, transforms (smooth, tilt, override), and alignment. Written blind
 // from a spec block: no eqlab source was read. Test numbers in comments refer
-// to the spec block's behaviour list.
+// to the spec block's behavior list.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/eqlab-target.test.js
 
@@ -46,7 +46,7 @@ test("test_an_undefined_spec_resolves_to_null", async () => {
 });
 
 // 2 — mean-aligning a curve against itself is a no-op. Probed OFF the band's
-// centre, where the skirt is nonzero but well short of the peak value, so a
+// center, where the skirt is nonzero but well short of the peak value, so a
 // wrong implementation that only preserves peak gains fails.
 test("test_current_source_reproduces_the_base_curve_at_a_probe_frequency", async () => {
   const base = curve([band(1000, 3, 1)]);
@@ -125,8 +125,8 @@ test("test_points_source_with_fewer_than_two_points_is_rejected", async () => {
   await assert.rejects(() => resolveTarget(spec, FLAT, FS), /point/i);
 });
 
-// 8 — probed OFF the band's centre (2 kHz for a band at 1 kHz), where the
-// response depends on q, not just g; a centre-only probe would pass an
+// 8 — probed OFF the band's center (2 kHz for a band at 1 kHz), where the
+// response depends on q, not just g; a center-only probe would pass an
 // implementation that ignores q.
 test("test_chain_source_matches_curveof_of_the_same_bands", async () => {
   const bands = [{ type: "peak", f: 1000, q: 1, g: 3 }];

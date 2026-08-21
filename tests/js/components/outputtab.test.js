@@ -69,7 +69,7 @@ const tab = () => render(html`<${Output} />`);
 // One card's fragment, and where a card's head starts, both keyed by the title
 // in that head and both blind to which element carries it (`cardTitled` /
 // `cardHeadAt`, tests/js/support/tabform.js). Whether a card is a disclosure is
-// its own behaviour — daccorrection-collapse.test.js, common.test.js — so the
+// its own behavior — daccorrection-collapse.test.js, common.test.js — so the
 // cases here neither assume it nor break on it.
 
 // The dsp-body wrapper's full extent: from its opening tag to its matching
@@ -359,12 +359,12 @@ test("test_the_tab_bar_offers_exactly_output_volume_matrix_system_in_order", asy
   assert.deepEqual(tabLabels(render(html`<${TabBar} />`)), ["Output", "Volume", "Matrix", "System"]);
 });
 
-test("test_no_tab_is_labelled_conversion", async () => {
+test("test_no_tab_is_labeled_conversion", async () => {
   await reset({ cfg: FULL });
   assert.equal(render(html`<${TabBar} />`).includes("Conversion"), false);
 });
 
-test("test_no_tab_is_labelled_resampling", async () => {
+test("test_no_tab_is_labeled_resampling", async () => {
   await reset({ cfg: FULL });
   assert.equal(render(html`<${TabBar} />`).includes("Resampling"), false);
 });

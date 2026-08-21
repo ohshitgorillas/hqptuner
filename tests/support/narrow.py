@@ -7,7 +7,7 @@ obvious ``assert value is not None`` costs the test its single assertion
 (``docs/testing.md``, enforced by ``scripts/gates/check_test_assertions.py``).
 
 ``present`` does the narrowing in a helper instead. A ``None`` arriving here is a
-broken fixture, not the behaviour under test, so it raises rather than asserts.
+broken fixture, not the behavior under test, so it raises rather than asserts.
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 Split out of `conftest` on size alone. It keeps a settings dict and answers
 setters plus `State` from it, so a `Set*` followed by `State` reads the change
 back, which is what exercises the readback-verify path. Several wire quirks are
-modelled because the write-path tests turn on them: `value="999"` answers
+modeled because the write-path tests turn on them: `value="999"` answers
 `result="OK"` without applying (the OK-is-not-proof caveat, protocol.md §6),
 `value="err"` answers `result="Error"`, `SetMode` resets `rate` to `0` (the mode
 swaps the lists a rate is relative to), and the filter/shaper/rate enumerations
@@ -106,7 +106,7 @@ def _reload_shaper(state: dict[str, str]) -> None:
     (protocol.md §SetMode: the enumeration lists swap wholesale). Opt-in via
     the ``_cfg_dither`` / ``_cfg_modulator`` knobs (enum IDs, config-file
     domain), resolved on the loaded chain's own list; a state without the knobs
-    keeps the fake's old carry-the-pin behaviour, so existing suites see no
+    keeps the fake's old carry-the-pin behavior, so existing suites see no
     change."""
     sdm = _active_sdm(state)
     enum_id = state.get("_cfg_modulator" if sdm else "_cfg_dither")
@@ -134,7 +134,7 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
         # 2026-07-29), which this does not model: `tests/apply/test_apply.py` pins
         # rate index "5", a legitimate index of the real 11-item ladder that the
         # abbreviated lists below do not reach, so enforcing it here would red two
-        # tests over the fake's list length rather than over any behaviour.
+        # tests over the fake's list length rather than over any behavior.
         state["rate"] = value
     elif name == "SetJunkFilter":
         state["filter_junk"] = value

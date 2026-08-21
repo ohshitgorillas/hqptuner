@@ -292,7 +292,7 @@ function PipelinesCard() {
 
 // The switcher's two glyphs. Drawn, not typed: the app ships Inter + JetBrains
 // Mono, so a 🔊/🎧 in a segment label renders as tofu wherever no emoji font is
-// installed. They stroke in currentColor, so they take the seg's own colour on
+// installed. They stroke in currentColor, so they take the seg's own color on
 // both sides of the switch, and are decoration beside a word that already says
 // which mode this is — aria-hidden, no title.
 const SEG_GLYPH = {

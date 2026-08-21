@@ -335,7 +335,7 @@ export const schema = {
   //
   // These write the LIMIT slot, `defaults_*`, and that is the only rate slot a
   // config write may touch. The daemon has a second one — `samplerate`/`bitrate`,
-  // labelled "Sample rate"/"Bit rate" on its own form — which is an exact rate
+  // labeled "Sample rate"/"Bit rate" on its own form — which is an exact rate
   // that ignores both the limit and the source's base family. Verified live on
   // 6.0.4 against a 44.1 kHz source with the limit at DSD512:
   //
@@ -433,7 +433,7 @@ export const schema = {
     note: "dop",
     lane: "http",
     field: "alsa_dop",
-    // NOT grayed in PCM, unlike its neighbours. On a device with no native DSD
+    // NOT grayed in PCM, unlike its neighbors. On a device with no native DSD
     // path this switch is the only thing that makes SDM reachable at all, and
     // SDM grays until it is on (store/narrow/devicecaps.js) — graying it in PCM too
     // locks the user out of DSD entirely, with both controls pointing at each

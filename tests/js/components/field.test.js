@@ -41,7 +41,7 @@ import {
  */
 const option = (out, label) => {
   const found = optionByLabel(out, label);
-  if (found === undefined) throw new Error(`no option labelled "${label}" in the rendered field`);
+  if (found === undefined) throw new Error(`no option labeled "${label}" in the rendered field`);
   return found;
 };
 
@@ -81,7 +81,7 @@ test("test_a_field_without_a_sublabel_renders_no_label_alt", async () => {
   assert.equal(span(field("volume_max"), "label-alt"), null);
 });
 
-test("test_the_dac_correction_profile_is_labelled_dac_model", async () => {
+test("test_the_dac_correction_profile_is_labeled_dac_model", async () => {
   await reset();
   assert.ok(field("dac_correction_profile").includes("<label>DAC model</label>"));
 });

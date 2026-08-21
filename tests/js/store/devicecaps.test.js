@@ -118,7 +118,7 @@ test("test_a_pcm_tier_grayed_by_the_devices_ceiling_reads_unavailable", async ()
 });
 
 test("test_a_pcm_tier_the_device_announced_is_not_grayed", async () => {
-  // The other half of the judgement: a store that grayed its whole menu passes
+  // The other half of the judgment: a store that grayed its whole menu passes
   // the cases above and fails this one.
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
   const out = grayRatesByDevice(PCM_OPTIONS, "pcm");

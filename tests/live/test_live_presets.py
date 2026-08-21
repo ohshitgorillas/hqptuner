@@ -121,7 +121,7 @@ def test_a_listed_preset_reads_the_same_whichever_chain_the_engine_runs(
     # The list used to flag each preset against the running chain. Stated as
     # engine-independence rather than as an exact key set: a field added for
     # everyone is a benign change, a field that appears only when the engine
-    # disagrees with the preset is the judgement coming back.
+    # disagrees with the preset is the judgment coming back.
     chain_api(mode="2").put("/api/livepresets/Dark")
     matching = chain_api(mode="2").get("/api/livepresets").json()["presets"][0]
     mismatched = chain_api(mode="1").get("/api/livepresets").json()["presets"][0]

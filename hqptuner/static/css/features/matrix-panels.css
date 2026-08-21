@@ -276,7 +276,7 @@
    under the RESPONSE plot — same surface chrome as the plot frame, so it
    reads as its sibling. Geometry is fixed: three slots (freq | gain | width)
    are always rendered, disabled when unbound, so selecting or losing a band
-   never shifts the page bottom or the scroll position. Slots split on centred
+   never shifts the page bottom or the scroll position. Slots split on centered
    hairlines — the fixed-split mechanism from the design system, extended to
    a three-column card (1fr 1px 1fr 1px 1fr + .col-rule spans). */
 .band-strip {

@@ -7,7 +7,7 @@
 // settles, the server's buffer holds no entry that reads clean against its
 // baseline. Stage requests may carry `drop` —
 // `{live: {liveKey: [argName, …]}, http: [fieldName, …]}` — and the server
-// removes those entries; `stagingWire` in ../support/wire.js honours it the way
+// removes those entries; `stagingWire` in ../support/wire.js honors it the way
 // the backend does.
 //
 // The wire is faked, never the store (docs/testing.md rule 4): `stagingWire`
@@ -155,7 +155,7 @@ test("test_editing_one_field_clears_an_unrelated_field_that_has_gone_clean", asy
 });
 
 // An entry the schema does not know has no baseline to compare against, so it
-// cannot be judged clean — it is left alone even while its neighbours go.
+// cannot be judged clean — it is left alone even while its neighbors go.
 test("test_a_staged_field_the_schema_does_not_know_is_never_dropped", async () => {
   const W = await trees({ fields: [field("volume_max", "-3")] });
   W.staged = { live: {}, http: { no_such_control: "zzz" } };

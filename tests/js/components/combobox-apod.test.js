@@ -1,7 +1,7 @@
 // Behavioral suite for the apodizing badges on the chain filter dropdowns
 // (controls/Combobox.js `badge`, wired by binder.js for the `narrow`-carrying
 // entries): a filter's class — full-apodizing, half-apodizing, or neither —
-// renders as a non-interactive badge labelled "Apodizing" for full and "Half
+// renders as a non-interactive badge labeled "Apodizing" for full and "Half
 // apodizing" for half, and nothing for neither. The glyph is baked vector
 // geometry — one <path> per badge, distinct per class, never font text.
 // The badges render in BOTH option styles (owner decision): with the pref
@@ -295,7 +295,7 @@ function starOf(out, row) {
 // non-interactivity contracts all hold with the pref ON. "U One" is a
 // full-apodizing row, "MH One" a half-apodizing one, "MM Two" neither.
 
-test("test_a_full_apodizing_row_carries_a_badge_labelled_apodizing", async () => {
+test("test_a_full_apodizing_row_carries_a_badge_labeled_apodizing", async () => {
   const out = await simplifiedField();
   assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "Apodizing");
 });
@@ -314,7 +314,7 @@ test("test_the_full_badge_renders_role_img", async () => {
   assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "img");
 });
 
-test("test_a_half_apodizing_row_carries_a_badge_labelled_half_apodizing", async () => {
+test("test_a_half_apodizing_row_carries_a_badge_labeled_half_apodizing", async () => {
   const out = await simplifiedField();
   assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "Half apodizing");
 });

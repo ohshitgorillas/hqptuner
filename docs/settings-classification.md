@@ -96,7 +96,7 @@ HQPTuner therefore expose it as three-way control (Off · −3 dB · −6 dB) ra
 | Enable log / log path | http | fields `log_enabled` (checkbox) / `log_file` (text), verified |
 | Live log tail | n/a | file/journal stream, not daemon setting |
 
-`<engine>` settings above reachable only by editing config XML in `/backup` archive and pushing with `POST /restore` — daemon's configuration model and behaviour of each write route in `protocol.md` §3.6.
+`<engine>` settings above reachable only by editing config XML in `/backup` archive and pushing with `POST /restore` — daemon's configuration model and behavior of each write route in `protocol.md` §3.6.
 
 ## Additional live controls on the wire (not in architecture §4)
 

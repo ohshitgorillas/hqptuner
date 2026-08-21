@@ -5,7 +5,7 @@
 // ultrasonic-noise warning, the AHM5EC5L limited-SNR note). Both prose entry
 // points render them: the description, then the notes, single-spaced.
 //
-// Overlays are driven the way the neighbouring prose suite drives them: the
+// Overlays are driven the way the neighboring prose suite drives them: the
 // field-harness reset() seeds the /api/metadata signal with its worked META
 // payload, which carries the three shapes of notes-bearing record (description
 // + notes, empty description + notes, notes with no description key).

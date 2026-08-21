@@ -6,8 +6,8 @@ in-suite coverage. This script is its safety net: it implements Brown & Duda's
 model from the equations in ``docs/crossfeed-math.md`` — deliberately not from
 the JS — and checks three things about the compiled rows.
 
-1. They realize the intended centre and side transfer functions G_M and G_S.
-2. At lambda = 0 the centre is exactly unity at every frequency.
+1. They realize the intended center and side transfer functions G_M and G_S.
+2. At lambda = 0 the center is exactly unity at every frequency.
 3. One ear's rows sum to exactly the preamp gain at DC, for every lambda.
 
 Not a pytest test: it drives the real module through node, and ``docs/testing.md``
@@ -165,7 +165,7 @@ const pairs = pairCases.map(([label, rows, want]) => {{
 }});
 
 // Presets: each must round-trip through matchPreset, must leave head size alone,
-// and must land within the centre ripple its value was chosen for.
+// and must land within the center ripple its value was chosen for.
 const rippleFreqs = Array.from({{ length: 400 }}, (_, i) => 20 * 1000 ** (i / 399));
 const ripple = (angle, lambda) => {{
   let lo = Infinity;
@@ -201,7 +201,7 @@ def alpha_of(theta: float) -> float:
 
 
 def ray_delay(theta: float) -> float:
-    """Eq. (2), Woodworth & Schlosberg — arrival time relative to head centre."""
+    """Eq. (2), Woodworth & Schlosberg — arrival time relative to head center."""
     rad = math.radians(abs(theta))
     scale = HEAD_RADIUS / SPEED_OF_SOUND
     if rad < math.pi / 2:
@@ -216,7 +216,7 @@ def head_shadow(freq: float, theta: float) -> complex:
 
 
 def analytic(freq: float, lam: float, angle: float) -> tuple[complex, complex]:
-    """Return the centre and side transfer functions the compiled rows must realize."""
+    """Return the center and side transfer functions the compiled rows must realize."""
     near, far = 90 - angle, 90 + angle
     itd = ray_delay(far) - ray_delay(near)
     h_near = head_shadow(freq, near)
@@ -258,7 +258,7 @@ def check_transfer_functions(responses: list[dict[str, Any]]) -> tuple[float, fl
 
 
 def check_unity_centre(responses: list[dict[str, object]]) -> float:
-    """At lambda = 0 the centre must be exactly 1 at every frequency."""
+    """At lambda = 0 the center must be exactly 1 at every frequency."""
     return max(abs(complex(*r["mid"]) - 1) for r in responses if r["lambda"] == 0.0)  # type: ignore[misc]
 
 
@@ -306,7 +306,7 @@ def main() -> int:
     results = [
         (f"rows realize G_M over {len(responses)} cases", worst_mid, TOLERANCE),
         ("rows realize G_S", worst_side, TOLERANCE),
-        ("lambda=0 centre is unity", unity, TOLERANCE),
+        ("lambda=0 center is unity", unity, TOLERANCE),
         ("DC sum equals preamp gain (serialized gains)", dc_error, WIRE_TOLERANCE),
         (f"every compiled block recognized ({len(trips)} cases)", float(len(unrecognized)), 0.0),
         ("compile -> recognize -> compile is byte-identical", float(len(not_identical)), 0.0),
@@ -323,14 +323,14 @@ def main() -> int:
 
     if verbose:
         for x in presets[:-1]:
-            print(f"      preset {x['id']:<14} centre ripple {x['ripple']:5.2f} dB")
+            print(f"      preset {x['id']:<14} center ripple {x['ripple']:5.2f} dB")
         params: dict[str, float] = got["params"]  # type: ignore[assignment]
         lf_itd = params["itd"] + params["groupDelayFar"] - params["groupDelayNear"]
         print(f"      alpha near {params['alphaNear']:.4f} / far {params['alphaFar']:.4f}")
         print(f"      ITD {params['itd'] * 1e6:.1f} us, corner {params['cornerHz']:.1f} Hz")
         print(f"      LF ITD {lf_itd * 1e6:.1f} us ({lf_itd / params['itd'] - 1:+.0%} vs HF)")
         tilt = 20 * math.log10((params["alphaNear"] + params["alphaFar"]) / 2)
-        print(f"      coherent HF centre tilt at lambda=1: {tilt:.2f} dB")
+        print(f"      coherent HF center tilt at lambda=1: {tilt:.2f} dB")
 
     return 1 if failed else 0
 

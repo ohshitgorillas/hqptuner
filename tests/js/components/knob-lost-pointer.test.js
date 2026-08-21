@@ -19,7 +19,7 @@
 //
 // Not asserted anywhere here: WHICH value a given pixel of travel maps to. That
 // is the knob's own scale, and pinning it would pin arithmetic rather than
-// behaviour; what these cases pin is that the committed value is the one the
+// behavior; what these cases pin is that the committed value is the one the
 // knob itself last reported live, whatever that value was.
 //
 // Two things stop a case passing vacuously, both throws rather than silent
@@ -32,7 +32,7 @@
 // ancestor chain and any window/document listener the handlers install during
 // it. A knob routing its moves somewhere else entirely makes these cases throw
 // "nothing received the pointermove" — read that as a limit of the dispatch, not
-// as a verdict on the behaviour. tests/js/components/knob.test.js owns the
+// as a verdict on the behavior. tests/js/components/knob.test.js owns the
 // render-visible contracts and documents the rest of the interaction surface
 // (keys, wheel, double-click) as playwright's.
 //
@@ -96,7 +96,7 @@ function draggingKnob() {
 
 // Proof that a coordinate is one a STILL-RUNNING drag would report a new live
 // value at. Without it, "reported nothing live" says nothing: a pointer that has
-// not travelled far enough to change the value is silent on a running drag too.
+// not traveled far enough to change the value is silent on a running drag too.
 // Witnessed on a knob of its own, so the case under test starts clean.
 /** @param {number} clientY */
 function witnessTravel(clientY) {

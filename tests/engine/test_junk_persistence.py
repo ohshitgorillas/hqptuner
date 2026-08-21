@@ -8,7 +8,7 @@ of L dB is a power of ``10 ** (L / 10)``. The reader cases run against the fake
 shared spectrum builders (`junk_spectra`) and running-reader harness
 (`conftest`).
 
-Silence (spec behaviour 12/17) is covered both ways: the aggregate-level cases
+Silence (spec behavior 12/17) is covered both ways: the aggregate-level cases
 exercise ``silent=True`` directly, and one wire case streams frames whose level
 blocks carry RMS below -90 dBFS (`fake_metering.frame`'s ``rms``)."""
 

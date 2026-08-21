@@ -92,7 +92,7 @@ def _describe(name: str, got: str) -> str:
         return "byte-identical"
     for form in ("NFC", "NFD", "NFKC", "NFKD"):
         if got == unicodedata.normalize(form, name):
-            return f"normalised to {form}"
+            return f"normalized to {form}"
     return "MANGLED"
 
 

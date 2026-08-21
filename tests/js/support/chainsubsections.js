@@ -1,7 +1,7 @@
 // Readers for the SOURCE-type subsections a chain card is split into, shared by
 // the conversion-card suites.
 //
-// Which element carries a subhead is a disclosure decision, not a behaviour: the
+// Which element carries a subhead is a disclosure decision, not a behavior: the
 // DSD half is a collapsible, so its subhead is a button, while the PCM half's is
 // not. Everything here therefore finds a subhead by the words a reader sees and
 // walks back to whatever tag opens it.

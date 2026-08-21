@@ -1,7 +1,7 @@
 """Which faults the connect/poll path is allowed to swallow (docs/testing.md).
 
 An expected wire or state fault — a route refusing, a stored preset the store
-will not read — keeps the quiet-retry behaviour: it is recorded where it
+will not read — keeps the quiet-retry behavior: it is recorded where it
 happened and costs nothing else. Every fault here is injected at the wire (a 503
 on a named 8088 route) or through constructor inputs (a preset directory another
 HQPTuner version stamped), never by patching the manager.

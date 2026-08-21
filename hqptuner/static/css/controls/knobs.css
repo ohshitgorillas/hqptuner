@@ -29,7 +29,7 @@
 }
 .knob:not(.knob-lg) .knob-dial {
   grid-area: dial;
-  /* the readout is wider than the dial and so sets the column width — centre the
+  /* the readout is wider than the dial and so sets the column width — center the
      dial in it too, or the dial reads as left-shifted above its own box */
   justify-self: center;
 }
@@ -109,8 +109,8 @@
   gap: var(--sp-1);
   flex: 0 0 auto;
   /* The unit ("Hz" / "dB") is taken out of flow (see .knob-unit) so this wrapper's
-     width is exactly the BOX. Centring the wrapper then centres the box under the
-     dial; in flow the unit pulls the box off-centre by half its own width. */
+     width is exactly the BOX. Centering the wrapper then centers the box under the
+     dial; in flow the unit pulls the box off-center by half its own width. */
   position: relative;
 }
 /* .knob prefix raises specificity above the global input[type=text] width.
@@ -133,7 +133,7 @@
   font-size: var(--fs-micro);
   color: var(--muted);
   /* out of flow, hanging to the right of the box — keeps it out of the readout's
-     width so the box alone is what gets centred under the dial */
+     width so the box alone is what gets centered under the dial */
   position: absolute;
   left: 100%;
   top: 50%;
@@ -178,7 +178,7 @@
   opacity: var(--o-dim);
 } /* disabled feature: text stays legible... */
 /* ...but the saturated accent controls (knob arc, slider, plot trace) must drop
-   to muted, or 0.7-alpha blue still reads "on" next to greyed-out text. */
+   to muted, or 0.7-alpha blue still reads "on" next to grayed-out text. */
 .dsp-body.off .knob-value,
 .dsp-body.off .knob-notch,
 .dsp-body.off .plot-trace.applied {
@@ -229,7 +229,7 @@
   width: 100%;
 }
 /* Two-column card splits (see CLAUDE.md): an explicit 1px rule TRACK puts the
-   hairline exactly on the card centre line, so every divider on the page lines
+   hairline exactly on the card center line, so every divider on the page lines
    up. Narrow viewports collapse to one column and drop the rule. */
 .knob-cluster {
   display: flex;

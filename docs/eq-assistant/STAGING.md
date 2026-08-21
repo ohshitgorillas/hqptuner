@@ -4,7 +4,7 @@ What "staging" means here: HQPTuner's pending-changes buffer is **server-side** 
 
 ## Use the tool
 
-`scripts/eqstage/` stages an EQ — bands, preamp, extra fields — in one job. It reads the baseline rows, edits only the rows you select, canonicalises and lints, POSTs, and verifies the echo. Full manual: `scripts/eqstage/README.md`.
+`scripts/eqstage/` stages an EQ — bands, preamp, extra fields — in one job. It reads the baseline rows, edits only the rows you select, canonicalizes and lints, POSTs, and verifies the echo. Full manual: `scripts/eqstage/README.md`.
 
 ```
 echo '{"rows":"all","eq":{"bands":[{"type":"peak","f":107,"q":0.7,"g":-4},{"type":"hshelf","f":10000,"q":0.7,"g":-4.3}]},"preamp_db":"auto"}' \
@@ -21,7 +21,7 @@ Useful when a job fails, or when staging something eqstage does not model.
 
 - **Stage:** `POST /api/config/stage` with body `{"live": {...}, "http": {...}}` (`api/routes/pending.py:92-111`, body model `api/models.py:10-12` — both dicts of strings, both optional). Repeated POSTs merge (`PendingStore.stage` is `dict.update`).
 - **Inspect:** `GET /api/config/pending` returns the snapshot (`api/routes/pending.py:113-117`).
-- Parametric EQ bands **and** preamp are one `http` field, `matrix_pipelines`: a single canonical-JSON string holding an array of rows `{gain, gainunit, mixdown, process, source}` with **every value a string and keys in that alphabetical order** (`static/store/resolve.js` `canonRow`/`canonPipelines`; server grammar `hqptuner/conf/matrixconf.py:85-101`). Compact JSON, no whitespace. It **replaces the entire row set**, so the current rows are read first and edited, never synthesised — file truth `GET /api/config` → `.data.file.matrix_pipelines`, read-only-mode fallback `GET /api/matrix` → `.data.rows`.
+- Parametric EQ bands **and** preamp are one `http` field, `matrix_pipelines`: a single canonical-JSON string holding an array of rows `{gain, gainunit, mixdown, process, source}` with **every value a string and keys in that alphabetical order** (`static/store/resolve.js` `canonRow`/`canonPipelines`; server grammar `hqptuner/conf/matrixconf.py:85-101`). Compact JSON, no whitespace. It **replaces the entire row set**, so the current rows are read first and edited, never synthesized — file truth `GET /api/config` → `.data.file.matrix_pipelines`, read-only-mode fallback `GET /api/matrix` → `.data.rows`.
 - Bands are `iir` stages in a row's `process` string — comma-separated, plugin syntax `iir:type=peak;f=1000;q=1;g=-3` (authority: `hqplayerd-readme.txt` §1.11 "process" / Plugin "iir": types `lp|lp1|hp|hp1|bp|ap|notch|peak|lshelf|hshelf|biquad`, args `f`, `q`, `g` in dB, plus `bw|s|b0..a2`). Preamp is the row's channel `gain` with `gainunit` `"dB"` — the same mapping the UI's EQ import uses for a `Preamp:` line (`static/components/matrix/Tab.js:53`, `static/lib/eqimport.js:27`). A Bauer-crossfeed-decomposed matrix carries `gainunit:"Lin"` rows; do not overwrite those with a dB preamp — amend band gains, or ask.
 - `/config/stage` validates only `live` keys (422 on unknown, `api/routes/pending.py:101`); `matrix_pipelines` is grounded at apply time, which is why eqstage lints the row contract itself before posting.
 - Other persistent fields stage as scalar `http` entries (e.g. `{"http":{"post_bauer_frequency":"700"}}` — field names per `store/schema.js`); pass them through eqstage's `http` block.

@@ -6,7 +6,7 @@
 //
 // Written blind from a spec block; render.js itself was not read. The prose of
 // a heading, a label or an "empty" message is copy this suite does not know, so
-// it never asserts a phrase. It asserts what the behaviour claims and a caller
+// it never asserts a phrase. It asserts what the behavior claims and a caller
 // can see: a value the report should name is in it, a table has one row per
 // entry, a column is blank, a section costs lines when its data is there and
 // none when it is not. Numbers go through mentionsAll(), which accepts the
@@ -16,7 +16,7 @@
 // Two shapes recur. "Omits the section entirely" compares the line cost of the
 // first entry against that of the second: a section always printed and merely
 // empty makes the two equal, a section that vanishes makes the first larger.
-// A behaviour whose only observable is copy (a boolean that changes the
+// A behavior whose only observable is copy (a boolean that changes the
 // wording, a source kind carrying no data of its own) is pinned as a difference
 // between the two renderings.
 //
@@ -50,7 +50,7 @@ import {
   peqSrc,
   probeBody,
   rep,
-  rowLabelled,
+  rowLabeled,
   rowsWith,
   sectionOmitted,
   show,
@@ -169,7 +169,7 @@ test("test_a_report_carrying_limits_states_the_grid_point_count_and_its_frequenc
   assert.ok(...mentionsAll(probeRep({ limits }), [512, 31, 19000]));
 });
 
-test("test_a_report_carrying_limits_states_how_many_responses_were_not_modelled", () => {
+test("test_a_report_carrying_limits_states_how_many_responses_were_not_modeled", () => {
   const not_modelled = Array.from({ length: 11 }, (_, i) => `zzunmodelled-${i}`);
   const limits = { grid: { points: 512, f_lo_hz: 25, f_hi_hz: 19000 }, not_modelled };
   assert.ok(...mentionsAll(probeRep({ limits }), [11]));
@@ -225,7 +225,7 @@ test("test_a_metric_with_no_frequency_leaves_the_frequency_column_empty", () => 
  * @param {Record<string, unknown>[]} harmonics
  * @returns {string}
  */
-const noteRow = (harmonics) => rowLabelled(show(rep("probe", probeBody({ notes: [{ ...NOTE_DB, harmonics }] }))), "A4");
+const noteRow = (harmonics) => rowLabeled(show(rep("probe", probeBody({ notes: [{ ...NOTE_DB, harmonics }] }))), "A4");
 
 test("test_a_note_table_carries_one_column_per_harmonic", () => {
   const one = noteRow([{ n: 1, hz: 440, db: 6.5 }]);
@@ -243,7 +243,7 @@ test("test_a_probe_whose_notes_are_null_omits_the_note_table", () => {
   assert.ok(...sectionOmitted(show(rep("probe", probeBody({ notes: null }))), one, two));
 });
 
-test("test_a_delta_note_table_is_labelled_differently_from_a_plain_db_note_table", () => {
+test("test_a_delta_note_table_is_labeled_differently_from_a_plain_db_note_table", () => {
   const scaffold = (/** @type {string} */ text) =>
     lines(text)
       .filter((l) => !l.includes("A4"))

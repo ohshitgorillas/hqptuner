@@ -156,9 +156,9 @@ const labels = (fragment, name) => elements(fragment).filter((el) => el.name ===
  * @param {string} name
  * @returns {MarkupElement}
  */
-export function labelled(fragment, name) {
+export function labeled(fragment, name) {
   const [hit] = labels(fragment, name);
-  if (!hit) throw new Error(`no control labelled "${name}" in the fragment`);
+  if (!hit) throw new Error(`no control labeled "${name}" in the fragment`);
   return hit;
 }
 

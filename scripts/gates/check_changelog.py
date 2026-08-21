@@ -52,7 +52,7 @@ SECOND_PERSON = re.compile(r"\b(you|your|yours|yourself|you're|you've|you'd|you'
 
 #: Register, not vocabulary: each of these reaches for the reader's feelings
 #: about the change instead of stating it. ``finally`` and ``quietly`` are here
-#: because they editorialise a fix that the sentence beside them already states.
+#: because they editorialize a fix that the sentence beside them already states.
 HYPE = (
     "simply",
     "seamless",

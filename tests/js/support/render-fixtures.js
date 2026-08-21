@@ -125,7 +125,7 @@ export const differ = (a, b) => [a !== b, `expected the two renderings to differ
  * @param {string} label
  * @returns {string}
  */
-export const rowLabelled = (text, label) => lines(text).find((l) => tokens(l)[0] === label) ?? "";
+export const rowLabeled = (text, label) => lines(text).find((l) => tokens(l)[0] === label) ?? "";
 
 // --- fixture values -----------------------------------------------------------
 

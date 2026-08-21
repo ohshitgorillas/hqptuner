@@ -2,7 +2,7 @@
 
 Companion to `SOURCES.md` (citations), `PRIMER.md` (feature contract), `PSYCHOACOUSTICS.md` (audibility thresholds), `TRANSDUCERS.md` (what is being EQ-ed). Compiled 2026-07-26.
 
-**Verification legend** — as `SOURCES.md`. `[VA]` throughout means a delegated research lane read the artefact and returned a verbatim quote plus a URL. Figures we computed from a quoted formula are labelled **derived** in place and are never presented as source claims. Numbers that surfaced only in search-engine summaries were **excluded, not demoted** — a summary is weaker than what `[S]` means in this project.
+**Verification legend** — as `SOURCES.md`. `[VA]` throughout means a delegated research lane read the artifact and returned a verbatim quote plus a URL. Figures we computed from a quoted formula are labeled **derived** in place and are never presented as source claims. Numbers that surfaced only in search-engine summaries were **excluded, not demoted** — a summary is weaker than what `[S]` means in this project.
 
 Four sources were read in full from local PDFs, all gitignored and not committed: Benjamin & Siedenburg (2023) (§5), the Frontiers 2026 review (§5.4), Jin et al. (2024) (§1.4), and ITU-T H.870 (§6.3). **Two of them cannot be read with `pdftotext`** — Jin et al. is a Caesar −1 shift across pages 2–8 *including digits*, so `6/18` decodes to `7029` and a naive extraction yields plausible wrong numbers; Benjamin & Siedenburg is offset by one glyph and loses minus signs. Both were read as rendered pages. This is recorded because those files are still in the working directory and the failure is silent rather than obvious.
 
@@ -242,7 +242,7 @@ NAL-NL2 was not derived at one input level. `[VA]`
 
 Keidser et al. (2011), *Audiol Res* 1(1):e24, PMID 26557309 — peer-reviewed, open access.
 
-DSL v5 is likewise specified across a level range and was built on loudness normalisation `[VA]`: *"the range of input levels that receive primary prescriptive consideration now extends from 52 to 74 dB SPL"*, and *"The algorithm computed a narrow-band, curvilinear, target input-output function that would amplify all input levels to a normal loudness."* — Scollie et al. (2005), *Trends in Amplification* 9(4):159–197, doi:10.1177/108471380500900403 (obtained as a manufacturer-hosted reprint of the peer-reviewed article; label it that way).
+DSL v5 is likewise specified across a level range and was built on loudness normalization `[VA]`: *"the range of input levels that receive primary prescriptive consideration now extends from 52 to 74 dB SPL"*, and *"The algorithm computed a narrow-band, curvilinear, target input-output function that would amplify all input levels to a normal loudness."* — Scollie et al. (2005), *Trends in Amplification* 9(4):159–197, doi:10.1177/108471380500900403 (obtained as a manufacturer-hosted reprint of the peer-reviewed article; label it that way).
 
 **A single static EQ curve is one slice through a level-dependent surface.** It can be correct at one playback level and wrong at another, and nothing in the chain adapts. Souza (2002) states the resulting bind directly `[VA]`: *"the benefit of a linear hearing aid is restricted when the amplification needed to make low-intensity sounds audible amplifies high-intensity sounds to the point of discomfort."*
 
@@ -266,7 +266,7 @@ For headphones specifically, individual geometry dominates at exactly the freque
 * **No per-ear control.** All four change types are stereo-symmetric. Asymmetric loss and diplacusis are out of reach (§3.4, §8).
 * **No calibrated reference.** The tuner does not know the playback level in dB SPL at the eardrum, which is the unit every prescription is specified in (§1.1, §4.2).
 
-None of these is a defect to apologise for; all three are boundaries to state plainly when a user's request crosses them. Crossing one is a `clarify`, and often a `recommends` — a user who needs level-dependent gain needs a hearing aid, and saying so once is more use than an EQ curve that pretends.
+None of these is a defect to apologize for; all three are boundaries to state plainly when a user's request crosses them. Crossing one is a `clarify`, and often a `recommends` — a user who needs level-dependent gain needs a hearing aid, and saying so once is more use than an EQ curve that pretends.
 
 ---
 
@@ -324,7 +324,7 @@ Lalwani et al. (2026), *Frontiers in Audiology and Otology*, doi:10.3389/fauot.2
 
 **One framing from it that the tuner should sit with**, because it describes the tuner's own mechanism as a hazard: *"Linear distortions are fixed frequency amplifications, which can change the harmonic spectrum, or natural timbre, of instruments."* Fixed frequency amplification is what HQPTuner does. The same review records that unaided listeners describe music as *"muddy," "muffled," and "distant"*, and that with hearing aids the descriptors shift to *"harsh"* and *"tinny"*, with some finding it *"too bright or shrill."* High-frequency compensation overshoots easily, which is the third independent line arriving at §2.3's conclusion.
 
-**A refinement, not a contradiction:** the review cites Looi et al. (2019) for impaired listeners preferring *"music with male singers and lower pitched instruments, with the preferences being stronger for more severe HL."* That is a preference in *programme material*, offered as a hypothesis about high-frequency-biased loss — not a shaping prescription. It is worth knowing that "no distinct spectral preference" was never the same claim as "no spectral preferences of any kind."
+**A refinement, not a contradiction:** the review cites Looi et al. (2019) for impaired listeners preferring *"music with male singers and lower pitched instruments, with the preferences being stronger for more severe HL."* That is a preference in *program material*, offered as a hypothesis about high-frequency-biased loss — not a shaping prescription. It is worth knowing that "no distinct spectral preference" was never the same claim as "no spectral preferences of any kind."
 
 ### 5.5 Self-fitting, on its own terms
 
@@ -368,7 +368,7 @@ The FDA's OTC hearing aid rule sets output and response limits that are worth kn
 
 ITU-T Recommendation H.870 (03/2022), *Guidelines for safe listening devices/systems* — the WHO–ITU standard, read in full from a local copy `[VA]`, standards-body. It defines the reference dose as **1.6 Pa²h per 7 days** for adults, derived from *"80 dB(A) for a maximum of 40 hours per week"* (§7.1), and **0.51 Pa²h** for the more conservative mode, from 75 dBA / 40 h.
 
-**The exchange rate is 3 dB**, stated as part of the metric's definition (§3.2.11): *"calculated using a 3-dB exchange rate between level and time"*, with §3.2.14 defining the term as *"The change in average noise level (in dB) that corresponds to a doubling or halving of allowable exposure time."* §8.1.3 makes it testable behaviour: *"verify that the dose grows at twice the rate for every 3 dB increase in output level."* The 5 dB rule found in some occupational regulation appears nowhere in H.870.
+**The exchange rate is 3 dB**, stated as part of the metric's definition (§3.2.11): *"calculated using a 3-dB exchange rate between level and time"*, with §3.2.14 defining the term as *"The change in average noise level (in dB) that corresponds to a doubling or halving of allowable exposure time."* §8.1.3 makes it testable behavior: *"verify that the dose grows at twice the rate for every 3 dB increase in output level."* The 5 dB rule found in some occupational regulation appears nowhere in H.870.
 
 The standard **prints the trade-off**, so nothing needs deriving. Table 1, Mode 1 (adults, 1.6 Pa²h/week), verbatim:
 
@@ -387,9 +387,9 @@ The standard **prints the trade-off**, so nothing needs deriving. Table 1, Mode 
 
 So **+6 dB quarters the permitted week** — 40 hours becomes 10.
 
-**The error this section exists to prevent.** H.870's dose is a **single broadband A-weighted quantity**. There is no per-band dose and no per-band limit anywhere in the standard. **The table above therefore may not be applied to one band's gain.** A narrow peaking filter lifted 6 dB raises the broadband A-weighted level by far less than 6 dB, so "+6 dB on a treble band quarters your listening time" is **wrong**. The honest statement concerns broadband level, and a narrowband boost costs proportionally less — how much less depends on the filter and the programme material, which the tuner would have to actually compute rather than assert.
+**The error this section exists to prevent.** H.870's dose is a **single broadband A-weighted quantity**. There is no per-band dose and no per-band limit anywhere in the standard. **The table above therefore may not be applied to one band's gain.** A narrow peaking filter lifted 6 dB raises the broadband A-weighted level by far less than 6 dB, so "+6 dB on a treble band quarters your listening time" is **wrong**. The honest statement concerns broadband level, and a narrowband boost costs proportionally less — how much less depends on the filter and the program material, which the tuner would have to actually compute rather than assert.
 
-**What an uncalibrated tool is licensed to say**, and this is the standard's own ruling on the matter (§7.2). H.870 lists the uncertainty sources — unknown headphone type, artificial-versus-real ears, standardised diffuse-field correction versus individual HRTFs, fit, individual susceptibility, exposure from other sources — and concludes that *"an error of 3 dB constitutes a 100% dose error"* so *"uncertainties of dose estimation can be expected to be hundreds of percent."* Its instruction:
+**What an uncalibrated tool is licensed to say**, and this is the standard's own ruling on the matter (§7.2). H.870 lists the uncertainty sources — unknown headphone type, artificial-versus-real ears, standardized diffuse-field correction versus individual HRTFs, fit, individual susceptibility, exposure from other sources — and concludes that *"an error of 3 dB constitutes a 100% dose error"* so *"uncertainties of dose estimation can be expected to be hundreds of percent."* Its instruction:
 
 > "It is therefore suggested to refrain from signalling 'safe' and 'green' to the user based on dose readings below a certain limit."
 
@@ -417,7 +417,7 @@ Pitch tracks the region of maximum loss rather than the audiogram's edge `[VA]`:
 
 ### 7.2 Notched EQ is not supported, and the tuner must not offer it
 
-The intervention in the literature is **tailor-made notched music training** (TMNMT): a one-octave notch centred on the tinnitus frequency, listened to for roughly 12 hours a week over months. The founding study was positive with **eight participants per arm** `[VA]` (Okamoto et al. 2010, *PNAS* 107(3):1207–1210), and a follow-up found the effect only for tinnitus frequencies ≤ 8 kHz `[VA]` (Teismann et al. 2011, *PLOS ONE* 6(9):e24685).
+The intervention in the literature is **tailor-made notched music training** (TMNMT): a one-octave notch centered on the tinnitus frequency, listened to for roughly 12 hours a week over months. The founding study was positive with **eight participants per arm** `[VA]` (Okamoto et al. 2010, *PNAS* 107(3):1207–1210), and a follow-up found the effect only for tinnitus frequencies ≤ 8 kHz `[VA]` (Teismann et al. 2011, *PLOS ONE* 6(9):e24685).
 
 **The largest double-blind trial missed every primary endpoint.** `[VA]`
 
@@ -431,7 +431,7 @@ Stein et al. (2016), *BMC Neurol* 16:38, ISRCTN04840953, n = 100 — peer-review
 
 In hyperacusis the discomfort ceiling drops from about 100 dB HL to 70–80 dB HL `[VA]` (Shi et al. 2022, as §3.1), where recruitment leaves it roughly intact. Reported prevalence spans 0.2–17.2 % in the general population, and the source attaches its own caveat that the spread reflects absent standard criteria `[VA]` (Ren et al. 2021, *Front Neurol* 12:706555).
 
-**Our inference, labelled as such and not sourced:** a 20–30 dB reduction in headroom between comfortable listening and discomfort means a broadband or treble boost consumes a large fraction of what remains. A verbatim source stating that boosting is counterproductive in hyperacusis **was sought and not confirmed** (§10) — so this must be presented as reasoning from the quoted UCL figures, never as a source claim. Hyperacusis is also a NICE referral trigger in its own right (§8).
+**Our inference, labeled as such and not sourced:** a 20–30 dB reduction in headroom between comfortable listening and discomfort means a broadband or treble boost consumes a large fraction of what remains. A verbatim source stating that boosting is counterproductive in hyperacusis **was sought and not confirmed** (§10) — so this must be presented as reasoning from the quoted UCL figures, never as a source claim. Hyperacusis is also a NICE referral trigger in its own right (§8).
 
 ---
 
@@ -482,7 +482,7 @@ What the tuner should actually do:
 4. **Prefer the edge of a loss region to its interior** (§3.3). Concrete, sourced, and it changes where a shelf's corner goes.
 5. **Keep broad moves broad.** The low-Q ruling gets *stronger* for impaired listeners, though not for the reason `PSYCHOACOUSTICS.md` §1 currently gives (§3.2).
 6. **Say what is out of reach, once, without refusing anything.** No compression, no per-ear, no calibrated level (§4.3). Level-dependent problems, asymmetry and diplacusis are `clarify` + `recommends` cases.
-7. **Recognise the time-critical pattern.** Sudden, unilateral, or newly changed — one factual sentence pointing at assessment, then continue serving the user (§8).
+7. **Recognize the time-critical pattern.** Sudden, unilateral, or newly changed — one factual sentence pointing at assessment, then continue serving the user (§8).
 8. **Do not claim a hearing-loss target curve exists — but do know the one sourced starting magnitude.** Aided listeners preferred essentially the factory tilt; **unaided** listeners preferred a rising tilt of about **+0.6 dB/octave**, roughly 4 dB across 125 Hz–8 kHz, measured within-subjects at `p = 0.002, d = 0.9`. HQPTuner's users are unaided, so that figure is the relevant one — as a gentle starting tilt with evidence behind it, not a curve derived from anyone's audiogram (§5.2). Loss predicts wanting the vocal louder (`r = 0.7`) far better than it predicts wanting more treble (`r = 0.3`, marginal), and the vocal is out of reach.
 9. **Note the exposure cost of a large boost once** (§6.3). The exchange rate is 3 dB and +6 dB quarters the permitted week — **but that is broadband A-weighted level, and there is no per-band dose**, so never apply the table to a single band's gain. Never tell a user a setting is safe; the standard itself forbids it for a tool this uncalibrated.
 
@@ -499,7 +499,7 @@ Highest value first. Items marked **human fetch** were blocked to the research l
 - **AAO-HNS Clinical Practice Guideline: Sudden Hearing Loss (Update)**, Chandrasekhar et al. (2019), doi:10.1177/0194599819859885 — **human fetch**. §8's treatment window currently rests on the Academy's fact sheet rather than the guideline itself.
 - **ASA/ANSI S3.6** current edition — **human fetch**. §1.1's dB HL → dB SPL values are quoted from a textbook citing the superseded 1996 edition.
 - **Benjamin & Siedenburg (2023) supplementary material** (doi:10.1121/10.0020269) — the article prints no numeric limits for the LAR, SPBal or EQ-transform dials, so the attainable range behind §5.2's figures is unknown. The supplement and the authors' sound examples would settle it.
-- **A verbatim source that boosting is counterproductive in hyperacusis.** Sought and not confirmed; §7.3 is inference from quoted UCL figures and must stay labelled that way. ASHA's Tinnitus and Hyperacusis practice portal was not fetched.
+- **A verbatim source that boosting is counterproductive in hyperacusis.** Sought and not confirmed; §7.3 is inference from quoted UCL figures and must stay labeled that way. ASHA's Tinnitus and Hyperacusis practice portal was not fetched.
 - **Clinical dB criterion for significant interaural asymmetry**, and NHANES asymmetry prevalence (*Otol Neurotol* 2021;42(2)) — **human fetch**. §8 currently carries only the noise-exposed-population range.
 - **McBride & Williams (2001)**, *Occup Environ Med* 58(1):46–51 — likely free at PMC, never attempted. Would give a numeric criterion for the noise notch, which this document deliberately does not assert.
 - **Upward spread of masking** with numbers — primaries paywalled. §3.2 routes around this via Glasberg & Moore's "lower branch much less steep than normal", which is adequate but indirect.

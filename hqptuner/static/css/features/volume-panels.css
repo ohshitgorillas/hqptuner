@@ -16,7 +16,7 @@
    what made the panel read as mostly empty */
 /* absolute width (not %) so the group is wider than the dial — the column
    otherwise shrinks to the dial and the knob reads as a tiny island. The slider's
-   width sets the whole group's footprint; the dial centres within it. */
+   width sets the whole group's footprint; the dial centers within it. */
 .knob-lg .knob-slider {
   flex: 0 0 auto;
   width: 460px;

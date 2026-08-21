@@ -11,7 +11,7 @@ Provenance note: the workflow here was not designed on paper first. It was extra
 | Input | complaint in listening terms | measurement file + yardstick |
 | Magnitude source | `typical_gain_db` (±2–3 dB starting points) | **the error curve** — whatever it says, that is the size |
 | Q discipline | 0.5–1.6 preferred, low-Q bias (`PSYCHOACOUSTICS.md` §1) | **whatever the measured feature has** — a Q 3 resonance gets a Q 3 cut |
-| Band placement | vocabulary region + amend-before-append | **measured feature centres** — the error curve places bands, not the vocabulary |
+| Band placement | vocabulary region + amend-before-append | **measured feature centers** — the error curve places bands, not the vocabulary |
 | Done when | user stops complaining | residual against target is small *and* the user accepts it by ear |
 | ±6 dB/turn clamp | policy (D1) | still policy — a large correction lands across turns, or as a `replace_segment`-shaped full fit the user reviews as a curve overlay |
 
@@ -24,7 +24,7 @@ The two modes compose in one session. Correct first, voice on top: once the resi
 There is no universal target. There is a ladder, and every rung requires the target and the measurement to be **rig-compatible** — a target defined on one rig family pasted onto another rig's measurement produces a fictional error curve.
 
 1. **Same-rig-family reference curve.** A 5128 measurement gets a 5128-referenced target (`5128-df-target.txt` exists in this directory for exactly that); a 711-family measurement gets a 711-family target. **Harman is 711-family-referenced — do not translate it onto 5128 data** `[session, ori turn 1]`. The rig-trust material behind this is `TRANSDUCERS.md` §4.
-2. **Flat-on-this-rig, backed by cited testimony.** Legal when the rig is nonstandard but its behaviour is attested — the Blackwood rig read HD580 and HE600 flat through bass/mids on the user's cited evidence, so flat-on-rig served as the target there, with treble held at reduced confidence until a same-rig reference file supplies the rig's treble transfer `[session]`. Confidence tracks evidence: the Blackwood ledger's `yardstick.pending_upgrade` records exactly which magnitudes are provisional and why, and that is the pattern — name what you are waiting on rather than pretending the target is settled.
+2. **Flat-on-this-rig, backed by cited testimony.** Legal when the rig is nonstandard but its behavior is attested — the Blackwood rig read HD580 and HE600 flat through bass/mids on the user's cited evidence, so flat-on-rig served as the target there, with treble held at reduced confidence until a same-rig reference file supplies the rig's treble transfer `[session]`. Confidence tracks evidence: the Blackwood ledger's `yardstick.pending_upgrade` records exactly which magnitudes are provisional and why, and that is the pattern — name what you are waiting on rather than pretending the target is settled.
 3. **No valid pairing** — `clarify`. Ask for the rig, or for a compatible target, before fitting anything. A fit against an incompatible target is worse than no fit, because it looks like an answer.
 
 **Tilt the target; do not fit raw DF.** A raw diffuse-field curve is an anatomy transfer, not a preference target — Olive 2025 found **no listener cluster accepted the raw 5128 DF target**, and the mean preferred tilt is −1 dB/octave (`SOURCES.md` §2.2d). The Ori session applied exactly that: 5128 DF, −1 dB/oct pivoted at 1 kHz `[session]`. The −1 dB/oct figure is a convention with spread around it (`SOURCES.md` head note), so it is a starting point the user adjusts, not a constant.
@@ -37,14 +37,14 @@ Accepted shapes are what eqlab's `fr_text` parser eats: whitespace-separated col
 
 **The error curve is a `difference` target: `target − measurement`**, aligned at a mid-band anchor (1 kHz, or mean-align) so the fit chases shape rather than absolute level — absolute level belongs to the preamp (`FILTER-MATH.md` §6). This one construction is the entire bridge from measurement to fit: every metric, objective and constraint then reads from it.
 
-Clean before trusting. Despike (median/MAD) removes isolated dropouts; a densely contaminated stretch — where most local points are bad — defeats any median window, and gets an `override` (interpolate across it) instead, which also removes it from every score so it cannot bias neighbouring bands `[session, ori]`. An overridden region is a region you have chosen not to know about; say so in the record.
+Clean before trusting. Despike (median/MAD) removes isolated dropouts; a densely contaminated stretch — where most local points are bad — defeats any median window, and gets an `override` (interpolate across it) instead, which also removes it from every score so it cannot bias neighboring bands `[session, ori]`. An overridden region is a region you have chosen not to know about; say so in the record.
 
 ## 4. Smoothing is a decision, made more than once
 
 Smoothing width sets what the fit can see, and the corpus's only prior word on it is one incidental quote (`TRANSDUCERS.md` §4). The session-derived doctrine `[session, ori]`:
 
 - **1/3 octave** for overall shape and the first-pass fit. It smears: the Ori's 1/3-oct pass read 9–12 kHz as approximately on-target.
-- **1/6 octave** to find structure. The same region at 1/6 oct exposed an untreated +2.9 dB peak at 11.5 kHz, and showed the 8 kHz band sitting ~300 Hz off the measured centre.
+- **1/6 octave** to find structure. The same region at 1/6 oct exposed an untreated +2.9 dB peak at 11.5 kHz, and showed the 8 kHz band sitting ~300 Hz off the measured center.
 - **1/12 octave (or finer)** to verify a placed band against the feature it claims to treat, and to check what survived a correction.
 
 The rule is **re-score at finer smoothing before declaring a region done**. A residual that is flat at 1/3 oct and lumpy at 1/6 is not done — the treble-forest failure mode (fitting coupler grass tightly) is avoided by the reliability ceiling in §5 and by matching Q to the *smoothed* feature, not by never looking closely.
@@ -54,7 +54,7 @@ The rule is **re-score at finer smoothing before declaring a region done**. A re
 `TRANSDUCERS.md` §4 sets the trust ceiling — 711-family couplers qualified to ~8 kHz, ~10 dB uncertainty above 10 kHz, features that move with placement — and `PSYCHOACOUSTICS.md` §5 sets the floor (reseat σ ≈ 2 dB, sub-2 dB moves never narrated as precise). For fitting, that translates to:
 
 - Below ~8 kHz: fit magnitudes as measured.
-- Above: features are real but their **magnitudes and exact centres are indicative**. Correct them at moderated depth and moderated Q, expect the listening pass to trim them, and never quote them at below-8 kHz precision. The Blackwood air-band bands were staged as audition variants precisely because the rig's treble transfer was unconfirmed `[session]`.
+- Above: features are real but their **magnitudes and exact centers are indicative**. Correct them at moderated depth and moderated Q, expect the listening pass to trim them, and never quote them at below-8 kHz precision. The Blackwood air-band bands were staged as audition variants precisely because the rig's treble transfer was unconfirmed `[session]`.
 - A repeatable rig beats a qualified rig you do not have: repeatability (same answer across reseats/pad-shifts) is what licenses correcting a treble feature at all; qualification is what licenses trusting its printed magnitude.
 
 ## 6. What is not correctable
@@ -73,13 +73,13 @@ Also outside the fit:
 The fit is search plus refine against the error curve; job mechanics in `scripts/eqlab/README.md`. What the sessions established about *driving* it `[session]`:
 
 - **Target-relative objectives, ERB-weighted where the ear is the judge.** `rmse` with `domain: "erb"` over the region under correction weights error by auditory bandwidth rather than log-frequency. Add a secondary weighted term for a second region rather than widening the primary.
-- **Constraints are collateral guards.** Every region the fit is *not* meant to touch that borders one it is gets an explicit bound (bass mean within ±0.75 dB, neighbour-band collateral bounded). A fit scored only where it aims will happily wreck the neighbourhood.
+- **Constraints are collateral guards.** Every region the fit is *not* meant to touch that borders one it is gets an explicit bound (bass mean within ±0.75 dB, neighbor-band collateral bounded). A fit scored only where it aims will happily wreck the neighborhood.
 - **Band budget comes from the error curve's feature count**, not from a prior. One band per resolved feature at the working smoothing; a double-humped plateau is two cuts, not one deep one — the search itself demonstrated two lighter cuts beat one by 0.42 dB at the worst spot with less collateral `[session, ori]`. A visible side peak with no band is an unserved feature and the user will find it (§8).
-- **Free the centres in the refine pass.** Grid search places, continuous refinement converges; a band whose refined centre lands off the measured feature centre at finer smoothing gets moved (the Ori 8 kHz band, 7898 → 8215 Hz).
+- **Free the centers in the refine pass.** Grid search places, continuous refinement converges; a band whose refined center lands off the measured feature center at finer smoothing gets moved (the Ori 8 kHz band, 7898 → 8215 Hz).
 - **Read the search diagnostics, not just the winner.** `binding` names the constraint actually limiting the answer; `sensitivity` prices relaxing it. When relaxing the binding constraint buys ~0.01 dB, you are at the diminishing-returns wall — stop and say so rather than manufacturing further improvement.
 - **A settled optimum sits off the search bounds.** A parameter pinned at its bound means the space was too small or the constraint is doing the work; either way the answer is not converged.
 - **Preamp from the summed response** of the whole chain — the negative of the maximum of the summed magnitude, never the largest band, never the sum of boosts (`FILTER-MATH.md` §6).
-- **Residual is the report, listening is the verdict.** Post-fit, re-score the corrected chain against the same target at finer smoothing and report residual per region. Then the user listens: a complaint against a near-zero residual indicts the *target realisation*, not the fit — the Ori "shouty" turn resolved as a filed target deviation plus a listening bisection on one band, no re-measurement `[session]`. Ear-versus-error disagreements resolve toward the ear, and the resolution is recorded as a target deviation so the fit stays honest.
+- **Residual is the report, listening is the verdict.** Post-fit, re-score the corrected chain against the same target at finer smoothing and report residual per region. Then the user listens: a complaint against a near-zero residual indicts the *target realization*, not the fit — the Ori "shouty" turn resolved as a filed target deviation plus a listening bisection on one band, no re-measurement `[session]`. Ear-versus-error disagreements resolve toward the ear, and the resolution is recorded as a target deviation so the fit stays honest.
 
 ## 8. Anti-patterns
 

@@ -35,7 +35,7 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
     """The working hqplayerd.xml a /backup would carry, rendered from state."""
     net_addr, _, net_dev = st["net_device"].partition("/")
     # fixed volume: the element exists only while the feature is on, and the
-    # daemon parks the remembered level in a COMMENT while it is off — modelled
+    # daemon parks the remembered level in a COMMENT while it is off — modeled
     # because a locator that ignores comments would read the parked level as live
     fixed = _fixed_line(st)
     return (
@@ -55,7 +55,7 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         '<log enabled="1" file="/tmp/hqplayerd.log"/><upnp freewheel="0"/>'
         # volume_fixed's XML domain is 0/1/2 (off / -3 dB / -6 dB) while the /config
         # form below renders it as a plain checkbox — the daemon's own lossy render,
-        # modelled so the file-truth read path is genuinely exercised.
+        # modeled so the file-truth read path is genuinely exercised.
         f'<engine auto_family="{_b(st["auto_family"])}" channels="{st["channels"]}" '
         f'volume_fixed="{st["volume_fixed"]}" cuda_dev="{st["cuda_dev"]}" '
         f'volume_max="{st["volume_max"]}" volume_min="{st["volume_min"]}" '
@@ -72,7 +72,7 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         # <post_process> nests INSIDE <matrix>, exactly as 6.0.4 writes it (readme
         # §1.11 / §1.11.2). The matrix switch gates the whole plugin chain, so a
         # writer that enables a plugin without enabling the matrix produces an inert
-        # config — modelled here so that failure surfaces in tests, not in a listening
+        # config — modeled here so that failure surfaces in tests, not in a listening
         # room. Default OFF: the real-world preset that exposed this had matrix="0".
         # saved profiles are siblings of <matrix> and precede it, as 6.0.4 writes them
         + _render_profiles(st) + f'<matrix enabled="{_b(st["matrix_enabled"])}" engine="{st["matrix_engine"]}" '
@@ -261,7 +261,7 @@ def _clamp_startup_volume(st: dict[str, Any]) -> None:
 
     The startup volume has to sit inside the volume range, so a daemon may pull
     it up to the minimum when it re-reads the config — writing back a value
-    nobody uploaded. Modelled because that is the shape of divergence an apply
+    nobody uploaded. Modeled because that is the shape of divergence an apply
     must NOT be held to: the field is untouched by the apply, so demanding it
     match would fail every apply on this machine forever."""
     if not st.get("_clamps"):

@@ -8,7 +8,7 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire. SSR reaches the CLOSED state only — the popup opens from a handler
-// SSR never fires — so open-state behaviour belongs to the browser hand-back
+// SSR never fires — so open-state behavior belongs to the browser hand-back
 // protocol, not here (same boundary as combobox.test.js).
 //
 // The anchors are what a user reads: a control is located by its `<label>` and
@@ -146,7 +146,7 @@ async function reset({ mtx = {}, presets = [] } = {}) {
 
 const page = () => render(html`<${LiveView} />`);
 
-// One labelled control's own markup: from its `<label>` up to the next label
+// One labeled control's own markup: from its `<label>` up to the next label
 // (or the end of the page). A miss throws rather than measuring the page.
 /**
  * @param {string} out
@@ -154,7 +154,7 @@ const page = () => render(html`<${LiveView} />`);
  */
 function row(out, label) {
   const at = out.search(new RegExp(`<label>${label}(<|</label>)`));
-  if (at < 0) throw new Error(`no field labelled "${label}" in the rendered page`);
+  if (at < 0) throw new Error(`no field labeled "${label}" in the rendered page`);
   const next = out.indexOf("<label", at + 1);
   return out.slice(at, next < 0 ? undefined : next);
 }
@@ -170,14 +170,14 @@ const openTag = (out, needle) => {
   return m ? m[0] : null;
 };
 
-// The tag name of the form control a labelled field wraps.
+// The tag name of the form control a labeled field wraps.
 /**
  * @param {string} out
  * @param {string} label
  */
 function widgetTag(out, label) {
   const m = /<(select|input|button)\b/.exec(row(out, label));
-  if (!m) throw new Error(`the field labelled "${label}" wraps no form control`);
+  if (!m) throw new Error(`the field labeled "${label}" wraps no form control`);
   return m[1];
 }
 
@@ -207,7 +207,7 @@ test("test_a_live_modulator_control_renders_a_combobox", async () => {
 });
 
 // --- a dropdown with no desc keeps its native select --------------------------
-// The rate pair renders as the two per-chain rate columns, labelled by chain.
+// The rate pair renders as the two per-chain rate columns, labeled by chain.
 
 for (const chain of ["PCM", "SDM"]) {
   test(`test_the_${chain.toLowerCase()}_rate_control_stays_a_native_select`, async () => {

@@ -1,6 +1,6 @@
 """Browser end-to-end characterization of the System tab's log tail: scroll pinning and Copy.
 
-These belong here rather than in `tests/js/` for one reason: both behaviours are
+These belong here rather than in `tests/js/` for one reason: both behaviors are
 about things the JS unit harness does not have. `docs/testing.md` pins components
 to `preact-render-to-string`, so there is no element to carry `scrollTop` /
 `scrollHeight` / `clientHeight`, no `useEffect` to run the 3-second poll that
@@ -151,7 +151,7 @@ def wait_for_gap_between(page: Page, low: float, high: float) -> None:
     overflow is smaller than the offset asked for lands at 0 or at the bottom
     instead of where the case needs it, and the case then silently becomes a
     different one that still goes green. Failing here says the fixture never set
-    up the situation, which is a different diagnosis from the behaviour breaking.
+    up the situation, which is a different diagnosis from the behavior breaking.
     """
     page.wait_for_function(
         "([low, high]) => { const p = document.querySelector('pre.log-tail');"
@@ -287,7 +287,7 @@ def test_a_tail_scrolled_to_the_top_stays_at_the_top_across_a_poll(page: Page, s
     open_tail_with(page, stack, "TAG04", WINDOW)
     wait_for_overflow(page)
     # Let the open-time pin land BEFORE scrolling away, or it lands afterwards and
-    # fails this case for a reason that is not the behaviour under test.
+    # fails this case for a reason that is not the behavior under test.
     wait_for_scroll_past(page, 0)
     scroll_to(page, 0)
     poll_with(page, stack, "TAG05", WINDOW)

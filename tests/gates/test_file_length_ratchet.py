@@ -95,7 +95,7 @@ def satisfy_shipped_allowance(root: Path) -> None:
     """Give ``root`` a file of the stated length for every entry in the shipped ``ALLOWANCE``.
 
     A subprocess run of the script carries that table with it and audits it against
-    whatever tree it is pointed at, so a throwaway tree has to honour it before any
+    whatever tree it is pointed at, so a throwaway tree has to honor it before any
     other verdict the run reaches is about the case under test.
     """
     for relpath, length in GATE.ALLOWANCE.items():
@@ -344,7 +344,7 @@ def test_a_test_file_exactly_at_the_eight_hundred_line_cap_passes(tmp_path: Path
 
 
 def test_omitting_the_allowance_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
-    """A caller who passes no mapping gets the module's own table, so a shipped entry is honoured."""
+    """A caller who passes no mapping gets the module's own table, so a shipped entry is honored."""
     monkeypatch.chdir(REPO_ROOT)
     path = a_shipped_allowance_path()
     assert (CHECK([path]), CHECK([path], {})) == (0, 1)

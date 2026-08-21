@@ -343,7 +343,7 @@ async def _probe(  # noqa: PLR0913
 
 
 async def _q8_config_form(http: HttpConfigClient, original: bytes, active: str | None) -> list[str]:
-    """Run Q5's analogue for a plain element: whether the /config form carries values with ``<defaults>`` gone.
+    """Run Q5's analog for a plain element: whether the /config form carries values with ``<defaults>`` gone.
 
     Q5 proved the /matrix form does for a plugin. If /config does too, an
     authored element takes every attribute from the daemon's own statement of

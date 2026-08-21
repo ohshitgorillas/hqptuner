@@ -1,4 +1,4 @@
-// Behavioral suite for the licence a knob dial needs before an arrow key may
+// Behavioral suite for the license a knob dial needs before an arrow key may
 // move it.
 //
 // Safari 26.5 on macOS turns a scroll gesture over an element carrying
@@ -6,7 +6,7 @@
 // element, without focusing it — so scrolling the page past a knob silently
 // changes its value. The product rule being restored: the wheel moves the page,
 // and only deliberate user input changes a control's value. The dial therefore
-// honours arrow keys only while it genuinely holds focus, and it learns that
+// honors arrow keys only while it genuinely holds focus, and it learns that
 // from its own focus/blur events.
 //
 // `document.activeElement` is NOT the signal and is never asserted on here: on
@@ -40,7 +40,7 @@
 // reach the dial's own ancestor chain and any window/document listener its
 // handlers install. A knob routing them somewhere else entirely makes a case
 // throw "nothing received the ...", which is a limit of the dispatch, not a
-// verdict on the behaviour.
+// verdict on the behavior.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/knob-focus-keys.test.js
 
@@ -110,7 +110,7 @@ for (const [key, landing] of Object.entries(LANDINGS)) {
 }
 
 // Shift-fine applies to the arrows as a class, Left/Right included — those are
-// the pair Safari synthesises from a scroll gesture, so they are the pair most
+// the pair Safari synthesizes from a scroll gesture, so they are the pair most
 // likely to arrive with a modifier held.
 /** @type {[string, number][]} */
 const SHIFT_ARROWS = [
@@ -143,7 +143,7 @@ for (const key of ARROWS) {
   });
 }
 
-// --- the licence does not outlive the focus -------------------------------------
+// --- the license does not outlive the focus -------------------------------------
 
 for (const key of ARROWS) {
   test(`test_a_blurred_dial_commits_nothing_on_${key}`, () => {

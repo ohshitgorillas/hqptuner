@@ -68,7 +68,7 @@ async function reset({ cfg = FREE, mtx = {} } = {}) {
   showDescriptions.value = true;
   keepOptionDescriptions.value = true;
   // matrix engaged unless a case says otherwise: a bypassed matrix grays the whole
-  // post-process chain, loudness included, which is a different behaviour
+  // post-process chain, loudness included, which is a different behavior
   matrixConfig.value = { fields: formFields({ enabled: true, ...mtx }) };
   config.value = { fields: formFields(cfg), file: {}, active: "", profiles: null };
   await discardAll();
@@ -111,7 +111,7 @@ test("test_the_fixed_volume_card_carries_auto_headroom", async () => {
   assert.ok(card(tab(), "Fixed volume").includes("<label>Auto headroom"));
 });
 
-test("test_the_fixed_volume_cards_first_segmented_strip_is_labelled_on_then_off", async () => {
+test("test_the_fixed_volume_cards_first_segmented_strip_is_labeled_on_then_off", async () => {
   await reset();
   assert.deepEqual(buttonLabels(card(tab(), "Fixed volume")).slice(0, 2), ["ON", "OFF"]);
 });
@@ -120,7 +120,7 @@ test("test_the_fixed_volume_cards_first_segmented_strip_is_labelled_on_then_off"
 // gate strip renders first and the level field second. The level is identified
 // by its own dBFS unit span, not by any bare <input>, and it must land before
 // the Auto headroom row that follows the shared row (position pinned by the
-// neighbouring test below) — so a level rendered above the gate or outside the
+// neighboring test below) — so a level rendered above the gate or outside the
 // row fails.
 test("test_the_fixed_volume_gate_and_level_share_one_row_gate_first", async () => {
   await reset();

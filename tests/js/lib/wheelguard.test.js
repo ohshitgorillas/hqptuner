@@ -1,6 +1,6 @@
 // Behavioral suite for lib/dom.js wheelGuard — the policy that the mouse wheel
 // never changes a control's value. The wheel over a control scrolls the page and
-// nothing else: the event's default action is cancelled every time, whatever the
+// nothing else: the event's default action is canceled every time, whatever the
 // control's state, and the control is never blurred (blurring a number box
 // mid-type commits a half-typed figure through its change handler).
 //
@@ -83,13 +83,13 @@ afterEach(() => {
 
 // --- the wheel never edits the control ----------------------------------------
 
-test("test_a_wheel_over_a_control_is_cancelled", () => {
+test("test_a_wheel_over_a_control_is_canceled", () => {
   const { event } = setup({ focused: false });
   wheelGuard(event);
   assert.equal(event.defaultPrevented, true);
 });
 
-test("test_a_wheel_over_a_focused_control_is_cancelled_too", () => {
+test("test_a_wheel_over_a_focused_control_is_canceled_too", () => {
   const { event } = setup({ focused: true });
   wheelGuard(event);
   assert.equal(event.defaultPrevented, true);

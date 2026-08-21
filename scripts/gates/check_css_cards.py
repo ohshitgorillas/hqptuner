@@ -9,12 +9,12 @@ name that gate has never heard of, and walks straight past it.
 
 ``.narrow-bar`` did exactly that: card fill, card radius, a hand-rolled
 ``.narrow-header`` standing in for ``.card-head``, and ``--surface-raised`` — a
-fill token — misused as its border colour. It shipped unflagged for as long as
+fill token — misused as its border color. It shipped unflagged for as long as
 it existed, which is the whole cost the one-component rule exists to avoid
 (docs/design-system.md). A second copy of the frame is a second place to fix
 when the surface changes, and cards.css's ``.span`` hairline mask only knows to
 mask ``.card`` — a card-like container it has never heard of paints the page
-colour over a card and reads as a dark band across the row.
+color over a card and reads as a dark band across the row.
 
 So this gate reads the stylesheets and fails any rule block declaring
 ``background: var(--surface-card)`` together with ``border-radius:

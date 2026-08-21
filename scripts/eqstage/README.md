@@ -35,8 +35,8 @@ This tool has no code path to `POST /api/config/apply`, `POST /api/config/live`,
 
 ## Guards
 
-- The baseline is always read, never synthesised — a staged `matrix_pipelines` replaces every row.
-- Rows are canonicalised byte-identically to the UI's `canonPipelines` (`static/store/resolve.js`), then linted against the server's row contract (`conf/matrixconf.py` `_validate_row`) — source/mixdown integers 0..127, numeric gain, `gainunit` `dB|Lin`, no control characters. A lint failure aborts before any POST.
+- The baseline is always read, never synthesized — a staged `matrix_pipelines` replaces every row.
+- Rows are canonicalized byte-identically to the UI's `canonPipelines` (`static/store/resolve.js`), then linted against the server's row contract (`conf/matrixconf.py` `_validate_row`) — source/mixdown integers 0..127, numeric gain, `gainunit` `dB|Lin`, no control characters. A lint failure aborts before any POST.
 - A row already carrying `gainunit:"Lin"` is part of a decomposed matrix (Bauer crossfeed writes those); a dB preamp on it is refused unless `force_gainunit` is set. Amend band gains instead, or ask the user.
 - After the POST the buffer is read back and every staged key checked against what was sent. Merge is expected — the user's own staged edits sit alongside — but one of our keys holding a different value means the stage lost a race, and that fails loudly.
 

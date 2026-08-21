@@ -34,7 +34,7 @@ export function grayShapersByRate(options, kind) {
   return options.map((o) => {
     const e = db[o.label];
     if (e && e.min_rate_hz && rate < e.min_rate_hz) {
-      // 3dp, not 1: the SDM floors are rates people recognise, and rounding
+      // 3dp, not 1: the SDM floors are rates people recognize, and rounding
       // 40.96 MHz to "41 MHz" names a rate that does not exist.
       return { ...o, disabled: true, reason: `needs ≥ ${hz(e.min_rate_hz, 3)}` };
     }

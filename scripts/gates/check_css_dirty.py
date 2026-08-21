@@ -9,17 +9,17 @@ fails for the hero MODE and BACKEND segments, where ``hero.css`` strips the
 field to ``padding: 0`` and stretches it to the hero row's height: the
 segment's opaque buttons paint over three of the ring's four edges, and what is
 left reads as an accent loop diving behind the switch and re-emerging as an
-empty trough beneath it. Every gate stays green — the rule is fully tokenised
-and names a real colour role; only a screenshot shows it.
+empty trough beneath it. Every gate stays green — the rule is fully tokenized
+and names a real color role; only a screenshot shows it.
 
 So the marking is split by what the control can carry, and this gate holds the
 split:
 
-- a control with a border of its own recolours THAT border (``border-color:
+- a control with a border of its own recolors THAT border (``border-color:
   var(--accent)``) — a border belongs to the element it marks and cannot be
   overpainted by anything inside it;
-- a control with no border to recolour keeps the row ring — a checkbox already
-  paints its border accent when checked, so recolouring says nothing about
+- a control with no border to recolor keeps the row ring — a checkbox already
+  paints its border accent when checked, so recoloring says nothing about
   staging, and knob and slidernum are canvas/range primitives with no border at
   all. The ring is honest for all three because their control never fills its
   row.
@@ -54,7 +54,7 @@ DEFINITION_SITE = "hqptuner/static/css/base/fields.css"
 #: widget kind -> the selector for the control's own border. The class the row
 #: carries is `field-<widget>` (components/Field.js), so a rule may scope by
 #: either that or the control primitive; what the gate requires is the primitive,
-#: because the border being recoloured is the primitive's.
+#: because the border being recolored is the primitive's.
 BORDER_WIDGETS = {
     "segment": ".segment",
     "dropdown": "select",
@@ -66,7 +66,7 @@ BORDER_WIDGETS = {
 RING_WIDGETS = ("checkbox", "knob", "slidernum")
 
 BORDER_ACCENT = re.compile(r"^border(?:-color)?\s*:.*var\(\s*--accent\s*\)")
-#: `inset` may sit before or after the colour, so match the property and then
+#: `inset` may sit before or after the color, so match the property and then
 #: require both tokens rather than pinning an order the syntax does not fix
 BOX_SHADOW = re.compile(r"^box-shadow\s*:")
 EXEMPT = re.compile(re.escape(PRAGMA) + r"\s*(?!\*/)\S")
@@ -112,14 +112,14 @@ def check_decided(kinds: set[str]) -> list[str]:
     known = set(BORDER_WIDGETS) | set(RING_WIDGETS)
     return [
         f"widget {kind!r}: no staged-edit marking. Add it to BORDER_WIDGETS (the control has a "
-        f"border to recolour) or RING_WIDGETS (it has none) in {Path(__file__).name}, and write "
+        f"border to recolor) or RING_WIDGETS (it has none) in {Path(__file__).name}, and write "
         f"the rule in {DEFINITION_SITE}"
         for kind in sorted(kinds - known)
     ]
 
 
 def check_border_rules(kinds: set[str], blocks: list[tuple[Path, list[str], Block]]) -> list[str]:
-    """Every bordered widget in use has a rule recolouring that border when dirty."""
+    """Every bordered widget in use has a rule recoloring that border when dirty."""
     problems = []
     for kind in sorted(kinds & set(BORDER_WIDGETS)):
         control = BORDER_WIDGETS[kind]
@@ -150,7 +150,7 @@ def check_ring_rules(kinds: set[str], blocks: list[tuple[Path, list[str], Block]
             continue
         problems.append(
             f"widget {kind!r}: no row ring at {scope} — it has no border of its own to "
-            f"recolour, so a staged edit to it is invisible. Write it in {DEFINITION_SITE}"
+            f"recolor, so a staged edit to it is invisible. Write it in {DEFINITION_SITE}"
         )
     return problems
 
@@ -172,7 +172,7 @@ def check_ring_scope(blocks: list[tuple[Path, list[str], Block]]) -> list[str]:
         problems.append(
             f"{path.relative_to(ROOT)}:{first}: {selector} — inset accent ring on a dirty row "
             f"that is not scoped to {' / '.join(RING_WIDGETS)}. An inset shadow paints under the "
-            f"row's own children, so a control filling its field covers the ring; recolour that "
+            f"row's own children, so a control filling its field covers the ring; recolor that "
             f"control's border instead"
         )
     return problems

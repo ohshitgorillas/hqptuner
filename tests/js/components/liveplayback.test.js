@@ -13,7 +13,7 @@
 // values. A miss throws rather than quietly measuring some other part of the
 // page, so a renamed head or a restructured card fails loudly.
 //
-// The "region carrying the disabled state" of behaviour 9 is read off the `off`
+// The "region carrying the disabled state" of behavior 9 is read off the `off`
 // class token, which is this codebase's rendered marker for a control the engine
 // has taken away (`card playback off`, `knob knob-lg off`, `dsp-body off`). The
 // outermost element carrying it inside the Playback card is taken to be that
@@ -47,7 +47,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
-import { classes, disabledRegion, elements, enclosing, hasLabel, labelled, text } from "../support/markup.js";
+import { classes, disabledRegion, elements, enclosing, hasLabel, labeled, text } from "../support/markup.js";
 
 // The junk-filter enumeration as GetJunkFilters serves it: options come from
 // here and nowhere else — the daemon's /config form has no junk_filter field
@@ -174,12 +174,12 @@ function card(out, want) {
   return enclosing(out, hit).html;
 }
 
-// One labelled control's own markup: the smallest element enclosing its label.
+// One labeled control's own markup: the smallest element enclosing its label.
 /**
  * @param {string} out
  * @param {string} label
  */
-const row = (out, label) => enclosing(out, labelled(out, label)).html;
+const row = (out, label) => enclosing(out, labeled(out, label)).html;
 
 /**
  * @param {string} out
@@ -251,7 +251,7 @@ test("test_the_high_frequency_filter_offers_the_junk_filters_it_is_not_set_to", 
 test("test_adaptive_volume_precedes_the_high_frequency_filter", async () => {
   await reset();
   const out = card(page(), "Playback");
-  assert.ok(labelled(out, "Adaptive volume").start < labelled(out, "High-frequency filter").start);
+  assert.ok(labeled(out, "Adaptive volume").start < labeled(out, "High-frequency filter").start);
 });
 
 test("test_the_playback_card_carries_the_volume_dial", async () => {

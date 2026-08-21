@@ -20,7 +20,7 @@ import { withDrag, dragEq } from "./BandStrip.js";
  *   The dB window the plot auto-scales to. Widened IN PLACE by every builder
  *   here, so the caller's object is the accumulator.
  * @typedef {{ stages: Stage[], idxs: number[] }} Group
- *   Rows sharing a byte-identical chain, drawn as one curve labelled with every
+ *   Rows sharing a byte-identical chain, drawn as one curve labeled with every
  *   pipeline number it covers.
  * @typedef {PlotTrace & { ghost?: boolean }} GhostTrace
  *   An applied-baseline curve: a PlotTrace flagged for the muted dashed style.
@@ -130,7 +130,7 @@ export function eqOverviewTrace(rows, bounds) {
 }
 
 // Per ear, because the structural block carries a chain for each. One curve when
-// they agree, two labelled ones when they do not.
+// they agree, two labeled ones when they do not.
 /**
  * @param {StructuralRec} rec
  * @param {Bounds} bounds

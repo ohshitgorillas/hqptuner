@@ -5,7 +5,7 @@
    hqptuner/static/index.html — do not reorder. */
 
 /* Why the last write was refused, under its own control (grid col 2). Warn
-   colour rather than the caption grey: a caption is prose the user may read,
+   color rather than the caption gray: a caption is prose the user may read,
    this is a failure they have to act on. */
 .live-error {
   grid-column: 2;
@@ -15,7 +15,7 @@
 }
 
 /* What the user wrote about the running matrix profile, under its picker (grid
-   col 2). The content grey and no frame of its own: it is the user's own words,
+   col 2). The content gray and no frame of its own: it is the user's own words,
    and the only thing separating them from the caption under them is that a
    caption is ours. `pre-wrap` because a description is typed in lines — a pasted
    measurement header loses its shape without it. */
@@ -29,7 +29,7 @@
 
 /* The LIVE MODE card: presets on the left, the page's lede on the right. A
    fixed two-column split, so the hairline gets its own 1px TRACK and lands on
-   the card's centre line with every other divider down the page (design-system
+   the card's center line with every other divider down the page (design-system
    §Rules). .col-rule's own styling — and its disappearance below the breakpoint
    — is knobs.css's, shared by every split on the page. */
 .live-mode-cols {
@@ -51,7 +51,7 @@
 
 /* The Playback card: the two level settings on the left, the volume dial on the
    right. Same split as LIVE MODE above — the 1px track puts the hairline on the
-   card's centre line with every other divider down the page. */
+   card's center line with every other divider down the page. */
 .playback-cols {
   display: flex;
   flex-direction: column;
@@ -72,7 +72,7 @@
 /* The Playback card's left column: its two settings, stacked. A .pack goes
    two-up at the breakpoint (cards.css) — the right layout for a card body of
    full width, and the wrong one for half of one, where two tracks leave each
-   field's caption a word wide. One track also means no centre line to draw on,
+   field's caption a word wide. One track also means no center line to draw on,
    so the hairline a two-track pack carries is suppressed with it; the card's
    own divider is the one between the columns. */
 .playback-cols .pack {
@@ -86,7 +86,7 @@
 
 /* The dial rides the middle of the card, not its top edge. The split aligns its
    columns to `start` so the two settings sit under the head; the volume column
-   takes the full height instead and centres its own stack in it, which is the
+   takes the full height instead and centers its own stack in it, which is the
    same thing .playback-knob does inside the Volume tab's taller card. */
 .playback-cols .playback-col {
   align-self: stretch;
@@ -200,7 +200,7 @@
 
 /* The layout toggle in the LIVE MODE head, right-aligned off the control rows
    the same way narrowing's Reset is (narrowing.css). Pressed, it takes the
-   head's own colour, so the page reads as being in a mode rather than as having
+   head's own color, so the page reads as being in a mode rather than as having
    a button lit. */
 .card-head .live-edit-toggle {
   margin-left: auto;

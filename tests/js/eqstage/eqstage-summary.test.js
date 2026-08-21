@@ -130,7 +130,7 @@ test("test_the_summary_states_how_many_bands_the_eq_carries", () => {
   assert.equal(/\b7\b/.test(summary), true);
 });
 
-test("test_the_summary_states_the_process_string_the_eq_serialises_to", () => {
+test("test_the_summary_states_the_process_string_the_eq_serializes_to", () => {
   const summary = table(report({ eq: { band_count: 1, process: EQ_PROCESS } }));
   assert.equal(summary.includes(EQ_PROCESS), true);
 });
@@ -235,7 +235,7 @@ test("test_a_preamp_that_is_neither_a_number_nor_auto_is_rejected_naming_the_val
 
 // The accepting side of the same rule: two of the three declared forms get past
 // validation. Dry runs, so the narrow baseline fake is never asked to serve a
-// stage POST; what preamp comes out the far side is another behaviour's business.
+// stage POST; what preamp comes out the far side is another behavior's business.
 /**
  * @param {Job["preamp_db"]} preamp
  * @returns {Job}

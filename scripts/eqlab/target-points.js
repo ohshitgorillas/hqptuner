@@ -20,7 +20,7 @@ const ln = Math.log;
 
 /**
  * Measured points resampled onto a frequency grid: dB interpolated linearly
- * against log f between neighbours, and held flat at the end points' dB
+ * against log f between neighbors, and held flat at the end points' dB
  * outside the measured span.
  *
  * @param {number[]} freqs

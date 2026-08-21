@@ -9,7 +9,7 @@ This document answers two questions the tuner implicitly answers every turn, and
 
 It also records, deliberately, what could **not** be verified.
 
-**Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL (same artefact class as `[V]`; the difference is who read it). Figures computed by us from a quoted formula are labelled **derived** in place and are never presented as source claims.
+**Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL (same artifact class as `[V]`; the difference is who read it). Figures computed by us from a quoted formula are labeled **derived** in place and are never presented as source claims.
 
 ---
 
@@ -17,7 +17,7 @@ It also records, deliberately, what could **not** be verified.
 
 `SOURCES.md` §2.5 rules that voicing moves default to broad, low-Q filters. That ruling previously rested on Toole alone, partly at `[S]`. It now has an independent, free, peer-reviewed anchor.
 
-**Völk, F. (2015). "Updated analytical expressions for critical bandwidth and critical-band rate." *Fortschritte der Akustik – DAGA 2015*, Nürnberg, pp. 1181–1182. Deutsche Gesellschaft für Akustik.** `[VA]` — peer-reviewed conference proceedings, free and permanently hosted. The best free artefact found that prints all the canonical formulae side by side.
+**Völk, F. (2015). "Updated analytical expressions for critical bandwidth and critical-band rate." *Fortschritte der Akustik – DAGA 2015*, Nürnberg, pp. 1181–1182. Deutsche Gesellschaft für Akustik.** `[VA]` — peer-reviewed conference proceedings, free and permanently hosted. The best free artifact found that prints all the canonical formulae side by side.
 
 Verbatim, formulae as printed:
 
@@ -47,7 +47,7 @@ Corroboration from an independent open-access source: Lopez-Poveda et al. `[VA]`
 
 A filter much narrower than one ERB is being placed *inside* a single auditory filter, where the ear cannot resolve it as a separate spectral feature. At 1 kHz an ERB is ~133 Hz wide; a peaking filter at 1 kHz has a half-gain bandwidth of `f₀/Q` (**not** a −3 dB bandwidth — that definition is band-pass and notch only, `FILTER-MATH.md` §1.1 trap 2), so **Q ≈ 7.5 is roughly one ERB at 1 kHz**, and anything substantially narrower is operating below the ear's resolution.
 
-This is a *supporting* argument for the existing low-Q default, not a new clamp, and it must not be over-read: an ERB is the auditory filter's bandwidth, not a hard audibility threshold for a spectral feature, and narrow high-Q *resonances* in a transducer are genuinely audible (`TRANSDUCERS.md` §1.1) which is exactly why narrow corrective filters have a legitimate use. The honest statement is that **broad moves act across many auditory filters and narrow ones act within one**, which is why broad colourations are the ones a listener notices over a whole album — and why `SOURCES.md`'s "broader beats narrower" ruling is right for *voicing* while narrow filters remain correct for *named resonances*.
+This is a *supporting* argument for the existing low-Q default, not a new clamp, and it must not be over-read: an ERB is the auditory filter's bandwidth, not a hard audibility threshold for a spectral feature, and narrow high-Q *resonances* in a transducer are genuinely audible (`TRANSDUCERS.md` §1.1) which is exactly why narrow corrective filters have a legitimate use. The honest statement is that **broad moves act across many auditory filters and narrow ones act within one**, which is why broad colorations are the ones a listener notices over a whole album — and why `SOURCES.md`'s "broader beats narrower" ruling is right for *voicing* while narrow filters remain correct for *named resonances*.
 
 **Scope limit — these are normal-hearing filters.** Every formula above is fitted to otologically normal listeners, so the ERB arithmetic in this section does not describe an impaired ear. Cochlear loss **broadens** the auditory filter, asymmetrically and most severely in the region where high-frequency loss lives, so for a listener with hearing loss the low-Q conclusion **strengthens while this derivation stops applying** — a narrow filter sits even further inside a single auditory filter than the numbers here imply. Measured impaired-versus-normal ERBs, the derived broadening factors and their caveats are in `HEARING.md` §3.2.
 
@@ -67,7 +67,7 @@ Verbatim:
 
 That last figure is the important one for us and it is a **humility constraint**: the underlying data behind the canonical equal-loudness curves carries a 5–6 dB standard deviation across listeners. Any claim the tuner makes about how loudness affects a particular user's perceived balance is downstream of that spread.
 
-**The contour table itself was not obtained.** The paper does not print it; ISO 226 is paywalled `[S]` (scope confirmed from ISO's own catalogue: "combinations of sound pressure levels and frequencies of pure continuous tones which are perceived as equally loud", free progressive plane wave, frontal, binaural, "otologically normal persons in the age range from 18 years to 25 years inclusive"). **The commonly quoted "bass rises N dB between 60 and 80 phon" figure is therefore NOT sourced here and must not be stated.**
+**The contour table itself was not obtained.** The paper does not print it; ISO 226 is paywalled `[S]` (scope confirmed from ISO's own catalog: "combinations of sound pressure levels and frequencies of pure continuous tones which are perceived as equally loud", free progressive plane wave, frontal, binaural, "otologically normal persons in the age range from 18 years to 25 years inclusive"). **The commonly quoted "bass rises N dB between 60 and 80 phon" figure is therefore NOT sourced here and must not be stated.**
 
 Fletcher & Munson (1933) `[VA]` is free and citable for the origin — *Bell System Technical Journal* 12(4), 377–430, full text at archive.org — but the archived text is OCR of a 1933 scan and **no contour numbers have been transcribed from it.**
 
@@ -87,7 +87,7 @@ Fletcher & Munson (1933) `[VA]` is free and citable for the origin — *Bell Sys
 
 BS.1534-3 (MUSHRA) `[VA]` carries the parallel sentence, same pattern, also with no dB tolerance found.
 
-**Consequence for the tuner.** Any EQ change alters perceived loudness, and the loudness change biases the user's own A/B judgement of the tonal change. The standards do not offer a numeric tolerance to appeal to; they mandate deliberate level matching by trained listeners. The tuner's headroom recompute (`SOURCES.md` §1.1, Guardrails) is the closest thing it has to this discipline, and it is doing gain-staging, not loudness matching — those are different things and should not be conflated in user-facing copy.
+**Consequence for the tuner.** Any EQ change alters perceived loudness, and the loudness change biases the user's own A/B judgment of the tonal change. The standards do not offer a numeric tolerance to appeal to; they mandate deliberate level matching by trained listeners. The tuner's headroom recompute (`SOURCES.md` §1.1, Guardrails) is the closest thing it has to this discipline, and it is doing gain-staging, not loudness matching — those are different things and should not be conflated in user-facing copy.
 
 ---
 
@@ -103,7 +103,7 @@ The authors' summary of audibility without time delay, §6 p. 138, items 1, 2 an
 > 2) The detectability of resonances decreases approximately 3 dB for each doubling of the *Q* value. […]
 > 5) The duration of ringing is itself an unreliable indicator of the audibility of these resonances."
 
-**The threshold tolerances, §4.1 p. 134** — amplitude response at threshold for the *least* revealing programme material (popular music):
+**The threshold tolerances, §4.1 p. 134** — amplitude response at threshold for the *least* revealing program material (popular music):
 
 | Q | Tolerance at threshold |
 |---|---|
@@ -113,11 +113,11 @@ The authors' summary of audibility without time delay, §6 p. 138, items 1, 2 an
 
 Verbatim: "the *Q* = 1 response curve is about ± 1.5 dB, the *Q* = 10 curve is ± 3 dB, and the *Q* = 50 curve is ± 5 dB."
 
-Expressed against programme spectrum level instead, p. 124: "A resonance with *Q* = 1 […] can be heard in noise when its maximum steady-state level is 25 dB below the spectrum level of the program, while one with *Q* = 50 can approach to within 10 dB […] before being heard."
+Expressed against program spectrum level instead, p. 124: "A resonance with *Q* = 1 […] can be heard in noise when its maximum steady-state level is 25 dB below the spectrum level of the program, while one with *Q* = 50 can approach to within 10 dB […] before being heard."
 
-**Programme material dominates**, p. 123: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and with much reduced sensitivity when using popular music." Our users listen to music. Noise-derived thresholds are lower bounds.
+**Program material dominates**, p. 123: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and with much reduced sensitivity when using popular music." Our users listen to music. Noise-derived thresholds are lower bounds.
 
-**Peaks beat dips**, p. 123, summarising Bücklein: "peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases."
+**Peaks beat dips**, p. 123, summarizing Bücklein: "peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases."
 
 **Magnitude, not phase, and not ringing duration**, p. 124: "the amplitude response appears to be more directly related to the audible effect"; and p. 135: "it is the *initial* amplitude, not the duration, of the ringing that is related to the auditory detection process." **On the phase half of that sentence, read `PHASE.md` §6 before relying on it** — the source it rests on (Moulana 1975) ran no phase experiment, and the magnitude-only case is made properly in `PHASE.md` §1 and §4. The ringing half is unaffected, and Moulana reached it independently.
 
@@ -139,9 +139,9 @@ On the state of target-curve agreement, which bears on §5 below:
 
 ### 4.2 What remains unsourced
 
-**The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure is not in the 1988 paper. It is unsourced. Do not state it.** The paper's own numbers (§4.0) are better anyway, because they are expressed against programme spectrum level and against Q rather than as a bare absolute.
+**The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure is not in the 1988 paper. It is unsourced. Do not state it.** The paper's own numbers (§4.0) are better anyway, because they are expressed against program spectrum level and against Q rather than as a bare absolute.
 
-**Bücklein (1981)**, *JAES* 29(3), 126–131 — still `[X]`, AES paywall. Its peaks-versus-dips finding is nonetheless usable at one remove, because Toole & Olive summarise it directly in a paper we have read in full (§4.0). **One of its numbers is now available at one remove**, from Moulana's literature review (`PHASE.md` §6, quoting Moulana p. 2.35): at 1 kHz a 15 dB peak with a bandwidth factor of 0.35 was noticed by all ten of his observers, while an equivalent dip was noticed by half. Still secondhand; the rest of his thresholds remain unobtained.
+**Bücklein (1981)**, *JAES* 29(3), 126–131 — still `[X]`, AES paywall. Its peaks-versus-dips finding is nonetheless usable at one remove, because Toole & Olive summarize it directly in a paper we have read in full (§4.0). **One of its numbers is now available at one remove**, from Moulana's literature review (`PHASE.md` §6, quoting Moulana p. 2.35): at 1 kHz a 15 dB peak with a bandwidth factor of 0.35 was noticed by all ten of his observers, while an equivalent dip was noticed by half. Still secondhand; the rest of his thresholds remain unobtained.
 
 ### 4.3 Spectral tilt and ripple — the shelf-move evidence `[V]`
 
@@ -165,7 +165,7 @@ Two calibrating remarks from the authors, worth keeping because they place our o
 
 ### 4.4 Still not obtained
 
-A published just-noticeable difference for **broadband level**. Zeng (2020, *Frontiers in Psychology*, open access) `[VA]` gives near-miss exponents (α = −0.03 broadband noise, −0.09 for a 1 kHz tone) but not the plain dB figure. The commonly cited "~1 dB" was never traced to a fetched artefact and is **not** stated here.
+A published just-noticeable difference for **broadband level**. Zeng (2020, *Frontiers in Psychology*, open access) `[VA]` gives near-miss exponents (α = −0.03 broadband noise, −0.09 for a 1 kHz tone) but not the plain dB figure. The commonly cited "~1 dB" was never traced to a fetched artifact and is **not** stated here.
 
 A lead surfaced in Moore & Tan's reference list and not yet pursued: **Bech, S. (2002), "Requirements for low-frequency sound reproduction, Part I: The audibility of changes in passband amplitude ripple and lower system cutoff frequency and slope," *JAES* 50, 564–580** — by title, the most directly on-point source yet identified for ripple audibility thresholds.
 
@@ -191,7 +191,7 @@ This is also the honest frame for the project's **±6 dB per-turn policy** (`SOU
 ## 6. Open
 
 - **Bücklein (1981)** dB thresholds for peaks versus dips — paywalled.
-- **Broadband level JND** from a fetchable open-access artefact.
+- **Broadband level JND** from a fetchable open-access artifact.
 - **ISO 226 contour values** — the numeric table. `iso226.m`-style third-party transcriptions of the α_f / L_U / T_f parameter tables exist and would be citable at `[S]` with the chain stated; not yet captured.
 - **Upward spread of masking** with numbers — Zwicker & Fastl is the textbook home; free lecture-note and MPEG psychoacoustic-model reproductions were not reached.
 - **Olive, Schuck, Sally & Bonneville (1994)**, "The Effects of Loudspeaker Placement on Listener Preference Ratings", JAES — paywalled.

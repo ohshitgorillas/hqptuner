@@ -94,7 +94,7 @@ for (const angle of [0.5, 15, 22, 30, 45, 59.5]) {
 }
 
 for (const lambda of [0, 0.25, 0.5, 0.7, 1]) {
-  test(`test_centre_character_round_trips: ${lambda}`, () => {
+  test(`test_center_character_round_trips: ${lambda}`, () => {
     assert.ok(...near(got({ lambda }).lambda, lambda, 1e-9));
   });
 }
@@ -187,7 +187,7 @@ test("test_a_speaker_angle_past_the_model_limit_is_not_recognized", () => {
   assert.equal(rt({ angle: 75 }), null);
 });
 
-test("test_a_negative_centre_character_is_not_recognized", () => {
+test("test_a_negative_center_character_is_not_recognized", () => {
   assert.equal(rt({ lambda: -1 }), null);
 });
 
@@ -267,7 +267,7 @@ test("test_a_mismatched_interaural_delay_is_not_recognized", () => {
   assert.equal(recognizeRows(bad), null);
 });
 
-test("test_ears_compiled_with_different_centre_character_are_not_recognized", () => {
+test("test_ears_compiled_with_different_center_character_are_not_recognized", () => {
   const a = compileRows({ lambda: 0.7 });
   const b = compileRows({ lambda: 0.5 });
   assert.equal(recognizeRows([...a.slice(0, 8), ...b.slice(8)]), null);

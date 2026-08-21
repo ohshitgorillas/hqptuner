@@ -32,7 +32,7 @@ import pytest
 
 
 class FixtureError(Exception):
-    """A test's own scaffolding is wrong — not a failure of the behaviour under test."""
+    """A test's own scaffolding is wrong — not a failure of the behavior under test."""
 
 
 #: The gate script under test, found relative to this file rather than through

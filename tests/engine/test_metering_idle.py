@@ -18,7 +18,7 @@ run the whole REST app on a threaded fake control daemon that reports a playing
 96 kHz PCM track plus a threaded fake 4322 stream, so "nothing ever connects"
 is the listener's own accept count; the metering-off cases run their app
 alongside a metering-on one and take that one's first accept as the gate, so
-the silent app is always given at least as much of its own loop as the dialling
+the silent app is always given at least as much of its own loop as the dialing
 app needed."""
 
 import asyncio
@@ -147,7 +147,7 @@ async def test_an_unreachable_manager_leaves_no_client_on_the_metering_port(
         await eventually(lambda: stream.connected == 1)
         cell[0] = None  # the manager lost the daemon
         await eventually(lambda: stream.connected == 0)
-        assert stream.accepts == 1  # let go for good, not redialled
+        assert stream.accepts == 1  # let go for good, not redialed
 
 
 # --- pausing and resuming inside one track ----------------------------------
@@ -332,10 +332,10 @@ def test_a_metering_disabled_app_never_connects_to_the_metering_port(
     on_client, on_listener = metering_on_app
     wait_for_api(off_client, _loaded, tries=READY_PASSES)
     wait_for_api(on_client, _loaded, tries=READY_PASSES)
-    # the gate: an identical app with metering on has by now dialled, so the
+    # the gate: an identical app with metering on has by now dialed, so the
     # silent one has had at least as much of its own loop as a dial takes
     if not _pumped([off_client, on_client], lambda: on_listener.accepts >= 1):
-        pytest.fail("the metering-enabled app never dialled: this case's gate never armed")
+        pytest.fail("the metering-enabled app never dialed: this case's gate never armed")
     assert off_listener.accepts == 0
 
 

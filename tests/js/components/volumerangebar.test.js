@@ -181,12 +181,12 @@ test("test_the_limiter_threshold_and_resampling_ceiling_are_drawn_strong", async
   assert.equal(count(bar(), 'class="vr-tick strong"'), 2);
 });
 
-test("test_the_limiter_threshold_is_labelled", async () => {
+test("test_the_limiter_threshold_is_labeled", async () => {
   await reset(DEFAULTS);
   assert.ok(labels(bar()).includes("0"));
 });
 
-test("test_the_gain_ceiling_is_labelled", async () => {
+test("test_the_gain_ceiling_is_labeled", async () => {
   await reset(DEFAULTS);
   assert.ok(labels(bar()).includes("+12"));
 });
@@ -294,9 +294,9 @@ test("test_the_max_box_reaches_the_gain_ceiling", async () => {
   assert.equal(attr(boxes(bar())[MAX_BOX], "max"), "12");
 });
 
-// --- assistive labelling -----------------------------------------------------
+// --- assistive labeling -----------------------------------------------------
 
-test("test_the_three_handles_are_labelled_in_axis_order", async () => {
+test("test_the_three_handles_are_labeled_in_axis_order", async () => {
   await reset(DEFAULTS);
   assert.deepEqual(ariaLabels(bar()), ["Min volume", "Startup volume", "Max volume"]);
 });

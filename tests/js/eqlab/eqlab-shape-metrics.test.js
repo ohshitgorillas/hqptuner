@@ -1,7 +1,7 @@
 // Behavioral suite for scripts/eqlab/metrics.js — target-relative metric
 // kinds, shape metric kinds and metric presets. Written blind from a spec
 // block: no eqlab source was read. Test numbers in comments refer to the spec
-// block's behaviour list.
+// block's behavior list.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/eqlab-shape-metrics.test.js
 
@@ -57,7 +57,7 @@ test("test_maxdev_reports_the_absolute_worst_deviation", async () => {
   assert.ok(...near(m.dev.value, 3, 0.05));
 });
 
-// 27 — the deviation is localized at the band's centre, so the reported hz
+// 27 — the deviation is localized at the band's center, so the reported hz
 // must land there, not just exist.
 test("test_maxdev_reports_the_frequency_of_the_worst_deviation", async () => {
   const peaked = curve([band(1000, 3, 1)]);

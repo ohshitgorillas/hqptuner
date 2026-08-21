@@ -6,7 +6,7 @@
 // hand-assembling stage internals.
 //
 // Nothing here asserts a -3 dB bandwidth or anything else that depends on
-// HQPlayer's unverified peaking-Q convention (FILTER-MATH §7). Centre-frequency
+// HQPlayer's unverified peaking-Q convention (FILTER-MATH §7). Center-frequency
 // gain does not depend on it, so that is what the response assertions use.
 //
 // Split out of the former eqlab.test.js; every test here is unchanged.
@@ -41,11 +41,11 @@ test("test_an_empty_chain_is_flat_at_zero_decibels", () => {
   assert.ok(...near(valueAt(FLAT, 1000), 0, 1e-12));
 });
 
-test("test_a_single_peaking_band_puts_its_gain_at_its_centre_frequency", () => {
+test("test_a_single_peaking_band_puts_its_gain_at_its_center_frequency", () => {
   assert.ok(...near(valueAt(curve([band(1000, 4, 3)]), 1000), 4));
 });
 
-test("test_two_bands_at_the_same_centre_frequency_sum_in_decibels", () => {
+test("test_two_bands_at_the_same_center_frequency_sum_in_decibels", () => {
   assert.ok(...near(valueAt(curve([band(1000, 3, 2), band(1000, 3, 2)]), 1000), 6));
 });
 
@@ -66,9 +66,9 @@ test("test_preamp_is_not_the_negative_of_the_largest_single_band", () => {
   assert.ok(...below(preampDb(OVERLAP), -4));
 });
 
-test("test_partially_cancelling_bands_give_a_preamp_smaller_than_the_largest_band_gain", () => {
-  const cancelling = curve([band(1000, 6, 0.7), band(1100, -3, 0.7)]);
-  assert.ok(...below(Math.abs(preampDb(cancelling)), 6));
+test("test_partially_canceling_bands_give_a_preamp_smaller_than_the_largest_band_gain", () => {
+  const canceling = curve([band(1000, 6, 0.7), band(1100, -3, 0.7)]);
+  assert.ok(...below(Math.abs(preampDb(canceling)), 6));
 });
 
 // --- metric panels -----------------------------------------------------------
@@ -162,7 +162,7 @@ test("test_a_panel_flattens_to_plain_metric_values", () => {
 
 // --- extrema, sums, rounding -------------------------------------------------
 
-test("test_a_peaking_bands_local_maximum_appears_at_its_centre_frequency", () => {
+test("test_a_peaking_bands_local_maximum_appears_at_its_center_frequency", () => {
   const top = found(extrema(PEAK_5).find((e) => e.kind === "max"));
   assert.ok(...near(top.hz, 1000, 5));
 });
@@ -172,7 +172,7 @@ test("test_a_local_maximum_carries_the_decibel_value_of_the_summed_curve", () =>
   assert.ok(...near(top.db, 5));
 });
 
-test("test_a_cut_bands_local_minimum_appears_at_its_centre_frequency", () => {
+test("test_a_cut_bands_local_minimum_appears_at_its_center_frequency", () => {
   const dip = found(extrema(curve([band(1000, -5, 3)])).find((e) => e.kind === "min"));
   assert.ok(...near(dip.hz, 1000, 5));
 });

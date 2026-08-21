@@ -40,7 +40,7 @@ Everything else — search width, step size, pass count, metric definitions, bat
 
 Kinds: `max min mean at` (range/f), `ripple slope prominence note_spread` (shape), `expr` (expression; funcs `mean(a,b) max(a,b) min(a,b) at(f)`, ops `+ - * /`, unary `-`, parens; may reference earlier-declared metric names), and target-relative `rmse maxdev maxdev_signed mean_signed` (need `job.target`; `"domain":"erb"` weights rmse/mean_signed by ERB-rate density instead of log-uniform). `rmse` also accepts `side: "above" | "below"` — scores only deviation on that side of the target (the other side contributes zero but stays in the mean's denominator); use it when an objective must price unserved peaks without paying for valleys.
 
-`prominence` = peak height above the straight line joining the range edges (colouration), distinct from `max` (plateau, sets preamp).
+`prominence` = peak height above the straight line joining the range edges (coloration), distinct from `max` (plateau, sets preamp).
 
 ### target
 
@@ -96,7 +96,7 @@ Search answers report: survivors (changes, score(s), metrics, preamps, process, 
 
 Policy: `gain_change_per_turn`. Guidance: `high-Q_large_step`, `fitting_above_8kHz`, `Q_outside_AutoEq`, `sub-20Hz_headroom`. Confidence: `reseat_variance`, `above_qualified_range`. Headroom flags from preamp.
 
-### Not modelled (raise, don't route around)
+### Not modeled (raise, don't route around)
 
 - `select` is literal per amend spec — a search varies band parameters, never which band a spec amends
 - 16-row summation — one row's EQ tail measured, guarded by `tail_consistency`

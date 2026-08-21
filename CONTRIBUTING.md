@@ -33,7 +33,7 @@ Every user-visible change lands with a `CHANGELOG.md` entry under `[Unreleased]`
 The shape is one line, a bold lead first:
 
 ```
-- **What it does now.** What went wrong before, and anything the reader has to know to recognise it.
+- **What it does now.** What went wrong before, and anything the reader has to know to recognize it.
 ```
 
 `scripts/gates/check_changelog.py` enforces the mechanical half of that on `[Unreleased]` — released sections are history and are never rewritten. It refuses an entry over 75 words, an entry running to a second paragraph, an entry not opening with a bold lead, second person (`you`, `your`), marketing register (`simply`, `seamless`, `finally`, `quietly`, `significantly`, `under the hood`, …), narration by negation (`is unchanged`, `unaffected`, `untouched`, `nothing else changes`, …), and a duplicate or out-of-order `###` heading. It runs in `make check`, in pre-commit, and on every write to the file.

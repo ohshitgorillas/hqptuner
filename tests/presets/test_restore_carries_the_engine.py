@@ -52,7 +52,7 @@ def control_port(control_state: dict[str, str]) -> Iterator[int]:
 @pytest.fixture
 def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     """The 8088 fake whose config file says PCM. An adopted restore self-restarts
-    the daemon (docs/architecture.md §1 lane 2), modelled by moving the control
+    the daemon (docs/architecture.md §1 lane 2), modeled by moving the control
     fake's State onto the config just adopted, the way one real daemon would."""
     server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
     daemon = next(server)

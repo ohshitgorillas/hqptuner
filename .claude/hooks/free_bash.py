@@ -7,7 +7,7 @@ hook by volume and none of it by policy, and keeping it here is what puts the
 budget's own file back under the repo's 500-line gate.
 
 A command qualifies only when EVERY &&/;-segment and EVERY pipe-stage is a
-recognised read-only command, output goes only to /dev/null / an fd-dup / the
+recognized read-only command, output goes only to /dev/null / an fd-dup / the
 session scratchpad, and there is no subshell, backtick, chained mutator, or
 file-writing flag. Operator detection is quote-aware: a `>` or `|` inside a
 quoted argument (e.g. `grep -o '<m [^>]*'`) is data, not a redirect.

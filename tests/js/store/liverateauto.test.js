@@ -24,7 +24,7 @@
 //     dormant column, never a dormant chain.)
 //   - the chain is a different question from the rate. In auto the filter and
 //     shaper controls stay live — the rate is the only thing the engine
-//     refuses — so every chain control must come back ungrayed and unlabelled.
+//     refuses — so every chain control must come back ungrayed and unlabeled.
 //
 // `State` reports the rate as a LIST INDEX, not Hz (protocol.md §5), and
 // `<RatesItem index rate/>` carries neither name nor value, so every fixture
@@ -33,7 +33,7 @@
 // The `[source]` fixtures report index 0, auto, because that is the only thing
 // auto produces — the daemon clears the pin on the mode change and refuses new
 // ones while `[source]` stands, so a fixture pairing auto with a live pin would
-// pin behaviour no real daemon can show. The menus name a
+// pin behavior no real daemon can show. The menus name a
 // TIER, not a frequency, and carry the 48k member of each tier, so every source
 // here is in the 48k family and no tier has to be re-resolved.
 //
@@ -290,7 +290,7 @@ const SDM_MODE_PLAYING = () => ({
 
 // --- reading the model --------------------------------------------------------
 
-// A column's caption, normalised for the cases that ask what the sentence does
+// A column's caption, normalized for the cases that ask what the sentence does
 // NOT contain — those are meaning-level questions and must not turn on casing.
 // The sentence itself is fixed text and is asserted raw, below.
 /** @param {Column} column */
@@ -451,7 +451,7 @@ test("test_the_pcm_rate_column_carries_no_reason_in_sdm_output_mode_while_sdm_pl
 // would carry. They are weak evidence on their own — no chain control ever
 // grays on the LIVE page, so there is no positive counterpart to pair them
 // with, and a model that never set `disabled` or `reason` on a chain control at
-// all would satisfy them too. Chain behaviour proper — which source each column
+// all would satisfy them too. Chain behavior proper — which source each column
 // reads, which options it offers, that a dormant control is still a control —
 // belongs to livechain.test.js and is not restated here.
 

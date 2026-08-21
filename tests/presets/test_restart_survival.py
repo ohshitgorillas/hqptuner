@@ -16,10 +16,10 @@ Everything is read back off the fake 8088 daemon, which adopts the uploaded
 ``hqplayerd.xml`` as its running config — so ``GET /api/config``'s ``file`` view
 is the daemon's own truth about what it booted on, not a claim by the lane that
 wrote it. The control lane is at a closed port under ``http_client``, so no live
-overlay colours that view.
+overlay colors that view.
 
 The auto-save checkbox is deliberately absent from this file: it decides whether
-the store is UPDATED, never whether the store is HONOURED.
+the store is UPDATED, never whether the store is HONORED.
 """
 
 from pathlib import Path

@@ -11,7 +11,7 @@ families to the config side.
 Everything here runs against the stateful fake daemon over a real socket: the
 assertions are on the traffic that reached it and on the memory the manager
 kept, never on how either was produced. The fake models the two wire facts this
-behaviour turns on — `SetMode` resets `rate` to 0, and the rates enumeration is
+behavior turns on — `SetMode` resets `rate` to 0, and the rates enumeration is
 mode-dependent (manual §4.6), so the PCM and SDM lists share no rate but index
 0 (auto).
 """

@@ -8,7 +8,7 @@ the browser is handed. The break surfaces later, in the frontend, as a fetch
 that returns the wrong shape.
 
 So the surface is committed as a file. ``docs/openapi.json`` is the app's own
-OpenAPI document, normalised to sorted-key JSON so a diff is readable, and this
+OpenAPI document, normalized to sorted-key JSON so a diff is readable, and this
 gate rebuilds it and compares. A deliberate change to the API is one command and
 one reviewable file in the diff; an accidental one is a red gate.
 
@@ -46,7 +46,7 @@ ACCEPT = "run scripts/gates/check_openapi.py --write to accept this change"
 
 
 def render(spec: dict[str, Any]) -> str:
-    """Normalise an OpenAPI mapping to sorted-key, two-space JSON with a trailing newline."""
+    """Normalize an OpenAPI mapping to sorted-key, two-space JSON with a trailing newline."""
     return json.dumps(spec, indent=2, sort_keys=True) + "\n"
 
 

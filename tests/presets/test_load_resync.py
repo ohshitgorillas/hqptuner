@@ -2,7 +2,7 @@
 behavior only, one assertion per test, public API only, fakes speak the wire
 protocol).
 
-``POST /restore`` RESTARTS hqplayerd (docs/protocol.md §3.6, modelled by the
+``POST /restore`` RESTARTS hqplayerd (docs/protocol.md §3.6, modeled by the
 8088 fake's ``_on_restore`` hook), so once a preset load returns, every reading
 HQPTuner holds about the engine — the ``State`` snapshot, the enumerations, and
 the LIVE memory of settings the engine cannot carry across a mode/chain change —

@@ -21,7 +21,7 @@ import { readParametricEq, readSnapshot, readXmlRows } from "./io.js";
 /**
  * One band as a job spells it. `type` names the iir filter; the rest are the
  * plugin's own argument names, and each admits a string because a job may
- * write `"1000"` as readily as `1000` — `asArg` normalises both.
+ * write `"1000"` as readily as `1000` — `asArg` normalizes both.
  *
  * @typedef {{
  *   type?: string,

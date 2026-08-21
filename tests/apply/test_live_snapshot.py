@@ -142,7 +142,7 @@ async def test_the_output_mode_is_reported_in_its_configuration_form(live_manage
     assert _snapshot(manager)["mode"]["value"] == "sdm"
 
 
-async def test_the_output_mode_is_labelled_with_the_engines_own_name_for_it(
+async def test_the_output_mode_is_labeled_with_the_engines_own_name_for_it(
     live_manager: LiveManager,
 ) -> None:
     manager, _, _ = await live_manager(mode="2")

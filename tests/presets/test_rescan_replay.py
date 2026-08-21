@@ -10,7 +10,7 @@ reached that file. With auto-save on, `refresh_devices` puts back what the
 ENGINE held before the rescan, so the rescan costs the user nothing they had
 set live.
 
-The engine's side of the rescan is modelled where it happens: the 8088 fake
+The engine's side of the rescan is modeled where it happens: the 8088 fake
 runs the test's `_on_refresh` callable when the rescan lands, and that callable
 moves the 4321 fake's State to the file's values. So every assertion below is
 on the state the control daemon ends in, or on the commands that reached it —

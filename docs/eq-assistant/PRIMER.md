@@ -4,7 +4,7 @@ A standalone brief for an agent picking up this feature cold. Companions: `SOURC
 
 **One prior worth carrying into every turn.** A user may be EQ-ing to compensate for their own hearing rather than to change the headphone, and they will rarely say so. `HEARING.md` carries what that does and does not license — in short: never infer a curve from an age, a grade or a self-report; a threshold shift is not a gain figure and half is the population approximation; boost near the edge of a loss region rather than deep inside it; the chain has no compression, no per-ear control and no calibrated level, so level-dependent complaints and asymmetry are `clarify` + `recommends` cases; and a sudden, unilateral or newly-changed symptom earns one factual sentence pointing at assessment — never a refusal, and never an idle gate.
 
-> **Revised 2026-07-22.** Three corrections and one structural change; all are called out in place below. (1) The crossfeed centre-tilt direction was inverted — it *decreases* as crossfeed level rises. (2) AutoEq bands were described as untouchable; they are in scope. (3) The guardrail table was presented as enforced limits; almost all of it is guidance, and **Q is deliberately unclamped**. (4) **Structural: a turn is a bounded tool loop, not a single completion**, and the prose rule was loosened to permit prose anchored to the numbers it describes. If you find text anywhere that contradicts this file on any of these, this file is right and that text is stale.
+> **Revised 2026-07-22.** Three corrections and one structural change; all are called out in place below. (1) The crossfeed center-tilt direction was inverted — it *decreases* as crossfeed level rises. (2) AutoEq bands were described as untouchable; they are in scope. (3) The guardrail table was presented as enforced limits; almost all of it is guidance, and **Q is deliberately unclamped**. (4) **Structural: a turn is a bounded tool loop, not a single completion**, and the prose rule was loosened to permit prose anchored to the numbers it describes. If you find text anywhere that contradicts this file on any of these, this file is right and that text is stale.
 
 > **Revised 2026-07-26.** One structural change: **a third response branch, `discuss`**, so the user can ask questions and get an anchored answer that stages nothing (D16). The union is now three branches, only one of which may carry `changes`, and every prose answer declares a `basis`. Further amendments landing in the same pass are recorded in the plan's decision table (D17–D21); where this file has not caught up with them yet, the plan is authoritative for those and this file is authoritative for everything above.
 
@@ -105,7 +105,7 @@ The chain contains two classes of stage:
 
 **The governing rule — in voicing mode — is amend-before-append.** (It is voicing guidance only: in corrective mode, band placement, Q and gain all come from the measurement's error curve, and `CORRECTIVE.md` governs.) An AutoEq preset already tiles the spectrum with eight to ten measurement-placed bands, so a complaint almost always has a band sitting in its region already. Moving that band's gain is a one-number change that leaves the curve readable. Appending a fresh band beside an existing one means the net response is now the *sum* of two overlapping filters, and after a few turns the curve is unreasonable — which is the actual observed failure mode.
 
-**But it is guidance, not a rule, and the mechanical form of it is wrong** (F3, D2) — *if any existing band's centre falls within half an octave of the target, amend it; append only where nothing covers the region.* Every vocabulary region already contains one of the preset's bands, so that rule collapses into *never append* — and worse, it forces amending whatever band is nearest regardless of whether that band suits the job.
+**But it is guidance, not a rule, and the mechanical form of it is wrong** (F3, D2) — *if any existing band's center falls within half an octave of the target, amend it; append only where nothing covers the region.* Every vocabulary region already contains one of the preset's bands, so that rule collapses into *never append* — and worse, it forces amending whatever band is nearest regardless of whether that band suits the job.
 
 **AutoEq bands are not interchangeable.** A Q 0.7 shelf is broad shaping; a Q 4 notch at 5.7 kHz is killing a measured resonance. Amending that notch to satisfy "a bit less bright" does not voice anything — it silently undoes a measurement correction.
 
@@ -121,9 +121,9 @@ Consequence for this feature: **any AI-proposed crossfeed parameter change must,
 
 ### The tilt, and its direction
 
-> **Not** "every 1 dB of crossfeed level costs 1 dB of centre tilt", with tilt rising as feed rises — **both the direction and the magnitude are wrong.** The algebra behind that claim (`GB_lo − GB_hi = −feed`) is a true identity, but that quantity is the shelf separation in the analog prototype, not the realised tilt after normalisation.
+> **Not** "every 1 dB of crossfeed level costs 1 dB of center tilt", with tilt rising as feed rises — **both the direction and the magnitude are wrong.** The algebra behind that claim (`GB_lo − GB_hi = −feed`) is a true identity, but that quantity is the shelf separation in the analog prototype, not the realized tilt after normalization.
 
-In bs2b the mid (centre) path is normalised to 0 dB at DC and rolls off to `−tilt` at high frequency, where
+In bs2b the mid (center) path is normalized to 0 dB at DC and rolls off to `−tilt` at high frequency, where
 
 ```
 tilt = 20·log10(1 − gHi + gLo)
@@ -138,7 +138,7 @@ Two consequences, both counterintuitive and both load-bearing:
 
 | feed | 1.0 | 4.5 (default) | 6.0 (cmoy) | 9.5 (jmeier) | 15.0 |
 |---|---|---|---|---|---|
-| centre tilt | 2.70 dB | 1.81 dB | 1.53 dB | 1.09 dB | 0.92 dB |
+| center tilt | 2.70 dB | 1.81 dB | 1.53 dB | 1.09 dB | 0.92 dB |
 
 The entire 14 dB feed range moves tilt by 1.78 dB, so a ±1.5 dB nudge near the default changes tilt by roughly 0.3 dB — broad, and at or below audibility on its own. It matters for keeping compensation consistent, not as an audible consequence. **Do not narrate it to the user as a tonal change.**
 
@@ -146,7 +146,7 @@ Verified numerically against the shipped implementation in `lib/xfeed.js`, and c
 
 **A separate effect, frequently conflated:** crossfeed also sums correlated low-frequency content between channels, which can raise perceived bass weight. That is *not* the mid-path treble tilt and is *not* what compensation corrects. Keep them apart.
 
-Compensation restores the centre with a fitted high-shelf pair, leaving the width effect intact. 0 % = off, 100 % = neutral centre, >100 % = brighter than neutral.
+Compensation restores the center with a fitted high-shelf pair, leaving the width effect intact. 0 % = off, 100 % = neutral center, >100 % = brighter than neutral.
 
 ## The response schema contract
 
@@ -176,7 +176,7 @@ The **final answer** must validate against a union of exactly three branches. In
 ```
 
 * **Exactly one branch.** Never two at once, no fourth branch, no extra top-level keys.
-* **`discuss` stages nothing, structurally.** `changes` is *absent*, not an empty array, so the union stays a real XOR over the write path. **The asymmetry runs one way only** (D22): a `discuss` turn can never stage, but an acting turn *may answer* through `answers`, so a question arriving beside an actionable complaint no longer costs a turn. Answering a question and staging a change in the same turn is the expected behaviour, not a violation — `discuss` alone, when the utterance also carried an actionable complaint, is the deflection-into-chat failure.
+* **`discuss` stages nothing, structurally.** `changes` is *absent*, not an empty array, so the union stays a real XOR over the write path. **The asymmetry runs one way only** (D22): a `discuss` turn can never stage, but an acting turn *may answer* through `answers`, so a question arriving beside an actionable complaint no longer costs a turn. Answering a question and staging a change in the same turn is the expected behavior, not a violation — `discuss` alone, when the utterance also carried an actionable complaint, is the deflection-into-chat failure.
 * **`diagnosis` carries two registers of one finding** (D22): `explains_symptom` technical, `in_plain_terms` plain. **The plain register is a restatement, not an extension** — it may introduce no claim, mechanism, citation or fact absent from the technical field beside it. Quote the magnitude in plain terms on every change turn; that is the point, not the risk, because it calibrates the user's ear-to-number mapping and the next complaint arrives as "another dB or so" instead of "a bit less". A trailing "how does that sound?" is prose and is fine; "shall I go ahead?" is not, because it strands the user at the Apply gate.
 * **`variants` are for genuine taste forks only** (D18). Co-equal candidates the user auditions by ear, distinct from `alternatives_rejected` which is what the model discarded *with reasons*. Swapping one is a re-stage, never an apply. Offering them to look thorough is a failure, not diligence.
 * **`alternatives_rejected` is optional by design** (D23). It is the strongest thing a change has to defend itself with and it renders expanded by default — but mandating it would manufacture straw candidates to fill the slot, which is the same padding `variants` is scored down for.
@@ -201,7 +201,7 @@ The **final answer** must validate against a union of exactly three branches. In
 
 **Compound complaints are handled jointly, and the interaction check is the work.** One utterance can carry two complaints. Separating them is step one; checking that the two fixes do not fight — against the standing metric panel, including metrics coined in earlier turns — is what the turn is actually for.
 
-**Phase is not a lever, and channel asymmetry is the only place it gets loud.** Every stage the tuner emits is a minimum-phase biquad, so its phase response is *entailed* by its magnitude — there is no phase/magnitude trade to offer and no "same curve with less phase shift" to propose (`PHASE.md` §1). The chain's measured group delay varies by 156 µs across 300 Hz–1 kHz, several times under the lowest published audibility threshold and about the same as the unit-to-unit spread between two copies of the same headphone, so **do not narrate phase or group delay to the user as a consequence of an EQ move** — the same discipline the crossfeed centre tilt gets. An EQ band also cannot pre-ring; pre-echo belongs to the oversampling filter alone, and a phase explanation must never become the escape hatch for a complaint EQ cannot fix. The exception is **asymmetry**: the same band applied to one ear only puts a frequency-dependent interaural phase difference into the signal that runs one to two orders of magnitude above the ITD detection floor below ~1200 Hz, which is a lateralization change with a tonal side effect rather than a tonal change (`PHASE.md` §7). All four change types are stereo-symmetric today (`HEARING.md` §4.3), so this is a `clarify` + `recommends` case now and a hard constraint on any future per-ear control.
+**Phase is not a lever, and channel asymmetry is the only place it gets loud.** Every stage the tuner emits is a minimum-phase biquad, so its phase response is *entailed* by its magnitude — there is no phase/magnitude trade to offer and no "same curve with less phase shift" to propose (`PHASE.md` §1). The chain's measured group delay varies by 156 µs across 300 Hz–1 kHz, several times under the lowest published audibility threshold and about the same as the unit-to-unit spread between two copies of the same headphone, so **do not narrate phase or group delay to the user as a consequence of an EQ move** — the same discipline the crossfeed center tilt gets. An EQ band also cannot pre-ring; pre-echo belongs to the oversampling filter alone, and a phase explanation must never become the escape hatch for a complaint EQ cannot fix. The exception is **asymmetry**: the same band applied to one ear only puts a frequency-dependent interaural phase difference into the signal that runs one to two orders of magnitude above the ITD detection floor below ~1200 Hz, which is a lateralization change with a tonal side effect rather than a tonal change (`PHASE.md` §7). All four change types are stereo-symmetric today (`HEARING.md` §4.3), so this is a `clarify` + `recommends` case now and a hard constraint on any future per-ear control.
 
 **Do not offer a canal-resonance correction, however well the mechanism reads.** `TRANSDUCERS.md` §3.2 documents a real acoustic variable — the main ear-canal resonance near 2.7–3 kHz, which an IEM sits at the anti-node of and which varies between individuals by up to two octaves and more than 10 dB. Reading that, the obvious move is a narrow 3 kHz band the user tunes to their own ear, and it is wrong. Olive 2025 built exactly that control — 3 kHz, Q 2, +6 to −10 dB — gave it to 36 listeners on a diffuse-field baseline they were otherwise freely re-balancing, and got a mean adjustment of **+0.1 dB**, with only 5 of 36 reaching ± 2 dB (`SOURCES.md` §2.2d). Two further results put the tolerated spread through this region at several dB. **The inter-individual variance is why in-ear and over-ear targets differ as families; it is not a knob.** Bass and treble shelves are where individual taste actually lives, and the same study bounds them: about 6.7 dB of between-listener bass spread and 6.3 dB of treble, most tastes reachable inside ± 3 dB of each. If a user's complaint genuinely lands at 3 kHz, treat it as the ordinary `harsh` / `forward` case the vocabulary map already handles — not as ear-canal compensation, and never narrated to the user as tuning to their anatomy.
 
@@ -213,7 +213,7 @@ The ladder, strongest to weakest: `measured` (computed this session) → `mechan
 
 **`cited` outranks `unverified`.** A user-supplied writeup is attributable, re-readable and deliberately chosen; pretraining recall on niche gear is none of those. Uploading a review *improves* the epistemics over guessing from memory.
 
-What holds regardless — mechanism, not judgement about the user:
+What holds regardless — mechanism, not judgment about the user:
 
 * **Attribution is mandatory** — a claim from a file names the file, so it can be checked.
 * **Retrieval, not dumping** — curves are sampled, prose is chunked and queried. A forty-page PDF in the ledger tail would evict the actual tuning turns.
@@ -244,10 +244,10 @@ What holds regardless — mechanism, not judgement about the user:
 | Guard | Value | Provenance |
 |---|---|---|
 | **EQ gain, per turn — the one policy clamp** | **±6.0 dB** | AutoEq `DEFAULT_MAX_GAIN = 6.0`, `DEFAULT_TREBLE_MAX_GAIN = 6.0`; project decision D1. **There is no absolute gain ceiling and no Q clamp** — AutoEq's `DEFAULT_FIXED_BAND_FILTER_MIN/MAX_GAIN = -12.0/+12.0` and `DEFAULT_PEAKING_FILTER_MIN_Q/MAX_Q = 0.18248/6.0` describe *that tool's* envelope, not ours, and were removed from this table on 2026-07-30 because they appeared nowhere else and contradicted the paragraph above |
-| Q, voicing preferred | 0.5 – 1.6 | Toole: broad low-Q colourations are what listeners actually notice over repeated listening; narrow deep bands are less audible and more likely mis-aimed |
+| Q, voicing preferred | 0.5 – 1.6 | Toole: broad low-Q colorations are what listeners actually notice over repeated listening; narrow deep bands are less audible and more likely mis-aimed |
 | Q, narrowband ceiling | 4.0 | reserved for `sibilant`, `shrill`, `piercing` only |
 | Shelf Q | **fixed 0.7** | AutoEq `DEFAULT_SHELF_FILTER_MAX_Q = 0.7`; every shipped oratory1990 shelf is `Q 0.70` |
-| Centre frequency | 20 – 20000 Hz | AutoEq shelf/peaking `MIN_FC = 20.0`; note AutoEq's optimiser caps at 10 kHz |
+| Center frequency | 20 – 20000 Hz | AutoEq shelf/peaking `MIN_FC = 20.0`; note AutoEq's optimizer caps at 10 kHz |
 | Band scope | **all bands amendable, AutoEq included** | user decision 2026-07-22; supersedes the withdrawn protected-segment design |
 | Crossfeed frequency | **300 – 2000 Hz, step 1** | libbs2b `BS2B_MINFCUT` / `BS2B_MAXFCUT`. **Probed live 2026-07-31:** the daemon's `/matrix` form serves `min="300" max="2000" step="1"` — no divergence from the library constants. Read the live form at runtime rather than hardcoding — this is HQPlayer's form, not bs2b's library |
 | Crossfeed level | **1.0 – 15.0 dB, step 0.1** | libbs2b `BS2B_MINFEED` / `BS2B_MAXFEED` = 10 / 150, encoded as dB × 10. **Probed live 2026-07-31:** the form serves `min="1" max="15" step="0.1"` — no divergence. Same runtime caveat |

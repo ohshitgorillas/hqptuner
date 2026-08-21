@@ -52,7 +52,7 @@ export function MatrixProfileCard() {
   // What the user wrote about the profile that is running, if they wrote
   // anything. No box and no empty state: LIVE is a status page, and an empty
   // frame here would be a control that does nothing. The description reads in
-  // the content grey against the muted caption below it, which is what separates
+  // the content gray against the muted caption below it, which is what separates
   // the user's own words from ours.
   const described = descriptionFor(active);
   return html`

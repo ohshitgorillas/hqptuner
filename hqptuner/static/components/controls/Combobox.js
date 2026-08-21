@@ -20,7 +20,7 @@ import { buildRows, rowOption, nestRows, visibleOption } from "./comborows.js";
  * @typedef {import("./comborows.js").CollapseCtl} CollapseCtl
  *   The row model — flat list, nested containers, visibility under a fold —
  *   lives in comborows.js; this module owns the markup, focus and placement
- *   behaviour around it.
+ *   behavior around it.
  * @typedef {{ current: HTMLElement | null }} ElRef
  *   A preact ref pointed at one of this widget's own elements.
  * @typedef {{ name: string, text: string, rows: [string, string][], chips: string[] }} TipContent

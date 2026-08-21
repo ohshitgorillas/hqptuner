@@ -134,7 +134,7 @@ test("test_a_boolean_true_enables_the_volume_control", async () => {
 
 // Truthy to JavaScript, but not one of the three forms the daemon reports the
 // flag in, so it reads as disabled like anything else the engine did not say.
-test("test_an_unrecognised_enabled_value_disables_the_volume_control", async () => {
+test("test_an_unrecognized_enabled_value_disables_the_volume_control", async () => {
   await reset({ range: { ...ON, enabled: "yes" } });
   assert.ok(classes(knob(card())).includes("off"));
 });
@@ -159,7 +159,7 @@ test("test_an_enabled_control_leaves_the_knob_live", async () => {
   assert.equal(classes(knob(card())).includes("off"), false);
 });
 
-// Behaviour 9: the dial and the reason hint are ONE region, so what the engine
+// Behavior 9: the dial and the reason hint are ONE region, so what the engine
 // takes away it takes away in one piece.
 
 test("test_the_disabled_region_encloses_the_knob", async () => {

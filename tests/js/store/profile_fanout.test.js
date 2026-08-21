@@ -1,7 +1,7 @@
 // Behavioral suite for store/matrix/profiles.js — the profile-staging fan-out
 // payloads: what stageProfileSave / stageProfileDelete actually put on the
 // wire when a presets list is (or is not) supplied, that a targeted delete's
-// name is still honoured by savedProfiles, and the presetProfiles read model.
+// name is still honored by savedProfiles, and the presetProfiles read model.
 //
 // Everything is driven the way the app drives it: matrixConfig assigned
 // directly (the poll's own seam) and staging through the exported

@@ -54,7 +54,7 @@
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-md) var(--r-md) 0 0;
   cursor: pointer;
-  /* one step above the emphasised-control size the rest of the chrome uses —
+  /* one step above the emphasized-control size the rest of the chrome uses —
      the tab row is the page's top-level navigation, not a control */
   font-size: var(--fs-title);
 }
@@ -74,7 +74,7 @@ main {
 }
 /* One gap on the container, not a margin on each child. The child rule this
    replaced was `.tab-body > .card + .card`, which could only see two cards side
-   by side — a .card-grid between them matched nothing and its neighbour sat
+   by side — a .card-grid between them matched nothing and its neighbor sat
    flush against it. A container gap spaces every child whatever it is, so no
    new kind of tab-body child can fall off a selector list. */
 .tab-body {

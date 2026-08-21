@@ -11,7 +11,7 @@ same readback mismatch on the LIVE page, and the fix would be to hold those too.
 
 Two measurements, mode left exactly as found:
 
-  A  SetFilter    to a neighbouring index in the running GetFilters list
+  A  SetFilter    to a neighboring index in the running GetFilters list
   B  SetShaping   likewise, in the running GetShapers list
 
 Each is verified by `State` readback (`result="OK"` is not proof, protocol.md §6)
@@ -51,7 +51,7 @@ async def _restore(client: ControlClient, command: str, state: dict[str, str]) -
 
 
 async def _observe(client: ControlClient, label: str, command: str, enum: str, attr: str) -> None:
-    """Set one chain setting to a neighbouring index, read State back, restore."""
+    """Set one chain setting to a neighboring index, read State back, restore."""
     print(f"\n--- {label}")
     original_state = await client.get_state()
     original = original_state.get(attr)

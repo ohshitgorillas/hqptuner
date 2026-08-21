@@ -1,4 +1,4 @@
-// Behavioural suite for what a device rescan tells the user when it could not
+// Behavioral suite for what a device rescan tells the user when it could not
 // put the live settings back: the rescan answers `POST /api/config/refresh`
 // with a `warning` sentence, and that sentence has to reach the user's eye.
 // The apply status line is where every other write reports — a failed apply, a
@@ -17,7 +17,7 @@
 //
 // The button itself is not clicked: render-to-string attaches no handlers, so
 // the click belongs to the playwright hand-back protocol. What is pinned here
-// is everything from the rescan call onwards, which is where the behaviour is.
+// is everything from the rescan call onwards, which is where the behavior is.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/pendingbar-rescan-warning.test.js
 

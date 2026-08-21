@@ -122,7 +122,7 @@ def test_a_put_leaves_another_presets_mode_alone(modes_client: TestClient) -> No
     "mode",
     [
         pytest.param("", id="empty"),
-        pytest.param("Speakers", id="capitalised"),
+        pytest.param("Speakers", id="capitalized"),
         pytest.param("speaker", id="singular"),
         pytest.param("stereo", id="unknown-word"),
         pytest.param(" headphones", id="leading-space"),

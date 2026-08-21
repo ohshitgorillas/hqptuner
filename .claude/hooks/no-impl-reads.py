@@ -7,7 +7,7 @@ orchestrator and every other agent are untouched. A session-wide
 `permissions.deny` would have blinded the orchestrator too, which is the one
 agent that has to read the implementation to adjudicate a failure.
 
-The rule those agents work under is that tests are written from a behaviour
+The rule those agents work under is that tests are written from a behavior
 spec and never from the code under test, so that a test cannot be shaped to
 mirror whatever the implementation happens to do (docs/testing.md "Core rules";
 docs/agent-failures.md records a suite built that way). A prompt alone does not
@@ -42,7 +42,7 @@ BASH_PATH = re.compile(r"(?:^|[\s\"'=(:])\.?/?hqptuner/")
 _WHY = (
     "Blind test author: the implementation is out of bounds. Work from the spec block, "
     "docs/, tests/, and the HQPlayer documentation. If the spec does not say what the "
-    "behaviour is, report that gap instead of reading the code to find out."
+    "behavior is, report that gap instead of reading the code to find out."
 )
 
 

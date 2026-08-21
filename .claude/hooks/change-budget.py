@@ -81,7 +81,7 @@ def _load(name):
     """Import a sibling hook module by path.
 
     Not a plain `import`: this file is itself imported by path (by
-    read-volume.py, and by scripts/budget_common.py so the analysers measure the
+    read-volume.py, and by scripts/budget_common.py so the analyzers measure the
     rule that actually runs), and in those processes the hook directory is not
     on sys.path.
     """
@@ -139,7 +139,7 @@ def clean_reply(text):
     """Strip the harness wrappers, leaving what the user actually typed.
 
     Shared with scripts/budget_miner.py, which imports it from here — the
-    analyser and the hook must agree on what counts as the user speaking, or
+    analyzer and the hook must agree on what counts as the user speaking, or
     the measurements describe a different rule than the one enforced.
     """
     for tag in TAGS:
@@ -210,7 +210,7 @@ def _repo_root(start):
 
 def _in_tree(path, root, cwd):
     """True when `path` resolves inside the working tree at `root`. abspath
-    normalises `..`, so an escape hatch like repo/../etc/x lands outside and
+    normalizes `..`, so an escape hatch like repo/../etc/x lands outside and
     meters."""
     if not root or not path:
         return False
@@ -223,7 +223,7 @@ def _in_tree(path, root, cwd):
 
 def classify(name, tool_input, root, cwd):
     """Which leash a tool call pulls: FREE, EDIT, or CHANGE. Anything
-    unrecognised is a CHANGE — the bias stays toward metering."""
+    unrecognized is a CHANGE — the bias stays toward metering."""
     tool_input = tool_input or {}
     if name in FREE_TOOLS:
         return FREE

@@ -11,9 +11,9 @@
 // gain scaling <=0.046 dB over s=25..150%).
 //
 // The tilt is not an artifact of bs2b: Brown & Duda's structural head model at
-// +/-30 deg speaker azimuth gives a centre tilt of 1.80 dB, and bs2b's default
+// +/-30 deg speaker azimuth gives a center tilt of 1.80 dB, and bs2b's default
 // preset computes to 1.81 dB here. So compensation trades a loudspeaker-accurate
-// centre for a neutral one -- a tonal choice, not a bug fix. Independent of any
+// center for a neutral one -- a tonal choice, not a bug fix. Independent of any
 // headphone EQ, which rides through untouched. See docs/crossfeed-math.md.
 
 import { fmtArg, withoutEq } from "./matrixspec.js";
@@ -191,7 +191,7 @@ function descend(seed, seedSteps, err) {
 const fitCache = new Map();
 /**
  * Coordinate-descent fit of two cascaded high-shelves to the exact inverse of the
- * centre response, from the reference-validated analytic seed. One fit per
+ * center response, from the reference-validated analytic seed. One fit per
  * (fc, feed); cached.
  * @param {number} fc
  * @param {number} feed
@@ -301,7 +301,7 @@ export function uncompensatedRows(rows, rec) {
 // with the preamp folded in. Appending to a single row the way a plain pipeline
 // import does breaks both invariants at once: recognition dies on the first
 // gainunit check, and the touched rows end up carrying the EQ twice at a gain
-// meant for a dB row. Rows 1+2 are the left ear's centre path, so the damage is
+// meant for a dB row. Rows 1+2 are the left ear's center path, so the damage is
 // a one-channel mid/side imbalance — silent, since the badge simply disappears.
 //
 // `addition` is the serialized new stages, `preamp` the profile's Preamp line as

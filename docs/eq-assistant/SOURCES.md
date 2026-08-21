@@ -8,12 +8,12 @@ Compiled 2026-07-22 for the HQPTuner **EQ Assistant** feature. Every claim below
 
 | Tag | Meaning |
 |---|---|
-| `[V]` | I read the primary artefact directly (source file, PDF text, raw doc) and the numbers below are transcribed from it. |
-| `[VA]` | Read by a delegated research agent during the 2026-07-25 pass, which returned a verbatim quote and a URL. Same artefact class as `[V]`; the difference is who read it. Treat the quotes as accurate; re-fetch before resting a decision on any single number in isolation. |
+| `[V]` | I read the primary artifact directly (source file, PDF text, raw doc) and the numbers below are transcribed from it. |
+| `[VA]` | Read by a delegated research agent during the 2026-07-25 pass, which returned a verbatim quote and a URL. Same artifact class as `[V]`; the difference is who read it. Treat the quotes as accurate; re-fetch before resting a decision on any single number in isolation. |
 | `[S]` | Secondary only — I could reach a summary/derivative but not the primary. Treat the number as indicative, re-verify before relying on it. |
 | `[X]` | Could not reach at all. Listed for completeness; **no content attributed**. |
 
-`[VA]` exists because pretending an agent's read is my own read would corrupt the one thing this document is for. Where a lane computed a figure rather than quoting it, that is said in place and the figure is labelled derived.
+`[VA]` exists because pretending an agent's read is my own read would corrupt the one thing this document is for. Where a lane computed a figure rather than quoting it, that is said in place and the figure is labeled derived.
 
 **Reliability classes**: `peer-reviewed` · `standards-body` · `industry-standard lexicon` · `primary source code / project documentation` · `manufacturer technical documentation` · `manufacturer marketing` · `practitioner heuristic` · `measurement-community` · `community wiki` · `forum`.
 
@@ -25,7 +25,7 @@ The distinction between the two manufacturer classes is load-bearing: a manufact
 
 ### 1.1 AutoEq — Jaakko Pasanen `[V]`
 
-* **Citation.** Pasanen, J. *AutoEq — Automatic headphone equalization from frequency responses.* Open-source project, MIT licence. <https://github.com/jaakkopasanen/AutoEq> Files read: `autoeq/constants.py`, `autoeq/frequency_response.py`, `autoeq/peq.py`, `results/oratory1990/over-ear/Sennheiser HD 650/Sennheiser HD 650 ParametricEQ.txt`.
+* **Citation.** Pasanen, J. *AutoEq — Automatic headphone equalization from frequency responses.* Open-source project, MIT license. <https://github.com/jaakkopasanen/AutoEq> Files read: `autoeq/constants.py`, `autoeq/frequency_response.py`, `autoeq/peq.py`, `results/oratory1990/over-ear/Sennheiser HD 650/Sennheiser HD 650 ParametricEQ.txt`.
 * **Reliability.** Primary source code / project documentation. Highest confidence class in this document because the numbers are executable, not editorial.
 * **What it contributes.** The numeric envelope our clamps must live inside, and the exact `ParametricEQ.txt` grammar the app already parses.
 
@@ -104,7 +104,7 @@ Type tokens: `PK` = peaking, `LSC` = low shelf, `HSC` = high shelf. Shelves in s
   <https://aes.org/publications/elibrary-page/?id=17734> — **paywalled `[X]`**; the ITU report
   is the free route to the same attribute table, which is why it is the citation of record here.
 * **Reliability.** Standards-body report reproducing an industry-standard lexicon. Highest authority for *definitions*; deliberately silent on frequencies.
-* **Structure `[V]`.** Three rings. Inner: Loudness, Dynamics, Timbre, Spatial, Transparency, Artefacts. Middle: category groups (e.g. under Timbre — Treble, Midrange, Bass, Timbral balance; under Spatial — Spatial extent, Localization, Reverberance). Outer: individual attributes, each with a definition and a bipolar or unipolar scale.
+* **Structure `[V]`.** Three rings. Inner: Loudness, Dynamics, Timbre, Spatial, Transparency, Artifacts. Middle: category groups (e.g. under Timbre — Treble, Midrange, Bass, Timbral balance; under Spatial — Spatial extent, Localization, Reverberance). Outer: individual attributes, each with a definition and a bipolar or unipolar scale.
 
 Definitions transcribed `[V]` (abbreviated, wording from the report):
 
@@ -123,10 +123,10 @@ Definitions transcribed `[V]` (abbreviated, wording from the report):
 | Dark–Bright | Timbral balance | Dark = "Excessive bass. Either loud bass or weak treble." Bright = "Excessive treble. Either loud treble or weak bass." | Dark – Neutral – Bright |
 | Full | Timbral balance | "If both low and high frequencies are well represented with good extension the sound is Full." | A little – A lot |
 | Homogeneous | Timbral balance | degree to which bass/mid/treble are coherent and continuous "without gaps between them" | A little – A lot |
-| Shrill | Artefacts | "Treble Distortion. Very sharp s-sounds, cymbals etc." | — |
+| Shrill | Artifacts | "Treble Distortion. Very sharp s-sounds, cymbals etc." | — |
 | Clean | Transparency | "The opposite of clean: dull, muddy." | — |
 
-**Critical methodological point `[V]`: the Sound Wheel assigns no frequencies to any attribute.** "Boomy" is *low bass resonance*; "Boxy" is *upper bass resonance*; "Canny" is *midrange narrowband resonance*. Ordering is given, Hz is not. Any Hz range attached to a Sound Wheel term in this project comes from a *different* source and must be labelled as such.
+**Critical methodological point `[V]`: the Sound Wheel assigns no frequencies to any attribute.** "Boomy" is *low bass resonance*; "Boxy" is *upper bass resonance*; "Canny" is *midrange narrowband resonance*. Ordering is given, Hz is not. Any Hz range attached to a Sound Wheel term in this project comes from a *different* source and must be labeled as such.
 
 ### 2.2 Sean Olive (Harman International) — target curve and listener training
 
@@ -134,13 +134,13 @@ Definitions transcribed `[V]` (abbreviated, wording from the report):
 
 * **Citation.** Olive, S. E. "The Perception and Measurement of Headphone Sound Quality: What Do Listeners Prefer?" *Acoustics Today*, Vol. 18, Issue 1 (Spring 2022), pp. 58–65.
   <https://acousticstoday.org/wp-content/uploads/2022/03/The-Perception-and-Measurement-of-Headphone-Sound-Quality-What-Do-Listeners-Prefer-Sean-E.-Olive.pdf>
-* **Reliability.** Peer-reviewed-adjacent society magazine article by the principal investigator, summarising a decade of AES papers. Free. Excellent.
+* **Reliability.** Peer-reviewed-adjacent society magazine article by the principal investigator, summarizing a decade of AES papers. Free. Excellent.
 * **Numbers transcribed `[V]`:**
   * The preferred headphone target "approximates the in-room response of an accurate loudspeaker calibrated in a semireflective room"; that steady-state in-room response "gently falls about **1 dB per octave from 20 Hz to 20 kHz**." Olive states the slope as a general consequence of loudspeaker directivity and room absorption, with no citation and no measurement reported in the article — see the note at the head of this file.
   * The preferred **in-ear** target is "almost identical" to the around-ear/on-ear targets "except it has an additional **4 dB of bass**" (Olive et al., 2016).
   * Listener segmentation (Olive et al., 2018a; 31 headphones, 130 listeners): **Class 1 = 64 %** prefer the Harman target as-is; **Class 2 = 15 %** prefer it with **4–6 dB more bass**; **Class 3 = 21 %** prefer it with **2 dB less bass**. This is the strongest empirical justification in this document for the EQ Assistant existing at all, and for the magnitude of its typical bass moves (a few dB, not ten). **Amended by §2.2d — read the two together.** The 2018a segmentation puts the between-class spread at 7–8 dB in the bass against only 1–2 dB in the treble, which is where this document's "bass is the single dominant axis of individual taste" reading came from. Olive's 2025 method-of-adjustment study reproduces the bass figure (6.7 dB) but finds a treble spread of **6.3 dB**, which he flags in his own text as much greater than the earlier result. **The corrected reading: bass remains the largest single axis, but treble is not a rounding error, and the shelf-first strategy is sourced for both shelves rather than one.**
   * Lorho (2009): 80 listeners preferred a modified diffuse-field target in which the DF curve's **12 dB peak at 3 kHz was reduced to just 3 dB**.
-  * Trained-listener descriptors recorded verbatim in the study: the DF targets had "too much emphasis in the **upper midrange (2–4 kHz)** and lacking bass"; the Lorho target had "too little energy at **2–4 kHz**, which made instruments sound **'muffled and dull'**"; the FF target was criticised for a strong 2–4 kHz emphasis, lack of bass, and harsh and nasal colorations (the article's own words, unquoted there); the winning target was described as "good bass with an even spectral balance."
+  * Trained-listener descriptors recorded verbatim in the study: the DF targets had "too much emphasis in the **upper midrange (2–4 kHz)** and lacking bass"; the Lorho target had "too little energy at **2–4 kHz**, which made instruments sound **'muffled and dull'**"; the FF target was criticized for a strong 2–4 kHz emphasis, lack of bass, and harsh and nasal colorations (the article's own words, unquoted there); the winning target was described as "good bass with an even spectral balance."
   * Female listeners preferred less bass and treble than male; 55+ listeners preferred significantly more treble and less bass.
   * Recommended remedy for taste variance: "a simple bass and treble control" — i.e. exactly the shelf-first strategy the EQ Assistant should adopt.
 * **Direct relevance.** The "upper midrange 2–4 kHz" framing here is *Harman's own* and it disagrees with Owsinski's "presence = 4–6 kHz". See §5, disagreement #4.
@@ -158,14 +158,14 @@ Definitions transcribed `[V]` (abbreviated, wording from the report):
   Companion site <https://harmanhowtolisten.blogspot.com/>.
 * **Reliability.** Author's own blog describing his own software — primary-ish, but informal (`[S]` because it is not the peer-reviewed methodology paper).
 * **Contribution `[S]`.** 17 training tasks across four attribute families: **timbre (spectral), spatial (localization/imagery), dynamics, and nonlinear distortion.** The *Band Identification* task trains listeners to name a modified band by **frequency, level and Q**, using peaks, dips, peak-and-dip pairs, high/low shelving and low/high/bandpass filters, subdividing the spectrum into progressively more bands. The *Spectral Plot* task trains listeners to "draw the perceived timbre… as a frequency response curve."
-* **The key doctrine for this feature.** Harman's training deliberately **replaces** connotative audiophile vocabulary ("chocolaty", "silky") with terms that map onto *filter type, frequency, Q and gain*. The EQ Assistant's vocabulary map is doing the same translation in software: user's connotative word in, (type, f, g, Q) out. Design the vocabulary map to be the machine version of Band Identification, and prefer terms that Harman's programme itself would accept.
+* **The key doctrine for this feature.** Harman's training deliberately **replaces** connotative audiophile vocabulary ("chocolaty", "silky") with terms that map onto *filter type, frequency, Q and gain*. The EQ Assistant's vocabulary map is doing the same translation in software: user's connotative word in, (type, f, g, Q) out. Design the vocabulary map to be the machine version of Band Identification, and prefer terms that Harman's program itself would accept.
 
 **2.2d Olive, S. E. (2025) `[V]` — the method-of-adjustment study, and the reason treble is no longer a rounding error.**
 
 * **Citation.** Olive, S. E. "Determining the Preferred In-ear Headphone Target Response using a Method of Adjustment." AES International Conference on Headphone Technology, Espoo, Finland, 2025 August 27–29, Conference Paper 2. Sean Olive Audio Consulting; research supported by Harman International.
 * **Reliability.** Read in full from the PDF `[V]`. **Its own header limits what it may be leaned on for**, and the limit is quoted rather than paraphrased: the paper "was selected based on a submitted abstract and 750-word precis that have been peer reviewed by at least two qualified anonymous reviewers. The complete manuscript was not peer reviewed." Treat as primary-author conference material one tier below the peer-reviewed journal sources in §2.5, not as a peer-reviewed result.
 * **This is not the paper §6 is waiting for.** Olive, Welti & Khonsaripour, AES 2016 Headphone Technology paper 6-1 — the primary behind the **+4 dB** IE bass figure and the unsourced occlusion rationale — remains `[X]`. Different study, different year, different method.
-* **Method `[V]`.** 36 listeners, all Harman employees at Novi, Michigan who participate in formal automotive listening tests: 83 % male, significant listening experience, 4 reporting mild hearing loss, mean age 33.9 (male) and 23.7 (female). A Sennheiser Momentum IE was equalised by inverse FIR to the **diffuse-field response of the B&K Type 5128 Head and Torso Simulator**, and that DF response was the baseline every adjustment was made relative to. A MEMS microphone in the sound nozzle measured the response on insertion so leakage could be detected and the fit corrected before each test. 12 trials per listener (3 programs × 4 observations), adjustments in 0.25 dB increments, playback at 78 dB SPL (B), three music tracks looped at 15–20 s. Each trial re-randomised the baseline tilt over ± 2 dB/octave; adjustment proceeded in three sequential steps — broadband tilt, then bass and treble refinement, then the midband filter — deliberately, "to make the task easier and hopefully more reliable than giving them 2 or 3 knobs to adjust all at once."
+* **Method `[V]`.** 36 listeners, all Harman employees at Novi, Michigan who participate in formal automotive listening tests: 83 % male, significant listening experience, 4 reporting mild hearing loss, mean age 33.9 (male) and 23.7 (female). A Sennheiser Momentum IE was equalized by inverse FIR to the **diffuse-field response of the B&K Type 5128 Head and Torso Simulator**, and that DF response was the baseline every adjustment was made relative to. A MEMS microphone in the sound nozzle measured the response on insertion so leakage could be detected and the fit corrected before each test. 12 trials per listener (3 programs × 4 observations), adjustments in 0.25 dB increments, playback at 78 dB SPL (B), three music tracks looped at 15–20 s. Each trial re-randomized the baseline tilt over ± 2 dB/octave; adjustment proceeded in three sequential steps — broadband tilt, then bass and treble refinement, then the midband filter — deliberately, "to make the task easier and hopefully more reliable than giving them 2 or 3 knobs to adjust all at once."
 * **The adjustment filters, transcribed from Table 1 `[V]`.** This is the most directly usable thing in the paper for us: a published preference experiment whose instrument is expressed in exactly the parameter space the tuner emits.
 
   | Filter | Frequency | Q | Range |
@@ -182,14 +182,14 @@ Definitions transcribed `[V]` (abbreviated, wording from the report):
   * **Program had no significant effect** on the preferred filter levels.
   * **Demographics were not predictive.** Discriminant analysis on age, gender, listening experience and self-reported hearing loss classified cluster membership in only 31 % of cases. The exception is cluster C4 (100 % prediction), the group taking the most bass and least treble, "all male, trained and with normal hearing and some with hearing loss".
   * Conclusion as the author states it: a single target cannot satisfy all listeners, but "most tastes can be accommodated with ± 3 dB adjustments to the bass and treble."
-* **The author's own methodological caveat, which must travel with the 3 kHz result.** The bass and treble filters were re-randomised every trial; **the midband filter was fixed at 0 dB.** He names this as a possible reason the 3 kHz adjustments were so small, proposes the inverse experiment as future work, and records that "inspection of the raw data indicates that listeners did adjust the filter, but the adjustments were negligible."
-* **Corroboration for the 3 kHz null, from within the paper `[S]` at one remove.** Ravizza et al.'s top five preferred curves cover a **± 3.5 dB range over an octave centred at 4 kHz**, and Olive's own earlier work found two IE target curves **differing by 5 dB between 2 kHz and 8 kHz** to be equally preferred. Lorho's much lower preferred 3 kHz level (4 dB) is explained away rather than reconciled — his baseline DF target had no bass adjustment available, so "it is likely that listeners compensated for the lack of bass by reducing the energy at 3 kHz."
+* **The author's own methodological caveat, which must travel with the 3 kHz result.** The bass and treble filters were re-randomized every trial; **the midband filter was fixed at 0 dB.** He names this as a possible reason the 3 kHz adjustments were so small, proposes the inverse experiment as future work, and records that "inspection of the raw data indicates that listeners did adjust the filter, but the adjustments were negligible."
+* **Corroboration for the 3 kHz null, from within the paper `[S]` at one remove.** Ravizza et al.'s top five preferred curves cover a **± 3.5 dB range over an octave centered at 4 kHz**, and Olive's own earlier work found two IE target curves **differing by 5 dB between 2 kHz and 8 kHz** to be equally preferred. Lorho's much lower preferred 3 kHz level (4 dB) is explained away rather than reconciled — his baseline DF target had no bass adjustment available, so "it is likely that listeners compensated for the lack of bass by reducing the energy at 3 kHz."
 * **Direct relevance, three ways.** It qualifies §2.2a's bass-dominance finding (see the amendment there). It supplies the evidence against offering a canal-resonance control at all (`TRANSDUCERS.md` §3.2). And its instrument — two wide shelves plus one narrow midband peak, adjusted by ear against a target — is the shelf-first strategy this document already recommends, run as an experiment and validated.
 
 ### 2.3 Audio Commons timbral models (EU H2020) `[V]` / `[S]`
 
 * **Citations.**
-  * Pearce, A., Brookes, T. & Mason, R. — *Deliverable D5.8: Release of timbral characterisation tools for semantically annotating non-musical content.* AudioCommons (H2020 project), Institute of Sound Recording, University of Surrey.
+  * Pearce, A., Brookes, T. & Mason, R. — *Deliverable D5.8: Release of timbral characterization tools for semantically annotating non-musical content.* AudioCommons (H2020 project), Institute of Sound Recording, University of Surrey.
     <https://audiocommons.github.io/assets/files/AC-WP5-SURREY-D5.8%20Release%20of%20timbral%20characterisation%20tools%20for%20semantically%20annotating%20non-musical%20content.pdf>
     Fetched and text-extracted `[V]`.
   * Source code: <https://github.com/AudioCommons/timbral_models> `[V]`.
@@ -257,7 +257,7 @@ Band table `[V]`:
 
 **Findings, with honest confidence grading:**
 
-1. `[V]` **Repetition lowers detection thresholds for medium- and low-Q resonances.** Direct quotation above. Consequence: a broad, low-Q colouration is what a listener will notice over a whole album — which is precisely the class of error this feature should correct.
+1. `[V]` **Repetition lowers detection thresholds for medium- and low-Q resonances.** Direct quotation above. Consequence: a broad, low-Q coloration is what a listener will notice over a whole album — which is precisely the class of error this feature should correct.
 2. `[V]` **"The detectability of resonances decreases approximately 3 dB for each doubling of the Q value." — VERIFIED against the primary, 2026-07-25.**
 
    > **Failure to retrieve a source is evidence about the fetcher, not about the claim.** Where a claim is unverified, say unverified — do not escalate to unsupported.
@@ -280,14 +280,14 @@ Band table `[V]`:
    & Olive: "the listeners were most sensitive to resonances of low *Q*, with the
    detectability decreasing approximately 3 dB for each doubling of the *Q* value."
 
-3. `[V]` **The actual threshold figures — and the 0.25 dB number is still not among them.** The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure previously carried at `[S]` **does not appear in this paper**. It remains unsourced; do not state it. What the paper *does* give is better, because it is expressed relative to programme spectrum level rather than as an absolute dB.
+3. `[V]` **The actual threshold figures — and the 0.25 dB number is still not among them.** The "5 kHz, Q = 1, ~0.25 dB with pink noise" figure previously carried at `[S]` **does not appear in this paper**. It remains unsourced; do not state it. What the paper *does* give is better, because it is expressed relative to program spectrum level rather than as an absolute dB.
 
    Body, p. 124, verbatim:
 
    > "A resonance with *Q* = 1, for example, can be heard in noise when its maximum steady-state level is 25 dB below the spectrum level of the program, while one with *Q* = 50 can approach to within 10 dB (even less at low frequencies) of the spectrum level before being heard."
 
    And the figures most directly usable by this feature — §4.1, p. 134, describing the
-   amplitude response at threshold **for the least revealing programme material (popular
+   amplitude response at threshold **for the least revealing program material (popular
    music)**, verbatim:
 
    > "Expressed as a tolerance, in the popular manner, the *Q* = 1 response curve is about ± 1.5 dB, the *Q* = 10 curve is ± 3 dB, and the *Q* = 50 curve is ± 5 dB."
@@ -301,11 +301,11 @@ Band table `[V]`:
    **This is the single most directly applicable table in the whole research base**, because
    our users are listening to music, not pink noise — and the paper is explicit that music is
    the least revealing signal class. A broad (Q ≈ 1) move smaller than ~1.5 dB is at or below
-   threshold on programme material; a narrow (Q ≈ 10) move needs ~3 dB to reach the same
+   threshold on program material; a narrow (Q ≈ 10) move needs ~3 dB to reach the same
    place. Note the corollary the paper draws immediately: these tolerances "may seem more
    acceptable, which perhaps explains the popularity of the specification."
 
-4. `[V]` **Peaks are more audible than dips, and both become more audible as they widen.** Toole & Olive summarising Bücklein [3], p. 123, verbatim: "He concluded that, in general, peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases."
+4. `[V]` **Peaks are more audible than dips, and both become more audible as they widen.** Toole & Olive summarizing Bücklein [3], p. 123, verbatim: "He concluded that, in general, peaks in the frequency response are more easily heard than the equivalent dips, and that both peaks and dips become more audible as their width increases."
 
    This is the acoustic justification for `PRIMER.md`'s rule preferring additive fills over
    clawing back accepted values — filling a dip is working on the less audible feature, so a
@@ -319,7 +319,7 @@ Band table `[V]`:
 
    **This was formerly presented as the citation justifying `evaluate_chain` being magnitude-only. It is not strong enough for that, and the primary is now in hand — see `PHASE.md` §6.** The quote above is verified and stays `[V]`; what changes is its weight. Moulana's thesis contains **no phase experiment**: his conclusion is an argument from explanatory sufficiency (the magnitude account already fit his data, so the phase irregularity is assumed inert), his two "phase conditions" alter the magnitude response as well, and he lists the decisive test as future work. He also needs an **inter-state frequency shift** — a time-domain mechanism with no counterpart in a magnitude curve, maximal around 250–400 Hz — to explain data that driven-state loudness alone did not predict. Magnitude-only evaluation remains correct, on better grounds: a minimum-phase biquad's phase is entailed by its magnitude and is not an independent choice (`PHASE.md` §1), and the chain's measured group delay sits under every published audibility threshold (`PHASE.md` §4).
 
-7. `[V]` **Programme material changes thresholds substantially, and music is the least revealing.** Summary item 3 above; and from p. 123, on Fryer's results: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and with much reduced sensitivity when using popular music." Any threshold quoted from noise-based measurements is a *lower bound* on what our users will hear through music.
+7. `[V]` **Program material changes thresholds substantially, and music is the least revealing.** Summary item 3 above; and from p. 123, on Fryer's results: "All resonances were most easily heard with white noise as a test signal, with reduced sensitivity when using classical (symphonic) music, and with much reduced sensitivity when using popular music." Any threshold quoted from noise-based measurements is a *lower bound* on what our users will hear through music.
 8. `[V]`-adjacent doctrine (from the 2006 review): EQ is "the final touch" and mis-diagnosis is the main risk — which is exactly why the EQ Assistant *stages* rather than *applies*. All bands, including AutoEq imports, are amendable (see `PRIMER.md`, "Stage classes and scope").
 
 **Project ruling on Q, restated 2026-07-25 now that the primary is in hand.** Combining findings (1)–(4): the audible, correctable errors are broad and low-Q; narrow deep bands are both less audible and more likely to be mis-aimed; and dips are less audible than peaks. The EQ Assistant therefore defaults to **Q 0.7–1.4 for voicing moves**, reserves **Q ≥ 2.5** for named narrowband complaints only (sibilance, ring, honk), and never proposes Q > 6.0 (AutoEq's own peaking ceiling, §1.1).
@@ -351,7 +351,7 @@ HQPlayer's crossfeed post-process is called `bauer`.
 
 **0.4 millisecond = 400 microseconds**, for a projected interaural distance of 5.5 inches. Sanity check (ours, not the patent's): 5.5 in = 13.97 cm; at 343 m/s that is 407 µs — consistent, confirming the OCR'd ".4 millisecond" is the intended value and that the units are milliseconds. Elsewhere the same figure is OCR'd as ".4 second"; that is a dropout, and must not be propagated.
 
-**Frequency behaviour, directly relevant to bs2b's 300–2000 Hz crossover range:**
+**Frequency behavior, directly relevant to bs2b's 300–2000 Hz crossover range:**
 
 > "The curve 29 indicates that .the desired delay time is well achieved up to 1 kilocycle per second, which is the frequency range where delay is most effective. Above l kilocycle per second, the amplitude function is more important"
 
@@ -397,7 +397,7 @@ G_hi  = 1.0 - pow( 10, GB_hi / 20.0 );
 Fc_hi = Fc_lo * pow( 2.0, ( GB_lo - 20.0 * log10( G_hi ) ) / 12.0 );
 ```
 
-**This is the tonal-side-effect derivation — but read the caution below before using it.** `GB_lo` and `GB_hi` are *gains in dB applied to the summed (centre/mid) content*, and they are functions of `feed` alone. At the three presets:
+**This is the tonal-side-effect derivation — but read the caution below before using it.** `GB_lo` and `GB_hi` are *gains in dB applied to the summed (center/mid) content*, and they are functions of `feed` alone. At the three presets:
 
 | Preset | feed | `GB_lo` | `GB_hi` | `GB_lo − GB_hi` |
 |---|---|---|---|---|
@@ -407,9 +407,9 @@ Fc_hi = Fc_lo * pow( 2.0, ( GB_lo - 20.0 * log10( G_hi ) ) / 12.0 );
 
 `GB_lo − GB_hi` reduces algebraically to exactly `−feed`. That identity is correct.
 
-> **`GB_lo − GB_hi` is the shelf separation in the analog prototype, *not* the realised centre tilt**, which is taken after the mid path is normalised to 0 dB at DC.
+> **`GB_lo − GB_hi` is the shelf separation in the analog prototype, *not* the realized center tilt**, which is taken after the mid path is normalized to 0 dB at DC.
 
-The realised tilt is
+The realized tilt is
 
 ```
 tilt = 20·log10(1 − G_hi + G_lo)
@@ -419,15 +419,15 @@ using the `G_lo` / `G_hi` from the code block above. It **depends only on `feed`
 
 | feed | 1.0 | 4.5 (default) | 6.0 (cmoy) | 9.5 (jmeier) | 15.0 |
 |---|---|---|---|---|---|
-| realised centre tilt | 2.70 dB | 1.81 dB | 1.53 dB | 1.09 dB | 0.92 dB |
+| realized center tilt | 2.70 dB | 1.81 dB | 1.53 dB | 1.09 dB | 0.92 dB |
 
 The relationship is compressive: the whole 14 dB feed range moves tilt by 1.78 dB, so a ±1.5 dB feed nudge near the default changes tilt by roughly 0.3 dB — broad, and at or below audibility on its own.
 
-This is the single most important spatial↔tonal coupling in the feature, and it runs **opposite to the common intuition** that more crossfeed means a duller centre. It is derived rather than asserted, and it is corroborated two ways: it matches the range stated in HQPTuner's own UI copy (1–2.7 dB), and it was verified numerically against the shipped implementation in `lib/xfeed.js`, which computes exactly this expression as `centerTiltDb`.
+This is the single most important spatial↔tonal coupling in the feature, and it runs **opposite to the common intuition** that more crossfeed means a duller center. It is derived rather than asserted, and it is corroborated two ways: it matches the range stated in HQPTuner's own UI copy (1–2.7 dB), and it was verified numerically against the shipped implementation in `lib/xfeed.js`, which computes exactly this expression as `centerTiltDb`.
 
 **Do not conflate this with bass summing.** Crossfeed also sums correlated low-frequency content between channels, which can raise perceived bass weight. That is a distinct effect and is *not* what the app's compensation stage corrects — compensation addresses the mid-path treble tilt only. No peer-reviewed quantification of the bass-summing effect was located; see the gap note in §3.4.
 
-Project description `[V]`: the default preset simulates speakers "at a 30-degree azimuth about 3 meters away"; cmoy is "the most popular"; jmeier "produces minimal signal alterations… for relaxed listening." Implementation is "single pole recursive digital filters" combining a lowpass and a highboost so the summed response stays smooth and avoids comb-filter artefacts, the stated purpose being to remove the "superstereo effect" of hard-panned material on headphones.
+Project description `[V]`: the default preset simulates speakers "at a 30-degree azimuth about 3 meters away"; cmoy is "the most popular"; jmeier "produces minimal signal alterations… for relaxed listening." Implementation is "single pole recursive digital filters" combining a lowpass and a highboost so the summed response stays smooth and avoids comb-filter artifacts, the stated purpose being to remove the "superstereo effect" of hard-panned material on headphones.
 
 ### 3.2 Jan Meier `[V]`
 
@@ -438,7 +438,7 @@ Project description `[V]`: the default preset simulates speakers "at a 30-degree
   * The problem statement: the **in-head localization** phenomenon. "With recordings presenting a wide soundstage, some instruments are heard in one of the two audio channels only. This is most annoying, like a bee buzzing in one's ear." → the canonical justification for the `too wide` / `hard-panned` / `ping-pong stereo` complaints.
   * Frequency dependence: "the delays of the frequencies below **2 kHz** are the most important"; "For higher frequencies the delay is reduced," mirroring head shadowing.
   * Physical basis: sound from a right-side source reaches the left ear "attenuated and delayed", and these ITD/ILD differences "provide important directional information."
-  * **The tonal side effect, in Meier's own framing:** "Especially in the high frequency range, the delayed crossfeed signal interferes with the original input and attenuates specific frequencies" — i.e. comb filtering on centre-panned material. His remedy is a frequency-dependent delay plus "small, frequency dependent attenuation" of the direct signal so mono content survives without colouration. → **Independent confirmation, from a different implementer, that crossfeed colours the centre and that the correct response is a compensating filter — exactly what the app's crossfeed-compensation block does.**
+  * **The tonal side effect, in Meier's own framing:** "Especially in the high frequency range, the delayed crossfeed signal interferes with the original input and attenuates specific frequencies" — i.e. comb filtering on center-panned material. His remedy is a frequency-dependent delay plus "small, frequency dependent attenuation" of the direct signal so mono content survives without coloration. → **Independent confirmation, from a different implementer, that crossfeed colors the center and that the correct response is a compensating filter — exactly what the app's crossfeed-compensation block does.**
 * **Caveat `[S]`.** The extraction of this page rendered an interaural delay figure as "300ms", which is physically impossible; the ear-to-ear extra path at ~30° azimuth is ~0.25–0.3 **milliseconds** (≈300 µs). **Do not quote a delay number to Meier without re-reading the page.** The qualitative claims above are unaffected.
 
 ### 3.3 Crossfeed / binaural perception background `[S]`
@@ -446,12 +446,12 @@ Project description `[V]`: the default preset simulates speakers "at a 30-degree
 * **Citation.** Wikipedia, "Crossfeed." <https://en.wikipedia.org/wiki/Crossfeed> `[V]` — read, and **thin**: it defines crossfeed as "the process of blending the left and right channels of a stereo audio recording", names Dolby Headphone and bs2b, gives **no** frequency range and **no** discussion of tonal side effects, and carries a "needs additional references" banner (Oct 2024). Reliability: community wiki, low. Cited only to record that it does *not* support the tonal-side-effect claim — that claim rests on §3.1 and §3.2.
 * **Citation `[S]`.** Shaik, M. et al., "Stereo widening system using binaural cues for headphones." Available via ResearchGate:
   <https://www.researchgate.net/publication/313902363_Stereo_widening_system_using_binaural_cues_for_headphones>.
-  Read only through search-result summarisation `[S]`, not the full text. Contributes the
+  Read only through search-result summarization `[S]`, not the full text. Contributes the
   standard framing: **ILD, ITD and ICC (inter-channel coherence) are the dominant cues for
   externalization**; ITD/ILD dominate **below ~1.5 kHz** with head shadowing dominant above;
-  **low ICC → more spaciousness**, high ICC → narrower, more centred image.
+  **low ICC → more spaciousness**, high ICC → narrower, more centered image.
   → This is the theoretical backing for the direction convention in `vocabulary.json`:
-  raising crossfeed *raises* inter-channel coherence, therefore narrows and centres.
+  raising crossfeed *raises* inter-channel coherence, therefore narrows and centers.
 * **Reachability note.** A beyerdynamic support article on their crossfeed model (<https://support.beyerdynamic.com/hc/en-us/articles/24721890938908>) returned **HTTP 403 `[X]`** and is not cited.
 * **Not located.** I did not find a *peer-reviewed* paper specifically quantifying the **tonal** (as opposed to spatial) consequence of summing correlated bass in a crossfeed network. The claim as used in this project is grounded instead in the bs2b source algebra (§3.1, `[V]`, exact) and Meier's design account (§3.2, `[V]`, qualitative). **That is a known gap; if a future agent finds such a paper, add it here.**
 
@@ -475,16 +475,16 @@ When sources disagree on where a term lives, this project resolves in this order
 >
 > **`warm`, `bright`, `dark`, `presence` and `full` are polysemous.** They are not descriptors of a single feature of sound the way `nasal` or `sibilant` are; they are generic descriptors used fluidly, sometimes contradictorily, by the same listener in the same session. `warm` especially can mean several different things about a midrange. When Holt defines `warm` as a broadband downward tilt (`LEXICONS.md` §3.5) and elsewhere calls a mid/upper-bass exaggeration "excessively warm", he is not being inconsistent — he is recording two senses. When Holt's `presence` is tonal and Rumsey's and SAQI's are spatial (`LEXICONS.md` §4.1), that is three real meanings, not a collision with a right answer.
 >
-> **Consequence for `vocabulary.json`, and it is a design change, not a note:** a polysemous term carries *multiple attested senses* rather than one region, and **a bare polysemous term with no disambiguating context is a `clarify`, not a guessed diff.** That is already `clarify` mode 2 in the response schema (`PRIMER.md`); it turns out to be far more common than the previous map implied, because the previous map silently committed each of these words to one flavour. The disambiguating question must be posed in listening terms — "warmer overall, or more body on voices and lower strings?" — never in filter terms.
+> **Consequence for `vocabulary.json`, and it is a design change, not a note:** a polysemous term carries *multiple attested senses* rather than one region, and **a bare polysemous term with no disambiguating context is a `clarify`, not a guessed diff.** That is already `clarify` mode 2 in the response schema (`PRIMER.md`); it turns out to be far more common than the previous map implied, because the previous map silently committed each of these words to one flavor. The disambiguating question must be posed in listening terms — "warmer overall, or more body on voices and lower strings?" — never in filter terms.
 >
-> **This does not apply to the whole vocabulary.** `boomy` is comparatively specific, as are `nasal`, `sibilant`, `honky`, `boxy` and `shrill` — those name a particular colouration, and where sources disagree about them the disagreement is real and the rulings below stand.
+> **This does not apply to the whole vocabulary.** `boomy` is comparatively specific, as are `nasal`, `sibilant`, `honky`, `boxy` and `shrill` — those name a particular coloration, and where sources disagree about them the disagreement is real and the rulings below stand.
 >
 > Sense inventories live in `vocabulary.json`; the evidence for each sense lives here and in `LEXICONS.md`.
 
 ### Disagreement 1 — "boomy": 60–150 Hz vs ~240–280 Hz
 
-* **Owsinski `[V]`** places "boomy" at **240 Hz** in the voice table, and defines the 60–250 Hz band as the one whose overemphasis "produces a boomy quality" — so his boomy is *upper*-bass-inclusive and centres nearer 200–250 Hz.
-* **Audio Commons `[V]`** operationalises boominess against a **280 Hz** low-band cutoff — an even higher ceiling, though as an *analysis band*, not a peak location.
+* **Owsinski `[V]`** places "boomy" at **240 Hz** in the voice table, and defines the 60–250 Hz band as the one whose overemphasis "produces a boomy quality" — so his boomy is *upper*-bass-inclusive and centers nearer 200–250 Hz.
+* **Audio Commons `[V]`** operationalizes boominess against a **280 Hz** low-band cutoff — an even higher ceiling, though as an *analysis band*, not a peak location.
 * **ITU-R BS.2399 / Sound Wheel `[V]`** says boomy is "resonances in the **low** bass", and separately assigns "**upper bass**" resonance to *boxy*. That ordering constraint is incompatible with putting boomy at 240 Hz while boxy sits higher still.
 * **Headphone-listening usage** (the AutoEq/Harman context, and how users of this app will actually use the word) puts "boomy" on the one-note bass hump around 60–150 Hz.
 * **RULING: `boomy` = 60–150 Hz, cut, Q 0.7.** Reasons: the Sound Wheel's low-bass / upper-bass ordering is authoritative for *meaning* and forces boomy below boxy and below muddy; the headphone use case dominates (rule 1); and Olive's finding that bass level is the dominant preference axis (§2.2a) means the low-bass reading is the one users will actually be complaining about. Owsinski's 240 Hz sense is captured instead by **`tubby`** and **`muddy`**, which sit at 150–350 Hz. Recorded in `vocabulary.json` under `boomy.notes`, `confidence: "high"` for the ruling, with the conflict named.
@@ -504,7 +504,7 @@ When sources disagree on where a term lives, this project resolves in this order
   | upper-bass fullness / "fat" | 80–250 Hz | lshelf | boost | Owsinski "fullness" 120 Hz `[V]`; Holt `fat` `[VA]` |
   | broadband downward tilt | treble-referenced | hshelf | cut | Holt `dark`/`warm`/`tilt` `[VA]` |
 
-  The third sense is a filter *type* difference rather than a centre-frequency difference — a
+  The third sense is a filter *type* difference rather than a center-frequency difference — a
   bell at 200 Hz does not deliver what a listener quoting Holt's sense is asking for.
 
 * **`muddy`, by contrast, is not polysemous and its ruling stands.** `muddy` = 200–400 Hz, **cut**, −3.0 dB, Q 1.0, `confidence: "high"` — there is broad agreement that the complaint names excess lower-mid energy. The practitioner survey (§7) strengthens this: every source that gives a range starts it at 150–200 Hz; only the ceiling is contested (300 / 350 / 500 / 700 Hz). Note also that Mike Senior, asked directly for a "mud" frequency, **declines to give one** and reframes it as inter-track masking — see §7.
@@ -514,7 +514,7 @@ When sources disagree on where a term lives, this project resolves in this order
 ### Disagreement 3 — the "presence" / "forward" region: 2–4 kHz (Harman) vs 4–6 kHz (Owsinski)
 
 * **Owsinski `[V]`** names **4–6 kHz** the "Presence" band, "responsible for the clarity and definition of voices and instruments. Boosting this range can make the music seem closer to the listener"; reducing 5 kHz pushes it away. His 2–4 kHz band is instead the one that "can mask the important speech recognition sounds… introducing a lisping quality."
-* **Olive / Harman `[V]`** consistently locate the *forwardness* problem at **2–4 kHz**: the DF targets were criticised for "too much emphasis in the upper midrange (2–4 kHz)", and the Lorho target sounded "muffled and dull" for having "too little energy at 2–4 kHz". Lorho's whole intervention was cutting the **3 kHz** DF peak from 12 dB to 3 dB.
+* **Olive / Harman `[V]`** consistently locate the *forwardness* problem at **2–4 kHz**: the DF targets were criticized for "too much emphasis in the upper midrange (2–4 kHz)", and the Lorho target sounded "muffled and dull" for having "too little energy at 2–4 kHz". Lorho's whole intervention was cutting the **3 kHz** DF peak from 12 dB to 3 dB.
 * **What §2.2d adds, and it lowers the stakes rather than settling anything.** Listeners in the 2025 method-of-adjustment study left a 3 kHz control essentially untouched (+0.1 dB mean), and two further results cited there put the tolerated spread through this region at ± 3.5 dB across an octave at 4 kHz, and at 5 dB between 2 and 8 kHz between two equally-preferred targets. Neither camp's band boundary is contradicted; both are being argued over inside a region listeners seem to accept several dB of variation in.
 * **Root cause of the disagreement.** These are different measurements of different things. Owsinski is describing where you boost a *single track* to bring it forward in a *mix*; Harman is describing where a *headphone transfer function* error makes a *whole master* sound shouty. For a headphone-listening app, Harman's framing is the relevant one.
 * **RULING: split the concept.**
@@ -527,7 +527,7 @@ When sources disagree on where a term lives, this project resolves in this order
 ### Also-ran disagreements (recorded, lower stakes)
 
 * **"Air"** — Owsinski gives **10–15 kHz** in the voice table but **16 kHz** in the magic- frequency list; the Sound Wheel's *Brilliance* covers this with no number. **Ruling: high shelf at 10 kHz, effective 10–16 kHz**, which additionally sits exactly on AutoEq's `DEFAULT_TREBLE_BOOST_FC = 10000.0` and its shelf `MAX_FC = 10000.0` `[V]` — so an air move is representable in the same grammar as an AutoEq shelf.
-* **"Sibilant"** — Owsinski's voice table says **4–7 kHz**, his band table attributes sibilance to the 6–16 kHz "Brilliance" band, and de-esser practice generally works **5–9 kHz**. **Ruling: 5000–8000 Hz, fc 6300, cut, Q 2.5** — the one deliberately narrow entry in the tonal map, justified because sibilance genuinely is a narrowband percept (Sound Wheel classes *Shrill* as an **artefact**, not a timbre). **Narrowed from 5000–9000 / fc 6700 on 2026-07-25**, recorded in `vocabulary.json` `_meta.corrections`; the ceiling came down to stay clear of the coupler-artifact region (`TRANSDUCERS.md` §4). The map is authoritative for the live values.
+* **"Sibilant"** — Owsinski's voice table says **4–7 kHz**, his band table attributes sibilance to the 6–16 kHz "Brilliance" band, and de-esser practice generally works **5–9 kHz**. **Ruling: 5000–8000 Hz, fc 6300, cut, Q 2.5** — the one deliberately narrow entry in the tonal map, justified because sibilance genuinely is a narrowband percept (Sound Wheel classes *Shrill* as an **artifact**, not a timbre). **Narrowed from 5000–9000 / fc 6700 on 2026-07-25**, recorded in `vocabulary.json` `_meta.corrections`; the ceiling came down to stay clear of the coupler-artifact region (`TRANSDUCERS.md` §4). The map is authoritative for the live values.
 * **"Boxy"** — Owsinski's nearest datum is kick-drum "hollowness at **400 Hz**"; the Sound Wheel says "upper bass". **Ruling: 300–600 Hz**, satisfying both.
 
 ---
@@ -541,7 +541,7 @@ When sources disagree on where a term lives, this project resolves in this order
 | ~~Audio Commons D5.1/D5.2~~ | **RESOLVED** — both are public | Read `[VA]`. **Finding: D5.2 models six attributes and sharpness is not among them** — "sharp"/"blunt" appears only as a D5.1 ontology classification. §2.3's eight-attribute list comes from the later D5.8 and is a version difference, not an error. |
 | ~~beyerdynamic crossfeed support article~~ | **RESOLVED** | Captured `[VA]`. |
 | r/oratory1990 wiki + FAQ | **Permanently `[X]`.** Fetcher-level domain block on `reddit.com` *and* `web.archive.org`; `r.jina.ai` proxy returns 401; one mirror attempted and failed | No reasoning attributed to oratory1990. Only his preset *data*, observed in the AutoEq repo, is used. This is settled — do not spend further effort. |
-| Bücklein, JAES 29(3):126–131 (1981) | AES e-Library paywall | Peaks-versus-dips finding usable at one remove, since Toole & Olive summarise it in a paper read in full `[V]`. Its own dB thresholds unobtained. |
+| Bücklein, JAES 29(3):126–131 (1981) | AES e-Library paywall | Peaks-versus-dips finding usable at one remove, since Toole & Olive summarize it in a paper read in full `[V]`. Its own dB thresholds unobtained. |
 | Pedersen & Zacharov, AES 138 Paper 9310 (2015) | AES e-Library paywall; FORCE Technology's own article cites it but hosts no PDF | Sound Wheel cited via the free ITU-R BS.2399-0 reproduction instead. |
 | Olive, Welti & McMullin, AES 134 Paper (2013), e-Lib 16768 | AES e-Library paywall; a ResearchGate copy exists but 403s | Findings used only as relayed by Olive's own 2022 *Acoustics Today* article. |
 | Olive, Welti & Khonsaripour, AES 2016 Headphone Tech, paper 6-1 | AES paywall; landing page read | The **+4 dB** IE bass figure is solid via Olive 2022 `[V]`. The *occlusion rationale* for it is **not** sourced — and is independently questionable, since the occlusion effect adds LF energy. See `TRANSDUCERS.md` §3.2. |
@@ -549,7 +549,7 @@ When sources disagree on where a term lives, this project resolves in this order
 | Bauer, JAES 9(2):148–151 (1961) | AES paywall ($33) | **Substance recovered free** from US Patent 3,088,997 (same author, same lab, filed 1960) — see §3.1a. The paper would be a nicer citation, not new information. |
 | ~~Orfanidis, *Introduction to Signal Processing*, EQ chapter~~ | **RESOLVED** — hand-fetched, read from page images (the local PDF's text layer is damaged) | **Read in full `[V]`, and the answer is negative.** It does *not* contain the canonical shelf-Q reconciliation it was nominated for: his shelving filters are **first-order**, specified by `{G₀, G, G_c, ω_c}`, with no `S`, no shelf `Q` and no resonant-shelf form — so he cannot adjudicate RBJ's second-order shelf `Q` at all. On the peaking side he declines to fix a bandwidth reference gain, calling the definition of Δω "arbitrary, and not without ambiguity" (p. 582), and abandons `Q` entirely once gain is a free parameter. Contributes the `G_B` menu and the boost/cut symmetry tie-breaker instead. `FILTER-MATH.md` §4 and §7. Local copy gitignored, not committed. |
 | GRAS technical documentation | `grasacoustics.com` 403s domain-wide to this fetcher | RA0402's "± 2.2 dB from 10 to 20 kHz" tolerance stays `[S]`, uncorroborated. The 13.5 kHz coupler resonance *is* independently corroborated by audioXpress `[VA]` and COMSOL `[VA]`. |
-| ISO 226:2003 contour tables | ISO paywall | Scope confirmed from ISO's catalogue `[S]`. **The 60-vs-80-phon bass shift is not stated anywhere in this project**, and must not be read off a graph. |
+| ISO 226:2003 contour tables | ISO paywall | Scope confirmed from ISO's catalog `[S]`. **The 60-vs-80-phon bass shift is not stated anywhere in this project**, and must not be read off a graph. |
 | Toole, *Sound Reproduction* (3rd/4th ed.) | Book. A pirated PDF appeared in search results and was not used. | No longer load-bearing: the 1988 primary it was being used to proxy has now been read directly. |
 | Zacharov & Koivuniemi, AES 19th Int. Conf. (2001), pp. 272–286 | Not fetched | Citation **corrected** from an earlier mis-attribution to the AES 109th/110th Convention, per Rumsey's own reference list [10]. |
 | Bech (2002), JAES 50, 564–580 | Not fetched | Surfaced late, in Moore & Tan's reference list. By title the most on-point source yet identified for ripple-audibility thresholds. |
@@ -578,10 +578,10 @@ Owsinski (§2.4) carries a provenance problem: those ranges were developed for m
 | **muddy** | Floor agreed at **150–200 Hz**; ceiling contested — 300 / 350 / 500 / 700 Hz | The mastering-context source (Waves, 150–350 Hz) is narrowest and closest to our use case. |
 | **boxy** | Two camps: **150–500 Hz** (four sources) vs **800 Hz–1.2 kHz** (one) | The outlier is specifically about *snare* boxiness — plausibly a different physical resonance, not a contradiction. |
 | **presence** | Two clusters: **1–4 kHz** vs **3–6 kHz** | iZotope's range is explicitly *the same band it calls harshness* ("presence or harshness", 1–4 kHz) — one source saying presence and harshness are one region differing in degree. |
-| **air** | **7–12 kHz** (mixing) vs **10–15 kHz+** (mastering) | The mastering figure is the highest. Broad-shelf "air" on a finished programme sits higher than instrument "air" in a mix. |
+| **air** | **7–12 kHz** (mixing) vs **10–15 kHz+** (mastering) | The mastering figure is the highest. Broad-shelf "air" on a finished program sits higher than instrument "air" in a mix. |
 | **harsh** | **1–4 kHz** vs **3–8 kHz** — disagree by an octave, no third source to adjudicate | Notably, *Sound On Sound* never assigns "harsh" a frequency across four articles despite using the word. |
 | **sibilance** | **A single data point in the entire corpus** (7.5–10 kHz) | Effectively uncorroborated. See §5 "Also-ran" and the coupler-artifact caution in `TRANSDUCERS.md` §4. |
-| **warmth** | Two data points, both per-instrument, disagreeing | Unsupported at whole-programme level. Consistent with `warm` being polysemous (§5). |
+| **warmth** | Two data points, both per-instrument, disagreeing | Unsupported at whole-program level. Consistent with `warm` being polysemous (§5). |
 
 **Move size on a finished master — four independent mastering sources converge on 1–3 dB:**
 
@@ -596,7 +596,7 @@ Every source that mentions Q says **broad**; not one names a numeric Q. Cutting 
 
 **Relation to our ±6 dB per-turn policy.** That figure is provenanced to AutoEq's `DEFAULT_MAX_GAIN` — a tool correcting a *transducer*. These sources are voicing a *finished master*. Our chain does both at once, so the policy is not wrong, but it should be understood as a transducer-correction envelope being used for voicing rather than as a voicing convention. See `PSYCHOACOUSTICS.md` §5.
 
-**Two entries worth reading in full rather than summarising:**
+**Two entries worth reading in full rather than summarizing:**
 
 * **Mike Senior, asked directly what frequency "mud" is, declines to give one** and reframes it as inter-track masking rather than a band (*Sound On Sound*, Sound Advice, Nov 2008) `[VA]`. A named senior practitioner explicitly refusing the descriptor→Hz mapping this feature is built on. Doubly relevant: a finished master has no separable tracks, so his remedy is unavailable to us by construction.
 * **SoundGuys** `[VA]` instructs users to set preamp to "the same amount as your largest boost". That is the *largest single band* rule, and §1.1's HD 650 verification disproves it directly (largest band +6.4 dB, preamp −6.1 dB). Cited here as a countered claim, because it is the most common form of the error.
@@ -613,6 +613,6 @@ Seven companions carry further material, on the same tagging discipline:
 | `TRANSDUCERS.md` | What the tuner is physically EQ-ing. Driver technologies (dynamic / planar / electrostatic / balanced armature), pads, seal, reseat variance, insertion depth, tips, venting, ear-canal resonance, measurement rigs and their trust ceiling, and the AutoEq profile-provenance gap. |
 | `LEXICONS.md` | The validated attribute vocabularies in full — SAQI's 48 attributes, Rumsey's four-level spatial hierarchy, Holt's ~250 entries with his band map and vowel ladder — plus the cross-source collisions. |
 | `PSYCHOACOUSTICS.md` | Auditory filter bandwidth (ERB/Bark), equal-loudness contours, level matching in listening tests, resonance-audibility thresholds, spectral tilt and ripple, and the combined audibility floor. |
-| `FILTER-MATH.md` | The RBJ cookbook primary, the three bandwidth parameterisations and their traps, shelf Q ⇔ shelf slope, the W3C normative biquads, EQ APO's grammar, headroom and true peak. |
+| `FILTER-MATH.md` | The RBJ cookbook primary, the three bandwidth parameterizations and their traps, shelf Q ⇔ shelf slope, the W3C normative biquads, EQ APO's grammar, headroom and true peak. |
 | `CORRECTIVE.md` | Measurement-driven correction as a distinct mode from voicing. Yardstick selection and rig compatibility, reading and cleaning a measured FR, the error curve, smoothing as a decision, the reliability ceiling as a fitting rule, what is not correctable (nulls, rig anatomy, placement variance), fitting doctrine (objectives, constraints, band budget, diagnostics, preamp), anti-patterns, and channel imbalance. Doctrine extracted from the Ori and Blackwood session ledgers; session-only claims tagged `[session]`. |
 | `PHASE.md` | Phase and group delay. Why a minimum-phase band's phase is not a choice, the derived phase and group-delay figures for our own stages and for the real HD 650 chain, the group-delay audibility thresholds, the Moulana correction to finding 6 above, interchannel phase and what asymmetric per-ear EQ would cost, and why the crossfeed compensation must stay magnitude-only. |

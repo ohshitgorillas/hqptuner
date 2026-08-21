@@ -18,7 +18,7 @@
 // 3-second polling machinery itself, belong to the playwright hand-back
 // protocol.
 //
-// The COPY button and the SCROLL-PINNING behaviour are subject to the same
+// The COPY button and the SCROLL-PINNING behavior are subject to the same
 // limit, and it bites harder. Both were specified against a DOM the JS harness
 // does not have: docs/testing.md pins components to preact-render-to-string, so
 // there is no element to carry scrollTop/scrollHeight/clientHeight, no useEffect

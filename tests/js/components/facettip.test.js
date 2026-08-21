@@ -21,7 +21,7 @@
 // rows exist and what they say, not their order. Spec ambiguity, readings
 // taken: multi-value genre/focus row values are compared case-insensitively —
 // the spec fixes the ", " join and the member order, not the casing. And
-// behaviour 10's "static fills only filters the live enum lacks" is read
+// behavior 10's "static fills only filters the live enum lacks" is read
 // PER-FACET, not per-filter — a live-enumerated filter still takes its Genre
 // (and other static-only facets) from the overlay, since live items never
 // carry genre.

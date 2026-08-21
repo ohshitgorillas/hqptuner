@@ -97,7 +97,7 @@ export function serializeProcess(stages) {
 // entirely (a value at a step's precision).
 /**
  * A number as stage-argument text, rounded to `dp` places and carrying no
- * trailing zeros — the shape buildRaw emits, so a synthesised chain round-trips
+ * trailing zeros — the shape buildRaw emits, so a synthesized chain round-trips
  * byte-identically through parseProcess.
  */
 export const fmtArg = (/** @type {number} */ x, /** @type {number} */ dp) =>

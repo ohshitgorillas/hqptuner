@@ -9,7 +9,7 @@
 //
 // Assertions are on what a filter DOES — gain at a frequency — not on its
 // coefficients. A refactor may reorganize the algebra freely; a peaking filter
-// set to +6 dB must still put +6 dB at its centre.
+// set to +6 dB must still put +6 dB at its center.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -73,15 +73,15 @@ const deg = (stage, f) => resp(stage, f).deg;
 
 // --- peaking ----------------------------------------------------------------
 
-test("test_peaking_filter_applies_its_gain_at_the_centre_frequency", () => {
+test("test_peaking_filter_applies_its_gain_at_the_center_frequency", () => {
   assert.ok(...near(db(iir({ type: "peak", f: "1000", q: "1", g: "6" }), 1000), 6));
 });
 
-test("test_peaking_filter_is_transparent_far_below_its_centre", () => {
+test("test_peaking_filter_is_transparent_far_below_its_center", () => {
   assert.ok(...near(db(iir({ type: "peak", f: "1000", q: "1", g: "6" }), 20), 0, 0.1));
 });
 
-test("test_peaking_filter_with_negative_gain_cuts_at_the_centre", () => {
+test("test_peaking_filter_with_negative_gain_cuts_at_the_center", () => {
   assert.ok(...near(db(iir({ type: "peak", f: "1000", q: "1", g: "-6" }), 1000), -6));
 });
 
@@ -127,11 +127,11 @@ test("test_highpass_attenuates_below_its_corner", () => {
   assert.ok(...below(db(iir({ type: "hp", f: "1000", q: "0.7071" }), 100), -20));
 });
 
-test("test_bandpass_passes_its_centre_frequency", () => {
+test("test_bandpass_passes_its_center_frequency", () => {
   assert.ok(...near(db(iir({ type: "bp", f: "1000", q: "1" }), 1000), 0, 0.05));
 });
 
-test("test_notch_rejects_its_centre_frequency", () => {
+test("test_notch_rejects_its_center_frequency", () => {
   assert.ok(...below(db(iir({ type: "notch", f: "1000", q: "1" }), 1000), -60));
 });
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""budget_miner — offline analyser for change-budget hook trips.
+"""budget_miner — offline analyzer for change-budget hook trips.
 
 The hook at ``.claude/hooks/change-budget.py`` caps how much an agent may change
 between turns where the user speaks. Its two limits (5 metered actions, 15
-in-tree edits) were set by judgement, never measured. The question this answers
+in-tree edits) were set by judgment, never measured. The question this answers
 is whether a trip is a *catch* — the agent was drifting and the forced report
 corrected it — or *friction*: the user says "continue" and the same burst
 resumes unchanged.
@@ -26,7 +26,7 @@ gets logged)::
 ``sourceToolAssistantUUID`` and ``tool_use_id`` name the blocked call exactly, so
 the burst window needs no heuristics.
 
-Read-behaviour profiling over *every* leash period, tripped or not, lives in
+Read-behavior profiling over *every* leash period, tripped or not, lives in
 ``budget_read_profile.py`` and runs alongside the trip table — the trip sample is
 biased toward bursts that went too far, and a threshold set from it alone would
 be a guess.
@@ -108,7 +108,7 @@ def blocked_id(row: JsonDict) -> str | None:
     return None
 
 
-# ---- reply labelling --------------------------------------------------------
+# ---- reply labeling --------------------------------------------------------
 
 CONTINUE_WORDS = {
     "continue",
@@ -292,7 +292,7 @@ def _catch_rates(records: list[JsonDict]) -> None:
     _rate_rows(records, lambda r: sorted({e["cmd_class"] for e in r["burst"]}))
 
 
-# ---- llm labelling ----------------------------------------------------------
+# ---- llm labeling ----------------------------------------------------------
 
 PROMPT = """A coding agent hit a budget limit and was forced to stop and report. \
 Below is the report it had just produced (or the calls it had just made), then the user's next message.
@@ -331,7 +331,7 @@ def ask_claude(record: JsonDict) -> str:
 
 
 def label_ambiguous(records: list[JsonDict]) -> None:
-    """Attach an llm_label to every unlabelled ambiguous trip, and CONTINUE to the plainly affirmative ones."""
+    """Attach an llm_label to every unlabeled ambiguous trip, and CONTINUE to the plainly affirmative ones."""
     pending = [r for r in records if r["user_reply"]["label"] == "ambiguous" and not r["user_reply"].get("llm_label")]
     for number, record in enumerate(pending, start=1):
         record["user_reply"]["llm_label"] = ask_claude(record)

@@ -65,7 +65,7 @@ REFUSED_NAMES = [
 ]
 
 # "é" written as e + U+0301 COMBINING ACUTE ACCENT, and its precomposed twin.
-# The daemon does not normalise; neither may the store.
+# The daemon does not normalize; neither may the store.
 DECOMPOSED = "Café"  # C, a, f, e, U+0301
 PRECOMPOSED = "Café"
 
@@ -118,7 +118,7 @@ def test_an_accepted_live_preset_name_is_listed_exactly_as_given(tmp_path: Path,
     assert store.names() == [name]
 
 
-# --- Unicode normalisation is not the store's business -----------------------
+# --- Unicode normalization is not the store's business -----------------------
 
 
 def test_a_decomposed_name_reads_back_still_decomposed(tmp_path: Path) -> None:
@@ -194,7 +194,7 @@ def test_a_name_whose_utf8_bytes_plus_suffix_are_exactly_255_is_accepted(tmp_pat
 )
 def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the disk check. A refused save may still materialise the
+    # this test owns is the disk check. A refused save may still materialize the
     # store directory and its stamp — that is bookkeeping, not a payload, so the
     # walk looks for the payload bytes specifically.
     store = store_at(tmp_path)

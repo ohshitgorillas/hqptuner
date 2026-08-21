@@ -123,7 +123,7 @@ def profile_targets(path: Path) -> list[Any]:
 
 def stray_files(root: Path) -> list[str]:
     """Everything under the app's directories that is not one of its documented
-    artefacts — the pre-apply backup archive and the preset store. Any other
+    artifacts — the pre-apply backup archive and the preset store. Any other
     file the app wrote is a log by another name."""
     return sorted(
         str(p.relative_to(root))
@@ -164,7 +164,7 @@ def arm_autosave(client: TestClient, name: str = "Kept") -> None:
 
 def test_an_unset_debug_log_writes_no_audit_file_at_all(unlogged_client: TestClient, tmp_path: Path) -> None:
     # a full stage-then-apply cycle leaves the app's own directories carrying
-    # nothing but the artefacts it legitimately owns — checked by what is there
+    # nothing but the artifacts it legitimately owns — checked by what is there
     # rather than by a name a log would have to be unlucky enough to use
     stage_title(unlogged_client)
     unlogged_client.post("/api/config/apply")

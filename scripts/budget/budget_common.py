@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Shared plumbing for the budget analysers.
+"""Shared plumbing for the budget analyzers.
 
-``budget_miner.py`` (trips) and ``budget_read_profile.py`` (read behaviour) both
+``budget_miner.py`` (trips) and ``budget_read_profile.py`` (read behavior) both
 walk the same session transcripts and both need the same three things: the
 change-budget hook's own accounting, a way to read a transcript, and a way to
-say what kind of call a tool_use block was. That lives here so the two analysers
+say what kind of call a tool_use block was. That lives here so the two analyzers
 cannot drift apart in how they classify.
 
 The hook is imported by path and used unmodified. Reimplementing ``classify`` /
@@ -91,7 +91,7 @@ def _segment_class(name: str, rest: list[str]) -> str:
 
 
 def segments(command: str) -> list[list[str]]:
-    """Every &&/||/;/|-separated stage of a shell command, tokenised."""
+    """Every &&/||/;/|-separated stage of a shell command, tokenized."""
     out = []
     for segment in re.split(r"&&|\|\||;|\|", command or ""):
         try:
@@ -199,14 +199,14 @@ def result_sizes(rows: list[JsonDict]) -> dict[str, int]:
     return sizes
 
 
-#: The hook owns the definition of what the user typed, and the analysers import
+#: The hook owns the definition of what the user typed, and the analyzers import
 #: it rather than keeping a second copy: a measurement of a rule that has drifted
 #: from the rule is worse than no measurement.
 clean_reply = hook.clean_reply
 
 
 def human_turns(rows: list[JsonDict]) -> list[int]:
-    """Return indices of every human row — the period boundaries these analysers use.
+    """Return indices of every human row — the period boundaries these analyzers use.
 
     Deliberately ``is_human_row``, not ``is_genuine_reply``: a period here is a
     unit of observation, and the wider boundary is what the historical numbers
@@ -221,7 +221,7 @@ def write_jsonl(path: Path, records: list[JsonDict]) -> None:
     path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in records))
 
 
-# ---- synthetic rows, shared by both analysers' self-tests -------------------
+# ---- synthetic rows, shared by both analyzers' self-tests -------------------
 
 
 def fake_assistant(uuid: str, tool_id: str, name: str, tool_input: JsonDict) -> JsonDict:

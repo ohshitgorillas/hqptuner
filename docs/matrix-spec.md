@@ -2,7 +2,7 @@
 
 Approved 2026-07-20, seven phases, all done. Reverses architecture §1's "matrix editing cut" non-goal. Spec of record for Matrix tab; wire truth + probe results appended below. Per-phase hand-back reports live in `CHANGELOG.md` and git history.
 
-**Headings are the citation contract.** Code in `hqptuner/` and `tests/` cites this file by heading text; `scripts/gates/check_doc_refs.py` fails build when cited heading vanishes. Reword heading, update citers same commit. Reorganise freely otherwise — that's why headings, not section numbers.
+**Headings are the citation contract.** Code in `hqptuner/` and `tests/` cites this file by heading text; `scripts/gates/check_doc_refs.py` fails build when cited heading vanishes. Reword heading, update citers same commit. Reorganize freely otherwise — that's why headings, not section numbers.
 
 Post-probe corrections folded into text, not appended: what this doc says is what's true now.
 
@@ -50,7 +50,7 @@ Nothing here is gated on the descriptions preference (`notesVisible`): that pref
 
 ### Pipeline flow rows
 
-Each pipeline = one flow row: source-channel chip → ordered stage chips → gain chip → target-channel chip, connectors between. Chip colour encodes stage kind, **on the label only — every stage chip keeps the neutral `--line` border**: convolution rose, gain neutral, **all other processing orchid** (incl. `delay` and `riaa`). Channel endpoints are the one accent-coloured chip, border included; the outline elsewhere is reserved for hover and selection, which is what makes the edited stage findable in a 16-pipeline matrix. Kind hues stay off the accent palette (blue / green / amber / violet) so no chip impersonates the accent under a theme switch. Row controls: add-stage affordance at chain end, plot toggle at row end, remove row, `∅` clear-chain tool (clears process chain, resets gain to 0 dB, keeps routing), add pipeline below list. Rows grouped or badged by target channel so summing visible; section header shows active/max count. Source/target selects cover wire 0–127 as labels 1–128 ("In n" / "Out n").
+Each pipeline = one flow row: source-channel chip → ordered stage chips → gain chip → target-channel chip, connectors between. Chip color encodes stage kind, **on the label only — every stage chip keeps the neutral `--line` border**: convolution rose, gain neutral, **all other processing orchid** (incl. `delay` and `riaa`). Channel endpoints are the one accent-colored chip, border included; the outline elsewhere is reserved for hover and selection, which is what makes the edited stage findable in a 16-pipeline matrix. Kind hues stay off the accent palette (blue / green / amber / violet) so no chip impersonates the accent under a theme switch. Row controls: add-stage affordance at chain end, plot toggle at row end, remove row, `∅` clear-chain tool (clears process chain, resets gain to 0 dB, keeps routing), add pipeline below list. Rows grouped or badged by target channel so summing visible; section header shows active/max count. Source/target selects cover wire 0–127 as labels 1–128 ("In n" / "Out n").
 
 ### Stage editor
 
@@ -64,11 +64,11 @@ Standing collapsible **Headphone AutoEQ** card between PIPELINES and RESPONSE, d
 
 **Mirroring is per lane (binding).** Checkbox governs only the lanes in its own card — `.txt` load, row **Import EQ** — and defaults on for headphones, off for speakers, each mode holding its own value; library lane always mirrors, a headphone profile having no one-ear form. Each lane's note renders in its own card, so a lane never writes into a card the click did not come from — and the pipelines lanes still report in speakers mode, where the headphone card is unmounted.
 
-**Vendored library.** Built by `scripts/build_autoeq_db.py` — blob-filtered sparse checkout of `ParametricEQ.txt` only (~35 MB not multi-GB) from jaakkopasanen/AutoEq, **pinned by sha in blob meta**. Pin is **current master, deliberately not a release tag**: upstream's last release is v4.0.0 (2023) and its results moved since; pinning to master makes "no resurrected databases" hold by construction — database only ever holds what upstream ships now. Rebuild deterministic (sorted entries, zeroed gzip mtime). Served by `GET /api/autoeq` pre-gzipped with `Content-Encoding`, lazy-loaded on first panel open. Upstream MIT licence vendored at `static/vendor/autoeq-LICENSE.txt`, linked from credit line in picker. Picker search ranks token matches start > word-boundary > mid-word, prefers oratory1990 on ties, always shows source rather than merging, caps at 40 hits with visible "…N more". Apply routes profile's verbatim text through same `importText` + `doImport` path as manual paste — two lanes identical by construction.
+**Vendored library.** Built by `scripts/build_autoeq_db.py` — blob-filtered sparse checkout of `ParametricEQ.txt` only (~35 MB not multi-GB) from jaakkopasanen/AutoEq, **pinned by sha in blob meta**. Pin is **current master, deliberately not a release tag**: upstream's last release is v4.0.0 (2023) and its results moved since; pinning to master makes "no resurrected databases" hold by construction — database only ever holds what upstream ships now. Rebuild deterministic (sorted entries, zeroed gzip mtime). Served by `GET /api/autoeq` pre-gzipped with `Content-Encoding`, lazy-loaded on first panel open. Upstream MIT license vendored at `static/vendor/autoeq-LICENSE.txt`, linked from credit line in picker. Picker search ranks token matches start > word-boundary > mid-word, prefers oratory1990 on ties, always shows source rather than merging, caps at 40 hits with visible "…N more". Apply routes profile's verbatim text through same `importText` + `doImport` path as manual paste — two lanes identical by construction.
 
 ### Response plot
 
-**Standing** RESPONSE card at section bottom — empty state draws axes plus "Toggle ◉ on a pipeline to plot its response". Overlaid magnitude (solid, dB, auto-fit ±36) + phase (dashed, ±180° second axis) for plot-toggled rows, log frequency axis 20 Hz–20 kHz, per-row hue cycle from chip palette. Client-side via `dsp.js`; convolution stages use client-side FFT of uploaded IR (daemon has no plot to fetch — see "Probe findings — `/matrix/plot` as a numeric oracle"). Plot updates live while stage editor field changes. AutoEq preview draws as dashed accent trace labelled "preview", A/B against plotted rows.
+**Standing** RESPONSE card at section bottom — empty state draws axes plus "Toggle ◉ on a pipeline to plot its response". Overlaid magnitude (solid, dB, auto-fit ±36) + phase (dashed, ±180° second axis) for plot-toggled rows, log frequency axis 20 Hz–20 kHz, per-row hue cycle from chip palette. Client-side via `dsp.js`; convolution stages use client-side FFT of uploaded IR (daemon has no plot to fetch — see "Probe findings — `/matrix/plot` as a numeric oracle"). Plot updates live while stage editor field changes. AutoEq preview draws as dashed accent trace labeled "preview", A/B against plotted rows.
 
 ### Wire-up
 
@@ -199,7 +199,7 @@ AutoEq/REW profiles measured and targeted for raw headphone drive. Bauer post-pr
 
 ## Model (verified against libbs2b source)
 
-Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is documented**: HQPlayer manual's third-party licence list attributes bs2b verbatim (§11.8, "Copyright (c) 2005 Boris Mikhaylov", full MIT text) — HQPlayer embeds libbs2b. Corroborated independently by preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) matching bs2b's constants and valid ranges exactly. Residual caveat: MIT permits modification, so measurement-rig confirmation of shipped curve remains last word.
+Reference implementation: `bs2b.c`/`bs2b.h`, Boris Mikhaylov, MIT (vendorable). **HQPlayer's bauer ≡ bs2b is documented**: HQPlayer manual's third-party license list attributes bs2b verbatim (§11.8, "Copyright (c) 2005 Boris Mikhaylov", full MIT text) — HQPlayer embeds libbs2b. Corroborated independently by preset trio (default 700 Hz/4.5 dB, cmoy 700/6.0, jmeier 650/9.5) and parameter ranges (fcut 300–2000 Hz, feed 1–15 dB, 0.1 steps) matching bs2b's constants and valid ranges exactly. Residual caveat: MIT permits modification, so measurement-rig confirmation of shipped curve remains last word.
 
 From `(fc, feed)`:
 
@@ -254,9 +254,9 @@ Collapsible **Crossfeed EQ compensation** card carrying slider (0–150 %, 1 % s
 
 Three magnitude-only traces on RESPONSE card, each plotting named quantity:
 
-1. **Corrected centre** — `EQ × R_M × C`. Primary trace; flattens live as slider moves, tracking mid-drag.
+1. **Corrected center** — `EQ × R_M × C`. Primary trace; flattens live as slider moves, tracking mid-drag.
 2. **Side through crossfeed** — `EQ × R_S`, muted. Visibly untouched, showing width narrowing deliberately preserved.
-3. **Uncorrected centre** — `s = 0` ghost, for before/after.
+3. **Uncorrected center** — `s = 0` ghost, for before/after.
 
 ## Open items
 

@@ -186,7 +186,7 @@ test("test_an_offending_row_is_reported_by_its_own_index", () => {
 
 const THREE = [band(1000, 2, 1), band(2090, 3, 3.16), band(8000, 2, 1)];
 
-test("test_a_band_is_selected_by_its_exact_centre_frequency", () => {
+test("test_a_band_is_selected_by_its_exact_center_frequency", () => {
   assert.equal(selectBand(THREE, 2090), 1);
 });
 
@@ -226,7 +226,7 @@ test("test_an_amend_edit_records_the_arguments_it_installed", () => {
   assert.equal(Number(amendEdit(AMENDED.edits[0]).after.g), 5);
 });
 
-test("test_an_amend_may_move_a_band_to_a_new_centre_frequency", () => {
+test("test_an_amend_may_move_a_band_to_a_new_center_frequency", () => {
   const moved = applyChanges([band(2090, 4, 3)], { amend: [{ select: 2090, f: 1800 }] });
   assert.ok(...near(valueAt(curve(moved.stages), 1800), 4, 0.1));
 });

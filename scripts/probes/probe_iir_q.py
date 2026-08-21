@@ -15,8 +15,8 @@ larger — a materially wider filter at large gain.
 Every chain below is chosen so the reported extreme lands on a filter SKIRT, where
 alpha is visible, rather than on the peak, where it is not:
 
-  A  peak centred above the grid  — max is the 20 kHz skirt value
-  E  peak centred below the grid  — max is the 20 Hz skirt value (rate-insensitive:
+  A  peak centered above the grid  — max is the 20 kHz skirt value
+  E  peak centered below the grid  — max is the 20 Hz skirt value (rate-insensitive:
                                     at 5-20 Hz the bilinear warping is nil, so the
                                     unknown grid rate cannot muddy this one)
   C  two overlapping peaks        — max is the sum between them, set by their width

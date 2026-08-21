@@ -1,5 +1,5 @@
 /* combobox — the desc-carrying dropdown (controls/Combobox.js): trigger, pop,
-   option rows, favourite star and the hover tip.
+   option rows, favorite star and the hover tip.
    Loads immediately after primitives.css, which is where the native select
    it impersonates is dressed. Order is fixed by the <link> sequence in
    hqptuner/static/index.html — do not reorder. */
@@ -112,7 +112,7 @@
    scroll under — family header topmost, variant subheader right below it — so
    a long list always names the group you are in. The family header takes the
    t-head role (typography.css); the variant subheader is control text — body
-   size, primary colour, semibold — set here because no text role names a
+   size, primary color, semibold — set here because no text role names a
    primary sans label. The shared fixed height
    makes the subheader's sticky offset exactly one header. The sticky repaint
    of --surface-raised is occlusion of the pop's own surface, not elevation, so

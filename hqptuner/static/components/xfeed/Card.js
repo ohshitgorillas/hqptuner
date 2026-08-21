@@ -4,7 +4,7 @@
 // CROSSFEED — one card, two implementations behind a segmented toggle.
 //
 // Bauer is HQPlayer's own post-process (libbs2b) plus the compensation block.
-// Structural is sixteen matrix rows modelling a head and a pair of speakers
+// Structural is sixteen matrix rows modeling a head and a pair of speakers
 // (docs/crossfeed-math.md). They are mutually exclusive by construction: the
 // matrix runs before post-process, so both at once is two crossfeeds in series.
 //

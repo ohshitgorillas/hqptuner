@@ -2,7 +2,7 @@
 // replacement (delete + insert, no g=0 leftovers), its edit records, the
 // residual-fit measurement, search-space expansion, refinement of `with`
 // bands, and guidance flags. Written blind from a spec block: no eqlab
-// source was read. Numbers in comments refer to the spec's behaviour list.
+// source was read. Numbers in comments refer to the spec's behavior list.
 //
 // Run: node --test tests/js/eqlab-replace.test.js
 

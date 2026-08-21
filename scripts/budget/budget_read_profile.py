@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-behaviour profiling across every leash period, not just tripped ones.
+"""Read-behavior profiling across every leash period, not just tripped ones.
 
 The trip miner only sees the periods that ended in a denial. That is a biased
 sample: it says what a burst looked like when it went too far, and nothing about
@@ -259,7 +259,7 @@ def _grounding(records: list[JsonDict]) -> None:
 
 
 def summarise(records: list[JsonDict], sidechain: int) -> None:
-    """Print the read-behaviour report — read-byte distribution, re-reads, delegation, web, grounding grid."""
+    """Print the read-behavior report — read-byte distribution, re-reads, delegation, web, grounding grid."""
     _distribution(records)
     _rereads(records)
     delegations = sum(r["delegation_count"] for r in records)

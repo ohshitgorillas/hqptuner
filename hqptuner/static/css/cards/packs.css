@@ -1,4 +1,4 @@
-/* packs — the two-track .pack grid: the breakpoint, the centred column rule and
+/* packs — the two-track .pack grid: the breakpoint, the centered column rule and
    the rows that opt out of it. Loads immediately after cards.css in the <link>
    sequence in hqptuner/static/index.html — do not reorder. */
 
@@ -11,7 +11,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--rhythm-field);
-  position: relative; /* anchors the centred two-column rule (see media query) */
+  position: relative; /* anchors the centered two-column rule (see media query) */
 }
 /* A chain pack's two column wrappers (ChainPack.js) dissolve below the
    breakpoint so their fields join the pack's own single-column stack and take
@@ -42,7 +42,7 @@
   /* a "split" pack draws a hairline between its two tracks (crossfeed
      Enable | Preset) so the pair reads as two distinct controls. The border is
      pulled back into the MIDDLE of the column gap: at a column edge it would sit
-     gap/2 off-centre and so miss the card centre line that every other in-card
+     gap/2 off-center and so miss the card center line that every other in-card
      rule uses (see the two-column divider rule in CLAUDE.md). Content is unmoved
      — the negative margin and the padding cancel. */
   .pack.split > .field + .field {
@@ -50,10 +50,10 @@
     margin-left: calc(var(--sp-4) / -2);
     padding-left: calc(var(--sp-4) / 2);
   }
-  /* Every two-track pack carries the centred hairline too (CLAUDE.md rule): one
-     full-height rule on the container's centre line, so it covers however many
+  /* Every two-track pack carries the centered hairline too (CLAUDE.md rule): one
+     full-height rule on the container's center line, so it covers however many
      rows the pack happens to have. .split is excluded — it already draws its own
-     centred border on the second field, and two rules would double up. */
+     centered border on the second field, and two rules would double up. */
   .pack::before {
     content: "";
     position: absolute;
@@ -80,7 +80,7 @@
     background: var(--surface-card);
   }
   /* Consecutive packs in one card are separate two-track groups (each draws its
-     own centred rule) and want the same inter-field rhythm between them that
+     own centered rule) and want the same inter-field rhythm between them that
      stacked rows get inside a pack. That is --rhythm-field, which .card-body
      already spends as its gap — so there is no rule here. A margin here would
      add to that gap rather than set it. */

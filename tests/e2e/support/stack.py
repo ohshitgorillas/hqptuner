@@ -73,7 +73,7 @@ def _free_port() -> int:
 def spawn_control(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     """Serve the control-API fake from a dedicated thread's event loop.
 
-    Modelled on the offline suite's `spawn_threaded_daemon`, with the command
+    Modeled on the offline suite's `spawn_threaded_daemon`, with the command
     log wired through: the app runs in another process entirely, so the fake
     must accept from a loop that is not the test's own. One shared `state` dict
     across connections, the way a real daemon has one engine.

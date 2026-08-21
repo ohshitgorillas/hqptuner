@@ -6,10 +6,10 @@
 // A case mounts a component the way its own suite mounts it, delivers a wheel
 // over every select and every number/range input in the render the way a browser
 // delivers one (tests/js/support/wheel.js: bubble the ancestor chain, then run
-// the default action if nothing cancelled it), and then asks what a user would
+// the default action if nothing canceled it), and then asks what a user would
 // ask — did any value move, and did anything reach the store. Nothing here looks
 // at whether a control carries an `onWheel` prop: that is implementation shape,
-// and a guard mounted on a wrapper of the same component would honour the same
+// and a guard mounted on a wrapper of the same component would honor the same
 // contract. (A guard moved onto a wrapper emitted by a PARENT component would
 // not be seen by these cases; the helper states that limit.)
 //

@@ -18,7 +18,7 @@
 // Reading taken where the spec was silent: "MultiSelect with no `off` prop
 // renders every checkbox enabled" is exercised through the FOCUS facet, the
 // bar's other multi-select, on the reading that the spec's inertness rule names
-// the genre multi-select alone. The spec's fifth MultiSelect behaviour —
+// the genre multi-select alone. The spec's fifth MultiSelect behavior —
 // clicking an off row leaves the bound array alone — is NOT covered here: a
 // disabled control receives no click at all in a browser, so there is nothing
 // SSR can deliver that would answer the question honestly, and inventing a

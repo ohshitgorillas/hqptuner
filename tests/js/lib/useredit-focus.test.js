@@ -22,7 +22,7 @@
 // which of the two spellings the implementation chose to listen for.
 //
 // `document.activeElement` is not used and not asserted on anywhere: on the
-// engine this behaviour exists for it reports BODY for a keydown the slider is
+// engine this behavior exists for it reports BODY for a keydown the slider is
 // the target of, so it cannot answer the question.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/useredit-focus.test.js
@@ -73,7 +73,7 @@ test("test_the_change_following_an_unfocused_keydown_is_refused_too", () => {
   assert.deepEqual(calls, []);
 });
 
-// --- with focus, the existing arming behaviour is unchanged ----------------------
+// --- with focus, the existing arming behavior is unchanged ----------------------
 
 for (const key of ARROWS) {
   test(`test_a_${key}_keydown_on_a_focused_slider_arms_the_input`, () => {
@@ -104,7 +104,7 @@ test("test_a_focused_key_arm_is_consumed_by_its_input_change_pair", () => {
   assert.equal(calls.length, 2);
 });
 
-// --- the licence does not outlive the focus --------------------------------------
+// --- the license does not outlive the focus --------------------------------------
 
 test("test_a_keydown_after_the_slider_is_blurred_arms_nothing", () => {
   const { el, calls, handler } = setup();

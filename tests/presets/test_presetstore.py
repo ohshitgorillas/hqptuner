@@ -1,4 +1,4 @@
-"""PresetStore behaviour through its public API (docs/testing.md).
+"""PresetStore behavior through its public API (docs/testing.md).
 
 Pure filesystem — no daemon, no socket, no HTTP. The store treats a preset
 payload as opaque bytes and never parses it, so the payloads here are short
@@ -26,7 +26,7 @@ ROUND_TRIP_PAYLOADS = [
 # Not plain preset names: a path separator or a parent-directory hop.
 UNSAFE_NAMES = ["../escape", "a/b", "..", "/etc/passwd", "nested/../../out"]
 
-# The subset of the above that would land inside tmp_path if it were honoured,
+# The subset of the above that would land inside tmp_path if it were honored,
 # so a stray write is observable by walking the tree.
 ESCAPING_NAMES = ["../escape", "a/b", "nested/../../out"]
 
@@ -120,7 +120,7 @@ def test_a_refused_name_puts_no_payload_on_disk(tmp_path: Path, name: str) -> No
     # The refusal itself is pinned above; suppressed here so the one assertion
     # this test owns is the disk check (scripts/check_test_assertions.py counts
     # a `pytest.raises` block as an assertion). A refused save may still
-    # materialise the store directory and its empty stamp — that is bookkeeping,
+    # materialize the store directory and its empty stamp — that is bookkeeping,
     # not a payload, so the walk looks for the payload bytes specifically.
     store = store_at(tmp_path)
     with contextlib.suppress(PresetError):

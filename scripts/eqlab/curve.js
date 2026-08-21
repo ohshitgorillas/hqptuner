@@ -27,7 +27,7 @@ import { chainMagDbGrid, chainResponse } from "../../hqptuner/static/lib/dsp/cha
 
 /**
  * A full curve: a `CurveLike` that knows its sample rate, and whether any stage
- * in the chain went unmodelled (`partial`).
+ * in the chain went unmodeled (`partial`).
  *
  * @typedef {{ freqs: number[], db: Float64Array, fs: number, partial: boolean }} Curve
  */

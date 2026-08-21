@@ -8,13 +8,13 @@
 // offsets — the same seed always walks the same path.
 
 /**
- * The function being minimised: a point in the unit box -> its cost.
+ * The function being minimized: a point in the unit box -> its cost.
  *
  * @typedef {(x: number[]) => number} Objective
  */
 
 /**
- * One optimiser's answer: where it stopped, what it cost there, how many
+ * One optimizer's answer: where it stopped, what it cost there, how many
  * evaluations it spent, and whether it stopped because it converged rather than
  * because it ran out of budget.
  *

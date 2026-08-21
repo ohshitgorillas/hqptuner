@@ -188,7 +188,7 @@ test("test_a_key_arm_is_consumed_by_its_input_change_pair", () => {
   assert.equal(calls.length, 2);
 });
 
-// A cancelled pointer (touch stolen by scroll, pointer capture lost) never
+// A canceled pointer (touch stolen by scroll, pointer capture lost) never
 // delivers a pointerup — pointercancel must clear the held state itself.
 test("test_pointercancel_clears_the_held_pointer_so_later_input_is_refused", () => {
   const { el, calls, handler } = setup();

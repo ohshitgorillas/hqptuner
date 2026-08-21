@@ -3,8 +3,8 @@
 // spec block: no eqlab source was read.
 //
 // Every space appends one peaking band at 1 kHz onto an EMPTY base chain, and
-// the `a` metric reads the curve right at that centre — a single band's summed
-// response at its own centre equals its gain, so a candidate with g dB scores
+// the `a` metric reads the curve right at that center — a single band's summed
+// response at its own center equals its gain, so a candidate with g dB scores
 // a ≈ g and constraint arithmetic reads straight off the values list. The
 // second axis is always an expr metric derived from `a`: `a + 1` agrees with
 // it (dominance collapses the front), `0 - a` opposes it (nothing dominates).

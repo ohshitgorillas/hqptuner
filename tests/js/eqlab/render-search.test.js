@@ -66,7 +66,7 @@ test("test_a_scalar_search_names_the_margin_only_when_it_has_one", () => {
 // Counts 47 and 58, not 12 and 34: the survivor's changes print select 1234,
 // which spells both of those. Nothing in this report spells 47 or 58 — not
 // 1234, 9.5, 210, 55, 8.5, 2.5, -3.5, 17, 48000 or the process string.
-test("test_a_scalar_search_summarises_each_rejection_reason_with_its_count", () => {
+test("test_a_scalar_search_summarizes_each_rejection_reason_with_its_count", () => {
   const rejected_by = { zzhot: 47, zzmud: 58 };
   assert.ok(...includesAll(show(rep("search", searchBody({ rejected_by }))), ["zzhot", "47", "zzmud", "58"]));
 });

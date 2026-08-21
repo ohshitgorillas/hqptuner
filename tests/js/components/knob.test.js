@@ -84,8 +84,8 @@ test("test_a_log_knob_with_no_minimum_defaults_its_aria_minimum_to_one", () => {
 //
 // Pressing the dial used to start the browser's text-selection gesture, so a
 // drag rubber-banded the page text around the knob. The dial cancels that at
-// source, by cancelling the `pointerdown`. The DOM contract makes that one
-// change into two: cancelling a `pointerdown` suppresses the compatibility
+// source, by canceling the `pointerdown`. The DOM contract makes that one
+// change into two: canceling a `pointerdown` suppresses the compatibility
 // `mousedown`, and with it BOTH the selection gesture (wanted) and the browser's
 // own focus-on-click (not wanted, since every keyboard gesture the dial has is
 // licensed by focus). So the dial must ask for focus itself, and a disabled dial
@@ -163,7 +163,7 @@ test("test_a_drag_up_the_dial_reports_live_values_before_it_is_released", () => 
   assert.deepEqual([live.length > 0, live.every((v) => v !== START)], [true, true]);
 });
 
-// The focus of behaviour 2 is what keeps this alive: a click, then a key. With
+// The focus of behavior 2 is what keeps this alive: a click, then a key. With
 // no explicit focus the dial never learns it holds any, and the arrow is refused
 // as the Safari scroll-gesture case (tests/js/components/knob-focus-keys.test.js).
 

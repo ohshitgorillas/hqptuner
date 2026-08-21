@@ -14,7 +14,7 @@
 // reached by widening the module. The equivalent state on the LIVE controls IS
 // observable, because `liveBusy` / `liveErrors` are the store's public surface
 // (store/live/state.js) rather than this component's internals. The picker's own
-// in-flight behaviour belongs to the playwright hand-back protocol.
+// in-flight behavior belongs to the playwright hand-back protocol.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/liveview.test.js
 
@@ -41,7 +41,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { attrOf, grayReason } from "../support/field-harness.js";
-import { classes, elements, enclosing, labelled, text } from "../support/markup.js";
+import { classes, elements, enclosing, labeled, text } from "../support/markup.js";
 
 const ENUMS = {
   filters: [
@@ -195,7 +195,7 @@ test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
 // tooltip: without one an empty title would be indistinguishable from a fixture
 // hole, and the case that asks for the tooltip would pin nothing.
 //
-// The anchors are what a user reads: the rate columns are labelled `PCM` and
+// The anchors are what a user reads: the rate columns are labeled `PCM` and
 // `SDM`, and the field root is the single smallest element enclosing that label,
 // which is the element a pointer hovers. Everything between is left alone, so a
 // restructured card that says the same things still measures.
@@ -235,7 +235,7 @@ const decode = (raw) => raw.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
  * @param {string} out
  * @param {string} label
  */
-const rateField = (out, label) => enclosing(out, labelled(out, label));
+const rateField = (out, label) => enclosing(out, labeled(out, label));
 
 /**
  * @param {string} out
@@ -278,7 +278,7 @@ test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_tit
 test("test_a_live_rate_field_with_no_reason_carries_its_own_catalog_prose_on_hover", async () => {
   // Under an explicit mode the column carries no reason, so the hover title is
   // the field's own tooltip — the prose the catalog serves under `pcm_rate`,
-  // not the neighbouring `sdm_rate` sentence and not the generic `rate` one.
+  // not the neighboring `sdm_rate` sentence and not the generic `rate` one.
   await inOutputMode(EXPLICIT_PCM);
   assert.equal(hoverTitle(page(), "PCM"), PCM_RATE_TOOLTIP);
 });
@@ -288,7 +288,7 @@ test("test_the_pcm_rate_fields_hover_title_is_not_shared_with_the_sdm_column", a
   // the pair reads the same to every case above and hovers as one region.
   await inOutputMode(AUTO);
   const out = page();
-  assert.equal(encloses(rateField(out, "PCM"), labelled(out, "SDM")), false);
+  assert.equal(encloses(rateField(out, "PCM"), labeled(out, "SDM")), false);
 });
 
 // The caption is gone in BOTH modes: in auto because the reason now rides on the

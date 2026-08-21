@@ -2,7 +2,7 @@
 // append/amend as arrays of specs, back-compat single specs, and searches
 // scored by target-relative metrics. Written blind from a spec block: no
 // eqlab source was read. Test numbers in comments refer to the spec block's
-// behaviour list.
+// behavior list.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/eqlab-search-multi.test.js
 

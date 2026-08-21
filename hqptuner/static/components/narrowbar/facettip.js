@@ -19,7 +19,7 @@ const lbl = (items, v) => String(oneLabel(items, v, v));
 
 // "any" is a real ratio class (the manual's any-ratio filters), but the narrow
 // table has no row for it — its "" row means "not narrowed" — so it is
-// labelled here rather than falling through as the raw lowercase token.
+// labeled here rather than falling through as the raw lowercase token.
 /**
  * @param {string} v
  * @returns {string}

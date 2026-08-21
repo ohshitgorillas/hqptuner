@@ -2,7 +2,7 @@
 
 Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (feature contract), `HEARING.md` (the listener), `docs/crossfeed-math.md` (the M/S transform). Compiled 2026-07-26.
 
-**Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL or page number (same artefact class as `[V]`; the difference is who read it). Figures computed by us are labelled **derived** in place and are never presented as source claims.
+**Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL or page number (same artifact class as `[V]`; the difference is who read it). Figures computed by us are labeled **derived** in place and are never presented as source claims.
 
 This document answers four questions, in the order an agent needs them:
 
@@ -29,10 +29,10 @@ The mechanism, from Smith, J. O. III, *Introduction to Digital Filters with Audi
 
 **Two corollaries the tuner should know:**
 
-* **Our EQ is already the minimum-dispersion realisation.** MIT 6.341, same lecture: "among all causal systems with the same frequency response magnitude, the minimum-phase one has the smallest group delay at all frequencies." A linear-phase EQ producing the same curve would have *more* delay, not less, and would add pre-ringing.
+* **Our EQ is already the minimum-dispersion realization.** MIT 6.341, same lecture: "among all causal systems with the same frequency response magnitude, the minimum-phase one has the smallest group delay at all frequencies." A linear-phase EQ producing the same curve would have *more* delay, not less, and would add pre-ringing.
 * **EQ cannot pre-ring.** A minimum-phase filter's energy all arrives after the excitation, so every EQ band's ringing is post-transient. Pre-echo is available only from the oversampling filter (`PRIMER.md`, "Advising on things it cannot change"), never from a band. Do not let a filter-phase conversation migrate into an EQ one — see §9.
 
-**Cascade behaviour.** Kabal, P. (2011), *Minimum-Phase & All-Pass Filters*, McGill technical report, CC-BY `[VA]`: "The phase response for the overall filter is the sum of the phases for each section." A cascade of minimum-phase sections is itself minimum-phase — this follows immediately from the zeros-inside-the-unit-circle definition and from Smith's statement that minimum-phase filters form a group under convolution, but **no source we reached states it in those words**; treat it as an entailment, not a quotation.
+**Cascade behavior.** Kabal, P. (2011), *Minimum-Phase & All-Pass Filters*, McGill technical report, CC-BY `[VA]`: "The phase response for the overall filter is the sum of the phases for each section." A cascade of minimum-phase sections is itself minimum-phase — this follows immediately from the zeros-inside-the-unit-circle definition and from Smith's statement that minimum-phase filters form a group under convolution, but **no source we reached states it in those words**; treat it as an entailment, not a quotation.
 
 **Load-bearing caveats, all quoted in the lane report:** the decomposition requires causal, stable, and **no zeros on the unit circle** (Smith; Kabal keeps a separate `B_uc(z)` factor for them and states "A system with a zero on the unit circle is not strictly minimum-phase"); recovery of the response from the magnitude is only "to within a sign change"; and Bode's integral formally needs the log-magnitude slope at all frequencies. None of these is violated by an RBJ peaking or shelving section at audio gains.
 
@@ -42,11 +42,11 @@ The mechanism, from Smith, J. O. III, *Introduction to Digital Filters with Audi
 
 ## 2. How much phase, and how much group delay — derived
 
-**Method.** Group delay computed exactly as `τ(ω) = −[Im(N′/N) − Im(D′/D)]/f_s` on the RBJ coefficients of `FILTER-MATH.md` §1.3, where `N` and `D` are the numerator and denominator evaluated at `z = e^{jω}`. No phase unwrapping is involved, so there are no unwrap artefacts. All figures **derived** by us at `f_s = 44100` unless stated; 600-point log grid, 20 Hz–20 kHz.
+**Method.** Group delay computed exactly as `τ(ω) = −[Im(N′/N) − Im(D′/D)]/f_s` on the RBJ coefficients of `FILTER-MATH.md` §1.3, where `N` and `D` are the numerator and denominator evaluated at `z = e^{jω}`. No phase unwrapping is involved, so there are no unwrap artifacts. All figures **derived** by us at `f_s = 44100` unless stated; 600-point log grid, 20 Hz–20 kHz.
 
 ### 2.1 Phase deviation depends only on gain
 
-A peaking band's phase is **exactly zero at its centre frequency**, and swings to equal and opposite extrema either side of it. The size of that swing is `atan(A) − atan(1/A)` where `A = 10^(g/40)` — **Q and centre frequency drop out entirely.**
+A peaking band's phase is **exactly zero at its center frequency**, and swings to equal and opposite extrema either side of it. The size of that swing is `atan(A) − atan(1/A)` where `A = 10^(g/40)` — **Q and center frequency drop out entirely.**
 
 | band gain | max phase deviation |
 |---|---|
@@ -55,11 +55,11 @@ A peaking band's phase is **exactly zero at its centre frequency**, and swings t
 | ±6 dB | 19.4° |
 | ±12 dB | 36.8° |
 
-Derived analytically and confirmed numerically: the figure is identical across every Q from 0.5 to 5.75 and every centre frequency from 60 Hz to 8.8 kHz. **Q decides where the phase swings and how wide the swing is in frequency; gain alone decides how far.**
+Derived analytically and confirmed numerically: the figure is identical across every Q from 0.5 to 5.75 and every center frequency from 60 Hz to 8.8 kHz. **Q decides where the phase swings and how wide the swing is in frequency; gain alone decides how far.**
 
 ### 2.2 Group delay scales as Q/f₀
 
-The opposite dependence. At ±6 dB, peak group delay is well approximated by **τ_peak ≈ 0.225·Q/f₀ seconds**, and it changes sign with the sign of the gain (a boost delays, a cut advances, at the centre).
+The opposite dependence. At ±6 dB, peak group delay is well approximated by **τ_peak ≈ 0.225·Q/f₀ seconds**, and it changes sign with the sign of the gain (a boost delays, a cut advances, at the center).
 
 | f₀ | Q 0.7 | Q 1.0 | Q 1.42 | Q 2.5 | Q 4.0 | Q 5.75 |
 |---|---|---|---|---|---|---|
@@ -73,7 +73,7 @@ The `0.225·Q/f₀` law is good to a few percent below about 3 kHz (predicted 22
 
 Gain dependence of the delay, at f₀ = 1 kHz and Q 1: 38 µs at ±1 dB, 113 µs at ±3 dB, 229 µs at ±6 dB, 483 µs at ±12 dB — i.e. proportional to `A − 1/A`, not to gain in dB.
 
-**One asymmetry worth naming.** At Q ≲ 0.5 a boost's largest group-delay excursion is a *negative* one lying well below f₀ rather than the positive peak at f₀ (at f₀ = 1 kHz, Q 0.5, +6 dB: +122 µs at the centre but −223 µs at the bottom of the grid). Broad bands advance the far low end. Report the swing, not one side of it.
+**One asymmetry worth naming.** At Q ≲ 0.5 a boost's largest group-delay excursion is a *negative* one lying well below f₀ rather than the positive peak at f₀ (at f₀ = 1 kHz, Q 0.5, +6 dB: +122 µs at the center but −223 µs at the bottom of the grid). Broad bands advance the far low end. Report the swing, not one side of it.
 
 ### 2.3 Shelves, Q 0.70
 
@@ -107,7 +107,7 @@ Compensation shelves taken from the shipped implementation (`fitComp(700, 4.5)` 
 
 **Liski, J., Mäkivirta, A. & Välimäki, V. (2021). "Audibility of Group-Delay Equalization." *IEEE/ACM Transactions on Audio, Speech, and Language Processing* 29, 2189–2201.** doi:10.1109/TASLP.2021.3087969. CC BY 4.0. Read in full from the rendered pages — the PDF's text layer is a font subset with no usable Unicode map.
 
-ABX, twelve usable subjects of thirteen, 80 dB SPL (85 for the unit impulses), **Sennheiser HD-650 headphones** — the same model as the preset measured in §2.4. Group-delay peaks were produced with cascaded allpass pairs, one applied time-reversed to cancel the low-frequency excess so that only a local peak remains, at five centre frequencies with both signs. Threshold criterion is the 75 % point of a fitted sigmoid.
+ABX, twelve usable subjects of thirteen, 80 dB SPL (85 for the unit impulses), **Sennheiser HD-650 headphones** — the same model as the preset measured in §2.4. Group-delay peaks were produced with cascaded allpass pairs, one applied time-reversed to cancel the low-frequency excess so that only a local peak remains, at five center frequencies with both signs. Threshold criterion is the 75 % point of a fitted sigmoid.
 
 **Table III, verbatim — negative threshold above, positive below, in ms:**
 
@@ -128,7 +128,7 @@ Three findings beyond the numbers:
 
 ### 3.2 Prior studies, transcribed numerically by Liski et al.
 
-Liski's Fig. 1 and §I collect earlier thresholds, which is how we have numbers for four artefacts that are otherwise paywalled or figure-only. All are peak group delay in ms, headphones unless stated:
+Liski's Fig. 1 and §I collect earlier thresholds, which is how we have numbers for four artifacts that are otherwise paywalled or figure-only. All are peak group delay in ms, headphones unless stated:
 
 | Study | Thresholds |
 |---|---|
@@ -167,7 +167,7 @@ Whether phase distortion is more audible on headphones than loudspeakers is **no
 
 * Liski et al. 2021 `[V]`: "even though group-delay distortion is often reported to be more easily audible with headphones than with loudspeakers […] contradicting results have also been reported. Bech's results showed no significant difference between the two reproduction methods."
 * Flanagan, Moore & Stone, via Liski: headphone and low-reverberant-loudspeaker thresholds about the same.
-* An Aalborg University student report, *The Influence of Phase Distortion on Sound Quality* (group 07gr1064) `[S]` — a secondary review, read directly — summarises the opposite consensus: Hansen & Madsen (1974) "showed that phase differences are more audible with headphones than with loudspeakers in semireverberant rooms", Fleischer (1976) found thresholds "2.3 times higher" in a reverberant room than anechoic, and Suzuki et al. found "lower audibility thresholds when using headphones". Note Liski cites Hansen & Madsen as *contradicting* the headphones-are-worse claim, so the two reviews read the same authors oppositely. Neither reading is adopted here.
+* An Aalborg University student report, *The Influence of Phase Distortion on Sound Quality* (group 07gr1064) `[S]` — a secondary review, read directly — summarizes the opposite consensus: Hansen & Madsen (1974) "showed that phase differences are more audible with headphones than with loudspeakers in semireverberant rooms", Fleischer (1976) found thresholds "2.3 times higher" in a reverberant room than anechoic, and Suzuki et al. found "lower audibility thresholds when using headphones". Note Liski cites Hansen & Madsen as *contradicting* the headphones-are-worse claim, so the two reviews read the same authors oppositely. Neither reading is adopted here.
 
 The safe statement: **reverberation reduces sensitivity to phase distortion, and headphones therefore represent the worst case or a tie — never the forgiving case.** Anything stronger is unsupported.
 
@@ -181,10 +181,10 @@ Set §2.4 against §3, and the answer is not close.
 
 * **Midrange: about 2× under the most sensitive published figure.** The HD 650 chain varies its group delay by **156 µs** across 300 Hz–1 kHz. The smallest threshold anywhere in Liski's Table III is **+0.33 ms** (pink impulse, 3 kHz); the smallest *negative* one is −0.45 ms (pink impulse, 500 Hz), and the lowest anywhere in §3.2 is 0.9 ms. Against real music signals (castanet, hi-hat: 1.4–4.6 ms) the margin is ten- to twenty-fold.
 * **It is the same order as the headphone's own unit-to-unit variation.** Liski measured ±0.1 ms below 1.5 kHz between three pairs of HD-650. The entire EQ chain's in-band dispersion is comparable to the difference between two copies of the headphone it is correcting — the same framing `PSYCHOACOUSTICS.md` §5 applies to magnitude via reseat variance.
-* **The exception is the bass, and it is nearly unmeasured territory.** The chain reaches **4.06 ms at 37 Hz**. Liski's own experiment measured nothing below 500 Hz, and the only published threshold below it anywhere in §3.2 is Jensen & Møller's 4.7 ms at 250 Hz. The trend runs in our favour — thresholds rise steeply as frequency falls — but extending a single 250 Hz datum to 37 Hz is **extrapolation, and must be labelled as such rather than asserted.**
+* **The exception is the bass, and it is nearly unmeasured territory.** The chain reaches **4.06 ms at 37 Hz**. Liski's own experiment measured nothing below 500 Hz, and the only published threshold below it anywhere in §3.2 is Jensen & Møller's 4.7 ms at 250 Hz. The trend runs in our favour — thresholds rise steeply as frequency falls — but extending a single 250 Hz datum to 37 Hz is **extrapolation, and must be labeled as such rather than asserted.**
 * **Adding crossfeed compensation changes nothing perceptually.** It contributes 40 µs of the 183 µs midrange spread and 6.5° of phase.
 
-**What the tuner should do with this.** Nothing, in the ordinary case — and that is the point. Phase and group delay are not to be narrated to the user as a consequence of an EQ move, for the same reason the crossfeed centre tilt is not (`PRIMER.md`, "The tilt, and its direction"): the effect is real, computable, and below the threshold of the least forgiving signal anyone has tested. The two places it stops being a non-issue are **channel asymmetry** (§7) and **the oversampling filter**, which is a different subsystem (§9).
+**What the tuner should do with this.** Nothing, in the ordinary case — and that is the point. Phase and group delay are not to be narrated to the user as a consequence of an EQ move, for the same reason the crossfeed center tilt is not (`PRIMER.md`, "The tilt, and its direction"): the effect is real, computable, and below the threshold of the least forgiving signal anyone has tested. The two places it stops being a non-issue are **channel asymmetry** (§7) and **the oversampling filter**, which is a different subsystem (§9).
 
 If a user asks directly — a `discuss` turn — the honest answer carries `basis: "measured"` when it quotes §2 arithmetic, and `basis: "mechanism"` when it explains §1. It must not claim the question is settled below 500 Hz.
 
@@ -220,11 +220,11 @@ That paragraph is the *discharge* of an assumption, not the whole of it. Phase e
 * **He treated the magnitude-only account as a hypothesis, not a result.** Testing whether a hump plus a compensating dip cancels is listed as *future work*.
 * **He needed a mechanism magnitude cannot represent.** Driven-state loudness alone did not predict his data, and he closes the gap with an **inter-state frequency (pitch) shift** from the drive frequency toward the resonator's natural frequency — a time-domain effect, maximal around 250–400 Hz, with no counterpart in a magnitude curve. That range is our compression of two figures he states separately: p. 8.30 puts the greatest subjective influence "in the locality of 400Hz", and Conclusion 6 (p. 8.59) names "the range 125 to 500Hz approximately, and in particular, in the region of 250Hz". Toole & Olive relay the same finding at p. 124 — "pitch shift, an interstate coloration, tends to be most audible in the frequency range between 125 and 500 Hz" — as their summary of Moulana, not as an independent result. **This is the one real blind spot of a magnitude-only evaluator, and it is the same region as the vocabulary's warmth/mud/boxiness cluster.**
 
-**What survives, and it is worth having.** His panel was eight to nine BBC Research Department engineers, deliberately sensitised to the resonance frequency beforehand, rating a coloured excerpt against its own uncoloured version on an 11-point scale — an upper bound on sensitivity, not a typical listener.
+**What survives, and it is worth having.** His panel was eight to nine BBC Research Department engineers, deliberately sensitized to the resonance frequency beforehand, rating a colored excerpt against its own uncolored version on an 11-point scale — an upper bound on sensitivity, not a typical listener.
 
 * **Peak-height detection threshold: 1 dB to 2.7 dB for Q 6–25 over 200 Hz–2 kHz** (p. 8.29). Compare Toole & Olive's ±1.5 dB at Q 1 (`PSYCHOACOUSTICS.md` §4.0) — consistent, and independently derived.
 * **Threshold rises with Q**, i.e. high-Q resonances are harder to hear, matching Toole & Olive's 3 dB per doubling. At 2 kHz his threshold dilution runs from about −20 dB at Q 3 to about −7 dB at Q 200.
-* **Programme ordering matches ours**: "pink noise mainly reveals the driven-state colourations … while speech tends to be more critical in revealling the transient-state and inter-state colourations … music appears to occupy an intermediate position which is noticeably biased towards that of speech."
+* **Program ordering matches ours**: "pink noise mainly reveals the driven-state colourations … while speech tends to be more critical in revealling the transient-state and inter-state colourations … music appears to occupy an intermediate position which is noticeably biased towards that of speech."
 * **A hard floor on ringing:** "When Q ≤ ½, the decay is non-oscilatory, and hence, there cannot be any transient-state colourations."
 * **Amplitude governs, duration modulates** — his own account has initial amplitude `|R₀|` as the criterion variable, with longer decay (higher Q) lowering the amplitude at which the decay becomes noticeable. That is the same conclusion `PSYCHOACOUSTICS.md` §4.0 carries from Toole & Olive p. 135, reached independently.
 * **Bücklein at one remove, with a number.** `PSYCHOACOUSTICS.md` §4.2 lists Bücklein as `[X]` with "its own dB thresholds remain unobtained". Moulana's review (p. 2.35) supplies one: "at 1kHz a 15dB peak with a bandwidth factor of 0.35 could be noticed by all of his 10 observers, whereas, an equivalent dip could only be noticed by half the subjects." Still secondhand, now at least numeric.
@@ -243,9 +243,9 @@ Everything above is about a phase shift applied **identically to both channels**
 
 **The relevant thresholds** `[VA]`:
 
-* **ITD detection floor.** Thavam, S. & Dietz, M. (2019), *JASA* 145(1), 458: "It is well-established that the smallest discrimination thresholds for interaural time differences (ITDs) are near 10 μs for normal hearing listeners", and their own optimised condition gives "6.9 μs for nine trained listeners and 18.1 μs for 52 un-trained listeners".
+* **ITD detection floor.** Thavam, S. & Dietz, M. (2019), *JASA* 145(1), 458: "It is well-established that the smallest discrimination thresholds for interaural time differences (ITDs) are near 10 μs for normal hearing listeners", and their own optimized condition gives "6.9 μs for nine trained listeners and 18.1 μs for 52 un-trained listeners".
 * **Phase is time, for steady signals.** Ross, B. et al. (2007), *JASA* 121(2), 1017: "For steady signals, such as pure tones, the ITD is equivalent to the interaural phase difference (IPD)."
-* **The frequency ceiling, with mechanism.** Same paper: the behavioural upper limit for IPD detection is "between 1100 and 1300 Hz", their own measured mean 1203 Hz (SD 313 Hz), because "phase locked encoding degrades along the ascending auditory pathway". Above roughly 1400 Hz the system switches to envelope ITD, whose thresholds are an order of magnitude coarser — 60–133 µs in Kanagokar et al. (2024).
+* **The frequency ceiling, with mechanism.** Same paper: the behavioral upper limit for IPD detection is "between 1100 and 1300 Hz", their own measured mean 1203 Hz (SD 313 Hz), because "phase locked encoding degrades along the ascending auditory pathway". Above roughly 1400 Hz the system switches to envelope ITD, whose thresholds are an order of magnitude coarser — 60–133 µs in Kanagokar et al. (2024).
 * **ILD JND ≈ 1 dB.** Brown & Tollin (2021), *JASA* 149(6): "thresholds in the vicinity of 1 dB ILD for most listeners", rising to ~2.5 dB when the channels are decorrelated at 250–500 Hz. So an asymmetric *gain* is audible too, at about 1 dB.
 * **A narrowband interaural phase difference has a timbral consequence, not only a spatial one.** Hancock & Delgutte (2023): a Huggins pitch arises "when the interaural phase changes by 2π radians over a narrow 'transition band'", a binaural edge pitch when it changes by π, and "monaural inputs to either ear alone do not produce a pitch percept". A frequency-confined interaural phase gradient is heard as a faint tone that is not in either channel.
 * **The allpass literature already separates the two failure modes.** The Aalborg review `[S]` reports that Møller, Minnaar et al. found **two distinct thresholds — ringing and lateralization — the latter arising specifically "when the all-pass section is present in only one ear"**, that the ringing threshold "can be defined as a single value independent of frequency", and that detection is a monaural process. That is exactly the asymmetric-EQ case, named in the literature.
@@ -267,9 +267,9 @@ Everything above is about a phase shift applied **identically to both channels**
 
 ## 8. Crossfeed: the phase that must not be corrected
 
-**Verified in the shipped code.** `fitComp()` in `hqptuner/static/lib/xfeed.js` fits its two high shelves to `-centerMagDb(...)`, and its error metric is magnitude in dB. The compensation is a **magnitude-only inverse of the M-path tilt**, realised as two minimum-phase shelves. The M-path phase — and the M-versus-S phase relationship — is left exactly as bs2b produced it.
+**Verified in the shipped code.** `fitComp()` in `hqptuner/static/lib/xfeed.js` fits its two high shelves to `-centerMagDb(...)`, and its error metric is magnitude in dB. The compensation is a **magnitude-only inverse of the M-path tilt**, realized as two minimum-phase shelves. The M-path phase — and the M-versus-S phase relationship — is left exactly as bs2b produced it.
 
-**That is correct, and it must stay that way.** The interaural phase and time relationship *is* the crossfeed effect. `docs/crossfeed-math.md` makes this explicit for the structural design: the head-shadow filter's group delay deliberately "supplies the low-frequency excess — 135 µs of the 397 µs total", with the `delay:` stage carrying only the high-frequency ray component. Group delay there is a *feature being synthesised*, not an artefact being removed. A future agent that notices the compensation "only corrects magnitude" and sets out to correct its phase as well would be deleting the feature. Do not.
+**That is correct, and it must stay that way.** The interaural phase and time relationship *is* the crossfeed effect. `docs/crossfeed-math.md` makes this explicit for the structural design: the head-shadow filter's group delay deliberately "supplies the low-frequency excess — 135 µs of the 397 µs total", with the `delay:` stage carrying only the high-frequency ray component. Group delay there is a *feature being synthesized*, not an artifact being removed. A future agent that notices the compensation "only corrects magnitude" and sets out to correct its phase as well would be deleting the feature. Do not.
 
 The compensation's own dispersion is negligible on top of that — 40 µs of spread across 300 Hz–1 kHz and 6.5° of phase (§2.4) — so it neither helps nor harms the interaural cue it sits beside.
 
@@ -295,9 +295,9 @@ Keep this distinct from the separate conflation `PRIMER.md` already warns about:
 * **Only one published group-delay threshold below 500 Hz** — Jensen & Møller's 4.7 ms at 250 Hz (§3.2). Nothing at all below that, which is precisely where our chain's delay lives (§2.4). The single highest-value gap in this document.
 * **Banno et al. (2002)** on group-delay peak height versus bandwidth — cited only through the Aalborg review `[S]`; full citation not recovered. Its claim that narrow-bandwidth group delay is less audible would directly license our high-Q bands, so it is worth the fetch. (The paper obtained on 2026-07-26 under this name — Banno et al., *Acoust. Sci. & Tech.* 28(3), 2007, on the realtime STRAIGHT vocoder — is a different work and not relevant.)
 * **Møller, H., Minnaar, P., Olesen, S. K., Christensen, F. & Plogsties, J. (2007), "On the audibility of all-pass phase in electroacoustical transfer functions," *JAES* 55(3), 115–134** — AES paywall. Its threshold values are in hand secondhand via Liski §3.2, but the **ringing-versus-lateralization split (§7)** reaches us only through a student review, and that split is load-bearing for the asymmetry rule.
-* **"Evaluation of headphone phase equalization on sound reproduction," *Applied Acoustics*** (Southampton eprints 434440) — the only artefact identified that is specifically about headphone phase equalization. Both ScienceDirect and the institutional copy refused automated fetches.
+* **"Evaluation of headphone phase equalization on sound reproduction," *Applied Acoustics*** (Southampton eprints 434440) — the only artifact identified that is specifically about headphone phase equalization. Both ScienceDirect and the institutional copy refused automated fetches.
 * **Lipshitz, Pocock & Vanderkooy (1982)**, *JAES* 30(9), 580–595 — still `[X]`, AES paywall, and its abstract carries no numbers. The frequently repeated "audible mainly on headphones" summary of it remains **unverified**; §3.5 is the honest state of that question. (`FILTER-MATH.md` §8 carries the same item.)
-* **Preis (1982)** *JAES* 30(11) tutorial review — its frequency-dependent group-delay tolerance curve, said to be synthesised from seven perceptual studies, was not obtained.
+* **Preis (1982)** *JAES* 30(11) tutorial review — its frequency-dependent group-delay tolerance curve, said to be synthesized from seven perceptual studies, was not obtained.
 * **A displacement mapping**, not a detection threshold: nothing found states how far an image moves for a given interaural time difference. Mills (1958) on minimum audible angle would fill it; `pubs.aip.org` refused.
-* ~~**Moulana's Section 9 figures** carry two Q-label rows on apparently the same gridlines~~ — **RESOLVED.** They are not on the same gridlines: the lower row is offset by half a division and interleaves with the upper, so the two together form one continuous half-octave logarithmic Q scale — 2, 3, 4, 6, 9, 12, 18, 25, 35, 50, 75, 100, 150, 200 — staggered above and below the axis only so the labels do not collide. The text nowhere explains this. The curves are safe to digitise against the combined scale.
-* **The inter-state pitch shift (§6) is unmodelled.** `evaluate_chain` computes magnitude; Moulana's account needs a frequency shift that no magnitude response contains, maximal 250–400 Hz. Nothing in the tuner represents it, and it is not clear anything should — but it should not be forgotten either.
+* ~~**Moulana's Section 9 figures** carry two Q-label rows on apparently the same gridlines~~ — **RESOLVED.** They are not on the same gridlines: the lower row is offset by half a division and interleaves with the upper, so the two together form one continuous half-octave logarithmic Q scale — 2, 3, 4, 6, 9, 12, 18, 25, 35, 50, 75, 100, 150, 200 — staggered above and below the axis only so the labels do not collide. The text nowhere explains this. The curves are safe to digitize against the combined scale.
+* **The inter-state pitch shift (§6) is unmodeled.** `evaluate_chain` computes magnitude; Moulana's account needs a frequency shift that no magnitude response contains, maximal 250–400 Hz. Nothing in the tuner represents it, and it is not clear anything should — but it should not be forgotten either.

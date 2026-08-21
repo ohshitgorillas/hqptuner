@@ -2,7 +2,7 @@
 
 ``scripts/gates/check_no_barrels.py`` takes file paths on argv and parses each
 with ``ast``. Two shapes fail. A module whose body imports things and defines
-nothing is a barrel: it adds a name to import through and no behaviour, so it
+nothing is a barrel: it adds a name to import through and no behavior, so it
 buys indirection with nothing. A function whose whole body is ``return
 <name>.<attr>(<its own parameters>)`` is a forwarder: the caller could have
 called the thing itself, and the layer it appears to add is a name change. The
@@ -239,7 +239,7 @@ def satisfy_shipped_exemptions(root: Path) -> None:
     """Copy into ``root`` the real file behind every shipped exemption entry.
 
     A subprocess run of the script carries both mappings with it and audits them
-    against whatever tree it is pointed at, so a throwaway tree has to honour them
+    against whatever tree it is pointed at, so a throwaway tree has to honor them
     before any other verdict the run reaches is about the case under test.
     """
     keys = [key.split("::")[0] for key in GATE.FORWARDER_EXEMPT] + list(GATE.MODULE_EXEMPT)
@@ -584,7 +584,7 @@ def test_a_module_exemption_whose_path_is_not_on_disk_is_named_on_stdout(
 def test_a_module_exemption_naming_a_module_that_defines_something_fails_as_stale(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
-    """Once the module has behaviour in it the excuse has nothing left to excuse."""
+    """Once the module has behavior in it the excuse has nothing left to excuse."""
     monkeypatch.chdir(tmp_path)
     path = write_source(tmp_path, "hqptuner/core/codec.py", IMPORTS_AND_A_CLASS)
     assert CHECK([path], {}, {path: "the public import path third parties already use"}) == 1
@@ -638,7 +638,7 @@ def test_a_tree_with_neither_shape_passes(tmp_path: Path, monkeypatch: Any) -> N
 
 
 def test_omitting_the_forwarder_exemption_mapping_falls_back_to_the_shipped_one(monkeypatch: Any) -> None:
-    """A caller who passes no mapping gets the module's own, so a shipped excuse is honoured."""
+    """A caller who passes no mapping gets the module's own, so a shipped excuse is honored."""
     monkeypatch.chdir(REPO_ROOT)
     path = a_shipped_key(GATE.FORWARDER_EXEMPT, "FORWARDER_EXEMPT").split("::")[0]
     assert (CHECK([path]), CHECK([path], {}, {})) == (0, 1)
@@ -659,7 +659,7 @@ def test_running_the_script_over_a_forwarder_exits_nonzero(tmp_path: Path) -> No
     assert run_gate(tmp_path, path) == 1
 
 
-def test_running_the_script_over_a_module_with_behaviour_in_it_exits_zero(tmp_path: Path) -> None:
+def test_running_the_script_over_a_module_with_behavior_in_it_exits_zero(tmp_path: Path) -> None:
     """The other half of the exit status: a clean run says so rather than failing on its own feet."""
     install_gate(tmp_path)
     satisfy_shipped_exemptions(tmp_path)
