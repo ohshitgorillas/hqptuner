@@ -17,7 +17,7 @@
     "Polyphase sinc|Extreme roll-off and attenuation": "Steepest cutoff and strongest suppression",
     "Polyphase sinc|Gaussian": "Best balance of time and frequency accuracy, cleanest transients",
     "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response reaching the cutoff",
-    "Polyphase sinc|Half-band": "Response reaches close to the cutoff; for clean, well-mastered sources",
+    "Polyphase sinc|Half-band": "Response reaches the cutoff; for clean, well-mastered sources",
     "Polyphase sinc|MQA and MP3": "Tailored for lossy sources",
     "Pure sinc|Adaptive length": "Filter length adapts to the conversion for consistency",
     "Pure sinc|Base": "The family's base form",

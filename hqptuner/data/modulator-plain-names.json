@@ -1,5 +1,11 @@
 {
   "_scope": "data/engine-enums.json shapers_sdm (36 SDM modulators), in engine order. PCM dithers (shapers_pcm) deliberately out of scope. Raw name -> family label, variant label, leaf label. Family is architecture, variant is modulator order, leaf is the rest. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Vendor qualifiers 'ultralight', 'light' and 'super' are kept verbatim and left unglossed, since no HQPlayer doc defines them. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "families": {
+    "Fixed": "Same behavior regardless of source",
+    "Adaptive": "Adapts to the source",
+    "Pseudo multi-bit": "Special pseudo multi-bit modulators for DSD512+",
+    "Hybrid": "Multi-level and multi-bit designs"
+  },
   "modulators": {
     "DSD5": {
       "family": "Fixed",
@@ -217,5 +223,14 @@
       "leaf": "Adaptive, 8-bit, DSD1024+",
       "short": "Hybrid · 7th order · 8-bit, DSD1024+"
     }
+  },
+  "variants": {
+    "Fixed|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
+    "Fixed|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs",
+    "Adaptive|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
+    "Adaptive|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs",
+    "Pseudo multi-bit|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs",
+    "Hybrid|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
+    "Hybrid|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs"
   }
 }

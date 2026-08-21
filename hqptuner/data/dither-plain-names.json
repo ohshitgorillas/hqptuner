@@ -1,5 +1,10 @@
 {
   "_scope": "data/engine-enums.json shapers_pcm (10 PCM dithers), in engine order. SDM modulators (shapers_sdm) live in data/modulator-plain-names.draft.json. Raw name -> family label, variant label (null = no subgroup), leaf label. Family is mechanism, leaf is the rest; variant is null throughout because every subgroup would hold exactly one member. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Rate markers are the rate each entry is documented as designed for or recommended at (hqplayerd-readme.txt / shapers.json descriptions), not the shapers.json gating floor, per entry, exactly as documented, with no rounding to a common form; written as PCM rate multipliers: 1x = 44.1/48, 2x = 88.2/96, 4x = 176.4/192, 8x = 352.8/384, 16x = 705.6/768 kHz. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "families": {
+    "Noise shaping": "Pushes noise above the hearing range via error feedback loop; optimal for R-2R DACs",
+    "Additive": "Evens out low-level distortions by adding random noise",
+    "None": "No noise treatment; provided as a reference, not for critical listening"
+  },
   "dithers": {
     "NS1": {
       "family": "Noise shaping",

@@ -10,6 +10,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Filter dropdowns badge apodizing; Simplified groups fold.** In both option styles, every apodizing filter row carries a circled accent A, half-apodizing a circled ½, beside its name; the three Simplified names that spelled out apodizing rely on the badge instead. Family and variant groups collapse and expand from their headers, and the folds persist across reloads.
 
+- **Simplified dither and modulator dropdowns caption every family.** A one-line blurb under each header says what the group covers, and the modulator sections caption their fifth and seventh order groups as well, so picking Noise shaping or Adaptive no longer requires knowing the terms.
+
 - **Engine health charts apodizing events over time.** A strip under the meters plots how thickly events fall across recent playback, scrolling right to left, so a burst in an opening section reads differently from ten events spread across a track. The time axis covers 30 seconds to 5 minutes or the whole track, and the strip appears only once a track logs an event.
 
 ### Changed
@@ -17,6 +19,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The quality facet defaults to Any quality.** With each row's rating visible at a glance, the 3/5 floor no longer guards the first look at the menu; a fresh narrow bar starts unnarrowed and only an explicit floor narrows.
 
 ### Fixed
+
+- **The half-band blurb says the response reaches the cutoff.** It read "reaches close to the cutoff", understating where the corner actually sits.
 
 - **Simplified filter names state linear phase where HQPlayer documents it.** The half-band, Ext2, Gaussian and Gaussian half-band poly-sinc families read as linear phase in their Simplified entries, matching the phase already shown for the lp/ip/mp variants.
 
