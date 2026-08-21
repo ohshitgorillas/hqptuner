@@ -16,6 +16,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The FIR filters gather into one Conventional family, and the families reorder.** Classic oversampling and Minimum ringing become variants of a single family captioned "Cheap, short, low-load filters like those built into most DACs". The Simplified filter dropdowns list Analog-style, Conventional, Polyphase sinc, Pure sinc, Closed form, Polynomial, then Misc.
+
 - **Pseudo multi-bit modulators list under Adaptive.** The two AMSDM entries leave their own family for a pseudo multi-bit group inside Adaptive, beside the fifth and seventh order groups, with base and extended compensation as its rows.
 
 - **Polyphase sinc variants list Gaussian second.** The Simplified filter dropdowns order the family base, Gaussian, extended response, extended response 2, extreme roll-off, half-band, Gaussian half-band, then the MQA and MP3 pair. The two Gaussian groups, previously split by half-band, now sit together.
