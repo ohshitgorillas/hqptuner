@@ -18,9 +18,9 @@
 // instead of a native confirm()): the chain Delete-click → confirm →
 // deletePreset, and the wire silence that must follow a cancel, needs real event
 // dispatch and belongs to the playwright hand-back protocol. What is asserted
-// here is only what a user can see — the question is on screen, and it leaves
-// the screen when answered or withdrawn — never the resolved value or the
-// markup's class names.
+// here is only that a question the test itself supplied is on screen, and that
+// it leaves the screen when answered or withdrawn — never the wording of the
+// product's own question, the resolved value, or the markup's class names.
 //
 // Assertions read the rendered markup as a user sees it. Note that
 // preact-render-to-string does NOT emit `value` on a <select>: it marks the
@@ -92,15 +92,30 @@ const idents = (out) => [...daemon(out).matchAll(/<span[^>]*>([^<]*)<\/span>/g)]
 
 // An empty value renders as the bare attribute `<option value>`, and `selected`
 // is emitted ahead of it, so the attributes are parsed rather than positional.
+// Only the wire-level value is read: an option's label is owner copy.
 /** @param {string} out */
 const options = (out) =>
   [...out.matchAll(/<option([^>]*)>([^<]*)<\/option>/g)].map((m) => {
     const named = / value="([^"]*)"/.exec(m[1]);
-    return { value: named ? named[1] : "", selected: m[1].includes("selected"), label: m[2] };
+    return { value: named ? named[1] : "", selected: m[1].includes("selected") };
   });
 
 /** @param {string} out */
 const selected = (out) => (options(out).find((o) => o.selected) || { value: undefined }).value;
+
+// The delete button, found by its own class. Which preset it targets is DATA —
+// the name the picker is sitting on — so the name is read out of the button
+// while the sentence carrying it is not asserted.
+/** @param {string} out */
+const delButton = (out) => {
+  const i = out.indexOf('class="preset-del"');
+  return i < 0 ? "" : out.slice(i, out.indexOf("</button>", i));
+};
+
+// The pending-apply marker, read as a class rather than as its wording.
+/** @param {string} out */
+const pendingMarked = (out) =>
+  [...out.matchAll(/class="([^"]*)"/g)].some((m) => m[1].split(/\s+/).includes("pending-apply"));
 
 // --- daemon identity --------------------------------------------------------
 
@@ -147,9 +162,10 @@ test("test_every_stored_profile_gets_an_option", () => {
   assert.equal(options(head({ profiles: PROFILES })).length, 3);
 });
 
-test("test_a_profile_option_carrying_no_label_reads_as_no_preset", () => {
-  const profiles = { ...PROFILES, options: [{ value: "", label: "" }, ...PROFILES.options.slice(1)] };
-  assert.equal(options(head({ profiles }))[0].label, "(no preset)");
+// The empty preset is a real, selectable target, not a placeholder: what a
+// caller can pin is its wire value, the empty string. Its label is owner copy.
+test("test_the_empty_preset_is_offered_as_an_option_carrying_the_empty_value", () => {
+  assert.equal(options(head({ profiles: PROFILES }))[0].value, "");
 });
 
 test("test_the_active_preset_is_the_selected_option", () => {
@@ -178,14 +194,12 @@ test("test_an_active_preset_offers_a_delete_button", () => {
   assert.ok(head({ profiles: PROFILES, active: "Night" }).includes('class="preset-del"'));
 });
 
-test("test_the_delete_button_names_the_active_preset", () => {
-  const out = head({ profiles: PROFILES, active: "Night" });
-  assert.ok(out.includes('Delete preset "Night"'));
+test("test_the_delete_button_targets_the_active_preset", () => {
+  assert.ok(delButton(head({ profiles: PROFILES, active: "Night" })).includes("Night"));
 });
 
-test("test_the_delete_button_names_the_previewed_preset_over_the_active_one", () => {
-  const out = head({ profiles: PROFILES, active: "Night", pending: "Day" });
-  assert.ok(out.includes('Delete preset "Day"'));
+test("test_the_delete_button_targets_the_previewed_preset_over_the_active_one", () => {
+  assert.ok(delButton(head({ profiles: PROFILES, active: "Night", pending: "Day" })).includes("Day"));
 });
 
 test("test_the_default_preset_offers_no_delete_button", () => {
@@ -194,40 +208,44 @@ test("test_the_default_preset_offers_no_delete_button", () => {
 
 // --- confirming the delete, in the header instead of a native dialog --------
 
-const DELETE_Q = 'Delete preset "Night"? This cannot be undone.';
+// The question the header carries is whatever the caller asked, so the tests
+// supply their own sentinel rather than pinning the product's wording: the
+// behavior is that a pending confirmation is on screen and that answering or
+// withdrawing takes it off again.
+const QUESTION = "sentinel-question-abc";
 
-test("test_the_header_shows_the_deletion_it_is_asking_about", () => {
+test("test_the_header_shows_the_confirmation_it_is_asking_for", () => {
   head({ profiles: PROFILES, active: "Night" });
-  askConfirm("header", DELETE_Q);
-  assert.ok(again().includes(DELETE_Q));
+  askConfirm("header", QUESTION);
+  assert.ok(again().includes(QUESTION));
 });
 
 test("test_confirming_dismisses_the_delete_question", () => {
   head({ profiles: PROFILES, active: "Night" });
-  askConfirm("header", DELETE_Q);
+  askConfirm("header", QUESTION);
   answer();
-  assert.equal(again().includes(DELETE_Q), false);
+  assert.equal(again().includes(QUESTION), false);
 });
 
 test("test_withdrawing_dismisses_the_delete_question", () => {
   head({ profiles: PROFILES, active: "Night" });
-  askConfirm("header", DELETE_Q);
+  askConfirm("header", QUESTION);
   cancel();
-  assert.equal(again().includes(DELETE_Q), false);
+  assert.equal(again().includes(QUESTION), false);
 });
 
 // --- pending apply ----------------------------------------------------------
 
 test("test_a_previewed_preset_is_marked_pending_apply", () => {
-  assert.ok(head({ profiles: PROFILES, pending: "Day" }).includes("(pending apply)"));
+  assert.equal(pendingMarked(head({ profiles: PROFILES, pending: "Day" })), true);
 });
 
 test("test_a_previewed_no_preset_option_is_marked_pending_apply", () => {
-  assert.ok(head({ profiles: PROFILES, active: "Night", pending: "" }).includes("(pending apply)"));
+  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night", pending: "" })), true);
 });
 
 test("test_an_active_preset_alone_is_not_marked_pending_apply", () => {
-  assert.equal(head({ profiles: PROFILES, active: "Night" }).includes("(pending apply)"), false);
+  assert.equal(pendingMarked(head({ profiles: PROFILES, active: "Night" })), false);
 });
 
 // --- status pill ------------------------------------------------------------

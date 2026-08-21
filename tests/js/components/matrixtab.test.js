@@ -92,7 +92,6 @@ const rowsOf = (out) => out.split('<div class="mtx-row ').slice(1);
 // The tool buttons of one pipeline row, in render order.
 const IMPORT = 0;
 const EXPORT = 1;
-const RAW = 2;
 const PLOT = 3;
 const CLEAR = 4;
 const REMOVE = 5;
@@ -113,7 +112,6 @@ const tool = (out, rowIndex, i) => toolsOf(rowsOf(out)[rowIndex])[i];
 const isDisabled = (btn) => btn.slice(0, btn.indexOf(">")).includes("disabled");
 // The profile card's buttons, in render order. Switch and Load collapsed into one
 // live Load in round 5 — a load is the live lane AND stages so it persists.
-const LOAD = 0;
 const DELETE = 1;
 const SAVE = 2;
 /** @param {string} out */
@@ -124,6 +122,29 @@ const profileButtons = (out) =>
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+
+// A card found by the schema key of a field it carries, and the schema keys a
+// fragment carries. Both are wire identifiers, so neither the card's heading nor
+// the field's label is ever used as a selector.
+/**
+ * @param {string} out
+ * @param {string} key
+ */
+const sectionWith = (out, key) => {
+  const i = out.indexOf(`data-k="${key}"`);
+  return i < 0 ? "" : out.slice(out.lastIndexOf("<section", i), out.indexOf("</section>", i));
+};
+/** @param {string} frag */
+const fieldKeys = (frag) => [...frag.matchAll(/data-k="([^"]*)"/g)].map((m) => m[1]);
+// Description captions, counted rather than read: every one carries `field-note`.
+/** @param {string} frag */
+const captions = (frag) => (frag.match(/class="field-note"/g) || []).length;
+// The two channel pickers of a pipeline row, source first, and the wire value
+// each one is sitting on.
+/** @param {string} rowHtml */
+const channelPickers = (rowHtml) => rowHtml.split('<select class="mtx-ch').slice(1);
+/** @param {string} frag */
+const pickedValue = (frag) => (/<option selected value="([^"]*)"/.exec(frag) || ["", ""])[1];
 // The lane tag beside the picker: what a Load of the selected profile will do.
 
 // --- profile card ------------------------------------------------------------
@@ -163,34 +184,21 @@ test("test_save_is_disabled_until_a_name_is_typed", async () => {
   assert.equal(isDisabled(profileButtons(tab())[SAVE]), true);
 });
 
-test("test_load_targets_the_running_matrix", async () => {
-  await reset([ROW({})], { active: "Night", profiles: ["Night"] });
-  assert.ok(profileButtons(tab())[LOAD].includes("Load this profile into the running matrix"));
-});
-
 test("test_a_profile_only_the_config_carries_is_offered_in_the_picker", async () => {
   await reset([ROW({})], { active: "[Default]", profiles: [], saved: { Night: { rows: [ROW({})], post: {} } } });
   assert.ok(tab().includes('<option value="Night">Night</option>'));
 });
 
-test("test_the_profile_load_caption_shows_with_feature_descriptions_on", async () => {
+// Load and save each carry a caption of their own; which sentence is in which is
+// copy, so the card's captions are counted instead.
+test("test_the_profile_card_captions_show_with_feature_descriptions_on", async () => {
   await reset([ROW({})], { notes: true });
-  assert.ok(tab().includes("Profiles load live with no engine restart"));
+  assert.equal(captions(profileCard(tab())), 2);
 });
 
-test("test_the_profile_load_caption_hides_with_feature_descriptions_off", async () => {
+test("test_the_profile_card_captions_hide_with_feature_descriptions_off", async () => {
   await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Profiles load live with no engine restart"), false);
-});
-
-test("test_the_profile_save_caption_shows_with_feature_descriptions_on", async () => {
-  await reset([ROW({})], { notes: true });
-  assert.ok(tab().includes("Save the current Matrix settings"));
-});
-
-test("test_the_profile_save_caption_hides_with_feature_descriptions_off", async () => {
-  await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Save the current Matrix settings"), false);
+  assert.equal(captions(profileCard(tab())), 0);
 });
 
 // --- the channels card --------------------------------------------------------
@@ -200,9 +208,12 @@ test("test_the_profile_save_caption_hides_with_feature_descriptions_off", async 
 // keeps the DSP pipelines control alone. Both fields ride the /config form, so
 // the form is seeded with them.
 
-/** @param {PipelineRow[]} rows */
-async function resetWithChannels(rows) {
-  await reset(rows);
+/**
+ * @param {PipelineRow[]} rows
+ * @param {boolean} [notes]
+ */
+async function resetWithChannels(rows, notes = true) {
+  await reset(rows, { notes });
   config.value = {
     fields: [
       { name: "channels", value: "2" },
@@ -212,43 +223,30 @@ async function resetWithChannels(rows) {
   };
 }
 
-/**
- * @param {string} out
- * @param {string} title
- */
-const cardOf = (out, title) => {
-  const head = out.indexOf(`<div class="card-head">${title}</div>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
-/** @param {string} frag */
-const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
-
 test("test_the_channels_card_carries_exactly_the_channel_count", async () => {
+  // the channel count and nothing else: the pipelines control stays in its own
+  // card
   await resetWithChannels([ROW({})]);
-  assert.deepEqual(labelsOf(cardOf(tab(), "Channels")), ["Output Channels"]);
+  assert.deepEqual(fieldKeys(sectionWith(tab(), "channels")), ["channels"]);
 });
 
 test("test_the_open_pipelines_card_still_carries_the_pipelines_field", async () => {
+  // Openness is established in the same fragment the field is read from: the
+  // pipeline rows render only inside the open card.
   await resetWithChannels([ROW({})]);
-  const out = tab();
-  assert.ok(out.slice(out.indexOf("Pipelines <span")).includes("<label>DSP pipelines"));
+  assert.ok(sectionWith(tab(), "pipelines").includes('<div class="mtx-row '));
 });
 
 test("test_the_open_pipelines_card_carries_no_channel_count", async () => {
-  // Openness is established in the same fragment the absence is read from: the
-  // pipeline rows render only inside the open card, so a collapsed card cannot
-  // pass this vacuously.
   await resetWithChannels([ROW({})]);
-  const out = tab();
-  const seg = out.slice(out.indexOf("Pipelines <span"));
-  assert.ok(seg.includes('<div class="mtx-row ') && !seg.includes("<label>Output Channels"));
+  assert.deepEqual(fieldKeys(sectionWith(tab(), "pipelines")), ["pipelines"]);
 });
 
 test("test_the_channels_card_stands_below_the_profile_card_in_its_stack", async () => {
   await resetWithChannels([ROW({})]);
   const stack = tab().slice(tab().indexOf('<div class="card-stack'));
   const profile = stack.indexOf("mtx-profile");
-  assert.ok(profile >= 0 && profile < stack.indexOf('<div class="card-head">Channels</div>'));
+  assert.ok(profile >= 0 && profile < stack.indexOf('data-k="channels"'));
 });
 
 // --- flow rows ---------------------------------------------------------------
@@ -265,17 +263,17 @@ test("test_pipelines_are_numbered_from_one", async () => {
 
 test("test_a_pipeline_shows_its_source_channel_selected", async () => {
   await reset([ROW({ source: "3" })]);
-  assert.ok(rowsOf(tab())[0].includes('<option selected value="3">In 4</option>'));
+  assert.equal(pickedValue(channelPickers(rowsOf(tab())[0])[0]), "3");
 });
 
 test("test_a_pipeline_shows_its_output_channel_selected", async () => {
   await reset([ROW({ mixdown: "5" })]);
-  assert.ok(rowsOf(tab())[0].includes('<option selected value="5">Out 6</option>'));
+  assert.equal(pickedValue(channelPickers(rowsOf(tab())[0])[1]), "5");
 });
 
 test("test_a_stage_in_the_chain_is_rendered_as_a_chip", async () => {
   await reset([ROW({ process: "iir:type=peak;f=100;q=1;g=-3" })]);
-  assert.ok(rowsOf(tab())[0].includes("peak · 100 Hz · -3 dB"));
+  assert.equal((rowsOf(tab())[0].match(/mtx-stage/g) || []).length, 1);
 });
 
 test("test_a_row_matching_the_baseline_is_not_marked_dirty", async () => {
@@ -304,11 +302,6 @@ test("test_the_only_pipeline_cannot_be_removed", async () => {
   assert.equal(isDisabled(tool(tab(), 0, REMOVE)), true);
 });
 
-test("test_the_only_pipeline_explains_why_it_cannot_be_removed", async () => {
-  await reset([ROW({})]);
-  assert.ok(tool(tab(), 0, REMOVE).includes("At least one pipeline is required"));
-});
-
 test("test_one_of_two_pipelines_can_be_removed", async () => {
   await reset([ROW({}), ROW({ source: "1" })]);
   assert.equal(isDisabled(tool(tab(), 0, REMOVE)), false);
@@ -334,11 +327,6 @@ test("test_import_eq_is_disabled_with_no_eq_text_loaded", async () => {
   assert.equal(isDisabled(tool(tab(), 0, IMPORT)), true);
 });
 
-test("test_import_eq_says_where_to_load_eq_text_from", async () => {
-  await reset([ROW({})]);
-  assert.ok(tool(tab(), 0, IMPORT).includes("Load or paste EQ text first"));
-});
-
 test("test_export_eq_is_disabled_on_a_pipeline_with_no_parametric_eq", async () => {
   await reset([ROW({})]);
   assert.equal(isDisabled(tool(tab(), 0, EXPORT)), true);
@@ -347,11 +335,6 @@ test("test_export_eq_is_disabled_on_a_pipeline_with_no_parametric_eq", async () 
 test("test_export_eq_is_enabled_on_a_pipeline_with_a_filter_stage", async () => {
   await reset([ROW({ process: "iir:type=peak;f=100;q=1;g=-3" })]);
   assert.equal(isDisabled(tool(tab(), 0, EXPORT)), false);
-});
-
-test("test_the_raw_view_toggle_is_offered_on_every_pipeline", async () => {
-  await reset([ROW({})]);
-  assert.ok(tool(tab(), 0, RAW).includes("Edit the raw process string"));
 });
 
 test("test_an_unplotted_pipeline_shows_a_hollow_plot_toggle", async () => {
@@ -404,9 +387,14 @@ test("test_a_selection_docks_the_editor_on_its_own_row_only", async () => {
   assert.equal(rowsOf(tab())[1].includes('class="mtx-editor"'), false);
 });
 
+test("test_the_pipelines_caption_shows_with_feature_descriptions_on", async () => {
+  await resetWithChannels([ROW({})]);
+  assert.equal(captions(sectionWith(tab(), "pipelines")), 1);
+});
+
 test("test_the_pipelines_caption_hides_with_feature_descriptions_off", async () => {
-  await reset([ROW({})], { notes: false });
-  assert.equal(tab().includes("Each pipeline copies a source channel"), false);
+  await resetWithChannels([ROW({})], false);
+  assert.equal(captions(sectionWith(tab(), "pipelines")), 0);
 });
 
 // --- band strip under the response plot --------------------------------------
@@ -418,36 +406,39 @@ test("test_the_pipelines_caption_hides_with_feature_descriptions_off", async () 
 const PEAK = "iir:type=peak;f=100;q=1;g=-3";
 /** @param {string} out */
 const strip = (out) => (out.includes('class="band-strip"') ? out.slice(out.indexOf('class="band-strip"')) : "");
+// The strip's band title, and the pipeline numbers it carries. Empty while no
+// band is selected — the idle strip's caption is a different element.
+/** @param {string} out */
+const bandTitle = (out) => (/<div class="t-label mono">([^<]*)<\/div>/.exec(strip(out)) || ["", ""])[1];
+/** @param {string} out */
+const bandNumbers = (out) => (bandTitle(out).match(/\d+/g) || []).map(Number);
 
 // --- applied reference trace --------------------------------------------------
 // While the working rows differ from the daemon's file truth, the plot keeps
 // the applied response underneath as a dashed muted ghost — the line edits are
 // tuned against.
 
+/** @param {string} out */
+const ghostTraces = (out) => (out.match(/class="plot-trace ghost"/g) || []).length;
+
 test("test_an_unedited_plot_draws_no_applied_reference", async () => {
   await reset([ROW({ process: PEAK })]);
-  assert.equal(tab().includes(">1 applied<"), false);
+  assert.equal(ghostTraces(tab()), 0);
 });
 
-test("test_a_staged_edit_draws_the_applied_reference", async () => {
+test("test_a_staged_edit_draws_the_applied_reference_as_a_ghost_trace", async () => {
   await reset([ROW({ process: PEAK })]);
   await stagePipelines([ROW({ process: "iir:type=peak;f=100;q=1;g=-9" })]);
-  assert.ok(tab().includes(">1 applied<"));
+  assert.equal(ghostTraces(tab()), 1);
 });
 
-test("test_the_applied_reference_is_a_ghost_trace", async () => {
-  await reset([ROW({ process: PEAK })]);
-  await stagePipelines([ROW({ process: "iir:type=peak;f=100;q=1;g=-9" })]);
-  assert.ok(tab().includes('class="plot-trace ghost"'));
-});
-
-test("test_a_stereo_pair_reference_is_one_curve_named_for_both", async () => {
+test("test_a_stereo_pair_reference_is_a_single_curve", async () => {
   await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: PEAK })]);
   await stagePipelines([
     ROW({ process: "iir:type=peak;f=100;q=1;g=-9" }),
     ROW({ source: "1", mixdown: "1", process: "iir:type=peak;f=100;q=1;g=-9" }),
   ]);
-  assert.ok(tab().includes(">1+2 applied<"));
+  assert.equal(ghostTraces(tab()), 1);
 });
 
 test("test_the_band_strip_always_stands_under_the_plot", async () => {
@@ -455,9 +446,9 @@ test("test_the_band_strip_always_stands_under_the_plot", async () => {
   assert.ok(tab().includes('class="band-strip"'));
 });
 
-test("test_an_unselected_strip_says_how_to_pick_a_band", async () => {
+test("test_an_unselected_strip_names_no_band", async () => {
   await reset([ROW({ process: PEAK })]);
-  assert.ok(strip(tab()).includes("No band selected"));
+  assert.equal(bandTitle(tab()), "");
 });
 
 test("test_an_unselected_strip_still_shows_the_full_control_skeleton", async () => {
@@ -471,28 +462,22 @@ test("test_the_idle_skeleton_controls_are_disabled", async () => {
   assert.equal((strip(tab()).match(/disabled/g) || []).length, 6); // 3 sliders + 3 boxes
 });
 
-test("test_selecting_a_peak_fills_the_band_strip_with_controls", async () => {
+test("test_the_band_strip_names_the_pipeline_the_selected_band_runs_in", async () => {
   await reset([ROW({ process: PEAK })]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.equal(strip(tab()).includes("No band selected"), false);
-});
-
-test("test_the_band_strip_names_the_selected_band", async () => {
-  await reset([ROW({ process: PEAK })]);
-  selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes("1 · peak"));
+  assert.deepEqual(bandNumbers(tab()), [1]);
 });
 
 test("test_a_stereo_pair_band_is_named_with_both_pipelines", async () => {
   await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: PEAK })]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes("1+2 · peak"));
+  assert.deepEqual(bandNumbers(tab()), [1, 2]);
 });
 
 test("test_a_diverged_pair_band_is_named_with_its_own_pipeline_only", async () => {
   await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: "iir:type=peak;f=200;q=1;g=-3" })]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.equal(strip(tab()).includes("1+2"), false);
+  assert.deepEqual(bandNumbers(tab()), [1]);
 });
 
 // A shared band is matched by CONTENT, never by chain position: crossfeed-block
@@ -501,9 +486,11 @@ test("test_a_diverged_pair_band_is_named_with_its_own_pipeline_only", async () =
 test("test_a_twin_band_offset_behind_a_structural_stage_still_names_both", async () => {
   await reset([ROW({ process: PEAK }), ROW({ source: "1", mixdown: "1", process: `iir:type=lp1;f=1143.2,${PEAK}` })]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes("1+2"));
+  assert.deepEqual(bandNumbers(tab()), [1, 2]);
 });
 
+// Three sharers is past the point where naming each one fits, so the strip
+// reports how many there are — the count is the contract.
 test("test_a_band_shared_by_many_pipelines_names_the_count", async () => {
   await reset([
     ROW({ process: PEAK }),
@@ -511,7 +498,7 @@ test("test_a_band_shared_by_many_pipelines_names_the_count", async () => {
     ROW({ source: "0", mixdown: "0", process: `iir:type=lp1;f=1143.2,${PEAK}` }),
   ]);
   selectedStage.value = { row: 0, stage: 0 };
-  assert.ok(strip(tab()).includes("3 pipelines"));
+  assert.deepEqual(bandNumbers(tab()), [3]);
 });
 
 test("test_a_peak_offers_a_control_per_schema_argument", async () => {

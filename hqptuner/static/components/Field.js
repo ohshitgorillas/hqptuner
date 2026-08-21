@@ -75,7 +75,7 @@ function RescanButton() {
 // A segment does not — it matches its option values by string, so a `false`
 // baseline matched neither "1" nor "0" and the switch rendered with NO active
 // button at all. `bool` on the entry says "this control's value is a truth, not
-// a token": normalise it to the pair the options are written in.
+// a token": normalize it to the pair the options are written in.
 /**
  * @param {FieldEntry} entry
  * @param {string} key
@@ -291,7 +291,7 @@ export function Field({ k }) {
   const { fav, onFav } = favFor(entry) || {};
   const classes = fieldClasses(entry, k, label);
   return html`
-    <div class=${classes} title=${hoverTitle(entry, meta, reason)}>
+    <div class=${classes} data-k=${k} title=${hoverTitle(entry, meta, reason)}>
       ${label ? html`<${FieldLabel} entry=${entry} label=${label} badge=${badge} />` : null}
       <div class="control">
         <${W}

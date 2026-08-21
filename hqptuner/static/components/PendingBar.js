@@ -126,9 +126,15 @@ const switchLabel = (/** @type {string | null} */ name) => (name === null ? null
 // `warn`, so without it the in-flight note would be the only one identified by
 // the ABSENCE of a modifier — leaving `.note` the sole selector for "an apply is
 // running", which also matches all three concluded states.
-const applyingLine = (/** @type {Split} */ sp, /** @type {string | null} */ switchName) =>
-  // class-exempt: "busy" is a hook, not styling — the base .note rule paints this state.
-  html`<span class="note busy">Applying…${sp.restart || switchName ? " daemon restarting" : ""}</span>`;
+const applyingLine = (/** @type {Split} */ sp, /** @type {string | null} */ switchName) => {
+  const restarting = !!(sp.restart || switchName);
+  // "busy" and "restart" are hooks, not styling: the base .note rule paints this
+  // state, and "restart" names the sub-state the words spell out.
+  // class-exempt: hooks, not styling — see above.
+  return html`<span class=${`note busy${restarting ? " restart" : ""}`}
+    >Applying…${restarting ? " daemon restarting" : ""}</span
+  >`;
+};
 
 // What is waiting to go out, as a readable list.
 /**

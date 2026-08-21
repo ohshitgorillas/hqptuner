@@ -26,7 +26,9 @@ Violations rejected in review even if tests pass.
 
    Reason: suite once took 84 s, ~80 s of it real sleeps. Now 7 s. Test reintroducing wall-clock wait is defective even when it passes.
 
-8. **New tests must bite.** A test written for new or changed behaviour must fail against the pre-change code — a test that is green both with and without the change constrains nothing, however well-shaped it looks to the mechanical gates. The `/tests` chain enforces this with a bite check: implementation reverted to HEAD (tests kept), new tests re-run, red expected. Assertion failure is the strong result; a collection or import error only proves the test reaches the new surface. Tests with no pre-change state to fail against — characterization of existing behaviour, tests accompanying a pure refactor — are exempt, and the exemption is stated in the hand-back rather than assumed silently; mutation testing (below) covers those over time.
+8. **New tests must bite.** A test written for new or changed behavior must fail against the pre-change code — a test that is green both with and without the change constrains nothing, however well-shaped it looks to the mechanical gates. The `/tests` chain enforces this with a bite check: implementation reverted to HEAD (tests kept), new tests re-run, red expected. Assertion failure is the strong result; a collection or import error only proves the test reaches the new surface. Tests with no pre-change state to fail against — characterization of existing behavior, tests accompanying a pure refactor — are exempt, and the exemption is stated in the hand-back rather than assumed silently; mutation testing (below) covers those over time.
+
+9. **Never assert user-facing copy or a curated display list.** Labels, headings, blurbs, hints, tooltips, status lines and error text are owner-owned data, reworded at will; so are a picker's option list and a group's display order. Test the state, not the sentence announcing it: classes, attributes, disabled flags, signal values, counts and other numbers. Wire identifiers — engine names, option values, config attributes, JSON keys, CSS classes — are contract, and pinning those is correct. The test: could the owner change this string without changing behavior? Then it is copy, and it stays out of the assertion and out of the DOM selector; add a `data-testid` rather than selecting on a sentence. If nothing meaningful survives removing the wording, delete the test instead of leaving a tautology.
 
 ## Markers
 
@@ -47,7 +49,7 @@ make mutate MUTATE=hqptuner.presets.store.presets  # one module, minutes
 
 Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.
 
-Reading the result: a survivor is a question, not a defect. Three honest answers — the behaviour is untested and wants a test; the mutated line has no observable effect and the mutant is equivalent, so nothing is owed; or the line is dead and should go. Chasing a score is how a suite fills with tests written to kill mutants rather than to state behaviour, which is rule 1 violated with extra steps. Run it when a module's coverage is in doubt, not on a schedule.
+Reading the result: a survivor is a question, not a defect. Three honest answers — the behavior is untested and wants a test; the mutated line has no observable effect and the mutant is equivalent, so nothing is owed; or the line is dead and should go. Chasing a score is how a suite fills with tests written to kill mutants rather than to state behavior, which is rule 1 violated with extra steps. Run it when a module's coverage is in doubt, not on a schedule.
 
 ## Frontend
 
