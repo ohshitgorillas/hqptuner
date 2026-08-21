@@ -35,6 +35,7 @@ import assert from "node:assert/strict";
 import { reset, field, optionLabels, META } from "../support/field-harness.js";
 import { renderField } from "../support/vnodeseam.js";
 import { elements, classes, text } from "../support/markup.js";
+import { endOf, encloses, rows, rowIncluding } from "../support/comborows.js";
 import { enums } from "../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
@@ -158,9 +159,9 @@ const META_SIM_APOD_NONFILTER = {
 
 /** @param {boolean} plain */
 async function filterField(plain) {
-  const rows = plain ? SIM : STD;
-  await reset({ fields: filterFields(rows.map(([n]) => n)), meta: plain ? META_SIM : META_STD });
-  enums.value = filterEnums(rows.map(([n, arg]) => [n, arg]));
+  const fixture = plain ? SIM : STD;
+  await reset({ fields: filterFields(fixture.map(([n]) => n)), meta: plain ? META_SIM : META_STD });
+  enums.value = filterEnums(fixture.map(([n, arg]) => [n, arg]));
   nApod1x.value = "all";
   nQuality.value = 0;
   plainNames.value = plain;
@@ -184,43 +185,11 @@ const isBadge = (el) => ariaOf(el) === "Apodizing" || ariaOf(el) === "Half apodi
 /** @param {string} out */
 const badges = (out) => elements(out).filter(isBadge);
 
-/** @param {MarkupElement} el */
-const endOf = (el) => el.start + el.html.length;
-
-/**
- * Whether `a` encloses `b` in the fragment (and is not `b` itself).
- *
- * @param {MarkupElement} a
- * @param {MarkupElement} b
- */
-const encloses = (a, b) =>
-  a.start <= b.start && endOf(a) >= endOf(b) && !(a.start === b.start && a.html.length === b.html.length);
-
 /**
  * @param {string} out
  * @param {MarkupElement} box
  */
 const badgesIn = (out, box) => badges(out).filter((b) => encloses(box, b));
-
-/** The dd-opt rows of a render, in document order. */
-/** @param {string} out */
-const rows = (out) =>
-  elements(out)
-    .filter((el) => classes(el).includes("dd-opt"))
-    .sort((a, b) => a.start - b.start);
-
-/**
- * The option row whose text includes `needle`. Throws when no row does, so an
- * absence fails loudly instead of comparing against nothing.
- *
- * @param {string} out
- * @param {string} needle
- */
-function rowIncluding(out, needle) {
-  const hit = rows(out).find((el) => text(el).includes(needle));
-  if (!hit) throw new Error(`no option row reads "${needle}"`);
-  return hit;
-}
 
 /**
  * The one badge of a region; anything but exactly one match throws.

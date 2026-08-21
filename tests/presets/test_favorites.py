@@ -190,16 +190,20 @@ def test_a_file_that_is_not_our_record_reads_as_empty(tmp_path: Path, content: s
 # --- what a name list may contain --------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "names",
-    [
-        pytest.param(["alpha", 7], id="non-string"),
-        pytest.param(["alpha", None], id="null"),
-        pytest.param(["alpha", ""], id="empty-name"),
-        pytest.param([f"name-{i}" for i in range(257)], id="257-names"),
-        pytest.param(["x" * 65], id="65-char-name"),
-    ],
-)
+#: Every way a name list fails the store's own rules: a name that is not a
+#: string, a name that is empty, more than 256 names, a name over 64 characters.
+#: One list, because the rules are the store's rather than one method's — the
+#: modulator suite sweeps the same cases against `write_modulators`.
+UNSTORABLE = [
+    pytest.param(["alpha", 7], id="non-string"),
+    pytest.param(["alpha", None], id="null"),
+    pytest.param(["alpha", ""], id="empty-name"),
+    pytest.param([f"name-{i}" for i in range(257)], id="257-names"),
+    pytest.param(["x" * 65], id="65-char-name"),
+]
+
+
+@pytest.mark.parametrize("names", UNSTORABLE)
 def test_an_invalid_name_list_is_refused(tmp_path: Path, names: list[object]) -> None:
     with pytest.raises(FavoriteError):
         store_at(tmp_path).write(names)  # type: ignore[arg-type]

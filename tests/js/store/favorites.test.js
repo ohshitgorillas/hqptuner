@@ -46,7 +46,7 @@ import {
 } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { nFocus, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrow/match.js";
-import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
+import { resetFilterFacets } from "../support/filterfacets.js";
 
 const FAVORITES_MODULE = "../../../hqptuner/static/store/narrow/favorites.js";
 const LEGACY_KEY = "hqptuner.favoriteFilters";
@@ -78,40 +78,17 @@ const env = globalThis;
  * @typedef {{ label: string, value: string }} Option
  */
 
-// One `<FiltersItem/>` as the enumeration serves it (protocol.md:226); `arg`
-// bit 0 is the apodizing flag and the backend-derived field agrees with it.
-/**
- * @param {string} name
- * @param {string} description
- * @param {number} index
- * @param {number} arg
- */
-const item = (name, description, index, arg) => ({
-  index: String(index),
-  name,
-  value: String(index),
-  arg,
-  description,
-  apodizing: Boolean(arg & 1),
-});
-
 /**
  * @param {FixtureRow[]} filters
  * @returns {Option[]}
  */
 function reset(filters) {
   favoritesWire();
-  enums.value = { filters: filters.map(([name, desc, arg = 0], i) => item(name, desc, i, arg)) };
-  metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
-  resetNarrowing();
+  const options = resetFilterFacets(filters);
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;
-  return filters.map(([name], i) => ({ label: name, value: String(i) }));
+  return options;
 }
 
 // Narrowing judges every option on the facets alone: the selection the dropdown

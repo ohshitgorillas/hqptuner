@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 import test_favorites
 from fastapi.testclient import TestClient
-from test_favorites import TOO_NEW, seed, store_at
+from test_favorites import TOO_NEW, UNSTORABLE, seed, store_at
 
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError
 
@@ -109,16 +109,9 @@ def test_a_file_holding_only_filters_still_reads_its_filters(tmp_path: Path) -> 
 # --- what a modulator name list may contain -----------------------------------
 
 
-@pytest.mark.parametrize(
-    "names",
-    [
-        pytest.param(["alpha", 7], id="non-string"),
-        pytest.param(["alpha", None], id="null"),
-        pytest.param(["alpha", ""], id="empty-name"),
-        pytest.param([f"name-{i}" for i in range(257)], id="257-names"),
-        pytest.param(["x" * 65], id="65-char-name"),
-    ],
-)
+# The same sweep the filter side runs, against the same store rules: a list
+# `write` refuses is one `write_modulators` refuses.
+@pytest.mark.parametrize("names", UNSTORABLE)
 def test_an_invalid_modulator_name_list_is_refused(tmp_path: Path, names: list[object]) -> None:
     with pytest.raises(FavoriteError):
         store_at(tmp_path).write_modulators(names)  # type: ignore[arg-type]

@@ -46,7 +46,7 @@ import {
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions } from "../../../hqptuner/static/store/narrow/match.js";
-import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
+import { resetFilterFacets } from "../support/filterfacets.js";
 
 /**
  * A fixture row: filter name, its facet description, and its flags bitfield
@@ -98,25 +98,7 @@ const NON_APODIZING = "gauss-short";
 const ALL = FILTERS.map(([name]) => name);
 
 /** @returns {NarrowOption[]} */
-function reset() {
-  enums.value = {
-    filters: FILTERS.map(([name, description, arg], index) => ({
-      index: String(index),
-      name,
-      value: String(index),
-      arg,
-      description,
-      apodizing: Boolean(arg & 1),
-    })),
-  };
-  metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
-  resetNarrowing();
-  return FILTERS.map(([name], index) => ({ label: name, value: String(index) }));
-}
+const reset = () => resetFilterFacets(FILTERS);
 
 /**
  * The 1x list, as labels in enumeration order.

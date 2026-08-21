@@ -46,6 +46,15 @@ const withoutFavButton = (s) =>
     /\bdd-fav\b/.test(b.slice(0, b.indexOf(">"))) ? "" : b,
   );
 
+// The rate-tier badge is a row marking like the star, not label text, and it
+// carries its own words ("1024+") rather than only markup — so it is removed
+// WHOLE, the way the star is, instead of being left behind by a tag strip.
+/** @param {string} s */
+const withoutTierBadge = (s) =>
+  s.replace(/<span\b[^<>]*>[\s\S]*?<\/span>/g, (/** @type {string} */ t) =>
+    /\bdd-tier\b/.test(t.slice(0, t.indexOf(">"))) ? "" : t,
+  );
+
 /** @param {string} out */
 function optRows(out) {
   const src = out || "";
@@ -59,7 +68,7 @@ function optRows(out) {
     const inner = close ? rest.slice(0, close.index) : rest;
     rows.push({
       tag: open[0],
-      text: withoutFavButton(inner)
+      text: withoutTierBadge(withoutFavButton(inner))
         .replace(/<[^<>]*>/g, "")
         .trim(),
     });

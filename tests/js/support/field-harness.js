@@ -348,14 +348,16 @@ function stripApodBadges(inner) {
  */
 const opts = (out) => [
   ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] })),
-  // the favorite-heart button is a row affordance, and the apodizing badge and
-  // the dd-stars quality span row markings, not label text
+  // the favorite-heart button is a row affordance, and the apodizing badge, the
+  // dd-stars quality span and the dd-tier rate-tier badge row markings, not
+  // label text
   ...[...out.matchAll(/<div([^>]*\bclass="dd-opt[^"]*"[^>]*)>([\s\S]*?)<\/div>/g)].map((m) => ({
     a: m[1],
     label: stripApodBadges(
       m[2]
         .replace(/<button[^>]*\bdd-fav\b[^>]*>[\s\S]*?<\/button>/g, "")
-        .replace(/<span[^>]*\bdd-stars\b[^>]*>[\s\S]*?<\/span>/g, ""),
+        .replace(/<span[^>]*\bdd-stars\b[^>]*>[\s\S]*?<\/span>/g, "")
+        .replace(/<span[^>]*\bdd-tier\b[^>]*>[\s\S]*?<\/span>/g, ""),
     ).trim(),
   })),
 ];

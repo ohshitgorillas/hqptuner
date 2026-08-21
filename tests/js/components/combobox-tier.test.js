@@ -42,6 +42,16 @@ import assert from "node:assert/strict";
 import { reset, field, META } from "../support/field-harness.js";
 import { renderField, textOf } from "../support/vnodeseam.js";
 import { elements, classes, text } from "../support/markup.js";
+import {
+  encloses,
+  rows,
+  rowIncluding,
+  boxText,
+  classTokens,
+  vnodeRows,
+  clickablesIn,
+  click,
+} from "../support/comborows.js";
 import { staticWire, stagingWire, quiesce } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 import {
@@ -150,43 +160,6 @@ async function filterField() {
 
 // --- markup readers ------------------------------------------------------------
 
-/** @param {MarkupElement} el */
-const endOf = (el) => el.start + el.html.length;
-
-/**
- * Whether `a` encloses `b` in the fragment (and is not `b` itself).
- *
- * @param {MarkupElement} a
- * @param {MarkupElement} b
- */
-const encloses = (a, b) =>
-  a.start <= b.start && endOf(a) >= endOf(b) && !(a.start === b.start && a.html.length === b.html.length);
-
-/**
- * The dd-opt rows of a render, in document order.
- *
- * @param {string} out
- * @returns {MarkupElement[]}
- */
-const rows = (out) =>
-  elements(out)
-    .filter((el) => classes(el).includes("dd-opt"))
-    .sort((a, b) => a.start - b.start);
-
-/**
- * The option row whose text includes `needle`. Throws when no row does, so an
- * absence fails loudly instead of comparing against nothing.
- *
- * @param {string} out
- * @param {string} needle
- * @returns {MarkupElement}
- */
-function rowIncluding(out, needle) {
-  const hit = rows(out).find((el) => text(el).includes(needle));
-  if (!hit) throw new Error(`no option row reads "${needle}"`);
-  return hit;
-}
-
 // A rate tier as a reader sees it: a whole number of DSD multiples with a "+".
 const TIER = /^\d+\+$/;
 
@@ -230,47 +203,7 @@ function nameOf(out, row) {
   return text({ ...row, html: bare });
 }
 
-/**
- * Text a user reads off the closed combobox button — the same reader
- * combobox-plainnames.test.js uses.
- *
- * @param {string} out
- * @returns {string}
- */
-function boxText(out) {
-  const m = /<button\b[^<>]*\bclass="[^"]*\bdd-box\b[^"]*"[^<>]*>([\s\S]*?)<\/button>/.exec(out || "");
-  if (!m) throw new Error("no closed combobox button in the rendered output");
-  return m[1].replace(/<[^<>]*>/g, "").trim();
-}
-
 // --- vnode readers, for the one affordance SSR cannot click ---------------------
-
-/** @param {VNode} vnode */
-const classTokens = (vnode) => {
-  const cls = (vnode.props && (vnode.props.class || vnode.props.className)) || "";
-  return typeof cls === "string" ? cls.split(/\s+/) : [];
-};
-
-/** @param {VNode[]} seen */
-const vnodeRows = (seen) => seen.filter((v) => v && v.props && classTokens(v).includes("dd-opt"));
-
-/**
- * Every clickable vnode strictly inside a subtree (never the subtree root).
- *
- * @param {unknown} node
- * @param {VNode[]} [found]
- * @returns {VNode[]}
- */
-function clickablesIn(node, found = []) {
-  if (Array.isArray(node)) {
-    for (const kid of node) clickablesIn(kid, found);
-    return found;
-  }
-  if (!node || typeof node !== "object" || !("props" in node) || !node.props) return found;
-  const vnode = /** @type {VNode} */ (node);
-  if (typeof vnode.props.onClick === "function") found.push(vnode);
-  return clickablesIn(vnode.props.children, found);
-}
 
 /** @param {VNode} vnode */
 const favMarked = (vnode) => classTokens(vnode).includes("dd-fav");
@@ -290,10 +223,6 @@ function heart(seen, label) {
   if (hearts.length !== 1) throw new Error(`expected one heart on ${label}, found ${hearts.length}`);
   return hearts[0];
 }
-
-/** @param {VNode} vnode */
-const click = (vnode) =>
-  /** @type {(event: object) => void} */ (vnode.props.onClick)({ preventDefault() {}, stopPropagation() {} });
 
 // --- the favorite heart on a modulator row --------------------------------------
 

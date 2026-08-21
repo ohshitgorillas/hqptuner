@@ -30,6 +30,7 @@ import assert from "node:assert/strict";
 
 import { reset } from "../support/field-harness.js";
 import { renderField, textOf } from "../support/vnodeseam.js";
+import { vnodeRows, clickablesIn, click } from "../support/comborows.js";
 import { staticWire, stagingWire, quiesce } from "../support/wire.js";
 import { favoritesState, favoritesRoutes } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, isFavorite } from "../../../hqptuner/static/store/narrow/favorites.js";
@@ -89,33 +90,6 @@ async function startFilters() {
   nQuality.value = 0;
 }
 
-/** @param {VNode} vnode */
-const classTokens = (vnode) => {
-  const cls = (vnode.props && (vnode.props.class || vnode.props.className)) || "";
-  return typeof cls === "string" ? cls.split(/\s+/) : [];
-};
-
-// The dd-opt rows of one rendered field, in document order.
-/** @param {VNode[]} seen */
-const rowsOf = (seen) => seen.filter((v) => v && v.props && classTokens(v).includes("dd-opt"));
-
-// Every clickable vnode strictly inside a subtree (never the subtree root).
-/**
- * @param {unknown} node
- * @param {VNode[]} [found]
- * @returns {VNode[]}
- */
-function clickablesIn(node, found = []) {
-  if (Array.isArray(node)) {
-    for (const kid of node) clickablesIn(kid, found);
-    return found;
-  }
-  if (!node || typeof node !== "object" || !("props" in node) || !node.props) return found;
-  const vnode = /** @type {VNode} */ (node);
-  if (typeof vnode.props.onClick === "function") found.push(vnode);
-  return clickablesIn(vnode.props.children, found);
-}
-
 // The favorites marking narrowbar-fav.test.js identifies the bar's toggle by: a
 // class token, title, aria-label or star glyph naming favorites. A clickable
 // carrying none of it is some other affordance — a label wrapped in a clickable
@@ -139,16 +113,12 @@ const starsOf = (row) => clickablesIn(row.props.children).filter(favMarked);
  * @param {string} label
  */
 function star(seen, label) {
-  const row = rowsOf(seen).find((r) => textOf(r).includes(label));
+  const row = vnodeRows(seen).find((r) => textOf(r).includes(label));
   if (!row) throw new Error(`no dd-opt row labeled ${label}`);
   const stars = starsOf(row);
   if (stars.length !== 1) throw new Error(`expected one star on ${label}, found ${stars.length}`);
   return stars[0];
 }
-
-/** @param {VNode} vnode */
-const click = (vnode) =>
-  /** @type {(event: object) => void} */ (vnode.props.onClick)({ preventDefault() {}, stopPropagation() {} });
 
 // --- rendering: the star exists exactly where the fav wiring is -----------------
 
@@ -156,7 +126,7 @@ test("test_each_filter_row_carries_one_star_affordance", async () => {
   await startFilters();
   const { seen } = renderField("pcm_filter_1x");
   assert.deepEqual(
-    rowsOf(seen).map((r) => starsOf(r).length),
+    vnodeRows(seen).map((r) => starsOf(r).length),
     [1, 1],
   );
 });
@@ -165,7 +135,7 @@ test("test_a_dropdown_without_fav_wiring_renders_rows_with_no_star", async () =>
   await start(DITHER_FIELDS);
   const { seen } = renderField("pcm_dither");
   assert.deepEqual(
-    rowsOf(seen).map((r) => starsOf(r).length),
+    vnodeRows(seen).map((r) => starsOf(r).length),
     [0, 0],
   );
 });
@@ -174,7 +144,7 @@ test("test_a_dropdown_without_fav_wiring_keeps_its_row_text_bare", async () => {
   await start(DITHER_FIELDS);
   const { seen } = renderField("pcm_dither");
   assert.deepEqual(
-    rowsOf(seen).map((r) => textOf(r).trim()),
+    vnodeRows(seen).map((r) => textOf(r).trim()),
     ["TPDF", "NS9"],
   );
 });

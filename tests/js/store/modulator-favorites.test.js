@@ -52,9 +52,8 @@ import {
   toggleFavoriteModulator,
   hydrateFavorites,
 } from "../../../hqptuner/static/store/narrow/favorites.js";
-import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, favOnlyModulators } from "../../../hqptuner/static/store/narrow/match.js";
-import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
+import { resetFilterFacets } from "../support/filterfacets.js";
 
 const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
@@ -85,22 +84,7 @@ const MODULATOR_OPTIONS = options(MODULATORS);
 
 function reset() {
   favoritesWire();
-  enums.value = {
-    filters: FILTERS.map((name, i) => ({
-      index: String(i),
-      name,
-      value: String(i),
-      arg: 0,
-      description: "5/5 ⥮ Any",
-      apodizing: false,
-    })),
-  };
-  metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
-  resetNarrowing();
+  resetFilterFacets(FILTERS.map((name) => [name, "5/5 ⥮ Any"]));
   favoriteFilters.value = new Set();
   favoriteModulators.value = new Set();
   favoritesError.value = "";

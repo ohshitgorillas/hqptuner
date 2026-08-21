@@ -35,9 +35,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nFocus, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { nFocus } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrow/match.js";
-import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
+import { resetFilterFacets } from "../support/filterfacets.js";
 
 const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
@@ -64,25 +64,7 @@ const FILTERS = [
 ];
 
 /** @returns {Option[]} */
-function reset() {
-  enums.value = {
-    filters: FILTERS.map(([name, description], index) => ({
-      index: String(index),
-      name,
-      value: String(index),
-      arg: 0,
-      description,
-      apodizing: false,
-    })),
-  };
-  metadata.value = {
-    settings: {},
-    filters: { filters: {}, aliases: {} },
-    shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  };
-  resetNarrowing();
-  return FILTERS.map(([name], index) => ({ label: name, value: String(index) }));
-}
+const reset = () => resetFilterFacets(FILTERS);
 
 /** @param {Option[]} options */
 const offered = (options) => narrowOptions(options, STAGE, FIELD).map((o) => o.label);

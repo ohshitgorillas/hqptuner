@@ -35,6 +35,7 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Combobox } from "../../../hqptuner/static/components/controls/Combobox.js";
 import { reset, field, line, optionLabels } from "../support/field-harness.js";
 import { staticWire } from "../support/wire.js";
+import { boxText } from "../support/comborows.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
@@ -75,20 +76,6 @@ async function narrowedField({ favOnly = true } = {}) {
   favoritesError.value = "";
   nFavOnly.value = favOnly;
   return field("pcm_filter_1x");
-}
-
-// Text a user reads off the closed combobox button: the dd-box element's own
-// content, tags stripped, so the caret the shape draws in its own element does
-// not ride along. Cases ask what that text EQUALS: "names the filter" is only
-// half the contract, and a button reading "0 sinc-M" satisfies a contains.
-/**
- * @param {string} out
- * @returns {string}
- */
-function boxText(out) {
-  const m = /<button\b[^<>]*\bclass="[^"]*\bdd-box\b[^"]*"[^<>]*>([\s\S]*?)<\/button>/.exec(out || "");
-  if (!m) throw new Error("no closed combobox button in the rendered output");
-  return m[1].replace(/<[^<>]*>/g, "").trim();
 }
 
 /** @param {string} out */
