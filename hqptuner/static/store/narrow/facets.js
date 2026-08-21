@@ -183,11 +183,16 @@ function isHiresFamily(name) {
 // hb-xs / hb-s / hb-l halfbands, with the -2s two-stage suffix stripped first.
 //
 // A letter-coded name carries no token, so it gets an explicit entry only where
-// the filter's own description states a length in words. Two say it outright —
-// gauss-halfband-s ("Short … Gaussian"), hb-m ("Medium … half-band"). Five name
-// an extra-long ancestor: sinc-S / sinc-M / sinc-Mx are each a "Variant of
-// poly-sinc-ext2-xla", sinc-MG of poly-sinc-gauss-xl, sinc-MGa of
-// poly-sinc-gauss-xla.
+// the filter's own description states a length in words: gauss-halfband-s
+// ("Short … Gaussian") and hb-m ("Medium … half-band").
+//
+// The sinc-S / sinc-M / sinc-Mx / sinc-MG / sinc-MGa descriptions each end in a
+// "Variant of poly-sinc-ext2-xla" style reference, which names the filter
+// family and not the length — Signalyst places sinc-S and sinc-M(x) in the ext2
+// family and sinc-MG(a) in the gauss family. So the reference classifies none of
+// them. sinc-S is short by its own length letter, the same S/m/l the rest of the
+// sinc set uses; the M names carry no length letter and state only a tap count,
+// so they read "" like the sinc-L series.
 //
 // Everything else reads "", the same answer `phase` gives. Tap count is a
 // filter SPECIFICATION, so a description stating only a tap multiplier
@@ -195,11 +200,7 @@ function isHiresFamily(name) {
 // interpolators, minringFIR) yields no length rather than a plausible one.
 /** @type {Record<string, string>} */
 const LENGTH_OVERRIDES = {
-  "sinc-S": "xlong",
-  "sinc-M": "xlong",
-  "sinc-Mx": "xlong",
-  "sinc-MG": "xlong",
-  "sinc-MGa": "xlong",
+  "sinc-S": "short",
   "poly-sinc-gauss-halfband-s": "short",
   "poly-sinc-hb-m": "medium",
 };

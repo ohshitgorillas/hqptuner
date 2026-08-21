@@ -181,11 +181,13 @@ test("test_an_xl_suffixed_name_renders_an_extra_long_length_row", () => {
   assert.deepEqual(row("poly-sinc-ext3-xl", "Length"), ["Length", "Extra long"]);
 });
 
-// sinc-M carries no length token at all: its xlong class comes from the fixed
-// per-name override table.
-test("test_an_override_table_name_renders_its_extra_long_length_row", () => {
-  seed([{ name: "sinc-M", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("sinc-M", "Length"), ["Length", "Extra long"]);
+// sinc-S carries no -short suffix: its short class comes from the fixed
+// per-name override table, keyed on the S length letter the sinc set uses
+// (Ls/Lm/Ll). Its "Variant of poly-sinc-ext2-xla" reference names the family,
+// not the length, so the ancestor's -xla classifies nothing here.
+test("test_an_override_table_name_renders_its_short_length_row", () => {
+  seed([{ name: "sinc-S", description: "4/5 ⥮ Any" }]);
+  assert.deepEqual(row("sinc-S", "Length"), ["Length", "Short"]);
 });
 
 test("test_an_any_genre_filter_renders_all_genres", () => {
@@ -239,6 +241,17 @@ test("test_a_name_without_length_tokens_renders_no_length_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
   assert.equal(rowKeys("gauss-plain").includes("Length"), false);
 });
+
+// The sinc-M set states a tap count and no length letter, and the "Variant of
+// poly-sinc-ext2-xla" / "poly-sinc-gauss-xl(a)" reference each name carries
+// names the filter family, not the length. Nothing classifies them, so the tip
+// carries no Length row for any of them.
+for (const name of ["sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
+  test(`test_${name.replace(/-/g, "_")}_renders_no_length_row`, () => {
+    seed([{ name, description: "4/5 ⥮ Any" }]);
+    assert.equal(rowKeys(name).includes("Length"), false);
+  });
+}
 
 // The regression guard on that fix: the fallback used to cover a name that says
 // medium by accident, and removing it must not cost such a name its own value.

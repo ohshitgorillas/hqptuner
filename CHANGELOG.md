@@ -18,9 +18,13 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Polyphase sinc variants list Gaussian second.** The Simplified filter dropdowns order the family base, Gaussian, extended response, extended response 2, extreme roll-off, half-band, Gaussian half-band, then the MQA and MP3 pair. The two Gaussian groups, previously split by half-band, now sit together.
 
+- **Pure sinc splits its base group by rate flexibility.** The five sinc-L filters become the family base, and sinc-short through sinc-long-h form a Rate-flexible variant captioned "Capable of any rate change at the cost of a higher processing load", replacing the Adaptive length grouping that described every entry in the family. sinc-S reads as Short, sinc-M as Constant length.
+
 - **The quality facet defaults to Any quality.** With each row's rating visible at a glance, the 3/5 floor no longer guards the first look at the menu; a fresh narrow bar starts unnarrowed and only an explicit floor narrows.
 
 ### Fixed
+
+- **The length facet no longer reads sinc-S and the sinc-M set as extra long.** Their descriptions name an ext2-xla or gauss-xl variant, which states the filter family rather than a length; sinc-S narrows as short, and sinc-M, sinc-Mx, sinc-MG and sinc-MGa carry no length, like the rest of the family documented by tap count alone.
 
 - **The half-band blurb says the response reaches the cutoff.** It read "reaches close to the cutoff", understating where the corner actually sits.
 

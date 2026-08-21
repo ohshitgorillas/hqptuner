@@ -8,9 +8,9 @@
 // runtime input. Where the description states no length, the bucket is "" and
 // not a plausible guess: a tap count ("4096 x conversion ratio", "131070 x
 // conversion ratio", a stated number of taps) is a filter SPECIFICATION, never
-// converted into a length bucket. That is what separates `sinc-M` (its
-// description names an xl/xla ancestor, so "xlong") from `sinc-L` (a tap
-// multiplier only, so "").
+// converted into a length bucket. That is what separates `poly-sinc-gauss-xl`
+// (an xl suffix in the name itself, so "xlong") from `sinc-L` (a tap multiplier
+// only, so "").
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no
 // snapshots. Live enum items are hand-built in the engine's own shape
@@ -73,20 +73,29 @@ function seed(names) {
 /** @param {string} name */
 const lengthOf = (name) => filterFacets.value[name].length;
 
-// --- letter-coded names with an extra-long ancestor --------------------------
-// `sinc-S` is "Variant of poly-sinc-ext2-xla"; the sinc-M family each name an
-// xl or xla ancestor. The names themselves carry no length token.
+// --- the sinc set's letter is a length letter --------------------------------
+// `sinc-S`'s description ends "Variant of poly-sinc-ext2-xla", which names the
+// ext2 FAMILY, not a length; per Signalyst the sinc set's letters follow its
+// short/medium/long lengths, matching the Ls/Lm/Ll pattern. So the S is short.
 
-for (const name of ["sinc-S", "sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
-  test(`test_${name.replace(/-/g, "_")}_classifies_as_xlong`, () => {
-    seed([name]);
-    assert.equal(lengthOf(name), "xlong");
-  });
-}
+test("test_sinc_S_classifies_as_short", () => {
+  seed(["sinc-S"]);
+  assert.equal(lengthOf("sinc-S"), "short");
+});
 
 // --- names documented by tap count only --------------------------------------
 // The sinc-L family is documented by a tap multiplier, the closed-form pair by
-// a tap count. Taps are a filter specification: never a bucket.
+// a tap count. Taps are a filter specification: never a bucket. The sinc-M set
+// lands here too: its M marks the million-tap form, and the "Variant of
+// poly-sinc-ext2-xla" / "poly-sinc-gauss-xl(a)" reference each name carries
+// states the family, not a length, so nothing classifies them.
+
+for (const name of ["sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
+  test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {
+    seed([name]);
+    assert.equal(lengthOf(name), "");
+  });
+}
 
 for (const name of ["sinc-L", "sinc-Ls", "sinc-Lm", "sinc-Ll", "sinc-Lh"]) {
   test(`test_${name.replace(/-/g, "_")}_has_no_length`, () => {

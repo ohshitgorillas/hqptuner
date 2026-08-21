@@ -19,10 +19,10 @@
     "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response at the cutoff",
     "Polyphase sinc|Half-band": "Response reaches the cutoff; for clean, well-mastered sources",
     "Polyphase sinc|MQA and MP3": "Tailored for lossy sources",
-    "Pure sinc|Adaptive length": "Filter length adapts to the conversion for consistency",
     "Pure sinc|Base": "The family's base form",
     "Pure sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
-    "Pure sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients"
+    "Pure sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients",
+    "Pure sinc|Rate-flexible": "Capable of any rate change at the cost of a higher processing load"
   },
   "filters": {
     "poly-sinc-mp": {
@@ -403,89 +403,68 @@
       "short": "Poly-sinc · MQA/MP3 · Linear",
       "apod": "full"
     },
-    "sinc-short": {
+    "sinc-Ls": {
       "family": "Pure sinc",
       "variant": "Base",
       "leaf": "Short",
       "short": "Sinc · Short",
       "apod": "none"
     },
-    "sinc-medium": {
+    "sinc-Lm": {
       "family": "Pure sinc",
       "variant": "Base",
       "leaf": "Medium",
       "short": "Sinc · Medium",
       "apod": "none"
     },
-    "sinc-long": {
+    "sinc-Ll": {
       "family": "Pure sinc",
       "variant": "Base",
       "leaf": "Long",
       "short": "Sinc · Long",
       "apod": "none"
     },
-    "sinc-long-h": {
+    "sinc-Lh": {
       "family": "Pure sinc",
       "variant": "Base",
       "leaf": "Long length, high attenuation",
       "short": "Sinc · Long length, high attenuation",
       "apod": "none"
     },
-    "sinc-Ls": {
-      "family": "Pure sinc",
-      "variant": "Adaptive length",
-      "leaf": "Short",
-      "short": "Sinc · Adaptive length · Short",
-      "apod": "none"
-    },
-    "sinc-Lm": {
-      "family": "Pure sinc",
-      "variant": "Adaptive length",
-      "leaf": "Medium",
-      "short": "Sinc · Adaptive length · Medium",
-      "apod": "none"
-    },
-    "sinc-Lh": {
-      "family": "Pure sinc",
-      "variant": "Adaptive length",
-      "leaf": "Medium length, high attenuation",
-      "short": "Sinc · Adaptive length · Medium length, high attenuation",
-      "apod": "none"
-    },
-    "sinc-Ll": {
-      "family": "Pure sinc",
-      "variant": "Adaptive length",
-      "leaf": "Long",
-      "short": "Sinc · Adaptive length · Long",
-      "apod": "none"
-    },
     "sinc-L": {
       "family": "Pure sinc",
-      "variant": "Adaptive length",
+      "variant": "Base",
       "leaf": "Extra-long",
-      "short": "Sinc · Adaptive length · X-long",
+      "short": "Sinc · X-long",
       "apod": "none"
     },
-    "sinc-S": {
+    "sinc-short": {
       "family": "Pure sinc",
-      "variant": "Extended frequency response 2",
-      "leaf": "Adaptive length",
-      "short": "Sinc · Ext2 · Adaptive length",
-      "apod": "full"
+      "variant": "Rate-flexible",
+      "leaf": "Short",
+      "short": "Sinc · Rate-flexible · Short",
+      "apod": "none"
     },
-    "sinc-M": {
+    "sinc-medium": {
       "family": "Pure sinc",
-      "variant": "Extended frequency response 2",
-      "leaf": "One million taps",
-      "short": "Sinc · Ext2 · 1M taps",
-      "apod": "full"
+      "variant": "Rate-flexible",
+      "leaf": "Medium",
+      "short": "Sinc · Rate-flexible · Medium",
+      "apod": "none"
     },
-    "sinc-Mx": {
+    "sinc-long": {
       "family": "Pure sinc",
-      "variant": "Extended frequency response 2",
-      "leaf": "Constant time",
-      "short": "Sinc · Ext2 · Constant time",
-      "apod": "full"
+      "variant": "Rate-flexible",
+      "leaf": "Long",
+      "short": "Sinc · Rate-flexible · Long",
+      "apod": "none"
+    },
+    "sinc-long-h": {
+      "family": "Pure sinc",
+      "variant": "Rate-flexible",
+      "leaf": "Long length, high attenuation",
+      "short": "Sinc · Rate-flexible · Long length, high attenuation",
+      "apod": "none"
     },
     "sinc-MG": {
       "family": "Pure sinc",
@@ -499,6 +478,27 @@
       "variant": "Gaussian",
       "leaf": "Constant time",
       "short": "Sinc · Gauss · Constant time, apod",
+      "apod": "full"
+    },
+    "sinc-S": {
+      "family": "Pure sinc",
+      "variant": "Extended frequency response 2",
+      "leaf": "Short",
+      "short": "Sinc · Ext2 · Short",
+      "apod": "full"
+    },
+    "sinc-M": {
+      "family": "Pure sinc",
+      "variant": "Extended frequency response 2",
+      "leaf": "Constant length",
+      "short": "Sinc · Ext2 · Constant length",
+      "apod": "full"
+    },
+    "sinc-Mx": {
+      "family": "Pure sinc",
+      "variant": "Extended frequency response 2",
+      "leaf": "Constant time",
+      "short": "Sinc · Ext2 · Constant time",
       "apod": "full"
     },
     "closed-form": {
