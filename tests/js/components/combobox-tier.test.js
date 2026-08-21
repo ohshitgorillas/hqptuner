@@ -59,6 +59,7 @@ import {
   favoriteModulators,
   favoritesError,
   isFavoriteModulator,
+  nFavOnly,
 } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
@@ -119,6 +120,11 @@ const META_TIERS = {
 };
 
 /** @type {ConfigField[]} */
+// The third option is a FLOORED MODULATOR'S NAME offered as a filter. It is not
+// a filter anyone ships; it is the fixture that makes the filter cases bite. A
+// badge helper that looks every row's label up in `shapers.sdm_modulators` with
+// no gate on which dropdown it is decorating finds 10240000 here and badges the
+// row, and the two filter overlay floors below catch the other wrong lookup.
 const FILTER_FIELDS = [
   {
     name: "filter1x",
@@ -126,6 +132,7 @@ const FILTER_FIELDS = [
     options: [
       { value: "0", label: "sinc-M" },
       { value: "1", label: "poly-sinc-xtr-mp" },
+      { value: "2", label: "DSD7 256+fs" },
     ],
   },
 ];
@@ -286,16 +293,27 @@ test("test_a_modulator_with_no_minimum_rate_wears_no_tier_badge", async () => {
   assert.deepEqual(tiersIn(out, row), []);
 });
 
-test("test_a_filter_row_wears_no_tier_badge", async () => {
-  const out = await filterField();
-  assert.deepEqual(tiersIn(out, rowIncluding(out, "sinc-M")), []);
-});
-
 test("test_no_filter_row_wears_a_tier_badge", async () => {
   const out = await filterField();
   assert.deepEqual(
     rows(out).map((r) => tiersIn(out, r).length),
-    [0, 0],
+    [0, 0, 0],
+  );
+});
+
+// --- favorites-only narrowing reaches the modulator dropdown -----------------------
+// The store-side rule is pinned in tests/js/store/modulator-favorites.test.js;
+// this is the case that fails when the dropdown never asks. A component that
+// renders its option list untouched offers all five rows here.
+
+test("test_favorites_only_leaves_the_modulator_dropdown_offering_the_starred_rows", async () => {
+  await start(MODULATOR_FIELDS);
+  favoriteModulators.value = new Set(["ASDM7"]);
+  nFavOnly.value = true;
+  const out = field("sdm_modulator");
+  assert.deepEqual(
+    rows(out).map((r) => nameOf(out, r)),
+    ["ASDM7"],
   );
 });
 

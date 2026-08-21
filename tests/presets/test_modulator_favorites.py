@@ -40,6 +40,10 @@ from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError
 favorites_api = test_favorites.favorites_api
 fav_client = test_favorites.fav_client
 
+#: The layout number on the favorites file, unchanged by this feature and
+#: therefore the number an older HQPTuner expects to find there.
+SCHEMA = 1
+
 MODULATORS = ["ASDM7EC", "DSD7 256+fs"]
 
 FILTERS = ["poly-sinc-gauss-long", "sinc-M"]
@@ -155,17 +159,16 @@ def test_an_unstamped_file_has_its_modulators_read_rather_than_refused(tmp_path:
     assert store_at(tmp_path).read_modulators() == ["alpha"]
 
 
-# The stamp this feature must not move: a modulator write puts the same number
-# on the file a filter write puts, so a file either version wrote is one both
-# versions read. Lifted off two files written by the two methods and compared,
-# rather than compared against a literal this suite would have to guess.
-def test_a_modulator_write_stamps_the_file_the_way_a_filter_write_does(tmp_path: Path) -> None:
-    by_filter = tmp_path / "filters"
-    by_filter.mkdir()
-    store_at(by_filter).write(["alpha"])
+# The stamp this feature must not move. Adding a second member to the file was
+# deliberately NOT a layout change: an HQPTuner built before this feature still
+# reads a file this one wrote, because the number on it is the one it has always
+# been. Pinned as a LITERAL, because a stamp lifted off a file this same build
+# wrote is this build agreeing with itself — a feature that bumped the number
+# for every write at once would keep such a test green while every older build
+# started refusing the file.
+def test_a_modulator_write_leaves_the_layout_stamp_where_older_builds_read_it(tmp_path: Path) -> None:
     store_at(tmp_path).write_modulators(["alpha"])
-    stamp = json.loads((by_filter / "favorites.json").read_text())["schema"]
-    assert json.loads((tmp_path / "favorites.json").read_text())["schema"] == stamp
+    assert json.loads((tmp_path / "favorites.json").read_text())["schema"] == SCHEMA
 
 
 # --- the REST pair ------------------------------------------------------------
@@ -219,14 +222,17 @@ def test_a_put_carrying_only_modulators_leaves_the_stored_filters_alone(fav_clie
     assert fav_client.get("/api/favorites").json()["filters"] == sorted(FILTERS)
 
 
+# Read back through a fresh GET rather than off the PUT's own answer: a route
+# that normalizes the body, echoes it and stores nothing satisfies its own
+# response, and "stores" is the word these two cases are making good on.
 def test_a_put_carrying_both_lists_stores_the_modulator_one(fav_client: TestClient) -> None:
-    answer = fav_client.put("/api/favorites", json={"filters": FILTERS, "modulators": MODULATORS})
-    assert answer.json()["modulators"] == sorted(MODULATORS)
+    fav_client.put("/api/favorites", json={"filters": FILTERS, "modulators": MODULATORS})
+    assert fav_client.get("/api/favorites").json()["modulators"] == sorted(MODULATORS)
 
 
 def test_a_put_carrying_both_lists_stores_the_filter_one(fav_client: TestClient) -> None:
-    answer = fav_client.put("/api/favorites", json={"filters": FILTERS, "modulators": MODULATORS})
-    assert answer.json()["filters"] == sorted(FILTERS)
+    fav_client.put("/api/favorites", json={"filters": FILTERS, "modulators": MODULATORS})
+    assert fav_client.get("/api/favorites").json()["filters"] == sorted(FILTERS)
 
 
 @pytest.mark.parametrize(

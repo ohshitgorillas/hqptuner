@@ -58,6 +58,18 @@ const env = globalThis;
 /** @param {unknown} names @returns {string[]} */
 const normalize = (names) => [...new Set(Array.isArray(names) ? names.map(String) : [])].sort();
 
+// A PUT has to name at least one of the two sets. A body naming NEITHER is not
+// a write at all and the real route refuses it, so the fake refuses it too
+// (tests/presets/test_modulator_favorites.py::test_a_put_naming_neither_set_answers_422).
+/**
+ * @param {string | undefined} body
+ * @returns {boolean}
+ */
+const namesASet = (body) => {
+  const sent = JSON.parse(String(body));
+  return Array.isArray(sent.filters) || Array.isArray(sent.modulators);
+};
+
 // A PUT replaces every set its body carries and leaves the rest alone: an
 // absent member means "leave that set alone", never "empty it".
 /**
@@ -70,6 +82,11 @@ function store(w, body) {
   if (Array.isArray(sent.filters)) w.filters = normalize(sent.filters);
   if (Array.isArray(sent.modulators)) w.modulators = normalize(sent.modulators);
 }
+
+// The status the route answers a body naming neither set, and the shape of
+// sentence it carries with it.
+const UNPROCESSABLE = 422;
+const NOTHING_NAMED = "A favorites write names filters, modulators or both.";
 
 /**
  * The PUT bodies a wire was handed, newest last, each as its `filters` member.
@@ -133,6 +150,7 @@ export function favoritesWire(cfg = {}) {
   const answer = (method, body) => {
     if (method === "PUT") {
       if (c.putStatus !== 200) return bad(c.putStatus, c.putDetail);
+      if (!namesASet(body)) return bad(UNPROCESSABLE, NOTHING_NAMED);
       store(w, body);
       return ok({ filters: w.filters, modulators: w.modulators });
     }
@@ -162,6 +180,7 @@ export const favoritesRoutes =
     if (path !== "/api/favorites") return undefined;
     const method = opts.method || "GET";
     w.calls.push({ path, method, body: opts.body });
+    if (method === "PUT" && !namesASet(opts.body)) return bad(UNPROCESSABLE, NOTHING_NAMED);
     if (method === "PUT") store(w, opts.body);
     return ok({ filters: w.filters, modulators: w.modulators });
   };

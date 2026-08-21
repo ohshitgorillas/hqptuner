@@ -160,18 +160,22 @@ test("test_a_modulator_toggle_that_unstars_puts_the_set_without_that_name", asyn
 // A modulator toggle must not carry a filter list the server would then store:
 // the two sets are replaced independently, and a body naming both would make a
 // modulator star overwrite whatever another tab starred.
+//
+// The PUT COUNT rides in the same assertion as the absent member, because an
+// absent member and an absent request look identical through `at(-1)`: a toggle
+// that sent nothing at all would satisfy "sent no filter list" on a technicality.
 test("test_a_modulator_toggle_sends_no_filter_list", async () => {
   reset();
   const w = favoritesWire();
   await toggleFavoriteModulator("ASDM7");
-  assert.equal(puts(w).at(-1), undefined);
+  assert.deepEqual([puts(w).length, puts(w).at(-1)], [1, undefined]);
 });
 
 test("test_a_filter_toggle_sends_no_modulator_list", async () => {
   reset();
   const w = favoritesWire();
   await toggleFavorite("gauss-a");
-  assert.equal(modulatorPuts(w).at(-1), undefined);
+  assert.deepEqual([modulatorPuts(w).length, modulatorPuts(w).at(-1)], [1, undefined]);
 });
 
 // --- a refused save ----------------------------------------------------------------
@@ -215,7 +219,7 @@ test("test_hydration_fills_the_modulator_set_from_the_server", async () => {
   assert.deepEqual([...favoriteModulators.value].sort(), ["AHM5EC5L", "ASDM7"]);
 });
 
-test("test_hydration_fills_the_two_sets_from_their_own_members", async () => {
+test("test_hydration_fills_the_filter_set_from_the_filters_member", async () => {
   reset();
   favoritesWire({ filters: ["gauss-b"], modulators: ["ASDM7"] });
   await hydrateFavorites();
