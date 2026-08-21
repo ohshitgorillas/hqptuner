@@ -28,6 +28,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
+- **The filter dropdown no longer carries dead space past the heart.** Pulling the heart in toward the stars left an equal empty margin at the row's right edge, widening the open list for nothing. The list is that much narrower now, with every label, badge, star and heart holding the position it had.
+
 - **The favorite heart sits beside the stars rather than a wide gap away.** The five-star box holds one width whatever the rating, so a shorter run left the heart stranded past the empty remainder. The heart now sits in that space, and the badge column and star run hold the columns they had.
 
 - **Simplified dropdown rows line up under the group they belong to.** Header text, group blurb and option rows share one left edge per nesting level, with a single indent step between family and variant, and the apodizing badge, stars and heart hold fixed columns down the list instead of trailing labels of every length.

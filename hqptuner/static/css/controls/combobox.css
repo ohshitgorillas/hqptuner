@@ -241,12 +241,12 @@ button.dd-hdr[aria-expanded="false"]::before {
   margin-left: 0;
 }
 /* The star box is a five-star box whatever the rating, so a shorter run leaves
-   dead space at its right edge. The heart slides left into that space by an
-   equal pair of margins: the cluster's total width is unchanged, so the badge
-   column and the star run keep the exact x they had. */
+   dead space at its right edge. The heart slides left into that space by a
+   negative margin; nothing pads it back out on the right, so the pop's
+   shrink-to-fit width loses the same amount rather than carrying it as dead
+   space past the heart. */
 .dd-stars ~ .dd-fav {
   margin-left: calc(var(--fs-label) * -1.4);
-  margin-right: calc(var(--fs-label) * 1.4);
 }
 /* A badge hoisted onto a uniform group's header names the header, so it stays
    beside the text rather than flying to the row's right edge. */
