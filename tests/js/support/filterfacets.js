@@ -41,7 +41,7 @@ import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
  *
  * @returns {import("../../../hqptuner/static/store/prose.js").Metadata}
  */
-export const bareMetadata = () => ({
+const bareMetadata = () => ({
   settings: {},
   filters: { filters: {}, aliases: {} },
   shapers: { pcm_dithers: {}, sdm_modulators: {} },
