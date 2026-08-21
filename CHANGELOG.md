@@ -14,7 +14,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Simplified dither and modulator dropdowns caption every family.** A one-line blurb under each header says what the group covers, and the modulator sections caption their fifth and seventh order groups as well, so picking Noise shaping or Adaptive no longer requires knowing the terms.
 
-- **Engine health charts apodizing events over time.** A strip under the meters plots how thickly events fall across recent playback, scrolling right to left, so a burst in an opening section reads differently from ten events spread across a track. The time axis covers 30 seconds to 5 minutes or the whole track, and the strip appears only once a track logs an event.
+- **Engine health charts apodizing events over time.** A strip under the meters plots how thickly events fall across recent playback, scrolling right to left, so a burst in an opening section reads differently from ten events spread across a track. The time axis covers 30 seconds to 5 minutes or everything recorded, and the strip appears only once a track logs an event.
 
 ### Changed
 

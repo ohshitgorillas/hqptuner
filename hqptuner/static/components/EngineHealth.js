@@ -190,8 +190,8 @@ const TICK_MS = { 30: 10000, 60: 15000, 120: 30000, 300: 60000 };
 function tickFor(span) {
   const fixed = TICK_MS[/** @type {keyof TICK_MS} */ (Math.round(span / 1000))];
   if (fixed) return fixed;
-  // A whole-track span is whatever the track has run to, so its divisions come
-  // off the same ladder rather than a formula nobody can predict.
+  // A whole-history span is whatever the strip has recorded, so its divisions
+  // come off the same ladder rather than a formula nobody can predict.
   if (span <= 60000) return 15000;
   if (span <= 180000) return 30000;
   return 60000;
@@ -199,14 +199,19 @@ function tickFor(span) {
 
 /**
  * How far back the left edge reaches, said in the units the reader picked. The
- * whole-track window is not a duration the reader chose, so it names where the
+ * whole-history window is not a duration the reader chose, so it names where the
  * field begins instead of how long ago that was.
+ *
+ * It does not name a TRACK boundary: on a Roon source the daemon carries one
+ * endless stream, whose serial, position and apodizing counter run straight
+ * through a change of song, so the history the strip holds began wherever the
+ * last boundary the daemon actually reported fell (measured on the wire).
  * @param {number} span
  * @param {string} window
  * @returns {string}
  */
 const spanLabel = (span, window) => {
-  if (window === "all") return "track start";
+  if (window === "all") return "start";
   return span < 60000 ? `${Math.round(span / 1000)} s ago` : `${Math.round(span / 60000)} min ago`;
 };
 
@@ -229,7 +234,7 @@ const WINDOW_OPTIONS = [
   { value: "60", label: "1 min" },
   { value: "120", label: "2 min" },
   { value: "300", label: "5 min" },
-  { value: "all", label: "Track" },
+  { value: "all", label: "All" },
 ];
 
 // The key reads the same ramp the columns do, so the swatches are not an
