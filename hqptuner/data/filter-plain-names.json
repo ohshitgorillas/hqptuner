@@ -2,7 +2,7 @@
   "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (67 PCM, 77 SDM, 84 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null where the family has no variants), leaf label. Leaf labels unique within their variant except that an apodizing filter may share its non-apodizing peer's leaf, distinguished by `apod`; composed family+variant+leaf+apod unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
   "families": {
     "Polyphase sinc": "The most variety and flexibility",
-    "Pure sinc": "Very long brute force filters",
+    "Pure sinc": "Brute force filters",
     "Closed form": "Direct interpolation maintains original samples",
     "Analog-style": "Analog-like behavior; no pre-ringing, long post-ringing",
     "Classic oversampling": "The filter type found in most DACs",
@@ -15,14 +15,14 @@
     "Polyphase sinc|Extended frequency response": "Keeps response wide while fully cutting off at the limit",
     "Polyphase sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
     "Polyphase sinc|Extreme roll-off and attenuation": "Steepest cutoff and strongest suppression",
-    "Polyphase sinc|Gaussian": "Best balance of time and frequency accuracy, cleanest transients",
-    "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response reaching the cutoff",
+    "Polyphase sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients",
+    "Polyphase sinc|Gaussian half-band": "Gaussian character with a slightly leaky response at the cutoff",
     "Polyphase sinc|Half-band": "Response reaches the cutoff; for clean, well-mastered sources",
     "Polyphase sinc|MQA and MP3": "Tailored for lossy sources",
     "Pure sinc|Adaptive length": "Filter length adapts to the conversion for consistency",
     "Pure sinc|Base": "The family's base form",
     "Pure sinc|Extended frequency response 2": "Sharper version of extended response, stronger suppression above the audio band",
-    "Pure sinc|Gaussian": "Best balance of time and frequency accuracy, cleanest transients"
+    "Pure sinc|Gaussian": "Best balance of time and frequency accuracy; cleanest transients"
   },
   "filters": {
     "poly-sinc-mp": {
@@ -123,75 +123,61 @@
       "short": "Poly-sinc · Long linear, 2-stage",
       "apod": "full"
     },
-    "poly-sinc-hb": {
+    "poly-sinc-gauss-short": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Linear phase",
-      "short": "Poly-sinc · Half-band · Linear",
-      "apod": "none"
-    },
-    "poly-sinc-hb-xs": {
-      "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Extra-short linear phase",
-      "short": "Poly-sinc · Half-band · X-short linear",
-      "apod": "none"
-    },
-    "poly-sinc-hb-s": {
-      "family": "Polyphase sinc",
-      "variant": "Half-band",
+      "variant": "Gaussian",
       "leaf": "Short linear phase",
-      "short": "Poly-sinc · Half-band · Short linear",
-      "apod": "none"
+      "short": "Poly-sinc · Gauss · Short linear",
+      "apod": "half"
     },
-    "poly-sinc-hb-m": {
+    "poly-sinc-gauss-medium": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
+      "variant": "Gaussian",
       "leaf": "Medium linear phase",
-      "short": "Poly-sinc · Half-band · Medium linear",
-      "apod": "none"
+      "short": "Poly-sinc · Gauss · Medium linear",
+      "apod": "full"
     },
-    "poly-sinc-hb-l": {
+    "poly-sinc-gauss-long": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
+      "variant": "Gaussian",
       "leaf": "Long linear phase",
-      "short": "Poly-sinc · Half-band · Long linear",
+      "short": "Poly-sinc · Gauss · Long linear",
+      "apod": "full"
+    },
+    "poly-sinc-gauss-xl": {
+      "family": "Polyphase sinc",
+      "variant": "Gaussian",
+      "leaf": "Extra-long linear phase",
+      "short": "Poly-sinc · Gauss · X-long linear",
       "apod": "none"
     },
-    "poly-sinc-hb-2s": {
+    "poly-sinc-gauss-xla": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Linear phase, two-stage",
-      "short": "Poly-sinc · Half-band · Linear, 2-stage",
-      "apod": "none"
+      "variant": "Gaussian",
+      "leaf": "Extra-long linear phase",
+      "short": "Poly-sinc · Gauss · X-long linear, apod",
+      "apod": "full"
     },
-    "poly-sinc-hb-xs-2s": {
+    "poly-sinc-gauss-hires-mp": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Extra-short linear phase, two-stage",
-      "short": "Poly-sinc · Half-band · X-short linear, 2-stage",
-      "apod": "none"
+      "variant": "Gaussian",
+      "leaf": "Minimum phase, hi-res",
+      "short": "Poly-sinc · Gauss · Hi-res minimum",
+      "apod": "full"
     },
-    "poly-sinc-hb-s-2s": {
+    "poly-sinc-gauss-hires-ip": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Short linear phase, two-stage",
-      "short": "Poly-sinc · Half-band · Short linear, 2-stage",
-      "apod": "none"
+      "variant": "Gaussian",
+      "leaf": "Intermediate phase, hi-res",
+      "short": "Poly-sinc · Gauss · Hi-res intermediate",
+      "apod": "full"
     },
-    "poly-sinc-hb-m-2s": {
+    "poly-sinc-gauss-hires-lp": {
       "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Medium linear phase, two-stage",
-      "short": "Poly-sinc · Half-band · Medium linear, 2-stage",
-      "apod": "none"
-    },
-    "poly-sinc-hb-l-2s": {
-      "family": "Polyphase sinc",
-      "variant": "Half-band",
-      "leaf": "Long linear phase, two-stage",
-      "short": "Poly-sinc · Half-band · Long linear, 2-stage",
-      "apod": "none"
+      "variant": "Gaussian",
+      "leaf": "Linear phase, hi-res",
+      "short": "Poly-sinc · Gauss · Hi-res linear",
+      "apod": "full"
     },
     "poly-sinc-ext": {
       "family": "Polyphase sinc",
@@ -263,20 +249,6 @@
       "short": "Poly-sinc · Ext2 · Hi-res linear",
       "apod": "full"
     },
-    "poly-sinc-mqa/mp3-mp": {
-      "family": "Polyphase sinc",
-      "variant": "MQA and MP3",
-      "leaf": "Minimum phase",
-      "short": "Poly-sinc · MQA/MP3 · Minimum",
-      "apod": "full"
-    },
-    "poly-sinc-mqa/mp3-lp": {
-      "family": "Polyphase sinc",
-      "variant": "MQA and MP3",
-      "leaf": "Linear phase",
-      "short": "Poly-sinc · MQA/MP3 · Linear",
-      "apod": "full"
-    },
     "poly-sinc-xtr-mp": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
@@ -333,40 +305,75 @@
       "short": "Poly-sinc · Xtr · Short linear, 2-stage",
       "apod": "full"
     },
-    "poly-sinc-gauss-short": {
+    "poly-sinc-hb": {
       "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Short linear phase",
-      "short": "Poly-sinc · Gauss · Short linear",
-      "apod": "half"
-    },
-    "poly-sinc-gauss-medium": {
-      "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Medium linear phase",
-      "short": "Poly-sinc · Gauss · Medium linear",
-      "apod": "full"
-    },
-    "poly-sinc-gauss-long": {
-      "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Long linear phase",
-      "short": "Poly-sinc · Gauss · Long linear",
-      "apod": "full"
-    },
-    "poly-sinc-gauss-xl": {
-      "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Extra-long linear phase",
-      "short": "Poly-sinc · Gauss · X-long linear",
+      "variant": "Half-band",
+      "leaf": "Linear phase",
+      "short": "Poly-sinc · Half-band · Linear",
       "apod": "none"
     },
-    "poly-sinc-gauss-xla": {
+    "poly-sinc-hb-xs": {
       "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Extra-long linear phase",
-      "short": "Poly-sinc · Gauss · X-long linear, apod",
-      "apod": "full"
+      "variant": "Half-band",
+      "leaf": "Extra-short linear phase",
+      "short": "Poly-sinc · Half-band · X-short linear",
+      "apod": "none"
+    },
+    "poly-sinc-hb-s": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Short linear phase",
+      "short": "Poly-sinc · Half-band · Short linear",
+      "apod": "none"
+    },
+    "poly-sinc-hb-m": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Medium linear phase",
+      "short": "Poly-sinc · Half-band · Medium linear",
+      "apod": "none"
+    },
+    "poly-sinc-hb-l": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Long linear phase",
+      "short": "Poly-sinc · Half-band · Long linear",
+      "apod": "none"
+    },
+    "poly-sinc-hb-2s": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Linear phase, two-stage",
+      "short": "Poly-sinc · Half-band · Linear, 2-stage",
+      "apod": "none"
+    },
+    "poly-sinc-hb-xs-2s": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Extra-short linear phase, two-stage",
+      "short": "Poly-sinc · Half-band · X-short linear, 2-stage",
+      "apod": "none"
+    },
+    "poly-sinc-hb-s-2s": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Short linear phase, two-stage",
+      "short": "Poly-sinc · Half-band · Short linear, 2-stage",
+      "apod": "none"
+    },
+    "poly-sinc-hb-m-2s": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Medium linear phase, two-stage",
+      "short": "Poly-sinc · Half-band · Medium linear, 2-stage",
+      "apod": "none"
+    },
+    "poly-sinc-hb-l-2s": {
+      "family": "Polyphase sinc",
+      "variant": "Half-band",
+      "leaf": "Long linear phase, two-stage",
+      "short": "Poly-sinc · Half-band · Long linear, 2-stage",
+      "apod": "none"
     },
     "poly-sinc-gauss-halfband": {
       "family": "Polyphase sinc",
@@ -382,25 +389,18 @@
       "short": "Poly-sinc · Gauss half-band · Short linear",
       "apod": "none"
     },
-    "poly-sinc-gauss-hires-mp": {
+    "poly-sinc-mqa/mp3-mp": {
       "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Minimum phase, hi-res",
-      "short": "Poly-sinc · Gauss · Hi-res minimum",
+      "variant": "MQA and MP3",
+      "leaf": "Minimum phase",
+      "short": "Poly-sinc · MQA/MP3 · Minimum",
       "apod": "full"
     },
-    "poly-sinc-gauss-hires-ip": {
+    "poly-sinc-mqa/mp3-lp": {
       "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Intermediate phase, hi-res",
-      "short": "Poly-sinc · Gauss · Hi-res intermediate",
-      "apod": "full"
-    },
-    "poly-sinc-gauss-hires-lp": {
-      "family": "Polyphase sinc",
-      "variant": "Gaussian",
-      "leaf": "Linear phase, hi-res",
-      "short": "Poly-sinc · Gauss · Hi-res linear",
+      "variant": "MQA and MP3",
+      "leaf": "Linear phase",
+      "short": "Poly-sinc · MQA/MP3 · Linear",
       "apod": "full"
     },
     "sinc-short": {

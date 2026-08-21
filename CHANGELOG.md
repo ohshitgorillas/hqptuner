@@ -16,6 +16,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Polyphase sinc variants list Gaussian second.** The Simplified filter dropdowns order the family base, Gaussian, extended response, extended response 2, extreme roll-off, half-band, Gaussian half-band, then the MQA and MP3 pair. The two Gaussian groups, previously split by half-band, now sit together.
+
 - **The quality facet defaults to Any quality.** With each row's rating visible at a glance, the 3/5 floor no longer guards the first look at the menu; a fresh narrow bar starts unnarrowed and only an explicit floor narrows.
 
 ### Fixed
