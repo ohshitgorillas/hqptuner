@@ -4,7 +4,7 @@
     "Analog-style": "Analog-like behavior; no pre-ringing, long post-ringing",
     "Conventional": "Cheap, short, low-load filters like those built into most DACs",
     "Polyphase sinc": "The most variety and flexibility",
-    "Pure sinc": "Brute force filters",
+    "Pure sinc": "Brute force linear phase filters",
     "Closed form": "Direct interpolation maintains original samples",
     "Polynomial": "Almost no ringing, but weak suppression of ultrasonic content",
     "Misc": "Miscellaneous filters"
