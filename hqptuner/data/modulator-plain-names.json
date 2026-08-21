@@ -1,9 +1,8 @@
 {
-  "_scope": "data/engine-enums.json shapers_sdm (36 SDM modulators), in engine order. PCM dithers (shapers_pcm) deliberately out of scope. Raw name -> family label, variant label, leaf label. Family is architecture, variant is modulator order, leaf is the rest. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Vendor qualifiers 'ultralight', 'light' and 'super' are kept verbatim and left unglossed, since no HQPlayer doc defines them. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "_scope": "data/engine-enums.json shapers_sdm (36 SDM modulators), in engine order. PCM dithers (shapers_pcm) deliberately out of scope. Raw name -> family label, variant label, leaf label. Family is architecture, variant is modulator order except for the pseudo multi-bit subgroup of Adaptive, leaf is the rest. Leaf labels unique within their family+variant; composed family+variant+leaf unique across the list. Vendor qualifiers 'ultralight', 'light' and 'super' are kept verbatim and left unglossed, since no HQPlayer doc defines them. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
   "families": {
     "Fixed": "Same behavior regardless of source",
-    "Adaptive": "Adapts to the source",
-    "Pseudo multi-bit": "Special pseudo multi-bit modulators for DSD512+",
+    "Adaptive": "Adapts to the source; all choices are strong, so pick by ear, not by load",
     "Hybrid": "Multi-level and multi-bit designs"
   },
   "modulators": {
@@ -188,16 +187,16 @@
       "short": "Adaptive · 7th order · Super, EC, DSD512+"
     },
     "AMSDM7 512+fs": {
-      "family": "Pseudo multi-bit",
-      "variant": "Seventh order",
-      "leaf": "Adaptive, DSD512+",
-      "short": "Pseudo multi-bit · 7th order · DSD512+"
+      "family": "Adaptive",
+      "variant": "Pseudo multi-bit",
+      "leaf": "Base, DSD512+",
+      "short": "Adaptive · Pseudo multi-bit · Base, DSD512+"
     },
     "AMSDM7EC 512+fs": {
-      "family": "Pseudo multi-bit",
-      "variant": "Seventh order",
-      "leaf": "Adaptive, extended compensation, DSD512+",
-      "short": "Pseudo multi-bit · 7th order · EC, DSD512+"
+      "family": "Adaptive",
+      "variant": "Pseudo multi-bit",
+      "leaf": "Extended compensation, DSD512+",
+      "short": "Adaptive · Pseudo multi-bit · EC, DSD512+"
     },
     "AHM5EC5L": {
       "family": "Hybrid",
@@ -226,11 +225,11 @@
   },
   "variants": {
     "Fixed|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
-    "Fixed|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs",
+    "Fixed|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter",
     "Adaptive|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
-    "Adaptive|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs",
-    "Pseudo multi-bit|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs",
+    "Adaptive|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter",
+    "Adaptive|Pseudo multi-bit": "Special seventh order \"pseudo multi-bit\" modulators for the highest rates",
     "Hybrid|Fifth order": "Suits DACs with simple analog reconstruction filters; recommended for ESS Sabre DACs",
-    "Hybrid|Seventh order": "Better technical performance, more demands on the DAC's analog filter; optimal for most DACs"
+    "Hybrid|Seventh order": "Best for most DACs, but asks more of the hardware's analog filter"
   }
 }
