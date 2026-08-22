@@ -46,17 +46,17 @@
       "short": "Averaging · SACD match",
       "rec": true
     },
-    "slow-lp": {
-      "family": "Roll-off ladder",
-      "variant": null,
-      "leaf": "Slow linear phase",
-      "short": "Roll-off ladder · Slow linear phase"
-    },
     "slow-mp": {
       "family": "Roll-off ladder",
       "variant": null,
       "leaf": "Slow minimum phase",
       "short": "Roll-off ladder · Slow minimum phase"
+    },
+    "slow-lp": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Slow linear phase",
+      "short": "Roll-off ladder · Slow linear phase"
     },
     "medium": {
       "family": "Roll-off ladder",
@@ -72,17 +72,17 @@
       "short": "Roll-off ladder · Medium, no conversion",
       "rec": true
     },
-    "fast-lp": {
-      "family": "Roll-off ladder",
-      "variant": null,
-      "leaf": "Fast linear phase",
-      "short": "Roll-off ladder · Fast linear phase"
-    },
     "fast-mp": {
       "family": "Roll-off ladder",
       "variant": null,
       "leaf": "Fast minimum phase",
       "short": "Roll-off ladder · Fast minimum phase"
+    },
+    "fast-lp": {
+      "family": "Roll-off ladder",
+      "variant": null,
+      "leaf": "Fast linear phase",
+      "short": "Roll-off ladder · Fast linear phase"
     },
     "brickwall": {
       "family": "Roll-off ladder",

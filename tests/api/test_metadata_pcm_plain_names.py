@@ -15,7 +15,9 @@ New here is the recommendation flag: exactly the entries named in REC carry
 no entry of any other plain-names section carries one either.
 
 Section key order is display order, so family runs are pinned contiguous —
-once a family's run ends, no later entry names it again. Display wording is
+once a family's run ends, no later entry names it again — and a minimum-phase
+entry precedes its linear-phase peer (the filters-section convention: phase
+groups run minimum, intermediate, linear). Display wording is
 owner-owned data and no test asserts a label, family name or blurb string;
 `short` is pinned non-empty and unique per section.
 
@@ -69,7 +71,10 @@ ENGINE_NAMES = {
 
 REC = {
     "noise_filter": {"standard", "low", "high-order", "wec2", "medium", "medium-high"},
-    "pcm_conversion": {"poly-short-lp"},
+    # No pcm_conversion recommendations: only one option there is manual-flagged
+    # "Recommended.", and a lone recommended option is the default, not a
+    # recommendation among peers.
+    "pcm_conversion": set(),
 }
 
 
@@ -153,6 +158,22 @@ def test_family_runs_are_contiguous_in_entry_order(api_client: TestClient, secti
     families = [str(entry["family"]) for entry in _entries(api_client, section).values()]
     violations = [f for i, f in enumerate(families) if f in families[:i] and families[i - 1] != f]
     assert violations == []
+
+
+@pytest.mark.parametrize(
+    ("section", "mp_name", "lp_name"),
+    [
+        ("noise_filter", "slow-mp", "slow-lp"),
+        ("noise_filter", "fast-mp", "fast-lp"),
+        ("pcm_conversion", "poly-mp", "poly-lp"),
+        ("pcm_conversion", "poly-short-mp", "poly-short-lp"),
+    ],
+)
+def test_a_minimum_phase_entry_precedes_its_linear_phase_peer(
+    api_client: TestClient, section: str, mp_name: str, lp_name: str
+) -> None:
+    order = list(_entries(api_client, section))
+    assert order.index(mp_name) < order.index(lp_name)
 
 
 # --- the family blurbs --------------------------------------------------------
