@@ -1,7 +1,7 @@
 // The narrow bar as its component suites read it: one reset that puts every
 // module-level signal the bar reads back to a stated starting state, one render,
-// and the markup readers that name a switch group by what a reader sees rather
-// than by the classes the component happens to use.
+// and the markup readers that name a switch group by the `data-group` its own
+// element carries rather than by the heading a reader sees above it.
 //
 // Shared by tests/js/components/narrowbar-lossy.test.js and
 // tests/js/components/narrowbar-srcformat.test.js. Fakes sit at the wire and
@@ -109,62 +109,74 @@ export const attr = (el, name) => {
 };
 
 /**
- * Every element of the bar that both reads a title and encloses a segmented
+ * Every element the bar marks with a group id, `data-group` — the group's own
+ * machine identity, contract like any other wire-side marking, so a reworded
+ * heading changes nothing (docs/testing.md rule 9).
+ *
+ * @param {string} out
+ * @param {string} name
+ * @returns {MarkupElement[]}
+ */
+const marked = (out, name) => elements(out).filter((el) => attr(el, "data-group") === name);
+
+/**
+ * Every element of the bar that both carries a group id and encloses a segmented
  * switch — the candidates a switch group is picked from.
  *
  * @param {string} out
- * @param {string} title
+ * @param {string} name
  * @returns {MarkupElement[]}
  */
-function groupCandidates(out, title) {
-  const all = elements(out);
-  const segments = all.filter(isSegment);
-  return all.filter((el) => seen(el).includes(title) && segments.some((s) => encloses(el, s)));
+function groupCandidates(out, name) {
+  const segments = elements(out).filter(isSegment);
+  return marked(out, name).filter((el) => segments.some((s) => encloses(el, s)));
 }
 
 /**
- * The switch group a title names: the smallest element of the bar that both
- * reads that title and encloses a segmented switch.
+ * The switch group an id names: the smallest element of the bar that both
+ * carries that id and encloses a segmented switch.
  *
  * @param {string} out
- * @param {string} title
+ * @param {string} name
  * @returns {MarkupElement}
  */
-export function group(out, title) {
-  const hits = groupCandidates(out, title);
-  if (hits.length === 0) throw new Error(`no "${title}" switch group in the rendered bar`);
+export function group(out, name) {
+  const hits = groupCandidates(out, name);
+  if (hits.length === 0) throw new Error(`no "${name}" switch group in the rendered bar`);
   return hits.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
 
 /**
- * Whether a rendered bar offers the switch group a title names.
+ * Whether a rendered bar offers the switch group an id names.
  *
  * @param {string} out
- * @param {string} title
+ * @param {string} name
  * @returns {boolean}
  */
-export const hasGroup = (out, title) => groupCandidates(out, title).length > 0;
+export const hasGroup = (out, name) => groupCandidates(out, name).length > 0;
 
 /**
- * Whether anything rendered reads a wording at all, segmented switch or not.
- * The companion `hasGroup` asks about the group's SHAPE, so on its own it also
+ * Whether the bar renders the group at all, segmented switch or not. The
+ * companion `hasGroup` asks about the group's SHAPE, so on its own it also
  * answers false for a control that is still on screen and has merely stopped
  * being a segmented switch; an absence case asks both.
  *
  * @param {string} out
- * @param {string} title
+ * @param {string} name
  * @returns {boolean}
  */
-export const mentions = (out, title) => elements(out).some((el) => seen(el).includes(title));
+export const mentions = (out, name) => marked(out, name).length > 0;
 
 /**
- * How many Reset buttons a rendering offers, named by the word a reader
- * presses rather than by the class the button carries.
+ * How many reset buttons a rendering offers, named by the `narrow-reset` class
+ * the button carries rather than by the word a reader presses. A CSS class is a
+ * machine identifier, unlike the caption on it (docs/testing.md rule 9).
  *
  * @param {string} out
  * @returns {number}
  */
-export const resets = (out) => elements(out).filter((el) => el.name === "button" && seen(el) === "Reset").length;
+export const resets = (out) =>
+  elements(out).filter((el) => el.name === "button" && classes(el).includes("narrow-reset")).length;
 
 /**
  * The segmented switches inside one group, outermost first.

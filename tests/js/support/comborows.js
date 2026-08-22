@@ -18,7 +18,7 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
-import { elements, classes, text } from "./markup.js";
+import { elements, classes, attr } from "./markup.js";
 
 /** @typedef {import("./markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("./wheel.js").VNode} VNode */
@@ -55,16 +55,17 @@ export const rows = (out) =>
     .sort((a, b) => a.start - b.start);
 
 /**
- * The option row whose text includes `needle`. Throws when no row does, so an
- * absence fails loudly instead of comparing against nothing.
+ * The option row for one wire value, named by the `data-v` the row carries and
+ * never by the words in it (docs/testing.md rule 9). Throws when no row carries
+ * it, so an absence fails loudly instead of comparing against nothing.
  *
  * @param {string} out
  * @param {string} needle
  * @returns {MarkupElement}
  */
 export function rowIncluding(out, needle) {
-  const hit = rows(out).find((el) => text(el).includes(needle));
-  if (!hit) throw new Error(`no option row reads "${needle}"`);
+  const hit = rows(out).find((el) => attr(el, "data-v") === needle);
+  if (!hit) throw new Error(`no option row carries data-v="${needle}"`);
   return hit;
 }
 

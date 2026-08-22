@@ -1,7 +1,7 @@
 // Behavioral suite for the merged pop/rock genre option. No filter in the data
 // carries one of the pair without the other, so the two options became one: it
-// keeps the internal value `pop`, it is captioned "Pop & rock", and the value
-// `rock` no longer exists anywhere the bar can offer it.
+// keeps the internal value `pop`, and the value `rock` no longer exists anywhere
+// the bar can offer it.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. State is driven through tests/js/support/genrepopover.js,
@@ -10,9 +10,9 @@
 // name-keyed genre overlay from /api/metadata — and opens a facet by invoking
 // the onClick its button carries.
 //
-// The caption is owner-approved user-facing text and is pinned here character
-// for character, in this one place. SSR escapes the ampersand, so a case reads
-// the row caption decoded, the way a reader sees it.
+// The merged row's caption is owner copy and is asserted nowhere: what the merge
+// means to a caller is the VALUE domain — one row valued `pop`, no row valued
+// `rock` — and that is what every case below reads (docs/testing.md rule 9).
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/narrowbar-genre-merge.test.js
 
@@ -22,7 +22,8 @@ import assert from "node:assert/strict";
 import { nGenre } from "../../../hqptuner/static/store/narrow/state.js";
 import { resetNarrowBar, openFacet, popoverRows, checkedRows } from "../support/genrepopover.js";
 
-const MERGED_CAPTION = "Pop & rock";
+const MERGED = "pop";
+const RETIRED = "rock";
 
 // The overlay tags one filter with each genre these cases speak about, so a
 // genre row that is offered at all is offered here.
@@ -42,60 +43,48 @@ const OVERLAY = {
 const reset = () => resetNarrowBar(FILTERS, { overlay: OVERLAY });
 
 /**
- * The characters a reader sees, with the entities the renderer emits put back.
- *
- * @param {string} s
- * @returns {string}
- */
-const decode = (s) =>
-  s
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
-
-/**
- * Every caption the genre popover offers, as a reader sees it.
+ * Every value the genre popover offers as a row.
  *
  * @returns {string[]}
  */
-const genreCaptions = () => popoverRows(openFacet("genre")).map((r) => decode(r.label));
+const genreValues = () => popoverRows(openFacet("genre")).map((r) => r.value);
 
-// --- one option for the pair, under the merged caption ----------------------------
-// Read as "every caption that mentions rock", so a bar still offering a separate
-// Rock row fails here rather than passing on the merged row alone.
+// --- one option for the pair, under the surviving value ----------------------------
 
-test("test_the_genre_popover_offers_one_row_mentioning_rock_and_it_reads_pop_and_rock", async () => {
+test("test_the_genre_popover_offers_exactly_one_row_for_the_merged_pair", async () => {
   await reset();
   assert.deepEqual(
-    genreCaptions().filter((c) => /rock/i.test(c)),
-    [MERGED_CAPTION],
+    genreValues().filter((v) => v === MERGED),
+    [MERGED],
   );
 });
 
-// The absence is read against the captions the popover actually offers: a
-// popover rendering no rows at all also offers no "Pop" row, and would pass an
+// The absence is read against the rows the popover actually offers: a popover
+// rendering no rows at all also offers no `rock` row, and would pass an
 // unanchored absence.
 
-test("test_the_genre_popover_offers_rows_and_none_of_them_reads_pop_alone", async () => {
+test("test_the_genre_popover_offers_rows_and_none_of_them_is_the_retired_value", async () => {
   await reset();
-  const captions = genreCaptions();
-  assert.deepEqual({ offered: captions.length > 0, pop: captions.includes("Pop") }, { offered: true, pop: false });
+  const offered = genreValues();
+  assert.deepEqual(
+    { offered: offered.length > 0, retired: offered.includes(RETIRED) },
+    { offered: true, retired: false },
+  );
 });
 
 // --- the merged row keeps the value `pop` ------------------------------------------
 
 test("test_picking_the_pop_genre_checks_the_merged_row", async () => {
   await reset();
-  nGenre.value = ["pop"];
-  assert.deepEqual(checkedRows(openFacet("genre")).map(decode), [MERGED_CAPTION]);
+  nGenre.value = [MERGED];
+  assert.deepEqual(checkedRows(openFacet("genre")), [MERGED]);
 });
 
 // --- the value `rock` is gone, so it can check nothing --------------------------------
 
 test("test_the_retired_rock_genre_value_checks_none_of_the_rows_offered", async () => {
   await reset();
-  nGenre.value = ["rock"];
+  nGenre.value = [RETIRED];
   const block = openFacet("genre");
   assert.deepEqual(
     { offered: popoverRows(block).length > 0, checked: checkedRows(block) },

@@ -49,6 +49,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
+import { section } from "../support/tabform.js";
 
 // A volume control that is live, so loudness is not gated by a bypassed volume.
 const FREE = { volume_min: "-60", volume_max: "0", defaults_volume: "-20", fixed_volume_enabled: false };
@@ -101,10 +102,9 @@ async function reset({ level = POLLED, drag = null } = {}) {
 // suite takes. A tab that stopped rendering the card at all would otherwise make
 // every "the caption does not say X" case pass on an empty string.
 function card() {
-  const out = render(html`<${Volume} />`);
-  const head = out.indexOf('<div class="card-head">Loudness</div>');
-  if (head < 0) throw new Error("the Volume tab rendered no Loudness card");
-  return out.slice(head, out.indexOf("</section>", head));
+  const frag = section(render(html`<${Volume} />`), "loudness");
+  if (frag === "") throw new Error("the Volume tab rendered no Loudness card");
+  return frag;
 }
 
 // The plot's caption line, as a user reads it.
@@ -127,25 +127,25 @@ function appliedCurve() {
 
 test("test_a_drag_in_progress_captions_the_dragged_volume", async () => {
   await reset({ level: POLLED, drag: DRAGGED });
-  assert.ok(caption().includes("at -50.0 dB"));
+  assert.ok(caption().includes("-50.0 dB"));
 });
 
 test("test_a_drag_in_progress_keeps_the_polled_volume_out_of_the_caption", async () => {
   await reset({ level: POLLED, drag: DRAGGED });
-  assert.equal(caption().includes("at -20.0 dB"), false);
+  assert.equal(caption().includes("-20.0 dB"), false);
 });
 
 test("test_a_drag_to_zero_decibels_captions_zero_rather_than_the_polled_volume", async () => {
   // 0 dB is the trap: falsy, so a caption picking its source with `||` reads the
   // polled level instead of the top of the knob's travel
   await reset({ level: POLLED, drag: 0 });
-  assert.ok(caption().includes("at 0.0 dB"));
+  assert.ok(caption().includes("0.0 dB"));
 });
 
 test("test_a_released_drag_returns_the_caption_to_the_polled_volume", async () => {
   await reset({ level: POLLED, drag: DRAGGED });
   volumeDrag.value = null;
-  assert.ok(caption().includes("at -20.0 dB"));
+  assert.ok(caption().includes("-20.0 dB"));
 });
 
 // --- the applied curve follows the same level --------------------------------

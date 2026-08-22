@@ -21,14 +21,21 @@
 // content — never by a class the component happens to use (policy
 // docs/testing.md; same discipline as combobox-plainnames.test.js).
 //
+// Every needle below is the fixture's OWN invented data — a blurb, a family
+// name, a variant name — never a word the component supplies: the family names
+// are deliberately unique tokens so a header can be located without naming the
+// word the component appends to it (docs/testing.md rule 9). What the dropdown
+// OFFERS is read off the `data-v` wire value each row carries.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/combobox-blurbs.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { elements, classes, text } from "../support/markup.js";
+import { elements, classes, attr, text } from "../support/markup.js";
+import { rows } from "../support/comborows.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
-import { reset, field, optionLabels, optionByLabel, attrOf, META } from "../support/field-harness.js";
+import { reset, field, optionByValue, attrOf, META } from "../support/field-harness.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
@@ -48,6 +55,15 @@ import { staticWire } from "../support/wire.js";
 const GAUSS_BLURB = "Bells of every width";
 const SINC_BLURB = "One long ess";
 const ZED_BLURB = "Taps counted from zed";
+
+// Family names chosen so each occurs in exactly one place in the render — its
+// own header — which is what lets a header be located without matching the
+// word the component appends to it.
+const GAUSS = "Famgauss";
+const SINC = "Famsinc";
+const EXT = "Famext";
+const ZED = "Zed tap";
+const ALPHA = "Alpha tap";
 
 /**
  * One plain-names entry.
@@ -73,14 +89,14 @@ const META_BLURBS = {
   plain_names: {
     filters: section(
       {
-        "sinc-M": entry("Sinc", null, "Classic M", "Sinc M"),
-        "poly-sinc-gauss-zeta": entry("Gauss", "Zed tap", "Zeta pick", "Gauss Zeta"),
-        "poly-sinc-gauss-long": entry("Gauss", "Zed tap", "Alpha pick", "Gauss Reg"),
-        "poly-sinc-gauss-short": entry("Gauss", "Alpha tap", "Shorter", "Gauss Short"),
-        "poly-sinc-ext2": { ...entry("Ext", null, "Ext Two", "Ext 2"), apod: true },
+        "sinc-M": entry(SINC, null, "Classic M", "Sinc M"),
+        "poly-sinc-gauss-zeta": entry(GAUSS, ZED, "Zeta pick", "Gauss Zeta"),
+        "poly-sinc-gauss-long": entry(GAUSS, ZED, "Alpha pick", "Gauss Reg"),
+        "poly-sinc-gauss-short": entry(GAUSS, ALPHA, "Shorter", "Gauss Short"),
+        "poly-sinc-ext2": { ...entry(EXT, null, "Ext Two", "Ext 2"), apod: true },
       },
-      { Gauss: GAUSS_BLURB, Sinc: SINC_BLURB },
-      { "Gauss|Zed tap": ZED_BLURB },
+      { [GAUSS]: GAUSS_BLURB, [SINC]: SINC_BLURB },
+      { [`${GAUSS}|${ZED}`]: ZED_BLURB },
     ),
     dithers: section({ TPDF: entry("Dither", null, "Triangular", "TPDF plain") }),
     modulators: section({
@@ -100,7 +116,12 @@ const RAW_ORDER = [
   "poly-sinc-gauss-zeta",
 ];
 
-const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
+// What the dropdown offers, as the SET of wire values its rows carry: each
+// option is offered under its index in RAW_ORDER. A sorted set rather than a
+// sequence — a grouped list's display order is presentation, which rule 9 keeps
+// out of an assertion alongside the labels.
+const ALL_VALUES = RAW_ORDER.map((_, i) => String(i)).sort();
+const GAUSS_LONG_VALUE = "2";
 
 /** @param {string} value */
 const filterFields = (value) => [
@@ -139,25 +160,30 @@ function boxText(out) {
 }
 
 /**
- * The smallest element whose whole text reads exactly `wording`. Throws when
+ * The smallest element whose text includes `needle` — how a caption and a group
+ * header are both located, by the fixture's own invented wording. Throws when
  * nothing reads it, so an absence fails loudly instead of comparing against
  * nothing.
  *
  * @param {string} out
- * @param {string} wording
+ * @param {string} needle
  * @returns {MarkupElement}
  */
-function readingExactly(out, wording) {
+function smallestReading(out, needle) {
   /** @type {MarkupElement | undefined} */
   let best;
   for (const el of elements(out)) {
-    if (text(el) !== wording) continue;
+    if (!text(el).includes(needle)) continue;
     if (!best || el.html.length < best.html.length) best = el;
   }
-  if (!best) throw new Error(`nothing rendered reads exactly "${wording}"`);
+  if (!best) throw new Error(`nothing rendered reads "${needle}"`);
   return best;
 }
 
+// A row located by the FIXTURE's own leaf — what the caption-placement cases
+// need, since they ask where a caption sits relative to a group's first row.
+// Deliberately not named `rowIncluding`: the support helper of that name takes
+// a `data-v` wire value, and the two must be distinguishable at a call site.
 /**
  * The option row (dd-opt element) whose text includes `needle`. Throws when no
  * row does.
@@ -166,7 +192,7 @@ function readingExactly(out, wording) {
  * @param {string} needle
  * @returns {MarkupElement}
  */
-function rowIncluding(out, needle) {
+function rowReading(out, needle) {
   for (const el of elements(out)) {
     if (classes(el).includes("dd-opt") && text(el).includes(needle)) return el;
   }
@@ -190,49 +216,51 @@ const endOf = (el) => el.start + el.html.length;
  */
 const between = (out, a, b) => elements(out).filter((el) => el.start >= endOf(a) && endOf(el) <= b.start);
 
+/**
+ * The wire values a rendered dropdown offers, sorted.
+ *
+ * @param {string} out
+ * @returns {(string | undefined)[]}
+ */
+const offered = (out) =>
+  rows(out)
+    .map((r) => attr(r, "data-v"))
+    .sort();
+
 // --- the caption rows ---------------------------------------------------------
 
 // The Gauss family's first content after its header is the "Zed tap" variant
 // subheader; the family blurb caption renders between the two.
 test("test_a_family_blurb_renders_between_the_family_header_and_its_first_content", async () => {
   const out = await filterField();
-  const cap = readingExactly(out, GAUSS_BLURB);
-  assert.equal(
-    readingExactly(out, "Gauss family").start < cap.start && cap.start < readingExactly(out, "Zed tap").start,
-    true,
-  );
+  const cap = smallestReading(out, GAUSS_BLURB);
+  assert.equal(smallestReading(out, GAUSS).start < cap.start && cap.start < smallestReading(out, ZED).start, true);
 });
 
 // Sinc holds a single null-variant option; its blurb still renders between the
 // header and that first option row.
 test("test_a_null_variant_familys_blurb_renders_before_its_first_option_row", async () => {
   const out = await filterField();
-  const cap = readingExactly(out, SINC_BLURB);
-  assert.equal(
-    readingExactly(out, "Sinc family").start < cap.start && cap.start < rowIncluding(out, "Classic M").start,
-    true,
-  );
+  const cap = smallestReading(out, SINC_BLURB);
+  assert.equal(smallestReading(out, SINC).start < cap.start && cap.start < rowReading(out, "Classic M").start, true);
 });
 
 test("test_a_variant_blurb_renders_between_the_subheader_and_the_variants_first_row", async () => {
   const out = await filterField();
-  const cap = readingExactly(out, ZED_BLURB);
-  assert.equal(
-    readingExactly(out, "Zed tap").start < cap.start && cap.start < rowIncluding(out, "Zeta pick").start,
-    true,
-  );
+  const cap = smallestReading(out, ZED_BLURB);
+  assert.equal(smallestReading(out, ZED).start < cap.start && cap.start < rowReading(out, "Zeta pick").start, true);
 });
 
 test("test_a_family_blurb_caption_is_not_an_option_row", async () => {
-  assert.equal(classes(readingExactly(await filterField(), GAUSS_BLURB)).includes("dd-opt"), false);
+  assert.equal(classes(smallestReading(await filterField(), GAUSS_BLURB)).includes("dd-opt"), false);
 });
 
 test("test_a_variant_blurb_caption_is_not_an_option_row", async () => {
-  assert.equal(classes(readingExactly(await filterField(), ZED_BLURB)).includes("dd-opt"), false);
+  assert.equal(classes(smallestReading(await filterField(), ZED_BLURB)).includes("dd-opt"), false);
 });
 
 test("test_a_family_blurb_caption_carries_no_option_role", async () => {
-  assert.equal(/\brole="option"/.test(readingExactly(await filterField(), GAUSS_BLURB).attrs), false);
+  assert.equal(/\brole="option"/.test(smallestReading(await filterField(), GAUSS_BLURB).attrs), false);
 });
 
 // --- a group the maps do not know ---------------------------------------------
@@ -242,12 +270,12 @@ test("test_a_family_blurb_caption_carries_no_option_role", async () => {
 
 test("test_a_family_absent_from_the_map_renders_nothing_between_header_and_first_row", async () => {
   const out = await filterField();
-  assert.deepEqual(between(out, readingExactly(out, "Ext family"), rowIncluding(out, "Ext Two")), []);
+  assert.deepEqual(between(out, smallestReading(out, EXT), rowReading(out, "Ext Two")), []);
 });
 
 test("test_a_variant_pair_absent_from_the_map_renders_nothing_between_subheader_and_first_row", async () => {
   const out = await filterField();
-  assert.deepEqual(between(out, readingExactly(out, "Alpha tap"), rowIncluding(out, "Shorter")), []);
+  assert.deepEqual(between(out, smallestReading(out, ALPHA), rowReading(out, "Shorter")), []);
 });
 
 // --- the blurb data changes nothing else ----------------------------------------
@@ -255,11 +283,11 @@ test("test_a_variant_pair_absent_from_the_map_renders_nothing_between_subheader_
 // The caption rows are not option rows anywhere: the option list reads exactly
 // as it did without blurbs.
 test("test_blurb_captions_add_no_option_rows", async () => {
-  assert.deepEqual(optionLabels(await filterField()), PLAIN_ORDER);
+  assert.deepEqual(offered(await filterField()), ALL_VALUES);
 });
 
-test("test_standard_mode_rows_keep_raw_labels_in_source_order_with_blurb_data", async () => {
-  assert.deepEqual(optionLabels(await filterField({ plain: false })), RAW_ORDER);
+test("test_standard_mode_still_offers_every_option_with_blurb_data", async () => {
+  assert.deepEqual(offered(await filterField({ plain: false })), ALL_VALUES);
 });
 
 test("test_standard_mode_renders_no_blurb_wording", async () => {
@@ -283,7 +311,7 @@ test("test_favorites_narrowing_still_joins_by_raw_label_with_blurb_data", async 
   nApod1x.value = "all";
   favoritesError.value = "";
   favoriteFilters.value = new Set(["poly-sinc-gauss-long"]);
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Alpha pick"]);
+  assert.deepEqual(offered(field("pcm_filter_1x")), [GAUSS_LONG_VALUE]);
 });
 
 // A DSD512 rate leaves ASDM7EC below its 40.96 MHz floor (same wire setup as
@@ -299,6 +327,6 @@ test("test_a_rate_grayed_modulator_row_stays_disabled_with_blurb_data", async ()
     meta: META_BLURBS,
   });
   plainNames.value = true;
-  const row = optionByLabel(field("sdm_modulator"), "Seventh EC");
+  const row = optionByValue(field("sdm_modulator"), "1");
   assert.equal(attrOf(row?.a || "", "aria-disabled"), "true");
 });

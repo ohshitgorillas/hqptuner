@@ -73,7 +73,7 @@ import {
 import { resetNarrowing, narrowingActive, nFocus } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions } from "../../../hqptuner/static/store/narrow/match.js";
 import { staticWire } from "../support/wire.js";
-import { classes, elements, text } from "../support/markup.js";
+import { attr, classes, elements } from "../support/markup.js";
 import { useStorage, dropStorage } from "../support/storage.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
@@ -200,56 +200,31 @@ function vnodeText(node) {
   return vnodeText(props && props.children);
 }
 
-// The title a card head announces: its own text, less the disclosure triangle a
-// collapsible head carries ahead of it (components/common.js) and less anything
-// the head carries BESIDE the title, such as the narrowing Reset.
-/** @param {MarkupElement} el */
-const headTitle = (el) => text(el).replace(/^[^\p{L}\p{N}]+/u, "");
-
-/**
- * Whether a head announces the named card: its title, alone or ahead of the
- * controls the head carries beside it (the narrowing Reset renders with no
- * separating space, so the wording runs straight on).
- *
- * @param {MarkupElement} el
- * @param {string} title
- * @returns {boolean}
- */
-const announces = (el, title) => headTitle(el).startsWith(title);
-
-// The head element of the named card, whatever tag carries it. Anything other
-// than exactly one match throws rather than measuring some other card: a
-// restructured head must fail loudly, not quietly answer about a neighbor.
+// The card SECTION carrying an id, which is the element the disclosure state is
+// rendered on. Anything other than exactly one match throws rather than
+// measuring some other card. Cards are addressed by `data-card` and never by
+// the words in their heads (docs/testing.md rule 9).
 /**
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  * @returns {MarkupElement}
  */
-function headOf(out, title) {
-  const hits = elements(out).filter((el) => classes(el).includes("card-head") && announces(el, title));
-  if (hits.length !== 1) throw new Error(`expected one head titled "${title}", found ${hits.length}`);
+function cardOf(out, id) {
+  const hits = elements(out).filter((el) => el.name === "section" && attr(el, "data-card") === id);
+  if (hits.length !== 1) throw new Error(`expected one card identified "${id}", found ${hits.length}`);
   return hits[0];
 }
 
-// The card SECTION a head sits in: the smallest `<section class="card …">`
-// enclosing it, which is the element the disclosure state is rendered on.
+// The head element of a card, whatever tag carries it.
 /**
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  * @returns {MarkupElement}
  */
-function cardOf(out, title) {
-  const head = headOf(out, title);
-  const end = head.start + head.html.length;
-  const around = elements(out).filter(
-    (el) =>
-      el.name === "section" &&
-      classes(el).includes("card") &&
-      el.start <= head.start &&
-      el.start + el.html.length >= end,
-  );
-  if (around.length === 0) throw new Error(`the card headed "${title}" is not inside a card section`);
-  return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
+function headOf(out, id) {
+  const hits = elements(cardOf(out, id).html).filter((el) => classes(el).includes("card-head"));
+  if (hits.length !== 1) throw new Error(`expected one head in the card identified "${id}", found ${hits.length}`);
+  return hits[0];
 }
 
 /**
@@ -257,11 +232,11 @@ function cardOf(out, title) {
  * "" for a section that says neither.
  *
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  * @returns {string}
  */
-function disclosure(out, title) {
-  const marks = classes(cardOf(out, title)).filter((c) => c === "open" || c === "closed");
+function disclosure(out, id) {
+  const marks = classes(cardOf(out, id)).filter((c) => c === "open" || c === "closed");
   return marks.length === 1 ? marks[0] : "";
 }
 
@@ -270,13 +245,13 @@ function disclosure(out, title) {
  * the head itself.
  *
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  * @returns {boolean}
  */
-function hasBody(out, title) {
-  const frag = cardOf(out, title).html;
+function hasBody(out, id) {
+  const frag = cardOf(out, id).html;
   const inner = frag.slice(frag.indexOf(">") + 1, frag.lastIndexOf("<"));
-  return inner.replace(headOf(out, title).html, "").trim() !== "";
+  return inner.replace(headOf(out, id).html, "").trim() !== "";
 }
 
 /**
@@ -289,6 +264,11 @@ const clickables = () =>
 
 /**
  * The named card's head, as the button a pointer would land on.
+ *
+ * The ONE lookup in this file still made by wording: a head button's vnode
+ * carries no identity of its own — `data-card` rides the section, which the
+ * flat vnode list gives no way back to — so a press cannot yet be aimed at a
+ * card by id. Every question ABOUT the rendered card is asked by id above.
  *
  * @param {string} title
  * @returns {VNode}
@@ -348,46 +328,51 @@ async function reset() {
 // what is on screen is not it — the only route a user has. A press that does not
 // land is an error, not something to press harder at.
 /**
- * @param {string} title
+ * @param {{ title: string, card: string }} card
  * @param {string} want
  * @returns {void}
  */
-function ensure(title, want) {
-  if (disclosure(page(), title) === want) return;
-  clickHead(title);
-  const now = disclosure(page(), title);
-  if (now !== want) throw new Error(`"${title}" would not go ${want}: it is ${now}`);
+function ensure(card, want) {
+  if (disclosure(page(), card.card) === want) return;
+  clickHead(card.title);
+  const now = disclosure(page(), card.card);
+  if (now !== want) throw new Error(`"${card.card}" would not go ${want}: it is ${now}`);
 }
 
-// The four cards, each with the name the store's setter addresses it by.
-/** @type {{ title: string, key: "narrow" | "playback" | "health" | "matrix" }[]} */
+// The four cards: the name the store's setter addresses each by, the id its
+// section carries, and the title a press is aimed at (see `headButton`).
+/** @type {{ title: string, card: string, key: "narrow" | "playback" | "health" | "matrix" }[]} */
 const CARDS = [
-  { title: "Narrow filters", key: "narrow" },
-  { title: "Playback", key: "playback" },
-  { title: "Engine health", key: "health" },
-  { title: "Matrix profile", key: "matrix" },
+  { title: "Narrow filters", card: "narrow-filters", key: "narrow" },
+  { title: "Playback", card: "live-playback", key: "playback" },
+  { title: "Engine health", card: "live-engine-health", key: "health" },
+  { title: "Matrix profile", card: "matrix-profile", key: "matrix" },
 ];
 
-/** @param {string} title */
-const slug = (title) => title.toLowerCase().replace(/\W+/g, "_");
+/** @param {string} id */
+const slug = (id) => id.replace(/\W+/g, "_");
+
+// The two cards named on their own below.
+const NARROW = CARDS[0];
+const PLAYBACK = CARDS[1];
 
 afterEach(dropStorage);
 
 // --- every card offers a head to press ----------------------------------------
 
-for (const { title } of CARDS) {
-  test(`test_the_${slug(title)}_card_head_is_a_button`, async () => {
+for (const { card } of CARDS) {
+  test(`test_the_${slug(card)}_card_head_is_a_button`, async () => {
     await reset();
-    assert.equal(headOf(page(), title).name, "button");
+    assert.equal(headOf(page(), card).name, "button");
   });
 }
 
 // --- and starts open ----------------------------------------------------------
 
-for (const { title } of CARDS) {
-  test(`test_the_${slug(title)}_card_starts_open`, async () => {
+for (const { card } of CARDS) {
+  test(`test_the_${slug(card)}_card_starts_open`, async () => {
     await reset();
-    assert.equal(disclosure(page(), title), "open");
+    assert.equal(disclosure(page(), card), "open");
   });
 }
 
@@ -395,54 +380,54 @@ for (const { title } of CARDS) {
 // The class and the body are separate promises: a card that carried `closed`
 // while still rendering its body would pass the first and fail the second.
 
-for (const { title } of CARDS) {
-  test(`test_pressing_the_${slug(title)}_head_closes_the_card`, async () => {
+for (const entry of CARDS) {
+  test(`test_pressing_the_${slug(entry.card)}_head_closes_the_card`, async () => {
     await reset();
-    ensure(title, "open");
-    clickHead(title);
-    assert.equal(disclosure(page(), title), "closed");
+    ensure(entry, "open");
+    clickHead(entry.title);
+    assert.equal(disclosure(page(), entry.card), "closed");
   });
 }
 
-for (const { title } of CARDS) {
-  test(`test_a_closed_${slug(title)}_card_renders_no_body`, async () => {
+for (const entry of CARDS) {
+  test(`test_a_closed_${slug(entry.card)}_card_renders_no_body`, async () => {
     await reset();
-    ensure(title, "closed");
-    assert.equal(hasBody(page(), title), false);
+    ensure(entry, "closed");
+    assert.equal(hasBody(page(), entry.card), false);
   });
 }
 
 // --- pressing it again brings the body back --------------------------------------
 
-for (const { title } of CARDS) {
-  test(`test_pressing_the_${slug(title)}_head_again_reopens_the_card`, async () => {
+for (const entry of CARDS) {
+  test(`test_pressing_the_${slug(entry.card)}_head_again_reopens_the_card`, async () => {
     await reset();
-    ensure(title, "closed");
-    clickHead(title);
-    assert.equal(disclosure(page(), title), "open");
+    ensure(entry, "closed");
+    clickHead(entry.title);
+    assert.equal(disclosure(page(), entry.card), "open");
   });
 }
 
-for (const { title } of CARDS) {
-  test(`test_a_reopened_${slug(title)}_card_renders_its_body`, async () => {
+for (const entry of CARDS) {
+  test(`test_a_reopened_${slug(entry.card)}_card_renders_its_body`, async () => {
     await reset();
-    ensure(title, "closed");
-    clickHead(title);
-    assert.equal(hasBody(page(), title), true);
+    ensure(entry, "closed");
+    clickHead(entry.title);
+    assert.equal(hasBody(page(), entry.card), true);
   });
 }
 
 // --- one card's disclosure is its own ---------------------------------------------
 
-for (const { title } of CARDS) {
-  test(`test_closing_the_${slug(title)}_card_leaves_the_other_three_open`, async () => {
+for (const entry of CARDS) {
+  test(`test_closing_the_${slug(entry.card)}_card_leaves_the_other_three_open`, async () => {
     await reset();
-    for (const other of CARDS) ensure(other.title, "open");
-    clickHead(title);
+    for (const other of CARDS) ensure(other, "open");
+    clickHead(entry.title);
     const out = page();
-    const others = CARDS.filter((c) => c.title !== title);
+    const others = CARDS.filter((c) => c.card !== entry.card);
     assert.deepEqual(
-      others.map((c) => disclosure(out, c.title)),
+      others.map((c) => disclosure(out, c.card)),
       others.map(() => "open"),
     );
   });
@@ -453,13 +438,13 @@ for (const { title } of CARDS) {
 // re-fetches twice a second, and a poll bringing back the SAME engine state must
 // not snap a hand-toggled card back.
 
-for (const { title } of CARDS) {
-  test(`test_a_hand_closed_${slug(title)}_card_survives_a_poll_of_unchanged_state`, async () => {
+for (const entry of CARDS) {
+  test(`test_a_hand_closed_${slug(entry.card)}_card_survives_a_poll_of_unchanged_state`, async () => {
     await reset();
-    ensure(title, "closed");
+    ensure(entry, "closed");
     poll();
     poll();
-    assert.equal(disclosure(page(), title), "closed");
+    assert.equal(disclosure(page(), entry.card), "closed");
   });
 }
 
@@ -511,7 +496,7 @@ test("test_the_focus_facet_trims_the_pages_filter_list", async () => {
 test("test_the_narrowing_reset_clears_the_narrowing", async () => {
   await reset();
   narrowTheFilters();
-  ensure("Narrow filters", "open");
+  ensure(NARROW, "open");
   pressReset();
   assert.equal(narrowingActive.value, false);
 });
@@ -519,9 +504,9 @@ test("test_the_narrowing_reset_clears_the_narrowing", async () => {
 test("test_the_narrowing_reset_leaves_its_card_open", async () => {
   await reset();
   narrowTheFilters();
-  ensure("Narrow filters", "open");
+  ensure(NARROW, "open");
   pressReset();
-  assert.equal(disclosure(page(), "Narrow filters"), "open");
+  assert.equal(disclosure(page(), NARROW.card), "open");
 });
 
 // --- what a toggle writes to storage ------------------------------------------------
@@ -532,25 +517,25 @@ const KEY = "hqptuner.liveCollapse.playback";
 
 test("test_closing_a_card_persists_a_zero_under_its_own_key", async () => {
   await reset();
-  ensure("Playback", "open");
+  ensure(PLAYBACK, "open");
   const storage = useStorage();
-  clickHead("Playback");
+  clickHead(PLAYBACK.title);
   assert.equal(storage.getItem(KEY), "0");
 });
 
 test("test_reopening_a_card_persists_a_one_under_its_own_key", async () => {
   await reset();
-  ensure("Playback", "closed");
+  ensure(PLAYBACK, "closed");
   const storage = useStorage();
-  clickHead("Playback");
+  clickHead(PLAYBACK.title);
   assert.equal(storage.getItem(KEY), "1");
 });
 
 test("test_toggling_one_card_writes_no_other_cards_key", async () => {
   await reset();
-  ensure("Playback", "open");
+  ensure(PLAYBACK, "open");
   const storage = useStorage();
-  clickHead("Playback");
+  clickHead(PLAYBACK.title);
   assert.deepEqual([...storage.map.keys()], [KEY]);
 });
 
@@ -562,7 +547,7 @@ test("test_toggling_one_card_writes_no_other_cards_key", async () => {
 
 async function outputReset() {
   await reset();
-  ensure("Narrow filters", "closed");
+  ensure(NARROW, "closed");
 }
 
 // Every vnode the Output tab builds for its own narrowing head.
@@ -592,7 +577,7 @@ function outputHeads() {
 
 test("test_the_output_tabs_narrow_filters_head_is_no_button", async () => {
   await outputReset();
-  assert.notEqual(headOf(outputTab(), "Narrow filters").name, "button");
+  assert.notEqual(headOf(outputTab(), NARROW.card).name, "button");
 });
 
 // The tag alone is not the promise: a `<div>` head carrying a toggle handler is
@@ -604,5 +589,5 @@ test("test_the_output_tabs_narrow_filters_head_takes_no_press", async () => {
 
 test("test_the_output_tabs_narrow_filters_card_renders_its_body", async () => {
   await outputReset();
-  assert.equal(hasBody(outputTab(), "Narrow filters"), true);
+  assert.equal(hasBody(outputTab(), NARROW.card), true);
 });

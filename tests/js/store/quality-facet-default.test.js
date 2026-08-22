@@ -1,8 +1,6 @@
-// Behavioral suite for the Quality facet's option table and its default
-// (store/narrow/state.js, components/narrowbar/facet-data.js): the dropdown's four
-// rows verbatim, the facet starting at 0 — "Any quality", no floor applied —
-// and what that default means for reset, the narrowed indicator, matching and
-// hydration.
+// Behavioral suite for the Quality facet's default (store/narrow/state.js): the
+// facet starting at 0 — no floor applied — and what that default means for
+// reset, the narrowed indicator, matching and hydration.
 //
 // The facet's domain is unchanged — 0 means no quality narrowing, 3/4/5 mean
 // "hide anything rated below this" — and the default is 0 (quality-default-any
@@ -28,8 +26,6 @@ import assert from "node:assert/strict";
 
 import { nQuality, nApod1x, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
-import { QUALITY } from "../../../hqptuner/static/components/narrowbar/facet-data.js";
-import { oneLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import { narrowOptions, narrowCount } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 import { hydrateNarrowing, flushNarrowing } from "../../../hqptuner/static/store/narrow/persist.js";
@@ -49,14 +45,6 @@ const PATH = "/api/narrowing";
  */
 const env = globalThis;
 
-/** The contract table: the four rows the dropdown offers, verbatim. */
-const ROWS = [
-  [0, "Any quality"],
-  [3, "Quality: ≥ 3/5"],
-  [4, "Quality: ≥ 4/5"],
-  [5, "Quality: 5/5"],
-];
-
 // --- the freshly loaded store -------------------------------------------------
 // Nothing has touched a signal yet: this read is the module's initial state.
 
@@ -64,17 +52,10 @@ test("test_a_freshly_loaded_store_leaves_quality_at_0", () => {
   assert.equal(nQuality.value, 0);
 });
 
-// --- the dropdown's rows, character for character ------------------------------
-
-test("test_the_quality_dropdown_offers_exactly_the_four_rows_verbatim", () => {
-  assert.deepEqual(QUALITY, ROWS);
-});
-
-for (const [value, label] of ROWS) {
-  test(`test_the_label_read_for_a_selected_quality_of_${value}_is_its_row_label`, () => {
-    assert.equal(oneLabel(QUALITY, value, "no row matched"), label);
-  });
-}
+// The dropdown's own rows and the label read off a selected one were pinned
+// here verbatim. Both are owner-owned copy — a curated option list and its
+// labels — and docs/testing.md rule 9 keeps them out of an assertion; the
+// thresholds themselves are stated by the matching cases below.
 
 // --- fixtures for matching and the narrowed indicator ---------------------------
 // One filter per rating band. Every filter the daemon enumerates carries its

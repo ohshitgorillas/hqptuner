@@ -8,10 +8,15 @@ are exercised against 6.0.4-shaped documents, and the accepted side is read back
 by an independent regex over the ``<matrix>`` body rather than through the
 writer under test.
 
+Each refusal is identified by the ``code`` its ``GroundingError`` carries, never
+by the sentence it renders (docs/testing.md rule 9: error text is owner-owned
+data). ``refusal_code`` below is the one place the exception is caught, so a
+refusal raised as anything other than a ``GroundingError`` still fails the case.
+
 The field-name prefixes are read off the module's public constants. The profile
 name-length ceiling is *not* exported as a constant, so ``NAME_MAX`` below
-restates the contract value the code's own message names ("longer than 128
-characters"); if that ceiling ever moves, this constant moves with it.
+restates the contract value; if that ceiling ever moves, this constant moves
+with it.
 """
 
 import json
@@ -77,6 +82,13 @@ def save_payload(**overrides: Any) -> dict[str, Any]:
     return {"name": "Crossfeed EQ", "rows": [ROW], **overrides}
 
 
+def refusal_code(call: Callable[[], Any]) -> str:
+    """The ``code`` carried by the ``GroundingError`` ``call`` raises."""
+    with pytest.raises(GroundingError) as caught:
+        call()
+    return caught.value.code
+
+
 #: The two entry points that read a whole save payload.
 SAVE_ENTRIES = [
     pytest.param(profile, id="write_profile"),
@@ -88,13 +100,7 @@ SAVE_ENTRIES = [
 
 
 def test_a_row_that_is_not_an_object_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        pipelines(["not a dict"])
-
-
-def test_a_row_that_is_not_an_object_says_each_row_must_be_an_object() -> None:
-    with pytest.raises(GroundingError, match=f"{PIPE}: each row must be an object"):
-        pipelines(["not a dict"])
+    assert refusal_code(lambda: pipelines(["not a dict"])) == "row-not-object"
 
 
 # --- 2. source/mixdown missing or not an integer ------------------------------
@@ -111,14 +117,7 @@ NON_INTEGER_ROWS = [
 
 @pytest.mark.parametrize("row", NON_INTEGER_ROWS)
 def test_a_row_without_integer_source_and_mixdown_is_refused(row: dict[str, Any]) -> None:
-    with pytest.raises(GroundingError):
-        pipelines([row])
-
-
-@pytest.mark.parametrize("row", NON_INTEGER_ROWS)
-def test_a_row_without_integer_source_and_mixdown_says_they_must_be_integers(row: dict[str, Any]) -> None:
-    with pytest.raises(GroundingError, match=f"{PIPE}: source/mixdown must be integers"):
-        pipelines([row])
+    assert refusal_code(lambda: pipelines([row])) == "row-channel-not-int"
 
 
 # --- 3. source/mixdown out of the 0..127 channel range ------------------------
@@ -133,14 +132,7 @@ OUT_OF_RANGE_ROWS = [
 
 @pytest.mark.parametrize("row", OUT_OF_RANGE_ROWS)
 def test_a_channel_outside_the_matrix_range_is_refused(row: dict[str, Any]) -> None:
-    with pytest.raises(GroundingError):
-        pipelines([row])
-
-
-@pytest.mark.parametrize("row", OUT_OF_RANGE_ROWS)
-def test_a_channel_outside_the_matrix_range_says_out_of_range_0_to_127(row: dict[str, Any]) -> None:
-    with pytest.raises(GroundingError, match=re.escape(f"{PIPE}: source/mixdown out of range 0..127")):
-        pipelines([row])
+    assert refusal_code(lambda: pipelines([row])) == "row-channel-range"
 
 
 def test_the_top_channel_of_the_range_is_accepted() -> None:
@@ -151,13 +143,7 @@ def test_the_top_channel_of_the_range_is_accepted() -> None:
 
 
 def test_a_gain_unit_that_is_neither_db_nor_lin_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        pipelines(rows({"gainunit": "dBFS"}))
-
-
-def test_a_bad_gain_unit_is_named_in_the_message() -> None:
-    with pytest.raises(GroundingError, match=f"{PIPE}: bad gainunit 'dBFS'"):
-        pipelines(rows({"gainunit": "dBFS"}))
+    assert refusal_code(lambda: pipelines(rows({"gainunit": "dBFS"}))) == "row-bad-gainunit"
 
 
 def test_a_decibel_gain_is_written_bare_on_the_pipeline_row() -> None:
@@ -177,14 +163,7 @@ BAD_GAINS = ["loud", "1e3", "+2", "3 dB", ""]
 
 @pytest.mark.parametrize("gain", BAD_GAINS)
 def test_a_gain_outside_the_accepted_number_format_is_refused(gain: str) -> None:
-    with pytest.raises(GroundingError):
-        pipelines(rows({"gain": gain}))
-
-
-@pytest.mark.parametrize("gain", BAD_GAINS)
-def test_a_bad_gain_is_named_in_the_message(gain: str) -> None:
-    with pytest.raises(GroundingError, match=re.escape(f"{PIPE}: bad gain '{gain}'")):
-        pipelines(rows({"gain": gain}))
+    assert refusal_code(lambda: pipelines(rows({"gain": gain}))) == "row-bad-gain"
 
 
 @pytest.mark.parametrize("gain", ["0", "-3.5"])
@@ -196,13 +175,7 @@ def test_a_plain_decimal_gain_is_accepted(gain: str) -> None:
 
 
 def test_a_control_character_in_the_process_string_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        pipelines(rows({"process": "eq\x07more"}))
-
-
-def test_a_control_character_in_the_process_string_says_so() -> None:
-    with pytest.raises(GroundingError, match=f"{PIPE}: control characters in process string"):
-        pipelines(rows({"process": "eq\x07more"}))
+    assert refusal_code(lambda: pipelines(rows({"process": "eq\x07more"}))) == "row-control-chars"
 
 
 # --- 7/8/9. the row list itself -----------------------------------------------
@@ -216,14 +189,7 @@ BAD_ROW_LISTS = [
 
 @pytest.mark.parametrize("value", BAD_ROW_LISTS)
 def test_a_value_that_is_not_one_to_128_rows_is_refused(value: Any) -> None:
-    with pytest.raises(GroundingError):
-        pipelines(value)
-
-
-@pytest.mark.parametrize("value", BAD_ROW_LISTS)
-def test_a_value_that_is_not_one_to_128_rows_says_it_must_be_a_list_of_1_to_128(value: Any) -> None:
-    with pytest.raises(GroundingError, match=re.escape(f"{PIPE}: must be a list of 1..128 rows")):
-        pipelines(value)
+    assert refusal_code(lambda: pipelines(value)) == "rows-bad-list"
 
 
 def test_a_list_at_the_row_ceiling_is_accepted() -> None:
@@ -235,26 +201,14 @@ def test_a_list_at_the_row_ceiling_is_accepted() -> None:
 
 
 def test_a_pipelines_value_that_is_not_json_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        pipelines("{not json")
-
-
-def test_a_pipelines_value_that_is_not_json_says_not_valid_json() -> None:
-    with pytest.raises(GroundingError, match=f"{PIPE}: not valid JSON"):
-        pipelines("{not json")
+    assert refusal_code(lambda: pipelines("{not json")) == "rows-bad-json"
 
 
 # --- 11. the profile name is not a string -------------------------------------
 
 
 def test_a_profile_name_that_is_not_a_string_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        profile(save_payload(name=5))
-
-
-def test_a_profile_name_that_is_not_a_string_says_it_must_be_a_string() -> None:
-    with pytest.raises(GroundingError, match="name must be a string"):
-        profile(save_payload(name=5))
+    assert refusal_code(lambda: profile(save_payload(name=5))) == "name-not-string"
 
 
 # --- 12. the profile name is empty --------------------------------------------
@@ -262,27 +216,14 @@ def test_a_profile_name_that_is_not_a_string_says_it_must_be_a_string() -> None:
 
 @pytest.mark.parametrize("name", ["", "   "])
 def test_an_empty_profile_name_is_refused(name: str) -> None:
-    with pytest.raises(GroundingError):
-        profile(save_payload(name=name))
-
-
-@pytest.mark.parametrize("name", ["", "   "])
-def test_an_empty_profile_name_says_it_must_not_be_empty(name: str) -> None:
-    with pytest.raises(GroundingError, match="name must not be empty"):
-        profile(save_payload(name=name))
+    assert refusal_code(lambda: profile(save_payload(name=name))) == "name-empty"
 
 
 # --- 13. the profile name is too long -----------------------------------------
 
 
 def test_a_profile_name_over_the_length_ceiling_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        profile(save_payload(name="x" * (NAME_MAX + 1)))
-
-
-def test_a_profile_name_over_the_length_ceiling_says_how_long_is_allowed() -> None:
-    with pytest.raises(GroundingError, match=f"name longer than {NAME_MAX} characters"):
-        profile(save_payload(name="x" * (NAME_MAX + 1)))
+    assert refusal_code(lambda: profile(save_payload(name="x" * (NAME_MAX + 1)))) == "name-too-long"
 
 
 def test_a_profile_name_exactly_at_the_length_ceiling_is_accepted() -> None:
@@ -294,13 +235,7 @@ def test_a_profile_name_exactly_at_the_length_ceiling_is_accepted() -> None:
 
 
 def test_a_control_character_in_the_profile_name_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        profile(save_payload(name="bad\x07name"))
-
-
-def test_a_control_character_in_the_profile_name_says_so() -> None:
-    with pytest.raises(GroundingError, match="control characters in name"):
-        profile(save_payload(name="bad\x07name"))
+    assert refusal_code(lambda: profile(save_payload(name="bad\x07name"))) == "name-control-chars"
 
 
 # --- 15. the save payload is not JSON -----------------------------------------
@@ -308,14 +243,7 @@ def test_a_control_character_in_the_profile_name_says_so() -> None:
 
 @pytest.mark.parametrize("entry", SAVE_ENTRIES)
 def test_a_save_payload_that_is_not_json_is_refused(entry: Callable[[str], Any]) -> None:
-    with pytest.raises(GroundingError):
-        entry("{not json")
-
-
-@pytest.mark.parametrize("entry", SAVE_ENTRIES)
-def test_a_save_payload_that_is_not_json_says_not_valid_json(entry: Callable[[str], Any]) -> None:
-    with pytest.raises(GroundingError, match=f"{SAVE}: not valid JSON"):
-        entry("{not json")
+    assert refusal_code(lambda: entry("{not json")) == "save-bad-json"
 
 
 # --- 16. the save payload is not an object ------------------------------------
@@ -326,17 +254,7 @@ NON_OBJECT_PAYLOADS = [pytest.param("[1, 2]", id="array"), pytest.param("5", id=
 @pytest.mark.parametrize("entry", SAVE_ENTRIES)
 @pytest.mark.parametrize("payload", NON_OBJECT_PAYLOADS)
 def test_a_save_payload_that_is_not_an_object_is_refused(entry: Callable[[str], Any], payload: str) -> None:
-    with pytest.raises(GroundingError):
-        entry(payload)
-
-
-@pytest.mark.parametrize("entry", SAVE_ENTRIES)
-@pytest.mark.parametrize("payload", NON_OBJECT_PAYLOADS)
-def test_a_save_payload_that_is_not_an_object_says_it_needs_name_and_rows(
-    entry: Callable[[str], Any], payload: str
-) -> None:
-    with pytest.raises(GroundingError, match=f"{SAVE}: must be an object with name and rows"):
-        entry(payload)
+    assert refusal_code(lambda: entry(payload)) == "save-bad-shape"
 
 
 # --- 17. presets is not a list of preset names --------------------------------
@@ -347,15 +265,7 @@ BAD_PRESETS = [pytest.param("Office", id="bare-string"), pytest.param([1], id="l
 @pytest.mark.parametrize("entry", SAVE_ENTRIES)
 @pytest.mark.parametrize("presets", BAD_PRESETS)
 def test_a_presets_key_that_is_not_a_list_of_names_is_refused(entry: Callable[[str], Any], presets: Any) -> None:
-    with pytest.raises(GroundingError):
-        entry(json.dumps(save_payload(presets=presets)))
-
-
-@pytest.mark.parametrize("entry", SAVE_ENTRIES)
-@pytest.mark.parametrize("presets", BAD_PRESETS)
-def test_a_presets_key_that_is_not_a_list_of_names_says_so(entry: Callable[[str], Any], presets: Any) -> None:
-    with pytest.raises(GroundingError, match=f"{SAVE}: presets must be a list of preset names"):
-        entry(json.dumps(save_payload(presets=presets)))
+    assert refusal_code(lambda: entry(json.dumps(save_payload(presets=presets)))) == "targets-bad-list"
 
 
 def test_save_targets_returns_the_named_fanout_targets() -> None:
@@ -370,13 +280,8 @@ def test_a_save_payload_without_a_presets_key_names_no_targets() -> None:
 
 
 def test_a_snapshot_without_the_hqplayerd_root_is_refused() -> None:
-    with pytest.raises(GroundingError):
-        matrixconf.write_profile(b'<?xml version="1.0"?><other/>', json.dumps(save_payload()))
-
-
-def test_a_snapshot_without_the_hqplayerd_root_says_the_root_element_is_absent() -> None:
-    with pytest.raises(GroundingError, match="no hqplayerd root element"):
-        matrixconf.write_profile(b'<?xml version="1.0"?><other/>', json.dumps(save_payload()))
+    unrooted = b'<?xml version="1.0"?><other/>'
+    assert refusal_code(lambda: matrixconf.write_profile(unrooted, json.dumps(save_payload()))) == "no-root"
 
 
 def test_a_snapshot_with_no_matrix_element_still_receives_the_saved_profile() -> None:

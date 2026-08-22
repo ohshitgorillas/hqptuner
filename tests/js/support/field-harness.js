@@ -359,14 +359,28 @@ function stripApodBadges(inner) {
 
 // Options come in two markups: native <option> tags, and the combobox's
 // .dd-opt rows (desc-carrying dropdowns, controls/Combobox.js). Both expose
-// the same {a, label} shape — a grayed row's aria-disabled satisfies the same
-// \bdisabled\b probe the native attribute does.
+// the same {a, label, v} shape — a grayed row's aria-disabled satisfies the same
+// \bdisabled\b probe the native attribute does, and `v` is the option's wire
+// value, off `value` on a native option and off `data-v` on a dd-opt row.
+/**
+ * One attribute off an opening tag's attribute run, empty when absent.
+ *
+ * @param {string} attrs
+ * @param {string} name
+ * @returns {string}
+ */
+const valueOf = (attrs, name) => (new RegExp(`(^|\\s)${name}="([^"]*)"`).exec(attrs) || [])[2] || "";
+
 /**
  * @param {string} out
- * @returns {{ a: string, label: string }[]}
+ * @returns {{ a: string, label: string, v: string }[]}
  */
 const opts = (out) => [
-  ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({ a: m[1], label: m[2] })),
+  ...[...out.matchAll(/<option([^>]*)>([\s\S]*?)<\/option>/g)].map((m) => ({
+    a: m[1],
+    label: m[2],
+    v: valueOf(m[1], "value"),
+  })),
   // the favorite-heart button is a row affordance, and the apodizing badge, the
   // dd-stars quality span and the dd-tier rate-tier badge row markings, not
   // label text
@@ -378,28 +392,31 @@ const opts = (out) => [
         .replace(/<span[^>]*\bdd-stars\b[^>]*>[\s\S]*?<\/span>/g, "")
         .replace(/<span[^>]*\bdd-tier\b[^>]*>[\s\S]*?<\/span>/g, ""),
     ).trim(),
+    v: valueOf(m[1], "data-v"),
   })),
 ];
 /**
+ * The option offering one wire value, found by that value and never by the
+ * words rendered for it (docs/testing.md rule 9). The value is `value` on a
+ * native `<option>` and `data-v` on a `div.dd-opt` row; undefined when the field
+ * offers no such option.
+ *
  * @param {string} out
- * @returns {string[]}
+ * @param {string} value
+ * @returns {{ a: string, label: string, v: string } | undefined}
  */
-export const optionLabels = (out) => opts(out).map((o) => o.label);
+export const optionByValue = (out, value) => opts(out).find((o) => o.v === value);
 
 /**
- * @param {string} out
- * @param {string} label
- * @returns {{ a: string, label: string } | undefined}
- */
-export const optionByLabel = (out, label) => opts(out).find((o) => o.label.startsWith(label));
-
-/**
+ * The wire value of the segment rendered active, or null when none is. Read off
+ * the button's own `data-v`, so a reworded segment still answers.
+ *
  * @param {string} out
  * @returns {string | null}
  */
 export const activeSegment = (out) => {
-  const m = /<button[^>]*class="seg active"[^>]*>([\s\S]*?)<\/button>/.exec(out);
-  return m ? m[1].trim() : null;
+  const hit = [...out.matchAll(/<button([^<>]*)>/g)].find((m) => /(^|\s)class="seg active"/.test(m[1]));
+  return hit ? valueOf(hit[1], "data-v") || null : null;
 };
 
 /**

@@ -34,6 +34,7 @@ import { edit, discardAll } from "../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../hqptuner/static/store/ui.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
+import { section } from "../support/tabform.js";
 
 // A volume control that is live, so loudness is not gated by a bypassed volume.
 const FREE = { volume_min: "-60", volume_max: "0", defaults_volume: "-20", fixed_volume_enabled: false };
@@ -87,15 +88,12 @@ async function reset(fields = MTX) {
 
 const tab = () => render(html`<${Volume} />`);
 
-// The Loudness card's fragment, head to close.
-const card = () => {
-  const out = tab();
-  const head = out.indexOf('<div class="card-head">Loudness</div>');
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
+// The Loudness card's fragment, by the id its section carries.
+const card = () => section(tab(), "loudness");
 
-// Segment buttons, addressed by label text; a dirty option carries the dot
-// span inside its button, so the match is on containment, not equality.
+// Segment buttons, addressed by the wire value each stands for (`loudnessSide`
+// carries "low" or "high") rather than the word printed on it — the option
+// value is contract, the word is copy (docs/testing.md rule 9).
 /** @param {string} out */
 const buttons = (out) =>
   out
@@ -104,9 +102,10 @@ const buttons = (out) =>
     .map((s) => s.split("</button>")[0]);
 /**
  * @param {string} out
- * @param {string} text
+ * @param {string} value
  */
-const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).includes(text)) || "";
+const seg = (out, value) =>
+  buttons(out).find((b) => new RegExp(`\\sdata-v="${value}"`).test(b.slice(0, b.indexOf(">")))) || "";
 /** @param {string} b */
 const attrsOf = (b) => b.slice(0, b.indexOf(">"));
 /** @param {string} b */
@@ -132,13 +131,13 @@ const sliderStep = (chunk) => {
 
 test("test_bass_is_the_active_segment_on_a_fresh_render", async () => {
   await reset();
-  assert.ok(attrsOf(button(card(), "Bass")).includes('class="seg active"'));
+  assert.ok(attrsOf(seg(card(), "low")).includes('class="seg active"'));
 });
 
 test("test_switching_the_side_to_high_lights_the_treble_segment", async () => {
   await reset();
   loudnessSide.value = "high";
-  assert.ok(attrsOf(button(card(), "Treble")).includes('class="seg active"'));
+  assert.ok(attrsOf(seg(card(), "high")).includes('class="seg active"'));
 });
 
 // --- one side's controls at a time ------------------------------------------------
@@ -220,7 +219,7 @@ test("test_the_level_slider_steps_at_a_fixed_quantum", async () => {
 test("test_a_staged_edit_on_the_hidden_side_dots_its_segment_button", async () => {
   await reset();
   await edit("loudness_high_level", "-6");
-  assert.ok(bodyOf(button(card(), "Treble")).includes('<span class="seg-dirty-dot"'));
+  assert.ok(bodyOf(seg(card(), "high")).includes('<span class="seg-dirty-dot"'));
 });
 
 test("test_no_staged_edits_leave_both_segment_buttons_undotted", async () => {
@@ -231,5 +230,5 @@ test("test_no_staged_edits_leave_both_segment_buttons_undotted", async () => {
 test("test_a_staged_edit_on_the_active_side_leaves_its_segment_button_undotted", async () => {
   await reset();
   await edit("loudness_low_level", "-6");
-  assert.equal(bodyOf(button(card(), "Bass")).includes("seg-dirty-dot"), false);
+  assert.equal(bodyOf(seg(card(), "low")).includes("seg-dirty-dot"), false);
 });

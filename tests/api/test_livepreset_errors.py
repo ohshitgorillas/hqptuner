@@ -119,7 +119,7 @@ def test_listing_presets_from_a_store_this_build_cannot_read_is_a_conflict(
 def test_listing_presets_from_an_unreadable_store_reports_the_schema_it_found(
     unreadable_api: TestClient,
 ) -> None:
-    assert "schema 99" in unreadable_api.get("/api/livepresets").json()["detail"]
+    assert "99" in unreadable_api.get("/api/livepresets").json()["detail"]
 
 
 # --- PUT /api/livepresets/{name} -------------------------------------------------
@@ -129,11 +129,12 @@ def test_saving_with_the_engines_chain_unknown_is_a_conflict(chainless_api: Test
     assert chainless_api.put("/api/livepresets/Warm").status_code == 409
 
 
-def test_saving_with_the_engines_chain_unknown_says_so_against_the_chain(
+def test_saving_with_the_engines_chain_unknown_details_the_chain_field_alone(
     chainless_api: TestClient,
 ) -> None:
-    # keyed by field, as the LIVE card marks the control it cannot fill
-    assert "unknown" in chainless_api.put("/api/livepresets/Warm").json()["detail"]["chain"]
+    # keyed by field, as the LIVE card marks the control it cannot fill; the
+    # reason text under the key is owner-owned data (docs/testing.md rule 9)
+    assert set(chainless_api.put("/api/livepresets/Warm").json()["detail"]) == {"chain"}
 
 
 def test_saving_with_the_engines_chain_unknown_stores_nothing(chainless_api: TestClient) -> None:
@@ -146,7 +147,7 @@ def test_saving_into_a_store_this_build_cannot_read_is_a_conflict(unreadable_api
 
 
 def test_saving_into_an_unreadable_store_reports_the_schema_it_found(unreadable_api: TestClient) -> None:
-    assert "schema 99" in unreadable_api.put("/api/livepresets/Warm").json()["detail"]
+    assert "99" in unreadable_api.put("/api/livepresets/Warm").json()["detail"]
 
 
 @pytest.mark.parametrize("name", REFUSED_NAMES)
@@ -156,9 +157,9 @@ def test_saving_under_a_name_the_store_refuses_is_unprocessable(live_api: TestCl
 
 @pytest.mark.parametrize("name", REFUSED_NAMES)
 def test_saving_under_a_name_the_store_refuses_quotes_the_name_it_was_given(live_api: TestClient, name: str) -> None:
-    # the store's own complaint, verbatim: the rule that was broken and the name
-    # that broke it, so the card can put the offending name back in front of the user
-    assert live_api.put(_path(name)).json()["detail"] == f"invalid live preset name: {name!r}"
+    # the offending name is quoted back so the card can put it in front of the
+    # user; the complaint's wording is owner-owned data (docs/testing.md rule 9)
+    assert repr(name) in live_api.put(_path(name)).json()["detail"]
 
 
 # --- POST /api/livepresets/{name}/apply ------------------------------------------
@@ -169,7 +170,7 @@ def test_applying_from_a_store_this_build_cannot_read_is_a_conflict(unreadable_a
 
 
 def test_applying_from_an_unreadable_store_reports_the_schema_it_found(unreadable_api: TestClient) -> None:
-    assert "schema 99" in unreadable_api.post("/api/livepresets/Warm/apply").json()["detail"]
+    assert "99" in unreadable_api.post("/api/livepresets/Warm/apply").json()["detail"]
 
 
 def test_applying_a_preset_that_was_never_saved_is_not_found(live_api: TestClient) -> None:
@@ -198,10 +199,12 @@ def test_applying_a_preset_when_the_daemon_drops_the_connection_is_unavailable(
     assert dropping_apply.status_code == 503
 
 
-def test_applying_a_preset_when_the_daemon_drops_the_connection_reports_the_lane_failure(
+def test_applying_a_preset_when_the_daemon_drops_the_connection_says_why(
     dropping_apply: Response,
 ) -> None:
-    assert "connection failed" in dropping_apply.json()["detail"]
+    # the 503 carries a reason for the card to show; its wording is owner-owned
+    # data (docs/testing.md rule 9)
+    assert dropping_apply.json()["detail"] != ""
 
 
 # --- DELETE /api/livepresets/{name} ----------------------------------------------

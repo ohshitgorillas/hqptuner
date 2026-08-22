@@ -79,12 +79,12 @@ async function stageOne() {
   await edit("volume_max", "-6");
 }
 
-// Buttons in render order. Matching one by its label is not viable: "Apply" is a
-// substring of "Apply & Save", and "Save" of both that and "Save as New".
-// Positional, so these hold only while no question is open — the inline ask
-// renders its own two buttons ahead of Discard.
-const DISCARD = 0;
-const APPLY = 1;
+// The two buttons that carry a machine identity are addressed by it: Apply and
+// Discard wear `data-testid` (docs/testing.md rule 9). The two Save buttons
+// carry none, so they stay positional — which holds only while no question is
+// open, since the inline ask renders its own two buttons ahead of Discard.
+const DISCARD = "discard";
+const APPLY = "apply";
 const SAVE = 2;
 const SAVE_NEW = 3;
 
@@ -97,10 +97,20 @@ const buttons = (out) =>
 /** @param {string} b */
 const attrsOf = (b) => b.slice(0, b.indexOf(">"));
 /**
+ * Whether the button at a position, or the one carrying a test id, renders
+ * disabled.
+ *
  * @param {string} out
- * @param {number} i
+ * @param {string | number} which
  */
-const disabled = (out, i) => attrsOf(buttons(out)[i]).includes("disabled");
+const disabled = (out, which) => {
+  const found =
+    typeof which === "number"
+      ? buttons(out)[which]
+      : buttons(out).find((b) => attrsOf(b).includes(`data-testid="${which}"`));
+  if (found === undefined) throw new Error(`the bar renders no "${which}" button`);
+  return attrsOf(found).includes("disabled");
+};
 // The status span, found by its class — `muted` at rest, `note …` once an apply
 // is in flight or concluded. Only the NUMBERS in it are ever asserted: the
 // sentence wrapped around them is copy.

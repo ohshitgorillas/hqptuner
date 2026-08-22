@@ -37,7 +37,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import { elements } from "../support/markup.js";
+import { attr, elements } from "../support/markup.js";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { LogTail } from "../../../hqptuner/static/components/LogTail.js";
 import { config, matrixConfig } from "../../../hqptuner/static/store/signals.js";
@@ -92,19 +92,14 @@ test("test_an_off_toggle_hides_the_tail_pane", async () => {
   assert.equal(block().includes('class="log-tail"'), false);
 });
 
-test("test_the_toggle_names_its_fifty_line_window", async () => {
-  await reset(false);
-  assert.ok(block().includes("last 50 lines"));
-});
-
 // --- the copy button ------------------------------------------------------------
 //
-// Selected as a user finds it: a <button> reading "Copy" anywhere in the block,
-// never a test-only hook. "Copied" and "Copy failed" are the same button under a
-// changed label, so the needle matches those too and an absence assertion stays
-// an absence assertion whatever the button last did.
+// Selected by the state it carries: the copy button wears `data-copy`
+// (idle/ok/fail), its own machine identity, so an absence assertion stays an
+// absence assertion whatever the button last did and whatever it is captioned
+// (docs/testing.md rule 9).
 /** @param {string} out */
-const copyButtons = (out) => elements(out).filter((e) => e.name === "button" && e.html.includes("Copy"));
+const copyButtons = (out) => elements(out).filter((e) => e.name === "button" && attr(e, "data-copy") !== undefined);
 
 test("test_a_hidden_tail_offers_no_copy_button", async () => {
   // The toggle is drawn either way, so a copy button sharing its header row is

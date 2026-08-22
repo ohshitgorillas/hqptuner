@@ -29,9 +29,12 @@ def test_2s_suffix_resolves_to_an_entry(static: StaticMetadata) -> None:
     assert static.filter_entry("poly-sinc-long-lp-2s") is not None
 
 
-def test_2s_description_carries_the_two_stage_note(static: StaticMetadata) -> None:
+def test_2s_description_adds_a_note_of_its_own(static: StaticMetadata) -> None:
+    # the join rule appends to the base entry rather than inheriting it whole;
+    # the note's wording is owner-owned data (docs/testing.md rule 9)
+    base = present(static.filter_entry("poly-sinc-long-lp"))
     entry = present(static.filter_entry("poly-sinc-long-lp-2s"))
-    assert "Two stage oversampling" in entry["description"]
+    assert len(entry["description"]) > len(base["description"])
 
 
 def test_2s_description_keeps_the_base_prose(static: StaticMetadata) -> None:

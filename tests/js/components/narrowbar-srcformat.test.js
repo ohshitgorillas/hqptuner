@@ -1,7 +1,7 @@
 // Behavioral suite for the narrow bar's SOURCE FORMAT control as it renders
-// (components/narrowbar/Bar.js): the switch group titled "Source format", its two
-// segments, and the preview count chip it does NOT carry — the facet changes no
-// dropdown, so there is no count for a chip to preview.
+// (components/narrowbar/Bar.js): the switch group marked `source-format`, the two
+// values its segments offer, and the preview count chip it does NOT carry — the
+// facet changes no dropdown, so there is no count for a chip to preview.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. The bar is reset, rendered and read through
@@ -21,15 +21,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { elements, classes } from "../support/markup.js";
-import { resetBar, renderBar, seen, group, segmentLabels } from "../support/narrowbarview.js";
+import { attr, elements, classes } from "../support/markup.js";
+import { resetBar, renderBar, group } from "../support/narrowbarview.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
-const TITLE = "Source format";
+// The groups' own machine identities, the `data-group` each element carries
+// (docs/testing.md rule 9).
+const TITLE = "source-format";
 
 // The group the bar's OTHER stage control sits in, which does preview a count.
-const SIBLING = "1x sources";
+const SIBLING = "1x-sources";
 
 // The preview chip the counting groups render beside their switch.
 const CHIP = "narrow-count";
@@ -43,14 +45,16 @@ const FILTERS = [
 const reset = (prefs) => resetBar(FILTERS, prefs);
 
 /**
- * The elements of the bar reading exactly one wording — how a case asks what the
- * bar calls something without naming the element that carries it.
+ * The wire value each segment of a group's switch offers, in order.
  *
- * @param {string} out
- * @param {string} wording
- * @returns {MarkupElement[]}
+ * @param {MarkupElement} region
+ * @returns {(string | undefined)[]}
  */
-const reading = (out, wording) => elements(out).filter((el) => seen(el) === wording);
+const segmentValues = (region) =>
+  elements(region.html)
+    .filter((el) => el.name === "button" && classes(el).includes("seg"))
+    .sort((a, b) => a.start - b.start)
+    .map((el) => attr(el, "data-v"));
 
 /**
  * The preview chips inside one group.
@@ -60,16 +64,15 @@ const reading = (out, wording) => elements(out).filter((el) => seen(el) === word
  */
 const chips = (region) => elements(region.html).filter((el) => classes(el).includes(CHIP));
 
-// --- the title and the two segments ---------------------------------------------
-
-test("test_the_bar_titles_a_group_source_format", async () => {
-  await reset();
-  assert.equal(reading(renderBar(), TITLE).length, 1);
-});
+// --- the two segments -------------------------------------------------------------
+// DELETED alongside them: "the bar titles a group Source format", which counted
+// the elements reading that exact wording. The wording is copy (docs/testing.md
+// rule 9) and the group's presence is pinned by its id in
+// narrowbar-srcformat-prop.test.js.
 
 test("test_the_source_format_group_offers_pcm_only_and_dsd_in_that_order", async () => {
   await reset();
-  assert.deepEqual(segmentLabels(group(renderBar(), TITLE)), ["PCM only", "+DSD"]);
+  assert.deepEqual(segmentValues(group(renderBar(), TITLE)), ["pcm", "both"]);
 });
 
 // --- no preview count -------------------------------------------------------------

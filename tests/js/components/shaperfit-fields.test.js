@@ -18,17 +18,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { reset, field, optionByLabel } from "../support/field-harness.js";
+import { reset, field, optionByValue } from "../support/field-harness.js";
 
+// One option of a field, found by the WIRE VALUE it carries rather than by the
+// words rendered for it (docs/testing.md rule 9).
 /** @param {string} out */
-const option = (out, /** @type {string} */ label) => {
-  const hit = optionByLabel(out, label);
-  if (!hit) throw new Error(`the field offers no ${label} option`);
+const option = (out, /** @type {string} */ value) => {
+  const hit = optionByValue(out, value);
+  if (!hit) throw new Error(`the field offers no option valued ${value}`);
   return hit;
 };
 
 // NS9's floor is 352800 in the constraint overlay; 44100 is three tiers below
-// it, and 48000 is the 48k base rate — the lowest either family reaches.
+// it, and 48000 is the 48k base rate — the lowest either family reaches. NS9 is
+// the option valued "1" in the form below; the cases address it by that value.
+const NS9 = "1";
+const ASDM5 = "1";
+
 /** @param {string} rate */
 const DITHER_AT = (rate) => [
   { name: "defaults_samplerate", value: rate },
@@ -44,19 +50,21 @@ const DITHER_AT = (rate) => [
 
 test("test_a_dither_below_its_floor_is_not_disabled", async () => {
   await reset({ fields: DITHER_AT("44100") });
-  assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a), false);
+  assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), NS9).a), false);
 });
 
-test("test_a_dither_below_its_floor_carries_no_rate_reason_after_its_label", async () => {
-  // The other half of the same claim: a row that kept "— needs ≥ 352.8 kHz"
-  // while dropping the attribute still tells the user they may not have it.
+test("test_a_dither_below_its_floor_reads_back_the_label_the_form_gave_it", async () => {
+  // The other half of the same claim: a row that kept a rate reason after the
+  // daemon's own label while dropping the attribute still tells the user they
+  // may not have it. The label here is the FIXTURE's own — it is fed in through
+  // the form above and asserted only to come back unchanged.
   await reset({ fields: DITHER_AT("44100") });
-  assert.equal(option(field("pcm_dither"), "NS9").label.trim(), "NS9");
+  assert.equal(option(field("pcm_dither"), NS9).label.trim(), "NS9");
 });
 
 test("test_a_dither_below_its_floor_is_not_disabled_at_the_48k_base_rate", async () => {
   await reset({ fields: DITHER_AT("48000") });
-  assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), "NS9").a), false);
+  assert.equal(/\bdisabled\b/.test(option(field("pcm_dither"), NS9).a), false);
 });
 
 test("test_a_rate_grayed_modulator_names_a_second_floor_as_its_own", async () => {
@@ -76,5 +84,8 @@ test("test_a_rate_grayed_modulator_names_a_second_floor_as_its_own", async () =>
       },
     ],
   });
-  assert.equal(option(field("sdm_modulator"), "ASDM5").label, "ASDM5 — needs ≥ 6.144 MHz");
+  // The floor itself is DATA — 6144000 Hz from the constraint overlay, read
+  // back off the row as the number it is. The sentence carrying it is copy and
+  // is not asserted (docs/testing.md rule 9).
+  assert.ok(option(field("sdm_modulator"), ASDM5).label.includes("6.144"));
 });

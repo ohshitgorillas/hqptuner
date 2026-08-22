@@ -9,6 +9,10 @@
 // what they read. None touches a private helper, and the component exports only
 // itself, so the whole contract is observable exactly as a user sees it.
 //
+// A chip is addressed by the `data-stage` code it carries, never by its label:
+// the labels are the owner's copy (docs/testing.md rule 9), and one of them —
+// the shaper slot's — is relabelled by output mode while the code stays put.
+//
 // State is driven through the store's exported source signals. `panel()`
 // reassigns all four it drives — engineState, engineStatus, config,
 // matrixConfig — on every call rather than only the ones a given case cares
@@ -23,6 +27,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { SignalPath } from "../../../hqptuner/static/components/SignalPath.js";
 import { engineState, engineStatus, matrixConfig, config } from "../../../hqptuner/static/store/signals.js";
+import { elements, classes, attr, text } from "../support/markup.js";
 
 const PLAYING = 2;
 
@@ -148,62 +153,78 @@ function panel({ state = 0, status = {}, metadata = {}, matrix = {}, dsp = {}, v
   return render(html`<${SignalPath} />`);
 }
 
-// label -> displayed value, in render order.
+// Every chip of a panel, in chain order: the elements carrying a `data-stage`.
+// That code is the chip's contract identity and is what every case below
+// addresses a stage by — never the label a reader sees, which is the owner's
+// wording (docs/testing.md rule 9). The shaper slot is deliberately one code:
+// the same chip is relabelled "Modulator" for an SDM output and "Dither"
+// otherwise, and `shaper` names it in both.
 /**
+ * @param {string} out
+ * @returns {import("../support/markup.js").MarkupElement[]}
+ */
+const chipElements = (out) =>
+  elements(out)
+    .filter((el) => attr(el, "data-stage") !== undefined)
+    .sort((a, b) => a.start - b.start);
+
+/**
+ * The value one chip renders, empty when it renders none.
+ *
+ * @param {import("../support/markup.js").MarkupElement} el
+ * @returns {string}
+ */
+const valueOf = (el) => {
+  const val = elements(el.html).find((k) => classes(k).includes("chip-val"));
+  return val ? text(val) : "";
+};
+
+/**
+ * stage code -> the value that chip renders. A stage the panel does not render
+ * is an absent key, so `"matrix" in chips(out)` asks whether the chip is there.
+ *
  * @param {string} out
  * @returns {Record<string, string>}
  */
 function chips(out) {
   /** @type {Record<string, string>} */
   const found = {};
-  for (const m of out.matchAll(/<span class="chip-label">([^<]*)<\/span><span class="chip-val">([^<]*)<\/span>/g)) {
-    found[m[1]] = m[2];
-  }
+  for (const el of chipElements(out)) found[attr(el, "data-stage") ?? ""] = valueOf(el);
   return found;
 }
 
-/** @param {string} out */
-const labels = (out) => [...out.matchAll(/<span class="chip-label">([^<]*)<\/span>/g)].map((m) => m[1]);
-
-// The VALUES a panel renders, in render order — the handle a case uses when the
-// behavior is which raw engine name a stage carries rather than what the stage
-// is called. Chip labels are owner-owned copy (docs/testing.md rule 9) and the
-// chips carry no key in the DOM, so a label assertion is kept only where naming
-// the stage IS the behavior.
-/** @param {string} out */
-const values = (out) => [...out.matchAll(/<span class="chip-val">([^<]*)<\/span>/g)].map((m) => m[1]);
-
-// SSR escapes the entities in a chip label, so "SDM → PCM" arrives encoded.
-/** @param {string} s */
-const decode = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
-
-// A chip is looked up by its DECODED label, so a case names the label a user
-// reads. No chip of that name reads as undefined, the same as any absent key.
 /**
+ * The stage codes a panel renders, in chain order — the handle a case uses when
+ * the behavior is WHICH stages run and in what sequence.
+ *
  * @param {string} out
- * @param {string} label
- * @returns {string | undefined}
+ * @returns {(string | undefined)[]}
  */
-const chip = (out, label) => {
-  const found = chips(out);
-  const key = Object.keys(found).find((k) => decode(k) === label);
-  return key === undefined ? undefined : found[key];
-};
+const stages = (out) => chipElements(out).map((el) => attr(el, "data-stage"));
+
+/**
+ * The VALUES a panel renders, in render order — the handle a case uses when the
+ * behavior is which raw engine name a stage carries.
+ *
+ * @param {string} out
+ * @returns {string[]}
+ */
+const values = (out) => chipElements(out).map(valueOf);
 
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} stage
  */
-const has = (out, label) => labels(out).some((k) => decode(k) === label);
+const has = (out, stage) => stages(out).includes(stage);
 
-// label -> that chip's own class attribute, verbatim.
+// stage code -> that chip's own class attribute, verbatim.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} stage
  */
-const chipClass = (out, label) => {
-  const marked = [...out.matchAll(/<span class="(chip[^"]*)"><span class="chip-label">([^<]*)<\/span>/g)];
-  return marked.find((m) => decode(m[2]) === label)?.[1] ?? "no such chip";
+const chipClass = (out, stage) => {
+  const hit = chipElements(out).find((el) => attr(el, "data-stage") === stage);
+  return hit ? (attr(hit, "class") ?? "") : "no such chip";
 };
 
 const PLAY = { state: PLAYING, metadata: { samplerate: "44100", bits: "24" }, status: { active_rate: "705600" } };
@@ -243,47 +264,47 @@ test("test_a_paused_engine_is_not_live", () => {
 // --- source -----------------------------------------------------------------
 
 test("test_an_idle_source_reads_as_a_dash", () => {
-  assert.equal(chips(panel()).Source, "—");
+  assert.equal(chips(panel())["source"], "—");
 });
 
 test("test_a_playing_source_shows_rate_and_bit_depth", () => {
-  assert.equal(chips(panel(PLAY)).Source, "44.1 kHz / 24bit");
+  assert.equal(chips(panel(PLAY))["source"], "44.1 kHz / 24bit");
 });
 
 test("test_a_source_with_no_bit_depth_marks_it_unknown", () => {
-  assert.equal(chips(panel({ ...PLAY, metadata: { samplerate: "44100" } })).Source, "44.1 kHz / ?bit");
+  assert.equal(chips(panel({ ...PLAY, metadata: { samplerate: "44100" } }))["source"], "44.1 kHz / ?bit");
 });
 
 test("test_a_source_with_no_rate_reads_as_a_dash", () => {
-  assert.equal(chips(panel({ ...PLAY, metadata: {} })).Source, "—");
+  assert.equal(chips(panel({ ...PLAY, metadata: {} }))["source"], "—");
 });
 
 test("test_a_dsd_source_is_shown_in_megahertz", () => {
   const out = panel({ ...PLAY, metadata: { samplerate: "2822400", bits: "1" } });
-  assert.equal(chips(out).Source, "2.822 MHz / 1bit");
+  assert.equal(chips(out)["source"], "2.822 MHz / 1bit");
 });
 
 test("test_a_sub_kilohertz_source_is_shown_in_hertz", () => {
-  assert.equal(chips(panel({ ...PLAY, metadata: { samplerate: "800", bits: "16" } })).Source, "800 Hz / 16bit");
+  assert.equal(chips(panel({ ...PLAY, metadata: { samplerate: "800", bits: "16" } }))["source"], "800 Hz / 16bit");
 });
 
 // --- output -----------------------------------------------------------------
 
 test("test_an_idle_output_reads_as_a_dash", () => {
-  assert.equal(chips(panel()).Output, "—");
+  assert.equal(chips(panel())["output"], "—");
 });
 
 test("test_an_unreported_bit_depth_below_the_dsd_floor_shows_the_bare_rate", () => {
-  assert.equal(chips(panel(PLAY)).Output, "705.6 kHz");
+  assert.equal(chips(panel(PLAY))["output"], "705.6 kHz");
 });
 
 test("test_a_dsd_output_rate_is_shown_in_megahertz_and_one_bit", () => {
   const out = panel({ ...PLAY, status: { active_rate: "24576000" } });
-  assert.equal(chips(out).Output, "24.576 MHz / 1bit");
+  assert.equal(chips(out)["output"], "24.576 MHz / 1bit");
 });
 
 test("test_a_zero_output_rate_reads_as_a_dash", () => {
-  assert.equal(chips(panel({ ...PLAY, status: { active_rate: "0" } })).Output, "—");
+  assert.equal(chips(panel({ ...PLAY, status: { active_rate: "0" } }))["output"], "—");
 });
 
 test("test_the_output_chip_is_the_hero_chip", () => {
@@ -300,41 +321,41 @@ test("test_the_output_chip_is_the_hero_chip", () => {
 // rendering the SOURCE word length would pass a 24 and fail this.
 test("test_a_pcm_output_shows_the_reported_bit_depth", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_bits: "32" } });
-  assert.equal(chips(out).Output, "705.6 kHz / 32bit");
+  assert.equal(chips(out)["output"], "705.6 kHz / 32bit");
 });
 
 test("test_a_dsd_rate_output_reads_as_one_bit", () => {
   const out = panel({ ...PLAY, status: { active_rate: "22579200", active_bits: "1" } });
-  assert.equal(chips(out).Output, "22.579 MHz / 1bit");
+  assert.equal(chips(out)["output"], "22.579 MHz / 1bit");
 });
 
 test("test_a_reported_bit_depth_of_zero_falls_back_to_the_dsd_rate_floor", () => {
   const out = panel({ ...PLAY, status: { active_rate: "22579200", active_bits: "0" } });
-  assert.equal(chips(out).Output, "22.579 MHz / 1bit");
+  assert.equal(chips(out)["output"], "22.579 MHz / 1bit");
 });
 
 test("test_a_reported_bit_depth_of_zero_below_the_dsd_floor_shows_no_depth", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_bits: "0" } });
-  assert.equal(chips(out).Output, "705.6 kHz");
+  assert.equal(chips(out)["output"], "705.6 kHz");
 });
 
 test("test_an_unreported_bit_depth_at_the_dsd_floor_infers_one_bit", () => {
   const out = panel({ ...PLAY, status: { active_rate: "2822400" } });
-  assert.equal(chips(out).Output, "2.822 MHz / 1bit");
+  assert.equal(chips(out)["output"], "2.822 MHz / 1bit");
 });
 
 test("test_a_zero_output_rate_with_a_reported_bit_depth_still_reads_as_a_dash", () => {
   const out = panel({ ...PLAY, status: { active_rate: "0", active_bits: "24" } });
-  assert.equal(chips(out).Output, "—");
+  assert.equal(chips(out)["output"], "—");
 });
 
 test("test_a_missing_output_rate_with_a_reported_bit_depth_reads_as_a_dash", () => {
-  assert.equal(chips(panel({ ...PLAY, status: { active_bits: "24" } })).Output, "—");
+  assert.equal(chips(panel({ ...PLAY, status: { active_bits: "24" } }))["output"], "—");
 });
 
 test("test_a_paused_engine_shows_a_dash_whatever_bit_depth_is_reported", () => {
   const out = panel({ ...PLAY, state: 1, status: { active_rate: "705600", active_bits: "24" } });
-  assert.equal(chips(out).Output, "—");
+  assert.equal(chips(out)["output"], "—");
 });
 
 // --- PCM source -> PCM output -----------------------------------------------
@@ -342,28 +363,23 @@ test("test_a_paused_engine_shows_a_dash_whatever_bit_depth_is_reported", () => {
 
 test("test_the_active_filter_is_shown", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
-  assert.equal(chips(out).Filter, "sinc-M");
-});
-
-test("test_a_pcm_output_labels_the_shaper_chip_dither", () => {
-  const out = panel({ ...PLAY, status: { active_rate: "705600", active_shaper: "NS5" } });
-  assert.equal(chips(out).Dither, "NS5");
+  assert.equal(chips(out)["filter"], "sinc-M");
 });
 
 test("test_an_absent_filter_reads_as_a_dash", () => {
-  assert.equal(chips(panel(PLAY)).Filter, "—");
+  assert.equal(chips(panel(PLAY))["filter"], "—");
 });
 
 // --- PCM source -> SDM output -----------------------------------------------
 // <sdm oversampling> + <sdm modulator> (manual §4.5). This is the ONE path the
-// modulator serves, so it is the one path that may name it.
+// modulator serves, so it is the one path that fills the shaper slot from it.
 
-test("test_a_pcm_source_into_a_dsd_output_labels_the_shaper_chip_modulator", () => {
-  assert.equal(chips(panel(PCM_TO_SDM)).Modulator, "ASDM7EC-super");
+test("test_a_pcm_source_into_a_dsd_output_shows_the_modulator_in_the_shaper_slot", () => {
+  assert.equal(chips(panel(PCM_TO_SDM))["shaper"], "ASDM7EC-super");
 });
 
 test("test_a_pcm_source_into_a_dsd_output_still_shows_the_oversampling_filter", () => {
-  assert.equal(chips(panel(PCM_TO_SDM)).Filter, "poly-sinc-ext2-xla");
+  assert.equal(chips(panel(PCM_TO_SDM))["filter"], "poly-sinc-ext2-xla");
 });
 
 // --- DSD source -> SDM output (SDM->SDM remodulation) ------------------------
@@ -373,7 +389,7 @@ test("test_a_pcm_source_into_a_dsd_output_still_shows_the_oversampling_filter", 
 // exactly the stale modulator this path must stop showing.
 
 test("test_a_dsd_source_into_a_dsd_output_shows_no_modulator_chip", () => {
-  assert.equal(has(panel(DSD_TO_SDM), "Modulator"), false);
+  assert.equal(has(panel(DSD_TO_SDM), "shaper"), false);
 });
 
 test("test_a_dsd_source_into_a_dsd_output_shows_no_shaper_value_at_all", () => {
@@ -381,7 +397,7 @@ test("test_a_dsd_source_into_a_dsd_output_shows_no_shaper_value_at_all", () => {
 });
 
 test("test_a_dsd_source_into_a_dsd_output_shows_no_filter_chip", () => {
-  assert.equal(has(panel(DSD_TO_SDM), "Filter"), false);
+  assert.equal(has(panel(DSD_TO_SDM), "filter"), false);
 });
 
 test("test_a_dsd_source_into_a_dsd_output_shows_the_integrators_engine_name", () => {
@@ -392,13 +408,8 @@ test("test_a_dsd_source_into_a_dsd_output_shows_the_sdm_conversions_engine_name"
   assert.equal(values(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } })).includes("XFi"), true);
 });
 
-test("test_the_remodulation_chain_runs_source_reconstruction_bandwidth_output", () => {
-  assert.deepEqual(labels(panel(DSD_TO_SDM)).map(decode), [
-    "Source",
-    "Reconstruction filter",
-    "Source bandwidth",
-    "Output",
-  ]);
+test("test_the_remodulation_chain_runs_source_integrator_conversion_output", () => {
+  assert.deepEqual(stages(panel(DSD_TO_SDM)), ["source", "sdm-integrator", "sdm-conversion", "output"]);
 });
 
 test("test_a_dsd_source_is_recognized_from_the_metadata_sdm_flag_alone", () => {
@@ -416,12 +427,12 @@ test("test_an_unmatched_conversion_value_falls_back_to_the_raw_value", () => {
 
 test("test_direct_sdm_collapses_the_chain_to_a_bit_perfect_pass_through", () => {
   const out = panel({ ...DSD_TO_SDM, dsp: { directSdm: true } });
-  assert.deepEqual(labels(out).map(decode), ["Source", "Direct SDM", "Output"]);
+  assert.deepEqual(stages(out), ["source", "direct-sdm", "output"]);
 });
 
 test("test_direct_sdm_suppresses_the_matrix_chip", () => {
   const out = panel({ ...DSD_TO_SDM, dsp: { directSdm: true }, matrix: { enabled: true } });
-  assert.equal(has(out, "Matrix"), false);
+  assert.equal(has(out, "matrix"), false);
 });
 
 test("test_direct_sdm_suppresses_dac_correction", () => {
@@ -430,11 +441,11 @@ test("test_direct_sdm_suppresses_dac_correction", () => {
     status: { ...DSD_TO_SDM.status, correction: "1" },
     dsp: { directSdm: true },
   });
-  assert.equal(has(out, "Correction"), false);
+  assert.equal(has(out, "correction"), false);
 });
 
 test("test_direct_sdm_is_inert_while_a_pcm_source_plays", () => {
-  assert.equal(has(panel({ ...PCM_TO_SDM, dsp: { directSdm: true } }), "Modulator"), true);
+  assert.equal(has(panel({ ...PCM_TO_SDM, dsp: { directSdm: true } }), "shaper"), true);
 });
 
 // --- DSD source -> PCM output ------------------------------------------------
@@ -442,35 +453,35 @@ test("test_direct_sdm_is_inert_while_a_pcm_source_plays", () => {
 // carry it to the target rate (manual §4.4).
 
 test("test_a_dsd_source_into_a_pcm_output_shows_the_noise_filter", () => {
-  assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { noiseFilter: "2" } }), "Noise filter"), "brickwall");
+  assert.equal(chips(panel({ ...DSD_TO_PCM, dsp: { noiseFilter: "2" } }))["noise-filter"], "brickwall");
 });
 
 test("test_a_dsd_source_into_a_pcm_output_shows_the_decimation_filter", () => {
-  assert.equal(chip(panel({ ...DSD_TO_PCM, dsp: { pcmConversion: "1" } }), "Decimation filter"), "poly-short-lp");
+  assert.equal(chips(panel({ ...DSD_TO_PCM, dsp: { pcmConversion: "1" } }))["pcm-conversion"], "poly-short-lp");
 });
 
 test("test_a_dsd_source_into_a_pcm_output_still_shows_the_resampling_filter", () => {
-  assert.equal(chips(panel(DSD_TO_PCM)).Filter, "sinc-M");
+  assert.equal(chips(panel(DSD_TO_PCM))["filter"], "sinc-M");
 });
 
-test("test_a_dsd_source_into_a_pcm_output_labels_the_shaper_chip_dither", () => {
-  assert.equal(chips(panel(DSD_TO_PCM)).Dither, "LNS15");
+test("test_a_dsd_source_into_a_pcm_output_fills_the_shaper_slot_from_the_active_shaper", () => {
+  assert.equal(chips(panel(DSD_TO_PCM))["shaper"], "LNS15");
 });
 
 test("test_the_dsd_to_pcm_chain_runs_decode_then_resample", () => {
-  const expected = ["Source", "Noise filter", "Decimation filter", "Filter", "Dither", "Output"];
-  assert.deepEqual(labels(panel(DSD_TO_PCM)).map(decode), expected);
+  const expected = ["source", "noise-filter", "pcm-conversion", "filter", "shaper", "output"];
+  assert.deepEqual(stages(panel(DSD_TO_PCM)), expected);
 });
 
 // --- matrix chip ------------------------------------------------------------
 
 test("test_a_disabled_matrix_shows_no_chip", () => {
   const out = panel({ ...PLAY, matrix: { enabled: false, profile: "Blackwood" } });
-  assert.equal("Matrix" in chips(out), false);
+  assert.equal("matrix" in chips(out), false);
 });
 
 test("test_an_enabled_matrix_on_the_default_profile_reads_as_on", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true } })).Matrix, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true } }))["matrix"], "On");
 });
 
 // The Matrix stage is a stage indicator, not a profile readout: an enabled
@@ -481,12 +492,12 @@ const LONG_PROFILE = "Wintermute Reference Curve, Revision 12";
 
 test("test_an_enabled_matrix_on_a_custom_profile_reads_on_rather_than_the_profile_name", () => {
   const out = panel({ ...PLAY, matrix: { enabled: true, profile: "Blackwood" } });
-  assert.equal(chips(out).Matrix, "On");
+  assert.equal(chips(out)["matrix"], "On");
 });
 
 test("test_an_enabled_matrix_named_only_by_the_stored_config_reads_on", () => {
   const out = panel({ ...PLAY, matrix: { enabled: true, storedProfile: "Blackwood" } });
-  assert.equal(chips(out).Matrix, "On");
+  assert.equal(chips(out)["matrix"], "On");
 });
 
 test("test_a_custom_profile_name_appears_nowhere_in_the_chain_bar", () => {
@@ -496,7 +507,7 @@ test("test_a_custom_profile_name_appears_nowhere_in_the_chain_bar", () => {
 
 test("test_a_long_profile_name_reads_on_with_no_truncation", () => {
   const out = panel({ ...PLAY, matrix: { enabled: true, profile: LONG_PROFILE } });
-  assert.equal(chips(out).Matrix, "On");
+  assert.equal(chips(out)["matrix"], "On");
 });
 
 test("test_no_fragment_of_a_long_profile_name_survives_into_the_chain_bar", () => {
@@ -512,50 +523,50 @@ test("test_no_fragment_of_a_long_profile_name_survives_into_the_chain_bar", () =
 // post-process plugin is not a state the daemon can be in.
 
 test("test_crossfeed_alone_shows_a_crossfeed_chip", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true } })).Crossfeed, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true } }))["crossfeed"], "On");
 });
 
 test("test_loudness_alone_shows_a_loudness_chip", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, loudness: true } })).Loudness, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, loudness: true } }))["loudness"], "On");
 });
 
 test("test_crossfeed_and_loudness_together_collapse_to_one_dsp_chip", () => {
-  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } })).DSP, "On");
+  assert.equal(chips(panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } }))["dsp"], "On");
 });
 
 test("test_the_collapsed_slot_replaces_the_individual_crossfeed_chip", () => {
   const out = panel({ ...PLAY, matrix: { enabled: true, crossfeed: true, loudness: true } });
-  assert.equal(has(out, "Crossfeed"), false);
+  assert.equal(has(out, "crossfeed"), false);
 });
 
 test("test_neither_post_process_shows_no_dsp_chip", () => {
-  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "DSP"), false);
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "dsp"), false);
 });
 
 test("test_neither_post_process_shows_no_crossfeed_chip", () => {
-  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "Crossfeed"), false);
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "crossfeed"), false);
 });
 
 test("test_neither_post_process_shows_no_loudness_chip", () => {
-  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "Loudness"), false);
+  assert.equal(has(panel({ ...PLAY, matrix: { enabled: true } }), "loudness"), false);
 });
 
 // --- DAC correction ---------------------------------------------------------
 
 test("test_active_dac_correction_shows_a_chip", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", correction: "1" } });
-  assert.equal(chips(out).Correction, "On");
+  assert.equal(chips(out)["correction"], "On");
 });
 
 test("test_inactive_dac_correction_shows_no_chip", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", correction: "0" } });
-  assert.equal("Correction" in chips(out), false);
+  assert.equal("correction" in chips(out), false);
 });
 
 // --- chain assembly ---------------------------------------------------------
 
-test("test_the_bare_chain_is_source_filter_dither_output", () => {
-  assert.deepEqual(labels(panel(PLAY)), ["Source", "Filter", "Dither", "Output"]);
+test("test_the_bare_chain_is_source_filter_shaper_output", () => {
+  assert.deepEqual(stages(panel(PLAY)), ["source", "filter", "shaper", "output"]);
 });
 
 test("test_the_full_chain_runs_in_processing_order", () => {
@@ -566,13 +577,13 @@ test("test_the_full_chain_runs_in_processing_order", () => {
     status: { active_rate: "705600", correction: "1" },
     matrix: { enabled: true, crossfeed: true },
   });
-  assert.deepEqual(labels(out), ["Source", "Matrix", "Crossfeed", "Filter", "Dither", "Correction", "Output"]);
+  assert.deepEqual(stages(out), ["source", "matrix", "crossfeed", "filter", "shaper", "correction", "output"]);
 });
 
 test("test_the_chain_carries_one_connector_between_each_pair_of_chips", () => {
   const out = panel(PLAY);
   const links = [...out.matchAll(/<span class="link">/g)].length;
-  assert.equal(links, labels(out).length - 1);
+  assert.equal(links, stages(out).length - 1);
 });
 
 // --- placeholder chips ------------------------------------------------------
@@ -584,26 +595,26 @@ test("test_the_chain_carries_one_connector_between_each_pair_of_chips", () => {
 // same.
 
 test("test_a_stopped_sources_placeholder_chip_is_marked_as_a_dash", () => {
-  assert.ok(chipClass(panel(), "Source").split(" ").includes("chip-dash"));
+  assert.ok(chipClass(panel(), "source").split(" ").includes("chip-dash"));
 });
 
 test("test_a_placeholder_chip_is_marked_as_a_dash_while_playing_too", () => {
   // PLAY reports no active_filter, so the Filter chip reads "—" mid-playback
-  assert.ok(chipClass(panel(PLAY), "Filter").split(" ").includes("chip-dash"));
+  assert.ok(chipClass(panel(PLAY), "filter").split(" ").includes("chip-dash"));
 });
 
 test("test_a_chip_carrying_a_real_value_is_not_marked_as_a_dash", () => {
-  assert.equal(chipClass(panel(PLAY), "Source"), "chip");
+  assert.equal(chipClass(panel(PLAY), "source"), "chip");
 });
 
 test("test_the_stopped_output_chip_is_both_the_hero_and_a_dash", () => {
-  const cls = chipClass(panel(), "Output").split(" ");
+  const cls = chipClass(panel(), "output").split(" ");
   assert.deepEqual({ hero: cls.includes("chip-hero"), dash: cls.includes("chip-dash") }, { hero: true, dash: true });
 });
 
 test("test_a_chip_that_is_neither_hero_nor_placeholder_carries_no_empty_class_slots", () => {
   const out = panel({ ...PLAY, status: { active_rate: "705600", active_filter: "sinc-M" } });
-  assert.equal(chipClass(out, "Filter"), "chip");
+  assert.equal(chipClass(out, "filter"), "chip");
 });
 
 // --- post-process runs only inside an engaged matrix -------------------------
@@ -614,17 +625,17 @@ test("test_a_chip_that_is_neither_hero_nor_placeholder_carries_no_empty_class_sl
 
 test("test_a_bypassed_matrix_shows_no_loudness_chip", () => {
   const out = panel({ ...PLAY, matrix: { enabled: false, loudness: true } });
-  assert.equal(has(out, "Loudness"), false);
+  assert.equal(has(out, "loudness"), false);
 });
 
 test("test_a_bypassed_matrix_shows_no_crossfeed_chip", () => {
   const out = panel({ ...PLAY, matrix: { enabled: false, crossfeed: true } });
-  assert.equal(has(out, "Crossfeed"), false);
+  assert.equal(has(out, "crossfeed"), false);
 });
 
 test("test_a_bypassed_matrix_shows_no_dsp_chip", () => {
   const out = panel({ ...PLAY, matrix: { enabled: false, crossfeed: true, loudness: true } });
-  assert.equal(has(out, "DSP"), false);
+  assert.equal(has(out, "dsp"), false);
 });
 
 // The gate must remove one chip, not empty the bar or drop the chain into the
@@ -635,7 +646,7 @@ test("test_a_bypassed_matrix_with_loudness_still_shows_the_rest_of_the_chain", (
     status: { active_rate: "705600", active_filter: "sinc-M" },
     matrix: { loudness: true },
   });
-  assert.equal(chips(out).Filter, "sinc-M");
+  assert.equal(chips(out)["filter"], "sinc-M");
 });
 
 // --- loudness is volume-adaptive ---------------------------------------------
@@ -659,37 +670,37 @@ test("test_loudness_with_an_adjustable_volume_shows_the_loudness_chip", () => {
     volume: { fixedVolume: false, volumeFixed: false, min: "-60", max: "0" },
     file: { volume_fixed: "0" },
   });
-  assert.equal(chips(out).Loudness, "On");
+  assert.equal(chips(out)["loudness"], "On");
 });
 
 test("test_fixed_volume_enabled_suppresses_the_loudness_chip", () => {
-  assert.equal(has(panel({ ...LOUD, volume: { fixedVolume: true } }), "Loudness"), false);
+  assert.equal(has(panel({ ...LOUD, volume: { fixedVolume: true } }), "loudness"), false);
 });
 
 test("test_file_truth_auto_headroom_suppresses_the_loudness_chip", () => {
-  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "1" } }), "Loudness"), false);
+  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "1" } }), "loudness"), false);
 });
 
 test("test_file_truth_optimal_iso_suppresses_the_loudness_chip", () => {
-  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "2" } }), "Loudness"), false);
+  assert.equal(has(panel({ ...LOUD, file: { volume_fixed: "2" } }), "loudness"), false);
 });
 
 test("test_the_form_volume_fixed_bool_true_suppresses_the_loudness_chip", () => {
   // no `file` carrier: the lossy /config form checkbox is all there is to read
-  assert.equal(has(panel({ ...LOUD, volume: { volumeFixed: true } }), "Loudness"), false);
+  assert.equal(has(panel({ ...LOUD, volume: { volumeFixed: true } }), "loudness"), false);
 });
 
 test("test_the_form_volume_fixed_bool_false_leaves_the_loudness_chip", () => {
-  assert.equal(chips(panel({ ...LOUD, volume: { volumeFixed: false } })).Loudness, "On");
+  assert.equal(chips(panel({ ...LOUD, volume: { volumeFixed: false } }))["loudness"], "On");
 });
 
 test("test_a_zero_zero_volume_range_suppresses_the_loudness_chip", () => {
-  assert.equal(has(panel({ ...LOUD, volume: { min: "0", max: "0" } }), "Loudness"), false);
+  assert.equal(has(panel({ ...LOUD, volume: { min: "0", max: "0" } }), "loudness"), false);
 });
 
 test("test_crossfeed_survives_a_pinned_volume", () => {
   const out = panel({ ...PLAY, matrix: { enabled: true, crossfeed: true }, volume: { fixedVolume: true } });
-  assert.equal(chips(out).Crossfeed, "On");
+  assert.equal(chips(out)["crossfeed"], "On");
 });
 
 test("test_both_post_processes_with_a_pinned_volume_read_crossfeed", () => {
@@ -698,7 +709,7 @@ test("test_both_post_processes_with_a_pinned_volume_read_crossfeed", () => {
     matrix: { enabled: true, crossfeed: true, loudness: true },
     volume: { fixedVolume: true },
   });
-  assert.equal(chips(out).Crossfeed, "On");
+  assert.equal(chips(out)["crossfeed"], "On");
 });
 
 test("test_both_post_processes_with_a_pinned_volume_show_no_dsp_chip", () => {
@@ -707,5 +718,5 @@ test("test_both_post_processes_with_a_pinned_volume_show_no_dsp_chip", () => {
     matrix: { enabled: true, crossfeed: true, loudness: true },
     volume: { fixedVolume: true },
   });
-  assert.equal(has(out, "DSP"), false);
+  assert.equal(has(out, "dsp"), false);
 });

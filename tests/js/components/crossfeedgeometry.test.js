@@ -28,9 +28,9 @@ const count = (out, needle) => out.split(needle).length - 1;
 
 // --- frame ---------------------------------------------------------------------
 
-test("test_the_diagram_names_the_speaker_angle_for_a_screen_reader", () => {
-  assert.ok(draw(30).includes("two speakers at plus and minus 30 degrees"));
-});
+// The diagram's screen-reader sentence is owner-owned copy with no machine
+// identity beside it, so the case that pinned its wording is gone
+// (docs/testing.md rule 9). The angle it announces is still pinned below.
 
 test("test_the_angle_label_prints_the_angle_in_degrees", () => {
   assert.ok(draw(45).includes("45°"));

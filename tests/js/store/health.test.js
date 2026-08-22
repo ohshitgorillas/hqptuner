@@ -42,14 +42,12 @@ function reset(counters = {}) {
   poll(counters);
 }
 
-/**
- * @typedef {{ sev: string, text: string }} Alert
- */
+/** @typedef {import("../../../hqptuner/static/store/health.js").Alert} Alert */
 
 /** @param {Alert[]} alerts */
 const sevs = (alerts) => alerts.map((a) => a.sev);
 /** @param {Alert[]} alerts */
-const texts = (alerts) => alerts.map((a) => a.text).join(" | ");
+const kinds = (alerts) => alerts.map((a) => a.kind);
 /**
  * @param {number} n
  * @param {Record<string, unknown>} fields
@@ -184,9 +182,9 @@ test("test_output_buffer_applies_once_a_positive_fill_is_seen", () => {
 
 // --- clipping counters ------------------------------------------------------
 
-test("test_clipping_within_a_track_alerts_on_the_delta", () => {
+test("test_clipping_within_a_track_raises_a_clipping_alert", () => {
   reset({ clips: "10" });
-  assert.ok(texts(poll({ clips: "23" })).includes("×13 this track"));
+  assert.deepEqual(kinds(poll({ clips: "23" })), ["clipping"]);
 });
 
 test("test_a_new_track_rebaselines_the_clip_counter", () => {
@@ -218,10 +216,7 @@ const APOD_MIN = 10;
 test("test_apodizing_events_alert_when_the_active_filter_is_not_apodizing", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
-  assert.equal(
-    texts(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })),
-    "Apodizing events ×10 this track, but plain-filter is non-apodizing — consider an apodizing filter.",
-  );
+  assert.deepEqual(kinds(poll({ apod: String(APOD_MIN), active_filter: "plain-filter" })), ["apodizing"]);
 });
 
 test("test_an_apodizing_alert_is_a_warning", () => {
@@ -241,13 +236,15 @@ for (const count of [1, 4, 6, 9]) {
 test("test_an_apodizing_delta_above_the_threshold_still_alerts", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
-  assert.ok(texts(poll({ apod: "12", active_filter: "plain-filter" })).includes("×12 this track"));
+  assert.deepEqual(kinds(poll({ apod: "12", active_filter: "plain-filter" })), ["apodizing"]);
 });
 
+// The counter the alert reads is the per-track delta, and the total is well past
+// the threshold here: a store alerting on the total fires and fails.
 test("test_the_apodizing_alert_counts_the_track_delta_not_the_total", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "100", active_filter: "plain-filter" });
-  assert.ok(texts(poll({ apod: "111", active_filter: "plain-filter" })).includes("×11 this track"));
+  assert.deepEqual(poll({ apod: "105", active_filter: "plain-filter" }), []);
 });
 
 test("test_the_apodizing_alert_accrues_across_polls_within_one_track", () => {
@@ -256,7 +253,7 @@ test("test_the_apodizing_alert_accrues_across_polls_within_one_track", () => {
   reset({ apod: "0", active_filter: "plain-filter" });
   poll({ apod: "4", active_filter: "plain-filter" });
   poll({ apod: "8", active_filter: "plain-filter" });
-  assert.ok(texts(poll({ apod: "12", active_filter: "plain-filter" })).includes("×12 this track"));
+  assert.deepEqual(kinds(poll({ apod: "12", active_filter: "plain-filter" })), ["apodizing"]);
 });
 
 test("test_a_new_track_rebaselines_the_apodizing_counter", () => {

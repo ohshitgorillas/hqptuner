@@ -249,35 +249,6 @@ const volumeHandle = (out, word) => tagged(out, word).filter((t) => attrOf(t, "t
 /** @param {string} out */
 const volumeHandles = (out) => VOLUME_HANDLES.map((word) => volumeHandle(out, word)).filter(Boolean);
 
-// The text of the first element carrying `word`, nested markup flattened.
-/**
- * @param {string} out
- * @param {string} word
- * @returns {string | undefined}
- */
-function innerText(out, word) {
-  const open = tagged(out, word)[0];
-  if (!open) return undefined;
-  let at = out.indexOf(open) + open.length;
-  let depth = 1;
-  let text = "";
-  const tags = /<!--.*?-->|<\/?[a-zA-Z][^>]*>/g;
-  tags.lastIndex = at;
-  let hit;
-  while ((hit = tags.exec(out)) !== null) {
-    text += out.slice(at, hit.index);
-    at = tags.lastIndex;
-    if (hit[0].startsWith("<!--")) continue;
-    if (hit[0].startsWith("</")) {
-      depth -= 1;
-      if (depth === 0) break;
-    } else if (!hit[0].endsWith("/>")) {
-      depth += 1;
-    }
-  }
-  return decode(text.replace(/\s+/g, " ").trim());
-}
-
 const LOW = "vr-loud-low";
 const HIGH = "vr-loud-high";
 /**
@@ -616,14 +587,17 @@ test("test_the_band_ends_at_the_upper_bounds_track_position", async () => {
   assert.ok(near(lanes(bar())[0]?.right, BAND_RIGHT));
 });
 
+// THAT each bound handle is labeled is the accessibility contract; WHAT the
+// label says is the owner's wording (docs/testing.md rule 9).
+
 test("test_the_lower_bound_handle_is_labeled_for_assistive_technology", async () => {
   await reset(loud(PAIR));
-  assert.equal(decode(attrOf(bound(bar(), LOW), "aria-label")), "Loudness lower bound");
+  assert.notEqual(attrOf(bound(bar(), LOW), "aria-label"), undefined);
 });
 
 test("test_the_upper_bound_handle_is_labeled_for_assistive_technology", async () => {
   await reset(loud(PAIR));
-  assert.equal(decode(attrOf(bound(bar(), HIGH), "aria-label")), "Loudness upper bound");
+  assert.notEqual(attrOf(bound(bar(), HIGH), "aria-label"), undefined);
 });
 
 // --- the dirty highlight ------------------------------------------------------------------
@@ -726,10 +700,8 @@ test("test_enabled_loudness_names_the_loudness_range_in_the_legend", async () =>
   assert.equal(tagged(bar(), "vr-loud-legend").length, 1);
 });
 
-test("test_the_loudness_legend_entry_reads_loudness_bounds", async () => {
-  await reset(loud(PAIR));
-  assert.equal(innerText(bar(), "vr-loud-legend"), "Loudness bounds");
-});
+// The case that read the legend entry's words is gone: the entry's presence is
+// pinned above and below, and its wording is the owner's (rule 9).
 
 test("test_disabled_loudness_draws_no_loudness_legend_entry", async () => {
   await reset(loud({ enabled: false, ...PAIR }));

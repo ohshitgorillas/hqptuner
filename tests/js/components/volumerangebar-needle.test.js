@@ -166,9 +166,6 @@ const cssPct = (tag, prop) => {
 /** @param {string} out */
 const needleLeft = (out) => cssPct(needles(out)[0] || "", "left");
 
-const LEGEND = "Playback volume";
-/** @param {string} out */
-const legendPresent = (out) => out.includes(LEGEND);
 /** @param {string} out */
 const lefts = (out) => [...out.matchAll(/left\s*:\s*(-?[\d.]+)%/g)].map((m) => parseFloat(m[1]));
 /** @param {string} out */
@@ -357,23 +354,9 @@ test("test_a_reported_volume_leaves_every_other_track_position_in_place", async 
 });
 
 // --- the legend --------------------------------------------------------------
-
-test("test_a_drawn_needle_names_the_playback_volume_in_the_legend", async () => {
-  await reset({ level: "-54" });
-  assert.equal(legendPresent(bar()), true);
-});
-
-test("test_a_disabled_volume_control_drops_the_playback_volume_legend", async () => {
-  await reset({ level: "-54", range: OFF });
-  assert.equal(legendPresent(bar()), false);
-});
-
-test("test_no_volume_reported_yet_drops_the_playback_volume_legend", async () => {
-  await reset({ level: null });
-  assert.equal(legendPresent(bar()), false);
-});
-
-test("test_an_unparseable_volume_drops_the_playback_volume_legend", async () => {
-  await reset({ level: "" });
-  assert.equal(legendPresent(bar()), false);
-});
+//
+// Four cases stood here, each asking whether the needle's legend entry is drawn
+// by searching the card for the words the entry prints. That is a selector made
+// of copy (docs/testing.md rule 9), and the entry carries no machine identity to
+// ask for instead — the loudness entry has `vr-loud-legend`, this one has
+// nothing — so removing the wording left the cases with nothing to look for.

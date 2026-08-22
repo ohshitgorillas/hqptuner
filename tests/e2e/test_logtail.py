@@ -27,8 +27,12 @@ Policy notes (docs/testing.md):
   post-render effect running, and pass by looking too early.
 - Waits are always WEAKER than the assertion they precede, so no wait can make
   its assertion vacuous. The pinning cases wait for the pane to move at all and
-  then assert where it landed; the label cases wait for the button to stop saying
-  `Copy` and then assert what it says instead.
+  then assert where it landed; the copy cases wait for the button to leave its
+  idle state and then assert which state it reached.
+- Controls are addressed by machine identity, never by their wording
+  (docs/testing.md rule 9): `data-testid` for the System tab and the tail's
+  toggle, `data-copy` for the copy button's outcome. The captions those controls
+  render are the owner's to reword and are neither selected on nor asserted.
 - The stack is session-scoped and its state persists between tests, so each case
   writes the whole log body it wants rather than assuming what the last one left.
 
@@ -51,11 +55,19 @@ SETTLE_MS = 20_000
 
 TAIL = "pre.log-tail"
 WRAP = ".log-tail-wrap"
-TOGGLE = "label.log-tail-toggle"
-COPY = f"{WRAP} button.btn"
 
-#: The tail's own wording, as the toggle offers it.
-TOGGLE_TEXT = "Show live log tail"
+#: Controls are addressed by machine identity, never by the words on them
+#: (docs/testing.md rule 9): the System tab and the tail's toggle carry a
+#: `data-testid`, and the copy button reports its outcome in `data-copy`.
+SYSTEM_TAB = "[data-testid='tab-system']"
+TOGGLE = "[data-testid='logtail-toggle']"
+COPY = f"{WRAP} button[data-copy]"
+
+#: What `data-copy` reads: before a click, after one that landed, after one that
+#: did not. The button's caption changes with it and is copy; the state is not.
+COPY_IDLE = "idle"
+COPY_OK = "ok"
+COPY_FAIL = "fail"
 
 #: The window the component asks for. Anything longer than this is trimmed to its
 #: last 50 lines before it reaches the pane.
@@ -85,8 +97,8 @@ def open_system_tab(page: Page, stack: Stack) -> None:
     """Load the SPA and bring up the System tab, where the log tail lives."""
     page.goto(stack.base_url)
     page.wait_for_selector("footer.pending-bar", timeout=LOAD_MS)
-    page.get_by_role("button", name="System", exact=True).click()
-    page.wait_for_selector(f"{TOGGLE}:has-text('{TOGGLE_TEXT}')", timeout=LOAD_MS)
+    page.locator(SYSTEM_TAB).click()
+    page.wait_for_selector(TOGGLE, timeout=LOAD_MS)
 
 
 def show_tail(page: Page) -> None:
@@ -228,22 +240,23 @@ def copy_button(page: Page) -> Locator:
     return page.locator(COPY)
 
 
-def observed_copy_label(page: Page) -> str:
-    """Wait for the button to stop reading `Copy`, and report what it read instead.
+def observed_copy_state(page: Page) -> str:
+    """Wait for the button to leave the idle state, and report what state it reached.
 
-    Captured at the moment of the change rather than read afterwards, so a label
-    that reverts on a timer cannot turn this into a race.
+    Captured at the moment of the change rather than read afterwards, so a button
+    that reverts to idle on a timer cannot turn this into a race. The button's
+    caption is copy and is not looked at; `data-copy` is the outcome.
     """
     page.wait_for_function(
-        "(selector) => { const b = document.querySelector(selector);"
+        "([selector, idle]) => { const b = document.querySelector(selector);"
         "  if (b === null) return false;"
-        "  const text = b.textContent.trim();"
-        "  if (text === 'Copy') return false;"
-        "  window.__hqptunerCopyLabel = text; return true; }",
-        arg=COPY,
+        "  const state = b.getAttribute('data-copy');"
+        "  if (state === null || state === idle) return false;"
+        "  window.__hqptunerCopyState = state; return true; }",
+        arg=[COPY, COPY_IDLE],
         timeout=SETTLE_MS,
     )
-    return str(page.evaluate("() => window.__hqptunerCopyLabel"))
+    return str(page.evaluate("() => window.__hqptunerCopyState"))
 
 
 def open_tail_with(page: Page, stack: Stack, tag: str, count: int) -> None:
@@ -378,7 +391,7 @@ def test_copying_puts_the_displayed_lines_on_the_clipboard(page: Page, stack: St
     # would let it through.
     open_tail_with(page, stack, "TAG10", 12)
     copy_button(page).click()
-    observed_copy_label(page)
+    observed_copy_state(page)
     assert page.evaluate("() => navigator.clipboard.readText()") == logged("TAG10", 12)
 
 
@@ -387,7 +400,7 @@ def test_copying_without_a_clipboard_falls_back_to_the_legacy_command(page: Page
     page.add_init_script(NO_CLIPBOARD)
     open_tail_with(page, stack, "TAG11", 12)
     copy_button(page).click()
-    observed_copy_label(page)
+    observed_copy_state(page)
     assert "copy" in page.evaluate("() => window.__hqptunerExec")
 
 
@@ -396,7 +409,7 @@ def test_a_successful_copy_says_so_on_the_button(page: Page, stack: Stack) -> No
     page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=stack.base_url)
     open_tail_with(page, stack, "TAG12", 12)
     copy_button(page).click()
-    assert observed_copy_label(page) == "Copied"
+    assert observed_copy_state(page) == COPY_OK
 
 
 def test_a_refused_copy_says_so_on_the_button(page: Page, stack: Stack) -> None:
@@ -404,4 +417,4 @@ def test_a_refused_copy_says_so_on_the_button(page: Page, stack: Stack) -> None:
     page.add_init_script(REFUSING_CLIPBOARD)
     open_tail_with(page, stack, "TAG13", 12)
     copy_button(page).click()
-    assert observed_copy_label(page) == "Copy failed"
+    assert observed_copy_state(page) == COPY_FAIL

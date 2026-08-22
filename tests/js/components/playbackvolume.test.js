@@ -32,7 +32,7 @@ import { PlaybackVolume } from "../../../hqptuner/static/components/volume/Playb
 import { volume, volumeRange, config, engineState, matrixConfig } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire } from "../support/wire.js";
-import { classes, disabledRegion, elements } from "../support/markup.js";
+import { attr, classes, disabledRegion, elements } from "../support/markup.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -101,10 +101,39 @@ const sliderStep = (out) => {
 
 const ON = { enabled: "1", min: "-60", max: "0" };
 const OFF = { enabled: "0", min: "-60", max: "0" };
-const APPLY_HINT = "Apply the staged change to free the volume control.";
-const DISABLED = "Volume control disabled";
-const NO_STREAM = "No active stream — volume adjusts live during playback.";
-const QUICK = "Faster volume updates";
+
+// The hint's machine identities, which is what the card is asked here — never
+// the sentence it prints (docs/testing.md rule 9). `data-hint` names the cause
+// that grayed the knob and `data-staged` says whether the user has already
+// staged the fix; both live on the hint element itself.
+
+/**
+ * @param {string} frag
+ * @returns {MarkupElement | undefined}
+ */
+const hintEl = (frag) => elements(frag).find((el) => attr(el, "data-hint") !== undefined);
+
+/**
+ * The cause the card names, or null when it names none.
+ *
+ * @param {string} frag
+ * @returns {string | null}
+ */
+const cause = (frag) => {
+  const el = hintEl(frag);
+  return el ? (attr(el, "data-hint") ?? null) : null;
+};
+
+/**
+ * Whether the hint reports a staged fix, or null when there is no hint.
+ *
+ * @param {string} frag
+ * @returns {string | null}
+ */
+const staged = (frag) => {
+  const el = hintEl(frag);
+  return el ? (attr(el, "data-staged") ?? null) : null;
+};
 
 // --- the enabled flag, in each of its three wire forms -----------------------
 
@@ -141,12 +170,12 @@ test("test_an_unrecognized_enabled_value_disables_the_volume_control", async () 
 
 test("test_a_zero_puts_the_reason_hint_inside_the_disabled_region", async () => {
   await reset({ range: OFF });
-  assert.ok(disabledRegion(card()).includes(NO_STREAM));
+  assert.notEqual(hintEl(disabledRegion(card())), undefined);
 });
 
 test("test_a_missing_volume_range_puts_the_reason_hint_inside_the_disabled_region", async () => {
   await reset();
-  assert.ok(disabledRegion(card()).includes(NO_STREAM));
+  assert.notEqual(hintEl(disabledRegion(card())), undefined);
 });
 
 test("test_a_disabled_control_grays_the_knob", async () => {
@@ -220,97 +249,93 @@ test("test_the_readout_carries_the_decibel_unit", async () => {
 
 test("test_an_enabled_control_shows_no_hint", async () => {
   await reset({ range: ON });
-  assert.equal(card().includes(DISABLED), false);
+  assert.equal(cause(card()), null);
 });
 
 test("test_a_disabled_control_explains_itself", async () => {
   await reset({ range: OFF });
-  assert.ok(card().includes(DISABLED));
+  assert.notEqual(cause(card()), null);
 });
 
 test("test_direct_sdm_is_named_as_the_cause", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.ok(card().includes("Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value."));
+  assert.equal(cause(card()), "direct-sdm");
 });
 
 test("test_a_running_direct_sdm_with_nothing_staged_offers_no_apply_hint", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.equal(card().includes(APPLY_HINT), false);
+  assert.equal(staged(card()), "0");
 });
 
 test("test_a_staged_direct_sdm_disable_points_at_apply", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
   await edit("direct_sdm", "0");
-  assert.ok(card().includes(APPLY_HINT));
+  assert.equal(staged(card()), "1");
 });
 
 test("test_fixed_volume_is_named_as_the_cause", async () => {
   await reset({ range: OFF, running: { fixed_volume_enabled: "1" } });
-  assert.ok(card().includes("Fixed volume in effect"));
+  assert.equal(cause(card()), "fixed-volume");
 });
 
-test("test_auto_headroom_is_named_by_the_fixed_volume_message", async () => {
+test("test_auto_headroom_is_named_by_the_fixed_volume_cause", async () => {
   await reset({ range: OFF, running: { volume_fixed: "1" } });
-  assert.ok(card().includes("Fixed volume in effect"));
+  assert.equal(cause(card()), "fixed-volume");
 });
 
 test("test_a_staged_fixed_volume_disable_points_at_apply", async () => {
   await reset({ range: OFF, running: { fixed_volume_enabled: "1" } });
   await edit("fixed_volume_enabled", "0");
-  assert.ok(card().includes(APPLY_HINT));
+  assert.equal(staged(card()), "1");
 });
 
 test("test_a_staged_auto_headroom_disable_points_at_apply", async () => {
   await reset({ range: OFF, running: { volume_fixed: "1" } });
   await edit("optimal_iso", "0");
-  assert.ok(card().includes(APPLY_HINT));
+  assert.equal(staged(card()), "1");
 });
 
 test("test_a_running_fixed_volume_with_nothing_staged_offers_no_apply_hint", async () => {
   await reset({ range: OFF, running: { fixed_volume_enabled: "1" } });
-  assert.equal(card().includes(APPLY_HINT), false);
+  assert.equal(staged(card()), "0");
 });
 
 test("test_a_zero_width_volume_range_is_named_as_the_cause", async () => {
   await reset({ range: OFF, running: { volume_min: "0", volume_max: "0" } });
-  assert.ok(card().includes("Volume min and max are both 0 — volume control is bypassed."));
+  assert.equal(cause(card()), "zero-range");
 });
 
 test("test_a_staged_widening_of_a_zero_range_points_at_apply", async () => {
   await reset({ range: OFF, running: { volume_min: "0", volume_max: "0" } });
   await edit("volume_max", "-3");
-  assert.ok(card().includes(APPLY_HINT));
+  assert.equal(staged(card()), "1");
 });
 
 test("test_an_unwidened_zero_range_offers_no_apply_hint", async () => {
   await reset({ range: OFF, running: { volume_min: "0", volume_max: "0" } });
-  assert.equal(card().includes(APPLY_HINT), false);
+  assert.equal(staged(card()), "0");
 });
 
 test("test_an_unexplained_disable_reads_as_no_active_stream", async () => {
   await reset({ range: OFF });
-  assert.ok(card().includes("No active stream — volume adjusts live during playback."));
+  assert.equal(cause(card()), "no-stream");
 });
 
 test("test_direct_sdm_outranks_fixed_volume_as_the_named_cause", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1", fixed_volume_enabled: "1" } });
-  assert.ok(card().includes("Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value."));
+  assert.equal(cause(card()), "direct-sdm");
 });
 
 test("test_fixed_volume_outranks_a_zero_width_range_as_the_named_cause", async () => {
   await reset({ range: OFF, running: { fixed_volume_enabled: "1", volume_min: "0", volume_max: "0" } });
-  assert.ok(card().includes("Fixed volume in effect"));
+  assert.equal(cause(card()), "fixed-volume");
 });
 
 // --- no faster-updates opt-in ------------------------------------------------
 // The volume page polls every second unconditionally now (store/ui.js), so there
-// is no choice left to offer: the card carries neither the old wording nor the
-// poll opt-in's class.
-
-test("test_the_card_offers_no_faster_updates_opt_in", async () => {
-  await reset({ range: ON });
-  assert.equal(card().includes(QUICK), false);
-});
+// is no choice left to offer. The case that pinned the ABSENCE of the old
+// wording is gone: that sentence is nowhere in shipped source, so its absence
+// constrained nothing. The opt-in's class is a wire identifier and still bites.
 
 test("test_the_card_carries_no_poll_opt_in_element", async () => {
   await reset({ range: ON });

@@ -41,7 +41,8 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { attrOf, grayReason } from "../support/field-harness.js";
-import { classes, elements, enclosing, labeled, text } from "../support/markup.js";
+import { enclosing, labeled } from "../support/markup.js";
+import { cardHeadAt, section } from "../support/tabform.js";
 
 const ENUMS = {
   filters: [
@@ -150,10 +151,8 @@ test("test_the_tab_bar_stands_with_live_off", async () => {
   assert.ok(chrome().includes('class="tab-nav"'));
 });
 
-test("test_the_page_says_up_front_that_controls_write_live", async () => {
-  await reset();
-  assert.ok(page().includes("writes to the engine when you select it"));
-});
+// The case that pinned the page's lede is gone: that sentence is owner-owned
+// copy with no machine identity beside it (docs/testing.md rule 9).
 
 test("test_a_refused_write_shows_its_reason_on_the_control", async () => {
   await reset();
@@ -161,9 +160,23 @@ test("test_a_refused_write_shows_its_reason_on_the_control", async () => {
   assert.ok(page().includes('<div class="live-error">the pcm chain is not loaded</div>'));
 });
 
+// The option's own tag, by the name the fixture gave the profile. What the
+// picker SAYS about an unloadable profile is the owner's wording; that it
+// cannot be picked is the behavior (rule 9).
+/**
+ * @param {string} out
+ * @param {string} name
+ * @returns {string}
+ */
+const optionNamed = (out, name) => {
+  const hit = [...out.matchAll(/<option\b[^>]*>([\s\S]*?)<\/option>/g)].find((m) => m[1].includes(name));
+  if (!hit) throw new Error(`no option naming "${name}" in the rendered page`);
+  return hit[0].slice(0, hit[0].indexOf(">"));
+};
+
 test("test_a_profile_the_engine_never_loaded_cannot_be_switched_to", async () => {
   await reset({ mtx: { file_profiles: { Room: { rows: [], post: {} } }, live_profiles: [] } });
-  assert.ok(page().includes("not loaded by the engine"));
+  assert.ok(/\sdisabled(\s|=|$)/.test(optionNamed(page(), "Room")));
 });
 
 // The engine-health card and the volume card are the System and Volume tabs'
@@ -174,7 +187,7 @@ test("test_a_profile_the_engine_never_loaded_cannot_be_switched_to", async () =>
 
 test("test_the_live_page_carries_the_engine_health_card", async () => {
   await reset();
-  assert.ok(page().includes("process speed"));
+  assert.notEqual(cardHeadAt(page(), "live-engine-health"), -1);
 });
 
 test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
@@ -209,11 +222,24 @@ const LIMITS = { defaults_samplerate: "384000", defaults_bitrate: "49152000" };
 const AUTO = { state: "0", name: "[source]", file: { mode: "auto", ...LIMITS } };
 const EXPLICIT_PCM = { state: "1", name: "PCM", file: { mode: "pcm", ...LIMITS } };
 
-// The sentence the store hands a grayed column in auto.
-const AUTO_REASON = "The engine selects the rate in Auto mode.";
-
-// The PCM column's own catalog prose, as METADATA above serves it.
+// The two columns' own catalog prose, as METADATA above serves it — prose this
+// file invented and feeds through, not shipped wording.
 const PCM_RATE_TOOLTIP = "PCM output target rate.";
+const SDM_RATE_TOOLTIP = "SDM output target rate.";
+
+// A grayed column's hover title stands IN PLACE OF its catalog prose. WHAT the
+// reason says is the owner's (store/liverateauto.test.js is where the store's
+// own sentence lives); that a reason is there and has displaced the prose is
+// the behavior (docs/testing.md rule 9).
+/**
+ * @param {string} title
+ * @param {string} own
+ * @returns {[boolean, string]}
+ */
+const standsInFor = (title, own) => [
+  title !== "" && title !== own,
+  `hover title reads ${JSON.stringify(title)}, catalog prose is ${JSON.stringify(own)}`,
+];
 
 /** @param {{ state: string, name: string, file: Record<string, string> }} mode */
 async function inOutputMode(mode) {
@@ -260,19 +286,19 @@ const encloses = (outer, inner) =>
 // card does NOT carry must never be answered by markup that simply moved.
 /** @param {string} out */
 function rateCard(out) {
-  const hit = elements(out).find((el) => classes(el).includes("card-head") && text(el) === "Rate");
-  if (!hit) throw new Error('no card headed "Rate" in the rendered page');
-  return enclosing(out, hit).html;
+  const frag = section(out, "live-rate");
+  if (frag === "") throw new Error('no card identified "live-rate" in the rendered page');
+  return frag;
 }
 
 test("test_the_grayed_pcm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
   await inOutputMode(AUTO);
-  assert.equal(hoverTitle(page(), "PCM"), AUTO_REASON);
+  assert.ok(...standsInFor(hoverTitle(page(), "pcm_rate"), PCM_RATE_TOOLTIP));
 });
 
 test("test_the_grayed_sdm_rate_field_carries_its_columns_reason_as_its_hover_title", async () => {
   await inOutputMode(AUTO);
-  assert.equal(hoverTitle(page(), "SDM"), AUTO_REASON);
+  assert.ok(...standsInFor(hoverTitle(page(), "sdm_rate"), SDM_RATE_TOOLTIP));
 });
 
 test("test_a_live_rate_field_with_no_reason_carries_its_own_catalog_prose_on_hover", async () => {
@@ -280,7 +306,7 @@ test("test_a_live_rate_field_with_no_reason_carries_its_own_catalog_prose_on_hov
   // the field's own tooltip — the prose the catalog serves under `pcm_rate`,
   // not the neighboring `sdm_rate` sentence and not the generic `rate` one.
   await inOutputMode(EXPLICIT_PCM);
-  assert.equal(hoverTitle(page(), "PCM"), PCM_RATE_TOOLTIP);
+  assert.equal(hoverTitle(page(), "pcm_rate"), PCM_RATE_TOOLTIP);
 });
 
 test("test_the_pcm_rate_fields_hover_title_is_not_shared_with_the_sdm_column", async () => {
@@ -288,7 +314,7 @@ test("test_the_pcm_rate_fields_hover_title_is_not_shared_with_the_sdm_column", a
   // the pair reads the same to every case above and hovers as one region.
   await inOutputMode(AUTO);
   const out = page();
-  assert.equal(encloses(rateField(out, "PCM"), labeled(out, "SDM")), false);
+  assert.equal(encloses(rateField(out, "pcm_rate"), labeled(out, "sdm_rate")), false);
 });
 
 // The caption is gone in BOTH modes: in auto because the reason now rides on the

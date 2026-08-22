@@ -14,10 +14,10 @@
 // state: where the drop indicator lands, which block is marked as being dragged,
 // and that the stack does NOT move until the drop.
 //
-// A block is identified by what a reader finds inside it, never by position or
-// by an index the component hands out: the card it heads ("LIVE MODE", "Rate",
-// "Engine health", "Playback", "Matrix profile") or, for the chain group, the
-// group element the contract names. A block matching no anchor, or more than
+// A block is identified by the machine identity of what it encloses, never by
+// position, by an index the component hands out, or by the words in a head
+// (docs/testing.md rule 9): the `data-card` of the card inside it, or, for the
+// chain group, the group element the contract names. A block matching no anchor, or more than
 // one, raises rather than being silently mislabeled — a stack measured against
 // the wrong names would agree with any order at all.
 //
@@ -57,7 +57,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode, setLiveOrder, LIVE_BLOCK_ORDER } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
-import { classes, elements, hasAttr, headTitle } from "../support/markup.js";
+import { classes, elements, hasAttr } from "../support/markup.js";
 
 const ENUMS = {
   filters: [
@@ -137,39 +137,37 @@ async function reset({ order = true } = {}) {
 
 const page = () => render(html`<${LiveView} />`);
 
-const LOCKED = "LIVE MODE";
+// The block that cannot be moved. An internal name for it, not a rendered one.
+const LOCKED = "locked";
 
 // The five blocks the user may move, in the order a browser with nothing stored
 // stacks them. Spelled out rather than read from `LIVE_BLOCK_ORDER`, so the
 // default is pinned here instead of being re-asserted from the store's own copy.
 const MOVABLE = ["hero", "health", "chains", "playback", "matrix"];
 
-// The name a block goes by here, over the anchor a reader finds inside it. The
-// keys are the store's own block keys, so a stack read off the page is directly
-// comparable with the order the store was given.
-/** @type {{ key: string, head?: string, group?: string }[]} */
+// The name a block goes by here, over the anchor a reader finds inside it — the
+// id of a card it encloses, or the class of the group it is (docs/testing.md
+// rule 9: never the words in a head). The keys are the store's own block keys,
+// so a stack read off the page is directly comparable with the order the store
+// was given.
+/** @type {{ key: string, card?: string, group?: string }[]} */
 const ANCHORS = [
-  { key: LOCKED, head: "LIVE MODE" },
-  { key: "hero", head: "Rate" },
-  { key: "health", head: "Engine health" },
+  { key: LOCKED, card: "live-mode" },
+  { key: "hero", card: "live-rate" },
+  { key: "health", card: "live-engine-health" },
   { key: "chains", group: "live-chain-group" },
-  { key: "playback", head: "Playback" },
-  { key: "matrix", head: "Matrix profile" },
+  { key: "playback", card: "live-playback" },
+  { key: "matrix", card: "matrix-profile" },
 ];
 
-const CHAIN_CARDS = ["Narrow filters", "PCM Chain", "SDM Chain"];
+const CHAIN_CARDS = ["narrow-filters", "live-pcm-chain", "live-sdm-chain"];
 
 /** @param {string} out @returns {import("../support/markup.js").MarkupElement[]} */
 const inOrder = (out) => elements(out).sort((a, b) => a.start - b.start);
 
-// A card head's title comes from tests/js/support/markup.js's `headTitle`: the
-// head's own words, with the disclosure triangle and any control the head
-// carries beside the title removed.
+// The ids of the cards a fragment encloses, in document order.
 /** @param {string} fragment @returns {string[]} */
-const headsIn = (fragment) =>
-  inOrder(fragment)
-    .filter((el) => classes(el).includes("card-head"))
-    .map(headTitle);
+const cardsIn = (fragment) => [...fragment.matchAll(/<section[^<>]*\sdata-card="([^"]*)"/g)].map((m) => m[1]);
 
 /** @param {string} fragment @param {string} token @returns {boolean} */
 const carries = (fragment, token) => inOrder(fragment).some((el) => classes(el).includes(token));
@@ -177,7 +175,7 @@ const carries = (fragment, token) => inOrder(fragment).some((el) => classes(el).
 /** @param {import("../support/markup.js").MarkupElement} block @returns {string} */
 function nameOf(block) {
   const hits = ANCHORS.filter((a) =>
-    a.group ? carries(block.html, a.group) : headsIn(block.html).includes(/** @type {string} */ (a.head)),
+    a.group ? carries(block.html, a.group) : cardsIn(block.html).includes(/** @type {string} */ (a.card)),
   );
   if (hits.length !== 1) {
     throw new Error(`a live-block matched ${hits.length} anchors (${hits.map((h) => h.key).join(", ") || "none"})`);
@@ -250,9 +248,9 @@ test("test_a_stored_order_missing_a_key_still_stacks_that_block_after_the_stored
 
 test("test_the_chain_group_encloses_the_narrow_filters_and_both_chain_cards", async () => {
   await reset();
-  const inside = headsIn(chainGroup(page()).html);
+  const inside = cardsIn(chainGroup(page()).html);
   assert.deepEqual(
-    CHAIN_CARDS.filter((name) => !inside.includes(name)),
+    CHAIN_CARDS.filter((id) => !inside.includes(id)),
     [],
   );
 });

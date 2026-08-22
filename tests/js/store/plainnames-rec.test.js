@@ -125,20 +125,12 @@ test("test_pref_off_returns_the_input_options_untouched", async () => {
 
 // --- the schema rows ------------------------------------------------------------
 
-test("test_schema_noise_filter_is_labelled_noise_filter", () => {
-  assert.equal(schema.noise_filter.label, "Noise filter");
-});
+// The rows' own label and sublabel were pinned here. Both are owner copy
+// (docs/testing.md rule 9) — they were reworded once already — and the
+// plainNames key below is the row's machine identity.
 
 test("test_schema_noise_filter_joins_the_noise_filter_plain_names_section", () => {
   assert.equal(schema.noise_filter.plainNames, "noise_filter");
-});
-
-test("test_schema_pcm_conversion_is_labelled_decimation_filter", () => {
-  assert.equal(schema.pcm_conversion.label, "Decimation filter");
-});
-
-test("test_schema_pcm_conversion_is_sublabelled_sdm_to_pcm_conversion", () => {
-  assert.equal(schema.pcm_conversion.sublabel, "SDM → PCM conversion");
 });
 
 test("test_schema_pcm_conversion_joins_the_pcm_conversion_plain_names_section", () => {

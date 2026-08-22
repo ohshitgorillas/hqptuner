@@ -26,7 +26,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { nPhase, nLength } from "../../../hqptuner/static/store/narrow/state.js";
-import { phaseLabel, lengthLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
+import { phaseLabel, phaseSummary, lengthSummary } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import {
   resetNarrowBar,
   openFacet as open,
@@ -90,8 +90,17 @@ function reset(filters = PHASES) {
 /** @param {string} block */
 const rowKinds = (block) => [...new Set(rows(block).map((r) => r.type))].sort();
 
+// A row is named by the WIRE VALUE its label carries in `data-v`, never by the
+// caption beside the checkbox (docs/testing.md rule 9).
 /** @param {string} block */
-const rowLabels = (block) => rows(block).map((r) => r.label);
+const rowValues = (block) => rows(block).map((r) => r.value);
+
+// The phase domain: three named phases, then the empty string — the filters the
+// taxonomy does not reach, a pick like any other.
+const NO_PHASE = "";
+const MINIMUM = "minimum";
+const INTERMEDIATE = "intermediate";
+const LINEAR = "linear";
 
 // --- multi-select widgets ---------------------------------------------------
 
@@ -116,7 +125,7 @@ test("test_the_length_facet_offers_its_values_as_checkbox_rows", async () => {
 // half, which is what the exactness of the list says.
 test("test_the_phase_popover_offers_minimum_intermediate_linear_then_no_phase_in_that_order", async () => {
   await reset();
-  assert.deepEqual(rowLabels(open("phase")), ["Minimum", "Intermediate", "Linear", "No phase"]);
+  assert.deepEqual(rowValues(open("phase")), [MINIMUM, INTERMEDIATE, LINEAR, NO_PHASE]);
 });
 
 // The empty string is a falsy value carrying a real meaning, so the row it
@@ -125,111 +134,117 @@ test("test_the_phase_popover_offers_minimum_intermediate_linear_then_no_phase_in
 // clicking "No phase" and watching nothing happen while the store holds it.
 test("test_the_no_phase_row_renders_checked_when_it_is_the_picked_phase", async () => {
   await reset();
-  nPhase.value = [""];
-  assert.deepEqual(checkedRows(open("phase")), ["No phase"]);
+  nPhase.value = [NO_PHASE];
+  assert.deepEqual(checkedRows(open("phase")), [NO_PHASE]);
 });
 
 test("test_the_length_popover_offers_exactly_the_four_lengths_and_no_clear_row", async () => {
   await reset();
-  assert.deepEqual(rowLabels(open("length")), ["Short", "Medium", "Long", "Extra long"]);
+  assert.deepEqual(rowValues(open("length")), ["short", "medium", "long", "xlong"]);
 });
 
 // --- no combine switch --------------------------------------------------------
 // A filter carries exactly one phase and exactly one length, so an AND across
 // two picks is empty by construction: the picks union and there is nothing to
 // switch. The switch is the segmented AND/OR pair genre and focus close their
-// popovers with, read here by its own user-facing wording.
+// popovers with, read here by the WIRE VALUES its two segments carry — the
+// combine modes the store holds — never by the words on them.
 
-const MODE_CAPTION = /^(and|or)$/i;
+/** @param {string} block */
+const combineOptions = (block) =>
+  [...block.matchAll(/<button([^<>]*)>/g)]
+    .map((m) => (/(^|\s)data-v="([^"]*)"/.exec(m[1]) || [])[2])
+    .filter((v) => v === "and" || v === "or");
 
 // The control on the two negatives below. They say a reader found no and/or
-// caption; this says the same reader finds one on a facet that HAS a switch, so
+// option; this says the same reader finds one on a facet that HAS a switch, so
 // their empty answer is a fact about the popover rather than about the reader.
 test("test_the_same_reader_finds_the_combine_switch_on_a_facet_that_carries_one", async () => {
   await reset();
-  assert.ok(buttonCaptions(open("genre")).some((c) => MODE_CAPTION.test(c)));
+  assert.ok(combineOptions(open("genre")).length > 0);
 });
 
 test("test_the_phase_popover_carries_no_and_or_combine_switch", async () => {
   await reset();
-  assert.deepEqual(
-    buttonCaptions(open("phase")).filter((c) => MODE_CAPTION.test(c)),
-    [],
-  );
+  assert.deepEqual(combineOptions(open("phase")), []);
 });
 
 test("test_the_length_popover_carries_no_and_or_combine_switch", async () => {
   await reset();
-  assert.deepEqual(
-    buttonCaptions(open("length")).filter((c) => MODE_CAPTION.test(c)),
-    [],
-  );
+  assert.deepEqual(combineOptions(open("length")), []);
 });
 
 // --- the button summary ---------------------------------------------------------
-// Owner-approved copy, verbatim: "Any phase" / "Any length" with nothing picked,
-// the picked value's own label with exactly one, and "<N> phases" / "<N>
-// lengths" past that. No combine-mode suffix, unlike genre and focus.
+// The wording is owner copy and is asserted nowhere; the STATE behind it is
+// `phaseSummary()` / `lengthSummary()` — `{count, single, mode, extra}`, where
+// `single` is the picked value's own WIRE value and `extra` carries the clause
+// codes (docs/testing.md rule 9).
 //
 // Phase counts NAMED phases only. "No phase" never adds to the count; picking it
-// appends the trailing clause " + no phase", lower-case as the owner wrote it.
-// So there is no reading of "1 phase": one named phase shows its own label,
-// clause or no clause.
+// raises the `no-phase` clause instead. So there is no reading of one named
+// phase as a count: one named phase reports itself as the single pick, clause or
+// no clause.
 
-test("test_the_phase_button_with_nothing_picked_reads_any_phase", async () => {
+test("test_the_phase_summary_with_nothing_picked_counts_nothing", async () => {
   await reset();
-  assert.equal(phaseLabel(), "Any phase");
+  const { count, single } = phaseSummary();
+  assert.deepEqual({ count, single }, { count: 0, single: null });
 });
 
-// Linear is not the first row, so this separates "the picked phase's own label"
-// from "whatever label row zero carries".
-test("test_the_phase_button_with_one_pick_reads_that_phases_own_label", async () => {
+// Linear is not the first row, so this separates "the picked phase itself" from
+// "whatever row zero carries".
+test("test_the_phase_summary_with_one_pick_reports_that_phases_own_value", async () => {
   await reset();
-  nPhase.value = ["linear"];
-  assert.equal(phaseLabel(), "Linear");
+  nPhase.value = [LINEAR];
+  assert.equal(phaseSummary().single, LINEAR);
 });
 
-test("test_the_phase_button_with_two_named_picks_reads_the_count", async () => {
+test("test_the_phase_summary_with_two_named_picks_counts_two", async () => {
   await reset();
-  nPhase.value = ["linear", "minimum"];
-  assert.equal(phaseLabel(), "2 phases");
+  nPhase.value = [LINEAR, MINIMUM];
+  assert.equal(phaseSummary().count, 2);
 });
 
-test("test_the_phase_button_with_three_named_picks_reads_the_count", async () => {
+test("test_the_phase_summary_with_three_named_picks_counts_three", async () => {
   await reset();
-  nPhase.value = ["linear", "minimum", "intermediate"];
-  assert.equal(phaseLabel(), "3 phases");
+  nPhase.value = [LINEAR, MINIMUM, INTERMEDIATE];
+  assert.equal(phaseSummary().count, 3);
 });
 
-// The empty-string pick is a value like any other where it stands alone, and
-// "Any phase" stays the wording for the empty SELECTION, a different state.
-// Beside named picks it stops being a value and becomes a clause: it is outside
-// the count and trails the rest of the label.
+// The empty-string pick is a value like any other where it stands alone, and the
+// empty SELECTION is a different state. Beside named picks it stops being a
+// value and becomes a clause: outside the count, carried in `extra`.
 
-test("test_the_phase_button_with_the_no_phase_pick_alone_reads_no_phase", async () => {
+test("test_the_phase_summary_with_the_no_phase_pick_alone_raises_its_clause", async () => {
   await reset();
-  nPhase.value = [""];
-  assert.equal(phaseLabel(), "No phase");
+  nPhase.value = [NO_PHASE];
+  assert.deepEqual(phaseSummary().extra, ["no-phase"]);
 });
 
-test("test_the_phase_button_with_one_named_pick_and_no_phase_reads_that_label_and_the_clause", async () => {
+test("test_the_phase_summary_with_one_named_pick_and_no_phase_reports_the_named_pick", async () => {
   await reset();
-  nPhase.value = ["", "linear"];
-  assert.equal(phaseLabel(), "Linear + no phase");
+  nPhase.value = [NO_PHASE, LINEAR];
+  assert.equal(phaseSummary().single, LINEAR);
 });
 
-test("test_the_phase_button_with_two_named_picks_and_no_phase_counts_only_the_named_two", async () => {
+test("test_the_phase_summary_with_one_named_pick_and_no_phase_raises_the_clause", async () => {
   await reset();
-  nPhase.value = ["", "linear", "minimum"];
-  assert.equal(phaseLabel(), "2 phases + no phase");
+  nPhase.value = [NO_PHASE, LINEAR];
+  assert.deepEqual(phaseSummary().extra, ["no-phase"]);
+});
+
+test("test_the_phase_summary_with_two_named_picks_and_no_phase_counts_only_the_named_two", async () => {
+  await reset();
+  nPhase.value = [NO_PHASE, LINEAR, MINIMUM];
+  assert.equal(phaseSummary().count, 2);
 });
 
 // Every row picked. The count still answers three, so a count taken over the
-// whole selection reads "4 phases" here and fails.
-test("test_the_phase_button_with_every_row_picked_counts_the_three_named_phases", async () => {
+// whole selection answers four here and fails.
+test("test_the_phase_summary_with_every_row_picked_counts_the_three_named_phases", async () => {
   await reset();
-  nPhase.value = ["", "linear", "minimum", "intermediate"];
-  assert.equal(phaseLabel(), "3 phases + no phase");
+  nPhase.value = [NO_PHASE, LINEAR, MINIMUM, INTERMEDIATE];
+  assert.equal(phaseSummary().count, 3);
 });
 
 /**
@@ -243,33 +258,34 @@ test("test_the_phase_button_with_every_row_picked_counts_the_three_named_phases"
  */
 const facetButtonSummary = (block) => buttonCaptions(block)[0].replace("▾", "").trim();
 
-// The anchor under the table above. Every other label case reads the helper,
-// which is only worth anything if the button the user reads is what the helper
-// answers — a caption formatted inline in the component would leave the whole
-// table green and the button wrong. The facet's own toggle is the first button
-// in its block. The selection is every row, so the two readings differ: a count
-// over the whole selection puts "4 phases" on screen.
-test("test_the_rendered_phase_button_reads_the_summary_label", async () => {
+// The anchor under the table above. Every other case reads the summary, which is
+// only worth anything if the button the user reads is what the module answers —
+// a caption formatted inline in the component would leave the whole table green
+// and the button wrong. Neither side is a literal here: the rendered button is
+// compared against `phaseLabel()`, the module's own wording, so what the words
+// SAY stays the owner's business (docs/testing.md rule 9).
+test("test_the_rendered_phase_button_reads_the_modules_own_summary", async () => {
   await reset();
-  nPhase.value = ["", "linear", "minimum", "intermediate"];
-  assert.equal(facetButtonSummary(open("phase")), "3 phases + no phase");
+  nPhase.value = [NO_PHASE, LINEAR, MINIMUM, INTERMEDIATE];
+  assert.equal(facetButtonSummary(open("phase")), phaseLabel());
 });
 
-test("test_the_length_button_with_nothing_picked_reads_any_length", async () => {
+test("test_the_length_summary_with_nothing_picked_counts_nothing", async () => {
   await reset();
-  assert.equal(lengthLabel(), "Any length");
+  const { count, single } = lengthSummary();
+  assert.deepEqual({ count, single }, { count: 0, single: null });
 });
 
-test("test_the_length_button_with_one_pick_reads_that_lengths_own_label", async () => {
+test("test_the_length_summary_with_one_pick_reports_that_lengths_own_value", async () => {
   await reset();
   nLength.value = ["xlong"];
-  assert.equal(lengthLabel(), "Extra long");
+  assert.equal(lengthSummary().single, "xlong");
 });
 
-test("test_the_length_button_with_two_picks_reads_the_count", async () => {
+test("test_the_length_summary_with_two_picks_counts_two", async () => {
   await reset();
   nLength.value = ["short", "long"];
-  assert.equal(lengthLabel(), "2 lengths");
+  assert.equal(lengthSummary().count, 2);
 });
 
 // --- a row's count previews the click it would perform ------------------------------
@@ -288,12 +304,12 @@ test("test_the_length_button_with_two_picks_reads_the_count", async () => {
 
 test("test_the_count_on_a_picked_phase_row_previews_unpicking_it", async () => {
   await reset();
-  nPhase.value = ["linear", "minimum"];
-  assert.equal(nxOf(countChip(open("phase"), "Linear")), 1);
+  nPhase.value = [LINEAR, MINIMUM];
+  assert.equal(nxOf(countChip(open("phase"), LINEAR)), 1);
 });
 
 test("test_the_count_on_a_picked_length_row_previews_unpicking_it", async () => {
   await reset(LENGTHS);
   nLength.value = ["short", "long"];
-  assert.equal(nxOf(countChip(open("length"), "Short")), 1);
+  assert.equal(nxOf(countChip(open("length"), "short")), 1);
 });

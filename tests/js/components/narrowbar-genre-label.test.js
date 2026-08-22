@@ -1,9 +1,15 @@
-// Behavioral suite for the genre button's summary label where the selection
-// carries the manual's genre-agnostic "any" tag. Under the AND mode a selection
+// Behavioral suite for the genre button's summary where the selection carries
+// the manual's genre-agnostic "any" tag. Under the AND mode a selection
 // including "any" makes every other pick inert (the popover already renders
 // those rows unavailable, tests/js/components/narrowbar-genre-any.test.js), so
-// the button summarizes the selection by the "any" row's label alone: no count,
-// no mode suffix. Every other shape keeps the count-plus-mode wording.
+// the summary reports the "any" pick alone: no count, no combine mode. Every
+// other shape reports the count and the mode that is biting.
+//
+// The wording the button carries is owner copy and is asserted nowhere: the
+// state behind it is `genreSummary()` — `{count, single, mode, extra}`, where
+// `single` is the picked value's own WIRE value, `mode` is named only once a
+// second pick makes it bite, and `extra` carries the clause codes
+// (docs/testing.md rule 9).
 //
 // Policy (docs/testing.md): public API only, one assertion per test, nothing of
 // HQPTuner's stubbed. State is driven by assigning the exported source signals
@@ -11,22 +17,14 @@
 // (protocol.md:226) and the static name-keyed genre overlay from /api/metadata —
 // through tests/js/support/genrepopover.js, the shared narrow-bar harness.
 //
-// Reading taken where the spec named exact text: the three wordings the spec
-// quotes ("All genres", "2 genres · OR", "2 genres · AND") are asserted verbatim,
-// because user-facing copy is owner-approved character for character. The one
-// case whose text the spec does NOT quote — a single picked genre reads "that one
-// genre's label" — is pinned against the caption that genre's own popover row
-// wears, discovered at run time, so a reworded genre label moves the case with it
-// instead of failing it.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/narrowbar-genre-label.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
 import { nGenre, nGenreMode } from "../../../hqptuner/static/store/narrow/state.js";
-import { genreLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
-import { resetNarrowBar, openFacet, checkedRows } from "../support/genrepopover.js";
+import { genreSummary } from "../../../hqptuner/static/components/narrowbar/labels.js";
+import { resetNarrowBar } from "../support/genrepopover.js";
 
 // Filters in the engine's own description format, `"<q>/5 [focus, ...] <glyph>
 // <ratio>"` with the PCM glyph, plus the static overlay's genre tags. One filter
@@ -64,29 +62,50 @@ async function pick(selection, mode) {
 
 // --- "any" under AND swallows the rest of the selection -------------------------
 
-test("test_a_genre_beside_any_under_the_and_mode_reads_the_any_label_alone", async () => {
+test("test_a_genre_beside_any_under_the_and_mode_reports_the_dominating_any_clause", async () => {
   await pick(["classical", "any"], "and");
-  assert.equal(genreLabel(), "All genres");
+  assert.deepEqual(genreSummary().extra, ["any-dominates"]);
 });
 
-test("test_any_alone_under_the_and_mode_reads_the_any_label", async () => {
+test("test_a_genre_beside_any_under_the_and_mode_names_no_combine_mode", async () => {
+  await pick(["classical", "any"], "and");
+  assert.equal(genreSummary().mode, null);
+});
+
+test("test_any_alone_under_the_and_mode_summarizes_the_any_pick", async () => {
   await pick(["any"], "and");
-  assert.equal(genreLabel(), "All genres");
+  assert.equal(genreSummary().single, "any");
 });
 
-// --- every other shape keeps the count and its mode suffix ----------------------
+// --- every other shape reports the count and the mode that bites ----------------
 
-test("test_a_genre_beside_any_under_the_or_mode_reads_a_count_with_its_mode", async () => {
+test("test_a_genre_beside_any_under_the_or_mode_counts_both_picks", async () => {
   await pick(["classical", "any"], "or");
-  assert.equal(genreLabel(), "2 genres · OR");
+  assert.equal(genreSummary().count, 2);
 });
 
-test("test_two_ordinary_genres_under_the_and_mode_read_a_count_with_its_mode", async () => {
+test("test_a_genre_beside_any_under_the_or_mode_names_the_or_mode", async () => {
+  await pick(["classical", "any"], "or");
+  assert.equal(genreSummary().mode, "or");
+});
+
+test("test_two_ordinary_genres_under_the_and_mode_count_both_picks", async () => {
   await pick(["classical", "electronic"], "and");
-  assert.equal(genreLabel(), "2 genres · AND");
+  assert.equal(genreSummary().count, 2);
 });
 
-test("test_one_ordinary_genre_under_the_and_mode_reads_that_genres_own_row_caption", async () => {
+test("test_two_ordinary_genres_under_the_and_mode_name_the_and_mode", async () => {
+  await pick(["classical", "electronic"], "and");
+  assert.equal(genreSummary().mode, "and");
+});
+
+test("test_one_ordinary_genre_under_the_and_mode_reports_that_genres_own_value", async () => {
   await pick(["classical"], "and");
-  assert.equal(genreLabel(), checkedRows(openFacet("genre"))[0]);
+  assert.equal(genreSummary().single, "classical");
+});
+
+test("test_one_ordinary_genre_names_no_combine_mode", async () => {
+  // One pick cannot be combined with anything, so the mode is not yet biting.
+  await pick(["classical"], "and");
+  assert.equal(genreSummary().mode, null);
 });

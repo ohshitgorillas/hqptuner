@@ -33,9 +33,10 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Combobox } from "../../../hqptuner/static/components/controls/Combobox.js";
-import { reset, field, line, optionLabels } from "../support/field-harness.js";
+import { reset, field, line } from "../support/field-harness.js";
 import { staticWire } from "../support/wire.js";
-import { boxText } from "../support/comborows.js";
+import { boxText, rows } from "../support/comborows.js";
+import { attr } from "../support/markup.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
@@ -55,6 +56,9 @@ const FILTER_FIELDS = [
 
 const SELECTED = "sinc-M";
 const STARRED = "poly-sinc-xtr-mp";
+// The /config form value the starred filter is offered under: rows are
+// addressed by `data-v`, which carries it (docs/testing.md rule 9).
+const STARRED_VALUE = "1";
 
 /**
  * Render the 1x filter field with favorites-only engaged and only the OTHER
@@ -84,7 +88,10 @@ const selectedRows = (out) => (out || "").match(/aria-selected="true"/g) || [];
 // --- the facet drops the current selection from the list ----------------------
 
 test("test_an_engaged_facet_leaves_the_narrowed_out_selection_off_the_option_rows", async () => {
-  assert.deepEqual(optionLabels(await narrowedField()), [STARRED]);
+  assert.deepEqual(
+    rows(await narrowedField()).map((r) => attr(r, "data-v")),
+    [STARRED_VALUE],
+  );
 });
 
 // --- what the control still says about the selection --------------------------

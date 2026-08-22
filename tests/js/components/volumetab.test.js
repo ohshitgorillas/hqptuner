@@ -42,6 +42,8 @@ import {
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
+import { cardHeadAt, section } from "../support/tabform.js";
+import { attr, classes, elements } from "../support/markup.js";
 
 // The daemon's own forms, keyed by FORM FIELD name — the volume range is
 // volume_min / volume_max, loudness is post_loudness_enabled on /matrix.
@@ -76,23 +78,33 @@ async function reset({ cfg = FREE, mtx = {} } = {}) {
 
 const tab = () => render(html`<${Volume} />`);
 
-// One card's fragment, from its head to its close. Cards on this tab carry no
-// nested <section>, so the first close after the head is the card's own.
-/**
- * @param {string} out
- * @param {string} title
- */
-const card = (out, title) => {
-  const head = out.indexOf(`<div class="card-head">${title}</div>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
+// One card's fragment, keyed by the `data-card` its <section> carries — the
+// card's own machine identity, never the words in its head (docs/testing.md
+// rule 9).
+const card = section;
 
-// A gate renders as a two-choice segmented strip, so its presence in a fragment
-// is read off the strip's button labels (card-gates.test.js).
+// A gate renders as a two-choice segmented strip. Its options are read off the
+// `data-v` each button carries — the wire values of the gate's boolean field —
+// never off the words on them.
 /** @param {string} s */
-const buttonLabels = (s) => [...s.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
+const segmentValues = (s) =>
+  elements(s)
+    .filter((el) => el.name === "button" && classes(el).includes("seg"))
+    .sort((a, b) => a.start - b.start)
+    .map((el) => attr(el, "data-v"));
 
-const LOUDNESS = "Loudness";
+// The two states a boolean gate offers, ON first (the convention
+// conversioncards.test.js pins for `direct_sdm`, which offers "0" then "1").
+const GATE_ON = "1";
+const GATE_OFF = "0";
+
+const LOUDNESS = "loudness";
+const FIXED_VOLUME = "fixed-volume";
+const ADJUSTMENTS = "adjustments";
+const PLAYBACK = "playback-volume";
+// The auto-headroom control, by the schema key its field wears in `data-k` —
+// `optimal_iso`, the SCHEMA key, not the `volume_fixed` wire field behind it.
+const AUTO_HEADROOM = 'data-k="optimal_iso"';
 const DIMMED = 'class="dsp-body off"';
 const ON = { post_loudness_enabled: true };
 const OFF = { post_loudness_enabled: false };
@@ -103,17 +115,17 @@ const FIXED = { ...FREE, fixed_volume_enabled: true };
 
 test("test_the_playback_knob_leads_the_tab", async () => {
   await reset();
-  assert.ok(tab().includes('<div class="card-head">Playback volume</div>'));
+  assert.ok(cardHeadAt(tab(), PLAYBACK) >= 0);
 });
 
 test("test_the_fixed_volume_card_carries_auto_headroom", async () => {
   await reset();
-  assert.ok(card(tab(), "Fixed volume").includes("<label>Auto headroom"));
+  assert.ok(card(tab(), FIXED_VOLUME).includes(AUTO_HEADROOM));
 });
 
-test("test_the_fixed_volume_cards_first_segmented_strip_is_labeled_on_then_off", async () => {
+test("test_the_fixed_volume_cards_first_segmented_strip_offers_on_then_off", async () => {
   await reset();
-  assert.deepEqual(buttonLabels(card(tab(), "Fixed volume")).slice(0, 2), ["ON", "OFF"]);
+  assert.deepEqual(segmentValues(card(tab(), FIXED_VOLUME)).slice(0, 2), [GATE_ON, GATE_OFF]);
 });
 
 // The gate and the dBFS level share one row: inside the fxv-row container the
@@ -124,41 +136,34 @@ test("test_the_fixed_volume_cards_first_segmented_strip_is_labeled_on_then_off",
 // row fails.
 test("test_the_fixed_volume_gate_and_level_share_one_row_gate_first", async () => {
   await reset();
-  const body = card(tab(), "Fixed volume");
-  const marks = [
-    '<div class="fxv-row">',
-    '<span class="segment">',
-    '<span class="unit">dBFS</span>',
-    "<label>Auto headroom",
-  ];
+  const body = card(tab(), FIXED_VOLUME);
+  const marks = ['<div class="fxv-row">', '<span class="segment">', '<span class="unit">dBFS</span>', AUTO_HEADROOM];
   const at = marks.map((m) => body.indexOf(m));
   assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2] && at[2] < at[3]);
 });
 
-// The shared row's name column: "Fixed level" names the gate-and-level pair.
-test("test_the_fixed_volume_row_is_named_fixed_level", async () => {
-  await reset();
-  assert.ok(card(tab(), "Fixed volume").includes("<label>Fixed level"));
-});
+// DELETED: "the fixed volume row is named fixed level". The name column's
+// wording is copy end to end (docs/testing.md rule 9) and no state stands behind
+// it; the count below still holds the card to exactly two labelled rows.
 
-// The level renders no <label> of its own — the card carries exactly the two
-// labels pinned above, Fixed level and Auto headroom, and nothing else.
+// The level renders no <label> of its own — the card carries exactly two labels,
+// the shared row's and Auto headroom's, and nothing else.
 test("test_the_fixed_volume_level_carries_no_label_of_its_own", async () => {
   await reset();
-  assert.equal((card(tab(), "Fixed volume").match(/<label[\s>]/g) || []).length, 2);
+  assert.equal((card(tab(), FIXED_VOLUME).match(/<label[\s>]/g) || []).length, 2);
 });
 
 test("test_the_auto_headroom_row_follows_the_shared_fixed_level_row", async () => {
   await reset();
-  const body = card(tab(), "Fixed volume");
-  const at = ['<div class="fxv-row">', "<label>Auto headroom"].map((m) => body.indexOf(m));
+  const body = card(tab(), FIXED_VOLUME);
+  const at = ['<div class="fxv-row">', AUTO_HEADROOM].map((m) => body.indexOf(m));
   assert.ok(at[0] >= 0 && at[0] < at[1]);
 });
 
 // The old indented layout is gone from this card entirely.
 test("test_the_fixed_volume_card_has_no_indented_layout", async () => {
   await reset();
-  assert.equal(card(tab(), "Fixed volume").includes('<div class="indent'), false);
+  assert.equal(card(tab(), FIXED_VOLUME).includes('<div class="indent'), false);
 });
 
 test("test_the_volume_range_bar_stands_on_the_tab", async () => {
@@ -166,25 +171,25 @@ test("test_the_volume_range_bar_stands_on_the_tab", async () => {
   assert.ok(tab().includes("vr-card"));
 });
 
-// The reorganization renamed Automatic to Adjustments and moved the PCM gain
-// compensation in from the Output tab. Membership and order are pinned as the
-// card's whole <label> sequence — a stray fourth control or a reordering fails.
+// The reorganization renamed the card and moved the PCM gain compensation in
+// from the Output tab. Membership is pinned as the card's own field keys — a
+// stray fourth control or a missing third fails, and the moved control is named
+// by the schema key it wears rather than by its label.
 /** @param {string} frag */
-const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+const keysOf = (frag) => [...frag.matchAll(/data-k="([^"]*)"/g)].map((m) => m[1]);
 
-test("test_the_adjustments_card_carries_exactly_its_three_controls_in_order", async () => {
+test("test_the_adjustments_card_carries_exactly_three_controls_including_the_moved_gain_compensation", async () => {
   await reset();
-  assert.deepEqual(labelsOf(card(tab(), "Adjustments")), [
-    "Adaptive volume",
-    "Playlist album gain",
-    "PCM gain compensation",
-  ]);
+  const keys = keysOf(card(tab(), ADJUSTMENTS));
+  assert.deepEqual(
+    { count: keys.length, moved: keys.includes("gain_comp"), adaptive: keys.includes("adaptive_volume") },
+    { count: 3, moved: true, adaptive: true },
+  );
 });
 
-test("test_no_card_is_titled_automatic_any_more", async () => {
-  await reset();
-  assert.equal(tab().includes('<div class="card-head">Automatic</div>'), false);
-});
+// DELETED: "no card is titled Automatic any more". The card is addressed by its
+// id now, and no id `automatic` exists to be absent — an absence assertion
+// against a literal nothing in the tree carries constrains nothing.
 
 // --- loudness -----------------------------------------------------------------
 
@@ -205,7 +210,7 @@ test("test_the_loudness_body_stays_dimmed_while_the_volume_control_is_bypassed",
 
 test("test_the_loudness_enable_stays_outside_the_dimmed_body", async () => {
   await reset({ mtx: OFF });
-  assert.deepEqual(buttonLabels(card(tab(), LOUDNESS).split(DIMMED)[0]).slice(0, 2), ["ENGAGE", "BYPASS"]);
+  assert.deepEqual(segmentValues(card(tab(), LOUDNESS).split(DIMMED)[0]).slice(0, 2), [GATE_ON, GATE_OFF]);
 });
 
 test("test_the_loudness_strip_rules_between_its_knobs", async () => {
@@ -215,7 +220,7 @@ test("test_the_loudness_strip_rules_between_its_knobs", async () => {
 
 test("test_the_loudness_card_carries_the_loudness_range", async () => {
   await reset({ mtx: ON });
-  assert.ok(card(tab(), LOUDNESS).includes('<div class="cluster-head">Range</div>'));
+  assert.ok(card(tab(), LOUDNESS).includes('data-k="loudness_range_low"'));
 });
 
 test("test_the_loudness_card_plots_the_shelving_it_applies", async () => {

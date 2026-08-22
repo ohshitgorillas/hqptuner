@@ -52,17 +52,15 @@ async function stage(w, key, value) {
   return { held };
 }
 
-// The dangerous stagings: each opens a warn question naming its own key, and
-// each carries the phrase the caption is built from — "minimum short buffer"
-// for the engine attribute, "minimum buffer time" for the per-backend times.
+// The dangerous stagings: each opens a warn question naming its own key.
 // `staged` is the exact http-lane representation a confirm must land (the lane
 // is a Record<string, string>); `safe` is a harmless value of the same key,
 // pre-staged before the cancel tests so a cancel path that wiped the whole
 // pending set could not pass as "stages nothing".
 const DANGEROUS = [
-  { key: "short_buffer", value: "2", staged: "2", safe: "1", phrase: "minimum short buffer" },
-  { key: "alsa_period", value: -1, staged: "-1", safe: 100, phrase: "minimum buffer time" },
-  { key: "net_period", value: -5, staged: "-5", safe: 100, phrase: "minimum buffer time" },
+  { key: "short_buffer", value: "2", staged: "2", safe: "1" },
+  { key: "alsa_period", value: -1, staged: "-1", safe: 100 },
+  { key: "net_period", value: -5, staged: "-5", safe: 100 },
 ];
 
 for (const { key, value } of DANGEROUS) {
@@ -85,15 +83,9 @@ for (const { key, value } of DANGEROUS) {
   });
 }
 
-for (const { key, value, phrase } of DANGEROUS) {
-  test(`the ${key.replaceAll("_", " ")} warning says "${phrase}"`, async () => {
-    const w = await reset();
-    const { held } = await stage(w, key, value);
-    assert.ok(String(question.value?.message).includes(phrase));
-    cancel();
-    await held;
-  });
-}
+// A third loop pinned the phrase each warning's caption is built from. The
+// caption is owner copy (docs/testing.md rule 9) and `owner` above already
+// tells the three warnings apart, so nothing survives the wording.
 
 for (const { key, value } of DANGEROUS) {
   test(`a dangerous ${key.replaceAll("_", " ")} does not stage while its question is open`, async () => {

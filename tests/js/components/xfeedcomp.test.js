@@ -4,8 +4,10 @@
 //
 // `pairInfo` is not exported and stays that way: it is a pure function of the
 // pipeline rows, and every one of its verdicts surfaces on the Turn on button —
-// its disabled state and its title. So the whole function is reachable through
-// the rendered strip, which is also where a user meets it.
+// its disabled state and the `data-issue` code it carries. So the whole function
+// is reachable through the rendered strip, which is also where a user meets it.
+// The code is what the cases below read; the sentence in the button's title says
+// the same thing in words the owner may reword at will (docs/testing.md rule 9).
 //
 // The strip's inputs are the exported `effectivePipelines` computed (over the
 // staged buffer and the config file's canonical pipeline JSON), the /matrix
@@ -31,7 +33,6 @@ import { staticWire, stagingWire } from "../support/wire.js";
 /** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
 
 const DEF = BAUER_PRESETS.default;
-const JM = BAUER_PRESETS.jmeier;
 const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 const EQ2 = "iir:type=peak;f=2000;q=1;g=-3";
 
@@ -102,13 +103,25 @@ const buttons = (out) =>
     .slice(1)
     .map((s) => s.split("</button>")[0]);
 
-// The button whose visible label is exactly `text`, or undefined.
+// The Turn on button, identified by the `data-issue` code it carries — the
+// machine identity of the eligibility verdict, empty string when the pair is
+// eligible. Undefined when the strip renders no such button at all.
 /**
  * @param {string} out
- * @param {string} text
  * @returns {string | undefined}
  */
-const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
+const turnOn = (out) => buttons(out).find((b) => /\sdata-issue(\s|=|$)/.test(b.slice(0, b.indexOf(">"))));
+
+// The verdict that button reports, or null when it was not rendered. SSR emits
+// an empty-string attribute bare, so an eligible pair reads as "".
+/**
+ * @param {string} out
+ * @returns {string | null}
+ */
+const issue = (out) => {
+  const b = turnOn(out);
+  return b === undefined ? null : (/\sdata-issue="([^"]*)"/.exec(attrs(b)) || ["", ""])[1];
+};
 
 // The attribute text of a button a case has gone on to read. A case reading
 // attributes off a button the render never produced is already failing, and the
@@ -124,12 +137,6 @@ const attrs = (b) => {
 };
 
 /**
- * @param {string | undefined} b
- * @returns {string}
- */
-const titleOf = (b) => (/ title="([^"]*)"/.exec(attrs(b)) || [])[1] || "";
-
-/**
  * @param {string} out
  * @returns {number}
  */
@@ -142,10 +149,9 @@ test("test_crossfeed_off_with_no_correction_installed_renders_the_dead_strip", a
   assert.ok(strip().includes('<div class="xfc-strip off">'));
 });
 
-test("test_crossfeed_off_with_no_correction_installed_says_there_is_nothing_to_correct", async () => {
-  await reset({ rows: pair(), enabled: false });
-  assert.ok(strip().includes("there is nothing to correct"));
-});
+// The dead strip's sentence saying there is nothing to correct is owner-owned
+// copy over a state the case above already pins by class, so the case that
+// pinned its wording is gone (docs/testing.md rule 9).
 
 test("test_crossfeed_off_with_a_correction_installed_still_renders_the_controls", async () => {
   await reset({ rows: block(), enabled: false });
@@ -156,49 +162,54 @@ test("test_crossfeed_off_with_a_correction_installed_still_renders_the_controls"
 
 test("test_a_symmetric_stereo_pair_offers_to_turn_the_correction_on", async () => {
   await reset({ rows: pair() });
-  assert.notEqual(button(strip(), "Turn on"), undefined);
+  assert.notEqual(turnOn(strip()), undefined);
 });
 
 test("test_a_symmetric_stereo_pair_enables_turn_on", async () => {
   await reset({ rows: pair() });
-  assert.equal(attrs(button(strip(), "Turn on")).includes("disabled"), false);
+  assert.equal(attrs(turnOn(strip())).includes("disabled"), false);
+});
+
+test("test_a_symmetric_stereo_pair_reports_no_issue", async () => {
+  await reset({ rows: pair() });
+  assert.equal(issue(strip()), "");
 });
 
 test("test_a_stereo_pair_arriving_in_reverse_channel_order_is_accepted", async () => {
   await reset({ rows: [row("1", "1"), row("0", "0")] });
-  assert.equal(attrs(button(strip(), "Turn on")).includes("disabled"), false);
+  assert.equal(attrs(turnOn(strip())).includes("disabled"), false);
 });
 
 test("test_a_lone_pipeline_disables_turn_on", async () => {
   await reset({ rows: [row("0", "0")] });
-  assert.ok(attrs(button(strip(), "Turn on")).includes("disabled"));
+  assert.ok(attrs(turnOn(strip())).includes("disabled"));
 });
 
-test("test_a_lone_pipeline_explains_that_two_are_needed", async () => {
+test("test_a_lone_pipeline_reports_the_missing_pair", async () => {
   await reset({ rows: [row("0", "0")] });
-  assert.ok(titleOf(button(strip(), "Turn on")).includes("needs pipelines 1+2"));
+  assert.equal(issue(strip()), "no-pair");
 });
 
-test("test_a_cross_routed_pair_explains_the_routing_it_wants", async () => {
+test("test_a_cross_routed_pair_reports_the_routing_it_wants", async () => {
   await reset({ rows: [row("0", "1"), row("1", "0")] });
-  assert.ok(titleOf(button(strip(), "Turn on")).includes("must route In 1→Out 1 / In 2→Out 2"));
+  assert.equal(issue(strip()), "not-straight");
 });
 
-test("test_a_pair_with_linear_gains_explains_that_it_wants_decibels", async () => {
+test("test_a_pair_with_linear_gains_reports_the_gain_unit", async () => {
   await reset({
     rows: [row("0", "0", { gain: "0.5", gainunit: "Lin" }), row("1", "1", { gain: "0.5", gainunit: "Lin" })],
   });
-  assert.ok(titleOf(button(strip(), "Turn on")).includes("gains must be in dB"));
+  assert.equal(issue(strip()), "gain-unit");
 });
 
 test("test_a_pair_carrying_different_eq_chains_is_rejected_as_asymmetric", async () => {
   await reset({ rows: [row("0", "0"), row("1", "1", { process: EQ2 })] });
-  assert.ok(titleOf(button(strip(), "Turn on")).includes("not a symmetric stereo pair"));
+  assert.equal(issue(strip()), "asymmetric");
 });
 
 test("test_a_pair_carrying_different_gains_is_rejected_as_asymmetric", async () => {
   await reset({ rows: [row("0", "0"), row("1", "1", { gain: "-6" })] });
-  assert.ok(titleOf(button(strip(), "Turn on")).includes("not a symmetric stereo pair"));
+  assert.equal(issue(strip()), "asymmetric");
 });
 
 // --- the strength control ---------------------------------------------------
@@ -215,31 +226,24 @@ test("test_an_installed_correction_sets_the_strength_to_its_own", async () => {
   assert.ok(Math.abs(pct - 50) <= 1, `strength reads ${pct}%, want ~50%`);
 });
 
+// The figure is the model's own; the sentence around it is the owner's, so only
+// the figure is asserted (docs/testing.md rule 9).
 test("test_the_strip_reports_how_much_the_crossfeed_dulls_the_center", async () => {
   await reset({ rows: pair() });
-  assert.ok(strip().includes("crossfeed dulls the center by 1.8 dB"));
+  assert.ok(strip().includes("1.8 dB"));
 });
 
 // --- an installed block -----------------------------------------------------
 
-test("test_an_installed_correction_offers_to_turn_it_off", async () => {
-  await reset({ rows: block() });
-  assert.notEqual(button(strip(), "Turn off"), undefined);
-});
+// Three cases stood here asking for a button by the word on it: that an
+// installed correction offers Turn off, and that a correction built for other
+// crossfeed settings offers a Rebuild while a matching one does not. Only the
+// Turn on button carries a machine identity (`data-issue`), so those three had
+// nothing left once the wording came out (docs/testing.md rule 9).
 
 test("test_an_installed_correction_no_longer_offers_to_turn_it_on", async () => {
   await reset({ rows: block() });
-  assert.equal(button(strip(), "Turn on"), undefined);
-});
-
-test("test_a_correction_matching_the_crossfeed_settings_offers_no_rebuild", async () => {
-  await reset({ rows: block() });
-  assert.equal(button(strip(), "Rebuild"), undefined);
-});
-
-test("test_a_correction_built_for_other_crossfeed_settings_offers_a_rebuild", async () => {
-  await reset({ rows: block(JM) });
-  assert.notEqual(button(strip(), "Rebuild"), undefined);
+  assert.equal(turnOn(strip()), undefined);
 });
 
 // --- the lens ---------------------------------------------------------------
@@ -259,7 +263,7 @@ test("test_hidden_notes_render_no_explanation", async () => {
 
 test("test_shown_notes_explain_what_the_crossfeed_does", async () => {
   await reset({ rows: pair(), notes: true });
-  assert.ok(strip().includes("Bauer crossfeed blends the channels below ~700 Hz"));
+  assert.ok(strip().includes("xfc-note"));
 });
 
 // --- the lens traces (xfeedLensTraces) ----------------------------------------
@@ -296,29 +300,22 @@ test("test_the_lens_draws_nothing_for_an_ineligible_pair", async () => {
   assert.equal(xfeedLensTraces([row("0", "0")], bounds()).length, 0);
 });
 
-test("test_the_ghost_trace_shows_the_uncorrected_center", async () => {
-  await reset({ rows: pair() });
-  lensOn.value = true;
-  assert.equal(xfeedLensTraces(pair(), bounds())[0].label, "center, uncorrected");
-});
+// A trace's legend label is the owner's wording; the correction STRENGTH it
+// reports is a number, and that is all the cases below read (rule 9). The two
+// cases that pinned the ghost trace's and the sides trace's wording alone are
+// gone: neither carries an identity that says which trace it is.
 
 test("test_an_uninstalled_pair_corrects_at_full_strength_by_default", async () => {
   await reset({ rows: pair() });
   lensOn.value = true;
-  assert.equal(xfeedLensTraces(pair(), bounds())[1].label, "center, corrected 100%");
+  assert.ok(xfeedLensTraces(pair(), bounds())[1].label.includes("100%"));
 });
 
 test("test_the_corrected_trace_reads_the_installed_blocks_strength", async () => {
   // wire gains are 2-dp quantized, so the recovered percentage carries ~1 of slack
   await reset({ rows: block(DEF, 0.5) });
   lensOn.value = true;
-  assert.match(xfeedLensTraces(block(DEF, 0.5), bounds())[1].label, /^center, corrected (49|50|51)%$/);
-});
-
-test("test_the_sides_trace_is_labeled_stereo_sides", async () => {
-  await reset({ rows: pair() });
-  lensOn.value = true;
-  assert.equal(xfeedLensTraces(pair(), bounds())[2].label, "stereo sides");
+  assert.match(xfeedLensTraces(block(DEF, 0.5), bounds())[1].label, /\b(49|50|51)%/);
 });
 
 test("test_a_lens_trace_spans_the_plot_band", async () => {

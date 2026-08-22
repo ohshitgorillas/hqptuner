@@ -17,12 +17,9 @@
 // in both directions: each fixture that turns one on turns the other off, so a
 // store reading `net_dop || alsa_dop` fails rather than passing everywhere.
 //
-// Every grayed RATE option reads exactly "unavailable" — one word, both menus,
-// all three routes to a gray (past the device's PCM ceiling, no native DSD, no
-// DoP carrier), because the reason renders appended to the option's own label
-// inside a third-width dropdown. The MODE segment is the exception and keeps
-// its full sentence: it is a button with room for one, and the only place that
-// still explains why.
+// Every grayed RATE option carries a reason, on all three routes to a gray
+// (past the device's PCM ceiling, no native DSD, no DoP carrier). What that
+// reason says is owner copy and no case here asserts it.
 //
 // The governing principle throughout: when the capability cannot speak for the
 // control, NOTHING is grayed — combo backend, a device the announcement does
@@ -108,14 +105,8 @@ test("test_every_pcm_tier_above_what_the_device_announced_is_grayed", async () =
   assert.deepEqual(grayedAmong(out, [PCM_8X, PCM_16X, PCM_32X]), [PCM_8X, PCM_16X, PCM_32X]);
 });
 
-test("test_a_pcm_tier_grayed_by_the_devices_ceiling_reads_unavailable", async () => {
-  // One word, whatever made the tier unreachable: the reason renders appended
-  // to the option's own label inside a third-width dropdown, with no room for
-  // a sentence. The mode segment is the only place that still explains why.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
-  const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
-  assert.equal(optionFor(out, PCM_8X).reason, "unavailable");
-});
+// The word a grayed rate row reads is owner copy (docs/testing.md rule 9); that
+// it carries a reason at all is what GRAYED states, on every case here.
 
 test("test_a_pcm_tier_the_device_announced_is_not_grayed", async () => {
   // The other half of the judgment: a store that grayed its whole menu passes
@@ -175,14 +166,6 @@ test("test_a_native_dsd_tier_the_device_did_not_announce_is_grayed", async () =>
   assert.deepEqual(marks(optionFor(out, DSD256)), GRAYED);
 });
 
-test("test_a_dsd_tier_grayed_for_want_of_native_dsd_reads_unavailable", async () => {
-  // Second of the three routes to a gray. A store that grew a chattier reason
-  // for any one of them fails here.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, [3072000, 6144000]) });
-  const out = grayRatesByDevice(DSD_RATES, "sdm");
-  assert.equal(optionFor(out, DSD256).reason, "unavailable");
-});
-
 test("test_a_dsd_tier_announced_only_by_its_44_1k_member_is_not_grayed", async () => {
   // 22579200 is DSD512's 44.1k twin; the option's value is 24576000.
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, [22579200]) });
@@ -211,13 +194,6 @@ test("test_with_dop_on_dsd128_is_grayed_when_its_carrier_is_not_announced", asyn
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true });
   const out = grayRatesByDevice(DSD_RATES, "sdm");
   assert.deepEqual(marks(optionFor(out, DSD128)), GRAYED);
-});
-
-test("test_a_dsd_tier_grayed_for_want_of_a_dop_carrier_reads_unavailable", async () => {
-  // The third route to a gray, pinned to the same one word as the other two.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true });
-  const out = grayRatesByDevice(DSD_RATES, "sdm");
-  assert.equal(optionFor(out, DSD128).reason, "unavailable");
 });
 
 test("test_a_dop_switch_staged_as_the_string_one_counts_as_on", async () => {

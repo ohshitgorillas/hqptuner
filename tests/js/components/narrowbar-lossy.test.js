@@ -16,9 +16,10 @@
 // `notesVisible` fails here instead of passing.
 //
 // The bar is read as SSR markup through tests/js/support/markup.js, which scans
-// by tag balance rather than by selector: a group is "the smallest element that
-// encloses the title text and a segmented switch", a stage micro-label is "an
-// element whose whole text reads 1x or Nx". That names what a reader sees
+// by tag balance rather than by selector: a group is "the smallest element
+// marked with that group id that encloses a segmented switch", a stage
+// micro-label is "an element whose whole text reads 1x or Nx" — the engine's own
+// stage names, not a caption. That names what a reader sees
 // rather than the classes the component happens to use, but it still couples
 // these cases to the bar being built from `Segment` strips — a restructure will
 // fail them for a reason that is not a regression; check the shape before
@@ -30,19 +31,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { LOSSY_TIP } from "../../../hqptuner/static/components/narrowbar/Stages.js";
-import { elements, enclosing } from "../support/markup.js";
-import {
-  resetBar,
-  renderBar,
-  decode,
-  seen,
-  isSegment,
-  encloses,
-  attr,
-  group,
-  switchesIn,
-  segmentLabels,
-} from "../support/narrowbarview.js";
+import { classes, elements, enclosing } from "../support/markup.js";
+import { resetBar, renderBar, seen, isSegment, encloses, attr, group, switchesIn } from "../support/narrowbarview.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -52,7 +42,22 @@ import {
 // than repeating 400 characters a reword would have to be chased through twice.
 const EXPLAINER = LOSSY_TIP;
 
-const TITLE = "1x sources";
+// The group's own machine identity, the `data-group` its element carries, so a
+// reworded heading changes nothing here (docs/testing.md rule 9).
+const TITLE = "1x-sources";
+
+/**
+ * The wire value each segment of a group's switch offers, in order — read off
+ * `data-v`, never off the words on the button.
+ *
+ * @param {MarkupElement} region
+ * @returns {(string | undefined)[]}
+ */
+const segmentValues = (region) =>
+  elements(region.html)
+    .filter((el) => el.name === "button" && classes(el).includes("seg"))
+    .sort((a, b) => a.start - b.start)
+    .map((el) => attr(el, "data-v"));
 
 const FILTERS = [
   { index: "0", name: "gauss-short", value: "0", arg: 0, description: "4/5 transients ⥮ Int", apodizing: false },
@@ -113,12 +118,12 @@ function apodizingStageLabel(out) {
 }
 
 // --- the group and its three segments -------------------------------------------
-// The lookup itself pins the title: a bar with no group reading "1x sources"
-// beside a segmented switch throws rather than reporting a wrong label list.
+// The lookup itself pins the group: a bar with no group marked `1x-sources`
+// beside a segmented switch throws rather than reporting a wrong option list.
 
 test("test_the_1x_sources_group_offers_both_lossless_and_lossy_in_that_order", async () => {
   await reset();
-  assert.deepEqual(segmentLabels(group(renderBar(), TITLE)), ["Both", "Lossless", "Lossy"]);
+  assert.deepEqual(segmentValues(group(renderBar(), TITLE)), ["both", "lossless", "lossy"]);
 });
 
 // --- one row, no stage labeling, no Nx twin --------------------------------------
@@ -141,10 +146,10 @@ test("test_the_1x_sources_group_offers_a_single_row", async () => {
   assert.equal(switchesIn(group(renderBar(), TITLE)).length, 1);
 });
 
-test("test_the_bar_offers_no_nx_sources_control", async () => {
-  await reset();
-  assert.equal(decode(renderBar()).includes("Nx sources"), false);
-});
+// DELETED: "the bar offers no Nx sources control", which read the absence of the
+// literal "Nx sources" out of the render. Nothing in shipped source carries that
+// string, so the assertion constrained nothing whatever the bar did; the group
+// being single-rowed is pinned by the two cases above.
 
 // --- the explainer: a caption while notes show, a hover title while they do not ----
 

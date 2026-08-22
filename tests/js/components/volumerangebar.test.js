@@ -99,8 +99,12 @@ const ariaLabels = (out) => handles(out).map((t) => attr(t, "aria-label"));
  */
 const count = (out, needle) => out.split(needle).length - 1;
 
+// Which handle a tag is, off the class it carries — the card's own machine
+// identity for it, unlike the words in its assistive label.
+/** @param {string} tag */
+const which = (tag) => (/\bvr-(min|startup|max)\b/.exec(tag) || [])[1];
+
 const DEFAULTS = { volume_min: "-60", volume_max: "0", defaults_volume: "-20" };
-const SDM = "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.";
 
 // --- what each handle reads --------------------------------------------------
 
@@ -193,9 +197,11 @@ test("test_the_gain_ceiling_is_labeled", async () => {
 
 // --- graying -----------------------------------------------------------------
 
-test("test_direct_sdm_names_its_reason_on_the_card", async () => {
+// WHICH sentence the tooltip carries is the owner's; that a grayed card carries
+// one at all, and an ungrayed one does not, is the behavior (rule 9).
+test("test_direct_sdm_carries_a_reason_on_the_card", async () => {
   await reset({ ...DEFAULTS, direct_sdm: "1" });
-  assert.ok(bar().includes(`title="${SDM}"`));
+  assert.ok(bar().includes('title="'));
 });
 
 test("test_an_ungrayed_card_carries_no_reason", async () => {
@@ -296,7 +302,15 @@ test("test_the_max_box_reaches_the_gain_ceiling", async () => {
 
 // --- assistive labeling -----------------------------------------------------
 
-test("test_the_three_handles_are_labeled_in_axis_order", async () => {
+// WHAT the labels say is the owner's wording; that every handle carries one,
+// and that the three stand in axis order, is the contract (rule 9).
+
+test("test_every_handle_carries_an_assistive_label", async () => {
   await reset(DEFAULTS);
-  assert.deepEqual(ariaLabels(bar()), ["Min volume", "Startup volume", "Max volume"]);
+  assert.equal(ariaLabels(bar()).filter((l) => l && l.length > 0).length, 3);
+});
+
+test("test_the_three_handles_stand_in_axis_order", async () => {
+  await reset(DEFAULTS);
+  assert.deepEqual(handles(bar()).map(which), ["min", "startup", "max"]);
 });

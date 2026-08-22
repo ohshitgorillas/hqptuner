@@ -28,11 +28,13 @@ import { nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { resetBar, renderBar, hasGroup, mentions, resets } from "../support/narrowbarview.js";
 import { MOVED_FACETS } from "../support/narrowfacets.js";
 
-const TITLE = "Source format";
+// The groups' own machine identities, the `data-group` each element carries, so
+// a reworded heading changes nothing here (docs/testing.md rule 9).
+const TITLE = "source-format";
 
 // The group the bar offers whatever `srcFormat` says — the anchor that keeps an
 // absence case from passing on an empty render.
-const SIBLING = "1x sources";
+const SIBLING = "1x-sources";
 
 const CATALOG = [
   { index: "0", name: "sinc-M", value: "0", arg: 1, description: "5/5 timbre ⥮ Any", apodizing: true },
@@ -49,10 +51,10 @@ test("test_a_bar_mounted_with_no_src_format_prop_offers_the_source_format_group"
   assert.equal(hasGroup(renderBar(), TITLE), true);
 });
 
-// The absence asks about the WORDING as well as the group's shape: `hasGroup`
-// alone also answers false for a control that is still on screen and has merely
-// stopped being a segmented switch. The stage group is the anchor, so a bar that
-// rendered nothing cannot pass.
+// The absence asks whether the bar marks the group at all as well as about its
+// shape: `hasGroup` alone also answers false for a control that is still on
+// screen and has merely stopped being a segmented switch. The stage group is the
+// anchor, so a bar that rendered nothing cannot pass.
 
 test("test_a_bar_mounted_with_src_format_off_offers_no_source_format_group", async () => {
   await reset();

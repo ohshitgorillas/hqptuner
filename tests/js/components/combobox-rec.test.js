@@ -2,22 +2,22 @@
 // rows, read off the rendered Field the way every combobox suite reads it
 // (tests/js/components/combobox-plainnames.test.js). The observable contract:
 //
-//   A row whose option carries `rec: true` renders a check glyph exposed to
-//   assistive tech with the label "Recommended"; a row without the flag renders
-//   no such glyph. The open pop renders a footer legend containing the text
-//   "✓ = recommended" while at least one listed option carries the flag, and
-//   no such legend when none does — Standard mode included, where the overlay
-//   never decorates and so nothing carries a flag.
+//   A row whose option carries `rec: true` renders the recommended glyph; a row
+//   without the flag renders none. The open pop renders a footer legend while at
+//   least one listed option carries the flag, and no legend when none does —
+//   Standard mode included, where the overlay never decorates and so nothing
+//   carries a flag.
 //
 // The flag rides the /api/metadata `plain_names` overlay for the section the
 // field joins (here `noise_filter`), driven through the field harness's
 // metadata fixture; raw option labels are the daemon's own enumeration names
 // (tests/support/fixtures/config-form-6.0.4.html). Family, leaf and short
 // strings are invented test data — the shipped wording is pinned server-side
-// (tests/api/test_metadata_pcm_plain_names.py) — and the legend text is pinned
-// because it is the spec's own wording. The glyph is found by its accessible
-// label, never by a class the component happens to use (docs/testing.md; same
-// discipline as the apodizing badge in combobox-apod.test.js).
+// (tests/api/test_metadata_pcm_plain_names.py).
+//
+// Glyph and legend are found by their CSS class, which is contract, and rows by
+// the `data-v` wire value they carry — never by the words either renders
+// (docs/testing.md rule 9).
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/combobox-rec.test.js
 
@@ -27,8 +27,7 @@ import assert from "node:assert/strict";
 import { reset, field, META } from "../support/field-harness.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { elements, classes, text } from "../support/markup.js";
-
-/** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
+import { rowIncluding } from "../support/comborows.js";
 
 // Two flagged entries and one unflagged, so a flagged row, an unflagged row
 // and the legend are all observable in one fragment.
@@ -57,7 +56,19 @@ const ALL_OPTIONS = [
 // Only the unflagged name: the list carries no recommended option at all.
 const UNFLAGGED_OPTIONS = [{ value: "7", label: "sac" }];
 
-const LEGEND = "✓ = recommended";
+// Class tokens, not sentences: the glyph's own element and the pop's footer
+// legend are each identified by the class they wear.
+const REC_GLYPH = "dd-rec";
+const LEGEND = "dd-legend";
+
+/**
+ * Whether a fragment encloses an element wearing `cls` as a whole class token.
+ *
+ * @param {string} fragment
+ * @param {string} cls
+ * @returns {boolean}
+ */
+const wears = (fragment, cls) => elements(fragment).some((el) => classes(el).includes(cls));
 
 /**
  * The noise-filter field rendered against the overlay.
@@ -89,28 +100,14 @@ function boxText(out) {
   return text(box);
 }
 
-/**
- * The option row (dd-opt element) whose text includes `needle`. Throws when no
- * row does, so an absent row fails loudly instead of comparing against nothing.
- *
- * @param {string} out
- * @param {string} needle
- * @returns {MarkupElement}
- */
-function rowIncluding(out, needle) {
-  const hit = elements(out).find((el) => classes(el).includes("dd-opt") && text(el).includes(needle));
-  if (!hit) throw new Error(`no option row reads "${needle}"`);
-  return hit;
-}
-
 // --- the check glyph on a row ---------------------------------------------------
 
-test("test_a_rec_flagged_row_renders_a_check_glyph_labelled_recommended", async () => {
-  assert.equal(/aria-label="Recommended"/.test(rowIncluding(await noiseField(), "Wec leaf").html), true);
+test("test_a_rec_flagged_row_renders_the_recommended_glyph", async () => {
+  assert.equal(wears(rowIncluding(await noiseField(), "11").html, REC_GLYPH), true);
 });
 
 test("test_a_row_without_the_flag_renders_no_recommended_glyph", async () => {
-  assert.equal(/aria-label="Recommended"/.test(rowIncluding(await noiseField(), "Sac leaf").html), false);
+  assert.equal(wears(rowIncluding(await noiseField(), "7").html, REC_GLYPH), false);
 });
 
 // --- the closed control ---------------------------------------------------------
@@ -122,13 +119,13 @@ test("test_pref_on_the_closed_control_shows_the_selections_short", async () => {
 // --- the footer legend ----------------------------------------------------------
 
 test("test_the_pop_renders_the_legend_when_a_listed_option_is_recommended", async () => {
-  assert.equal((await noiseField()).includes(LEGEND), true);
+  assert.equal(wears(await noiseField(), LEGEND), true);
 });
 
 test("test_no_legend_renders_when_no_listed_option_is_recommended", async () => {
-  assert.equal((await noiseField({ options: UNFLAGGED_OPTIONS })).includes(LEGEND), false);
+  assert.equal(wears(await noiseField({ options: UNFLAGGED_OPTIONS }), LEGEND), false);
 });
 
 test("test_standard_mode_renders_no_legend", async () => {
-  assert.equal((await noiseField({ plain: false })).includes(LEGEND), false);
+  assert.equal(wears(await noiseField({ plain: false }), LEGEND), false);
 });

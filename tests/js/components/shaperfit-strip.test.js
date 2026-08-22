@@ -32,11 +32,21 @@ const CONFLICTING = { chain: "sdm", mode: "2", sdmRate: DSD512, pcmRate: PCM_8X,
 // The same settings one tier up, where nothing is wrong.
 const CONSISTENT = { ...CONFLICTING, sdmRate: DSD1024 };
 
-const SHAPER_TEXT =
-  "The current settings are invalid: modulator ASDM7EC is incompatible with DSD512 output. " +
-  "HQPlayer cannot produce output.";
-const HEALTH_TEXT = "Clipping ×13 this track";
-const JUNK_TEXT = "Ultrasonic junk above 30 kHz suggests the 30k filter";
+// Each source's row, by the `data-alert` kind it carries — the row's own
+// machine identity, contract like any other wire-side marking, so the sentences
+// the strip prints are never named here (docs/testing.md rule 9).
+const SHAPER = "shaper-fit-sdm";
+const HEALTH = "clipping";
+const JUNK = "junk-advice";
+
+// The advice payload's own sentence: invented by this fixture and handed to the
+// frontend over the wire, so it is a vehicle rather than a claim about shipped
+// wording.
+const JUNK_REASON = "Ultrasonic junk above 30 kHz suggests the 30k filter";
+
+// The kinds on screen, in the order the strip renders them.
+/** @param {string} out */
+const alertKinds = (out) => [...out.matchAll(/data-alert="([^"]*)"/g)].map((m) => m[1]);
 
 // Nothing playing: health derives no alert from an idle engine, so a strip with
 // anything in it under this frame has something other than health in it.
@@ -45,27 +55,10 @@ const IDLE = () => ({ status: { state: "0", track_serial: "1" }, junk: null });
 // sources, so the shaper rows have something to be ordered against.
 const NOISY = () => ({
   status: { state: "2", track_serial: "1", process_speed: "1.5", clips: "13" },
-  junk: { filter: "30k", reason: JUNK_TEXT, ceiling_khz: 30 },
+  junk: { filter: "30k", reason: JUNK_REASON, ceiling_khz: 30 },
 });
 
 const strip = () => render(html`<${AlertStrip} />`);
-
-// Where each source's text landed, in the order they appear. A text the strip
-// never rendered throws rather than sorting to the front: a missing row must
-// fail loudly instead of quietly reordering the ones that are there.
-/** @param {string} out */
-function order(out) {
-  const at = /** @type {[string, string][]} */ ([
-    ["health", HEALTH_TEXT],
-    ["shaper", SHAPER_TEXT],
-    ["junk", JUNK_TEXT],
-  ]).map(([name, text]) => {
-    const i = out.indexOf(text);
-    if (i < 0) throw new Error(`the strip rendered no ${name} row`);
-    return { name, i };
-  });
-  return at.sort((a, b) => a.i - b.i).map((e) => e.name);
-}
 
 test("test_an_empty_strip_renders_nothing_at_all", async () => {
   await reset({ ...CONSISTENT, status: IDLE() });
@@ -76,7 +69,7 @@ test("test_a_shaper_conflict_renders_while_the_engine_is_stopped", async () => {
   // The conflict is in the settings, not in the playback: a strip that waited
   // for a transport would hide it exactly while the user is fixing it.
   await reset({ ...CONFLICTING, status: IDLE() });
-  assert.ok(strip().includes(SHAPER_TEXT));
+  assert.deepEqual(alertKinds(strip()), [SHAPER]);
 });
 
 // Every class token of every element in the strip, so a severity can be looked
@@ -93,5 +86,5 @@ test("test_a_shaper_conflict_renders_at_its_own_severity_class", async () => {
 
 test("test_the_shaper_rows_sit_between_the_health_alerts_and_the_junk_chip", async () => {
   await reset({ ...CONFLICTING, status: NOISY() });
-  assert.deepEqual(order(strip()), ["health", "shaper", "junk"]);
+  assert.deepEqual(alertKinds(strip()), [HEALTH, SHAPER, JUNK]);
 });

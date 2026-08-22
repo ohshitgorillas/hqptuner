@@ -37,10 +37,10 @@ import { formFields, section, stateOf } from "../support/tabform.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
 
-const PCM = "PCM Chain";
-const SDM = "SDM Chain";
-const SDM_NOTE = "Output mode is SDM. These settings have no effect.";
-const PCM_NOTE = "Output mode is PCM. These settings have no effect.";
+// Cards are named by the `data-card` their <section> carries — the card's own
+// machine identity, never the words in its head (docs/testing.md rule 9).
+const PCM = "pcm-chain";
+const SDM = "sdm-chain";
 
 // The daemon's /config form fields the chain cards render, each with its own
 // option list so the cards have real dropdowns under them.
@@ -98,41 +98,44 @@ function renderTab() {
 
 const tab = () => renderTab().out;
 
-/**
- * @param {unknown} node
- * @returns {string}
- */
-function text(node) {
-  if (node === null || node === undefined || typeof node === "boolean") return "";
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(text).join("");
-  const props = /** @type {VNode} */ (node).props;
-  return text(props && props.children);
-}
-
-// The head of the named card, as the button a pointer would land on. Anything
-// other than exactly one match throws rather than clicking something else.
-/** @param {string} title */
-function clickHead(title) {
-  const heads = renderTab().seen.filter(
-    (v) => v && v.type === "button" && v.props && typeof v.props.onClick === "function" && text(v).includes(title),
+// The head of the card carrying an id, as the button a pointer would land on.
+// Preact builds a card's own subtree before it moves to the next card, so the
+// head is the first head button built after that card's `data-card` vnode — the
+// renderer's depth-first order, not ours. The card is never found by the words
+// in its head (docs/testing.md rule 9); anything but a match throws rather than
+// clicking something else.
+/** @param {string} card */
+function clickHead(card) {
+  const seen = renderTab().seen;
+  /** @param {VNode} v */
+  const cardId = (v) => (v && v.props ? v.props["data-card"] : undefined);
+  const at = seen.findIndex((v) => cardId(v) === card);
+  if (at < 0) throw new Error(`no card marked "${card}" was rendered`);
+  const head = seen.find(
+    (v, i) =>
+      i > at &&
+      v.type === "button" &&
+      v.props &&
+      typeof v.props.onClick === "function" &&
+      String(v.props.class || "")
+        .split(/\s+/)
+        .includes("card-head"),
   );
-  if (heads.length !== 1) throw new Error(`expected one clickable head for "${title}", found ${heads.length}`);
-  const onClick = /** @type {(event: object) => void} */ (heads[0].props.onClick);
-  onClick({ preventDefault() {}, stopPropagation() {} });
+  if (!head) throw new Error(`no clickable head under the "${card}" card`);
+  /** @type {(event: object) => void} */ (head.props.onClick)({ preventDefault() {}, stopPropagation() {} });
 }
 
 // Bring a card to the disclosure a case starts from, by clicking its head when
 // what is on screen is not it — the only route a user has.
 /**
- * @param {string} title
+ * @param {string} card
  * @param {string} want
  */
-function ensure(title, want) {
-  if (stateOf(tab(), title) === want) return;
-  clickHead(title);
-  const now = stateOf(tab(), title);
-  if (now !== want) throw new Error(`"${title}" would not go ${want}: it is ${now}`);
+function ensure(card, want) {
+  if (stateOf(tab(), card) === want) return;
+  clickHead(card);
+  const now = stateOf(tab(), card);
+  if (now !== want) throw new Error(`"${card}" would not go ${want}: it is ${now}`);
 }
 
 // --- the toggle ---------------------------------------------------------------
@@ -153,24 +156,28 @@ test("test_clicking_an_open_chain_cards_head_closes_it", async () => {
 
 // --- the mode-mismatch note ---------------------------------------------------
 // An inert chain auto-closes, so its note is only ever seen by a user who opened
-// the card by hand — and it must be there when they do.
+// the card by hand — and it must be there when they do. The note is addressed by
+// its own identity, `data-note="mode-mismatch"`; what it says is owner copy and
+// is asserted nowhere (docs/testing.md rule 9).
 
-test("test_a_hand_opened_pcm_card_in_sdm_mode_says_its_settings_have_no_effect", async () => {
+const MISMATCH = 'data-note="mode-mismatch"';
+
+test("test_a_hand_opened_pcm_card_in_sdm_mode_carries_the_mismatch_note", async () => {
   await reset("sdm");
   ensure(PCM, "open");
-  assert.ok(section(tab(), PCM).includes(SDM_NOTE));
+  assert.ok(section(tab(), PCM).includes(MISMATCH));
 });
 
-test("test_a_hand_opened_sdm_card_in_pcm_mode_says_its_settings_have_no_effect", async () => {
+test("test_a_hand_opened_sdm_card_in_pcm_mode_carries_the_mismatch_note", async () => {
   await reset("pcm");
   ensure(SDM, "open");
-  assert.ok(section(tab(), SDM).includes(PCM_NOTE));
+  assert.ok(section(tab(), SDM).includes(MISMATCH));
 });
 
 test("test_a_chain_card_in_its_own_mode_carries_no_mismatch_note", async () => {
   await reset("pcm");
   ensure(PCM, "open");
-  assert.equal(section(tab(), PCM).includes("These settings have no effect"), false);
+  assert.equal(section(tab(), PCM).includes(MISMATCH), false);
 });
 
 // --- the override lifecycle ---------------------------------------------------

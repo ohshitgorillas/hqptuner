@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 
 import { enums } from "../../../hqptuner/static/store/signals.js";
 import { nPhase, nApod1x } from "../../../hqptuner/static/store/narrow/state.js";
+import { schema } from "../../../hqptuner/static/store/schema.js";
 import {
   reset,
   stageEdit,
@@ -26,24 +27,35 @@ import {
   outsideControlRow,
   grayReason,
   attrOf,
-  optionLabels,
-  optionByLabel,
+  optionByValue,
   activeSegment,
   isDisabled,
 } from "../support/field-harness.js";
+import { elements, classes, attr } from "../support/markup.js";
 
-// The option a label names, and the control row of a rendered field. A field
-// missing either is a broken fixture rather than a case with nothing to say, so
-// both raise here instead of reaching an assertion as an absence.
+// The option a wire value names, and the control row of a rendered field. A
+// field missing either is a broken fixture rather than a case with nothing to
+// say, so both raise here instead of reaching an assertion as an absence.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} value
  */
-const option = (out, label) => {
-  const found = optionByLabel(out, label);
-  if (found === undefined) throw new Error(`no option labeled "${label}" in the rendered field`);
+const option = (out, value) => {
+  const found = optionByValue(out, value);
+  if (found === undefined) throw new Error(`no option valued "${value}" in the rendered field`);
   return found;
 };
+
+// The wire values a dropdown offers, in document order: `value` on a native
+// <option>, `data-v` on a combobox row. The values are contract; the words
+// rendered for them are the owner's (docs/testing.md rule 9), so the option
+// SOURCE is pinned on the values and never on the labels.
+/** @param {string} out */
+const optionValues = (out) =>
+  elements(out)
+    .filter((el) => el.name === "option" || classes(el).includes("dd-opt"))
+    .sort((a, b) => a.start - b.start)
+    .map((el) => attr(el, "value") ?? attr(el, "data-v"));
 
 /** @param {string} out */
 const row = (out) => {
@@ -68,22 +80,17 @@ test("test_the_widget_kind_is_named_in_the_field_class", async () => {
 
 test("test_the_schema_label_is_rendered", async () => {
   await reset();
-  assert.ok(field("volume_max").includes("<label>Max volume"));
+  assert.ok(field("volume_max").includes(`<label>${schema.volume_max.label}`));
 });
 
 test("test_a_sublabel_renders_beside_the_label", async () => {
   await reset();
-  assert.equal(span(field("optimal_iso"), "label-alt"), "(Optimal ISO)");
+  assert.equal(span(field("optimal_iso"), "label-alt"), schema.optimal_iso.sublabel);
 });
 
 test("test_a_field_without_a_sublabel_renders_no_label_alt", async () => {
   await reset();
   assert.equal(span(field("volume_max"), "label-alt"), null);
-});
-
-test("test_the_dac_correction_profile_is_labeled_dac_model", async () => {
-  await reset();
-  assert.ok(field("dac_correction_profile").includes("<label>DAC model</label>"));
 });
 
 // ============================================================================
@@ -128,7 +135,7 @@ test("test_an_untouched_field_is_not_dirty", async () => {
 
 test("test_the_effective_value_selects_the_active_segment", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(activeSegment(field("output_mode")), "SDM (DSD)");
+  assert.equal(activeSegment(field("output_mode")), "sdm");
 });
 
 test("test_the_effective_value_checks_a_checkbox", async () => {
@@ -144,7 +151,7 @@ test("test_the_effective_value_positions_a_knob", async () => {
 test("test_a_staged_edit_outranks_the_form_baseline", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
   await stageEdit("output_mode", "sdm", { mode: "sdm" });
-  assert.equal(activeSegment(field("output_mode")), "SDM (DSD)");
+  assert.equal(activeSegment(field("output_mode")), "sdm");
 });
 
 // ============================================================================
@@ -185,8 +192,8 @@ test("test_a_schema_option_list_renders_as_given", async () => {
   await reset();
   const out = field("output_mode");
   assert.deepEqual(
-    [...out.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim()),
-    ["PCM", "SDM (DSD)", "Auto"],
+    [...out.matchAll(/<button[^<>]*\bdata-v="([^"]*)"/g)].map((m) => m[1]),
+    ["pcm", "sdm", "auto"],
   );
 });
 
@@ -196,7 +203,7 @@ test("test_a_config_sourced_dropdown_offers_the_form_fields_options", async () =
     { value: "60", label: "1 min" },
   ];
   await reset({ fields: [{ name: "idle_time", value: "0", options }] });
-  assert.deepEqual(optionLabels(field("idle_time")), ["Never", "1 min"]);
+  assert.deepEqual(optionValues(field("idle_time")), ["0", "60"]);
 });
 
 test("test_a_matrix_sourced_dropdown_offers_the_matrix_forms_options", async () => {
@@ -205,7 +212,7 @@ test("test_a_matrix_sourced_dropdown_offers_the_matrix_forms_options", async () 
     { value: "1", label: "FIR" },
   ];
   await reset({ matrix: [{ name: "engine", value: "0", options }] });
-  assert.deepEqual(optionLabels(field("matrix_engine")), ["IIR", "FIR"]);
+  assert.deepEqual(optionValues(field("matrix_engine")), ["0", "1"]);
 });
 
 // Every filter the engine enumerates carries a quality rating at the head of
@@ -232,7 +239,7 @@ test("test_narrowing_drops_an_option_the_active_facets_exclude", async () => {
   enums.value = { filters: [PASSES_QUALITY("poly-sinc-mp"), PASSES_QUALITY("sinc-Lm")] };
   nApod1x.value = "all";
   nPhase.value = ["minimum"];
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["poly-sinc-mp"]);
+  assert.deepEqual(optionValues(field("pcm_filter_1x")), ["0"]);
 });
 
 // The current selection is judged on the facets like any other option: the
@@ -254,7 +261,7 @@ test("test_narrowing_hides_the_selected_option_when_it_fails_the_facets", async 
   enums.value = { filters: [PASSES_QUALITY("poly-sinc-mp"), PASSES_QUALITY("sinc-Lm")] };
   nApod1x.value = "all";
   nPhase.value = ["minimum"];
-  assert.equal(optionLabels(field("pcm_filter_1x")).includes("sinc-Lm"), false);
+  assert.equal(optionByValue(field("pcm_filter_1x"), "1"), undefined);
 });
 
 // A modulator below its floor stops the engine producing output at all, so its
@@ -276,12 +283,15 @@ const BELOW_MODULATOR_FLOOR = [
 
 test("test_a_modulator_below_the_rate_floor_is_offered_disabled", async () => {
   await reset({ fields: BELOW_MODULATOR_FLOOR });
-  assert.ok(/\bdisabled\b/.test(option(field("sdm_modulator"), "ASDM7EC").a));
+  assert.ok(/\bdisabled\b/.test(option(field("sdm_modulator"), "1").a));
 });
 
-test("test_a_rate_grayed_modulator_names_the_rate_it_needs", async () => {
+// The floor is a number, and a number is state (docs/testing.md rule 9); the
+// sentence carrying it is the owner's. A gray that named one constant rather
+// than the floor the fixture gave ASDM7EC fails here.
+test("test_a_rate_grayed_modulator_names_the_floor_it_was_given", async () => {
   await reset({ fields: BELOW_MODULATOR_FLOOR });
-  assert.equal(option(field("sdm_modulator"), "ASDM7EC").label, "ASDM7EC — needs ≥ 40.96 MHz");
+  assert.ok(option(field("sdm_modulator"), "1").label.includes("40.96"));
 });
 
 test("test_a_modulator_the_rate_can_reach_stays_selectable", async () => {
@@ -301,7 +311,7 @@ test("test_a_modulator_the_rate_can_reach_stays_selectable", async () => {
       },
     ],
   });
-  assert.equal(/\bdisabled\b/.test(option(field("sdm_modulator"), "ASDM7EC").a), false);
+  assert.equal(/\bdisabled\b/.test(option(field("sdm_modulator"), "1").a), false);
 });
 
 // ============================================================================
@@ -320,10 +330,7 @@ test("test_a_field_with_no_gray_reason_is_enabled", async () => {
 
 test("test_a_gray_reason_is_shown_as_a_visible_caption", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.equal(
-    line(field("volume_max"), "field-gray-reason"),
-    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
-  );
+  assert.notEqual(line(field("volume_max"), "field-gray-reason"), null);
 });
 
 test("test_an_enabled_field_shows_no_gray_caption", async () => {
@@ -357,22 +364,17 @@ test("test_a_quiet_gray_field_is_still_disabled", async () => {
 // contract that alsa_bits and net_bits used to carry.
 // ============================================================================
 
-test("test_inline_gray_adaptive_volume_names_the_direct_sdm_bypass_inside_the_control_row", async () => {
+test("test_inline_gray_adaptive_volume_puts_its_reason_inside_the_control_row", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.equal(
-    grayReason(row(field("adaptive_volume"))),
-    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
-  );
+  assert.notEqual(grayReason(row(field("adaptive_volume"))), null);
 });
 
-test("test_inline_gray_loudness_explains_why_adaptive_loudness_cannot_adapt", async () => {
+// Loudness is grayed by the same cause but adds a clause of its own, so the two
+// reasons are not the same string. Which words either carries is the owner's;
+// that they differ is the behavior.
+test("test_inline_gray_loudness_carries_a_reason_of_its_own_beyond_the_shared_cause", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.equal(
-    grayReason(row(field("loudness_enabled"))),
-    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value." +
-      " Volume-adaptive loudness cannot adapt — use a Matrix EQ" +
-      " for a volume-agnostic equivalent.",
-  );
+  assert.notEqual(grayReason(row(field("loudness_enabled"))), grayReason(row(field("adaptive_volume"))));
 });
 
 test("test_an_inline_gray_field_renders_no_stacked_gray_caption", async () => {
@@ -401,7 +403,7 @@ test("test_an_inline_gray_field_is_still_disabled_when_grayed", async () => {
 
 test("test_a_unit_renders_beside_the_control", async () => {
   await reset();
-  assert.equal(span(field("alsa_period"), "unit"), "ms");
+  assert.equal(span(field("alsa_period"), "unit"), schema.alsa_period.unit);
 });
 
 test("test_a_knob_carries_its_own_unit_rather_than_a_sibling_span", async () => {
@@ -411,7 +413,7 @@ test("test_a_knob_carries_its_own_unit_rather_than_a_sibling_span", async () => 
 
 test("test_a_hint_renders_beside_the_control", async () => {
   await reset();
-  assert.equal(span(field("alsa_period"), "field-hint"), "−1 = minimum, 0 = default");
+  assert.equal(span(field("alsa_period"), "field-hint"), schema.alsa_period.hint);
 });
 
 test("test_a_rescan_field_offers_a_rescan_button", async () => {

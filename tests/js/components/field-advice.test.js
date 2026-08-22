@@ -6,10 +6,16 @@
 // they are NOT grayed: the control stays live and the field carries an advisory
 // note beside the widget saying which mode the setting is relevant to.
 //
-// The observable contract is placement plus text plus editability: the note sits
-// INSIDE <div class="control">…</div>, carries the field-advice class (distinct
-// from field-gray-reason), appears only in the mode the setting does not serve,
-// and never stands in the way of staging an edit.
+// The observable contract is placement plus presence plus editability: the note
+// sits INSIDE <div class="control">…</div>, carries the field-advice class
+// (distinct from field-gray-reason), appears only in the mode the setting does
+// not serve, and never stands in the way of staging an edit.
+//
+// Which mode a note NAMES is the owner's wording and is never asserted
+// (docs/testing.md rule 9). It does not need to be: each control is pinned in
+// both modes, so the two advisories are told apart by which mode raises which
+// note. A bit-depth field advises under SDM and falls silent under PCM; a 48k
+// DSD field does the opposite. Swapping the two notes fails four cases.
 //
 // Gap: the note's own styling and its position relative to the widget within the
 // row are visual, not observable from SSR — they belong to the hand-back
@@ -44,38 +50,52 @@ const row = (out) => {
 // the note appears in the mode the setting does not serve
 // ============================================================================
 
-test("test_bit_depth_in_sdm_mode_advises_that_it_is_a_pcm_setting", async () => {
+test("test_bit_depth_advises_while_the_output_mode_is_sdm", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(advice(row(field("alsa_bits"))), "Only relevant to PCM output mode.");
+  assert.notEqual(advice(row(field("alsa_bits"))), null);
 });
 
-test("test_network_bit_depth_in_sdm_mode_advises_that_it_is_a_pcm_setting", async () => {
+test("test_network_bit_depth_advises_while_the_output_mode_is_sdm", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
-  assert.equal(advice(row(field("net_bits"))), "Only relevant to PCM output mode.");
+  assert.notEqual(advice(row(field("net_bits"))), null);
 });
 
-test("test_48k_dsd_in_pcm_mode_advises_that_it_is_an_sdm_setting", async () => {
+test("test_48k_dsd_advises_while_the_output_mode_is_pcm", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.equal(advice(row(field("alsa_anydsd"))), "Only relevant to SDM output mode.");
+  assert.notEqual(advice(row(field("alsa_anydsd"))), null);
 });
 
-test("test_network_48k_dsd_in_pcm_mode_advises_that_it_is_an_sdm_setting", async () => {
+test("test_network_48k_dsd_advises_while_the_output_mode_is_pcm", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
-  assert.equal(advice(row(field("net_anydsd"))), "Only relevant to SDM output mode.");
+  assert.notEqual(advice(row(field("net_anydsd"))), null);
 });
 
 // ============================================================================
 // the note is absent in the mode the setting does serve
+//
+// The other half of each pairing above: every one of the four controls is
+// pinned in BOTH modes, so which note a control raises is fixed by the mode
+// that raises it rather than by anything either note says.
 // ============================================================================
 
-test("test_bit_depth_in_pcm_mode_renders_no_advice_at_all", async () => {
+test("test_bit_depth_falls_silent_while_the_output_mode_is_pcm", async () => {
   await reset({ fields: [{ name: "mode", value: "pcm" }] });
   assert.equal(advice(field("alsa_bits")), null);
 });
 
-test("test_48k_dsd_in_sdm_mode_renders_no_advice_at_all", async () => {
+test("test_network_bit_depth_falls_silent_while_the_output_mode_is_pcm", async () => {
+  await reset({ fields: [{ name: "mode", value: "pcm" }] });
+  assert.equal(advice(field("net_bits")), null);
+});
+
+test("test_48k_dsd_falls_silent_while_the_output_mode_is_sdm", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }] });
   assert.equal(advice(field("alsa_anydsd")), null);
+});
+
+test("test_network_48k_dsd_falls_silent_while_the_output_mode_is_sdm", async () => {
+  await reset({ fields: [{ name: "mode", value: "sdm" }] });
+  assert.equal(advice(field("net_anydsd")), null);
 });
 
 // ============================================================================

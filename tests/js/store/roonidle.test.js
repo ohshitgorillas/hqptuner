@@ -33,12 +33,11 @@ import { edit } from "../../../hqptuner/static/store/actions.js";
 import { stagingWire, quiesce } from "../support/wire.js";
 import { reset, DSD512, DSD1024, PCM_8X, MODULATOR } from "../support/shaperfit-fixtures.js";
 
-// The advisory, byte-exact — the whole row object, so severity and copy are
-// pinned together and a drifted word or a re-severitied row both fail.
-const ROON_TEXT =
-  "Recommend setting Engine idle time (System tab) to 10 or longer; " +
-  "at default idle time, Roon inefficiently restarts the engine between tracks.";
-const ROON_ROW = { sev: "warn", text: ROON_TEXT };
+// The advisory by its machine identity: the alert record's `kind`, and the
+// `data-alert` the strip renders it under. The sentence itself is owner copy
+// (docs/testing.md rule 9) and is nowhere in this file.
+const ROON_KIND = "roon-idle";
+const ROON_ATTR = `data-alert="${ROON_KIND}"`;
 
 let serial = 0;
 
@@ -70,14 +69,19 @@ function scene(idleTime, metadata) {
 
 // --- the advisory fires -------------------------------------------------------
 
-test("test_roon_playback_at_default_idle_time_raises_the_advisory_verbatim", () => {
+test("test_roon_playback_at_default_idle_time_raises_the_advisory", () => {
   scene("0", { song: "Roon" });
-  assert.deepEqual(roonIdleAlert.value, ROON_ROW);
+  assert.equal(roonIdleAlert.value?.kind, ROON_KIND);
 });
 
-test("test_roon_playback_with_idle_time_unset_raises_the_advisory_verbatim", () => {
+test("test_roon_playback_with_idle_time_unset_raises_the_advisory", () => {
   scene(null, { song: "Roon" });
-  assert.deepEqual(roonIdleAlert.value, ROON_ROW);
+  assert.equal(roonIdleAlert.value?.kind, ROON_KIND);
+});
+
+test("test_the_roon_idle_advisory_is_a_warning", () => {
+  scene("0", { song: "Roon" });
+  assert.equal(roonIdleAlert.value?.sev, "warn");
 });
 
 // --- a configured idle time silences it ---------------------------------------
@@ -128,7 +132,7 @@ test("test_staging_a_nonzero_idle_time_does_not_clear_the_advisory_before_apply"
   const w = stagingWire();
   await edit("idle_time", "10000");
   await quiesce(w);
-  assert.deepEqual(roonIdleAlert.value, ROON_ROW);
+  assert.equal(roonIdleAlert.value?.kind, ROON_KIND);
 });
 
 test("test_a_staged_default_over_a_loaded_nonzero_does_not_raise_the_advisory", async () => {
@@ -157,15 +161,14 @@ const CONFLICT = {
   pcmRate: PCM_8X,
   floors: { sdm: { [MODULATOR]: 40960000 } },
 };
-const SHAPER_TEXT =
-  "The current settings are invalid: modulator ASDM7EC is incompatible with DSD512 output. " +
-  "HQPlayer cannot produce output.";
+const SHAPER_ATTR = 'data-alert="shaper-fit-sdm"';
+const CLIPPING_ATTR = 'data-alert="clipping"';
 
 const strip = () => render(html`<${AlertStrip} />`);
 
 test("test_the_strip_renders_the_roon_idle_advisory", async () => {
   await reset({ ...NEITHER, status: frame({ song: "Roon" }) });
-  assert.ok(strip().includes(ROON_TEXT));
+  assert.ok(strip().includes(ROON_ATTR));
 });
 
 test("test_the_roon_idle_row_renders_at_warning_severity", async () => {
@@ -178,29 +181,29 @@ test("test_the_strip_omits_the_roon_row_when_the_song_is_not_roon", async () => 
   // same harness, alert condition broken on the song side: a strip rendering
   // the row unconditionally fails here
   await reset({ ...NEITHER, status: frame({ song: "Some Local Track" }) });
-  assert.ok(!strip().includes(ROON_TEXT));
+  assert.ok(!strip().includes(ROON_ATTR));
 });
 
 test("test_the_roon_row_does_not_displace_a_health_alert", async () => {
   const status = frame({ song: "Roon" });
   status.status.clips = "13";
   await reset({ ...NEITHER, status });
-  assert.ok(strip().includes("Clipping ×13 this track"));
+  assert.ok(strip().includes(CLIPPING_ATTR));
 });
 
 test("test_a_health_alert_does_not_displace_the_roon_row", async () => {
   const status = frame({ song: "Roon" });
   status.status.clips = "13";
   await reset({ ...NEITHER, status });
-  assert.ok(strip().includes(ROON_TEXT));
+  assert.ok(strip().includes(ROON_ATTR));
 });
 
 test("test_the_roon_row_does_not_displace_a_shaper_alert", async () => {
   await reset({ ...CONFLICT, status: frame({ song: "Roon" }) });
-  assert.ok(strip().includes(SHAPER_TEXT));
+  assert.ok(strip().includes(SHAPER_ATTR));
 });
 
 test("test_a_shaper_alert_does_not_displace_the_roon_row", async () => {
   await reset({ ...CONFLICT, status: frame({ song: "Roon" }) });
-  assert.ok(strip().includes(ROON_TEXT));
+  assert.ok(strip().includes(ROON_ATTR));
 });

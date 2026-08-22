@@ -50,6 +50,8 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { writeLive } from "../../../hqptuner/static/store/live/write.js";
 import { ok, bad, staticWire } from "../support/wire.js";
 import { formField } from "../support/chainenums.js";
+import { labeled } from "../support/markup.js";
+import { section } from "../support/tabform.js";
 
 // The two chains number the same filters differently, so the dormant column can
 // only read the daemon's own /config form (protocol.md §4).
@@ -181,39 +183,34 @@ async function reset({ busy = "", routes, auto = false, chain = "pcm" } = {}) {
 const page = () => render(html`<${LiveView} />`);
 
 // --- reading a control's state off the page -----------------------------------
-// No control on this page carries an identifier of its own, so the anchors here
-// are the two things a user reads and the suite can hold the page to: the card's
-// title and the control's label. Everything between them — which wrapper divs
-// exist and what they are classed — is left alone, so a card that is restructured
-// without changing what it says still measures.
+// The anchors are machine identities (docs/testing.md rule 9): a card by the
+// `data-card` its section carries, a control by the schema key on its field
+// wrapper. Everything between them — which wrapper divs exist and what they are
+// classed — is left alone, so a card that is restructured, or reworded, still
+// measures.
 
-// The chain card headed `title`, cut at whichever chain head comes next so a
-// collapsed card cannot silently lend its neighbor's controls to a lookup.
-const CHAINS = ["PCM Chain", "SDM Chain"];
+// One chain card's own fragment. A card that stopped rendering raises rather
+// than lending its neighbor's controls to a lookup.
 /**
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  */
-function card(out, title) {
-  const at = out.indexOf(title);
-  if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
-  const after = CHAINS.map((t) => out.indexOf(t)).filter((i) => i > at);
-  return out.slice(at, after.length ? Math.min(...after) : undefined);
+function card(out, id) {
+  const frag = section(out, id);
+  if (frag === "") throw new Error(`no card identified "${id}" in the rendered page`);
+  return frag;
 }
 
-// The attributes of the form control a labeled field wraps. Anything between
-// the label and its control is skipped, and everything after the control is
-// ignored: a filter field also carries the narrowing tickboxes, which disable on
-// their own account.
+// The attributes of the form control a keyed field wraps — the first control
+// inside the field, so the narrowing tickboxes that follow a filter's dropdown,
+// which disable on their own account, are not mistaken for it.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  */
-function widgetAttrs(out, label) {
-  const at = out.search(new RegExp(`<label>${label}(<|</label>)`));
-  if (at < 0) throw new Error(`no field labeled "${label}" in the markup given`);
-  const m = /<(select|input|button)\b([^>]*)>/.exec(out.slice(at));
-  if (!m) throw new Error(`the field labeled "${label}" wraps no form control`);
+function widgetAttrs(out, key) {
+  const m = /<(select|input|button)\b([^>]*)>/.exec(labeled(out, key).html);
+  if (!m) throw new Error(`the field keyed "${key}" wraps no form control`);
   return m[2];
 }
 
@@ -222,21 +219,19 @@ function widgetAttrs(out, label) {
 const DISABLED = /(^|\s)disabled(\s|=|\/|$)/;
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  */
-const grayed = (out, label) => DISABLED.test(widgetAttrs(out, label));
+const grayed = (out, key) => DISABLED.test(widgetAttrs(out, key));
 
 // The output-mode switch is a segment of buttons rather than one control, so its
 // refusal lands on the buttons. The field carries nothing else that can disable.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  */
-function segmentGrayed(out, label) {
-  const at = out.search(new RegExp(`<label>${label}</label>`));
-  if (at < 0) throw new Error(`no field labeled "${label}" in the rendered page`);
-  const rest = out.slice(at, out.indexOf("<label", at + 1));
-  return [...rest.matchAll(/<button\b([^>]*)>/g)].some((m) => DISABLED.test(m[1]));
+function segmentGrayed(out, key) {
+  const field = labeled(out, key).html;
+  return [...field.matchAll(/<button\b([^>]*)>/g)].some((m) => DISABLED.test(m[1]));
 }
 
 // --- which fields open the window ---------------------------------------------
@@ -246,17 +241,20 @@ function segmentGrayed(out, label) {
 const REENUM = ["mode", "filter1x", "filter", "oversampling1x", "oversampling", "rate"];
 const PLAIN = ["adaptive_volume", "junk_filter"];
 
+const PCM_CARD = "live-pcm-chain";
+const SDM_CARD = "live-sdm-chain";
+
 for (const field of REENUM) {
   test(`test_a_${field}_write_in_flight_grays_the_controls_that_read_an_enumeration`, async () => {
     await reset({ busy: field });
-    assert.equal(grayed(card(page(), "PCM Chain"), "Dither"), true);
+    assert.equal(grayed(card(page(), PCM_CARD), "shaper"), true);
   });
 }
 
 for (const field of PLAIN) {
   test(`test_a_${field}_write_in_flight_grays_no_control_that_reads_an_enumeration`, async () => {
     await reset({ busy: field });
-    assert.equal(grayed(card(page(), "PCM Chain"), "Dither"), false);
+    assert.equal(grayed(card(page(), PCM_CARD), "shaper"), false);
   });
 }
 
@@ -264,39 +262,31 @@ for (const field of PLAIN) {
 // Both directions of `active_chain`, in `[source]` so both cards render open.
 // The field in flight is `rate`, which belongs to neither card.
 
-/** @type {Record<string, string[]>} */
-const CONTROLS = {
-  "PCM Chain": ["1x filter", "Nx filter", "Dither"],
-  "SDM Chain": ["1x filter", "Nx filter", "Sigma-delta modulator"],
-};
+// Both chain cards carry the same three keys; which card they are read from is
+// what tells the loaded chain from the dormant one.
+const CONTROLS = ["filter_1x", "filter_nx", "shaper"];
 /** @type {Record<string, string>} */
-const CARD = { pcm: "PCM Chain", sdm: "SDM Chain" };
+const CARD = { pcm: PCM_CARD, sdm: SDM_CARD };
 /** @param {string} chain */
 const other = (chain) => (chain === "pcm" ? "sdm" : "pcm");
 
 for (const chain of ["pcm", "sdm"]) {
-  for (const label of CONTROLS[CARD[chain]]) {
-    const name = `${chain}_${label.toLowerCase().replace(/[ -]/g, "_")}`;
-
-    test(`test_the_loaded_${name}_grays_out_during_a_re_enumerating_write`, async () => {
+  for (const key of CONTROLS) {
+    test(`test_the_loaded_${chain}_${key}_grays_out_during_a_re_enumerating_write`, async () => {
       await reset({ auto: true, chain, busy: "rate" });
-      assert.equal(grayed(card(page(), CARD[chain]), label), true);
+      assert.equal(grayed(card(page(), CARD[chain]), key), true);
     });
 
-    test(`test_the_loaded_${name}_is_not_grayed_with_no_write_in_flight`, async () => {
+    test(`test_the_loaded_${chain}_${key}_is_not_grayed_with_no_write_in_flight`, async () => {
       await reset({ auto: true, chain });
-      assert.equal(grayed(card(page(), CARD[chain]), label), false);
+      assert.equal(grayed(card(page(), CARD[chain]), key), false);
     });
-  }
 
-  // The dormant chain's options come from the running configuration, which no
-  // re-enumeration touches, and its edits are held until that chain loads.
-  for (const label of CONTROLS[CARD[other(chain)]]) {
-    const name = `${other(chain)}_${label.toLowerCase().replace(/[ -]/g, "_")}`;
-
-    test(`test_the_dormant_${name}_stays_live_during_a_re_enumerating_write`, async () => {
+    // The dormant chain's options come from the running configuration, which no
+    // re-enumeration touches, and its edits are held until that chain loads.
+    test(`test_the_dormant_${other(chain)}_${key}_stays_live_during_a_re_enumerating_write`, async () => {
       await reset({ auto: true, chain, busy: "rate" });
-      assert.equal(grayed(card(page(), CARD[other(chain)]), label), false);
+      assert.equal(grayed(card(page(), CARD[other(chain)]), key), false);
     });
   }
 }
@@ -305,73 +295,73 @@ for (const chain of ["pcm", "sdm"]) {
 
 test("test_the_high_frequency_filter_grays_out_during_a_re_enumerating_write", async () => {
   await reset({ busy: "filter1x" });
-  assert.equal(grayed(page(), "High-frequency filter"), true);
+  assert.equal(grayed(page(), "junk_filter"), true);
 });
 
 test("test_the_high_frequency_filter_is_not_grayed_with_no_write_in_flight", async () => {
   await reset();
-  assert.equal(grayed(page(), "High-frequency filter"), false);
+  assert.equal(grayed(page(), "junk_filter"), false);
 });
 
 test("test_the_pcm_rate_column_grays_out_during_a_re_enumerating_write", async () => {
   await reset({ busy: "filter1x" });
-  assert.equal(grayed(page(), "PCM"), true);
+  assert.equal(grayed(page(), "pcm_rate"), true);
 });
 
 test("test_the_sdm_rate_column_grays_out_during_a_re_enumerating_write", async () => {
   await reset({ busy: "filter1x" });
-  assert.equal(grayed(page(), "SDM"), true);
+  assert.equal(grayed(page(), "sdm_rate"), true);
 });
 
 test("test_the_pcm_rate_column_is_not_grayed_with_no_write_in_flight", async () => {
   await reset();
-  assert.equal(grayed(page(), "PCM"), false);
+  assert.equal(grayed(page(), "pcm_rate"), false);
 });
 
 test("test_the_sdm_rate_column_is_not_grayed_with_no_write_in_flight", async () => {
   await reset();
-  assert.equal(grayed(page(), "SDM"), false);
+  assert.equal(grayed(page(), "sdm_rate"), false);
 });
 
 // --- controls that read no list at all ----------------------------------------
 
 test("test_adaptive_volume_stays_live_during_a_re_enumerating_write", async () => {
   await reset({ busy: "filter1x" });
-  assert.equal(grayed(page(), "Adaptive volume"), false);
+  assert.equal(grayed(page(), "adaptive_volume"), false);
 });
 
 test("test_the_output_mode_switch_stays_live_during_another_fields_re_enumerating_write", async () => {
   await reset({ busy: "filter1x" });
-  assert.equal(segmentGrayed(page(), "Mode"), false);
+  assert.equal(segmentGrayed(page(), "output_mode"), false);
 });
 
 test("test_the_output_mode_switch_grays_while_it_is_itself_being_written", async () => {
   // The pair the case above needs: without it, a switch that can never disable
   // reads the same as one correctly left alone.
   await reset({ busy: "mode" });
-  assert.equal(segmentGrayed(page(), "Mode"), true);
+  assert.equal(segmentGrayed(page(), "output_mode"), true);
 });
 
 // --- a write that rebuilds nothing grays nothing else -------------------------
 
 test("test_a_plain_write_leaves_the_loaded_chains_filter_live", async () => {
   await reset({ busy: "junk_filter" });
-  assert.equal(grayed(card(page(), "PCM Chain"), "Nx filter"), false);
+  assert.equal(grayed(card(page(), PCM_CARD), "filter_nx"), false);
 });
 
 test("test_a_plain_write_leaves_the_pcm_rate_column_live", async () => {
   await reset({ busy: "junk_filter" });
-  assert.equal(grayed(page(), "PCM"), false);
+  assert.equal(grayed(page(), "pcm_rate"), false);
 });
 
 test("test_a_plain_write_leaves_the_sdm_rate_column_live", async () => {
   await reset({ busy: "junk_filter" });
-  assert.equal(grayed(page(), "SDM"), false);
+  assert.equal(grayed(page(), "sdm_rate"), false);
 });
 
 test("test_a_plain_write_grays_the_control_it_is_writing", async () => {
   await reset({ busy: "junk_filter" });
-  assert.equal(grayed(page(), "High-frequency filter"), true);
+  assert.equal(grayed(page(), "junk_filter"), true);
 });
 
 // --- the window closes when the write does ------------------------------------
@@ -379,13 +369,13 @@ test("test_a_plain_write_grays_the_control_it_is_writing", async () => {
 test("test_nothing_is_left_grayed_once_a_re_enumerating_write_succeeds", async () => {
   await reset({ routes: liveRoutes() });
   await writeLive("filter", "40");
-  assert.equal(grayed(card(page(), "PCM Chain"), "Nx filter"), false);
+  assert.equal(grayed(card(page(), PCM_CARD), "filter_nx"), false);
 });
 
 test("test_nothing_is_left_grayed_once_a_re_enumerating_write_is_refused", async () => {
   await reset({ routes: liveRoutes({ status: 503 }) });
   await writeLive("filter", "40");
-  assert.equal(grayed(card(page(), "PCM Chain"), "Nx filter"), false);
+  assert.equal(grayed(card(page(), PCM_CARD), "filter_nx"), false);
 });
 
 // --- the window says nothing ---------------------------------------------------

@@ -26,8 +26,13 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire; state driven through the field harness plus the pref's exported
-// signal. Headers are found as "the smallest element reading exactly the family
-// or variant text", never by a class the component happens to use.
+// signal. Headers are found as "the smallest element reading the FIXTURE's own
+// family or variant name" — the family names are deliberately unique tokens, so
+// a header is located without matching any word the component supplies — and
+// what the dropdown offers, and in what order, is read off the `data-v` wire
+// value each row carries rather than off the labels (docs/testing.md rule 9).
+// A per-option label is only ever compared against the fixture's own invented
+// leaf, addressed by that option's wire value.
 //
 // NOT covered here, SSR reaching the closed state only (docs/testing.md
 // "Branches that cannot be reached"): that a header row is not selectable or
@@ -40,14 +45,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { reset, field, optionLabels, optionByLabel, attrOf, META } from "../support/field-harness.js";
+import { reset, field, optionByValue, attrOf, META } from "../support/field-harness.js";
+import { rows } from "../support/comborows.js";
 import { staticWire } from "../support/wire.js";
 import { favoritesRoutes, favoritesState } from "../support/favoriteswire.js";
 import { favoriteFilters, favoritesError, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 import { enums } from "../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
-import { elements, classes, text } from "../support/markup.js";
+import { elements, classes, attr, text } from "../support/markup.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -62,24 +68,33 @@ import { elements, classes, text } from "../support/markup.js";
 // data order disagrees with relative input order and with alphabetical order
 // of both leaf and raw name, and an alphabetical sort visibly fails.
 
+// Family names are unique tokens that occur nowhere else in a render, so a
+// family header can be located by the fixture's own name rather than by the
+// word the component appends to it.
+const SINC = "Famsinc";
+const GAUSS = "Famgauss";
+const EXT = "Famext";
+const ZED = "Zed tap";
+const ALPHA = "Alpha tap";
+
 const PLAIN_FILTERS = {
-  "sinc-M": { family: "Sinc", variant: null, leaf: "Classic M", short: "Sinc M", apod: false },
+  "sinc-M": { family: SINC, variant: null, leaf: "Classic M", short: "Sinc M", apod: false },
   "poly-sinc-gauss-zeta": {
-    family: "Gauss",
-    variant: "Zed tap",
+    family: GAUSS,
+    variant: ZED,
     leaf: "Zeta pick",
     short: "Gauss Zeta",
     apod: false,
   },
-  "poly-sinc-gauss-long": { family: "Gauss", variant: "Zed tap", leaf: "Alpha pick", short: "Gauss Reg", apod: false },
+  "poly-sinc-gauss-long": { family: GAUSS, variant: ZED, leaf: "Alpha pick", short: "Gauss Reg", apod: false },
   "poly-sinc-gauss-short": {
-    family: "Gauss",
-    variant: "Alpha tap",
+    family: GAUSS,
+    variant: ALPHA,
     leaf: "Shorter",
     short: "Gauss Short",
     apod: false,
   },
-  "poly-sinc-ext2": { family: "Ext", variant: null, leaf: "Ext Two", short: "Ext 2", apod: true },
+  "poly-sinc-ext2": { family: EXT, variant: null, leaf: "Ext Two", short: "Ext 2", apod: true },
 };
 
 const META_PLAIN = {
@@ -125,7 +140,20 @@ const filterFields = (value) => [
   },
 ];
 
-const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
+// The wire value each raw name is offered under, and the two orders the rows
+// are read in: the input order Standard keeps, and the grouped order Simplified
+// computes from the plain-names data.
+const VALUE = Object.fromEntries(RAW_ORDER.map((name, i) => [name, String(i)]));
+const INPUT_VALUES = RAW_ORDER.map((name) => VALUE[name]);
+const PLAIN_VALUES = [
+  "sinc-M",
+  "poly-sinc-gauss-zeta",
+  "poly-sinc-gauss-long",
+  "poly-sinc-gauss-short",
+  "poly-sinc-ext2",
+  "unknown-b",
+  "unknown-a",
+].map((name) => VALUE[name]);
 
 /**
  * The 1x filter field with both default facets opened (the stage narrows to
@@ -158,20 +186,33 @@ function boxText(out) {
 }
 
 /**
- * The smallest element whose whole text reads exactly `wording` — how a header
- * row is found, by what a reader sees rather than by class. Throws when nothing
- * reads it, so an absence fails loudly instead of comparing against nothing.
+ * The smallest element whose text reads the fixture's own `needle` — how a
+ * family or variant header row is found. Throws when nothing reads it, so an
+ * absence fails loudly instead of comparing against nothing.
  *
  * @param {string} out
- * @param {string} wording
+ * @param {string} needle
  * @returns {MarkupElement}
  */
-function readingExactly(out, wording) {
-  const hits = elements(out).filter((el) => text(el) === wording);
-  if (hits.length === 0) throw new Error(`nothing rendered reads exactly "${wording}"`);
+function headerReading(out, needle) {
+  const hits = elements(out).filter((el) => text(el).includes(needle));
+  if (hits.length === 0) throw new Error(`nothing rendered reads "${needle}"`);
   return hits.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
 
+/**
+ * The wire values a rendered dropdown offers, in document order.
+ *
+ * @param {string} out
+ * @returns {(string | undefined)[]}
+ */
+const offeredOrder = (out) => rows(out).map((r) => attr(r, "data-v"));
+
+// A row located by the FIXTURE's own leaf, which is what the grouping and
+// ordering cases need: they ask where a row sits relative to a header, and the
+// leaf is the test's own invented data. Deliberately not named `rowIncluding` —
+// the support helper of that name takes a `data-v` wire value, and a reader
+// must be able to tell the two apart at the call site.
 /**
  * The option row (dd-opt element) whose text includes `needle`. Throws when no
  * row does.
@@ -180,7 +221,7 @@ function readingExactly(out, wording) {
  * @param {string} needle
  * @returns {MarkupElement}
  */
-function rowIncluding(out, needle) {
+function rowReading(out, needle) {
   const hit = elements(out).find((el) => classes(el).includes("dd-opt") && text(el).includes(needle));
   if (!hit) throw new Error(`no option row reads "${needle}"`);
   return hit;
@@ -205,25 +246,14 @@ test("test_an_unset_storage_reads_as_standard", async () => {
 
 // --- pref off: exactly as before ----------------------------------------------
 
-test("test_pref_off_option_rows_keep_raw_labels_in_source_order", async () => {
-  assert.deepEqual(optionLabels(await filterField({ plain: false })), RAW_ORDER);
+test("test_pref_off_option_rows_keep_source_order", async () => {
+  assert.deepEqual(offeredOrder(await filterField({ plain: false })), INPUT_VALUES);
 });
 
 test("test_pref_off_renders_no_family_header_row", async () => {
   const out = await filterField({ plain: false });
   assert.deepEqual(
-    elements(out).filter((el) => text(el) === "Gauss"),
-    [],
-  );
-});
-
-// The pref-ON header wording is "Gauss family" (pinned below), so a leaked
-// header would as likely read that as the bare family name — pref OFF renders
-// neither.
-test("test_pref_off_renders_no_family_header_wording", async () => {
-  const out = await filterField({ plain: false });
-  assert.deepEqual(
-    elements(out).filter((el) => text(el) === "Gauss family"),
+    elements(out).filter((el) => text(el).includes(GAUSS)),
     [],
   );
 });
@@ -234,48 +264,60 @@ test("test_pref_off_the_closed_control_shows_the_raw_label", async () => {
 
 // --- pref on: plain leaves, grouped and ordered by the data ---------------------
 
-// The equality also pins that no row reads a known raw name (every known raw
-// name is replaced by its leaf; only the unknown tail keeps raw labels).
-test("test_pref_on_option_rows_read_plain_leaves_grouped_by_family_then_variant", async () => {
-  assert.deepEqual(optionLabels(await filterField()), PLAIN_ORDER);
+test("test_pref_on_option_rows_are_grouped_by_family_then_variant", async () => {
+  assert.deepEqual(offeredOrder(await filterField()), PLAIN_VALUES);
 });
 
-test("test_unknown_options_keep_raw_labels_after_all_known_groups_in_input_order", async () => {
-  assert.deepEqual(optionLabels(await filterField()).slice(-2), ["unknown-b", "unknown-a"]);
+// A known row reads the fixture's own invented leaf rather than its raw name:
+// the round-trip of the overlay through the component, addressed by the row's
+// wire value.
+test("test_pref_on_a_known_options_row_reads_the_fixtures_own_leaf", async () => {
+  const out = await filterField();
+  assert.equal(optionByValue(out, VALUE["poly-sinc-gauss-zeta"])?.label, PLAIN_FILTERS["poly-sinc-gauss-zeta"].leaf);
+});
+
+test("test_unknown_options_sort_after_all_known_groups_in_input_order", async () => {
+  assert.deepEqual(offeredOrder(await filterField()).slice(-2), [VALUE["unknown-b"], VALUE["unknown-a"]]);
+});
+
+// An option the data does not know keeps its raw engine name.
+test("test_an_unknown_options_row_keeps_its_raw_name", async () => {
+  const out = await filterField();
+  assert.equal(optionByValue(out, VALUE["unknown-b"])?.label, "unknown-b");
 });
 
 // The data lists Zeta pick before Alpha pick within the Zed tap group while the
 // input order (and the alphabetical order of both leaf and raw name) has the
 // Alpha row first; the rows keep the DATA order, Zeta pick first.
 test("test_within_one_group_rows_keep_data_order_not_relative_input_order", async () => {
-  const labels = optionLabels(await filterField());
-  assert.equal(labels.indexOf("Zeta pick") < labels.indexOf("Alpha pick"), true);
+  const order = offeredOrder(await filterField());
+  assert.equal(order.indexOf(VALUE["poly-sinc-gauss-zeta"]) < order.indexOf(VALUE["poly-sinc-gauss-long"]), true);
 });
 
 // --- pref on: the header rows ---------------------------------------------------
 
 test("test_pref_on_a_family_header_precedes_the_familys_first_option", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Gauss family").start < rowIncluding(out, "Zeta pick").start, true);
+  assert.equal(headerReading(out, GAUSS).start < rowReading(out, "Zeta pick").start, true);
 });
 
 test("test_pref_on_a_variant_subheader_precedes_the_variants_first_option", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Alpha tap").start < rowIncluding(out, "Shorter").start, true);
+  assert.equal(headerReading(out, ALPHA).start < rowReading(out, "Shorter").start, true);
 });
 
 test("test_a_family_header_row_is_not_an_option_row", async () => {
-  assert.equal(classes(readingExactly(await filterField(), "Gauss family")).includes("dd-opt"), false);
+  assert.equal(classes(headerReading(await filterField(), GAUSS)).includes("dd-opt"), false);
 });
 
 test("test_a_variant_subheader_row_is_not_an_option_row", async () => {
-  assert.equal(classes(readingExactly(await filterField(), "Alpha tap")).includes("dd-opt"), false);
+  assert.equal(classes(headerReading(await filterField(), ALPHA)).includes("dd-opt"), false);
 });
 
 // Ext holds a single option; its family header still renders before that row.
 test("test_a_single_option_family_still_gets_its_family_header", async () => {
   const out = await filterField();
-  assert.equal(readingExactly(out, "Ext family").start < rowIncluding(out, "Ext Two").start, true);
+  assert.equal(headerReading(out, EXT).start < rowReading(out, "Ext Two").start, true);
 });
 
 // Sinc's and Ext's variants are null: no element stringifies the missing
@@ -311,7 +353,7 @@ test("test_pref_on_favorites_narrowing_still_hides_the_same_options", async () =
   favoritesError.value = "";
   nFavOnly.value = true;
   plainNames.value = true;
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Alpha pick"]);
+  assert.deepEqual(offeredOrder(field("pcm_filter_1x")), [VALUE["poly-sinc-gauss-long"]]);
 });
 
 // An engaged FACET narrows the same way favorites do: apodizing-only (the 1x
@@ -334,11 +376,11 @@ test("test_pref_on_an_engaged_apodizing_facet_still_hides_non_apodizing_rows", a
   nQuality.value = 0;
   nFavOnly.value = false;
   plainNames.value = true;
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), ["Ext Two"]);
+  assert.deepEqual(offeredOrder(field("pcm_filter_1x")), [VALUE["poly-sinc-ext2"]]);
 });
 
 test("test_pref_on_keeps_the_favorite_star_affordance_on_a_named_row", async () => {
-  assert.equal(/\bdd-fav\b/.test(rowIncluding(await filterField(), "Alpha pick").html), true);
+  assert.equal(/\bdd-fav\b/.test(rowReading(await filterField(), "Alpha pick").html), true);
 });
 
 // A DSD512 rate leaves ASDM7EC below its 40.96 MHz floor, so its row is
@@ -360,7 +402,7 @@ test("test_pref_on_a_rate_grayed_modulator_row_stays_disabled", async () => {
     meta: META_PLAIN,
   });
   plainNames.value = true;
-  const row = optionByLabel(field("sdm_modulator"), "Seventh EC");
+  const row = optionByValue(field("sdm_modulator"), "1");
   assert.equal(attrOf(row?.a || "", "aria-disabled"), "true");
 });
 
@@ -382,7 +424,11 @@ test("test_pref_on_a_dither_row_reads_its_plain_leaf_and_an_unknown_keeps_its_ra
     meta: META_PLAIN,
   });
   plainNames.value = true;
-  assert.deepEqual(optionLabels(field("pcm_dither")), ["Triangular", "NS9"]);
+  const out = field("pcm_dither");
+  assert.deepEqual(
+    ["0", "1"].map((v) => optionByValue(out, v)?.label),
+    ["Triangular", "NS9"],
+  );
 });
 
 // --- the overlay missing entirely -------------------------------------------------
@@ -390,18 +436,24 @@ test("test_pref_on_a_dither_row_reads_its_plain_leaf_and_an_unknown_keeps_its_ra
 // static data absent): the pref being ON must not reorder or relabel anything —
 // every row keeps its raw label in the input order, identity with pref off.
 
-test("test_pref_on_without_plain_names_data_rows_keep_raw_labels_in_input_order", async () => {
+test("test_pref_on_without_plain_names_data_rows_keep_input_order", async () => {
   await reset({ fields: filterFields("0"), meta: META });
   nApod1x.value = "all";
   nQuality.value = 0;
   plainNames.value = true;
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), RAW_ORDER);
+  assert.deepEqual(offeredOrder(field("pcm_filter_1x")), INPUT_VALUES);
 });
 
-// --- header wording and nested grouping (spec plain-dd-structure) -----------------
-// A family header's DOM text is the family name followed by the word "family" —
-// lowercase in the DOM, any uppercasing being CSS presentation — while a variant
-// subheader still reads the variant name alone. The rows NEST rather than
+test("test_pref_on_without_plain_names_data_a_row_keeps_its_raw_name", async () => {
+  await reset({ fields: filterFields("0"), meta: META });
+  nApod1x.value = "all";
+  nQuality.value = 0;
+  plainNames.value = true;
+  assert.equal(optionByValue(field("pcm_filter_1x"), VALUE["sinc-M"])?.label, "sinc-M");
+});
+
+// --- nested grouping (spec plain-dd-structure) -----------------
+// The rows NEST rather than
 // flatten: every option row is a descendant of the container its family's
 // header starts, and each variant's rows sit in that variant's own
 // subcontainer. Ancestry is read off the rendered fragment by offsets (which
@@ -439,50 +491,36 @@ function commonContainer(out, a, b) {
   return around.reduce((x, y) => (x.html.length <= y.html.length ? x : y));
 }
 
-test("test_pref_on_a_family_header_reads_the_family_name_plus_lowercase_family", async () => {
-  assert.equal(
-    elements(await filterField()).some((el) => text(el) === "Gauss family"),
-    true,
-  );
-});
-
 test("test_a_family_header_row_carries_no_option_role", async () => {
-  assert.equal(/\brole="option"/.test(readingExactly(await filterField(), "Gauss family").attrs), false);
+  assert.equal(/\brole="option"/.test(headerReading(await filterField(), GAUSS).attrs), false);
 });
 
 test("test_a_variant_subheader_row_carries_no_option_role", async () => {
-  assert.equal(/\brole="option"/.test(readingExactly(await filterField(), "Alpha tap").attrs), false);
-});
-
-test("test_a_variant_subheader_reads_the_variant_name_without_a_family_suffix", async () => {
-  assert.deepEqual(
-    elements(await filterField()).filter((el) => text(el) === "Zed tap family" || text(el) === "Alpha tap family"),
-    [],
-  );
+  assert.equal(/\brole="option"/.test(headerReading(await filterField(), ALPHA).attrs), false);
 });
 
 // The container the Gauss header shares with a Gauss row holds none of Sinc's
 // rows: families are grouped, not a flat sibling list.
 test("test_a_familys_rows_share_a_container_that_excludes_other_families_rows", async () => {
   const out = await filterField();
-  const grp = commonContainer(out, readingExactly(out, "Gauss family"), rowIncluding(out, "Zeta pick"));
-  assert.equal(encloses(grp, rowIncluding(out, "Classic M")), false);
+  const grp = commonContainer(out, headerReading(out, GAUSS), rowReading(out, "Zeta pick"));
+  assert.equal(encloses(grp, rowReading(out, "Classic M")), false);
 });
 
 // That same family container holds BOTH of Gauss's variants ("Shorter" is the
 // Alpha tap row): the variant split happens inside the family group.
 test("test_a_family_container_holds_the_rows_of_all_of_that_familys_variants", async () => {
   const out = await filterField();
-  const grp = commonContainer(out, readingExactly(out, "Gauss family"), rowIncluding(out, "Zeta pick"));
-  assert.equal(encloses(grp, rowIncluding(out, "Shorter")), true);
+  const grp = commonContainer(out, headerReading(out, GAUSS), rowReading(out, "Zeta pick"));
+  assert.equal(encloses(grp, rowReading(out, "Shorter")), true);
 });
 
 // The container the Zed tap subheader shares with its own row excludes the
 // sibling variant's row: each variant nests in its own subcontainer.
 test("test_a_variants_rows_sit_in_a_subcontainer_that_excludes_the_other_variants_rows", async () => {
   const out = await filterField();
-  const vgrp = commonContainer(out, readingExactly(out, "Zed tap"), rowIncluding(out, "Zeta pick"));
-  assert.equal(encloses(vgrp, rowIncluding(out, "Shorter")), false);
+  const vgrp = commonContainer(out, headerReading(out, ZED), rowReading(out, "Zeta pick"));
+  assert.equal(encloses(vgrp, rowReading(out, "Shorter")), false);
 });
 
 // The container classes are the one place the spec anchors a class, because
@@ -492,13 +530,13 @@ test("test_a_variants_rows_sit_in_a_subcontainer_that_excludes_the_other_variant
 // ON state actually renders.
 test("test_the_family_container_found_by_ancestry_carries_class_dd_grp", async () => {
   const out = await filterField();
-  const grp = commonContainer(out, readingExactly(out, "Gauss family"), rowIncluding(out, "Zeta pick"));
+  const grp = commonContainer(out, headerReading(out, GAUSS), rowReading(out, "Zeta pick"));
   assert.equal(classes(grp).includes("dd-grp"), true);
 });
 
 test("test_the_variant_subcontainer_found_by_ancestry_carries_class_dd_vgrp", async () => {
   const out = await filterField();
-  const vgrp = commonContainer(out, readingExactly(out, "Zed tap"), rowIncluding(out, "Zeta pick"));
+  const vgrp = commonContainer(out, headerReading(out, ZED), rowReading(out, "Zeta pick"));
   assert.equal(classes(vgrp).includes("dd-vgrp"), true);
 });
 
@@ -506,7 +544,7 @@ test("test_the_variant_subcontainer_found_by_ancestry_carries_class_dd_vgrp", as
 // carrying the (grounded) variant-subcontainer class encloses Sinc's row.
 test("test_a_null_variant_rows_sit_in_no_variant_subcontainer", async () => {
   const out = await filterField();
-  const row = rowIncluding(out, "Classic M");
+  const row = rowReading(out, "Classic M");
   assert.deepEqual(
     elements(out).filter((el) => classes(el).includes("dd-vgrp") && encloses(el, row)),
     [],

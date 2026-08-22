@@ -15,12 +15,12 @@
 // Every case renders at 49152000 bits/s, above every floor in the fixture, so
 // no row is rate-grayed and the markings are read off ordinary rows.
 //
-// A badge is found by the text a reader sees — the elements inside the row
-// whose whole text reads as a tier (`256+`, `512+`, `1024+`) — never by a class
-// the component happens to use. The heart is found by the `dd-fav` marking the
-// combobox suites already pin (tests/js/components/combobox-fav.test.js, which
-// the click helpers here are lifted from), and clicked through the onClick its
-// vnode carries, collected via preact's own `options.vnode` creation hook: the
+// A badge is found by the `dd-tier` class it wears and the heart by `dd-fav`,
+// the markings the combobox suites already pin (tests/js/components/
+// combobox-fav.test.js, which the click helpers here are lifted from); rows are
+// addressed by the `data-v` wire value they carry, never by the words in them
+// (docs/testing.md rule 9). The heart is clicked through the onClick its vnode
+// carries, collected via preact's own `options.vnode` creation hook: the
 // renderer's public seam, nothing of HQPTuner's stubbed.
 //
 // Behavior 26 is Standard option style, where no plain-names overlay text
@@ -40,8 +40,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { reset, field, META } from "../support/field-harness.js";
-import { renderField, textOf } from "../support/vnodeseam.js";
-import { elements, classes, text } from "../support/markup.js";
+import { renderField } from "../support/vnodeseam.js";
+import { elements, classes, attr, text } from "../support/markup.js";
 import {
   encloses,
   rows,
@@ -167,13 +167,15 @@ async function filterField() {
 
 // --- markup readers ------------------------------------------------------------
 
-// A rate tier as a reader sees it: a whole number of DSD multiples with a "+".
-const TIER = /^\d+\+$/;
+// The class the rate-tier badge wears. Class tokens are contract; the reading
+// inside the badge is the DSD tier the floor admits, which is the number this
+// suite is about (docs/testing.md rule 9).
+const TIER_CLASS = "dd-tier";
 
 /**
- * The distinct tier wordings rendered inside a region, by the text they show.
- * Distinct rather than raw, so a badge that wraps its own text in a span is
- * one badge rather than two.
+ * The distinct tier readings rendered inside a region. Distinct rather than
+ * raw, so a badge that wraps its own text in a span is one badge rather than
+ * two.
  *
  * @param {string} out
  * @param {MarkupElement} box
@@ -182,7 +184,7 @@ const TIER = /^\d+\+$/;
 const tiersIn = (out, box) => [
   ...new Set(
     elements(out)
-      .filter((el) => encloses(box, el) && TIER.test(text(el)))
+      .filter((el) => encloses(box, el) && classes(el).includes(TIER_CLASS))
       .map(text),
   ),
 ];
@@ -204,7 +206,7 @@ const heartsIn = (out, row) => elements(out).filter((el) => classes(el).includes
  */
 function nameOf(out, row) {
   const markings = elements(out).filter(
-    (el) => encloses(row, el) && (classes(el).includes("dd-fav") || TIER.test(text(el))),
+    (el) => encloses(row, el) && (classes(el).includes("dd-fav") || classes(el).includes(TIER_CLASS)),
   );
   const bare = markings.reduce((markup, el) => markup.replace(el.html, " "), row.html);
   return text({ ...row, html: bare });
@@ -216,18 +218,18 @@ function nameOf(out, row) {
 const favMarked = (vnode) => classTokens(vnode).includes("dd-fav");
 
 /**
- * The heart of the row reading `label`; anything but exactly one match throws
- * rather than clicking something else.
+ * The heart of the row offering wire value `value`; anything but exactly one
+ * match throws rather than clicking something else.
  *
  * @param {VNode[]} seen
- * @param {string} label
+ * @param {string} value
  * @returns {VNode}
  */
-function heart(seen, label) {
-  const row = vnodeRows(seen).find((r) => textOf(r).includes(label));
-  if (!row) throw new Error(`no dd-opt row labeled ${label}`);
+function heart(seen, value) {
+  const row = vnodeRows(seen).find((r) => r.props["data-v"] === value);
+  if (!row) throw new Error(`no dd-opt row carries data-v="${value}"`);
   const hearts = clickablesIn(row.props.children).filter(favMarked);
-  if (hearts.length !== 1) throw new Error(`expected one heart on ${label}, found ${hearts.length}`);
+  if (hearts.length !== 1) throw new Error(`expected one heart on ${value}, found ${hearts.length}`);
   return hearts[0];
 }
 
@@ -243,13 +245,13 @@ test("test_each_modulator_row_carries_one_favorite_heart", async () => {
 
 test("test_clicking_a_modulator_rows_heart_marks_that_modulator_favorite", async () => {
   await start(MODULATOR_FIELDS);
-  click(heart(renderField("sdm_modulator").seen, "ASDM7EC-super"));
+  click(heart(renderField("sdm_modulator").seen, "2"));
   assert.equal(isFavoriteModulator("ASDM7EC-super 512+fs"), true);
 });
 
 test("test_clicking_one_modulator_heart_leaves_the_other_modulators_unstarred", async () => {
   await start(MODULATOR_FIELDS);
-  click(heart(renderField("sdm_modulator").seen, "ASDM7EC-super"));
+  click(heart(renderField("sdm_modulator").seen, "2"));
   assert.equal(isFavoriteModulator("ASDM7"), false);
 });
 
@@ -260,7 +262,7 @@ test("test_clicking_one_modulator_heart_leaves_the_other_modulators_unstarred", 
 test("test_clicking_a_modulator_rows_heart_commits_no_value", async () => {
   await start(MODULATOR_FIELDS);
   const w = stagingWire({ routes: favoritesRoutes(favoritesState()) });
-  click(heart(renderField("sdm_modulator").seen, "ASDM7EC-super"));
+  click(heart(renderField("sdm_modulator").seen, "2"));
   await quiesce(w);
   assert.equal(w.stages.length, 0);
 });
@@ -269,28 +271,28 @@ test("test_clicking_a_modulator_rows_heart_commits_no_value", async () => {
 // One case per floor the shipped overlay carries. Rows are located by the part
 // of the name before the rate suffix, which Standard style keeps.
 
-/** @type {[needle: string, floor: number, tier: string][]} */
+// Rows are located by the `data-v` each carries: the fixture offers its
+// modulators under their index in MODULATORS.
+/** @type {[value: string, floor: number, tier: string][]} */
 const TIERS = [
-  ["DSD7", 10240000, "256+"],
-  ["AMSDM7", 20480000, "512+"],
-  ["ASDM7EC-super", 22579200, "512+"],
-  ["AHM5EC5L", 40960000, "1024+"],
+  ["0", 10240000, "256+"],
+  ["1", 20480000, "512+"],
+  ["2", 22579200, "512+"],
+  ["3", 40960000, "1024+"],
 ];
 
-for (const [needle, floor, tier] of TIERS) {
+const FLOORLESS_VALUE = "4";
+
+for (const [value, floor, tier] of TIERS) {
   test(`test_a_modulator_floored_at_${floor}_wears_the_${tier.replace("+", "plus")}_tier_badge`, async () => {
     const out = await modulatorField();
-    assert.deepEqual(tiersIn(out, rowIncluding(out, needle)), [tier]);
+    assert.deepEqual(tiersIn(out, rowIncluding(out, value)), [tier]);
   });
 }
 
-// The floorless row, found by the NAME reader rather than by a text needle:
-// "ASDM7" is a prefix of three other rows in the fixture.
 test("test_a_modulator_with_no_minimum_rate_wears_no_tier_badge", async () => {
   const out = await modulatorField();
-  const row = rows(out).find((r) => nameOf(out, r) === "ASDM7");
-  if (!row) throw new Error('no option row names exactly "ASDM7"');
-  assert.deepEqual(tiersIn(out, row), []);
+  assert.deepEqual(tiersIn(out, rowIncluding(out, FLOORLESS_VALUE)), []);
 });
 
 test("test_no_filter_row_wears_a_tier_badge", async () => {
@@ -312,8 +314,8 @@ test("test_favorites_only_leaves_the_modulator_dropdown_offering_the_starred_row
   nFavOnly.value = true;
   const out = field("sdm_modulator");
   assert.deepEqual(
-    rows(out).map((r) => nameOf(out, r)),
-    ["ASDM7"],
+    rows(out).map((r) => attr(r, "data-v")),
+    [FLOORLESS_VALUE],
   );
 });
 
@@ -321,7 +323,7 @@ test("test_favorites_only_leaves_the_modulator_dropdown_offering_the_starred_row
 
 test("test_standard_style_drops_the_rate_suffix_from_a_modulator_rows_name", async () => {
   const out = await modulatorField();
-  assert.equal(nameOf(out, rowIncluding(out, "ASDM7EC-super")), "ASDM7EC-super");
+  assert.equal(nameOf(out, rowIncluding(out, "2")), "ASDM7EC-super");
 });
 
 test("test_standard_style_keeps_the_full_raw_name_on_the_closed_control", async () => {

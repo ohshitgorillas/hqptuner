@@ -109,44 +109,47 @@ const reset = ({ filters = FILTERS, fields = [] } = {}) => resetNarrowBar(filter
 // The single-select ratio popover and its upsample-only checkbox are gone —
 // the rate facet offers the three narrowing switches
 // (tests/js/store/narrowing-rate.test.js) as independent checkbox rows, each
-// under its exact user-facing wording.
+// addressed by its own rule code rather than by the wording it wears
+// (docs/testing.md rule 9).
 
-const RATE_ROWS = [
-  "Hide output rate-limited filters",
-  "Show only filters that support downsampling",
-  "Show only filters that support resampling uncommon source rates (e.g., 32kHz)",
-];
+const HIDE_LIMITED = "hide-limited";
+const DOWNSAFE = "downsafe";
+const ODD_RATES = "odd-rates";
+// Which order the three switches stand in is presentation, so the row list is
+// compared as a SET: the exactness is the contract, the sequence is not.
+const RATE_ROWS = [HIDE_LIMITED, DOWNSAFE, ODD_RATES];
+
+/** @param {string} block */
+const rowKinds = (block) =>
+  rows(block)
+    .map((r) => `${r.type}:${r.value}`)
+    .sort();
 
 test("test_the_rate_popover_offers_exactly_the_three_switches_as_checkbox_rows", async () => {
   await reset();
-  assert.deepEqual(
-    rows(open("rate")),
-    RATE_ROWS.map((label) => ({ type: "checkbox", label })),
-  );
+  assert.deepEqual(rowKinds(open("rate")), RATE_ROWS.map((rule) => `checkbox:${rule}`).sort());
 });
 
 // Each row is bound to ITS switch: engaging one signal marks exactly the row
-// under that switch's wording checked and no other — swapped wiring between
-// two rows would leave the label list intact and fail here.
+// carrying that rule checked and no other — swapped wiring between two rows
+// would leave the row list intact and fail here.
 
 test("test_the_hide_limited_switch_checks_the_rate_limited_row_alone", async () => {
   await reset();
   nHideLimited.value = "on";
-  assert.deepEqual(checkedRows(open("rate")), ["Hide output rate-limited filters"]);
+  assert.deepEqual(checkedRows(open("rate")), [HIDE_LIMITED]);
 });
 
 test("test_the_odd_rate_switch_checks_the_uncommon_source_rates_row_alone", async () => {
   await reset();
   nOddRateOnly.value = true;
-  assert.deepEqual(checkedRows(open("rate")), [
-    "Show only filters that support resampling uncommon source rates (e.g., 32kHz)",
-  ]);
+  assert.deepEqual(checkedRows(open("rate")), [ODD_RATES]);
 });
 
 test("test_the_downsample_safe_switch_checks_the_downsampling_row_alone", async () => {
   await reset();
   nDownsafeOnly.value = true;
-  assert.deepEqual(checkedRows(open("rate")), ["Show only filters that support downsampling"]);
+  assert.deepEqual(checkedRows(open("rate")), [DOWNSAFE]);
 });
 
 // --- a row's count previews the click it would perform ----------------------------
@@ -169,7 +172,7 @@ test("test_the_count_on_a_picked_facet_row_previews_unpicking_it", async () => {
   await reset({ filters: FOCUS_FILTERS, fields: chainFields(FOCUS_FILTERS) });
   nQuality.value = 3;
   nFocus.value = ["timbre", "transients"];
-  assert.equal(nxCount(chip(open("focus"), "Timbre")), 2);
+  assert.equal(nxCount(chip(open("focus"), "timbre")), 2);
 });
 
 // --- the intro caption follows the setting-descriptions pref ----------------------
@@ -177,19 +180,23 @@ test("test_the_count_on_a_picked_facet_row_previews_unpicking_it", async () => {
 // "Setting descriptions" pref alone. The keep-option pref governs OPTION
 // descriptions only, so the caption stays hidden under master OFF even in the
 // keep-ON state where option descriptions still show.
+//
+// The caption is addressed by the note's own identity, `data-note="narrow-intro"`
+// — what it SAYS there is owner copy and is asserted nowhere (docs/testing.md
+// rule 9).
 
-const CAPTION = "Reduce the number of filters in the dropdowns below";
+const INTRO = 'data-note="narrow-intro"';
 
 test("test_the_intro_caption_renders_while_the_descriptions_pref_is_on", async () => {
   await reset();
   showDescriptions.value = true;
   keepOptionDescriptions.value = false;
-  assert.ok(renderNarrowBar().includes(CAPTION));
+  assert.ok(renderNarrowBar().includes(INTRO));
 });
 
 test("test_the_intro_caption_is_absent_with_the_master_pref_off_even_with_keep_option_on", async () => {
   await reset();
   showDescriptions.value = false;
   keepOptionDescriptions.value = true;
-  assert.equal(renderNarrowBar().includes(CAPTION), false);
+  assert.equal(renderNarrowBar().includes(INTRO), false);
 });

@@ -127,13 +127,15 @@ async def test_a_save_whose_mirror_never_lands_still_reports_ok(
     assert result["ok"] is True
 
 
-async def test_a_save_whose_mirror_never_lands_says_the_profile_list_is_behind(
+async def test_a_save_whose_mirror_never_lands_warns(
     restore_refusing_http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
 ) -> None:
+    # the warning's wording is owner-owned data (docs/testing.md rule 9); the key
+    # being present at all is the signal the card renders on
     manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
     result = await manager.presetops.save_preset("Studio")
-    assert result["warning"] == "hqplayerd's own profile list was not updated"
+    assert "warning" in result
 
 
 async def test_a_save_whose_mirror_never_lands_still_stores_the_preset(

@@ -243,10 +243,13 @@ test("test_a_standalone_save_posts_the_preset_name", async () => {
   assert.equal(callFor("/api/profile/save").body?.name, "P");
 });
 
-test("test_a_successful_standalone_save_reports_the_saved_name", async () => {
+// The verdict's own fields, never the sentence built from them
+// (docs/testing.md rule 9).
+
+test("test_a_successful_standalone_save_is_reported_as_saved", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: true }) } });
   await savePresetOnly("P");
-  assert.equal(lastApply.value.text, 'Saved to "P"');
+  assert.equal(lastApply.value.code, "saved");
 });
 
 test("test_a_successful_standalone_save_is_ok", async () => {
@@ -255,10 +258,10 @@ test("test_a_successful_standalone_save_is_ok", async () => {
   assert.equal(lastApply.value.ok, true);
 });
 
-test("test_a_failed_standalone_save_names_the_preset_and_the_error", async () => {
+test("test_a_standalone_save_the_server_refused_is_reported_as_failed", async () => {
   await reset({ routes: { "POST /api/profile/save": ok({ name: "P", ok: false, error: "disk" }) } });
   await savePresetOnly("P");
-  assert.equal(lastApply.value.text, 'Save to "P" failed: disk');
+  assert.equal(lastApply.value.save, "failed");
 });
 
 test("test_a_failed_standalone_save_is_not_ok", async () => {
@@ -283,10 +286,10 @@ test("test_a_rejected_save_request_rethrows_to_the_caller", async () => {
   await assert.rejects(() => savePresetOnly("P"));
 });
 
-test("test_a_rejected_save_request_leaves_a_readable_verdict", async () => {
+test("test_a_rejected_save_request_leaves_a_lane_failure_verdict", async () => {
   await reset({ routes: { "POST /api/profile/save": bad(503, "boom") } });
   await savePresetOnly("P").catch(() => {});
-  assert.equal(lastApply.value.text, "Save failed: boom");
+  assert.equal(lastApply.value.code, "lane-failed");
 });
 
 test("test_the_save_lane_releases_the_applying_flag", async () => {

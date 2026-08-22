@@ -45,6 +45,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveModel } from "../../../hqptuner/static/store/live/model.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../support/wire.js";
+import { cardHeadAt, stateOf } from "../support/tabform.js";
 import {
   PCM_FILTERS,
   PCM_SHAPERS,
@@ -246,56 +247,48 @@ test("test_the_dormant_pcm_control_is_not_disabled", async () => {
 
 const page = () => render(html`<${LiveView} />`);
 
-// A card head is `class="card-head">Title</div>`, or the collapsible form with
-// the disclosure triangle ahead of the title (components/common.js).
-/** @param {string} title */
-const head = (title) => new RegExp(`class="card-head">(<span class="tri">.</span> )?${title}</(div|button)>`);
+// A card is named by the id its section carries, and its disclosure read off
+// that section's own class (tests/js/support/tabform.js). A card that is
+// restructured, or reworded, still measures (docs/testing.md rule 9).
+const PCM_CARD = "live-pcm-chain";
+const SDM_CARD = "live-sdm-chain";
 
-const MARK = '<section class="card ';
-
-// A named card's disclosure, off its own section's class. A miss throws rather
-// than reporting some other card's state: a renamed head or a restructured card
-// must fail loudly, not quietly measure the wrong thing.
+// A named card's disclosure. A miss answers "" rather than another card's
+// state, so a case expecting "open" or "closed" fails on the missing card.
 /**
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  */
-function cardState(out, title) {
-  const at = out.search(head(title));
-  if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
-  const mark = out.lastIndexOf(MARK, at);
-  if (mark < 0) throw new Error(`the card headed "${title}" is not inside a card section`);
-  return out.slice(mark + MARK.length).split('"')[0];
-}
+const cardState = (out, id) => stateOf(out, id);
 
 test("test_the_page_carries_a_pcm_chain_card_while_the_engine_runs_sdm", async () => {
   await reset(SDM_RUNNING);
-  assert.ok(head("PCM Chain").test(page()));
+  assert.notEqual(cardHeadAt(page(), PCM_CARD), -1);
 });
 
 test("test_the_page_carries_an_sdm_chain_card_while_the_engine_runs_pcm", async () => {
   await reset(PCM_RUNNING);
-  assert.ok(head("SDM Chain").test(page()));
+  assert.notEqual(cardHeadAt(page(), SDM_CARD), -1);
 });
 
 test("test_the_pcm_card_is_open_in_pcm_output_mode", async () => {
   await reset(PCM_RUNNING);
-  assert.equal(cardState(page(), "PCM Chain"), "open");
+  assert.equal(cardState(page(), PCM_CARD), "open");
 });
 
 test("test_the_sdm_card_is_collapsed_in_pcm_output_mode", async () => {
   await reset(PCM_RUNNING);
-  assert.equal(cardState(page(), "SDM Chain"), "closed");
+  assert.equal(cardState(page(), SDM_CARD), "closed");
 });
 
 test("test_the_sdm_card_is_open_in_sdm_output_mode", async () => {
   await reset(SDM_RUNNING);
-  assert.equal(cardState(page(), "SDM Chain"), "open");
+  assert.equal(cardState(page(), SDM_CARD), "open");
 });
 
 test("test_the_pcm_card_is_collapsed_in_sdm_output_mode", async () => {
   await reset(SDM_RUNNING);
-  assert.equal(cardState(page(), "PCM Chain"), "closed");
+  assert.equal(cardState(page(), PCM_CARD), "closed");
 });
 
 // [source] follows the source, so neither chain can be called the dormant one
@@ -303,12 +296,12 @@ test("test_the_pcm_card_is_collapsed_in_sdm_output_mode", async () => {
 
 test("test_the_pcm_card_is_open_in_auto_output_mode", async () => {
   await reset(NOTHING_LOADED);
-  assert.equal(cardState(page(), "PCM Chain"), "open");
+  assert.equal(cardState(page(), PCM_CARD), "open");
 });
 
 test("test_the_sdm_card_is_open_in_auto_output_mode", async () => {
   await reset(NOTHING_LOADED);
-  assert.equal(cardState(page(), "SDM Chain"), "open");
+  assert.equal(cardState(page(), SDM_CARD), "open");
 });
 
 test("test_the_pcm_card_stays_open_in_auto_output_mode_while_the_engine_runs_sdm", async () => {
@@ -316,5 +309,5 @@ test("test_the_pcm_card_stays_open_in_auto_output_mode_while_the_engine_runs_sdm
   // the SDM chain loaded. The PCM controls are the ones whose edits are held,
   // so collapsing them is collapsing the thing the user came to do.
   await reset(AUTO_SDM_LOADED);
-  assert.equal(cardState(page(), "PCM Chain"), "open");
+  assert.equal(cardState(page(), PCM_CARD), "open");
 });

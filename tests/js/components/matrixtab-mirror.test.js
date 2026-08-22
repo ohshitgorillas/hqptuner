@@ -29,6 +29,7 @@ import { showDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { plottedRows } from "../../../hqptuner/static/components/matrix/Plot.js";
 import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { stagingWire } from "../support/wire.js";
+import { section } from "../support/tabform.js";
 
 /** @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow */
 
@@ -67,33 +68,26 @@ const tab = () =>
     .replace(/&amp;/g, "&")
     .replace(/&#39;/g, "'");
 
-const LABEL = "mirror to stereo pair";
-
-// The Pipelines card's own slice of the render, from its title onward. The tab
-// carries other checkboxes; a control found outside this card is not the one
-// under test.
+// The Pipelines card's own slice of the render, by the id its section carries.
+// The tab carries other checkboxes; a control found outside this card is not the
+// one under test.
 /** @param {string} out */
-const pipelinesCard = (out) => {
-  const at = out.indexOf("Pipelines <span");
-  return at < 0 ? "" : out.slice(at);
-};
+const pipelinesCard = (out) => section(out, "pipelines");
 
-// The checkbox the label NAMES: the label element carrying the text, and the
-// checkbox inside that same element. Not the nearest checkbox by byte distance —
-// proximity is markup shape, whereas label association is the control's contract
-// with the user. Null when the card, the label or the input is missing, so that
-// "no control" can never be read as "control unchecked".
+// The card's own checkbox — the mirror switch. Found by being the card's
+// checkbox rather than by the words beside it (docs/testing.md rule 9): the
+// wording is the owner's to change, the control is not. Null when the card or
+// the input is missing, so that "no control" can never be read as "control
+// unchecked"; more than one raises, since then this lookup no longer names one
+// control and a case would silently measure whichever came first.
 /**
  * @param {string} out
  * @returns {string | null}
  */
 function mirrorBox(out) {
-  for (const m of pipelinesCard(out).matchAll(/<label\b[^>]*>(.*?)<\/label>/gs)) {
-    if (!m[1].includes(LABEL)) continue;
-    const box = m[1].match(/<input\b[^>]*type="checkbox"[^>]*>/);
-    return box === null ? null : box[0];
-  }
-  return null;
+  const boxes = pipelinesCard(out).match(/<input\b[^>]*type="checkbox"[^>]*>/g) || [];
+  if (boxes.length > 1) throw new Error(`the Pipelines card carries ${boxes.length} checkboxes, not one`);
+  return boxes[0] ?? null;
 }
 
 // SSR emits a checked box as a bare `checked` attribute and omits it entirely
@@ -106,7 +100,7 @@ function mirrorBox(out) {
  */
 function mirrorChecked(out) {
   const box = mirrorBox(out);
-  if (box === null) throw new Error(`no "${LABEL}" checkbox in the Pipelines card`);
+  if (box === null) throw new Error("no checkbox in the Pipelines card");
   return /\schecked(\s|\/|>)/.test(box);
 }
 

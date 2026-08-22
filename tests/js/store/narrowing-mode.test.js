@@ -1,6 +1,6 @@
 // Behavioral suite for the per-facet AND/OR combine mode on the two multi-select
 // narrowing facets (store/narrow/state.js for the signals, store/narrow/match.js for
-// the matching, components/narrowbar/labels.js for the button wording).
+// the matching, components/narrowbar/labels.js for the button state).
 //
 // Genre and focus are both SETS a filter carries, and each now decides for
 // itself how a multi-value pick combines: genre defaults to `or` (any one picked
@@ -42,7 +42,7 @@ import {
   resetNarrowing,
 } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../hqptuner/static/store/narrow/match.js";
-import { genreLabel, focusLabel } from "../../../hqptuner/static/components/narrowbar/labels.js";
+import { genreSummary, focusSummary } from "../../../hqptuner/static/components/narrowbar/labels.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 const STAGE = "nx";
@@ -293,56 +293,55 @@ test("test_a_preview_counts_focus_under_the_mode_in_its_overrides", () => {
   assert.equal(previewCount(options, STAGE, FIELD, { focusMode: "or" }), 3);
 });
 
-// --- the button label carries the mode only where it can matter ---------------------
-// One pick or none combines with nothing, so the mode is not in the label; two
-// or more, the label ends with the mode.
+// --- the button state names the mode only where it can matter ---------------------
+// One pick or none combines with nothing, so the summary names no mode; two or
+// more, it names the mode in force. The wording the button reads is owner copy
+// (docs/testing.md rule 9); the state-only summary is what a test may assert.
 
-const MODE_WORD = /\b(and|or)\b/i;
-
-test("test_the_genre_button_with_nothing_picked_reads_any_genre", () => {
+test("test_the_genre_button_with_nothing_picked_counts_no_picks", () => {
   reset(PLAIN, GENRES);
-  assert.equal(genreLabel(), "Any genre");
+  assert.equal(genreSummary().count, 0);
 });
 
-test("test_the_focus_button_with_nothing_picked_reads_any_focus", () => {
+test("test_the_focus_button_with_nothing_picked_counts_no_picks", () => {
   reset(FOCUS);
-  assert.equal(focusLabel(), "Any focus");
+  assert.equal(focusSummary().count, 0);
 });
 
-test("test_the_genre_button_with_one_pick_carries_no_mode", () => {
+test("test_the_genre_button_with_one_pick_names_no_mode", () => {
   reset(PLAIN, GENRES);
   nGenre.value = ["jazz"];
-  assert.equal(MODE_WORD.test(genreLabel()), false);
+  assert.equal(genreSummary().mode, null);
 });
 
-test("test_the_focus_button_with_one_pick_carries_no_mode", () => {
+test("test_the_focus_button_with_one_pick_names_no_mode", () => {
   reset(FOCUS);
   nFocus.value = ["timbre"];
-  assert.equal(MODE_WORD.test(focusLabel()), false);
+  assert.equal(focusSummary().mode, null);
 });
 
-test("test_the_genre_button_with_two_picks_ends_with_its_default_mode", () => {
+test("test_the_genre_button_with_two_picks_names_its_default_mode", () => {
   reset(PLAIN, GENRES);
   nGenre.value = ["jazz", "classical"];
-  assert.match(genreLabel(), /\bor$/i);
+  assert.equal(genreSummary().mode, "or");
 });
 
-test("test_the_genre_button_with_two_picks_ends_with_and_once_that_mode_is_set", () => {
+test("test_the_genre_button_with_two_picks_names_and_once_that_mode_is_set", () => {
   reset(PLAIN, GENRES);
   nGenreMode.value = "and";
   nGenre.value = ["jazz", "classical"];
-  assert.match(genreLabel(), /\band$/i);
+  assert.equal(genreSummary().mode, "and");
 });
 
-test("test_the_focus_button_with_two_picks_ends_with_its_default_mode", () => {
+test("test_the_focus_button_with_two_picks_names_its_default_mode", () => {
   reset(FOCUS);
   nFocus.value = ["timbre", "transients"];
-  assert.match(focusLabel(), /\band$/i);
+  assert.equal(focusSummary().mode, "and");
 });
 
-test("test_the_focus_button_with_two_picks_ends_with_or_once_that_mode_is_set", () => {
+test("test_the_focus_button_with_two_picks_names_or_once_that_mode_is_set", () => {
   reset(FOCUS);
   nFocusMode.value = "or";
   nFocus.value = ["timbre", "transients"];
-  assert.match(focusLabel(), /\bor$/i);
+  assert.equal(focusSummary().mode, "or");
 });

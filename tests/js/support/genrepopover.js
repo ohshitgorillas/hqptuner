@@ -21,7 +21,7 @@
 //
 // Reading rows out of the emitted HTML couples these suites to the bar's
 // element structure — the `data-multi` block a facet lives in, the button
-// inside it, and the `opt-label` span beside each input. Accepted: SSR is the
+// inside it, and the `data-v` each row's label carries. Accepted: SSR is the
 // house pattern for component suites and there is no browser harness on this
 // host. A markup change fails those cases for a reason that is not a
 // regression; check the shape before reading the failure as one.
@@ -149,18 +149,40 @@ function facet(out, name) {
   return ends.length ? rest.slice(0, Math.min(...ends)) : rest;
 }
 
+// A choice row is the `<label>` carrying the option's own wire value in
+// `data-v`, so a row is named by that value and never by the caption beside the
+// input (docs/testing.md rule 9).
+const ROW = /<label([^<>]*\sdata-v="[^"]*"[^<>]*)>([\s\S]*?)<\/label>/g;
+
 /**
- * The choice rows of one facet's popover: an input and the caption beside it. A
- * shut popover renders none.
+ * @param {string} block
+ * @returns {{ attrs: string, body: string }[]}
+ */
+const rowsOf = (block) => [...block.matchAll(ROW)].map((m) => ({ attrs: m[1], body: m[2] }));
+
+/**
+ * @param {string} attrs
+ * @returns {string}
+ */
+const valueOf = (attrs) => (/(^|\s)data-v="([^"]*)"/.exec(attrs) || [])[2] || "";
+
+/**
+ * @param {string} body
+ * @returns {string}
+ */
+const inputOf = (body) => (/<input[^<>]*>/.exec(body) || [""])[0];
+
+/**
+ * The choice rows of one facet's popover: an input's type and the wire value of
+ * the row it sits in. A shut popover renders none.
  *
  * @param {string} block
- * @returns {{ type: string, label: string }[]}
+ * @returns {{ type: string, value: string }[]}
  */
 export const popoverRows = (block) =>
-  [...block.matchAll(/<input[^>]*\btype="([^"]*)"[^>]*>\s*<span class="opt-label">([\s\S]*?)<\/span>/g)].map((m) => ({
-    type: m[1],
-    label: m[2],
-  }));
+  rowsOf(block)
+    .map((r) => ({ type: (/\btype="([^"]*)"/.exec(inputOf(r.body)) || [])[1] || "", value: valueOf(r.attrs) }))
+    .filter((r) => r.type !== "");
 
 /**
  * The named facet's own block, with its popover open.
@@ -176,18 +198,28 @@ export function openFacet(name) {
 }
 
 /**
- * The count chip beside one named row. Its text is the active chain's pair of
- * counts, "<1x>/<Nx>", so a caller reads the half it means rather than the
- * whole string.
+ * One row of an open popover, found by the wire value it offers.
+ *
+ * @param {string} block
+ * @param {string} value
+ * @returns {{ attrs: string, body: string }}
+ */
+function rowByValue(block, value) {
+  const hit = rowsOf(block).find((r) => valueOf(r.attrs) === value);
+  if (!hit) throw new Error(`no row offering "${value}" in this popover`);
+  return hit;
+}
+
+/**
+ * The count chip on one row. Its text is the active chain's pair of counts,
+ * "<1x>/<Nx>", so a caller reads the half it means rather than the whole string.
  *
  * @param {string} block
  * @param {string} label
  * @returns {string}
  */
 export function countChip(block, label) {
-  const m = new RegExp(`<span class="opt-label">${label}</span><span class="opt-count[^"]*">([^<]*)</span>`).exec(
-    block,
-  );
+  const m = /<span class="opt-count[^"]*">([^<]*)<\/span>/.exec(rowByValue(block, label).body);
   if (!m) throw new Error(`no count chip on the ${label} row`);
   return m[1];
 }
@@ -224,32 +256,15 @@ export const buttonCaptions = (block) =>
     });
 
 /**
- * The captions of the rows whose input renders checked.
+ * The wire values of the rows whose input renders checked.
  *
  * @param {string} block
  * @returns {string[]}
  */
 export const checkedRows = (block) =>
-  [...block.matchAll(/<input([^>]*)>\s*<span class="opt-label">([\s\S]*?)<\/span>/g)]
-    .filter((m) => /\bchecked\b/.test(m[1]))
-    .map((m) => m[2]);
-
-/**
- * One row of an open popover: the `<label>` element wrapping the input and the
- * caption beside it.
- *
- * @param {string} block
- * @param {string} label
- * @returns {string}
- */
-function rowOf(block, label) {
-  const at = block.indexOf(`<span class="opt-label">${label}</span>`);
-  if (at < 0) throw new Error(`no row captioned "${label}" in this popover`);
-  const start = block.lastIndexOf("<label", at);
-  if (start < 0) throw new Error(`the "${label}" row is not wrapped in a label element`);
-  const end = block.indexOf("</label>", at);
-  return block.slice(start, end < 0 ? undefined : end + "</label>".length);
-}
+  rowsOf(block)
+    .filter((r) => /(^|\s)checked(\s|=|\/|>)/.test(inputOf(r.body)))
+    .map((r) => valueOf(r.attrs));
 
 /**
  * Whether the checkbox of one row renders unavailable.
@@ -259,9 +274,9 @@ function rowOf(block, label) {
  * @returns {boolean}
  */
 export function rowIsDisabled(block, label) {
-  const input = /<input[^>]*>/.exec(rowOf(block, label));
+  const input = inputOf(rowByValue(block, label).body);
   if (!input) throw new Error(`the "${label}" row carries no input`);
-  return /\sdisabled(\s|=|\/|>)/.test(input[0]);
+  return /(^|\s)disabled(\s|=|\/|>)/.test(input);
 }
 
 /**
@@ -272,8 +287,6 @@ export function rowIsDisabled(block, label) {
  * @returns {boolean}
  */
 export function rowIsMarkedOff(block, label) {
-  const tag = /<label[^>]*>/.exec(rowOf(block, label));
-  if (!tag) throw new Error(`the "${label}" row has no opening label tag`);
-  const names = (/class="([^"]*)"/.exec(tag[0]) || ["", ""])[1].split(/\s+/);
+  const names = (/class="([^"]*)"/.exec(rowByValue(block, label).attrs) || ["", ""])[1].split(/\s+/);
   return names.includes("off");
 }

@@ -43,7 +43,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, ENUMS, METADATA, presetWire } from "../support/livepresetwire.js";
-import { classes, elements, headTitle } from "../support/markup.js";
+import { cardHeadAt, section } from "../support/tabform.js";
 
 const REAL_FETCH = globalThis.fetch;
 afterEach(() => {
@@ -80,45 +80,20 @@ async function resetPage({ chain = "pcm", presets = [], error = "", busy = "" } 
 
 const page = () => render(html`<${LiveView} />`);
 
-const MARK = "<section";
+// The LIVE MODE card, by the id its section carries — the card's own machine
+// identity, never the words in its head (docs/testing.md rule 9).
+const LIVE_MODE = "live-mode";
 
-// The card heads of a rendered page whose title is exactly `title`, earliest
-// first. Scanned as elements, by the class the head wears and by the words a
-// reader sees in it (tests/js/support/markup.js) — never against the raw
-// attribute text, so the order of a head's classes, and whatever else the
-// component writes into the tag, are the component's own business.
+// One card's own markup. A miss throws rather than quietly measuring the whole
+// page, so a card that stopped rendering fails loudly.
 /**
  * @param {string} out
- * @param {string} title
- * @returns {import("../support/markup.js").MarkupElement[]}
+ * @param {string} id
  */
-const heads = (out, title) =>
-  elements(out)
-    .filter((el) => classes(el).includes("card-head") && headTitle(el) === title)
-    .sort((a, b) => a.start - b.start);
-
-/**
- * @param {string} out
- * @param {string} title
- * @returns {boolean}
- */
-const hasHead = (out, title) => heads(out, title).length > 0;
-
-// One named card's own markup: from its section tag up to the next section. A
-// miss throws rather than quietly measuring the whole page — a renamed head must
-// fail loudly, not pass on some other card's text.
-/**
- * @param {string} out
- * @param {string} title
- */
-function card(out, title) {
-  const [hit] = heads(out, title);
-  if (!hit) throw new Error(`no card headed "${title}" in the rendered page`);
-  const at = hit.start;
-  const from = out.lastIndexOf(MARK, at);
-  if (from < 0) throw new Error(`the card headed "${title}" is not inside a section`);
-  const next = out.indexOf(MARK, at);
-  return out.slice(from, next < 0 ? undefined : next);
+function card(out, id) {
+  const frag = section(out, id);
+  if (frag === "") throw new Error(`no card identified "${id}" in the rendered page`);
+  return frag;
 }
 
 // SSR escapes entities; decode before asserting on what the user reads.
@@ -145,17 +120,15 @@ const NAMED = (frag) => options(frag).filter((o) => BOTH().some((p) => o.text.in
 
 test("test_the_live_page_carries_a_live_mode_card", async () => {
   await resetPage();
-  assert.ok(hasHead(page(), "LIVE MODE"));
+  assert.notEqual(cardHeadAt(page(), LIVE_MODE), -1);
 });
 
-test("test_the_live_mode_card_carries_the_pages_lede", async () => {
-  await resetPage();
-  assert.ok(card(page(), "LIVE MODE").includes("writes to the engine when you select it"));
-});
+// The case that pinned the card's lede is gone: that sentence is owner-owned
+// copy with no machine identity beside it (rule 9).
 
 test("test_every_saved_preset_is_offered_by_name", async () => {
   await resetPage({ presets: BOTH() });
-  const labels = options(card(page(), "LIVE MODE")).map((o) => o.text);
+  const labels = options(card(page(), LIVE_MODE)).map((o) => o.text);
   assert.deepEqual(
     ["Living Room", "Bedroom"].filter((n) => labels.some((t) => t.includes(n))),
     ["Living Room", "Bedroom"],
@@ -174,12 +147,12 @@ const pickable = (frag) =>
 
 test("test_both_saved_presets_can_be_picked_while_the_engine_runs_pcm", async () => {
   await resetPage({ chain: "pcm", presets: BOTH() });
-  assert.deepEqual(pickable(card(page(), "LIVE MODE")), ["Bedroom", "Living Room"]);
+  assert.deepEqual(pickable(card(page(), LIVE_MODE)), ["Bedroom", "Living Room"]);
 });
 
 test("test_both_saved_presets_can_be_picked_while_the_engine_runs_sdm", async () => {
   await resetPage({ chain: "sdm", presets: BOTH() });
-  assert.deepEqual(pickable(card(page(), "LIVE MODE")), ["Bedroom", "Living Room"]);
+  assert.deepEqual(pickable(card(page(), LIVE_MODE)), ["Bedroom", "Living Room"]);
 });
 
 test("test_every_saved_preset_is_offered_by_name_alone", async () => {
@@ -189,62 +162,37 @@ test("test_every_saved_preset_is_offered_by_name_alone", async () => {
   // is not what this case is here to pin.
   await resetPage({ presets: BOTH() });
   assert.deepEqual(
-    NAMED(card(page(), "LIVE MODE"))
+    NAMED(card(page(), LIVE_MODE))
       .map((o) => o.text)
       .sort(),
     ["Bedroom", "Living Room"],
   );
 });
 
-test("test_an_empty_preset_store_says_so_in_the_picker", async () => {
+test("test_an_empty_preset_store_offers_one_option_that_is_no_preset", async () => {
   // In the PICKER, not merely somewhere on the card: the line has to be what the
   // dropdown offers, or a card that printed it as a paragraph beside an empty
-  // select would pass while the control said nothing.
+  // select would pass while the control said nothing. WHAT that one option says
+  // is the owner's wording (rule 9).
   await resetPage({ presets: [] });
-  assert.deepEqual(
-    options(card(page(), "LIVE MODE")).map((o) => o.text),
-    ["No live presets saved"],
-  );
+  assert.equal(options(card(page(), LIVE_MODE)).length, 1);
 });
 
-test("test_a_stocked_picker_opens_on_an_invitation_to_choose", async () => {
+test("test_a_stocked_picker_opens_on_something_that_is_no_preset", async () => {
   await resetPage({ presets: BOTH() });
-  assert.equal(options(card(page(), "LIVE MODE"))[0].text, "Select a preset…");
+  const first = options(card(page(), LIVE_MODE))[0].text;
+  assert.equal(
+    BOTH().some((p) => first.includes(p.name)),
+    false,
+  );
 });
 
 test("test_a_preset_failure_shows_on_the_card", async () => {
   await resetPage({ presets: BOTH(), error: "the preset store is not writable" });
-  assert.ok(/class="live-error">the preset store is not writable</.test(card(page(), "LIVE MODE")));
+  assert.ok(/class="live-error">the preset store is not writable</.test(card(page(), LIVE_MODE)));
 });
 
-// The last one is PARTIAL by construction: the spec says the card tells the
-// user a preset stores the whole page, but quotes no copy for it. Only the
-// claim is pinned, loosely enough to survive a rewording — the words asserted
-// are the spec's own, and what the sentence actually says is a reading job,
-// not a unit test's.
-
-// What the user actually READS: markup out first, then entities in. Matching the
-// raw fragment let class names, `title` attributes and the fixtures' own control
-// tooltips — one of which is literally "Selects default output mode." — satisfy
-// assertions about the card's prose.
-/** @param {string} frag */
-const prose = (frag) =>
-  decode(frag.replace(/<[^<>]*>/g, " "))
-    .replace(/\s+/g, " ")
-    .trim();
-
-// Sentence-scoped: every claim below has to be made by ONE sentence, or the
-// card could satisfy it with two unrelated ones either side of a full stop.
-/** @param {string} frag */
-const sentences = (frag) => prose(frag).split(/[.!?]+/);
-/**
- * @param {string} frag
- * @param {...RegExp} parts
- */
-const claims = (frag, ...parts) => sentences(frag).some((s) => parts.every((re) => re.test(s)));
-
-test("test_the_live_mode_card_says_a_preset_stores_the_page", async () => {
-  await resetPage({ presets: BOTH() });
-  const saves = /\b(saves?|saved|stores?|captur\w+|includ\w+|records?|remember\w*)/i;
-  assert.ok(claims(card(page(), "LIVE MODE"), saves, /everything on this page/i));
-});
+// One further case stood here, asserting that some sentence on the card claims
+// a preset stores the whole page — a regex over the card's prose. It is gone:
+// what the card's sentences say is owner-owned copy and a reading job, not a
+// unit test's (docs/testing.md rule 9).

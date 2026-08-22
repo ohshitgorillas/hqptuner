@@ -54,12 +54,12 @@ test("test_an_out_of_range_stage_index_renders_nothing", () => {
   assert.equal(editor(PEAK, 5), "");
 });
 
-test("test_the_editor_offers_a_delete_stage_button", () => {
-  assert.ok(editor(PEAK).includes("✕ stage"));
-});
+// The case that pinned the delete button's caption is gone: the caption is the
+// owner's wording and the button carries no identity to ask for instead
+// (docs/testing.md rule 9).
 
 test("test_the_kind_picker_marks_the_stage_kind_selected", () => {
-  assert.ok(editor(PEAK).includes('<option selected value="iir">Parametric (IIR)</option>'));
+  assert.ok(editor(PEAK).includes('<option selected value="iir"'));
 });
 
 test("test_the_kind_picker_offers_all_four_stage_kinds", () => {
@@ -96,8 +96,10 @@ test("test_an_unknown_iir_type_renders_no_argument_inputs", () => {
   assert.equal(argCount(editor("iir:type=weird")), 1);
 });
 
+// WHAT an issue says is the owner's wording; that the editor raises one is the
+// behavior, and the issue line carries its own class (rule 9).
 test("test_an_unknown_iir_type_is_reported_as_an_issue", () => {
-  assert.ok(editor("iir:type=weird").includes("unknown iir type"));
+  assert.ok(editor("iir:type=weird").includes("mtx-issues"));
 });
 
 // --- the delay and riaa editors -------------------------------------------------
@@ -107,11 +109,11 @@ test("test_a_delay_stage_renders_all_four_delay_arguments", () => {
 });
 
 test("test_a_riaa_stage_marks_its_subsonic_setting_selected", () => {
-  assert.ok(editor("riaa:subsonic=0").includes('<option selected value="0">off</option>'));
+  assert.ok(editor("riaa:subsonic=0").includes('<option selected value="0"'));
 });
 
 test("test_a_riaa_stage_defaults_its_subsonic_filter_on", () => {
-  assert.ok(editor("riaa").includes('<option selected value="1">on</option>'));
+  assert.ok(editor("riaa").includes('<option selected value="1"'));
 });
 
 // --- the convolution editor ------------------------------------------------------
@@ -131,11 +133,11 @@ test("test_a_valid_stage_shows_no_issue_line", () => {
 });
 
 test("test_a_missing_required_argument_is_reported", () => {
-  assert.ok(editor("iir:type=peak;g=0;q=1").includes("peak needs f"));
+  assert.ok(editor("iir:type=peak;g=0;q=1").includes("mtx-issues"));
 });
 
-test("test_multiple_issues_share_one_separated_line", () => {
-  assert.ok(editor("delay:x=1").includes(" · "));
+test("test_multiple_issues_share_one_line", () => {
+  assert.equal((editor("delay:x=1").match(/mtx-issues/g) || []).length, 1);
 });
 
 test("test_the_spec_line_shows_the_stage_raw_string", () => {

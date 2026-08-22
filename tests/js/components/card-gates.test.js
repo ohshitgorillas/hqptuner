@@ -35,6 +35,7 @@ import { Card, collapseFrom } from "../../../hqptuner/static/components/common.j
 import { noteFor } from "../../../hqptuner/static/store/prose.js";
 import { edit } from "../../../hqptuner/static/store/actions.js";
 import { isDirty, stagedCount } from "../../../hqptuner/static/store/resolve.js";
+import { schema } from "../../../hqptuner/static/store/schema.js";
 import { reset, field, titleOf, grayReason, activeSegment } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
 
@@ -57,15 +58,11 @@ const SIGNAL_PATH = Object.keys(MATRIX_FIELD);
 const SWITCHES = ["fixed_volume_enabled", "log_enabled"];
 const GATES = [...SIGNAL_PATH, ...SWITCHES];
 
-/** @type {Record<string, string[]>} */
-const CHOICES = {
-  crossfeed_enabled: ["ENGAGE", "BYPASS"],
-  dac_correction_enabled: ["ENGAGE", "BYPASS"],
-  loudness_enabled: ["ENGAGE", "BYPASS"],
-  matrix_enabled: ["ENGAGE", "BYPASS"],
-  fixed_volume_enabled: ["ON", "OFF"],
-  log_enabled: ["ON", "OFF"],
-};
+// Every gate is a two-choice strip over the same pair of WIRE values, whatever
+// words a given card puts on them: "1" first, "0" second. The words are the
+// owner's and are not asserted (docs/testing.md rule 9).
+const ON = "1";
+const OFF = "0";
 
 // --- metadata this suite owns ---------------------------------------------------
 
@@ -133,7 +130,10 @@ async function gate(key, { on = true, desc = true, config = [] } = {}) {
 }
 
 /** @param {string} out */
-const segLabels = (out) => [...out.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => m[1].trim());
+const segButtons = (out) => [...out.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)];
+
+/** @param {string} out */
+const segValues = (out) => [...out.matchAll(/<button[^<>]*\bdata-v="([^"]*)"/g)].map((m) => m[1]);
 
 // ============================================================================
 // a gate is a segmented control, never a checkbox
@@ -149,7 +149,7 @@ for (const key of GATES) {
   });
 
   test(`test_the_${key}_gate_offers_exactly_two_choices`, async () => {
-    assert.equal(segLabels(await gate(key)).length, 2);
+    assert.equal(segButtons(await gate(key)).length, 2);
   });
 
   // A gate row has no name column: the card's own title names it, so nothing
@@ -164,23 +164,17 @@ for (const key of GATES) {
 
 // The one gate WITH a name column: the fixed-volume gate sits beside the dBFS
 // level on a shared row, so the row names the pair "Fixed level".
-test("test_the_fixed_volume_enabled_gate_row_carries_a_fixed_level_label", async () => {
-  assert.ok((await gate("fixed_volume_enabled")).includes("<label>Fixed level"));
+test("test_the_fixed_volume_enabled_gate_row_carries_its_schema_label", async () => {
+  assert.ok((await gate("fixed_volume_enabled")).includes(`<label>${schema.fixed_volume_enabled.label}`));
 });
 
 // ============================================================================
-// what the two choices are called
+// which order the two choices come in
 // ============================================================================
 
-for (const key of SIGNAL_PATH) {
-  test(`test_the_${key}_gate_is_labeled_engage_then_bypass`, async () => {
-    assert.deepEqual(segLabels(await gate(key)), ["ENGAGE", "BYPASS"]);
-  });
-}
-
-for (const key of SWITCHES) {
-  test(`test_the_${key}_gate_is_labeled_on_then_off`, async () => {
-    assert.deepEqual(segLabels(await gate(key)), ["ON", "OFF"]);
+for (const key of GATES) {
+  test(`test_the_${key}_gate_offers_its_on_choice_before_its_off_choice`, async () => {
+    assert.deepEqual(segValues(await gate(key)), [ON, OFF]);
   });
 }
 
@@ -190,25 +184,25 @@ for (const key of SWITCHES) {
 
 for (const key of GATES) {
   test(`test_an_on_${key}_activates_its_first_choice`, async () => {
-    assert.equal(activeSegment(await gate(key, { on: true })), CHOICES[key][0]);
+    assert.equal(activeSegment(await gate(key, { on: true })), ON);
   });
 
   test(`test_an_off_${key}_activates_its_second_choice`, async () => {
-    assert.equal(activeSegment(await gate(key, { on: false })), CHOICES[key][1]);
+    assert.equal(activeSegment(await gate(key, { on: false })), OFF);
   });
 
   test(`test_staging_${key}_off_reads_back_as_the_off_choice`, async () => {
     await gate(key, { on: true });
     stagingWire();
     await edit(key, "0");
-    assert.equal(activeSegment(field(key)), CHOICES[key][1]);
+    assert.equal(activeSegment(field(key)), OFF);
   });
 
   test(`test_staging_${key}_on_reads_back_as_the_on_choice`, async () => {
     await gate(key, { on: false });
     stagingWire();
     await edit(key, "1");
-    assert.equal(activeSegment(field(key)), CHOICES[key][0]);
+    assert.equal(activeSegment(field(key)), ON);
   });
 
   // The OTHER shape a gate baseline can arrive in — the wire strings "1"/"0"
@@ -217,11 +211,11 @@ for (const key of GATES) {
   // preset snapshot carry the string.
 
   test(`test_a_string_valued_on_${key}_activates_its_first_choice`, async () => {
-    assert.equal(activeSegment(await gate(key, { on: "1" })), CHOICES[key][0]);
+    assert.equal(activeSegment(await gate(key, { on: "1" })), ON);
   });
 
   test(`test_a_string_valued_off_${key}_activates_its_second_choice`, async () => {
-    assert.equal(activeSegment(await gate(key, { on: "0" })), CHOICES[key][1]);
+    assert.equal(activeSegment(await gate(key, { on: "0" })), OFF);
   });
 }
 
@@ -340,13 +334,12 @@ for (const key of GATES) {
 // ============================================================================
 
 // Volume-adaptive loudness cannot adapt to a pinned volume, so a fixed volume
-// grays the loudness gate WITH a caption naming what bypassed it. The caption's
-// exact wording is not part of the contract; that it names the volume control is.
+// grays the loudness gate WITH a caption. What the caption says is the owner's
+// wording (docs/testing.md rule 9); that one renders at all is the behavior.
 const PINNED = [{ name: "fixed_volume_enabled", value: true }];
 
-test("test_a_gate_grayed_by_a_bypassed_volume_control_names_it_in_the_caption", async () => {
-  const reason = grayReason(await gate("loudness_enabled", { config: PINNED }));
-  assert.match(String(reason), /volume/i);
+test("test_a_gate_grayed_by_a_bypassed_volume_control_carries_a_caption", async () => {
+  assert.notEqual(grayReason(await gate("loudness_enabled", { config: PINNED })), null);
 });
 
 test("test_a_gate_with_a_live_volume_control_carries_no_gray_caption", async () => {

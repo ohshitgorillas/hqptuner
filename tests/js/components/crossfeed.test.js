@@ -45,6 +45,7 @@ import {
 import { compileRows } from "../../../hqptuner/static/lib/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../hqptuner/static/lib/binaural/geometry.js";
 import { staticWire, stagingWire } from "../support/wire.js";
+import { hasLabel } from "../support/markup.js";
 
 /**
  * @typedef {import("../../../hqptuner/static/lib/matrixspec.js").PipelineRow} PipelineRow
@@ -122,11 +123,20 @@ const buttons = (out) =>
     .slice(1)
     .map((s) => s.split("</button>")[0]);
 
+// A segment button by the wire value it stands for — the view choice's own
+// `xfMode` value, or the gate's "0"/"1" — never by the word printed on it
+// (docs/testing.md rule 9).
 /**
  * @param {string} out
- * @param {string} text
+ * @param {string} value
  */
-const button = (out, text) => buttons(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
+const seg = (out, value) =>
+  buttons(out).find((b) => new RegExp(`\\sdata-v="${value}"`).test(b.slice(0, b.indexOf(">"))));
+
+// The compensation strip's Turn on button, identified by the `data-issue` code
+// it carries. Undefined when the view renders no such button.
+/** @param {string} out */
+const turnOn = (out) => buttons(out).find((b) => /\sdata-issue(\s|=|$)/.test(b.slice(0, b.indexOf(">"))));
 
 // The attribute run of a button, which the callers reach only for a button they
 // have already established is present.
@@ -145,22 +155,22 @@ test("test_the_card_opens_expanded_by_default", async () => {
 
 test("test_the_card_offers_the_bauer_view", async () => {
   await reset();
-  assert.notEqual(button(card(), "Bauer"), undefined);
+  assert.notEqual(seg(card(), "bauer"), undefined);
 });
 
 test("test_the_card_offers_the_structural_view", async () => {
   await reset();
-  assert.notEqual(button(card(), "Structural"), undefined);
+  assert.notEqual(seg(card(), "structural"), undefined);
 });
 
 test("test_the_selected_view_lights_its_segment_button", async () => {
   await reset({ mode: "structural" });
-  assert.ok(attrs(button(card(), "Structural")).includes('class="seg active"'));
+  assert.ok(attrs(seg(card(), "structural")).includes('class="seg active"'));
 });
 
 test("test_plain_rows_open_on_the_bauer_view_when_nothing_is_stored", async () => {
   await reset({ rows: pair(), mode: null });
-  assert.ok(card().includes("Crossfeed compensation"));
+  assert.ok(attrs(seg(card(), "bauer")).includes('class="seg active"'));
 });
 
 test("test_an_installed_block_opens_on_the_structural_view_when_nothing_is_stored", async () => {
@@ -170,7 +180,7 @@ test("test_an_installed_block_opens_on_the_structural_view_when_nothing_is_store
 
 test("test_a_stored_view_choice_wins_over_the_installed_rows", async () => {
   await reset({ rows: structural(), mode: "bauer" });
-  assert.ok(card().includes("Crossfeed compensation"));
+  assert.ok(attrs(seg(card(), "bauer")).includes('class="seg active"'));
 });
 
 // --- the bauer half -------------------------------------------------------------
@@ -211,7 +221,7 @@ test("test_structural_defaults_report_the_ear_to_ear_delay", async () => {
 
 test("test_structural_defaults_report_the_low_frequency_delay", async () => {
   await reset({ mode: "structural" });
-  assert.ok(card().includes("397 µs at low frequencies"));
+  assert.ok(card().includes("397 µs"));
 });
 
 test("test_structural_defaults_report_the_far_ear_treble_shadow", async () => {
@@ -270,19 +280,21 @@ test("test_hidden_notes_render_no_control_captions", async () => {
 
 test("test_shown_notes_explain_each_physical_control", async () => {
   await reset({ mode: "structural", notes: true });
-  assert.ok(card().includes("hat sizes"));
+  assert.ok(card().includes("xfs-caption"));
 });
 
 // --- conflict blockers -------------------------------------------------------------
+// Each blocker's own sentence is the owner's; what the cases pin is that the
+// condition raises a blocker at all (docs/testing.md rule 9).
 
-test("test_a_running_bauer_crossfeed_blocks_the_install_with_its_reason", async () => {
+test("test_a_running_bauer_crossfeed_blocks_the_install", async () => {
   await reset({ mode: "structural", enabled: true });
-  assert.ok(card().includes("two crossfeeds in series."));
+  assert.ok(card().includes("xfs-blocked"));
 });
 
-test("test_linear_phase_conversion_blocks_the_install_with_its_reason", async () => {
+test("test_linear_phase_conversion_blocks_the_install", async () => {
   await reset({ mode: "structural", iir2fir: "2" });
-  assert.ok(card().includes("Linear-phase conversion flattens the group delay"));
+  assert.ok(card().includes("xfs-blocked"));
 });
 
 test("test_a_clean_config_shows_no_blocker_note", async () => {
@@ -301,27 +313,13 @@ test("test_an_installed_block_shows_no_blocker_note", async () => {
 // in both views. The gate reads Bauer's `crossfeed_enabled` in one view and the
 // installed-block fact in the other, and carries the staged-edit dirty accent.
 
-const CAPTION =
-  "Bauer crossfeed is built into HQPlayer and is the default. " +
-  "Structural crossfeed is HQPTuner's own and uses the Matrix pipelines.";
-
 // Class list of the gate wrapper element.
 /** @param {string} out */
 const gateClass = (out) => (out.match(/class="([^"]*\bxfs-gate\b[^"]*)"/) || ["", ""])[1].split(" ");
 
-// The text a user reads: browsers collapse runs of whitespace, so the caption
-// comparison does too rather than pinning the source string's line breaks.
-/** @param {string} out */
-const collapsed = (out) => out.replace(/\s+/g, " ");
-
 test("test_the_card_head_carries_no_view_segment", async () => {
   await reset();
   assert.equal(card().split('<div class="card-body">')[0].includes('class="seg'), false);
-});
-
-test("test_the_card_head_names_the_card_crossfeed", async () => {
-  await reset();
-  assert.ok(card().split('<div class="card-body">')[0].includes("Crossfeed"));
 });
 
 test("test_the_top_stack_precedes_the_per_mode_body", async () => {
@@ -340,48 +338,43 @@ test("test_structural_view_opens_with_the_same_gate_stack", async () => {
   assert.ok(card().includes('class="xfs-top"'));
 });
 
-test("test_the_top_stack_orders_gate_then_view_switch_then_caption", async () => {
-  await reset({ mode: "bauer" });
-  const out = collapsed(card());
-  const [g, v, c] = [out.indexOf("xfs-gate"), out.indexOf(">Bauer<"), out.indexOf(CAPTION)];
-  assert.ok(g > -1 && g < v && v < c, `order gate=${g} switch=${v} caption=${c}`);
-});
+// The caption that closed the top stack was the third anchor of the order case
+// and the whole subject of two verbatim-copy cases. All three are gone: the
+// caption is owner-owned wording with no machine identity beside it, so what
+// survives is the order of the two identified controls (rule 9).
 
-test("test_bauer_view_explains_the_two_crossfeeds_verbatim", async () => {
+test("test_the_top_stack_orders_the_gate_before_the_view_switch", async () => {
   await reset({ mode: "bauer" });
-  assert.ok(collapsed(card()).includes(CAPTION));
-});
-
-test("test_structural_view_explains_the_two_crossfeeds_verbatim", async () => {
-  await reset({ mode: "structural" });
-  assert.ok(collapsed(card()).includes(CAPTION));
+  const out = card();
+  const [g, v] = [out.indexOf("xfs-gate"), out.indexOf('data-v="bauer"')];
+  assert.ok(g > -1 && v > -1 && g < v, `order gate=${g} switch=${v}`);
 });
 
 test("test_bauer_gate_lights_engage_while_crossfeed_is_enabled", async () => {
   await reset({ mode: "bauer", enabled: true });
-  assert.ok(attrs(button(card(), "ENGAGE")).includes('class="seg active"'));
+  assert.ok(attrs(seg(card(), "1")).includes('class="seg active"'));
 });
 
 test("test_bauer_gate_lights_bypass_while_crossfeed_is_disabled", async () => {
   await reset({ mode: "bauer", enabled: false });
-  assert.ok(attrs(button(card(), "BYPASS")).includes('class="seg active"'));
+  assert.ok(attrs(seg(card(), "0")).includes('class="seg active"'));
 });
 
 test("test_bauer_gate_follows_a_staged_enable_over_the_applied_baseline", async () => {
   await reset({ mode: "bauer", enabled: false });
   stagingWire();
   await edit("crossfeed_enabled", "1");
-  assert.ok(attrs(button(card(), "ENGAGE")).includes("active"));
+  assert.ok(attrs(seg(card(), "1")).includes("active"));
 });
 
 test("test_structural_gate_lights_engage_when_a_block_is_installed", async () => {
   await reset({ rows: structural(), mode: "structural" });
-  assert.ok(attrs(button(card(), "ENGAGE")).includes('class="seg active"'));
+  assert.ok(attrs(seg(card(), "1")).includes('class="seg active"'));
 });
 
 test("test_structural_gate_lights_bypass_when_no_block_is_installed", async () => {
   await reset({ rows: pair(), mode: "structural" });
-  assert.ok(attrs(button(card(), "BYPASS")).includes('class="seg active"'));
+  assert.ok(attrs(seg(card(), "0")).includes('class="seg active"'));
 });
 
 test("test_a_staged_crossfeed_edit_marks_the_bauer_gate_dirty", async () => {
@@ -425,13 +418,12 @@ test("test_an_untouched_structural_gate_is_not_dirty", async () => {
 
 test("test_the_structural_view_offers_no_turn_on_button", async () => {
   await reset({ rows: pair(), mode: "structural" });
-  assert.equal(button(card(), "Turn on"), undefined);
+  assert.equal(turnOn(card()), undefined);
 });
 
-test("test_the_structural_view_offers_no_turn_off_button", async () => {
-  await reset({ rows: structural(), mode: "structural" });
-  assert.equal(button(card(), "Turn off"), undefined);
-});
+// The companion case pinning the ABSENCE of a Turn off button is gone with it:
+// that button carries no machine identity, so the only way to ask for it was by
+// its wording (rule 9).
 
 test("test_the_bauer_view_renders_exactly_one_gate", async () => {
   await reset({ mode: "bauer" });
@@ -440,10 +432,10 @@ test("test_the_bauer_view_renders_exactly_one_gate", async () => {
 
 test("test_the_bauer_view_renders_exactly_one_engage_button", async () => {
   await reset({ mode: "bauer" });
-  assert.equal(buttons(card()).filter((b) => b.slice(b.indexOf(">") + 1).trim() === "ENGAGE").length, 1);
+  assert.equal(card().split('data-v="1"').length - 1, 1);
 });
 
 test("test_the_bauer_preset_row_keeps_its_preset_dropdown", async () => {
   await reset({ mode: "bauer", enabled: true });
-  assert.ok(card().includes("Preset"));
+  assert.ok(hasLabel(card(), "post_bauer_preset"));
 });

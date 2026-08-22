@@ -37,6 +37,7 @@ import { enums } from "../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 import { elements, classes, text } from "../support/markup.js";
+import { rows, rowIncluding } from "../support/comborows.js";
 
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
@@ -130,22 +131,14 @@ async function startFilters(plain = true, [formName, id] = WIRED_FIELDS[0]) {
   return field(id);
 }
 
-/** The dd-opt rows of a render. */
-/** @param {string} out */
-const rows = (out) => elements(out).filter((el) => classes(el).includes("dd-opt"));
-
-/**
- * The option row whose text includes `needle`; throws when no row does, so an
- * absence fails loudly instead of comparing against nothing.
- *
- * @param {string} out
- * @param {string} needle
- */
-function rowReading(out, needle) {
-  const hit = rows(out).find((el) => text(el).includes(needle));
-  if (!hit) throw new Error(`no option row reads "${needle}"`);
-  return hit;
-}
+// A dd-opt row is addressed by the `data-v` wire value it carries, never by the
+// words in it (docs/testing.md rule 9). Both fixtures number their options in
+// declaration order, so these are the values the fixture rows are offered under.
+const RATED_ONE = "0";
+const RATED_THREE = "1";
+const RATED_FIVE = "2";
+const UNLISTED = "3";
+const TPDF = "0";
 
 /**
  * The favorite toggle of a row, by the dd-fav marking combobox-fav.test.js
@@ -181,13 +174,13 @@ function onlyStarsOf(row) {
 
 test("test_an_unfavorited_rows_favorite_toggle_shows_the_empty_heart", async () => {
   const out = await startFilters();
-  assert.equal(text(favToggleOf(rowReading(out, "rated-three"))), "♡");
+  assert.equal(text(favToggleOf(rowIncluding(out, RATED_THREE))), "♡");
 });
 
 test("test_a_favorited_rows_favorite_toggle_shows_the_filled_heart", async () => {
   await startFilters();
   favoriteFilters.value = new Set(["rated-five"]);
-  assert.equal(text(favToggleOf(rowReading(field("pcm_filter_1x"), "rated-five"))), "♥");
+  assert.equal(text(favToggleOf(rowIncluding(field("pcm_filter_1x"), RATED_FIVE))), "♥");
 });
 
 // One row favorited, the rest not: neither state of the toggle shows the star
@@ -205,17 +198,17 @@ test("test_no_rows_favorite_toggle_shows_a_star_glyph_in_either_state", async ()
 
 test("test_a_three_rated_rows_stars_span_reads_exactly_three_filled_stars", async () => {
   const out = await startFilters();
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★");
+  assert.equal(text(onlyStarsOf(rowIncluding(out, RATED_THREE))), "★★★");
 });
 
 test("test_a_one_rated_rows_stars_span_reads_exactly_one_filled_star", async () => {
   const out = await startFilters();
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-one"))), "★");
+  assert.equal(text(onlyStarsOf(rowIncluding(out, RATED_ONE))), "★");
 });
 
 test("test_a_five_rated_rows_stars_span_reads_exactly_five_filled_stars", async () => {
   const out = await startFilters();
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-five"))), "★★★★★");
+  assert.equal(text(onlyStarsOf(rowIncluding(out, RATED_FIVE))), "★★★★★");
 });
 
 // The whole row's text, not just the span interior: a pad of empty ☆ moved
@@ -224,7 +217,7 @@ test("test_a_five_rated_rows_stars_span_reads_exactly_five_filled_stars", async 
 // row entirely.
 test("test_a_rated_rows_whole_text_carries_no_empty_star_glyph", async () => {
   const out = await startFilters();
-  assert.doesNotMatch(text(rowReading(out, "rated-three")), /☆/);
+  assert.doesNotMatch(text(rowIncluding(out, RATED_THREE)), /☆/);
 });
 
 // The mirror for the filled glyph: with the dd-stars span's own reading taken
@@ -233,7 +226,7 @@ test("test_a_rated_rows_whole_text_carries_no_empty_star_glyph", async () => {
 // second run behind and fails here.
 test("test_a_rated_rows_text_outside_the_stars_span_carries_no_filled_star", async () => {
   const out = await startFilters();
-  const row = rowReading(out, "rated-three");
+  const row = rowIncluding(out, RATED_THREE);
   assert.doesNotMatch(text(row).replace(text(onlyStarsOf(row)), ""), /★/);
 });
 
@@ -244,13 +237,13 @@ test("test_a_rated_rows_text_outside_the_stars_span_carries_no_filled_star", asy
 for (const wired of WIRED_FIELDS.slice(1)) {
   test(`test_the_${wired[1]}_dropdowns_rated_row_shows_its_stars`, async () => {
     const out = await startFilters(true, wired);
-    assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★");
+    assert.equal(text(onlyStarsOf(rowIncluding(out, RATED_THREE))), "★★★");
   });
 }
 
 test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
   const out = await startFilters();
-  assert.equal(starsSpans(rowReading(out, "unlisted").html).length, 0);
+  assert.equal(starsSpans(rowIncluding(out, UNLISTED).html).length, 0);
 });
 
 // Standard display: the same fully rated fixture, the pref off — the stars
@@ -259,17 +252,17 @@ test("test_a_row_the_accessor_cannot_rate_renders_no_stars_span", async () => {
 // null case.
 test("test_standard_display_renders_a_rated_rows_stars_exactly_as_simplified_does", async () => {
   const out = await startFilters(false);
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-five"))), "★★★★★");
+  assert.equal(text(onlyStarsOf(rowIncluding(out, RATED_FIVE))), "★★★★★");
 });
 
 test("test_standard_display_carries_the_run_length_of_a_lower_rating_too", async () => {
   const out = await startFilters(false);
-  assert.equal(text(onlyStarsOf(rowReading(out, "rated-three"))), "★★★");
+  assert.equal(text(onlyStarsOf(rowIncluding(out, RATED_THREE))), "★★★");
 });
 
 test("test_standard_display_renders_no_stars_span_for_a_row_the_accessor_cannot_rate", async () => {
   const out = await startFilters(false);
-  assert.equal(starsSpans(rowReading(out, "unlisted").html).length, 0);
+  assert.equal(starsSpans(rowIncluding(out, UNLISTED).html).length, 0);
 });
 
 for (const [mode, plain] of /** @type {[string, boolean][]} */ ([
@@ -279,7 +272,7 @@ for (const [mode, plain] of /** @type {[string, boolean][]} */ ([
   test(`test_a_dropdown_without_stars_wiring_renders_no_stars_span_under_${mode}_display`, async () => {
     await startDither(plain);
     const out = field("pcm_dither");
-    rowReading(out, "TPDF"); // throws when the rows never rendered
+    rowIncluding(out, TPDF); // throws when the rows never rendered
     assert.equal(starsSpans(out).length, 0);
   });
 }

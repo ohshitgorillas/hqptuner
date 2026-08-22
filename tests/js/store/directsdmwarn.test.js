@@ -26,18 +26,13 @@
 // tests hold the promise, drive the question, then await — never the reverse.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/directsdmwarn.test.js
-//
-// Rule-8 exemption, stated rather than assumed: the two askWarn default-label
-// tests at the bottom of this file characterize behavior that predates the
-// Direct SDM guard, so they cannot fail against the pre-change tree. Every other
-// test here bites on the guard.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { applyAll, discardAll, edit, lastApply } from "../../../hqptuner/static/store/actions.js";
-import { question, askWarn, askConfirm, answer, cancel } from "../../../hqptuner/static/store/ask.js";
+import { question, askConfirm, answer, cancel } from "../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../hqptuner/static/store/schema.js";
 import { ok, stagingWire, quiesce } from "../support/wire.js";
 
@@ -136,10 +131,6 @@ const FREE_WITH_DIRECT_SDM_ON = {
   file: FREE.file,
 };
 
-const MESSAGE =
-  "Enabling this setting will force a -3dB fixed volume on the PCM chain as well. " +
-  "Are you sure you want to proceed?";
-
 // --- the guard opens ---------------------------------------------------------
 
 test("staging direct sdm on with a free volume opens a warn question", async () => {
@@ -158,29 +149,10 @@ test("the direct sdm warning names direct_sdm as owner", async () => {
   await held;
 });
 
-test("the direct sdm warning states the forced -3dB fixed volume", async () => {
-  const w = await reset(FREE);
-  const { held } = await stage(w, "1");
-  assert.equal(question.value?.message, MESSAGE);
-  cancel();
-  await held;
-});
-
-test("the direct sdm warning confirms with Yes", async () => {
-  const w = await reset(FREE);
-  const { held } = await stage(w, "1");
-  assert.equal(question.value?.confirm, "Yes");
-  cancel();
-  await held;
-});
-
-test("the direct sdm warning declines with No", async () => {
-  const w = await reset(FREE);
-  const { held } = await stage(w, "1");
-  assert.equal(question.value?.decline, "No");
-  cancel();
-  await held;
-});
+// The question's message and its two button labels were pinned here verbatim.
+// All three are owner copy (docs/testing.md rule 9), and `kind` and `owner`
+// above already tell this question apart from every other one, so nothing
+// survives them but the wording.
 
 // The /config form spells a checkbox with a real bool (see FormField above, and
 // the baseline in FREE_WITH_DIRECT_SDM_ON), so the value reaching edit() from a
@@ -413,22 +385,8 @@ test("a question opened over a pending direct sdm warning stages nothing", async
   assert.equal(w.staged.http.direct_sdm, "0");
 });
 
-// --- the askWarn defaults are the buffer warning's, unchanged ----------------
-
-test("askWarn with no labels confirms with the buffer warning's own wording", async () => {
-  await reset(FREE);
-  const p = askWarn("short_buffer", "minimum short buffer");
-  const label = question.value?.confirm;
-  cancel();
-  await p;
-  assert.equal(label, "Yes, I know what I'm doing, set it");
-});
-
-test("askWarn with no labels declines with the buffer warning's own wording", async () => {
-  await reset(FREE);
-  const p = askWarn("short_buffer", "minimum short buffer");
-  const label = question.value?.decline;
-  cancel();
-  await p;
-  assert.equal(label, "Revert the change");
-});
+// --- the askWarn defaults ----------------------------------------------------
+// The two cases that stood here pinned askWarn's default confirm and decline
+// labels word for word. Both are owner copy (docs/testing.md rule 9), and the
+// question carries no machine identity for a label, so there is nothing left to
+// assert once the wording goes.

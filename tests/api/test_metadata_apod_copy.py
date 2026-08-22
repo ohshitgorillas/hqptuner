@@ -1,10 +1,12 @@
-"""The apodizing copy `/api/metadata` `plain_names.filters` serves.
+"""Where the apodizing class shows up in `/api/metadata` `plain_names.filters`.
 
-The apodizing class moved off the display copy and onto the `apod` field (and
-the frontend badge that renders it), so the three leaves that used to spell it
-out serve their trimmed wording, the shorts keep their ", apod" tail, and no
-`family`, `variant` or `leaf` value anywhere in the filters section says
-"apodizing" any more — `short` values are exempt.
+The class lives on the `apod` field (and the frontend badge that renders it), so
+no `family`, `variant` or `leaf` value anywhere in the filters section says
+"apodizing" any more. `short` is the exception: it carries the class as a ",
+apod" tail, which is a structural fact about that field rather than a sentence.
+
+The display wording itself is owner-owned data and no test asserts it
+(docs/testing.md rule 9) — only the tail, and only its absence elsewhere.
 
 Served by the static loader, so the guard-only `api_client` (no daemon behind
 it) is enough — same as tests/api/test_metadata_plain_names.py.
@@ -20,21 +22,9 @@ def _filter_entries(client: TestClient) -> dict[str, dict[str, object]]:
     return entries
 
 
-@pytest.mark.parametrize(
-    ("name", "field", "wording"),
-    [
-        ("poly-sinc-ext2-xla", "leaf", "Extra-long linear phase"),
-        ("poly-sinc-ext2-xla", "short", "Poly-sinc · Ext2 · X-long linear, apod"),
-        ("poly-sinc-gauss-xla", "leaf", "Extra-long linear phase"),
-        ("poly-sinc-gauss-xla", "short", "Poly-sinc · Gauss · X-long linear, apod"),
-        ("sinc-MGa", "leaf", "Constant time"),
-        ("sinc-MGa", "short", "Sinc · Gauss · Constant time, apod"),
-    ],
-)
-def test_a_renamed_apodizing_filter_serves_its_exact_display_wording(
-    api_client: TestClient, name: str, field: str, wording: str
-) -> None:
-    assert _filter_entries(api_client)[name][field] == wording
+@pytest.mark.parametrize("name", ["poly-sinc-ext2-xla", "poly-sinc-gauss-xla", "sinc-MGa"])
+def test_an_apodizing_filters_short_name_keeps_its_apod_tail(api_client: TestClient, name: str) -> None:
+    assert str(_filter_entries(api_client)[name]["short"]).endswith(", apod")
 
 
 def test_no_filter_family_variant_or_leaf_still_says_apodizing(api_client: TestClient) -> None:

@@ -109,11 +109,13 @@ const BYPASSED = { volume_min: "0", volume_max: "0" };
 // half of the bypass conjunction, so the control is NOT bypassed.
 const MAX_AT_ZERO = { volume_min: "-60", volume_max: "0" };
 
-// --- the dial is announced as the playback volume ----------------------------
+// --- the dial announces itself -----------------------------------------------
+// THAT the dial carries an assistive label is the contract; the words in it are
+// the owner's (docs/testing.md rule 9).
 
-test("test_the_dial_announces_itself_as_the_playback_volume", async () => {
+test("test_the_dial_announces_itself_to_assistive_technology", async () => {
   await reset({ range: ON, level: LEVEL });
-  assert.match(dial(body()).attrs, /aria-label="Playback volume"/);
+  assert.match(dial(body()).attrs, /\saria-label="[^"]+"/);
 });
 
 // --- enabled: the engine owns the axis ---------------------------------------

@@ -135,24 +135,31 @@ const numbers = (row) => [...row.matchAll(/<input type="number"[^>]*>/g)].map((m
 
 // --- the switcher ------------------------------------------------------------
 
+// Each card is identified by something machine-readable it alone renders — the
+// speaker card by its channel rows, the crossfeed card by the schema key of a
+// control only it carries — never by a heading a reader sees, which is the
+// owner's wording (docs/testing.md rule 9).
+const SPEAKER_CARD = /class="spkr-row"/;
+const CROSSFEED_CARD = /data-k="crossfeed_preset"/;
+
 test("test_speakers_mode_shows_the_speaker_card", async () => {
   await reset({ mode: "speakers" });
-  assert.match(tab(), /Speaker set/);
+  assert.match(tab(), SPEAKER_CARD);
 });
 
 test("test_speakers_mode_hides_the_crossfeed_card", async () => {
   await reset({ mode: "speakers" });
-  assert.doesNotMatch(tab(), /Crossfeed/);
+  assert.doesNotMatch(tab(), CROSSFEED_CARD);
 });
 
 test("test_headphones_mode_shows_the_crossfeed_card", async () => {
   await reset({ mode: "headphones" });
-  assert.match(tab(), /Crossfeed/);
+  assert.match(tab(), CROSSFEED_CARD);
 });
 
 test("test_headphones_mode_hides_the_speaker_card", async () => {
   await reset({ mode: "headphones" });
-  assert.doesNotMatch(tab(), /Speaker set/);
+  assert.doesNotMatch(tab(), SPEAKER_CARD);
 });
 
 test("test_switching_to_speakers_stages_crossfeed_off", async () => {

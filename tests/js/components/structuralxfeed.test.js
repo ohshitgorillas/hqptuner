@@ -76,28 +76,17 @@ test("test_a_per_ear_block_draws_a_pair_of_traces_per_ear", () => {
   assert.equal(structuralLensTraces(block({ eqProcess: { left: EQ, right: EQ2 } }), bounds()).length, 4);
 });
 
-test("test_the_center_trace_names_the_center_character", () => {
+// A trace's legend label is owner-owned wording; the center character it
+// reports is a number. Only the number is asserted (docs/testing.md rule 9).
+test("test_the_center_trace_reports_the_center_character", () => {
   lensOn.value = true;
-  assert.equal(structuralLensTraces(block({ lambda: 0.7 }), bounds())[0].label, "center at 70%");
+  assert.ok(structuralLensTraces(block({ lambda: 0.7 }), bounds())[0].label.includes("70%"));
 });
 
-test("test_the_sides_trace_is_labeled_sides", () => {
-  lensOn.value = true;
-  assert.equal(structuralLensTraces(block(), bounds())[1].label, "sides");
-});
-
-test("test_per_ear_center_traces_name_their_ear", () => {
-  lensOn.value = true;
-  assert.equal(
-    structuralLensTraces(block({ eqProcess: { left: EQ, right: EQ2 } }), bounds())[0].label,
-    "center left at 100%",
-  );
-});
-
-test("test_per_ear_sides_traces_name_their_ear", () => {
-  lensOn.value = true;
-  assert.equal(structuralLensTraces(block({ eqProcess: { left: EQ, right: EQ2 } }), bounds())[3].label, "sides right");
-});
+// Three cases stood here pinning legend wording alone: that the sides trace is
+// worded "sides" (its `kind` is pinned below) and that the per-ear traces name
+// their ear. The ear a per-ear trace belongs to has no machine identity on the
+// trace, so nothing survived removing the words.
 
 test("test_the_center_trace_carries_the_center_plot_kind", () => {
   lensOn.value = true;
@@ -159,9 +148,11 @@ test("test_plain_rows_render_no_badge", async () => {
   assert.equal(badge(), "");
 });
 
+// What the badge REPORTS is numbers; the sentence carrying them is the owner's.
+
 test("test_an_installed_block_badges_its_sixteen_rows", async () => {
   await reset(block());
-  assert.ok(badge().includes("These 16 pipelines are the structural crossfeed"));
+  assert.ok(badge().includes("16"));
 });
 
 test("test_the_badge_reports_the_speaker_angle", async () => {
@@ -171,20 +162,14 @@ test("test_the_badge_reports_the_speaker_angle", async () => {
 
 test("test_the_badge_reports_the_head_size", async () => {
   await reset(block());
-  assert.ok(badge().includes("8.8 cm head"));
+  assert.ok(badge().includes("8.8 cm"));
 });
 
 test("test_the_badge_reports_the_center_character", async () => {
   await reset(block({ lambda: 0.7 }));
-  assert.ok(badge().includes("center character 70%"));
+  assert.ok(badge().includes("70%"));
 });
 
-test("test_a_symmetric_block_shows_no_per_ear_marker", async () => {
-  await reset(block({ eqProcess: EQ }));
-  assert.equal(badge().includes("per-ear EQ"), false);
-});
-
-test("test_a_per_ear_block_flags_its_split_eq", async () => {
-  await reset(block({ eqProcess: { left: EQ, right: EQ2 } }));
-  assert.ok(badge().includes("per-ear EQ"));
-});
+// The pair of cases pinning the per-ear marker is gone: the marker is a phrase
+// the owner may reword and the badge carries no identity for it, so removing
+// the wording left nothing to assert (rule 9).

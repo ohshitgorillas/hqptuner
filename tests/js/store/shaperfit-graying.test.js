@@ -91,16 +91,19 @@ test("test_a_modulator_above_the_sdm_rate_is_offered_disabled", async () => {
   assert.equal(option("modulator", MODULATOR).disabled, true);
 });
 
+// The reason's wording is owner copy (docs/testing.md rule 9); the FIGURE in it
+// is the modulator's own floor, and that is what these two state.
+
 test("test_a_modulator_grayed_by_rate_names_the_floor_it_needs", async () => {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD512, floors: { sdm: { [MODULATOR]: 40960000 } } });
-  assert.equal(option("modulator", MODULATOR).reason, "needs ≥ 40.96 MHz");
+  assert.match(String(option("modulator", MODULATOR).reason), /\b40\.96\b/);
 });
 
 test("test_a_modulator_grayed_by_rate_names_a_second_floor_as_its_own", async () => {
   // The same reason at a different floor: a formatter emitting one constant
   // passes the case above and fails this one.
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD64, floors: { sdm: { [OTHER_MODULATOR]: 6144000 } } });
-  assert.equal(option("modulator", OTHER_MODULATOR).reason, "needs ≥ 6.144 MHz");
+  assert.match(String(option("modulator", OTHER_MODULATOR).reason), /\b6\.144\b/);
 });
 
 test("test_a_modulator_the_sdm_rate_reaches_exactly_stays_pickable", async () => {

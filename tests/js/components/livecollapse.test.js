@@ -63,6 +63,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
+import { stateOf } from "../support/tabform.js";
 
 // --- the wire shapes ----------------------------------------------------------
 // Each chain numbers the same names differently (protocol.md §4), so the two
@@ -208,9 +209,18 @@ function text(node) {
   return text(props && props.children);
 }
 
+// The two chain cards: the id each section carries, which is how every question
+// below addresses them, and the title a press is aimed at.
+const PCM_CARD = { card: "live-pcm-chain", title: "PCM Chain" };
+const SDM_CARD = { card: "live-sdm-chain", title: "SDM Chain" };
+
 // The head of the named card, as the button a pointer would land on. Anything
 // other than exactly one match throws rather than clicking something else: a
 // restructured head must fail loudly, not quietly toggle the wrong card.
+//
+// The ONE lookup here still made by wording: a head button's vnode carries no
+// identity of its own — `data-card` rides the section, which the flat vnode list
+// gives no way back to. Every question ABOUT the rendered card is asked by id.
 /** @param {string} title */
 function clickHead(title) {
   const heads = renderPage().seen.filter(
@@ -221,33 +231,30 @@ function clickHead(title) {
   onClick({ preventDefault() {}, stopPropagation() {} });
 }
 
-const MARK = '<section class="card ';
-
-// A named card's disclosure, off its own section's class list.
+// A card's disclosure, off its own section's class list (docs/testing.md rule 9:
+// the card is found by its id, never by the words in its head).
 /**
  * @param {string} out
- * @param {string} title
+ * @param {string} id
  */
-function cardState(out, title) {
-  const at = out.search(new RegExp(`class="card-head">(<span class="tri">.</span> )?${title}</(div|button)>`));
-  if (at < 0) throw new Error(`no card headed "${title}" in the rendered page`);
-  const mark = out.lastIndexOf(MARK, at);
-  if (mark < 0) throw new Error(`the card headed "${title}" is not inside a card section`);
-  return out.slice(mark + MARK.length).split('"')[0];
+function cardState(out, id) {
+  const state = stateOf(out, id);
+  if (state === "") throw new Error(`no card identified "${id}" in the rendered page`);
+  return state;
 }
 
 // Bring a card to the disclosure a case starts from, by clicking its head when
 // what is on screen is not it — the only route a user has. A single click that
 // does not land is an error, not something to click harder at.
 /**
- * @param {string} title
+ * @param {{ card: string, title: string }} entry
  * @param {string} want
  */
-function ensure(title, want) {
-  if (cardState(page(), title) === want) return;
-  clickHead(title);
-  const now = cardState(page(), title);
-  if (now !== want) throw new Error(`"${title}" would not go ${want}: it is ${now}`);
+function ensure(entry, want) {
+  if (cardState(page(), entry.card) === want) return;
+  clickHead(entry.title);
+  const now = cardState(page(), entry.card);
+  if (now !== want) throw new Error(`"${entry.card}" would not go ${want}: it is ${now}`);
 }
 
 // --- the poll -----------------------------------------------------------------
@@ -286,43 +293,43 @@ async function reset(sc) {
 
 test("test_clicking_a_closed_cards_head_opens_it", async () => {
   await reset(PCM);
-  ensure("SDM Chain", "closed");
-  clickHead("SDM Chain");
-  assert.equal(cardState(page(), "SDM Chain"), "open");
+  ensure(SDM_CARD, "closed");
+  clickHead(SDM_CARD.title);
+  assert.equal(cardState(page(), SDM_CARD.card), "open");
 });
 
 test("test_clicking_an_open_cards_head_closes_it", async () => {
   await reset(PCM);
-  ensure("PCM Chain", "open");
-  clickHead("PCM Chain");
-  assert.equal(cardState(page(), "PCM Chain"), "closed");
+  ensure(PCM_CARD, "open");
+  clickHead(PCM_CARD.title);
+  assert.equal(cardState(page(), PCM_CARD.card), "closed");
 });
 
 // --- a poll that changes nothing leaves the user's card alone -------------------
 
 test("test_a_card_opened_by_hand_survives_a_poll_of_unchanged_state", async () => {
   await reset(PCM);
-  ensure("SDM Chain", "open"); // the SDM card's automatic disclosure in PCM is closed
+  ensure(SDM_CARD, "open"); // the SDM card's automatic disclosure in PCM is closed
   poll(PCM);
-  assert.equal(cardState(page(), "SDM Chain"), "open");
+  assert.equal(cardState(page(), SDM_CARD.card), "open");
 });
 
 test("test_a_card_closed_by_hand_survives_a_poll_of_unchanged_state", async () => {
   await reset(PCM);
-  ensure("PCM Chain", "closed"); // the PCM card's automatic disclosure in PCM is open
+  ensure(PCM_CARD, "closed"); // the PCM card's automatic disclosure in PCM is open
   poll(PCM);
-  assert.equal(cardState(page(), "PCM Chain"), "closed");
+  assert.equal(cardState(page(), PCM_CARD.card), "closed");
 });
 
 test("test_a_card_opened_by_hand_survives_repeated_unchanged_polls", async () => {
   // The reported symptom was a card snapping shut about once a second, so the
   // contract is the steady state, not the first poll after the click.
   await reset(PCM);
-  ensure("SDM Chain", "open");
+  ensure(SDM_CARD, "open");
   poll(PCM);
   poll(PCM);
   poll(PCM);
-  assert.equal(cardState(page(), "SDM Chain"), "open");
+  assert.equal(cardState(page(), SDM_CARD.card), "open");
 });
 
 // --- a mode change drops the override -------------------------------------------
@@ -332,23 +339,23 @@ test("test_a_card_opened_by_hand_survives_repeated_unchanged_polls", async () =>
 
 test("test_a_pcm_card_closed_by_hand_in_auto_reopens_when_the_mode_becomes_pcm", async () => {
   await reset(AUTO);
-  ensure("PCM Chain", "closed"); // auto opens both, so this is the user's own doing
+  ensure(PCM_CARD, "closed"); // auto opens both, so this is the user's own doing
   poll(PCM);
-  assert.equal(cardState(page(), "PCM Chain"), "open");
+  assert.equal(cardState(page(), PCM_CARD.card), "open");
 });
 
 test("test_an_sdm_card_closed_by_hand_in_auto_reopens_when_the_mode_becomes_sdm", async () => {
   await reset(AUTO);
-  ensure("SDM Chain", "closed");
+  ensure(SDM_CARD, "closed");
   poll(SDM);
-  assert.equal(cardState(page(), "SDM Chain"), "open");
+  assert.equal(cardState(page(), SDM_CARD.card), "open");
 });
 
 test("test_a_card_closed_by_hand_in_pcm_reopens_when_the_mode_becomes_auto", async () => {
   // The other direction of the same rule: auto shows both chains, so the card
   // the user shut while the mode named one chain comes back for [source].
   await reset(PCM);
-  ensure("PCM Chain", "closed");
+  ensure(PCM_CARD, "closed");
   poll(AUTO);
-  assert.equal(cardState(page(), "PCM Chain"), "open");
+  assert.equal(cardState(page(), PCM_CARD.card), "open");
 });

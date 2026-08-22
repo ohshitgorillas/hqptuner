@@ -24,14 +24,31 @@ import assert from "node:assert/strict";
 
 import { reset, field, META } from "../support/field-harness.js";
 import { config } from "../../../hqptuner/static/store/signals.js";
+import { elements, classes } from "../support/markup.js";
 
-const CAPTION = "Stops the engine. All live settings except matrix profiles survive.";
+// The caption and the manual note are each identified by the class their own
+// element wears. What either SAYS is the owner's wording and is not asserted
+// (docs/testing.md rule 9); the note's prose below is invented test data, there
+// only so the field has a note for the caption to follow.
+const CAPTION_CLASS = "field-rescan-cost";
+const NOTE_CLASS = "field-note";
 
-// The device field's manual prose, verbatim from hqptuner/data/settings.json
-// (`alsa_device.tooltip`, manual §4) — the shared harness fixture carries no
-// record under that key, and the field's label comes from the schema rather
-// than from metadata, so without this the field renders no note at all.
-const NOTE = "On Linux, the ALSA audio endpoint (device) lists all the available hardware audio endpoints.";
+// The shared harness fixture carries no record under `alsa_device`, and the
+// field's label comes from the schema rather than from metadata, so without a
+// tooltip here the field renders no note at all.
+const NOTE = "Device note prose.";
+
+/**
+ * Where a fragment's element wearing `cls` starts, or -1 when none does.
+ *
+ * @param {string} out
+ * @param {string} cls
+ * @returns {number}
+ */
+const startOf = (out, cls) => {
+  const hit = elements(out).find((el) => classes(el).includes(cls));
+  return hit ? hit.start : -1;
+};
 
 const META_WITH_DEVICE_PROSE = {
   ...META,
@@ -49,18 +66,18 @@ async function withAutosave(autosave) {
 
 test("test_a_rescan_field_carries_the_engine_stop_caption_when_autosave_is_on", async () => {
   await withAutosave(true);
-  assert.ok(field("alsa_device").includes(CAPTION));
+  assert.notEqual(startOf(field("alsa_device"), CAPTION_CLASS), -1);
 });
 
 test("test_a_rescan_fields_engine_stop_caption_follows_its_manual_note", async () => {
   await withAutosave(true);
   const out = field("alsa_device");
-  const noteAt = out.indexOf(NOTE);
-  const captionAt = out.indexOf(CAPTION);
+  const noteAt = startOf(out, NOTE_CLASS);
+  const captionAt = startOf(out, CAPTION_CLASS);
   assert.ok(noteAt >= 0 && captionAt > noteAt, `manual note at ${noteAt}, caption at ${captionAt}`);
 });
 
 test("test_a_rescan_field_carries_no_engine_stop_caption_when_autosave_is_off", async () => {
   await withAutosave(false);
-  assert.equal(field("alsa_device").includes(CAPTION), false);
+  assert.equal(startOf(field("alsa_device"), CAPTION_CLASS), -1);
 });

@@ -113,8 +113,11 @@ test("test_a_disabled_filter_is_reported_as_skipped", async () => {
   assert.equal(parseEqText("Filter 1: OFF PK Fc 105 Hz Gain -3.2 dB Q 1.41").skipped.length, 1);
 });
 
+// An enabled line whose type nothing recognizes is skipped rather than dropped
+// silently or thrown on. The reason each entry carries is prose (see the report
+// beside this change), so only the count is read.
 test("test_an_unsupported_filter_type_is_reported_as_skipped", async () => {
-  assert.ok(parseEqText("Filter 1: ON XX Fc 105 Hz Gain -3 dB Q 1").skipped[0].includes('unsupported type "XX"'));
+  assert.equal(parseEqText("Filter 1: ON XX Fc 105 Hz Gain -3 dB Q 1").skipped.length, 1);
 });
 
 // --- nothing to import -------------------------------------------------------
@@ -123,13 +126,13 @@ test("test_text_with_no_filters_stages_no_pipelines", async () => {
   assert.equal(planEqImport(PAIR, 0, opts({ text: "some notes" })).rows, null);
 });
 
-test("test_text_with_no_filters_says_so", async () => {
-  assert.ok(planEqImport(PAIR, 0, opts({ text: "some notes" })).note.includes("no filters found"));
+test("test_text_with_no_filters_takes_the_none_route", async () => {
+  assert.equal(planEqImport(PAIR, 0, opts({ text: "some notes" })).route, "none");
 });
 
 test("test_text_with_only_skipped_lines_counts_them", async () => {
   const text = "Filter 1: OFF PK Fc 105 Hz Gain -3.2 dB Q 1.41";
-  assert.ok(planEqImport(PAIR, 0, opts({ text })).note.includes("1 line(s) skipped"));
+  assert.equal(planEqImport(PAIR, 0, opts({ text })).skipped.length, 1);
 });
 
 // --- plain pipeline path -----------------------------------------------------
@@ -210,27 +213,26 @@ test("test_appending_stacks_onto_the_previous_eq", async () => {
   assert.equal(staged(planEqImport(rows, 0, opts({})))[0].process, `iir:type=peak;f=50;q=1;g=1,${ADDED}`);
 });
 
-// --- the note ----------------------------------------------------------------
+// --- what the plan reports ----------------------------------------------------
+// The plan's own fields, never the note built from them (docs/testing.md rule
+// 9). Two cases that stood here — the one-based pipeline number and the
+// mirrored pair — are the `targets` set above, asserted there already.
 
-test("test_the_note_counts_the_imported_filters", async () => {
-  assert.ok(planEqImport(PAIR, 0, opts({})).note.startsWith("1 filter(s)"));
+test("test_a_plan_counts_the_imported_filters", async () => {
+  assert.equal(planEqImport(PAIR, 0, opts({})).filters, 1);
 });
 
-test("test_the_note_names_the_target_pipeline_from_one", async () => {
-  assert.ok(planEqImport(PAIR, 1, opts({})).note.includes("pipeline 2"));
+test("test_a_plan_reports_the_preamp_it_landed", async () => {
+  assert.equal(Number(planEqImport(PAIR, 0, opts({})).preamp), -6.4);
 });
 
-test("test_the_note_names_both_mirrored_pipelines", async () => {
-  assert.ok(planEqImport(PAIR, 0, opts({ mirror: true })).note.includes("pipeline 1 + 2"));
-});
-
-test("test_the_note_reports_the_preamp_landing_on_gain", async () => {
-  assert.ok(planEqImport(PAIR, 0, opts({})).note.includes("preamp -6.4 dB → gain"));
-});
-
-test("test_the_note_lists_the_skipped_lines", async () => {
+test("test_a_plan_lists_the_lines_it_skipped", async () => {
   const text = `${EQ}\nFilter 2: OFF PK Fc 200 Hz Gain 1 dB Q 1`;
-  assert.ok(planEqImport(PAIR, 0, opts({ text })).note.includes("skipped: Filter 2: OFF"));
+  assert.ok(String(planEqImport(PAIR, 0, opts({ text })).skipped[0]).includes("Filter 2: OFF"));
+});
+
+test("test_a_plain_pipeline_import_takes_the_rows_route", async () => {
+  assert.equal(planEqImport(PAIR, 0, opts({})).route, "rows");
 });
 
 // --- recognized crossfeed compensation block ---------------------------------
@@ -267,12 +269,12 @@ test("test_a_block_import_without_a_preamp_keeps_the_blocks_own", async () => {
   assert.ok(Math.abs(msOf(rows).preampDb - -3) < 0.001);
 });
 
-test("test_the_block_note_names_the_crossfeed_compensation_block", async () => {
-  assert.ok(intoBlock(block("", 0), 0, {}).note.includes("crossfeed compensation block (pipelines 1–8)"));
+test("test_an_import_into_a_recognized_block_takes_the_block_route", async () => {
+  assert.equal(intoBlock(block("", 0), 0, {}).route, "block");
 });
 
-test("test_the_block_note_reports_the_preamp", async () => {
-  assert.ok(intoBlock(block("", 0), 0, {}).note.includes("preamp -6.4 dB"));
+test("test_a_block_import_reports_the_preamp_it_landed", async () => {
+  assert.equal(Number(intoBlock(block("", 0), 0, {}).preamp), -6.4);
 });
 
 test("test_a_block_import_offers_no_rows_for_auto_plotting", async () => {
@@ -281,7 +283,7 @@ test("test_a_block_import_offers_no_rows_for_auto_plotting", async () => {
 
 test("test_a_stale_block_is_reported_as_rebuilt", async () => {
   const rows = block("", 0, OTHER);
-  assert.ok(intoBlock(rows, 0, {}).note.includes("rebuilt at 100%"));
+  assert.equal(Boolean(intoBlock(rows, 0, {}).rebuilt), true);
 });
 
 test("test_rows_after_a_recognized_block_survive_the_import", async () => {
@@ -384,6 +386,6 @@ test("test_a_target_outside_a_structural_block_takes_the_plain_pipeline_path", a
   assert.equal(staged(intoStructural(rows, 16, {}))[16].process, ADDED);
 });
 
-test("test_the_structural_note_names_the_block", async () => {
-  assert.ok(intoStructural(structural(""), 0, {}).note.includes("structural crossfeed block (pipelines 1–16)"));
+test("test_an_import_into_a_structural_block_takes_the_structural_route", async () => {
+  assert.equal(intoStructural(structural(""), 0, {}).route, "structural");
 });

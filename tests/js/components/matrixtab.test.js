@@ -114,8 +114,14 @@ const isDisabled = (btn) => btn.slice(0, btn.indexOf(">")).includes("disabled");
 // live Load in round 5 — a load is the live lane AND stages so it persists.
 const DELETE = 1;
 const SAVE = 2;
+// The profile card runs from the element carrying its own class to the close of
+// the section it sits in — a class and a tag, never a neighbor's heading
+// (docs/testing.md rule 9).
 /** @param {string} out */
-const profileCard = (out) => out.slice(out.indexOf("mtx-profile"), out.indexOf("Pipelines <span"));
+const profileCard = (out) => {
+  const at = out.indexOf("mtx-profile");
+  return at < 0 ? "" : out.slice(at, out.indexOf("</section>", at));
+};
 /** @param {string} out */
 const profileButtons = (out) =>
   profileCard(out)

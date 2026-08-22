@@ -31,7 +31,7 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/prefs.js";
 import { resetNarrowing, nSrcFormat } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire, quiesce } from "../support/wire.js";
-import { cardTitled, formFields, section, stateOf } from "../support/tabform.js";
+import { cardHeadAt, cardTitled, formFields, section, stateOf } from "../support/tabform.js";
 import { SUBHEADS, subsection, subheadsIn } from "../support/chainsubsections.js";
 import { attr, classes, elements, keyed } from "../support/markup.js";
 
@@ -61,9 +61,13 @@ async function reset({ cfg = {}, mode = "auto" } = {}) {
 
 const tab = () => render(html`<${Output} />`);
 
-const PCM = "PCM Chain";
-const SDM = "SDM Chain";
-const LENGTH = "Filter length";
+// Cards are named by the `data-card` their <section> carries — the card's own
+// machine identity, never the words in its head (docs/testing.md rule 9).
+const PCM = "pcm-chain";
+const SDM = "sdm-chain";
+const LENGTH = "filter-length";
+const PREPROCESS = "pre-process";
+const NARROW = "narrow-filters";
 const [FROM_PCM, FROM_DSD] = SUBHEADS;
 
 // Option sets with per-field names, so a chain can be shown to carry ITS OWN
@@ -90,7 +94,7 @@ const CHAINS = {
 
 test("test_the_narrowing_bar_stands_on_the_output_tab", async () => {
   await reset({ cfg: CHAINS });
-  assert.ok(tab().includes("Narrow filters"));
+  assert.ok(cardHeadAt(tab(), NARROW) >= 0);
 });
 
 // --- pre-process card ----------------------------------------------------------
@@ -106,13 +110,13 @@ const PREP = { junk_filter: "0", pre_before_meter: false };
 test("test_the_pre_process_card_precedes_the_narrowing_bar_and_the_chains", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
   const out = tab();
-  const at = out.indexOf('<div class="card-head">Pre-process</div>');
-  assert.ok(at >= 0 && at < out.indexOf("Narrow filters") && at < out.indexOf(PCM));
+  const at = cardHeadAt(out, PREPROCESS);
+  assert.ok(at >= 0 && at < cardHeadAt(out, NARROW) && at < cardHeadAt(out, PCM));
 });
 
 test("test_the_pre_process_card_carries_exactly_its_two_controls_in_order", async () => {
   await reset({ cfg: { ...CHAINS, ...PREP } });
-  assert.deepEqual(keysOf(cardTitled(tab(), "Pre-process")), ["junk_filter", "pre_before_meter"]);
+  assert.deepEqual(keysOf(cardTitled(tab(), PREPROCESS)), ["junk_filter", "pre_before_meter"]);
 });
 
 // --- which card opens ---------------------------------------------------------

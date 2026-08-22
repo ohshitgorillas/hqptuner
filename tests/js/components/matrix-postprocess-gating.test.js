@@ -94,11 +94,19 @@ import { plottedRows, previewEq } from "../../../hqptuner/static/components/matr
 import { selectedStage } from "../../../hqptuner/static/components/matrix/BandStrip.js";
 import { field, grayReason, titleOf } from "../support/field-harness.js";
 import { stagingWire } from "../support/wire.js";
-// One card's fragment, picked by the head that titles it — whatever element
-// carries that head, so a card gaining a disclosure stays findable.
+// One card's fragment, picked by the id its section carries (docs/testing.md
+// rule 9), so a reworded head changes nothing.
 import { cardTitled } from "../support/tabform.js";
+import { MATRIX_BYPASS_REASON } from "../../../hqptuner/static/store/schema.js";
 
-const NOTE = "Matrix engine is bypassed. These settings have no effect.";
+// The two cards this file reads notes off, by id.
+const CORRECTION_CARD = "dac-correction";
+const LOUDNESS_CARD = "loudness";
+
+// Sentence A is the store's own exported reason, compared against the export
+// rather than a copy of its wording. Sentence B has no export of its own yet,
+// so it stays a literal here — the one copy pin left in this file.
+const NOTE = MATRIX_BYPASS_REASON;
 const ENGAGE_NOTE = "Matrix engine is bypassed. Engage it to use this feature.";
 
 // --- the controls under test ---------------------------------------------------
@@ -367,11 +375,14 @@ const buttonsOf = (out) =>
     .split("<button")
     .slice(1)
     .map((s) => s.split("</button>")[0]);
+// A segment button by the wire value it stands for — the gate's "1" is ENGAGE —
+// never by the word printed on it (docs/testing.md rule 9).
 /**
  * @param {string} out
- * @param {string} text
+ * @param {string} value
  */
-const buttonLabeled = (out, text) => buttonsOf(out).find((b) => b.slice(b.indexOf(">") + 1).trim() === text);
+const segmentValued = (out, value) =>
+  buttonsOf(out).find((b) => new RegExp(`\\sdata-v="${value}"`).test(b.slice(0, b.indexOf(">"))));
 /** @param {string | undefined} b */
 const attrsOf = (b) => (b === undefined ? "" : b.slice(0, b.indexOf(">")));
 
@@ -538,7 +549,7 @@ for (const key of REPRESENTATIVE) {
 
 test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_bauer_view", async () => {
   await reset({ matrix: "0", view: "bauer" });
-  const engage = buttonLabeled(crossfeed(), "ENGAGE");
+  const engage = segmentValued(crossfeed(), "1");
   assert.ok(
     engage !== undefined && /\sdisabled\b/.test(attrsOf(engage)),
     engage === undefined ? "no ENGAGE control was rendered in the Bauer view" : "ENGAGE rendered enabled",
@@ -547,7 +558,7 @@ test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_bauer_view", asy
 
 test("test_a_bypassed_matrix_disables_the_crossfeed_gate_in_the_structural_view", async () => {
   await reset({ matrix: "0", view: "structural" });
-  const engage = buttonLabeled(crossfeed(), "ENGAGE");
+  const engage = segmentValued(crossfeed(), "1");
   assert.ok(
     engage !== undefined && /\sdisabled\b/.test(attrsOf(engage)),
     engage === undefined ? "no ENGAGE control was rendered in the Structural view" : "ENGAGE rendered enabled",
@@ -567,12 +578,12 @@ test("test_a_bypassed_matrix_tells_an_engaged_bauer_crossfeed_view_its_settings_
 
 test("test_a_bypassed_matrix_tells_an_engaged_dac_correction_card_its_settings_are_inert", async () => {
   await reset({ matrix: "0", correction: "1" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "A");
+  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "A");
 });
 
 test("test_a_bypassed_matrix_tells_an_engaged_loudness_card_its_settings_are_inert", async () => {
   await reset({ matrix: "0", loudness: "1" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "A");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "A");
 });
 
 // The other fork: a feature the user has switched off has no settings in the
@@ -586,12 +597,12 @@ test("test_a_bypassed_matrix_asks_a_bypassed_bauer_crossfeed_view_to_engage_it",
 
 test("test_a_bypassed_matrix_asks_a_bypassed_dac_correction_card_to_engage_it", async () => {
   await reset({ matrix: "0", correction: "0" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "B");
+  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "B");
 });
 
 test("test_a_bypassed_matrix_asks_a_bypassed_loudness_card_to_engage_it", async () => {
   await reset({ matrix: "0", loudness: "0" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "B");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "B");
 });
 
 // An engaged engine silences BOTH sentences, whatever the feature switches say.
@@ -603,12 +614,12 @@ test("test_an_engaged_matrix_leaves_the_bauer_crossfeed_view_without_either_sent
 
 test("test_an_engaged_matrix_leaves_the_dac_correction_card_without_either_sentence", async () => {
   await reset({ matrix: "1", correction: "1" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "neither");
+  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "neither");
 });
 
 test("test_an_engaged_matrix_leaves_the_loudness_card_without_either_sentence", async () => {
   await reset({ matrix: "1", loudness: "1" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "neither");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "neither");
 });
 
 test("test_an_engaged_matrix_leaves_a_bypassed_bauer_crossfeed_view_without_either_sentence", async () => {
@@ -618,12 +629,12 @@ test("test_an_engaged_matrix_leaves_a_bypassed_bauer_crossfeed_view_without_eith
 
 test("test_an_engaged_matrix_leaves_a_bypassed_dac_correction_card_without_either_sentence", async () => {
   await reset({ matrix: "1", correction: "0" });
-  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "neither");
+  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "neither");
 });
 
 test("test_an_engaged_matrix_leaves_a_bypassed_loudness_card_without_either_sentence", async () => {
   await reset({ matrix: "1", loudness: "0" });
-  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "neither");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "neither");
 });
 
 // ============================================================================
@@ -636,25 +647,25 @@ test("test_an_engaged_matrix_leaves_a_bypassed_loudness_card_without_either_sent
 test("test_staging_dac_correction_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_wording", async () => {
   await reset({ matrix: "0", correction: "0" });
   await edit(CORRECTION_GATE, "1");
-  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "A");
+  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "A");
 });
 
 test("test_staging_dac_correction_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_wording", async () => {
   await reset({ matrix: "0", correction: "1" });
   await edit(CORRECTION_GATE, "0");
-  assert.equal(sentenceIn(cardTitled(outputTab(), "DAC correction")), "B");
+  assert.equal(sentenceIn(cardTitled(outputTab(), CORRECTION_CARD)), "B");
 });
 
 test("test_staging_loudness_on_under_a_bypassed_matrix_swaps_its_note_to_the_settings_wording", async () => {
   await reset({ matrix: "0", loudness: "0" });
   await edit(LOUDNESS_GATE, "1");
-  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "A");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "A");
 });
 
 test("test_staging_loudness_off_under_a_bypassed_matrix_swaps_its_note_to_the_engage_wording", async () => {
   await reset({ matrix: "0", loudness: "1" });
   await edit(LOUDNESS_GATE, "0");
-  assert.equal(sentenceIn(cardTitled(volumeTab(), "Loudness")), "B");
+  assert.equal(sentenceIn(cardTitled(volumeTab(), LOUDNESS_CARD)), "B");
 });
 
 // The matrix table staying editable under a bypass (pipeline rows, "+ Add

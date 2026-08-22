@@ -52,12 +52,14 @@ import { SUBHEADS, subsection, subheadButtons } from "../support/chainsubsection
 /** @typedef {import("../support/wheel.js").VNode} VNode */
 
 const [FROM_PCM, FROM_DSD] = SUBHEADS;
-const PCM = "PCM Chain";
-const SDM = "SDM Chain";
+// Cards are named by the `data-card` their <section> carries — the card's own
+// machine identity, never the words in its head (docs/testing.md rule 9).
+const PCM = "pcm-chain";
+const SDM = "sdm-chain";
 
 // One control from each chain's DSD half, by the schema key its field carries
 // in `data-k` (components/Field.js) — the wire key, not the label announcing it
-// — keyed by the title in the card's head.
+// — keyed by the card's own id.
 /** @type {Record<string, string>} */
 const MARK = {
   [PCM]: 'data-k="noise_filter"',

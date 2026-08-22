@@ -47,19 +47,21 @@ const FILTER_FIELDS = [
   },
 ];
 
+// The /config form value the second filter is offered under: rows are addressed
+// by `data-v`, which carries it.
+const XTR_VALUE = "1";
+
 // A desc-carrying dropdown Field does NOT hand the fav props: a dither. The
 // rate sits above NS9's 352.8k floor so no row is rate-grayed and the row text
 // is nothing but the label.
+const DITHER_OPTIONS = [
+  { value: "0", label: "TPDF" },
+  { value: "1", label: "NS9" },
+];
+
 const DITHER_FIELDS = [
   { name: "defaults_samplerate", value: "384000" },
-  {
-    name: "dither",
-    value: "0",
-    options: [
-      { value: "0", label: "TPDF" },
-      { value: "1", label: "NS9" },
-    ],
-  },
+  { name: "dither", value: "0", options: DITHER_OPTIONS },
 ];
 
 /**
@@ -106,17 +108,18 @@ const favMarked = (vnode) => {
 /** @param {VNode} row */
 const starsOf = (row) => clickablesIn(row.props.children).filter(favMarked);
 
-// The star of the row labeled `label`; anything but exactly one match throws
-// rather than clicking something else.
+// The star of the row offering wire value `value` — addressed by the `data-v`
+// each dd-opt row carries, never by the words in it (docs/testing.md rule 9);
+// anything but exactly one match throws rather than clicking something else.
 /**
  * @param {VNode[]} seen
- * @param {string} label
+ * @param {string} value
  */
-function star(seen, label) {
-  const row = vnodeRows(seen).find((r) => textOf(r).includes(label));
-  if (!row) throw new Error(`no dd-opt row labeled ${label}`);
+function star(seen, value) {
+  const row = vnodeRows(seen).find((r) => r.props["data-v"] === value);
+  if (!row) throw new Error(`no dd-opt row carries data-v="${value}"`);
   const stars = starsOf(row);
-  if (stars.length !== 1) throw new Error(`expected one star on ${label}, found ${stars.length}`);
+  if (stars.length !== 1) throw new Error(`expected one star on ${value}, found ${stars.length}`);
   return stars[0];
 }
 
@@ -145,7 +148,7 @@ test("test_a_dropdown_without_fav_wiring_keeps_its_row_text_bare", async () => {
   const { seen } = renderField("pcm_dither");
   assert.deepEqual(
     vnodeRows(seen).map((r) => textOf(r).trim()),
-    ["TPDF", "NS9"],
+    DITHER_OPTIONS.map((o) => o.label),
   );
 });
 
@@ -153,13 +156,13 @@ test("test_a_dropdown_without_fav_wiring_keeps_its_row_text_bare", async () => {
 
 test("test_clicking_a_rows_star_marks_that_filter_favorite", async () => {
   await startFilters();
-  click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
+  click(star(renderField("pcm_filter_1x").seen, XTR_VALUE));
   assert.equal(isFavorite("poly-sinc-xtr-mp"), true);
 });
 
 test("test_clicking_one_star_leaves_the_other_options_unfavorited", async () => {
   await startFilters();
-  click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
+  click(star(renderField("pcm_filter_1x").seen, XTR_VALUE));
   assert.equal(isFavorite("sinc-M"), false);
 });
 
@@ -170,7 +173,7 @@ test("test_clicking_one_star_leaves_the_other_options_unfavorited", async () => 
 test("test_clicking_a_rows_star_commits_no_value", async () => {
   await startFilters();
   const w = stagingWire({ routes: favoritesRoutes(favoritesState()) });
-  click(star(renderField("pcm_filter_1x").seen, "poly-sinc-xtr-mp"));
+  click(star(renderField("pcm_filter_1x").seen, XTR_VALUE));
   await quiesce(w);
   assert.equal(w.stages.length, 0);
 });

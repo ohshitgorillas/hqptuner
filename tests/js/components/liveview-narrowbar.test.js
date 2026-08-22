@@ -82,10 +82,13 @@ async function openLivePage({ srcFormat = "pcm" } = {}) {
   return render(html`<${LiveView} />`);
 }
 
+// The heading a group prints is the owner's; the id its element carries is
+// contract (docs/testing.md rule 9), so the group lookups below use the id.
 const SOURCE_FORMAT = "Source format";
+const SOURCE_FORMAT_GROUP = "source-format";
 
 test("test_the_live_page_offers_the_1x_sources_group", async () => {
-  assert.equal(hasGroup(await openLivePage(), "1x sources"), true);
+  assert.equal(hasGroup(await openLivePage(), "1x-sources"), true);
 });
 
 // Both readings together: the group's shape AND its wording. Either alone would
@@ -94,7 +97,7 @@ test("test_the_live_page_offers_the_1x_sources_group", async () => {
 
 test("test_the_live_page_offers_no_source_format_group", async () => {
   const out = await openLivePage();
-  const seen = { group: hasGroup(out, SOURCE_FORMAT), wording: mentions(out, SOURCE_FORMAT) };
+  const seen = { group: hasGroup(out, SOURCE_FORMAT_GROUP), wording: mentions(out, SOURCE_FORMAT) };
   assert.deepEqual(seen, { group: false, wording: false });
 });
 

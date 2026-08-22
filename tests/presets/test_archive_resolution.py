@@ -73,8 +73,8 @@ def test_bytes_that_are_not_an_archive_resolve_to_nothing() -> None:
 
 
 def test_the_archive_summary_names_a_member() -> None:
-    assert "hqplayerd.xml" in engineconf.archive_summary(_archive({"hqplayerd.xml": _XML}))
+    assert "hqplayerd.xml" in engineconf.archive_summary(_archive({"hqplayerd.xml": _XML})).members
 
 
-def test_the_archive_summary_says_when_the_bytes_are_not_a_zip() -> None:
-    assert "not a readable zip" in engineconf.archive_summary(b"<html>gateway timeout</html>")
+def test_the_archive_summary_marks_bytes_that_are_not_a_zip_unreadable() -> None:
+    assert engineconf.archive_summary(b"<html>gateway timeout</html>").readable is False

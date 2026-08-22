@@ -43,39 +43,19 @@ import {
   SELECTS,
 } from "../support/shaperfit-fixtures.js";
 
-/**
- * One alert row.
- *
- * @typedef {{ sev: string, text: string }} Alert
- */
+/** @typedef {import("../../../hqptuner/static/store/health.js").Alert} Alert */
 
 /** @returns {Alert[]} */
 const alerts = () => shaperAlerts.value;
 /** @returns {string[]} */
-const texts = () => alerts().map((a) => a.text);
+const kinds = () => alerts().map((a) => a.kind);
 /** @returns {string[]} */
 const sevs = () => alerts().map((a) => a.sev);
 
-// The two sentences, verbatim. A modulator names the rate it cannot produce; a
-// ditherer names the floor it wanted and the rate it got, both as TIERS — the
-// 352800 floor is the 44.1k member of the 8x tier and reads as "8x".
-const SDM_TEXT =
-  "The current settings are invalid: modulator ASDM7EC is incompatible with DSD512 output. " +
-  "HQPlayer cannot produce output.";
-const PCM_TEXT =
-  "The current settings are suboptimal: ditherer NS9 is optimized for output rates >=8x, " +
-  "but the current rate is 4x.";
-
-// A second data point per family, sharing not one substitution with the first:
-// a different shaper at a different floor against a different rate. A formatter
-// that emitted any of the three as a constant satisfies one pair and fails the
-// other.
-const SDM_TEXT_2 =
-  "The current settings are invalid: modulator ASDM5 is incompatible with DSD64 output. " +
-  "HQPlayer cannot produce output.";
-const PCM_TEXT_2 =
-  "The current settings are suboptimal: ditherer NS9 is optimized for output rates >=16x, " +
-  "but the current rate is 1x.";
+// The two alert identities. The sentences they carry are owner copy
+// (docs/testing.md rule 9) and are nowhere in this file.
+const SDM = "shaper-fit-sdm";
+const PCM = "shaper-fit-pcm";
 
 // The floors the two conflicts turn on: 40960000 between DSD512 and DSD1024,
 // 352800 the 8x tier's 44.1k member.
@@ -92,17 +72,18 @@ const NEITHER_CONFLICTS = { sdmRate: DSD1024, pcmRate: PCM_8X, floors: FLOORS };
 
 // --- the modulator conflict ---------------------------------------------------
 
-test("test_a_modulator_above_the_sdm_rate_raises_one_alert_naming_the_rate_tier", async () => {
+test("test_a_modulator_above_the_sdm_rate_raises_one_sdm_alert", async () => {
   await reset({ chain: "sdm", mode: "2", ...BOTH_CONFLICT });
-  assert.deepEqual(texts(), [SDM_TEXT]);
+  assert.deepEqual(kinds(), [SDM]);
 });
 
-test("test_a_second_modulator_at_a_second_rate_names_itself_and_that_rate", async () => {
+test("test_a_second_modulator_at_a_second_floor_and_rate_raises_it_too", async () => {
   // ASDM5 is the OTHER member of the engine's modulator list, selected by the
   // list index `State` reports; its 6.144 MHz floor is the DSD128 tier, and the
-  // engine is one tier below it.
+  // engine is one tier below it. Nothing here is shared with the case above, so
+  // a store that read one modulator's floor for every modulator fails.
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD64, floors: FLOORS_2, shaper: SELECTS.OTHER });
-  assert.deepEqual(texts(), [SDM_TEXT_2]);
+  assert.deepEqual(kinds(), [SDM]);
 });
 
 test("test_a_modulator_conflict_is_critical", async () => {
@@ -112,16 +93,16 @@ test("test_a_modulator_conflict_is_critical", async () => {
 
 // --- the ditherer conflict ----------------------------------------------------
 
-test("test_a_ditherer_above_the_pcm_rate_raises_one_alert_naming_both_tiers", async () => {
+test("test_a_ditherer_above_the_pcm_rate_raises_one_pcm_alert", async () => {
   await reset({ chain: "pcm", mode: "1", ...BOTH_CONFLICT });
-  assert.deepEqual(texts(), [PCM_TEXT]);
+  assert.deepEqual(kinds(), [PCM]);
 });
 
-test("test_a_ditherer_at_a_second_floor_and_rate_names_both_of_those_tiers", async () => {
-  // The same ditherer, a floor three tiers higher and the base rate: both tiers
-  // in the sentence move, and neither is the pair the case above states.
+test("test_a_ditherer_at_a_second_floor_and_rate_raises_it_too", async () => {
+  // The same ditherer, a floor three tiers higher and the base rate: neither
+  // side of the comparison is the pair the case above states.
   await reset({ chain: "pcm", mode: "1", pcmRate: PCM_1X, floors: FLOORS_2 });
-  assert.deepEqual(texts(), [PCM_TEXT_2]);
+  assert.deepEqual(kinds(), [PCM]);
 });
 
 test("test_a_ditherer_conflict_is_a_warning", async () => {
@@ -166,19 +147,19 @@ test("test_an_sdm_conflict_raises_nothing_while_the_pcm_chain_is_loaded", async 
 
 test("test_with_no_chain_loaded_pcm_mode_reports_the_pcm_conflict_alone", async () => {
   await reset({ chain: null, mode: "1", ...BOTH_CONFLICT });
-  assert.deepEqual(texts(), [PCM_TEXT]);
+  assert.deepEqual(kinds(), [PCM]);
 });
 
 test("test_with_no_chain_loaded_sdm_mode_reports_the_sdm_conflict_alone", async () => {
   await reset({ chain: null, mode: "2", ...BOTH_CONFLICT });
-  assert.deepEqual(texts(), [SDM_TEXT]);
+  assert.deepEqual(kinds(), [SDM]);
 });
 
 test("test_with_no_chain_loaded_source_mode_reports_both_conflicts", async () => {
   // `[source]` follows the track, so either family may be the next one to
   // produce output and neither conflict can be ruled out.
   await reset({ chain: null, mode: "0", ...BOTH_CONFLICT });
-  assert.deepEqual(texts(), [SDM_TEXT, PCM_TEXT]);
+  assert.deepEqual(kinds(), [SDM, PCM]);
 });
 
 test("test_both_families_conflicting_puts_the_critical_one_first", async () => {
@@ -197,5 +178,5 @@ test("test_staging_a_rate_below_the_modulators_floor_raises_the_conflict_before_
   const w = stagingWire();
   await edit("sdm_rate", DSD512);
   await quiesce(w);
-  assert.deepEqual(texts(), [SDM_TEXT]);
+  assert.deepEqual(kinds(), [SDM]);
 });

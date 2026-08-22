@@ -17,6 +17,12 @@ import assert from "node:assert/strict";
 
 import { reset, field, titleOf, line } from "../support/field-harness.js";
 
+// Every prose string compared below is the harness's own metadata fixture fed
+// through the component and read back. The two schema-owned sentences a field
+// can hover — a gray reason, an advisory — are never named: what is pinned is
+// that a title rendered, and that it is not the caption already on screen
+// (docs/testing.md rule 9).
+
 // ============================================================================
 // hover title precedence
 // ============================================================================
@@ -31,17 +37,16 @@ test("test_a_hover_note_fields_tooltip_outranks_its_gray_reason", async () => {
   assert.equal(titleOf(field("pcm_rate")), "Rate prose.");
 });
 
+// With no metadata at all the field has no tooltip to hover, so a title that
+// rendered can only be the gray reason.
 test("test_a_hover_note_field_with_no_tooltip_hovers_its_gray_reason", async () => {
   await reset({ fields: [{ name: "mode", value: "sdm" }], meta: {} });
-  assert.equal(titleOf(field("pcm_rate")), "Only relevant to PCM output mode.");
+  assert.ok(titleOf(field("pcm_rate")));
 });
 
 test("test_a_visible_gray_caption_is_not_repeated_on_hover", async () => {
   await reset({ fields: [{ name: "direct_sdm", value: true }] });
-  assert.notEqual(
-    titleOf(field("volume_max")),
-    "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.",
-  );
+  assert.notEqual(titleOf(field("volume_max")), line(field("volume_max"), "field-gray-reason"));
 });
 
 test("test_a_hidden_inline_note_moves_the_tooltip_to_the_hover", async () => {
@@ -49,9 +54,11 @@ test("test_a_hidden_inline_note_moves_the_tooltip_to_the_hover", async () => {
   assert.equal(titleOf(field("volume_max")), "Max prose.");
 });
 
+// The harness fixture gives this key no settings entry, so it has no tooltip:
+// a title that rendered is the suppressed gray reason moved to the hover.
 test("test_a_suppressed_gray_caption_moves_the_reason_to_the_hover", async () => {
   await reset();
-  assert.equal(titleOf(field("loudness_low_freq")), "Enable loudness to adjust.");
+  assert.ok(titleOf(field("loudness_low_freq")));
 });
 
 test("test_a_desc_carrying_field_hovers_its_overall_tooltip", async () => {

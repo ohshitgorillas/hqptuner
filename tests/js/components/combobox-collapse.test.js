@@ -10,11 +10,13 @@
 // dropdown rendered. Standard option style has no groups: its flat list
 // ignores stored collapse state entirely.
 //
-// A header is found as the element carrying `aria-expanded` whose text reads
-// the header wording ("<Family> family" / the bare variant name, the wording
-// combobox-plainnames.test.js pins), and it is activated the way
-// combobox-fav.test.js clicks a star: through the onClick its vnode carries,
-// collected via preact's own `options.vnode` creation hook. The pop is hidden
+// A header is found as the element carrying `aria-expanded` (the closed dd-box
+// button excepted) whose text reads the FIXTURE's own family or variant name —
+// invented test data, never a word the component supplies — and it is activated
+// the way combobox-fav.test.js clicks a star: through the onClick its vnode
+// carries, collected via preact's own `options.vnode` creation hook. What the
+// dropdown OFFERS is read off the `data-v` wire value each row carries, never
+// off the labels or their order (docs/testing.md rule 9). The pop is hidden
 // rather than unmounted, so removal is observable in the closed render.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
@@ -30,9 +32,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { reset, field, optionLabels, META } from "../support/field-harness.js";
+import { reset, field, META } from "../support/field-harness.js";
 import { renderField, textOf } from "../support/vnodeseam.js";
-import { elements, text } from "../support/markup.js";
+import { elements, classes, attr, text } from "../support/markup.js";
+import { rows } from "../support/comborows.js";
 import { plainNames, collapsedGroups, toggleCollapsedGroup } from "../../../hqptuner/static/store/prefs.js";
 import { nApod1x, nApodNx, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
 
@@ -52,6 +55,12 @@ const EMPTY_COLLAPSE = structuredClone(collapsedGroups.value);
 
 const GAUSS_BLURB = "Bells of every width";
 
+// The fixture's own family and variant names, which are what the header
+// toggles are located by. No `short` below repeats the family name, so the
+// closed control's own text can never be mistaken for a family header.
+const FAMILY = "Gauss";
+const VARIANT = "Zed tap";
+
 /**
  * @param {string} family
  * @param {string | null} variant
@@ -66,12 +75,12 @@ const META_COLLAPSE = {
     filters: {
       entries: {
         "sinc-M": entry("Sinc", null, "Classic M", "Sinc M"),
-        "poly-sinc-gauss-zeta": entry("Gauss", "Zed tap", "Zeta pick", "Gauss Zeta"),
-        "poly-sinc-gauss-long": entry("Gauss", "Zed tap", "Alpha pick", "Gauss Reg"),
-        "poly-sinc-gauss-short": entry("Gauss", "Alpha tap", "Shorter", "Gauss Short"),
+        "poly-sinc-gauss-zeta": entry(FAMILY, VARIANT, "Zeta pick", "Zeta short"),
+        "poly-sinc-gauss-long": entry(FAMILY, VARIANT, "Alpha pick", "Reg short"),
+        "poly-sinc-gauss-short": entry(FAMILY, "Alpha tap", "Shorter", "Tiny short"),
         "poly-sinc-ext2": entry("Ext", null, "Ext Two", "Ext 2"),
       },
-      families: { Gauss: GAUSS_BLURB },
+      families: { [FAMILY]: GAUSS_BLURB },
       variants: {},
     },
     dithers: { entries: {}, families: {}, variants: {} },
@@ -89,9 +98,25 @@ const RAW_ORDER = [
   "poly-sinc-gauss-zeta",
 ];
 
-const PLAIN_ORDER = ["Classic M", "Zeta pick", "Alpha pick", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
-const WITHOUT_GAUSS = ["Classic M", "Ext Two", "unknown-b", "unknown-a"];
-const WITHOUT_ZED_TAP = ["Classic M", "Shorter", "Ext Two", "unknown-b", "unknown-a"];
+// What the dropdown offers, as the SET of wire values its rows carry: each
+// option is offered under its index in RAW_ORDER. A set, sorted, rather than a
+// sequence — the display ORDER of a grouped list is presentation, and rule 9
+// keeps it out of an assertion the same way the labels are kept out.
+const ALL_VALUES = RAW_ORDER.map((_, i) => String(i)).sort();
+// Gauss holds indices 0 (short / Alpha tap), 2 and 6 (Zed tap).
+const WITHOUT_GAUSS = ["1", "3", "4", "5"];
+const WITHOUT_ZED_TAP = ["0", "1", "3", "4", "5"];
+
+/**
+ * The wire values a rendered dropdown offers, sorted.
+ *
+ * @param {string} out
+ * @returns {(string | undefined)[]}
+ */
+const offered = (out) =>
+  rows(out)
+    .map((r) => attr(r, "data-v"))
+    .sort();
 
 // Both PCM filter dropdowns, so the shared-state case can collapse in one and
 // read the other; the daemon names the two slots `filter1x` and `filter`.
@@ -136,7 +161,9 @@ function activateHeader(k, wording) {
  * @param {string} wording
  */
 function expandedState(out, wording) {
-  const hit = elements(out).find((el) => /aria-expanded="/.test(el.attrs) && text(el).includes(wording));
+  const hit = elements(out).find(
+    (el) => /aria-expanded="/.test(el.attrs) && !classes(el).includes("dd-box") && text(el).includes(wording),
+  );
   if (!hit) throw new Error(`no aria-expanded element reads "${wording}"`);
   return (/aria-expanded="([^"]*)"/.exec(hit.attrs) || [])[1];
 }
@@ -153,67 +180,67 @@ const renders = (out, wording) => elements(out).some((el) => text(el).includes(w
 
 test("test_a_family_header_toggle_is_expanded_by_default", async () => {
   await setup();
-  assert.equal(expandedState(field("pcm_filter_1x"), "Gauss family"), "true");
+  assert.equal(expandedState(field("pcm_filter_1x"), FAMILY), "true");
 });
 
 test("test_a_variant_subheader_toggle_is_expanded_by_default", async () => {
   await setup();
-  assert.equal(expandedState(field("pcm_filter_1x"), "Zed tap"), "true");
+  assert.equal(expandedState(field("pcm_filter_1x"), VARIANT), "true");
 });
 
 // --- collapsing a family ----------------------------------------------------------
 
 test("test_collapsing_a_family_removes_its_option_rows", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Gauss family");
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), WITHOUT_GAUSS);
+  activateHeader("pcm_filter_1x", FAMILY);
+  assert.deepEqual(offered(field("pcm_filter_1x")), WITHOUT_GAUSS);
 });
 
 test("test_collapsing_a_family_removes_its_blurb", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Gauss family");
+  activateHeader("pcm_filter_1x", FAMILY);
   assert.equal(renders(field("pcm_filter_1x"), GAUSS_BLURB), false);
 });
 
 test("test_collapsing_a_family_removes_its_variant_subheaders", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Gauss family");
-  assert.equal(renders(field("pcm_filter_1x"), "Zed tap"), false);
+  activateHeader("pcm_filter_1x", FAMILY);
+  assert.equal(renders(field("pcm_filter_1x"), VARIANT), false);
 });
 
 test("test_a_collapsed_family_header_remains_and_reads_collapsed", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Gauss family");
-  assert.equal(expandedState(field("pcm_filter_1x"), "Gauss family"), "false");
+  activateHeader("pcm_filter_1x", FAMILY);
+  assert.equal(expandedState(field("pcm_filter_1x"), FAMILY), "false");
 });
 
 test("test_activating_a_collapsed_family_header_restores_its_rows", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Gauss family");
-  activateHeader("pcm_filter_1x", "Gauss family");
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), PLAIN_ORDER);
+  activateHeader("pcm_filter_1x", FAMILY);
+  activateHeader("pcm_filter_1x", FAMILY);
+  assert.deepEqual(offered(field("pcm_filter_1x")), ALL_VALUES);
 });
 
 // --- collapsing a variant ---------------------------------------------------------
 
 test("test_collapsing_a_variant_removes_only_that_variants_rows", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Zed tap");
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), WITHOUT_ZED_TAP);
+  activateHeader("pcm_filter_1x", VARIANT);
+  assert.deepEqual(offered(field("pcm_filter_1x")), WITHOUT_ZED_TAP);
 });
 
 test("test_a_collapsed_variant_subheader_remains_and_reads_collapsed", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Zed tap");
-  assert.equal(expandedState(field("pcm_filter_1x"), "Zed tap"), "false");
+  activateHeader("pcm_filter_1x", VARIANT);
+  assert.equal(expandedState(field("pcm_filter_1x"), VARIANT), "false");
 });
 
 // --- the state is shared per dropdown kind ----------------------------------------
 
 test("test_a_family_collapsed_in_one_filter_dropdown_is_collapsed_in_the_next", async () => {
   await setup();
-  activateHeader("pcm_filter_1x", "Gauss family");
-  assert.deepEqual(optionLabels(field("pcm_filter_nx")), WITHOUT_GAUSS);
+  activateHeader("pcm_filter_1x", FAMILY);
+  assert.deepEqual(offered(field("pcm_filter_nx")), WITHOUT_GAUSS);
 });
 
 // --- Standard style has no groups to collapse --------------------------------------
@@ -221,7 +248,7 @@ test("test_a_family_collapsed_in_one_filter_dropdown_is_collapsed_in_the_next", 
 test("test_standard_style_keeps_the_flat_list_despite_stored_collapse_state", async () => {
   await setup({ plain: false });
   toggleCollapsedGroup("filters|Gauss");
-  assert.deepEqual(optionLabels(field("pcm_filter_1x")), RAW_ORDER);
+  assert.deepEqual(offered(field("pcm_filter_1x")), ALL_VALUES);
 });
 
 test("test_standard_style_renders_no_header_toggle", async () => {

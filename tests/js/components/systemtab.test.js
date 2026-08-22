@@ -25,8 +25,8 @@ import { health, config, matrixConfig, metadata, engineState, enums } from "../.
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions, quickSystemUpdates } from "../../../hqptuner/static/store/prefs.js";
 import { stagingWire } from "../support/wire.js";
-import { formFields } from "../support/tabform.js";
-import { elements, enclosing, hasAttr, hasLabel, labeled } from "../support/markup.js";
+import { formFields, section } from "../support/tabform.js";
+import { classes, elements, enclosing, hasAttr, hasLabel, labeled } from "../support/markup.js";
 
 // The quick-updates preference is a module-level signal and outlives a case
 // (docs/testing.md, harness facts), so the cases that write it are put back to
@@ -40,81 +40,110 @@ test("about hqptuner prose stays unrendered until the subsection is opened", () 
   assert.ok(!render(html`<${System} />`).includes("abt-prose"));
 });
 
-test("about hqptuner head offers a closed disclosure triangle by default", () => {
-  health.value = { info: {}, license: null };
-  assert.ok(render(html`<${System} />`).includes("▸"));
-});
+// DELETED: "about hqptuner head offers a closed disclosure triangle by default",
+// which read the ▸ glyph out of the render. The glyph is presentation the owner
+// may change at will and no state stands behind it; that the subsection starts
+// closed is what the case above pins.
 
-test("the version row carries the daemon's release string", () => {
+// The two version readings are DATA, not copy: the daemon reports its installed
+// release and its DSP engine build as separate numbers, and each has to reach
+// the card as itself. Which row is captioned what is the owner's business and is
+// asserted nowhere (docs/testing.md rule 9).
+
+test("the card shows the daemon's release string", () => {
   health.value = { info: { engine: "6.0.4" }, release: "6.0.2", license: null };
-  assert.match(render(html`<${System} />`), /<dt>Version<\/dt>\s*<dd>6\.0\.2<\/dd>/);
+  assert.ok(render(html`<${System} />`).includes("6.0.2"));
 });
 
-test("the engine row carries the reported engine version", () => {
+test("the card shows the reported engine version", () => {
   health.value = { info: { engine: "6.0.4" }, release: "6.0.2", license: null };
-  assert.match(render(html`<${System} />`), /<dt>Engine<\/dt>\s*<dd>6\.0\.4<\/dd>/);
+  assert.ok(render(html`<${System} />`).includes("6.0.4"));
 });
 
-test("an empty release renders no version row", () => {
+test("an empty release renders no empty row of its own", () => {
+  // A row rendered for a release the daemon never reported reads as a blank
+  // value beside a caption; nothing on this card renders empty.
   health.value = { info: { engine: "6.0.4" }, release: "", license: null };
-  assert.ok(!render(html`<${System} />`).includes("<dt>Version</dt>"));
+  assert.equal(/<dd>\s*<\/dd>/.test(render(html`<${System} />`)), false);
 });
 
-test("an empty release still leaves the engine row in place", () => {
+test("an empty release still leaves the engine version on the card", () => {
   health.value = { info: { engine: "6.0.4" }, release: "", license: null };
-  assert.match(render(html`<${System} />`), /<dt>Engine<\/dt>\s*<dd>6\.0\.4<\/dd>/);
+  assert.ok(render(html`<${System} />`).includes("6.0.4"));
 });
 
-test("a daemon outside the verified series says so under its version", () => {
+// The notice a daemon outside the verified series draws, by its own identity —
+// `data-note="unverified-daemon"`. What it says there is owner copy and is
+// asserted nowhere (docs/testing.md rule 9).
+
+const UNVERIFIED = 'data-note="unverified-daemon"';
+
+test("a daemon outside the verified series draws the notice", () => {
   health.value = { info: { engine: "6.1.0" }, license: null };
-  assert.ok(render(html`<${System} />`).includes("verified against"));
+  assert.ok(render(html`<${System} />`).includes(UNVERIFIED));
 });
 
 test("a daemon in the verified series draws no notice", () => {
   health.value = { info: { engine: "6.0.4" }, license: null };
-  assert.ok(!render(html`<${System} />`).includes("verified against"));
+  assert.equal(render(html`<${System} />`).includes(UNVERIFIED), false);
 });
 
 // LIVE renders the same engine-health card without its opt-in, since that page
 // is always fast. The tab is where the choice is still real, so the tickbox has
 // to survive here.
 
-test("the engine health card keeps its quick updates tickbox on the tab", () => {
-  health.value = { info: {}, license: null };
-  assert.ok(render(html`<${System} />`).includes("Quick updates"));
-});
+// The opt-in is found by the class its own region carries, `poll-quick` — a CSS
+// class is contract, the words beside the tickbox are not (docs/testing.md rule
+// 9).
 
-test("the quick updates opt-in keeps its poll opt-in class", () => {
+/**
+ * The tickbox inside the quick-updates opt-in.
+ *
+ * @param {string} out
+ * @returns {import("../support/markup.js").MarkupElement}
+ */
+function quickTickbox(out) {
+  const region = elements(out).find((el) => classes(el).includes("poll-quick"));
+  if (!region) throw new Error("the card carries no quick-updates opt-in");
+  const hit = elements(region.html).find((el) => el.name === "input");
+  if (!hit) throw new Error("the quick-updates opt-in carries no tickbox");
+  return hit;
+}
+
+test("the engine health card keeps its quick updates tickbox on the tab", () => {
   health.value = { info: {}, license: null };
   assert.ok(render(html`<${System} />`).includes("poll-quick"));
 });
 
-// The cadence the opt-in buys is one second, and the note says so in those
-// words — one second is what every fast page now polls at (store/ui.js).
+// The opt-in explains what the faster cadence costs, in a note of its own. That
+// the explanation is there is the behavior; the cadence it names is store/ui.js's
+// contract (tests/js/store/polling.test.js) and the sentence is owner copy, so
+// the note is read by its identity alone (docs/testing.md rule 9).
 
-test("the quick updates note names a one second refresh", () => {
+test("the quick updates opt-in carries its explanatory note", () => {
   health.value = { info: {}, license: null };
-  assert.ok(render(html`<${System} />`).includes("refresh every second while this page is open"));
+  assert.ok(render(html`<${System} />`).includes('data-note="poll-quick"'));
 });
 
 test("the quick updates tickbox reflects the stored preference", () => {
   health.value = { info: {}, license: null };
   quickSystemUpdates.value = true;
-  assert.ok(hasAttr(switchOf(render(html`<${System} />`), "Quick updates"), "checked"));
+  assert.ok(hasAttr(quickTickbox(render(html`<${System} />`)), "checked"));
 });
 
 test("the quick updates tickbox is clear when the preference is off", () => {
   health.value = { info: {}, license: null };
   quickSystemUpdates.value = false;
-  assert.equal(hasAttr(switchOf(render(html`<${System} />`), "Quick updates"), "checked"), false);
+  assert.equal(hasAttr(quickTickbox(render(html`<${System} />`)), "checked"), false);
 });
 
 // --- engine timing and UPnP ---------------------------------------------------
 // The reorganization moved the engine's timing knobs and the UPnP freewheel in
-// from the Output tab. Membership is "exactly": each card's whole <label>
+// from the Output tab. Membership is "exactly": each card's whole field-key
 // sequence is compared, so a stray extra control fails alongside a missing one.
-// Timing's internal order is not part of the contract, so its labels are
-// compared as a sorted set.
+// A control is named by the schema key it wears in `data-k`, never by its label
+// (docs/testing.md rule 9). Timing's internal order is not part of the contract,
+// so its keys are compared as a sorted set.
 
 async function reset() {
   stagingWire();
@@ -134,29 +163,23 @@ async function reset() {
   await discardAll();
 }
 
-/**
- * @param {string} out
- * @param {string} title
- */
-const card = (out, title) => {
-  const head = out.indexOf(`<div class="card-head">${title}</div>`);
-  return head < 0 ? "" : out.slice(head, out.indexOf("</section>", head));
-};
+// One card's fragment, keyed by the `data-card` its <section> carries.
+const card = section;
 /** @param {string} frag */
-const labelsOf = (frag) => [...frag.matchAll(/<label>([^<]*)/g)].map((m) => m[1].trim());
+const keysOf = (frag) => [...frag.matchAll(/data-k="([^"]*)"/g)].map((m) => m[1]);
 
 test("the timing card carries exactly the three engine timing controls", async () => {
   await reset();
-  assert.deepEqual(labelsOf(card(render(html`<${System} />`), "Timing")).sort(), [
-    "Engine idle time",
-    "Quick pause",
-    "Short buffer",
+  assert.deepEqual(keysOf(card(render(html`<${System} />`), "timing")).sort(), [
+    "idle_time",
+    "quick_pause",
+    "short_buffer",
   ]);
 });
 
 test("the upnp card carries exactly the upnp freewheel control", async () => {
   await reset();
-  assert.deepEqual(labelsOf(card(render(html`<${System} />`), "UPnP")), ["UPnP freewheel"]);
+  assert.deepEqual(keysOf(card(render(html`<${System} />`), "upnp")), ["upnp_freewheel"]);
 });
 
 // --- description-visibility prefs ---------------------------------------------
@@ -166,26 +189,28 @@ test("the upnp card carries exactly the upnp freewheel control", async () => {
 // the stored keep-option pref is never rewritten by a render. With the master
 // off, the second switch is live and mirrors the stored pref exactly.
 
-const MASTER = "Setting descriptions";
-const KEEP = "Option descriptions";
+// Each pref switch by the key its own field wears in `data-k` — the pref the
+// switch is bound to, never the words announcing it (docs/testing.md rule 9).
+const MASTER = "showDescriptions";
+const KEEP = "keepOptionDescriptions";
 
-// The switch input a label announces. Starts inside the label itself (the
-// tickbox convention from playbackvolume.test.js) and, when the input sits
-// beside the label rather than inside it, widens to the smallest enclosing
-// region — the row the pair shares — without naming any structure in between.
+// The switch input a keyed control announces. Starts inside the control itself
+// (the tickbox convention from playbackvolume.test.js) and, when the input sits
+// beside it rather than within, widens to the smallest enclosing region — the
+// row the pair shares — without naming any structure in between.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  * @returns {import("../support/markup.js").MarkupElement}
  */
-function switchOf(out, label) {
-  let region = labeled(out, label);
+function switchOf(out, key) {
+  let region = labeled(out, key);
   for (let step = 0; step < 3; step += 1) {
     const hit = elements(region.html).find((el) => el.name === "input");
     if (hit) return hit;
     region = enclosing(out, region);
   }
-  throw new Error(`no input near the control labeled "${label}"`);
+  throw new Error(`no input near the control keyed "${key}"`);
 }
 
 test("the master pref on forces the option descriptions switch checked", async () => {
@@ -238,17 +263,16 @@ test("a render under the master pref leaves the stored keep pref untouched", asy
   assert.equal(keepOptionDescriptions.value, false);
 });
 
-test("the master toggle is labeled setting descriptions", async () => {
+test("the tab offers the master descriptions switch", async () => {
   await reset();
   assert.ok(hasLabel(render(html`<${System} />`), MASTER));
 });
 
-test("no toggle is labeled feature descriptions any more", async () => {
-  await reset();
-  assert.equal(hasLabel(render(html`<${System} />`), "Feature descriptions"), false);
-});
+// DELETED: "no toggle is labeled feature descriptions any more". The switch is
+// addressed by the pref it is bound to now, and the retired wording is not a
+// state anything can be in — an absence assertion against it constrains nothing.
 
-test("the second toggle is labeled option descriptions", async () => {
+test("the tab offers the option descriptions switch", async () => {
   await reset();
   assert.ok(hasLabel(render(html`<${System} />`), KEEP));
 });

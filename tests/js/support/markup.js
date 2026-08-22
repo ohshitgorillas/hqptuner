@@ -152,16 +152,23 @@ export function enclosing(fragment, el) {
   return around.reduce((a, b) => (a.html.length <= b.html.length ? a : b));
 }
 
+// Every element a schema key renders as. A field's wrapper carries
+// `data-k="<key>"` (components/Field.js), and the key is the wire identifier the
+// daemon's form is keyed by — contract, unlike the words announcing it — so a
+// control is found by its key and never by its wording (docs/testing.md rule 9).
 /**
  * @param {string} fragment
  * @param {string} name
  * @returns {MarkupElement[]}
  */
-const labels = (fragment, name) => elements(fragment).filter((el) => el.name === "label" && text(el).startsWith(name));
+const labels = (fragment, name) => {
+  const want = new RegExp(`(^|\\s)data-k="${name}"`);
+  return elements(fragment).filter((el) => want.test(el.attrs));
+};
 
 /**
- * The `<label>` a control is announced by. Matched on the text a reader sees,
- * so a `for=`, a class or a trailing hint span on the label changes nothing.
+ * The control a schema key is rendered by. Matched on the key, so a `for=`, a
+ * class, a reworded label or a trailing hint span changes nothing.
  *
  * @param {string} fragment
  * @param {string} name
@@ -169,7 +176,7 @@ const labels = (fragment, name) => elements(fragment).filter((el) => el.name ===
  */
 export function labeled(fragment, name) {
   const [hit] = labels(fragment, name);
-  if (!hit) throw new Error(`no control labeled "${name}" in the fragment`);
+  if (!hit) throw new Error(`no control keyed "${name}" in the fragment`);
   return hit;
 }
 
@@ -181,18 +188,14 @@ export function labeled(fragment, name) {
 export const hasLabel = (fragment, name) => labels(fragment, name).length > 0;
 
 /**
- * The field a schema key renders as. Every field carries `data-k="<key>"`
- * (components/Field.js), and the key is the wire identifier the daemon's form
- * is keyed by — contract, unlike the label announcing it — so a control is
- * found by its key and never by its wording (docs/testing.md rule 9).
+ * The field a schema key renders as.
  *
  * @param {string} fragment
  * @param {string} key
  * @returns {MarkupElement}
  */
 export function keyed(fragment, key) {
-  const want = new RegExp(`(^|\\s)data-k="${key}"`);
-  const [hit] = elements(fragment).filter((el) => want.test(el.attrs));
+  const [hit] = labels(fragment, key);
   if (!hit) throw new Error(`no field keyed "${key}" in the fragment`);
   return hit;
 }

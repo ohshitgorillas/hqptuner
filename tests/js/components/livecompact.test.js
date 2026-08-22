@@ -11,8 +11,9 @@
 // /api/state, /api/enumerations and /api/config actually serve; nothing of ours
 // is stubbed.
 //
-// The anchors are what a user reads — a card by its head, a control by its
-// `<label>` — and the question asked is of the field root that control is
+// The anchors are machine identities (docs/testing.md rule 9) — a card by the
+// `data-card` it carries, a control by its schema key — and the question asked
+// is of the field root that control is
 // rendered in: which `compact*` class tokens does the single element enclosing
 // this label carry? That is the element the CSS sizes, so a class parked on a
 // shared row or card wrapper sizes nothing and is caught by the case that asks
@@ -45,7 +46,8 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { PCM_FILTERS, PCM_SHAPERS, JUNK, formField, FORM, LISTS } from "../support/chainenums.js";
-import { classes, elements, enclosing, labeled, text } from "../support/markup.js";
+import { classes, enclosing, labeled } from "../support/markup.js";
+import { section } from "../support/tabform.js";
 
 const PROSE = { label: "", tooltip: "prose." };
 const METADATA = {
@@ -117,24 +119,17 @@ async function reset() {
 
 const page = () => render(html`<${LiveView} />`);
 
-/** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
-
-// The title a card head announces: its own text, less the disclosure triangle a
-// collapsible head carries ahead of it (components/common.js).
-/** @param {MarkupElement} el */
-const title = (el) => text(el).replace(/^[^\p{L}\p{N}]+/u, "");
-
-// One card's own markup: the smallest element enclosing its head. A miss throws
-// rather than handing back the page, so a renamed head fails loudly instead of
-// quietly measuring some other card.
+// One card's own markup, by the id its section carries. A miss throws rather
+// than handing back an empty fragment, so a card that stopped rendering fails
+// loudly instead of quietly measuring nothing.
 /**
  * @param {string} out
  * @param {string} want
  */
 function card(out, want) {
-  const hit = elements(out).find((el) => classes(el).includes("card-head") && title(el) === want);
-  if (!hit) throw new Error(`no card headed "${want}" in the rendered page`);
-  return enclosing(out, hit).html;
+  const frag = section(out, want);
+  if (frag === "") throw new Error(`no card identified "${want}" in the rendered page`);
+  return frag;
 }
 
 const isCompact = (/** @type {string} */ c) => c === "compact" || c.startsWith("compact-");
@@ -144,11 +139,11 @@ const isCompact = (/** @type {string} */ c) => c === "compact" || c.startsWith("
 // does not depend on the order a class list is assembled in.
 /**
  * @param {string} fragment
- * @param {string} label
+ * @param {string} key
  * @returns {string[]}
  */
-function compactOf(fragment, label) {
-  const root = enclosing(fragment, labeled(fragment, label));
+function compactOf(fragment, key) {
+  const root = enclosing(fragment, labeled(fragment, key));
   return [...new Set(classes(root).filter(isCompact))].sort();
 }
 
@@ -162,27 +157,27 @@ const SM = ["compact", "compact-sm"];
 
 /** @type {[string, string, string[]][]} */
 const CHAIN = [
-  ["PCM Chain", "1x filter", LG],
-  ["PCM Chain", "Nx filter", LG],
-  ["SDM Chain", "1x filter", LG],
-  ["SDM Chain", "Nx filter", LG],
-  ["PCM Chain", "Dither", SM],
-  ["SDM Chain", "Sigma-delta modulator", MD],
+  ["live-pcm-chain", "filter_1x", LG],
+  ["live-pcm-chain", "filter_nx", LG],
+  ["live-sdm-chain", "filter_1x", LG],
+  ["live-sdm-chain", "filter_nx", LG],
+  ["live-pcm-chain", "shaper", SM],
+  ["live-sdm-chain", "shaper", MD],
 ];
 
-for (const [head, label, want] of CHAIN) {
-  const name = `${head} ${label}`.toLowerCase().replace(/[ -]/g, "_");
-  test(`test_the_live_${name}_field_carries_its_schemas_compact_size`, async () => {
+for (const [id, key, want] of CHAIN) {
+  const name = `${id}_${key}`.replace(/-/g, "_");
+  test(`test_the_${name}_field_carries_its_schemas_compact_size`, async () => {
     await reset();
-    assert.deepEqual(compactOf(card(page(), head), label), want);
+    assert.deepEqual(compactOf(card(page(), id), key), want);
   });
 }
 
 // --- the LIVE page's Playback card ---------------------------------------------
 
-test("test_the_live_high_frequency_filter_field_carries_its_schemas_compact_size", async () => {
+test("test_the_live_junk_filter_field_carries_its_schemas_compact_size", async () => {
   await reset();
-  assert.deepEqual(compactOf(card(page(), "Playback"), "High-frequency filter"), SM);
+  assert.deepEqual(compactOf(card(page(), "live-playback"), "junk_filter"), SM);
 });
 
 // The discriminating half: a control whose schema entry carries no `compact` at
@@ -190,5 +185,5 @@ test("test_the_live_high_frequency_filter_field_carries_its_schemas_compact_size
 // above and fails here.
 test("test_a_live_field_whose_schema_entry_has_no_compact_size_carries_no_compact_class", async () => {
   await reset();
-  assert.deepEqual(compactOf(card(page(), "Playback"), "Adaptive volume"), []);
+  assert.deepEqual(compactOf(card(page(), "live-playback"), "adaptive_volume"), []);
 });

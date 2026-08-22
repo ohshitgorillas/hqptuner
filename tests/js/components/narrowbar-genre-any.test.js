@@ -11,9 +11,8 @@
 // carries the open-a-facet and read-a-row machinery and states what those
 // couple to.
 //
-// Rows are never named by a hard-coded caption: the caption a genre value wears
-// is looked up by picking that value and reading back which row renders checked,
-// so a reworded genre label moves these cases with it instead of failing them.
+// Rows are named by the WIRE VALUE their label carries in `data-v`, never by
+// the caption beside the checkbox (docs/testing.md rule 9).
 //
 // Reading taken where the spec was silent: "MultiSelect with no `off` prop
 // renders every checkbox enabled" is exercised through the FOCUS facet, the
@@ -30,14 +29,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { nGenre, nGenreMode } from "../../../hqptuner/static/store/narrow/state.js";
-import {
-  resetNarrowBar,
-  openFacet,
-  checkedRows,
-  popoverRows,
-  rowIsDisabled,
-  rowIsMarkedOff,
-} from "../support/genrepopover.js";
+import { resetNarrowBar, openFacet, popoverRows, rowIsDisabled, rowIsMarkedOff } from "../support/genrepopover.js";
 
 // Filters in the engine's own description format, `"<q>/5 [focus, ...] <glyph>
 // <ratio>"` with the PCM glyph, plus the static overlay's genre tags. The three
@@ -58,27 +50,10 @@ const OVERLAY = {
 /** @returns {Promise<void>} */
 const reset = () => resetNarrowBar(FILTERS, { overlay: OVERLAY });
 
-// The caption a genre value wears, discovered rather than hard-coded: the value
-// is picked under the OR mode (which marks nothing inert), and the row that
-// comes back checked is that value's own row.
-/** @type {Map<string, string>} */
-const captions = new Map();
-
-/**
- * @param {string} value
- * @returns {Promise<string>}
- */
-async function captionFor(value) {
-  const known = captions.get(value);
-  if (known) return known;
-  await reset();
-  nGenreMode.value = "or";
-  nGenre.value = [value];
-  const [caption] = checkedRows(openFacet("genre"));
-  if (!caption) throw new Error(`no genre row is bound to "${value}"`);
-  captions.set(value, caption);
-  return caption;
-}
+// The two genre values these cases speak about, as the store and the rows both
+// spell them.
+const CLASSICAL = "classical";
+const ANY = "any";
 
 /**
  * The genre popover, open, under a stated selection and combine mode.
@@ -97,13 +72,11 @@ async function genrePopover(selection, mode) {
 // --- all three terms hold: every other genre row goes inert -----------------------
 
 test("test_with_any_picked_and_the_and_mode_the_classical_row_is_disabled", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsDisabled(await genrePopover(["any"], "and"), classical), true);
+  assert.equal(rowIsDisabled(await genrePopover(["any"], "and"), CLASSICAL), true);
 });
 
 test("test_with_any_picked_and_the_and_mode_the_classical_row_is_marked_off", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsMarkedOff(await genrePopover(["any"], "and"), classical), true);
+  assert.equal(rowIsMarkedOff(await genrePopover(["any"], "and"), CLASSICAL), true);
 });
 
 // The rule reads "the selection INCLUDES any", so a selection carrying another
@@ -111,57 +84,47 @@ test("test_with_any_picked_and_the_and_mode_the_classical_row_is_marked_off", as
 // array the escape hatch sits at.
 
 test("test_with_any_picked_before_another_genre_and_the_and_mode_the_classical_row_is_disabled", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsDisabled(await genrePopover(["any", "jazz"], "and"), classical), true);
+  assert.equal(rowIsDisabled(await genrePopover(["any", "jazz"], "and"), CLASSICAL), true);
 });
 
 test("test_with_any_picked_after_another_genre_and_the_and_mode_the_classical_row_is_disabled", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsDisabled(await genrePopover(["jazz", "any"], "and"), classical), true);
+  assert.equal(rowIsDisabled(await genrePopover(["jazz", "any"], "and"), CLASSICAL), true);
 });
 
 // --- the "any" row itself stays live, so the user can give the escape hatch back ---
 
 test("test_with_any_picked_and_the_and_mode_the_any_row_is_not_disabled", async () => {
-  const any = await captionFor("any");
-  assert.equal(rowIsDisabled(await genrePopover(["any"], "and"), any), false);
+  assert.equal(rowIsDisabled(await genrePopover(["any"], "and"), ANY), false);
 });
 
 test("test_with_any_picked_and_the_and_mode_the_any_row_is_not_marked_off", async () => {
-  const any = await captionFor("any");
-  assert.equal(rowIsMarkedOff(await genrePopover(["any"], "and"), any), false);
+  assert.equal(rowIsMarkedOff(await genrePopover(["any"], "and"), ANY), false);
 });
 
 // --- drop one term at a time: every row stays live --------------------------------
 
 test("test_with_any_picked_and_the_or_mode_the_classical_row_is_not_disabled", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsDisabled(await genrePopover(["any"], "or"), classical), false);
+  assert.equal(rowIsDisabled(await genrePopover(["any"], "or"), CLASSICAL), false);
 });
 
 test("test_with_any_picked_and_the_or_mode_the_classical_row_is_not_marked_off", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsMarkedOff(await genrePopover(["any"], "or"), classical), false);
+  assert.equal(rowIsMarkedOff(await genrePopover(["any"], "or"), CLASSICAL), false);
 });
 
 test("test_with_jazz_picked_and_the_and_mode_the_classical_row_is_not_disabled", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsDisabled(await genrePopover(["jazz"], "and"), classical), false);
+  assert.equal(rowIsDisabled(await genrePopover(["jazz"], "and"), CLASSICAL), false);
 });
 
 test("test_with_jazz_picked_and_the_and_mode_the_classical_row_is_not_marked_off", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsMarkedOff(await genrePopover(["jazz"], "and"), classical), false);
+  assert.equal(rowIsMarkedOff(await genrePopover(["jazz"], "and"), CLASSICAL), false);
 });
 
 test("test_with_no_genre_picked_and_the_and_mode_the_classical_row_is_not_disabled", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsDisabled(await genrePopover([], "and"), classical), false);
+  assert.equal(rowIsDisabled(await genrePopover([], "and"), CLASSICAL), false);
 });
 
 test("test_with_no_genre_picked_and_the_and_mode_the_classical_row_is_not_marked_off", async () => {
-  const classical = await captionFor("classical");
-  assert.equal(rowIsMarkedOff(await genrePopover([], "and"), classical), false);
+  assert.equal(rowIsMarkedOff(await genrePopover([], "and"), CLASSICAL), false);
 });
 
 // --- the bar's other multi-select carries no inertness rule -----------------------
@@ -173,9 +136,9 @@ test("test_with_no_genre_picked_and_the_and_mode_the_classical_row_is_not_marked
 test("test_the_focus_popover_marks_none_of_the_rows_it_offers_unavailable", async () => {
   await reset();
   const block = openFacet("focus");
-  const offered = popoverRows(block).map((r) => r.label);
+  const offered = popoverRows(block).map((r) => r.value);
   assert.deepEqual(
-    { offered: offered.length > 0, disabled: offered.filter((label) => rowIsDisabled(block, label)) },
+    { offered: offered.length > 0, disabled: offered.filter((value) => rowIsDisabled(block, value)) },
     { offered: true, disabled: [] },
   );
 });

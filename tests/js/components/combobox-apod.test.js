@@ -18,8 +18,10 @@
 // overlay's `apodizing` fact ("full" | "half" | "none", data/filters.json) —
 // the fixtures serve BOTH, consistent, the way the real wire does, and the
 // Simplified entries carry the same class as their `apod` field. A badge is
-// found by its ACCESSIBLE LABEL (aria-label "Apodizing" / "Half apodizing"),
-// never by a class the component happens to use.
+// found by the `dd-apod` class it wears, and full is told from half by the
+// vector path each draws — never by the accessible wording, which is the
+// owner's to reword (docs/testing.md rule 9). Rows are addressed by the
+// `data-v` wire value each carries.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, fakes at
 // the wire; rendering through preact-render-to-string reads the closed
@@ -32,10 +34,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { reset, field, optionLabels, META } from "../support/field-harness.js";
+import { reset, field, META } from "../support/field-harness.js";
 import { renderField } from "../support/vnodeseam.js";
-import { elements, classes, text } from "../support/markup.js";
-import { endOf, encloses, rows, rowIncluding } from "../support/comborows.js";
+import { elements, classes, attr, text } from "../support/markup.js";
+import { endOf, encloses, rows, rowIncluding, classTokens } from "../support/comborows.js";
 import { enums } from "../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../hqptuner/static/store/prefs.js";
 import { nApod1x, nQuality } from "../../../hqptuner/static/store/narrow/state.js";
@@ -65,6 +67,11 @@ const SIM = [
   ["mix-m1", "1", "full", "Mixed", "Vmix", "MM One"],
   ["mix-m2", "0", "none", "Mixed", "Vmix", "MM Two"],
 ];
+
+// Each fixture offers its filters under their index, and a dd-opt row is
+// addressed by the `data-v` wire value it carries (docs/testing.md rule 9).
+const [U_FULL, U_FULL_2, MF_1, MF_2, MH_HALF, MM_1, MM_NONE] = SIM.map((_, i) => String(i));
+const [STD_FULL, STD_HALF, STD_NONE] = STD.map((_, i) => String(i));
 
 /** @param {string[]} names */
 const filterFields = (names) => [
@@ -174,16 +181,28 @@ const simplifiedField = () => filterField(true);
 // --- markup readers ---------------------------------------------------------
 
 /** @param {MarkupElement} el */
-const ariaOf = (el) => (/aria-label="([^"]*)"/.exec(el.attrs) || [])[1];
-
-/** @param {MarkupElement} el */
 const roleOf = (el) => (/(?:^|\s)role="([^"]*)"/.exec(el.attrs) || [])[1];
 
+// The class the apodizing badge wears. A class token is contract; the wording
+// inside the badge's accessible label is not.
+const BADGE_CLASS = "dd-apod";
+
 /** @param {MarkupElement} el */
-const isBadge = (el) => ariaOf(el) === "Apodizing" || ariaOf(el) === "Half apodizing";
+const isBadge = (el) => classes(el).includes(BADGE_CLASS);
 
 /** @param {string} out */
 const badges = (out) => elements(out).filter(isBadge);
+
+// The fixture guard the style cases lean on: the rows rendered in the style the
+// case is about, told apart by a name only that style produces. The needles are
+// the fixture's own invented data, never a word the component supplies.
+/**
+ * @param {string} out
+ * @param {string} needle
+ */
+function assertRowReads(out, needle) {
+  if (!rows(out).some((r) => text(r).includes(needle))) throw new Error(`no option row reads "${needle}"`);
+}
 
 /**
  * @param {string} out
@@ -264,14 +283,14 @@ function starOf(out, row) {
 // non-interactivity contracts all hold with the pref ON. "U One" is a
 // full-apodizing row, "MH One" a half-apodizing one, "MM Two" neither.
 
-test("test_a_full_apodizing_row_carries_a_badge_labeled_apodizing", async () => {
+test("test_a_full_apodizing_row_carries_exactly_one_badge", async () => {
   const out = await simplifiedField();
-  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "Apodizing");
+  assert.equal(badgesIn(out, rowIncluding(out, U_FULL)).length, 1);
 });
 
 test("test_the_badge_glyph_is_exactly_one_vector_path_inside_an_svg", async () => {
   const out = await simplifiedField();
-  const badge = onlyBadgeIn(out, rowIncluding(out, "U One"));
+  const badge = onlyBadgeIn(out, rowIncluding(out, U_FULL));
   assert.deepEqual(
     paths(badge).map((p) => svgEncloses(badge, p)),
     [true],
@@ -280,17 +299,17 @@ test("test_the_badge_glyph_is_exactly_one_vector_path_inside_an_svg", async () =
 
 test("test_the_full_badge_renders_role_img", async () => {
   const out = await simplifiedField();
-  assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, "U One"))), "img");
+  assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, U_FULL))), "img");
 });
 
-test("test_a_half_apodizing_row_carries_a_badge_labeled_half_apodizing", async () => {
+test("test_a_half_apodizing_row_carries_exactly_one_badge", async () => {
   const out = await simplifiedField();
-  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "Half apodizing");
+  assert.equal(badgesIn(out, rowIncluding(out, MH_HALF)).length, 1);
 });
 
 test("test_the_half_badge_glyph_is_exactly_one_vector_path_inside_an_svg", async () => {
   const out = await simplifiedField();
-  const badge = onlyBadgeIn(out, rowIncluding(out, "MH One"));
+  const badge = onlyBadgeIn(out, rowIncluding(out, MH_HALF));
   assert.deepEqual(
     paths(badge).map((p) => svgEncloses(badge, p)),
     [true],
@@ -299,33 +318,30 @@ test("test_the_half_badge_glyph_is_exactly_one_vector_path_inside_an_svg", async
 
 test("test_the_half_badge_renders_role_img", async () => {
   const out = await simplifiedField();
-  assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, "MH One"))), "img");
+  assert.equal(roleOf(onlyBadgeIn(out, rowIncluding(out, MH_HALF))), "img");
 });
 
 test("test_the_badge_contains_no_text_element", async () => {
   const out = await simplifiedField();
-  assert.equal(
-    elements(onlyBadgeIn(out, rowIncluding(out, "U One")).html).filter((el) => el.name === "text").length,
-    0,
-  );
+  assert.equal(elements(onlyBadgeIn(out, rowIncluding(out, U_FULL)).html).filter((el) => el.name === "text").length, 0);
 });
 
 test("test_the_badge_shows_no_text_content", async () => {
   const out = await simplifiedField();
-  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, "U One"))), "");
+  assert.equal(text(onlyBadgeIn(out, rowIncluding(out, U_FULL))), "");
 });
 
 test("test_the_full_and_half_badges_draw_distinct_glyphs", async () => {
   const out = await simplifiedField();
   assert.notEqual(
-    pathData(glyphPathOf(onlyBadgeIn(out, rowIncluding(out, "U One")))),
-    pathData(glyphPathOf(onlyBadgeIn(out, rowIncluding(out, "MH One")))),
+    pathData(glyphPathOf(onlyBadgeIn(out, rowIncluding(out, U_FULL)))),
+    pathData(glyphPathOf(onlyBadgeIn(out, rowIncluding(out, MH_HALF)))),
   );
 });
 
 test("test_a_row_of_neither_class_carries_no_badge", async () => {
   const out = await simplifiedField();
-  assert.equal(badgesIn(out, rowIncluding(out, "MM Two")).length, 0);
+  assert.equal(badgesIn(out, rowIncluding(out, MM_NONE)).length, 0);
 });
 
 // --- the badge is a marking, not an affordance ---------------------------------
@@ -333,8 +349,8 @@ test("test_a_row_of_neither_class_carries_no_badge", async () => {
 test("test_the_badge_carries_no_click_handler", async () => {
   await simplifiedField();
   const { seen } = renderField("pcm_filter_1x");
-  const badge = seen.find((v) => v && v.props && v.props["aria-label"] === "Apodizing");
-  if (!badge) throw new Error("no vnode carries the Apodizing label");
+  const badge = seen.find((v) => v && v.props && classTokens(v).includes(BADGE_CLASS));
+  if (!badge) throw new Error(`no vnode wears ${BADGE_CLASS}`);
   assert.equal(typeof badge.props.onClick === "function", false);
 });
 
@@ -342,13 +358,13 @@ test("test_the_badge_carries_no_click_handler", async () => {
 
 test("test_the_badge_renders_after_the_rows_own_text", async () => {
   const out = await simplifiedField();
-  const row = rowIncluding(out, "U One");
+  const row = rowIncluding(out, U_FULL);
   assert.equal(onlyBadgeIn(out, row).start > visibleTextAt(out, row, "U One"), true);
 });
 
 test("test_the_badge_precedes_the_favorite_star_in_document_order", async () => {
   const out = await simplifiedField();
-  const row = rowIncluding(out, "U One");
+  const row = rowIncluding(out, U_FULL);
   assert.equal(onlyBadgeIn(out, row).start < starOf(out, row).start, true);
 });
 
@@ -357,42 +373,50 @@ test("test_the_badge_precedes_the_favorite_star_in_document_order", async () => 
 // served — and each apodizing row carries the same badge Simplified would give
 // it, after its raw name; a row of neither class stays badge-free.
 
-test("test_standard_style_badges_a_full_apodizing_row_apodizing", async () => {
+test("test_standard_style_badges_a_full_apodizing_row", async () => {
   const out = await standardField();
-  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "full-a"))), "Apodizing");
+  assert.equal(badgesIn(out, rowIncluding(out, STD_FULL)).length, 1);
 });
 
-test("test_standard_style_badges_a_half_apodizing_row_half_apodizing", async () => {
-  const out = await standardField();
-  assert.equal(ariaOf(onlyBadgeIn(out, rowIncluding(out, "half-a"))), "Half apodizing");
+// Which of the two badges a row wears is told by the glyph it draws, so the
+// half-apodizing row's badge is matched against the half row of the Simplified
+// fixture — a component that drew the full glyph on a half row fails here.
+test("test_standard_style_draws_the_same_half_badge_glyph_as_simplified", async () => {
+  const std = await standardField();
+  const stdPath = pathData(glyphPathOf(onlyBadgeIn(std, rowIncluding(std, STD_HALF))));
+  const sim = await simplifiedField();
+  assert.equal(stdPath, pathData(glyphPathOf(onlyBadgeIn(sim, rowIncluding(sim, MH_HALF)))));
 });
 
 test("test_standard_style_leaves_a_row_of_neither_class_badge_free", async () => {
   const out = await standardField();
-  assert.equal(badgesIn(out, rowIncluding(out, "plain-a")).length, 0);
+  assert.equal(badgesIn(out, rowIncluding(out, STD_NONE)).length, 0);
 });
 
 test("test_standard_style_renders_the_badge_after_the_rows_raw_name", async () => {
   const out = await standardField();
-  const row = rowIncluding(out, "full-a");
+  const row = rowIncluding(out, STD_FULL);
   assert.equal(onlyBadgeIn(out, row).start > visibleTextAt(out, row, "full-a"), true);
 });
 
-test("test_standard_style_keeps_the_raw_flat_list", async () => {
+test("test_standard_style_keeps_every_option_as_a_flat_row", async () => {
   const out = await standardField();
-  assert.deepEqual(optionLabels(out), ["full-a", "half-a", "plain-a"]);
+  assert.deepEqual(
+    rows(out).map((r) => attr(r, "data-v")),
+    [STD_FULL, STD_HALF, STD_NONE],
+  );
 });
 
 test("test_standard_style_draws_the_same_full_badge_glyph_as_simplified", async () => {
   const std = await standardField();
-  const stdPath = pathData(glyphPathOf(onlyBadgeIn(std, rowIncluding(std, "full-a"))));
+  const stdPath = pathData(glyphPathOf(onlyBadgeIn(std, rowIncluding(std, STD_FULL))));
   const sim = await simplifiedField();
-  assert.equal(stdPath, pathData(glyphPathOf(onlyBadgeIn(sim, rowIncluding(sim, "U One")))));
+  assert.equal(stdPath, pathData(glyphPathOf(onlyBadgeIn(sim, rowIncluding(sim, U_FULL)))));
 });
 
 test("test_standard_style_badge_precedes_the_favorite_star_in_document_order", async () => {
   const out = await standardField();
-  const row = rowIncluding(out, "full-a");
+  const row = rowIncluding(out, STD_FULL);
   assert.equal(onlyBadgeIn(out, row).start < starOf(out, row).start, true);
 });
 
@@ -419,7 +443,7 @@ test("test_a_dither_dropdown_renders_no_badge_on_any_row", async () => {
   });
   plainNames.value = true;
   const out = field("pcm_dither");
-  rowIncluding(out, "Ninth"); // Simplified-distinct leaf: throws unless the rows rendered IN SIMPLIFIED STYLE
+  assertRowReads(out, "Ninth"); // Simplified-distinct leaf: the rows rendered IN SIMPLIFIED STYLE
   assert.equal(badges(out).length, 0);
 });
 
@@ -440,7 +464,7 @@ test("test_a_modulator_dropdown_renders_no_badge_on_any_row", async () => {
   });
   plainNames.value = true;
   const out = field("sdm_modulator");
-  rowIncluding(out, "Seventh"); // throws when the rows never rendered
+  assertRowReads(out, "Seventh"); // throws when the rows never rendered
   assert.equal(badges(out).length, 0);
 });
 
@@ -461,7 +485,7 @@ test("test_a_dither_dropdown_renders_no_badge_in_standard_style", async () => {
   });
   plainNames.value = false;
   const out = field("pcm_dither");
-  rowIncluding(out, "NS9"); // raw engine name: throws unless the rows rendered IN STANDARD STYLE
+  assertRowReads(out, "NS9"); // raw engine name: the rows rendered IN STANDARD STYLE
   assert.equal(badges(out).length, 0);
 });
 
@@ -482,7 +506,7 @@ test("test_a_modulator_dropdown_renders_no_badge_in_standard_style", async () =>
   });
   plainNames.value = false;
   const out = field("sdm_modulator");
-  rowIncluding(out, "ASDM7EC"); // raw engine name: throws unless the rows rendered IN STANDARD STYLE
+  assertRowReads(out, "ASDM7EC"); // raw engine name: the rows rendered IN STANDARD STYLE
   assert.equal(badges(out).length, 0);
 });
 
@@ -503,7 +527,7 @@ test("test_simplified_style_badges_every_apodizing_row_individually", async () =
 test("test_a_uniform_familys_rows_each_carry_their_own_badge", async () => {
   const out = await simplifiedField();
   assert.deepEqual(
-    [rowIncluding(out, "U One"), rowIncluding(out, "U Two")].map((r) => badgesIn(out, r).length),
+    [rowIncluding(out, U_FULL), rowIncluding(out, U_FULL_2)].map((r) => badgesIn(out, r).length),
     [1, 1],
   );
 });
@@ -511,7 +535,7 @@ test("test_a_uniform_familys_rows_each_carry_their_own_badge", async () => {
 test("test_a_uniform_variants_rows_each_carry_their_own_badge", async () => {
   const out = await simplifiedField();
   assert.deepEqual(
-    [rowIncluding(out, "MF One"), rowIncluding(out, "MF Two")].map((r) => badgesIn(out, r).length),
+    [rowIncluding(out, MF_1), rowIncluding(out, MF_2)].map((r) => badgesIn(out, r).length),
     [1, 1],
   );
 });
@@ -519,7 +543,7 @@ test("test_a_uniform_variants_rows_each_carry_their_own_badge", async () => {
 test("test_a_mixed_variant_badges_each_apodizing_row_individually", async () => {
   const out = await simplifiedField();
   assert.deepEqual(
-    [rowIncluding(out, "MM One"), rowIncluding(out, "MM Two")].map((r) => badgesIn(out, r).length),
+    [rowIncluding(out, MM_1), rowIncluding(out, MM_NONE)].map((r) => badgesIn(out, r).length),
     [1, 0],
   );
 });

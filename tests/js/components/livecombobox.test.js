@@ -41,6 +41,8 @@ import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { livePresets, livePresetsBusy, livePresetError } from "../../../hqptuner/static/store/live/presets.js";
 import { staticWire } from "../support/wire.js";
 import { rec } from "../support/livepresetwire.js";
+import { labeled } from "../support/markup.js";
+import { section } from "../support/tabform.js";
 
 // The two chains number the same filters differently, so each column's options
 // come from its own source (livechain.test.js); this suite only needs every
@@ -146,17 +148,25 @@ async function reset({ mtx = {}, presets = [] } = {}) {
 
 const page = () => render(html`<${LiveView} />`);
 
-// One labeled control's own markup: from its `<label>` up to the next label
-// (or the end of the page). A miss throws rather than measuring the page.
+// One control's own markup, by the schema key its field wrapper carries — the
+// wire identifier, never the words announcing it (docs/testing.md rule 9). A
+// miss throws rather than measuring the page.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  */
-function row(out, label) {
-  const at = out.search(new RegExp(`<label>${label}(<|</label>)`));
-  if (at < 0) throw new Error(`no field labeled "${label}" in the rendered page`);
-  const next = out.indexOf("<label", at + 1);
-  return out.slice(at, next < 0 ? undefined : next);
+const row = (out, key) => labeled(out, key).html;
+
+// One card's own markup, by the id its section carries. The two pickers that
+// are not schema entries carry no key, so they are reached through their card.
+/**
+ * @param {string} out
+ * @param {string} id
+ */
+function card(out, id) {
+  const frag = section(out, id);
+  if (frag === "") throw new Error(`no card identified "${id}" in the rendered page`);
+  return frag;
 }
 
 // Opening tag of the first element in `out` whose attributes match `needle`.
@@ -170,14 +180,14 @@ const openTag = (out, needle) => {
   return m ? m[0] : null;
 };
 
-// The tag name of the form control a labeled field wraps.
+// The tag name of the form control a keyed field wraps.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  */
-function widgetTag(out, label) {
-  const m = /<(select|input|button)\b/.exec(row(out, label));
-  if (!m) throw new Error(`the field labeled "${label}" wraps no form control`);
+function widgetTag(out, key) {
+  const m = /<(select|input|button)\b/.exec(row(out, key));
+  if (!m) throw new Error(`the field keyed "${key}" wraps no form control`);
   return m[1];
 }
 
@@ -188,49 +198,50 @@ const selects = (out) => [...out.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/g)]
 
 test("test_a_live_filter_control_renders_a_combobox", async () => {
   await reset();
-  assert.notEqual(openTag(row(page(), "Nx filter"), 'role="combobox"'), null);
+  assert.notEqual(openTag(row(page(), "filter_nx"), 'role="combobox"'), null);
 });
 
 test("test_a_live_filter_controls_combobox_carries_the_dd_box_class", async () => {
   await reset();
-  assert.ok(/class="[^"]*\bdd-box\b[^"]*"/.test(row(page(), "Nx filter")));
+  assert.ok(/class="[^"]*\bdd-box\b[^"]*"/.test(row(page(), "filter_nx")));
 });
 
 test("test_a_live_filter_controls_row_carries_no_native_select", async () => {
   await reset();
-  assert.equal(/<select\b/.test(row(page(), "Nx filter")), false);
+  assert.equal(/<select\b/.test(row(page(), "filter_nx")), false);
 });
 
 test("test_a_live_modulator_control_renders_a_combobox", async () => {
   await reset();
-  assert.notEqual(openTag(row(page(), "Sigma-delta modulator"), 'role="combobox"'), null);
+  assert.notEqual(openTag(row(card(page(), "live-sdm-chain"), "shaper"), 'role="combobox"'), null);
 });
 
 // --- a dropdown with no desc keeps its native select --------------------------
-// The rate pair renders as the two per-chain rate columns, labeled by chain.
+// The rate pair renders as the two per-chain rate columns, keyed per chain.
 
-for (const chain of ["PCM", "SDM"]) {
-  test(`test_the_${chain.toLowerCase()}_rate_control_stays_a_native_select`, async () => {
+for (const chain of ["pcm", "sdm"]) {
+  test(`test_the_${chain}_rate_control_stays_a_native_select`, async () => {
     await reset();
-    assert.equal(widgetTag(page(), chain), "select");
+    assert.equal(widgetTag(page(), `${chain}_rate`), "select");
   });
 }
 
 // --- the two pickers that are not schema entries stay native ------------------
+// Neither carries a schema key, so each is reached through its own card.
 
 test("test_the_matrix_profile_picker_stays_a_native_select", async () => {
   await reset({ mtx: { file_profiles: { Room: { rows: [], post: {} } }, live_profiles: ["Room"] } });
-  assert.equal(widgetTag(page(), "Profile"), "select");
+  assert.equal(selects(card(page(), "matrix-profile")).length, 1);
 });
 
 test("test_the_live_preset_picker_stays_a_native_select", async () => {
   await reset({ presets: [rec("Living Room", "pcm")] });
-  assert.equal(widgetTag(page(), "Live preset"), "select");
+  assert.equal(selects(card(page(), "live-mode")).length, 1);
 });
 
 test("test_the_matrix_profile_picker_offers_the_loaded_profile", async () => {
   // The picker being a select is only worth pinning if it is the picker: its
   // option list carries the profile the daemon loaded.
   await reset({ mtx: { file_profiles: { Room: { rows: [], post: {} } }, live_profiles: ["Room"] } });
-  assert.ok(selects(row(page(), "Profile")).some((s) => s.includes(">Room<")));
+  assert.ok(selects(card(page(), "matrix-profile")).some((s) => s.includes(">Room<")));
 });

@@ -251,11 +251,14 @@ test("test_a_checkbox_staged_as_zero_against_a_true_baseline_is_dirty", async ()
 
 // --- summarize: failures outrank everything ---------------------------------
 
+// The verdict's `code` and the data fields beside it are what these read; the
+// sentence built from them is owner copy (docs/testing.md rule 9).
+
 test("test_a_failed_live_setting_is_reported_by_name", async () => {
   await trees();
   route({ apply: { live: [{ setting: "filter", ok: false }] } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Failed: filter");
+  assert.deepEqual(lastApply.value.settings, ["filter"]);
 });
 
 test("test_several_failed_live_settings_are_listed", async () => {
@@ -270,7 +273,7 @@ test("test_several_failed_live_settings_are_listed", async () => {
     },
   });
   await applyAll();
-  assert.equal(lastApply.value.text, "Failed: a, b");
+  assert.deepEqual(lastApply.value.settings, ["a", "b"]);
 });
 
 test("test_a_live_failure_outranks_a_failed_switch_and_a_failed_save", async () => {
@@ -279,7 +282,7 @@ test("test_a_live_failure_outranks_a_failed_switch_and_a_failed_save", async () 
     apply: { live: [{ setting: "a", ok: false }], switched: { name: "N", active: false }, saved: { ok: false } },
   });
   await applyAll();
-  assert.equal(lastApply.value.text, "Failed: a");
+  assert.equal(lastApply.value.code, "live-failed");
 });
 
 test("test_a_failed_apply_is_not_ok", async () => {
@@ -291,27 +294,34 @@ test("test_a_failed_apply_is_not_ok", async () => {
 
 // --- summarize: the switch --------------------------------------------------
 
-test("test_a_switch_that_did_not_take_is_reported", async () => {
+test("test_a_switch_that_did_not_take_is_reported_as_a_failed_switch", async () => {
   await trees();
   route({ apply: { switched: { name: "Night", active: false } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Switch to "Night" did not take');
+  assert.equal(lastApply.value.code, "switch-failed");
 });
 
-test("test_a_successful_switch_is_reported", async () => {
+test("test_a_failed_switch_names_the_preset_it_could_not_reach", async () => {
+  await trees();
+  route({ apply: { switched: { name: "Night", active: false } } });
+  await applyAll();
+  assert.equal(lastApply.value.preset, "Night");
+});
+
+test("test_a_successful_switch_is_reported_as_switched", async () => {
   await trees();
   route({ apply: { switched: { name: "Night", active: true } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Switched to "Night"');
+  assert.equal(lastApply.value.code, "switched");
 });
 
-// Unloading the active preset switches to the nameless "(no preset)" option, so
-// quoting the switch target as a preset name printed `Switched to ""`.
-test("test_a_switch_to_the_nameless_preset_is_reported_as_no_preset", async () => {
+// Unloading the active preset switches to the nameless "(no preset)" option: an
+// empty name is a real switch and must not degrade the verdict.
+test("test_a_switch_to_the_nameless_preset_still_reads_as_switched", async () => {
   await trees();
   route({ apply: { switched: { name: "", active: true } } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Switched to (no preset)");
+  assert.equal(lastApply.value.code, "switched");
 });
 
 // --- summarize: the persistent lane -----------------------------------------
@@ -320,21 +330,38 @@ test("test_a_missing_endpoint_is_named_rather_than_reported_generically", async 
   await trees();
   route({ apply: { persistent: { applied: false, unfixable: { net_device: { want: "NAA1" } }, error: "e" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Endpoint "NAA1" not present — config not applied');
+  assert.equal(lastApply.value.endpoint, "NAA1");
 });
 
-test("test_a_persistent_error_is_reported_verbatim", async () => {
+test("test_a_missing_endpoint_outranks_the_generic_error_beside_it", async () => {
+  await trees();
+  route({ apply: { persistent: { applied: false, unfixable: { net_device: { want: "NAA1" } }, error: "e" } } });
+  await applyAll();
+  assert.equal(lastApply.value.code, "endpoint-missing");
+});
+
+test("test_a_persistent_error_is_reported_as_an_error", async () => {
   await trees();
   route({ apply: { persistent: { applied: false, error: "boom" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Config not applied: boom");
+  assert.equal(lastApply.value.code, "persist-error");
+});
+
+// The daemon's own reason is the only thing that tells the user what went
+// wrong, so it must survive the trip to the caption. The test invents it, which
+// is why asserting it back pins no shipped wording.
+test("test_the_daemons_own_error_reaches_the_user", async () => {
+  await trees();
+  route({ apply: { persistent: { applied: false, error: "boom" } } });
+  await applyAll();
+  assert.ok(String(lastApply.value.text).includes("boom"));
 });
 
 test("test_a_persistent_refusal_reports_its_reason", async () => {
   await trees();
   route({ apply: { persistent: { applied: false, reason: "timeout" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Config not applied (timeout)");
+  assert.equal(lastApply.value.reason, "timeout");
 });
 
 // "unconverged" alone is undebuggable: it says a setting the daemon kept
@@ -344,33 +371,33 @@ test("test_an_unconverged_apply_names_the_fields_that_diverged", async () => {
   await trees();
   route({ apply: { persistent: { applied: false, reason: "unconverged", diff: { volume_max: {}, alsa_dop: {} } } } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Config not applied (unconverged): volume_max, alsa_dop");
+  assert.deepEqual(lastApply.value.fields, ["volume_max", "alsa_dop"]);
 });
 
-test("test_a_persistent_refusal_with_no_reason_reads_as_unconfirmed", async () => {
+test("test_a_persistent_refusal_with_no_reason_is_still_a_refusal", async () => {
   await trees();
   route({ apply: { persistent: { applied: false } } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Config not applied (unconfirmed)");
+  assert.equal(lastApply.value.code, "persist-refused");
 });
 
 // --- summarize: change counts -----------------------------------------------
 
-test("test_an_apply_with_nothing_staged_says_so", async () => {
+test("test_an_apply_with_nothing_staged_counts_no_changes", async () => {
   await trees();
   await discardAll();
   route({ apply: {} });
   await applyAll();
-  assert.equal(lastApply.value.text, "Applied no changes");
+  assert.equal(lastApply.value.changes, 0);
 });
 
-test("test_a_single_change_is_reported_in_the_singular", async () => {
+test("test_a_single_change_is_counted_as_one", async () => {
   await trees({ fields: [field("volume_max", "-3")] });
   route({ staged: { live: {}, http: { volume_max: "-6" } } });
   await edit("volume_max", "-6");
   route({ apply: {}, staged: { live: {}, http: { volume_max: "-6" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, "Applied 1 change");
+  assert.equal(lastApply.value.changes, 1);
 });
 
 test("test_a_switch_and_edits_are_reported_together", async () => {
@@ -379,17 +406,20 @@ test("test_a_switch_and_edits_are_reported_together", async () => {
   await edit("volume_max", "-6");
   route({ apply: { switched: { name: "N", active: true } }, staged: { live: {}, http: { volume_max: "-6" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Switched to "N" + 1 change');
+  assert.deepEqual([lastApply.value.code, lastApply.value.changes], ["switched", 1]);
 });
 
 // --- summarize: the save lane -----------------------------------------------
 
-test("test_a_successful_save_is_appended", async () => {
+// A save rides its own axis on the verdict, because an apply and a save can end
+// differently and one code cannot carry both.
+
+test("test_a_successful_save_rides_alongside_the_apply", async () => {
   await trees();
   await discardAll();
   route({ apply: { saved: { ok: true, name: "P" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Applied no changes · saved to "P"');
+  assert.equal(lastApply.value.save, "ok");
 });
 
 test("test_a_failed_save_is_appended_and_makes_the_apply_not_ok", async () => {
@@ -400,24 +430,24 @@ test("test_a_failed_save_is_appended_and_makes_the_apply_not_ok", async () => {
   assert.equal(lastApply.value.ok, false);
 });
 
-test("test_a_failed_save_names_the_preset_and_the_error", async () => {
+test("test_a_failed_save_is_reported_as_failed", async () => {
   await trees();
   await discardAll();
   route({ apply: { saved: { ok: false, name: "P", error: "disk" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Applied no changes — save to "P" failed: disk');
+  assert.equal(lastApply.value.save, "failed");
 });
 
 // A WARNED save is a save: only hqplayerd's own mirror of the preset is behind,
 // so the caveat rides a success rather than turning it into a failure. Reporting
 // it as failed is what sent a user hunting for a preset already on disk.
 
-test("test_a_warned_save_carries_its_caveat_in_the_text", async () => {
+test("test_a_warned_save_is_reported_as_warned", async () => {
   await trees();
   await discardAll();
   route({ apply: { saved: { ok: true, name: "P", warning: "list not updated" } } });
   await applyAll();
-  assert.equal(lastApply.value.text, 'Applied no changes · saved to "P" — list not updated');
+  assert.equal(lastApply.value.save, "warned");
 });
 
 test("test_a_warned_save_is_still_ok", async () => {

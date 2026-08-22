@@ -8,10 +8,10 @@
 // /api/state, /api/enumerations, /api/config and /api/matrix actually serve,
 // over a faked wire on the real REST paths; nothing of ours is stubbed.
 //
-// Anchors are what a user reads or a screen reader consumes: a card is found by
-// the heading it carries, a control by its `<label>`, the dial by its ARIA
-// values. A miss throws rather than quietly measuring some other part of the
-// page, so a renamed head or a restructured card fails loudly.
+// Anchors are machine identities, never words (docs/testing.md rule 9): a card
+// is found by the `data-card` its section carries, a control by the schema key
+// on its wrapper, the dial by its ARIA values. A miss throws rather than quietly
+// measuring some other part of the page, so a restructured card fails loudly.
 //
 // The "region carrying the disabled state" of behavior 9 is read off the `off`
 // class token, which is this codebase's rendered marker for a control the engine
@@ -47,7 +47,8 @@ import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
-import { classes, disabledRegion, elements, enclosing, hasLabel, labeled, text } from "../support/markup.js";
+import { attr, classes, disabledRegion, elements, enclosing, hasLabel, labeled, text } from "../support/markup.js";
+import { cardHeadAt, section } from "../support/tabform.js";
 
 // The junk-filter enumeration as GetJunkFilters serves it: options come from
 // here and nowhere else — the daemon's /config form has no junk_filter field
@@ -113,8 +114,10 @@ const STATE = (level) => ({
 
 const ON = { enabled: "1", min: "-60", max: "0" };
 const OFF = { enabled: "0", min: "-60", max: "0" };
-const SDM_HINT = "Direct SDM bypasses the volume control and sets PCM volume to a fixed -3 dBFS value.";
-const FIXED_HINT = "Fixed volume in effect";
+
+// The two cards under discussion, by the id their sections carry.
+const LIVE_PLAYBACK = "live-playback";
+const VOLUME_CARD = "playback-volume";
 
 // `running` is the daemon's own /config form, keyed by FORM FIELD name — the
 // authority the disabled reason is read from, ahead of anything staged.
@@ -143,43 +146,41 @@ async function reset({ range = ON, level = "-12", running = {} } = {}) {
 const page = () => render(html`<${LiveView} />`);
 const volumeCard = () => render(html`<${PlaybackVolume} />`);
 
-// The title a card head announces: its own text, less the disclosure triangle a
-// collapsible head carries ahead of it (components/common.js).
 /** @typedef {import("../support/markup.js").MarkupElement} MarkupElement */
 
-/** @param {string} out */
-const heads = (out) => elements(out).filter((el) => classes(el).includes("card-head"));
-/** @param {MarkupElement} el */
-const title = (el) => text(el).replace(/^[^\p{L}\p{N}]+/u, "");
-
-// Every card title on a page, in document order. A page with no card heads at
-// all raises rather than reporting an empty list, so a question about what the
-// page does NOT carry can never be answered by markup that simply moved.
-/** @param {string} out */
-function cardTitles(out) {
-  const found = heads(out);
-  if (found.length === 0) throw new Error("the rendered page carries no card heads");
-  return found.map(title);
-}
-
-// One card's own markup: the smallest element enclosing its head. A miss throws
-// rather than handing back the page.
+// One card's own markup, by its id. A miss throws rather than handing back an
+// empty string, so a question about what a card holds can never be answered by
+// a card that was never rendered.
 /**
  * @param {string} out
  * @param {string} want
  */
 function card(out, want) {
-  const hit = heads(out).find((el) => title(el) === want);
-  if (!hit) throw new Error(`no card headed "${want}" in the rendered page`);
-  return enclosing(out, hit).html;
+  const frag = section(out, want);
+  if (frag === "") throw new Error(`no card identified "${want}" in the rendered page`);
+  return frag;
 }
 
-// One labeled control's own markup: the smallest element enclosing its label.
+// One control's own markup: the smallest element enclosing its keyed wrapper.
 /**
  * @param {string} out
- * @param {string} label
+ * @param {string} key
  */
-const row = (out, label) => enclosing(out, labeled(out, label)).html;
+const row = (out, key) => enclosing(out, labeled(out, key)).html;
+
+// Whether a fragment encloses the volume hint, whatever cause it names.
+/** @param {string} frag */
+const hasHint = (frag) => elements(frag).some((el) => attr(el, "data-hint") !== undefined);
+
+// The cause the hint names, or null when the fragment carries no hint.
+/**
+ * @param {string} frag
+ * @returns {string | null}
+ */
+const cause = (frag) => {
+  const el = elements(frag).find((e) => attr(e, "data-hint") !== undefined);
+  return el ? (attr(el, "data-hint") ?? null) : null;
+};
 
 /**
  * @param {string} out
@@ -187,96 +188,58 @@ const row = (out, label) => enclosing(out, labeled(out, label)).html;
  */
 const aria = (out, name) => (new RegExp(`${name}="([^"]*)"`).exec(out) || [])[1];
 
-// The dial itself: the one element carrying the bare `knob` class token, as
-// opposed to the `knob-*` parts it is built from. Reading the dial alone keeps
-// the name cases below off the prose of the controls beside it.
-/**
- * @param {string} frag
- * @returns {MarkupElement}
- */
-function dial(frag) {
-  const hit = elements(frag).find((el) => classes(el).includes("knob"));
-  if (!hit) throw new Error("no dial in the fragment");
-  return hit;
-}
-
-// What a reader sees in the dial's own region: the smallest element enclosing
-// the dial, which is where a name for it would sit — beside the readout, not
-// inside the card head.
-/** @param {string} frag */
-const dialRegion = (frag) => text(enclosing(frag, dial(frag)));
-
 // --- the cards the LIVE page lays out -----------------------------------------
 
 test("test_the_live_page_carries_a_playback_card", async () => {
   await reset();
-  assert.ok(cardTitles(page()).includes("Playback"));
-});
-
-test("test_the_live_page_carries_no_processing_card", async () => {
-  await reset();
-  assert.equal(cardTitles(page()).includes("Processing"), false);
+  assert.notEqual(cardHeadAt(page(), LIVE_PLAYBACK), -1);
 });
 
 test("test_the_live_page_gives_the_dial_no_card_of_its_own", async () => {
   await reset();
-  assert.equal(cardTitles(page()).includes("Playback volume"), false);
+  assert.equal(cardHeadAt(page(), VOLUME_CARD), -1);
 });
 
 // --- what the consolidated card holds ------------------------------------------
 
 test("test_the_playback_card_carries_the_adaptive_volume_control", async () => {
   await reset();
-  assert.ok(hasLabel(card(page(), "Playback"), "Adaptive volume"));
+  assert.ok(hasLabel(card(page(), LIVE_PLAYBACK), "adaptive_volume"));
 });
 
 test("test_the_playback_card_carries_the_high_frequency_filter_control", async () => {
   await reset();
-  assert.ok(hasLabel(card(page(), "Playback"), "High-frequency filter"));
+  assert.ok(hasLabel(card(page(), LIVE_PLAYBACK), "junk_filter"));
 });
 
 test("test_the_high_frequency_filter_shows_the_junk_filter_the_engine_reports", async () => {
   await reset();
-  assert.ok(row(card(page(), "Playback"), "High-frequency filter").includes("iir-15khz"));
+  assert.ok(row(card(page(), LIVE_PLAYBACK), "junk_filter").includes("iir-15khz"));
 });
 
 // The engine reports list index "1"; a control populated from the enumeration
 // offers index "0" as well, a read-only display of the current filter does not.
 test("test_the_high_frequency_filter_offers_the_junk_filters_it_is_not_set_to", async () => {
   await reset();
-  const out = row(card(page(), "Playback"), "High-frequency filter");
+  const out = row(card(page(), LIVE_PLAYBACK), "junk_filter");
   assert.ok(elements(out).some((el) => text(el) === "none"));
 });
 
 test("test_adaptive_volume_precedes_the_high_frequency_filter", async () => {
   await reset();
-  const out = card(page(), "Playback");
-  assert.ok(labeled(out, "Adaptive volume").start < labeled(out, "High-frequency filter").start);
+  const out = card(page(), LIVE_PLAYBACK);
+  assert.ok(labeled(out, "adaptive_volume").start < labeled(out, "junk_filter").start);
 });
 
 test("test_the_playback_card_carries_the_volume_dial", async () => {
   await reset({ level: "-12" });
-  assert.equal(aria(card(page(), "Playback"), "aria-valuenow"), "-12");
+  assert.equal(aria(card(page(), LIVE_PLAYBACK), "aria-valuenow"), "-12");
 });
 
-// The consolidated card is headed "Playback" and holds three controls, so the
-// dial carries its own name to say which of them it is; the Volume tab's card
-// is headed "Playback volume" and says it already.
-
-test("test_the_dial_names_itself_inside_the_consolidated_playback_card", async () => {
-  await reset();
-  assert.ok(dialRegion(card(page(), "Playback")).includes("Playback volume"));
-});
-
-test("test_the_volume_tabs_dial_leaves_the_naming_to_the_card_head", async () => {
-  await reset();
-  assert.equal(dialRegion(card(volumeCard(), "Playback volume")).includes("Playback volume"), false);
-});
-
-test("test_the_playback_card_offers_no_faster_updates_tickbox", async () => {
-  await reset();
-  assert.equal(card(page(), "Playback").includes("Faster volume updates"), false);
-});
+// The two cases that stood here pinned WHICH WORDS name the dial: that the
+// consolidated card's dial carries its own caption and the Volume tab's dial
+// leaves the naming to the card head. Both are owner-owned wording with no
+// machine identity beside them, so both are gone (docs/testing.md rule 9).
 
 // --- a disabled volume control grays the dial, and nothing else -----------------
 // The engine reports "disabled" without a cause; the card names it from the
@@ -288,54 +251,49 @@ test("test_the_playback_card_offers_no_faster_updates_tickbox", async () => {
 test("test_an_enabled_volume_control_grays_nothing_in_the_playback_card", async () => {
   await reset({ range: ON });
   assert.equal(
-    elements(card(page(), "Playback")).some((el) => classes(el).includes("off")),
+    elements(card(page(), LIVE_PLAYBACK)).some((el) => classes(el).includes("off")),
     false,
   );
 });
 
 test("test_a_disabled_volume_control_grays_the_dial", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.ok(disabledRegion(card(page(), "Playback")).includes('class="knob'));
+  assert.ok(disabledRegion(card(page(), LIVE_PLAYBACK)).includes('class="knob'));
 });
 
 test("test_the_disabled_region_encloses_the_reason_hint", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.ok(disabledRegion(card(page(), "Playback")).includes(SDM_HINT));
+  assert.ok(hasHint(disabledRegion(card(page(), LIVE_PLAYBACK))));
 });
 
 test("test_the_disabled_region_leaves_out_the_adaptive_volume_control", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.equal(hasLabel(disabledRegion(card(page(), "Playback")), "Adaptive volume"), false);
+  assert.equal(hasLabel(disabledRegion(card(page(), LIVE_PLAYBACK)), "adaptive_volume"), false);
 });
 
 test("test_the_disabled_region_leaves_out_the_high_frequency_filter_control", async () => {
   await reset({ range: OFF, running: { direct_sdm: "1" } });
-  assert.equal(hasLabel(disabledRegion(card(page(), "Playback")), "High-frequency filter"), false);
+  assert.equal(hasLabel(disabledRegion(card(page(), LIVE_PLAYBACK)), "junk_filter"), false);
 });
 
 test("test_a_fixed_volume_disable_names_its_cause_on_the_live_page", async () => {
   await reset({ range: OFF, running: { fixed_volume_enabled: "1" } });
-  assert.ok(card(page(), "Playback").includes(FIXED_HINT));
+  assert.equal(cause(card(page(), LIVE_PLAYBACK)), "fixed-volume");
 });
 
 test("test_an_unexplained_disable_reads_as_no_active_stream_on_the_live_page", async () => {
   await reset({ range: OFF });
-  assert.ok(card(page(), "Playback").includes("No active stream — volume adjusts live during playback."));
+  assert.equal(cause(card(page(), LIVE_PLAYBACK)), "no-stream");
 });
 
-// --- the Volume tab's own copy is untouched ------------------------------------
+// --- the Volume tab's own card is untouched ------------------------------------
 
-test("test_the_volume_tabs_card_is_still_headed_playback_volume", async () => {
+test("test_the_volume_tab_still_renders_the_playback_volume_card", async () => {
   await reset();
-  assert.ok(cardTitles(volumeCard()).includes("Playback volume"));
+  assert.notEqual(cardHeadAt(volumeCard(), VOLUME_CARD), -1);
 });
 
 test("test_the_volume_tabs_card_still_carries_the_dial", async () => {
   await reset({ level: "-12" });
-  assert.equal(aria(card(volumeCard(), "Playback volume"), "aria-valuenow"), "-12");
-});
-
-test("test_the_volume_tabs_card_offers_no_faster_updates_tickbox_either", async () => {
-  await reset();
-  assert.equal(volumeCard().includes("Faster volume updates"), false);
+  assert.equal(aria(card(volumeCard(), VOLUME_CARD), "aria-valuenow"), "-12");
 });

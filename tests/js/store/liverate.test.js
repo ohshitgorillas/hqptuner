@@ -18,7 +18,7 @@
 // are two separate questions:
 //
 //   - a tier is reachable when the engine's list holds EITHER of its members,
-//     and grayed "unavailable" only when it holds NEITHER. A tier the engine is
+//     and grayed with a reason only when it holds NEITHER. A tier the engine is
 //     offering at one of its two rates is a tier the engine is offering, so the
 //     source playing cannot take an entry out of reach. This rule is scoped to
 //     the column for the family the engine is RUNNING, and only that one: the
@@ -411,9 +411,11 @@ function optionFor(control, value) {
 // and what it says about itself. A grayed entry must carry BOTH — an entry
 // disabled without a reason leaves the user guessing, and a reason on an entry
 // that is still selectable grays nothing.
+// The reason's wording is owner copy (docs/testing.md rule 9), so the pair
+// records only that one is there.
 /** @param {RateOption} o */
-const marks = (o) => [Boolean(o.disabled), o.reason || null];
-const GRAYED = [true, "unavailable"];
+const marks = (o) => [Boolean(o.disabled), o.reason ? "reason" : null];
+const GRAYED = [true, "reason"];
 const REACHABLE = [false, null];
 
 /** @param {RateColumn} control */
@@ -488,11 +490,6 @@ test("test_the_dormant_sdm_column_still_offers_a_tier_the_engine_does_not_enumer
 test("test_the_running_sdm_column_grays_a_tier_the_engine_does_not_enumerate", () => {
   reset(SDM_RUNNING());
   assert.deepEqual(marks(optionFor(liveModel.value.sdmRate, DSD512)), GRAYED);
-});
-
-test("test_a_grayed_tier_gives_unavailable_as_its_reason", () => {
-  reset(SDM_RUNNING());
-  assert.equal(optionFor(liveModel.value.sdmRate, DSD512).reason, "unavailable");
 });
 
 test("test_the_running_sdm_column_leaves_an_enumerated_tier_reachable", () => {

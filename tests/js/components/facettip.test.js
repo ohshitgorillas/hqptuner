@@ -17,10 +17,16 @@
 // worked filters overlay (alias, notes, two_stage_note), dithers and
 // modulators — the same fixtures the prose suites pin "today's" tip text with.
 //
-// Rows are looked up by their label, never by position: the spec fixes which
-// rows exist and what they say, not their order. Spec ambiguity, readings
-// taken: multi-value genre/focus row values are compared case-insensitively —
-// the spec fixes the ", " join and the member order, not the casing. And
+// A row is `[facetKey, label, value, codes]` and a chip is `[code, label]`.
+// Rows are looked up by their facet KEY, asserted on their CODES, and chips on
+// their CODE — the machine identities — never on the label or the joined
+// reading beside them, which are the owner's wording (docs/testing.md rule 9).
+// No exceptions: every codes member is a `string[]`, quality's included, where
+// the `n/5` a reader sees is built from a single-element `["4"]`.
+//
+// Spec ambiguity, readings taken: a multi-value genre/focus row is pinned on
+// the MEMBERSHIP and ORDER of its codes — the ", " join and the casing belong
+// to the label the codes were rendered into. And
 // behavior 10's "static fills only filters the live enum lacks" is read
 // PER-FACET, not per-filter — a live-enumerated filter still takes its Genre
 // (and other static-only facets) from the overlay, since live items never
@@ -95,17 +101,38 @@ function seed(live, overlay = {}) {
   };
 }
 
+// The facet keys a row can carry — the machine identity beside each row's
+// label, and how a row is addressed here. The label itself is the owner's
+// wording and is never matched on (docs/testing.md rule 9).
+const QUALITY = "quality";
+const GENRE = "genre";
+const FOCUS = "focus";
+const PHASE = "phase";
+const LENGTH = "length";
+const RATIO = "ratio";
+
 /**
- * The named row of one filter's facet block, or undefined.
+ * One filter's row for facet `key`, or an empty tuple when no such row exists.
+ * A row is `[facetKey, label, value, codes]`.
  *
  * @param {string} name
  * @param {string} key
- * @returns {[string, string] | undefined}
  */
-const row = (name, key) => filterTipFacets(name).rows.find((r) => r[0] === key);
+const rowFor = (name, key) => filterTipFacets(name).rows.find((r) => r[0] === key) || [];
 
 /**
- * The row labels of one filter's facet block.
+ * The RAW facet values a row's labelled reading was built from — the contract
+ * half of the row. Undefined when no such row exists, which fails an assertion
+ * rather than passing as an empty list.
+ *
+ * @param {string} name
+ * @param {string} key
+ * @returns {string[] | undefined}
+ */
+const rowCodes = (name, key) => rowFor(name, key)[3];
+
+/**
+ * The facet keys of one filter's facet block.
  *
  * @param {string} name
  * @returns {string[]}
@@ -113,18 +140,29 @@ const row = (name, key) => filterTipFacets(name).rows.find((r) => r[0] === key);
 const rowKeys = (name) => filterTipFacets(name).rows.map((r) => r[0]);
 
 /**
- * Case-insensitive equality of a row's value — pins the exact ", " join and
- * membership while keeping casing latitude. Builds the condition for the one
- * assert at the call site.
+ * The chip CODES one filter's facet block carries. A chip is `[code, label]`;
+ * the code is contract, the label beside it is not.
  *
- * @param {[string, string] | undefined} pair
- * @param {string} expected
- * @returns {[boolean, string]}
+ * @param {string} name
+ * @returns {string[]}
  */
-const rowValueIs = (pair, expected) => {
-  const got = String((pair || [])[1]);
-  return [got.toLowerCase() === expected, `expected row value "${expected}", got "${got}"`];
-};
+const chipCodes = (name) => filterTipFacets(name).chips.map((c) => c[0]);
+
+// The facet codes the fixtures below classify to. Grounded on the store's own
+// facet vocabulary: phase (tests/js/store/phase-facet.test.js), length
+// (tests/js/store/length-facet.test.js), genre (tests/js/store/
+// narrowing-mode.test.js), and ratio/focus on the very tokens these fixtures
+// feed in through the overlay and the engine description.
+const LINEAR = "linear";
+const MINIMUM = "minimum";
+const INTERMEDIATE = "intermediate";
+const SHORT = "short";
+const MEDIUM = "medium";
+const LONG = "long";
+const XLONG = "xlong";
+const ANY = "any";
+const INTEGER = "integer";
+const TWO_X = "2x";
 
 // ============================================================================
 // filterTipFacets — unknown names
@@ -139,46 +177,46 @@ test("test_an_unknown_filter_name_yields_empty_rows_and_chips", () => {
 // filterTipFacets — rows carry the facets that hold
 // ============================================================================
 
-test("test_a_live_quality_renders_as_n_of_5", () => {
+test("test_a_live_description_supplies_the_quality_code", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("gauss-plain", "Quality"), ["Quality", "4/5"]);
+  assert.deepEqual(rowCodes("gauss-plain", QUALITY), ["4"]);
 });
 
 test("test_a_static_only_filter_takes_its_quality_from_the_overlay", () => {
   seed([], { "closed-form": { quality: 3 } });
-  assert.deepEqual(row("closed-form", "Quality"), ["Quality", "3/5"]);
+  assert.deepEqual(rowCodes("closed-form", QUALITY), ["3"]);
 });
 
 test("test_a_linear_phase_name_token_renders_a_linear_phase_row", () => {
   seed([{ name: "poly-sinc-lp", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-lp", "Phase"), ["Phase", "Linear"]);
+  assert.deepEqual(rowCodes("poly-sinc-lp", PHASE), [LINEAR]);
 });
 
 // The xlong class has no literal name token: it derives from an -xl/-xla
-// suffix (or a fixed per-name override table). "Extra long" is its label.
+// suffix (or a fixed per-name override table).
 test("test_an_xla_suffixed_name_renders_an_extra_long_length_row", () => {
   seed([{ name: "poly-sinc-ext2-xla", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-ext2-xla", "Length"), ["Length", "Extra long"]);
+  assert.deepEqual(rowCodes("poly-sinc-ext2-xla", LENGTH), [XLONG]);
 });
 
 test("test_a_minimum_phase_name_token_renders_a_minimum_phase_row", () => {
   seed([{ name: "poly-sinc-mp", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-mp", "Phase"), ["Phase", "Minimum"]);
+  assert.deepEqual(rowCodes("poly-sinc-mp", PHASE), [MINIMUM]);
 });
 
 test("test_an_intermediate_phase_name_token_renders_an_intermediate_phase_row", () => {
   seed([{ name: "poly-sinc-ip", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-ip", "Phase"), ["Phase", "Intermediate"]);
+  assert.deepEqual(rowCodes("poly-sinc-ip", PHASE), [INTERMEDIATE]);
 });
 
 test("test_a_long_name_substring_renders_a_long_length_row", () => {
   seed([{ name: "poly-sinc-gauss-long", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-gauss-long", "Length"), ["Length", "Long"]);
+  assert.deepEqual(rowCodes("poly-sinc-gauss-long", LENGTH), [LONG]);
 });
 
 test("test_an_xl_suffixed_name_renders_an_extra_long_length_row", () => {
   seed([{ name: "poly-sinc-ext3-xl", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("poly-sinc-ext3-xl", "Length"), ["Length", "Extra long"]);
+  assert.deepEqual(rowCodes("poly-sinc-ext3-xl", LENGTH), [XLONG]);
 });
 
 // sinc-S carries no -short suffix: its short class comes from the fixed
@@ -187,27 +225,29 @@ test("test_an_xl_suffixed_name_renders_an_extra_long_length_row", () => {
 // not the length, so the ancestor's -xla classifies nothing here.
 test("test_an_override_table_name_renders_its_short_length_row", () => {
   seed([{ name: "sinc-S", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("sinc-S", "Length"), ["Length", "Short"]);
+  assert.deepEqual(rowCodes("sinc-S", LENGTH), [SHORT]);
 });
 
-test("test_an_any_genre_filter_renders_all_genres", () => {
+test("test_an_any_genre_filter_renders_the_any_genre_code", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }], { "gauss-plain": { genre: ["any"] } });
-  assert.deepEqual(row("gauss-plain", "Genre"), ["Genre", "All genres"]);
+  assert.deepEqual(rowCodes("gauss-plain", GENRE), [ANY]);
 });
 
 test("test_a_live_integer_ratio_renders_an_integer_ratio_row", () => {
   seed([{ name: "rat-int", description: "4/5 ⥮ Int" }]);
-  assert.deepEqual(row("rat-int", "Ratio"), ["Ratio", "Integer"]);
+  assert.deepEqual(rowCodes("rat-int", RATIO), [INTEGER]);
 });
 
-test("test_a_multi_genre_list_joins_with_comma_space", () => {
+// The join and the casing belong to the label; the MEMBERSHIP and the order
+// are the row's codes, and those are what the multi-value cases pin.
+test("test_a_multi_genre_row_carries_its_genres_in_order", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }], { "gauss-plain": { genre: ["jazz", "classical"] } });
-  assert.ok(...rowValueIs(row("gauss-plain", "Genre"), "jazz & blues, classical"));
+  assert.deepEqual(rowCodes("gauss-plain", GENRE), ["jazz", "classical"]);
 });
 
-test("test_a_multi_focus_list_joins_with_comma_space", () => {
+test("test_a_multi_focus_row_carries_its_focuses_in_order", () => {
   seed([{ name: "gauss-a", description: "4/5 timbre, transients ⥮ Any" }]);
-  assert.ok(...rowValueIs(row("gauss-a", "Focus"), "timbre, transients"));
+  assert.deepEqual(rowCodes("gauss-a", FOCUS), ["timbre", "transients"]);
 });
 
 // ============================================================================
@@ -216,22 +256,22 @@ test("test_a_multi_focus_list_joins_with_comma_space", () => {
 
 test("test_a_filter_without_quality_renders_no_quality_row", () => {
   seed([], { "closed-form": { genre: ["jazz"] } });
-  assert.equal(rowKeys("closed-form").includes("Quality"), false);
+  assert.equal(rowKeys("closed-form").includes(QUALITY), false);
 });
 
 test("test_a_name_without_phase_tokens_renders_no_phase_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.equal(rowKeys("gauss-plain").includes("Phase"), false);
+  assert.equal(rowKeys("gauss-plain").includes(PHASE), false);
 });
 
 test("test_an_empty_genre_list_renders_no_genre_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }], { "gauss-plain": { genre: [] } });
-  assert.equal(rowKeys("gauss-plain").includes("Genre"), false);
+  assert.equal(rowKeys("gauss-plain").includes(GENRE), false);
 });
 
 test("test_a_filter_without_focus_renders_no_focus_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.equal(rowKeys("gauss-plain").includes("Focus"), false);
+  assert.equal(rowKeys("gauss-plain").includes(FOCUS), false);
 });
 
 // Length is an empty-able facet like the rest: tap count is a filter
@@ -239,7 +279,7 @@ test("test_a_filter_without_focus_renders_no_focus_row", () => {
 // than a guessed medium, and a facet with no value produces no row.
 test("test_a_name_without_length_tokens_renders_no_length_row", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.equal(rowKeys("gauss-plain").includes("Length"), false);
+  assert.equal(rowKeys("gauss-plain").includes(LENGTH), false);
 });
 
 // The sinc-M set states a tap count and no length letter, and the "Variant of
@@ -249,7 +289,7 @@ test("test_a_name_without_length_tokens_renders_no_length_row", () => {
 for (const name of ["sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
   test(`test_${name.replace(/-/g, "_")}_renders_no_length_row`, () => {
     seed([{ name, description: "4/5 ⥮ Any" }]);
-    assert.equal(rowKeys(name).includes("Length"), false);
+    assert.equal(rowKeys(name).includes(LENGTH), false);
   });
 }
 
@@ -257,44 +297,47 @@ for (const name of ["sinc-M", "sinc-Mx", "sinc-MG", "sinc-MGa"]) {
 // medium by accident, and removing it must not cost such a name its own value.
 test("test_a_name_that_says_medium_renders_a_medium_length_row", () => {
   seed([{ name: "gauss-medium", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("gauss-medium", "Length"), ["Length", "Medium"]);
+  assert.deepEqual(rowCodes("gauss-medium", LENGTH), [MEDIUM]);
 });
 
 test("test_a_filter_without_ratio_renders_no_ratio_row", () => {
   seed([], { "closed-form": { quality: 3 } });
-  assert.equal(rowKeys("closed-form").includes("Ratio"), false);
+  assert.equal(rowKeys("closed-form").includes(RATIO), false);
 });
 
 // ============================================================================
 // filterTipFacets — mode-split ratio
 // ============================================================================
 
-// The two sides differ on purpose: equal values would pass under a PCM/SDM swap.
-test("test_a_mode_split_ratio_renders_one_pcm_and_sdm_valued_ratio_row", () => {
+// The two sides differ on purpose: equal codes would pass under a PCM/SDM swap.
+// ONE row, carrying both sides' codes in PCM-then-SDM order.
+test("test_a_mode_split_ratio_renders_one_row_carrying_both_sides_codes", () => {
   seed([], { "closed-form": { ratio_pcm: "integer", ratio_sdm: "2x" } });
   assert.deepEqual(
-    filterTipFacets("closed-form").rows.filter((r) => r[0] === "Ratio"),
-    [["Ratio", "PCM Integer · SDM 2x"]],
+    filterTipFacets("closed-form")
+      .rows.filter((r) => r[0] === RATIO)
+      .map((r) => r[3]),
+    [[INTEGER, TWO_X]],
   );
 });
 
 // ============================================================================
-// filterTipFacets — an "any" ratio renders its label, never the raw token
+// filterTipFacets — an "any" ratio carries the any code
 // ============================================================================
 
-test("test_a_live_any_ratio_renders_the_any_label", () => {
+test("test_a_live_any_ratio_carries_the_any_code", () => {
   seed([{ name: "rat-any", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(row("rat-any", "Ratio"), ["Ratio", "Any"]);
+  assert.deepEqual(rowCodes("rat-any", RATIO), [ANY]);
 });
 
-test("test_a_static_any_ratio_renders_the_any_label", () => {
+test("test_a_static_any_ratio_carries_the_any_code", () => {
   seed([], { "closed-form": { ratio: "any" } });
-  assert.deepEqual(row("closed-form", "Ratio"), ["Ratio", "Any"]);
+  assert.deepEqual(rowCodes("closed-form", RATIO), [ANY]);
 });
 
-test("test_a_mode_split_any_side_renders_the_any_label", () => {
+test("test_a_mode_split_any_side_carries_the_any_code", () => {
   seed([], { "closed-form": { ratio_pcm: "any", ratio_sdm: "2x" } });
-  assert.deepEqual(row("closed-form", "Ratio"), ["Ratio", "PCM Any · SDM 2x"]);
+  assert.deepEqual(rowCodes("closed-form", RATIO), [ANY, TWO_X]);
 });
 
 // ============================================================================
@@ -303,7 +346,7 @@ test("test_a_mode_split_any_side_renders_the_any_label", () => {
 
 test("test_a_live_apodizing_filter_carries_the_apodizing_chip", () => {
   seed([{ name: "gauss-apod", description: "4/5 ⥮ Any", arg: 1 }]);
-  assert.deepEqual(filterTipFacets("gauss-apod").chips, ["Apodizing"]);
+  assert.deepEqual(chipCodes("gauss-apod"), ["apodizing"]);
 });
 
 // Bit 1 of the raw (string) arg is read in the frontend; the backend derives a
@@ -311,28 +354,28 @@ test("test_a_live_apodizing_filter_carries_the_apodizing_chip", () => {
 // its `apodizing` boolean stays false.
 test("test_a_live_half_apodizing_filter_carries_the_half_apodizing_chip", () => {
   seed([{ name: "gauss-hapod", description: "4/5 ⥮ Any", arg: 2 }]);
-  assert.deepEqual(filterTipFacets("gauss-hapod").chips, ["Half apodizing"]);
+  assert.deepEqual(chipCodes("gauss-hapod"), ["half-apodizing"]);
 });
 
 test("test_a_half_apodizing_overlay_filter_carries_the_half_apodizing_chip", () => {
   seed([], { "closed-form": { apodizing: "half" } });
-  assert.deepEqual(filterTipFacets("closed-form").chips, ["Half apodizing"]);
+  assert.deepEqual(chipCodes("closed-form"), ["half-apodizing"]);
 });
 
 test("test_an_upsample_only_overlay_filter_carries_the_upsample_only_chip", () => {
   seed([], { "closed-form": { upsample_only: true } });
-  assert.deepEqual(filterTipFacets("closed-form").chips, ["Upsample only"]);
+  assert.deepEqual(chipCodes("closed-form"), ["upsample-only"]);
 });
 
 test("test_a_filter_with_no_boolean_facets_carries_no_chips", () => {
   seed([{ name: "gauss-plain", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(filterTipFacets("gauss-plain").chips, []);
+  assert.deepEqual(chipCodes("gauss-plain"), []);
 });
 
 // The hi-res chip is deliberately excluded: a hires-named filter earns nothing.
 test("test_a_hires_name_earns_no_chip", () => {
   seed([{ name: "gauss-hires", description: "4/5 ⥮ Any" }]);
-  assert.deepEqual(filterTipFacets("gauss-hires").chips, []);
+  assert.deepEqual(chipCodes("gauss-hires"), []);
 });
 
 // ============================================================================
@@ -341,18 +384,17 @@ test("test_a_hires_name_earns_no_chip", () => {
 
 test("test_live_quality_outranks_a_conflicting_overlay_quality", () => {
   seed([{ name: "gauss-plain", description: "5/5 ⥮ Any" }], { "gauss-plain": { quality: 2 } });
-  assert.deepEqual(row("gauss-plain", "Quality"), ["Quality", "5/5"]);
+  assert.deepEqual(rowCodes("gauss-plain", QUALITY), ["5"]);
 });
 
 test("test_live_ratio_outranks_a_conflicting_overlay_ratio", () => {
   seed([{ name: "rat-int", description: "4/5 ⥮ Int" }], { "rat-int": { ratio: "2x" } });
-  assert.deepEqual(row("rat-int", "Ratio"), ["Ratio", "Integer"]);
+  assert.deepEqual(rowCodes("rat-int", RATIO), [INTEGER]);
 });
 
 test("test_live_focus_outranks_a_conflicting_overlay_focus", () => {
   seed([{ name: "gauss-a", description: "4/5 timbre ⥮ Any" }], { "gauss-a": { focus: ["transients"] } });
-  const value = String((row("gauss-a", "Focus") || [])[1]).toLowerCase();
-  assert.deepEqual([value.includes("timbre"), value.includes("transients")], [true, false]);
+  assert.deepEqual(rowCodes("gauss-a", FOCUS), ["timbre"]);
 });
 
 // ============================================================================
@@ -361,17 +403,17 @@ test("test_live_focus_outranks_a_conflicting_overlay_focus", () => {
 
 test("test_an_sdm_arrow_description_parses_its_quality", () => {
   seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
-  assert.deepEqual(row("sdm-a", "Quality"), ["Quality", "3/5"]);
+  assert.deepEqual(rowCodes("sdm-a", QUALITY), ["3"]);
 });
 
 test("test_an_sdm_arrow_description_parses_its_focus", () => {
   seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
-  assert.ok(...rowValueIs(row("sdm-a", "Focus"), "space"));
+  assert.deepEqual(rowCodes("sdm-a", FOCUS), ["space"]);
 });
 
 test("test_an_sdm_arrow_description_parses_its_ratio", () => {
   seed([{ name: "sdm-a", description: "3/5 space ⥣ Int" }]);
-  assert.deepEqual(row("sdm-a", "Ratio"), ["Ratio", "Integer"]);
+  assert.deepEqual(rowCodes("sdm-a", RATIO), [INTEGER]);
 });
 
 // ============================================================================
@@ -404,17 +446,17 @@ test("test_a_filter_option_tip_carries_the_filters_facet_rows", async () => {
   await reset();
   enums.value = { filters: [item("sinc-M", "4/5 ⥮ Int", 0)] };
   const tip = resolver(schema.pcm_filter_1x, FILTER_META);
-  assert.deepEqual(
-    tip({ value: "0", label: "sinc-M" }).rows.find((r) => r[0] === "Quality"),
-    ["Quality", "4/5"],
-  );
+  assert.deepEqual((tip({ value: "0", label: "sinc-M" }).rows.find((r) => r[0] === QUALITY) || [])[3], ["4"]);
 });
 
 test("test_a_filter_option_tip_carries_the_filters_chips", async () => {
   await reset();
   enums.value = { filters: [item("sinc-M", "4/5 ⥮ Int", 0, 1)] };
   const tip = resolver(schema.pcm_filter_1x, FILTER_META);
-  assert.deepEqual(tip({ value: "0", label: "sinc-M" }).chips, ["Apodizing"]);
+  assert.deepEqual(
+    tip({ value: "0", label: "sinc-M" }).chips.map((c) => c[0]),
+    ["apodizing"],
+  );
 });
 
 test("test_a_filter_absent_from_the_facet_map_tips_empty_rows_and_chips", async () => {

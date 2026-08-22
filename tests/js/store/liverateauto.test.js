@@ -290,14 +290,10 @@ const SDM_MODE_PLAYING = () => ({
 
 // --- reading the model --------------------------------------------------------
 
-// A column's caption, normalized for the cases that ask what the sentence does
-// NOT contain — those are meaning-level questions and must not turn on casing.
-// The sentence itself is fixed text and is asserted raw, below.
+// A column's caption, read only for whether there is one: the wording is owner
+// copy and no case here asserts it.
 /** @param {Column} column */
 const reasonOf = (column) => String(column.reason || "").toLowerCase();
-
-// The one sentence a grayed rate column says in auto.
-const AUTO_REASON = "The engine selects the rate in Auto mode.";
 
 // A chain control by its form field. A miss throws rather than quietly
 // measuring nothing: a chain that has lost a control must fail loudly.
@@ -338,25 +334,9 @@ test("test_the_grayed_sdm_rate_column_carries_a_reason", () => {
   assert.ok(reasonOf(liveModel.value.sdmRate).length > 0, "the grayed SDM rate column carries no reason at all");
 });
 
-// The sentence is fixed text shown in one mode only, so it is pinned verbatim
-// rather than by meaning: it is what the user reads on hover, and a column that
-// worded it its own way would say something the page never agreed to say.
-
-test("test_the_grayed_pcm_rate_column_says_the_engine_selects_the_rate_in_auto", () => {
-  reset(AUTO_IDLE());
-  assert.equal(liveModel.value.pcmRate.reason, AUTO_REASON);
-});
-
-test("test_the_grayed_sdm_rate_column_says_the_engine_selects_the_rate_in_auto", () => {
-  reset(AUTO_IDLE());
-  assert.equal(liveModel.value.sdmRate.reason, AUTO_REASON);
-});
-
-// What the sentence must NOT say — that the change costs a restart, and that the
-// setting lives on another tab — is what the old caption carried, and the
-// verbatim pair above pins it: either phrase back in the text is a different
-// sentence and fails there. The reason is about what auto IS, not about what
-// changing it would cost or where else to go.
+// A verbatim pair stood here, pinning the auto caption word for word. The
+// caption is owner copy (docs/testing.md rule 9); that the grayed column carries
+// one is stated above, and nothing else survives the wording.
 
 // --- the gray is the configured mode's, never the loaded chain's --------------
 // Auto mid-playback: a chain IS loaded and a source IS playing — and the engine

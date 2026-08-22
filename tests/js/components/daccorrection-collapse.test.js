@@ -11,9 +11,9 @@
 // shared `renderWith` harness. The state is read back off the card section's
 // class list, as the browser shows it.
 //
-// The card's body is witnessed by its own gate control, the `dac_correction_enabled`
-// segmented switch, whose two choices read ENGAGE / BYPASS (card-gates.test.js).
-// A closed card renders none of it.
+// The card's body is witnessed by its own gate control, the field keyed
+// `dac_correction_enabled` (card-gates.test.js). A closed card renders none of
+// it.
 //
 // Kept apart from outputtab.test.js deliberately: the override a click writes is
 // module-level state that outlives a test, and each test FILE runs in its own
@@ -36,15 +36,18 @@ import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/stat
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { stagingWire } from "../support/wire.js";
 import { formFields, section, stateOf } from "../support/tabform.js";
+import { classes, elements } from "../support/markup.js";
 import { renderWith } from "../support/wheel.js";
 
 /** @typedef {import("../support/wheel.js").VNode} VNode */
 
-const DAC = "DAC correction";
-const LENGTH = "Filter length";
-// The gate control of the DAC correction card — the `dac_correction_enabled`
-// field, rendered as a two-choice segmented switch.
-const GATE = "ENGAGE";
+// Cards are named by the `data-card` their <section> carries — the card's own
+// machine identity, never the words in its head (docs/testing.md rule 9).
+const DAC = "dac-correction";
+const LENGTH = "filter-length";
+// The gate control of the DAC correction card, by the schema key its field
+// wears in `data-k`: the `dac_correction_enabled` two-choice segmented switch.
+const GATE = 'data-k="dac_correction_enabled"';
 
 /**
  * @param {string} value
@@ -84,52 +87,56 @@ async function reset() {
 const renderTab = () => renderWith(html`<${Output} />`);
 const tab = () => renderTab().out;
 
-/**
- * @param {unknown} node
- * @returns {string}
- */
-function text(node) {
-  if (node === null || node === undefined || typeof node === "boolean") return "";
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(text).join("");
-  const props = /** @type {VNode} */ (node).props;
-  return text(props && props.children);
-}
-
-// The head of the named card, as the button a pointer would land on. Anything
-// other than exactly one match throws rather than clicking something else.
-/** @param {string} title */
-function clickHead(title) {
-  const heads = renderTab().seen.filter(
-    (v) => v && v.type === "button" && v.props && typeof v.props.onClick === "function" && text(v).includes(title),
+// The head of the card carrying an id, as the button a pointer would land on.
+// Preact builds a card's own subtree before it moves to the next card, so the
+// head is the first head button built after that card's `data-card` vnode — the
+// renderer's depth-first order, not ours. The card is never found by the words
+// in its head (docs/testing.md rule 9).
+/** @param {string} card */
+function clickHead(card) {
+  const seen = renderTab().seen;
+  /** @param {VNode} v */
+  const cardId = (v) => (v && v.props ? v.props["data-card"] : undefined);
+  const at = seen.findIndex((v) => cardId(v) === card);
+  if (at < 0) throw new Error(`no card marked "${card}" was rendered`);
+  const head = seen.find(
+    (v, i) =>
+      i > at &&
+      v.type === "button" &&
+      v.props &&
+      typeof v.props.onClick === "function" &&
+      String(v.props.class || "")
+        .split(/\s+/)
+        .includes("card-head"),
   );
-  if (heads.length !== 1) throw new Error(`expected one clickable head for "${title}", found ${heads.length}`);
-  const onClick = /** @type {(event: object) => void} */ (heads[0].props.onClick);
-  onClick({ preventDefault() {}, stopPropagation() {} });
+  if (!head) throw new Error(`no clickable head under the "${card}" card`);
+  /** @type {(event: object) => void} */ (head.props.onClick)({ preventDefault() {}, stopPropagation() {} });
 }
 
 // Bring a card to the disclosure a case starts from, by clicking its head when
 // what is on screen is not it — the only route a user has.
 /**
- * @param {string} title
+ * @param {string} card
  * @param {string} want
  */
-function ensure(title, want) {
-  if (stateOf(tab(), title) === want) return;
-  clickHead(title);
-  const now = stateOf(tab(), title);
-  if (now !== want) throw new Error(`"${title}" would not go ${want}: it is ${now}`);
+function ensure(card, want) {
+  if (stateOf(tab(), card) === want) return;
+  clickHead(card);
+  const now = stateOf(tab(), card);
+  if (now !== want) throw new Error(`"${card}" would not go ${want}: it is ${now}`);
 }
 
 // --- the card is a disclosure --------------------------------------------------
 
-// The head is the card's own head element, a button, with the disclosure
-// triangle ahead of the title — whichever way the triangle points.
-const HEAD = new RegExp(`<button type="button" class="card-head"><span class="tri">[^<]*</span> ${DAC}</button>`);
+// The head is the card's own head element, a button a pointer can press, with
+// the disclosure triangle its `tri` span carries — whichever way the triangle
+// points and whatever the title beside it reads.
+/** @param {string} frag */
+const headButtons = (frag) => elements(frag).filter((el) => el.name === "button" && classes(el).includes("card-head"));
 
 test("test_the_dac_correction_head_is_a_disclosure_button", async () => {
   await reset();
-  assert.match(tab(), HEAD);
+  assert.equal(headButtons(section(tab(), DAC)).length, 1);
 });
 
 // --- how it stands before anyone touches it ------------------------------------

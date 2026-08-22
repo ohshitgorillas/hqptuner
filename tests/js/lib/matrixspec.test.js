@@ -1,6 +1,6 @@
 // Behavioral suite for lib/matrixspec.js — the pipeline `process` chain
 // parser/serializer. Written BEFORE the complexity refactor of validateStage
-// and stageLabel; not one case may change when those functions are split.
+// and the stage labeler; not one case may change when those functions are split.
 //
 // Policy (docs/testing.md): public API only, one assertion per test, no case
 // targets a private helper. The refactor's whole purpose is to create private
@@ -10,8 +10,10 @@
 // Assertion style, chosen deliberately:
 //   validateStage returns user-facing strings. Clean cases assert the issue
 //   COUNT; invalid cases assert an issue MENTIONS the offending token. Both
-//   survive rewording. stageLabel is asserted exactly — the label is the whole
-//   return value, so a changed separator IS a changed label.
+//   survive rewording. What a stage READS AS is owner copy (docs/testing.md
+//   rule 9), so the label cases go through stageParts — `kind`, `name` and the
+//   `[unit, value]` quantities the label is composed from. A convolution's
+//   basename is data, not copy, and those cases read it off `name` directly.
 //
 // Run: make test-js  (node rejects a bare directory argument to --test, and the
 // runner needs tests/js/vendor-resolve.js preloaded for the importmap specifiers)
@@ -26,7 +28,7 @@ import {
   validateStage,
   newStage,
   editedStage,
-  stageLabel,
+  stageParts,
   stageArgs,
 } from "../../../hqptuner/static/lib/matrixspec.js";
 
@@ -309,57 +311,64 @@ test("test_withoutEq_on_an_all_eq_chain_yields_an_empty_chain", () => {
   assert.equal(withoutEq("iir:type=lp1;f=100,iir:type=peak;f=1000;q=1;g=-3"), "");
 });
 
-// --- stageLabel -------------------------------------------------------------
+// --- stageParts -------------------------------------------------------------
 
-test("test_convolution_label_is_the_basename_of_a_path", () => {
-  assert.equal(stageLabel(stage("data/impulses/room.wav")), "room.wav");
+test("test_a_convolution_is_named_by_the_basename_of_its_path", () => {
+  assert.equal(stageParts(stage("data/impulses/room.wav")).name, "room.wav");
 });
 
-test("test_convolution_label_of_a_bare_filename_is_that_filename", () => {
-  assert.equal(stageLabel(stage("impulse.wav")), "impulse.wav");
+test("test_a_convolution_named_by_a_bare_filename_keeps_that_filename", () => {
+  assert.equal(stageParts(stage("impulse.wav")).name, "impulse.wav");
 });
 
-test("test_convolution_label_falls_back_to_the_whole_path_when_it_has_no_basename", () => {
-  assert.equal(stageLabel(stage("impulses/")), "impulses/");
+test("test_a_convolution_path_with_no_basename_falls_back_to_the_whole_path", () => {
+  assert.equal(stageParts(stage("impulses/")).name, "impulses/");
 });
 
-test("test_iir_label_carries_type_frequency_and_gain", () => {
-  assert.equal(stageLabel(stage("iir:type=peak;f=1000;q=1;g=-3")), "peak · 1000 Hz · -3 dB");
+test("test_an_iir_is_named_by_its_type", () => {
+  assert.equal(stageParts(stage("iir:type=peak;f=1000;q=1;g=-3")).name, "peak");
 });
 
-test("test_iir_label_omits_gain_when_the_stage_has_none", () => {
-  assert.equal(stageLabel(stage("iir:type=lp1;f=100")), "lp1 · 100 Hz");
+test("test_an_iir_carries_its_frequency_and_gain_as_quantities", () => {
+  assert.deepEqual(stageParts(stage("iir:type=peak;f=1000;q=1;g=-3")).quantities, [
+    ["Hz", "1000"],
+    ["dB", "-3"],
+  ]);
 });
 
-test("test_iir_label_without_a_type_reads_as_iir", () => {
-  assert.equal(stageLabel(stage("iir:f=100")), "iir · 100 Hz");
+test("test_an_iir_with_no_gain_carries_the_frequency_alone", () => {
+  assert.deepEqual(stageParts(stage("iir:type=lp1;f=100")).quantities, [["Hz", "100"]]);
 });
 
-test("test_iir_label_of_a_biquad_is_the_type_alone", () => {
-  assert.equal(stageLabel(stage("iir:type=biquad;b0=1;b1=0;b2=0;a0=1;a1=0;a2=0")), "biquad");
+test("test_an_iir_without_a_type_is_named_by_its_kind", () => {
+  assert.equal(stageParts(stage("iir:f=100")).name, "iir");
 });
 
-test("test_delay_label_in_seconds", () => {
-  assert.equal(stageLabel(stage("delay:t=0.0003")), "delay · 0.0003 s");
+test("test_a_biquad_carries_no_quantities", () => {
+  assert.deepEqual(stageParts(stage("iir:type=biquad;b0=1;b1=0;b2=0;a0=1;a1=0;a2=0")).quantities, []);
 });
 
-test("test_delay_label_in_samples", () => {
-  assert.equal(stageLabel(stage("delay:s=16")), "delay · 16 smp");
+test("test_a_delay_in_seconds_carries_a_seconds_quantity", () => {
+  assert.deepEqual(stageParts(stage("delay:t=0.0003")).quantities, [["s", "0.0003"]]);
 });
 
-test("test_delay_label_in_metres", () => {
-  assert.equal(stageLabel(stage("delay:d=0.15")), "delay · 0.15 m");
+test("test_a_delay_in_samples_carries_a_samples_quantity", () => {
+  assert.deepEqual(stageParts(stage("delay:s=16")).quantities, [["smp", "16"]]);
 });
 
-test("test_delay_label_prefers_seconds_over_samples", () => {
-  assert.equal(stageLabel(stage("delay:s=16;t=0.0003")), "delay · 0.0003 s");
+test("test_a_delay_in_metres_carries_a_metres_quantity", () => {
+  assert.deepEqual(stageParts(stage("delay:d=0.15")).quantities, [["m", "0.15"]]);
 });
 
-test("test_delay_label_with_only_a_speed_argument_is_bare", () => {
+test("test_a_delay_prefers_seconds_over_samples", () => {
+  assert.deepEqual(stageParts(stage("delay:s=16;t=0.0003")).quantities, [["s", "0.0003"]]);
+});
+
+test("test_a_delay_with_only_a_speed_argument_carries_no_quantity", () => {
   // v sets the speed of sound for d= conversion; it is not itself a quantity.
-  assert.equal(stageLabel(stage("delay:v=343.956")), "delay");
+  assert.deepEqual(stageParts(stage("delay:v=343.956")).quantities, []);
 });
 
-test("test_riaa_label_is_the_kind", () => {
-  assert.equal(stageLabel(stage("riaa")), "riaa");
+test("test_a_riaa_stage_is_named_by_its_kind", () => {
+  assert.equal(stageParts(stage("riaa")).name, "riaa");
 });

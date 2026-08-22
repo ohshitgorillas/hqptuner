@@ -31,6 +31,12 @@ function strip(status) {
 
 const PLAYING = { state: "2", track_serial: "1", process_speed: "1.5" };
 
+// The KINDS of alert on screen, read off the `data-alert` each row carries —
+// the alert's own machine identity, contract like any other wire-side marking,
+// so a reworded sentence changes nothing here (docs/testing.md rule 9).
+/** @param {string} out */
+const alertKinds = (out) => [...out.matchAll(/data-alert="([^"]*)"/g)].map((m) => m[1]);
+
 test("test_a_missing_status_frame_renders_no_strip", () => {
   assert.equal(strip(null), "");
 });
@@ -44,7 +50,7 @@ test("test_an_idle_engine_renders_no_strip_even_with_leftover_counters", () => {
 });
 
 test("test_a_clipping_track_puts_its_alert_on_screen", () => {
-  assert.ok(strip({ ...PLAYING, clips: "13" }).includes("Clipping ×13 this track"));
+  assert.deepEqual(alertKinds(strip({ ...PLAYING, clips: "13" })), ["clipping"]);
 });
 
 test("test_a_clip_alert_renders_at_warning_severity", () => {

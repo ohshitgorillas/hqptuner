@@ -33,9 +33,9 @@ test("test_loading_without_storage_warns_exactly_once", () => {
   assert.equal(warns.length, 1);
 });
 
-test("test_the_warning_says_prefs_will_not_persist", () => {
-  assert.match(warns[0], /not persisted/);
-});
+// A second case matched the warning's own wording. Log text is off limits
+// (docs/testing.md rules 1 and 9); that exactly one warning is emitted is the
+// whole of the contract.
 
 test("test_a_setter_does_not_repeat_the_warning", () => {
   console.warn = (msg) => warns.push(String(msg));
