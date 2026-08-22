@@ -2,10 +2,12 @@
 
 The running engine stays the sole authority for enumeration names, IDs and
 ordering (docs/architecture.md §2); this payload only ANNOTATES, joined by raw
-engine name. Each of the three sections — filters, dithers, modulators — maps a
+engine name. Each GROUPED section — filters, dithers, modulators, sdm_integrator — maps a
 raw name to the display record the frontend regroups the dropdown by: `family`,
 `variant` (nullable), `leaf` and `short`, with filters additionally classified
-`apod`. The filter data spans both chains' enumerations, PCM and SDM, 84 unique
+`apod`. A FLAT section — sdm_conversion — carries `leaf` and `short` alone, no
+`family` on any entry, and its `families`/`variants` blurb maps arrive empty.
+The filter data spans both chains' enumerations, PCM and SDM, 84 unique
 names including every `-2s` entry.
 
 A section's key order is its dropdown display order, so the ordering tests
@@ -25,8 +27,11 @@ from typing import cast
 import pytest
 from fastapi.testclient import TestClient
 
-DISPLAY_FIELDS = {"family", "variant", "leaf", "short"}
-SECTIONS = ["filters", "dithers", "modulators"]
+GROUPED_FIELDS = {"family", "variant", "leaf", "short"}
+FLAT_FIELDS = {"leaf", "short"}
+FLAT_SECTIONS = ["sdm_conversion"]
+GROUPED_SECTIONS = ["filters", "dithers", "modulators", "sdm_integrator"]
+SECTIONS = GROUPED_SECTIONS + FLAT_SECTIONS
 
 
 def _plain_names(client: TestClient) -> dict[str, dict[str, dict[str, dict[str, object]]]]:
@@ -57,7 +62,8 @@ def test_all_sixteen_two_stage_filter_names_are_annotated(api_client: TestClient
 @pytest.mark.parametrize("section", SECTIONS)
 def test_every_entry_carries_the_display_fields(api_client: TestClient, section: str) -> None:
     entries = _entries(api_client, section)
-    assert [name for name, entry in entries.items() if not set(entry) >= DISPLAY_FIELDS] == []
+    required = FLAT_FIELDS if section in FLAT_SECTIONS else GROUPED_FIELDS
+    assert [name for name, entry in entries.items() if not set(entry) >= required] == []
 
 
 @pytest.mark.parametrize("section", SECTIONS)
@@ -141,3 +147,49 @@ def test_an_apodizing_row_serves_after_its_non_apodizing_peer(api_client: TestCl
     wanted = ["poly-sinc-gauss-xl", "poly-sinc-gauss-xla"]
     served = [name for name in _entries(api_client, "filters") if name in wanted]
     assert served == wanted
+
+
+# --- the two SDM-source dropdowns -------------------------------------------
+# The engine's own enumerations for these two selects, as the daemon's config
+# form serves them (tests/support/fixtures/config-form-6.0.4.html): wire
+# identifiers, so pinning them is contract rather than wording. Coverage is
+# asserted in the direction that matters for the UI — every name the engine can
+# enumerate is annotated; an overlay carrying extra names annotates nothing the
+# user sees.
+
+ENGINE_SDM_CONVERSIONS = {"wide", "narrow", "XFi"}
+ENGINE_INTEGRATORS = {"IIR", "IIR2", "IIR3", "FIR", "FIR2", "FIR-bl", "FIR-bw", "CIC"}
+
+
+def _families(client: TestClient, section: str) -> dict[str, object]:
+    return cast("dict[str, object]", _plain_names(client)[section]["families"])
+
+
+def test_metadata_serves_a_plain_names_section_for_the_sdm_source_dropdowns(api_client: TestClient) -> None:
+    assert {"sdm_conversion", "sdm_integrator"} <= set(_plain_names(api_client))
+
+
+def test_every_engine_sdm_conversion_name_is_annotated(api_client: TestClient) -> None:
+    assert set(_entries(api_client, "sdm_conversion")) >= ENGINE_SDM_CONVERSIONS
+
+
+def test_every_engine_integrator_name_is_annotated(api_client: TestClient) -> None:
+    assert set(_entries(api_client, "sdm_integrator")) >= ENGINE_INTEGRATORS
+
+
+def test_no_sdm_conversion_entry_carries_a_family(api_client: TestClient) -> None:
+    # The flat section groups nothing: an entry carrying a family would build a
+    # header row for a dropdown that has none.
+    entries = _entries(api_client, "sdm_conversion")
+    assert [name for name, entry in entries.items() if "family" in entry] == []
+
+
+def test_every_sdm_integrator_entry_carries_a_family(api_client: TestClient) -> None:
+    entries = _entries(api_client, "sdm_integrator")
+    assert [name for name, entry in entries.items() if "family" not in entry] == []
+
+
+def test_every_family_an_sdm_integrator_entry_names_has_a_blurb(api_client: TestClient) -> None:
+    blurbs = _families(api_client, "sdm_integrator")
+    named = {str(entry["family"]) for entry in _entries(api_client, "sdm_integrator").values()}
+    assert sorted(family for family in named if family not in blurbs) == []

@@ -165,7 +165,7 @@ function chips(out) {
 /** @param {string} out */
 const labels = (out) => [...out.matchAll(/<span class="chip-label">([^<]*)<\/span>/g)].map((m) => m[1]);
 
-// SSR escapes the entities in a chip label, so "SDM → SDM" arrives encoded.
+// SSR escapes the entities in a chip label, so "SDM → PCM" arrives encoded.
 /** @param {string} s */
 const decode = (s) => s.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&");
 
@@ -359,7 +359,7 @@ test("test_a_pcm_source_into_a_dsd_output_still_shows_the_oversampling_filter", 
 });
 
 // --- DSD source -> SDM output (SDM->SDM remodulation) ------------------------
-// Integrator + SDM→SDM conversion, and neither an oversampling filter nor a
+// Reconstruction filter + source bandwidth, and neither an oversampling filter nor a
 // modulator: the converter carries its own noise shaping (manual §4.5). The
 // engine keeps reporting active_filter/active_shaper here regardless, which is
 // exactly the stale modulator this path must stop showing.
@@ -376,25 +376,30 @@ test("test_a_dsd_source_into_a_dsd_output_shows_no_filter_chip", () => {
   assert.equal(has(panel(DSD_TO_SDM), "Filter"), false);
 });
 
-test("test_a_dsd_source_into_a_dsd_output_shows_the_integrator", () => {
-  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { integrator: "2" } }), "Integrator"), "FIR-bw");
+test("test_a_dsd_source_into_a_dsd_output_shows_the_reconstruction_filter", () => {
+  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { integrator: "2" } }), "Reconstruction filter"), "FIR-bw");
 });
 
-test("test_a_dsd_source_into_a_dsd_output_shows_the_sdm_to_sdm_conversion", () => {
-  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } }), "SDM → SDM"), "XFi");
+test("test_a_dsd_source_into_a_dsd_output_shows_the_source_bandwidth", () => {
+  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "2" } }), "Source bandwidth"), "XFi");
 });
 
-test("test_the_remodulation_chain_runs_source_integrator_conversion_output", () => {
-  assert.deepEqual(labels(panel(DSD_TO_SDM)).map(decode), ["Source", "Integrator", "SDM → SDM", "Output"]);
+test("test_the_remodulation_chain_runs_source_reconstruction_bandwidth_output", () => {
+  assert.deepEqual(labels(panel(DSD_TO_SDM)).map(decode), [
+    "Source",
+    "Reconstruction filter",
+    "Source bandwidth",
+    "Output",
+  ]);
 });
 
 test("test_a_dsd_source_is_recognized_from_the_metadata_sdm_flag_alone", () => {
   const out = panel({ ...DSD_TO_SDM, metadata: { sdm: "1" } });
-  assert.equal(has(out, "Integrator"), true);
+  assert.equal(has(out, "Reconstruction filter"), true);
 });
 
 test("test_an_unmatched_conversion_value_falls_back_to_the_raw_value", () => {
-  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "9" } }), "SDM → SDM"), "9");
+  assert.equal(chip(panel({ ...DSD_TO_SDM, dsp: { sdmConversion: "9" } }), "Source bandwidth"), "9");
 });
 
 // --- DirectSDM ---------------------------------------------------------------

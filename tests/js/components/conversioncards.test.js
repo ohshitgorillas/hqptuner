@@ -224,10 +224,10 @@ test("test_dsd_source_handling_for_pcm_output_carries_the_sdm_to_pcm_conversion"
   assert.ok(subsection(section(tab(), PCM), FROM_DSD).includes("<label>SDM → PCM<"));
 });
 
-test("test_dsd_source_handling_for_sdm_output_carries_the_integrator", async () => {
+test("test_dsd_source_handling_for_sdm_output_carries_the_reconstruction_filter", async () => {
   await reset({ cfg: CHAINS });
   nSrcFormat.value = "both";
-  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Integrator<"));
+  assert.ok(subsection(section(tab(), SDM), FROM_DSD).includes("<label>Reconstruction filter<"));
 });
 
 test("test_dsd_source_handling_for_sdm_output_carries_direct_sdm", async () => {
