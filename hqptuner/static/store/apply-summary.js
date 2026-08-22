@@ -16,6 +16,12 @@
  *   is, and the fields beside it carry the parts the sentence interpolates. An
  *   apply has two axes — what the apply itself did, and how its preset save went
  *   — so `save` rides alongside `code` rather than replacing it.
+ *
+ *   `lastApply` is annotated with this type rather than left to inference:
+ *   `signal(null)` alone infers `any`, and a caller reading a field name that
+ *   does not exist would then type-check clean. The annotation is structural
+ *   (`{value: …}`) because the vendored @preact/signals typings export no
+ *   `Signal` name, and `.value` is the whole of what callers touch.
  * @property {boolean} ok
  * @property {string} code
  * @property {string} text

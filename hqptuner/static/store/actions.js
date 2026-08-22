@@ -299,12 +299,7 @@ export async function deletePreset(name) {
 
 // apply lifecycle, shared so the pill and the pending bar both reflect it
 export const applying = signal(false);
-// Typed rather than left to inference: `signal(null)` alone infers `any`, which
-// lets a caller read a field name that does not exist and type-check clean.
-// Structural rather than `Signal<…>`: the vendored @preact/signals typings
-// export no `Signal` name, and `.value` is the whole of what callers touch.
-/** @type {{ value: import("./apply-summary.js").Verdict | null }} */
-export const lastApply = signal(null);
+export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdict | null }} */ (signal(null));
 
 // Both write lanes share a lifecycle: hold `applying` for the duration so the
 // pill and the pending bar can show it, and report a thrown failure as a
