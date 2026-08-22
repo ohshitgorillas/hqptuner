@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The caret on a dropdown is drawn larger.** The triangle at the right edge of a filter or modulator dropdown was rendering at text size, which left it a speck beside the label. It now grows within the same row height.
+
 - **Explanation text under a dropdown starts on the dropdown's text edge.** The description, note and gray reason below a dropdown indent to line up with the wording inside the closed control instead of with its left border.
 
 - **The selected option carries an accent mark in the dropdown list.** An open dropdown draws a small triangle in the gutter beside the option currently in force, which is what the long Simplified lists need to be scannable. The selected row no longer sets itself apart by weight alone, which read as a group header among them.

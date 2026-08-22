@@ -30,9 +30,18 @@
   font-size: var(--fs-body);
   cursor: pointer;
 }
+/* The caret is a glyph, not type: at the trigger's own --fs-body it renders as
+   a speck beside the label, because this character's ink is a fraction of its
+   em (the same reason the disclosure caret spends --fs-glyph). Scaled rather
+   than sized up, because the caret's line box is what sets the trigger's
+   height: --fs-glyph with the line-height clamped to fit takes every dropdown
+   on the page from 28px to 26px, and the transform grows the ink while the
+   box it occupies stays exactly as it was. */
 .dd-box::after {
   content: "▾";
   color: var(--muted);
+  display: inline-block;
+  transform: scale(1.8);
 }
 .dd-box[aria-expanded="true"]::after {
   content: "▴";
