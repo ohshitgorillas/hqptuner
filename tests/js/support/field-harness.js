@@ -85,8 +85,14 @@ export const META = {
       // notes — the latter also reachable through a `-2s` label, which is how
       // the SDM-chain sentence and the `-2s` variant sentence land on one
       // string.
+      // The flag is optional AND tri-state in practice: absent, true, or an
+      // explicit false, which reads the same as absent. `sdm-D` is the one
+      // combination where the SDM-chain join could contribute a separator to a
+      // description that is not there.
       "sdm-A": { description: "A flagged sinc.", sdm_two_stage: true },
       "sdm-B": { description: "A flagged short sinc.", notes: "Flagged caveat.", sdm_two_stage: true },
+      "sdm-C": { description: "An explicitly single stage sinc.", sdm_two_stage: false },
+      "sdm-D": { description: "", sdm_two_stage: true },
     },
     aliases: { "poly-sinc-xtr-mp": "xtr-mp" },
     two_stage_note: "Two stage oversampling.",
