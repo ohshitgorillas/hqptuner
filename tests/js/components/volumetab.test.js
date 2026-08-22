@@ -87,11 +87,34 @@ const card = section;
 // `data-v` each button carries — the wire values of the gate's boolean field —
 // never off the words on them.
 /** @param {string} s */
-const segmentValues = (s) =>
+const segments = (s) =>
   elements(s)
     .filter((el) => el.name === "button" && classes(el).includes("seg"))
-    .sort((a, b) => a.start - b.start)
-    .map((el) => attr(el, "data-v"));
+    .sort((a, b) => a.start - b.start);
+
+/** @param {string} s */
+const segmentValues = (s) => segments(s).map((el) => attr(el, "data-v"));
+
+// Whether one element encloses another. Where a control sits relative to a
+// region is a structural question, so it is answered structurally rather than
+// by cutting the fragment at a marker — a cut lands mid-body and leaves every
+// element around it open.
+/**
+ * @param {import("../support/markup.js").MarkupElement} outer
+ * @param {import("../support/markup.js").MarkupElement} inner
+ */
+const encloses = (outer, inner) =>
+  outer.start <= inner.start && outer.start + outer.html.length >= inner.start + inner.html.length;
+
+// The grayed body of a card: the element carrying the `dsp-body off` marker. A
+// miss throws rather than quietly declaring everything outside it — a question
+// about what a dimmed region does NOT hold means nothing without the region.
+/** @param {string} s */
+function dimmedBody(s) {
+  const [hit] = elements(s).filter((el) => classes(el).includes("dsp-body") && classes(el).includes("off"));
+  if (!hit) throw new Error("nothing in the fragment carries the dimmed body marker");
+  return hit;
+}
 
 // The two states a boolean gate offers, ON first (the convention
 // conversioncards.test.js pins for `direct_sdm`, which offers "0" then "1").
@@ -210,7 +233,10 @@ test("test_the_loudness_body_stays_dimmed_while_the_volume_control_is_bypassed",
 
 test("test_the_loudness_enable_stays_outside_the_dimmed_body", async () => {
   await reset({ mtx: OFF });
-  assert.deepEqual(segmentValues(card(tab(), LOUDNESS).split(DIMMED)[0]).slice(0, 2), [GATE_ON, GATE_OFF]);
+  const frag = card(tab(), LOUDNESS);
+  const body = dimmedBody(frag);
+  const outside = segments(frag).filter((el) => !encloses(body, el));
+  assert.deepEqual(outside.map((el) => attr(el, "data-v")).slice(0, 2), [GATE_ON, GATE_OFF]);
 });
 
 test("test_the_loudness_strip_rules_between_its_knobs", async () => {

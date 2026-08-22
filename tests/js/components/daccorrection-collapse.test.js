@@ -38,8 +38,7 @@ import { stagingWire } from "../support/wire.js";
 import { formFields, section, stateOf } from "../support/tabform.js";
 import { classes, elements } from "../support/markup.js";
 import { renderWith } from "../support/wheel.js";
-
-/** @typedef {import("../support/wheel.js").VNode} VNode */
+import { clickCardHead } from "../support/carddisclosure.js";
 
 // Cards are named by the `data-card` their <section> carries — the card's own
 // machine identity, never the words in its head (docs/testing.md rule 9).
@@ -87,31 +86,13 @@ async function reset() {
 const renderTab = () => renderWith(html`<${Output} />`);
 const tab = () => renderTab().out;
 
-// The head of the card carrying an id, as the button a pointer would land on.
-// Preact builds a card's own subtree before it moves to the next card, so the
-// head is the first head button built after that card's `data-card` vnode — the
-// renderer's depth-first order, not ours. The card is never found by the words
-// in its head (docs/testing.md rule 9).
+// The head of the card carrying an id, as the button a pointer would land on:
+// the head INSIDE that card's own section subtree, so which card is toggled is
+// a matter of containment rather than of the order preact happens to build
+// vnodes in. The card is never found by the words in its head (docs/testing.md
+// rule 9).
 /** @param {string} card */
-function clickHead(card) {
-  const seen = renderTab().seen;
-  /** @param {VNode} v */
-  const cardId = (v) => (v && v.props ? v.props["data-card"] : undefined);
-  const at = seen.findIndex((v) => cardId(v) === card);
-  if (at < 0) throw new Error(`no card marked "${card}" was rendered`);
-  const head = seen.find(
-    (v, i) =>
-      i > at &&
-      v.type === "button" &&
-      v.props &&
-      typeof v.props.onClick === "function" &&
-      String(v.props.class || "")
-        .split(/\s+/)
-        .includes("card-head"),
-  );
-  if (!head) throw new Error(`no clickable head under the "${card}" card`);
-  /** @type {(event: object) => void} */ (head.props.onClick)({ preventDefault() {}, stopPropagation() {} });
-}
+const clickHead = (card) => clickCardHead(renderTab().seen, card);
 
 // Bring a card to the disclosure a case starts from, by clicking its head when
 // what is on screen is not it — the only route a user has.

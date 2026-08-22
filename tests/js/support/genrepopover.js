@@ -152,19 +152,37 @@ function facet(out, name) {
 // A choice row is the `<label>` carrying the option's own wire value in
 // `data-v`, so a row is named by that value and never by the caption beside the
 // input (docs/testing.md rule 9).
-const ROW = /<label([^<>]*\sdata-v="[^"]*"[^<>]*)>([\s\S]*?)<\/label>/g;
+//
+// The value may be the EMPTY STRING — a legitimate wire value (the phase
+// taxonomy's "no phase" is one) — and preact-render-to-string emits an empty
+// attribute VALUELESS, as `<label class data-v>` rather than `data-v=""`. So the
+// quotes are optional here, the same way markup.js `hasAttr` treats them, or the
+// empty row is invisible to every reader below and a suite silently asserts
+// about a shorter list than the popover offers. What stays mandatory is the
+// attribute itself: `data-v` is what makes a `<label>` a choice row, and a label
+// without one must still not match. The lookahead is what keeps `data-value` and
+// friends out.
+const DATA_V = `data-v(?:=("[^"]*"))?(?=[\\s>]|$)`;
+const ROW = new RegExp(`<label([^<>]*\\s${DATA_V}[^<>]*)>([\\s\\S]*?)</label>`, "g");
+const VALUE = new RegExp(`(^|\\s)${DATA_V}`);
 
 /**
  * @param {string} block
  * @returns {{ attrs: string, body: string }[]}
  */
-const rowsOf = (block) => [...block.matchAll(ROW)].map((m) => ({ attrs: m[1], body: m[2] }));
+const rowsOf = (block) => [...block.matchAll(ROW)].map((m) => ({ attrs: m[1], body: m[3] }));
 
 /**
+ * One row's wire value. A valueless `data-v` is how the empty string reaches the
+ * markup, so it reads back as the empty string rather than as no row at all.
+ *
  * @param {string} attrs
  * @returns {string}
  */
-const valueOf = (attrs) => (/(^|\s)data-v="([^"]*)"/.exec(attrs) || [])[2] || "";
+const valueOf = (attrs) => {
+  const quoted = (VALUE.exec(attrs) || [])[2];
+  return quoted ? quoted.slice(1, -1) : "";
+};
 
 /**
  * @param {string} body

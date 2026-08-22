@@ -437,5 +437,5 @@ test("test_the_bauer_view_renders_exactly_one_engage_button", async () => {
 
 test("test_the_bauer_preset_row_keeps_its_preset_dropdown", async () => {
   await reset({ mode: "bauer", enabled: true });
-  assert.ok(hasLabel(card(), "post_bauer_preset"));
+  assert.ok(hasLabel(card(), "crossfeed_preset"));
 });

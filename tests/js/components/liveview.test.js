@@ -41,7 +41,7 @@ import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.
 import { liveMode } from "../../../hqptuner/static/store/prefs.js";
 import { staticWire } from "../support/wire.js";
 import { attrOf, grayReason } from "../support/field-harness.js";
-import { enclosing, labeled } from "../support/markup.js";
+import { labeled } from "../support/markup.js";
 import { cardHeadAt, section } from "../support/tabform.js";
 
 const ENUMS = {
@@ -208,10 +208,10 @@ test("test_the_live_page_offers_no_quick_updates_tickbox", async () => {
 // tooltip: without one an empty title would be indistinguishable from a fixture
 // hole, and the case that asks for the tooltip would pin nothing.
 //
-// The anchors are what a user reads: the rate columns are labeled `PCM` and
-// `SDM`, and the field root is the single smallest element enclosing that label,
-// which is the element a pointer hovers. Everything between is left alone, so a
-// restructured card that says the same things still measures.
+// The anchors are the columns' own schema keys, `pcm_rate` and `sdm_rate`: the
+// field root is the element carrying the key, and that is the element a pointer
+// hovers and the element the title sits on. Everything around it is left alone,
+// so a restructured card that says the same things still measures.
 
 // The two output modes the reason turns on, each set coherently across the three
 // sources the page reads: State's numeric mode, the enumeration the engine is
@@ -254,14 +254,15 @@ async function inOutputMode(mode) {
 /** @param {string} raw */
 const decode = (raw) => raw.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
-// The field a rate column is rendered in: the smallest element enclosing its
-// label, which is the element a pointer hovers. A miss throws rather than
-// quietly measuring nothing — a column that has lost its label must fail loudly.
+// The field a rate column is rendered in: the element carrying the column's own
+// schema key, which is the element a pointer hovers and the element the hover
+// title sits on. A miss throws rather than quietly measuring nothing — a column
+// that has lost its key must fail loudly.
 /**
  * @param {string} out
  * @param {string} label
  */
-const rateField = (out, label) => enclosing(out, labeled(out, label));
+const rateField = (out, label) => labeled(out, label);
 
 /**
  * @param {string} out
