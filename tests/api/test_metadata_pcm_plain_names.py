@@ -5,10 +5,9 @@
 same names (hqplayerd-readme.txt pdm_filter / pdm_conversion; the raw names
 below are the wire identifiers the 6.0.4 form fixture serves). Each entry maps
 a raw engine name to `family` (non-empty), `variant` (null throughout — these
-enumerations carry no variant axis), `leaf` and `short`; each section's
-`families` map holds exactly three blurbs. `pcm_conversion`'s `none` entry
-belongs to a blurbless single-row family, so its family is deliberately NOT a
-`families` key.
+enumerations carry no variant axis), `leaf` and `short`; every family an entry
+names carries a blurb in its section's `families` map, and no blurb is an
+orphan. `noise_filter` holds three blurbs, `pcm_conversion` four.
 
 New here is the recommendation flag: exactly the entries named in REC carry
 `rec: true`, no other entry of these sections carries a `rec` key at all, and
@@ -179,9 +178,12 @@ def test_a_minimum_phase_entry_precedes_its_linear_phase_peer(
 # --- the family blurbs --------------------------------------------------------
 
 
-@pytest.mark.parametrize("section", SECTIONS)
-def test_a_sections_families_map_holds_exactly_three_blurbs(api_client: TestClient, section: str) -> None:
-    assert len(_families(api_client, section)) == 3
+def test_the_noise_filter_families_map_holds_three_blurbs(api_client: TestClient) -> None:
+    assert len(_families(api_client, "noise_filter")) == 3
+
+
+def test_the_pcm_conversion_families_map_holds_four_blurbs(api_client: TestClient) -> None:
+    assert len(_families(api_client, "pcm_conversion")) == 4
 
 
 @pytest.mark.parametrize("section", SECTIONS)
@@ -199,17 +201,12 @@ def test_every_family_blurb_key_is_a_family_some_entry_names(api_client: TestCli
     assert sorted(family for family in _families(api_client, section) if family not in named) == []
 
 
-def test_every_family_a_noise_filter_entry_names_has_a_blurb(api_client: TestClient) -> None:
-    blurbs = _families(api_client, "noise_filter")
-    named = {str(entry["family"]) for entry in _entries(api_client, "noise_filter").values()}
+@pytest.mark.parametrize("section", SECTIONS)
+def test_every_family_an_entry_names_has_a_blurb(api_client: TestClient, section: str) -> None:
+    # No blurbless family: every family header a section renders is captioned.
+    blurbs = _families(api_client, section)
+    named = {str(entry["family"]) for entry in _entries(api_client, section).values()}
     assert sorted(family for family in named if family not in blurbs) == []
-
-
-def test_the_none_entrys_family_carries_no_blurb(api_client: TestClient) -> None:
-    # `none` is a blurbless single-row family: its family name is deliberately
-    # not a key of the pcm_conversion families map.
-    family = str(_entries(api_client, "pcm_conversion")["none"]["family"])
-    assert family not in _families(api_client, "pcm_conversion")
 
 
 # --- the recommendation flag --------------------------------------------------

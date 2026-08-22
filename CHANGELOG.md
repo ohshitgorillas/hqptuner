@@ -6,6 +6,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **Two noise filter options are named for what they do.** The Averaging family's second weighted option drops the SACD framing for the manual's own non-ringing linear phase, and the Dedicated family's lower corner frequency option no longer claims a flat noise floor, which the manual calls almost flat.
+
+- **The Decimation filter families read accurately in Simplified.** The Conventional blurb no longer claims most DACs do this conversion internally, and the family holding the no-decimation option is now named Bypass, captioned with what it does, and lists its option as No decimation.
+
 - **The SDM chain descriptions read as fluent English.** The sigma-delta modulator, Dither, Reconstruction filter, Source bandwidth, Noise filter and Decimation filter prose gains articles, resolves comma splices and gives its bare value fragments a verb. Compound modifiers are hyphenated, rate floors read with a proper ≥ sign, and the manual's pointer to its own option list is dropped. No technical claim changes.
 
 - **The caret on a dropdown is drawn larger.** The triangle at the right edge of a filter or modulator dropdown was rendering at text size, which left it a speck beside the label. It now grows within the same row height.

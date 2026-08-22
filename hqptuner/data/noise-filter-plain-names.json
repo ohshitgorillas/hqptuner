@@ -16,8 +16,8 @@
     "low": {
       "family": "Dedicated",
       "variant": null,
-      "leaf": "Flat noise floor",
-      "short": "Dedicated · Flat noise floor",
+      "leaf": "Lower corner frequency",
+      "short": "Dedicated · Low ƒc",
       "rec": true
     },
     "high-order": {
@@ -42,8 +42,8 @@
     "wec2": {
       "family": "Averaging",
       "variant": null,
-      "leaf": "SACD match",
-      "short": "Averaging · SACD match",
+      "leaf": "Weighted, non-ringing linear phase",
+      "short": "Averaging · Weighted, non-ringing linear",
       "rec": true
     },
     "slow-mp": {
