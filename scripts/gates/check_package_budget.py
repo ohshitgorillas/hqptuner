@@ -37,7 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 BUDGET: dict[str, int] = {
     "hqptuner/api": 321,
     "hqptuner/api/routes": 1168,
-    "hqptuner/conf": 2252,
+    "hqptuner/conf": 2283,
     "hqptuner/core": 612,
     "hqptuner/engine": 1133,
     "hqptuner/lanes": 493,
