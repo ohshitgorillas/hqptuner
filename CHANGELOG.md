@@ -6,6 +6,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- **The two high attenuation pure sinc leaves read "Long with high attenuation".** The `sinc-Lh` and `sinc-long-h` rows drop the earlier "Long length, high attenuation" phrasing in both the leaf label and the flattened Standard name.
+
 - **FFT joins the Conventional family as a Brickwall variant.** The frequency-domain filter leaves Misc, which now holds no resampling and asynchronous rate conversion alone, and the Conventional family caption and its Classic oversampling blurb are reworded.
 
 - **The Polynomial and Minimum ringing blurbs are corrected.** Polynomial now leads with its slow roll-off and weak ultrasonic suppression rather than its ringing, which the leaf labels already state, and Minimum ringing no longer claims less ringing than Polynomial.

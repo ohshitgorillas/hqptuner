@@ -528,8 +528,8 @@
     "sinc-Lh": {
       "family": "Pure sinc",
       "variant": "Base",
-      "leaf": "Long length, high attenuation",
-      "short": "Sinc · Long length, high attenuation",
+      "leaf": "Long with high attenuation",
+      "short": "Sinc · Long with high attenuation",
       "apod": "none"
     },
     "sinc-L": {
@@ -563,8 +563,8 @@
     "sinc-long-h": {
       "family": "Pure sinc",
       "variant": "Rate-flexible",
-      "leaf": "Long length, high attenuation",
-      "short": "Sinc · Rate-flexible · Long length, high attenuation",
+      "leaf": "Long with high attenuation",
+      "short": "Sinc · Rate-flexible · Long with high attenuation",
       "apod": "none"
     },
     "sinc-MG": {
